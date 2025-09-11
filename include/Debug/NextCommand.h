@@ -10,10 +10,6 @@
 
 #include "Debug/MonitorCommand.h"
 
-// Forward declarations
-class Computer;
-class MLMonitor;
-
 class NextCommand : public MonitorCommand
 {
     public:
