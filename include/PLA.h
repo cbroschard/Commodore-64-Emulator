@@ -1,0 +1,111 @@
+﻿// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
+#ifndef PLA_H
+#define PLA_H
+
+#include <cstdint>
+#include <iostream>
+#include "Cartridge.h"
+#include "Vic.h"
+
+class PLA
+{
+    public:
+        PLA();
+        virtual ~PLA();
+
+        enum memoryBank
+        {
+            RAM,
+            KERNAL_ROM,
+            BASIC_ROM,
+            CHARACTER_ROM,
+            CARTRIDGE_LO,
+            CARTRIDGE_HI,
+            IO,
+            UNMAPPED
+        };
+
+        struct memoryAccessInfo
+        {
+            memoryBank bank;
+            uint16_t offset;
+        };
+
+        void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
+        void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+
+        // Standard reset routine
+        void reset();
+
+        // Allow memory class to query PLA for current status
+        memoryAccessInfo getMemoryAccess(uint16_t address);
+
+        // Memory control register getters
+        bool getLORAM() const { return loram; }
+        bool getHIRAM() const { return hiram; }
+        bool getCHAREN() const { return charen; }
+
+        // Cartridge setter
+        void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
+
+        // Getters
+        bool getExROMLine() const { return exROMLine; }
+        bool getGameLine() const { return gameLine; }
+
+        // Memory control register
+        uint8_t getMemoryControlRegister() const { return memoryControlRegister; }
+        void updateMemoryControlRegister(uint8_t value);
+
+        // Memory control register updates
+        void scheduleMCRUpdate(uint8_t value);
+        void applyPendingMCRUpdate();
+        bool hasPendingMCRUpdate() const { return updatePending; }
+
+        // Cartridge attached types
+        inline bool is8K() { return gameLine && !exROMLine; }
+        inline bool is16K() { return !gameLine && !exROMLine; }
+        inline bool isUltimax() { return !gameLine && exROMLine; }
+
+        // ML Monitor API
+        std::string describeAddress(uint16_t addr);
+        std::string describeMode();
+
+    protected:
+
+    private:
+
+        // Non-owning pointers
+        Cartridge* cart = nullptr;
+        Vic* vicII = nullptr;
+
+        // ROM constants
+        static const uint16_t CHAR_ROM_START = 0xD000;
+        static const uint16_t CHAR_ROM_END = 0xDFFF;
+
+        // Memory lines
+        bool loram;
+        bool hiram;
+        bool charen;
+
+        // Cartridge lines
+        bool exROMLine;
+        bool gameLine;
+
+        // Keep track of a cartridge "inserted"
+        bool cartridgeAttached;
+
+        // Memory control register vars
+        uint8_t memoryControlRegister;
+        bool updatePending;
+        uint8_t pendingValue;
+
+        const char* bankToString(PLA::memoryBank bank);
+};
+
+#endif // PLA_H
