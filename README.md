@@ -23,25 +23,7 @@ Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an i
 ### Prerequisites
 - [SDL2](https://www.libsdl.org/)  
 - C++17 or newer compiler (GCC, Clang, MSVC, or MinGW).  
-- (Optional) [Boost](https://www.boost.org/) if your build uses it.
-
-### Windows (Code::Blocks + MinGW)
-1. Install [Code::Blocks](http://www.codeblocks.org/) with MinGW.  
-2. Clone this repo:
-   ```bash
-   git clone https://github.com/YOURUSERNAME/c64-emulator.git
-   cd c64-emulator
-   ```
-3. Open the `.cbp` project file in Code::Blocks.  
-4. Build & run.
-
-### Linux / macOS
-```bash
-git clone https://github.com/YOURUSERNAME/c64-emulator.git
-cd c64-emulator
-make
-./c64
-```
+- [Boost](https://www.boost.org/).
 
 ---
 
@@ -59,19 +41,6 @@ monitor> d $C000 20    ; disassemble 20 bytes from $C000
 monitor> bp $E000      ; set breakpoint at $E000
 monitor> watch $D020   ; watch border color register
 ```
-
----
-
-## 📂 Project Structure
-```
-/src        → Emulator source code
-/include    → Header files
-/cart       → Example cartridge images
-/docs       → Documentation and screenshots
-/roms       → BASIC/KERNAL/Char ROMs (not included for legal reasons)
-```
-
----
 
 ## 📖 License
 ```
