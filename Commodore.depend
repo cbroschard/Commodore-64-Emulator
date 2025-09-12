@@ -67,7 +67,7 @@
 	"PLA.h"
 	"Vic.h"
 
-1757551976 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\main.cpp
+1757643294 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\main.cpp
 	"main.h"
 
 1743009451 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\log.cpp
@@ -108,11 +108,11 @@
 	"Logging.h"
 	"RS232Device.h"
 
-1757551976 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\computer.cpp
+1757643052 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\computer.cpp
 	"Debug/MLMonitor.h"
 	"computer.h"
 
-1757551971 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\computer.h
+1757643381 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\computer.h
 	<atomic>
 	<chrono>
 	<condition_variable>
@@ -1988,7 +1988,7 @@
 	"TAP.h"
 	"T64.h"
 
-1757551971 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\main.h
+1757642045 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\main.h
 	<boost/program_options.hpp>
 	<boost/version.hpp>
 	<sdl2/sdl.h>
@@ -2565,10 +2565,11 @@
 1757551976 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\plamapper.cpp
 	"PLAMapper.h"
 
-1757551971 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\common.h
+1757642734 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\common.h
 	<algorithm>
 	<filesystem>
 	<iomanip>
+	<sdl2/sdl.h>
 	<sstream>
 	<thread>
 
@@ -6347,7 +6348,7 @@
 1757591498 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\nextcommand.h
 	"Debug/MonitorCommand.h"
 
-1757551975 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\nextcommand.cpp
+1757640070 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\nextcommand.cpp
 	"Computer.h"
 	"Debug/MLMonitor.h"
 	"Debug/NextCommand.h"

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>
+#include <sdl2/sdl.h>
 #include <sstream>
 #include <thread>
 
@@ -26,6 +27,16 @@ static const uint16_t TXTAB = 0x002B;
 static const uint16_t VARTAB = 0x002D;
 static const uint16_t ARYTAB = 0x002F;
 static const uint16_t STREND = 0x0031;
+
+// Struct to hold the joystick 1 and 2 mappings from configuration file
+struct JoystickMapping
+{
+    SDL_Scancode up;
+    SDL_Scancode down;
+    SDL_Scancode left;
+    SDL_Scancode right;
+    SDL_Scancode fire;
+};
 
 // Cassette helper struct
 struct T64LoadResult

@@ -28,4 +28,10 @@ po::options_description get_options();
 // Config file options function
 po::options_description get_config_file_options();
 
+// Parse the configuration file for joystick 1 and 2
+JoystickMapping parseJoystickConfig(const std::string& config);
+
+// Helper to parse config items
+std::vector<std::string> splitCSV(const std::string& input);
+
 #endif // MAIN_H_INCLUDED

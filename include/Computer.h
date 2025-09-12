@@ -79,7 +79,7 @@ class Computer
         inline void setDiskPath(const std::string& path) { diskPath = path; }
 
         // Game controls
-        void setJoystickAttached(int port, bool flag);
+        void setJoystickConfig(int port, JoystickMapping& cfg);
 
         // Setter for Video Mode
         void setVideoMode(const std::string& mode);
@@ -142,7 +142,10 @@ class Computer
         // Event handling
         bool handleInputEvent(const SDL_Event& ev);
 
-        // Joystick key mappings
+        // Joystick
+        void setJoystickAttached(int port, bool flag);
+        JoystickMapping joy1Config;
+        JoystickMapping joy2Config;
         std::unordered_map<SDL_Scancode, Joystick::direction> joyMap[3];
 
         // Video/CPU mode setup

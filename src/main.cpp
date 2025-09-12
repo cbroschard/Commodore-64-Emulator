@@ -29,7 +29,9 @@ po::options_description get_config_file_options()
         ("c64.BASIC.ROM", po::value<std::string>()->required(), "Full path and filename of the C64 BASIC ROM to load")
         ("c64.CHAR.ROM", po::value<std::string>()->required(), "Full path and filename of the C64 BASIC ROM to load")
         ("1541.LO.ROM", po::value<std::string>(), "Full path and filename of the 1541 C000 ROM to load")
-        ("1541.HI.ROM", po::value<std::string>(), "Full path and filename of the 1541 E000 ROM to load");
+        ("1541.HI.ROM", po::value<std::string>(), "Full path and filename of the 1541 E000 ROM to load")
+        ("c64.Joy1", po::value<std::string>(), "Joystick 1 key bindings: Up,Down,Left,Right,Fire")
+        ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire");
     return desc;
 }
 
@@ -79,6 +81,39 @@ int main(int argc, char *argv[])
     {
         c64.set1541LoROM(vmConfig["1541.LO.ROM"].as<std::string>());
         c64.set1541HiROM(vmConfig["1541.HI.ROM"].as<std::string>());
+    }
+
+    if (vmConfig.count("c64.Joy1"))
+    {
+        auto cfg = parseJoystickConfig(vmConfig["c64.Joy1"].as<std::string>());
+        c64.setJoystickConfig(1, cfg);
+    }
+    else
+    {
+        // apply defaults if not in config
+        JoystickMapping defaults1
+        {
+            SDL_SCANCODE_W, SDL_SCANCODE_S,
+            SDL_SCANCODE_A, SDL_SCANCODE_D,
+            SDL_SCANCODE_SPACE
+        };
+        c64.setJoystickConfig(1, defaults1);
+    }
+
+    if (vmConfig.count("c64.Joy2"))
+    {
+        auto cfg = parseJoystickConfig(vmConfig["c64.Joy2"].as<std::string>());
+        c64.setJoystickConfig(2, cfg);
+    }
+    else
+    {
+        JoystickMapping defaults2
+        {
+            SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
+            SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT,
+            SDL_SCANCODE_RETURN
+        };
+        c64.setJoystickConfig(2, defaults2);
     }
 
     // Setup command line options
@@ -159,4 +194,43 @@ int main(int argc, char *argv[])
         std::cout << "Error: Caught an unknown exception!" << std::endl;
     }
     return 0;
+}
+
+JoystickMapping parseJoystickConfig(const std::string& config)
+{
+    JoystickMapping jm{};
+    auto tokens = splitCSV(config);
+    if (tokens.size() != 5) {
+        throw std::runtime_error("Joystick config must have 5 keys: Up,Down,Left,Right,Fire");
+    }
+
+    jm.up    = SDL_GetScancodeFromName(tokens[0].c_str());
+    jm.down  = SDL_GetScancodeFromName(tokens[1].c_str());
+    jm.left  = SDL_GetScancodeFromName(tokens[2].c_str());
+    jm.right = SDL_GetScancodeFromName(tokens[3].c_str());
+    jm.fire  = SDL_GetScancodeFromName(tokens[4].c_str());
+
+    if (jm.up == SDL_SCANCODE_UNKNOWN || jm.down == SDL_SCANCODE_UNKNOWN ||
+        jm.left == SDL_SCANCODE_UNKNOWN || jm.right == SDL_SCANCODE_UNKNOWN ||
+        jm.fire == SDL_SCANCODE_UNKNOWN) {
+        throw std::runtime_error("Invalid key name in joystick config: " + config);
+    }
+
+    return jm;
+
+}
+
+std::vector<std::string> splitCSV(const std::string& input)
+{
+    std::vector<std::string> tokens;
+    std::istringstream ss(input);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        // trim whitespace
+        size_t start = item.find_first_not_of(" \t");
+        size_t end   = item.find_last_not_of(" \t");
+        if (start != std::string::npos)
+            tokens.push_back(item.substr(start, end - start + 1));
+    }
+    return tokens;
 }

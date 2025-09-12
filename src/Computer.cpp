@@ -89,24 +89,24 @@ Computer::Computer()
     bus->attachCIA2Instance(cia2object.get());
 
     // JOY1 defaults (WASD + space)
-    joyMap[1] =
-    {
-      { SDL_SCANCODE_W, Joystick::direction::up},
-      { SDL_SCANCODE_S, Joystick::direction::down},
-      { SDL_SCANCODE_A, Joystick::direction::left},
-      { SDL_SCANCODE_D, Joystick::direction::right},
-      { SDL_SCANCODE_SPACE, Joystick::direction::button}
-    };
+    //joyMap[1] =
+    //{
+      //{ SDL_SCANCODE_W, Joystick::direction::up},
+      //{ SDL_SCANCODE_S, Joystick::direction::down},
+      //{ SDL_SCANCODE_A, Joystick::direction::left},
+      //{ SDL_SCANCODE_D, Joystick::direction::right},
+      //{ SDL_SCANCODE_SPACE, Joystick::direction::button}
+    //};
 
     // JOY2 defaults (arrow-keys + return)
-    joyMap[2] =
-    {
-      { SDL_SCANCODE_UP, Joystick::direction::up},
-      { SDL_SCANCODE_DOWN, Joystick::direction::down},
-      { SDL_SCANCODE_LEFT, Joystick::direction::left},
-      { SDL_SCANCODE_RIGHT, Joystick::direction::right},
-      { SDL_SCANCODE_RETURN,Joystick::direction::button}
-    };
+    //joyMap[2] =
+    //{
+      //{ SDL_SCANCODE_UP, Joystick::direction::up},
+      //{ SDL_SCANCODE_DOWN, Joystick::direction::down},
+      //{ SDL_SCANCODE_LEFT, Joystick::direction::left},
+      //{ SDL_SCANCODE_RIGHT, Joystick::direction::right},
+      //{ SDL_SCANCODE_RETURN,Joystick::direction::button}
+    //};
 }
 
 Computer::~Computer() = default;
@@ -289,6 +289,21 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
     }
 
     return false;  // not a key event we care about
+}
+
+void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
+{
+    // clear any existing mapping for this port
+    joyMap[port].clear();
+
+    // rebuild the mapping using config scancodes
+    joyMap[port] = {
+        { cfg.up,    Joystick::direction::up },
+        { cfg.down,  Joystick::direction::down },
+        { cfg.left,  Joystick::direction::left },
+        { cfg.right, Joystick::direction::right },
+        { cfg.fire,  Joystick::direction::button }
+    };
 }
 
 void Computer::warmReset()
