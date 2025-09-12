@@ -87,26 +87,6 @@ Computer::Computer()
     cass->attachMemoryInstance(mem.get());
 
     bus->attachCIA2Instance(cia2object.get());
-
-    // JOY1 defaults (WASD + space)
-    //joyMap[1] =
-    //{
-      //{ SDL_SCANCODE_W, Joystick::direction::up},
-      //{ SDL_SCANCODE_S, Joystick::direction::down},
-      //{ SDL_SCANCODE_A, Joystick::direction::left},
-      //{ SDL_SCANCODE_D, Joystick::direction::right},
-      //{ SDL_SCANCODE_SPACE, Joystick::direction::button}
-    //};
-
-    // JOY2 defaults (arrow-keys + return)
-    //joyMap[2] =
-    //{
-      //{ SDL_SCANCODE_UP, Joystick::direction::up},
-      //{ SDL_SCANCODE_DOWN, Joystick::direction::down},
-      //{ SDL_SCANCODE_LEFT, Joystick::direction::left},
-      //{ SDL_SCANCODE_RIGHT, Joystick::direction::right},
-      //{ SDL_SCANCODE_RETURN,Joystick::direction::button}
-    //};
 }
 
 Computer::~Computer() = default;

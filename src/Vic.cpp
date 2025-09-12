@@ -652,7 +652,6 @@ void Vic::renderLine(int raster)
 
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;   // <-- latched
 
-    // Top/bottom border: still draw sprites!
     if (!DEN)
     {
         IO_adapter->renderBackgroundLine(raster, registers.borderColor, x0, x1);
@@ -834,15 +833,12 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
         for (int pair = 0; pair < 4; ++pair)
         {
             uint8_t bits = (byte >> (6 - pair * 2)) & 0x03;
-            uint8_t color = (bits == 0) ? bg0 :
-                            (bits == 1) ? ((scr >> 4) & 0x0F) :
-                            (bits == 2) ? (scr & 0x0F) :
-                                           colNib;
+            uint8_t color = (bits == 0) ? bg0 : (bits == 1) ? ((scr >> 4) & 0x0F) : (bits == 2) ? (scr & 0x0F) : colNib;
 
             int pxRaw = cellLeft + pair * 2;
             if (pxRaw < x0 || pxRaw + 1 >= x1) continue;
 
-            IO_adapter->setPixel(pxRaw,     py, color);
+            IO_adapter->setPixel(pxRaw, py, color);
             IO_adapter->setPixel(pxRaw + 1, py, color);
 
             if (bits != 0)

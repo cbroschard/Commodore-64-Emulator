@@ -4,3 +4,9 @@ obj/
 tape/
 PRG/
 cart/
+*.bin
+*.cbp
+chargen
+*.depend
+debug
+kernal
