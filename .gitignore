@@ -10,3 +10,5 @@ chargen
 *.depend
 kernal
 *.rom
+basic
+*.layout
