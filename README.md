@@ -31,6 +31,16 @@ Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an i
 Run the emulator, then use the built-in monitor to load software:
 
 ```text
+Note: Disk is under active development 
+Command line options:
+  --help                Produce the help message
+  --cartridge arg       Path and filename for cartridge to load on boot
+  --tape arg            Path and filename for TAP or T64 tape image to load
+  --program arg         Path and filename for PRG or P00 image to load
+  --disk arg            Path and filename for Disk image file to load (D64,
+                        D81, etc.
+  --version             Print version and exit.
+
 monitor> cart load cart/Adventureland.crt
 monitor> g
 ```
