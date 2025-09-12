@@ -8,5 +8,5 @@ cart/
 *.cbp
 chargen
 *.depend
-debug
 kernal
+*.rom
