@@ -30,7 +30,23 @@ struct InstructionInfo
 // Declaration of master table
 extern const InstructionInfo OPCODES[256];
 
+// Reverse lookup key
+struct MnemonicKey {
+    std::string mnemonic;
+    AddressingMode mode;
+
+    bool operator==(const MnemonicKey& other) const {
+        return mnemonic == other.mnemonic && mode == other.mode;
+    }
+};
+
+struct MnemonicKeyHash {
+    std::size_t operator()(const MnemonicKey& k) const {
+        return std::hash<std::string>()(k.mnemonic) ^ (std::hash<int>()((int)k.mode) << 1);
+    }
+};
+
 // Reverse lookup for assembler
-extern const std::unordered_map<std::string, uint8_t> MNEMONIC_TO_OPCODE;
+extern const std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> MNEMONIC_TO_OPCODE;
 
 #endif // OPCODE6502_H_INCLUDED

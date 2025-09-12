@@ -8,7 +8,7 @@
 #ifndef ASSEMBLER_H
 #define ASSEMBLER_H
 
-#include <string>
+#include "Debug/CommandUtils.h"
 #include "6502/Opcode6502.h"
 
 class Assembler
@@ -20,6 +20,7 @@ class Assembler
     protected:
 
     private:
+
 };
 
 #endif // ASSEMBLER_H

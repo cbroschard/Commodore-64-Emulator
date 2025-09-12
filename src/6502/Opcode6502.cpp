@@ -282,3 +282,14 @@ const InstructionInfo OPCODES[256] =
     /* 0xFE */ {"INC", AddressingMode::AbsoluteX,   3, 0xFE}, // INC abs,X
     /* 0xFF */ {"ISC", AddressingMode::AbsoluteX,   3, 0xFF}, // (undoc) INC + SBC abs,X
 };
+
+const std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> MNEMONIC_TO_OPCODE = [] {
+    std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> map;
+    for (const auto& info : OPCODES) {
+        if (info.mnemonic) { // skip unused/illegal opcodes
+            MnemonicKey key{ info.mnemonic, info.mode };
+            map[key] = info.opcode;
+        }
+    }
+    return map;
+}();

@@ -12,7 +12,6 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--cartridge &quot;cart/Pitfall.crt&quot;' />
 				<Compiler>
 					<Add option="-std=c++20" />
 					<Add option="-g" />
@@ -80,6 +79,7 @@
 		<Unit filename="include/Cartridge/SuperZaxxonMapper.h" />
 		<Unit filename="include/Cassette.h" />
 		<Unit filename="include/Computer.h" />
+		<Unit filename="include/Debug/AssembleCommand.h" />
 		<Unit filename="include/Debug/BreakpointClearCommand.h" />
 		<Unit filename="include/Debug/BreakpointListCommand.h" />
 		<Unit filename="include/Debug/BreakpointSetCommand.h" />
@@ -161,6 +161,7 @@
 		<Unit filename="src/Cartridge/SuperZaxxonMapper.cpp" />
 		<Unit filename="src/Cassette.cpp" />
 		<Unit filename="src/Computer.cpp" />
+		<Unit filename="src/Debug/AssembleCommand.cpp" />
 		<Unit filename="src/Debug/BreakpointClearCommand.cpp" />
 		<Unit filename="src/Debug/BreakpointListCommand.cpp" />
 		<Unit filename="src/Debug/BreakpointSetCommand.cpp" />

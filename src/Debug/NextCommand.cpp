@@ -64,11 +64,42 @@ void NextCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         uint16_t targetPC = (currentPC + 3) & 0xFFFF;
 
         // Set a temporary breakpoint
+        mon.addBreakpoint(targetPC);
 
         // Run until hitting the breakpoint then stop
+        while (true)
+        {
+            mon.computer()->cpuStep();
+            if (mon.computer()->getPC() == targetPC)
+            {
+                break;
+            }
+        }
+
+        // Dump CPU registers
+        auto st = mon.computer()->getCPUState();
+        std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
+            << "  A=$" << std::setw(2) << int(st.A)
+            << "  X=$" << std::setw(2) << int(st.X)
+            << "  Y=$" << std::setw(2) << int(st.Y)
+            << "  SP=$" << std::setw(2) << int(st.SP)
+            << "  P=$" << std::setw(2) << int(st.SR)
+            << "  (NV-BDIZC)\n";
+
+        // Clear the temporary breakpoing
+        mon.clearBreakpoint(targetPC);
     }
     else
     {
         mon.computer()->cpuStep();
+        // Dump CPU registers
+        auto st = mon.computer()->getCPUState();
+        std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
+            << "  A=$" << std::setw(2) << int(st.A)
+            << "  X=$" << std::setw(2) << int(st.X)
+            << "  Y=$" << std::setw(2) << int(st.Y)
+            << "  SP=$" << std::setw(2) << int(st.SP)
+            << "  P=$" << std::setw(2) << int(st.SR)
+            << "  (NV-BDIZC)\n";
     }
 }

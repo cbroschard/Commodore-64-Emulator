@@ -6197,14 +6197,15 @@
 1757551970 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\memorydumpcommand.h
 	"Debug/MonitorCommand.h"
 
-1757551975 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\mlmonitor.cpp
+1757632536 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\mlmonitor.cpp
 	"Computer.h"
 	"Debug/MLMonitor.h"
 
-1757551970 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\mlmonitor.h
+1757632512 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\mlmonitor.h
 	<memory>
 	<unordered_map>
 	<unordered_set>
+	"Debug/AssembleCommand.h"
 	"Debug/BreakpointClearCommand.h"
 	"Debug/BreakpointListCommand.h"
 	"Debug/BreakpointSetCommand.h"
@@ -6385,10 +6386,10 @@
 	"Debug/MLMonitor.h"
 	"Debug/WatchCommand.h"
 
-1757551974 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\6502\opcode6502.cpp
+1757628896 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\6502\opcode6502.cpp
 	"6502/Opcode6502.h"
 
-1757551970 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\6502\opcode6502.h
+1757628856 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\6502\opcode6502.h
 	<cstdint>
 	<unordered_map>
 	<string>
@@ -6403,11 +6404,11 @@
 	"6502/Opcode6502.h"
 	"Memory.h"
 
-1757551974 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\6502\assembler.cpp
-	"Assembler.h"
+1757629689 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\6502\assembler.cpp
+	"6502/Assembler.h"
 
-1757551970 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\6502\assembler.h
-	<string>
+1757629689 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\6502\assembler.h
+	"Debug/CommandUtils.h"
 	"6502/Opcode6502.h"
 
 1757551970 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\commandutils.h
@@ -6492,7 +6493,7 @@
 1757551971 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\resetcommand.h
 	"Debug/MonitorCommand.h"
 
-1757551975 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\resetcommand.cpp
+1757632629 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\resetcommand.cpp
 	"Computer.h"
 	"Debug/MLMonitor.h"
 	"Debug/ResetCommand.h"
@@ -6523,4 +6524,20 @@
 	"Computer.h"
 	"Debug/ExportDisassemblyCommand.h"
 	"Debug/MLMonitor.h"
+
+1757629384 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\assemblercommand.cpp
+	"Computer.h"
+	"Debug/AssemblerCommand.h"
+	"Debug/MonitorCommand.h"
+
+1757629384 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\assemblercommand.h
+
+1757632628 source:c:\users\cbros\onedrive\documents\codeblocks\commodore\src\debug\assemblecommand.cpp
+	"Computer.h"
+	"Debug/AssembleCommand.h"
+	"Debug/MLMonitor.h"
+
+1757632176 c:\users\cbros\onedrive\documents\codeblocks\commodore\include\debug\assemblecommand.h
+	"6502/Assembler.h"
+	"Debug/MonitorCommand.h"
 

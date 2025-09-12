@@ -13,6 +13,7 @@ MLMonitor::MLMonitor() :
     running(false)
 {
     // Register all commands
+    registerCommand(std::make_unique<AssembleCommand>());
     registerCommand(std::make_unique<BreakpointClearCommand>());
     registerCommand(std::make_unique<BreakpointListCommand>());
     registerCommand(std::make_unique<BreakpointSetCommand>());

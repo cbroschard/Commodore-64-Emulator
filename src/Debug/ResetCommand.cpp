@@ -25,7 +25,7 @@ std::string ResetCommand::category() const
 
 std::string ResetCommand::shortHelp() const
 {
-    return "reset    - Reset the computer (warm or cold)";
+    return "reset     - Reset the computer (warm or cold)";
 }
 
 std::string ResetCommand::help() const
