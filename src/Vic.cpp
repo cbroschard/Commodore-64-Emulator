@@ -1007,12 +1007,11 @@ bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
     };
 
     // Bitmask of covered BG pixels for sprite A
-    static uint8_t cover[512];                // safe upper bound
-    std::memset(cover, 0, sizeof cover);      // no SCREEN_MIN/MAX loop needed
+    static uint8_t cover[512];
+    std::memset(cover, 0, sizeof cover);
 
     forEachSolidPixelX(bitsA, mcA, expA, xA, [&](int px)
     {
-        // insideX() already clamps to inner window; this guards array bounds
         if (px >= 0 && px < (int)sizeof(cover)) cover[px] = 1;
     });
 
