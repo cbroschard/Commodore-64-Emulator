@@ -42,8 +42,8 @@ monitor> bp $E000      ; set breakpoint at $E000
 monitor> watch $D020   ; watch border color register
 ```
 
-## 📖 License
-```
+## 📖 Licenses
+
 Copyright (c) 2025 Christopher Broschard.  
 All rights reserved.
 
@@ -51,8 +51,11 @@ This source code is provided for personal, educational, and
 non-commercial use only. Redistribution, modification, or use
 in whole or in part for any other purpose is prohibited without
 the prior written consent of the copyright holder.
-```
 
+Third-party dependencies are licensed separately:
+
+- [Boost](https://www.boost.org/) – [Boost Software License 1.0](Licenses/BOOST_LICENSE_1_0.txt)
+- [SDL2](https://www.libsdl.org/) – [zlib License](Licenses/SDL2_zlib_LICENSE.txt)
 ---
 
 ## 🙏 Acknowledgements
