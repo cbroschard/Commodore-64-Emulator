@@ -73,7 +73,7 @@ void Vic::reset()
     std::fill(std::begin(d016_per_raster), std::end(d016_per_raster), 0x08);
     std::fill(std::begin(d018_per_raster), std::end(d018_per_raster), 0x14);
 
-    // Initialize bqOpaque
+    // Initialize bgOpaque
     bgOpaque.resize(cfg_->visibleLines + 2*BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
 
@@ -118,7 +118,7 @@ uint8_t Vic::readRegister(uint16_t address)
             // Bit 7 of $D011 reflects the high bit of the raster counter
             uint8_t highBit = (registers.raster >> 8) & 0x01;
 
-            // Combine the control register (bits 0â€“6) with the high bit of the raster counter
+            // Combine the control register (bits 0-6) with the high bit of the raster counter
             return (registers.control & 0x7F) | (highBit << 7);
         }
         case 0xD012:
@@ -152,17 +152,16 @@ uint8_t Vic::readRegister(uint16_t address)
         }
         case 0xD019:
         {
-            uint8_t srcs = registers.interruptStatus & 0x0F;   // bits 0..3 are sources
-            uint8_t any  = srcs ? 0x80 : 0x00;                  // bit 7 = â€œanyâ€
-            return (srcs | any | 0x70);                         // 4..6 read as 1
+            uint8_t srcs = registers.interruptStatus & 0x0F;
+            uint8_t any  = srcs ? 0x80 : 0x00;
+            return (srcs | any | 0x70);
         }
         case 0xD01A:
         {
-            return (registers.interruptEnable & 0x0F) | 0xF0; // Bits 4â€“6 are always 1
+            return (registers.interruptEnable & 0x0F) | 0xF0; // Bits 4-6 are always 1
         }
         case 0xD01B:
         {
-            //return registers.raster & 0x3F;
             return registers.spritePriority;
         }
         case 0xD01C:
@@ -218,7 +217,7 @@ uint8_t Vic::readRegister(uint16_t address)
             }
         }
     }
-    return 0;
+    return 0xFF;
 }
 
 void Vic::writeRegister(uint16_t address, uint8_t value)
@@ -311,7 +310,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             value &= 0x1F;
             registers.interruptStatus &= ~value;
 
-            // if nothing left thatâ€™s both set *and* enabled, lower IRQ line
             if (IRQ &&
                 !(registers.interruptStatus & registers.interruptEnable))
             {
@@ -321,7 +319,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01A:
         {
-            registers.interruptEnable = value & 0x0F; // Only bits 0â€“3 are valid
+            registers.interruptEnable = value & 0x0F; // Only bits 0-3 are valid
 
             // Check if enabling interrupts triggers a pending IRQ
             if ((registers.interruptStatus & registers.interruptEnable) && IRQ)
@@ -442,7 +440,7 @@ void Vic::tick(int cycles)
             // Reset rowCounter *once per bad line*, at the first DMA cycle
             if (currentCycle == cfg_->DMAStartCycle)
             {
-                rowCounter = 0;   // row 0 will be used during this rasterâ€™s rendering
+                rowCounter = 0;   // row 0 will be used during this raster's rendering
             }
         }
 
@@ -536,7 +534,7 @@ bool Vic::isBadLine(int raster)
     if (!(d011_per_raster[raster] & 0x10)) return false;
 
     // Must be within raster range 0x30 to 0xF7 (48-247)
-    if (raster < 0x30 || raster > 0xF7) return false;
+    if (raster < cfg_->firstVisibleLine || raster > cfg_->lastVisibleLine) return false;
 
     // Check Y scroll alignment
     if ((raster & 0x07) != fineYScroll(raster)) return false;
@@ -1317,17 +1315,16 @@ std::string Vic::getVICBanks() const
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
 
-    // Current VIC bank base (CIA2 PA0â€“PA1 select 16 KB window)
+    // Current VIC bank base (CIA2 16 KB window)
     uint16_t bankBase = cia2object->getCurrentVICBank();
 
     out << "Active VIC Bank = " << (bankBase >> 14)
         << " ($" << std::setw(4) << bankBase
         << "-$" << std::setw(4) << (bankBase + 0x3FFF) << ")\n\n";
 
-    // Offsets: keep your helpers returning offset inside 16 KB
-    uint16_t charOffset   = getCHARBase(0);   // offset only
-    uint16_t screenOffset = getScreenBase(0); // offset only
-    uint16_t bitmapOffset = getBitmapBase(0); // offset only
+    uint16_t charOffset   = getCHARBase(registers.raster);
+    uint16_t screenOffset = getScreenBase(registers.raster);
+    uint16_t bitmapOffset = getBitmapBase(registers.raster);
 
     out << "CHAR Base   = offset $"   << std::setw(4) << charOffset
         << "  ->  address $" << std::setw(4) << (bankBase + charOffset) << "\n";
@@ -1351,7 +1348,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
         "Orange","Brown","Light Red","Dark Grey","Grey","Light Green","Light Blue","Light Grey"
     };
 
-    uint16_t currentRaster = ((registers.control & 0x80) << 1) | registers.raster; // Determine current raster combining high bit of d011 to d012
+    uint16_t currentRaster = registers.raster;
 
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
@@ -1376,8 +1373,8 @@ std::string Vic::dumpRegisters(const std::string& group) const
             << ",  HIRES = " << ((registers.control2 & 0x10) ? "No" : "Yes") << ")\n";
 
         out << "D018 = $" << std::setw(2) << static_cast<int>(registers.memory_pointer) << "   (MEM_PTR:   Screen = $" << std::setw(4)
-            << screenBaseCache + currentVICBank << ", CHAR = $" << std::setw(4) << charBaseCache + currentVICBank << ", Bitmap = $"
-            << std::setw(4) << bitmapBaseCache + currentVICBank << ")\n";
+            << screenBaseCache << ", CHAR = $" << std::setw(4) << charBaseCache << ", Bitmap = $"
+            << std::setw(4) << bitmapBaseCache << ")\n";
     }
 
     // Interrupts
