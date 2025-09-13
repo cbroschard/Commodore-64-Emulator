@@ -290,9 +290,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD016:
         {
             registers.control2 = value;
-
-            // Update the Graphics Mode
-            //updateGraphicsMode();
             break;
         }
         case 0xD017:
@@ -404,7 +401,7 @@ void Vic::tick(int cycles)
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
-            // Latch VIC registers for THIS raster, right before char DMA
+            // Latch VIC registers right before char DMA
             d011_per_raster[registers.raster] = registers.control & 0x7F;
             d018_per_raster[registers.raster] = registers.memory_pointer;
 
@@ -664,9 +661,6 @@ void Vic::renderLine(int raster)
         IO_adapter->renderBackgroundLine(raster, DEN ? registers.backgroundColor0 : registers.borderColor, x0, x1);
     }
 
-    // Sprites are visible regardless of DEN
-    renderSprites(0, raster);
-
     if (DEN)
     {
         const int lineXScroll = fineXScroll(raster);
@@ -689,6 +683,9 @@ void Vic::renderLine(int raster)
                 break;
         }
     }
+
+    // Sprites are visible regardless of DEN
+    renderSprites(0, raster);
 
     renderSprites(1, raster);
 }
