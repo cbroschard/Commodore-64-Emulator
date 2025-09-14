@@ -730,7 +730,7 @@ void Vic::renderTextLine(int raster, int xScroll)
         }
         else break;
 
-        uint8_t fgColor = colorByte;
+        uint8_t fgColor = colorByte & 0x0F;
         uint8_t bgColor = registers.backgroundColor0;
 
         bool mcMode = (d016_per_raster[raster] & 0x10) && (colorByte & 0x08);

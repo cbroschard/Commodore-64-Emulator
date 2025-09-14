@@ -187,6 +187,10 @@ void MLMonitor::handleCommand(const std::string& line)
     std::istringstream iss(line);
     std::string cmd;
     iss >> cmd;
+
+    // Normalize to lowercase
+    std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
+
     if (cmd == "exit" || cmd == "q" || cmd == "quit")
     {
         running = false;
