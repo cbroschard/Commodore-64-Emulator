@@ -1,7 +1,7 @@
 # 🎮 Commodore 64 Emulator
 
 A C++ Commodore 64 emulator focused on **accuracy and debuggability**, built with SDL2.  
-Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an integrated monitor/debugger.
+Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an integrated monitor/debugger. This project is actively under development and there are a lot of features that may not work correctly.
 
 ---
 
@@ -12,7 +12,7 @@ Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an i
 - **Cartridge loader** for `.CRT` images with mapper detection.
 - **Built-in ML Monitor** for debugging:
   - Breakpoints and watchpoints
-  - Disassembler
+  - Assembler/Disassembler
   - Memory/register editing
 - Cross-platform: runs on Windows, Linux, and macOS (via SDL2).
 

@@ -390,6 +390,14 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
+uint16_t CIA2::getCurrentVICBank() const
+{
+    // Inputs float high; outputs drive from portA latch.
+    uint8_t effectivePA = (portA & dataDirectionPortA) | (~dataDirectionPortA);
+    uint8_t bankBits    = (~effectivePA) & 0x03;    // PA1:PA0 inverted
+    return static_cast<uint16_t>(bankBits) * 0x4000;
+}
+
 void CIA2::latchTODClock()
 {
     todLatch[0] = todClock[0];

@@ -42,7 +42,7 @@ class CIA2
         void writeRegister(uint16_t address, uint8_t value);
 
         // Getter to find current VIC bank
-        inline uint16_t getCurrentVICBank() const {  return (~portA & 0x03) * 0x4000; }
+        uint16_t getCurrentVICBank() const;
 
         // For interrupt control
         uint8_t status;

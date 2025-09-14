@@ -726,14 +726,14 @@ void Vic::renderTextLine(int raster, int xScroll)
         else if (col == 40)
         {
             scrByte  = fetchScreenByte(charRow, 40, raster);
-            colorByte = fetchColorByte(charRow, 40, raster);
+            colorByte = fetchColorByte(charRow, 40, raster) & 0x0F;
         }
         else break;
 
         uint8_t fgColor = colorByte & 0x0F;
         uint8_t bgColor = registers.backgroundColor0;
 
-        bool mcMode = (d016_per_raster[raster] & 0x10) && (colorByte & 0x08);
+        bool mcMode = (d016_per_raster[raster] & 0x10) && (fgColor & 0x08);
 
         if (!mcMode)
             renderChar(scrByte, px, py, fgColor, bgColor, yInChar, raster, x0, x1);
@@ -1192,7 +1192,7 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
         if (pxRaw < x0 || pxRaw >= x1) continue;
 
         bool bit = (row >> (7 - col)) & 0x01;
-        uint8_t color = bit ? fg : bg;
+        uint8_t color = bit ? (fg & 0x0F) : (bg & 0x0F);
 
         // Draw to framebuffer
         IO_adapter->setPixel(pxRaw, y, color);
