@@ -66,6 +66,41 @@ std::string AssembleCommand::help() const
 
 void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
+    // help or no-arg -> show usage
+    if (args.size() == 1 || (args.size() > 1 && isHelp(args[1])))
+    {
+        std::cout << help() << std::endl;
+        return;
+    }
 
+    uint16_t address = parseAddress(args[1]);
+
+    Assembler assembler;
+    std::string line;
+
+    while (true) {
+        // Prompt
+        std::cout << std::hex << std::uppercase
+                  << std::setw(4) << std::setfill('0')
+                  << address << " > ";
+
+        // Read user input
+        std::getline(std::cin, line);
+        if (line.empty()) break;  // exit on blank line
+
+        try {
+            auto instr = assembler.assembleLine(line, address);
+
+            // Write into memory
+            for (size_t i = 0; i < instr.bytes.size(); ++i) {
+                mon.computer()->writeRAM(address + i, instr.bytes[i]);
+            }
+
+            address = instr.nextAddress;  // advance
+        }
+        catch (const std::exception& e) {
+            std::cout << "Assembly error: " << e.what() << "\n";
+        }
+    }
 }
 

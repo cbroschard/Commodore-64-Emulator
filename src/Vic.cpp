@@ -531,7 +531,7 @@ bool Vic::isBadLine(int raster)
     if (!(d011_per_raster[raster] & 0x10)) return false;
 
     // Must be within raster range 0x30 to 0xF7 (48-247)
-    if (raster < cfg_->firstVisibleLine || raster > cfg_->lastVisibleLine) return false;
+    if (raster < 0x30 || raster > 0xF7) return false;
 
     // Check Y scroll alignment
     if ((raster & 0x07) != fineYScroll(raster)) return false;

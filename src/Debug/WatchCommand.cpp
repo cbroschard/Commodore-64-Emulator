@@ -54,16 +54,13 @@ Examples:
 
 void WatchCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    // args[0] == "watch"
-    const size_t argc = args.size();
-
     auto parse_addr = [&](const std::string& s) -> uint16_t
     {
         return parseAddress(s);
     };
 
     // help or no-arg -> show usage
-    if (argc == 1 || (argc > 1 && isHelp(args[1])))
+    if (args.size() == 1 || (args.size() > 1 && isHelp(args[1])))
     {
         std::cout << help() << std::endl;
         return;
@@ -79,7 +76,7 @@ void WatchCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (cmd == "clear")
     {
-        if (argc == 2)
+        if (args.size() == 2)
         { // clear all
             mon.clearAllWatches();
             return;
@@ -96,7 +93,7 @@ void WatchCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (cmd == "add")
     {
-        if (argc < 3)
+        if (args.size() < 3)
         {
             std::cout << "Error: Missing address.\n" << help() << std::endl;
             return;
