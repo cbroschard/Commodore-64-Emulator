@@ -69,6 +69,9 @@ class CIA1
 
         void clearInterrupt(InterruptBit interruptBit);
 
+        // ML Monitor access
+        std::string dumpRegisters(const std::string& group) const;
+
     protected:
 
     private:
@@ -165,7 +168,7 @@ class CIA1
         void refreshMasterBit();
 
         // Mode
-        enum inputMode
+        enum InputMode
         {
             modeProcessor, // Direct processor polling
             modeCNT, // CNT signal-driven
@@ -173,7 +176,7 @@ class CIA1
             modeTimerACNT // Combined Timer A and CNT
         };
 
-        inputMode inputMode;
+        InputMode inputMode;
 };
 
 #endif // CIA1_H

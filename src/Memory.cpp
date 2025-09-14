@@ -51,8 +51,8 @@ uint8_t Memory::read(uint16_t address)
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
-        //return colorRAM[address - COLOR_MEMORY_START] & 0x0F;
-        return colorRAM[address - COLOR_MEMORY_START];
+        return colorRAM[address - COLOR_MEMORY_START] & 0x0F;
+        //return colorRAM[address - COLOR_MEMORY_START];
     }
     else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
     {
@@ -163,23 +163,17 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
 
     // Ask VIC which char base is latched for this raster as well as graphics mode
     uint16_t charBase = vicII ? vicII->getCHARBase(raster) : 0;
-    Vic::graphicsMode mode = vicII ? vicII->getCurrentGraphicsMode() : Vic::graphicsMode::standard;
 
-
-    // Only apply charROM fallback if in a text-type mode
-    if (mode == Vic::graphicsMode::standard || mode == Vic::graphicsMode::multiColor || mode == Vic::graphicsMode::extendedColorText)
+    // Check the char base for special cases
+    if (!pla->isUltimax() && (bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
     {
-        // Check the char base for special cases
-        if (!pla->isUltimax() && (bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
-        {
-            return charROM[vicAddress - 0x1000];
-        }
+        return charROM[vicAddress - 0x1000];
+    }
 
-        // Special case handling for programs that only load 1k of Char ROM
-        if (charBase == 0x0800 && (vicAddress >= 0x0C00 && vicAddress < 0x1000) && (bankBase == 0x0000 || bankBase == 0x8000))
-        {
-            return charROM[(vicAddress - 0x0C00) + 0x0800];
-        }
+    // Special case handling for programs that only load 1k of Char ROM
+    if (charBase == 0x0800 && (vicAddress >= 0x0C00 && vicAddress < 0x1000) && (bankBase == 0x0000 || bankBase == 0x8000))
+    {
+        return charROM[(vicAddress - 0x0C00) + 0x0800];
     }
 
     uint16_t cpuAddress = vicAddress | bankBase;

@@ -104,7 +104,7 @@ void CIA1::reset() {
     }
 
     // Mode
-    inputMode = modeProcessor;
+    inputMode = InputMode::modeProcessor;
 }
 
 uint8_t CIA1::readRegister(uint16_t address)
@@ -404,7 +404,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         {
             timerAControl = value & 0xEF;
 
-            inputMode = (value & 0x20) ? modeCNT : modeProcessor;
+            inputMode = (value & 0x20) ? InputMode::modeCNT : InputMode::modeProcessor;
 
             if (value & 0x10)
             {
@@ -516,7 +516,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
 
 void CIA1::cntChanged()
 {
-    if (inputMode == modeCNT && (timerAControl & 0x01))
+    if (inputMode == InputMode::modeCNT && (timerAControl & 0x01))
     {
         // one CNT pulse == one timer tick
         uint32_t current = timerA ? timerA : 0x10000;
@@ -545,7 +545,7 @@ void CIA1::cntChanged()
 
 void CIA1::updateTimerA(uint32_t cyclesElapsed)
 {
-    if (inputMode == modeTimerA)
+    if (inputMode == InputMode::modeTimerA)
     {
         return;
     }
@@ -808,4 +808,105 @@ void CIA1::refreshMasterBit()
     {
         interruptStatus &= 0x7F;
     }
+}
+
+std::string CIA1::dumpRegisters(const std::string& group) const
+{
+    std::stringstream out;
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    // Port registers
+    if (group == "port" || group == "all")
+    {
+        out << "Port Registers \n\n";
+        out << "PORT A = $" << std::setw(2) << portA << "\n";
+        out << "PORT A Data Direction Register = $" << std::setw(2) << dataDirectionPortA << "\n";
+        out << "PORT B = $" << std::setw(2) << portB << "\n";
+        out << "PORT B Data Direction Register = $" << std::setw(2) << dataDirectionPortB << "\n";
+    }
+
+    // Timer registers
+    if (group == "timer" || group == "all")
+    {
+        out << "Timer Registers \n\n";
+        out << "Timer A Latch Low = $" << std::setw(2) << timerALowByte << "\n";
+        out << "Timer A Latch High = $" << std::setw(2) << timerAHighByte << "\n";
+        out << "Timer A Latched = " << (timerALatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerASnap << "\n";
+        out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
+        out << "Timer A Control Register = $" << std::setw(2) << timerAControl <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
+            << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
+        out << "Timer B Latch Low = $" << std::setw(2) << timerBLowByte << "\n";
+        out << "Timer B Latch High = $" << std::setw(2) << timerBHighByte << "\n";
+        out << "Timer B Latched = " << (timerBLatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerBSnap << "\n";
+        out << "Timer B Current = $" << std::setw(4) << timerB << "\n";
+        out << "Timer B Control Register = $" << std::setw(2) << timerBControl << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
+            << " Mode: " << ((timerBControl & 0x08) ? "One shot" : "Continuous") << "\n";
+    }
+
+    // TOD registers
+    if (group == "tod" || group == "all")
+    {
+        out << "TOD Registers\n\n";
+
+        out << "Current TOD = "
+            << std::setw(2) << int(todClock[3]) << ":"
+            << std::setw(2) << int(todClock[2]) << ":"
+            << std::setw(2) << int(todClock[1]) << "."
+            << std::setw(2) << int(todClock[0]) << "\n";
+
+        out << "TOD Alarm   = "
+            << std::setw(2) << int(todAlarm[3]) << ":"
+            << std::setw(2) << int(todAlarm[2]) << ":"
+            << std::setw(2) << int(todAlarm[1]) << "."
+            << std::setw(2) << int(todAlarm[0]) << "\n";
+
+        out << "TOD Latch   = "
+            << std::setw(2) << int(todLatch[3]) << ":"
+            << std::setw(2) << int(todLatch[2]) << ":"
+            << std::setw(2) << int(todLatch[1]) << "."
+            << std::setw(2) << int(todLatch[0]) << "\n";
+
+        out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
+    }
+
+    // Interrupt status
+    if (group == "interrupt" || group == "all")
+    {
+        out << "Interrupt Registers\n\n";
+        out << "Interrupt Status (IFR) = $" << std::setw(2) << int(interruptStatus)
+            << "  [";
+        if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
+        if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
+        if (interruptStatus & INTERRUPT_TOD_ALARM) out << " TOD";
+        if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER) out << " SR";
+        if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
+        out << " ]\n";
+
+        out << "Interrupt Enable (IER) = $" << std::setw(2) << int(interruptEnable) << "\n";
+    }
+
+    // Serial data register
+    if (group == "serial" || group == "all")
+    {
+        out << "Serial Register\n\n";
+        out << "Serial Data Register = $" << std::setw(2) << int(serialDataRegister) << "\n";
+    }
+
+    // Mode
+    if (group == "control" || group == "all")
+    {
+        out << "Control Lines\n\n";
+        out << "CNT Input Mode = ";
+        switch (inputMode)
+        {
+            case InputMode::modeProcessor: out << "Processor polling"; break;
+            case InputMode::modeCNT:       out << "CNT-driven"; break;
+            case InputMode::modeTimerA:    out << "Timer A-driven"; break;
+            case InputMode::modeTimerACNT: out << "Timer A + CNT"; break;
+        }
+        out << "\n";
+        out << "Previous FLAG state = " << (prevFlag ? "High" : "Low") << "\n";
+    }
+
+    return out.str();
 }

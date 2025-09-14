@@ -862,3 +862,105 @@ void CIA2::decodeIECCommand(uint8_t cmd)
         }
     }
 }
+
+std::string CIA2::dumpRegisters(const std::string& group) const
+{
+    std::stringstream out;
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    // Port registers
+    if (group == "port" || group == "all")
+    {
+        out << "Port Registers \n\n";
+        out << "PORT A = $" << std::setw(2) << portA << "\n";
+        out << "PORT A Data Direction Register = $" << std::setw(2) << dataDirectionPortA << "\n";
+        out << "PORT B = $" << std::setw(2) << portB << "\n";
+        out << "PORT B Data Direction Register = $" << std::setw(2) << dataDirectionPortB << "\n";
+    }
+
+    // Timer registers
+    if (group == "timer" || group == "all")
+    {
+        out << "Timer Registers \n\n";
+        out << "Timer A Latch Low = $" << std::setw(2) << timerALowByte << "\n";
+        out << "Timer A Latch High = $" << std::setw(2) << timerAHighByte << "\n";
+        out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
+        out << "Timer A Control Register = $" << std::setw(2) << timerAControl <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
+            << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
+        out << "Timer B Latch Low = $" << std::setw(2) << timerBLowByte << "\n";
+        out << "Timer B Latch High = $" << std::setw(2) << timerBHighByte << "\n";
+        out << "Timer B Current = $" << std::setw(4) << timerB << "\n";
+        out << "Timer B Control Register = $" << std::setw(2) << timerBControl << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
+            << " Mode: " << ((timerBControl & 0x08) ? "One shot" : "Continuous") << "\n";
+    }
+
+    // TOD registers
+    if (group == "tod" || group == "all")
+    {
+        out << "TOD Registers\n\n";
+
+        out << "Current TOD = "
+            << std::setw(2) << int(todClock[3]) << ":"
+            << std::setw(2) << int(todClock[2]) << ":"
+            << std::setw(2) << int(todClock[1]) << "."
+            << std::setw(2) << int(todClock[0]) << "\n";
+
+        out << "TOD Alarm   = "
+            << std::setw(2) << int(todAlarm[3]) << ":"
+            << std::setw(2) << int(todAlarm[2]) << ":"
+            << std::setw(2) << int(todAlarm[1]) << "."
+            << std::setw(2) << int(todAlarm[0]) << "\n";
+
+        out << "TOD Latch   = "
+            << std::setw(2) << int(todLatch[3]) << ":"
+            << std::setw(2) << int(todLatch[2]) << ":"
+            << std::setw(2) << int(todLatch[1]) << "."
+            << std::setw(2) << int(todLatch[0]) << "\n";
+
+        out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
+    }
+
+    // Interrupt status
+    if (group == "interrupt" || group == "all")
+    {
+        out << "Interrupt Registers\n\n";
+        out << "Interrupt Status (IFR) = $" << std::setw(2) << int(interruptStatus)
+            << "  [";
+        if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
+        if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
+        if (interruptStatus & INTERRUPT_TOD_ALARM) out << " TOD";
+        if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER) out << " SR";
+        if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
+        out << " ]\n";
+
+        out << "Interrupt Enable (IER) = $" << std::setw(2) << int(interruptEnable) << "\n";
+        out << "NMI Asserted = " << (nmiAsserted ? "Yes" : "No") << "\n";
+    }
+
+    // Serial data register
+    if (group == "serial" || group == "all")
+    {
+        out << "Serial Register\n\n";
+        out << "Serial Data Register = $" << std::setw(2) << int(serialDataRegister) << "\n";
+        out << "Output Bit = " << outBit << "\n";
+    }
+
+    // VIC Bank
+    if (group == "vic" || group == "all")
+    {
+        out << "VIC-II Bank Control\n\n";
+        out << "Current VIC Bank = $" << std::setw(4) << getCurrentVICBank() << "\n";
+    }
+
+    // IEC
+    if (group == "iec" || group == "all")
+    {
+        out << "IEC Bus State\n\n";
+        out << "Device Number = " << int(deviceNumber) << "\n";
+        out << "Listening = " << (listening ? "Yes" : "No") << "\n";
+        out << "Talking   = " << (talking ? "Yes" : "No") << "\n";
+        out << "ATN Line  = " << (atnLine ? "Asserted" : "Released") << "\n";
+    }
+
+    return out.str();
+}

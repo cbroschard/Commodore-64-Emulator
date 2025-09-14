@@ -69,6 +69,9 @@ class CIA2
         // Setter for device number set by actual devices
         inline void setDeviceNumber(uint8_t number) { deviceNumber = number; }
 
+        // ML Monitor access
+        std::string dumpRegisters(const std::string& group) const;
+
     protected:
 
     private:

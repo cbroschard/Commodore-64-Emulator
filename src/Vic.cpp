@@ -1208,7 +1208,7 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 
     uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
     uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
-    uint8_t colRAM = (uint8_t)(cellCol) & 0x0F;
+    uint8_t colRAM = (uint8_t)(cellCol) & 0x07;
 
     for (int pair = 0; pair < 4; ++pair)
     {
@@ -1349,7 +1349,6 @@ std::string Vic::dumpRegisters(const std::string& group) const
 
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
-
 
     // Dump the regs
 

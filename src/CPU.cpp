@@ -14,7 +14,7 @@ CPU::CPU() :
     A(0),
     X(0),
     Y(0),
-    SP(0xFF),
+    SP(0xFD),
     SR(0x20),
     baHold(false)
 {
@@ -29,7 +29,7 @@ void CPU::reset()
     X = 0;
     Y = 0;
     PC = (mem->read(0xFFFC) | (mem->read(0xFFFD) << 8));
-    SP = 0xFF;
+    SP = 0xFD;
     SR = 0x34;
     cycles = 0;
 }
