@@ -16,6 +16,7 @@
 #include "Debug/BreakpointListCommand.h"
 #include "Debug/BreakpointSetCommand.h"
 #include "Debug/CartridgeCommand.h"
+#include "Debug/CIACommand.h"
 #include "Debug/DisassembleCommand.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/GoCommand.h"

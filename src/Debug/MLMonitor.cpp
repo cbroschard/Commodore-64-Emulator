@@ -18,6 +18,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<BreakpointListCommand>());
     registerCommand(std::make_unique<BreakpointSetCommand>());
     registerCommand(std::make_unique<CartridgeCommand>());
+    registerCommand(std::make_unique<CIACommand>());
     registerCommand(std::make_unique<DisassembleCommand>());
     registerCommand(std::make_unique<ExportDisassemblyCommand>());
     registerCommand(std::make_unique<GoCommand>());

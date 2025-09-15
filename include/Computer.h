@@ -93,25 +93,53 @@ class Computer
         inline void set1541LoROM(const std::string& loROM) { D1541LoROM = loROM; }
         inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
 
-        // ML Monitor access
+        // ML Monitor CPU methods
         inline uint16_t getPC() { return processor->getPC(); }
+        inline void setPC(uint16_t address) { processor->setPC(address); }
+        inline void cpuStep() { return processor->step(); }
+        inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
+        CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
+                 processor->getY(), processor->getSP(), processor->getSR()}; }
+
+        // ML Monitor Memory methods
         inline Memory* getMem() { return mem.get(); }
+        inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
+        inline void writeRAM(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
+
+        // ML Monitor PLA methods
+        inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
+        inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
+
+        // ML Monitor Cartridge methods
         inline Cartridge* getCart() { return cart.get(); }
         inline void detachCartridge() { cartridgeAttached = false; }
         inline bool getCartridgeAttached() { return cartridgeAttached; }
-        inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
-        inline void writeRAM(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
-        inline void setPC(uint16_t address) { processor->setPC(address); }
-        inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
-        inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
+
+        // ML Monitor CIA1 Register Dumps
+        inline std::string dumpCIA1Regs() const { return cia1object ? cia1object->dumpRegisters("all") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Ports() const { return cia1object ? cia1object->dumpRegisters("port") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Timers() const { return cia1object ? cia1object->dumpRegisters("timer") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1TOD() const { return cia1object ? cia1object->dumpRegisters("tod") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1ICR() const { return cia1object ? cia1object->dumpRegisters("icr") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Serial() const { return cia1object ? cia1object->dumpRegisters("serial") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Mode() const { return cia1object ? cia1object->dumpRegisters("mode") : "CIA1 not attached\n"; }
+
+        // ML Monitor CIA2 Register Dumps
+        inline std::string dumpCIA2Regs() const { return cia2object ? cia2object->dumpRegisters("all") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Ports() const { return cia2object ? cia2object->dumpRegisters("port") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Timers() const { return cia2object ? cia2object->dumpRegisters("timer") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2TOD() const { return cia2object ? cia2object->dumpRegisters("tod") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2ICR() const { return cia2object ? cia2object->dumpRegisters("icr") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Serial() const { return cia2object ? cia2object->dumpRegisters("serial") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
+
+        // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vicII ? vicII->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vicII ? vicII->getVICBanks() : "VIC not attached\n"; }
         inline std::string vicDumpRegs(const std::string& group) { return vicII ? vicII->dumpRegisters(group) : " VIC not attached\n"; }
-        inline void cpuStep() { return processor->step(); }
-        inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline uint8_t getCurrentRaster() { return vicII->getCurrentRaster(); }
         void vicFFRaster(uint8_t targetRaster);
-        CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(), processor->getY(), processor->getSP(), processor->getSR()}; }
 
     protected:
 

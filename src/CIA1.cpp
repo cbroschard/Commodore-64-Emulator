@@ -818,35 +818,35 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     // Port registers
     if (group == "port" || group == "all")
     {
-        out << "Port Registers \n\n";
-        out << "PORT A = $" << std::setw(2) << portA << "\n";
-        out << "PORT A Data Direction Register = $" << std::setw(2) << dataDirectionPortA << "\n";
-        out << "PORT B = $" << std::setw(2) << portB << "\n";
-        out << "PORT B Data Direction Register = $" << std::setw(2) << dataDirectionPortB << "\n";
+        out << "\nPort Registers \n\n";
+        out << "PORT A = $" << std::setw(2) << static_cast<int>(portA) << "\n";
+        out << "PORT A Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortA) << "\n";
+        out << "PORT B = $" << std::setw(2) << static_cast<int>(portB) << "\n";
+        out << "PORT B Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortB) << "\n";
     }
 
     // Timer registers
     if (group == "timer" || group == "all")
     {
-        out << "Timer Registers \n\n";
-        out << "Timer A Latch Low = $" << std::setw(2) << timerALowByte << "\n";
-        out << "Timer A Latch High = $" << std::setw(2) << timerAHighByte << "\n";
+        out << "\nTimer Registers \n\n";
+        out << "Timer A Latch Low = $" << std::setw(2) << static_cast<int>(timerALowByte) << "\n";
+        out << "Timer A Latch High = $" << std::setw(2) << static_cast<int>(timerAHighByte) << "\n";
         out << "Timer A Latched = " << (timerALatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerASnap << "\n";
         out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
-        out << "Timer A Control Register = $" << std::setw(2) << timerAControl <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
+        out << "Timer A Control Register = $" << std::setw(2) << static_cast<int>(timerAControl) <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
             << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
-        out << "Timer B Latch Low = $" << std::setw(2) << timerBLowByte << "\n";
-        out << "Timer B Latch High = $" << std::setw(2) << timerBHighByte << "\n";
+        out << "Timer B Latch Low = $" << std::setw(2) << static_cast<int>(timerBLowByte) << "\n";
+        out << "Timer B Latch High = $" << std::setw(2) << static_cast<int>(timerBHighByte) << "\n";
         out << "Timer B Latched = " << (timerBLatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerBSnap << "\n";
         out << "Timer B Current = $" << std::setw(4) << timerB << "\n";
-        out << "Timer B Control Register = $" << std::setw(2) << timerBControl << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
+        out << "Timer B Control Register = $" << std::setw(2) << static_cast<int>(timerBControl) << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
             << " Mode: " << ((timerBControl & 0x08) ? "One shot" : "Continuous") << "\n";
     }
 
     // TOD registers
     if (group == "tod" || group == "all")
     {
-        out << "TOD Registers\n\n";
+        out << "\nTOD Registers\n\n";
 
         out << "Current TOD = "
             << std::setw(2) << int(todClock[3]) << ":"
@@ -870,9 +870,9 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     }
 
     // Interrupt status
-    if (group == "interrupt" || group == "all")
+    if (group == "icr" || group == "all")
     {
-        out << "Interrupt Registers\n\n";
+        out << "\nInterrupt Registers\n\n";
         out << "Interrupt Status (IFR) = $" << std::setw(2) << int(interruptStatus)
             << "  [";
         if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
@@ -888,14 +888,14 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     // Serial data register
     if (group == "serial" || group == "all")
     {
-        out << "Serial Register\n\n";
+        out << "\nSerial Register\n\n";
         out << "Serial Data Register = $" << std::setw(2) << int(serialDataRegister) << "\n";
     }
 
     // Mode
     if (group == "control" || group == "all")
     {
-        out << "Control Lines\n\n";
+        out << "\nControl Lines\n\n";
         out << "CNT Input Mode = ";
         switch (inputMode)
         {

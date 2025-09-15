@@ -20,7 +20,7 @@ std::string VICCommand::name() const
 
 std::string VICCommand::category() const
 {
-    return "VIC-II";
+    return "Chip/VIC-II";
 }
 
 std::string VICCommand::shortHelp() const
