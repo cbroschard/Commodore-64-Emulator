@@ -122,7 +122,12 @@ void CPU::executeIRQ()
     }
     push((PC >> 8) & 0xFF);     // High byte of PC
     push(PC & 0xFF);            // Low byte of PC
-    push(SR & ~0x10);           // Clear the break flag for IRQ
+
+    // Push SR with B=0, bit 5=1
+    uint8_t status = SR;
+    status &= ~0x10; // clear B
+    status |= 0x20;  // set unused bit 5
+    push(status);
 
     SetFlag(I, true); // Disable further interrupts
 
@@ -135,15 +140,15 @@ void CPU::executeIRQ()
 
 void CPU::executeNMI()
 {
-    if (logger)
-    {
-        logger->WriteLog("In executeNMI and allowing stack writes");
-    }
-
     //Save CPU state
     push((PC >> 8) & 0xFF); // high byte of PC
     push(PC & 0xFF); // low byte of PC
-    push(SR | 0x20); // Set unused bit 5 to 1
+
+      // Push SR with B=0, bit 5=1
+    uint8_t status = SR;
+    status &= ~0x10; // clear B
+    status |= 0x20;  // set unused bit 5
+    push(status);
 
     // Disable interrupt flag
     SetFlag(I, true);
