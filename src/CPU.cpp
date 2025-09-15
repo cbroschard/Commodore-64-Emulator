@@ -987,10 +987,9 @@ void CPU::BRK() {
     // Set the break flag (B flag) in the processor status
     SetFlag(B, 1);
 
-    // Push the status register (SR) onto the stack, but without the B flag
     uint8_t status = SR;
-    status &= ~0x10;  // Clear the B flag (Bit 4)
-    status |= 0x04;   // Set the unused bit 2 to 1
+    status |= 0x10; // set B flag
+    status |= 0x20; // bit 5 always set
     push(status);
 
     // Set the interrupt disable flag (I flag) in the processor status
