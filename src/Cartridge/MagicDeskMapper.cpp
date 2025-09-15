@@ -39,7 +39,6 @@ void MagicDeskMapper::write(uint16_t address, uint8_t value)
             cart->setGameLine(true);
             cart->setExROMLine(true);
             cart->clearCartridge(cartLocation::LO);
-            cart->clearCartridge(cartLocation::HI);
         }
         else
         {
@@ -55,43 +54,21 @@ void MagicDeskMapper::write(uint16_t address, uint8_t value)
     }
 }
 
-bool MagicDeskMapper::loadIntoMemory(uint8_t bank)
-{
+bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
     if (!cart || !mem) return false;
 
-    // Clear LO ($8000–$9FFF) for new bank
     cart->clearCartridge(cartLocation::LO);
 
-    // LO banked region
     const auto& sections = cart->getChipSections();
-    bool found = false;
-    for (const auto& sec : sections)
-    {
-        if (sec.bankNumber == bank && sec.loadAddress == CART_LO_START)
-        {
+    for (const auto& sec : sections) {
+        if (sec.bankNumber == bank && sec.loadAddress == CART_LO_START) {
             size_t size = std::min(sec.data.size(), size_t(0x2000));
             for (size_t i = 0; i < size; ++i)
                 mem->writeCartridge(i, sec.data[i], cartLocation::LO);
-            found = true;
+            return true;
         }
     }
 
-    // HI fixed region ($A000–$BFFF), usually bank 0
-    for (const auto& sec : sections)
-    {
-        if (sec.bankNumber == 0 && sec.loadAddress == CART_HI_START)
-        {
-            size_t size = std::min(sec.data.size(), size_t(0x2000));
-            for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(i, sec.data[i], cartLocation::HI);
-        }
-    }
-
-    if (!found) {
-        std::cerr << "MagicDesk: Bank " << unsigned(bank)
-                  << " not found in CRT.\n";
-        return false;
-    }
-
-    return true;
+    std::cerr << "MagicDesk: Bank " << unsigned(bank) << " not found.\n";
+    return false;
 }

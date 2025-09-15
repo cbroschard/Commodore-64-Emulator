@@ -90,6 +90,7 @@ class Cartridge
         // Helpers
         inline uint16_t getCurrentBank() const { return currentBank; }
         uint16_t getNumberOfBanks() const;
+        bool hasSectionAt(uint16_t address) const;
 
         // Clear cartridge memory
         void clearCartridge(cartLocation location);

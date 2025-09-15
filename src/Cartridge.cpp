@@ -80,6 +80,7 @@ bool Cartridge::loadROM(const std::string& path)
             mapper->attachCartridgeInstance(this);
             mapper->attachMemoryInstance(mem);
             mapper->loadIntoMemory(0);
+            break;
         }
         case CartridgeType::DINAMIC:
         {
@@ -313,6 +314,16 @@ uint16_t Cartridge::getNumberOfBanks() const
         uniqueBanks.insert(section.bankNumber);
     }
     return static_cast<uint16_t>(uniqueBanks.size());
+}
+
+bool Cartridge::hasSectionAt(uint16_t address) const
+{
+    for (const auto& section : chipSections)
+    {
+        if (section.loadAddress == address);
+        return true;
+    }
+    return false;
 }
 
 bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)

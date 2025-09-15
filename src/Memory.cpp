@@ -307,6 +307,10 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::CARTRIDGE_LO:
         case PLA::CARTRIDGE_HI:
         {
+            // Write the value to the requested RAM address first
+            mem[address] = value;
+
+            // Handle in cartridge write if one is attached
             if (cart && cartridgeAttached)
             {
                 cart->write(address,value);

@@ -30,14 +30,12 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart || !mem) return false;
 
-    // Clear LO + HI banks first (fill with 0xFF)
-    cart->clearCartridge(cartLocation::LO);
-    cart->clearCartridge(cartLocation::HI);
-
     bool loMapped = false;
     bool hiMapped = false;
+    bool eMapped  = false;
 
     // --- LO: banked area ($8000-$9FFF) ---
+    cart->clearCartridge(cartLocation::LO);
     for (const auto& section : cart->getChipSections())
     {
         if (section.bankNumber == bank && section.loadAddress == CART_LO_START)
@@ -48,21 +46,43 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
         }
     }
 
-    // --- HI: fixed to highest bank ($A000-$BFFF) ---
-    uint8_t maxBank = 0;
-    for (const auto& section : cart->getChipSections())
-        if (section.loadAddress == CART_HI_START && section.bankNumber > maxBank)
-            maxBank = section.bankNumber;
-
-    for (const auto& section : cart->getChipSections())
+    // --- HI: fixed ($A000-$BFFF), if present ---
+    if (cart->hasSectionAt(CART_HI_START))
     {
-        if (section.bankNumber == maxBank && section.loadAddress == CART_HI_START)
+        cart->clearCartridge(cartLocation::HI);
+
+        // Pick the highest-numbered bank for $A000, unless your format specifies otherwise
+        uint8_t fixedBank = 0;
+        for (const auto& section : cart->getChipSections())
+            if (section.loadAddress == CART_HI_START && section.bankNumber > fixedBank)
+                fixedBank = section.bankNumber;
+
+        for (const auto& section : cart->getChipSections())
         {
-            for (size_t i = 0; i < section.data.size(); ++i)
-                mem->writeCartridge(i, section.data[i], cartLocation::HI);
-            hiMapped = true;
+            if (section.bankNumber == fixedBank && section.loadAddress == CART_HI_START)
+            {
+                for (size_t i = 0; i < section.data.size(); ++i)
+                    mem->writeCartridge(i, section.data[i], cartLocation::HI);
+                hiMapped = true;
+            }
         }
     }
 
-    return loMapped || hiMapped; // false if nothing was mapped
+    // --- E000: rarely used, but check if present ---
+    if (cart->hasSectionAt(CART_HI_START1))
+    {
+        // Note: reuse cartLocation::HI for now (unless you add a dedicated HI1).
+        cart->clearCartridge(cartLocation::HI);
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.loadAddress == CART_HI_START1)
+            {
+                for (size_t i = 0; i < section.data.size(); ++i)
+                    mem->writeCartridge(i, section.data[i], cartLocation::HI);
+                eMapped = true;
+            }
+        }
+    }
+
+    return loMapped || hiMapped || eMapped;
 }
