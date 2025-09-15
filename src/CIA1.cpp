@@ -849,22 +849,22 @@ std::string CIA1::dumpRegisters(const std::string& group) const
         out << "\nTOD Registers\n\n";
 
         out << "Current TOD = "
-            << std::setw(2) << int(todClock[3]) << ":"
-            << std::setw(2) << int(todClock[2]) << ":"
-            << std::setw(2) << int(todClock[1]) << "."
-            << std::setw(2) << int(todClock[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todClock[3]) << ":"
+            << std::setw(2) << static_cast<int>(todClock[2]) << ":"
+            << std::setw(2) << static_cast<int>(todClock[1]) << "."
+            << std::setw(2) << static_cast<int>(todClock[0]) << "\n";
 
         out << "TOD Alarm   = "
-            << std::setw(2) << int(todAlarm[3]) << ":"
-            << std::setw(2) << int(todAlarm[2]) << ":"
-            << std::setw(2) << int(todAlarm[1]) << "."
-            << std::setw(2) << int(todAlarm[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todAlarm[3]) << ":"
+            << std::setw(2) << static_cast<int>(todAlarm[2]) << ":"
+            << std::setw(2) << static_cast<int>(todAlarm[1]) << "."
+            << std::setw(2) << static_cast<int>(todAlarm[0]) << "\n";
 
         out << "TOD Latch   = "
-            << std::setw(2) << int(todLatch[3]) << ":"
-            << std::setw(2) << int(todLatch[2]) << ":"
-            << std::setw(2) << int(todLatch[1]) << "."
-            << std::setw(2) << int(todLatch[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todLatch[3]) << ":"
+            << std::setw(2) << static_cast<int>(todLatch[2]) << ":"
+            << std::setw(2) << static_cast<int>(todLatch[1]) << "."
+            << std::setw(2) << static_cast<int>(todLatch[0]) << "\n";
 
         out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
     }
@@ -873,7 +873,7 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     if (group == "icr" || group == "all")
     {
         out << "\nInterrupt Registers\n\n";
-        out << "Interrupt Status (IFR) = $" << std::setw(2) << int(interruptStatus)
+        out << "Interrupt Status (IFR) = $" << std::setw(2) << static_cast<int>(interruptStatus)
             << "  [";
         if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
         if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
@@ -882,18 +882,18 @@ std::string CIA1::dumpRegisters(const std::string& group) const
         if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
         out << " ]\n";
 
-        out << "Interrupt Enable (IER) = $" << std::setw(2) << int(interruptEnable) << "\n";
+        out << "Interrupt Enable (IER) = $" << std::setw(2) << static_cast<int>(interruptEnable) << "\n";
     }
 
     // Serial data register
     if (group == "serial" || group == "all")
     {
         out << "\nSerial Register\n\n";
-        out << "Serial Data Register = $" << std::setw(2) << int(serialDataRegister) << "\n";
+        out << "Serial Data Register = $" << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
     }
 
     // Mode
-    if (group == "control" || group == "all")
+    if (group == "mode" || group == "all")
     {
         out << "\nControl Lines\n\n";
         out << "CNT Input Mode = ";

@@ -21,7 +21,9 @@ class Voice
         void release();
 
         // Getters
+        const Oscillator& getOscillator() const;
         Oscillator& getOscillator();
+        const Envelope& getEnvelope() const;
         Envelope& getEnvelope();
 
         // Setters

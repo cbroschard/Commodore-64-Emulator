@@ -104,9 +104,16 @@ void Envelope::setParameters(double attack, double decay, double sustain, double
     releaseCoeff = 1.0 - std::exp(-1.0 / (releaseTime * sampleRate));
 }
 
-double Envelope::getLevel() const
-{
-    return level;
+std::string Envelope::stateToString(State s) {
+    switch (s)
+    {
+        case State::Idle:    return "Idle";
+        case State::Attack:  return "Attack";
+        case State::Decay:   return "Decay";
+        case State::Sustain: return "Sustain";
+        case State::Release: return "Release";
+    }
+    return "Unknown";
 }
 
 void Envelope::reset()

@@ -9,9 +9,19 @@
 #include "Computer.h"
 #include "Debug/MLMonitor.h"
 
-GoCommand::GoCommand() = default;
+GoCommand::GoCommand() :
+    trapAddress(0xFFF)
+{
+
+}
 
 GoCommand::~GoCommand() = default;
+
+int GoCommand::order() const
+{
+    return 5;
+}
+
 
 std::string GoCommand::name() const
 {

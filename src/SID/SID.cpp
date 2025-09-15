@@ -610,3 +610,81 @@ void SID::updateCutoffFromRegisters()
     // Apply to filter
     filterobj.setCutoffFreq(cutoffFreq);
 }
+
+std::string SID::dumpRegisters(const std::string& group)
+{
+    std::stringstream out;
+    out << std::hex << std::uppercase << std::setfill('0');
+    if (group == "voice1" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice1, voice1, 1);
+    if (group == "voice2" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice2, voice2, 2);
+    if (group == "voice3" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice3, voice3, 3);
+
+    if (group == "filter" || group == "all")
+    {
+        // Filter
+        uint16_t cutoff = ((sidRegisters.filter.cutoffHigh & 0x07) << 8) | sidRegisters.filter.cutoffLow;
+        out << "Filter:\n";
+        out << "  Cutoff=$" << std::hex << std::setw(4) << std::setfill('0') << cutoff
+            << "  Res/Route=$" << std::setw(2) << static_cast<int>(sidRegisters.filter.resonanceControl)
+            << "  Volume=$" << std::setw(2) << static_cast<int>(sidRegisters.filter.volume) << "\n";
+    }
+
+    return out.str();
+}
+
+std::string SID::decodeControlRegister(uint8_t ctrl) const
+{
+    std::stringstream out;
+    out << "  CTRL=$" << std::hex << std::setw(2) << static_cast<int>(ctrl) << " (";
+    if (ctrl & 0x80) out << "GATE ";
+    if (ctrl & 0x40) out << "SYNC ";
+    if (ctrl & 0x20) out << "RING ";
+    if (ctrl & 0x10) out << "TEST ";
+    if (ctrl & 0x08) out << "TRI ";
+    if (ctrl & 0x04) out << "SAW ";
+    if (ctrl & 0x02) out << "PULSE ";
+    if (ctrl & 0x01) out << "NOISE ";
+    out << ")\n";
+    return out.str();
+}
+
+std::string SID::decodeADSR(const voiceRegisters& regs, const Voice& voice, int index) const
+{
+    std::stringstream out;
+
+    // ADSR nibbles
+    uint8_t A = (regs.attackDecay >> 4) & 0x0F;
+    uint8_t D = (regs.attackDecay)      & 0x0F;
+    uint8_t S = (regs.sustainRelease >> 4) & 0x0F;
+    uint8_t R = (regs.sustainRelease)      & 0x0F;
+
+    out << "  ADSR: A=$" << std::hex << static_cast<int>(A) << " D=$" << static_cast<int>(D)
+        << " S=$" << static_cast<int>(S) << " R=$" << static_cast<int>(R) << "\n";
+
+    // Current envelope level
+    Envelope::State st = voice.getEnvelope().getState();
+    double level = voice.getEnvelope().getLevel();
+    out << "  ENV State=" << Envelope::stateToString(st) << " Level=" << std::dec << std::fixed << std::setprecision(3) << level << "\n";
+
+    return out.str();
+}
+
+std::string SID::dumpVoice(const voiceRegisters& regs, const Voice& voice, int index) const
+{
+    std::stringstream out;
+    out << "SID Voice " << index << ":\n";
+
+    uint16_t freq = (regs.frequencyHigh << 8) | regs.frequencyLow;
+    double freqHz = (freq * sidClockFrequency) / 65536.0;
+    out << "  FREQ=$" << std::hex << std::setw(4) << std::setfill('0') << freq
+        << " (" << std::dec << std::fixed << std::setprecision(1) << freqHz << " Hz)\n";
+
+    uint16_t pw = ((regs.pulseWidthHigh & 0x0F) << 8) | regs.pulseWidthLow;
+    double duty = (pw / 4096.0) * 100.0;
+    out << "  PW=$" << std::hex << std::setw(4) << std::setfill('0') << pw
+        << " (" << std::dec << std::setprecision(1) << duty << "%)\n";
+
+    out << decodeControlRegister(regs.control);
+    out << decodeADSR(regs, voice, index);
+    return out.str();
+}

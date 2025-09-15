@@ -26,6 +26,7 @@
 #include "Debug/PLACommand.h"
 #include "Debug/RegisterDumpCommand.h"
 #include "Debug/ResetCommand.h"
+#include "Debug/SIDCommand.h"
 #include "Debug/StepCommand.h"
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"

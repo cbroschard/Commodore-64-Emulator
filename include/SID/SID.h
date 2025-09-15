@@ -51,6 +51,9 @@ class SID
         // Full reset to default power on state
         void reset();
 
+        // ML Monitor access
+        std::string dumpRegisters(const std::string& group);
+
     protected:
 
     private:
@@ -129,6 +132,10 @@ class SID
         uint16_t combineBytes(uint8_t high, uint8_t low);
         void updateEnvelopeParameters(Voice &voice, voiceRegisters &regs);
         void updateCutoffFromRegisters();
-};
 
+        // Monitor helpers
+        std::string decodeControlRegister(uint8_t control) const;
+        std::string decodeADSR(const voiceRegisters& regs, const Voice& voice, int index) const;
+        std::string dumpVoice(const voiceRegisters& regs, const Voice& voice, int index) const;
+};
 #endif // SID_H

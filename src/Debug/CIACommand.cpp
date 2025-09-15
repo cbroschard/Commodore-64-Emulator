@@ -1,3 +1,10 @@
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
 #include "Computer.h"
 #include "Debug/CIACommand.h"
 #include "Debug/MLMonitor.h"
@@ -56,7 +63,7 @@ Examples:
 
 void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    if (args.size() < 2)
+    if (args.size() < 2 || (args.size() == 2 && isHelp(args[1])))
     {
         std::cout << "Usage: cia <1|2> <subcommand>\n";
         return;

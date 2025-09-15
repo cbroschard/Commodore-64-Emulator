@@ -28,6 +28,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<PLACommand>());
     registerCommand(std::make_unique<RegisterDumpCommand>());
     registerCommand(std::make_unique<ResetCommand>());
+    registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());

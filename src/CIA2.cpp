@@ -872,18 +872,18 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     if (group == "port" || group == "all")
     {
         out << "\nPort Registers \n\n";
-        out << "PORT A = $" << std::setw(2) << static_cast<int>(portA) << "\n";
-        out << "PORT A Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortA) << "\n";
-        out << "PORT B = $" << std::setw(2) << static_cast<int>(portB) << "\n";
-        out << "PORT B Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortB) << "\n";
+        out << "PORT A = $" << std::setw(2) << int(portA) << "\n";
+        out << "PORT A Data Direction Register = $" << std::setw(2) << int(dataDirectionPortA) << "\n";
+        out << "PORT B = $" << std::setw(2) << int(portB) << "\n";
+        out << "PORT B Data Direction Register = $" << std::setw(2) << int(dataDirectionPortB) << "\n";
     }
 
     // Timer registers
     if (group == "timer" || group == "all")
     {
         out << "\nTimer Registers \n\n";
-        out << "Timer A Latch Low = $" << std::setw(2) << timerALowByte << "\n";
-        out << "Timer A Latch High = $" << std::setw(2) << timerAHighByte << "\n";
+        out << "Timer A Latch Low = $" << std::setw(2) << static_cast<int>(timerALowByte) << "\n";
+        out << "Timer A Latch High = $" << std::setw(2) << static_cast<int>(timerAHighByte) << "\n";
         out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
         out << "Timer A Control Register = $" << std::setw(2) << static_cast<int>(timerAControl) <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
             << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
@@ -900,22 +900,22 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         out << "\nTOD Registers\n\n";
 
         out << "Current TOD = "
-            << std::setw(2) << int(todClock[3]) << ":"
-            << std::setw(2) << int(todClock[2]) << ":"
-            << std::setw(2) << int(todClock[1]) << "."
-            << std::setw(2) << int(todClock[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todClock[3]) << ":"
+            << std::setw(2) << static_cast<int>(todClock[2]) << ":"
+            << std::setw(2) << static_cast<int>(todClock[1]) << "."
+            << std::setw(2) << static_cast<int>(todClock[0]) << "\n";
 
         out << "TOD Alarm   = "
-            << std::setw(2) << int(todAlarm[3]) << ":"
-            << std::setw(2) << int(todAlarm[2]) << ":"
-            << std::setw(2) << int(todAlarm[1]) << "."
-            << std::setw(2) << int(todAlarm[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todAlarm[3]) << ":"
+            << std::setw(2) << static_cast<int>(todAlarm[2]) << ":"
+            << std::setw(2) << static_cast<int>(todAlarm[1]) << "."
+            << std::setw(2) << static_cast<int>(todAlarm[0]) << "\n";
 
         out << "TOD Latch   = "
-            << std::setw(2) << int(todLatch[3]) << ":"
-            << std::setw(2) << int(todLatch[2]) << ":"
-            << std::setw(2) << int(todLatch[1]) << "."
-            << std::setw(2) << int(todLatch[0]) << "\n";
+            << std::setw(2) << static_cast<int>(todLatch[3]) << ":"
+            << std::setw(2) << static_cast<int>(todLatch[2]) << ":"
+            << std::setw(2) << static_cast<int>(todLatch[1]) << "."
+            << std::setw(2) << static_cast<int>(todLatch[0]) << "\n";
 
         out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
     }
@@ -924,7 +924,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     if (group == "icr" || group == "all")
     {
         out << "\nInterrupt Registers\n\n";
-        out << "Interrupt Status (IFR) = $" << std::setw(2) << int(interruptStatus)
+        out << "Interrupt Status (IFR) = $" << std::setw(2) << static_cast<int>(interruptStatus)
             << "  [";
         if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
         if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
@@ -933,7 +933,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
         out << " ]\n";
 
-        out << "Interrupt Enable (IER) = $" << std::setw(2) << int(interruptEnable) << "\n";
+        out << "Interrupt Enable (IER) = $" << std::setw(2) << static_cast<int>(interruptEnable) << "\n";
         out << "NMI Asserted = " << (nmiAsserted ? "Yes" : "No") << "\n";
     }
 
@@ -941,7 +941,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     if (group == "serial" || group == "all")
     {
         out << "\nSerial Register\n\n";
-        out << "Serial Data Register = $" << std::setw(2) << int(serialDataRegister) << "\n";
+        out << "Serial Data Register = $" << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
         out << "Output Bit = " << outBit << "\n";
     }
 
@@ -956,7 +956,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     if (group == "iec" || group == "all")
     {
         out << "\nIEC Bus State\n\n";
-        out << "Device Number = " << int(deviceNumber) << "\n";
+        out << "Device Number = " << static_cast<int>(deviceNumber) << "\n";
         out << "Listening = " << (listening ? "Yes" : "No") << "\n";
         out << "Talking   = " << (talking ? "Yes" : "No") << "\n";
         out << "ATN Line  = " << (atnLine ? "Asserted" : "Released") << "\n";

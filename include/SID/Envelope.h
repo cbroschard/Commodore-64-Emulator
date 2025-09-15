@@ -9,6 +9,7 @@
 #define ENVELOPE_H
 
 #include <cmath>
+#include <string>
 
 class Envelope
 {
@@ -37,7 +38,11 @@ class Envelope
         void setParameters(double attack, double decay, double sustain, double release);
 
         // Getters
-        double getLevel() const;
+        inline double getLevel() const { return level; }
+        inline State getState() const { return state; }
+
+        // Helpers
+        static std::string stateToString(State s);
 
         // Reset envelope
         void reset();

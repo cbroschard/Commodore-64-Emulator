@@ -18,9 +18,19 @@ Voice::Voice(double sampleRate) :
 
 Voice::~Voice() = default;
 
+const Oscillator& Voice::getOscillator() const
+{
+    return osc;
+}
+
 Oscillator& Voice::getOscillator()
 {
     return osc;
+}
+
+const Envelope& Voice::getEnvelope() const
+{
+    return env;
 }
 
 Envelope& Voice::getEnvelope()

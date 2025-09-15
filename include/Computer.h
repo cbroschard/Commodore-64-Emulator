@@ -134,6 +134,14 @@ class Computer
         inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
 
+        // ML Monitor SID Register Dumps
+        inline std::string dumpSIDRegs() const { return sidchip ? sidchip->dumpRegisters("all") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice1() const { return sidchip ? sidchip->dumpRegisters("voice1") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice2() const { return sidchip ? sidchip->dumpRegisters("voice2") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice3() const { return sidchip ? sidchip->dumpRegisters("voice3") : "SID not attached\n"; }
+        inline std::string dumpSIDVoices() const { return sidchip ? sidchip->dumpRegisters("voices") : "SID not attached\n"; }
+        inline std::string dumpSIDFilter() const { return sidchip ? sidchip->dumpRegisters("filter") : "SID not attached\n"; }
+
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vicII ? vicII->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vicII ? vicII->getVICBanks() : "VIC not attached\n"; }
@@ -205,9 +213,6 @@ class Computer
         bool joystick1Attached;
         bool joystick2Attached;
         bool checkCombo(SDL_Keymod modMask, SDL_Scancode a, SDL_Scancode b);
-
-        // Keep track of when to present the frame
-        //bool frameReady;
 
         // Graphics loop threading
         std::mutex              frameMut;
