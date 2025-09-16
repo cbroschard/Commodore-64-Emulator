@@ -739,11 +739,11 @@ void CPU::AHX(uint8_t opcode)
     // Determine addressing mode
     switch (opcode) {
         case 0x93: // (Indirect), Y
-            address = readIndirectY();
+            address = indirectYAddress();
             value &= (address >> 8); // Apply High Byte
             break;
         case 0x9F: // Absolute, Y
-            address = readABSY();
+            address = absYAddress();
             value &= (address >> 8); // Apply High Byte
             break;
     }
@@ -771,17 +771,21 @@ void CPU::AND(uint8_t opcode)
     SetFlag(N, A & 0x80);
 }
 
+// ARR - AND then ROR (undocumented, opcode $6B)
 void CPU::ARR()
 {
-    uint8_t value = fetch();      // Fetch the immediate value
-    A &= value;                   // Perform AND operation
-    A = (A >> 1) | (getFlag(C) ? 0x80 : 0);  // Rotate right with carry
+    uint8_t value = readImmediate();  // Fetch operand
+    A &= value;
 
-    // Set flags
-    SetFlag(C, A & 0x40);         // Set carry to bit 6
-    SetFlag(V, (A & 0x40) ^ ((A & 0x20) << 1)); // Set overflow to XOR of bits 6 and 5
-    SetFlag(Z, A == 0);           // Set zero flag if result is zero
-    SetFlag(N, A & 0x80);         // Set negative flag if bit 7 is set
+    // Rotate right with carry in
+    bool oldCarry = getFlag(C);
+    A = (A >> 1) | (oldCarry ? 0x80 : 0);
+
+    // Flags
+    SetFlag(C, (A >> 6) & 1); // Carry = bit 6 of result
+    SetFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1)); // Overflow = bit6 ^ bit5
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
 
 void CPU::ASL(uint8_t opcode)
@@ -843,7 +847,7 @@ void CPU::ASL(uint8_t opcode)
 
 void CPU::AXS()
 {
-    uint8_t value = zpAddress(); // Fetch the immediate value
+    uint8_t value = readImmediate(); // Fetch the immediate value
     uint8_t andResult = A & X; // Perform AND between A and X
     int16_t temp = andResult - value; // Subtract the immediate value
 
@@ -1269,13 +1273,13 @@ void CPU::ISC(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0xE3: address = readIndirectX(); break;
-        case 0xE7: address = readZP(); break;
-        case 0xEF: address = readABS(); break;
-        case 0xF3: address = readIndirectY(); break;
-        case 0xF7: address = readZPX(); break;
-        case 0xFB: address = readABSY(); break;
-        case 0xFF: address = readABSX(); break;
+        case 0xE3: address = indirectXAddress(); break;
+        case 0xE7: address = zpAddress(); break;
+        case 0xEF: address = absAddress(); break;
+        case 0xF3: address = indirectYAddress(); break;
+        case 0xF7: address = zpXAddress(); break;
+        case 0xFB: address = absYAddress(); break;
+        case 0xFF: address = absXAddress(); break;
     }
     // Increment memory value
     value = mem->read(address);
@@ -1361,12 +1365,12 @@ void CPU::LAX(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0xA3: address = readIndirectX(); break;
-        case 0xA7: address = readZP(); break;
-        case 0xAF: address = readABS(); break;
-        case 0xB3: address = readIndirectY(); break;
-        case 0xB7: address = readZPY(); break;
-        case 0xBF: address = readABSY(); break;
+        case 0xA3: address = indirectXAddress(); break;
+        case 0xA7: address = zpAddress(); break;
+        case 0xAF: address = absAddress(); break;
+        case 0xB3: address = indirectYAddress(); break;
+        case 0xB7: address = zpYAddress(); break;
+        case 0xBF: address = absYAddress(); break;
     }
     // Load value from memory into A and X
     value = mem->read(address);
@@ -1778,13 +1782,13 @@ void CPU::RRA(uint8_t opcode)
 
     // Determine addressing mode
     switch (opcode) {
-        case 0x63: address = readIndirectX(); break;
-        case 0x67: address = readZP(); break;
-        case 0x6F: address = readABS(); break;
-        case 0x73: address = readIndirectY(); break;
-        case 0x77: address = readZPX(); break;
-        case 0x7B: address = readABSY(); break;
-        case 0x7F: address = readABSX(); break;
+        case 0x63: address = indirectXAddress(); break;
+        case 0x67: address = zpAddress(); break;
+        case 0x6F: address = absAddress(); break;
+        case 0x73: address = indirectYAddress(); break;
+        case 0x77: address = zpXAddress(); break;
+        case 0x7B: address = absYAddress(); break;
+        case 0x7F: address = absXAddress(); break;
     }
     // Perform Rotate Right (ROR) on memory value
     value = mem->read(address);
@@ -1842,23 +1846,10 @@ void CPU::SAX(uint8_t opcode)
     uint16_t address;
     switch (opcode)
     {
-        case 0x87: // Zero Page
-            address = fetch(); // Fetch zero-page address
-            break;
-        case 0x97: // Zero Page, Y
-            address = (fetch() + Y) & 0xFF; // Wrap around zero page
-            break;
-        case 0x8F: // Absolute
-            address = fetch() | (fetch() << 8); // Fetch absolute address
-            break;
-        case 0x83: // (Indirect, X)
-            {
-                uint8_t zpAddr = (fetch() + X) & 0xFF;
-                uint8_t lowByte = mem->read(zpAddr);
-                uint8_t highByte = mem->read((zpAddr + 1) & 0xFF);
-                address = lowByte | (highByte << 8);
-            }
-            break;
+        case 0x83: address = indirectXAddress(); break;
+        case 0x87: address = zpAddress(); break;
+        case 0x8F: address = absAddress(); break;
+        case 0x97: address = zpYAddress(); break;
     }
 
     uint8_t result = A & X; // Compute A AND X
@@ -1944,186 +1935,56 @@ void CPU::SHY()
 
 void CPU::SLO(uint8_t opcode)
 {
-    switch(opcode)
+    uint16_t address = 0;
+
+    // Select addressing mode
+    switch (opcode)
     {
-        case 0x03:
-        {
-            //Indirect X
-            uint8_t zpAddress = fetch();
-            uint8_t lowByte = mem->read(zpAddress);
-            uint8_t highByte = mem->read((zpAddress + 1) & 0xFF);
-
-            uint16_t baseAddress = lowByte | (highByte << 8);
-            uint16_t effectiveAddress = baseAddress + X;
-
-            uint8_t value = mem->read(effectiveAddress);
-            uint8_t result = value << 1;
-
-            mem->write(effectiveAddress,result);
-
-            A |= result;
-            SetFlag(C, (value & 0x80) != 0);
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x07:
-        {
-            uint8_t zpAddress = fetch();
-
-            uint8_t value = mem->read(zpAddress);
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(zpAddress,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x13:
-        {
-            //Indirect Y
-            uint8_t zpAddress = fetch();
-            uint8_t lowByte = mem->read(zpAddress);
-            uint8_t highByte = mem->read((zpAddress + 1) & 0xFF);
-
-            uint16_t baseAddress = lowByte | (highByte << 8);
-            uint16_t effectiveAddress = baseAddress + Y;
-
-            uint8_t value = mem->read(effectiveAddress);
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(effectiveAddress,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x17:
-        {
-            uint8_t zpAddress = (fetch() + X) & 0xFF;
-            uint8_t lowByte = mem->read(zpAddress);
-            uint8_t highByte = mem->read((zpAddress + 1) & 0xFF);
-
-            uint16_t effectiveAddress = (highByte << 8) | lowByte;
-            uint8_t value = mem->read(effectiveAddress);
-
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(effectiveAddress,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x0F:
-        {
-            uint8_t lowByte = fetch();
-            uint8_t highbyte = fetch();
-
-            uint16_t address = (highbyte << 8) | lowByte;
-            uint8_t value = mem->read(address);
-
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(address,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x1B:
-        {
-            //Absolute , Y
-            uint8_t lowByte = fetch();
-            uint8_t highbyte = fetch();
-
-            uint16_t address = (highbyte << 8) | lowByte;
-            uint16_t effectiveAddress = address + Y;
-
-            uint8_t value = mem->read(effectiveAddress);
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(effectiveAddress,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
-        case 0x1F:
-        {
-            //Absolute , X
-            uint8_t lowByte = fetch();
-            uint8_t highbyte = fetch();
-
-            uint16_t address = (highbyte << 8) | lowByte;
-            uint16_t effectiveAddress = address + X;
-
-            uint8_t value = mem->read(effectiveAddress);
-            uint8_t result = value << 1;
-
-            SetFlag(C, (value & 0x80) != 0);
-
-            mem->write(effectiveAddress,result);
-
-            A |= result;
-            SetFlag(Z, A == 0);
-            SetFlag(N, (A & 0x80) != 0);
-
-            break;
-        }
+        case 0x03: address = indirectXAddress(); break;  // (Indirect,X)
+        case 0x07: address = zpAddress();        break;  // Zero Page
+        case 0x0F: address = absAddress();       break;  // Absolute
+        case 0x13: address = indirectYAddress(); break;  // (Indirect),Y
+        case 0x17: address = zpXAddress();       break;  // Zero Page,X
+        case 0x1B: address = absYAddress();      break;  // Absolute,Y
+        case 0x1F: address = absXAddress();      break;  // Absolute,X
     }
+
+    // Read, shift left, and write back
+    uint8_t value = mem->read(address);
+    SetFlag(C, value & 0x80);  // old bit 7 → Carry
+    value <<= 1;
+    mem->write(address, value);
+
+    // ORA with accumulator
+    A |= value;
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
 
 void CPU::SRE(uint8_t opcode)
 {
     uint16_t address = 0;
-    uint8_t value = 0;
 
+    // Select addressing mode
     switch (opcode)
     {
-        case 0x43: address = readIndirectX(); break;
-        case 0x47: address = readZP(); break;
-        case 0x4F: address = readABS(); break;
-        case 0x53: address = readIndirectY(); break;
-        case 0x57: address = readZPX(); break;
-        case 0x5B: address = readABSY(); break;
-        case 0x5F: address = readABSX(); break;
+        case 0x43: address = indirectXAddress(); break;  // (Indirect,X)
+        case 0x47: address = zpAddress();        break;  // Zero Page
+        case 0x4F: address = absAddress();       break;  // Absolute
+        case 0x53: address = indirectYAddress(); break;  // (Indirect),Y
+        case 0x57: address = zpXAddress();       break;  // Zero Page,X
+        case 0x5B: address = absYAddress();      break;  // Absolute,Y
+        case 0x5F: address = absXAddress();      break;  // Absolute,X
     }
+
     // Perform LSR on memory value
-    value = mem->read(address);
-    bool carry = value & 0x01; // Capture old LSB
-    value = value >> 1;        // Logical shift right
+    uint8_t value = mem->read(address);
+    SetFlag(C, value & 0x01);  // old bit 0 → Carry
+    value >>= 1;
     mem->write(address, value);
 
-    // Update Carry flag
-    SetFlag(C, carry);
-
-    // Perform XOR with the accumulator
+    // EOR with accumulator
     A ^= value;
-
-    // Update flags
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
 }
