@@ -266,6 +266,7 @@ void CPU::initializeOpcodeTable()
     opcodeTable[0x48] = [this]() { PHA(); };
     opcodeTable[0x49] = [this]() { EOR(0x49); };
     opcodeTable[0x4A] = [this]() { LSR(0x4A); };
+    opcodeTable[0x4B] = [this]() { ALR(); };
     opcodeTable[0x4C] = [this]() { JMP(0x4C); };
     opcodeTable[0x4D] = [this]() { EOR(0x4D); };
     opcodeTable[0x4E] = [this]() { LSR(0x4E); };
@@ -777,6 +778,16 @@ void CPU::AHX(uint8_t opcode)
     }
 
     mem->write(address, value); // Store result at the effective address
+}
+
+void CPU::ALR()
+{
+    uint8_t value = readImmediate();
+    A &= value;
+    SetFlag(C, A & 0x01);
+    A >>= 1;
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
 
 void CPU::AND(uint8_t opcode)

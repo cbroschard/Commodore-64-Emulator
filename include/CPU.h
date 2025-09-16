@@ -299,6 +299,7 @@ class CPU
         //Illegal instructions
         void AAC();
         void AHX(uint8_t opcode);
+        void ALR();
         void ARR();
         void AXS();
         void DCP(uint8_t opcode);
