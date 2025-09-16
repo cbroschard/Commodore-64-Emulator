@@ -20,6 +20,7 @@
 #include "Debug/DisassembleCommand.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/GoCommand.h"
+#include "Debug/JamCommand.h"
 #include "Debug/MemoryDumpCommand.h"
 #include "Debug/MemoryEditCommand.h"
 #include "Debug/NextCommand.h"

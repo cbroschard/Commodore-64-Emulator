@@ -93,23 +93,6 @@ class Computer
         inline void set1541LoROM(const std::string& loROM) { D1541LoROM = loROM; }
         inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
 
-        // ML Monitor CPU methods
-        inline uint16_t getPC() { return processor->getPC(); }
-        inline void setPC(uint16_t address) { processor->setPC(address); }
-        inline void cpuStep() { return processor->step(); }
-        inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
-        CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
-                 processor->getY(), processor->getSP(), processor->getSR()}; }
-
-        // ML Monitor Memory methods
-        inline Memory* getMem() { return mem.get(); }
-        inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
-        inline void writeRAM(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
-
-        // ML Monitor PLA methods
-        inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
-        inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
-
         // ML Monitor Cartridge methods
         inline Cartridge* getCart() { return cart.get(); }
         inline void detachCartridge() { cartridgeAttached = false; }
@@ -133,6 +116,25 @@ class Computer
         inline std::string dumpCIA2Serial() const { return cia2object ? cia2object->dumpRegisters("serial") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
+
+        // ML Monitor CPU methods
+        inline uint16_t getPC() { return processor->getPC(); }
+        inline void setPC(uint16_t address) { processor->setPC(address); }
+        inline void cpuStep() { return processor->step(); }
+        inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
+        inline CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
+                 processor->getY(), processor->getSP(), processor->getSR()}; }
+        void setJamMode(const std::string& mode);
+        std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
+
+        // ML Monitor Memory methods
+        inline Memory* getMem() { return mem.get(); }
+        inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
+        inline void writeRAM(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
+
+        // ML Monitor PLA methods
+        inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
+        inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
 
         // ML Monitor SID Register Dumps
         inline std::string dumpSIDRegs() const { return sidchip ? sidchip->dumpRegisters("all") : "SID not attached\n"; }
@@ -230,6 +232,9 @@ class Computer
         // debugging
         bool isBASICReady();
         void debugBasicState();
+
+        // Helper for Jam Modes
+        std::string jamModeToString() const;
 };
 
 #endif // COMPUTER_H

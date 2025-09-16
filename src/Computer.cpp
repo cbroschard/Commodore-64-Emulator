@@ -703,3 +703,40 @@ void Computer::vicFFRaster(uint8_t targetRaster)
         sidchip->tick(1);
     }
 }
+
+std::string Computer::jamModeToString() const
+{
+    if (processor)
+    {
+        CPU::JamMode mode = processor->getJamMode();
+        switch(mode)
+        {
+            case CPU::JamMode::FreezePC: return "FreezePC";
+            case CPU::JamMode::Halt: return "Halt";
+            case CPU::JamMode::NopCompat: return "NopCompat";
+        }
+    }
+
+    // Default
+        return "Unknown";
+}
+
+void Computer::setJamMode(const std::string& mode)
+{
+    if (processor)
+    {
+        if (mode == "freeze")
+        {
+            processor->setJamMode(CPU::JamMode::FreezePC);
+        }
+        else if (mode == "halt")
+        {
+            processor->setJamMode(CPU::JamMode::Halt);
+        }
+        else if (mode == "nop")
+        {
+            processor->setJamMode(CPU::JamMode::NopCompat);
+        }
+    }
+
+}
