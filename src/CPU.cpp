@@ -9,6 +9,8 @@
 
 CPU::CPU() :
     // Initialize
+    jamMode(JamMode::FreezePC),
+    halted(false),
     elapsedCycles(0),
     lastCycleCount(0),
     A(0),
@@ -25,13 +27,23 @@ CPU::~CPU() = default;
 
 void CPU::reset()
 {
+    // Default Jam Mode
+    jamMode = JamMode::FreezePC;
+    halted = false;
+
+    // reset registers
     A = 0;
     X = 0;
     Y = 0;
+
+    // Set PC to reset vector
     PC = (mem->read(0xFFFC) | (mem->read(0xFFFD) << 8));
+
+    // Defaults
     SP = 0xFD;
     SR = 0x34;
     cycles = 0;
+    baHold = false;
 }
 
 void CPU::setMode(VideoMode mode)
@@ -45,6 +57,16 @@ void CPU::setMode(VideoMode mode)
     {
         CYCLES_PER_FRAME = 19656;
     }
+}
+
+CPU::JamMode CPU::getJamMode()
+{
+    return jamMode;
+}
+
+void CPU::setJamMode(JamMode mode)
+{
+    jamMode = mode;
 }
 
 void CPU::step()
@@ -167,8 +189,7 @@ void CPU::rtsFromQuickLoad()
 
 void CPU::initializeOpcodeTable()
 {
-    //opcodeTable.fill([this]() { NOP(0xEA); }); // Default to NOP
-    opcodeTable.fill([this]() { JAM(); }); // Default to JAM for illegal
+    opcodeTable.fill([this]() { NOP(0xEA); }); // Default to NOP
 
     opcodeTable[0x00] = [this]() { BRK(); };
     opcodeTable[0x01] = [this]() { ORA(0x01); };
@@ -568,6 +589,13 @@ uint16_t CPU::zpYAddress()
 
 void CPU::tick()
 {
+    if (halted) // Jam Halt
+    {
+        cycles = 1; // always force 1 cycle pending
+        cycles--;   // consume it
+        totalCycles++;
+        return;
+    }
     // First check if we need to hold as BA is high
     if (baHold)
     {
@@ -1301,7 +1329,24 @@ void CPU::ISC(uint8_t opcode)
 
 void CPU::JAM()
 {
-    throw std::runtime_error("Jam Code!");
+    switch (jamMode)
+    {
+        case JamMode::Halt:
+            // Strict NMOS behavior: CPU stops executing
+            halted = true;
+            break;
+
+        case JamMode::FreezePC:
+            // Stay stuck on this opcode forever.
+            // Decrement PC so next fetch will re-read the JAM.
+            PC = (PC - 1) & 0xFFFF;
+            break;
+
+        case JamMode::NopCompat:
+            // Compatibility hack: do nothing (acts like a NOP).
+            // PC already incremented by fetch().
+            break;
+    }
 }
 
 void CPU::JMP(uint8_t opcode)

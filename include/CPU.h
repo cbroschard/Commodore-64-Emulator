@@ -42,6 +42,16 @@ class CPU
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
 
+        // Jam handling
+        enum class JamMode
+        {
+            Halt, // Stop CPU completely, strict mode
+            FreezePC, // PC stays on JAM
+            NopCompat // Treat as Noop
+        };
+        void setJamMode(JamMode mode);
+        JamMode getJamMode();
+
         // Reset processor to defaults
         void reset();
 
@@ -141,6 +151,10 @@ class CPU
         Vic* vicII = nullptr;
         IRQLine* IRQ = nullptr;
         PLA* pla = nullptr;
+
+        // Jam handling
+        JamMode jamMode;
+        bool halted;
 
         // Process commands
         uint8_t fetch();
