@@ -59,7 +59,7 @@ Computer::Computer()
     processor->attachVICInstance(vicII.get());
     processor->attachIRQLineInstance(IRQ.get());
     processor->attachPLAInstance(pla.get());
-    processor->attachLogInstance(logger.get());
+    //processor->attachLogInstance(logger.get());
 
     cia1object->attachKeyboardInstance(keyb.get());
     cia1object->attachIRQLineInstance(IRQ.get());
