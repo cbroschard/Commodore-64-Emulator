@@ -304,7 +304,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD019:
         {
-            value &= 0x1F;
+            value &= 0x0F;
             registers.interruptStatus &= ~value;
 
             if (IRQ &&

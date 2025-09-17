@@ -362,6 +362,7 @@ void CPU::initializeOpcodeTable()
     opcodeTable[0xA8] = [this]() { TAY(); };
     opcodeTable[0xA9] = [this]() { LDA(0xA9); };
     opcodeTable[0xAA] = [this]() { TAX(); };
+    opcodeTable[0xAB] = [this]() { LAX(0xAB); };
     opcodeTable[0xAC] = [this]() { LDY(0xAC); };
     opcodeTable[0xAD] = [this]() { LDA(0xAD); };
     opcodeTable[0xAE] = [this]() { LDX(0xAE); };
@@ -1423,6 +1424,7 @@ void CPU::LAX(uint8_t opcode)
     {
         case 0xA3: address = indirectXAddress(); break;
         case 0xA7: address = zpAddress(); break;
+        case 0xAB: address = immediateAddress(); break;
         case 0xAF: address = absAddress(); break;
         case 0xB3: address = indirectYAddress(); break;
         case 0xB7: address = zpYAddress(); break;
@@ -2151,8 +2153,7 @@ void CPU::STY(uint8_t opcode)
 
 void CPU::TAS()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);  // Fetch absolute address
-    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;  // Add Y index with wrapping
+    uint16_t effectiveAddress = absYAddress();
     uint8_t highByte = (effectiveAddress >> 8) + 1;  // Increment the high byte
 
     uint8_t value = A & X;  // Compute A AND X

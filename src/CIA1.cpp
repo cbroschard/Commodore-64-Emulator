@@ -224,16 +224,17 @@ uint8_t CIA1::readRegister(uint16_t address)
         }
         case 0xDC0D: // Interrupt control register
         {
-            uint8_t result = interruptStatus; // Read raw status (including master bit)
-            if (interruptStatus & interruptEnable & 0x1F)
+            uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
+
+            // If any enabled source is active, set bit 7 in the *returned value*
+            if (result & interruptEnable)
             {
-                result |= 0x80; // Ensure master bit is set if any enabled interrupt is active
+                result |= 0x80;
             }
-            else
-            {
-                result &= 0x7F; // Ensure master bit is clear otherwise
-            }
-            interruptStatus = 0;
+
+            // Clear the acknowledged sources (bits 0-4 that were set)
+            interruptStatus &= ~ (result & 0x1F);
+
             return result;
         }
         case 0xDC0E: // Timer A Control register
@@ -256,15 +257,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
     {
         case 0xDC00: // Port A
         {
-            // Update Port A based on the data direction register
-            //portA = (portA & ~dataDirectionPortA) | (value & dataDirectionPortA);
             portA = value;
             break;
         }
         case 0xDC01: // Port B
         {
-            // Handle Port B as an output based on data direction
-            //portB = (portB & ~dataDirectionPortB) | (value & dataDirectionPortB);
             portB = value;
             break;
         }
@@ -462,11 +459,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
 
 uint32_t CIA1::calculatePrescaler(uint8_t control)
 {
-    // bits 1-2 of control select the prescaler:
-    static constexpr uint32_t table[4] = { 1, 8, 64, 1024 };
-    uint8_t idx = (control >> 1) & 0x03;
+    static constexpr uint32_t table[4] = { 1, 1, 4, 16 };
+    uint8_t idx = (control >> 5) & 0x03;  // use bits 5–6, not 1–2
     return table[idx];
 }
+
 
 void CIA1::latchTODClock()
 {
@@ -508,7 +505,6 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
         if (prevFlag && !currFlag)
         {
             triggerInterrupt(INTERRUPT_FLAG_LINE); // raise IRQ if enabled
-            cntChanged();
         }
         prevFlag = currFlag;
     }

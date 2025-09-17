@@ -83,11 +83,18 @@ void Cassette::eject()
 
 void Cassette::tick()
 {
-    if (!motorStatus)
-    {
+    // Cassette must be loaded, play pressed, and motor running
+    if (!cassetteLoaded || !motorStatus || !playPressed) {
+        setData(true);  // idle high
+        return;
+    }
+
+    if (!tapeImage) {
         setData(true);
         return;
     }
+
+    // Advance one cycle of tape simulation
     tapeImage->simulateLoading();
     setData(tapeImage->currentBit());
 }
