@@ -1043,6 +1043,7 @@ void CPU::BRK() {
 
     // Set the interrupt disable flag (I flag) in the processor status
     SetFlag(I, 1);  // Set the interrupt disable flag
+    SetFlag(B, 0); // Clear the B flag
 
     // Load the new Program Counter (PC) from the interrupt vector (0xFFFE and 0xFFFF)
     uint16_t interruptVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
@@ -1678,8 +1679,8 @@ void CPU::op_PLA()
 void CPU::PLP()
 {
     uint8_t status = pop();
+    status |= 0x20;
     SR = status;
-    SetFlag(B , 0);
 }
 
 void CPU::RLA(uint8_t opcode)
