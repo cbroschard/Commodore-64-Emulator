@@ -2,6 +2,7 @@
 bin/
 obj/
 tape/
+!src/tape/
 PRG/
 cart/
 *.bin
