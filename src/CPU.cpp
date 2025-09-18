@@ -1028,7 +1028,7 @@ void CPU::BPL()
 }
 
 void CPU::BRK() {
-    uint16_t newPC = PC + 2;  // Point to the instruction after BRK
+    uint16_t newPC = PC + 1;  // Point to the instruction after BRK
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
