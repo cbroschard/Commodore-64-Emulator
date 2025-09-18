@@ -464,7 +464,6 @@ uint32_t CIA1::calculatePrescaler(uint8_t control)
     return table[idx];
 }
 
-
 void CIA1::latchTODClock()
 {
     todLatch[0] = todClock[0];
