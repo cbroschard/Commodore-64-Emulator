@@ -167,7 +167,7 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
     // Check the char base for special cases
     if (!pla->isUltimax() && (bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
     {
-        return charROM[vicAddress - 0x1000];
+        return charROM[vicAddress & 0x0FFF];
     }
 
     // Special case handling for programs that only load 1k of Char ROM

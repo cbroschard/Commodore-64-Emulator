@@ -128,7 +128,7 @@ class Vic
         std::string decodeModeName() const;
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
-        uint8_t getCurrentRaster() { return registers.raster; }
+        uint16_t getCurrentRaster() { return registers.raster; }
 
     protected:
 

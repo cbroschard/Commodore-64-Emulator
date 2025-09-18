@@ -85,6 +85,18 @@ void Vic::setMode(VideoMode mode)
 {
     mode_ = mode;
     cfg_  = (mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG);
+
+    // Update based on mode to the right size
+    d011_per_raster.resize(cfg_->maxRasterLines);
+    d016_per_raster.resize(cfg_->maxRasterLines);
+    d018_per_raster.resize(cfg_->maxRasterLines);
+
+    bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
+    for (auto &row : bgOpaque) row.fill(0);
+
+    // Make sure internal state stays consistent
+    if (registers.raster >= cfg_->maxRasterLines) registers.raster = 0;
+    updateMonitorCaches(registers.raster);
 }
 
 uint8_t Vic::readRegister(uint16_t address)
@@ -391,20 +403,24 @@ void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
     {
+
+        // Determine next raster for N - 1 latching
+        uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
+
         // D016 latches at cycle 12
         if (currentCycle == 12)
         {
-            d016_per_raster[registers.raster] = registers.control2;
+            d016_per_raster[nextRaster] = registers.control2;
         }
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
             // Latch VIC registers right before char DMA
-            d011_per_raster[registers.raster] = registers.control & 0x7F;
-            d018_per_raster[registers.raster] = registers.memory_pointer;
+            d011_per_raster[nextRaster] = registers.control & 0x7F;
+            d018_per_raster[nextRaster] = registers.memory_pointer;
 
             // Update the ML Monitor caches
-            updateMonitorCaches(registers.raster);
+            updateMonitorCaches(nextRaster);
 
             for (int i = 0; i < 8; ++i)
             {
