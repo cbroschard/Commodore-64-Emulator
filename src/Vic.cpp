@@ -261,9 +261,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
 
-            //registers.control = value & 0x7F;
-            registers.control = value;
-
+            registers.control = value & 0x7F;
             break;
         }
         case 0xD012:
