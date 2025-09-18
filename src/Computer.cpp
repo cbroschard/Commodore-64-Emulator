@@ -478,7 +478,6 @@ bool Computer::boot()
                             }
                             t64Injected = true;
                     }
-
                 }
                 catch (const std::exception& e)
                 {
