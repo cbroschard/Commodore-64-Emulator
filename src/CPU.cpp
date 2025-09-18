@@ -2049,107 +2049,100 @@ void CPU::SRE(uint8_t opcode)
 
 void CPU::STA(uint8_t opcode)
 {
+    uint16_t address = 0;
+
     switch (opcode)
     {
         case 0x81: // STA ($nn,X) - Indexed Indirect
         {
-            uint16_t address = indirectXAddress();
-            mem->write(address, A);
+            address = indirectXAddress();
             break;
         }
 
         case 0x85: // STA $nn - Zero Page
         {
-            uint16_t address = zpAddress();
-            mem->write(address, A);
+            address = zpAddress();
             break;
         }
         case 0x8D: // STA $nnnn - Absolute
         {
-            uint16_t address = absAddress();
-            mem->write(address, A);
+            address = absAddress();
             break;
         }
 
         case 0x91: // STA ($nn),Y - Indirect Indexed
         {
-            uint16_t address = indirectYAddress();
-            mem->write(address, A);
+            address = indirectYAddress();
             break;
         }
 
         case 0x95: // STA $nn,X - Zero Page,X
         {
-            uint16_t address = zpXAddress();
-            mem->write(address, A);
+            address = zpXAddress();
             break;
         }
 
         case 0x99: // STA $nnnn,Y - Absolute,Y
         {
-            uint16_t address = absYAddress();
-            mem->write(address, A);
+            address = absYAddress();
             break;
         }
-
         case 0x9D: // STA $nnnn,X - Absolute,X
         {
-            uint16_t address = absXAddress();
-            mem->write(address, A);
+            address = absXAddress();
             break;
         }
     }
+    mem->write(address, A);
 }
 
 void CPU::STX(uint8_t opcode)
 {
+    uint16_t address = 0;
+
     switch(opcode)
     {
         case 0x86:
         {
-            uint16_t address = zpAddress();
-            mem->write(address, X);
+            address = zpAddress();
             break;
         }
         case 0x8E:
         {
-            uint16_t address = absAddress();
-            mem->write(address, X);
+            address = absAddress();
             break;
         }
       case 0x96: // STX Zero Page,Y
         {
-            uint16_t address = zpYAddress();
-            mem->write(address, X);
+            address = zpYAddress();
             break;
         }
     }
+    mem->write(address, X);
 }
 
 void CPU::STY(uint8_t opcode)
 {
+    uint16_t address = 0;
+
     switch (opcode)
     {
-        case 0x84:
-        {
-            uint16_t address = zpAddress();
-            mem->write(address, Y);
+        case 0x84: // Zero Page
+            address = zpAddress();
             break;
-        }
-        case 0x8C:
-        {
-            uint16_t address = absAddress();
-            mem->write(address, Y);
+
+        case 0x8C: // Absolute
+            address = absAddress();
             break;
-        }
-        case 0x94:
-        {
-            uint16_t address = zpXAddress();
-            mem->write(address, Y);
+
+        case 0x94: // Zero Page,X
+            address = zpXAddress();
             break;
-        }
     }
+
+    mem->write(address, Y);
 }
+
 
 void CPU::TAS()
 {
