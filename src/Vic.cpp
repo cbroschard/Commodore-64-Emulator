@@ -403,7 +403,6 @@ void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
     {
-
         // Determine next raster for N - 1 latching
         uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
