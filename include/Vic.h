@@ -232,6 +232,9 @@ class Vic
         bool AEC;
         int currentCycle;
 
+        // Helper to check for Raster IRQ on D011/D012 writes
+        void checkRasterIRQ();
+
         // Sprite collision functions
         void detectSpriteToSpriteCollision(int raster);
         void detectSpriteToBackgroundCollision(int raster);

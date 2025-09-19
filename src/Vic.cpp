@@ -272,14 +272,19 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
-
             registers.control = value & 0x7F;
+
+            // Check for Raster IRQ
+            checkRasterIRQ();
             break;
         }
         case 0xD012:
         {
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
+
+            // Check for Raster IRQ
+            checkRasterIRQ();
             break;
         }
         case 0xD013:
@@ -404,10 +409,20 @@ void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
     {
-        // Determine next raster for N - 1 latching
+        // Fire raster IRQ at start of the line
+        if (currentCycle == 0)
+        {
+            if (registers.raster == registers.rasterInterruptLine)
+            {
+                registers.interruptStatus |= 0x01;
+                if (IRQ && (registers.interruptEnable & 0x01))
+                    IRQ->raiseIRQ(IRQ->VICII);
+            }
+        }
+
+        // N-1 latching
         uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
-        // D016 latches at cycle 12
         if (currentCycle == 12)
         {
             d016_per_raster[nextRaster] = registers.control2;
@@ -415,11 +430,8 @@ void Vic::tick(int cycles)
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
-            // Latch VIC registers right before char DMA
             d011_per_raster[nextRaster] = registers.control & 0x7F;
             d018_per_raster[nextRaster] = registers.memory_pointer;
-
-            // Update the ML Monitor caches
             updateMonitorCaches(nextRaster);
 
             for (int i = 0; i < 8; ++i)
@@ -433,11 +445,9 @@ void Vic::tick(int cycles)
             }
         }
 
-        // Bad line DMA: fetch char + color
-        if (isBadLine(registers.raster))
-        {
+        // Bad line DMA
+        if (isBadLine(registers.raster)) {
             int fetchIndex = currentCycle - cfg_->DMAStartCycle;
-
             if (fetchIndex >= 0 && fetchIndex < 40)
             {
                 currentScreenRow = (registers.raster - cfg_->firstVisibleLine) / 8;
@@ -447,11 +457,9 @@ void Vic::tick(int cycles)
                     colorPtrFIFO[fetchIndex] = fetchColorByte (currentScreenRow, fetchIndex, registers.raster) & 0x0F;
                 }
             }
-
-            // Reset rowCounter *once per bad line*, at the first DMA cycle
             if (currentCycle == cfg_->DMAStartCycle)
             {
-                rowCounter = 0;   // row 0 will be used during this raster's rendering
+                rowCounter = 0;
             }
         }
 
@@ -464,16 +472,14 @@ void Vic::tick(int cycles)
 
             const int curRaster = registers.raster;
 
-            // Render this line
+            // Render and collisions for this line
             renderLine(curRaster);
-
-            // Collision detection for this line
             detectSpriteToSpriteCollision(curRaster);
             detectSpriteToBackgroundCollision(curRaster);
 
-            // Increment rowCounter once per raster inside visible area
+            // Row counter update
             const bool DEN = (d011_per_raster[curRaster] & 0x10) != 0;
-            bool badNextLine = isBadLine((curRaster + 1) % cfg_->maxRasterLines);
+            const bool badNextLine = isBadLine((curRaster + 1) % cfg_->maxRasterLines);
             if (DEN && (curRaster >= cfg_->firstVisibleLine) && (curRaster <= cfg_->lastVisibleLine))
             {
                 if (!badNextLine)
@@ -482,34 +488,21 @@ void Vic::tick(int cycles)
                 }
             }
 
-            // Raster interrupt
-            if (curRaster == registers.rasterInterruptLine)
-            {
-                registers.interruptStatus |= 0x01;
-                if (IRQ && (registers.interruptEnable & 0x01))
-                {
-                    IRQ->raiseIRQ(IRQ->VICII);
-                }
-            }
-
-            // Advance raster counter
-            registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
-
-            // End-of-frame flag
+            // End-of-frame check must use the pre-increment raster (curRaster)
             if (curRaster == cfg_->maxRasterLines - 1)
             {
                 frameDone = true;
-
-                // Fill the rest of the framebuffer with the border color
                 for (int y = cfg_->maxRasterLines; y < IO::SCREEN_HEIGHT_WITH_BORDER; ++y)
                 {
-                    // x0 and x1 are not used when drawing full border lines, so 0 is fine.
                     IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
                 }
             }
+
+            // Now advance raster to the next line
+            registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
         }
 
-        // BA/AEC bus arbitration
+        // Per-cycle bus arbitration
         updateAEC();
     }
 }
@@ -922,6 +915,16 @@ void Vic::renderECMLine(int raster, int xScroll)
 
             if (pixelOn) markBGOpaque(fbY(raster), pxRaw);
         }
+    }
+}
+
+void Vic::checkRasterIRQ()
+{
+    if (registers.raster == registers.rasterInterruptLine)
+    {
+        registers.interruptStatus |= 0x01;
+        if (IRQ && (registers.interruptEnable & 0x01))
+            IRQ->raiseIRQ(IRQ->VICII);
     }
 }
 
