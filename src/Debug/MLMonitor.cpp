@@ -14,9 +14,7 @@ MLMonitor::MLMonitor() :
 {
     // Register all commands
     registerCommand(std::make_unique<AssembleCommand>());
-    registerCommand(std::make_unique<BreakpointClearCommand>());
-    registerCommand(std::make_unique<BreakpointListCommand>());
-    registerCommand(std::make_unique<BreakpointSetCommand>());
+    registerCommand(std::make_unique<BreakpointCommand>());
     registerCommand(std::make_unique<CartridgeCommand>());
     registerCommand(std::make_unique<CIACommand>());
     registerCommand(std::make_unique<DisassembleCommand>());

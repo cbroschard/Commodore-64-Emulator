@@ -12,9 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "Debug/AssembleCommand.h"
-#include "Debug/BreakpointClearCommand.h"
-#include "Debug/BreakpointListCommand.h"
-#include "Debug/BreakpointSetCommand.h"
+#include "Debug/BreakpointCommand.h"
 #include "Debug/CartridgeCommand.h"
 #include "Debug/CIACommand.h"
 #include "Debug/DisassembleCommand.h"
