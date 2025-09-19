@@ -21,6 +21,7 @@
 #include "Debug/JamCommand.h"
 #include "Debug/MemoryDumpCommand.h"
 #include "Debug/MemoryEditCommand.h"
+#include "Debug/MemoryEditDirectCommand.h"
 #include "Debug/NextCommand.h"
 #include "Debug/PLACommand.h"
 #include "Debug/RegisterDumpCommand.h"
