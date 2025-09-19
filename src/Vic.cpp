@@ -309,7 +309,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD018:
         {
-            registers.memory_pointer = value;
+            registers.memory_pointer = (value & 0xF0) | (value & 0x0E);
+            //registers.memory_pointer = value;
             break;
         }
         case 0xD019:
@@ -1326,7 +1327,7 @@ std::string Vic::getVICBanks() const
     out << std::hex << std::uppercase << std::setfill('0');
 
     // Current VIC bank base (CIA2 16 KB window)
-    uint16_t bankBase = cia2object->getCurrentVICBank();
+    uint16_t bankBase = cia2object ? cia2object->getCurrentVICBank() : 0;
 
     out << "Active VIC Bank = " << (bankBase >> 14)
         << " ($" << std::setw(4) << bankBase
@@ -1370,12 +1371,16 @@ std::string Vic::dumpRegisters(const std::string& group) const
     {
         out << "Raster and Control Registers:\n\n";
 
-        out << "D011 = $" << std::setw(2) << static_cast<int>(registers.control) << "   (CTRL1: YSCROLL = " << (registers.control & 0x07)
-            << ", 25row = " << ((registers.control & 0x08) ? "Yes" : "No") << ", Screen = " << ((registers.control & 0x10) ? "On" : "Off")
-            << ", Bitmap = " << ((registers.control & 0x20) ? "Yes" : "No") << ", ECM = " << ((registers.control & 0x40) ? "Yes" : "No")
-            << ", RasterHi = " << ((registers.control & 0x80) ? "1" : "0") << ")\n";
+        uint8_t rasterHi = (registers.raster >> 8) & 0x01;
+        out << "D011 = $" << std::setw(2) << std::hex << ( (registers.control & 0x7F) | (rasterHi << 7) )
+            << "   (CTRL1: YSCROLL = " << (registers.control & 0x07)
+            << ", 25row = " << ((registers.control & 0x08) ? "Yes" : "No")
+            << ", Screen = " << ((registers.control & 0x10) ? "On" : "Off")
+            << ", Bitmap = " << ((registers.control & 0x20) ? "Yes" : "No")
+            << ", ECM = " << ((registers.control & 0x40) ? "Yes" : "No")
+            << ", RasterHi = " << int(rasterHi) << ")\n";
 
-        out << "D012 = $" << std::setw(2) << registers.raster << "   (RASTER = " << std::dec << currentRaster << ")\n";
+        out << "D012 = $" << std::setw(2) << std::hex << (registers.raster & 0xFF) << "   (RASTER = " << std::dec << currentRaster << ")\n";
 
         out << "D016 = $" << std::setw(2) << std::hex << static_cast<int>(registers.control2) << "   (CTRL2: XSCROLL = " << (registers.control2 & 0x07)
             << ", 40COL = " << ((registers.control2 & 0x08) ? "Yes" : "No") << ", Multicolor = " << ((registers.control2 & 0x10) ? "Yes" : "No")
@@ -1431,7 +1436,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
         out << "D01E $" << std::setw(2) << static_cast<int>(registers.spriteCollision) << " (Sprite to Sprite Collision: "
             << std::bitset<8>(registers.spriteCollision) << ")\n";
 
-        out << "D01F $" << std::setw(2) << static_cast<int>(registers.spriteDataCollision) << " (Sprite to Background Collsion " <<
+        out << "D01F $" << std::setw(2) << static_cast<int>(registers.spriteDataCollision) << " (Sprite to Background Collision " <<
             std::bitset<8>(registers.spriteDataCollision) << ")\n";
     }
 
@@ -1490,7 +1495,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
 void Vic::updateMonitorCaches(int raster)
 {
     // Cache the current bank
-    currentVICBank = cia2object->getCurrentVICBank();
+    currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
 
     // Build the full address
     charBaseCache = getCHARBase(raster) + currentVICBank;
