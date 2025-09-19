@@ -267,9 +267,10 @@ void Memory::write(uint16_t address, uint8_t value)
             {
                 cass->stopMotor();
             }
+        uint8_t effective = (port1OutputLatch & dataDirectionRegister) | (~dataDirectionRegister);
 
         // Schedule the MCR update
-        pla->scheduleMCRUpdate(port1OutputLatch);
+        pla->scheduleMCRUpdate(effective);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
