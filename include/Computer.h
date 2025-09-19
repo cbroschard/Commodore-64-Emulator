@@ -130,7 +130,7 @@ class Computer
         // ML Monitor Memory methods
         inline Memory* getMem() { return mem.get(); }
         inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
-        inline void writeRAM(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
+        inline void writeRAM(uint16_t address, uint8_t value) { mem->write(address, value); }
 
         // ML Monitor PLA methods
         inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
