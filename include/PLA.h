@@ -62,11 +62,6 @@ class PLA
         uint8_t getMemoryControlRegister() const { return memoryControlRegister; }
         void updateMemoryControlRegister(uint8_t value);
 
-        // Memory control register updates
-        void scheduleMCRUpdate(uint8_t value);
-        void applyPendingMCRUpdate();
-        bool hasPendingMCRUpdate() const { return updatePending; }
-
         // Cartridge attached types
         inline bool is8K() { return gameLine && !exROMLine; }
         inline bool is16K() { return !gameLine && !exROMLine; }

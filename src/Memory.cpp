@@ -270,7 +270,7 @@ void Memory::write(uint16_t address, uint8_t value)
         uint8_t effective = (port1OutputLatch & dataDirectionRegister) | (~dataDirectionRegister);
 
         // Schedule the MCR update
-        pla->scheduleMCRUpdate(effective);
+        pla->updateMemoryControlRegister(effective);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {

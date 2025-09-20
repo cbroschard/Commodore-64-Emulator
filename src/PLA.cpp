@@ -40,21 +40,6 @@ void PLA::updateMemoryControlRegister(uint8_t value)
     charen = (value & 0x04);
 }
 
-void PLA::scheduleMCRUpdate(uint8_t value)
-{
-    pendingValue = value;
-    updatePending = true;
-}
-
-void PLA::applyPendingMCRUpdate()
-{
-    if (updatePending)
-    {
-        updateMemoryControlRegister(pendingValue);
-    }
-    updatePending = false;
-}
-
 PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 {
     if (cartridgeAttached)

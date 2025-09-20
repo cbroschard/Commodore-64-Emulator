@@ -58,7 +58,6 @@ Computer::Computer()
     processor->attachCIA2Instance(cia2object.get());
     processor->attachVICInstance(vicII.get());
     processor->attachIRQLineInstance(IRQ.get());
-    processor->attachPLAInstance(pla.get());
     //processor->attachLogInstance(logger.get());
 
     cia1object->attachKeyboardInstance(keyb.get());
@@ -428,13 +427,6 @@ bool Computer::boot()
         while (frameCycles < cpuCfg_->cyclesPerFrame())
         {
             uint32_t elapsedCycles = 0;
-
-            // Check for and apply any pending MCR updates
-            if (pla->hasPendingMCRUpdate())
-            {
-                pla->applyPendingMCRUpdate();
-            }
-
 
             if (vicII->getAEC())
             {

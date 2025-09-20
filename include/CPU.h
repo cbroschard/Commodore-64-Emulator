@@ -24,7 +24,6 @@ class PLA;
 #include "IRQLine.h"
 #include "Logging.h"
 #include "Memory.h"
-#include "PLA.h"
 #include "Vic.h"
 
 class CPU
@@ -40,7 +39,6 @@ class CPU
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
-        inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
 
         // Jam handling
         enum class JamMode
@@ -150,7 +148,6 @@ class CPU
         CIA2* cia2object = nullptr;
         Vic* vicII = nullptr;
         IRQLine* IRQ = nullptr;
-        PLA* pla = nullptr;
 
         // Jam handling
         JamMode jamMode;
@@ -293,7 +290,7 @@ class CPU
         //Stack instructions
         void PHA();
         void PHP();
-        void op_PLA(); // changed name to not conflict with PLA class
+        void PLA();
         void PLP();
 
         //Illegal instructions

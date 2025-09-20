@@ -295,7 +295,7 @@ void CPU::initializeOpcodeTable()
     opcodeTable[0x65] = [this]() { ADC(0x65); };
     opcodeTable[0x66] = [this]() { ROR(0x66); };
     opcodeTable[0x67] = [this]() { RRA(0x67); };
-    opcodeTable[0x68] = [this]() { op_PLA(); };
+    opcodeTable[0x68] = [this]() { PLA(); };
     opcodeTable[0x69] = [this]() { ADC(0x69); };
     opcodeTable[0x6A] = [this]() { ROR(0x6A); };
     opcodeTable[0x6B] = [this]() { ARR(); };
@@ -616,12 +616,6 @@ void CPU::tick()
             << static_cast<int>(A) << ", X = " << std::hex << static_cast<int>(X) << ", Y= " << std::hex << static_cast<int>(Y)
             << ", SP = " << std::hex << static_cast<int>(SP);
             logger->WriteLog(message.str());
-        }
-
-        if (pla->hasPendingMCRUpdate())
-        {
-            pla->applyPendingMCRUpdate();
-            cycles++;
         }
 
         decodeAndExecute(opcode);
@@ -1669,7 +1663,7 @@ void CPU::PHP()
     push(SR | 0x30);
 }
 
-void CPU::op_PLA()
+void CPU::PLA()
 {
   A = pop();
   SetFlag(Z, A == 0);
