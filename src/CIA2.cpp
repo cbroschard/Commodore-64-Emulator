@@ -45,9 +45,6 @@ void CIA2::reset() {
     // Timer control
     timerAControl = 0;
     timerBControl = 0;
-
-    // Underflow and Pulse
-    timerAUnderFlowFlag = false;
     timerAPulseFlag = false;
 
     // Interrupt / NMI
@@ -463,7 +460,6 @@ void CIA2::updateTimerA(uint32_t cyclesElapsed)
         uint32_t cur = timerA ? timerA : 0x10000;
         if (--cur == 0)
         {
-            timerAUnderFlowFlag = true;
             timerA = (timerAHighByte << 8) | timerALowByte;
             if (timerAControl & 0x08) timerAControl &= ~0x01; // one-shot stop
 
@@ -527,34 +523,6 @@ void CIA2::updateTimerB(uint32_t cyclesElapsed)
     while (cyclesElapsed-- > 0)
     {
         tickTimerBOnce();
-    }
-}
-
-void CIA2::decrementAndHandleTimerB()
-{
-    if (timerB > 0)
-    {
-        --timerB;
-    }
-    else
-    {
-        if (timerBControl & 0x40) // bit 6 = toggle enable
-        {
-            portB ^= CTS_MASK; // CTS_MASK==0x40 == PB6
-            if (dataDirectionPortB & CTS_MASK && rs232dev)
-            {
-                rs232dev->setCTS((portB & CTS_MASK) !=0);
-            }
-        }
-        timerB = (timerBHighByte << 8) | timerBLowByte;
-        if (timerBControl & 0x08)    // one-shot?
-        {
-            timerBControl &= ~0x01;  // stop
-        }
-
-        interruptStatus |= INTERRUPT_TIMER_B;
-        refreshNMI();
-
     }
 }
 

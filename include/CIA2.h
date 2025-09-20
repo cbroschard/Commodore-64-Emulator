@@ -158,15 +158,11 @@ class CIA2
         // Timer control
         uint8_t timerAControl;
         uint8_t timerBControl;
-
-        // Timer A underflow
-        bool timerAUnderFlowFlag;
         bool timerAPulseFlag;
 
         // Update Timers helpers
         void updateTimerA(uint32_t cyclesElapsed);
         void updateTimerB(uint32_t cyclesElapsed);
-        void decrementAndHandleTimerB();
 
         // Interrupts
         uint8_t interruptEnable;
