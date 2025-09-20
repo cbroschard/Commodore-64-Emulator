@@ -205,7 +205,7 @@ uint8_t CIA2::readRegister(uint16_t address)
                 return result;
             }
         case 0xDD0E: // Timer A control
-            return timerAControl & ~0x10;
+            return timerAControl & 0x7F;
         case 0xDD0F: // Timer B control
             return timerBControl & ~0x10 & ~0x80;
         default:
@@ -269,19 +269,15 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             break;
         case 0xDD04: // Timer A low byte
             timerALowByte = value;
-            timerA = (timerAHighByte << 8) | timerALowByte;
             break;
         case 0xDD05: // Timer A high byte
             timerAHighByte = value;
-            timerA = (timerAHighByte << 8) | timerALowByte;
             break;
         case 0xDD06: // Timer B low byte
             timerBLowByte = value;
-            timerB = (timerBHighByte << 8) | timerBLowByte;
             break;
         case 0xDD07: // Timer B high byte
             timerBHighByte = value;
-            timerB = (timerBHighByte << 8) | timerBLowByte;
             break;
         case 0xDD08: // TOD clock 1/10 seconds
             if (todAlarmSetMode)
