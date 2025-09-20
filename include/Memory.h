@@ -77,6 +77,10 @@ class Memory
         inline uint8_t getCartLOByte(uint16_t offset) const { return (offset < cart_lo.size()) ? cart_lo[offset] : 0xFF; }
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
 
+        // Cassette getters
+        inline bool isCassetteMotorOn() const  { return (port1OutputLatch & 0x20) == 0; }
+        inline bool isCassetteSenseLow() const { return cassetteSenseLow; }
+
     protected:
 
     private:

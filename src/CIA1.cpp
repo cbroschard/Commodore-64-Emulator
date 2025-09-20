@@ -94,6 +94,8 @@ void CIA1::reset() {
     interruptEnable = 0;
 
     // Update the cassette
+    prevFlag = true; // default
+
     if (cass && cass->isCassetteLoaded())
     {
         prevFlag = cass->getData(); // sample actual line level
@@ -495,18 +497,35 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
     // Cassette handler
     for (uint32_t i = 0; i < cyclesElapsed; ++i)
     {
-        if (cass && cass->motorOn() && cass->isCassetteLoaded())
+        bool allow = false;
+
+        if (cass && cass->isCassetteLoaded())
         {
-            cass->tick();
+            // Prefer querying Memory (6510 $0001) for motor & sense:
+            const bool motorOn  = mem ? mem->isCassetteMotorOn()  : cass->motorOn();
+            const bool senseLow = mem ? mem->isCassetteSenseLow() : true;
+            allow = motorOn && senseLow;
         }
 
-        bool currFlag = (cass && cass->isCassetteLoaded()) ? cass->getData() : true;
-        // Detect falling edge (1 to 0) and raise IRQ
-        if (prevFlag && !currFlag)
+        bool level = true; // default to idle-high
+        if (allow)
         {
-            triggerInterrupt(INTERRUPT_FLAG_LINE); // raise IRQ if enabled
+            cass->tick(); // advance TAP by one CPU cycle
+            level = cass->getData(); // true=high, false=low
         }
-        prevFlag = currFlag;
+        else
+        {
+            level = true; // hold high when not allowed
+        }
+
+        // FALLING edge (1 -> 0) latches CIA1 FLAG
+        if (prevFlag && !level)
+        {
+            interruptStatus |= INTERRUPT_FLAG_LINE; // IFR latches unconditionally
+            refreshMasterBit();
+            updateIRQLine(); // derive IRQ from (IFR & IER)
+        }
+        prevFlag = level;
     }
 }
 
