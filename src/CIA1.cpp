@@ -391,7 +391,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             }
             else
             {
-                interruptStatus &= ~mask;
+                interruptEnable &= ~mask;
             }
             refreshMasterBit();
             updateIRQLine();

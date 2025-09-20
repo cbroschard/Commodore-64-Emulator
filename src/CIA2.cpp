@@ -197,6 +197,10 @@ uint8_t CIA2::readRegister(uint16_t address)
                 {
                     result &= 0x7F;
                 }
+
+                 // Clear latched sources now that we've read them
+                interruptStatus &= ~0x1F;
+
                 refreshNMI();
                 return result;
             }
@@ -334,7 +338,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             }
             else
             {
-                interruptStatus &= ~(value & 0x1F);
+                interruptEnable &= ~(value & 0x1F);
             }
             refreshNMI();
             break;
