@@ -218,8 +218,6 @@ uint8_t CIA1::readRegister(uint16_t address)
             return binaryToBCD(todLatch[3]);
         case 0xDC0C:
         {
-            // Acknowledge the interrupt by clearing it
-            clearInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
             return serialDataRegister;
         }
         case 0xDC0D: // Interrupt control register
@@ -235,12 +233,16 @@ uint8_t CIA1::readRegister(uint16_t address)
             // Clear the acknowledged sources (bits 0-4 that were set)
             interruptStatus &= ~ (result & 0x1F);
 
+            // Recompute master bit and line state
+            refreshMasterBit();
+            updateIRQLine();
+
             return result;
         }
         case 0xDC0E: // Timer A Control register
-            return timerAControl;
+            return timerAControl & 0x7F;
         case 0xDC0F: // Timer B Control register
-            return timerBControl;
+            return timerBControl & 0x7F;
         default:
             if (logger)
             {
@@ -278,37 +280,21 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC04: // Timer A low byte
         {
             timerALowByte = value;
-            if (!(timerAControl & 0x01))
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
             break;
         }
         case 0xDC05: // Timer A high
         {
             timerAHighByte = value;
-            if (!(timerAControl & 0x01))
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
             break;
         }
         case 0xDC06: // Timer B low byte
         {
             timerBLowByte = value;
-            if (!(timerBControl & 0x01))
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-            }
             break;
         }
         case 0xDC07: // Timer B High
         {
             timerBHighByte = value;
-            if (!(timerBControl & 0x01))
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-            }
             break;
         }
         case 0xDC08: // TOD clock 1/10 seconds
@@ -393,6 +379,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 interruptEnable &= ~mask;
             }
+
             refreshMasterBit();
             updateIRQLine();
             break;
@@ -640,9 +627,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
 
 void CIA1::handleTimerBCascade()
 {
-    // only on A-underflow when B’s cascade bit is set
-    // (0x20 = bit-5)
-    if (!(timerBControl & 0x20) || !(timerBControl & 0x01))
+    if (!(timerBControl & 0x40) || !(timerBControl & 0x01))
         return;
 
     // one “tick” of B
@@ -702,10 +687,10 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
         if (!todAlarmTriggered)
         {
             todAlarmTriggered = true;
-            if (interruptEnable & INTERRUPT_TOD_ALARM) // TOD interrupt enabled
-            {
-                triggerInterrupt(INTERRUPT_TOD_ALARM);
-            }
+            // Latch IFR unconditionally
+            interruptStatus |= INTERRUPT_TOD_ALARM;
+            refreshMasterBit();
+            updateIRQLine();
         }
     }
     else

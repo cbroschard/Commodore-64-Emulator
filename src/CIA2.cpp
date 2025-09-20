@@ -63,6 +63,20 @@ void CIA2::reset() {
     // Cycle accumulators
     accumulatedCyclesA = 0;
     accumulatedCyclesB = 0;
+
+    // IEC
+    deviceNumber = 0xFF;
+    listening = false;
+    talking = false;
+    currentSecondaryAddress = 0xFF;
+    expectedSecondaryAddress = 0xFF;
+    atnLine = false;
+    lastAtnLevel = false;
+    lastClk = false;
+    lastSrqLevel = false;
+    lastDataLevel = true;
+    shiftReg = 0;
+    bitCount = 0;
 }
 
 void CIA2::setMode(VideoMode mode)
