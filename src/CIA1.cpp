@@ -237,6 +237,12 @@ uint8_t CIA1::readRegister(uint16_t address)
             // Clear the acknowledged sources (bits 0-4 that were set)
             interruptStatus &= ~ (result & 0x1F);
 
+            // If TOD was included, unlock future matches
+            if (result & INTERRUPT_TOD_ALARM)
+            {
+                todAlarmTriggered = false;
+            }
+
             // Recompute master bit and line state
             refreshMasterBit();
             updateIRQLine();
@@ -388,21 +394,32 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             updateIRQLine();
             break;
         }
-        case 0xDC0E: // Timer A control register
+        case 0xDC0E:
         {
-            timerAControl = value & 0xEF;
+            const uint8_t old = timerAControl;
+            timerAControl = value & 0xEF;  // clear LOAD (bit4) in shadow
 
+            // Mode pick
             inputMode = (value & 0x20) ? InputMode::modeCNT : InputMode::modeProcessor;
 
+            // Force-load when bit4 is set
             if (value & 0x10)
             {
                 timerA = (timerAHighByte << 8) | timerALowByte;
-                clearInterrupt(INTERRUPT_TIMER_A); // force-load clears IFR bit 0
+                clearInterrupt(INTERRUPT_TIMER_A);
             }
 
+            // Rising edge of START -> (re)load from latch
+            if ((value & 0x01) && !(old & 0x01))
+            {
+                timerA = (timerAHighByte << 8) | timerALowByte;
+                clearInterrupt(INTERRUPT_TIMER_A);
+            }
+
+            // If START is cleared, no pending underflow
             if (!(value & 0x01))
             {
-                clearInterrupt(INTERRUPT_TIMER_A); // no pending under-flow
+                clearInterrupt(INTERRUPT_TIMER_A);
             }
             break;
         }
@@ -708,9 +725,24 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
             updateIRQLine();
         }
     }
-    else
+}
+
+void CIA1::setCNTLine(bool level)
+{
+    const bool falling = (lastCNT && !level);
+    lastCNT = cntLevel = level;
+    if (!falling) return;
+
+    // TA counts on CNT when CRA bit5=1 and START=1
+    if ((timerAControl & 0x20) && (timerAControl & 0x01))
     {
-        todAlarmTriggered = false; // Reset when TOD clock no longer matches alarm
+        cntChangedA();
+    }
+
+    // TB counts on CNT when CRB bit5=1, START=1, and NOT cascade
+    if ((timerBControl & 0x20) && (timerBControl & 0x01) && !(timerBControl & 0x40))
+    {
+        cntChangedB();
     }
 }
 
@@ -904,24 +936,4 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     }
 
     return out.str();
-}
-
-void CIA1::setCNTLine(bool level)
-{
-    bool falling = (lastCNT && !level);
-    lastCNT = cntLevel = level;
-
-    if (!falling) return;
-
-    // TA: CNT mode (CRA bit5) and started?
-    if ((timerAControl & 0x20) && (timerAControl & 0x01))
-    {
-        cntChangedA();
-    }
-
-    // TB: CNT mode (CRB bit5), not cascade (CRB bit6), and started?
-    if ((timerBControl & 0x20) && !(timerBControl & 0x40) && (timerBControl & 0x01))
-    {
-        cntChangedB();
-    }
 }
