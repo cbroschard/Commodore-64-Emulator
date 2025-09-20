@@ -54,6 +54,9 @@ class CIA1
         // Main update timers method
         void updateTimers(uint32_t cyclesElapsed);
 
+        // CNT handling
+        void setCNTLine(bool level);
+
         //Interrupt handling
         enum InterruptBit : uint8_t
         {
@@ -154,6 +157,8 @@ class CIA1
         uint8_t interruptEnable;
 
         // Handle CNT mode
+        bool cntLevel;
+        bool lastCNT;
         void cntChangedA();
         void cntChangedB();
 

@@ -105,6 +105,10 @@ void CIA1::reset() {
 
     // Mode
     inputMode = InputMode::modeProcessor;
+
+    // CNT
+    cntLevel = true;
+    lastCNT = true;
 }
 
 uint8_t CIA1::readRegister(uint16_t address)
@@ -584,7 +588,7 @@ void CIA1::updateTimerA(uint32_t cyclesElapsed)
 
             if (timerAControl & 0x40)
             {
-                const uint8_t bit = /* readCNTLine() */ 1;
+                const uint8_t bit = cntLevel ? 1u : 0u;
                 shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
                 if (++shiftCount == 8) {
                     serialDataRegister = shiftReg;
@@ -900,4 +904,24 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     }
 
     return out.str();
+}
+
+void CIA1::setCNTLine(bool level)
+{
+    bool falling = (lastCNT && !level);
+    lastCNT = cntLevel = level;
+
+    if (!falling) return;
+
+    // TA: CNT mode (CRA bit5) and started?
+    if ((timerAControl & 0x20) && (timerAControl & 0x01))
+    {
+        cntChangedA();
+    }
+
+    // TB: CNT mode (CRB bit5), not cascade (CRB bit6), and started?
+    if ((timerBControl & 0x20) && !(timerBControl & 0x40) && (timerBControl & 0x01))
+    {
+        cntChangedB();
+    }
 }
