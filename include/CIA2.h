@@ -69,6 +69,10 @@ class CIA2
         // Setter for device number set by actual devices
         inline void setDeviceNumber(uint8_t number) { deviceNumber = number; }
 
+        // CNT getter/setter
+        inline bool getCNTLine() const { return cntLevel; }
+        void setCNTLine(bool level);
+
         // ML Monitor access
         std::string dumpRegisters(const std::string& group) const;
 
@@ -144,6 +148,9 @@ class CIA2
         bool todAlarmSetMode;
         bool todAlarmTriggered;
 
+        uint32_t pendingTBCNTTicks;
+        uint32_t pendingTBCASTicks;
+
         //TOD Clock and Alarm helpers
         void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
         void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
@@ -170,6 +177,10 @@ class CIA2
         uint8_t serialDataRegister;
         int outBit;
 
+        // CNT
+        bool cntLevel;
+        bool lastCNT;
+
         // Cycles
         uint32_t accumulatedCyclesA;
         uint32_t accumulatedCyclesB;
@@ -177,13 +188,14 @@ class CIA2
         // TOD Handling
         void latchTODClock();
 
-        // Update timers helper
-        uint32_t calculatePrescaler(uint8_t clkSel);
-
         // NMI Handling
         void triggerNMI();
         void clearNMI();
         void refreshNMI();
+
+        // Timer B
+        void tickTimerBOnce();
+        void handleTimerBUnderflow();
 };
 
 #endif // CIA2_H

@@ -77,6 +77,12 @@ void CIA2::reset() {
     lastDataLevel = true;
     shiftReg = 0;
     bitCount = 0;
+
+    // CNT
+    cntLevel = true;
+    lastCNT = true;
+    pendingTBCNTTicks = 0;
+    pendingTBCASTicks = 0;
 }
 
 void CIA2::setMode(VideoMode mode)
@@ -214,6 +220,11 @@ uint8_t CIA2::readRegister(uint16_t address)
 
                  // Clear latched sources now that we've read them
                 interruptStatus &= ~0x1F;
+
+                if (result & INTERRUPT_TOD_ALARM)
+                {
+                    todAlarmTriggered = false;
+                }
 
                 refreshNMI();
                 return result;
@@ -421,12 +432,6 @@ void CIA2::latchTODClock()
     todLatched = true;
 }
 
-uint32_t CIA2::calculatePrescaler(uint8_t clkSel)
-{
-    static constexpr uint32_t table[4] = { 1, 8, 64, 1024 };
-    return table[clkSel & 0x03];
-}
-
 void CIA2::updateTimers(uint32_t cyclesElapsed)
 {
     // Handle Timer A
@@ -448,117 +453,81 @@ void CIA2::updateTimers(uint32_t cyclesElapsed)
 
 void CIA2::updateTimerA(uint32_t cyclesElapsed)
 {
-    if (timerAControl & 0x01) // Timer A is active (start bit set)
+    if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
+
+    const bool cntMode = (timerAControl & 0x20) != 0;
+    if (cntMode) return; // TA counts on CNT edges elsewhere, if you wire it
+
+    while (cyclesElapsed--)
     {
-        // Calculate the clock prescaler based on the lower three bits of timerAControl.
-        clkSelA = calculatePrescaler(timerAControl & 0x07);
-
-        // Accumulate the cycles elapsed.
-        accumulatedCyclesA += cyclesElapsed;
-
-        // Determine how many timer ticks have occurred.
-        uint32_t ticks = accumulatedCyclesA / clkSelA;
-
-        // Retain any leftover cycles for the next update.
-        accumulatedCyclesA %= clkSelA;
-
-        if (ticks > 0)
+        uint32_t cur = timerA ? timerA : 0x10000;
+        if (--cur == 0)
         {
-            if (timerA > ticks)
-            {
-                // Normal decrement: subtract the number of ticks from timerA.
-                timerA -= ticks;
-            }
-            else
-            {
-                // Timer underflow occurs.
-                timerAUnderFlowFlag = true;
-                uint32_t extraTicks = ticks - timerA;
+            timerAUnderFlowFlag = true;
+            timerA = (timerAHighByte << 8) | timerALowByte;
+            if (timerAControl & 0x08) timerAControl &= ~0x01; // one-shot stop
 
-                // Reload timerA from its latch every time.
-                timerA = (timerAHighByte << 8) | timerALowByte;
+            // IFR: TA always latches
+            interruptStatus |= INTERRUPT_TIMER_A;
+            refreshNMI();
 
-                if (timerAControl & 0x08)
-                {
-                    // one-shot mode: stop the timer after underflow
-                    timerAControl &= ~0x01;
-                }
-                // else continuous mode: leave start bit set
-                if (timerA > extraTicks)
-                {
-                    timerA -= extraTicks;
-                }
-                else
-                {
-                    timerA = 0;
-                }
-                // Trigger the Timer A interrupt.
-                if (interruptEnable & INTERRUPT_TIMER_A)
-                {
-                    interruptStatus |= INTERRUPT_TIMER_A;
-                    clearNMI();
-                    triggerNMI();
-                }
-                if (timerAControl & 0x40)
-                {
-                    portB ^= DSR_MASK; // PB7
-                    if (dataDirectionPortB & DSR_MASK && rs232dev)
-                    {
-                        rs232dev->setDSR((portB & DSR_MASK)!=0);
-                    }
-                }
+            if (timerBControl & 0x40)
+            {
+                ++pendingTBCASTicks;
             }
+
+            // PB7 output per PBON/OUTMODE (bits 1–2), NOT bit6
+            const bool pbOn  = (timerAControl & 0x02);
+            const bool pulse = (timerAControl & 0x04);
+            if (pbOn && (dataDirectionPortB & DSR_MASK))
+            {
+                if (pulse) { portB |= DSR_MASK; }
+                else        { portB ^= DSR_MASK; }
+                if (rs232dev) rs232dev->setDSR((portB & DSR_MASK)!=0);
+            }
+        }
+        else
+        {
+            timerA = static_cast<uint16_t>(cur);
         }
     }
 }
 
 void CIA2::updateTimerB(uint32_t cyclesElapsed)
 {
-    if (!(timerBControl & 0x01))
-    {
-        return; // not running
+    // Not running?
+    if ((timerBControl & 0x01) == 0)
+        return;
+
+    // Decode sources (6526-accurate)
+    const bool cntSrc = (timerBControl & 0x20) != 0;  // CRB bit5: 1=CNT
+    const bool casc   = (timerBControl & 0x40) != 0;  // CRB bit6: 1=CASCADE (dominates)
+
+    if (casc) {
+        // CASCADE: TB ticks once per TA underflow (CRB6 dominates; ignore CRB5)
+        while (pendingTBCASTicks > 0)
+        {
+            --pendingTBCASTicks;
+            tickTimerBOnce();   // one decrement + underflow handling
+        }
+        return;
     }
 
-    uint8_t modeB = timerBControl & 0x60;
-    switch (modeB)
-    {
-      case 0x00:  // CPU-clocked
+    if (cntSrc) {
+        // CNT: TB ticks once per external CNT falling edge (when CRB5=1, CRB6=0)
+        while (pendingTBCNTTicks > 0)
         {
-          uint32_t prescale = calculatePrescaler(timerBControl & 0x07);
-          accumulatedCyclesB += cyclesElapsed;
-          while (accumulatedCyclesB >= prescale)
-          {
-            accumulatedCyclesB -= prescale;
-            decrementAndHandleTimerB();
-          }
+            --pendingTBCNTTicks;
+            tickTimerBOnce();
         }
-        break;
-
-      case 0x20:  // count on Timer A underflows only
-        if (timerAUnderFlowFlag)
-        {
-            decrementAndHandleTimerB();
-        }
-        break;
-
-      case 0x40:  // count on Timer A pulses only
-        if (timerAPulseFlag)
-        {
-            decrementAndHandleTimerB();
-        }
-        break;
-
-      case 0x60:  // count on both underflows & pulses
-        if (timerAUnderFlowFlag || timerAPulseFlag)
-        {
-            decrementAndHandleTimerB();
-        }
-        break;
+        return;
     }
 
-    // Clear the A-flags now that B has used them
-    timerAUnderFlowFlag = false;
-    timerAPulseFlag      = false;
+    // φ2: TB ticks once per CPU cycle (no prescaler on real 6526)
+    while (cyclesElapsed-- > 0)
+    {
+        tickTimerBOnce();
+    }
 }
 
 void CIA2::decrementAndHandleTimerB()
@@ -583,13 +552,9 @@ void CIA2::decrementAndHandleTimerB()
             timerBControl &= ~0x01;  // stop
         }
 
-        // toggle PB6 if requested
-        if (interruptEnable & INTERRUPT_TIMER_B)
-        {
-            interruptStatus |= INTERRUPT_TIMER_B;
-            clearNMI();
-            triggerNMI();
-        }
+        interruptStatus |= INTERRUPT_TIMER_B;
+        refreshNMI();
+
     }
 }
 
@@ -628,17 +593,9 @@ void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
         if (!todAlarmTriggered)
         {
             todAlarmTriggered = true;
-            if (interruptEnable & INTERRUPT_TOD_ALARM) // TOD interrupt enabled
-            {
-                interruptStatus |= INTERRUPT_TOD_ALARM;
-                clearNMI();
-                triggerNMI();
-            }
+            interruptStatus |= INTERRUPT_TOD_ALARM;
+            refreshNMI();
         }
-    }
-    else
-    {
-        todAlarmTriggered = false; // Reset when TOD clock no longer matches alarm
     }
 }
 
@@ -673,55 +630,34 @@ void CIA2::refreshNMI()
 
 void CIA2::clkChanged(bool level)
 {
-    if (lastClk & !level)
-    {
-        timerAPulseFlag = true;
-        if (interruptEnable & INTERRUPT_SERIAL_SHIFT_REGISTER)
-        {
-            interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
-            clearNMI();
-            triggerNMI();
-        }
-        if (bus)
-        {
-            shiftReg = (shiftReg << 1) | (bus->readDataLine() ? 1 : 0);
-            ++bitCount;
-        }
-        if (talking && !atnLine && bus)
-        {
-            // send bit [outBit] of serialDataRegister
-            bool bit = (serialDataRegister >> outBit) & 1;
-            bus->setDataLine(bit);
-
-            // decrement & wrap bit index
-            if (--outBit < 0)
-                outBit = 7;
-        }
-    }
-    if (bitCount == 8)
-    {
-        if(atnLine)
-        {
-            decodeIECCommand(shiftReg);
-        }
-        else
-        {
-            if (listening && !atnLine && currentSecondaryAddress == expectedSecondaryAddress)
-            {
-                serialDataRegister = shiftReg;
-                // Tell the CPU to read the byte
-                interruptStatus |= INTERRUPT_FLAG_LINE;
-                if (interruptEnable & INTERRUPT_FLAG_LINE)
-                {
-                    clearNMI();
-                    triggerNMI();
-                }
-            }
-        }
-        shiftReg = 0;
-        bitCount = 0;
-    }
+    const bool falling = (lastClk && !level);
     lastClk = level;
+
+    if (!falling || !bus) return;
+
+    // LISTEN receive (not under ATN): shift one bit in
+    if (listening && !atnLine)
+    {
+        shiftReg = (shiftReg << 1) | (bus->readDataLine() ? 1 : 0);
+        if (++bitCount == 8)
+        {
+            serialDataRegister = shiftReg;
+            bitCount = 0;
+            shiftReg = 0;
+
+            // Byte ready -> SR (not FLAG); IFR latches unconditionally
+            interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
+            refreshNMI();
+        }
+    }
+
+    // TALK transmit
+    if (talking && !atnLine)
+    {
+        bool bit = (serialDataRegister >> outBit) & 1;
+        bus->setDataLine(bit);
+        if (--outBit < 0) outBit = 7;
+    }
 }
 
 void CIA2::dataChanged(bool state)
@@ -776,13 +712,8 @@ void CIA2::srqChanged(bool level)
             {
                 serialDataRegister = shiftReg;
                 bitCount = 0;
-                // trigger FLAG interrupt if enabled
-                if (interruptEnable & INTERRUPT_SERIAL_SHIFT_REGISTER)
-                {
-                    interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
-                    clearNMI();
-                    triggerNMI();
-                }
+                interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
+                refreshNMI();
                 shiftReg = 0;
             }
         }
@@ -874,6 +805,18 @@ void CIA2::decodeIECCommand(uint8_t cmd)
                 }
                 break;
         }
+    }
+}
+
+void CIA2::setCNTLine(bool level)
+{
+    bool falling = (lastCNT && !level);
+    lastCNT = cntLevel = level;
+    if (!falling) return;
+
+    if ((timerBControl & 0x01) && (timerBControl & 0x20) && !(timerBControl & 0x40))
+    {
+        ++pendingTBCNTTicks; // updateTimerB() will consume these
     }
 }
 
@@ -977,4 +920,50 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     }
 
     return out.str();
+}
+
+void CIA2::tickTimerBOnce()
+{
+    uint32_t cur = timerB ? timerB : 0x10000;  // 0 represents 65536 in CIA timers
+    if (--cur != 0)
+    {
+        timerB = static_cast<uint16_t>(cur);
+        return;
+    }
+
+    handleTimerBUnderflow();
+}
+
+void CIA2::handleTimerBUnderflow()
+{
+    // Latch IFR regardless of IER; refresh NMI level from (IFR & IER)
+    interruptStatus |= INTERRUPT_TIMER_B;
+    refreshNMI();
+
+    const bool oneShot = (timerBControl & 0x08) != 0;  // RUNMODE=1 => one-shot
+    if (oneShot)
+    {
+        timerB = 0;
+        timerBControl &= ~0x01; // clear START
+    }
+    else
+    {
+        timerB = static_cast<uint16_t>((timerBHighByte << 8) | timerBLowByte);
+    }
+
+    // PB6 output (CTS) per PBON/OUTMODE; only when that bit is an output in DDRB
+    const bool pbOn  = (timerBControl & 0x02) != 0; // PBON
+    const bool pulse = (timerBControl & 0x04) != 0; // OUTMODE: 1=pulse, 0=toggle
+    if (pbOn && (dataDirectionPortB & CTS_MASK))
+    {
+        if (pulse)
+        {
+            portB |= CTS_MASK;
+        }
+        else
+        {
+            portB ^= CTS_MASK; // toggle
+        }
+        if (rs232dev) rs232dev->setCTS((portB & CTS_MASK) != 0);
+    }
 }
