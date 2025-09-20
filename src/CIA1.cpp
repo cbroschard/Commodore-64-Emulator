@@ -444,13 +444,6 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
-uint32_t CIA1::calculatePrescaler(uint8_t control)
-{
-    static constexpr uint32_t table[4] = { 1, 1, 4, 16 };
-    uint8_t idx = (control >> 5) & 0x03;  // use bits 5–6, not 1–2
-    return table[idx];
-}
-
 void CIA1::latchTODClock()
 {
     todLatch[0] = todClock[0];
@@ -496,7 +489,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
     }
 }
 
-void CIA1::cntChanged()
+void CIA1::cntChangedA()
 {
     if (inputMode == InputMode::modeCNT && (timerAControl & 0x01))
     {
@@ -513,7 +506,7 @@ void CIA1::cntChanged()
             {
                 timerAControl &= ~0x01;
             }
-            if (timerBControl & 0x20) // cascade B if requested
+            if (timerBControl & 0x40) // cascade B if requested
             {
                 handleTimerBCascade();
             }
@@ -525,82 +518,101 @@ void CIA1::cntChanged()
     }
 }
 
-void CIA1::updateTimerA(uint32_t cyclesElapsed)
+void CIA1::cntChangedB()
 {
-    if (inputMode == InputMode::modeTimerA)
+    const bool tbStarted = (timerBControl & 0x01);
+    const bool tbCNT     = (timerBControl & 0x20); // CNT source
+    const bool tbCascade = (timerBControl & 0x40); // cascade source
+
+    // TB counts on CNT only if CRB selects CNT and not cascade
+    if (!tbStarted || !tbCNT || tbCascade) return;
+
+    uint32_t current = timerB ? timerB : 0x10000;
+    if (--current == 0)
     {
-        return;
-    }
-
-    if (!(timerAControl & 0x01) || cyclesElapsed == 0)
-    {
-        return;
-    }
-    // accumulate CPU cycles
-    timerACycleCount += cyclesElapsed;
-    uint32_t prescale = calculatePrescaler(timerAControl);
-
-    // tick once per prescaler interval
-    while (timerACycleCount >= prescale)
-    {
-        timerACycleCount -= prescale;
-        // treat 0 as 0x10000
-        uint32_t current = timerA ? timerA : 0x10000;
-        if (current > 1)
-        {
-            timerA = static_cast<uint16_t>(current - 1);
-            continue;
-        }
-
-        // underflow
-        triggerInterrupt(INTERRUPT_TIMER_A);
-        bool continuous = !(timerAControl & 0x08);
-
+        triggerInterrupt(INTERRUPT_TIMER_B);
+        const bool continuous = !(timerBControl & 0x08);
         if (continuous)
         {
-            timerA = (timerAHighByte << 8) | timerALowByte;
+            timerB = (timerBHighByte << 8) | timerBLowByte;
         }
         else
         {
-            timerA = 0;
-            timerAControl &= ~0x01;  // stop
-            break;
+            timerB = 0;
+            timerBControl &= ~0x01; // stop in one-shot
         }
-        if (timerBControl & 0x20)
-        {
-            handleTimerBCascade();
-        }
+    }
+    else
+    {
+        timerB = static_cast<uint16_t>(current);
+    }
+}
 
-        // Handle serial shift on underflow
-        if (timerAControl & 0x40)
+void CIA1::updateTimerA(uint32_t cyclesElapsed)
+{
+    // Started?
+    if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
+
+    const bool taCntMode = (timerAControl & 0x20) != 0;  // bit5: 1=CNT, 0=φ2
+    if (taCntMode) return;  // In CNT mode, TA is clocked by setCNTLine() -> cntChangedA()
+
+    // φ2-driven: decrement once per cycle
+    while (cyclesElapsed--)
+    {
+        uint32_t cur = timerA ? timerA : 0x10000;
+        if (--cur == 0)
         {
-            bool cnt = cass && cass->isCassetteLoaded() ? cass->getData() : true;
-            uint8_t bit = cnt ? 1 : 0;
-            shiftReg = (shiftReg << 1) | bit;
-            if (++shiftCount == 8) // If full byte process it
+            // Underflow -> IRQ latch (IFR sets regardless of IER)
+            triggerInterrupt(INTERRUPT_TIMER_A);
+
+            const bool continuous = !(timerAControl & 0x08); // RUNMODE=0 => continuous
+            if (continuous)
             {
-                serialDataRegister = shiftReg;
-                shiftCount = 0; // reset the counter
-                triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                timerA = (timerAHighByte << 8) | timerALowByte;
+            }
+            else
+            {
+                timerA = 0;
+                timerAControl &= ~0x01; // stop in one-shot
+            }
+
+            // Cascade TB if CRB bit6 set
+            if (timerBControl & 0x40)
+            {
+                handleTimerBCascade();
+            }
+
+            if (timerAControl & 0x40)
+            {
+                const uint8_t bit = /* readCNTLine() */ 1;
+                shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
+                if (++shiftCount == 8) {
+                    serialDataRegister = shiftReg;
+                    shiftCount = 0;
+                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                }
             }
         }
-   }
+        else
+        {
+            timerA = static_cast<uint16_t>(cur);
+        }
+    }
 }
 
 void CIA1::updateTimerB(uint32_t cyclesElapsed)
 {
-    // if cascade bit set, we’ll drive B from A underflows later
-    if ((timerBControl & 0x20) || !(timerBControl & 0x01) || cyclesElapsed == 0)
-    {
-        return;
-    }
+    const bool tbStarted = (timerBControl & 0x01);
+    const bool tbCNT     = (timerBControl & 0x20); // CNT vs φ2
+    const bool tbCascade = (timerBControl & 0x40); // cascade from TA
+
+    // If not started, or driven by CNT, or in cascade mode, φ2 path is idle
+    if (!tbStarted || tbCNT || tbCascade || cyclesElapsed == 0) return;
 
     timerBCycleCount += cyclesElapsed;
-    uint32_t prescale = calculatePrescaler(timerBControl);
 
-    while (timerBCycleCount >= prescale)
+    while (timerBCycleCount--)
     {
-        timerBCycleCount -= prescale;
         uint32_t current = timerB ? timerB : 0x10000;
         if (current > 1)
         {
@@ -610,8 +622,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
 
         // underflow
         triggerInterrupt(INTERRUPT_TIMER_B);
-        bool continuous = !(timerBControl & 0x08);
-
+        const bool continuous = !(timerBControl & 0x08);
         if (continuous)
         {
             timerB = (timerBHighByte << 8) | timerBLowByte;
@@ -619,7 +630,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
         else
         {
             timerB = 0;
-            timerBControl &= ~0x01;  // stop
+            timerBControl &= ~0x01; // stop
             break;
         }
     }

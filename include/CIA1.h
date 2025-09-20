@@ -54,9 +54,6 @@ class CIA1
         // Main update timers method
         void updateTimers(uint32_t cyclesElapsed);
 
-        // Handle CNT mode
-        void cntChanged();
-
         //Interrupt handling
         enum InterruptBit : uint8_t
         {
@@ -136,8 +133,6 @@ class CIA1
         uint8_t timerAControl;
         uint8_t timerBControl;
 
-        uint32_t calculatePrescaler(uint8_t control);
-
         // Update Timers helpers
         void updateTimerA(uint32_t cyclesElapsed);
         void updateTimerB(uint32_t cyclesElapsed);
@@ -158,6 +153,9 @@ class CIA1
         uint8_t interruptStatus;
         uint8_t interruptEnable;
 
+        // Handle CNT mode
+        void cntChangedA();
+        void cntChangedB();
 
         void latchTODClock();
 
