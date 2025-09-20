@@ -293,6 +293,12 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::IO:
         {
             writeIO(accessInfo.offset, value);
+
+            // Always update underlying RAM
+            if (address < mem.size())
+            {
+                mem[address] = value;
+            }
             break;
         }
         case PLA::KERNAL_ROM:
