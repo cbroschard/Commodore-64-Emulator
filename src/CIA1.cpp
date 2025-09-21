@@ -800,6 +800,9 @@ void CIA1::triggerInterrupt(InterruptBit interruptBit)
             IRQ->raiseIRQ(source);
         }
     }
+
+    //refreshMasterBit();
+    //updateIRQLine();
 }
 
 void CIA1::updateIRQLine()

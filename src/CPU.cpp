@@ -90,42 +90,13 @@ void CPU::handleIRQ()
         switch (activeSource)
         {
             case IRQLine::VICII:
-            {
-                if (vicII && IRQ)
-                {
-                    executeIRQ();
-                    IRQ->clearIRQ(IRQLine::VICII);
-                }
-                break;
-            }
             case IRQLine::CIA1_TIMER_A:
-            {
-                executeIRQ();
-                IRQ->clearIRQ(IRQLine::CIA1_TIMER_A);
-                break;
-            }
             case IRQLine::CIA1_TIMER_B:
-            {
-                executeIRQ();
-                IRQ->clearIRQ(IRQLine::CIA1_TIMER_B);
-                break;
-            }
             case IRQLine::CIA1_TOD:
-            {
-                executeIRQ();
-                IRQ->clearIRQ(IRQLine::CIA1_TOD);
-                break;
-            }
             case IRQLine::CIA1_SERIAL:
-            {
-                executeIRQ();
-                IRQ->clearIRQ(IRQLine::CIA1_SERIAL);
-                break;
-            }
             case IRQLine::CIA1_FLAG:
             {
                 executeIRQ();
-                IRQ->clearIRQ(IRQLine::CIA1_FLAG);
                 break;
             }
         }

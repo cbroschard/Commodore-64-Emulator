@@ -166,11 +166,13 @@ uint8_t Vic::readRegister(uint16_t address)
         {
             uint8_t srcs = registers.interruptStatus & 0x0F;
             uint8_t any  = srcs ? 0x80 : 0x00;
-            return (srcs | any | 0x70);
+            //return (srcs | any | 0x70);
+            return (srcs | any);
         }
         case 0xD01A:
         {
-            return (registers.interruptEnable & 0x0F) | 0xF0; // Bits 4-6 are always 1
+            //return (registers.interruptEnable & 0x0F) | 0xF0; // Bits 4-6 are always 1
+            return (registers.interruptEnable & 0x0F);
         }
         case 0xD01B:
         {
@@ -322,23 +324,13 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             value &= 0x0F;
             registers.interruptStatus &= ~value;
-
-            if (IRQ &&
-                !(registers.interruptStatus & registers.interruptEnable))
-            {
-              IRQ->clearIRQ(IRQ->VICII);
-            }
+            updateIRQLine();
             break;
         }
         case 0xD01A:
         {
             registers.interruptEnable = value & 0x0F; // Only bits 0-3 are valid
-
-            // Check if enabling interrupts triggers a pending IRQ
-            if ((registers.interruptStatus & registers.interruptEnable) && IRQ)
-            {
-                 IRQ->raiseIRQ(IRQ->VICII);
-            }
+            updateIRQLine();
             break;
         }
         case 0xD01B:
@@ -415,8 +407,7 @@ void Vic::tick(int cycles)
             if (registers.raster == registers.rasterInterruptLine)
             {
                 registers.interruptStatus |= 0x01;
-                if (IRQ && (registers.interruptEnable & 0x01))
-                    IRQ->raiseIRQ(IRQ->VICII);
+                updateIRQLine();
             }
         }
 
@@ -923,9 +914,19 @@ void Vic::checkRasterIRQ()
     if (registers.raster == registers.rasterInterruptLine)
     {
         registers.interruptStatus |= 0x01;
-        if (IRQ && (registers.interruptEnable & 0x01))
-            IRQ->raiseIRQ(IRQ->VICII);
+        updateIRQLine();
     }
+}
+
+void Vic::updateIRQLine()
+{
+    // Low 4 bits only
+    const uint8_t pending = (registers.interruptStatus & registers.interruptEnable) & 0x0F;
+    const bool any = pending != 0;
+
+    if (!IRQ) return;
+    if (any)  IRQ->raiseIRQ(IRQLine::VICII);
+    else      IRQ->clearIRQ(IRQLine::VICII);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -943,10 +944,10 @@ void Vic::detectSpriteToSpriteCollision(int raster)
         }
     }
 
-    if ((registers.spriteCollision & ~old) && (registers.interruptEnable & 0x02) && IRQ)
+    if (registers.spriteCollision & ~old) //&& (registers.interruptEnable & 0x02) && IRQ)
     {
         registers.interruptStatus |= 0x02;
-        IRQ->raiseIRQ(IRQ->VICII);
+        updateIRQLine();
     }
 }
 
@@ -1046,10 +1047,10 @@ void Vic::detectSpriteToBackgroundCollision(int raster)
         if (checkSpriteBackgroundOverlap(i, raster)) registers.spriteDataCollision |= (1 << i);
     }
 
-    if ((registers.spriteDataCollision & ~old) && (registers.interruptEnable & 0x04) && IRQ)
+    if (registers.spriteDataCollision & ~old) //&& (registers.interruptEnable & 0x04) && IRQ)
     {
         registers.interruptStatus |= 0x04;
-        IRQ->raiseIRQ(IRQ->VICII);
+        updateIRQLine();
     }
 }
 

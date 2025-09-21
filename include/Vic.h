@@ -234,6 +234,7 @@ class Vic
 
         // Helper to check for Raster IRQ on D011/D012 writes
         void checkRasterIRQ();
+        void updateIRQLine();
 
         // Sprite collision functions
         void detectSpriteToSpriteCollision(int raster);
