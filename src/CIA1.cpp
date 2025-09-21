@@ -445,17 +445,9 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
                 clearInterrupt(INTERRUPT_TIMER_B);
             }
 
-
-            if (crb & 0x01) // Load bit set
-            {
-                if (timerB == 0) timerB = (timerBHighByte << 8) | timerBLowByte; // Reload from latch
-            }
             if (crb & 0x01) // Start bit set
             {
-                if (timerB == 0)
-                {
-                     timerB = (timerBHighByte << 8) | timerBLowByte; // Start from latch
-                }
+                if (timerB == 0) timerB = (timerBHighByte << 8) | timerBLowByte; // Start from latch            }
             }
             break;
         }
