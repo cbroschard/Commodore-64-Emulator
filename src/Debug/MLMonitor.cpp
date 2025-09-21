@@ -76,17 +76,17 @@ void MLMonitor::listBreakpoints() const
     }
 }
 
-void MLMonitor::addWatch(uint16_t address)
+void MLMonitor::addWriteWatch(uint16_t address)
 {
     uint8_t value = comp->readRAM(address);
-    watchpoints[address] = value;
+    writeWatches[address] = value;
     std::cout << "Watchpoint set at $" << std::hex << std::setw(4) << std::setfill('0') << address
               << " (initial value = $" << std::setw(2) << static_cast<int>(value) << ")\n";
 }
 
-void MLMonitor::clearWatch(uint16_t address)
+void MLMonitor::clearWriteWatch(uint16_t address)
 {
-    if (watchpoints.erase(address))
+    if (writeWatches.erase(address))
     {
         std::cout << "Watchpoint cleared at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
     }
@@ -96,25 +96,25 @@ void MLMonitor::clearWatch(uint16_t address)
     }
 }
 
-void MLMonitor::clearAllWatches()
+void MLMonitor::clearAllWriteWatches()
 {
-    for (auto it = watchpoints.begin(); it != watchpoints.end(); )
+    for (auto it = writeWatches.begin(); it != writeWatches.end(); )
     {
         uint16_t address = it->first;
         std::cout << "Watchpoint cleared at $"
                   << std::hex << std::setw(4) << std::setfill('0')
                   << address << "\n";
 
-        it = watchpoints.erase(it); // erase returns next valid iterator
+        it = writeWatches.erase(it); // erase returns next valid iterator
     }
 
-    std::cout << "All watchpoints cleared.\n";
+    std::cout << "All writeWatches cleared.\n";
 }
 
-void MLMonitor::listWatches() const
+void MLMonitor::listWriteWatches() const
 {
     int index = 0;
-    for (const auto& [address, value] : watchpoints)
+    for (const auto& [address, value] : writeWatches)
     {
         std::cout << "[" << index << "]  $" << std::hex << std::setw(4) << std::setfill('0') << address
                   << " (last value=$" << std::setw(2) << static_cast<int>(value) << ")\n";
@@ -122,10 +122,10 @@ void MLMonitor::listWatches() const
     }
 }
 
-bool MLMonitor::checkWatch(uint16_t address, uint8_t newVal)
+bool MLMonitor::checkWatchWrite(uint16_t address, uint8_t newVal)
 {
-    auto it = watchpoints.find(address);
-    if (it != watchpoints.end())
+    auto it = writeWatches.find(address);
+    if (it != writeWatches.end())
     {
         if (it->second != newVal)
         {
@@ -139,6 +139,65 @@ bool MLMonitor::checkWatch(uint16_t address, uint8_t newVal)
         }
     }
     return false;
+}
+
+void MLMonitor::addReadWatch(uint16_t address)
+{
+    readWatches.insert(address);
+    std::cout << "Read watchpoint set at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
+}
+
+void MLMonitor::clearReadWatch(uint16_t address)
+{
+    if (readWatches.erase(address))
+        std::cout << "Read watchpoint cleared at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
+    else
+        std::cout << "No read watchpoint found at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
+}
+
+void MLMonitor::clearAllReadWatches()
+{
+    for (auto it = readWatches.begin(); it != readWatches.end(); )
+    {
+        uint16_t addr = *it;
+        std::cout << "Read watchpoint cleared at $" << std::hex << std::setw(4) << std::setfill('0') << addr << "\n";
+        it = readWatches.erase(it);
+    }
+    std::cout << "All read watchpoints cleared.\n";
+}
+
+std::vector<uint16_t> MLMonitor::getWriteWatchAddresses() const
+{
+    std::vector<uint16_t> out;
+    out.reserve(writeWatches.size());
+    for (const auto& kv : writeWatches) out.push_back(kv.first);
+    return out;
+}
+
+void MLMonitor::listReadWatches() const
+{
+    int i = 0;
+    for (auto addr : readWatches)
+    {
+        std::cout << "[" << i++ << "]  $" << std::hex << std::setw(4) << std::setfill('0') << addr << "\n";
+    }
+}
+
+bool MLMonitor::checkWatchRead(uint16_t address, uint8_t value)
+{
+    if (readWatches.find(address) != readWatches.end())
+    {
+        std::cout << ">>> Read watchpoint hit at $"
+                  << std::hex << std::setw(4) << std::setfill('0') << address
+                  << " (value=$" << std::setw(2) << static_cast<int>(value) << ")\n";
+        return true; // tell the caller to break execution
+    }
+    return false;
+}
+
+std::vector<uint16_t> MLMonitor::getReadWatchAddresses() const
+{
+    return std::vector<uint16_t>(readWatches.begin(), readWatches.end());
 }
 
 bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)

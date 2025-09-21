@@ -26,9 +26,18 @@ Memory::~Memory() = default;
 
 uint8_t Memory::read(uint16_t address)
 {
+    // Wrap every return so read-watches can trigger exactly once per CPU read.
+    auto RET = [&](uint8_t v)->uint8_t
+    {
+        if (monitor && monitor->checkWatchRead(address, v)) {
+            monitor->enter();
+        }
+        return v;
+    };
+
     if (address == 0x0000)
     {
-        return dataDirectionRegister;
+        return RET(dataDirectionRegister);
     }
     else if (address == 0x0001)
     {
@@ -47,16 +56,15 @@ uint8_t Memory::read(uint16_t address)
 
         inputBitsState |= 0xC0; // Set bits 6 and 7 to 1 as they're unused
         valueToReturn |= (inputBitsState & ~dataDirectionRegister);
-        return valueToReturn;
+        return RET(valueToReturn);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
-        return colorRAM[address - COLOR_MEMORY_START] & 0x0F;
-        //return colorRAM[address - COLOR_MEMORY_START];
+        return RET(colorRAM[address - COLOR_MEMORY_START] & 0x0F);
     }
     else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
     {
-        return cart->read(address);
+        return RET(cart->read(address));
     }
 
     if (!pla) throw std::runtime_error("Error: Missing PLA object!");
@@ -72,9 +80,9 @@ uint8_t Memory::read(uint16_t address)
             uint8_t lo = mem[0xFFFE], hi = mem[0xFFFF];
             if (lo == 0x00 && hi == 0x00)
             {
-                return (address == 0xFFFE) ? mem[0x0314] : mem[0x0315]; // fallback
+                return RET((address == 0xFFFE) ? mem[0x0314] : mem[0x0315]); // fallback
             }
-            return (address == 0xFFFE) ? lo : hi; // real RAM vector
+            return RET((address == 0xFFFE) ? lo : hi); // real RAM vector
             }
 
             if (address == 0xFFFA || address == 0xFFFB)
@@ -82,15 +90,15 @@ uint8_t Memory::read(uint16_t address)
                 uint8_t lo = mem[0xFFFA], hi = mem[0xFFFB];
                 if (lo == 0x00 && hi == 0x00)
                 {
-                    return (address == 0xFFFA) ? mem[0x0318] : mem[0x0319]; // fallback
+                    return RET((address == 0xFFFA) ? mem[0x0318] : mem[0x0319]); // fallback
                 }
-                return (address == 0xFFFA) ? lo : hi; // real RAM vector
+                return RET((address == 0xFFFA) ? lo : hi); // real RAM vector
             }
             if (accessInfo.offset >= mem.size())
             {
-                throw std::runtime_error("Error: Attempt to read past endf of RAM");
+                throw std::runtime_error("Error: Attempt to read past end of RAM");
             }
-            return mem[accessInfo.offset];
+            return RET(mem[accessInfo.offset]);
         }
         case PLA::KERNAL_ROM:
         {
@@ -98,7 +106,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 throw std::runtime_error("Error: Attempt to read past end of KERNAL ROM");
             }
-            return kernalROM[accessInfo.offset];
+            return RET(kernalROM[accessInfo.offset]);
         }
         case PLA::BASIC_ROM:
         {
@@ -106,7 +114,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 throw std::runtime_error("Error: Attempt to read past end of BASIC ROM");
             }
-            return basicROM[accessInfo.offset];
+            return RET(basicROM[accessInfo.offset]);
         }
         case PLA::CHARACTER_ROM:
         {
@@ -114,7 +122,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 throw std::runtime_error("Error: Attempt to read past end of CHARACTER ROM");
             }
-            return charROM[accessInfo.offset];
+            return RET(charROM[accessInfo.offset]);
         }
         case PLA::CARTRIDGE_LO:
         {
@@ -122,7 +130,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 throw std::runtime_error("Error: Attempt to read past end of cartridge lo RAM");
             }
-            return cart_lo[accessInfo.offset];
+            return RET(cart_lo[accessInfo.offset]);
         }
         case PLA::CARTRIDGE_HI:
         {
@@ -130,11 +138,11 @@ uint8_t Memory::read(uint16_t address)
             {
                 throw std::runtime_error("Error: Attempt to read past end of cartridge hi RAM");
             }
-            return cart_hi[accessInfo.offset];
+            return RET(cart_hi[accessInfo.offset]);
         }
         case PLA::IO:
         {
-            return readIO(accessInfo.offset);
+            return RET(readIO(accessInfo.offset));
         }
         case PLA::UNMAPPED:
         {
@@ -142,7 +150,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 logger->WriteLog("Attempt to read from unmapped address: " + std::to_string(address));
             }
-            return 0xFF;
+            return RET(0xFF);
         }
     }
     // Default for no match
@@ -150,7 +158,7 @@ uint8_t Memory::read(uint16_t address)
     {
         logger->WriteLog("Attempt to read from invalid address: " + std::to_string(address));
     }
-    return 0xFF; // invalid address
+    return RET(0xFF); // invalid address
 }
 
 uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
@@ -258,8 +266,10 @@ void Memory::write(uint16_t address, uint8_t value)
         // Update the latch
         port1OutputLatch = value;
 
+        uint8_t effective = (port1OutputLatch & dataDirectionRegister) | (~dataDirectionRegister);
+
         // Check if we should turn on the cassette motor
-        if (!(port1OutputLatch & 0x20) && cass)
+        if (!(effective & 0x20) && cass)
             {
                 cass->startMotor();
             }
@@ -267,7 +277,6 @@ void Memory::write(uint16_t address, uint8_t value)
             {
                 cass->stopMotor();
             }
-        uint8_t effective = (port1OutputLatch & dataDirectionRegister) | (~dataDirectionRegister);
 
         // Schedule the MCR update
         pla->updateMemoryControlRegister(effective);
@@ -327,7 +336,7 @@ void Memory::write(uint16_t address, uint8_t value)
             break;
         }
     }
-    if (monitor && monitor->checkWatch(address, value))
+    if (monitor && monitor->checkWatchWrite(address, value))
     {
         // Enter the monitor as we hit a watch point
         monitor->enter();
@@ -354,7 +363,7 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
     {
         std::cout << "Error: Write direct attempted to write past end of memory!" << std::endl;
     }
-    if (monitor && monitor->checkWatch(address, value))
+    if (monitor && monitor->checkWatchWrite(address, value))
     {
         monitor->enter();
     }

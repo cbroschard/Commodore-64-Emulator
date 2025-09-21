@@ -52,6 +52,31 @@ bool TAP::loadTape(const std::string& filePath)
     return true;
 }
 
+void TAP::rewind()
+{
+    // Start in idle high (Datasette read line idles high)
+    currentLevel = true;
+
+    // Go to the first pulse
+    pulseIndex = 0;
+
+    // Preload the first duration so we don't toggle immediately on the first tick
+    if (!pulses.empty())
+    {
+        // If the first pulse has zero duration (bad/edge case), skip forward
+        size_t i = 0;
+        while (i < pulses.size() && pulses[i].duration == 0) ++i;
+
+        pulseIndex = i;
+        pulseRemaining = (pulseIndex < pulses.size()) ? pulses[pulseIndex].duration : 0;
+    }
+    else
+    {
+        // No pulses -> line stays idle high forever
+        pulseRemaining = 0;
+    }
+}
+
 void TAP::simulateLoading()
 {
     if (pulseIndex >= pulses.size())

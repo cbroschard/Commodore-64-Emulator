@@ -54,12 +54,21 @@ class MLMonitor
         void clearBreakpoint(uint16_t bp);
         void listBreakpoints() const;
 
-        // Watch handling
-        void addWatch(uint16_t address);
-        void clearWatch(uint16_t address);
-        void clearAllWatches();
-        void listWatches() const;
-        bool checkWatch(uint16_t address, uint8_t newVal);
+        // Watch write handling
+        void addWriteWatch(uint16_t address);
+        void clearWriteWatch(uint16_t address);
+        void clearAllWriteWatches();
+        void listWriteWatches() const;
+        bool checkWatchWrite(uint16_t address, uint8_t newVal);
+        std::vector<uint16_t> getWriteWatchAddresses() const;
+
+        // Watch read handling
+        void addReadWatch(uint16_t address);
+        void clearReadWatch(uint16_t address);
+        void clearAllReadWatches();
+        void listReadWatches() const;
+        bool checkWatchRead(uint16_t address, uint8_t value);
+        std::vector<uint16_t> getReadWatchAddresses() const;
 
         // Helpers
         inline bool breakpointsEmpty() const { return breakpoints.empty(); }
@@ -82,7 +91,8 @@ class MLMonitor
         std::unordered_set<uint16_t> breakpoints;
 
         // Unordered list to hold any watches set
-        std::unordered_map<uint16_t, uint8_t> watchpoints; // addr -> last value
+        std::unordered_map<uint16_t, uint8_t> writeWatches; // addr -> last value
+        std::unordered_set<uint16_t> readWatches;
 
         // Monitor helpers
         void registerCommand(std::unique_ptr<MonitorCommand> cmd);
