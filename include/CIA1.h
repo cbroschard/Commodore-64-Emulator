@@ -116,8 +116,9 @@ class CIA1
         uint32_t timerACycleCount;
         uint32_t timerBCycleCount;
 
-        // Cassette tape Port B bit 7 state
-        bool prevFlag;
+        // Cassette tape state
+        bool prevReadLevel;
+        bool cassetteReadLineLevel;
 
         // Timer A & B latch
         uint16_t timerASnap;

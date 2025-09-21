@@ -94,15 +94,16 @@ void CIA1::reset() {
     interruptEnable = 0;
 
     // Update the cassette
-    prevFlag = true; // default
+    prevReadLevel = true;
+    cassetteReadLineLevel = true;
 
     if (cass && cass->isCassetteLoaded())
     {
-        prevFlag = cass->getData(); // sample actual line level
+        prevReadLevel = cass->getData(); // sample actual line level
     }
     else
     {
-        prevFlag = true; // default pulled-up
+        prevReadLevel = true; // default pulled-up
     }
 
     // Mode
@@ -297,6 +298,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC05: // Timer A high
         {
             timerAHighByte = value;
+            if (timerAControl & 0x10)
+            {
+                timerA = (timerAHighByte << 8) | timerALowByte;
+                clearInterrupt(INTERRUPT_TIMER_A);
+            }
             break;
         }
         case 0xDC06: // Timer B low byte
@@ -307,6 +313,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC07: // Timer B High
         {
             timerBHighByte = value;
+            if (timerBControl & 0x10)
+            {
+                timerB = (timerBHighByte << 8) | timerBLowByte;
+                clearInterrupt(INTERRUPT_TIMER_B);
+            }
             break;
         }
         case 0xDC08: // TOD clock 1/10 seconds
@@ -507,25 +518,31 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
             allow = motorOn && senseLow;
         }
 
-        bool level = true; // default to idle-high
+        bool level = true;  // idle-high by default
+
         if (allow)
         {
             cass->tick(); // advance TAP by one CPU cycle
-            level = cass->getData(); // true=high, false=low
+            level = cass->getData(); // true = high, false = low (what the CIA "sees")
         }
         else
         {
-            level = true; // hold high when not allowed
+            level = true; // gate closed -> hold high
         }
 
+        // Make the sampled level visible to the monitor
+        cassetteReadLineLevel = level;
+
         // FALLING edge (1 -> 0) latches CIA1 FLAG
-        if (prevFlag && !level)
+        if (prevReadLevel && !level)
         {
-            interruptStatus |= INTERRUPT_FLAG_LINE; // IFR latches unconditionally
+            interruptStatus |= INTERRUPT_FLAG_LINE;
             refreshMasterBit();
-            updateIRQLine(); // derive IRQ from (IFR & IER)
+            updateIRQLine();
         }
-        prevFlag = level;
+
+        // Remember for next cycle
+        prevReadLevel = level;
     }
 }
 
@@ -861,88 +878,130 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
 
-    // Port registers
+    auto hex2 = [&](uint8_t v){ std::ostringstream s; s<<std::hex<<std::uppercase<<std::setfill('0')<<std::setw(2)<<int(v); return s.str(); };
+    auto hex4 = [&](uint16_t v){ std::ostringstream s; s<<std::hex<<std::uppercase<<std::setfill('0')<<std::setw(4)<<v; return s.str(); };
+
+    // Compute effective port values (pull-ups on inputs)
+    uint8_t invA = static_cast<uint8_t>(~dataDirectionPortA);
+    uint8_t invB = static_cast<uint8_t>(~dataDirectionPortB);
+    uint8_t effA = static_cast<uint8_t>((portA & dataDirectionPortA) | invA);
+    uint8_t effB = static_cast<uint8_t>((portB & dataDirectionPortB) | invB);
+
+    // Derive cassette bits
+    bool senseLow =  mem ? mem->isCassetteSenseLow() : false;
+    bool motorOn = mem ? mem->isCassetteMotorOn() : false;
+    bool readLevel = cassetteReadLineLevel;
+
+    // Ports
     if (group == "port" || group == "all")
     {
         out << "\nPort Registers \n\n";
-        out << "PORT A = $" << std::setw(2) << static_cast<int>(portA) << "\n";
-        out << "PORT A Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortA) << "\n";
-        out << "PORT B = $" << std::setw(2) << static_cast<int>(portB) << "\n";
-        out << "PORT B Data Direction Register = $" << std::setw(2) << static_cast<int>(dataDirectionPortB) << "\n";
+        out << "PORT A (latch)             = $" << hex2(portA) << "\n";
+        out << "PORT A DDR                 = $" << hex2(dataDirectionPortA) << "\n";
+        if ((dataDirectionPortA & 0x10) == 0)
+        {
+            out << "PORT A (effective)         = $" << hex2(effA)
+                << "   [PA4 SENSE:" << (senseLow ? "0" : "1") << "]\n";
+        }
+        else
+        {
+            out << "PORT A (effective)         = $" << hex2(effA)
+                << "   [PA4 output bit:" << (((portA >> 4) & 1) ? "1" : "0") << "]\n";
+        }
+
+        out << "PORT B (latch)             = $" << hex2(portB) << "\n";
+        out << "PORT B DDR                 = $" << hex2(dataDirectionPortB) << "\n";
+        out << "PORT B (effective)         = $" << hex2(effB) << "\n";
+        out << "6510 $0001 motor           = " << (motorOn ? "ON" : "OFF") << "  (bit5 effective = "
+            << (motorOn ? "0" : "1") << ")\n";
+        out << "Cassette READ line         = " << (readLevel ? "High" : "Low") << "\n";
     }
 
-    // Timer registers
+    // Timers
     if (group == "timer" || group == "all")
     {
+        auto decodeCRA = [&](uint8_t cr)
+        {
+            std::ostringstream s;
+            s << "Start:" << ((cr&0x01)?"On":"Off")
+              << " PBON:" << ((cr&0x02)?"Yes":"No")
+              << " OUTMODE:" << ((cr&0x04)?"Toggle":"Pulse")
+              << " Mode:" << ((cr&0x08)?"One-shot":"Continuous")
+              << " Load:" << ((cr&0x10)?"Yes":"No")
+              << " Clock:" << ((cr&0x20)?"CNT":"φ2");
+            return s.str();
+        };
+        auto decodeCRB = [&](uint8_t cr)
+        {
+            std::ostringstream s;
+            s << "Start:" << ((cr&0x01)?"On":"Off")
+              << " PBON:" << ((cr&0x02)?"Yes":"No")
+              << " OUTMODE:" << ((cr&0x04)?"Toggle":"Pulse")
+              << " Mode:" << ((cr&0x08)?"One-shot":"Continuous")
+              << " Load:" << ((cr&0x10)?"Yes":"No")
+              << " Clock:" << ((cr&0x60)==0x00?"φ2": (cr&0x60)==0x20?"CNT": (cr&0x60)==0x40?"TimerA":"TimerA+CNT");
+            return s.str();
+        };
+
         out << "\nTimer Registers \n\n";
-        out << "Timer A Latch Low = $" << std::setw(2) << static_cast<int>(timerALowByte) << "\n";
-        out << "Timer A Latch High = $" << std::setw(2) << static_cast<int>(timerAHighByte) << "\n";
-        out << "Timer A Latched = " << (timerALatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerASnap << "\n";
-        out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
-        out << "Timer A Control Register = $" << std::setw(2) << static_cast<int>(timerAControl) <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
-            << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
-        out << "Timer B Latch Low = $" << std::setw(2) << static_cast<int>(timerBLowByte) << "\n";
-        out << "Timer B Latch High = $" << std::setw(2) << static_cast<int>(timerBHighByte) << "\n";
-        out << "Timer B Latched = " << (timerBLatched ? "Yes" : "No") << "  Snapshot = $" << std::setw(4) << timerBSnap << "\n";
-        out << "Timer B Current = $" << std::setw(4) << timerB << "\n";
-        out << "Timer B Control Register = $" << std::setw(2) << static_cast<int>(timerBControl) << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
-            << " Mode: " << ((timerBControl & 0x08) ? "One shot" : "Continuous") << "\n";
+        out << "Timer A Latch Low          = $" << hex2(timerALowByte)  << "\n";
+        out << "Timer A Latch High         = $" << hex2(timerAHighByte) << "\n";
+        out << "Timer A Latched            = " << (timerALatched ? "Yes" : "No")
+            << "  Snapshot = $" << hex4(timerASnap) << " (High will return snapshot: "
+            << (timerALatched ? "Yes" : "No") << ")\n";
+        out << "Timer A Current            = $" << hex4(timerA) << "\n";
+        out << "Timer A Control Register   = $" << hex2(timerAControl) << "  [" << decodeCRA(timerAControl) << "]\n";
+
+        out << "Timer B Latch Low          = $" << hex2(timerBLowByte)  << "\n";
+        out << "Timer B Latch High         = $" << hex2(timerBHighByte) << "\n";
+        out << "Timer B Latched            = " << (timerBLatched ? "Yes" : "No")
+            << "  Snapshot = $" << hex4(timerBSnap) << " (High will return snapshot: "
+            << (timerBLatched ? "Yes" : "No") << ")\n";
+        out << "Timer B Current            = $" << hex4(timerB) << "\n";
+        out << "Timer B Control Register   = $" << hex2(timerBControl) << "  [" << decodeCRB(timerBControl) << "]\n";
     }
 
-    // TOD registers
+    // TOD
     if (group == "tod" || group == "all")
     {
         out << "\nTOD Registers\n\n";
-
-        out << "Current TOD = "
-            << std::setw(2) << static_cast<int>(todClock[3]) << ":"
-            << std::setw(2) << static_cast<int>(todClock[2]) << ":"
-            << std::setw(2) << static_cast<int>(todClock[1]) << "."
-            << std::setw(2) << static_cast<int>(todClock[0]) << "\n";
-
-        out << "TOD Alarm   = "
-            << std::setw(2) << static_cast<int>(todAlarm[3]) << ":"
-            << std::setw(2) << static_cast<int>(todAlarm[2]) << ":"
-            << std::setw(2) << static_cast<int>(todAlarm[1]) << "."
-            << std::setw(2) << static_cast<int>(todAlarm[0]) << "\n";
-
-        out << "TOD Latch   = "
-            << std::setw(2) << static_cast<int>(todLatch[3]) << ":"
-            << std::setw(2) << static_cast<int>(todLatch[2]) << ":"
-            << std::setw(2) << static_cast<int>(todLatch[1]) << "."
-            << std::setw(2) << static_cast<int>(todLatch[0]) << "\n";
-
-        out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
+        out << "Current TOD                = "
+            << hex2(todClock[3]) << ":" << hex2(todClock[2]) << ":" << hex2(todClock[1]) << "." << hex2(todClock[0]) << "\n";
+        out << "TOD Alarm                  = "
+            << hex2(todAlarm[3]) << ":" << hex2(todAlarm[2]) << ":" << hex2(todAlarm[1]) << "." << hex2(todAlarm[0]) << "\n";
+        out << "TOD Latch                  = "
+            << hex2(todLatch[3]) << ":" << hex2(todLatch[2]) << ":" << hex2(todLatch[1]) << "." << hex2(todLatch[0]) << "\n";
+        out << "TOD Alarm Set Mode         = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
     }
 
-    // Interrupt status
+    // Interrupts
     if (group == "icr" || group == "all")
     {
+        uint8_t sources = static_cast<uint8_t>(interruptStatus & 0x1F);
+        bool masterPending = (sources & interruptEnable) != 0;
         out << "\nInterrupt Registers\n\n";
-        out << "Interrupt Status (IFR) = $" << std::setw(2) << static_cast<int>(interruptStatus)
-            << "  [";
+        out << "Interrupt Status (IFR)     = $" << hex2(interruptStatus) << "  [";
         if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
         if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
         if (interruptStatus & INTERRUPT_TOD_ALARM) out << " TOD";
         if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER) out << " SR";
         if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
-        out << " ]\n";
-
-        out << "Interrupt Enable (IER) = $" << std::setw(2) << static_cast<int>(interruptEnable) << "\n";
+        out << " ]  Master Pending: " << (masterPending ? "Yes" : "No") << "\n";
+        out << "Interrupt Enable (IER)     = $" << hex2(interruptEnable) << "\n";
     }
 
-    // Serial data register
+    // Serial
     if (group == "serial" || group == "all")
     {
         out << "\nSerial Register\n\n";
-        out << "Serial Data Register = $" << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
+        out << "Serial Data Register       = $" << hex2(serialDataRegister) << "\n";
     }
 
     // Mode
     if (group == "mode" || group == "all")
     {
         out << "\nControl Lines\n\n";
-        out << "CNT Input Mode = ";
+        out << "CNT Input Mode             = ";
         switch (inputMode)
         {
             case InputMode::modeProcessor: out << "Processor polling"; break;
@@ -950,8 +1009,7 @@ std::string CIA1::dumpRegisters(const std::string& group) const
             case InputMode::modeTimerA:    out << "Timer A-driven"; break;
             case InputMode::modeTimerACNT: out << "Timer A + CNT"; break;
         }
-        out << "\n";
-        out << "Previous FLAG state = " << (prevFlag ? "High" : "Low") << "\n";
+        out << "\nPrevious FLAG state        = " << (prevReadLevel ? "High" : "Low") << "\n";
     }
 
     return out.str();
