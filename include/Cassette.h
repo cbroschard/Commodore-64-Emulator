@@ -35,7 +35,7 @@ class Cassette
         // Tape control
         void play();
         void stop();
-        inline void rewind() { tapePosition = 0; }
+        void rewind();
         void fastForward();
         void record();
         void eject();

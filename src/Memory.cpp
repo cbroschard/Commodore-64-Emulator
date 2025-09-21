@@ -260,26 +260,14 @@ void Memory::write(uint16_t address, uint8_t value)
     if (address == 0x0000)
     {
         dataDirectionRegister = value;
+        uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
+        applyPort1SideEffects(effective);
     }
     else if (address == 0x0001)
     {
-        // Update the latch
         port1OutputLatch = value;
-
-        uint8_t effective = (port1OutputLatch & dataDirectionRegister) | (~dataDirectionRegister);
-
-        // Check if we should turn on the cassette motor
-        if (!(effective & 0x20) && cass)
-            {
-                cass->startMotor();
-            }
-            else if (cass)
-            {
-                cass->stopMotor();
-            }
-
-        // Schedule the MCR update
-        pla->updateMemoryControlRegister(effective);
+        uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
+        applyPort1SideEffects(effective);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
@@ -515,4 +503,21 @@ bool Memory::Initialize(const std::string& basic, const std::string& kernal, con
     {
         return true;
     }
+}
+
+uint8_t Memory::computeEffectivePort1(uint8_t latch, uint8_t ddr)
+{
+    // Inputs read back as 1 (pull-ups)
+    uint8_t invDDR = static_cast<uint8_t>(~ddr);
+    return static_cast<uint8_t>((latch & ddr) | invDDR);
+}
+
+void Memory::applyPort1SideEffects(uint8_t effective)
+{
+    // Bit 5 low => motor ON (active low)
+    bool motorOn = (effective & 0x20) == 0;
+    if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
+
+    // Update PLA MCR with the effective bits (0..2 matter)
+    pla->updateMemoryControlRegister(effective);
 }

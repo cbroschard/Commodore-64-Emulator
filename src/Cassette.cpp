@@ -75,6 +75,12 @@ void Cassette::stop()
     }
 }
 
+void Cassette::rewind()
+{
+    if (tapeImage) tapeImage->rewind();
+    setData(true);  // idle-high after rewind
+}
+
 void Cassette::eject()
 {
     // Simply call our unload method

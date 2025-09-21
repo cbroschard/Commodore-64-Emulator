@@ -108,6 +108,11 @@ bool T64::validateHeader()
     return true;
 }
 
+void T64::rewind()
+{
+    // No need to implement
+}
+
 bool T64::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);

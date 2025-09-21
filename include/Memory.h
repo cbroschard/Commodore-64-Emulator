@@ -130,13 +130,16 @@ class Memory
         bool cartridgeAttached;
         bool cassetteSenseLow;
 
+        uint8_t dataDirectionRegister;
+        uint8_t port1OutputLatch;
+
         uint8_t readIO(uint16_t address);
         void writeIO(uint16_t address, uint8_t value);
 
         bool load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
 
-        uint8_t dataDirectionRegister;
-        uint8_t port1OutputLatch;
+        uint8_t computeEffectivePort1(uint8_t latch, uint8_t ddr);
+        void applyPort1SideEffects(uint8_t effective);
 };
 
 #endif // MEMORY_H
