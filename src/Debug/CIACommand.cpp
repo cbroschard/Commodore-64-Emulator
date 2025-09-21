@@ -84,27 +84,27 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (chipNum == 1)
     {
-        if (subcmd == "regs")      std::cout << mon.computer()->dumpCIA1Regs();
-        else if (subcmd == "ports")  std::cout << mon.computer()->dumpCIA1Ports();
+        if (subcmd == "regs") std::cout << mon.computer()->dumpCIA1Regs();
+        else if (subcmd == "ports") std::cout << mon.computer()->dumpCIA1Ports();
         else if (subcmd == "timers") std::cout << mon.computer()->dumpCIA1Timers();
-        else if (subcmd == "tod")    std::cout << mon.computer()->dumpCIA1TOD();
-        else if (subcmd == "icr")    std::cout << mon.computer()->dumpCIA1ICR();
+        else if (subcmd == "tod") std::cout << mon.computer()->dumpCIA1TOD();
+        else if (subcmd == "icr") std::cout << mon.computer()->dumpCIA1ICR();
         else if (subcmd == "serial") std::cout << mon.computer()->dumpCIA1Serial();
-        else if (subcmd == "mode")   std::cout << mon.computer()->dumpCIA1Mode();
-        else if (subcmd == "help")   std::cout << help();
+        else if (subcmd == "mode") std::cout << mon.computer()->dumpCIA1Mode();
+        else if (subcmd == "help") std::cout << help();
         else std::cout << help(); // default show help
     }
     else if (chipNum == 2)
     {
-        if (subcmd == "regs")       std::cout << mon.computer()->dumpCIA2Regs();
-        else if (subcmd == "ports")   std::cout << mon.computer()->dumpCIA2Ports();
-        else if (subcmd == "timers")  std::cout << mon.computer()->dumpCIA2Timers();
-        else if (subcmd == "tod")     std::cout << mon.computer()->dumpCIA2TOD();
-        else if (subcmd == "icr")     std::cout << mon.computer()->dumpCIA2ICR();
-        else if (subcmd == "serial")  std::cout << mon.computer()->dumpCIA2Serial();
-        else if (subcmd == "vic")     std::cout << mon.computer()->dumpCIA2VICBanks();
-        else if (subcmd == "iec")     std::cout << mon.computer()->dumpCIA2IEC();
-        else if (subcmd == "help")    std::cout << help();
+        if (subcmd == "all") std::cout << mon.computer()->dumpCIA2Regs();
+        else if (subcmd == "ports") std::cout << mon.computer()->dumpCIA2Ports();
+        else if (subcmd == "timers") std::cout << mon.computer()->dumpCIA2Timers();
+        else if (subcmd == "tod") std::cout << mon.computer()->dumpCIA2TOD();
+        else if (subcmd == "icr") std::cout << mon.computer()->dumpCIA2ICR();
+        else if (subcmd == "serial") std::cout << mon.computer()->dumpCIA2Serial();
+        else if (subcmd == "vic") std::cout << mon.computer()->dumpCIA2VICBanks();
+        else if (subcmd == "iec") std::cout << mon.computer()->dumpCIA2IEC();
+        else if (subcmd == "help") std::cout << help();
         else std::cout << help(); // default show help
     }
     else
