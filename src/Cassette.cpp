@@ -79,6 +79,7 @@ void Cassette::rewind()
 {
     if (tapeImage) tapeImage->rewind();
     setData(true);  // idle-high after rewind
+    tapePosition = 0;
 }
 
 void Cassette::eject()
