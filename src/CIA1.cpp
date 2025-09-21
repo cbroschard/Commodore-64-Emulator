@@ -121,7 +121,7 @@ uint8_t CIA1::readRegister(uint16_t address)
         case 0xDC00: // Port A
         {
             uint8_t busInputs = 0xFF;
-            if (!(dataDirectionPortA & 0x10) && mem && mem->getCassetteSenseLow() && cass && cass->isCassetteLoaded() && cass->isPlayPressed())
+            if (!(dataDirectionPortA & 0x10) && mem && mem->getCassetteSenseLow())
             {
                 busInputs &= ~0x10;
             }
@@ -425,14 +425,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             // Rising edge of START -> (re)load from latch
             if ((value & 0x01) && !(old & 0x01))
             {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-                clearInterrupt(INTERRUPT_TIMER_A);
-            }
-
-            // If START is cleared, no pending underflow
-            if (!(value & 0x01))
-            {
-                clearInterrupt(INTERRUPT_TIMER_A);
+                if (timerA == 0) timerA = (timerAHighByte << 8) | timerALowByte;
             }
             break;
         }
@@ -444,13 +437,18 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
                 todAlarmTriggered = false;
             }
             uint8_t crb = value & 0x7F; // mask out bit 7 before calculating timer B
-            bool loadB = (crb & 0x10) !=0;
             timerBControl = crb & 0xEF;
 
-            if (loadB) // Load bit set
+            if (crb & 0x10)
             {
-               timerB = (timerBHighByte << 8) | timerBLowByte; // Reload from latch
-               clearInterrupt(INTERRUPT_TIMER_B);
+                timerB = (timerBHighByte << 8) | timerBLowByte;
+                clearInterrupt(INTERRUPT_TIMER_B);
+            }
+
+
+            if (crb & 0x01) // Load bit set
+            {
+                if (timerB == 0) timerB = (timerBHighByte << 8) | timerBLowByte; // Reload from latch
             }
             if (crb & 0x01) // Start bit set
             {
@@ -458,12 +456,6 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
                 {
                      timerB = (timerBHighByte << 8) | timerBLowByte; // Start from latch
                 }
-            }
-
-            // Acknowledge any pending Timer B IRQ by clearing it when the timer is stopped
-            if (!(timerBControl & 0x01))
-            {
-                clearInterrupt(INTERRUPT_TIMER_B);
             }
             break;
         }
@@ -510,13 +502,10 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
     {
         bool allow = false;
 
-        if (cass && cass->isCassetteLoaded())
-        {
-            // Prefer querying Memory (6510 $0001) for motor & sense:
-            const bool motorOn  = mem ? mem->isCassetteMotorOn()  : cass->motorOn();
-            const bool senseLow = mem ? mem->isCassetteSenseLow() : true;
-            allow = motorOn && senseLow;
-        }
+        // Prefer querying Memory (6510 $0001) for motor & sense:
+        const bool motorOn  = mem ? mem->isCassetteMotorOn()  : cass->motorOn();
+        const bool senseLow = mem ? mem->isCassetteSenseLow() : true;
+        allow = motorOn && senseLow;
 
         bool level = true;  // idle-high by default
 
@@ -536,9 +525,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
         // FALLING edge (1 -> 0) latches CIA1 FLAG
         if (prevReadLevel && !level)
         {
-            interruptStatus |= INTERRUPT_FLAG_LINE;
-            refreshMasterBit();
-            updateIRQLine();
+            triggerInterrupt(INTERRUPT_FLAG_LINE);
         }
 
         // Remember for next cycle
@@ -646,7 +633,7 @@ void CIA1::updateTimerA(uint32_t cyclesElapsed)
                 if (++shiftCount == 8) {
                     serialDataRegister = shiftReg;
                     shiftCount = 0;
-                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                    //triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
                 }
             }
         }
@@ -755,10 +742,7 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
         if (!todAlarmTriggered)
         {
             todAlarmTriggered = true;
-            // Latch IFR unconditionally
-            interruptStatus |= INTERRUPT_TOD_ALARM;
-            refreshMasterBit();
-            updateIRQLine();
+            triggerInterrupt(INTERRUPT_TOD_ALARM);
         }
     }
 }
@@ -789,8 +773,6 @@ void CIA1::triggerInterrupt(InterruptBit interruptBit)
     // Check if the interrupt is enabled
     if (interruptEnable & interruptBit)
     {
-        interruptStatus |= 0x80; // Set the master interrupt bit
-
         // Map the interrupt to the correct IRQ source
         IRQLine::Source source = IRQLine::NONE;
         switch (interruptBit)
@@ -816,13 +798,6 @@ void CIA1::triggerInterrupt(InterruptBit interruptBit)
         if (source != IRQLine::NONE && IRQ)
         {
             IRQ->raiseIRQ(source);
-        }
-    }
-    else
-    {
-        if (logger)
-        {
-            logger->WriteLog("Interrupt requested but interrupts are disabled in CIA1");
         }
     }
 }
