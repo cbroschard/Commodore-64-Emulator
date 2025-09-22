@@ -113,6 +113,12 @@ void CIA1::reset() {
     // CNT
     cntLevel = true;
     lastCNT = true;
+
+    // Clear all IRQ's
+    if (IRQ) IRQ->clearIRQ(IRQLine::CIA1);
+
+    refreshMasterBit();
+    updateIRQLine();
 }
 
 uint8_t CIA1::readRegister(uint16_t address)
@@ -294,6 +300,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC04: // Timer A low byte
         {
             timerALowByte = value;
+            if (timerAControl & 0x10)
+            {
+                timerA = (timerAHighByte << 8) | timerALowByte;
+                clearInterrupt(INTERRUPT_TIMER_A);
+            }
             break;
         }
         case 0xDC05: // Timer A high
@@ -309,6 +320,11 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC06: // Timer B low byte
         {
             timerBLowByte = value;
+            if (timerBControl & 0x10)
+            {
+                timerB = (timerBHighByte << 8) | timerBLowByte;
+                clearInterrupt(INTERRUPT_TIMER_B);
+            }
             break;
         }
         case 0xDC07: // Timer B High
@@ -524,6 +540,9 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
         // Remember for next cycle
         prevReadLevel = level;
     }
+
+    refreshMasterBit();
+    updateIRQLine();
 }
 
 void CIA1::cntChangedA()
@@ -535,6 +554,7 @@ void CIA1::cntChangedA()
         if (--current == 0)
         {
             triggerInterrupt(INTERRUPT_TIMER_A);
+
             bool continuous = !(timerAControl & 0x08);
             timerA = continuous ? (timerAHighByte << 8) | timerALowByte : 0;
 
@@ -568,6 +588,7 @@ void CIA1::cntChangedB()
     if (--current == 0)
     {
         triggerInterrupt(INTERRUPT_TIMER_B);
+
         const bool continuous = !(timerBControl & 0x08);
         if (continuous)
         {
@@ -623,10 +644,11 @@ void CIA1::updateTimerA(uint32_t cyclesElapsed)
             {
                 const uint8_t bit = cntLevel ? 1u : 0u;
                 shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
-                if (++shiftCount == 8) {
+                if (++shiftCount == 8)
+                {
                     serialDataRegister = shiftReg;
                     shiftCount = 0;
-                    //triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
                 }
             }
         }
@@ -659,6 +681,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
 
         // underflow
         triggerInterrupt(INTERRUPT_TIMER_B);
+
         const bool continuous = !(timerBControl & 0x08);
         if (continuous)
         {
@@ -762,62 +785,14 @@ void CIA1::setCNTLine(bool level)
 void CIA1::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
-
-    // Check if the interrupt is enabled
-    if (interruptEnable & interruptBit)
-    {
-        // Map the interrupt to the correct IRQ source
-        IRQLine::Source source = IRQLine::NONE;
-        switch (interruptBit)
-        {
-            case INTERRUPT_TIMER_A:
-                source = IRQLine::CIA1_TIMER_A;
-                break;
-            case INTERRUPT_TIMER_B:
-                source = IRQLine::CIA1_TIMER_B;
-                break;
-            case INTERRUPT_TOD_ALARM:
-                source = IRQLine::CIA1_TOD;
-                break;
-            case INTERRUPT_SERIAL_SHIFT_REGISTER:
-                source = IRQLine::CIA1_SERIAL;
-                break;
-            case INTERRUPT_FLAG_LINE:
-                source = IRQLine::CIA1_FLAG;
-                break;
-        }
-
-        // Raise the interrupt on the IRQ line
-        if (source != IRQLine::NONE && IRQ)
-        {
-            IRQ->raiseIRQ(source);
-        }
-    }
-
-    //refreshMasterBit();
-    //updateIRQLine();
 }
 
 void CIA1::updateIRQLine()
 {
-    if (!IRQ)
-    {
-        return;
-    }
-
-    // Process all bits
-    const bool tA = interruptStatus & interruptEnable & INTERRUPT_TIMER_A;
-    const bool tB = interruptStatus & interruptEnable & INTERRUPT_TIMER_B;
-    const bool tod = interruptStatus & interruptEnable & INTERRUPT_TOD_ALARM;
-    const bool srl = interruptStatus & interruptEnable & INTERRUPT_SERIAL_SHIFT_REGISTER;
-    const bool flg = interruptStatus & interruptEnable & INTERRUPT_FLAG_LINE;
-
-    // raise or clear each source on the shared IRQ line
-    tA  ? IRQ->raiseIRQ( IRQLine::CIA1_TIMER_A) : IRQ->clearIRQ( IRQLine::CIA1_TIMER_A);
-    tB  ? IRQ->raiseIRQ( IRQLine::CIA1_TIMER_B) : IRQ->clearIRQ( IRQLine::CIA1_TIMER_B);
-    tod ? IRQ->raiseIRQ( IRQLine::CIA1_TOD) : IRQ->clearIRQ( IRQLine::CIA1_TOD);
-    srl ? IRQ->raiseIRQ( IRQLine::CIA1_SERIAL) : IRQ->clearIRQ( IRQLine::CIA1_SERIAL);
-    flg ? IRQ->raiseIRQ( IRQLine::CIA1_FLAG) : IRQ->clearIRQ( IRQLine::CIA1_FLAG);
+    if (!IRQ) return;
+    const bool any_pending = (interruptStatus & interruptEnable & 0x1F) != 0;
+    if (any_pending) IRQ->raiseIRQ(IRQLine::CIA1);
+    else             IRQ->clearIRQ(IRQLine::CIA1);
 }
 
 void CIA1::clearInterrupt(InterruptBit interruptBit)
@@ -828,13 +803,14 @@ void CIA1::clearInterrupt(InterruptBit interruptBit)
 void CIA1::clearIFR(InterruptBit interruptBit)
 {
     interruptStatus &= ~interruptBit;
+
     refreshMasterBit();
     updateIRQLine();
 }
 
 void CIA1::refreshMasterBit()
 {
-    if (interruptStatus & interruptEnable & 0x1F)
+    if ((interruptStatus & interruptEnable & 0x1F) != 0)
     {
         interruptStatus |= 0x80;
     }

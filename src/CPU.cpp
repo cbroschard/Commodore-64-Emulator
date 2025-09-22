@@ -90,11 +90,7 @@ void CPU::handleIRQ()
         switch (activeSource)
         {
             case IRQLine::VICII:
-            case IRQLine::CIA1_TIMER_A:
-            case IRQLine::CIA1_TIMER_B:
-            case IRQLine::CIA1_TOD:
-            case IRQLine::CIA1_SERIAL:
-            case IRQLine::CIA1_FLAG:
+            case IRQLine::CIA1:
             {
                 executeIRQ();
                 break;

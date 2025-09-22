@@ -19,11 +19,7 @@ class IRQLine
         enum Source
         {
             NONE,
-            CIA1_TIMER_A,
-            CIA1_TIMER_B,
-            CIA1_TOD,
-            CIA1_SERIAL,
-            CIA1_FLAG,
+            CIA1,
             D1541_IRQ,
             VICII
         };

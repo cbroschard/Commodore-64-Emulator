@@ -29,10 +29,6 @@ void IRQLine::clearIRQ(Source source)
 uint8_t IRQLine::getHighestPrioritySource()
 {
     if (IRQSources & VICII)         return VICII;
-    if (IRQSources & CIA1_TIMER_A)  return CIA1_TIMER_A;
-    if (IRQSources & CIA1_TIMER_B)  return CIA1_TIMER_B;
-    if (IRQSources & CIA1_TOD)      return CIA1_TOD;
-    if (IRQSources & CIA1_SERIAL)   return CIA1_SERIAL;
-    if (IRQSources & CIA1_FLAG)     return CIA1_FLAG;
+    if (IRQSources & CIA1)          return CIA1;
     return NONE;
 }
