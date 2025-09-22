@@ -72,6 +72,7 @@ void CIA1::reset() {
     timerALowByte = timerAHighByte = 0;
     timerBLowByte = timerBHighByte = 0;
     timerACycleCount = timerBCycleCount = 0;
+    timerAControl = timerBControl = 0;
 
     // Timer Lathes
     timerASnap = timerBSnap = 0;
