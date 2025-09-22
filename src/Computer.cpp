@@ -200,12 +200,22 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
 
         if (down && (mods & KMOD_ALT))
         {
+            if (sc == SDL_SCANCODE_E)
+            {
+                cass->eject();
+                return true;
+            }
             if (sc == SDL_SCANCODE_P)
             {
                 cass->play();
                 return true;
             }
-            if (sc == SDL_SCANCODE_0)
+            if (sc == SDL_SCANCODE_R)
+            {
+                cass->rewind();
+                return true;
+            }
+            if (sc == SDL_SCANCODE_S)
             {
                 cass->stop();
                 return true;
