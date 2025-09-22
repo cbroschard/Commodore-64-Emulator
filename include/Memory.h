@@ -66,9 +66,10 @@ class Memory
         // Setter for cartridge
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
 
-        // Getter/Setter for cassette sense (on button pressed)
+        // Getter/Setter for cassette
         inline bool getCassetteSenseLow() { return cassetteSenseLow; }
         inline void setCassetteSenseLow(bool pressed) { cassetteSenseLow = pressed; }
+        inline bool isCassetteMotorOn() const  { return (port1OutputLatch & 0x20) == 0; }
 
         // Load all ROMS
         bool Initialize(const std::string& basic, const std::string& kernal, const std::string& character);
@@ -76,10 +77,6 @@ class Memory
         // Helpers for certain cartridge types
         inline uint8_t getCartLOByte(uint16_t offset) const { return (offset < cart_lo.size()) ? cart_lo[offset] : 0xFF; }
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
-
-        // Cassette getters
-        inline bool isCassetteMotorOn() const  { return (port1OutputLatch & 0x20) == 0; }
-        inline bool isCassetteSenseLow() const { return cassetteSenseLow; }
 
     protected:
 
