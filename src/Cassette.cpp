@@ -21,10 +21,7 @@ Cassette::~Cassette() = default;
 
 void Cassette::startMotor()
 {
-    if (motorStatus)
-    {
-        return;
-    }
+    if (motorStatus) return;
     motorStatus = true;
 }
 
@@ -41,38 +38,32 @@ bool Cassette::loadCassette(const std::string& path, VideoMode mode)
     return true;
 }
 
-void Cassette::unloadCassette()
-{
+void Cassette::unloadCassette() {
     cassetteLoaded = false;
-    // Destroy the pointer
+    playPressed = false;
+    motorStatus = false;
+    setData(true); // idle high
+    if (mem) mem->setCassetteSenseLow(false);
     tapeImage.reset();
 }
 
 bool Cassette::isT64() const
 {
-    if (tapeImage)
-    {
-        return tapeImage->isT64();
-    }
+    if (tapeImage) return tapeImage->isT64();
     return false;
 }
 
 void Cassette::play()
 {
     playPressed = true;
-    if (mem)
-    {
-        mem->setCassetteSenseLow(true);
-    }
+    if (mem) mem->setCassetteSenseLow(true);
 }
 
 void Cassette::stop()
 {
     playPressed = false;
-    if (mem)
-    {
-        mem->setCassetteSenseLow(false);
-    }
+    motorStatus = false;
+    if (mem) mem->setCassetteSenseLow(false);
 }
 
 void Cassette::rewind()
