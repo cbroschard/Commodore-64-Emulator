@@ -22,7 +22,7 @@ void TAP::attachLoggingInstance(Logging* logger)
     this->logger = logger;
 }
 
-bool TAP::loadTape(const std::string& filePath)
+bool TAP::loadTape(const std::string& filePath, VideoMode mode)
 {
     if (!loadFile(filePath, tapeData))
     {
@@ -41,7 +41,7 @@ bool TAP::loadTape(const std::string& filePath)
     {
         return false;
     }
-    pulses = parsePulses();
+    pulses = parsePulses(mode);
     if (pulses.empty())
     {
         return false;
@@ -172,10 +172,24 @@ bool TAP::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
     return true;
 }
 
-std::vector<TAP::tapePulse> TAP::parsePulses()
+std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
 {
     std::vector<tapePulse> pulses;
     size_t pos = sizeof(header);
+
+    // Determine the tape's native video standard from its header
+    // 0 = PAL, 1 = NTSC, others are variants. Default to PAL if unknown.
+    VideoMode tapeMode = (header.videoStandard == 1) ? VideoMode::NTSC : VideoMode::PAL;
+
+    double scalingFactor = 1.0;
+    if (tapeMode == VideoMode::PAL && mode == VideoMode::NTSC)
+    {
+        scalingFactor = NTSC_CLOCK / PAL_CLOCK;
+    }
+    else if (tapeMode == VideoMode::NTSC && mode == VideoMode::PAL)
+    {
+        scalingFactor = PAL_CLOCK / NTSC_CLOCK;
+    }
 
     while (pos < tapeData.size())
     {
@@ -220,7 +234,10 @@ std::vector<TAP::tapePulse> TAP::parsePulses()
             }
         }
 
-        pulses.push_back({ duration });
+        if (duration > 0)
+        {
+            pulses.push_back({ static_cast<uint32_t>(duration * scalingFactor) });
+        }
     }
 
     return pulses;

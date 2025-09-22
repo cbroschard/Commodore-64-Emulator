@@ -25,7 +25,7 @@ void T64::attachLoggingInstance(Logging* logger)
     this->logger = logger;
 }
 
-bool T64::loadTape(const std::string& filePath)
+bool T64::loadTape(const std::string& filePath, VideoMode mode)
 {
     // Attempt to load the file
     if (!loadFile(filePath, tapeData))
