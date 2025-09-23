@@ -117,6 +117,9 @@ class Computer
         inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
 
+        // ML Monitor Cassette methods
+        inline std::string dumpTapeDebug(size_t count) const { return cass ? cass->dumpPulses(count) : "CASSETTE not attached\n"; }
+
         // ML Monitor CPU methods
         inline uint16_t getPC() { return processor->getPC(); }
         inline void setPC(uint16_t address) { processor->setPC(address); }

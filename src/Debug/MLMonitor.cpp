@@ -30,6 +30,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<ResetCommand>());
     registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
+    registerCommand(std::make_unique<TapeCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());
 }

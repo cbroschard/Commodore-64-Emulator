@@ -207,18 +207,14 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
     std::vector<tapePulse> pulses;
     size_t pos = sizeof(header);
 
-    // Determine the tape's native video standard from its header
-    // 0 = PAL, 1 = NTSC, others are variants. Default to PAL if unknown.
+    // Determine native tape mode
     VideoMode tapeMode = (header.videoStandard == 1) ? VideoMode::NTSC : VideoMode::PAL;
 
+    // PAL↔NTSC scaling if modes mismatch
     double scalingFactor = 1.0;
-    if (tapeMode == VideoMode::PAL && mode == VideoMode::NTSC)
-    {
-        scalingFactor = NTSC_CLOCK / PAL_CLOCK;
-    }
-    else if (tapeMode == VideoMode::NTSC && mode == VideoMode::PAL)
-    {
-        scalingFactor = PAL_CLOCK / NTSC_CLOCK;
+    if (tapeMode != mode) {
+        scalingFactor = (mode == VideoMode::NTSC) ? (NTSC_CLOCK / PAL_CLOCK)
+                                                  : (PAL_CLOCK / NTSC_CLOCK);
     }
 
     while (pos < tapeData.size())
@@ -231,7 +227,7 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
             if (tapeData[pos] != 0)
             {
                 raw = tapeData[pos];
-                duration = raw * 8;
+                duration = raw * 8; // units = 8 cycles
                 pos += 1;
             }
             else
@@ -241,8 +237,8 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
                 uint32_t mid = tapeData[pos + 2];
                 uint32_t hi  = tapeData[pos + 3];
                 raw = (lo | (mid << 8) | (hi << 16));
-                duration = raw * 8;
-                pos += 4; // includes the 0
+                duration = raw * 8; // still 8 cycles
+                pos += 4;
             }
         }
         else if (header.tapeVersion == 2)
@@ -250,7 +246,7 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
             if (tapeData[pos] != 0)
             {
                 raw = tapeData[pos];
-                duration = raw;
+                duration = raw; // already cycles
                 pos += 1;
             }
             else
@@ -260,15 +256,18 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
                 uint32_t mid = tapeData[pos + 2];
                 uint32_t hi  = tapeData[pos + 3];
                 raw = (lo | (mid << 8) | (hi << 16));
-                duration = raw;
-                pos += 4; // includes the 0
+                duration = raw; // already cycles
+                pos += 4;
             }
         }
 
         if (duration > 0)
         {
-            uint32_t scaled = duration * scalingFactor;
-            bool isGap = (scaled > 1000000); // 1 sec worth of cycles, tweak threshold
+            uint32_t scaled = static_cast<uint32_t>(duration * scalingFactor);
+
+            // Consider gaps only if extremely long (~50,000+ cycles)
+            bool isGap = (scaled > 50000);
+
             pulses.push_back({scaled, isGap});
         }
     }
@@ -279,4 +278,17 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
 bool TAP::currentBit() const
 {
     return currentLevel;
+}
+
+uint32_t TAP::debugCurrentPulse() const
+{
+    if (pulseIndex < pulses.size()) return pulses[pulseIndex].duration;
+    return 0;
+}
+
+uint32_t TAP::debugNextPulse(size_t lookahead) const
+{
+    size_t idx = pulseIndex + lookahead;
+    if (idx < pulses.size()) return pulses[idx].duration;
+    return 0;
 }

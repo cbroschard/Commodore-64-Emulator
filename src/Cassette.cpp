@@ -134,3 +134,27 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     result.success = true;
     return result;
 }
+
+std::string Cassette::dumpPulses(size_t count) const
+{
+    std::ostringstream out;
+
+    if (!tapeImage) {
+        out << "No tape image loaded.\n";
+        return out.str();
+    }
+
+    out << "Current pulse index: " << tapeImage->debugPulseIndex()
+        << " / " << tapeImage->debugPulseCount() << "\n";
+    out << "Current level: " << (getData() ? "High" : "Low") << "\n";
+
+    for (size_t i = 0; i < count; i++)
+    {
+        uint32_t dur = tapeImage->debugNextPulse(i);
+        if (dur == 0) break;
+        out << " +" << i << ": " << dur << " cycles";
+        if (dur > 1000000) out << " (gap)";
+        out << "\n";
+    }
+    return out.str();
+}

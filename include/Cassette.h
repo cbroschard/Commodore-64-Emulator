@@ -56,6 +56,9 @@ class Cassette
         bool isT64() const;
         T64LoadResult t64LoadPrgIntoMemory();
 
+        // Monitor helper for TAP
+        std::string dumpPulses(size_t count = 10) const;
+
     protected:
 
     private:
