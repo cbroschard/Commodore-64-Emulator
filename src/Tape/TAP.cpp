@@ -266,7 +266,7 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
             uint32_t scaled = static_cast<uint32_t>(duration * scalingFactor);
 
             // Consider gaps only if extremely long (~50,000+ cycles)
-            bool isGap = (scaled > 50000);
+            bool isGap = (scaled > 1000000);
 
             pulses.push_back({scaled, isGap});
         }
