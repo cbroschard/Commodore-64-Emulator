@@ -64,6 +64,7 @@ Computer::Computer()
     cia1object->attachIRQLineInstance(IRQ.get());
     cia1object->attachCassetteInstance(cass.get());
     cia1object->attachMemoryInstance(mem.get());
+    //cia1object->attachLogInstance(logger.get());
 
     cia2object->attachProcessorInstance(processor.get());
     cia2object->attachIECBusInstance(bus.get());
