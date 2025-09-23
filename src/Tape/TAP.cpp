@@ -89,23 +89,53 @@ void TAP::simulateLoading()
     if (pulseRemaining > 0)
     {
         pulseRemaining--;
+        return; // still inside this pulse
     }
 
-    // Toggle when pulse completes
-    if (pulseRemaining == 0)
+    // Pulse finished
+    const auto &pulse = pulses[pulseIndex];
+
+    if (pulse.isGap)
     {
-        currentLevel = !currentLevel;  // invert line
-        pulseIndex++;
-        if (pulseIndex < pulses.size())
-        {
-            pulseRemaining = pulses[pulseIndex].duration;
-        }
-        else
-        {
-            currentLevel = true; // end of tape, idle high
-        }
+        // Gap = silence, just stay high
+        currentLevel = true;
+    }
+    else
+    {
+        // Normal pulse = toggle
+        currentLevel = !currentLevel;
+    }
+
+    // Advance to next
+    pulseIndex++;
+    if (pulseIndex < pulses.size())
+    {
+        pulseRemaining = pulses[pulseIndex].duration;
+    }
+    else
+    {
+        currentLevel = true; // end of tape
     }
 }
+
+// diagnostic mode
+/*void TAP::simulateLoading()
+{
+    // Leader test: fixed ~270 cycle pulses
+    static const uint32_t leaderPulse = 270;
+
+    if (pulseRemaining > 0)
+    {
+        pulseRemaining--;
+    }
+
+    if (pulseRemaining == 0)
+    {
+        currentLevel = !currentLevel;      // toggle line (idle high -> low -> high)
+        pulseRemaining = leaderPulse;      // reset duration
+    }
+}*/
+
 
 bool TAP::validateHeader()
 {
@@ -193,50 +223,53 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
 
     while (pos < tapeData.size())
     {
-        uint32_t duration = 0;   // declare once per loop
-        uint32_t raw = 0;        // keep raw for logging
-        uint8_t b = tapeData[pos];
+        uint32_t raw = 0;
+        uint32_t duration = 0;
 
         if (header.tapeVersion == 0 || header.tapeVersion == 1)
         {
-            if (b != 0)
+            if (tapeData[pos] != 0)
             {
-                duration = b * 8;
-                raw = b;
+                raw = tapeData[pos];
+                duration = raw * 8;
                 pos += 1;
             }
             else
             {
                 if (pos + 3 >= tapeData.size()) break;
-                raw = tapeData[pos+1] |
-                      (tapeData[pos+2] << 8) |
-                      (tapeData[pos+3] << 16);
+                uint32_t lo  = tapeData[pos + 1];
+                uint32_t mid = tapeData[pos + 2];
+                uint32_t hi  = tapeData[pos + 3];
+                raw = (lo | (mid << 8) | (hi << 16));
                 duration = raw * 8;
-                pos += 4;
+                pos += 4; // includes the 0
             }
         }
         else if (header.tapeVersion == 2)
         {
-            if (b != 0)
+            if (tapeData[pos] != 0)
             {
-                raw = b;
-                duration = b;
+                raw = tapeData[pos];
+                duration = raw;
                 pos += 1;
             }
             else
             {
                 if (pos + 3 >= tapeData.size()) break;
-                raw = tapeData[pos+1] |
-                      (tapeData[pos+2] << 8) |
-                      (tapeData[pos+3] << 16);
+                uint32_t lo  = tapeData[pos + 1];
+                uint32_t mid = tapeData[pos + 2];
+                uint32_t hi  = tapeData[pos + 3];
+                raw = (lo | (mid << 8) | (hi << 16));
                 duration = raw;
-                pos += 4;
+                pos += 4; // includes the 0
             }
         }
 
         if (duration > 0)
         {
-            pulses.push_back({ static_cast<uint32_t>(duration * scalingFactor) });
+            uint32_t scaled = duration * scalingFactor;
+            bool isGap = (scaled > 1000000); // 1 sec worth of cycles, tweak threshold
+            pulses.push_back({scaled, isGap});
         }
     }
 
