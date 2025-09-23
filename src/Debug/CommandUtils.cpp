@@ -7,32 +7,29 @@
 // strictly prohibited without the prior written consent of the author.
  #include "Debug/CommandUtils.h"
 
- uint16_t parseAddress(const std::string& arg)
- {
-    uint16_t value = 0;
-
-    try {
-        if (!arg.empty() && arg[0] == '$') {
-            // Hex with $ prefix
-            std::stringstream ss;
-            ss << std::hex << arg.substr(1);
-            ss >> value;
-        } else if (arg.rfind("0x", 0) == 0 || arg.rfind("0X", 0) == 0) {
-            // Hex with 0x prefix
-            std::stringstream ss;
-            ss << std::hex << arg.substr(2);
-            ss >> value;
-        } else {
-            // Decimal
-            std::stringstream ss(arg);
-            ss >> value;
-        }
-    }
-    catch (...) {
-        throw std::runtime_error("Invalid address format: " + arg);
+uint16_t parseAddress(const std::string& arg)
+{
+    if (arg.empty())
+    {
+        throw std::runtime_error("Invalid address format: empty");
     }
 
-    return value;
+    if (arg[0] == '$')
+    {
+        return static_cast<uint16_t>(std::stoul(arg.substr(1), nullptr, 16));
+    }
+    else if (arg.rfind("0x", 0) == 0 || arg.rfind("0X", 0) == 0)
+    {
+        return static_cast<uint16_t>(std::stoul(arg.substr(2), nullptr, 16));
+    }
+    else if (arg.find_first_of("ABCDEFabcdef") != std::string::npos)
+    {
+        return static_cast<uint16_t>(std::stoul(arg, nullptr, 16));
+    }
+    else
+    {
+        return static_cast<uint16_t>(std::stoul(arg, nullptr, 10));
+    }
 }
 
 void printPaged(const std::string& text, int pageSize)
