@@ -144,8 +144,10 @@ std::string Cassette::dumpPulses(size_t count) const
         return out.str();
     }
 
+    out << "Tape version: " << tapeImage->debugTapeVersion() << "\n";
     out << "Current pulse index: " << tapeImage->debugPulseIndex()
         << " / " << tapeImage->debugPulseCount() << "\n";
+    out << "Pulse Remaining: " << tapeImage->debugPulseRemaining() << "\n";
     out << "Current level: " << (getData() ? "High" : "Low") << "\n";
 
     for (size_t i = 0; i < count; i++)

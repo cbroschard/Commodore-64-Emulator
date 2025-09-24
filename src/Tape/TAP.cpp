@@ -118,25 +118,6 @@ void TAP::simulateLoading()
     }
 }
 
-// diagnostic mode
-/*void TAP::simulateLoading()
-{
-    // Leader test: fixed ~270 cycle pulses
-    static const uint32_t leaderPulse = 270;
-
-    if (pulseRemaining > 0)
-    {
-        pulseRemaining--;
-    }
-
-    if (pulseRemaining == 0)
-    {
-        currentLevel = !currentLevel;      // toggle line (idle high -> low -> high)
-        pulseRemaining = leaderPulse;      // reset duration
-    }
-}*/
-
-
 bool TAP::validateHeader()
 {
     // First check the signature to ensure it's really a C16 or C64 tape file
