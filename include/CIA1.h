@@ -119,6 +119,7 @@ class CIA1
         // Cassette tape state
         bool prevReadLevel;
         bool cassetteReadLineLevel;
+        bool gateWasOpenPrev;
 
         // Timer A & B latch
         uint16_t timerASnap;

@@ -97,6 +97,7 @@ void CIA1::reset() {
     // Update the cassette
     prevReadLevel = true;
     cassetteReadLineLevel = true;
+    gateWasOpenPrev = false;
 
     if (cass && cass->isCassetteLoaded())
     {
@@ -125,22 +126,26 @@ uint8_t CIA1::readRegister(uint16_t address)
 {
     switch(address)
     {
-        case 0xDC00: // Port A
+        case 0xDC00: // CIA1 Port A read
         {
+            // Start with pull-ups: all inputs default high
             uint8_t busInputs = 0xFF;
-            if (!(dataDirectionPortA & 0x10) && mem && mem->getCassetteSenseLow())
-            {
-                busInputs &= ~0x10;
-            }
-            else
-            {
-                busInputs |= 0x10;
-            }
-            if (joy2)
-            {
-                busInputs = (busInputs & ~0x1F) | (joy2->getState() & 0x1F);
-            }
-            portAValue = (portA & dataDirectionPortA) | (~dataDirectionPortA & busInputs);
+
+            // Joystick 2 (active-low). If absent, treat as all released (1s).
+            uint8_t joyBits = 0x1F;
+            if (joy2) joyBits = (joy2->getState() & 0x1F);
+
+            // PA0–PA3: directions; PA4: fire (all active-low)
+            uint8_t paLowNibble = (joyBits & 0x0F);
+            uint8_t pa4         = (joyBits & 0x10);   // 0 if fire pressed, 1 if not
+
+            // Merge PA0–PA4 into the input bus (PA5–PA7 remain high for now)
+            busInputs = (busInputs & ~0x1F) | (paLowNibble | pa4);
+
+            uint8_t ddraNoPA4 = (dataDirectionPortA & ~0x10);       // force PA4 as input
+            uint8_t result    = (portA & ddraNoPA4) | (~ddraNoPA4 & busInputs);
+
+            portAValue = result;
             return portAValue;
         }
         case 0xDC01: // Port B
@@ -300,41 +305,21 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC04: // Timer A low byte
         {
             timerALowByte = value;
-            if (timerAControl & 0x10)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-                clearInterrupt(INTERRUPT_TIMER_A);
-            }
             break;
         }
         case 0xDC05: // Timer A high
         {
             timerAHighByte = value;
-            if (timerAControl & 0x10)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-                clearInterrupt(INTERRUPT_TIMER_A);
-            }
             break;
         }
         case 0xDC06: // Timer B low byte
         {
             timerBLowByte = value;
-            if (timerBControl & 0x10)
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-                clearInterrupt(INTERRUPT_TIMER_B);
-            }
             break;
         }
         case 0xDC07: // Timer B High
         {
             timerBHighByte = value;
-            if (timerBControl & 0x10)
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-                clearInterrupt(INTERRUPT_TIMER_B);
-            }
             break;
         }
         case 0xDC08: // TOD clock 1/10 seconds
@@ -414,10 +399,20 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             if (value & 0x80)
             {
                 interruptEnable |= mask;
+                if (logger)
+                {
+                    logger->WriteLog("[CIA1] IER |= $" + toHex(mask,2) +
+                             "  => IER now=$" + toHex(interruptEnable,2));
+                }
             }
             else
             {
                 interruptEnable &= ~mask;
+                if (logger)
+                {
+                    logger->WriteLog("[CIA1] IER &= ~$" + toHex(mask,2) +
+                             "  => IER now=$" + toHex(interruptEnable,2));
+                }
             }
 
             refreshMasterBit();
@@ -427,44 +422,49 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         case 0xDC0E:
         {
             const uint8_t old = timerAControl;
-            timerAControl = value & 0xEF;  // clear LOAD (bit4) in shadow
+            const uint8_t cra = value & 0x7F;       // ignore bit7
 
-            // Mode pick
-            inputMode = (value & 0x20) ? InputMode::modeCNT : InputMode::modeProcessor;
+            inputMode = (cra & 0x20) ? InputMode::modeCNT : InputMode::modeProcessor;
 
-            // Force-load when bit4 is set
-            if (value & 0x10)
+            // Bit4 = LOAD strobe
+            if (cra & 0x10)
             {
                 timerA = (timerAHighByte << 8) | timerALowByte;
                 clearInterrupt(INTERRUPT_TIMER_A);
             }
 
-            // Rising edge of START -> (re)load from latch
-            if ((value & 0x01) && !(old & 0x01))
+            // Store with bit4 cleared (strobe does not latch high)
+            timerAControl = static_cast<uint8_t>(cra & ~0x10);
+
+            // Rising edge of START -> reload from latch (6526 behavior)
+            const bool wasStarted = (old & 0x01) != 0;
+            const bool nowStarted = (timerAControl & 0x01) != 0;
+            if (nowStarted && !wasStarted)
             {
-                if (timerA == 0) timerA = (timerAHighByte << 8) | timerALowByte;
+                timerA = (timerAHighByte << 8) | timerALowByte;
             }
             break;
         }
-        case 0xDC0F: // Timer B control register
+        case 0xDC0F:
         {
-            todAlarmSetMode = (value & 0x80) != 0; // Bit 7 for the TOD Alarm toggle
-            if (todAlarmSetMode)
-            {
-                todAlarmTriggered = false;
-            }
-            uint8_t crb = value & 0x7F; // mask out bit 7 before calculating timer B
-            timerBControl = crb & 0xEF;
+            const uint8_t old = timerBControl;
+            const uint8_t crb = value & 0x7F;       // ignore bit7
 
-            if (crb & 0x10)
-            {
+            // Bit4 = LOAD strobe
+            if (crb & 0x10) {
                 timerB = (timerBHighByte << 8) | timerBLowByte;
                 clearInterrupt(INTERRUPT_TIMER_B);
             }
 
-            if (crb & 0x01) // Start bit set
+            // Store with bit4 cleared (strobe does not latch high)
+            timerBControl = static_cast<uint8_t>(crb & ~0x10);
+
+            // Rising edge of START -> reload from latch
+            const bool wasStarted = (old & 0x01) != 0;
+            const bool nowStarted = (timerBControl & 0x01) != 0;
+            if (nowStarted && !wasStarted)
             {
-                if (timerB == 0) timerB = (timerBHighByte << 8) | timerBLowByte; // Start from latch            }
+                timerB = (timerBHighByte << 8) | timerBLowByte;
             }
             break;
         }
@@ -490,57 +490,56 @@ void CIA1::latchTODClock()
 
 void CIA1::updateTimers(uint32_t cyclesElapsed)
 {
-    // Handle Timer A
+    // Handle Timer A / B as before
     updateTimerA(cyclesElapsed);
-
-    // Handle Timer B
     updateTimerB(cyclesElapsed);
 
-    // Update TOD Clock
+    // TOD
     todTicks += cyclesElapsed;
     while (todTicks >= todIncrementThreshold)
     {
         incrementTODClock(todTicks, todClock, todIncrementThreshold);
     }
-
-    // Check TOD Alarm
     checkTODAlarm(todClock, todAlarm, todAlarmTriggered, interruptStatus, interruptEnable);
 
-    // Cassette handler
+    // Cassette handler (FLAG falling-edge detection)
     for (uint32_t i = 0; i < cyclesElapsed; ++i)
     {
-        bool allow = false;
+        const bool motorOn  = mem ? mem->isCassetteMotorOn()
+                                  : (cass ? cass->motorOn() : false);
+        const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+        const bool allow    = motorOn && senseLow;
 
-        // Prefer querying Memory (6510 $0001) for motor & sense:
-        const bool motorOn  = mem ? mem->isCassetteMotorOn()  : cass->motorOn();
-        const bool senseLow = mem ? mem->isCassetteSenseLow() : true;
-        allow = motorOn && senseLow;
-
-        bool level = true;  // idle-high by default
-
-        if (allow)
+        if (allow && !gateWasOpenPrev)
         {
-            cass->tick(); // advance TAP by one CPU cycle
-            level = cass->getData(); // true = high, false = low (what the CIA "sees")
+            prevReadLevel = true; // prime so the next low becomes a falling edge
+        }
+        gateWasOpenPrev = allow;
+
+        if (allow && cass)
+        {
+            // Advance tape by one CPU cycle and sample READ
+            cass->tick();
+            const bool level = cass->getData(); // true = high (idle), false = low (pulse)
+            cassetteReadLineLevel = level;
+
+            // FLAG interrupt on falling edge (1 -> 0)
+            if (prevReadLevel && !level)
+            {
+                triggerInterrupt(INTERRUPT_FLAG_LINE);
+            }
+
+            // Remember for next cycle (only when gate open)
+            prevReadLevel = level;
         }
         else
         {
-            level = true; // gate closed -> hold high
+            // Gate closed or no device: line is pulled up; DO NOT touch prevReadLevel
+            cassetteReadLineLevel = true;
         }
-
-        // Make the sampled level visible to the monitor
-        cassetteReadLineLevel = level;
-
-        // FALLING edge (1 -> 0) latches CIA1 FLAG
-        if (prevReadLevel && !level)
-        {
-            triggerInterrupt(INTERRUPT_FLAG_LINE);
-        }
-
-        // Remember for next cycle
-        prevReadLevel = level;
     }
 
+    // Reflect master bit and shared IRQ line
     refreshMasterBit();
     updateIRQLine();
 }
@@ -608,53 +607,57 @@ void CIA1::cntChangedB()
 
 void CIA1::updateTimerA(uint32_t cyclesElapsed)
 {
-    // Started?
     if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
 
     const bool taCntMode = (timerAControl & 0x20) != 0;  // bit5: 1=CNT, 0=φ2
-    if (taCntMode) return;  // In CNT mode, TA is clocked by setCNTLine() -> cntChangedA()
+    if (taCntMode) return;  // CNT-driven, handled elsewhere
 
-    // φ2-driven: decrement once per cycle
-    while (cyclesElapsed--)
+    while (cyclesElapsed > 0)
     {
-        uint32_t cur = timerA ? timerA : 0x10000;
-        if (--cur == 0)
+        uint32_t cur = (timerA == 0) ? 0x10000u : timerA;  // promote to 32-bit
+
+        if (cyclesElapsed < cur)
         {
-            // Underflow -> IRQ latch (IFR sets regardless of IER)
-            triggerInterrupt(INTERRUPT_TIMER_A);
+            timerA = static_cast<uint16_t>(cur - cyclesElapsed);
+            break;
+        }
 
-            const bool continuous = !(timerAControl & 0x08); // RUNMODE=0 => continuous
-            if (continuous)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
-            else
-            {
-                timerA = 0;
-                timerAControl &= ~0x01; // stop in one-shot
-            }
+        // Consume until underflow
+        cyclesElapsed -= cur;
+        timerA = 0;
 
-            // Cascade TB if CRB bit6 set
-            if (timerBControl & 0x40)
-            {
-                handleTimerBCascade();
-            }
+        // Underflow: latch IRQ
+        triggerInterrupt(INTERRUPT_TIMER_A);
 
-            if (timerAControl & 0x40)
-            {
-                const uint8_t bit = cntLevel ? 1u : 0u;
-                shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
-                if (++shiftCount == 8)
-                {
-                    serialDataRegister = shiftReg;
-                    shiftCount = 0;
-                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
-                }
-            }
+        const bool continuous = !(timerAControl & 0x08); // RUNMODE=0 => continuous
+        if (continuous)
+        {
+            timerA = (timerAHighByte << 8) | timerALowByte;
         }
         else
         {
-            timerA = static_cast<uint16_t>(cur);
+            timerA = 0;
+            timerAControl &= ~0x01; // stop in one-shot
+            break;
+        }
+
+        // Cascade TB if CRB bit6 set
+        if (timerBControl & 0x40)
+        {
+            handleTimerBCascade();
+        }
+
+        // Serial shift register (CRA bit6)
+        if (timerAControl & 0x40)
+        {
+            const uint8_t bit = cntLevel ? 1u : 0u;
+            shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
+            if (++shiftCount == 8)
+            {
+                serialDataRegister = shiftReg;
+                shiftCount = 0;
+                triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+            }
         }
     }
 }
@@ -665,21 +668,23 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
     const bool tbCNT     = (timerBControl & 0x20); // CNT vs φ2
     const bool tbCascade = (timerBControl & 0x40); // cascade from TA
 
-    // If not started, or driven by CNT, or in cascade mode, φ2 path is idle
     if (!tbStarted || tbCNT || tbCascade || cyclesElapsed == 0) return;
 
-    timerBCycleCount += cyclesElapsed;
-
-    while (timerBCycleCount--)
+    while (cyclesElapsed > 0)
     {
-        uint32_t current = timerB ? timerB : 0x10000;
-        if (current > 1)
+        uint32_t cur = (timerB == 0) ? 0x10000u : timerB;
+
+        if (cyclesElapsed < cur)
         {
-            timerB = static_cast<uint16_t>(current - 1);
-            continue;
+            timerB = static_cast<uint16_t>(cur - cyclesElapsed);
+            break;
         }
 
-        // underflow
+        // Consume until underflow
+        cyclesElapsed -= cur;
+        timerB = 0;
+
+        // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_B);
 
         const bool continuous = !(timerBControl & 0x08);
@@ -690,7 +695,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
         else
         {
             timerB = 0;
-            timerBControl &= ~0x01; // stop
+            timerBControl &= ~0x01; // stop in one-shot
             break;
         }
     }
@@ -785,14 +790,19 @@ void CIA1::setCNTLine(bool level)
 void CIA1::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
+
+    refreshMasterBit();
+    updateIRQLine();
 }
 
 void CIA1::updateIRQLine()
 {
     if (!IRQ) return;
     const bool any_pending = (interruptStatus & interruptEnable & 0x1F) != 0;
-    if (any_pending) IRQ->raiseIRQ(IRQLine::CIA1);
-    else             IRQ->clearIRQ(IRQLine::CIA1);
+    if (any_pending)
+        IRQ->raiseIRQ(IRQLine::CIA1);
+    else
+        IRQ->clearIRQ(IRQLine::CIA1);
 }
 
 void CIA1::clearInterrupt(InterruptBit interruptBit)
@@ -810,7 +820,7 @@ void CIA1::clearIFR(InterruptBit interruptBit)
 
 void CIA1::refreshMasterBit()
 {
-    if ((interruptStatus & interruptEnable & 0x1F) != 0)
+    if ((interruptStatus & 0x1F) != 0)
     {
         interruptStatus |= 0x80;
     }
@@ -835,7 +845,7 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     uint8_t effB = static_cast<uint8_t>((portB & dataDirectionPortB) | invB);
 
     // Derive cassette bits
-    bool senseLow =  mem ? mem->isCassetteSenseLow() : false;
+    bool senseLow =  mem ? mem->getCassetteSenseLow() : false;
     bool motorOn = mem ? mem->isCassetteMotorOn() : false;
     bool readLevel = cassetteReadLineLevel;
 
