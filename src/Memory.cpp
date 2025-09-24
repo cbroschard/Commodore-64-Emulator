@@ -41,21 +41,15 @@ uint8_t Memory::read(uint16_t address)
     }
     else if (address == 0x0001)
     {
-        uint8_t valueToReturn = 0;
-        valueToReturn = (port1OutputLatch & dataDirectionRegister);
+        uint8_t outputs = (port1OutputLatch & dataDirectionRegister);
+        uint8_t inputs  = static_cast<uint8_t>(~dataDirectionRegister);
+        inputs = (cassetteSenseLow) ? static_cast<uint8_t>(inputs & ~0x10)
+                                    : static_cast<uint8_t>(inputs |  0x10);
 
-        uint8_t inputBitsState = 0;
+        // Bits 6-7 read as 1 (no hardware there)
+        inputs |= 0xC0;
 
-        if (!(dataDirectionRegister & 0x10))
-        {
-            if (!cassetteSenseLow)
-            {
-                inputBitsState |= 0x10; // Set bit 4 to 1
-            }
-        }
-
-        inputBitsState |= 0xC0; // Set bits 6 and 7 to 1 as they're unused
-        valueToReturn |= (inputBitsState & ~dataDirectionRegister);
+        uint8_t valueToReturn = static_cast<uint8_t>(outputs | inputs);
         return RET(valueToReturn);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
