@@ -313,9 +313,9 @@ class CPU
         void XAA();
 
         //Other instructions
-         void BRK();
-         void JAM();
-         void NOP(uint8_t opcode);
+        void BRK();
+        void JAM();
+        void NOP(uint8_t opcode);
 };
 
 #endif // CPU_H

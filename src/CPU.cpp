@@ -1712,7 +1712,7 @@ void CPU::ROL(uint8_t opcode)
         case 0x36:
         {
             uint8_t zpAddress = (fetch() + X) & 0xFF;
-            uint8_t value = mem->read(zpAddress);
+            value = mem->read(zpAddress);
             carry = value & 0x80;
             value = (value << 1) | (getFlag(C) ? 1 : 0);
             mem->write(zpAddress, value);
