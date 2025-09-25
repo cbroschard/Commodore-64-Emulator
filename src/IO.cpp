@@ -158,7 +158,7 @@ void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
     const int W  = SCREEN_WIDTH_WITH_BORDER;
     const int y0 = BORDER_SIZE;
     const int y1 = y0 + visibleScreenHeight; // always 200
-    if (row < y0 || row > y1) return;
+    if (row < y0 || row >= y1) return;
 
     uint32_t pix = palette32[color];
     uint32_t* dst = backBuffer.data() + row * W;
@@ -169,23 +169,25 @@ void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 {
     const int W  = SCREEN_WIDTH_WITH_BORDER;
     const int y0 = BORDER_SIZE;
-    const int y1 = y0 + visibleScreenHeight; // always 200
+    const int y1 = y0 + visibleScreenHeight;
 
     uint32_t* dst = backBuffer.data() + row * W;
     uint32_t pix  = palette32[color];
 
-    if (row < y0 || row > y1) {
-        std::fill(dst, dst + W, pix);       // top/bottom bands
-    } else {
-        std::fill(dst, dst + x0, pix);      // left border
-        std::fill(dst + x1, dst + W, pix);  // right border
-        // interior [x0,x1) left for background/pixels
+    if (row < y0 || row >= y1)
+    {
+        std::fill(dst, dst + W, pix);
+    }
+    else
+    {
+        std::fill(dst, dst + x0, pix);
+        std::fill(dst + x1, dst + W, pix);
     }
 }
 
 void IO::setPixel(int x, int y, uint8_t colorIndex)
 {
-    if (x < 0 || x >= SCREEN_WIDTH_WITH_BORDER || y < 0 || y >= SCREEN_HEIGHT_WITH_BORDER)
+    if (x < 0 || x > SCREEN_WIDTH_WITH_BORDER || y < 0 || y > SCREEN_HEIGHT_WITH_BORDER)
     {
         return;
     }
@@ -197,7 +199,7 @@ void IO::setPixel(int x, int y, uint8_t colorIndex, int hardwareX)
     // apply hardware shift once
     int shiftedX = x - hardwareX;
     if (shiftedX < 0 || shiftedX >= SCREEN_WIDTH_WITH_BORDER ||
-        y < 0 || y >= SCREEN_HEIGHT_WITH_BORDER)
+        y < 0 || y > SCREEN_HEIGHT_WITH_BORDER)
     {
         return;
     }
