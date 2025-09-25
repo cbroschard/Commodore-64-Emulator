@@ -1020,7 +1020,7 @@ void CPU::BVC()
 
     if (!getFlag(V))  // Branch if Overflow is clear
     {
-        PC = (PC + offset) & 0XFFF;
+        PC = (PC + offset) & 0XFFFF;
         cycles ++;
 
         // Check if crossing a page boundary
@@ -1038,7 +1038,7 @@ void CPU::BVS()
 
     if (getFlag(V))  // Branch if Overflow is set
     {
-        PC = (PC + offset) & 0xFFF;
+        PC = (PC + offset) & 0xFFFF;
         cycles ++;
 
         // Check if crossing a page boundary
