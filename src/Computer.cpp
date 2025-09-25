@@ -179,7 +179,6 @@ void Computer::setVideoMode(const std::string& mode)
     sidchip->setMode(videoMode_);
     cia1object->setMode(videoMode_);
     cia2object->setMode(videoMode_);
-    IO_adapter->setMode(videoMode_);
 }
 
 bool Computer::handleInputEvent(const SDL_Event& ev)
