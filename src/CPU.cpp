@@ -1651,13 +1651,13 @@ void CPU::RLA(uint8_t opcode)
 
     // Determine addressing mode
     switch (opcode) {
-        case 0x23: address = readIndirectX(); break;
-        case 0x27: address = readZP(); break;
-        case 0x2F: address = readABS(); break;
-        case 0x33: address = readIndirectY(); break;
-        case 0x37: address = readZPX(); break;
-        case 0x3B: address = readABSY(); break;
-        case 0x3F: address = readABSX(); break;
+        case 0x23: address = indirectXAddress(); break;
+        case 0x27: address = zpAddress(); break;
+        case 0x2F: address = absAddress(); break;
+        case 0x33: address = indirectYAddress(); break;
+        case 0x37: address = zpXAddress(); break;
+        case 0x3B: address = absYAddress(); break;
+        case 0x3F: address = absXAddress(); break;
     }
     // Perform Rotate Left (ROL) on memory value
     value = mem->read(address);
