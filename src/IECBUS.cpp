@@ -47,7 +47,6 @@ void IECBUS::setAtnLine(bool state)
 
         if (atnNowLow)  // ATN asserted (low) -> Attention state
         {
-            // std::cout << "IEC: ATN Asserted" << std::endl; // Debug
             currentState = State::ATTENTION;
             currentTalker = nullptr;
             currentListeners.clear();
@@ -62,7 +61,6 @@ void IECBUS::setAtnLine(bool state)
         }
         else  // ATN released (high) -> Transition state (usually TALK or LISTEN follows)
         {
-            // std::cout << "IEC: ATN Released" << std::endl; // Debug
             // State transition depends on commands received during ATTENTION.
             // For now, just go IDLE, tick() logic will handle actual TALK/LISTEN states.
             currentState = State::IDLE; // Revisit this - may depend on last cmd
