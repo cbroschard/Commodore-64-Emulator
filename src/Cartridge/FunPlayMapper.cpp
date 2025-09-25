@@ -20,7 +20,7 @@ uint8_t FunPlayMapper::read(uint16_t address)
 
 void FunPlayMapper::write(uint16_t address, uint8_t value)
 {
-    if(address == 0xDE00)
+    if (address == 0xDE00)
         switch(value)
         {
             case 0x00:
