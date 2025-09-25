@@ -1020,7 +1020,7 @@ void CPU::BVC()
 
     if (!getFlag(V))  // Branch if Overflow is clear
     {
-        PC += offset;
+        PC = (PC + offset) & 0XFFF;
         cycles ++;
 
         // Check if crossing a page boundary
@@ -1038,7 +1038,7 @@ void CPU::BVS()
 
     if (getFlag(V))  // Branch if Overflow is set
     {
-        PC += offset;
+        PC = (PC + offset) & 0xFFF;
         cycles ++;
 
         // Check if crossing a page boundary
@@ -1289,7 +1289,8 @@ void CPU::ISC(uint8_t opcode)
     mem->write(address, value);
 
     // Perform SBC (Subtract with Carry)
-    uint16_t tempResult = uint16_t(A) - uint16_t(value) - (1 - getFlag(C));
+    uint8_t oldA = A;
+    uint16_t tempResult = uint16_t(oldA) - uint16_t(value) - (1 - getFlag(C));
 
     // Update accumulator
     A = tempResult & 0xFF;
@@ -1298,7 +1299,7 @@ void CPU::ISC(uint8_t opcode)
     SetFlag(C, tempResult < 0x100);
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
-    SetFlag(V, ((A ^ value) & (A ^ tempResult) & 0x80) != 0);
+    SetFlag(V, ((oldA ^ value) & (oldA ^ tempResult) & 0x80) != 0);
 }
 
 void CPU::JAM()
@@ -1364,17 +1365,16 @@ void CPU::JSR()
 
 void CPU::LAS()
 {
-    uint8_t value = readABS();
-    uint8_t result = value & SP;  // Perform AND with the stack pointer
-
+    uint8_t value = readABSY();
+    uint8_t result = value & SP;
     // Update A, X, and SP with the result
     A = result;
     X = result;
     SP = result;
 
     // Set flags
-    SetFlag(Z, result == 0);     // Zero flag
-    SetFlag(N, result & 0x80);   // Negative flag
+    SetFlag(Z, result == 0);
+    SetFlag(N, result & 0x80);
 }
 
 void CPU::LAX(uint8_t opcode)
@@ -1388,7 +1388,7 @@ void CPU::LAX(uint8_t opcode)
         case 0xA7: address = zpAddress(); break;
         case 0xAB:
         {
-            uint8_t value = readImmediate();
+            value = readImmediate();
             uint8_t result = A & value;
             A = result;
             X = result;
@@ -1829,7 +1829,8 @@ void CPU::RRA(uint8_t opcode)
     SetFlag(C, carry);
 
     // Perform ADC (Add with Carry) with the accumulator
-    uint16_t tempResult = uint16_t(A) + uint16_t(value) + getFlag(C);
+    uint8_t oldA = A;
+    uint16_t tempResult = uint16_t(oldA) + uint16_t(value) + getFlag(C);
 
     // Update accumulator
     A = tempResult & 0xFF;
@@ -1838,7 +1839,7 @@ void CPU::RRA(uint8_t opcode)
     SetFlag(C, tempResult > 0xFF); // Carry flag: Set if addition overflows
     SetFlag(Z, A == 0);           // Zero flag: Set if result is zero
     SetFlag(N, A & 0x80);         // Negative flag: Set if MSB is 1
-    SetFlag(V, (~(A ^ value) & (A ^ tempResult) & 0x80) != 0); // Overflow flag
+    SetFlag(V, (~(oldA ^ value) & (oldA ^ tempResult) & 0x80) != 0); // Overflow flag
 }
 
 void CPU::RTI()
