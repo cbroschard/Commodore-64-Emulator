@@ -1386,7 +1386,16 @@ void CPU::LAX(uint8_t opcode)
     {
         case 0xA3: address = indirectXAddress(); break;
         case 0xA7: address = zpAddress(); break;
-        case 0xAB: address = immediateAddress(); break;
+        case 0xAB:
+        {
+            uint8_t value = readImmediate();
+            uint8_t result = A & value;
+            A = result;
+            X = result;
+            SetFlag(Z, result == 0);
+            SetFlag(N, result & 0x80);
+            return;
+        }
         case 0xAF: address = absAddress(); break;
         case 0xB3: address = indirectYAddress(); break;
         case 0xB7: address = zpYAddress(); break;
