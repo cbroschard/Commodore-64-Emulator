@@ -251,7 +251,6 @@ void IECBUS::listen(int deviceNumber)
     if (std::find(currentListeners.begin(), currentListeners.end(), dev) == currentListeners.end()) currentListeners.push_back(dev);
 
     currentState = State::LISTEN;
-    // Notify device it's now listening (if you have such a callback)
     dev->onListen();
 }
 
