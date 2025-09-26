@@ -36,6 +36,13 @@ inline uint8_t asciiToScreenCode(char c)
     if (c == ' ') return 0x20;                  // space
     if (c == '.') return 0x2E;                  // period
     if (c == '"') return 0x22;                  // quote
+    if (c == ' ') return 0x20;                  // space
+    if (c == '.') return 0x2E;                  // period
+    if (c == '"') return 0x22;                  // quote
+    if (c == '*') return 0x2A;                  // asterisk
+    if (c == ',') return 0x2C;                  // comma
+    if (c == ':') return 0x3A;                  // colon (in case)
+    if (c == ';') return 0x3B;                  // semicolon (in case)
     return 0x20;                                // fallback: space
 }
 
