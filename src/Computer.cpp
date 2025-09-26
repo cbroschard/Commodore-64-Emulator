@@ -622,18 +622,12 @@ void Computer::loadPrgIntoMem()
         mem->writeDirect(STREND + 1, (basicEnd >> 8));
 
         // Stuff “RUN<RETURN>” into the keyboard buffer
-        //const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-        //mem->writeDirect(0xC6, 4);
-        //for (int i = 0; i < 4; ++i)
-        //{
-            //mem->writeDirect(0x0277 + i, runKeys[i]);
-        //}
-    }
-    else
-    {
-        // Pure machine code
-        std::cout << "Machine-code PRG loaded at $"
-              << std::hex << loadAddr << ", SYS required.\n";
+        const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
+        mem->writeDirect(0xC6, 4);
+        for (int i = 0; i < 4; ++i)
+        {
+            mem->writeDirect(0x0277 + i, runKeys[i]);
+        }
     }
 }
 
