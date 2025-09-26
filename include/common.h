@@ -28,6 +28,17 @@ static const uint16_t VARTAB = 0x002D;
 static const uint16_t ARYTAB = 0x002F;
 static const uint16_t STREND = 0x0031;
 
+// Convert ASCII text to PETSCII
+inline uint8_t asciiToScreenCode(char c)
+{
+    if (c >= 'A' && c <= 'Z') return c - 0x40;  // 'A'(0x41)->1
+    if (c >= '0' && c <= '9') return c;         // digits map directly
+    if (c == ' ') return 0x20;                  // space
+    if (c == '.') return 0x2E;                  // period
+    if (c == '"') return 0x22;                  // quote
+    return 0x20;                                // fallback: space
+}
+
 // Struct to hold the joystick 1 and 2 mappings from configuration file
 struct JoystickMapping
 {
