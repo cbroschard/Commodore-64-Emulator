@@ -440,7 +440,8 @@ void Vic::tick(int cycles)
         }
 
         // Bad line DMA
-        if (isBadLine(registers.raster)) {
+        if (isBadLine(registers.raster))
+        {
             int fetchIndex = currentCycle - cfg_->DMAStartCycle;
             if (fetchIndex >= 0 && fetchIndex < 40)
             {
@@ -530,6 +531,9 @@ bool Vic::isBadLine(int raster)
 {
     // DEN must be on
     if (!(d011_per_raster[raster] & 0x10)) return false;
+
+    // RSEL must be 25
+    if (!getRSEL(raster)) return false;
 
     // Must be within raster range 0x30 to 0xF7 (48-247)
     if (raster < 0x30 || raster > 0xF7) return false;
