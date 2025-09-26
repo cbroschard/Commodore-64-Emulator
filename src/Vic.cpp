@@ -97,6 +97,9 @@ void Vic::setMode(VideoMode mode)
     // Make sure internal state stays consistent
     if (registers.raster >= cfg_->maxRasterLines) registers.raster = 0;
     updateMonitorCaches(registers.raster);
+
+    // Notify IO of mode
+    IO_adapter->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
 }
 
 uint8_t Vic::readRegister(uint16_t address)

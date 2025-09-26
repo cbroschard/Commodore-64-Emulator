@@ -28,11 +28,11 @@ class IO
         virtual ~IO();
 
         // Screen constants
-        static const int visibleScreenWidth = 320;
-        static const int visibleScreenHeight = 200;
-        static const int BORDER_SIZE = 32;
-        static const int SCREEN_WIDTH_WITH_BORDER = 320 + 2 * 32;
-        static const int SCREEN_HEIGHT_WITH_BORDER = 200 + 2 * 32;
+        int visibleScreenWidth;
+        int visibleScreenHeight;
+        int borderSize;
+        int screenWidthWithBorder;
+        int screenHeightWithBorder;
 
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
         inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }

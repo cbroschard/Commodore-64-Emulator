@@ -9,6 +9,11 @@
 #include "Vic.h"
 
 IO::IO() :
+    visibleScreenWidth(320),
+    visibleScreenHeight(200),
+    borderSize(32),
+    screenWidthWithBorder(320 + 2 * 32),
+    screenHeightWithBorder(200 + 2 * 32),
     dev(0),
     readyBuffer(nullptr)
 {
@@ -18,7 +23,8 @@ IO::IO() :
         throw std::runtime_error(std::string("SDL Video/Sound Init Failed: ") + SDL_GetError());
     }
 
-    window = SDL_CreateWindow("Commodore 64 Emulator",SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH_WITH_BORDER * SCALE, SCREEN_HEIGHT_WITH_BORDER * SCALE, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Commodore 64 Emulator",SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidthWithBorder * SCALE,
+            screenHeightWithBorder * SCALE, SDL_WINDOW_SHOWN);
     if (window == nullptr)
     {
         SDL_Quit();
@@ -33,10 +39,10 @@ IO::IO() :
         throw std::runtime_error(std::string("Unable to create renderer: ") + SDL_GetError());
     }
 
-    frontBuffer.resize(SCREEN_WIDTH_WITH_BORDER * SCREEN_HEIGHT_WITH_BORDER);
-    backBuffer.resize(SCREEN_WIDTH_WITH_BORDER * SCREEN_HEIGHT_WITH_BORDER);
+    frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
+    backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
 
-    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH_WITH_BORDER, SCREEN_HEIGHT_WITH_BORDER);
+    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder, screenHeightWithBorder);
     if (screenTexture == nullptr)
     {
         throw std::runtime_error(std::string("Couldn't create texture: ") + SDL_GetError());
@@ -155,8 +161,8 @@ bool IO::playAudio()
 
 void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 {
-    const int W  = SCREEN_WIDTH_WITH_BORDER;
-    const int y0 = BORDER_SIZE;
+    const int W  = screenWidthWithBorder;
+    const int y0 = borderSize;
     const int y1 = y0 + visibleScreenHeight; // always 200
     if (row < y0 || row >= y1) return;
 
@@ -167,8 +173,8 @@ void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 
 void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 {
-    const int W  = SCREEN_WIDTH_WITH_BORDER;
-    const int y0 = BORDER_SIZE;
+    const int W  = screenWidthWithBorder;
+    const int y0 = borderSize;
     const int y1 = y0 + visibleScreenHeight;
 
     uint32_t* dst = backBuffer.data() + row * W;
@@ -187,24 +193,24 @@ void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 
 void IO::setPixel(int x, int y, uint8_t colorIndex)
 {
-    if (x < 0 || x > SCREEN_WIDTH_WITH_BORDER || y < 0 || y > SCREEN_HEIGHT_WITH_BORDER)
+    if (x < 0 || x > screenWidthWithBorder || y < 0 || y > screenHeightWithBorder)
     {
         return;
     }
-    backBuffer[y * SCREEN_WIDTH_WITH_BORDER + x] = palette32[colorIndex & 0x0F];
+    backBuffer[y * screenWidthWithBorder + x] = palette32[colorIndex & 0x0F];
 }
 
 void IO::setPixel(int x, int y, uint8_t colorIndex, int hardwareX)
 {
     // apply hardware shift once
     int shiftedX = x - hardwareX;
-    if (shiftedX < 0 || shiftedX >= SCREEN_WIDTH_WITH_BORDER ||
-        y < 0 || y > SCREEN_HEIGHT_WITH_BORDER)
+    if (shiftedX < 0 || shiftedX >= screenWidthWithBorder ||
+        y < 0 || y > screenHeightWithBorder)
     {
         return;
     }
 
-    backBuffer[y * SCREEN_WIDTH_WITH_BORDER + shiftedX] =
+    backBuffer[y * screenWidthWithBorder + shiftedX] =
         palette32[colorIndex & 0x0F];
 }
 
@@ -249,8 +255,8 @@ void IO::swapBuffer()
 
 void IO::renderLoop(std::atomic<bool>& running)
 {
-    const int pitch = SCREEN_WIDTH_WITH_BORDER * sizeof(uint32_t);
-    SDL_Rect dstRect = { 0, 0, SCREEN_WIDTH_WITH_BORDER * SCALE, SCREEN_HEIGHT_WITH_BORDER * SCALE };
+    const int pitch = screenWidthWithBorder * sizeof(uint32_t);
+    SDL_Rect dstRect = { 0, 0, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE };
 
     while (running.load())
     {
@@ -277,4 +283,20 @@ void IO::finishFrameAndSignal()
     readyBuffer.store(frontBuffer.data(), std::memory_order_release);
     std::lock_guard lk(qMut);
     qCond.notify_one();
+}
+
+void IO::setScreenDimensions(int visibleW, int visibleH, int border)
+{
+    visibleScreenWidth = visibleW;
+    visibleScreenHeight = visibleH;
+    borderSize = border;
+    screenWidthWithBorder = visibleW + 2 * borderSize;
+    screenHeightWithBorder = visibleH + 2 * borderSize;
+
+    // Resize based on new Video Mode
+    frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
+    backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
+
+    SDL_DestroyTexture(screenTexture);
+    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder, screenHeightWithBorder);
 }
