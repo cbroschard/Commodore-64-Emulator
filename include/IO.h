@@ -61,6 +61,9 @@ class IO
         // Swap Buffers back to front and notify thread
         void swapBuffer();
 
+        // Setter for screen geometry
+        void setScreenDimensions(int visibleW, int visibleH, int border);
+
         void finishFrameAndSignal();
 
     protected:

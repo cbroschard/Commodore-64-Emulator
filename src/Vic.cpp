@@ -483,7 +483,7 @@ void Vic::tick(int cycles)
             if (curRaster == cfg_->maxRasterLines - 1)
             {
                 frameDone = true;
-                for (int y = cfg_->maxRasterLines; y < IO::SCREEN_HEIGHT_WITH_BORDER; ++y)
+                for (int y = cfg_->maxRasterLines; y < cfg_->visibleLines + 2 * BORDER_SIZE; ++y)
                 {
                     IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
                 }
