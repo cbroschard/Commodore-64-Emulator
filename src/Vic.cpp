@@ -442,10 +442,10 @@ void Vic::tick(int cycles)
         // Bad line DMA
         if (isBadLine(registers.raster))
         {
+            currentScreenRow = (registers.raster - cfg_->firstVisibleLine) >> 3;
             int fetchIndex = currentCycle - cfg_->DMAStartCycle;
             if (fetchIndex >= 0 && fetchIndex < 40)
             {
-                currentScreenRow = (registers.raster - cfg_->firstVisibleLine) / 8;
                 if (currentScreenRow >= 0)
                 {
                     charPtrFIFO[fetchIndex]  = fetchScreenByte(currentScreenRow, fetchIndex, registers.raster);
@@ -480,6 +480,10 @@ void Vic::tick(int cycles)
                 if (!badNextLine)
                 {
                     rowCounter = (rowCounter + 1) & 0x07;
+                    if (rowCounter == 0)
+                    {
+                        currentScreenRow++;
+                    }
                 }
             }
 
