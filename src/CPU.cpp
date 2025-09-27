@@ -648,11 +648,12 @@ uint8_t CPU::pop()
 void CPU::AAC()
 {
     uint8_t value = fetch(); // Fetch the immediate value
-    A &= value;              // Perform AND operation on accumulator
+    A &= value; // Perform AND operation on accumulator
 
     // Update flags
-    SetFlag(C, A & 0x80);    // Set carry flag if MSB is set
-    SetFlag(Z, A == 0);      // Set zero flag if result is zero
+    SetFlag(C, A & 0x80);
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
 
 void CPU::ADC(uint8_t opcode)
@@ -772,19 +773,39 @@ void CPU::AND(uint8_t opcode)
     SetFlag(N, A & 0x80);
 }
 
-// ARR - AND then ROR (undocumented, opcode $6B)
-void CPU::ARR()
-{
-    uint8_t value = readImmediate();  // Fetch operand
-    A &= value;
+void CPU::ARR() {
+    uint8_t imm = readImmediate();
 
-    // Rotate right with carry in
-    bool oldCarry = getFlag(C);
-    A = (A >> 1) | (oldCarry ? 0x80 : 0);
+    // AND, then ROR through carry
+    A &= imm;
+    const bool c_in = getFlag(C);
+    uint8_t ror = (A >> 1) | (c_in ? 0x80 : 0);
 
-    // Flags
-    SetFlag(C, (A >> 6) & 1); // Carry = bit 6 of result
-    SetFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1)); // Overflow = bit6 ^ bit5
+    if (!getFlag(D))
+    {
+        // Binary mode (well-defined)
+        A = ror;
+        SetFlag(C, (A >> 6) & 1);
+        SetFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1));
+    }
+    else
+    {
+        uint8_t r = ror;
+
+        // Low-nibble adjust if it would exceed 9 when including the carry-in bit (now in bit0 after ROR)
+        if (((r & 0x0F) + (r & 0x01)) > 5)
+            r = (r & 0xF0) | ((uint8_t)(r + 0x06) & 0x0F);
+
+        // High-nibble adjust / carry out
+        bool carry = (r > 0x9F);
+        if (carry) r += 0x60;
+
+        SetFlag(C, carry);
+        SetFlag(V, ((ror >> 6) & 1) ^ ((ror >> 5) & 1));
+
+        A = r;
+    }
+
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
 }
