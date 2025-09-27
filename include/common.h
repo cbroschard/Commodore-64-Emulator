@@ -29,21 +29,31 @@ static const uint16_t ARYTAB = 0x002F;
 static const uint16_t STREND = 0x0031;
 
 // Convert ASCII text to PETSCII
-inline uint8_t asciiToScreenCode(char c)
+inline uint8_t asciiToPetscii(char c)
 {
-    if (c >= 'A' && c <= 'Z') return c - 0x40;  // 'A'(0x41)->1
-    if (c >= '0' && c <= '9') return c;         // digits map directly
-    if (c == ' ') return 0x20;                  // space
-    if (c == '.') return 0x2E;                  // period
-    if (c == '"') return 0x22;                  // quote
-    if (c == ' ') return 0x20;                  // space
-    if (c == '.') return 0x2E;                  // period
-    if (c == '"') return 0x22;                  // quote
-    if (c == '*') return 0x2A;                  // asterisk
-    if (c == ',') return 0x2C;                  // comma
-    if (c == ':') return 0x3A;                  // colon (in case)
-    if (c == ';') return 0x3B;                  // semicolon (in case)
-    return 0x20;                                // fallback: space
+    // Uppercase A–Z map directly (ASCII == PETSCII in uppercase mode)
+    if (c >= 'A' && c <= 'Z') return c;
+
+    // Digits 0–9 map directly
+    if (c >= '0' && c <= '9') return c;
+
+    // Space and common punctuation map directly too
+    switch (c)
+    {
+        case ' ': return 0x20;
+        case '.': return 0x2E;
+        case '"': return 0x22;
+        case '*': return 0x2A;
+        case ',': return 0x2C;
+        case ':': return 0x3A;
+        case ';': return 0x3B;
+    }
+
+    // Lowercase a–z → PETSCII is shifted up by $80
+    if (c >= 'a' && c <= 'z') return (c - 0x20) | 0x80;
+
+    // Fallback to space
+    return 0x20;
 }
 
 // Struct to hold the joystick 1 and 2 mappings from configuration file
