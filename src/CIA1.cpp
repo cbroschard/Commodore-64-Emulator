@@ -128,25 +128,25 @@ uint8_t CIA1::readRegister(uint16_t address)
     {
         case 0xDC00: // CIA1 Port A read
         {
-            // Start with pull-ups: all inputs default high
-            uint8_t busInputs = 0xFF;
+            const uint8_t ddra = dataDirectionPortA;
+            const uint8_t ddrb = dataDirectionPortB;
+            const uint8_t prb  = portB;
 
-            // Joystick 2 (active-low). If absent, treat as all released (1s).
-            uint8_t joyBits = 0x1F;
-            if (joy2) joyBits = (joy2->getState() & 0x1F);
+            uint8_t pin = 0xFF;  // pull-ups
+            if (keyb)  // merge keyboard-selected rows
+                for (int r = 0; r < 8; ++r)
+                    if ((ddrb & (1u<<r)) && !(prb & (1u<<r)))
+                        pin &= keyb->readRow(r);          // 0 = pressed
 
-            // PA0–PA3: directions; PA4: fire (all active-low)
-            uint8_t paLowNibble = (joyBits & 0x0F);
-            uint8_t pa4         = (joyBits & 0x10);   // 0 if fire pressed, 1 if not
+            if (joy2)
+            {  // merge joystick 2 (active-low like joy1)
+                uint8_t st = joy2->getState() | 0xE0;     // PA5..PA7 stay high
+                pin &= st;                                // 0 = pressed
+            }
 
-            // Merge PA0–PA4 into the input bus (PA5–PA7 remain high for now)
-            busInputs = (busInputs & ~0x1F) | (paLowNibble | pa4);
-
-            uint8_t ddraNoPA4 = (dataDirectionPortA & ~0x10);       // force PA4 as input
-            uint8_t result    = (portA & ddraNoPA4) | (~ddraNoPA4 & busInputs);
-
-            portAValue = result;
-            return portAValue;
+            const uint8_t v = (portA & ddra) | (pin & ~ddra);
+            portAValue = v;
+            return v;
         }
         case 0xDC01: // Port B
         {
