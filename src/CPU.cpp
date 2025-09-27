@@ -9,7 +9,7 @@
 
 CPU::CPU() :
     // Initialize
-    jamMode(JamMode::FreezePC),
+    jamMode(JamMode::NopCompat),
     halted(false),
     elapsedCycles(0),
     lastCycleCount(0),
