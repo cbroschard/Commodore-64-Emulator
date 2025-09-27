@@ -1751,7 +1751,7 @@ void CPU::ROL(uint8_t opcode)
         case 0x3E:
         {
             uint16_t baseAddress = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = baseAddress + X;
+            uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
             value = mem->read(effectiveAddress);
             carry = value & 0x80;
             value  = (value << 1) | (getFlag(C) ? 1 :0);
