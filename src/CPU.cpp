@@ -153,20 +153,6 @@ void CPU::rtsFromQuickLoad()
     uint8_t high = pop();
     PC = ((high << 8) | low) & 0xFFFF;
 }
-void CPU::chrout(uint8_t aReg)
-{
-    A = aReg;
-
-    // Push return address (PC - 1), high then low
-    uint16_t returnAddress = PC - 1;
-    mem->write(0x0100 + SP, (returnAddress >> 8) & 0xFF);
-    SP--;
-    mem->write(0x0100 + SP, returnAddress & 0xFF);
-    SP--;
-
-    // Jump to KERNAL CHROUT
-    PC = 0xFFD2;
-}
 
 void CPU::initializeOpcodeTable()
 {
