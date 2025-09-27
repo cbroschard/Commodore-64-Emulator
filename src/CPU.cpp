@@ -1844,20 +1844,10 @@ void CPU::RRA(uint8_t opcode)
 
 void CPU::RTI()
 {
-    // Restore the status register
     SR = pop();
-
-    // Clear the break flag
-    SR &= 0xEF;
-
-    // Ensure unused bit 5 is always 1
-    SR |= 0x20;
-
-    // Restore the PC preinterrupt
-    uint8_t lowByte = pop();
-    uint8_t highByte = pop();
-
-    PC = (highByte << 8) | lowByte;
+    SR |= 0x20; // force bit 5 = 1
+    uint8_t lo = pop(), hi = pop();
+    PC = (hi << 8) | lo;
 }
 
 void CPU::RTS()
@@ -2166,10 +2156,8 @@ void CPU::TYA()
 
 void CPU::XAA()
 {
-    uint8_t address = immediateAddress(); // Fetch the immediate value
-    A = X & address;           // Compute X AND Immediate
-
-    // Update flags
-    SetFlag(Z, A == 0);          // Zero flag
-    SetFlag(N, A & 0x80);        // Negative flag
+    uint8_t imm = readImmediate();
+    A = (A | 0xEE) & X & imm;
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
