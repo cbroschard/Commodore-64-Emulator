@@ -725,19 +725,32 @@ void CPU::ADC(uint8_t opcode)
 
 void CPU::AHX(uint8_t opcode)
 {
+    uint16_t base = 0;
     uint16_t address = 0;
     uint8_t value = A & X; // Compute A AND X
 
     // Determine addressing mode
-    switch (opcode) {
+    switch (opcode)
+    {
         case 0x93: // (Indirect), Y
-            address = indirectYAddress();
-            value &= (address >> 8); // Apply High Byte
+        {
+            uint8_t zp = fetch();
+            uint8_t lo = mem->read(zp);
+            uint8_t hi = mem->read((uint8_t)(zp + 1));
+            base = (uint16_t)lo | ((uint16_t)hi << 8);
+            address = (base + Y) & 0xFFFF;
+            value &= (( (base >> 8) + 1 ) & 0xFF);
             break;
+        }
         case 0x9F: // Absolute, Y
-            address = absYAddress();
-            value &= (address >> 8); // Apply High Byte
+        {
+            uint8_t lo = fetch();
+            uint8_t hi = fetch();
+            base = (uint16_t)lo | ((uint16_t)hi << 8);
+            address = (base + Y) & 0xFFFF;
+            value &= (( (base >> 8) + 1 ) & 0xFF);
             break;
+        }
     }
 
     mem->write(address, value); // Store result at the effective address
@@ -1948,30 +1961,27 @@ void CPU::SBC(uint8_t opcode)
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
 
-    // For the overflow flag, use the binary (unadjusted) result.
-    // Overflow for SBC is set if the sign of the original accumulator differs
-    // from the sign of the result in a way that indicates an out-of–range result.
     SetFlag(V, ((oldA ^ A) & (oldA ^ value) & 0x80) != 0);
 }
 
 void CPU::SHX()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);  // Fetch the absolute address
-    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;  // Add Y index with wrapping
-    uint8_t highByte = (effectiveAddress >> 8) + 1;  // Increment the high byte
-    uint8_t value = X & highByte;  // Logical AND of X and high byte + 1
+    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
+    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
+    uint8_t value = X & highByte;
 
-    mem->write(effectiveAddress, value);  // Write the result to memory
+    mem->write(effectiveAddress, value);
 }
 
 void CPU::SHY()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);  // Fetch the absolute address
-    uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;  // Add X index with wrapping
-    uint8_t highByte = (effectiveAddress >> 8) + 1;  // Increment the high byte
+    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
+    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = Y & highByte;  // Logical AND of Y and high byte + 1
 
-    mem->write(effectiveAddress, value);  // Write the result to memory
+    mem->write(effectiveAddress, value);
 }
 
 void CPU::SLO(uint8_t opcode)
@@ -2129,13 +2139,13 @@ void CPU::STY(uint8_t opcode)
 
 void CPU::TAS()
 {
-    uint16_t effectiveAddress = absYAddress();
-    uint8_t highByte = (effectiveAddress >> 8) + 1;  // Increment the high byte
+    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
+    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
 
-    uint8_t value = A & X;  // Compute A AND X
-    SP = value;             // Transfer to stack pointer
+    uint8_t value = A & X;
+    SP = value;
 
-    // Write SP & (High Byte + 1) to memory
     uint8_t memValue = SP & highByte;
     mem->write(effectiveAddress, memValue);
 }
