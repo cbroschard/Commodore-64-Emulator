@@ -169,13 +169,11 @@ uint8_t Vic::readRegister(uint16_t address)
         {
             uint8_t srcs = registers.interruptStatus & 0x0F;
             uint8_t any  = srcs ? 0x80 : 0x00;
-            //return (srcs | any | 0x70);
-            return (srcs | any);
+            return (srcs | any | 0x70);
         }
         case 0xD01A:
         {
-            //return (registers.interruptEnable & 0x0F) | 0xF0; // Bits 4-6 are always 1
-            return (registers.interruptEnable & 0x0F);
+            return (registers.interruptEnable & 0x0F) | 0xF0;
         }
         case 0xD01B:
         {
