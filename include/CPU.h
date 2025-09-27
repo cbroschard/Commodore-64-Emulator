@@ -120,6 +120,9 @@ class CPU
         // RTS helper for the quick load for T64 images
         void rtsFromQuickLoad();
 
+        // Kernal Routines
+        void chrout(uint8_t aReg);
+
         // BA flag hold
         inline void setBAHold(bool flag) { baHold = flag; }
 
