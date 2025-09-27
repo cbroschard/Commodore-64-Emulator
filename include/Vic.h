@@ -262,7 +262,6 @@ class Vic
         void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);
         uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
-        bool spriteDMANeededThisLine() const;
 
         // Screen helper
         inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }

@@ -512,10 +512,30 @@ void Vic::updateAEC()
 
     const bool inCharDMA = isBadLine(registers.raster) && currentCycle >= DMA_START && currentCycle <= DMA_END;
 
-    constexpr int SPR_DMA_CYCLES = 24;
-    const int sprStart = DMA_END + 1;
-    const int rel = (currentCycle - sprStart + LINE_CYCLES) % LINE_CYCLES;
-    bool inSpriteDMA = spriteDMANeededThisLine() && rel < SPR_DMA_CYCLES;
+    bool inSpriteDMA = false;
+
+    // First sprite DMA slot starts right after char DMA.
+    const int firstSlot = cfg_->DMAEndCycle + 1;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!(registers.spriteEnabled & (1 << s))) continue;
+
+        const int startY = registers.spriteY[s];
+        const bool yExp  = (registers.spriteYExpansion & (1 << s)) != 0; // $D017 bit per sprite
+        const int span   = yExp ? 42 : 21;                            // lines the sprite occupies
+        int dy = int(registers.raster) - int(startY);
+        if (dy < 0 || dy >= span) continue; // not on a line covered by the sprite
+
+        const int slotStart = (firstSlot + s * 3) % LINE_CYCLES;
+
+        if ( currentCycle == slotStart ||
+             currentCycle == (slotStart + 1) % LINE_CYCLES ||
+             currentCycle == (slotStart + 2) % LINE_CYCLES ) {
+            inSpriteDMA = true;
+            break;
+        }
+    }
 
     const bool vicSteals = inCharDMA || inSpriteDMA;
 
@@ -1292,20 +1312,6 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 
     uint16_t address = COLOR_MEMORY_START + row * 40 + memCol;
     return mem->read(address);
-}
-
-bool Vic::spriteDMANeededThisLine() const
-{
-    for (int i = 0; i < 8; ++i)
-    {
-        if (!(registers.spriteEnabled & (1 << i)))
-            continue;
-
-        int rowInSprite, fbLine;
-        if (spriteCoversRaster(i, registers.raster, rowInSprite, fbLine) && rowInSprite == 0)
-            return true;
-    }
-    return false;
 }
 
 void Vic::markBGOpaque(int screenY, int px)
