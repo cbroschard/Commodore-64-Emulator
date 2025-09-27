@@ -11,7 +11,7 @@ Memory::Memory() :
     cartridgeAttached(false),
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
-    port1OutputLatch(0xFF)
+    port1OutputLatch(0x37)
 {
     mem.resize(MAX_MEMORY,0);
     basicROM.resize(BASIC_ROM_SIZE,0);
@@ -255,13 +255,13 @@ void Memory::write(uint16_t address, uint8_t value)
     {
         dataDirectionRegister = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
-        applyPort1SideEffects(effective);
+        applyPort1SideEffects(effective & 0x07);
     }
     else if (address == 0x0001)
     {
         port1OutputLatch = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
-        applyPort1SideEffects(effective);
+        applyPort1SideEffects(effective & 0x07);
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {

@@ -62,11 +62,12 @@ class Computer
         // Main emulation loop
         bool boot();
 
-        // Warm reset the "system"
+        // Reset methods
         void warmReset();
-
-        // Cold reset - full boot up "clean"
         void coldReset();
+
+        // Helper for screen printing
+        void printWithChrout(const std::string& text);
 
         // Attachments
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
