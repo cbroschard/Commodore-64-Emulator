@@ -132,19 +132,32 @@ uint8_t CIA1::readRegister(uint16_t address)
             const uint8_t ddrb = dataDirectionPortB;
             const uint8_t prb  = portB;
 
-            uint8_t pin = 0xFF;  // pull-ups
-            if (keyb)  // merge keyboard-selected rows
+            uint8_t pin = 0xFF;  // pulled-up bus
+
+            // Keyboard rows selected by PRB (only when a column is driven low)
+            if (keyb)
+            {
                 for (int r = 0; r < 8; ++r)
                     if ((ddrb & (1u<<r)) && !(prb & (1u<<r)))
-                        pin &= keyb->readRow(r);          // 0 = pressed
-
-            if (joy2)
-            {  // merge joystick 2 (active-low like joy1)
-                uint8_t st = joy2->getState() | 0xE0;     // PA5..PA7 stay high
-                pin &= st;                                // 0 = pressed
+                        pin &= keyb->readRow(r);  // active-low
             }
 
-            const uint8_t v = (portA & ddra) | (pin & ~ddra);
+            // JOY2 (PA0..PA4 active-low). Mask to 5 bits; keep PA5..PA7 high.
+            if (joy2)
+            {
+                uint8_t j2 = static_cast<uint8_t>((joy2->getState() & 0x1F) | 0xE0);
+                pin &= j2;
+            }
+
+            // Wire-AND cassette SENSE onto PA4 (low dominates)
+            const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+            if (senseLow) pin &= static_cast<uint8_t>(~0x10);
+
+            // Merge with output latch via DDRA…
+            uint8_t v = static_cast<uint8_t>((portA & ddra) | (pin & ~ddra));
+
+            if ((v & 0x10) && !(pin & 0x10)) v &= static_cast<uint8_t>(~0x10);
+
             portAValue = v;
             return v;
         }
