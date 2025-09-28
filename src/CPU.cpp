@@ -483,12 +483,6 @@ uint16_t CPU::absXAddress()
     uint16_t baseAddress = fetch() | (fetch() << 8);
     uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
 
-    // Check for page boundary crossing
-    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
-    {
-        cycles++; // Add extra cycle for boundary crossing
-    }
-
     return effectiveAddress;
 }
 
@@ -496,12 +490,6 @@ uint16_t CPU::absYAddress()
 {
     uint16_t baseAddress = fetch() | (fetch() << 8);
     uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
-
-    // Check for page boundary crossing
-    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
-    {
-        cycles++; // Add extra cycle for boundary crossing
-    }
 
     return effectiveAddress;
 }
@@ -529,12 +517,6 @@ uint16_t CPU::indirectYAddress()
     uint16_t baseAddress = (lowByte | (highByte << 8));
     uint16_t effectiveAddress = baseAddress + Y;
 
-    // Check for page boundary crossing
-    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
-    {
-        cycles++;
-    }
-
     return effectiveAddress;
 }
 
@@ -554,6 +536,36 @@ uint16_t CPU::zpYAddress()
 {
     uint16_t address = (fetch() + Y) & 0xFF;
     return address;
+}
+
+CPU::ReadByte CPU::readABSXAddressBoundary()
+{
+    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t effectiveAddress = (baseAddress + X);
+    uint8_t value = mem->read(effectiveAddress);
+
+    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
+}
+
+CPU::ReadByte CPU::readABSYAddressBoundary()
+{
+    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t effectiveAddress = (baseAddress + Y);
+    uint8_t value = mem->read(effectiveAddress);
+
+    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
+}
+
+CPU::ReadByte CPU::readIndirectYAddressBoundary()
+{
+    uint8_t zpAddress = fetch();
+    uint8_t lowByte = mem->read(zpAddress);
+    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF); // Handle zero-page wrap
+    uint16_t baseAddress = (lowByte | (highByte << 8));
+    uint16_t effectiveAddress = baseAddress + Y;
+    uint8_t value = mem->read(effectiveAddress);
+
+    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
 }
 
 void CPU::tick()
@@ -659,68 +671,78 @@ void CPU::AAC()
 void CPU::ADC(uint8_t opcode)
 {
     uint8_t value = 0;
-    uint8_t oldA = A;  // Save original accumulator for overflow flag calculation
-    uint16_t binaryResult = 0;
 
-    // Determine addressing mode and fetch the operand.
-    switch(opcode)
-    {
+    // Fetch operand by addressing mode
+    switch (opcode) {
         case 0x61: value = readIndirectX(); break;
         case 0x65: value = readZP();        break;
-        case 0x69: value = readImmediate();   break;
-        case 0x6D: value = readABS();         break;
-        case 0x71: value = readIndirectY();   break;
-        case 0x75: value = readZPX();         break;
-        case 0x79: value = readABSY();        break;
-        case 0x7D: value = readABSX();        break;
+        case 0x69: value = readImmediate(); break;
+        case 0x6D: value = readABS();       break;
+        case 0x71:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0x75: value = readZPX();       break;
+        case 0x79:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0x7D:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
 
-    // Compute the unadjusted binary addition result (for overflow flag calculation)
-    binaryResult = uint16_t(A) + uint16_t(value) + getFlag(C);
+    const uint8_t a0  = A;
+    const uint8_t cIn = getFlag(C) ? 1 : 0;
+
+    // Binary sum (used for V and for non-BCD path)
+    uint16_t sum  = uint16_t(a0) + uint16_t(value) + cIn; // 0..0x1FE
+    uint8_t  bin8 = uint8_t(sum);
+
+    // V is from binary addition even in decimal mode
+    SetFlag(V, ((~(a0 ^ value) & (a0 ^ bin8)) & 0x80) != 0);
 
     if (getFlag(D))
     {
-        // BCD (Decimal) mode addition:
-        // Break A and value into their nibbles.
-        int lowA   = A & 0x0F;
-        int lowVal = value & 0x0F;
-        int highA  = A >> 4;
-        int highVal= value >> 4;
+        // NMOS 6502/6510 BCD correction
+        uint16_t adj = sum;
 
-        // Add low nibbles along with the carry.
-        int lowResult = lowA + lowVal + getFlag(C);
-        int carry = 0;
-        if (lowResult > 9) {
-            lowResult -= 10;
-            carry = 1;
+        // +0x06 if low nibble overflowed 9
+        if ( ((a0 & 0x0F) + (value & 0x0F) + cIn) > 9 )
+            adj += 0x06;
+
+        // +0x60 if > 0x99 (and set carry)
+        if (adj > 0x99)
+        {
+            adj += 0x60;
+            SetFlag(C, 1);
         }
-
-        // Add high nibbles plus any carry from the lower nibble.
-        int highResult = highA + highVal + carry;
-        if (highResult > 9) {
-            highResult -= 10;
-            SetFlag(C, 1);  // Carry set if result exceeds BCD range.
-        } else {
+        else
+        {
             SetFlag(C, 0);
         }
 
-        // Recombine the nibbles to form the final result.
-        A = ((highResult << 4) & 0xF0) | (lowResult & 0x0F);
+        A = uint8_t(adj);
     }
     else
     {
-        // Binary addition mode.
-        A = binaryResult & 0xFF;
-        SetFlag(C, binaryResult > 0xFF);
+        // Pure binary
+        A = bin8;
+        SetFlag(C, sum > 0xFF);
     }
 
-    // Update Zero and Negative flags.
     SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
-
-    // Overflow flag (V) for ADC is computed from the binary result:
-    // Overflow occurs when the sign of oldA and value are the same, but differ from the sign of the result.
-    SetFlag(V, (((~(oldA ^ value)) & (oldA ^ binaryResult)) & 0x80) != 0);
+    SetFlag(N, (A & 0x80) != 0);
 }
 
 void CPU::AHX(uint8_t opcode)
@@ -776,10 +798,28 @@ void CPU::AND(uint8_t opcode)
         case 0x25: value = readZP(); break;
         case 0x29: value = readImmediate(); break;
         case 0x2D: value = readABS(); break;
-        case 0x31: value = readIndirectY(); break;
+        case 0x31:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
         case 0x35: value = readZPX(); break;
-        case 0x39: value = readABSY(); break;
-        case 0x3D: value = readABSX(); break;
+        case 0x39:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0x3D:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
     A &= value;
     SetFlag(Z, A == 0);
@@ -1094,10 +1134,28 @@ void CPU::CMP(uint8_t opcode)
         case 0xC5: value = readZP(); break;
         case 0xC9: value = readImmediate(); break;
         case 0xCD: value = readABS(); break;
-        case 0xD1: value = readIndirectY(); break;
+        case 0xD1:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
         case 0xD5: value = readZPX(); break;
-        case 0xD9: value = readABSY(); break;
-        case 0xDD: value = readABSX(); break;
+        case 0xD9:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0xDD:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
     result = A - value;
 
@@ -1234,10 +1292,28 @@ void CPU::EOR(uint8_t opcode)
         case 0x45: value = readZP(); break;
         case 0x49: value = readImmediate(); break;
         case 0x4D:  value = readABS(); break;
-        case 0x51: value = readIndirectY(); break;
+        case 0x51:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
         case 0x55: value = readZPX(); break;
-        case 0x59: value = readABSY(); break;
-        case 0x5D: value = readABSX(); break;
+        case 0x59:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0x5D:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
     A ^= value;
     SetFlag(Z, A == 0);
@@ -1399,8 +1475,9 @@ void CPU::JSR()
 
 void CPU::LAS()
 {
-    uint8_t value = readABSY();
-    uint8_t result = value & SP;
+    auto ret = readABSYAddressBoundary();
+    addPageCrossIf(ret.crossed);
+    uint8_t result = ret.value & SP;
     // Update A, X, and SP with the result
     A = result;
     X = result;
@@ -1413,13 +1490,12 @@ void CPU::LAS()
 
 void CPU::LAX(uint8_t opcode)
 {
-    uint16_t address = 0;
     uint8_t value = 0;
 
     switch (opcode)
     {
-        case 0xA3: address = indirectXAddress(); break;
-        case 0xA7: address = zpAddress(); break;
+        case 0xA3: value = readIndirectX(); break;
+        case 0xA7: value = readZP(); break;
         case 0xAB:
         {
             value = readImmediate();
@@ -1430,13 +1506,26 @@ void CPU::LAX(uint8_t opcode)
             SetFlag(N, result & 0x80);
             return;
         }
-        case 0xAF: address = absAddress(); break;
-        case 0xB3: address = indirectYAddress(); break;
-        case 0xB7: address = zpYAddress(); break;
-        case 0xBF: address = absYAddress(); break;
+        case 0xAF: value = readABS(); break;
+        case 0xB3:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+
+        case 0xB7: value = readZPY(); break;
+        case 0xBF:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+
     }
     // Load value from memory into A and X
-    value = mem->read(address);
     A = value;
     X = value;
 
@@ -1451,45 +1540,30 @@ void CPU::LDA(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0xA1: // LDA ($nn,X) - Indirect Indexed X
+        case 0xA1: value = readIndirectX(); break;
+        case 0xA5: value = readZP(); break;
+        case 0xA9: value = readImmediate(); break;
+        case 0xAD: value = readABS();  break;
+        case 0xB1:
         {
-            value = readIndirectX();
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
             break;
         }
-
-        case 0xA5: // LDA $nn - Zero Page
-            value = readZP();
-            break;
-
-        case 0xA9: // LDA #$nn - Immediate
-            value = readImmediate();
-            break;
-
-        case 0xAD: // LDA $nnnn - Absolute
+        case 0xB5: value = readZPX(); break;
+        case 0xB9:
         {
-            value = readABS();
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
             break;
         }
-
-        case 0xB1: // LDA ($nn),Y - Indirect Indexed Y
+        case 0xBD:
         {
-            value = readIndirectY();
-            break;
-        }
-
-        case 0xB5: // LDA $nn,X - Zero Page,X
-            value = readZPX();
-            break;
-
-        case 0xB9: // LDA $nnnn,Y - Absolute,Y
-        {
-            value = readABSY();
-            break;
-        }
-
-        case 0xBD: // LDA $nnnn,X - Absolute,X
-        {
-            value = readABSX();
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
             break;
         }
     }
@@ -1510,7 +1584,13 @@ void CPU::LDX(uint8_t opcode)
         case 0xA6: X = readZP(); break;
         case 0xAE: X = readABS(); break;
         case 0xB6: X = readZPY(); break;
-        case 0xBE: X = readABSY(); break;
+        case 0xBE:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            X = ret.value;
+            break;
+        }
     }
     SetFlag(Z, X == 0);
     SetFlag(N, X & 0x80);
@@ -1524,7 +1604,13 @@ void CPU::LDY(uint8_t opcode)
         case 0xA4: Y = readZP(); break;
         case 0xAC: Y = readABS(); break;
         case 0xB4: Y = readZPX(); break;
-        case 0xBC: Y = readABSX(); break;
+        case 0xBC:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            Y = ret.value;
+            break;
+        }
     }
     SetFlag(Z, Y == 0);
     SetFlag(N, Y & 0x80);
@@ -1547,7 +1633,6 @@ void CPU::LSR(uint8_t opcode)
             SetFlag(C, carry);
             SetFlag(Z, value == 0);
             SetFlag(N, false);
-
             break;
         }
         case 0x4A:
@@ -1558,8 +1643,6 @@ void CPU::LSR(uint8_t opcode)
             SetFlag(C, carry);
             SetFlag(Z, A == 0);
             SetFlag(N, false);
-
-
             break;
         }
         case 0x4E:
@@ -1575,7 +1658,6 @@ void CPU::LSR(uint8_t opcode)
             SetFlag(N, false);
 
             mem->write(address,value);
-
             break;
         }
         case 0x56:
@@ -1591,7 +1673,6 @@ void CPU::LSR(uint8_t opcode)
             SetFlag(N, false);
 
             mem->write(address,value);
-
             break;
         }
         case 0x5E:
@@ -1607,7 +1688,6 @@ void CPU::LSR(uint8_t opcode)
             SetFlag(N, false);
 
             mem->write(address,value);
-
             break;
         }
     }
@@ -1638,8 +1718,12 @@ void CPU::NOP(uint8_t opcode)
 
         case 0x1C: case 0x3C: case 0x5C: case 0x7C:
         case 0xDC: case 0xFC: // Absolute,X
-            readABSX();
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            (void)ret.value; // value is discarded, this is a “read”
             break;
+        }
     }
 }
 
@@ -1653,10 +1737,28 @@ void CPU::ORA(uint8_t opcode)
         case 0x05: value = readZP(); break;
         case 0x09: value = readImmediate(); break;
         case 0x0D: value = readABS(); break;
-        case 0x11: value = readIndirectY(); break;
+        case 0x11:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
         case 0x15: value = readZPX(); break;
-        case 0x19: value = readABSY(); break;
-        case 0x1D: value = readABSX(); break;
+        case 0x19:
+            {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0x1D:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
     A |= value;
     SetFlag(Z, A == 0);
@@ -1922,10 +2024,28 @@ void CPU::SBC(uint8_t opcode)
         case 0xE5: value = readZP(); break;
         case 0xE9: value = readImmediate(); break;
         case 0xED: value = readABS(); break;
-        case 0xF1: value = readIndirectY(); break;
+        case 0xF1:
+        {
+            auto ret = readIndirectYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
         case 0xF5: value = readZPX(); break;
-        case 0xF9: value = readABSY(); break;
-        case 0xFD: value = readABSX(); break;
+        case 0xF9:
+        {
+            auto ret = readABSYAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
+        case 0xFD:
+        {
+            auto ret = readABSXAddressBoundary();
+            addPageCrossIf(ret.crossed);
+            value = ret.value;
+            break;
+        }
     }
     binaryResult = uint16_t(A) - uint16_t(value) - (1 - getFlag(C));
     if (getFlag(D))

@@ -214,6 +214,19 @@ class CPU
         uint16_t zpXAddress();
         uint16_t zpYAddress();
 
+        // Struct to track page boundary for read only opcodes
+        struct ReadByte
+        {
+            uint8_t value;
+            bool crossed;
+        };
+
+        // Page boundary cross helpers
+        inline void addPageCrossIf(bool crossed) { if (crossed) cycles++; }
+        ReadByte readABSXAddressBoundary();
+        ReadByte readABSYAddressBoundary();
+        ReadByte readIndirectYAddressBoundary();;
+
         //Stack functions
         void push(uint8_t value);
         uint8_t pop();
