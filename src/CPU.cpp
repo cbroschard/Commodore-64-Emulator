@@ -41,7 +41,7 @@ void CPU::reset()
 
     // Defaults
     SP = 0xFD;
-    SR = 0x34;
+    SR = 0x24;
     cycles = 0;
     baHold = false;
 }
@@ -872,7 +872,7 @@ void CPU::ASL(uint8_t opcode)
     {
         case 0x06: // Zero Page
         {
-            uint8_t address = fetch();
+            uint8_t address = zpAddress();
             value = mem->read(address);
             result = value << 1;
             mem->write(address, result);
@@ -887,9 +887,7 @@ void CPU::ASL(uint8_t opcode)
         }
         case 0x0E: // Absolute
         {
-            uint8_t lowByte = fetch();
-            uint8_t highByte = fetch();
-            uint16_t address = (highByte << 8) | lowByte;
+            uint16_t address = absAddress();
             value = mem->read(address);
             result = value << 1;
             mem->write(address, result);
@@ -897,10 +895,10 @@ void CPU::ASL(uint8_t opcode)
         }
         case 0x16: // Zero Page, X
         {
-            uint8_t zpAddress = (fetch() + X) & 0xFF;
-            value = mem->read(zpAddress);
+            uint8_t address = zpXAddress();
+            value = mem->read(address);
             result = value << 1;
-            mem->write(zpAddress, result);
+            mem->write(address, result);
             break;
         }
         case 0x1E: // Absolute, X
