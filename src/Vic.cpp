@@ -748,18 +748,19 @@ void Vic::renderTextLine(int raster, int xScroll)
         }
         else if (col == 40)
         {
-            scrByte  = fetchScreenByte(charRow, 40, raster);
-            colorByte = fetchColorByte(charRow, 40, raster) & 0x0F;
+            scrByte  = fetchScreenByte(charRow, 39, raster);
+            colorByte = fetchColorByte(charRow, 39, raster) & 0x0F;
         }
         else break;
 
-        uint8_t fgColor = colorByte & 0x0F;
         uint8_t bgColor = registers.backgroundColor0;
 
-        bool mcMode = (d016_per_raster[raster] & 0x10) && (fgColor & 0x08);
+        const bool mcGlobal = (d016_per_raster[raster] & 0x10) != 0;
+        const bool mcCell   = (colorByte & 0x08) != 0;     // bit3
+        const bool mcMode   = mcGlobal && mcCell;
 
         if (!mcMode)
-            renderChar(scrByte, px, py, fgColor, bgColor, yInChar, raster, x0, x1);
+            renderChar(scrByte, px, py, colorByte, bgColor, yInChar, raster, x0, x1);
         else
             renderCharMultiColor(scrByte, px, py, colorByte & 0x07, bgColor, yInChar, raster, x0, x1);
     }
@@ -897,8 +898,8 @@ void Vic::renderECMLine(int raster, int xScroll)
         }
         else if (col == 40)
         {
-            scrByte  = fetchScreenByte(charRow, 40, raster);
-            colorByte = fetchColorByte(charRow, 40, raster) & 0x0F;
+            scrByte  = fetchScreenByte(charRow, 39, raster);
+            colorByte = fetchColorByte(charRow, 39, raster) & 0x0F;
         }
         else break;
 
