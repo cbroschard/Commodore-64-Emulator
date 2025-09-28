@@ -318,7 +318,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD018:
         {
             registers.memory_pointer = (value & 0xF0) | (value & 0x0E);
-            //registers.memory_pointer = value;
             break;
         }
         case 0xD019:
@@ -458,7 +457,7 @@ void Vic::tick(int cycles)
 
         ++currentCycle;
 
-        // --- End of raster line ---
+        // End of raster line
         if (currentCycle >= cfg_->cyclesPerLine)
         {
             currentCycle = 0;
@@ -523,7 +522,7 @@ void Vic::updateAEC()
 
         const int startY = registers.spriteY[s];
         const bool yExp  = (registers.spriteYExpansion & (1 << s)) != 0; // $D017 bit per sprite
-        const int span   = yExp ? 42 : 21;                            // lines the sprite occupies
+        const int span   = yExp ? 42 : 21; // lines the sprite occupies
         int dy = int(registers.raster) - int(startY);
         if (dy < 0 || dy >= span) continue; // not on a line covered by the sprite
 
@@ -1295,8 +1294,7 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 
 void Vic::markBGOpaque(int screenY, int px)
 {
-    if (screenY >= 0 && screenY < (int)bgOpaque.size() &&
-        px >= 0 && px < 512)
+    if (screenY >= 0 && screenY < (int)bgOpaque.size() && px >= 0 && px < 512)
     {
         bgOpaque[screenY][px] = 1;
     }
