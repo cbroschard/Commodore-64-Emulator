@@ -1272,45 +1272,24 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
         // Per-pixel clipping + marking
         if (p0 >= x0 && p0 < x1) {
             IO_adapter->setPixel(p0, y, col);
-            if (bits != 0) markBGOpaque(fbY(raster), p0);
+            if (bits != 0) markBGOpaque(y, p0);
         }
         if (p1 >= x0 && p1 < x1) {
             IO_adapter->setPixel(p1, y, col);
-            if (bits != 0) markBGOpaque(fbY(raster), p1);
+            if (bits != 0) markBGOpaque(y, p1);
         }
     }
 }
 
 uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
 {
-    const int cols = getCSEL(raster) ? 40 : 38;
-    uint16_t pageOffset = getScreenBase(raster);
-
-    // VIC memory layout is always 40 chars wide
-    int memCol = col;
-
-    // In 38-col mode, visible columns 0..37 map to screen mem 1..38
-    if (cols == 38)
-    {
-        memCol = col + 1;
-    }
-
-    uint16_t cellOffset = row * 40 + memCol;
-    uint16_t address = pageOffset + cellOffset;
+    const uint16_t address = getScreenBase(raster) + row * 40 + col;
     return mem->vicRead(address, raster);
 }
 
 uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 {
-    const int cols = getCSEL(raster) ? 40 : 38;
-
-    int memCol = col;
-    if (cols == 38)
-    {
-        memCol = col + 1;
-    }
-
-    uint16_t address = COLOR_MEMORY_START + row * 40 + memCol;
+    const uint16_t address = COLOR_MEMORY_START + row * 40 + col;
     return mem->read(address);
 }
 
