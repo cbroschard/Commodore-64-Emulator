@@ -75,6 +75,7 @@ class CIA2
 
         // ML Monitor access
         std::string dumpRegisters(const std::string& group) const;
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -183,6 +184,9 @@ class CIA2
 
         // TOD Handling
         void latchTODClock();
+
+        // ML Monitor logging
+        bool setLogging;
 
         // NMI Handling
         void triggerNMI();

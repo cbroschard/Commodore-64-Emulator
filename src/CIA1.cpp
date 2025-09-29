@@ -120,6 +120,9 @@ void CIA1::reset() {
 
     refreshMasterBit();
     updateIRQLine();
+
+    // ML Monitor logging disable by default
+    setLogging = false;
 }
 
 uint8_t CIA1::readRegister(uint16_t address)
@@ -282,7 +285,7 @@ uint8_t CIA1::readRegister(uint16_t address)
         case 0xDC0F: // Timer B Control register
             return timerBControl & 0x7F;
         default:
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Unhandled address requested in CIA1 read register. Address requested = " + std::to_string(address));
             }
@@ -397,7 +400,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             break;
         case 0xDC0C: // Serial Data Register
             {
-                if (logger)
+                if (logger && setLogging)
                 {
                     logger->WriteLog("Serial Data Register Write: value = " + std::to_string(value));
                 }
@@ -412,7 +415,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             if (value & 0x80)
             {
                 interruptEnable |= mask;
-                if (logger)
+                if (logger && setLogging)
                 {
                     logger->WriteLog("[CIA1] IER |= $" + toHex(mask,2) +
                              "  => IER now=$" + toHex(interruptEnable,2));
@@ -421,7 +424,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             else
             {
                 interruptEnable &= ~mask;
-                if (logger)
+                if (logger && setLogging)
                 {
                     logger->WriteLog("[CIA1] IER &= ~$" + toHex(mask,2) +
                              "  => IER now=$" + toHex(interruptEnable,2));
@@ -483,7 +486,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         }
         default:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Unhandled address requested in CIA1 write register. Address requested = " + std::to_string(address));
             }

@@ -80,6 +80,9 @@ void CIA2::reset() {
     lastCNT = true;
     pendingTBCNTTicks = 0;
     pendingTBCASTicks = 0;
+
+    // ML Monitor logging disable by default
+    setLogging = false;
 }
 
 void CIA2::setMode(VideoMode mode)
@@ -767,7 +770,7 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             }
             default:
                 // ignore and log unknown command
-                if (logger)
+                if (logger && setLogging)
                 {
                     logger->WriteLog("Error: Unknown IEC Bus command encountered: " + std::to_string(code));
                 }

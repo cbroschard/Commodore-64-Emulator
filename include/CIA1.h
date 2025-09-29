@@ -71,6 +71,7 @@ class CIA1
 
         // ML Monitor access
         std::string dumpRegisters(const std::string& group) const;
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -129,6 +130,9 @@ class CIA1
 
         // TOD Increment Threshold
         uint32_t todIncrementThreshold;
+
+        // ML Monitor logging
+        bool setLogging;
 
         //TOD Clock and Alarm helpers
         void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
