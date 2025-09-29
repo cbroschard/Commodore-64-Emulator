@@ -1828,7 +1828,7 @@ void CPU::ROL(uint8_t opcode)
     {
         case 0x26:
         {
-            uint8_t address = fetch();
+            uint8_t address = zpAddress();
             value = mem->read(address);
             carry = value & 0x80;
             value  = (value << 1) | (getFlag(C) ? 1 : 0);
@@ -1845,7 +1845,7 @@ void CPU::ROL(uint8_t opcode)
         }
         case 0x2E:
         {
-            uint16_t address = fetch() | (fetch() << 8);
+            uint16_t address = absAddress();
             value = mem->read(address);
             carry = value & 0x80;
             value  = (value << 1) | (getFlag(C) ? 1 :0);
@@ -1854,21 +1854,20 @@ void CPU::ROL(uint8_t opcode)
         }
         case 0x36:
         {
-            uint8_t zpAddress = (fetch() + X) & 0xFF;
-            value = mem->read(zpAddress);
+            uint8_t address = zpXAddress();
+            value = mem->read(address);
             carry = value & 0x80;
             value = (value << 1) | (getFlag(C) ? 1 : 0);
-            mem->write(zpAddress, value);
+            mem->write(address, value);
             break;
         }
         case 0x3E:
         {
-            uint16_t baseAddress = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
-            value = mem->read(effectiveAddress);
+            uint16_t address = absXAddress();
+            value = mem->read(address);
             carry = value & 0x80;
             value  = (value << 1) | (getFlag(C) ? 1 :0);
-            mem->write(effectiveAddress,value);
+            mem->write(address,value);
             break;
         }
     }
@@ -1887,7 +1886,7 @@ void CPU::ROR(uint8_t opcode)
     {
         case 0x66: // Zero Page
         {
-            uint8_t address = fetch();
+            uint8_t address = zpAddress();
             value = mem->read(address);
             newCarry = (value & 0x01) != 0;
             value = (value >> 1) | (oldCarry ? 0x80 : 0);
@@ -1904,7 +1903,7 @@ void CPU::ROR(uint8_t opcode)
         }
         case 0x6E: // Absolute
         {
-            uint16_t address = fetch() | (fetch() << 8);
+            uint16_t address = absAddress();
             value = mem->read(address);
             newCarry = (value & 0x01) != 0;
             value = (value >> 1) | (oldCarry ? 0x80 : 0);
@@ -1913,21 +1912,20 @@ void CPU::ROR(uint8_t opcode)
         }
         case 0x76: // Zero Page, X-indexed
         {
-            uint8_t zpAddress = (fetch() + X) & 0xFF;
-            value = mem->read(zpAddress);
+            uint8_t address = zpXAddress();
+            value = mem->read(address);
             newCarry = (value & 0x01) != 0;
             value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(zpAddress, value);
+            mem->write(address, value);
             break;
         }
         case 0x7E: // Absolute, X-indexed
         {
-            uint16_t baseAddress = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
-            value = mem->read(effectiveAddress);
+            uint16_t address = absXAddress();
+            value = mem->read(address);
             newCarry = (value & 0x01) != 0;
             value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(effectiveAddress, value);
+            mem->write(address, value);
             break;
         }
     }
@@ -2084,7 +2082,7 @@ void CPU::SBC(uint8_t opcode)
 
 void CPU::SHX()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = absAddress();
     uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = X & highByte;
@@ -2094,7 +2092,7 @@ void CPU::SHX()
 
 void CPU::SHY()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = absAddress();
     uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = Y & highByte;  // Logical AND of Y and high byte + 1
@@ -2164,45 +2162,13 @@ void CPU::STA(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0x81: // STA ($nn,X) - Indexed Indirect
-        {
-            address = indirectXAddress();
-            break;
-        }
-
-        case 0x85: // STA $nn - Zero Page
-        {
-            address = zpAddress();
-            break;
-        }
-        case 0x8D: // STA $nnnn - Absolute
-        {
-            address = absAddress();
-            break;
-        }
-
-        case 0x91: // STA ($nn),Y - Indirect Indexed
-        {
-            address = indirectYAddress();
-            break;
-        }
-
-        case 0x95: // STA $nn,X - Zero Page,X
-        {
-            address = zpXAddress();
-            break;
-        }
-
-        case 0x99: // STA $nnnn,Y - Absolute,Y
-        {
-            address = absYAddress();
-            break;
-        }
-        case 0x9D: // STA $nnnn,X - Absolute,X
-        {
-            address = absXAddress();
-            break;
-        }
+        case 0x81: address = indirectXAddress(); break;
+        case 0x85: address = zpAddress(); break;
+        case 0x8D: address = absAddress(); break;
+        case 0x91: address = indirectYAddress(); break;
+        case 0x95: address = zpXAddress(); break;
+        case 0x99: address = absYAddress(); break;
+        case 0x9D: address = absXAddress(); break;
     }
     mem->write(address, A);
 }
@@ -2257,7 +2223,7 @@ void CPU::STY(uint8_t opcode)
 
 void CPU::TAS()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = absAddress();
     uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
 
