@@ -15,7 +15,8 @@ IO::IO() :
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
     dev(0),
-    readyBuffer(nullptr)
+    readyBuffer(nullptr),
+    setLogging(false)
 {
     //Video and sound initialization
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)

@@ -66,6 +66,9 @@ class IO
 
         void finishFrameAndSignal();
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
+
     protected:
 
     private:
@@ -100,6 +103,8 @@ class IO
         std::mutex qMut;
         std::condition_variable qCond;
         std::thread rThread;
+
+        bool setLogging;
 
         // Color helpers
         SDL_Color getColor(uint8_t colorCode);
