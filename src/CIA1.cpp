@@ -561,23 +561,37 @@ void CIA1::cntChangedA()
 {
     if (inputMode == InputMode::modeCNT && (timerAControl & 0x01))
     {
-        // one CNT pulse == one timer tick
         uint32_t current = timerA ? timerA : 0x10000;
         if (--current == 0)
         {
+            // --- Underflow semantics (same as phi2 path) ---
             triggerInterrupt(INTERRUPT_TIMER_A);
 
-            bool continuous = !(timerAControl & 0x08);
-            timerA = continuous ? (timerAHighByte << 8) | timerALowByte : 0;
-
-
-            if (!continuous) // stop on one-shot
+            // Serial shift on TA underflow if enabled (CRA bit6)
+            if (timerAControl & 0x40)
             {
-                timerAControl &= ~0x01;
+                const uint8_t bit = cntLevel ? 1u : 0u;     // sample CNT level
+                shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
+                if (++shiftCount == 8)
+                {
+                    serialDataRegister = shiftReg;
+                    shiftCount = 0;
+                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                }
             }
-            if (timerBControl & 0x40) // cascade B if requested
+
+            // Cascade TB if CRB bit6 set
+            if (timerBControl & 0x40)
             {
                 handleTimerBCascade();
+            }
+
+            // Reload / one-shot stop
+            const bool continuous = !(timerAControl & 0x08);
+            timerA = continuous ? (timerAHighByte << 8) | timerALowByte : 0;
+            if (!continuous)
+            {
+                timerAControl &= ~0x01; // stop on one-shot
             }
         }
         else
