@@ -537,6 +537,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
             cassetteReadLineLevel = level;
 
             if (level != prevReadLevel)
+            //if (prevReadLevel && !level)
             {
                 triggerInterrupt(INTERRUPT_FLAG_LINE);
             }
