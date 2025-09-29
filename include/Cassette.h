@@ -56,8 +56,10 @@ class Cassette
         bool isT64() const;
         T64LoadResult t64LoadPrgIntoMemory();
 
-        // Monitor helper for TAP
+        // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;
+        inline void setLog(bool enable) { setLogging = enable; }
+
 
     protected:
 
@@ -75,6 +77,9 @@ class Cassette
         bool motorStatus;
         size_t tapePosition;
         uint8_t data;
+
+        // ML Monitor logging
+        bool setLogging;
 };
 
 #endif // CASSETTE_H

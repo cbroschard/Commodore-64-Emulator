@@ -12,7 +12,8 @@ Cassette::Cassette() :
     playPressed(false),
     motorStatus(false),
     tapePosition(0),
-    data(1)
+    data(1),
+    setLogging(false)
 {
 
 }
