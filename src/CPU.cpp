@@ -1184,7 +1184,6 @@ void CPU::CPY(uint8_t opcode)
 void CPU::DCP(uint8_t opcode)
 {
     uint16_t address = 0;
-    uint8_t value = 0;
 
     switch (opcode)
     {
@@ -1198,17 +1197,16 @@ void CPU::DCP(uint8_t opcode)
     }
 
     // Decrement memory value
-    value = mem->read(address);
-    value = (value - 1) & 0xFF; // Ensure 8-bit wrapping
-    mem->write(address, value);
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue - 1);
+    rmwWrite(address, oldValue, newValue);
 
-    // Compare with accumulator
-    uint8_t result = A - value;
+    uint8_t diff = uint8_t(A - newValue);
 
     // Update flags
-    SetFlag(C, A >= value);
-    SetFlag(Z, result == 0);
-    SetFlag(N, result & 0x80);
+    SetFlag(C, A >= newValue);
+    SetFlag(Z, diff == 0);
+    SetFlag(N, diff & 0x80);
 }
 
 void CPU::DEC(uint8_t opcode)
@@ -1318,7 +1316,6 @@ void CPU::INY()
 void CPU::ISC(uint8_t opcode)
 {
     uint16_t address = 0;
-    uint8_t value = 0;
 
     switch (opcode)
     {
@@ -1330,23 +1327,23 @@ void CPU::ISC(uint8_t opcode)
         case 0xFB: address = absYAddress(); break;
         case 0xFF: address = absXAddress(); break;
     }
-    // Increment memory value
-    value = mem->read(address);
-    value = (value + 1) & 0xFF; // Ensure 8-bit wrapping
-    mem->write(address, value);
 
-    // Perform SBC (Subtract with Carry)
-    uint8_t oldA = A;
-    uint16_t tempResult = uint16_t(oldA) - uint16_t(value) - (1 - getFlag(C));
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue + 1);
+    rmwWrite(address, oldValue, newValue);
 
-    // Update accumulator
-    A = tempResult & 0xFF;
+    const uint8_t a0 = A;
+    const uint8_t m  = newValue;
+    const uint16_t tmp = uint16_t(a0) - uint16_t(m) - (1 - (getFlag(C) ? 1 : 0));
 
-    // Update flags
-    SetFlag(C, tempResult < 0x100);
+    A = uint8_t(tmp);
+
+    // Flags
+    SetFlag(C, tmp < 0x100);
     SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
-    SetFlag(V, ((oldA ^ value) & (oldA ^ tempResult) & 0x80) != 0);
+    SetFlag(N, (A & 0x80) != 0);
+    const uint8_t res8 = uint8_t(tmp);
+    SetFlag(V, ((a0 ^ m) & (a0 ^ res8) & 0x80) != 0);
 }
 
 void CPU::JAM()
@@ -1686,7 +1683,6 @@ void CPU::PLP()
 void CPU::RLA(uint8_t opcode)
 {
     uint16_t address = 0;
-    uint8_t value = 0;
 
     // Determine addressing mode
     switch (opcode) {
@@ -1699,16 +1695,16 @@ void CPU::RLA(uint8_t opcode)
         case 0x3F: address = absXAddress(); break;
     }
     // Perform Rotate Left (ROL) on memory value
-    value = mem->read(address);
-    bool carry = value & 0x80;
-    value = (value << 1) | (getFlag(C) ? 1 : 0);
-    mem->write(address, value);
+    uint8_t oldValue = mem->read(address);
+    bool carry = (oldValue & 0x80) != 0;
+    uint8_t newValue = uint8_t((oldValue << 1) | (getFlag(C) ? 1 : 0));
+    rmwWrite(address, oldValue, newValue);
 
     // Update Carry flag
     SetFlag(C, carry);
 
     // AND the result with the accumulator
-    A &= value;
+    A &= newValue;
 
     // Update flags
     SetFlag(Z, A == 0);
@@ -1795,7 +1791,6 @@ void CPU::ROR(uint8_t opcode)
 void CPU::RRA(uint8_t opcode)
 {
     uint16_t address = 0;
-    uint8_t value = 0;
 
     // Determine addressing mode
     switch (opcode) {
@@ -1808,17 +1803,17 @@ void CPU::RRA(uint8_t opcode)
         case 0x7F: address = absXAddress(); break;
     }
     // Perform Rotate Right (ROR) on memory value
-    value = mem->read(address);
-    bool carry = value & 0x01; // Capture old LSB
-    value = (value >> 1) | (getFlag(C) ? 0x80 : 0); // Shift right and insert carry into MSB
-    mem->write(address, value); // Write updated value back to memory
+    uint8_t oldValue = mem->read(address);
+    bool carry = (oldValue & 0x01) != 0; // Capture old LSB
+    uint8_t newValue = uint8_t((oldValue >> 1) | (getFlag(C) ? 0x80 : 0)); // Shift right and insert carry into MSB
+    rmwWrite(address, oldValue, newValue);
 
     // Update Carry flag from old LSB
     SetFlag(C, carry);
 
     // Perform ADC (Add with Carry) with the accumulator
     uint8_t oldA = A;
-    uint16_t tempResult = uint16_t(oldA) + uint16_t(value) + getFlag(C);
+    uint16_t tempResult = uint16_t(oldA) + uint16_t(newValue) + getFlag(C);
 
     // Update accumulator
     A = tempResult & 0xFF;
@@ -1827,7 +1822,7 @@ void CPU::RRA(uint8_t opcode)
     SetFlag(C, tempResult > 0xFF); // Carry flag: Set if addition overflows
     SetFlag(Z, A == 0);           // Zero flag: Set if result is zero
     SetFlag(N, A & 0x80);         // Negative flag: Set if MSB is 1
-    SetFlag(V, (~(oldA ^ value) & (oldA ^ tempResult) & 0x80) != 0); // Overflow flag
+    SetFlag(V, (~(oldA ^ newValue) & (oldA ^ tempResult) & 0x80) != 0); // Overflow flag
 }
 
 void CPU::RTI()
@@ -1973,13 +1968,13 @@ void CPU::SLO(uint8_t opcode)
     }
 
     // Read, shift left, and write back
-    uint8_t value = mem->read(address);
-    SetFlag(C, value & 0x80);  // old bit 7 → Carry
-    value <<= 1;
-    mem->write(address, value);
+    uint8_t oldValue = mem->read(address);
+    SetFlag(C, (oldValue & 0x80) != 0);  // old bit 7 → Carry
+    uint8_t newValue = uint8_t(oldValue << 1);
+    rmwWrite(address, oldValue, newValue);
 
     // ORA with accumulator
-    A |= value;
+    A |= newValue;
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
 }
@@ -2001,13 +1996,13 @@ void CPU::SRE(uint8_t opcode)
     }
 
     // Perform LSR on memory value
-    uint8_t value = mem->read(address);
-    SetFlag(C, value & 0x01);  // old bit 0 → Carry
-    value >>= 1;
-    mem->write(address, value);
+    uint8_t oldValue = mem->read(address);
+    SetFlag(C, (oldValue & 0x01) != 0);
+    uint8_t newValue = uint8_t(oldValue >> 1);
+    rmwWrite(address, oldValue, newValue);
 
     // EOR with accumulator
-    A ^= value;
+    A ^= newValue;
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
 }
