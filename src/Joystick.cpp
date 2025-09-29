@@ -8,12 +8,22 @@
 #include "Joystick.h"
 
 Joystick::Joystick(int port) :
+    logger(nullptr),
     port(port),
-    state(0xFF)
+    state(0xFF),
+    setLogging(false)
 {
     if (port != 1 && port != 2)
     {
         throw std::invalid_argument("Port must be set to either 1 or 2!");
+    }
+
+    // Log the joystick being "plugged" in
+    if (logger && setLogging)
+    {
+        std::stringstream out;
+        out << "Connected Joystick: " << port << std::endl;
+        logger->WriteLog(out.str());
     }
 }
 

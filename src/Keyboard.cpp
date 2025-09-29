@@ -8,6 +8,7 @@
 #include "Keyboard.h"
 
 Keyboard::Keyboard() :
+    setLogging(false),
     keyProcessed(false),
     shiftPressed(false)
 {
@@ -174,7 +175,7 @@ void Keyboard::initKeyboard()
 void Keyboard::processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown)
 {
     keyProcessed = false;
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("processKey called: keycode = " + std::to_string(keycode) +
                          ", scancode = " + std::to_string(scancode) +
@@ -238,7 +239,7 @@ void Keyboard::processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKey
 
 void Keyboard::handleKeyDown(SDL_Scancode key)
 {
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("Key Down Event: SDL Scancode = " + std::to_string(key));
     }
@@ -249,7 +250,7 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
     if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
     {
         shiftPressed = true;
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Shift Key Pressed");
         }
@@ -269,7 +270,7 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
 void Keyboard::handleKeyUp(SDL_Scancode key)
 {
 
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("Key Up Event: SDL Scancode = " + std::to_string(key));
     }
@@ -288,7 +289,7 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
             auto [row, col] = keyMap[key];
             keyMatrix[row] |= (1 << col); // Release Shift
         }
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Shift Key Released");
         }
@@ -302,7 +303,7 @@ uint8_t Keyboard::readRow(uint8_t rowIndex)
     if (rowIndex < 8)
     {
         uint8_t state = keyMatrix[rowIndex];
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Keyboard readRow: rowIndex = " + std::to_string(rowIndex) +
                  ", keyMatrix[rowIndex] = " + std::to_string(keyMatrix[rowIndex]));
@@ -317,12 +318,12 @@ uint8_t Keyboard::readRow(uint8_t rowIndex)
 
 void Keyboard::simulateKeyPress(uint8_t row, uint8_t col)
 {
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("Before simulateKeyPress: keyMatrix[" + std::to_string(row) + "] = " + std::to_string(keyMatrix[row]));
     }
     keyMatrix[row] &= ~(1 << col); // Simulate key press by clearing the bit
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("After simulateKeyPress: keyMatrix[" + std::to_string(row) + "] = " + std::to_string(keyMatrix[row]));
     }
@@ -335,7 +336,7 @@ void Keyboard::resetKeyboard()
         keyMatrix[i] = 0xFF; // Reset all keys to unpressed
     }
     shiftPressed = false;
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("Keyboard state reset.");
     }

@@ -10,12 +10,15 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include "Logging.h"
 
 class Joystick
 {
     public:
         Joystick(int port);
         virtual ~Joystick();
+
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         enum direction
         {
@@ -35,12 +38,21 @@ class Joystick
         // Port method
         int getPort() const;
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
+
     protected:
 
     private:
 
+        // Non-owning pointers
+        Logging* logger;
+
         int port; // Joystick 1 or 2
         uint8_t state; // Joystick state (active-low, 0 means pressed)
+
+        // ML Monitor logging
+        bool setLogging;
 };
 
 #endif // JOYSTICK_H

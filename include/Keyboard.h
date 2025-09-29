@@ -44,6 +44,8 @@ class Keyboard
         void handleKeyDown(SDL_Scancode key);
         void handleKeyUp(SDL_Scancode key);
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -51,6 +53,9 @@ class Keyboard
 
         // non-owning pointers
         Logging* logger = nullptr;
+
+        // ML Monitor logging
+        bool setLogging;
 
         void initKeyboard();
         void processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown); // Helper for Key up and Key down methods
