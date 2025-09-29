@@ -167,9 +167,10 @@ uint8_t Vic::readRegister(uint16_t address)
         }
         case 0xD019:
         {
-            uint8_t srcs = registers.interruptStatus & 0x0F;
-            uint8_t any  = srcs ? 0x80 : 0x00;
-            return (srcs | any | 0x70);
+            const uint8_t srcs = registers.interruptStatus & 0x0F;
+            const uint8_t enabled = registers.interruptEnable & 0x0F;
+            const uint8_t any = (srcs & enabled) ? 0x80 : 0x00;  // mirror IRQ
+            return uint8_t(srcs | any | 0x70);  // bits 4-6 read as 1
         }
         case 0xD01A:
         {
@@ -406,7 +407,7 @@ void Vic::tick(int cycles)
         {
             if (registers.raster == registers.rasterInterruptLine)
             {
-                registers.interruptStatus |= 0x01;
+                if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
                 updateIRQLine();
             }
         }
