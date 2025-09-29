@@ -874,57 +874,37 @@ void CPU::ARR() {
 
 void CPU::ASL(uint8_t opcode)
 {
-    uint8_t value = 0;
-    uint8_t result = 0;
+    if (opcode == 0x0A) // Accumulator
+    {
+        uint8_t value = A;
+        uint8_t result = value << 1;
+        A = result;
+
+        // Update flags
+        SetFlag(C, (value & 0x80) != 0);  // Carry flag: Bit 7 of the original value
+        SetFlag(Z, result == 0);   // Zero flag: Result is zero
+        SetFlag(N, (result & 0x80) != 0); // Negative flag: Bit 7 of the result
+        return;
+    }
+
+    uint16_t address = 0;
 
     switch(opcode)
     {
-        case 0x06: // Zero Page
-        {
-            uint8_t address = zpAddress();
-            value = mem->read(address);
-            result = value << 1;
-            mem->write(address, result);
-            break;
-        }
-        case 0x0A: // Accumulator
-        {
-            value = A;           // Capture the original value of A
-            result = value << 1; // Perform the shift
-            A = result;          // Store the result back in A
-            break;
-        }
-        case 0x0E: // Absolute
-        {
-            uint16_t address = absAddress();
-            value = mem->read(address);
-            result = value << 1;
-            mem->write(address, result);
-            break;
-        }
-        case 0x16: // Zero Page, X
-        {
-            uint8_t address = zpXAddress();
-            value = mem->read(address);
-            result = value << 1;
-            mem->write(address, result);
-            break;
-        }
-        case 0x1E: // Absolute, X
-        {
-            uint16_t baseAddress = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
-            value = mem->read(effectiveAddress);
-            result = value << 1;
-            mem->write(effectiveAddress, result);
-            break;
-        }
+        case 0x06: address = zpAddress(); break;
+        case 0x0E: address = absAddress(); break;
+        case 0x16: address = zpXAddress(); break;
+        case 0x1E: address = absXAddress(); break;
     }
 
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue << 1);
+    rmwWrite(address, oldValue, newValue);
+
     // Update flags
-    SetFlag(C, value & 0x80);  // Carry flag: Bit 7 of the original value
-    SetFlag(Z, result == 0);   // Zero flag: Result is zero
-    SetFlag(N, result & 0x80); // Negative flag: Bit 7 of the result
+    SetFlag(C, (oldValue & 0x80) != 0);  // Carry flag: Bit 7 of the original value
+    SetFlag(Z, newValue == 0);   // Zero flag: Result is zero
+    SetFlag(N, (newValue & 0x80) != 0); // Negative flag: Bit 7 of the result
 }
 
 void CPU::AXS()
@@ -1575,79 +1555,36 @@ void CPU::LDY(uint8_t opcode)
 
 void CPU::LSR(uint8_t opcode)
 {
-    switch(opcode)
+    if (opcode == 0x4A)
     {
-        case 0x46:
-        {
-            uint8_t address = zpAddress();
-            uint8_t value = mem->read(address);
-
-            bool carry = value & 0x01;
-            value >>= 1;
-
-            mem->write(address,value);
-
-            SetFlag(C, carry);
-            SetFlag(Z, value == 0);
-            SetFlag(N, false);
-            break;
-        }
-        case 0x4A:
-        {
-            bool carry = A & 0x01;
+        bool carry = A & 0x01;
             A >>= 1;
 
             SetFlag(C, carry);
             SetFlag(Z, A == 0);
             SetFlag(N, false);
-            break;
-        }
-        case 0x4E:
-        {
-            uint16_t address = absAddress();
-            uint8_t value = mem->read(address);
-
-            bool carry = value & 0x01;
-            value >>= 1;
-
-            SetFlag(C, carry);
-            SetFlag(Z, value == 0);
-            SetFlag(N, false);
-
-            mem->write(address,value);
-            break;
-        }
-        case 0x56:
-        {
-            uint8_t address = zpXAddress();
-            uint8_t value = mem->read(address);
-
-            bool carry = value & 0x01;
-            value >>= 1;
-
-            SetFlag(C, carry);
-            SetFlag(Z, value == 0);
-            SetFlag(N, false);
-
-            mem->write(address,value);
-            break;
-        }
-        case 0x5E:
-        {
-            uint16_t address = absXAddress();
-            uint8_t value = mem->read(address);
-
-            bool carry = value & 0x01;
-            value >>= 1;
-
-            SetFlag(C, carry);
-            SetFlag(Z, value == 0);
-            SetFlag(N, false);
-
-            mem->write(address,value);
-            break;
-        }
+            return;
     }
+
+    uint16_t address = 0;
+
+    switch(opcode)
+    {
+        case 0x46: address = zpAddress(); break;
+        case 0x4E: address = absAddress(); break;
+        case 0x56: address = zpXAddress(); break;
+        case 0x5E: address = absXAddress(); break;
+    }
+
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue >> 1);
+    rmwWrite(address, oldValue, newValue);
+
+    // Set flags
+    SetFlag(C, (oldValue & 1) != 0);
+    SetFlag(Z, newValue == 0);
+    SetFlag(N, 0);
+
 }
 
 void CPU::NOP(uint8_t opcode)
@@ -1780,118 +1717,78 @@ void CPU::RLA(uint8_t opcode)
 
 void CPU::ROL(uint8_t opcode)
 {
-    uint8_t value = 0;
-    bool carry;
+
+    if (opcode == 0x2A)
+    {
+        uint8_t value = A;
+        bool carry = (value & 0x80) != 0;
+        value = ((value << 1) | (getFlag(C) ? 1 : 0));
+        A = value;
+
+        // Set Flags
+        SetFlag(N, value & 0x80);
+        SetFlag(Z, value == 0);
+        SetFlag(C, carry);
+        return;
+    }
+
+    uint16_t address = 0;
 
     switch(opcode)
     {
-        case 0x26:
-        {
-            uint8_t address = zpAddress();
-            value = mem->read(address);
-            carry = value & 0x80;
-            value  = (value << 1) | (getFlag(C) ? 1 : 0);
-            mem->write(address,value);
-            break;
-        }
-        case 0x2A:
-        {
-            value = A;
-            carry = value & 0x80;
-            value = (value << 1) | (getFlag(C) ? 1 : 0);
-            A = value;
-            break;
-        }
-        case 0x2E:
-        {
-            uint16_t address = absAddress();
-            value = mem->read(address);
-            carry = value & 0x80;
-            value  = (value << 1) | (getFlag(C) ? 1 :0);
-            mem->write(address,value);
-            break;
-        }
-        case 0x36:
-        {
-            uint8_t address = zpXAddress();
-            value = mem->read(address);
-            carry = value & 0x80;
-            value = (value << 1) | (getFlag(C) ? 1 : 0);
-            mem->write(address, value);
-            break;
-        }
-        case 0x3E:
-        {
-            uint16_t address = absXAddress();
-            value = mem->read(address);
-            carry = value & 0x80;
-            value  = (value << 1) | (getFlag(C) ? 1 :0);
-            mem->write(address,value);
-            break;
-        }
+        case 0x26: address = zpAddress();  break;
+        case 0x2E: address = absAddress(); break;
+        case 0x36: address = zpXAddress(); break;
+        case 0x3E: address = absXAddress(); break;
     }
-    SetFlag(N, value & 0x80);
-    SetFlag(Z, value == 0);
+
+    uint8_t oldValue = mem->read(address);
+    bool carry = (oldValue & 0x80) != 0;
+    uint8_t newValue = uint8_t((oldValue << 1) | (getFlag(C)?1:0));
+    rmwWrite(address, oldValue, newValue);
+
+    // Set Flags
+    SetFlag(N, newValue & 0x80);
+    SetFlag(Z, newValue == 0);
     SetFlag(C, carry);
 }
 
 void CPU::ROR(uint8_t opcode)
 {
-    uint8_t value = 0;
-    bool newCarry = false;
-    bool oldCarry = getFlag(C);
+    if (opcode == 0x6A)
+    {
+        uint8_t value = A;
+        bool oldCarry = getFlag(C);
+        bool newCarry = (value & 0x01) != 0;
+        value = (value >> 1) | (oldCarry ? 0x80 : 0);
+        A = value;
+
+        // Update processor flags
+        SetFlag(N, value & 0x80);
+        SetFlag(Z, value == 0);
+        SetFlag(C, newCarry);
+        return;
+    }
+
+    uint16_t address = 0;
 
     switch(opcode)
     {
-        case 0x66: // Zero Page
-        {
-            uint8_t address = zpAddress();
-            value = mem->read(address);
-            newCarry = (value & 0x01) != 0;
-            value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(address, value);
-            break;
-        }
-        case 0x6A: // Accumulator
-        {
-            value = A;
-            newCarry = (value & 0x01) != 0;
-            value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            A = value;
-            break;
-        }
-        case 0x6E: // Absolute
-        {
-            uint16_t address = absAddress();
-            value = mem->read(address);
-            newCarry = (value & 0x01) != 0;
-            value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(address, value);
-            break;
-        }
-        case 0x76: // Zero Page, X-indexed
-        {
-            uint8_t address = zpXAddress();
-            value = mem->read(address);
-            newCarry = (value & 0x01) != 0;
-            value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(address, value);
-            break;
-        }
-        case 0x7E: // Absolute, X-indexed
-        {
-            uint16_t address = absXAddress();
-            value = mem->read(address);
-            newCarry = (value & 0x01) != 0;
-            value = (value >> 1) | (oldCarry ? 0x80 : 0);
-            mem->write(address, value);
-            break;
-        }
+        case 0x66: address = zpAddress(); break;
+        case 0x6E: address = absAddress(); break;
+        case 0x76: address = zpXAddress(); break;
+        case 0x7E: address = absXAddress(); break;
     }
 
+    bool oldCarry = getFlag(C);
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t((oldValue >> 1) | (oldCarry ? 0x80 : 0));
+    bool newCarry = (oldValue & 0x01) != 0;
+    rmwWrite(address, oldValue, newValue);
+
     // Update processor flags
-    SetFlag(N, value & 0x80);
-    SetFlag(Z, value == 0);
+    SetFlag(N, newValue & 0x80);
+    SetFlag(Z, newValue == 0);
     SetFlag(C, newCarry);
 }
 
