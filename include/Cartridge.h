@@ -102,6 +102,9 @@ class Cartridge
         inline WiringMode getWiringMode() { return wiringMode; }
         inline size_t getCartridgeSize() const { return cartSize / 1024; }
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
+
     protected:
 
         // Cartridge LO/HI location constants
@@ -133,6 +136,9 @@ class Cartridge
         // Cartridge mapping
         CartridgeType mapperType;
         CartridgeType detectType(uint16_t hardwareType);
+
+        // ML Monitor logging
+        bool setLogging;
 
         // Loaders
         bool loadFile(const std::string& path, std::vector<uint8_t>& buffer);

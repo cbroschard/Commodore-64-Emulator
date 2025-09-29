@@ -24,7 +24,8 @@ Cartridge::Cartridge() :
     currentBank(0),
     wiringMode(WiringMode::NONE),
     cartSize(0),
-    mapperType(CartridgeType::GENERIC)
+    mapperType(CartridgeType::GENERIC),
+    setLogging(false)
 {
     // defaults
     header.exROMLine = true;
@@ -43,7 +44,12 @@ bool Cartridge::loadROM(const std::string& path)
 
     if (romData.size() < sizeof(header))
     {
-        std::cerr << "Error: Cartridge:: file is not correct size!" << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Error: Cartridge:: file is not correct size!" << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
@@ -52,20 +58,35 @@ bool Cartridge::loadROM(const std::string& path)
 
     if (std::strncmp(header.magic, "C64 CARTRIDGE   ", sizeof(header.magic)) != 0)
     {
-        std::cerr << "Error: Cartridge:: file is not a C64 cartridge!" << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Error: Cartridge:: file is not a C64 cartridge!" << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
     if (!processChipSections())
     {
-        std::cerr << "Error: Unable to read any chip sections in the ROM!" << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Error: Unable to read any chip sections in the ROM!" << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
     // Make sure we found at least one chip section
     if (chipSections.empty())
     {
-        std::cerr << "Error: Unable to find a CHIP section in the ROM!" << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Error: Unable to find a CHIP section in the ROM!" << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
@@ -292,7 +313,12 @@ bool Cartridge::setCurrentBank(uint8_t bank)
     }
     if (!bankFound)
     {
-        std::cerr << "Attempted to set invalid bank: " << bank << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Attempted to set invalid bank: " << bank << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
     currentBank = bank;
@@ -300,7 +326,12 @@ bool Cartridge::setCurrentBank(uint8_t bank)
     // Refresh memory mapping after switching banks
     if (!loadIntoMemory())
     {
-        std::cerr << "Error: Unable to reload cartridge data for bank " << bank << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Error: Unable to reload cartridge data for bank " << bank << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
     return true;
@@ -331,7 +362,12 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open())
     {
-        std::cerr << "Failed to open file: " << path << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Failed to open file: " << path << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
@@ -341,7 +377,12 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
     buffer.resize(size);
     if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
     {
-        std::cerr << "Failed to read file: " << path << std::endl;
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Failed to read file: " << path << std::endl;
+            logger->WriteLog(out.str());
+        }
         return false;
     }
 
@@ -463,7 +504,12 @@ bool Cartridge::processChipSections()
     {
         if (offset + sizeof(crtChipHeader) > romData.size())
         {
-            std::cerr << "Error: not enough space in file to process chip header!" << std::endl;
+            if (logger && setLogging)
+            {
+                std::stringstream out;
+                out << "Error: not enough space in file to process chip header!" << std::endl;
+                logger->WriteLog(out.str());
+            }
             return false;
         }
         // Read from the current offset
@@ -479,7 +525,12 @@ bool Cartridge::processChipSections()
 
         if (std::strncmp(chipHdr.signature, "CHIP", 4) != 0)
         {
-            std::cerr << "Error: Invalid chip section signature!" << std::endl;
+            if (logger && setLogging)
+            {
+                std::stringstream out;
+                out << "Error: Invalid chip section signature!" << std::endl;
+                logger->WriteLog(out.str());
+            }
             return false;
         }
 
@@ -489,14 +540,25 @@ bool Cartridge::processChipSections()
         uint32_t expectedPacketLength = sizeof(crtChipHeader) + chipHdr.romSize;
         if (expectedPacketLength != chipHdr.packetLength)
         {
-            std::cerr << "Error: Mismatch in expected packet length! Expected " << expectedPacketLength << " and got " << chipHdr.packetLength << std::endl;
+            if (logger && setLogging)
+            {
+                std::stringstream out;
+                out <<  "Error: Mismatch in expected packet length! Expected " << expectedPacketLength << " and got "
+                        << chipHdr.packetLength << std::endl;
+                logger->WriteLog(out.str());
+            }
             return false;
         }
 
         // Validate size is not past romData size
         if (sizeof(crtChipHeader) + chipHdr.romSize > romData.size())
         {
-            std::cerr << "Error: Unable to load ROM CHIP as it's larger than ROM data size!" << std::endl;
+            if (logger && setLogging)
+            {
+                std::stringstream out;
+                out << "Error: Unable to load ROM CHIP as it's larger than ROM data size!" << std::endl;
+                logger->WriteLog(out.str());
+            }
             return false;
         }
 
@@ -526,7 +588,12 @@ bool Cartridge::processChipSections()
                 }
             default:
             {
-                std::cerr << "Unsupported chip type: " << static_cast<int>(chipHdr.chipType) << std::endl;
+                if (logger && setLogging)
+                {
+                    std::stringstream out;
+                    out << "Unsupported chip type: " << static_cast<int>(chipHdr.chipType) << std::endl;
+                    logger->WriteLog(out.str());
+                }
                 return false;
             }
         }
