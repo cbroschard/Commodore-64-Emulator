@@ -18,6 +18,7 @@ CPU::CPU() :
     Y(0),
     SP(0xFD),
     SR(0x20),
+    setLogging(false),
     baHold(false)
 {
     initializeOpcodeTable();
@@ -44,6 +45,7 @@ void CPU::reset()
     SR = 0x24;
     cycles = 0;
     baHold = false;
+    setLogging = false;
 }
 
 void CPU::setMode(VideoMode mode)
@@ -103,7 +105,7 @@ void CPU::executeIRQ()
 {
     if (getFlag(I))
     {
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Interrupts Disabled so not executing IRQ");
         }
@@ -597,7 +599,7 @@ void CPU::tick()
         uint8_t opcode = fetch();
 
         // Log it
-        if (logger)
+        if (logger && setLogging)
         {
             std::stringstream message;
             message << "PC = " << std::hex << static_cast<int>(PC - 1) << ", OPCODE = " << std::hex << static_cast<int>(opcode) << ", A = " << std::hex
@@ -637,7 +639,7 @@ void CPU::decodeAndExecute(uint8_t opcode)
     }
     else
     {
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Unhandled opcode: " + std::to_string(opcode));
         }

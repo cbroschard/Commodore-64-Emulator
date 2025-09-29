@@ -138,6 +138,9 @@ class CPU
         inline void setY(uint8_t value) { Y = value; }
         inline uint8_t getSP() const { return SP; }
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
+
     protected:
 
     private:
@@ -177,6 +180,9 @@ class CPU
         uint8_t SP;
         uint8_t SR;
         uint16_t PC;
+
+        // ML Monitor logging
+        bool setLogging;
 
         // Video mode
         uint32_t CYCLES_PER_FRAME;
