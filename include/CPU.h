@@ -221,6 +221,9 @@ class CPU
             bool crossed;
         };
 
+        // RMW helper
+        void rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
+
         // Page boundary cross helpers
         inline void addPageCrossIf(bool crossed) { if (crossed) cycles++; }
         ReadByte readABSXAddressBoundary();

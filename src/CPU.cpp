@@ -568,6 +568,15 @@ CPU::ReadByte CPU::readIndirectYAddressBoundary()
     return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
 }
 
+void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
+{
+    // Perform "dummy write" first
+    mem->write(address, oldValue);
+
+    // Now we update to the real value
+    mem->write(address, newValue);
+}
+
 void CPU::tick()
 {
     if (halted) // Jam Halt
@@ -1224,46 +1233,21 @@ void CPU::DCP(uint8_t opcode)
 
 void CPU::DEC(uint8_t opcode)
 {
-    uint8_t value = 0;
+    uint16_t address = 0;
 
     switch(opcode)
     {
-        case 0xC6:
-        {
-            uint8_t address = zpAddress();
-            value = mem->read(address);
-            value--;
-            mem->write(address,value);
-            break;
-        }
-        case 0xCE:
-        {
-            uint16_t address = absAddress();
-            value = mem->read(address);
-            value--;
-            mem->write(address,value);
-            break;
-        }
-        case 0xD6:
-        {
-            uint8_t address = zpXAddress();
-            value = mem->read(address);
-            value--;
-            mem->write(address, value);
-            break;
-        }
-        case 0xDE:
-        {
-            uint16_t address = absXAddress();
-            value = mem->read(address);
-            value--;
-            mem->write(address,value);
-            break;
-        }
+        case 0xC6: address = zpAddress(); break;
+        case 0xCE: address = absAddress(); break;
+        case 0xD6: address = zpXAddress(); break;
+        case 0xDE: address = absXAddress(); break;
     }
 
-    SetFlag(Z, value == 0);
-    SetFlag(N, value & 0x80);
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue - 1);
+    rmwWrite(address, oldValue, newValue);
+    SetFlag(Z, newValue == 0);
+    SetFlag(N, newValue & 0x80);
 }
 
 void CPU::DEX()
@@ -1320,46 +1304,21 @@ void CPU::EOR(uint8_t opcode)
 
 void CPU::INC(uint8_t opcode)
 {
-    uint8_t value = 0;
+    uint16_t address = 0;
 
     switch(opcode)
     {
-        case 0xE6:
-        {
-            uint8_t address = zpAddress();
-            value = mem->read(address);
-            value++;
-            mem->write(address,value);
-            break;
-        }
-        case 0xEE:
-        {
-            uint16_t address = absAddress();
-            value = mem->read(address);
-            value++;
-            mem->write(address,value);
-            break;
-        }
-        case 0xF6:
-        {
-            uint8_t address = zpXAddress();
-            value = mem->read(address);
-            value++;
-            mem->write(address,value);
-            break;
-        }
-        case 0xFE:
-        {
-            uint16_t address = absXAddress();
-            value = mem->read(address);
-            value++;
-            mem->write(address,value);
-            break;
-        }
+        case 0xE6: address = zpAddress(); break;
+        case 0xEE: address = absAddress(); break;
+        case 0xF6: address = zpXAddress(); break;
+        case 0xFE: address = absXAddress(); break;
     }
 
-    SetFlag(Z, value == 0);
-    SetFlag(N, value & 0x80);
+    uint8_t oldValue = mem->read(address);
+    uint8_t newValue = uint8_t(oldValue + 1);
+    rmwWrite(address, oldValue, newValue);
+    SetFlag(Z, newValue == 0);
+    SetFlag(N, newValue & 0x80);
 }
 
 void CPU::INX()
