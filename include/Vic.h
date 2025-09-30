@@ -129,6 +129,7 @@ class Vic
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
         uint16_t getCurrentRaster() { return registers.raster; }
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -206,6 +207,9 @@ class Vic
 
         // Cache background opaque pixels
         std::vector<std::array<uint8_t, 512>> bgOpaque;
+
+        // ML Monitor logging
+        bool setLogging;
 
         // Multicolor helper for readRegister
         inline uint8_t getBackgroundColor(int value) const { return registers.backgroundColor[value]; }

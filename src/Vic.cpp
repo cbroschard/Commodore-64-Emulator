@@ -79,6 +79,9 @@ void Vic::reset()
 
     // Initialize monitor caches
     updateMonitorCaches(registers.raster);
+
+    // ML Monitor logging default disable
+    setLogging = false;
 }
 
 void Vic::setMode(VideoMode mode)
@@ -226,7 +229,7 @@ uint8_t Vic::readRegister(uint16_t address)
         }
         default:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Attempt to read to unhandled VIC address = " + std::to_string (static_cast<int>(address)));
                 return 0xFF;
@@ -389,7 +392,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         default:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Attempt to write to unhandled vic area address = " + std::to_string (static_cast<int>(address)));
                 break;
