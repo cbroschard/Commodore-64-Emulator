@@ -20,14 +20,13 @@ void PLA::reset()
     // Default memory control register state on power on
     updateMemoryControlRegister(0x37);
 
-    // No pending MCR updates
-    updatePending = false;
-    pendingValue = 0x00;
-
     // No cartridge
     exROMLine = true;
     gameLine = true;
     cartridgeAttached = false;
+
+    // ML Monitor logging default off
+    setLogging = false;
 }
 
 void PLA::updateMemoryControlRegister(uint8_t value)

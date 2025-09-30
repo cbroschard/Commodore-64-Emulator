@@ -11,7 +11,8 @@ Memory::Memory() :
     cartridgeAttached(false),
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
-    port1OutputLatch(0x37)
+    port1OutputLatch(0x37),
+    setLogging(false)
 {
     mem.resize(MAX_MEMORY,0);
     basicROM.resize(BASIC_ROM_SIZE,0);
@@ -140,7 +141,7 @@ uint8_t Memory::read(uint16_t address)
         }
         case PLA::UNMAPPED:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Attempt to read from unmapped address: " + std::to_string(address));
             }
@@ -148,7 +149,7 @@ uint8_t Memory::read(uint16_t address)
         }
     }
     // Default for no match
-    if (logger)
+    if (logger && setLogging)
     {
         logger->WriteLog("Attempt to read from invalid address: " + std::to_string(address));
     }
@@ -237,7 +238,7 @@ uint8_t Memory::readIO(uint16_t address)
     }
     else
     {
-        if (logger)
+        if (logger && setLogging)
         {
             std::stringstream message;
             message << "Unknown I/O read at address: " << std::hex << address << std::endl;
@@ -311,7 +312,7 @@ void Memory::write(uint16_t address, uint8_t value)
         }
         case PLA::UNMAPPED:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Attempt to write to unmapped address: " + std::to_string(address));
             }
@@ -381,7 +382,7 @@ void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation locati
         }
         default:
         {
-            if (logger)
+            if (logger && setLogging)
             {
                 logger->WriteLog("Attempt to write to unknown cartridge vector");
             }
@@ -439,7 +440,7 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     }
     else
     {
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Unknown I/O write at address: " + std::to_string(address));
         }
@@ -451,7 +452,7 @@ bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetB
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file.is_open())
     {
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Unable to open " + romName + " ROM file: " + filename);
         }
@@ -461,7 +462,7 @@ bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetB
     std::streamsize fileSize = file.tellg();
     if (static_cast<size_t>(fileSize) != expectedSize)
     {
-        if (logger)
+        if (logger && setLogging)
         {
         logger->WriteLog("Error: " + romName + " ROM file is not correct size! Expected " +
                          std::to_string(expectedSize) + " bytes, got " + std::to_string(fileSize) + " bytes.");
@@ -472,7 +473,7 @@ bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetB
     file.seekg(0, std::ios::beg);
     if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), expectedSize))
     {
-        if (logger)
+        if (logger && setLogging)
         {
             logger->WriteLog("Error: Failed to read " + romName + " ROM file: " + filename);
         }

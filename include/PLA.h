@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
+#include "Logging.h"
 #include "Vic.h"
 
 class PLA
@@ -37,8 +38,9 @@ class PLA
             uint16_t offset;
         };
 
-        void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
+        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // Standard reset routine
         void reset();
@@ -70,6 +72,7 @@ class PLA
         // ML Monitor API
         std::string describeAddress(uint16_t addr);
         std::string describeMode();
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -77,6 +80,7 @@ class PLA
 
         // Non-owning pointers
         Cartridge* cart = nullptr;
+        Logging* logger = nullptr;
         Vic* vicII = nullptr;
 
         // ROM constants
@@ -95,10 +99,11 @@ class PLA
         // Keep track of a cartridge "inserted"
         bool cartridgeAttached;
 
-        // Memory control register vars
+        // Memory control register $0001
         uint8_t memoryControlRegister;
-        bool updatePending;
-        uint8_t pendingValue;
+
+        // ML Monitor logging
+        bool setLogging;
 
         const char* bankToString(PLA::memoryBank bank);
 };

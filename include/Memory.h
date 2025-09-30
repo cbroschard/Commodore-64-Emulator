@@ -78,6 +78,9 @@ class Memory
         inline uint8_t getCartLOByte(uint16_t offset) const { return (offset < cart_lo.size()) ? cart_lo[offset] : 0xFF; }
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
 
+        // ML Monitor logging
+        inline void setLog(bool enable) { setLogging = enable; }
+
     protected:
 
     private:
@@ -129,6 +132,9 @@ class Memory
 
         uint8_t dataDirectionRegister;
         uint8_t port1OutputLatch;
+
+        // ML Monitor logging
+        bool setLogging;
 
         uint8_t readIO(uint16_t address);
         void writeIO(uint16_t address, uint8_t value);
