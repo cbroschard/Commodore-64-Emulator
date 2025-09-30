@@ -421,6 +421,7 @@ void Vic::tick(int cycles)
         if (currentCycle == 12)
         {
             d016_per_raster[nextRaster] = registers.control2;
+            updateMonitorCaches(nextRaster);
         }
 
         if (currentCycle == cfg_->DMAStartCycle)
