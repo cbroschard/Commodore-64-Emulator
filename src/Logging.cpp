@@ -72,7 +72,7 @@ void Logging::flush()
 {
     for (const auto& entry : logBuffer)
     {
-        logfile << entry << std::endl;
+        logfile << entry << "\n";
     }
     logBuffer.clear();
 }

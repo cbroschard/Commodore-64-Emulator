@@ -105,10 +105,6 @@ void CPU::executeIRQ()
 {
     if (getFlag(I))
     {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Interrupts Disabled so not executing IRQ");
-        }
         return; // Skip if interrupts are disabled
     }
     push((PC >> 8) & 0xFF);     // High byte of PC
