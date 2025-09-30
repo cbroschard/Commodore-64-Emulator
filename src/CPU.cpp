@@ -107,6 +107,10 @@ void CPU::executeIRQ()
     {
         return; // Skip if interrupts are disabled
     }
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     push((PC >> 8) & 0xFF);     // High byte of PC
     push(PC & 0xFF);            // Low byte of PC
 
@@ -127,6 +131,9 @@ void CPU::executeIRQ()
 
 void CPU::executeNMI()
 {
+    // Dummy read for accuracy
+    mem->read(PC);
+
     //Save CPU state
     push((PC >> 8) & 0xFF); // high byte of PC
     push(PC & 0xFF); // low byte of PC
@@ -540,30 +547,58 @@ CPU::ReadByte CPU::readABSXAddressBoundary()
 {
     uint16_t baseAddress = fetch() | (fetch() << 8);
     uint16_t effectiveAddress = (baseAddress + X);
+
+    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    if (crossed)
+    {
+        // Perform dummy read from the incorrect page (base high + old low+X)
+        uint16_t dummy = (baseAddress & 0xFF00) | ((baseAddress + X) & 0x00FF);
+        mem->read(dummy);
+    }
+
+    // Perform the "real" read now
     uint8_t value = mem->read(effectiveAddress);
 
-    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
+    return { value, crossed };
 }
 
 CPU::ReadByte CPU::readABSYAddressBoundary()
 {
     uint16_t baseAddress = fetch() | (fetch() << 8);
     uint16_t effectiveAddress = (baseAddress + Y);
+
+    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    if (crossed)
+    {
+        // Perform dummy read from the incorrect page (base high + old low+Y)
+        uint16_t dummy = (baseAddress & 0xFF00) | ((baseAddress + Y) & 0x00FF);
+        mem->read(dummy);
+    }
+
+    // Perform "real" read now
     uint8_t value = mem->read(effectiveAddress);
 
-    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
+    return { value, crossed };
 }
 
 CPU::ReadByte CPU::readIndirectYAddressBoundary()
 {
     uint8_t zpAddress = fetch();
     uint8_t lowByte = mem->read(zpAddress);
-    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF); // Handle zero-page wrap
-    uint16_t baseAddress = (lowByte | (highByte << 8));
+    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF); // zero-page wrap
+    uint16_t baseAddress = lowByte | (highByte << 8);
     uint16_t effectiveAddress = baseAddress + Y;
-    uint8_t value = mem->read(effectiveAddress);
 
-    return { value, (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00) };
+    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    if (crossed)
+    {
+        // Dummy read from base address + low-page offset (wrong page)
+        uint16_t dummy = (baseAddress & 0xFF00) | (effectiveAddress & 0x00FF);
+        mem->read(dummy);
+    }
+
+    uint8_t value = mem->read(effectiveAddress & 0xFFFF);
+    return { value, crossed };
 }
 
 void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
@@ -926,6 +961,10 @@ void CPU::AXS()
 void CPU::BCC()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     if (!getFlag(C))  // Branch if Carry Clear
     {
         cycles++; // Extra cycle for a taken branch
@@ -941,6 +980,9 @@ void CPU::BCC()
 void CPU::BCS()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
 
     if (getFlag(C))  // Check if Carry flag is set
     {
@@ -963,6 +1005,10 @@ void CPU::BCS()
 void CPU::BEQ()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
     if (getFlag(Z))
     {
@@ -993,6 +1039,10 @@ void CPU::BIT(uint8_t opcode)
 void CPU::BMI()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     uint16_t newPC = (PC + offset) & 0xFFFF;
 
     if (getFlag(N))
@@ -1011,6 +1061,9 @@ void CPU::BNE()
 {
     // Fetch the signed 8-bit branch offset
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
 
     // Calculate the potential new program counter
     uint16_t newPC = (PC + offset) & 0xFFFF; // Ensure 16-bit wrapping
@@ -1034,6 +1087,9 @@ void CPU::BPL()
 {
     int8_t offset = static_cast<int8_t>(fetch());
 
+    // Dummy read for accuracy
+    mem->read(PC);
+
     if (!getFlag(N))  // Check if Negative flag is not set (i.e., positive)
     {
         uint16_t oldPC = PC;
@@ -1052,6 +1108,9 @@ void CPU::BPL()
 
 void CPU::BRK() {
     uint16_t newPC = PC + 1;  // Point to the instruction after BRK
+
+    // Dummy read for accuracy
+    mem->read(PC);
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
@@ -1078,6 +1137,10 @@ void CPU::BRK() {
 void CPU::BVC()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     uint16_t newPC = PC;
 
     if (!getFlag(V))  // Branch if Overflow is clear
@@ -1096,6 +1159,10 @@ void CPU::BVC()
 void CPU::BVS()
 {
     int8_t offset = static_cast<int8_t>(fetch());
+
+    // Dummy read for accuracy
+    mem->read(PC);
+
     uint16_t newPC = PC;
 
     if (getFlag(V))  // Branch if Overflow is set
@@ -1662,23 +1729,33 @@ void CPU::ORA(uint8_t opcode)
 
 void CPU::PHA()
 {
+    // Dummy read for accuracy
+    mem->read(PC);
+
     push(A);
 }
 
 void CPU::PHP()
 {
+    // Dummy read for accuracy
+    mem->read(PC);
+
     push(SR | 0x30);
 }
 
 void CPU::PLA()
 {
-  A = pop();
-  SetFlag(Z, A == 0);
-  SetFlag(N, A & 0x80);
+    mem->read(0x100 + ((SP + 1) & 0xFF)); // dummy stack read
+
+    A = pop();
+    SetFlag(Z, A == 0);
+    SetFlag(N, A & 0x80);
 }
 
 void CPU::PLP()
 {
+    mem->read(0x100 + ((SP + 1) & 0xFF)); // dummy stack read
+
     uint8_t status = pop();
     status |= 0x20;
     SR = status;
@@ -1831,6 +1908,9 @@ void CPU::RRA(uint8_t opcode)
 
 void CPU::RTI()
 {
+    // Dummy read
+    mem->read(PC);
+
     SR = pop();
     SR |= 0x20; // force bit 5 = 1
     uint8_t lo = pop(), hi = pop();
@@ -1839,13 +1919,15 @@ void CPU::RTI()
 
 void CPU::RTS()
 {
-        uint8_t lowByte = pop();  // Pop low byte first
-        uint8_t highByte = pop();  // Pop high byte second
+    // Dummy read
+    mem->read(PC);
 
-        // Set the PC to the return address
-        PC = (highByte << 8) | lowByte;
+    uint8_t lowByte = pop();  // Pop low byte first
+    uint8_t highByte = pop();  // Pop high byte second
 
-        PC = (PC + 1) & 0xFFFF;
+    // Set the PC to the return address
+    PC = (highByte << 8) | lowByte;
+    PC = (PC + 1) & 0xFFFF;
 }
 
 void CPU::SAX(uint8_t opcode)
