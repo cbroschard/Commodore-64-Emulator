@@ -71,7 +71,7 @@ class PLA
 
         // ML Monitor API
         std::string describeAddress(uint16_t addr);
-        std::string describeMode();
+        std::string describeMode() const;
         inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
@@ -105,7 +105,7 @@ class PLA
         // ML Monitor logging
         bool setLogging;
 
-        const char* bankToString(PLA::memoryBank bank);
+        const char* bankToString(PLA::memoryBank bank) const;
 };
 
 #endif // PLA_H

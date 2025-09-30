@@ -89,7 +89,8 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
     return info;
 }
 
-std::string PLA::describeAddress(uint16_t addr) {
+std::string PLA::describeAddress(uint16_t addr)
+{
     memoryAccessInfo info = getMemoryAccess(addr);
 
     std::ostringstream out;
@@ -99,7 +100,7 @@ std::string PLA::describeAddress(uint16_t addr) {
     return out.str();
 }
 
-std::string PLA::describeMode()
+std::string PLA::describeMode() const
 {
     std::ostringstream out;
     out << "PLA State:\n";
@@ -162,7 +163,7 @@ std::string PLA::describeMode()
     return out.str();
 }
 
-const char* PLA::bankToString(PLA::memoryBank bank)
+const char* PLA::bankToString(PLA::memoryBank bank) const
 {
     switch (bank)
     {
@@ -174,6 +175,6 @@ const char* PLA::bankToString(PLA::memoryBank bank)
         case PLA::CARTRIDGE_LO:  return "Cartridge LO";
         case PLA::CARTRIDGE_HI:  return "Cartridge HI";
         case PLA::UNMAPPED:      return "Unmapped";
-        default:                 return "Unknown";
+        default:                 return "Unmapped";
     }
 }
