@@ -1942,6 +1942,10 @@ void CPU::SAX(uint8_t opcode)
     }
 
     uint8_t result = A & X; // Compute A AND X
+
+    // Dummy read for cycle accuracy
+    mem->read(address);
+
     mem->write(address, result); // Store the result in memory
 }
 
@@ -1952,7 +1956,8 @@ void CPU::SBC(uint8_t opcode)
     uint16_t binaryResult = 0;
 
     // Determine addressing mode
-    switch (opcode) {
+    switch (opcode)
+    {
         case 0xE1: value = readIndirectX(); break;
         case 0xE5: value = readZP(); break;
         case 0xE9: value = readImmediate(); break;
@@ -2024,6 +2029,10 @@ void CPU::SHX()
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = X & highByte;
 
+    // Dummy read for cycle accuracy
+    mem->read(effectiveAddress);
+
+    // Write the value
     mem->write(effectiveAddress, value);
 }
 
@@ -2034,6 +2043,10 @@ void CPU::SHY()
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = Y & highByte;  // Logical AND of Y and high byte + 1
 
+    // Dummy read for cycle accuracy
+    mem->read(effectiveAddress);
+
+    // Write the value
     mem->write(effectiveAddress, value);
 }
 
@@ -2107,6 +2120,11 @@ void CPU::STA(uint8_t opcode)
         case 0x99: address = absYAddress(); break;
         case 0x9D: address = absXAddress(); break;
     }
+
+    // Dummy read (value ignored, bus cycle only)
+    mem->read(address);
+
+    // Write the value
     mem->write(address, A);
 }
 
@@ -2116,22 +2134,15 @@ void CPU::STX(uint8_t opcode)
 
     switch(opcode)
     {
-        case 0x86:
-        {
-            address = zpAddress();
-            break;
-        }
-        case 0x8E:
-        {
-            address = absAddress();
-            break;
-        }
-      case 0x96: // STX Zero Page,Y
-        {
-            address = zpYAddress();
-            break;
-        }
+        case 0x86: address = zpAddress(); break;
+        case 0x8E: address = absAddress(); break;
+        case 0x96: address = zpYAddress(); break;
     }
+
+    // Dummy read (value ignored, bus cycle only)
+    mem->read(address);
+
+    // Write the value
     mem->write(address, X);
 }
 
@@ -2141,19 +2152,15 @@ void CPU::STY(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0x84: // Zero Page
-            address = zpAddress();
-            break;
-
-        case 0x8C: // Absolute
-            address = absAddress();
-            break;
-
-        case 0x94: // Zero Page,X
-            address = zpXAddress();
-            break;
+        case 0x84: address = zpAddress(); break;
+        case 0x8C: address = absAddress(); break;
+        case 0x94: address = zpXAddress(); break;
     }
 
+    // Dummy read (value ignored, bus cycle only)
+    mem->read(address);
+
+    // Write the value
     mem->write(address, Y);
 }
 
@@ -2168,6 +2175,11 @@ void CPU::TAS()
     SP = value;
 
     uint8_t memValue = SP & highByte;
+
+    // Dummy read for cycle accuracy
+    mem->read(effectiveAddress);
+
+    // Write the value
     mem->write(effectiveAddress, memValue);
 }
 
