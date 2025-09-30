@@ -131,6 +131,9 @@ class Computer
         void setJamMode(const std::string& mode);
         std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
 
+        // ML Monitor Logging enable/disable
+        void setLogging(LogSet log, bool enabled);
+
         // ML Monitor Memory methods
         inline Memory* getMem() { return mem.get(); }
         inline uint8_t readRAM(uint16_t address) { return mem->read(address); }

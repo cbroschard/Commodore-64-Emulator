@@ -52,39 +52,46 @@ Computer::Computer()
     mem->attachCassetteInstance(cass.get());
     mem->attachPLAInstance(pla.get());
     mem->attachMonitorInstance(monitor.get());;
-    //mem->attachLogInstance(logger.get());
+    mem->attachLogInstance(logger.get());
 
     processor->attachMemoryInstance(mem.get());
     processor->attachCIA2Instance(cia2object.get());
     processor->attachVICInstance(vicII.get());
     processor->attachIRQLineInstance(IRQ.get());
-    //processor->attachLogInstance(logger.get());
+    processor->attachLogInstance(logger.get());
 
     cia1object->attachKeyboardInstance(keyb.get());
     cia1object->attachIRQLineInstance(IRQ.get());
     cia1object->attachCassetteInstance(cass.get());
     cia1object->attachMemoryInstance(mem.get());
-    //cia1object->attachLogInstance(logger.get());
+    cia1object->attachLogInstance(logger.get());
 
     cia2object->attachProcessorInstance(processor.get());
     cia2object->attachIECBusInstance(bus.get());
+    cia2object->attachLogInstance(logger.get());
 
     vicII->attachIOInstance(IO_adapter.get());
     vicII->attachCPUInstance(processor.get());
     vicII->attachMemoryInstance(mem.get());
     vicII->attachCIA2Instance(cia2object.get());
     vicII->attachIRQLineInstance(IRQ.get());
-    //vicII->attachLogInstance(logger.get());
+    vicII->attachLogInstance(logger.get());
 
     IO_adapter->attachVICInstance(vicII.get());
     IO_adapter->attachSIDInstance(sidchip.get());
+    IO_adapter->attachLogInstance(logger.get());
 
     pla->attachCartridgeInstance(cart.get());
     pla->attachVICInstance(vicII.get());
+    pla->attachLogInstance(logger.get());
 
     cart->attachMemoryInstance(mem.get());
+    cart->attachLogInstance(logger.get());
 
     cass->attachMemoryInstance(mem.get());
+    cass->attachLogInstance(logger.get());
+
+    keyb->attachLogInstance(logger.get());
 
     bus->attachCIA2Instance(cia2object.get());
 }
@@ -734,5 +741,35 @@ void Computer::setJamMode(const std::string& mode)
             processor->setJamMode(CPU::JamMode::NopCompat);
         }
     }
+}
 
+void Computer::setLogging(LogSet log, bool enabled)
+{
+    switch (log)
+    {
+        case LogSet::Cartridge: if (cart) cart->setLog(enabled); break;
+        case LogSet::Cassette: if (cass) cass->setLog(enabled); break;
+        case LogSet::CIA1: if (cia1object) cia1object->setLog(enabled); break;
+        case LogSet::CIA2: if (cia2object) cia2object->setLog(enabled); break;
+        case LogSet::CPU: if (processor) processor->setLog(enabled); break;
+        case LogSet::IO: if (IO_adapter) IO_adapter->setLog(enabled); break;
+        case LogSet::Joystick:
+        {
+            if (joy1)
+            {
+                joy1->attachLogInstance(logger.get());
+                joy1->setLog(enabled);
+            }
+
+            if (joy2)
+            {
+                joy2->attachLogInstance(logger.get());
+                joy2->setLog(enabled);
+            }
+        }
+        case LogSet::Keyboard: if (keyb) keyb->setLog(enabled); break;
+        case LogSet::Memory: if (mem) mem->setLog(enabled); break;
+        case LogSet::PLA: if (pla) pla->setLog(enabled); break;
+        case LogSet::VIC: if (vicII) vicII->setLog(enabled); break;
+    }
 }
