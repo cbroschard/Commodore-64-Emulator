@@ -100,7 +100,7 @@ std::string PLA::describeAddress(uint16_t addr)
     return out.str();
 }
 
-std::string PLA::describeMode() const
+std::string PLA::describeMode()
 {
     std::ostringstream out;
     out << "PLA State:\n";
@@ -163,7 +163,7 @@ std::string PLA::describeMode() const
     return out.str();
 }
 
-const char* PLA::bankToString(PLA::memoryBank bank) const
+const char* PLA::bankToString(PLA::memoryBank bank)
 {
     switch (bank)
     {
