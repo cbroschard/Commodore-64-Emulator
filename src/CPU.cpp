@@ -373,7 +373,7 @@ void CPU::initializeOpcodeTable()
     opcodeTable[0xCF] = [this]() { DCP(0xCF); };
     opcodeTable[0xD0] = [this]() { BNE(); };
     opcodeTable[0xD1] = [this]() { CMP(0xD1); };
-    opcodeTable[0xD2] = [this]() { JAM(); };
+    opcodeTable[0xD2] = [this]() { DCP(0xD2); };
     opcodeTable[0xD3] = [this]() { DCP(0xD3); };
     opcodeTable[0xD4] = [this]() { NOP(0xD4); };
     opcodeTable[0xD5] = [this]() { CMP(0xD5); };
@@ -1268,6 +1268,14 @@ void CPU::DCP(uint8_t opcode)
         case 0xC3: address = indirectXAddress(); break;
         case 0xC7: address = zpAddress(); break;
         case 0xCF: address = absAddress(); break;
+        case 0xD2:
+        {
+            uint8_t zp = fetch();
+            uint8_t lo = mem->read(zp);
+            uint8_t hi = mem->read((zp + 1) & 0xFF);
+            address = ((lo) | (hi << 8));
+            break;
+        }
         case 0xD3: address = indirectYAddress(); break;
         case 0xD7: address = zpXAddress(); break;
         case 0xDB: address = absYAddress(); break;
@@ -2171,23 +2179,22 @@ void CPU::STY(uint8_t opcode)
     mem->write(address, Y);
 }
 
-
 void CPU::TAS()
 {
-    uint16_t baseAddress = absAddress();
-    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
-    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
+    uint16_t base = absAddress();               // fetch operand
+    uint16_t effectiveAddress = (base + Y) & 0xFFFF;         // add index
+    uint8_t high = base >> 8;
 
-    uint8_t value = A & X;
-    SP = value;
+    // Update SP
+    //SP = A & X;
 
-    uint8_t memValue = SP & highByte;
+    // Value written = (A & X) & (high + 1)
+    uint8_t value = (A & X) & (high + 1);
 
     // Dummy read for cycle accuracy
     mem->read(effectiveAddress);
 
-    // Write the value
-    mem->write(effectiveAddress, memValue);
+    mem->write(effectiveAddress, value);
 }
 
 void CPU::TAX()
