@@ -110,7 +110,7 @@ class CPU
         };
 
         // Flag operatons
-        inline uint8_t getFlag(flags flag) { return (SR & flag) ? 1 : 0; }
+        inline bool getFlag(flags flag) { return (SR & flag) != 0; }
         void SetFlag(flags flag, bool sc);
 
         // Access for IRQ handling

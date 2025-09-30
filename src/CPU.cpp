@@ -833,36 +833,39 @@ void CPU::AND(uint8_t opcode)
     SetFlag(N, A & 0x80);
 }
 
-void CPU::ARR() {
+void CPU::ARR()
+{
     uint8_t imm = readImmediate();
 
-    // AND, then ROR through carry
+    // AND then ROR
     A &= imm;
-    const bool c_in = getFlag(C);
+    bool c_in = getFlag(C);
     uint8_t ror = (A >> 1) | (c_in ? 0x80 : 0);
 
     if (!getFlag(D))
     {
-        // Binary mode (well-defined)
+        // Binary mode
         A = ror;
         SetFlag(C, (A >> 6) & 1);
         SetFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1));
     }
     else
     {
+        // Decimal mode (unofficial / unstable)
         uint8_t r = ror;
+        uint8_t lo = r & 0x0F;
+        uint8_t hi = r & 0xF0;
 
-        // Low-nibble adjust if it would exceed 9 when including the carry-in bit (now in bit0 after ROR)
-        if (((r & 0x0F) + (r & 0x01)) > 5)
-            r = (r & 0xF0) | ((uint8_t)(r + 0x06) & 0x0F);
-
-        // High-nibble adjust / carry out
-        bool carry = (r > 0x9F);
-        if (carry) r += 0x60;
+        bool carry = false;
+        if (lo > 0x09) r += 0x06;
+        if (hi > 0x90 || r > 0x99)
+        {
+            r += 0x60;
+            carry = true;
+        }
 
         SetFlag(C, carry);
         SetFlag(V, ((ror >> 6) & 1) ^ ((ror >> 5) & 1));
-
         A = r;
     }
 
@@ -1111,7 +1114,6 @@ void CPU::BVS()
 void CPU::CMP(uint8_t opcode)
 {
     uint8_t value = 0;
-    uint8_t result = 0;
 
     switch(opcode)
     {
@@ -1142,8 +1144,8 @@ void CPU::CMP(uint8_t opcode)
             break;
         }
     }
-    result = A - value;
 
+    uint8_t result = A - value;
     SetFlag(Z, result == 0);
     SetFlag(N, result & 0x80);
     SetFlag(C, A >= value);
@@ -1159,8 +1161,10 @@ void CPU::CPX(uint8_t opcode)
         case 0xE4: value = readZP(); break;
         case 0xEC: value = readABS(); break;
     }
-    SetFlag(Z, (X - value) == 0);
-    SetFlag(N, (X - value) & 0x80);
+
+    uint8_t result = X - value;
+    SetFlag(Z, result == 0);
+    SetFlag(N, result & 0x80);
     SetFlag(C, X >= value);
 }
 
@@ -1174,8 +1178,10 @@ void CPU::CPY(uint8_t opcode)
         case 0xC4: value = readZP(); break;
         case 0xCC: value = readABS(); break;
     }
-    SetFlag(Z, (Y - value) == 0);
-    SetFlag(N, (Y - value) & 0x80);
+
+    uint8_t result = Y - value;
+    SetFlag(Z, result == 0);
+    SetFlag(N, result & 0x80);
     SetFlag(C, Y >= value);
 }
 
