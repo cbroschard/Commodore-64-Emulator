@@ -971,6 +971,7 @@ void CPU::BCC()
         uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
             cycles++; // Extra cycle if page boundary is crossed
         }
         PC = newPC;  // Update program counter
@@ -984,21 +985,20 @@ void CPU::BCS()
     // Dummy read for accuracy
     mem->read(PC);
 
-    if (getFlag(C))  // Check if Carry flag is set
+    if (getFlag(C))  // Branch if Carry Set
     {
-        uint16_t oldPC = PC;
+        cycles++; // Extra cycle for a taken branch
 
-        // Update PC by adding the signed offset
-        PC = (PC + offset) & 0xFFFF;
-
-         // Extra cycle if branch is taken
-        cycles++;
+        uint16_t newPC = (PC + offset) & 0xFFFF;
 
         // Extra cycle if page boundary is crossed
-        if ((oldPC & 0xFF00) != (PC & 0xFF00))
+        if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
             cycles++;
         }
+
+        PC = newPC;
     }
 }
 
@@ -1009,12 +1009,15 @@ void CPU::BEQ()
     // Dummy read for accuracy
     mem->read(PC);
 
-    uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
     if (getFlag(Z))
     {
         cycles++;
+
+        uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
+
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
             cycles ++;
         }
         PC = newPC;
@@ -1050,11 +1053,11 @@ void CPU::BMI()
         cycles++;
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
             cycles ++;
         }
         PC = newPC;
     }
-
 }
 
 void CPU::BNE()
@@ -1065,17 +1068,17 @@ void CPU::BNE()
     // Dummy read for accuracy
     mem->read(PC);
 
-    // Calculate the potential new program counter
-    uint16_t newPC = (PC + offset) & 0xFFFF; // Ensure 16-bit wrapping
-
     if (!getFlag(Z)) // Branch if Zero flag is NOT set
     {
         cycles++; // Add cycle for taking the branch
 
+        uint16_t newPC = (PC + offset) & 0xFFFF; // Ensure 16-bit wrapping
+
         // Check if the branch crosses a page boundary
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
-            cycles ++; // Add cycle if page boundary crossed
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
+            cycles++; // Add cycle if page boundary crossed
         }
 
         // Update the program counter to the new address
@@ -1101,6 +1104,7 @@ void CPU::BPL()
         // Check if crossing a page boundary
         if ((oldPC & 0xFF00) != (PC & 0xFF00))
         {
+            mem->read((oldPC & 0xFF00) | (PC & 0x00FF));
             cycles++;  // Extra cycle for page boundary crossing
         }
     }
@@ -1133,7 +1137,6 @@ void CPU::BRK() {
     // Set the PC to the interrupt vector
     PC = interruptVector;
 }
-
 void CPU::BVC()
 {
     int8_t offset = static_cast<int8_t>(fetch());
@@ -1141,18 +1144,20 @@ void CPU::BVC()
     // Dummy read for accuracy
     mem->read(PC);
 
-    uint16_t newPC = PC;
-
-    if (!getFlag(V))  // Branch if Overflow is clear
+    if (!getFlag(V)) // Branch if Overflow Clear
     {
-        PC = (PC + offset) & 0XFFFF;
-        cycles ++;
+        cycles++; // Extra cycle for taking the branch
 
-        // Check if crossing a page boundary
+        uint16_t newPC = (PC + offset) & 0xFFFF;
+
+        // Extra cycle if page boundary is crossed
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
-            cycles++;  // Extra cycle for page boundary crossing
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
+            cycles++;
         }
+
+        PC = newPC;
     }
 }
 
@@ -1163,18 +1168,20 @@ void CPU::BVS()
     // Dummy read for accuracy
     mem->read(PC);
 
-    uint16_t newPC = PC;
-
-    if (getFlag(V))  // Branch if Overflow is set
+    if (getFlag(V)) // Branch if Overflow Set
     {
-        PC = (PC + offset) & 0xFFFF;
-        cycles ++;
+        cycles++; // Extra cycle for taking the branch
 
-        // Check if crossing a page boundary
+        uint16_t newPC = (PC + offset) & 0xFFFF;
+
+        // Extra cycle if page boundary is crossed
         if ((PC & 0xFF00) != (newPC & 0xFF00))
         {
-            cycles++;  // Extra cycle for page boundary crossing
+            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
+            cycles++;
         }
+
+        PC = newPC;
     }
 }
 
