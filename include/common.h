@@ -28,6 +28,9 @@ static const uint16_t VARTAB = 0x002D;
 static const uint16_t ARYTAB = 0x002F;
 static const uint16_t STREND = 0x0031;
 
+// Logging
+enum class LogSet { Cartridge, Cassette, CIA1, CIA2, CPU, IO, Joystick, Keyboard, Memory, PLA, VIC };
+
 // Convert ASCII text to PETSCII
 inline uint8_t asciiToPetscii(char c)
 {
