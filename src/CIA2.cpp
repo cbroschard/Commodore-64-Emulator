@@ -208,7 +208,7 @@ uint8_t CIA2::readRegister(uint16_t address)
             return serialDataRegister;
         case 0xDD0D: // Interrupt control register
             {
-                uint8_t result = interruptStatus;
+                uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
                 if (interruptStatus & interruptEnable & 0x1F) result |= 0x80;
 
                 // Clear the acknowledged sources (bits 0-4 that were set)
