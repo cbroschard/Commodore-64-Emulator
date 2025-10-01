@@ -189,15 +189,8 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
     std::vector<tapePulse> pulses;
     size_t pos = sizeof(header);
 
-    // Determine native tape mode
-    VideoMode tapeMode = determineMode(header);
-
-    // PAL↔NTSC scaling if modes mismatch
-    double scalingFactor = 1.0;
-    if (tapeMode != mode) {
-        scalingFactor = (mode == VideoMode::NTSC) ? (NTSC_CLOCK / PAL_CLOCK)
-                                                  : (PAL_CLOCK / NTSC_CLOCK);
-    }
+    const bool tapeIsNTSC = tapeIsNTSCFromHeader();
+    const bool emuIsNTSC  = (mode == VideoMode::NTSC);
 
     while (pos < tapeData.size())
     {
@@ -245,7 +238,11 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
 
         if (duration > 0)
         {
-            uint32_t scaled = static_cast<uint32_t>(duration * scalingFactor);
+            // duration is already in "tape cycles" here (v0/v1: raw*8 PAL cycles; v2: cycles for declared std)
+            uint64_t scaled64 = determineScaleCycles(static_cast<uint64_t>(duration), tapeIsNTSC, emuIsNTSC);
+            if (scaled64 == 0) scaled64 = 1; // clamp non-zero pulses to at least 1 cycle
+
+            uint32_t scaled = static_cast<uint32_t>(scaled64);
 
             // Consider gaps only if extremely long
             bool isGap = (scaled > 1000000);
@@ -275,18 +272,16 @@ uint32_t TAP::debugNextPulse(size_t lookahead) const
     return 0;
 }
 
-VideoMode TAP::determineMode(const tapeHeader& header)
+uint64_t TAP::determineScaleCycles(uint64_t tapeCycles, bool tapeIsNTSC, bool emuIsNTSC)
 {
-    if (header.tapeVersion >= 2)
-    {
-        return header.videoStandard ? VideoMode::NTSC : VideoMode::PAL;
-    }
-    else
-    {
-        // 1.x versions = PAL
-        return VideoMode::PAL;
-    }
+    const uint64_t F_tap = tapeIsNTSC ? NTSC_CLOCK : PAL_CLOCK;
+    const uint64_t F_emu = emuIsNTSC ? NTSC_CLOCK : PAL_CLOCK;
+    // round to nearest: (tape * F_emu + F_tap/2) / F_tap
+    return (tapeCycles * F_emu + (F_tap/2)) / F_tap;
+}
 
-    // Default to PAL for safety
-    return VideoMode::PAL;
+bool TAP::tapeIsNTSCFromHeader() const
+{
+    if (header.tapeVersion >= 2)   return header.videoStandard == 1; // NTSC for v2 only
+    return false; // v0/v1 are defined vs PAL
 }

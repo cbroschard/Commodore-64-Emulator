@@ -74,6 +74,7 @@ class TAP : public TapeImage
 
         // Helpers to determine proper video mode and scaling
         uint64_t determineScaleCycles(uint64_t tapeCycles, bool tapeIsNTSC, bool emuIsNTSC);
+        bool tapeIsNTSCFromHeader() const;
 };
 
 #endif // TAP_H
