@@ -538,8 +538,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
             const bool level = cass->getData(); // true = high (idle), false = low (pulse)
             cassetteReadLineLevel = level;
 
-            if (level != prevReadLevel)
-            //if (prevReadLevel && !level)
+            if (prevReadLevel && !level)
             {
                 triggerInterrupt(INTERRUPT_FLAG_LINE);
             }
