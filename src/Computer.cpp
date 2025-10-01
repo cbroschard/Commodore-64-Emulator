@@ -389,7 +389,7 @@ bool Computer::boot()
     }
     else if (tapeAttached)
     {
-        if (!cass->loadCassette(tapePath, videoMode_))
+        if (!cass->loadCassette(tapePath))
         {
             std::cout << "Unable to load tape: " << tapePath << std::endl;
         }

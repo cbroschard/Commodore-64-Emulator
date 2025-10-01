@@ -22,7 +22,7 @@ void TAP::attachLoggingInstance(Logging* logger)
     this->logger = logger;
 }
 
-bool TAP::loadTape(const std::string& filePath, VideoMode mode)
+bool TAP::loadTape(const std::string& filePath)
 {
     if (!loadFile(filePath, tapeData))
     {
@@ -41,6 +41,10 @@ bool TAP::loadTape(const std::string& filePath, VideoMode mode)
     {
         return false;
     }
+
+    // check version and set video mode here , not using system setting
+    VideoMode mode = determineMode(header);
+
     pulses = parsePulses(mode);
     if (pulses.empty())
     {
@@ -272,4 +276,20 @@ uint32_t TAP::debugNextPulse(size_t lookahead) const
     size_t idx = pulseIndex + lookahead;
     if (idx < pulses.size()) return pulses[idx].duration;
     return 0;
+}
+
+VideoMode TAP::determineMode(const tapeHeader& header)
+{
+    if (header.tapeVersion >= 2)
+    {
+        return header.videoStandard ? VideoMode::NTSC : VideoMode::PAL;
+    }
+    else
+    {
+        // 1.x versions = PAL
+        return VideoMode::PAL;
+    }
+
+    // Default to PAL for safety
+    return VideoMode::PAL;
 }

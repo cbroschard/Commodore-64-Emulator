@@ -26,10 +26,10 @@ void Cassette::startMotor()
     motorStatus = true;
 }
 
-bool Cassette::loadCassette(const std::string& path, VideoMode mode)
+bool Cassette::loadCassette(const std::string& path)
 {
     tapeImage = createTapeImage(path);
-    if (!tapeImage || !tapeImage->loadTape(path, mode))
+    if (!tapeImage || !tapeImage->loadTape(path))
     {
         std::cerr << "Error: Unable to load tape!" << std::endl;
         return false;
