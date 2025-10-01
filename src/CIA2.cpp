@@ -209,17 +209,10 @@ uint8_t CIA2::readRegister(uint16_t address)
         case 0xDD0D: // Interrupt control register
             {
                 uint8_t result = interruptStatus;
-                if (interruptStatus & interruptEnable & 0x1F)
-                {
-                    result |= 0x80;
-                }
-                else
-                {
-                    result &= 0x7F;
-                }
+                if (interruptStatus & interruptEnable & 0x1F) result |= 0x80;
 
-                 // Clear latched sources now that we've read them
-                interruptStatus &= ~0x1F;
+                // Clear the acknowledged sources (bits 0-4 that were set)
+                interruptStatus &= ~ (result & 0x1F);
 
                 if (result & INTERRUPT_TOD_ALARM)
                 {
