@@ -43,6 +43,10 @@ class TAP : public TapeImage
         static constexpr double PAL_CLOCK = 985248.0;
         static constexpr double NTSC_CLOCK = 1022727.0;
 
+        // Track edges
+        uint8_t blipWidth;
+        uint8_t blipCountdown;
+
         #pragma pack(push,1)
         struct tapeHeader
         {

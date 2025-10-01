@@ -8,6 +8,8 @@
 #include "Tape/TAP.h"
 
 TAP::TAP() :
+    blipWidth(1),
+    blipCountdown(0),
     pulseIndex(0),
     pulseRemaining(0),
     currentLevel(true)
@@ -55,6 +57,9 @@ bool TAP::loadTape(const std::string& filePath, VideoMode mode)
 
 void TAP::rewind()
 {
+    // Reset blip countdown
+    blipCountdown = 0;
+
     // Start in idle high (Datasette read line idles high)
     currentLevel = true;
 
@@ -86,6 +91,14 @@ void TAP::simulateLoading()
         return;
     }
 
+    // Consume the *current* phase
+    if (blipCountdown > 0)
+    {
+        blipCountdown--;
+        if (blipCountdown == 0) currentLevel = true;  // return to idle high after the blip ends
+        return;
+    }
+
     // Consume one cycle
     if (pulseRemaining > 0)
     {
@@ -103,6 +116,7 @@ void TAP::simulateLoading()
     }
     else
     {
+        blipCountdown = blipWidth;
         // Normal pulse = toggle
         currentLevel = !currentLevel;
     }
