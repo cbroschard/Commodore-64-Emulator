@@ -514,5 +514,5 @@ void Memory::applyPort1SideEffects(uint8_t effective)
     if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
 
     // Update PLA MCR with the effective bits (0..2 matter)
-    pla->updateMemoryControlRegister(effective);
+    pla->updateMemoryControlRegister(effective & 0x07);
 }
