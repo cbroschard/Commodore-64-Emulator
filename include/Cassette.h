@@ -50,7 +50,7 @@ class Cassette
         // Cassette handling
         inline bool isCassetteLoaded() const { return cassetteLoaded; }
         inline bool isPlayPressed() const { return playPressed; }
-        bool loadCassette(const std::string& path);
+        bool loadCassette(const std::string& path, VideoMode mode);
         void unloadCassette();
 
         bool isT64() const;
