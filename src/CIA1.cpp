@@ -178,7 +178,6 @@ uint8_t CIA1::readRegister(uint16_t address)
                 uint8_t combinedRowState = 0xFF;
                 for (uint8_t i = 0; i < 8; i++)
                 {
-                    //if ((portA & (1 << i)) == 0)
                     if ((pa & (1 << i)) == 0 && keyb)
                     {
                         combinedRowState &= keyb->readRow(i);
@@ -190,7 +189,7 @@ uint8_t CIA1::readRegister(uint16_t address)
             // Add Joystick 1 state if attached
             if (joy1)
             {
-                rowState &= joy1->getState();
+                rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0x0E);
             }
 
             // Combine PortB and row state
@@ -800,9 +799,9 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
 
 void CIA1::setCNTLine(bool level)
 {
-    const bool falling = (lastCNT && !level);
+    const bool rising = (!lastCNT && level);
     lastCNT = cntLevel = level;
-    if (!falling) return;
+    if (!rising) return;
 
     // TA counts on CNT when CRA bit5=1 and START=1
     if ((timerAControl & 0x20) && (timerAControl & 0x01))
