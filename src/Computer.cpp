@@ -452,6 +452,7 @@ bool Computer::boot()
                 try
                 {
                     // Process interrupts before new instruction is called
+                    processor->handleNMI();
                     processor->handleIRQ();
 
                     // Check for breakpoint

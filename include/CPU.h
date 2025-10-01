@@ -114,7 +114,8 @@ class CPU
         void SetFlag(flags flag, bool sc);
 
         // Access for IRQ handling
-        void executeNMI();
+        inline void requestNMI() { nmiPending = true; }
+        void handleNMI();
         void handleIRQ();
 
         // RTS helper for the quick load for T64 images
@@ -151,6 +152,9 @@ class CPU
         CIA2* cia2object = nullptr;
         Vic* vicII = nullptr;
         IRQLine* IRQ = nullptr;
+
+        // NMI scheduling
+        bool nmiPending;
 
         // Jam handling
         JamMode jamMode;
@@ -191,6 +195,7 @@ class CPU
         // IRQ handling
         uint8_t activeSource;
         void executeIRQ();
+        void executeNMI();
 
         // OpCode Table to point to all functions
         std::array<std::function<void()>, 256> opcodeTable;

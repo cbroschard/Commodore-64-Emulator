@@ -568,7 +568,7 @@ void CIA2::triggerNMI()
     if (!nmiAsserted && processor)
     {
         nmiAsserted = true;
-        processor->executeNMI(); // Handle NMI
+        processor->requestNMI(); // Handle NMI
     }
 }
 

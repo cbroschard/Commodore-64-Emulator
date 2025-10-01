@@ -9,6 +9,7 @@
 
 CPU::CPU() :
     // Initialize
+    nmiPending(false),
     jamMode(JamMode::NopCompat),
     halted(false),
     elapsedCycles(0),
@@ -46,6 +47,7 @@ void CPU::reset()
     cycles = 0;
     baHold = false;
     setLogging = false;
+    nmiPending = false;
 }
 
 void CPU::setMode(VideoMode mode)
@@ -81,6 +83,15 @@ void CPU::step()
     }
     cycles--;   // decrement once for this step
     totalCycles++;
+}
+
+void CPU::handleNMI()
+{
+    if (nmiPending)
+    {
+        nmiPending = false;
+        executeNMI();
+    }
 }
 
 void CPU::handleIRQ()
