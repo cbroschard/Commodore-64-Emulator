@@ -259,10 +259,7 @@ uint8_t CIA1::readRegister(uint16_t address)
             uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
 
             // If any enabled source is active, set bit 7 in the *returned value*
-            if (result & interruptEnable)
-            {
-                result |= 0x80;
-            }
+            if (result & interruptEnable) result |= 0x80;
 
             // Clear the acknowledged sources (bits 0-4 that were set)
             interruptStatus &= ~ (result & 0x1F);
