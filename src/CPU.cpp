@@ -10,6 +10,7 @@
 CPU::CPU() :
     // Initialize
     nmiPending(false),
+    irqSupressOne(false),
     jamMode(JamMode::NopCompat),
     halted(false),
     elapsedCycles(0),
@@ -48,6 +49,7 @@ void CPU::reset()
     baHold = false;
     setLogging = false;
     nmiPending = false;
+    irqSupressOne = false;
 }
 
 void CPU::setMode(VideoMode mode)
@@ -114,10 +116,8 @@ void CPU::handleIRQ()
 
 void CPU::executeIRQ()
 {
-    if (getFlag(I))
-    {
-        return; // Skip if interrupts are disabled
-    }
+    if (getFlag(I)) return; // Skip if interrupts are disabled
+    if (irqSupressOne) { irqSupressOne = false; return; }
 
     // Dummy read for accuracy
     mem->read(PC);

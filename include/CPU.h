@@ -156,6 +156,9 @@ class CPU
         // NMI scheduling
         bool nmiPending;
 
+        // IRQ delay
+        bool irqSupressOne;
+
         // Jam handling
         JamMode jamMode;
         bool halted;
@@ -274,7 +277,7 @@ class CPU
         //Flag Instructions
         inline void CLC() { SR &= ~C; }
         inline void CLD() { SR &= ~D; }
-        inline void CLI() { SR &= ~I; }
+        inline void CLI() { SR &= ~I; irqSupressOne = true; }
         inline void CLV() { SR &= ~V; }
         inline void SEC() { SetFlag(C,true); }
         inline void SEI() { SetFlag(I,true); }
