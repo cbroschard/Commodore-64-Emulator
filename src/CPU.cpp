@@ -1126,11 +1126,7 @@ void CPU::BRK() {
 
     // Set the break flag (B flag) in the processor status
     SetFlag(B, 1);
-
-    uint8_t status = SR;
-    status |= 0x10; // set B flag
-    status |= 0x20; // bit 5 always set
-    push(status);
+    push(SR | 0x20);
 
     // Set the interrupt disable flag (I flag) in the processor status
     SetFlag(I, 1);  // Set the interrupt disable flag
