@@ -510,12 +510,6 @@ uint16_t CPU::absYAddress()
     return effectiveAddress;
 }
 
-uint16_t CPU::immediateAddress()
-{
-    uint16_t address = fetch();
-    return address;
-}
-
 uint16_t CPU::indirectXAddress()
 {
     uint8_t zpAddress = (fetch() + X) & 0xFF;

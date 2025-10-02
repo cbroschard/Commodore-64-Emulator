@@ -218,7 +218,6 @@ class CPU
         uint16_t absAddress();
         uint16_t absXAddress();
         uint16_t absYAddress();
-        uint16_t immediateAddress();
         uint16_t indirectXAddress();
         uint16_t indirectYAddress();
         uint16_t zpAddress();
