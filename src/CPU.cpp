@@ -1115,7 +1115,8 @@ void CPU::BPL()
     }
 }
 
-void CPU::BRK() {
+void CPU::BRK()
+{
     uint16_t newPC = PC + 1;  // Point to the instruction after BRK
 
     // Dummy read for accuracy
@@ -1123,14 +1124,12 @@ void CPU::BRK() {
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
-
-    // Set the break flag (B flag) in the processor status
     SetFlag(B, 1);
     push(SR | 0x20);
 
     // Set the interrupt disable flag (I flag) in the processor status
-    SetFlag(I, 1);  // Set the interrupt disable flag
-    SetFlag(B, 0); // Clear the B flag
+    SetFlag(I, 1);
+    SetFlag(B, 0);
 
     // Load the new Program Counter (PC) from the interrupt vector (0xFFFE and 0xFFFF)
     uint16_t interruptVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
@@ -1138,6 +1137,7 @@ void CPU::BRK() {
     // Set the PC to the interrupt vector
     PC = interruptVector;
 }
+
 void CPU::BVC()
 {
     int8_t offset = static_cast<int8_t>(fetch());
