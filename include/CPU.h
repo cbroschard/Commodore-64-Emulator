@@ -241,13 +241,16 @@ class CPU
         inline void addPageCrossIf(bool crossed) { if (crossed) cycles++; }
         ReadByte readABSXAddressBoundary();
         ReadByte readABSYAddressBoundary();
-        ReadByte readIndirectYAddressBoundary();;
+        ReadByte readIndirectYAddressBoundary();
+
+        // Dummy read helpers
+        void dummyReadWrongPageABSX(uint16_t address);
+        void dummyReadWrongPageABSY(uint16_t address);
+        void dummyReadWrongPageINDY(uint16_t address);
 
         //Stack functions
         void push(uint8_t value);
         uint8_t pop();
-
-        //OPCODES
 
         //Bitwise operators
         void AND(uint8_t opcode);

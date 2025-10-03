@@ -606,6 +606,36 @@ CPU::ReadByte CPU::readIndirectYAddressBoundary()
     return { value, crossed };
 }
 
+void CPU::dummyReadWrongPageABSX(uint16_t address)
+{
+    uint16_t base = (address - X) & 0xFFFF;
+    if ((base ^ address) & 0xFF00)
+    {
+        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+        mem->read(dummy);
+    }
+}
+
+void CPU::dummyReadWrongPageABSY(uint16_t address)
+{
+    uint16_t base = (address - Y) & 0xFFFF;
+    if ((base ^ address) & 0xFF00)
+    {
+        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+        mem->read(dummy);
+    }
+}
+
+void CPU::dummyReadWrongPageINDY(uint16_t address)
+{
+    uint16_t base = (address - Y) & 0xFFFF;
+    if ((base ^ address) & 0xFF00)
+    {
+        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+        mem->read(dummy);
+    }
+}
+
 void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
     // Perform "dummy write" first
@@ -935,7 +965,7 @@ void CPU::ASL(uint8_t opcode)
         case 0x06: address = zpAddress(); break;
         case 0x0E: address = absAddress(); break;
         case 0x16: address = zpXAddress(); break;
-        case 0x1E: address = absXAddress(); break;
+        case 0x1E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1269,10 +1299,10 @@ void CPU::DCP(uint8_t opcode)
         case 0xC3: address = indirectXAddress(); break;
         case 0xC7: address = zpAddress(); break;
         case 0xCF: address = absAddress(); break;
-        case 0xD3: address = indirectYAddress(); break;
+        case 0xD3: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
         case 0xD7: address = zpXAddress(); break;
-        case 0xDB: address = absYAddress(); break;
-        case 0xDF: address = absXAddress(); break;
+        case 0xDB: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0xDF: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     // Decrement memory value
@@ -1297,7 +1327,7 @@ void CPU::DEC(uint8_t opcode)
         case 0xC6: address = zpAddress(); break;
         case 0xCE: address = absAddress(); break;
         case 0xD6: address = zpXAddress(); break;
-        case 0xDE: address = absXAddress(); break;
+        case 0xDE: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1368,7 +1398,7 @@ void CPU::INC(uint8_t opcode)
         case 0xE6: address = zpAddress(); break;
         case 0xEE: address = absAddress(); break;
         case 0xF6: address = zpXAddress(); break;
-        case 0xFE: address = absXAddress(); break;
+        case 0xFE: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1401,10 +1431,10 @@ void CPU::ISC(uint8_t opcode)
         case 0xE3: address = indirectXAddress(); break;
         case 0xE7: address = zpAddress(); break;
         case 0xEF: address = absAddress(); break;
-        case 0xF3: address = indirectYAddress(); break;
+        case 0xF3: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
         case 0xF7: address = zpXAddress(); break;
-        case 0xFB: address = absYAddress(); break;
-        case 0xFF: address = absXAddress(); break;
+        case 0xFB: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0xFF: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1649,7 +1679,7 @@ void CPU::LSR(uint8_t opcode)
         case 0x46: address = zpAddress(); break;
         case 0x4E: address = absAddress(); break;
         case 0x56: address = zpXAddress(); break;
-        case 0x5E: address = absXAddress(); break;
+        case 0x5E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1774,14 +1804,15 @@ void CPU::RLA(uint8_t opcode)
     uint16_t address = 0;
 
     // Determine addressing mode
-    switch (opcode) {
+    switch (opcode)
+    {
         case 0x23: address = indirectXAddress(); break;
         case 0x27: address = zpAddress(); break;
         case 0x2F: address = absAddress(); break;
-        case 0x33: address = indirectYAddress(); break;
+        case 0x33: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
         case 0x37: address = zpXAddress(); break;
-        case 0x3B: address = absYAddress(); break;
-        case 0x3F: address = absXAddress(); break;
+        case 0x3B: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0x3F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
     // Perform Rotate Left (ROL) on memory value
     uint8_t oldValue = mem->read(address);
@@ -1824,7 +1855,7 @@ void CPU::ROL(uint8_t opcode)
         case 0x26: address = zpAddress();  break;
         case 0x2E: address = absAddress(); break;
         case 0x36: address = zpXAddress(); break;
-        case 0x3E: address = absXAddress(); break;
+        case 0x3E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     uint8_t oldValue = mem->read(address);
@@ -1862,7 +1893,7 @@ void CPU::ROR(uint8_t opcode)
         case 0x66: address = zpAddress(); break;
         case 0x6E: address = absAddress(); break;
         case 0x76: address = zpXAddress(); break;
-        case 0x7E: address = absXAddress(); break;
+        case 0x7E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     bool oldCarry = getFlag(C);
@@ -1882,14 +1913,15 @@ void CPU::RRA(uint8_t opcode)
     uint16_t address = 0;
 
     // Determine addressing mode
-    switch (opcode) {
+    switch (opcode)
+    {
         case 0x63: address = indirectXAddress(); break;
         case 0x67: address = zpAddress(); break;
         case 0x6F: address = absAddress(); break;
-        case 0x73: address = indirectYAddress(); break;
+        case 0x73: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
         case 0x77: address = zpXAddress(); break;
-        case 0x7B: address = absYAddress(); break;
-        case 0x7F: address = absXAddress(); break;
+        case 0x7B: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0x7F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
     // Perform Rotate Right (ROR) on memory value
     uint8_t oldValue = mem->read(address);
@@ -2065,13 +2097,13 @@ void CPU::SLO(uint8_t opcode)
     // Select addressing mode
     switch (opcode)
     {
-        case 0x03: address = indirectXAddress(); break;  // (Indirect,X)
-        case 0x07: address = zpAddress();        break;  // Zero Page
-        case 0x0F: address = absAddress();       break;  // Absolute
-        case 0x13: address = indirectYAddress(); break;  // (Indirect),Y
-        case 0x17: address = zpXAddress();       break;  // Zero Page,X
-        case 0x1B: address = absYAddress();      break;  // Absolute,Y
-        case 0x1F: address = absXAddress();      break;  // Absolute,X
+        case 0x03: address = indirectXAddress(); break;
+        case 0x07: address = zpAddress(); break;
+        case 0x0F: address = absAddress(); break;
+        case 0x13: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
+        case 0x17: address = zpXAddress(); break;
+        case 0x1B: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0x1F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     // Read, shift left, and write back
@@ -2093,13 +2125,13 @@ void CPU::SRE(uint8_t opcode)
     // Select addressing mode
     switch (opcode)
     {
-        case 0x43: address = indirectXAddress(); break;  // (Indirect,X)
-        case 0x47: address = zpAddress();        break;  // Zero Page
-        case 0x4F: address = absAddress();       break;  // Absolute
-        case 0x53: address = indirectYAddress(); break;  // (Indirect),Y
-        case 0x57: address = zpXAddress();       break;  // Zero Page,X
-        case 0x5B: address = absYAddress();      break;  // Absolute,Y
-        case 0x5F: address = absXAddress();      break;  // Absolute,X
+        case 0x43: address = indirectXAddress(); break;
+        case 0x47: address = zpAddress(); break;
+        case 0x4F: address = absAddress(); break;
+        case 0x53: address = indirectYAddress(); dummyReadWrongPageINDY(address); break;
+        case 0x57: address = zpXAddress(); break;
+        case 0x5B: address = absYAddress(); dummyReadWrongPageABSY(address); break;
+        case 0x5F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
     // Perform LSR on memory value
