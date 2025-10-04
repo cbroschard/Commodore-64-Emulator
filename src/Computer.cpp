@@ -701,7 +701,7 @@ void Computer::vicFFRaster(uint8_t targetRaster)
     while(vicII->getCurrentRaster() != targetRaster)
     {
         vicII->tick(1);
-        processor->step();
+        processor->tick();
         cia1object->updateTimers(1);
         cia2object->updateTimers(1);
         sidchip->tick(1);

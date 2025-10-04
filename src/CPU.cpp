@@ -834,7 +834,10 @@ void CPU::AHX(uint8_t opcode)
             uint8_t hi = mem->read((uint8_t)(zp + 1));
             base = (uint16_t)lo | ((uint16_t)hi << 8);
             address = (base + Y) & 0xFFFF;
-            value &= (( (base >> 8) + 1 ) & 0xFF);
+            if ((base & 0xFF00) != (address & 0xFF00))
+                mem->read((base & 0xFF00) | (address & 0x00FF));
+            else
+                mem->read(address);
             break;
         }
         case 0x9F: // Absolute, Y
@@ -843,10 +846,15 @@ void CPU::AHX(uint8_t opcode)
             uint8_t hi = fetch();
             base = (uint16_t)lo | ((uint16_t)hi << 8);
             address = (base + Y) & 0xFFFF;
-            value &= (( (base >> 8) + 1 ) & 0xFF);
+            if ((base & 0xFF00) != (address & 0xFF00))
+                mem->read((base & 0xFF00) | (address & 0x00FF));
+            else
+                mem->read(address);
             break;
         }
     }
+
+    value &= (( (base >> 8) + 1) & 0xFF);
 
     mem->write(address, value); // Store result at the effective address
 }
@@ -2060,8 +2068,10 @@ void CPU::SHX()
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = X & highByte;
 
-    // Dummy read for cycle accuracy
-    mem->read(effectiveAddress);
+    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
+        mem->read((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
+    else
+        mem->read(effectiveAddress);
 
     // Write the value
     mem->write(effectiveAddress, value);
@@ -2074,8 +2084,10 @@ void CPU::SHY()
     uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
     uint8_t value = Y & highByte;  // Logical AND of Y and high byte + 1
 
-    // Dummy read for cycle accuracy
-    mem->read(effectiveAddress);
+    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
+        mem->read((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
+    else
+        mem->read(effectiveAddress);
 
     // Write the value
     mem->write(effectiveAddress, value);
