@@ -124,7 +124,7 @@ class Computer
         // ML Monitor CPU methods
         inline uint16_t getPC() { return processor->getPC(); }
         inline void setPC(uint16_t address) { processor->setPC(address); }
-        inline void cpuStep() { return processor->step(); }
+        inline void cpuStep() { return processor->tick(); }
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
                  processor->getY(), processor->getSP(), processor->getSR()}; }

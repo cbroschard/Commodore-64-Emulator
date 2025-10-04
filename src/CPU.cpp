@@ -83,18 +83,6 @@ void CPU::setJamMode(JamMode mode)
     jamMode = mode;
 }
 
-void CPU::step()
-{
-    if (cycles <= 0)
-    {
-        uint8_t opcode = fetch();   // <-- advances PC
-        decodeAndExecute(opcode);
-        cycles += CYCLE_COUNTS[opcode]; // set up instruction cycles
-    }
-    cycles--;   // decrement once for this step
-    totalCycles++;
-}
-
 void CPU::handleNMI()
 {
     if (nmiPending)

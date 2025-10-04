@@ -126,7 +126,6 @@ class CPU
 
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }
-        void step();
 
         // Registers access
         inline uint16_t getPC() const { return PC; }
