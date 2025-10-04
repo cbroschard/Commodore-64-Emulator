@@ -55,6 +55,9 @@ void CPU::reset()
     setLogging = false;
     nmiPending = false;
     irqSupressOne = false;
+
+    // if mode_ wasn’t set yet, assume NTSC
+    if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
 }
 
 void CPU::setMode(VideoMode mode)
