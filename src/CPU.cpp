@@ -1815,7 +1815,9 @@ void CPU::PLP()
 
     uint8_t status = pop();
     status |= 0x20;
+    bool willEnableIRQ = ((status & I) == 0);
     SR = status;
+    if (willEnableIRQ) irqSupressOne = true;
 }
 
 void CPU::RLA(uint8_t opcode)
@@ -1972,8 +1974,10 @@ void CPU::RTI()
 
     SR = pop();
     SR |= 0x20; // force bit 5 = 1
+    bool willEnableIRQ = ((SR & I) == 0);
     uint8_t lo = pop(), hi = pop();
     PC = (hi << 8) | lo;
+    if (willEnableIRQ) irqSupressOne = true;
 }
 
 void CPU::RTS()
