@@ -238,6 +238,9 @@ class Vic
 
         void updateIRQLine();
 
+        // Helper to keep monitor output consistent with IRQ status
+        uint8_t d019Read() const;
+
         // Sprite collision functions
         void detectSpriteToSpriteCollision(int raster);
         void detectSpriteToBackgroundCollision(int raster);

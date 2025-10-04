@@ -170,10 +170,8 @@ uint8_t Vic::readRegister(uint16_t address)
         }
         case 0xD019:
         {
-            const uint8_t srcs = registers.interruptStatus & 0x0F;
-            const uint8_t enabled = registers.interruptEnable & 0x0F;
-            const uint8_t any = (srcs & enabled) ? 0x80 : 0x00;  // mirror IRQ
-            return uint8_t(srcs | any | 0x70);  // bits 4-6 read as 1
+            // Execute the function to keep monitor in sync with status
+            return d019Read();
         }
         case 0xD01A:
         {
@@ -415,7 +413,6 @@ void Vic::tick(int cycles)
         if (currentCycle == 12)
         {
             d016_per_raster[nextRaster] = registers.control2;
-            updateMonitorCaches(nextRaster);
         }
 
         if (currentCycle == cfg_->DMAStartCycle)
@@ -1291,6 +1288,15 @@ void Vic::markBGOpaque(int screenY, int px)
     }
 }
 
+
+uint8_t Vic::d019Read() const
+{
+    const uint8_t srcs = registers.interruptStatus & 0x0F;
+    const uint8_t enabled = registers.interruptEnable & 0x0F;
+    const uint8_t any = (srcs & enabled) ? 0x80 : 0x00;  // mirror IRQ
+    return uint8_t(srcs | any | 0x70);  // bits 4-6 read as 1
+}
+
 std::string Vic::decodeModeName() const
 {
     bool ecm = d011_per_raster[registers.raster] & 0x40;
@@ -1378,17 +1384,20 @@ std::string Vic::dumpRegisters(const std::string& group) const
     // Interrupts
     if (group == "all" || group == "irq")
     {
+        const uint8_t d019Status = d019Read();
+        const uint8_t pending   = registers.interruptStatus & 0x0F;
+        const uint8_t enabled   = registers.interruptEnable & 0x0F;
+        const bool irqLine      = (pending & enabled) != 0;
+
         out << "\nInterrupt Registers:\n\n";
 
-        out << "D019 = $" << std::setw(2) << static_cast<int>(registers.interruptStatus) << "   (RASTER IRQ: Raster = "
-            << ((registers.interruptStatus & 0x01) ? "Yes" : "No") << ", SprSpr = " << ((registers.interruptStatus & 0x02) ? "Yes" : "No")
-            << ", SprBg = " << ((registers.interruptStatus & 0x04) ? "Yes" : "No") << ", LightPen = " << ((registers.interruptStatus & 0x08) ? "Yes" : "No")
-            << ", IRQ Occured = " << ((registers.interruptStatus & 0x80) ? "Yes" : "No") << ")\n";
+        out << "D019 = $" << std::setw(2) << int(d019Status) << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
+        << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N") << ", SprBg="  << ((pending & 0x04) ? "Y" : "N") << ", LightPen="
+        << ((pending & 0x08) ? "Y" : "N") << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
 
-        out << "D01A = $" << std::setw(2) << static_cast<int>(registers.interruptEnable) << "   (IRQ Enable: Raster = "
-            << ((registers.interruptEnable & 0x01) ? "Yes" : "No") << ", SprSpr = " << ((registers.interruptEnable & 0x02) ? "Yes" : "No")
-            << ", SprBg = " << ((registers.interruptEnable & 0x04) ? "Yes" : "No") << ", LightPen = " << ((registers.interruptEnable & 0x08) ? "Yes" : "No")
-            << ")\n";
+        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable) << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
+        << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N") << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N") << ", LightPen="
+        << ((enabled & 0x08) ? "Y" : "N") << ")\n";
     }
 
     // Sprite control
