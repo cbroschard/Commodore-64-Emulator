@@ -285,6 +285,7 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::IO:
         {
             writeIO(accessInfo.offset, value);
+            mem[address] = value; // Update underlying RAM
             break;
         }
         case PLA::KERNAL_ROM:

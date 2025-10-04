@@ -1992,74 +1992,53 @@ void CPU::SAX(uint8_t opcode)
 void CPU::SBC(uint8_t opcode)
 {
     uint8_t value = 0;
-    uint8_t oldA = A; // Save the original accumulator for later use (overflow flag)
-    uint16_t binaryResult = 0;
 
-    // Determine addressing mode
+    // --- your addressing code unchanged ---
     switch (opcode)
     {
         case 0xE1: value = readIndirectX(); break;
-        case 0xE5: value = readZP(); break;
+        case 0xE5: value = readZP();        break;
         case 0xE9: value = readImmediate(); break;
-        case 0xED: value = readABS(); break;
-        case 0xF1:
-        {
-            auto ret = readIndirectYAddressBoundary();
-            addPageCrossIf(ret.crossed);
-            value = ret.value;
-            break;
-        }
-        case 0xF5: value = readZPX(); break;
-        case 0xF9:
-        {
-            auto ret = readABSYAddressBoundary();
-            addPageCrossIf(ret.crossed);
-            value = ret.value;
-            break;
-        }
-        case 0xFD:
-        {
-            auto ret = readABSXAddressBoundary();
-            addPageCrossIf(ret.crossed);
-            value = ret.value;
-            break;
-        }
-    }
-    binaryResult = uint16_t(A) - uint16_t(value) - (1 - getFlag(C));
-    if (getFlag(D))
-    {
-         // BCD (Decimal) mode subtraction.
-        // First work on the lower nibble.
-        int al = (A & 0x0F) - (value & 0x0F) - (1 - getFlag(C));
-        int ah = (A >> 4) - (value >> 4);
-        // If the lower nibble underflows, add 10 (0xA) and borrow from the high nibble.
-        if (al < 0) {
-            al += 10;
-            ah--;
-        }
-        // If the high nibble underflows, adjust it and clear the carry flag (borrow occurred).
-        if (ah < 0) {
-            ah += 10;
-            SetFlag(C, 0);
-        } else {
-            SetFlag(C, 1);
-        }
-        // Recombine the adjusted nibbles.
-        A = ((ah << 4) & 0xF0) | (al & 0x0F);
-    }
-    else
-    {
-        // Binary mode subtraction.
-        A = binaryResult & 0xFF;
-        // In SBC, the carry flag is set if no borrow occurred.
-        SetFlag(C, binaryResult < 0x100);
+        case 0xED: value = readABS();       break;
+        case 0xF1: { auto r = readIndirectYAddressBoundary(); addPageCrossIf(r.crossed); value = r.value; break; }
+        case 0xF5: value = readZPX();       break;
+        case 0xF9: { auto r = readABSYAddressBoundary();       addPageCrossIf(r.crossed); value = r.value; break; }
+        case 0xFD: { auto r = readABSXAddressBoundary();       addPageCrossIf(r.crossed); value = r.value; break; }
     }
 
-    // Update Zero and Negative flags.
+    const uint8_t a0  = A;
+    const uint8_t cIn = getFlag(C) ? 1 : 0;
+
+    // 1) Binary subtraction first (always)
+    uint16_t diff   = uint16_t(a0) - uint16_t(value) - (1 - cIn);
+    uint8_t  resBin = uint8_t(diff);
+
+    // 2) Overflow from the binary operation (works in both modes)
+    SetFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
+
+    if (getFlag(D)) {
+        // NMOS 6502/6510 decimal-mode correction for SBC
+        uint16_t adj = diff;
+
+        // Low nibble borrow? (do the nibble subtraction and see if it went negative)
+        int lo = (a0 & 0x0F) - (value & 0x0F) - (1 - cIn);
+        if (lo < 0) adj -= 0x06;     // subtract 6 if low digit borrowed
+
+        // High nibble borrow? (i.e., result > 0x99 in BCD sense)
+        if (adj > 0x99) adj -= 0x60; // subtract 0x60 if high digit borrowed
+
+        A = uint8_t(adj);
+    } else {
+        // Pure binary
+        A = resBin;
+    }
+
+    // 3) Carry = "no borrow" from the binary subtract
+    SetFlag(C, diff < 0x100);
+
+    // 4) Z/N from the final (possibly BCD-adjusted) result
     SetFlag(Z, A == 0);
     SetFlag(N, A & 0x80);
-
-    SetFlag(V, ((oldA ^ A) & (oldA ^ value) & 0x80) != 0);
 }
 
 void CPU::SHX()
