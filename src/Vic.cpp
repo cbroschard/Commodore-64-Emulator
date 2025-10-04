@@ -11,8 +11,6 @@
 Vic::Vic(VideoMode mode) :
     mode_(mode),
     cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG),
-    charPtrFIFO(40),
-    colorPtrFIFO(40),
     rowCounter(0)
 {
     d011_per_raster.resize(cfg_->maxRasterLines);
