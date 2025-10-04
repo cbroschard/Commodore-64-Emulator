@@ -81,7 +81,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::CARTRIDGE_HI, 0xA000},
             {0xC000, 0xCFFF, PLA::RAM, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::RAM, 0}
         }
     },
@@ -129,7 +129,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::RAM, 0},
             {0xC000, 0xCFFF, PLA::RAM, 0},
-            {0xD000, 0xDFFF, PLA::CHARACTER_ROM, 0xD000},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::RAM, 0}
        }
     },
@@ -177,7 +177,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::RAM, 0},
             {0xC000, 0xCFFF, PLA::RAM, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::RAM, 0}
        }
     },
@@ -213,7 +213,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::UNMAPPED, 0},
             {0xC000, 0xCFFF, PLA::UNMAPPED, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::CARTRIDGE_HI, 0xE000}
        }
     },
@@ -225,7 +225,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::UNMAPPED, 0},
             {0xC000, 0xCFFF, PLA::UNMAPPED, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::CARTRIDGE_HI, 0xE000}
        }
     },
@@ -261,7 +261,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::UNMAPPED, 0},
             {0xC000, 0xCFFF, PLA::UNMAPPED, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::CARTRIDGE_HI, 0xE000}
        }
     },
@@ -273,7 +273,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::UNMAPPED, 0},
             {0xC000, 0xCFFF, PLA::UNMAPPED, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::CARTRIDGE_HI, 0xE000}
        }
     },
@@ -321,7 +321,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::RAM, 0},
             {0xA000, 0xBFFF, PLA::RAM, 0},
             {0xC000, 0xCFFF, PLA::RAM, 0},
-            {0xD000, 0xDFFF, PLA::CHARACTER_ROM, 0xD000},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::RAM, 0}
        }
     },
@@ -369,7 +369,7 @@ static const PLAMapper::modeMapping mappings[32] =
             {0x8000, 0x9FFF, PLA::RAM, 0},
             {0xA000, 0xBFFF, PLA::RAM, 0},
             {0xC000, 0xCFFF, PLA::RAM, 0},
-            {0xD000, 0xDFFF, PLA::IO, 0},
+            {0xD000, 0xDFFF, PLA::RAM, 0},
             {0xE000, 0xFFFF, PLA::RAM, 0}
        }
     },
