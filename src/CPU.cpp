@@ -2144,7 +2144,7 @@ void CPU::STA(uint8_t opcode)
     switch (opcode)
     {
         case 0x85: address = zpAddress(); break;
-        case 0x95: address = zpXAddress(); break;
+        case 0x95: address = zpXAddress(); mem->read(address); break;
         case 0x8D: address = absAddress(); break;
 
         case 0x9D: // Absolute,X
@@ -2173,7 +2173,6 @@ void CPU::STA(uint8_t opcode)
 
         case 0x81: // (Indirect,X)
             address = indirectXAddress();
-            mem->read(address);
             break;
 
         case 0x91: // (Indirect),Y
@@ -2202,11 +2201,8 @@ void CPU::STX(uint8_t opcode)
     {
         case 0x86: address = zpAddress(); break;
         case 0x8E: address = absAddress(); break;
-        case 0x96: address = zpYAddress(); break;
+        case 0x96: address = zpYAddress(); mem->read(address); break;
     }
-
-    // Dummy read (value ignored, bus cycle only)
-    mem->read(address);
 
     // Write the value
     mem->write(address, X);
@@ -2220,11 +2216,8 @@ void CPU::STY(uint8_t opcode)
     {
         case 0x84: address = zpAddress(); break;
         case 0x8C: address = absAddress(); break;
-        case 0x94: address = zpXAddress(); break;
+        case 0x94: address = zpXAddress(); mem->read(address); break;
     }
-
-    // Dummy read (value ignored, bus cycle only)
-    mem->read(address);
 
     // Write the value
     mem->write(address, Y);
