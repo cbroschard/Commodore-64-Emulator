@@ -1701,21 +1701,29 @@ void CPU::NOP(uint8_t opcode)
         case 0x1A: case 0x3A: case 0x5A: case 0x7A:
         case 0xDA: case 0xFA:
             // 1 byte, implied
+            mem->read(PC);
             break;
 
         case 0x04: case 0x44: case 0x64: // Zero-page
-            fetch();
+        {
+            uint8_t zp = fetch();
+            mem->read(zp);
             break;
-
+        }
         case 0x14: case 0x34: case 0x54: case 0x74:
         case 0xD4: case 0xF4: // Zero-page,X
-            fetch();
+        {
+            uint8_t zp = fetch();
+            mem->read(uint8_t(zp + X));
             break;
-
+        }
         case 0x0C: // Absolute
-            fetch(); fetch();
+        {
+            uint16_t lo = fetch(); uint16_t hi = fetch();
+            uint16_t addr = uint16_t(lo | (hi << 8));
+            mem->read(addr);
             break;
-
+        }
         case 0x1C: case 0x3C: case 0x5C: case 0x7C:
         case 0xDC: case 0xFC: // Absolute,X
         {
@@ -1724,6 +1732,9 @@ void CPU::NOP(uint8_t opcode)
             (void)ret.value; // value is discarded, this is a “read”
             break;
         }
+        case 0x80: case 0x82: case 0x89: case 0xC2: case 0xE2:
+            fetch();
+            break;
     }
 }
 
