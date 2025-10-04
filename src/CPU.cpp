@@ -1999,6 +1999,7 @@ void CPU::SBC(uint8_t opcode)
         case 0xE1: value = readIndirectX(); break;
         case 0xE5: value = readZP();        break;
         case 0xE9: value = readImmediate(); break;
+        case 0xEB: value = readImmediate(); break;
         case 0xED: value = readABS();       break;
         case 0xF1: { auto r = readIndirectYAddressBoundary(); addPageCrossIf(r.crossed); value = r.value; break; }
         case 0xF5: value = readZPX();       break;
