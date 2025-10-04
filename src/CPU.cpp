@@ -13,6 +13,8 @@ CPU::CPU() :
     irqSupressOne(false),
     jamMode(JamMode::NopCompat),
     halted(false),
+    cycles(0),
+    totalCycles(0),
     elapsedCycles(0),
     lastCycleCount(0),
     A(0),
@@ -46,6 +48,9 @@ void CPU::reset()
     SP = 0xFD;
     SR = 0x24;
     cycles = 0;
+    totalCycles = 0;
+    elapsedCycles = 0;
+    lastCycleCount = 0;
     baHold = false;
     setLogging = false;
     nmiPending = false;
