@@ -280,18 +280,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
             registers.control = value & 0x7F;
-
-            // Check for Raster IRQ
-            checkRasterIRQ();
             break;
         }
         case 0xD012:
         {
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
-
-            // Check for Raster IRQ
-            checkRasterIRQ();
             break;
         }
         case 0xD013:
@@ -937,15 +931,6 @@ void Vic::renderECMLine(int raster, int xScroll)
 
             if (pixelOn) markBGOpaque(fbY(raster), pxRaw);
         }
-    }
-}
-
-void Vic::checkRasterIRQ()
-{
-    if (registers.raster == registers.rasterInterruptLine)
-    {
-        registers.interruptStatus |= 0x01;
-        updateIRQLine();
     }
 }
 
