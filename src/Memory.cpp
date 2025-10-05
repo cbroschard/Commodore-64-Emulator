@@ -75,12 +75,12 @@ uint8_t Memory::read(uint16_t address)
             // Special handling for CPU vectors if KERNAL is hidden
             if (address == 0xFFFE || address == 0xFFFF)
             {
-            uint8_t lo = mem[0xFFFE], hi = mem[0xFFFF];
-            if (lo == 0x00 && hi == 0x00)
-            {
-                return RET((address == 0xFFFE) ? mem[0x0314] : mem[0x0315]); // fallback
-            }
-            return RET((address == 0xFFFE) ? lo : hi); // real RAM vector
+                uint8_t lo = mem[0xFFFE], hi = mem[0xFFFF];
+                if (lo == 0x00 && hi == 0x00)
+                {
+                    return RET((address == 0xFFFE) ? mem[0x0314] : mem[0x0315]); // fallback
+                }
+                return RET((address == 0xFFFE) ? lo : hi); // real RAM vector
             }
 
             if (address == 0xFFFA || address == 0xFFFB)
