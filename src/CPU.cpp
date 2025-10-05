@@ -653,13 +653,15 @@ void CPU::tick()
     // First check if we need to hold as BA is high
     if (baHold)
     {
+        totalCycles++;
         return;
     }
 
     if (cycles <= 0)
     {
-        handleNMI();
-        if (cycles <= 0) handleIRQ();
+        // service pending NMI/IRQ first
+        if (nmiPending) executeNMI();
+        else handleIRQ(); // will early-out if I=1 or suppressed
         if (cycles <= 0)
         {
             uint8_t opcode = fetch();
