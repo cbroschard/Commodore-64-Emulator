@@ -58,7 +58,8 @@ uint8_t Memory::read(uint16_t address)
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
-        return RET(colorRAM[address - COLOR_MEMORY_START] & 0x0F);
+        const uint8_t nib = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
+        return RET(uint8_t(0xF0 | nib));  // high nibble = 1111 on real C64
     }
     else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
     {
