@@ -56,16 +56,6 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
                         ((hiram      ? 1 : 0) << 1) |
                         (loram      ? 1 : 0);
 
-    // Special case: distinguish Ultimax vs 16K
-    if (!exROMLine && !gameLine)
-    {
-        if (cartridgeAttached && cart->getWiringMode() == Cartridge::WiringMode::CART_ULTIMAX)
-        {
-            // Force to Ultimax range (16–23)
-            modeIndex |= 0x10; // ensure bit4 = 1
-        }
-    }
-
     // Retrieve the appropriate mapping configuration.
     const PLAMapper::modeMapping* mappingTable = PLAMapper::getMappings();
     const PLAMapper::modeMapping& currentMode = mappingTable[modeIndex];
