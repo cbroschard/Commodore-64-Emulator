@@ -203,7 +203,6 @@ class CPU
         // OpCode Table to point to all functions
         std::array<std::function<void()>, 256> opcodeTable;
         void initializeOpcodeTable();
-        uint8_t opcode;
 
         bool baHold;
 

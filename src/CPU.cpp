@@ -658,22 +658,24 @@ void CPU::tick()
 
     if (cycles <= 0)
     {
-        uint8_t opcode = fetch();
-
-        // Log it
-        if (logger && setLogging)
+        handleNMI();
+        if (cycles <= 0) handleIRQ();
+        if (cycles <= 0)
         {
-            std::stringstream message;
-            message << "PC = " << std::hex << static_cast<int>(PC - 1) << ", OPCODE = " << std::hex << static_cast<int>(opcode) << ", A = " << std::hex
-            << static_cast<int>(A) << ", X = " << std::hex << static_cast<int>(X) << ", Y= " << std::hex << static_cast<int>(Y)
-            << ", SP = " << std::hex << static_cast<int>(SP);
-            logger->WriteLog(message.str());
+            uint8_t opcode = fetch();
+            // Log it
+            if (logger && setLogging)
+            {
+                std::stringstream message;
+                message << "PC = " << std::hex << static_cast<int>(PC - 1) << ", OPCODE = " << std::hex << static_cast<int>(opcode) << ", A = " << std::hex
+                << static_cast<int>(A) << ", X = " << std::hex << static_cast<int>(X) << ", Y= " << std::hex << static_cast<int>(Y)
+                << ", SP = " << std::hex << static_cast<int>(SP);
+                logger->WriteLog(message.str());
+            }
+            decodeAndExecute(opcode);
+            // Update the cycles based on the table
+            cycles += CYCLE_COUNTS[opcode];  // Set cycle count for the opcode
         }
-
-        decodeAndExecute(opcode);
-
-        // Update the cycles based on the table
-        cycles += CYCLE_COUNTS[opcode];  // Set cycle count for the opcode
     }
     cycles--;
     totalCycles++;

@@ -451,10 +451,6 @@ bool Computer::boot()
                 // CPU executes an instruction when AEC is high
                 try
                 {
-                    // Process interrupts before new instruction is called
-                    processor->handleNMI();
-                    processor->handleIRQ();
-
                     // Check for breakpoint
                     uint16_t pc = processor->getPC();
                     if (monitor && monitor->hasBreakpoint(pc))
