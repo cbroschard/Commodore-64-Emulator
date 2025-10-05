@@ -58,8 +58,7 @@ uint8_t Memory::read(uint16_t address)
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
-        uint8_t lo = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
-        return RET( (lastBus & 0xF0) | lo );   // <- open-bus high nibble
+        return RET(colorRAM[address - COLOR_MEMORY_START] & 0x0F);
     }
     else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
     {
@@ -157,7 +156,7 @@ uint8_t Memory::read(uint16_t address)
     {
         logger->WriteLog("Attempt to read from invalid address: " + std::to_string(address));
     }
-    return RET(lastBus); // invalid address
+    return RET(0xFF); // invalid address
 }
 
 uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
