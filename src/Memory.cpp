@@ -12,7 +12,7 @@ Memory::Memory() :
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
     port1OutputLatch(0x37),
-    lastBus(0x00),
+    lastBus(0xFF),
     setLogging(false)
 {
     mem.resize(MAX_MEMORY,0);
@@ -32,7 +32,8 @@ uint8_t Memory::read(uint16_t address)
     auto RET = [&](uint8_t v)->uint8_t
     {
         lastBus = v; // Update Open Bus value
-        if (monitor && monitor->checkWatchRead(address, v)) {
+        if (monitor && monitor->checkWatchRead(address, v))
+        {
             monitor->enter();
         }
         return v;
@@ -237,6 +238,7 @@ uint8_t Memory::readIO(uint16_t address)
         {
             return cart->read(address);
         }
+        return lastBus;
     }
     else
     {
@@ -247,7 +249,7 @@ uint8_t Memory::readIO(uint16_t address)
             logger->WriteLog(message.str());
         }
     }
-    return 0xFF;
+    return lastBus;
 }
 
 void Memory::write(uint16_t address, uint8_t value)
