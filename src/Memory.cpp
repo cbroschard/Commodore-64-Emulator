@@ -12,6 +12,7 @@ Memory::Memory() :
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
     port1OutputLatch(0x37),
+    lastBus(0x00),
     setLogging(false)
 {
     mem.resize(MAX_MEMORY,0);
@@ -30,6 +31,7 @@ uint8_t Memory::read(uint16_t address)
     // Wrap every return so read-watches can trigger exactly once per CPU read.
     auto RET = [&](uint8_t v)->uint8_t
     {
+        lastBus = v; // Update Open Bus value
         if (monitor && monitor->checkWatchRead(address, v)) {
             monitor->enter();
         }
@@ -145,7 +147,7 @@ uint8_t Memory::read(uint16_t address)
             {
                 logger->WriteLog("Attempt to read from unmapped address: " + std::to_string(address));
             }
-            return RET(0xFF);
+            return RET(lastBus); // Open Bus
         }
     }
     // Default for no match
@@ -251,6 +253,9 @@ uint8_t Memory::readIO(uint16_t address)
 void Memory::write(uint16_t address, uint8_t value)
 {
     if (!pla) throw std::runtime_error("Error: Missing PLA object!");
+
+    // Update last bus
+    lastBus = value;
 
     if (address == 0x0000)
     {

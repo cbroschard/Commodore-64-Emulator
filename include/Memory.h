@@ -127,11 +127,16 @@ class Memory
         static const uint16_t IO_CIA2_START = 0xDD00;
         static const uint16_t IO_CIA2_END = 0xDDFF;
 
+        // Cartridge
         bool cartridgeAttached;
         bool cassetteSenseLow;
 
+        // MCR
         uint8_t dataDirectionRegister;
         uint8_t port1OutputLatch;
+
+        // Open bus
+        uint8_t lastBus;
 
         // ML Monitor logging
         bool setLogging;
