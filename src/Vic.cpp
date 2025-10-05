@@ -1212,8 +1212,8 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t addr = getCHARBase(raster) + c * 8;
-    uint8_t row = mem->vicRead(addr + yInChar, raster);
+    uint16_t address = getCHARBase(raster) + c * 8;
+    uint8_t row = mem->vicRead(address + yInChar, raster);
 
     for (int col = 0; col < 8; ++col)
     {
@@ -1232,8 +1232,8 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
 
 void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t addr = getCHARBase(raster) + c * 8;
-    uint8_t  row  = mem->vicRead(addr + yInChar, raster);
+    uint16_t address = getCHARBase(raster) + c * 8;
+    uint8_t  row  = mem->vicRead(address + yInChar, raster);
 
     uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
     uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
@@ -1285,7 +1285,6 @@ void Vic::markBGOpaque(int screenY, int px)
         bgOpaque[screenY][px] = 1;
     }
 }
-
 
 uint8_t Vic::d019Read() const
 {
