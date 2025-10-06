@@ -166,7 +166,7 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
     vicAddress &= 0x3FFF;
 
     // Check if bank 0 or 2 and return CHAR ROM if so
-    uint16_t bankBase = cia2object ? cia2object->getCurrentVICBank() : 0;
+    uint16_t bankBase = vicII ? vicII->getBankBaseFromVIC(raster) : 0;
 
     // Ask VIC which char base is latched for this raster as well as graphics mode
     uint16_t charBase = vicII ? vicII->getCHARBase(raster) : 0;

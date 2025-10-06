@@ -107,6 +107,9 @@ class Vic
         // Getter for current graphics mode
         inline graphicsMode getCurrentGraphicsMode() const {  return currentMode; }
 
+        // Getter for Memory VIC Read for CIA2 Bank Base
+        inline uint16_t getBankBaseFromVIC(int raster) { return dd00_per_raster[raster]; }
+
         // Reset to power on defaults
         void reset();
 
