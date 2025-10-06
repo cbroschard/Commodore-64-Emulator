@@ -257,6 +257,12 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             {
                 bus->setDataLine((portA & DATA_MASK) != 0 );
             }
+            if (logger && setLogging)
+            {
+                std::stringstream out;
+                out << "Updated Port A in CIA2 to: " << static_cast<int>(value) << " giving effective value: " << static_cast<int>(portA);
+                logger->WriteLog(out.str());
+            }
             break;
         }
         case 0xDD01: // Data port B
