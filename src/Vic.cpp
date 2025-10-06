@@ -16,6 +16,7 @@ Vic::Vic(VideoMode mode) :
     d011_per_raster.resize(cfg_->maxRasterLines);
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
+    dd00_per_raster.resize(cfg_->maxRasterLines);
 }
 
 Vic::~Vic() = default;
@@ -71,6 +72,10 @@ void Vic::reset()
     std::fill(std::begin(d016_per_raster), std::end(d016_per_raster), 0x08);
     std::fill(std::begin(d018_per_raster), std::end(d018_per_raster), 0x14);
 
+    // Fill in DD00
+    uint16_t currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
+    std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
+
     // Initialize bgOpaque
     bgOpaque.resize(cfg_->visibleLines + 2*BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
@@ -91,6 +96,7 @@ void Vic::setMode(VideoMode mode)
     d011_per_raster.resize(cfg_->maxRasterLines);
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
+    dd00_per_raster.resize(cfg_->maxRasterLines);
 
     bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
@@ -418,6 +424,7 @@ void Vic::tick(int cycles)
             d011_per_raster[nextRaster] = registers.control & 0x7F;
             d016_per_raster[nextRaster] = registers.control2;
             d018_per_raster[nextRaster] = registers.memory_pointer;
+            dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
             updateMonitorCaches(nextRaster);
 
             for (int i = 0; i < 8; ++i)
@@ -1327,7 +1334,7 @@ std::string Vic::getVICBanks() const
     out << std::hex << std::uppercase << std::setfill('0');
 
     // Current VIC bank base (CIA2 16 KB window)
-    uint16_t bankBase = cia2object ? cia2object->getCurrentVICBank() : 0;
+    uint16_t bankBase = dd00_per_raster[registers.raster];
 
     out << "Active VIC Bank = " << (bankBase >> 14)
         << " ($" << std::setw(4) << bankBase
@@ -1497,8 +1504,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
 
 void Vic::updateMonitorCaches(int raster)
 {
-    // Cache the current bank
-    currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
+    uint16_t currentVICBank = dd00_per_raster[raster];
 
     // Build the full address
     charBaseCache = getCHARBase(raster) + currentVICBank;

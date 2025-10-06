@@ -195,12 +195,12 @@ class Vic
         std::vector<uint8_t> d011_per_raster;
         std::vector<uint8_t> d016_per_raster;
         std::vector<uint8_t> d018_per_raster;
+        std::vector<uint16_t> dd00_per_raster;
 
         // Caches for ML Monitor
         uint16_t charBaseCache;
         uint16_t screenBaseCache;
         uint16_t bitmapBaseCache;
-        uint16_t currentVICBank;
 
         // Sprite pointer latch
         uint16_t sprPtrBase[8];
