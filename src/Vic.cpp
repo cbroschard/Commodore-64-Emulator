@@ -408,14 +408,15 @@ void Vic::tick(int cycles)
         // N-1 latching
         uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
-        if (currentCycle == 12)
-        {
-            d016_per_raster[nextRaster] = registers.control2;
-        }
+        //if (currentCycle == 12)
+        //{
+            //d016_per_raster[nextRaster] = registers.control2;
+        //}
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
             d011_per_raster[nextRaster] = registers.control & 0x7F;
+            d016_per_raster[nextRaster] = registers.control2;
             d018_per_raster[nextRaster] = registers.memory_pointer;
             updateMonitorCaches(nextRaster);
 
@@ -738,7 +739,7 @@ void Vic::renderTextLine(int raster, int xScroll)
         if (col < 40)
         {
             scrByte  = charPtrFIFO[col];
-            colorByte = colorPtrFIFO[col];
+            colorByte = colorPtrFIFO[col] & 0x0F;
         }
         else if (col == 40)
         {
@@ -1214,6 +1215,12 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
 {
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t row = mem->vicRead(address + yInChar, raster);
+    if (logger && setLogging)
+    {
+        std::stringstream out;
+        out << "Displaying standard character at address: " << address << " and row: " << static_cast<int>(row);
+        logger->WriteLog(out.str());
+    }
 
     for (int col = 0; col < 8; ++col)
     {
@@ -1234,6 +1241,12 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 {
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t  row  = mem->vicRead(address + yInChar, raster);
+    if (logger && setLogging)
+    {
+        std::stringstream out;
+        out << "Displaying multicolor character at address: " << address << " and row: " << static_cast<int>(row);
+        logger->WriteLog(out.str());
+    }
 
     uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
     uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
