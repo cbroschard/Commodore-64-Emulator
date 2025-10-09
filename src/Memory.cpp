@@ -56,11 +56,6 @@ uint8_t Memory::read(uint16_t address)
         uint8_t valueToReturn = static_cast<uint8_t>(outputs | inputs);
         return RET(valueToReturn);
     }
-    else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
-    {
-        const uint8_t nib = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
-        return RET(uint8_t(0xF0 | nib));  // high nibble = 1111 on real C64
-    }
     else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
     {
         return RET(cart->read(address));
@@ -141,6 +136,12 @@ uint8_t Memory::read(uint16_t address)
         }
         case PLA::IO:
         {
+            // Color RAM is visible to CPU only when IO is mapped (CHAREN=1)
+            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
+            {
+                const uint8_t nib = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
+                return RET(uint8_t(0xF0 | nib));  // hi nibble = 1111 on real C64
+            }
             return RET(readIO(accessInfo.offset));
         }
         case PLA::UNMAPPED:
@@ -287,11 +288,6 @@ void Memory::write(uint16_t address, uint8_t value)
 
         return;
     }
-    else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
-    {
-        colorRAM[address - COLOR_MEMORY_START] = value & 0x0F;
-        return;
-    }
 
     PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
 
@@ -308,6 +304,11 @@ void Memory::write(uint16_t address, uint8_t value)
         }
         case PLA::IO:
         {
+            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
+            {
+                colorRAM[address - COLOR_MEMORY_START] = value & 0x0F;
+                return;
+            }
             writeIO(accessInfo.offset, value);
             break;
         }
