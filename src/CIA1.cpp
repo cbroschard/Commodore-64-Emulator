@@ -189,7 +189,7 @@ uint8_t CIA1::readRegister(uint16_t address)
             // Add Joystick 1 state if attached
             if (joy1)
             {
-                rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0x0E);
+                rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0xE0);
             }
 
             // Combine PortB and row state
