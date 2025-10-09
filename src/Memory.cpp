@@ -265,6 +265,12 @@ void Memory::write(uint16_t address, uint8_t value)
         dataDirectionRegister = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
         applyPort1SideEffects(effective);
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Updated DDR to value: " << static_cast<int>(value) << " computed effective: " << static_cast<int>(effective);
+            logger->WriteLog(out.str());
+        }
         return;
     }
     else if (address == 0x0001)
@@ -272,6 +278,13 @@ void Memory::write(uint16_t address, uint8_t value)
         port1OutputLatch = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
         applyPort1SideEffects(effective);
+        if (logger && setLogging)
+        {
+            std::stringstream out;
+            out << "Updated MCR to value: " << static_cast<int>(value) << " computed effective: " << static_cast<int>(effective);
+            logger->WriteLog(out.str());
+        }
+
         return;
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
