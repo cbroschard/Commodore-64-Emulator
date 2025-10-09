@@ -265,16 +265,19 @@ void Memory::write(uint16_t address, uint8_t value)
         dataDirectionRegister = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
         applyPort1SideEffects(effective);
+        return;
     }
     else if (address == 0x0001)
     {
         port1OutputLatch = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
         applyPort1SideEffects(effective);
+        return;
     }
     else if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
     {
         colorRAM[address - COLOR_MEMORY_START] = value & 0x0F;
+        return;
     }
 
     PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
