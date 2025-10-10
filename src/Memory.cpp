@@ -169,19 +169,10 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
     // Check if bank 0 or 2 and return CHAR ROM if so
     uint16_t bankBase = vicII ? vicII->getBankBaseFromVIC(raster) : 0;
 
-    // Ask VIC which char base is latched for this raster as well as graphics mode
-    uint16_t charBase = vicII ? vicII->getCHARBase(raster) : 0;
-
     // Check the char base for special cases
     if (!pla->isUltimax() && (bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
     {
         return charROM[vicAddress & 0x0FFF];
-    }
-
-    // Special case handling for programs that only load 1k of Char ROM
-    if (charBase == 0x0800 && (vicAddress >= 0x0C00 && vicAddress < 0x1000) && (bankBase == 0x0000 || bankBase == 0x8000))
-    {
-        return charROM[(vicAddress - 0x0C00) + 0x0800];
     }
 
     uint16_t cpuAddress = vicAddress | bankBase;
