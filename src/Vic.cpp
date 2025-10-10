@@ -414,15 +414,14 @@ void Vic::tick(int cycles)
         // N-1 latching
         uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
-        //if (currentCycle == 12)
-        //{
-            //d016_per_raster[nextRaster] = registers.control2;
-        //}
+        if (currentCycle == 12)
+        {
+            d016_per_raster[nextRaster] = registers.control2;
+        }
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
             d011_per_raster[nextRaster] = registers.control & 0x7F;
-            d016_per_raster[nextRaster] = registers.control2;
             d018_per_raster[nextRaster] = registers.memory_pointer;
             dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
             updateMonitorCaches(nextRaster);
