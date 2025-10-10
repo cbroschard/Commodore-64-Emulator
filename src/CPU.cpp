@@ -650,7 +650,8 @@ void CPU::tick()
         totalCycles++;
         return;
     }
-    // First check if we need to hold as BA is high
+
+    // Check if we need to hold as BA is high
     if (baHold)
     {
         totalCycles++;
