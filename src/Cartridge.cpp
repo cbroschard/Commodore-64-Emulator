@@ -351,7 +351,7 @@ bool Cartridge::hasSectionAt(uint16_t address) const
 {
     for (const auto& section : chipSections)
     {
-        if (section.loadAddress == address);
+        if (section.loadAddress == address)
         return true;
     }
     return false;
