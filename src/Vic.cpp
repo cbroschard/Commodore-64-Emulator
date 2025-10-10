@@ -1294,7 +1294,7 @@ uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
 uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 {
     const uint16_t address = COLOR_MEMORY_START + row * 40 + col;
-    return mem->read(address);
+    return mem->vicReadColor(address);
 }
 
 void Vic::markBGOpaque(int screenY, int px)
