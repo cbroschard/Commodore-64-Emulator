@@ -1221,12 +1221,6 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
 {
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t row = mem->vicRead(address + yInChar, raster);
-    if (logger && setLogging)
-    {
-        std::stringstream out;
-        out << "Displaying standard character at address: " << address << " and row: " << static_cast<int>(row);
-        logger->WriteLog(out.str());
-    }
 
     for (int col = 0; col < 8; ++col)
     {
@@ -1247,12 +1241,6 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 {
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t  row  = mem->vicRead(address + yInChar, raster);
-    if (logger && setLogging)
-    {
-        std::stringstream out;
-        out << "Displaying multicolor character at address: " << address << " and row: " << static_cast<int>(row);
-        logger->WriteLog(out.str());
-    }
 
     uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
     uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
