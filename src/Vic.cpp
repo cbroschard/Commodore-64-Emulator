@@ -317,7 +317,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD018:
         {
-            registers.memory_pointer = (value & 0xF0) | (value & 0x0E);
+            registers.memory_pointer = value & 0xFE;
             break;
         }
         case 0xD019:
