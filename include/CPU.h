@@ -157,7 +157,7 @@ class CPU
         bool nmiPending;
 
         // IRQ delay
-        bool irqSupressOne;
+        bool irqSuppressOne;
 
         // Jam handling
         JamMode jamMode;
@@ -177,7 +177,7 @@ class CPU
         uint32_t totalCycles;
         uint32_t elapsedCycles;
         uint32_t lastCycleCount;
-        inline bool isPhi2Low() { return (cycles % 2) == 0; } // Check if we can temp allow I/O access while CHAR ROM is enabled
+        inline bool isPhi2Low() { return (totalCycles & 1) == 0; } // Check if we can temp allow I/O access while CHAR ROM is enabled
         inline bool frameComplete() { return totalCycles >= CYCLES_PER_FRAME; }
 
         // CPU Registers
@@ -279,7 +279,7 @@ class CPU
         //Flag Instructions
         inline void CLC() { SR &= ~C; }
         inline void CLD() { SR &= ~D; }
-        inline void CLI() { SR &= ~I; irqSupressOne = true; }
+        inline void CLI() { SR &= ~I; irqSuppressOne = true; }
         inline void CLV() { SR &= ~V; }
         inline void SEC() { SetFlag(C,true); }
         inline void SEI() { SetFlag(I,true); }

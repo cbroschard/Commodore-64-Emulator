@@ -10,7 +10,7 @@
 CPU::CPU() :
     // Initialize
     nmiPending(false),
-    irqSupressOne(false),
+    irqSuppressOne(false),
     jamMode(JamMode::NopCompat),
     halted(false),
     cycles(0),
@@ -54,7 +54,7 @@ void CPU::reset()
     baHold = false;
     setLogging = false;
     nmiPending = false;
-    irqSupressOne = false;
+    irqSuppressOne = false;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -112,7 +112,7 @@ void CPU::handleIRQ()
 void CPU::executeIRQ()
 {
     if (getFlag(I)) return; // Skip if interrupts are disabled
-    if (irqSupressOne) { irqSupressOne = false; return; }
+    if (irqSuppressOne) { irqSuppressOne = false; return; }
 
     // Dummy read for accuracy
     mem->read(PC);
@@ -646,13 +646,6 @@ void CPU::tick()
     {
         cycles = 1; // always force 1 cycle pending
         cycles--;   // consume it
-        totalCycles++;
-        return;
-    }
-
-    // Check if we need to hold as BA is high
-    if (baHold)
-    {
         totalCycles++;
         return;
     }
@@ -1817,7 +1810,7 @@ void CPU::PLP()
     status |= 0x20;
     bool willEnableIRQ = ((status & I) == 0);
     SR = status;
-    if (willEnableIRQ) irqSupressOne = true;
+    if (willEnableIRQ) irqSuppressOne = true;
 }
 
 void CPU::RLA(uint8_t opcode)
@@ -1977,7 +1970,7 @@ void CPU::RTI()
     bool willEnableIRQ = ((SR & I) == 0);
     uint8_t lo = pop(), hi = pop();
     PC = (hi << 8) | lo;
-    if (willEnableIRQ) irqSupressOne = true;
+    if (willEnableIRQ) irqSuppressOne = true;
 }
 
 void CPU::RTS()
