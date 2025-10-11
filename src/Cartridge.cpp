@@ -631,7 +631,7 @@ void Cartridge::determineWiringMode()
     if (hasE000)
     {
         wiringMode = WiringMode::CART_ULTIMAX;
-        setExROMLine(false);
+        setExROMLine(true);
         setGameLine(false);
     }
     else if (has16K || (has8000 && hasA000))
