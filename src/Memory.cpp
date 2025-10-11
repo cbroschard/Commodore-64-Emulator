@@ -64,26 +64,6 @@ uint8_t Memory::read(uint16_t address)
     {
         case PLA::RAM:
         {
-            // Special handling for CPU vectors if KERNAL is hidden
-            if (address == 0xFFFE || address == 0xFFFF)
-            {
-                uint8_t lo = mem[0xFFFE], hi = mem[0xFFFF];
-                if (lo == 0x00 && hi == 0x00)
-                {
-                    return RET((address == 0xFFFE) ? mem[0x0314] : mem[0x0315]); // fallback
-                }
-                return RET((address == 0xFFFE) ? lo : hi); // real RAM vector
-            }
-
-            if (address == 0xFFFA || address == 0xFFFB)
-            {
-                uint8_t lo = mem[0xFFFA], hi = mem[0xFFFB];
-                if (lo == 0x00 && hi == 0x00)
-                {
-                    return RET((address == 0xFFFA) ? mem[0x0318] : mem[0x0319]); // fallback
-                }
-                return RET((address == 0xFFFA) ? lo : hi); // real RAM vector
-            }
             if (accessInfo.offset >= mem.size())
             {
                 throw std::runtime_error("Error: Attempt to read past end of RAM");
