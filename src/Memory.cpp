@@ -303,10 +303,7 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::BASIC_ROM:
         case PLA::CHARACTER_ROM:
         {
-            if (accessInfo.offset < mem.size())
-            {
-                mem[address] = value;
-            }
+            mem[address] = value;
             break;
         }
         case PLA::CARTRIDGE_LO:
