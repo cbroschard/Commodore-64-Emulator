@@ -127,12 +127,21 @@ class Vic
         inline uint16_t getScreenBase(int raster) const { return ((d018_per_raster[raster] & 0xF0) << 6); }
         inline uint16_t getBitmapBase(int raster) const { return ((d018_per_raster[raster] >> 3) & 0x01) * 0x2000; }
 
-        // ML Monitor helpers
+        // ML Monitor
+        struct IRQSnapshot { uint8_t ier = 0; };
         std::string decodeModeName() const;
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
         uint16_t getCurrentRaster() { return registers.raster; }
         inline void setLog(bool enable) { setLogging = enable; }
+        uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
+        uint8_t getIFR() const { return registers.interruptEnable & 0x0F; }
+        inline bool irqLineActive() const { return (registers.interruptStatus & registers.interruptEnable & 0x0F); }
+        inline IRQSnapshot snapshotIRQs() const { return IRQSnapshot { getIER() }; }
+        inline void restoreIRQs(const IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x0F); }
+        inline void disableAllIRQs() { setIERExact(0); }
+        void setIERExact(uint8_t mask);
+        void clearPendingIRQs();
 
     protected:
 

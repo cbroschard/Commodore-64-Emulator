@@ -1498,3 +1498,18 @@ void Vic::updateMonitorCaches(int raster)
     screenBaseCache = getScreenBase(raster) + currentVICBank;
     bitmapBaseCache = getBitmapBase(raster) + currentVICBank;
 }
+
+void Vic::setIERExact(uint8_t mask)
+{
+    registers.interruptEnable = mask & 0x0F; // mirror what $D01A write does
+    updateIRQLine();
+}
+
+void Vic::clearPendingIRQs()
+{
+    // $D019: write 1s to clear pending bits (0..3)
+    uint8_t pending = registers.interruptStatus & 0x0F;
+    if (pending) writeRegister(0xD019, pending);
+    (void)readRegister(0xD01E);
+    (void)readRegister(0xD01F);
+}

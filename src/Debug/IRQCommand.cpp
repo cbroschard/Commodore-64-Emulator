@@ -15,7 +15,7 @@ IRQCommand::~IRQCommand() = default;
 
 int IRQCommand::order() const
 {
-    return 5;
+    return 90;
 }
 
 std::string IRQCommand::category() const

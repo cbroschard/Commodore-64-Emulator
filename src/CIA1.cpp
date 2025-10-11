@@ -12,10 +12,7 @@ CIA1::CIA1()
     setMode(VideoMode::NTSC);
 }
 
-CIA1::~CIA1()
-{
-
-}
+CIA1::~CIA1() = default;
 
 void CIA1::attachJoystickInstance(Joystick* joy)
 {
