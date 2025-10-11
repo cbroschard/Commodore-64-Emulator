@@ -96,7 +96,6 @@ void CPU::handleIRQ()
 {
     if (IRQ)
     {
-        //activeSource = IRQ->getActiveSources();
         activeSource = IRQ->getHighestPrioritySource();
         switch (activeSource)
         {
