@@ -352,6 +352,9 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
     {
         std::cout << "Error: Write direct attempted to write past end of memory!" << std::endl;
     }
+
+    lastBus = value;
+
     if (monitor && monitor->checkWatchWrite(address, value))
     {
         monitor->enter();
