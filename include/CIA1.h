@@ -70,8 +70,17 @@ class CIA1
         void clearInterrupt(InterruptBit interruptBit);
 
         // ML Monitor access
+        struct CIA1IRQSnapshot { uint8_t ier; };
         std::string dumpRegisters(const std::string& group) const;
         inline void setLog(bool enable) { setLogging = enable; }
+        void setIERExact(uint8_t mask);
+        inline void clearPendingIRQs() { (void)readRegister(0xDC0D); }
+        inline void disableAllIRQs() { setIERExact(0); }
+        inline uint8_t getIER() const { return interruptEnable & 0x1F; }
+        inline uint8_t getIFR() const { return interruptStatus & 0x1F; }
+        inline bool irqLineActive() const { return (interruptStatus & interruptEnable & 0x1F) != 0; }
+        inline CIA1IRQSnapshot snapshotIRQs() const { return CIA1IRQSnapshot{getIER()}; }
+        inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
 

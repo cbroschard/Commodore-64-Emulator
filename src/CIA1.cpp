@@ -993,3 +993,10 @@ std::string CIA1::dumpRegisters(const std::string& group) const
 
     return out.str();
 }
+
+void CIA1::setIERExact(uint8_t mask)
+{
+    mask &= 0x1F;
+    interruptEnable = mask;
+    updateIRQLine();
+}

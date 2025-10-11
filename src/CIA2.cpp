@@ -937,3 +937,10 @@ void CIA2::handleTimerBUnderflow()
         if (rs232dev) rs232dev->setCTS((portB & CTS_MASK) != 0);
     }
 }
+
+void CIA2::setIERExact(uint8_t mask)
+{
+    mask &= 0x1F;
+    interruptEnable = mask;
+    refreshNMI();
+}

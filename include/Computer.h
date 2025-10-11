@@ -131,6 +131,32 @@ class Computer
         void setJamMode(const std::string& mode);
         std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
 
+        // ML Monitor IRQ
+        struct IRQSnapshot
+        {
+            bool has = false;
+            Vic::VICIRQSnapshot  vic;
+            CIA1::CIA1IRQSnapshot cia1;
+            CIA2::CIA2IRQSnapshot cia2;
+        };
+        void irqDisableAll();
+        void irqClearAll();
+        void irqRestore();
+
+        // ML Monitor per chip IRQ helpers
+        inline uint8_t vicIER()  const { return vicII ? vicII->getIER() : 0; }
+        inline uint8_t vicIFR()  const { return vicII ? vicII->getIFR() : 0; }
+        inline bool    vicIRQ()  const { return vicII && vicII->irqLineActive(); }
+        inline uint8_t cia1IER() const { return cia1object ? cia1object->getIER() : 0; }
+        inline uint8_t cia1IFR() const { return cia1object ? cia1object->getIFR() : 0; }
+        inline bool    cia1IRQ() const { return cia1object && cia1object->irqLineActive(); }
+        inline uint8_t cia2IER() const { return cia2object ? cia2object->getIER() : 0; }
+        inline uint8_t cia2IFR() const { return cia2object ? cia2object->getIFR() : 0; }
+        inline bool    cia2NMI() const { return cia2object && cia2object->irqLineActive(); }
+        inline void setVicIER(uint8_t m)  { if (vicII)      vicII->setIERExact(m & 0x0F); }
+        inline void setCIA1IER(uint8_t m) { if (cia1object) cia1object->setIERExact(m & 0x1F); }
+        inline void setCIA2IER(uint8_t m) { if (cia2object) cia2object->setIERExact(m & 0x1F); }
+
         // ML Monitor Logging enable/disable
         void setLogging(LogSet log, bool enabled);
 
@@ -181,6 +207,9 @@ class Computer
         std::unique_ptr<PLA> pla;
         std::unique_ptr<SID> sidchip;
         std::unique_ptr<Vic> vicII;
+
+        // ML Monitor IRQ snapshot
+        IRQSnapshot snapshot;
 
         // Program loading delay counter
         int prgDelay;

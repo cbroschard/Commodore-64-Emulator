@@ -76,6 +76,15 @@ class CIA2
         // ML Monitor access
         std::string dumpRegisters(const std::string& group) const;
         inline void setLog(bool enable) { setLogging = enable; }
+        struct CIA2IRQSnapshot { uint8_t ier; };
+        void setIERExact(uint8_t mask);
+        inline void clearPendingIRQs() { (void)readRegister(0xDD0D); }
+        inline void disableAllIRQs() { setIERExact(0); }
+        inline uint8_t getIER() const { return interruptEnable & 0x1F; }
+        inline uint8_t getIFR() const { return interruptStatus & 0x1F; }
+        inline bool irqLineActive() const { return (interruptStatus & interruptEnable & 0x1F) != 0; }
+        inline CIA2IRQSnapshot snapshotIRQs() const { return CIA2IRQSnapshot{getIER()}; }
+        inline void restoreIRQs(const CIA2IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
 

@@ -46,5 +46,93 @@ std::string IRQCommand::help() const
 
 void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
+    Computer* comp = mon.computer();
+    if (!comp) { std::cout << "No Computer attached.\n"; return; }
 
+    auto printHex2 = [](uint8_t v)
+    {
+        std::ios::fmtflags f(std::cout.flags());
+        std::cout << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << int(v);
+        std::cout.flags(f);
+    };
+
+    auto showStatus = [&]()
+    {
+        std::cout << "VIC : IER=$";  printHex2(comp->vicIER());
+        std::cout << " IFR=$";       printHex2(comp->vicIFR());
+        std::cout << " IRQ=" << (comp->vicIRQ() ? "asserted" : "clear") << "\n";
+
+        std::cout << "CIA1: IER=$";  printHex2(comp->cia1IER());
+        std::cout << " IFR=$";       printHex2(comp->cia1IFR());
+        std::cout << " IRQ=" << (comp->cia1IRQ() ? "asserted" : "clear") << "\n";
+
+        std::cout << "CIA2: IER=$";  printHex2(comp->cia2IER());
+        std::cout << " IFR=$";       printHex2(comp->cia2IFR());
+        std::cout << " NMI=" << (comp->cia2NMI() ? "asserted" : "clear") << "\n";
+    };
+
+    if (args.size() == 1) { showStatus(); std::cout << shortHelp() << "\n"; return; }
+
+    const std::string& sub = args[1];
+
+    if (sub == "off")
+    {
+        comp->irqDisableAll();
+        std::cout << "IRQs disabled and pending cleared.\n";
+        showStatus();
+        return;
+    }
+
+    if (sub == "clear")
+    {
+        comp->irqClearAll();
+        std::cout << "Pending interrupts cleared.\n";
+        showStatus();
+        return;
+    }
+
+    if (sub == "on" || sub == "restore")
+    {
+        comp->irqRestore();
+        std::cout << "IRQ masks restored from snapshot.\n";
+        showStatus();
+        return;
+    }
+
+    if (sub == "vic" || sub == "cia1" || sub == "cia2")
+    {
+        if (args.size() < 3)
+        {
+            std::cout << "Missing <mask>. Usage: " << shortHelp() << "\n";
+            return;
+        }
+
+        uint8_t m = 0;
+        try
+        {
+            m = static_cast<uint8_t>(parseAddress(args[2]) & 0xFF);
+        }
+        catch (...)
+        {
+            std::cout << "Bad mask: " << args[2] << "\n";
+            return;
+        }
+
+        if (sub == "vic")  { comp->setVicIER (m & 0x0F); std::cout << "VIC  IER <= $";  printHex2(m & 0x0F); std::cout << "\n"; }
+        if (sub == "cia1") { comp->setCIA1IER(m & 0x1F); std::cout << "CIA1 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
+        if (sub == "cia2") { comp->setCIA2IER(m & 0x1F); std::cout << "CIA2 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
+
+        showStatus();
+        return;
+    }
+
+    if (sub == "status") { showStatus(); return; }
+
+    if (sub == "help")
+    {
+        std::cout << help() << "\n";
+        return;
+    }
+
+    std::cout << "Unknown subcommand. " << shortHelp() << "\n";
 }

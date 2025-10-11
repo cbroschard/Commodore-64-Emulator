@@ -770,3 +770,38 @@ void Computer::setLogging(LogSet log, bool enabled)
         case LogSet::VIC: if (vicII) vicII->setLog(enabled); break;
     }
 }
+
+void Computer::irqDisableAll()
+{
+    if (!vicII && !cia1object && !cia2object) return;
+
+    snapshot.has = true;
+    snapshot.vic  = vicII->snapshotIRQs();
+    snapshot.cia1 = cia1object->snapshotIRQs();
+    snapshot.cia2 = cia2object->snapshotIRQs();
+
+    vicII->disableAllIRQs();
+    cia1object->disableAllIRQs();
+    cia2object->disableAllIRQs();
+
+    irqClearAll();  // acknowledge anything pending after the mask change
+}
+
+void Computer::irqClearAll()
+{
+    if (!vicII && !cia1object && !cia2object) return;
+
+    vicII->clearPendingIRQs();
+    cia1object->clearPendingIRQs();
+    cia2object->clearPendingIRQs();
+}
+
+void Computer::irqRestore()
+{
+    if (!vicII && !cia1object && !cia2object) return;
+    if (!snapshot.has) return;
+
+    vicII->restoreIRQs(snapshot.vic);
+    cia1object->restoreIRQs(snapshot.cia1);
+    cia2object->restoreIRQs(snapshot.cia2);
+}
