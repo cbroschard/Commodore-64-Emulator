@@ -619,12 +619,12 @@ void Cartridge::determineWiringMode()
     {
         if (s.loadAddress == 0x8000 && s.data.size() == 16384)
             has16K = true;  // single 16K block at $8000
-        if (s.loadAddress == 0x8000 && s.data.size() == 8192)
-            has8000 = true;
-        if (s.loadAddress == 0xA000 && s.data.size() == 8192)
-            hasA000 = true;
-        if (s.loadAddress == 0xE000 && s.data.size() == 8192)
-            hasE000 = true;
+
+        uint32_t start = s.loadAddress;
+        uint32_t end   = s.loadAddress + (uint32_t)s.data.size(); // exclusve
+        if (start <= 0x9FFF && end > 0x8000) has8000 = true; // any overlap with $8000-$9FFF
+        if (start <= 0xBFFF && end > 0xA000) hasA000 = true; // any overlap with $A000-$BFFF
+        if (start <= 0xFFFF && end > 0xE000) hasE000 = true; // any overlap with $E000-$FFFF
     }
 
     // Determine wiring based on load addresses & sizes
