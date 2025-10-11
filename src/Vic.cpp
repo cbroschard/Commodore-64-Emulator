@@ -1507,7 +1507,6 @@ void Vic::setIERExact(uint8_t mask)
 
 void Vic::clearPendingIRQs()
 {
-    // $D019: write 1s to clear pending bits (0..3)
     uint8_t pending = registers.interruptStatus & 0x0F;
     if (pending) writeRegister(0xD019, pending);
     (void)readRegister(0xD01E);
