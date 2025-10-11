@@ -56,10 +56,6 @@ uint8_t Memory::read(uint16_t address)
         uint8_t valueToReturn = static_cast<uint8_t>(outputs | inputs);
         return RET(valueToReturn);
     }
-    else if ((address >= 0x8000 && address <= 0x9FFF) && cartridgeAttached && cart->getMapperName() == "Zaxxon, Super Zaxxon")
-    {
-        return RET(cart->read(address));
-    }
 
     if (!pla) throw std::runtime_error("Error: Missing PLA object!");
 
@@ -316,6 +312,9 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::CARTRIDGE_LO:
         case PLA::CARTRIDGE_HI:
         {
+            // Check for cartridge first and write to it
+            if (cart && cartridgeAttached) cart->write(address, value);
+
             // Write the value to the requested RAM address
             mem[address] = value;
             break;
