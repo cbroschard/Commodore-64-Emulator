@@ -126,7 +126,7 @@ void CPU::executeIRQ()
     status |= 0x20;  // set unused bit 5
     push(status);
 
-    SetFlag(I, true); // Disable further interrupts
+    setFlag(I, true); // Disable further interrupts
 
     // Fetch the IRQ vector
     uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
@@ -151,7 +151,7 @@ void CPU::executeNMI()
     push(status);
 
     // Disable interrupt flag
-    SetFlag(I, true);
+    setFlag(I, true);
 
     uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
     PC = nmiVector;
@@ -705,7 +705,7 @@ void CPU::decodeAndExecute(uint8_t opcode)
     }
 }
 
-void CPU::SetFlag(flags flag, bool sc)
+void CPU::setFlag(flags flag, bool sc)
 {
     if (sc)
 		SR |= flag;
@@ -733,9 +733,9 @@ void CPU::AAC()
     A &= value; // Perform AND operation on accumulator
 
     // Update flags
-    SetFlag(C, A & 0x80);
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(C, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::ADC(uint8_t opcode)
@@ -780,7 +780,7 @@ void CPU::ADC(uint8_t opcode)
     uint8_t  bin8 = uint8_t(sum);
 
     // V is from binary addition even in decimal mode
-    SetFlag(V, ((~(a0 ^ value) & (a0 ^ bin8)) & 0x80) != 0);
+    setFlag(V, ((~(a0 ^ value) & (a0 ^ bin8)) & 0x80) != 0);
 
     if (getFlag(D))
     {
@@ -795,11 +795,11 @@ void CPU::ADC(uint8_t opcode)
         if (adj > 0x99)
         {
             adj += 0x60;
-            SetFlag(C, 1);
+            setFlag(C, 1);
         }
         else
         {
-            SetFlag(C, 0);
+            setFlag(C, 0);
         }
 
         A = uint8_t(adj);
@@ -808,11 +808,11 @@ void CPU::ADC(uint8_t opcode)
     {
         // Pure binary
         A = bin8;
-        SetFlag(C, sum > 0xFF);
+        setFlag(C, sum > 0xFF);
     }
 
-    SetFlag(Z, A == 0);
-    SetFlag(N, (A & 0x80) != 0);
+    setFlag(Z, A == 0);
+    setFlag(N, (A & 0x80) != 0);
 }
 
 void CPU::AHX(uint8_t opcode)
@@ -860,10 +860,10 @@ void CPU::ALR()
 {
     uint8_t value = readImmediate();
     A &= value;
-    SetFlag(C, A & 0x01);
+    setFlag(C, A & 0x01);
     A >>= 1;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::AND(uint8_t opcode)
@@ -900,8 +900,8 @@ void CPU::AND(uint8_t opcode)
         }
     }
     A &= value;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::ARR()
@@ -917,8 +917,8 @@ void CPU::ARR()
     {
         // Binary mode
         A = ror;
-        SetFlag(C, (A >> 6) & 1);
-        SetFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1));
+        setFlag(C, (A >> 6) & 1);
+        setFlag(V, ((A >> 6) & 1) ^ ((A >> 5) & 1));
     }
     else
     {
@@ -935,13 +935,13 @@ void CPU::ARR()
             carry = true;
         }
 
-        SetFlag(C, carry);
-        SetFlag(V, ((ror >> 6) & 1) ^ ((ror >> 5) & 1));
+        setFlag(C, carry);
+        setFlag(V, ((ror >> 6) & 1) ^ ((ror >> 5) & 1));
         A = r;
     }
 
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::ASL(uint8_t opcode)
@@ -953,9 +953,9 @@ void CPU::ASL(uint8_t opcode)
         A = result;
 
         // Update flags
-        SetFlag(C, (value & 0x80) != 0);  // Carry flag: Bit 7 of the original value
-        SetFlag(Z, result == 0);   // Zero flag: Result is zero
-        SetFlag(N, (result & 0x80) != 0); // Negative flag: Bit 7 of the result
+        setFlag(C, (value & 0x80) != 0);  // Carry flag: Bit 7 of the original value
+        setFlag(Z, result == 0);   // Zero flag: Result is zero
+        setFlag(N, (result & 0x80) != 0); // Negative flag: Bit 7 of the result
         return;
     }
 
@@ -974,9 +974,9 @@ void CPU::ASL(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Update flags
-    SetFlag(C, (oldValue & 0x80) != 0);  // Carry flag: Bit 7 of the original value
-    SetFlag(Z, newValue == 0);   // Zero flag: Result is zero
-    SetFlag(N, (newValue & 0x80) != 0); // Negative flag: Bit 7 of the result
+    setFlag(C, (oldValue & 0x80) != 0);  // Carry flag: Bit 7 of the original value
+    setFlag(Z, newValue == 0);   // Zero flag: Result is zero
+    setFlag(N, (newValue & 0x80) != 0); // Negative flag: Bit 7 of the result
 }
 
 void CPU::AXS()
@@ -989,9 +989,9 @@ void CPU::AXS()
     X = temp & 0xFF;
 
     // Set flags
-    SetFlag(C, temp >= 0); // Set carry if no borrow
-    SetFlag(Z, X == 0);    // Set zero if result is zero
-    SetFlag(N, X & 0x80);  // Set negative if MSB is set
+    setFlag(C, temp >= 0); // Set carry if no borrow
+    setFlag(Z, X == 0);    // Set zero if result is zero
+    setFlag(N, X & 0x80);  // Set negative if MSB is set
 }
 
 void CPU::BCC()
@@ -1070,9 +1070,9 @@ void CPU::BIT(uint8_t opcode)
         case 0x2C: value = readABS(); break;
     }
     uint8_t result = A & value;
-    SetFlag(Z, result == 0);
-    SetFlag(N, value & 0x80);
-    SetFlag(V, value & 0x40);
+    setFlag(Z, result == 0);
+    setFlag(N, value & 0x80);
+    setFlag(V, value & 0x40);
 }
 
 void CPU::BMI()
@@ -1155,12 +1155,12 @@ void CPU::BRK()
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
-    SetFlag(B, 1);
+    setFlag(B, 1);
     push(SR | 0x20);
 
     // Set the interrupt disable flag (I flag) in the processor status
-    SetFlag(I, 1);
-    SetFlag(B, 0);
+    setFlag(I, 1);
+    setFlag(B, 0);
 
     // Load the new Program Counter (PC) from the interrupt vector (0xFFFE and 0xFFFF)
     uint16_t interruptVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
@@ -1252,9 +1252,9 @@ void CPU::CMP(uint8_t opcode)
     }
 
     uint8_t result = A - value;
-    SetFlag(Z, result == 0);
-    SetFlag(N, result & 0x80);
-    SetFlag(C, A >= value);
+    setFlag(Z, result == 0);
+    setFlag(N, result & 0x80);
+    setFlag(C, A >= value);
 }
 
 void CPU::CPX(uint8_t opcode)
@@ -1269,9 +1269,9 @@ void CPU::CPX(uint8_t opcode)
     }
 
     uint8_t result = X - value;
-    SetFlag(Z, result == 0);
-    SetFlag(N, result & 0x80);
-    SetFlag(C, X >= value);
+    setFlag(Z, result == 0);
+    setFlag(N, result & 0x80);
+    setFlag(C, X >= value);
 }
 
 void CPU::CPY(uint8_t opcode)
@@ -1286,9 +1286,9 @@ void CPU::CPY(uint8_t opcode)
     }
 
     uint8_t result = Y - value;
-    SetFlag(Z, result == 0);
-    SetFlag(N, result & 0x80);
-    SetFlag(C, Y >= value);
+    setFlag(Z, result == 0);
+    setFlag(N, result & 0x80);
+    setFlag(C, Y >= value);
 }
 
 void CPU::DCP(uint8_t opcode)
@@ -1314,9 +1314,9 @@ void CPU::DCP(uint8_t opcode)
     uint8_t diff = uint8_t(A - newValue);
 
     // Update flags
-    SetFlag(C, A >= newValue);
-    SetFlag(Z, diff == 0);
-    SetFlag(N, diff & 0x80);
+    setFlag(C, A >= newValue);
+    setFlag(Z, diff == 0);
+    setFlag(N, diff & 0x80);
 }
 
 void CPU::DEC(uint8_t opcode)
@@ -1334,22 +1334,22 @@ void CPU::DEC(uint8_t opcode)
     uint8_t oldValue = mem->read(address);
     uint8_t newValue = uint8_t(oldValue - 1);
     rmwWrite(address, oldValue, newValue);
-    SetFlag(Z, newValue == 0);
-    SetFlag(N, newValue & 0x80);
+    setFlag(Z, newValue == 0);
+    setFlag(N, newValue & 0x80);
 }
 
 void CPU::DEX()
 {
     X--;
-    SetFlag(Z, X == 0);
-    SetFlag(N, X & 0x80);
+    setFlag(Z, X == 0);
+    setFlag(N, X & 0x80);
 }
 
 void CPU::DEY()
 {
     Y--;
-    SetFlag(Z, Y == 0);
-    SetFlag(N, Y & 0x80);
+    setFlag(Z, Y == 0);
+    setFlag(N, Y & 0x80);
 }
 
 void CPU::EOR(uint8_t opcode)
@@ -1386,8 +1386,8 @@ void CPU::EOR(uint8_t opcode)
         }
     }
     A ^= value;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::INC(uint8_t opcode)
@@ -1405,22 +1405,22 @@ void CPU::INC(uint8_t opcode)
     uint8_t oldValue = mem->read(address);
     uint8_t newValue = uint8_t(oldValue + 1);
     rmwWrite(address, oldValue, newValue);
-    SetFlag(Z, newValue == 0);
-    SetFlag(N, newValue & 0x80);
+    setFlag(Z, newValue == 0);
+    setFlag(N, newValue & 0x80);
 }
 
 void CPU::INX()
 {
     X = (X + 1) & 0xFF;
-    SetFlag(Z, X == 0);
-    SetFlag(N, X & 0x80);
+    setFlag(Z, X == 0);
+    setFlag(N, X & 0x80);
 }
 
 void CPU::INY()
 {
     Y = (Y + 1) & 0xFF;
-    SetFlag(Z, Y == 0);
-    SetFlag(N, Y & 0x80);
+    setFlag(Z, Y == 0);
+    setFlag(N, Y & 0x80);
 }
 
 void CPU::ISC(uint8_t opcode)
@@ -1449,11 +1449,11 @@ void CPU::ISC(uint8_t opcode)
     A = uint8_t(tmp);
 
     // Flags
-    SetFlag(C, tmp < 0x100);
-    SetFlag(Z, A == 0);
-    SetFlag(N, (A & 0x80) != 0);
+    setFlag(C, tmp < 0x100);
+    setFlag(Z, A == 0);
+    setFlag(N, (A & 0x80) != 0);
     const uint8_t res8 = uint8_t(tmp);
-    SetFlag(V, ((a0 ^ m) & (a0 ^ res8) & 0x80) != 0);
+    setFlag(V, ((a0 ^ m) & (a0 ^ res8) & 0x80) != 0);
 }
 
 void CPU::JAM()
@@ -1528,8 +1528,8 @@ void CPU::LAS()
     SP = result;
 
     // Set flags
-    SetFlag(Z, result == 0);
-    SetFlag(N, result & 0x80);
+    setFlag(Z, result == 0);
+    setFlag(N, result & 0x80);
 }
 
 void CPU::LAX(uint8_t opcode)
@@ -1546,8 +1546,8 @@ void CPU::LAX(uint8_t opcode)
             uint8_t result = A & value;
             A = result;
             X = result;
-            SetFlag(Z, result == 0);
-            SetFlag(N, result & 0x80);
+            setFlag(Z, result == 0);
+            setFlag(N, result & 0x80);
             return;
         }
         case 0xAF: value = readABS(); break;
@@ -1574,8 +1574,8 @@ void CPU::LAX(uint8_t opcode)
     X = value;
 
     // Update flags
-    SetFlag(Z, value == 0);
-    SetFlag(N, value & 0x80);
+    setFlag(Z, value == 0);
+    setFlag(N, value & 0x80);
 }
 
 void CPU::LDA(uint8_t opcode)
@@ -1616,8 +1616,8 @@ void CPU::LDA(uint8_t opcode)
     A = value;
 
     // Set flags
-    SetFlag(Z, A == 0);   // Zero flag
-    SetFlag(N, A & 0x80); // Negative flag
+    setFlag(Z, A == 0);   // Zero flag
+    setFlag(N, A & 0x80); // Negative flag
 }
 
 void CPU::LDX(uint8_t opcode)
@@ -1636,8 +1636,8 @@ void CPU::LDX(uint8_t opcode)
             break;
         }
     }
-    SetFlag(Z, X == 0);
-    SetFlag(N, X & 0x80);
+    setFlag(Z, X == 0);
+    setFlag(N, X & 0x80);
 }
 
 void CPU::LDY(uint8_t opcode)
@@ -1656,8 +1656,8 @@ void CPU::LDY(uint8_t opcode)
             break;
         }
     }
-    SetFlag(Z, Y == 0);
-    SetFlag(N, Y & 0x80);
+    setFlag(Z, Y == 0);
+    setFlag(N, Y & 0x80);
 }
 
 void CPU::LSR(uint8_t opcode)
@@ -1667,9 +1667,9 @@ void CPU::LSR(uint8_t opcode)
         bool carry = A & 0x01;
             A >>= 1;
 
-            SetFlag(C, carry);
-            SetFlag(Z, A == 0);
-            SetFlag(N, false);
+            setFlag(C, carry);
+            setFlag(Z, A == 0);
+            setFlag(N, false);
             return;
     }
 
@@ -1688,9 +1688,9 @@ void CPU::LSR(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Set flags
-    SetFlag(C, (oldValue & 1) != 0);
-    SetFlag(Z, newValue == 0);
-    SetFlag(N, 0);
+    setFlag(C, (oldValue & 1) != 0);
+    setFlag(Z, newValue == 0);
+    setFlag(N, 0);
 
 }
 
@@ -1773,8 +1773,8 @@ void CPU::ORA(uint8_t opcode)
         }
     }
     A |= value;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::PHA()
@@ -1798,8 +1798,8 @@ void CPU::PLA()
     mem->read(0x100 + ((SP + 1) & 0xFF)); // dummy stack read
 
     A = pop();
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::PLP()
@@ -1835,14 +1835,14 @@ void CPU::RLA(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Update Carry flag
-    SetFlag(C, carry);
+    setFlag(C, carry);
 
     // AND the result with the accumulator
     A &= newValue;
 
     // Update flags
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::ROL(uint8_t opcode)
@@ -1856,9 +1856,9 @@ void CPU::ROL(uint8_t opcode)
         A = value;
 
         // Set Flags
-        SetFlag(N, value & 0x80);
-        SetFlag(Z, value == 0);
-        SetFlag(C, carry);
+        setFlag(N, value & 0x80);
+        setFlag(Z, value == 0);
+        setFlag(C, carry);
         return;
     }
 
@@ -1878,9 +1878,9 @@ void CPU::ROL(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Set Flags
-    SetFlag(N, newValue & 0x80);
-    SetFlag(Z, newValue == 0);
-    SetFlag(C, carry);
+    setFlag(N, newValue & 0x80);
+    setFlag(Z, newValue == 0);
+    setFlag(C, carry);
 }
 
 void CPU::ROR(uint8_t opcode)
@@ -1894,9 +1894,9 @@ void CPU::ROR(uint8_t opcode)
         A = value;
 
         // Update processor flags
-        SetFlag(N, value & 0x80);
-        SetFlag(Z, value == 0);
-        SetFlag(C, newCarry);
+        setFlag(N, value & 0x80);
+        setFlag(Z, value == 0);
+        setFlag(C, newCarry);
         return;
     }
 
@@ -1917,9 +1917,9 @@ void CPU::ROR(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Update processor flags
-    SetFlag(N, newValue & 0x80);
-    SetFlag(Z, newValue == 0);
-    SetFlag(C, newCarry);
+    setFlag(N, newValue & 0x80);
+    setFlag(Z, newValue == 0);
+    setFlag(C, newCarry);
 }
 
 void CPU::RRA(uint8_t opcode)
@@ -1944,7 +1944,7 @@ void CPU::RRA(uint8_t opcode)
     rmwWrite(address, oldValue, newValue);
 
     // Update Carry flag from old LSB
-    SetFlag(C, carry);
+    setFlag(C, carry);
 
     // Perform ADC (Add with Carry) with the accumulator
     uint8_t oldA = A;
@@ -1954,10 +1954,10 @@ void CPU::RRA(uint8_t opcode)
     A = tempResult & 0xFF;
 
     // Update flags
-    SetFlag(C, tempResult > 0xFF); // Carry flag: Set if addition overflows
-    SetFlag(Z, A == 0);           // Zero flag: Set if result is zero
-    SetFlag(N, A & 0x80);         // Negative flag: Set if MSB is 1
-    SetFlag(V, (~(oldA ^ newValue) & (oldA ^ tempResult) & 0x80) != 0); // Overflow flag
+    setFlag(C, tempResult > 0xFF); // Carry flag: Set if addition overflows
+    setFlag(Z, A == 0);           // Zero flag: Set if result is zero
+    setFlag(N, A & 0x80);         // Negative flag: Set if MSB is 1
+    setFlag(V, (~(oldA ^ newValue) & (oldA ^ tempResult) & 0x80) != 0); // Overflow flag
 }
 
 void CPU::RTI()
@@ -2031,7 +2031,7 @@ void CPU::SBC(uint8_t opcode)
     uint8_t  resBin = uint8_t(diff);
 
     // 2) Overflow from the binary operation (works in both modes)
-    SetFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
+    setFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
 
     if (getFlag(D)) {
         // NMOS 6502/6510 decimal-mode correction for SBC
@@ -2051,11 +2051,11 @@ void CPU::SBC(uint8_t opcode)
     }
 
     // 3) Carry = "no borrow" from the binary subtract
-    SetFlag(C, diff < 0x100);
+    setFlag(C, diff < 0x100);
 
     // 4) Z/N from the final (possibly BCD-adjusted) result
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::SHX()
@@ -2108,14 +2108,14 @@ void CPU::SLO(uint8_t opcode)
 
     // Read, shift left, and write back
     uint8_t oldValue = mem->read(address);
-    SetFlag(C, (oldValue & 0x80) != 0);  // old bit 7 → Carry
+    setFlag(C, (oldValue & 0x80) != 0);  // old bit 7 → Carry
     uint8_t newValue = uint8_t(oldValue << 1);
     rmwWrite(address, oldValue, newValue);
 
     // ORA with accumulator
     A |= newValue;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::SRE(uint8_t opcode)
@@ -2136,14 +2136,14 @@ void CPU::SRE(uint8_t opcode)
 
     // Perform LSR on memory value
     uint8_t oldValue = mem->read(address);
-    SetFlag(C, (oldValue & 0x01) != 0);
+    setFlag(C, (oldValue & 0x01) != 0);
     uint8_t newValue = uint8_t(oldValue >> 1);
     rmwWrite(address, oldValue, newValue);
 
     // EOR with accumulator
     A ^= newValue;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::STA(uint8_t opcode)
@@ -2253,42 +2253,42 @@ void CPU::TAS()
 void CPU::TAX()
 {
     X = A;
-    SetFlag(Z, X == 0);
-    SetFlag(N, X & 0x80);
+    setFlag(Z, X == 0);
+    setFlag(N, X & 0x80);
 }
 
 void CPU::TAY()
 {
     Y = A;
-    SetFlag(Z, Y == 0);
-    SetFlag(N, Y & 0x80);
+    setFlag(Z, Y == 0);
+    setFlag(N, Y & 0x80);
 }
 
 void CPU::TSX()
 {
     X = SP;
-    SetFlag(Z, X == 0);
-    SetFlag(N, X & 0x80);
+    setFlag(Z, X == 0);
+    setFlag(N, X & 0x80);
 }
 
 void CPU::TXA()
 {
     A = X;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::TYA()
 {
     A = Y;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }
 
 void CPU::XAA()
 {
     uint8_t imm = readImmediate();
     A = (A | 0xEE) & X & imm;
-    SetFlag(Z, A == 0);
-    SetFlag(N, A & 0x80);
+    setFlag(Z, A == 0);
+    setFlag(N, A & 0x80);
 }

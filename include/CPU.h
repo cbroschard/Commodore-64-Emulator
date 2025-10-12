@@ -112,7 +112,7 @@ class CPU
 
         // Flag operatons
         inline bool getFlag(flags flag) { return (SR & flag) != 0; }
-        void SetFlag(flags flag, bool sc);
+        void setFlag(flags flag, bool sc);
 
         // Access for IRQ handling
         inline void requestNMI() { nmiPending = true; }
@@ -127,6 +127,8 @@ class CPU
 
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }
+        inline void setSEI() { setFlag(I, true); }
+        inline void setCLI() { setFlag(I, false); }
 
         // Registers access
         inline uint16_t getPC() const { return PC; }
@@ -281,9 +283,9 @@ class CPU
         inline void CLD() { SR &= ~D; }
         inline void CLI() { SR &= ~I; irqSuppressOne = true; }
         inline void CLV() { SR &= ~V; }
-        inline void SEC() { SetFlag(C,true); }
-        inline void SEI() { SetFlag(I,true); }
-        inline void SED() { SetFlag(D,true); }
+        inline void SEC() { setFlag(C,true); }
+        inline void SEI() { setFlag(I,true); }
+        inline void SED() { setFlag(D,true); }
 
         //Jump Instructions
         void JMP(uint8_t opcode);

@@ -473,14 +473,14 @@ bool Computer::boot()
                             {
                                 std::cout << "Failed to load PRG from T64!" << std::endl;
                                 processor->setA(4); // Standard KERNAL read error code
-                                processor->SetFlag(CPU::C, true); // Set Carry to indicate error
+                                processor->setFlag(CPU::C, true); // Set Carry to indicate error
                             }
                             else
                             {
                                 processor->setA(0); // Status OK
                                 processor->setX(result.prgEnd & 0xFF); // Low byte of program end address
                                 processor->setY((result.prgEnd >> 8) & 0xFF); // High byte of program end address
-                                processor->SetFlag(CPU::C, false); // No error
+                                processor->setFlag(CPU::C, false); // No error
                                 processor->rtsFromQuickLoad();
                             }
                             t64Injected = true;
