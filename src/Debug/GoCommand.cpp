@@ -64,5 +64,4 @@ void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         mon.setRunningFlag(false);
         return;
     }
-
 }
