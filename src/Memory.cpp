@@ -118,7 +118,7 @@ uint8_t Memory::read(uint16_t address)
                 const uint8_t nib = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
                 return RET(uint8_t(0xF0 | nib));  // hi nibble = 1111 on real C64
             }
-            return RET(readIO(address));
+            return RET(readIO(accessInfo.offset));
         }
         case PLA::UNMAPPED:
         {
@@ -276,7 +276,7 @@ void Memory::write(uint16_t address, uint8_t value)
                 colorRAM[address - COLOR_MEMORY_START] = value & 0x0F;
                 return;
             }
-            writeIO(address, value);
+            writeIO(accessInfo.offset, value);
             break;
         }
         case PLA::KERNAL_ROM:
