@@ -43,7 +43,9 @@ std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_
     std::ostringstream out;
     uint16_t pc = start;
 
-    while (pc <= end) {
+    while (pc <= end && pc < 0x10000)
+    {
+        if (pc + 3 < pc) break;
         uint8_t opcode = mem.read(pc);
         const InstructionInfo& info = OPCODES[opcode];
 
@@ -51,7 +53,9 @@ std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_
         out << disassembleAt(pc, mem) << "\n";
 
         // Advance PC by instruction length
-        pc += info.length;
+        uint16_t nextPC = pc + info.length;
+        if (nextPC <= pc) break;  // detect wrap-around
+        pc = nextPC;
     }
 
     lastPC = pc;

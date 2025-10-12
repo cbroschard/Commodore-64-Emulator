@@ -92,7 +92,9 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
 
         if (args.size() > 2) count = std::stoi(args[2], nullptr, 0); // decimal count
 
-        end = start + (count * 3);
+        uint32_t tmpEnd = static_cast<uint32_t>(start) + (count * 3);
+        end = static_cast<uint16_t>(std::min(tmpEnd, 0xFFFFu));
+        //end = start + (count * 3);
         lastPC = end;
 
         // Execute the disassembly
