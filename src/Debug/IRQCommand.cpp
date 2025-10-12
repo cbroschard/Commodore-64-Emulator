@@ -30,7 +30,7 @@ std::string IRQCommand::name() const
 
 std::string IRQCommand::shortHelp() const
 {
-    return "irq [status|off|on|restore|clear|vic <mask>|cia1 <mask>|cia2 <mask>]";
+    return "irq [status|off|on|restore|clear|vic <mask>|cia1 <mask>|cia2 <mask>|sei|cli]";
 }
 
 std::string IRQCommand::help() const
@@ -43,7 +43,9 @@ std::string IRQCommand::help() const
           "irq restore    - Restores the original configuration\n"
           "irq vic <m>    - Set VIC $D01A to mask m (hex or dec). Bits: 0=raster,1=spr-bg,2=spr-spr,3=lightpen.\n"
           "irq cia1 <m>   - Enable CIA1 IER bits m (0..31). (Write-only on HW; monitor remembers what it sets.)\n"
-          "irq cia2 <m>   - Enable CIA2 IER bits m (0..31). (CIA2 drives NMI.)\n";
+          "irq cia2 <m>   - Enable CIA2 IER bits m (0..31). (CIA2 drives NMI.)\n"
+          "irq sei        - Set CPU I flag (disable maskable IRQs)\n"
+          "irq cli        - Clear CPU I flag (enable maskable IRQs)\n";
 }
 
 void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -71,6 +73,11 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "CIA2: IER=$";  printHex2(comp->cia2IER());
         std::cout << " IFR=$";       printHex2(comp->cia2IFR());
         std::cout << " NMI=" << (comp->cia2NMI() ? "asserted" : "clear") << "\n";
+
+        uint8_t sr = mon.computer()->cpuGetSR();
+        std::cout << "CPU : SR=$";  printHex2(sr);
+        std::cout << " I=" << ((sr & CPU::I) ? "1" : "0") << " ("
+                  << ((sr & CPU::I) ? "disabled" : "enabled") << ")\n";
     };
 
     if (args.size() == 1) { showStatus(); std::cout << shortHelp() << "\n"; return; }
@@ -124,6 +131,22 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (sub == "cia1") { comp->setCIA1IER(m & 0x1F); std::cout << "CIA1 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
         if (sub == "cia2") { comp->setCIA2IER(m & 0x1F); std::cout << "CIA2 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
 
+        showStatus();
+        return;
+    }
+
+    if (sub == "sei")
+    {
+        mon.computer()->cpuSEI();
+        std::cout << "CPU: SEI (I=1). Maskable IRQs disabled.\n";
+        showStatus();
+        return;
+    }
+
+    if (sub == "cli")
+    {
+        mon.computer()->cpuCLI();
+        std::cout << "CPU: CLI (I=0). Maskable IRQs enabled.\n";
         showStatus();
         return;
     }

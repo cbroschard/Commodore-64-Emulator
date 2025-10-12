@@ -128,6 +128,9 @@ class Computer
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
                  processor->getY(), processor->getSP(), processor->getSR()}; }
+        inline uint8_t cpuGetSR() { return processor->getSR(); }
+        inline void cpuSEI(){ return processor->setSEI(); }
+        inline void cpuCLI(){ return processor->setCLI(); }
         void setJamMode(const std::string& mode);
         std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
 
