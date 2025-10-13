@@ -33,31 +33,33 @@
 // Forward declarations
 class MLMonitor;
 
-struct CPUState
-{
-    uint16_t PC;
-    uint8_t  A, X, Y, SP, SR;
-};
-
-// CPU timing for NTSC vs PAL
-struct CPUConfig {
-    double clockSpeedHz;   // master clock
-    double frameRate;      // frames/sec
-
-    // compute on-the-fly so it can never get out of sync
-    constexpr int cyclesPerFrame() const {
-        return int(clockSpeedHz / frameRate + 0.5);
-    }
-};
-
-static constexpr CPUConfig NTSC_CPU = {1'022'727.0, 59.826};
-static constexpr CPUConfig PAL_CPU  = {985'248.0, 50.125};
-
 class Computer
 {
     public:
         Computer();
         virtual ~Computer();
+
+        struct CPUState
+        {
+            uint16_t PC;
+            uint8_t  A, X, Y, SP, SR;
+        };
+
+        // CPU timing for NTSC vs PAL
+        struct CPUConfig
+        {
+            double clockSpeedHz;   // master clock
+            double frameRate;      // frames/sec
+
+            // compute on-the-fly so it can never get out of sync
+            constexpr int cyclesPerFrame() const
+            {
+                return int(clockSpeedHz / frameRate + 0.5);
+            }
+        };
+
+        static constexpr CPUConfig NTSC_CPU = {1'022'727.0, 59.826};
+        static constexpr CPUConfig PAL_CPU  = {985'248.0, 50.125};
 
         // Main emulation loop
         bool boot();
