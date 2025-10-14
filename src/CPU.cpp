@@ -657,11 +657,10 @@ void CPU::tick()
         return;
     }
 
+    if (baHold) { totalCycles++; return; }
+
     if (cycles <= 0)
     {
-        // service pending NMI/IRQ first
-        //if (nmiPending) executeNMI();
-        //else handleIRQ(); // will early-out if I=1 or suppressed
         handleNMI();
         handleIRQ();
         if (cycles <= 0)
