@@ -169,6 +169,10 @@ class CIA2
         uint8_t timerAControl;
         uint8_t timerBControl;
         bool timerAPulseFlag;
+        uint16_t timerASnap;
+        uint16_t timerBSnap;
+        bool timerALatched;
+        bool timerBLatched;
 
         // Update Timers helpers
         void updateTimerA(uint32_t cyclesElapsed);

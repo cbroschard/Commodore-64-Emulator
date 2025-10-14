@@ -32,6 +32,10 @@ void CIA2::reset() {
     ticksB = 0;
     clkSelA = 0;
     clkSelB = 0;
+    timerASnap = 0;
+    timerBSnap = 0;
+    timerALatched = false;
+    timerBLatched = false;
 
     // TOD
     todTicks = 0;
@@ -173,13 +177,27 @@ uint8_t CIA2::readRegister(uint16_t address)
             return dataDirectionPortB;
         case 0xDD04: // Timer A low byte
             //return timerALowByte;
-            return timerA & 0xFF;
+            timerASnap = timerA;
+            timerALatched = true;
+            return timerASnap & 0xFF;
         case 0xDD05: // Timer A high byte
             //return timerAHighByte;
+            if (timerALatched)
+            {
+                timerALatched = false;
+                return timerASnap >> 8;
+            }
             return (timerA >> 8) & 0xFF;
         case 0xDD06: // Timer B low byte
+            timerBSnap = timerB;
+            timerBLatched = true;
             return timerB & 0xFF;
         case 0xDD07: // Timer B high byte
+            if (timerBSnap)
+            {
+                timerBLatched = false;
+                return timerBSnap >> 8;
+            }
             return (timerB >> 8) & 0xFF;
         case 0xDD08: // TOD Clock 1/10 seconds
             if (!todLatched)
