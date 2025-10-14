@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "cia2.h"
+#include "CPU.h"
 
 CIA2::CIA2()
 {
@@ -587,33 +588,12 @@ void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
     }
 }
 
-void CIA2::triggerNMI()
-{
-    if (!nmiAsserted && processor)
-    {
-        nmiAsserted = true;
-        processor->requestNMI(); // Handle NMI
-    }
-}
-
-void CIA2::clearNMI()
-{
-    nmiAsserted = false;
-}
-
 void CIA2::refreshNMI()
 {
-    if (interruptStatus & interruptEnable & 0x1F)
-    {
-        if (!nmiAsserted)
-        {
-            triggerNMI();
-        }
-    }
-    else
-    {
-        clearNMI();
-    }
+    // Drive the NMI line level based on (IFR & IER)
+    bool level = (interruptStatus & interruptEnable & 0x1F) != 0;
+    nmiAsserted = level;
+    if (processor) processor->setNMILine(level);
 }
 
 void CIA2::clkChanged(bool level)

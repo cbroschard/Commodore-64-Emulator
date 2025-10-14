@@ -5,11 +5,13 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CIA2.h"
 #include "CPU.h"
 
 CPU::CPU() :
     // Initialize
     nmiPending(false),
+    nmiLine(false),
     irqSuppressOne(false),
     jamMode(JamMode::NopCompat),
     halted(false),
@@ -54,6 +56,7 @@ void CPU::reset()
     baHold = false;
     setLogging = false;
     nmiPending = false;
+    nmiLine = false;
     irqSuppressOne = false;
 
     // if mode_ wasn’t set yet, assume NTSC
@@ -83,13 +86,10 @@ void CPU::setJamMode(JamMode mode)
     jamMode = mode;
 }
 
-void CPU::handleNMI()
+void CPU::setNMILine(bool asserted)
 {
-    if (nmiPending)
-    {
-        nmiPending = false;
-        executeNMI();
-    }
+    if (asserted && !nmiLine) nmiPending = true;
+    nmiLine = asserted;
 }
 
 void CPU::handleIRQ()
@@ -107,6 +107,13 @@ void CPU::handleIRQ()
             }
         }
     }
+}
+
+void CPU::handleNMI()
+{
+    if (!nmiPending) return;
+    nmiPending = false;
+    executeNMI();
 }
 
 void CPU::executeIRQ()
@@ -653,8 +660,10 @@ void CPU::tick()
     if (cycles <= 0)
     {
         // service pending NMI/IRQ first
-        if (nmiPending) executeNMI();
-        else handleIRQ(); // will early-out if I=1 or suppressed
+        //if (nmiPending) executeNMI();
+        //else handleIRQ(); // will early-out if I=1 or suppressed
+        handleNMI();
+        handleIRQ();
         if (cycles <= 0)
         {
             uint8_t opcode = fetch();

@@ -19,7 +19,6 @@ class PLA;
 #include <array>
 #include <functional>
 #include <stdint.h>
-#include "CIA2.h"
 #include "common.h"
 #include "IRQLine.h"
 #include "Logging.h"
@@ -116,8 +115,9 @@ class CPU
 
         // Access for IRQ handling
         inline void requestNMI() { nmiPending = true; }
-        void handleNMI();
+        void setNMILine(bool asserted);
         void handleIRQ();
+        void handleNMI();
 
         // RTS helper for the quick load for T64 images
         void rtsFromQuickLoad();
@@ -157,6 +157,7 @@ class CPU
 
         // NMI scheduling
         bool nmiPending;
+        bool nmiLine;
 
         // IRQ delay
         bool irqSuppressOne;

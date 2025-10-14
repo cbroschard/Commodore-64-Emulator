@@ -16,7 +16,6 @@ class IECBUS;
 
 #include <cstdint>
 #include "common.h"
-#include "CPU.h"
 #include "IECBUS.h"
 #include "Logging.h"
 #include "RS232Device.h"
@@ -202,8 +201,6 @@ class CIA2
         bool setLogging;
 
         // NMI Handling
-        void triggerNMI();
-        void clearNMI();
         void refreshNMI();
 
         // Timer B
