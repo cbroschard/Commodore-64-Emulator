@@ -56,10 +56,10 @@ class Memory
         uint8_t read(uint16_t address); // CPU access
         uint16_t read16(uint16_t addr);
         uint8_t vicRead(uint16_t vicAddress, uint16_t raster); // VIC access range
+        uint8_t vicReadColor(uint16_t address) const;
         void write(uint16_t address, uint8_t value); // CPU access
         void write16(uint16_t address, uint16_t value);
         void writeDirect(uint16_t address, uint8_t value);
-        uint8_t vicReadColor(uint16_t address) const { return colorRAM[address - 0xD800] & 0x0F; }
 
         // Allow the cartridge to be loaded into memory
         void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
