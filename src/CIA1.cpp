@@ -792,9 +792,9 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
 
 void CIA1::setCNTLine(bool level)
 {
-    const bool rising = (!lastCNT && level);
+    const bool falling = (lastCNT && !level);
     lastCNT = cntLevel = level;
-    if (!rising) return;
+    if (!falling) return;
 
     // TA counts on CNT when CRA bit5=1 and START=1
     if ((timerAControl & 0x20) && (timerAControl & 0x01))
