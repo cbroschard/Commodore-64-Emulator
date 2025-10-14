@@ -191,9 +191,9 @@ uint8_t CIA2::readRegister(uint16_t address)
         case 0xDD06: // Timer B low byte
             timerBSnap = timerB;
             timerBLatched = true;
-            return timerB & 0xFF;
+            return timerBSnap & 0xFF;
         case 0xDD07: // Timer B high byte
-            if (timerBSnap)
+            if (timerBLatched)
             {
                 timerBLatched = false;
                 return timerBSnap >> 8;
