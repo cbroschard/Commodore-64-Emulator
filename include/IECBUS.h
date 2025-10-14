@@ -8,10 +8,12 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
+// Forward declarations
+class CIA2;
+
 #include <cstdint>
 #include <vector>
 #include <map>
-#include "CIA2.h"
 #include "IECTypes.h"
 #include "Peripheral.h"
 
