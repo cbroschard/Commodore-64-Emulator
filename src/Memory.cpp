@@ -155,11 +155,11 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
     return mem[cpuAddress];
 }
 
-uint8_t Memory::vicReadColor(uint16_t address)
+uint8_t Memory::vicReadColor(uint16_t address) const
 {
     if (address >= 0xD800 && address <= 0xDBFF)
     {
-        return colorRAM[cpuAddr - 0xD800] & 0x0F;
+        return colorRAM[address - 0xD800] & 0x0F;
     }
     return 0x0F; // out of bounds
 }
