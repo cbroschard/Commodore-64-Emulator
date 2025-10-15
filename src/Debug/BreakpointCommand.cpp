@@ -29,7 +29,7 @@ std::string BreakpointCommand::shortHelp() const
 std::string BreakpointCommand::help() const
 {
     return
-  "bp — Manage breakpoints (set | list | clear)\n"
+  "bp - Manage breakpoints (set | list | clear)\n"
   "\n"
   "USAGE\n"
   "  bp <address>\n"
