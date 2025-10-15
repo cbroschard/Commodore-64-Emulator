@@ -9,13 +9,10 @@
 
 D1581::D1581(int deviceNumber)
 {
-    //ctor
+
 }
 
-D1581::~D1581()
-{
-    //dtor
-}
+D1581::~D1581() = default;
 
 bool D1581::canMount(DiskFormat fmt) const
 {
