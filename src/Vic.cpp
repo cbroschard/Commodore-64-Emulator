@@ -362,12 +362,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01E:
         {
-            //registers.spriteCollision &= ~value;
+            registers.spriteCollision &= ~value;
             break;
         }
         case 0xD01F:
         {
-            //registers.spriteDataCollision &= ~value;
+            registers.spriteDataCollision &= ~value;
             break;
         }
         case 0xD020:
