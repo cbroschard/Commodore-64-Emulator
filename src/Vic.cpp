@@ -283,7 +283,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
             registers.control = value & 0x7F;
 
-            if (currentCycle <= 1 && registers.raster == registers.rasterInterruptLine)
+            if (currentCycle == 0 && registers.raster == registers.rasterInterruptLine)
             {
                 if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
                 updateIRQLine();
@@ -295,7 +295,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
 
-            if (currentCycle <= 1 && registers.raster == registers.rasterInterruptLine)
+            if (currentCycle == 0 && registers.raster == registers.rasterInterruptLine)
             {
                 if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
                 updateIRQLine();
@@ -362,12 +362,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01E:
         {
-            registers.spriteCollision &= ~value;
+            //registers.spriteCollision &= ~value;
             break;
         }
         case 0xD01F:
         {
-            registers.spriteDataCollision &= ~value;
+            //registers.spriteDataCollision &= ~value;
             break;
         }
         case 0xD020:
