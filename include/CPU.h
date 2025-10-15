@@ -128,7 +128,7 @@ class CPU
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }
         inline void setSEI() { setFlag(I, true); }
-        inline void setCLI() { setFlag(I, false); }
+        inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
         // Registers access
         inline uint16_t getPC() const { return PC; }
