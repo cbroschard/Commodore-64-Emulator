@@ -71,7 +71,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << " IFR=$";       printHex2(mon.mlmonitorbackend()->cia2IFR());
         std::cout << " NMI=" << (mon.mlmonitorbackend()->cia2NMI() ? "asserted" : "clear") << "\n";
 
-        uint8_t sr = mon.computer()->cpuGetSR();
+        uint8_t sr = mon.mlmonitorbackend()->cpuGetSR();
         std::cout << "CPU : SR=$";  printHex2(sr);
         std::cout << " I=" << ((sr & CPU::I) ? "1" : "0") << " ("
                   << ((sr & CPU::I) ? "disabled" : "enabled") << ")\n";
