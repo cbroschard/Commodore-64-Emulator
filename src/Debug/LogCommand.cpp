@@ -139,8 +139,8 @@ void LogCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (entry.logtype == *logSetOpt)
             {
                 entry.enabled = enable;
-                // Update computer to tell the class to enable logging
-                mon.computer()->setLogging(entry.logtype, enable);
+                // Update backend to tell the class to enable logging
+                mon.mlmonitorbackend()->setLogging(entry.logtype, enable);
                 std::cout << logSetToString(entry.logtype)
                           << " logging "
                           << stateString(enable)
