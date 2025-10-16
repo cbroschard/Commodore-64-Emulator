@@ -55,7 +55,7 @@ void JamCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (args.size() == 1)
     {
         // Show current mode
-        std::cout << "The current Jam mode is: " << mon.computer()->getJamMode() << "\n";
+        std::cout << "The current Jam mode is: " << mon.mlmonitorbackend()->getJamMode() << "\n";
         return;
     }
 
@@ -75,17 +75,17 @@ void JamCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (args[1] == "freeze")
     {
-        mon.computer()->setJamMode("freeze");
+        mon.mlmonitorbackend()->setJamMode("freeze");
         std::cout << "Updated Jam mode to FreezePC\n";
     }
     else if (args[1] == "halt")
     {
-        mon.computer()->setJamMode("halt");
+        mon.mlmonitorbackend()->setJamMode("halt");
         std::cout << "Updated Jam mode to Halt.\n";
     }
     else
     {
-        mon.computer()->setJamMode("nop");
+        mon.mlmonitorbackend()->setJamMode("nop");
         std::cout << "Updated Jam mode to NopCompat\n";
     }
 }
