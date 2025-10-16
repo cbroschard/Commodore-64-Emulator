@@ -50,9 +50,6 @@ std::string IRQCommand::help() const
 
 void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    Computer* comp = mon.computer();
-    if (!comp) { std::cout << "No Computer attached.\n"; return; }
-
     auto printHex2 = [](uint8_t v)
     {
         std::ios::fmtflags f(std::cout.flags());
@@ -62,17 +59,17 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     auto showStatus = [&]()
     {
-        std::cout << "VIC : IER=$";  printHex2(comp->vicIER());
-        std::cout << " IFR=$";       printHex2(comp->vicIFR());
-        std::cout << " IRQ=" << (comp->vicIRQ() ? "asserted" : "clear") << "\n";
+        std::cout << "VIC : IER=$";  printHex2(mon.mlmonitorbackend()->vicIER());
+        std::cout << " IFR=$";       printHex2(mon.mlmonitorbackend()->vicIFR());
+        std::cout << " IRQ=" << (mon.mlmonitorbackend()->vicIRQ() ? "asserted" : "clear") << "\n";
 
-        std::cout << "CIA1: IER=$";  printHex2(comp->cia1IER());
-        std::cout << " IFR=$";       printHex2(comp->cia1IFR());
-        std::cout << " IRQ=" << (comp->cia1IRQ() ? "asserted" : "clear") << "\n";
+        std::cout << "CIA1: IER=$";  printHex2(mon.mlmonitorbackend()->cia1IER());
+        std::cout << " IFR=$";       printHex2(mon.mlmonitorbackend()->cia1IFR());
+        std::cout << " IRQ=" << (mon.mlmonitorbackend()->cia1IRQ() ? "asserted" : "clear") << "\n";
 
-        std::cout << "CIA2: IER=$";  printHex2(comp->cia2IER());
-        std::cout << " IFR=$";       printHex2(comp->cia2IFR());
-        std::cout << " NMI=" << (comp->cia2NMI() ? "asserted" : "clear") << "\n";
+        std::cout << "CIA2: IER=$";  printHex2(mon.mlmonitorbackend()->cia2IER());
+        std::cout << " IFR=$";       printHex2(mon.mlmonitorbackend()->cia2IFR());
+        std::cout << " NMI=" << (mon.mlmonitorbackend()->cia2NMI() ? "asserted" : "clear") << "\n";
 
         uint8_t sr = mon.computer()->cpuGetSR();
         std::cout << "CPU : SR=$";  printHex2(sr);
@@ -86,7 +83,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "off")
     {
-        comp->irqDisableAll();
+        mon.mlmonitorbackend()->irqDisableAll();
         std::cout << "IRQs disabled and pending cleared.\n";
         showStatus();
         return;
@@ -94,7 +91,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "clear")
     {
-        comp->irqClearAll();
+        mon.mlmonitorbackend()->irqClearAll();
         std::cout << "Pending interrupts cleared.\n";
         showStatus();
         return;
@@ -102,7 +99,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "on" || sub == "restore")
     {
-        comp->irqRestore();
+        mon.mlmonitorbackend()->irqRestore();
         std::cout << "IRQ masks restored from snapshot.\n";
         showStatus();
         return;
@@ -127,9 +124,9 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        if (sub == "vic")  { comp->setVicIER (m & 0x0F); std::cout << "VIC  IER <= $";  printHex2(m & 0x0F); std::cout << "\n"; }
-        if (sub == "cia1") { comp->setCIA1IER(m & 0x1F); std::cout << "CIA1 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
-        if (sub == "cia2") { comp->setCIA2IER(m & 0x1F); std::cout << "CIA2 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
+        if (sub == "vic")  { mon.mlmonitorbackend()->setVicIER (m & 0x0F); std::cout << "VIC  IER <= $";  printHex2(m & 0x0F); std::cout << "\n"; }
+        if (sub == "cia1") { mon.mlmonitorbackend()->setCIA1IER(m & 0x1F); std::cout << "CIA1 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
+        if (sub == "cia2") { mon.mlmonitorbackend()->setCIA2IER(m & 0x1F); std::cout << "CIA2 IER <= $";  printHex2(m & 0x1F); std::cout << "\n"; }
 
         showStatus();
         return;
