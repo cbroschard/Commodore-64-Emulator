@@ -57,9 +57,9 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
     }
 
     // Get the pointer to the cart object first
-    Cartridge* cart = mon.computer()->getCart();
+    Cartridge* cart = mon.mlmonitorbackend()->getCart();
 
-    if (!cart || !mon.computer()->getCartridgeAttached())
+    if (!cart || !mon.mlmonitorbackend()->getCartridgeAttached())
     {
         std::cout << "Error: No cartridge loaded.\n";
         return;
@@ -180,7 +180,7 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
     }
     else if (subcmd == "unload")
     {
-        if (!mon.computer()->getCartridgeAttached())
+        if (!mon.mlmonitorbackend()->getCartridgeAttached())
         {
             std::cout << "No cartridge to unload.\n";
             return;
@@ -197,7 +197,7 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
         }
 
         // Detach from computer
-        mon.computer()->detachCartridge();
+        mon.mlmonitorbackend()->detachCartridge();
 
         std::cout << "Cartridge unloaded.\n";
 
