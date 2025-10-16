@@ -70,12 +70,12 @@ void SIDCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     const std::string& subcmd = args[1];
 
-    if (subcmd == "all") std::cout << mon.computer()->dumpSIDRegs();
-    else if (subcmd == "voice1")  std::cout << mon.computer()->dumpSIDVoice1();
-    else if (subcmd == "voice2")  std::cout << mon.computer()->dumpSIDVoice2();
-    else if (subcmd == "voice3")  std::cout << mon.computer()->dumpSIDVoice3();
-    else if (subcmd == "voices")  std::cout << mon.computer()->dumpSIDVoices();
-    else if (subcmd == "filter")  std::cout << mon.computer()->dumpSIDFilter();
+    if (subcmd == "all") std::cout << mon.mlmonitorbackend()->dumpSIDRegs();
+    else if (subcmd == "voice1")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice1();
+    else if (subcmd == "voice2")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice2();
+    else if (subcmd == "voice3")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice3();
+    else if (subcmd == "voices")  std::cout << mon.mlmonitorbackend()->dumpSIDVoices();
+    else if (subcmd == "filter")  std::cout << mon.mlmonitorbackend()->dumpSIDFilter();
     else if (subcmd == "help")    std::cout << help();
     else std::cout << help(); // default show help
 }

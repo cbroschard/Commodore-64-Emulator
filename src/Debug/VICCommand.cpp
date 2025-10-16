@@ -70,12 +70,12 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (sub == "mode")
     {
         std::cout << "Current VIC-II mode: "
-                  << mon.computer()->vicGetModeName()
+                  << mon.mlmonitorbackend()->vicGetModeName()
                   << std::endl;
     }
     else if (sub == "banks")
     {
-        std::cout << mon.computer()->getCurrentVICBanks() << std::endl;
+        std::cout << mon.mlmonitorbackend()->getCurrentVICBanks() << std::endl;
     }
     else if (sub == "regs")
     {
@@ -93,11 +93,11 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (validGroups.count(group))
                 if (group == "all")
                 {
-                    printPaged(mon.computer()->vicDumpRegs(group));
+                    printPaged(mon.mlmonitorbackend()->vicDumpRegs(group));
                 }
                 else
                 {
-                    std::cout << mon.computer()->vicDumpRegs(group) << std::endl;
+                    std::cout << mon.mlmonitorbackend()->vicDumpRegs(group) << std::endl;
                 }
             else
                 std::cout << regsUsage();
