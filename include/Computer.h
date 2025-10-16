@@ -10,7 +10,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <thread>
 #include <mutex>
 #include "Cartridge.h"
