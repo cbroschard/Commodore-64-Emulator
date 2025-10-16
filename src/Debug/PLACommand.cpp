@@ -40,7 +40,7 @@ void PLACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
     if (args.size() == 1)
     {
-        std::cout << mon.computer()->plaGetState() << std::endl;
+        std::cout << mon.mlmonitorbackend()->plaGetState() << std::endl;
         return;
     }
 
@@ -55,7 +55,7 @@ void PLACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         try
         {
             uint16_t address = parseAddress(args[1]);
-            std::cout << mon.computer()->plaGetAddressInfo(address) << std::endl;
+            std::cout << mon.mlmonitorbackend()->plaGetAddressInfo(address) << std::endl;
         }
         catch (...)
         {
