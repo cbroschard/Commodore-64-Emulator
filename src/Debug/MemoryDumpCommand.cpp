@@ -55,7 +55,7 @@ void MemoryDumpCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
             std::string ascii;
             for (int j = 0; j < 16 && (i + j) < count; ++j)
             {
-                uint8_t v = mon.computer()->readRAM(address + i + j);
+                uint8_t v = mon.mlmonitorbackend()->readRAM(address + i + j);
                 std::cout << std::hex << std::setw(2) << std::setfill('0') << int(v) << ' ';
 
                 // build ASCII string: printable chars or '.'

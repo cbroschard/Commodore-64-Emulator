@@ -45,7 +45,7 @@ void MemoryEditCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
     {
         uint16_t address = parseAddress(args[1]);
         uint8_t value = parseAddress(args[2]);
-        mon.computer()->writeRAM(address, value);
+        mon.mlmonitorbackend()->writeRAM(address, value);
     }
     catch(const std::exception& e)
     {
