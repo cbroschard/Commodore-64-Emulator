@@ -57,5 +57,5 @@ void TapeCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
     }
 
-    std::cout << mon.computer()->dumpTapeDebug(count);
+    std::cout << mon.mlmonitorbackend()->dumpTapeDebug(count);
 }
