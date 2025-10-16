@@ -134,7 +134,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "sei")
     {
-        mon.computer()->cpuSEI();
+        mon.mlmonitorbackend()->cpuSEI();
         std::cout << "CPU: SEI (I=1). Maskable IRQs disabled.\n";
         showStatus();
         return;
@@ -142,7 +142,7 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "cli")
     {
-        mon.computer()->cpuCLI();
+        mon.mlmonitorbackend()->cpuCLI();
         std::cout << "CPU: CLI (I=0). Maskable IRQs enabled.\n";
         showStatus();
         return;
