@@ -21,6 +21,7 @@ Computer::Computer()
       logger(std::make_unique<Logging>("debug.txt")),
       mem(std::make_unique<Memory>()),
       monitor(std::make_unique<MLMonitor>()),
+      monbackend(std::make_unique<MLMonitorBackend>()),
       pla(std::make_unique<PLA>()),
       sidchip(std::make_unique<SID>(44100)),
       vicII(std::make_unique<Vic>()),
@@ -303,6 +304,18 @@ void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
     };
 }
 
+Joystick* Computer::getJoy1()
+{
+    if (joy1) return joy1.get();
+    else return nullptr;
+}
+
+Joystick* Computer::getJoy2()
+{
+    if (joy2) return joy2.get();
+    else return nullptr;
+}
+
 void Computer::warmReset()
 {
     std::cout << "Performing warm reset...\n";
@@ -369,8 +382,24 @@ bool Computer::boot()
     cia2object->reset();
     sidchip->reset();
 
-    // Attach computer pointer to ML Monitor
-    monitor->attachComputerInstance(this);
+    // Attach backend pointer to MLMonitor
+    monitor->attachMLMonitorBackendInstance(monbackend.get());
+
+    // Attach all devices to monitor backend
+    monbackend->attachCartridgeInstance(cart.get());
+    monbackend->attachCassetteInstance(cass.get());
+    monbackend->attachCIA1Instance(cia1object.get());
+    monbackend->attachCIA2Instance(cia2object.get());
+    monbackend->attachComputerInstance(this);
+    monbackend->attachProcessorInstance(processor.get());
+    monbackend->attachIECBusInstance(bus.get());
+    monbackend->attachIOInstance(IO_adapter.get());
+    monbackend->attachKeyboardInstance(keyb.get());
+    monbackend->attachLogInstance(logger.get());
+    monbackend->attachMemoryInstance(mem.get());
+    monbackend->attachPLAInstance(pla.get());
+    monbackend->attachSIDInstance(sidchip.get());
+    monbackend->attachVICInstance(vicII.get());
 
     // Check for a cartridge to be loaded, takes precedence over disk or tape
     if (cartridgeAttached)
@@ -690,118 +719,4 @@ void Computer::debugBasicState()
             printf("Screen memory[%04X] = %02x\n", i, mem->read(i));
         }
     }
-}
-
-void Computer::vicFFRaster(uint8_t targetRaster)
-{
-    while(vicII->getCurrentRaster() != targetRaster)
-    {
-        vicII->tick(1);
-        processor->tick();
-        cia1object->updateTimers(1);
-        cia2object->updateTimers(1);
-        sidchip->tick(1);
-    }
-}
-
-std::string Computer::jamModeToString() const
-{
-    if (processor)
-    {
-        CPU::JamMode mode = processor->getJamMode();
-        switch(mode)
-        {
-            case CPU::JamMode::FreezePC: return "FreezePC";
-            case CPU::JamMode::Halt: return "Halt";
-            case CPU::JamMode::NopCompat: return "NopCompat";
-        }
-    }
-
-    // Default
-        return "Unknown";
-}
-
-void Computer::setJamMode(const std::string& mode)
-{
-    if (processor)
-    {
-        if (mode == "freeze")
-        {
-            processor->setJamMode(CPU::JamMode::FreezePC);
-        }
-        else if (mode == "halt")
-        {
-            processor->setJamMode(CPU::JamMode::Halt);
-        }
-        else if (mode == "nop")
-        {
-            processor->setJamMode(CPU::JamMode::NopCompat);
-        }
-    }
-}
-
-void Computer::setLogging(LogSet log, bool enabled)
-{
-    switch (log)
-    {
-        case LogSet::Cartridge: if (cart) cart->setLog(enabled); break;
-        case LogSet::Cassette: if (cass) cass->setLog(enabled); break;
-        case LogSet::CIA1: if (cia1object) cia1object->setLog(enabled); break;
-        case LogSet::CIA2: if (cia2object) cia2object->setLog(enabled); break;
-        case LogSet::CPU: if (processor) processor->setLog(enabled); break;
-        case LogSet::IO: if (IO_adapter) IO_adapter->setLog(enabled); break;
-        case LogSet::Joystick:
-        {
-            if (joy1)
-            {
-                joy1->attachLogInstance(logger.get());
-                joy1->setLog(enabled);
-            }
-
-            if (joy2)
-            {
-                joy2->attachLogInstance(logger.get());
-                joy2->setLog(enabled);
-            }
-        }
-        case LogSet::Keyboard: if (keyb) keyb->setLog(enabled); break;
-        case LogSet::Memory: if (mem) mem->setLog(enabled); break;
-        case LogSet::PLA: if (pla) pla->setLog(enabled); break;
-        case LogSet::VIC: if (vicII) vicII->setLog(enabled); break;
-    }
-}
-
-void Computer::irqDisableAll()
-{
-    if (!vicII && !cia1object && !cia2object) return;
-
-    snapshot.has = true;
-    snapshot.vic  = vicII->snapshotIRQs();
-    snapshot.cia1 = cia1object->snapshotIRQs();
-    snapshot.cia2 = cia2object->snapshotIRQs();
-
-    vicII->disableAllIRQs();
-    cia1object->disableAllIRQs();
-    cia2object->disableAllIRQs();
-
-    irqClearAll();  // acknowledge anything pending after the mask change
-}
-
-void Computer::irqClearAll()
-{
-    if (!vicII && !cia1object && !cia2object) return;
-
-    vicII->clearPendingIRQs();
-    cia1object->clearPendingIRQs();
-    cia2object->clearPendingIRQs();
-}
-
-void Computer::irqRestore()
-{
-    if (!vicII && !cia1object && !cia2object) return;
-    if (!snapshot.has) return;
-
-    vicII->restoreIRQs(snapshot.vic);
-    cia1object->restoreIRQs(snapshot.cia1);
-    cia2object->restoreIRQs(snapshot.cia2);
 }

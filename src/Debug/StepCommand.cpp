@@ -47,20 +47,20 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
 
     // Determine current CPU PC
-    uint16_t pc = mon.computer()->getPC();
-    Memory* mem = mon.computer()->getMem();
+    uint16_t pc = mon.mlmonitorbackend()->getPC();
+    Memory* mem = mon.mlmonitorbackend()->getMem();
 
     // Check for raster check loop, if so, fast forward to it
     uint8_t targetRaster;
     if (mon.isRasterWaitLoop(pc, targetRaster))
     {
-        if (mon.computer()->getCurrentRaster() != targetRaster)
+        if (mon.mlmonitorbackend()->getCurrentRaster() != targetRaster)
         {
             std::cout << "[Monitor] Raster wait detected at $"
                   << std::hex << pc
                   << ", fast-forwarding to line $"
                   << int(targetRaster) << std::endl;
-            mon.computer()->vicFFRaster(targetRaster);
+            mon.mlmonitorbackend()->vicFFRaster(targetRaster);
         }
     }
 
@@ -69,10 +69,10 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     std::cout << disASM << std::endl;
 
     // Execute OPCODE
-    mon.computer()->cpuStep();
+    mon.mlmonitorbackend()->cpuStep();
 
     // Dump CPU registers
-    auto st = mon.computer()->getCPUState();
+    auto st = mon.mlmonitorbackend()->getCPUState();
     auto hex2 = [](uint32_t v){
         std::ostringstream s;
         s << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << (v & 0xFF);

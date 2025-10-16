@@ -37,6 +37,7 @@
 
 // Forward declarations
 class Computer;
+class MLMonitorBackend;
 
 class MLMonitor
 {
@@ -48,8 +49,8 @@ class MLMonitor
 
         inline void setRunningFlag(bool flag) { running = flag; }
 
-        void attachComputerInstance(Computer* comp);
-        inline Computer* computer() const { return comp; }
+        inline void attachMLMonitorBackendInstance(MLMonitorBackend* monbackend) { this->monbackend = monbackend; }
+        inline MLMonitorBackend* mlmonitorbackend() const { return monbackend; }
 
         // Breakpoint management
         inline void addBreakpoint(uint16_t bp) { breakpoints.insert(bp); }
@@ -83,7 +84,8 @@ class MLMonitor
     private:
 
         // Pointers
-        Computer* comp;
+        MLMonitorBackend* monbackend;
+
         std::unordered_map<std::string, std::unique_ptr<MonitorCommand>> commands;
 
 

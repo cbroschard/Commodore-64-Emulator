@@ -35,7 +35,7 @@ std::string RegisterDumpCommand::help() const
 
 void RegisterDumpCommand::execute(MLMonitor& mon, const std::vector<std::string>&)
 {
-    const auto st = mon.computer()->getCPUState();
+    const auto st = mon.mlmonitorbackend()->getCPUState();
 
     auto hex2 = [](uint32_t v){
         std::ostringstream s;

@@ -69,7 +69,7 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
 
     try
     {
-        Memory* mem = mon.computer()->getMem();
+        Memory* mem = mon.mlmonitorbackend()->getMem();
 
         uint16_t start = 0;
         uint16_t end = 0;
@@ -86,7 +86,7 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
         }
         else
         {
-            start = mon.computer()->getPC();
+            start = mon.mlmonitorbackend()->getPC();
             hasLastPC = true;
         }
 

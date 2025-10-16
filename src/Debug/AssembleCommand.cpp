@@ -93,7 +93,7 @@ void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
 
             // Write into memory
             for (size_t i = 0; i < instr.bytes.size(); ++i) {
-                mon.computer()->writeRAM(address + i, instr.bytes[i]);
+                mon.mlmonitorbackend()->writeRAM(address + i, instr.bytes[i]);
             }
 
             address = instr.nextAddress;  // advance

@@ -69,7 +69,7 @@ void ExportDisassemblyCommand::execute(MLMonitor& mon, const std::vector<std::st
 
     try
     {
-        Memory* mem = mon.computer()->getMem();
+        Memory* mem = mon.mlmonitorbackend()->getMem();
 
         uint16_t start = parseAddress(args[1]);
         uint16_t end = 0;

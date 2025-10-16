@@ -60,7 +60,7 @@ void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else
     {
         uint16_t address = parseAddress(args[1]);
-        mon.computer()->setPC(address);
+        mon.mlmonitorbackend()->setPC(address);
         mon.setRunningFlag(false);
         return;
     }

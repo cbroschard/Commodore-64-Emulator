@@ -56,8 +56,8 @@ void NextCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    uint16_t currentPC = mon.computer()->getPC();
-    uint8_t opCode = mon.computer()->readRAM(currentPC);
+    uint16_t currentPC = mon.mlmonitorbackend()->getPC();
+    uint8_t opCode = mon.mlmonitorbackend()->readRAM(currentPC);
     if (opCode == 0x20)
     {
         // Computer the address of the instruction after the JSR
@@ -69,15 +69,15 @@ void NextCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         // Run until hitting the breakpoint then stop
         while (true)
         {
-            mon.computer()->cpuStep();
-            if (mon.computer()->getPC() == targetPC)
+            mon.mlmonitorbackend()->cpuStep();
+            if (mon.mlmonitorbackend()->getPC() == targetPC)
             {
                 break;
             }
         }
 
         // Dump CPU registers
-        auto st = mon.computer()->getCPUState();
+        auto st = mon.mlmonitorbackend()->getCPUState();
         std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
             << "  A=$" << std::setw(2) << int(st.A)
             << "  X=$" << std::setw(2) << int(st.X)
@@ -91,9 +91,9 @@ void NextCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else
     {
-        mon.computer()->cpuStep();
+        mon.mlmonitorbackend()->cpuStep();
         // Dump CPU registers
-        auto st = mon.computer()->getCPUState();
+        auto st = mon.mlmonitorbackend()->getCPUState();
         std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
             << "  A=$" << std::setw(2) << int(st.A)
             << "  X=$" << std::setw(2) << int(st.X)

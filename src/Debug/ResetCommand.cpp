@@ -51,19 +51,12 @@ void ResetCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    Computer* comp = mon.computer();
-    if (!comp)
-    {
-        std::cout << "Error: No computer instance attached.\n";
-        return;
-    }
-
     if (args.size() > 1 && args[1] == "cold")
     {
-        mon.computer()->coldReset();
+        mon.mlmonitorbackend()->coldReset();
     }
     else
     {
-        mon.computer()->warmReset();
+        mon.mlmonitorbackend()->warmReset();
     }
 }

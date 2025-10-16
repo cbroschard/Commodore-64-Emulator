@@ -7,9 +7,10 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Computer.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 MLMonitor::MLMonitor() :
-    comp(nullptr),
+    monbackend(nullptr),
     running(false)
 {
     // Register all commands
@@ -38,15 +39,6 @@ MLMonitor::MLMonitor() :
 }
 
 MLMonitor::~MLMonitor() = default;
-
-void MLMonitor::attachComputerInstance(Computer* comp)
-{
-    if (!comp)
-    {
-        throw std::runtime_error("MLMonitor: Computer not attached!");
-    }
-    this->comp = comp;
-}
 
 void MLMonitor::enter()
 {
@@ -81,7 +73,7 @@ void MLMonitor::listBreakpoints() const
 
 void MLMonitor::addWriteWatch(uint16_t address)
 {
-    uint8_t value = comp->readRAM(address);
+    uint8_t value = monbackend->readRAM(address);
     writeWatches[address] = value;
     std::cout << "Watchpoint set at $" << std::hex << std::setw(4) << std::setfill('0') << address
               << " (initial value = $" << std::setw(2) << static_cast<int>(value) << ")\n";
@@ -205,16 +197,16 @@ std::vector<uint16_t> MLMonitor::getReadWatchAddresses() const
 
 bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)
 {
-    uint8_t opcode = comp->getOpCode(pc);
+    uint8_t opcode = monbackend->getOpCode(pc);
 
     // Case 1: CMP #imm / BNE (or BEQ) after LDA $D012
     if (opcode == 0xD0 || opcode == 0xF0)  // BNE or BEQ
     {
-        uint8_t ldaOp = comp->getOpCode(pc - 5);
-        uint8_t ldaLo = comp->getOpCode(pc - 4);
-        uint8_t ldaHi = comp->getOpCode(pc - 3);
-        uint8_t cmpOp = comp->getOpCode(pc - 2);
-        uint8_t imm   = comp->getOpCode(pc - 1);
+        uint8_t ldaOp = monbackend->getOpCode(pc - 5);
+        uint8_t ldaLo = monbackend->getOpCode(pc - 4);
+        uint8_t ldaHi = monbackend->getOpCode(pc - 3);
+        uint8_t cmpOp = monbackend->getOpCode(pc - 2);
+        uint8_t imm   = monbackend->getOpCode(pc - 1);
 
         if (ldaOp == 0xAD && ldaLo == 0x12 && ldaHi == 0xD0 && cmpOp == 0xC9)
         {
@@ -226,15 +218,15 @@ bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)
     // Case 2: CPY $D012 / BNE (or BEQ) after LDY #imm
     if (opcode == 0xD0 || opcode == 0xF0)  // BNE or BEQ
     {
-        uint8_t ldyOp = comp->getOpCode(pc - 3);
-        uint8_t imm   = comp->getOpCode(pc - 2);
-        uint8_t cpyOp = comp->getOpCode(pc - 1);
-        uint8_t cpyLo = comp->getOpCode(pc - 0); // careful: overlaps PC
+        uint8_t ldyOp = monbackend->getOpCode(pc - 3);
+        uint8_t imm   = monbackend->getOpCode(pc - 2);
+        uint8_t cpyOp = monbackend->getOpCode(pc - 1);
+        uint8_t cpyLo = monbackend->getOpCode(pc - 0); // careful: overlaps PC
 
         // Actually: LDY #imm (A0 xx), CPY $D012 (CC 12 D0), BNE/BEQ
         if (ldyOp == 0xA0 && cpyOp == 0xCC && cpyLo == 0x12)
         {
-            uint8_t cpyHi = comp->getOpCode(pc + 1); // hi byte after $12
+            uint8_t cpyHi = monbackend->getOpCode(pc + 1); // hi byte after $12
             if (cpyHi == 0xD0)
             {
                 targetRaster = imm;

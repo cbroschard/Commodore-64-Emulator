@@ -202,6 +202,6 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
         std::cout << "Cartridge unloaded.\n";
 
         // Run a warm reset so the emu doesn't crash with the rug pulled out from it
-        mon.computer()->warmReset();
+        mon.mlmonitorbackend()->warmReset();
     }
 }
