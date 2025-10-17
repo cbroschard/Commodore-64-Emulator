@@ -74,9 +74,9 @@ class IO
     private:
 
         // Non-owning pointers
-        Vic* vicII = nullptr;
-        SID* sidchip = nullptr;
-        Logging* logger = nullptr;
+        Logging* logger;
+        SID* sidchip;
+        Vic* vicII;
 
         // Audio constants
         static const int SAMPLE_RATE = 44100;

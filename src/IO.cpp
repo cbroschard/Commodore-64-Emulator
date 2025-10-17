@@ -9,6 +9,9 @@
 #include "Vic.h"
 
 IO::IO() :
+    logger(nullptr),
+    sidchip(nullptr),
+    vicII(nullptr),
     visibleScreenWidth(320),
     visibleScreenHeight(200),
     borderSize(32),
