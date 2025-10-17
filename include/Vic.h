@@ -148,12 +148,12 @@ class Vic
     private:
 
         // Non-owning pointers
-        IO* IO_adapter = nullptr;
-        CPU* processor = nullptr;
-        Memory* mem = nullptr;
-        CIA2* cia2object = nullptr;
-        Logging* logger = nullptr;
-        IRQLine* IRQ = nullptr;
+        CIA2* cia2object;
+        CPU* processor;
+        IO* IO_adapter;
+        IRQLine* IRQ;
+        Logging* logger;
+        Memory* mem;
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
 

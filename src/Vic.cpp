@@ -9,6 +9,12 @@
 #include "IO.h"
 
 Vic::Vic(VideoMode mode) :
+    cia2object(nullptr),
+    processor(nullptr),
+    IO_adapter(nullptr),
+    IRQ(nullptr),
+    logger(nullptr),
+    mem(nullptr),
     mode_(mode),
     cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG),
     rowCounter(0)
