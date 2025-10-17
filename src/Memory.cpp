@@ -301,10 +301,6 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::KERNAL_ROM:
         case PLA::BASIC_ROM:
         case PLA::CHARACTER_ROM:
-        {
-            mem[address] = value;
-            break;
-        }
         case PLA::CARTRIDGE_LO:
         case PLA::CARTRIDGE_HI:
         {
