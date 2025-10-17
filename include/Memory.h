@@ -87,16 +87,16 @@ class Memory
     private:
 
         // Non-owning pointers
-        CPU* processor = nullptr;
-        Vic* vicII = nullptr;
-        SID* sidchip = nullptr;
-        Cassette* cass = nullptr;
-        CIA1* cia1object = nullptr;
-        CIA2* cia2object = nullptr;
-        Logging* logger = nullptr;
-        Cartridge* cart = nullptr;
-        PLA* pla = nullptr;
-        MLMonitor* monitor = nullptr;
+        Cartridge* cart;
+        CIA1* cia1object;
+        CIA2* cia2object;
+        Cassette* cass;
+        CPU* processor;
+        Logging* logger;
+        MLMonitor* monitor;
+        PLA* pla;
+        SID* sidchip;
+        Vic* vicII;
 
         // RAM/ROM
         std::vector<uint8_t> mem;

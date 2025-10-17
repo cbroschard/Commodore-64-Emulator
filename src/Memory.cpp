@@ -8,6 +8,16 @@
 #include "Memory.h"
 
 Memory::Memory() :
+    cart(nullptr),
+    cia1object(nullptr),
+    cia2object(nullptr),
+    cass(nullptr),
+    processor(nullptr),
+    logger(nullptr),
+    monitor(nullptr),
+    pla(nullptr),
+    sidchip(nullptr),
+    vicII(nullptr),
     cartridgeAttached(false),
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
