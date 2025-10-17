@@ -152,7 +152,7 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
     // Enforce 14-bit address
     vicAddress &= 0x3FFF;
 
-    // Check if bank 0 or 2 and return CHAR ROM if so
+    // Grab the VIC bank for this raster
     uint16_t bankBase = vicII ? vicII->getBankBaseFromVIC(raster) : 0;
 
     // Check the char base for special cases
