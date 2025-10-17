@@ -8,6 +8,8 @@
 #include "Cassette.h"
 
 Cassette::Cassette() :
+    logger(nullptr),
+    mem(nullptr),
     cassetteLoaded(false),
     playPressed(false),
     motorStatus(false),

@@ -68,8 +68,8 @@ class Cassette
         std::unique_ptr<TapeImage> tapeImage;
 
         // Non-owning pointers
-        Logging* logger = nullptr;
-        Memory* mem = nullptr;
+        Logging* logger;
+        Memory* mem;
 
         // Cassette status
         bool cassetteLoaded;

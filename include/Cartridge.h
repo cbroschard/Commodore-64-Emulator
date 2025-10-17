@@ -121,8 +121,8 @@ class Cartridge
     private:
 
         // Non-owning pointers
-        Memory* mem = nullptr;
-        Logging* logger = nullptr;
+        Logging* logger;
+        Memory* mem;
 
         // Polymorphic pointer for cartridge mapper types
         std::unique_ptr<CartridgeMapper> mapper;

@@ -20,6 +20,8 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 
 Cartridge::Cartridge() :
+    logger(nullptr),
+    mem(nullptr),
     hasRAM(false),
     currentBank(0),
     wiringMode(WiringMode::NONE),
