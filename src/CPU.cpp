@@ -10,6 +10,11 @@
 
 CPU::CPU() :
     // Initialize
+    cia2object(nullptr),
+    IRQ(nullptr),
+    logger(nullptr),
+    mem(nullptr),
+    vicII(nullptr),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),

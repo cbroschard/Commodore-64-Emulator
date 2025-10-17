@@ -149,11 +149,11 @@ class CPU
     private:
 
         // non-owning pointers
-        Memory* mem = nullptr;
-        Logging* logger = nullptr;
-        CIA2* cia2object = nullptr;
-        Vic* vicII = nullptr;
-        IRQLine* IRQ = nullptr;
+        CIA2* cia2object;
+        IRQLine* IRQ;
+        Logging* logger;
+        Memory* mem;
+        Vic* vicII;
 
         // NMI scheduling
         bool nmiPending;
