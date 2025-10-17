@@ -79,9 +79,9 @@ class PLA
     private:
 
         // Non-owning pointers
-        Cartridge* cart = nullptr;
-        Logging* logger = nullptr;
-        Vic* vicII = nullptr;
+        Cartridge* cart;
+        Logging* logger;
+        Vic* vicII;
 
         // ROM constants
         static const uint16_t CHAR_ROM_START = 0xD000;

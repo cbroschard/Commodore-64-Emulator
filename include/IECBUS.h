@@ -62,8 +62,8 @@ class IECBUS
     private:
 
         // Non-owning pointers
-        CIA2* cia2object = nullptr;
-        Peripheral* currentTalker = nullptr;
+        CIA2* cia2object;
+        Peripheral* currentTalker;
 
         // Internal state
         IECBusLines busLines;

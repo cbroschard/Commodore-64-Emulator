@@ -52,7 +52,7 @@ class Keyboard
     private:
 
         // non-owning pointers
-        Logging* logger = nullptr;
+        Logging* logger;
 
         // ML Monitor logging
         bool setLogging;

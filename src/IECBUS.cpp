@@ -10,6 +10,8 @@
 
 IECBUS::IECBUS() :
     //Initialize to defaults
+    cia2object(nullptr),
+    currentTalker(nullptr),
     line_srqin(true), // SRQ starts high (inactive)
     c64DrivesAtnLow(false),
     c64DrivesClkLow(false),

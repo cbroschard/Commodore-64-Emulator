@@ -8,6 +8,7 @@
 #include "Keyboard.h"
 
 Keyboard::Keyboard() :
+    logger(nullptr),
     setLogging(false),
     keyProcessed(false),
     shiftPressed(false)

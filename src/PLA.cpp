@@ -8,7 +8,10 @@
 #include "PLA.h"
 #include "PLAMapper.h"
 
-PLA::PLA()
+PLA::PLA() :
+    cart(nullptr),
+    logger(nullptr),
+    vicII(nullptr)
 {
 
 }
