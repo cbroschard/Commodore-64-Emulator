@@ -9,14 +9,14 @@
 #include "Vic.h"
 
 IO::IO() :
-    logger(nullptr),
-    sidchip(nullptr),
-    vicII(nullptr),
     visibleScreenWidth(320),
     visibleScreenHeight(200),
     borderSize(32),
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
+    logger(nullptr),
+    sidchip(nullptr),
+    vicII(nullptr),
     dev(0),
     readyBuffer(nullptr),
     setLogging(false)
