@@ -8,7 +8,11 @@
 #include "cia2.h"
 #include "CPU.h"
 
-CIA2::CIA2()
+CIA2::CIA2() :
+    processor(nullptr),
+    bus(nullptr),
+    logger(nullptr),
+    rs232dev(nullptr)
 {
     setMode(VideoMode::NTSC);
 }

@@ -7,7 +7,14 @@
 // strictly prohibited without the prior written consent of the author.
 #include "cia1.h"
 
-CIA1::CIA1()
+CIA1::CIA1() :
+    cass(nullptr),
+    IRQ(nullptr),
+    joy1(nullptr),
+    joy2(nullptr),
+    keyb(nullptr),
+    logger(nullptr),
+    mem(nullptr)
 {
     setMode(VideoMode::NTSC);
 }

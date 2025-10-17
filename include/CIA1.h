@@ -87,13 +87,13 @@ class CIA1
     private:
 
         // Non-owning pointers
-        Keyboard* keyb = nullptr;
-        IRQLine* IRQ = nullptr;
-        Logging* logger = nullptr;
-        Cassette* cass = nullptr;
-        Joystick* joy1 = nullptr;
-        Joystick* joy2 = nullptr;
-        Memory* mem = nullptr;
+        Cassette* cass;
+        IRQLine* IRQ;
+        Joystick* joy1;
+        Joystick* joy2;
+        Keyboard* keyb;
+        Logging* logger;
+        Memory* mem;
 
         // Video
         VideoMode mode_;

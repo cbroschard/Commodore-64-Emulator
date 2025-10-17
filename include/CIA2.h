@@ -90,10 +90,10 @@ class CIA2
     private:
 
         // non-owning pointers
-        CPU* processor = nullptr;
-        Logging* logger = nullptr;
-        IECBUS* bus = nullptr;
-        RS232Device* rs232dev = nullptr;
+        CPU* processor;
+        IECBUS* bus;
+        Logging* logger;
+        RS232Device* rs232dev;
 
         // Constants
         static constexpr uint8_t VIC_BANK0  = 0x01;  // PA0
