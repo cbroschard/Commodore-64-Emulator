@@ -20,10 +20,10 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 
 Cartridge::Cartridge() :
-    logger(nullptr),
-    mem(nullptr),
     hasRAM(false),
     currentBank(0),
+    logger(nullptr),
+    mem(nullptr),
     wiringMode(WiringMode::NONE),
     cartSize(0),
     mapperType(CartridgeType::GENERIC),
