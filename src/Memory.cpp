@@ -161,7 +161,7 @@ uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
         return charROM[vicAddress & 0x0FFF];
     }
 
-    uint16_t cpuAddress = vicAddress | bankBase;
+    uint16_t cpuAddress = (vicAddress & 0x3FFF) | bankBase;
     return mem[cpuAddress];
 }
 
