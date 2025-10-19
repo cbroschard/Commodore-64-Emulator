@@ -17,8 +17,11 @@ class Vic;
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "sdl2/sdl.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl2.h"
+#include "imgui/imgui_impl_sdlrenderer2.h"
 #include "Logging.h"
+#include "sdl2/sdl.h"
 #include "SID/SID.h"
 
 class IO
