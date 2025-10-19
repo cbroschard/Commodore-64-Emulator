@@ -15,6 +15,7 @@ class CIA2;
 #include <vector>
 #include <map>
 #include "IECTypes.h"
+#include "Logging.h"
 #include "Peripheral.h"
 
 class IECBUS
@@ -25,6 +26,7 @@ class IECBUS
 
         // Pointers
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // Line state management called by CIA1 and CIA2
         void setClkLine(bool state); // CLK line state (via CIA1 Port B bit 7)
@@ -63,6 +65,7 @@ class IECBUS
 
         // Non-owning pointers
         CIA2* cia2object;
+        Logging* logger;
         Peripheral* currentTalker;
 
         // Internal state
