@@ -66,6 +66,7 @@ Third-party dependencies are licensed separately:
 
 - [Boost](https://www.boost.org/) – [Boost Software License 1.0](Licenses/BOOST_LICENSE_1_0.txt)
 - [SDL2](https://www.libsdl.org/) – [zlib License](Licenses/SDL2_zlib_LICENSE.txt)
+- [Dear Imgui](https://https://github.com/ocornut/imgui) - [MIT License](Licenses/MIT_LICENSE.txt)
 ---
 
 ## 🙏 Acknowledgements
