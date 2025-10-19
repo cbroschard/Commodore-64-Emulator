@@ -43,6 +43,15 @@ IO::IO() :
         throw std::runtime_error(std::string("Unable to create renderer: ") + SDL_GetError());
     }
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    // Platform + renderer backends for SDL2 + SDL_Renderer
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer2_Init(renderer);
+
     frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
     backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
 
