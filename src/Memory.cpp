@@ -271,7 +271,6 @@ void Memory::write(uint16_t address, uint8_t value)
             out << "Updated MCR to value: " << static_cast<int>(value) << " computed effective: " << static_cast<int>(effective);
             logger->WriteLog(out.str());
         }
-
         return;
     }
 
@@ -301,10 +300,16 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::KERNAL_ROM:
         case PLA::BASIC_ROM:
         case PLA::CHARACTER_ROM:
+        {
+            // Write the value to the requested RAM address
+            mem[address] = value;
+            break;
+        }
         case PLA::CARTRIDGE_LO:
         case PLA::CARTRIDGE_HI:
         {
-            // Write the value to the requested RAM address
+            // Write the value to the requested RAM address and also the cartridge
+            cart->write(address, value);
             mem[address] = value;
             break;
         }
@@ -514,6 +519,6 @@ void Memory::applyPort1SideEffects(uint8_t effective)
     bool motorOn = (effective & 0x20) == 0;
     if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
 
-    // Update PLA MCR with the effective bits (0..2 matter)
+    // Update PLA MCR with the latch bits (0..2 matter)
     pla->updateMemoryControlRegister(effective & 0x07);
 }
