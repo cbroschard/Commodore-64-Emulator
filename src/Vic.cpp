@@ -69,6 +69,8 @@ void Vic::reset()
     // Bad line vars reset
     currentScreenRow = 0;
     rowCounter = 0;
+    firstBadlineY = -1;
+    denSeenOn30 = false;
 
     // Frame completion flag
     frameDone = false;
@@ -419,6 +421,17 @@ void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
     {
+        // Clear DEN latch at frame start
+        if (currentCycle == 0 && registers.raster == 0)
+        {
+            firstBadlineY = -1;
+            rowCounter = 0;
+            currentScreenRow = 0;
+            denSeenOn30 = false;
+        }
+
+        if ((registers.raster == 0x30) && (d011_per_raster[registers.raster] & 0x10)) denSeenOn30 = true;
+
         // Fire raster IRQ at start of the line
         if (currentCycle == 0)
         {
@@ -458,15 +471,17 @@ void Vic::tick(int cycles)
         // Bad line DMA
         if (isBadLine(registers.raster))
         {
-            currentScreenRow = (registers.raster - cfg_->firstVisibleLine) >> 3;
+            if (firstBadlineY < 0)
+            {
+                firstBadlineY = registers.raster;
+                currentScreenRow = 0;
+            }
+            currentScreenRow = (firstBadlineY >= 0) ? ((registers.raster - firstBadlineY) >> 3) : 0;
             int fetchIndex = currentCycle - cfg_->DMAStartCycle;
             if (fetchIndex >= 0 && fetchIndex < 40)
             {
-                if (currentScreenRow >= 0)
-                {
-                    charPtrFIFO[fetchIndex]  = fetchScreenByte(currentScreenRow, fetchIndex, registers.raster);
-                    colorPtrFIFO[fetchIndex] = fetchColorByte (currentScreenRow, fetchIndex, registers.raster) & 0x0F;
-                }
+                charPtrFIFO[fetchIndex]  = fetchScreenByte(currentScreenRow, fetchIndex, registers.raster);
+                colorPtrFIFO[fetchIndex] = fetchColorByte (currentScreenRow, fetchIndex, registers.raster) & 0x0F;
             }
             if (currentCycle == cfg_->DMAStartCycle)
             {
@@ -491,15 +506,12 @@ void Vic::tick(int cycles)
             // Row counter update
             const bool DEN = (d011_per_raster[curRaster] & 0x10) != 0;
             const bool badNextLine = isBadLine((curRaster + 1) % cfg_->maxRasterLines);
-            if (DEN && (curRaster >= cfg_->firstVisibleLine) && (curRaster <= cfg_->lastVisibleLine))
+            if (DEN)
             {
                 if (!badNextLine)
                 {
                     rowCounter = (rowCounter + 1) & 0x07;
-                    if (rowCounter == 0)
-                    {
-                        currentScreenRow++;
-                    }
+                    if (rowCounter == 0) currentScreenRow++;
                 }
             }
 
@@ -507,7 +519,9 @@ void Vic::tick(int cycles)
             if (curRaster == cfg_->maxRasterLines - 1)
             {
                 frameDone = true;
-                for (int y = cfg_->maxRasterLines; y < cfg_->visibleLines + 2 * BORDER_SIZE; ++y)
+                const int lastFBY = fbY(curRaster);
+                const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
+                for (int y = lastFBY + 1; y < fbH; ++y)
                 {
                     IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
                 }
@@ -569,6 +583,9 @@ void Vic::updateAEC()
 
 bool Vic::isBadLine(int raster)
 {
+
+    if (!denSeenOn30) return false;
+
     // DEN must be on
     if (!(d011_per_raster[raster] & 0x10)) return false;
 
@@ -685,13 +702,25 @@ void Vic::renderLine(int raster)
     int x0, x1;
     innerWindowForRaster(raster, x0, x1);
 
-    IO_adapter->renderBorderLine(raster, registers.borderColor, x0, x1);
+    IO_adapter->renderBorderLine(screenY, registers.borderColor, x0, x1);
 
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;   // <-- latched
+    const int  y0  = BORDER_SIZE;
+    const int  y1  = y0 + cfg_->visibleLines;
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const int  rows = getRSEL(raster) ? 25 : 24;
+
+    // Allow inner drawing when the vertical window is *actually* open from the first badline,even if still in top border
+    const bool vOpenBand = denSeenOn30 && DEN && firstBadlineY >= 0 && raster >= firstBadlineY && raster <  firstBadlineY + rows * 8;
+    if ((screenY < y0 || screenY >= y1) && !vOpenBand)
+    {
+        renderSprites(0, raster);
+        renderSprites(1, raster);
+        return;
+    }
 
     if (!DEN)
     {
-        IO_adapter->renderBackgroundLine(raster, registers.borderColor, x0, x1);
+        IO_adapter->renderBackgroundLine(screenY, registers.borderColor, x0, x1);
         renderSprites(0, raster);
         renderSprites(1, raster);
         return;
@@ -700,7 +729,7 @@ void Vic::renderLine(int raster)
     if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
     {
         // Inner window background: border color when DEN=0, otherwise BG color
-        IO_adapter->renderBackgroundLine(raster, DEN ? registers.backgroundColor0 : registers.borderColor, x0, x1);
+        IO_adapter->renderBackgroundLine(screenY, registers.backgroundColor0, x0, x1);
     }
 
     if (DEN)
@@ -736,9 +765,8 @@ void Vic::renderTextLine(int raster, int xScroll)
 {
     int rows = getRSEL(raster) ? 25 : 24;
     int cols = getCSEL(raster) ? 40 : 38;
-    int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = (raster - firstVis) >> 3;
+    int charRow = currentScreenRow;
     if (charRow >= rows) return;
 
     int yInChar = rowCounter;
@@ -791,10 +819,11 @@ void Vic::renderBitmapLine(int raster, int xScroll)
     int cols = getCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = (raster - firstVis) >> 3;
+    int charRow = currentScreenRow;
     if (charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
+    if (bitmapY < 0 || bitmapY >= (getRSEL(raster) ? 25 : 24) * 8) return;
     const uint16_t bitmapBase = getBitmapBase(raster);
 
     int fine = xScroll & 7;
@@ -840,10 +869,11 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     int cols = getCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = (raster - firstVis) >> 3;
+    int charRow = currentScreenRow;
     if (charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
+    if (bitmapY < 0 || bitmapY >= (getRSEL(raster) ? 25 : 24) * 8) return;
     const uint16_t bitmapBase = getBitmapBase(raster);
 
     int fine = xScroll & 7;
@@ -892,9 +922,8 @@ void Vic::renderECMLine(int raster, int xScroll)
 {
     int rows = getRSEL(raster) ? 25 : 24;
     int cols = getCSEL(raster) ? 40 : 38;
-    int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = (raster - firstVis) >> 3;
+    int charRow = currentScreenRow;
     if (charRow >= rows) return;
 
     int yInChar = rowCounter;

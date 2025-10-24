@@ -170,6 +170,10 @@ class Vic
         uint8_t rowCounter;
         int currentScreenRow;
 
+        // bad line
+        int firstBadlineY;
+        bool denSeenOn30;
+
         // Keep track of frame completion
         bool frameDone;
 
