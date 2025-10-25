@@ -322,7 +322,7 @@ void Memory::write(uint16_t address, uint8_t value)
             break;
         }
     }
-    if (monitor && monitor->checkWatchWrite(address, value))
+    if (monitor && monitor->checkWatchWrite(accessInfo.offset, value))
     {
         // Enter the monitor as we hit a watch point
         monitor->enter();
