@@ -23,6 +23,7 @@ class PLA;
 #include "IRQLine.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "Debug/TraceManager.h"
 #include "Vic.h"
 
 class CPU
@@ -36,8 +37,9 @@ class CPU
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
 
         struct CPUState
         {
@@ -164,6 +166,7 @@ class CPU
         IRQLine* IRQ;
         Logging* logger;
         Memory* mem;
+        TraceManager* traceMgr;
         Vic* vicII;
 
         // NMI scheduling

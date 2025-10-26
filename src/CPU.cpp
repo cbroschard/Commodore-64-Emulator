@@ -682,7 +682,9 @@ void CPU::tick()
         handleIRQ();
         if (cycles <= 0)
         {
+            const uint16_t pcExec = PC;   // PC of the instruction to execute
             uint8_t opcode = fetch();
+
             // Log it
             if (logger && setLogging)
             {
@@ -693,6 +695,10 @@ void CPU::tick()
                 logger->WriteLog(message.str());
             }
             decodeAndExecute(opcode);
+
+            // If tracing is on capture it
+            if (traceMgr && traceMgr->isEnabled()) traceMgr->recordCPUTrace(pcExec, opcode);
+
             // Update the cycles based on the table
             cycles += CYCLE_COUNTS[opcode];  // Set cycle count for the opcode
         }
