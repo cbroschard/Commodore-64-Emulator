@@ -34,6 +34,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
     registerCommand(std::make_unique<TapeCommand>());
+    registerCommand(std::make_unique<TraceCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());
 }
@@ -49,6 +50,16 @@ void MLMonitor::enter()
         std::cout << "monitor> ";
         if (!std::getline(std::cin, line)) break;
         handleCommand(line);
+    }
+}
+
+void MLMonitor::attachTraceManagerInstance(TraceManager* tm)
+{
+    auto it = commands.find("trace");
+    if (it != commands.end()) {
+        if (auto* tc = dynamic_cast<TraceCommand*>(it->second.get())) {
+            tc->attachTraceManagerInstance(tm);
+        }
     }
 }
 
@@ -257,10 +268,7 @@ void MLMonitor::handleCommand(const std::string& line)
     {
         std::map<std::string, std::vector<std::string>> grouped;
 
-        for (const auto& kv : commands)
-        {
-            grouped[kv.second->category()].push_back(kv.second->shortHelp());
-        }
+        for (const auto& kv : commands) grouped[kv.second->category()].push_back(kv.second->shortHelp());
 
         std::cout << "Available commands:\n";
         for (auto& [cat, cmds] : grouped)
@@ -274,18 +282,12 @@ void MLMonitor::handleCommand(const std::string& line)
 
     std::vector<std::string> args;
     args.push_back(cmd);
-    std::string tok;
-    while (iss >> tok) args.push_back(tok);
+    std::string token;
+    while (iss >> token) args.push_back(token);
 
     auto it = commands.find(cmd);
-    if (it != commands.end())
-    {
-        it->second->execute(*this, args);
-    }
-    else
-    {
-        std::cout << "Unknown command: " << cmd << "\n";
-    }
+    if (it != commands.end()) it->second->execute(*this, args);
+    else std::cout << "Unknown command: " << cmd << "\n";
 }
 
 void MLMonitor::registerCommand(std::unique_ptr<MonitorCommand> cmd)
