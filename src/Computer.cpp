@@ -8,40 +8,42 @@
 #include "Debug/MLMonitor.h"
 #include "computer.h"
 
-Computer::Computer()
-    : cart(std::make_unique<Cartridge>()),
-      cass(std::make_unique<Cassette>()),
-      cia1object(std::make_unique<CIA1>()),
-      cia2object(std::make_unique<CIA2>()),
-      processor(std::make_unique<CPU>()),
-      bus(std::make_unique<IECBUS>()),
-      IO_adapter(std::make_unique<IO>()),
-      IRQ(std::make_unique<IRQLine>()),
-      keyb(std::make_unique<Keyboard>()),
-      logger(std::make_unique<Logging>("debug.txt")),
-      mem(std::make_unique<Memory>()),
-      monitor(std::make_unique<MLMonitor>()),
-      monbackend(std::make_unique<MLMonitorBackend>()),
-      pla(std::make_unique<PLA>()),
-      sidchip(std::make_unique<SID>(44100)),
-      vicII(std::make_unique<Vic>()),
-      prgDelay(140),
-      videoMode_(VideoMode::NTSC),
-      cpuCfg_(&NTSC_CPU),
-      cartridgeAttached(false),
-      cartridgePath(""),
-      tapeAttached(false),
-      tapePath(""),
-      t64Injected(false),
-      prgAttached(false),
-      prgLoaded(false),
-      prgPath(""),
-      diskAttached(false),
-      diskPath(""),
-      joystick1Attached(false),
-      joystick2Attached(false),
-      frameReady(false),
-      running(true)
+Computer::Computer() :
+    cart(std::make_unique<Cartridge>()),
+    cass(std::make_unique<Cassette>()),
+    cia1object(std::make_unique<CIA1>()),
+    cia2object(std::make_unique<CIA2>()),
+    processor(std::make_unique<CPU>()),
+    bus(std::make_unique<IECBUS>()),
+    IO_adapter(std::make_unique<IO>()),
+    IRQ(std::make_unique<IRQLine>()),
+    keyb(std::make_unique<Keyboard>()),
+    logger(std::make_unique<Logging>("debug.txt")),
+    mem(std::make_unique<Memory>()),
+    monitor(std::make_unique<MLMonitor>()),
+    monbackend(std::make_unique<MLMonitorBackend>()),
+    pla(std::make_unique<PLA>()),
+    sidchip(std::make_unique<SID>(44100)),
+    traceMgr(std::make_unique<TraceManager>()),
+    vicII(std::make_unique<Vic>()),
+    showMonitorOverlay(false),
+    prgDelay(140),
+    videoMode_(VideoMode::NTSC),
+    cpuCfg_(&NTSC_CPU),
+    cartridgeAttached(false),
+    cartridgePath(""),
+    tapeAttached(false),
+    tapePath(""),
+    t64Injected(false),
+    prgAttached(false),
+    prgLoaded(false),
+    prgPath(""),
+    diskAttached(false),
+    diskPath(""),
+    joystick1Attached(false),
+    joystick2Attached(false),
+    frameReady(false),
+    running(true)
 {
     // Attach components to each other
     mem->attachProcessorInstance(processor.get());
@@ -60,6 +62,7 @@ Computer::Computer()
     processor->attachVICInstance(vicII.get());
     processor->attachIRQLineInstance(IRQ.get());
     processor->attachLogInstance(logger.get());
+    processor->attachTraceManagerInstance(traceMgr.get());
 
     cia1object->attachKeyboardInstance(keyb.get());
     cia1object->attachIRQLineInstance(IRQ.get());
@@ -95,6 +98,7 @@ Computer::Computer()
     keyb->attachLogInstance(logger.get());
 
     bus->attachCIA2Instance(cia2object.get());
+    bus->attachLogInstance(logger.get());
 }
 
 Computer::~Computer() = default;
@@ -195,6 +199,8 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
     if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_F12)
     {
         monitor->enter();
+        //showMonitorOverlay = !showMonitorOverlay;
+        return true;
     }
 
     // Only care about key-down/up (ignore auto-repeats)
@@ -401,6 +407,17 @@ bool Computer::boot()
     monbackend->attachSIDInstance(sidchip.get());
     monbackend->attachVICInstance(vicII.get());
 
+    // Wire up the trace manager backend as well
+    traceMgr->attachCIA1Instance(cia1object.get());
+    traceMgr->attachCIA2Instance(cia2object.get());
+    traceMgr->attachCPUInstance(processor.get());
+    traceMgr->attachMemoryInstance(mem.get());
+    traceMgr->attachSIDInstance(sidchip.get());
+    traceMgr->attachVicInstance(vicII.get());
+
+    // Attach the trace manager to the trace command now that we're all wired up
+    monitor->attachTraceManagerInstance(traceMgr.get());
+
     // Check for a cartridge to be loaded, takes precedence over disk or tape
     if (cartridgeAttached)
     {
@@ -442,6 +459,29 @@ bool Computer::boot()
     // **Start Audio Playback**
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
+
+    /*// Check for monitor hotkey
+    IO_adapter->setGuiCallback([this]()
+    {
+        if (!showMonitorOverlay) return;
+
+        // Minimal on-screen monitor
+        ImGui::SetNextWindowSize(ImVec2(1000, 600), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_Always);
+        ImGui::Begin("C64 Monitor");
+        ImGui::Text("PC: $%04X   A:$%02X  X:$%02X  Y:$%02X  SP:$%02X",
+            processor->getPC(), processor->getA(), processor->getX(),
+            processor->getY(), processor->getSP());
+
+        static char cmd[256] = {};
+        if (ImGui::InputText("monitor>", cmd, IM_ARRAYSIZE(cmd),
+                             ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            monitor->handleCommand(std::string(cmd));
+            cmd[0] = '\0';
+        }
+        ImGui::End();
+    });*/
 
     // Graphics rendering thread
     IO_adapter->startRenderThread(running);

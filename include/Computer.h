@@ -28,6 +28,7 @@
 #include "PLA.h"
 #include "SID/SID.h"
 #include "Tape/TapeImageFactory.h"
+#include "Debug/TraceManager.h"
 #include "Vic.h"
 
 // Forward declarations
@@ -117,7 +118,11 @@ class Computer
         std::unique_ptr<MLMonitorBackend> monbackend;
         std::unique_ptr<PLA> pla;
         std::unique_ptr<SID> sidchip;
+        std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<Vic> vicII;
+
+        // Imgui monitor toggle
+        bool showMonitorOverlay;
 
         // Program loading delay counter
         int prgDelay;
