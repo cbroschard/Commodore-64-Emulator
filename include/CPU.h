@@ -39,6 +39,16 @@ class CPU
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
 
+        struct CPUState
+        {
+            uint16_t PC;
+            uint8_t A;
+            uint8_t X;
+            uint8_t Y;
+            uint8_t SP;
+            uint8_t SR;
+        };
+
         // Jam handling
         enum class JamMode
         {
@@ -131,6 +141,7 @@ class CPU
         inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
         // Registers access
+        CPUState getState() const;
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
         inline uint8_t getA() const { return A; }

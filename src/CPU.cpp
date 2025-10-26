@@ -177,6 +177,18 @@ void CPU::rtsFromQuickLoad()
     PC = ((high << 8) | low) & 0xFFFF;
 }
 
+CPU::CPUState CPU::getState() const
+{
+    CPUState st;
+    st.PC = PC;
+    st.A = A;
+    st.X = X;
+    st.Y = Y;
+    st.SP = SP;
+    st.SR = SR;
+    return st;
+}
+
 void CPU::initializeOpcodeTable()
 {
     opcodeTable.fill([this]() { NOP(0xEA); }); // Default to NOP
