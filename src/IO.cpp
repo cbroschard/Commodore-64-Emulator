@@ -74,26 +74,23 @@ IO::IO() :
 
 IO::~IO()
 {
-    // Cleanup
+    // SDL Audio Cleanup
     if (dev != 0)
     {
         SDL_PauseAudioDevice(dev, 1);
         SDL_Delay(1000);
         SDL_CloseAudioDevice(dev);
     }
-    if (screenTexture)
-    {
-        SDL_DestroyTexture(screenTexture);
-    }
-    if (renderer)
-    {
-        SDL_DestroyRenderer(renderer);
-    }
-    if (window)
-    {
-        SDL_DestroyWindow(window);
-    }
 
+    // ImGui shutdown
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+
+    // SDL rendering shutdown
+    if (screenTexture) SDL_DestroyTexture(screenTexture);
+    if (renderer) SDL_DestroyRenderer(renderer);
+    if (window) SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
@@ -187,6 +184,8 @@ void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 {
     const int W  = screenWidthWithBorder;
+    if (row < 0 || row >= screenHeightWithBorder) return;
+
     const int y0 = borderSize;
     const int y1 = y0 + visibleScreenHeight;
 
@@ -206,7 +205,7 @@ void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 
 void IO::setPixel(int x, int y, uint8_t colorIndex)
 {
-    if (x < 0 || x > screenWidthWithBorder || y < 0 || y > screenHeightWithBorder)
+    if (x < 0 || x >= screenWidthWithBorder || y < 0 || y >= screenHeightWithBorder)
     {
         return;
     }
@@ -218,7 +217,7 @@ void IO::setPixel(int x, int y, uint8_t colorIndex, int hardwareX)
     // apply hardware shift once
     int shiftedX = x - hardwareX;
     if (shiftedX < 0 || shiftedX >= screenWidthWithBorder ||
-        y < 0 || y > screenHeightWithBorder)
+        y < 0 || y >= screenHeightWithBorder)
     {
         return;
     }
@@ -283,9 +282,23 @@ void IO::renderLoop(std::atomic<bool>& running)
             if (!running.load()) break;
         }
 
+        // Imgui rendering
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        if (guiCallback) guiCallback(); // let the app draw UI
+
+        ImGui::Render();
+
         SDL_UpdateTexture(screenTexture, nullptr, buf, pitch);
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
+
+        // Draw ImGui on top
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+
+        // Present
         SDL_RenderPresent(renderer);
     }
 }

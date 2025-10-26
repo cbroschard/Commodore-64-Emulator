@@ -15,6 +15,7 @@ class Vic;
 
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 #include "imgui/imgui.h"
@@ -69,6 +70,10 @@ class IO
 
         void finishFrameAndSignal();
 
+        // imgui event handling
+        inline void processSDLEvent(const SDL_Event& e) { ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e)); }
+        void setGuiCallback(std::function<void()> fn) { guiCallback = std::move(fn); }
+
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
 
@@ -80,6 +85,8 @@ class IO
         Logging* logger;
         SID* sidchip;
         Vic* vicII;
+
+        std::function<void()> guiCallback;
 
         // Audio constants
         static const int SAMPLE_RATE = 44100;

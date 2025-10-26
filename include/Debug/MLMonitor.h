@@ -31,6 +31,7 @@
 #include "Debug/SIDCommand.h"
 #include "Debug/StepCommand.h"
 #include "Debug/TapeCommand.h"
+#include "Debug/TraceCommand.h"
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
 #include "Debug/MonitorCommand.h"
@@ -51,6 +52,7 @@ class MLMonitor
 
         inline void attachMLMonitorBackendInstance(MLMonitorBackend* monbackend) { this->monbackend = monbackend; }
         inline MLMonitorBackend* mlmonitorbackend() const { return monbackend; }
+        void attachTraceManagerInstance(class TraceManager* tm);
 
         // Breakpoint management
         inline void addBreakpoint(uint16_t bp) { breakpoints.insert(bp); }
