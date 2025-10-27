@@ -697,7 +697,7 @@ void CPU::tick()
             decodeAndExecute(opcode);
 
             // If tracing is on capture it
-            if (traceMgr && traceMgr->isEnabled()) traceMgr->recordCPUTrace(pcExec, opcode);
+            if (traceMgr && traceMgr->isEnabled()) traceMgr->recordCPUTrace(pcExec, opcode, traceMgr->makeStamp(totalCycles, vicII->getCurrentRaster(), vicII->getRasterDot()));
 
             // Update the cycles based on the table
             cycles += CYCLE_COUNTS[opcode];  // Set cycle count for the opcode
