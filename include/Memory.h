@@ -51,6 +51,7 @@ class Memory
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
         // Public access to memory
         uint8_t read(uint16_t address); // CPU access
@@ -96,6 +97,7 @@ class Memory
         MLMonitor* monitor;
         PLA* pla;
         SID* sidchip;
+        TraceManager* traceMgr;
         Vic* vicII;
 
         // RAM/ROM

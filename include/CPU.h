@@ -156,6 +156,7 @@ class CPU
 
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
+        inline uint16_t getTotalCycles() { return totalCycles; }
 
     protected:
 

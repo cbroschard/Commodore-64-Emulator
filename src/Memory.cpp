@@ -42,6 +42,15 @@ uint8_t Memory::read(uint16_t address)
     auto RET = [&](uint8_t v)->uint8_t
     {
         lastBus = v; // Update Open Bus value
+
+        // Check for trace enabled
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+        {
+            traceMgr->recordMemRead(address, v, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
+                vicII->getCurrentRaster(), vicII->getRasterDot()));
+        }
+
+        // Check for watch hit and enter monitor
         if (monitor && monitor->checkWatchRead(address, v))
         {
             monitor->enter();
@@ -246,6 +255,13 @@ void Memory::write(uint16_t address, uint8_t value)
 
     // Update last bus
     lastBus = value;
+
+    // Check for trace enabled and write if so
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+    {
+        traceMgr->recordMemWrite(address, value, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
+            vicII->getCurrentRaster(), vicII->getRasterDot()));
+    }
 
     if (address == 0x0000)
     {
