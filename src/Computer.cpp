@@ -412,6 +412,7 @@ bool Computer::boot()
     traceMgr->attachCIA2Instance(cia2object.get());
     traceMgr->attachCPUInstance(processor.get());
     traceMgr->attachMemoryInstance(mem.get());
+    traceMgr->attachPLAInstance(pla.get());
     traceMgr->attachSIDInstance(sidchip.get());
     traceMgr->attachVicInstance(vicII.get());
 
