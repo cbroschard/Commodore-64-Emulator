@@ -142,6 +142,8 @@ class Vic
         inline void disableAllIRQs() { setIERExact(0); }
         void setIERExact(uint8_t mask);
         void clearPendingIRQs();
+        inline uint16_t rasterDot() const { return currentCycle * 8; } // Used for formatting trace
+        inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
 
     protected:
 
