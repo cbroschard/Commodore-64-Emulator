@@ -32,6 +32,47 @@ uint16_t parseAddress(const std::string& arg)
     }
 }
 
+inline std::string trimCopy(std::string s)
+{
+    auto notSpace = [](int ch){ return !std::isspace(ch); };
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));
+    s.erase(std::find_if(s.rbegin(), s.rend(), notSpace).base(), s.end());
+    return s;
+}
+
+inline std::string sanitizeAddrToken(std::string s) {
+    s = trimCopy(std::move(s));
+    s.erase(std::remove(s.begin(), s.end(), '_'), s.end()); // allow underscores
+    if (!s.empty() && (s.back()=='h' || s.back()=='H')) s.pop_back(); // allow trailing h
+    return s;
+}
+
+std::pair<uint16_t,uint16_t> parseRangePair(std::string input)
+{
+    if (input.empty()) throw std::runtime_error("Invalid range: empty");
+    std::string s = trimCopy(std::move(input));
+
+    // Normalize separators
+    if (auto p = s.find(".."); p != std::string::npos) s.replace(p, 2, "-");
+    if (auto p = s.find(':');  p != std::string::npos) s[p] = '-';
+
+    auto dash = s.find('-');
+    if (dash == std::string::npos)
+    {
+        uint16_t a = parseAddress(sanitizeAddrToken(s));
+        return {a, a};
+    }
+
+    std::string left  = sanitizeAddrToken(s.substr(0, dash));
+    std::string right = sanitizeAddrToken(s.substr(dash + 1));
+    if (left.empty() || right.empty()) throw std::runtime_error("Invalid range: missing endpoint");
+
+    uint16_t a = parseAddress(left);
+    uint16_t b = parseAddress(right);
+    if (a > b) std::swap(a, b);
+    return {a, b};
+}
+
 void printPaged(const std::string& text, int pageSize)
 {
     std::istringstream iss(text);
