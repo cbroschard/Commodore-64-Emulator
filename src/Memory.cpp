@@ -17,6 +17,7 @@ Memory::Memory() :
     monitor(nullptr),
     pla(nullptr),
     sidchip(nullptr),
+    traceMgr(nullptr),
     vicII(nullptr),
     cartridgeAttached(false),
     cassetteSenseLow(false),
@@ -44,7 +45,7 @@ uint8_t Memory::read(uint16_t address)
         lastBus = v; // Update Open Bus value
 
         // Check for trace enabled
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM) && traceMgr->memRangeContains(address))
         {
             uint16_t PC = processor ? processor->getPC() : 0;
             TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
@@ -259,7 +260,7 @@ void Memory::write(uint16_t address, uint8_t value)
     lastBus = value;
 
     // Check for trace enabled and write if so
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM) && traceMgr->memRangeContains(address))
         {
             uint16_t PC = processor ? processor->getPC() : 0;
             TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
