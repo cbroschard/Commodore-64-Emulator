@@ -56,6 +56,7 @@ Computer::Computer() :
     mem->attachPLAInstance(pla.get());
     mem->attachMonitorInstance(monitor.get());;
     mem->attachLogInstance(logger.get());
+    mem->attachTraceManagerInstance(traceMgr.get());
 
     processor->attachMemoryInstance(mem.get());
     processor->attachCIA2Instance(cia2object.get());
