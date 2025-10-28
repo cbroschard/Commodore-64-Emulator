@@ -14,6 +14,7 @@ CPU::CPU() :
     IRQ(nullptr),
     logger(nullptr),
     mem(nullptr),
+    traceMgr(nullptr),
     vicII(nullptr),
     nmiPending(false),
     nmiLine(false),
@@ -699,7 +700,8 @@ void CPU::tick()
             // If tracing is on capture it
             if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU))
             {
-                traceMgr->recordCPUTrace(pcExec, opcode, traceMgr->makeStamp(totalCycles, vicII->getCurrentRaster(), vicII->getRasterDot()));
+                traceMgr->recordCPUTrace(pcExec, opcode, traceMgr->makeStamp(totalCycles,
+                    vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0));
             }
 
             // Update the cycles based on the table
