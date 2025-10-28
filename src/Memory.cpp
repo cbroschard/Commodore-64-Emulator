@@ -44,7 +44,7 @@ uint8_t Memory::read(uint16_t address)
         lastBus = v; // Update Open Bus value
 
         // Check for trace enabled
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+        if (traceMgr && processor && vicII && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
         {
             traceMgr->recordMemRead(address, v, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
                 vicII->getCurrentRaster(), vicII->getRasterDot()));
@@ -257,7 +257,7 @@ void Memory::write(uint16_t address, uint8_t value)
     lastBus = value;
 
     // Check for trace enabled and write if so
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+    if (traceMgr && processor && vicII && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
     {
         traceMgr->recordMemWrite(address, value, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
             vicII->getCurrentRaster(), vicII->getRasterDot()));
@@ -325,7 +325,7 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::CARTRIDGE_HI:
         {
             // Write the value to the requested RAM address and also the cartridge
-            cart->write(address, value);
+            if (cart) cart->write(address, value);
             mem[address] = value;
             break;
         }
@@ -536,5 +536,5 @@ void Memory::applyPort1SideEffects(uint8_t effective)
     if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
 
     // Update PLA MCR with the latch bits (0..2 matter)
-    pla->updateMemoryControlRegister(effective & 0x07);
+    if (pla) pla->updateMemoryControlRegister(effective & 0x07);
 }
