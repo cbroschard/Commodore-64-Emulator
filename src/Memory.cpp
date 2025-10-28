@@ -44,10 +44,12 @@ uint8_t Memory::read(uint16_t address)
         lastBus = v; // Update Open Bus value
 
         // Check for trace enabled
-        if (traceMgr && processor && vicII && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
         {
-            traceMgr->recordMemRead(address, v, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
-                vicII->getCurrentRaster(), vicII->getRasterDot()));
+            uint16_t PC = processor ? processor->getPC() : 0;
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                            vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordMemRead(address, v, PC, stamp);
         }
 
         // Check for watch hit and enter monitor
@@ -257,10 +259,12 @@ void Memory::write(uint16_t address, uint8_t value)
     lastBus = value;
 
     // Check for trace enabled and write if so
-    if (traceMgr && processor && vicII && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
-    {
-        traceMgr->recordMemWrite(address, value, processor->getPC(), traceMgr->makeStamp(processor->getTotalCycles(),
-            vicII->getCurrentRaster(), vicII->getRasterDot()));
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+        {
+            uint16_t PC = processor ? processor->getPC() : 0;
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                            vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordMemWrite(address, value, PC, stamp);
     }
 
     if (address == 0x0000)
