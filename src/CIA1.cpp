@@ -855,7 +855,7 @@ void CIA1::refreshMasterBit()
     }
     else
     {
-        interruptStatus &= 0x7F;
+        interruptStatus &= ~0x80;
     }
 }
 
