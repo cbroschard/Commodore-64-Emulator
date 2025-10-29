@@ -34,16 +34,42 @@ std::string TraceCommand::category() const
 
 std::string TraceCommand::shortHelp() const
 {
-    return "trace     - Enable or control CPU instruction tracing";
+    return "trace     - Enable or control component tracing";
 }
 
 std::string TraceCommand::help() const
 {
-    return "Usage:\n"
-           "  trace on|off        - Enable or disable tracing\n"
-           "  trace file <path>   - Write traces to a file\n"
-           "  trace dump          - Dump trace buffer to console\n"
-           "  trace clear         - Clear stored trace data\n";
+    return
+        "Trace — control tracing output and categories\n"
+        "\n"
+        "Usage:\n"
+        "  trace                      Show trace status (global + categories)\n"
+        "  trace on|off               Enable or disable tracing globally\n"
+        "  trace dump                 Dump the current trace buffer to console\n"
+        "  trace clear                Clear stored trace data\n"
+        "  trace file <path>          Write trace output to a file\n"
+        "\n"
+        "Memory range tracing:\n"
+        "  trace mem add <lo>-<hi>    Add a traced address range (hex, inclusive)\n"
+        "  trace mem list             List currently traced memory ranges\n"
+        "  trace mem clear            Clear all traced memory ranges\n"
+        "\n"
+        "SID tracing:\n"
+        "  trace sid enable           Enable SID tracing\n"
+        "  trace sid disable          Disable SID tracing\n"
+        "\n"
+        "Notes:\n"
+        "  - Addresses use $HHHH hex notation, e.g. $0800-$0FFF.\n"
+        "  - 'trace mem add' auto-enables the MEM category; remember 'trace on' to start logging.\n"
+        "  - Use 'trace help' or 'trace ?' to show this help.\n"
+        "\n"
+        "Examples:\n"
+        "  trace on\n"
+        "  trace file traces.txt\n"
+        "  trace mem add $0800-$0FFF\n"
+        "  trace mem list\n"
+        "  trace sid enable\n"
+        "  trace dump\n";
 }
 
 void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -82,20 +108,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Tracing disabled.\n";
         return;
     }
-
     if (sub == "dump")
     {
         traceMgr->dumpBuffer();
         return;
     }
-
     if (sub == "clear")
     {
         traceMgr->clearBuffer();
         std::cout << "Trace buffer cleared.\n";
         return;
     }
-
     if (sub == "file")
     {
         if (args.size() < 3)
@@ -107,6 +130,73 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         traceMgr->setFileOutput(path);
         std::cout << "Trace file set to " << path << "\n";
         return;
+    }
+    if (sub == "mem")
+    {
+        // trace mem add <range>
+        if (args.size() >= 4 && args[2] == "add")
+        {
+            try
+            {
+                const std::string rangeStr = joinArgs(args, 3);
+                auto [lo, hi] = parseRangePair(rangeStr);
+                traceMgr->addMemRange(lo, hi);
+                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+                std::cout << "Watching $" << std::hex << std::uppercase
+                          << std::setw(4) << std::setfill('0') << lo
+                          << "-$" << std::setw(4) << hi << std::dec << "\n";
+                if (!traceMgr->isEnabled())
+                {
+                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                }
+            }
+            catch (const std::exception& e)
+            {
+                std::cout << "Error: " << e.what() << "\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "list")
+        {
+            std::cout << "Memory range: " << traceMgr->listMemRange() << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "clear")
+        {
+            traceMgr->clearMemRanges();
+            if (traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+            }
+            return;
+        }
+    }
+    if (sub == "sid")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::SID);
+            std::cout << "Enabled SID tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::SID);
+            std::cout << "Disabled SID tracing" << "\n";
+            if (traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+            }
+            return;
+        }
     }
 
     // Unknown subcommand
