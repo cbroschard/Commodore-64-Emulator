@@ -124,7 +124,7 @@ void CPU::handleNMI()
 
 void CPU::executeIRQ()
 {
-    if (getFlag(I)) return; // Skip if interrupts are disabled
+    if (getFlag(I)) { irqSuppressOne = false; return; } // Skip if interrupts are disabled
     if (irqSuppressOne) { irqSuppressOne = false; return; }
 
     // Dummy read for accuracy
@@ -677,13 +677,13 @@ void CPU::tick()
 
     if (cycles <= 0)
     {
-        if (baHold) { totalCycles++; return; }
-
         handleNMI();
         handleIRQ();
 
         if (cycles <= 0)
         {
+            if (baHold) { totalCycles++; return; }
+
             const uint16_t pcExec = PC;   // PC of the instruction to execute
             uint8_t opcode = fetch();
 
@@ -2036,9 +2036,6 @@ void CPU::SAX(uint8_t opcode)
 
     uint8_t result = A & X; // Compute A AND X
 
-    // Dummy read for cycle accuracy
-    mem->read(address);
-
     mem->write(address, result); // Store the result in memory
 }
 
@@ -2278,7 +2275,8 @@ void CPU::TAS()
     uint8_t value = (A & X) & (high + 1);
 
     // Dummy read for cycle accuracy
-    mem->read(effectiveAddress);
+    if ((base & 0xFF00) != (effectiveAddress & 0xFF00)) mem->read((base & 0xFF00) | (effectiveAddress & 0x00FF));
+    else mem->read(effectiveAddress);
 
     mem->write(effectiveAddress, value);
 }

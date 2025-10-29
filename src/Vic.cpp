@@ -280,7 +280,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
     }
     switch(address)
     {
-     case 0xD010:
+        case 0xD010:
         {
             registers.spriteX_MSB = value;
             break;
@@ -290,24 +290,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
             registers.control = value & 0x7F;
-
-            if (currentCycle == 0 && registers.raster == registers.rasterInterruptLine)
-            {
-                if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
-                updateIRQLine();
-            }
             break;
         }
         case 0xD012:
         {
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
-
-            if (currentCycle == 0 && registers.raster == registers.rasterInterruptLine)
-            {
-                if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
-                updateIRQLine();
-            }
             break;
         }
         case 0xD013:
@@ -1343,8 +1331,8 @@ void Vic::markBGOpaque(int screenY, int px)
 uint8_t Vic::d019Read() const
 {
     const uint8_t srcs = registers.interruptStatus & 0x0F;
-    const uint8_t any = (srcs ? 0x80 : 0x00) ;  // mirror IRQ
-    return uint8_t(srcs | any | 0x70);  // bits 4-6 read as 1
+    uint8_t line = ((srcs & registers.interruptEnable) ? 0x80 : 0x00); // mirror IRQ line
+    return srcs | line | 0x70; // bits 4-6 read as '1'
 }
 
 std::string Vic::decodeModeName() const

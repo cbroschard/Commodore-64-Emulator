@@ -222,7 +222,7 @@ uint8_t CIA2::readRegister(uint16_t address)
         case 0xDD0D: // Interrupt control register
         {
             uint8_t result = interruptStatus & 0x1F; // IFR bits 0..4
-            if (result) result |= 0x80; // bit7 = any pending (UNMASKED)
+            if (result & interruptEnable) result |= 0x80; // bit7 = any pending (UNMASKED)
 
             // Reading ICR *acks* currently-set IFR bits (0..4):
             interruptStatus &= ~(result & 0x1F);
