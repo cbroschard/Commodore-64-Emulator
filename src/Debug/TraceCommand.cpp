@@ -40,7 +40,7 @@ std::string TraceCommand::shortHelp() const
 std::string TraceCommand::help() const
 {
     return
-        "Trace — control tracing output and categories\n"
+        "Trace - control tracing output and categories\n"
         "\n"
         "Usage:\n"
         "  trace                      Show trace status (global + categories)\n"
@@ -48,6 +48,10 @@ std::string TraceCommand::help() const
         "  trace dump                 Dump the current trace buffer to console\n"
         "  trace clear                Clear stored trace data\n"
         "  trace file <path>          Write trace output to a file\n"
+        "\n"
+        "CPU tracing:\n"
+        "  trace cpu enable           Enable CPU tracing\n"
+        "  trace cpu disable          Disable CPU tracing\n"
         "\n"
         "Memory range tracing:\n"
         "  trace mem add <lo>-<hi>    Add a traced address range (hex, inclusive)\n"
@@ -66,6 +70,7 @@ std::string TraceCommand::help() const
         "Examples:\n"
         "  trace on\n"
         "  trace file traces.txt\n"
+        "  trace cpu enable\n"
         "  trace mem add $0800-$0FFF\n"
         "  trace mem list\n"
         "  trace sid enable\n"
@@ -130,6 +135,29 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         traceMgr->setFileOutput(path);
         std::cout << "Trace file set to " << path << "\n";
         return;
+    }
+    if (sub == "cpu")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::CPU);
+            std::cout << "Enabled CPU tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::CPU);
+            std::cout << "Disabled CPU tracing" << "\n";
+            if (traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+            }
+            return;
+        }
     }
     if (sub == "mem")
     {
