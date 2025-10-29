@@ -61,6 +61,23 @@ void TraceManager::clearBuffer()
     buffer.clear();
 }
 
+std::string TraceManager::listCategoryStatus()
+{
+    std::ostringstream out;
+    out << "Trace " << (isEnabled() ? "ON" : "OFF")
+        << "  mask=0x" << std::hex << std::uppercase << std::setw(8)
+        << std::setfill('0') << categories() << std::dec << "\n";
+
+    bool first = true;
+    for (auto [cat, name] : catNames)
+    {
+        if (!first) out << ", ";
+        first = false;
+        out << name << "=" << (catOn(cat) ? "on" : "off");
+    }
+    return out.str();
+}
+
 bool TraceManager::memRangeContains(uint16_t address) const
 {
     for (auto& range : memRanges)

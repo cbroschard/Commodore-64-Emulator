@@ -54,9 +54,9 @@ class TraceManager
 
         // Getters
         inline bool isEnabled() const { return tracing; }
-        inline uint32_t categories() const { return cats; }
         inline bool catOn(TraceCat c) { return (cats & catToMask(c)) != 0; }
         inline bool memRangesIsEmpty() const { return memRanges.empty(); }
+        std::string listCategoryStatus();
         bool memRangeContains(uint16_t address) const;
         std::string listMemRange() const;
 
@@ -115,11 +115,23 @@ class TraceManager
 
         // Categories
         uint32_t cats;
+        static constexpr std::pair<TraceCat, const char*> catNames[] =
+        {
+            { TraceCat::CPU, "CPU" },
+            { TraceCat::VIC, "VIC" },
+            { TraceCat::CIA1, "CIA1" },
+            { TraceCat::CIA2, "CIA2" },
+            { TraceCat::PLA, "PLA" },
+            { TraceCat::SID, "SID" },
+            { TraceCat::CART, "CART" },
+            { TraceCat::MEM, "MEM" },
+        };
 
         // SID register names
         static const char* sidRegNames[32];
 
         // Helpers
+        inline uint32_t categories() const { return cats; }
         struct AddrRange { uint16_t lo, hi; bool contains(uint16_t a) const { return a>=lo && a<=hi; } };
         std::vector<AddrRange> memRanges;
         std::string makeStamp(const Stamp& stamp) const;

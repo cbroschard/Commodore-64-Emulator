@@ -43,8 +43,9 @@ std::string TraceCommand::help() const
         "Trace - control tracing output and categories\n"
         "\n"
         "Usage:\n"
-        "  trace                      Show trace status (global + categories)\n"
+        "  trace                      Show global trace status (ON/OFF)\n"
         "  trace on|off               Enable or disable tracing globally\n"
+        "  trace cats|categories      List all categories and their status\n"
         "  trace dump                 Dump the current trace buffer to console\n"
         "  trace clear                Clear stored trace data\n"
         "  trace file <path>          Write trace output to a file\n"
@@ -54,6 +55,8 @@ std::string TraceCommand::help() const
         "  trace cpu disable          Disable CPU tracing\n"
         "\n"
         "Memory range tracing:\n"
+        "  trace mem enable           Enable memory tracing (requires ranges)\n"
+        "  trace mem disable          Disable memory tracing\n"
         "  trace mem add <lo>-<hi>    Add a traced address range (hex, inclusive)\n"
         "  trace mem list             List currently traced memory ranges\n"
         "  trace mem clear            Clear all traced memory ranges\n"
@@ -64,15 +67,16 @@ std::string TraceCommand::help() const
         "\n"
         "Notes:\n"
         "  - Addresses use $HHHH hex notation, e.g. $0800-$0FFF.\n"
-        "  - 'trace mem add' auto-enables the MEM category; remember 'trace on' to start logging.\n"
-        "  - Use 'trace help' or 'trace ?' to show this help.\n"
+        "  - 'trace mem add' does NOT enable the MEM category; use 'trace mem enable'.\n"
+        "  - Global tracing must be ON for output: use 'trace on'.\n"
         "\n"
         "Examples:\n"
         "  trace on\n"
+        "  trace cats\n"
         "  trace file traces.txt\n"
         "  trace cpu enable\n"
         "  trace mem add $0800-$0FFF\n"
-        "  trace mem list\n"
+        "  trace mem enable\n"
         "  trace sid enable\n"
         "  trace dump\n";
 }
@@ -111,6 +115,11 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         traceMgr->enable(false);
         std::cout << "Tracing disabled.\n";
+        return;
+    }
+    if (sub == "cats" || sub == "categories")
+    {
+        std::cout << traceMgr->listCategoryStatus() << "\n";
         return;
     }
     if (sub == "dump")
@@ -162,6 +171,36 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (sub == "mem")
     {
         // trace mem add <range>
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->catOn(TraceManager::TraceCat::MEM);
+            if (traceMgr->listMemRange() == "")
+            {
+                std::cout << "Error: No ranges are added, disabling MEM tracing\n";
+                return;
+            }
+            else if (!traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                return;
+            }
+            else
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+                std::cout << "Enabled Memory tracing\n";
+                if (!traceMgr->isEnabled())
+                {
+                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                }
+                return;
+            }
+        }
+        if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::MEM);
+            std::cout << "Disabled Memory tracing\n";
+            return;
+        }
         if (args.size() >= 4 && args[2] == "add")
         {
             try
@@ -169,14 +208,9 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 const std::string rangeStr = joinArgs(args, 3);
                 auto [lo, hi] = parseRangePair(rangeStr);
                 traceMgr->addMemRange(lo, hi);
-                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
                 std::cout << "Watching $" << std::hex << std::uppercase
                           << std::setw(4) << std::setfill('0') << lo
                           << "-$" << std::setw(4) << hi << std::dec << "\n";
-                if (!traceMgr->isEnabled())
-                {
-                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
-                }
             }
             catch (const std::exception& e)
             {
