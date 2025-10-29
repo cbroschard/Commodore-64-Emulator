@@ -675,12 +675,13 @@ void CPU::tick()
         return;
     }
 
-    if (baHold) { totalCycles++; return; }
-
     if (cycles <= 0)
     {
+        if (baHold) { totalCycles++; return; }
+
         handleNMI();
         handleIRQ();
+
         if (cycles <= 0)
         {
             const uint16_t pcExec = PC;   // PC of the instruction to execute
