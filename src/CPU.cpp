@@ -2184,88 +2184,84 @@ void CPU::SRE(uint8_t opcode)
 
 void CPU::STA(uint8_t opcode)
 {
-    uint16_t address = 0;
+    uint16_t ea = 0;
 
     switch (opcode)
     {
-        case 0x85: address = zpAddress(); break;
-        case 0x95: address = zpXAddress(); mem->read(address); break;
-        case 0x8D: address = absAddress(); break;
+        case 0x85: // ZP
+            ea = zpAddress();
+            mem->write(ea, A);
+            return;
 
-        case 0x9D: // Absolute,X
+        case 0x95: // ZP,X  (no dummy read)
+            ea = zpXAddress();
+            mem->write(ea, A);
+            return;
+
+        case 0x8D: // ABS
+            ea = absAddress();
+            mem->write(ea, A);
+            return;
+
+        case 0x9D: // ABS,X  (dummy read @ EA, always)
         {
             uint16_t base = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = (base + X) & 0xFFFF;
-            if ((base & 0xFF00) != (effectiveAddress & 0xFF00))
-                mem->read((base & 0xFF00) | (effectiveAddress & 0x00FF)); // dummy
-            else
-                mem->read(effectiveAddress); // dummy
-            address = effectiveAddress;
-            break;
+            ea = uint16_t(base + X);
+            mem->read(ea);              // required dummy read
+            mem->write(ea, A);
+            return;
         }
 
-        case 0x99: // Absolute,Y
+        case 0x99: // ABS,Y  (dummy read @ EA, always)
         {
             uint16_t base = fetch() | (fetch() << 8);
-            uint16_t effectiveAddress = (base + Y) & 0xFFFF;
-            if ((base & 0xFF00) != (effectiveAddress & 0xFF00))
-                mem->read((base & 0xFF00) | (effectiveAddress & 0x00FF)); // dummy
-            else
-                mem->read(effectiveAddress); // dummy
-            address = effectiveAddress;
-            break;
+            ea = uint16_t(base + Y);
+            mem->read(ea);              // required dummy read
+            mem->write(ea, A);
+            return;
         }
 
-        case 0x81: // (Indirect,X)
-            address = indirectXAddress();
-            break;
+        case 0x81: // (ZP,X)  (no dummy read)
+            ea = indirectXAddress();
+            mem->write(ea, A);
+            return;
 
-        case 0x91: // (Indirect),Y
+        case 0x91: // (ZP),Y  (dummy read @ EA, always)
         {
             uint8_t zp = fetch();
-            uint16_t base = mem->read(zp) | (mem->read((zp + 1) & 0xFF) << 8);
-            uint16_t effectiveAddress = (base + Y) & 0xFFFF;
-            if ((base & 0xFF00) != (effectiveAddress & 0xFF00))
-                mem->read((base & 0xFF00) | (effectiveAddress & 0x00FF)); // dummy
-            else
-                mem->read(effectiveAddress); // dummy
-            address = effectiveAddress;
-            break;
+            uint8_t lo = mem->read(zp);
+            uint8_t hi = mem->read(uint8_t(zp + 1));
+            ea = (uint16_t(hi) << 8) | lo;
+            ea = uint16_t(ea + Y);
+            mem->read(ea);              // required dummy read
+            mem->write(ea, A);
+            return;
         }
     }
-
-    // Final write
-    mem->write(address, A);
 }
 
 void CPU::STX(uint8_t opcode)
 {
-    uint16_t address = 0;
-
-    switch(opcode)
+    uint16_t ea = 0;
+    switch (opcode)
     {
-        case 0x86: address = zpAddress(); break;
-        case 0x8E: address = absAddress(); break;
-        case 0x96: address = zpYAddress(); mem->read(address); break;
+        case 0x86: ea = zpAddress();  break;  // ZP
+        case 0x8E: ea = absAddress(); break;  // ABS
+        case 0x96: ea = zpYAddress(); break;  // ZP,Y  (no dummy read)
     }
-
-    // Write the value
-    mem->write(address, X);
+    mem->write(ea, X);
 }
 
 void CPU::STY(uint8_t opcode)
 {
-    uint16_t address = 0;
-
+    uint16_t ea = 0;
     switch (opcode)
     {
-        case 0x84: address = zpAddress(); break;
-        case 0x8C: address = absAddress(); break;
-        case 0x94: address = zpXAddress(); mem->read(address); break;
+        case 0x84: ea = zpAddress();  break;  // ZP
+        case 0x8C: ea = absAddress(); break;  // ABS
+        case 0x94: ea = zpXAddress(); break;  // ZP,X  (no dummy read)
     }
-
-    // Write the value
-    mem->write(address, Y);
+    mem->write(ea, Y);
 }
 
 void CPU::TAS()
