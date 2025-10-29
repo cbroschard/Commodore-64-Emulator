@@ -33,6 +33,8 @@ Memory::Memory() :
     colorRAM.resize(COLOR_RAM_SIZE,0);
     cart_lo.resize(CART_LO_SIZE,0);
     cart_hi.resize(CART_HI_SIZE,0);
+
+    applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 }
 
 Memory::~Memory() = default;
@@ -283,7 +285,7 @@ void Memory::write(uint16_t address, uint8_t value)
     }
     else if (address == 0x0001)
     {
-        port1OutputLatch = value;
+        port1OutputLatch = value & 0x3F;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
         applyPort1SideEffects(effective);
         if (logger && setLogging)
