@@ -205,46 +205,32 @@ uint8_t CIA2::readRegister(uint16_t address)
             }
             return (timerB >> 8) & 0xFF;
         case 0xDD08: // TOD Clock 1/10 seconds
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
+            if (!todLatched) latchTODClock();
             return binaryToBCD(todLatch[0]);
         case 0xDD09: // TOD Clock seconds
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
+            if (!todLatched) latchTODClock();
             return binaryToBCD(todLatch[1]);
         case 0xDD0A: // TOD Clock minutes
-            if (!todLatched) {
-                latchTODClock();
-            }
+            if (!todLatched) latchTODClock();
             return binaryToBCD(todLatch[2]);
         case 0xDD0B: // TOD Clock hours
-            if (!todLatched) {
-                latchTODClock();
-            }
+            if (!todLatched) latchTODClock();
             todLatched = false; // Clear latch after reading hours
             return binaryToBCD(todLatch[3]);
         case 0xDD0C: // Serial data register
             return serialDataRegister;
         case 0xDD0D: // Interrupt control register
-            {
-                uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
-                if (interruptStatus & interruptEnable & 0x1F) result |= 0x80;
+        {
+            uint8_t result = interruptStatus & 0x1F; // IFR bits 0..4
+            if (result) result |= 0x80; // bit7 = any pending (UNMASKED)
 
-                // Clear the acknowledged sources (bits 0-4 that were set)
-                interruptStatus &= ~ (result & 0x1F);
+            // Reading ICR *acks* currently-set IFR bits (0..4):
+            interruptStatus &= ~(result & 0x1F);
 
-                if (result & INTERRUPT_TOD_ALARM)
-                {
-                    todAlarmTriggered = false;
-                }
-
-                refreshNMI();
-                return result;
-            }
+            if (result & INTERRUPT_TOD_ALARM) todAlarmTriggered = false;
+            refreshNMI();
+            return result;
+        }
         case 0xDD0E: // Timer A control
             return timerAControl & 0x7F;
         case 0xDD0F: // Timer B control
