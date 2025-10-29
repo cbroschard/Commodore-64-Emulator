@@ -98,6 +98,11 @@ Computer::Computer() :
 
     keyb->attachLogInstance(logger.get());
 
+    sidchip->attachCPUInstance(processor.get());;
+    sidchip->attachLogInstance(logger.get());
+    sidchip->attachTraceManagerInstance(traceMgr.get());
+    sidchip->attachVicInstance(vicII.get());
+
     bus->attachCIA2Instance(cia2object.get());
     bus->attachLogInstance(logger.get());
 }

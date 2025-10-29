@@ -8,6 +8,10 @@
 #ifndef SID_H
 #define SID_H
 
+// Forward declarations
+class CPU;
+class Vic;
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -17,6 +21,7 @@
 #include <vector>
 #include "common.h"
 #include "Logging.h"
+#include "Debug/TraceManager.h"
 #include "SID/Filter.h"
 #include "SID/Mixer.h"
 #include "SID/RingBuffer.h"
@@ -28,7 +33,10 @@ class SID
         SID(double sampleRate);
         virtual ~SID();
 
-        void attachLogInstance(Logging* logger);
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
         // Getter for main emulation loop processing
         double getSidCyclesPerAudioSample() const;
@@ -53,13 +61,20 @@ class SID
 
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
+        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
     private:
 
         // Non owning pointers
+        CPU* processor;
         Logging* logger;
+        TraceManager* traceMgr;
+        Vic* vicII;
+
+        // Monitor logging
+        bool setLogging;
 
         // buffer
         RingBuffer<8192> audioBuf;

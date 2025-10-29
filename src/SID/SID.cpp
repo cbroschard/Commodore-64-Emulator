@@ -5,10 +5,16 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CPU.h"
+#include "Vic.h"
 #include "SID/SID.h"
 
 SID::SID(double sampleRate) :
+    processor(nullptr),
     logger(nullptr),
+    traceMgr(nullptr),
+    vicII(nullptr),
+    setLogging(false),
     mode_(VideoMode::NTSC), // default to NTSC
     hpPrevIn(0.0),
     hpPrevOut(0.0),
@@ -25,11 +31,6 @@ SID::SID(double sampleRate) :
 }
 
 SID::~SID() = default;
-
-void SID::attachLogInstance(Logging* logger)
-{
-    this->logger = logger;
-}
 
 double SID::getSidCyclesPerAudioSample() const
 {
@@ -206,6 +207,12 @@ uint8_t SID::readRegister(uint16_t address)
 
 void SID::writeRegister(uint16_t address, uint8_t value)
 {
+    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::SID))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordSidWrite(address & 0x1F, value, stamp);
+    }
     switch(address)
     {
         case 0xD400:
