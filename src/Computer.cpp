@@ -90,8 +90,10 @@ Computer::Computer() :
     pla->attachVICInstance(vicII.get());
     pla->attachLogInstance(logger.get());
 
+    cart->attachCPUInstance(processor.get());
     cart->attachMemoryInstance(mem.get());
     cart->attachLogInstance(logger.get());
+    cart->attachVicInstance(vicII.get());
 
     cass->attachMemoryInstance(mem.get());
     cass->attachLogInstance(logger.get());
@@ -414,6 +416,7 @@ bool Computer::boot()
     monbackend->attachVICInstance(vicII.get());
 
     // Wire up the trace manager backend as well
+    traceMgr->attachCartInstance(cart.get());
     traceMgr->attachCIA1Instance(cia1object.get());
     traceMgr->attachCIA2Instance(cia2object.get());
     traceMgr->attachCPUInstance(processor.get());
