@@ -32,8 +32,8 @@ class Cartridge
         virtual ~Cartridge();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
+        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
