@@ -13,7 +13,13 @@ PLA::PLA() :
     processor(nullptr),
     logger(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr)
+    vicII(nullptr),
+    lastModeIndex(0xFF),
+    lastloram(false),
+    lasthiram(false),
+    lastcharen(false),
+    lastexROMLine(false),
+    lastgameLine(false)
 {
 
 }
@@ -63,9 +69,22 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 
     if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
     {
-        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
-            vicII ? vicII->getRasterDot() : 0);
-        traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
+        const bool changed = (modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram || charen != lastcharen
+            || exROMLine != lastexROMLine || gameLine != lastgameLine);
+
+        if (changed)
+        {
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
+        }
+
+        lastModeIndex = modeIndex;
+        lastloram = loram;
+        lasthiram = hiram;
+        lastcharen = charen;
+        lastexROMLine = exROMLine;
+        lastgameLine = gameLine;
     }
 
     // Retrieve the appropriate mapping configuration.

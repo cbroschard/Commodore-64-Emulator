@@ -114,6 +114,14 @@ class PLA
         // ML Monitor logging
         bool setLogging;
 
+        // Tracing
+        uint8_t lastModeIndex;
+        bool lastloram;
+        bool lasthiram;
+        bool lastcharen;
+        bool lastexROMLine;
+        bool lastgameLine;
+
         const char* bankToString(PLA::memoryBank bank);
 };
 
