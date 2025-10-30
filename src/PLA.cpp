@@ -10,7 +10,9 @@
 
 PLA::PLA() :
     cart(nullptr),
+    processor(nullptr),
     logger(nullptr),
+    traceMgr(nullptr),
     vicII(nullptr)
 {
 
@@ -58,6 +60,13 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
                         ((charen     ? 1 : 0) << 2) |
                         ((hiram      ? 1 : 0) << 1) |
                         (loram      ? 1 : 0);
+
+    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
+    }
 
     // Retrieve the appropriate mapping configuration.
     const PLAMapper::modeMapping* mappingTable = PLAMapper::getMappings();

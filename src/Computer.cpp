@@ -87,8 +87,10 @@ Computer::Computer() :
     IO_adapter->attachLogInstance(logger.get());
 
     pla->attachCartridgeInstance(cart.get());
-    pla->attachVICInstance(vicII.get());
+    pla->attachCPUInstance(processor.get());
     pla->attachLogInstance(logger.get());
+    pla->attachTraceManagerInstance(traceMgr.get());
+    pla->attachVICInstance(vicII.get());
 
     cart->attachCPUInstance(processor.get());
     cart->attachMemoryInstance(mem.get());

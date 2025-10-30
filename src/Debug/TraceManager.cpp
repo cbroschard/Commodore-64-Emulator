@@ -14,6 +14,7 @@ TraceManager::TraceManager() :
     cia2object(nullptr),
     processor(nullptr),
     mem(nullptr),
+    pla(nullptr),
     sidchip(nullptr),
     vicII(nullptr),
     tracing(false)
@@ -162,6 +163,19 @@ void TraceManager::recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, 
         << std::setw(4) << address
         << " Value=$" << std::setw(2) << int(value)
         << " PC=$" << std::setw(4) << pc;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::PLA)) return;
+
+    std::stringstream out;
+
+    out << makeStamp(stamp) << "PLA Mode: " << int(mode) << " Game Line: " << (game ? "1 (inactive)" : "0 (asserted)") <<
+        " exRom: " << (exrom ? "1 (inactive" : "0 (asserted)") << " HIRAM: " << hiram << " LORAM: " << loram;
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";

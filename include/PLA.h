@@ -8,6 +8,11 @@
 #ifndef PLA_H
 #define PLA_H
 
+
+// Forward declarations
+class CPU;
+class TraceManager;
+
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
@@ -39,8 +44,10 @@ class PLA
         };
 
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
 
         // Standard reset routine
         void reset();
@@ -80,7 +87,9 @@ class PLA
 
         // Non-owning pointers
         Cartridge* cart;
+        CPU* processor;
         Logging* logger;
+        TraceManager* traceMgr;
         Vic* vicII;
 
         // ROM constants

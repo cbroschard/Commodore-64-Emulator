@@ -65,6 +65,10 @@ std::string TraceCommand::help() const
         "  trace mem list             List currently traced memory ranges\n"
         "  trace mem clear            Clear all traced memory ranges\n"
         "\n"
+        "PLA tracing:\n"
+        "  trace pla enable           Enable PLA tracing\n"
+        "  trace pla disable          Disable PLA tracing\n"
+        "\n"
         "SID tracing:\n"
         "  trace sid enable           Enable SID tracing\n"
         "  trace sid disable          Disable SID tracing\n"
@@ -222,6 +226,10 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             traceMgr->disableCategory(TraceManager::TraceCat::MEM);
             std::cout << "Disabled Memory tracing\n";
+            if (traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+            }
             return;
         }
         if (args.size() >= 4 && args[2] == "add")
@@ -260,12 +268,35 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
     }
+    if (sub == "pla")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::PLA);
+            std::cout << "Enabled PLA tracing.\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "racing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::PLA);
+            std::cout << "Disabled PLA tracing.\n";
+            if (traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+            }
+            return;
+        }
+    }
     if (sub == "sid")
     {
         if (args.size() >= 3 && args[2] == "enable")
         {
             traceMgr->enableCategory(TraceManager::TraceCat::SID);
-            std::cout << "Enabled SID tracing." << "\n";
+            std::cout << "Enabled SID tracing.\n";
             if (!traceMgr->isEnabled())
             {
                 std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
