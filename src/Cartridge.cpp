@@ -285,6 +285,17 @@ void Cartridge::write(uint16_t address, uint8_t value)
     if (mapper)
     {
         mapper->write(address, value);
+        if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
+        {
+            std::ostringstream oss;
+            oss << "CPU write to address: $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(address)
+                << " with value: $"
+                << std::setw(2) << int(value);
+
+            const std::string out = oss.str();
+            traceActiveWindows(out.c_str());
+        }
         return;
     }
 
@@ -669,17 +680,17 @@ void Cartridge::traceActiveWindows(const char* why)
     auto stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
                 vicII ? vicII->getRasterDot() : 0);
 
-    const char* mapper = getMapperName().c_str();
+    const std::string mapper = getMapperName();
     switch (wiringMode) {
         case WiringMode::CART_8K:      // $8000-$9FFF
-            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0x9FFF, stamp);
+            traceMgr->recordCartBank(mapper.c_str(), currentBank, 0x8000, 0x9FFF, stamp);
             break;
         case WiringMode::CART_16K:     // $8000-$BFFF
-            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0xBFFF, stamp);
+            traceMgr->recordCartBank(mapper.c_str(), currentBank, 0x8000, 0xBFFF, stamp);
             break;
         case WiringMode::CART_ULTIMAX: // $8000-$9FFF and $E000-$FFFF
-            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0x9FFF, stamp);
-            traceMgr->recordCartBank(mapper, currentBank, 0xE000, 0xFFFF, stamp);
+            traceMgr->recordCartBank(mapper.c_str(), currentBank, 0x8000, 0x9FFF, stamp);
+            traceMgr->recordCartBank(mapper.c_str(), currentBank, 0xE000, 0xFFFF, stamp);
             break;
         default:
             traceMgr->recordCustomEvent(std::string("CART map change (") + why + "): " + getMapperName());

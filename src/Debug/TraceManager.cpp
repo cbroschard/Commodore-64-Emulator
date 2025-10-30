@@ -109,6 +109,9 @@ void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uin
 
     std::stringstream out;
 
+    out << makeStamp(stamp) << "Mapper: " << mapper << " Bank: " << bank << " CART_LO: " << std::hex << std::setw(4) << lo << " CART_HI: " << hi;
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
 }
 
 void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
