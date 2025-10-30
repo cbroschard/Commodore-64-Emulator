@@ -8,6 +8,11 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
 
+// Forward declarations
+class CPU;
+class TraceManager;
+class Vic;
+
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -26,8 +31,11 @@ class Cartridge
         Cartridge();
         virtual ~Cartridge();
 
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
         bool loadROM(const std::string& path); // load the Cartridge
 
@@ -121,8 +129,11 @@ class Cartridge
     private:
 
         // Non-owning pointers
+        CPU* processor;
         Logging* logger;
         Memory* mem;
+        TraceManager* traceMgr;
+        Vic* vicII;
 
         // Polymorphic pointer for cartridge mapper types
         std::unique_ptr<CartridgeMapper> mapper;
@@ -177,6 +188,9 @@ class Cartridge
 
         // Cartridge type specific helpers
         inline uint8_t decodeFunPlayBank(uint8_t value) { return ((value & 0x38) >> 3) | ((value & 0x01) << 3); }
+
+        // Tracing helper
+        void traceActiveWindows(const char* why);
 };
 
 #endif // CARTRIDGE_H

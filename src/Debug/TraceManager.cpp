@@ -9,6 +9,7 @@
 #include "Debug/TraceManager.h"
 
 TraceManager::TraceManager() :
+    cart(nullptr),
     cia1object(nullptr),
     cia2object(nullptr),
     processor(nullptr),
@@ -100,6 +101,14 @@ std::string TraceManager::listMemRange() const
         first = false;
     }
     return out.str();
+}
+
+void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::CART)) return;
+
+    std::stringstream out;
+
 }
 
 void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)

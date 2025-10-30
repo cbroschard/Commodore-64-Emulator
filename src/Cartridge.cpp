@@ -22,8 +22,11 @@
 Cartridge::Cartridge() :
     hasRAM(false),
     currentBank(0),
+    processor(nullptr),
     logger(nullptr),
     mem(nullptr),
+    traceMgr(nullptr),
+    vicII(nullptr),
     wiringMode(WiringMode::NONE),
     cartSize(0),
     mapperType(CartridgeType::GENERIC),
@@ -335,6 +338,10 @@ bool Cartridge::setCurrentBank(uint8_t bank)
             logger->WriteLog(out.str());
         }
         return false;
+    }
+    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
+    {
+        traceActiveWindows("Bank Switch");
     }
     return true;
 }
@@ -653,5 +660,29 @@ void Cartridge::determineWiringMode()
         wiringMode = WiringMode::NONE;
         setExROMLine(true);
         setGameLine(true);
+    }
+}
+
+void Cartridge::traceActiveWindows(const char* why)
+{
+    if (!traceMgr->isEnabled() || !traceMgr->catOn(TraceManager::TraceCat::CART)) return;
+    auto stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+
+    const char* mapper = getMapperName().c_str();
+    switch (wiringMode) {
+        case WiringMode::CART_8K:      // $8000-$9FFF
+            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0x9FFF, stamp);
+            break;
+        case WiringMode::CART_16K:     // $8000-$BFFF
+            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0xBFFF, stamp);
+            break;
+        case WiringMode::CART_ULTIMAX: // $8000-$9FFF and $E000-$FFFF
+            traceMgr->recordCartBank(mapper, currentBank, 0x8000, 0x9FFF, stamp);
+            traceMgr->recordCartBank(mapper, currentBank, 0xE000, 0xFFFF, stamp);
+            break;
+        default:
+            traceMgr->recordCustomEvent(std::string("CART map change (") + why + "): " + getMapperName());
+            break;
     }
 }

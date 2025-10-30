@@ -18,6 +18,7 @@
 #include <memory>
 
 // Forward declarations
+class Cartridge;
 class CIA1;
 class CIA2;
 class CPU;
@@ -32,6 +33,7 @@ class TraceManager
         TraceManager();
         virtual ~TraceManager();
 
+        inline void attachCartInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
@@ -83,6 +85,7 @@ class TraceManager
         inline Stamp makeStamp(uint64_t cyc, uint16_t rl=0xFFFF, uint16_t rd=0xFFFF) { return {cyc, rl, rd}; }
 
         // Component specific traces
+        void recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp);
         void recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp);  // Called every CPU step if tracing enabled
         void recordMemRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
         void recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
@@ -91,7 +94,6 @@ class TraceManager
         void recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp);
         void recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp);
         void recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
-        void recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp);
         void recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp);
         void recordCustomEvent(const std::string& text);
 
@@ -100,6 +102,7 @@ class TraceManager
     private:
 
         // Non-owning pointers
+        Cartridge* cart;
         CIA1* cia1object;
         CIA2* cia2object;
         CPU* processor;

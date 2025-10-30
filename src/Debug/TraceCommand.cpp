@@ -50,6 +50,10 @@ std::string TraceCommand::help() const
         "  trace clear                Clear stored trace data\n"
         "  trace file <path>          Write trace output to a file\n"
         "\n"
+        "Cartridge tracing:\n"
+        "  trace cart enable          Enable Cartridge tracing\n"
+        "  trace cart disable         Disable Cartridge tracing\n"
+        "\n"
         "CPU tracing:\n"
         "  trace cpu enable           Enable CPU tracing\n"
         "  trace cpu disable          Disable CPU tracing\n"
@@ -144,6 +148,25 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         traceMgr->setFileOutput(path);
         std::cout << "Trace file set to " << path << "\n";
         return;
+    }
+    if (sub == "cart")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::CART);
+            std::cout << "Enabled Cartridge tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::CART);
+            std::cout << "Disabled Cartridge tracing." << "\n";
+            return;
+        }
     }
     if (sub == "cpu")
     {

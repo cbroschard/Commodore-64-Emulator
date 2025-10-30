@@ -93,6 +93,7 @@ Computer::Computer() :
     cart->attachCPUInstance(processor.get());
     cart->attachMemoryInstance(mem.get());
     cart->attachLogInstance(logger.get());
+    cart->attachTraceManagerInstance(traceMgr.get());
     cart->attachVicInstance(vicII.get());
 
     cass->attachMemoryInstance(mem.get());
