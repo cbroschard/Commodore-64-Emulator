@@ -162,7 +162,7 @@ void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
     out << makeStamp(stamp);
 
     auto st = processor->getState();
-    out << "[CPU] std::hex" << std::uppercase << std::setfill('0')
+    out << "[CPU]" << std::hex << std::uppercase << std::setfill('0')
         << "PC=$"  << std::setw(4) << pcExec
         << " OPC=$"<< std::setw(2) << int(opcode)
         << "  A=$" << std::setw(2) << int(st.A)
