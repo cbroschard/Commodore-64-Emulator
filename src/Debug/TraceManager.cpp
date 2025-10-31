@@ -37,6 +37,15 @@ const char* TraceManager::sidRegNames[32] =
     "POT_Y", "OSC3_RANDOM", "ENV3_OUTPUT", "UNUSED_1C", "UNUSED_1D", "UNUSED_1E"
 };
 
+void TraceManager::enableAllCategories(bool enable)
+{
+    for (int i = 0; i < static_cast<int>(TraceCat::COUNT); ++i)
+    {
+        if (enable) enableCategory(static_cast<TraceCat>(i));
+        else disableCategory(static_cast<TraceCat>(i));
+    }
+}
+
 void TraceManager::enable(bool on)
 {
     tracing = on;
@@ -284,6 +293,7 @@ uint32_t TraceManager::catToMask(TraceCat cat)
         case TraceCat::SID:  return 1u<<5;
         case TraceCat::CART: return 1u<<6;
         case TraceCat::MEM:  return 1u<<7;
+        case TraceCat::COUNT: return 1u<<0;
     }
     // Default
     return 1u<<0;

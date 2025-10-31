@@ -51,7 +51,8 @@ class TraceManager
             PLA   = 1u<<4,
             SID   = 1u<<5,
             CART  = 1u<<6,
-            MEM   = 1u<<7
+            MEM   = 1u<<7,
+            COUNT
         };
 
         // Getters
@@ -66,6 +67,7 @@ class TraceManager
         inline void enableCategory(TraceCat cat) { cats |= catToMask(cat); }
         inline void disableCategory(TraceCat cat) { cats &= ~catToMask(cat); }
         inline void addMemRange(uint16_t lo, uint16_t hi) { memRanges.push_back({lo,hi}); }
+        void enableAllCategories(bool enable);
         void enable(bool on);
         void setFileOutput(const std::string& path);
 

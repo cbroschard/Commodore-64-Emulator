@@ -50,6 +50,7 @@ std::string TraceCommand::help() const
         "  trace clear                Clear stored trace data\n"
         "  trace file <path>          Write trace output to a file\n"
         "  trace status               Show global and per-category trace status\n"
+        "  trace all enable|disable   Enable or disable all trace categories\n"
         "\n"
         "Cartridge tracing:\n"
         "  trace cart enable          Enable Cartridge tracing\n"
@@ -171,6 +172,30 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << traceMgr->listCategoryStatus() << "\n";
         return;
     }
+    if (sub == "all")
+    {
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
+        {
+            traceMgr->enableAllCategories(true);
+            std::cout << "Enabled all trace categories.\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on. Run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
+        {
+            traceMgr->enableAllCategories(false);
+            std::cout << "Disabled all trace categories.\n";
+            return;
+        }
+        else
+        {
+            std::cout << "Usage: trace all enable|disable\n";
+            return;
+        }
+    }
     if (sub == "cart")
     {
         if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
@@ -179,7 +204,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled Cartridge tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
@@ -198,7 +223,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled CIA1 tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
@@ -217,7 +242,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled CIA2 tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
@@ -236,17 +261,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled CPU tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
         else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CPU);
-            std::cout << "Disabled CPU tracing" << "\n";
+            std::cout << "Disabled CPU tracing." << "\n";
             if (traceMgr->isEnabled())
             {
-                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+                std::cout << "Tracing is still enabled globally. To disable it, run: trace off\n";
             }
             return;
         }
@@ -272,7 +297,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Disabled Memory tracing.\n";
             if (traceMgr->isEnabled())
             {
-                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+                std::cout << "Tracing is still enabled globally. To disable it, run: trace off\n";
             }
             return;
         }
@@ -305,7 +330,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 std::cout << "Memory range: " << traceMgr->listMemRange() << "\n";
                 if (!traceMgr->isEnabled())
                 {
-                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                    std::cout << "Tracing is not turned on. Run: trace on\n";
                 }
             }
             return;
@@ -315,7 +340,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             traceMgr->clearMemRanges();
             if (traceMgr->isEnabled())
             {
-                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+                std::cout << "Tracing is still enabled globally. To disable it, run: trace off\n";
             }
             return;
         }
@@ -328,7 +353,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled PLA tracing.\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
@@ -338,7 +363,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Disabled PLA tracing.\n";
             if (traceMgr->isEnabled())
             {
-                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+                std::cout << "Tracing is still enabled globally. To disable it, run: trace off\n";
             }
             return;
         }
@@ -351,17 +376,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Enabled SID tracing.\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
         else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::SID);
-            std::cout << "Disabled SID tracing." << "\n";
+            std::cout << "Disabled SID tracing.\n";
             if (traceMgr->isEnabled())
             {
-                std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
+                std::cout << "Tracing is still enabled globally. To disable it, run: trace off\n";
             }
             return;
         }
@@ -371,17 +396,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::VIC);
-            std::cout << "Enabled VIC tracing." << "\n";
+            std::cout << "Enabled VIC tracing.\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on. Run: trace on\n";
             }
             return;
         }
         else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::VIC);
-            std::cout << "Disabled VIC tracing." << "\n";
+            std::cout << "Disabled VIC tracing.\n";
             return;
         }
     }
