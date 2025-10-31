@@ -34,7 +34,7 @@ std::string TraceCommand::category() const
 
 std::string TraceCommand::shortHelp() const
 {
-    return "trace     - Enable or control component tracing";
+    return "trace     - Enable or control component Tracing";
 }
 
 std::string TraceCommand::help() const
@@ -49,16 +49,17 @@ std::string TraceCommand::help() const
         "  trace dump                 Dump the current trace buffer to console\n"
         "  trace clear                Clear stored trace data\n"
         "  trace file <path>          Write trace output to a file\n"
+        "  trace status               Show global and per-category trace status\n"
         "\n"
         "Cartridge tracing:\n"
         "  trace cart enable          Enable Cartridge tracing\n"
         "  trace cart disable         Disable Cartridge tracing\n"
         "\n"
         "CIA tracing:\n"
-        " trace cia1 enable           Enable CIA1 tracing\n"
-        " trace cia1 disable          Disable CIA1 tracing\n"
-        " trace cia2 enable           Enable CIA2 tracing\n"
-        " trace cia2 disable          Disable CIA2 tracing\n"
+        "  trace cia1 enable          Enable CIA1 tracing\n"
+        "  trace cia1 disable         Disable CIA1 tracing\n"
+        "  trace cia2 enable          Enable CIA2 tracing\n"
+        "  trace cia2 disable         Disable CIA2 tracing\n"
         "\n"
         "CPU tracing:\n"
         "  trace cpu enable           Enable CPU tracing\n"
@@ -164,9 +165,15 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Trace file set to " << path << "\n";
         return;
     }
+    if (sub == "status")
+    {
+        std::cout << "Trace " << (traceMgr->isEnabled() ? "ON" : "OFF") << "\n";
+        std::cout << traceMgr->listCategoryStatus() << "\n";
+        return;
+    }
     if (sub == "cart")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CART);
             std::cout << "Enabled Cartridge tracing." << "\n";
@@ -176,7 +183,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CART);
             std::cout << "Disabled Cartridge tracing." << "\n";
@@ -185,7 +192,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "cia1")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CIA1);
             std::cout << "Enabled CIA1 tracing." << "\n";
@@ -195,7 +202,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CIA1);
             std::cout << "Disabled CIA1 tracing." << "\n";
@@ -204,7 +211,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "cia2")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CIA2);
             std::cout << "Enabled CIA2 tracing." << "\n";
@@ -214,7 +221,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CIA2);
             std::cout << "Disabled CIA2 tracing." << "\n";
@@ -223,7 +230,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "cpu")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CPU);
             std::cout << "Enabled CPU tracing." << "\n";
@@ -233,7 +240,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CPU);
             std::cout << "Disabled CPU tracing" << "\n";
@@ -247,34 +254,22 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (sub == "mem")
     {
         // trace mem add <range>
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
-            traceMgr->catOn(TraceManager::TraceCat::MEM);
-            if (traceMgr->listMemRange() == "")
-            {
-                std::cout << "Error: No ranges are added, disabling MEM tracing\n";
+            if (traceMgr->listMemRange().empty()) {
+                std::cout << "Error: No ranges are added. MEM tracing disabled.\n";
                 return;
             }
-            else if (!traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM))
-            {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
-                return;
-            }
-            else
-            {
-                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
-                std::cout << "Enabled Memory tracing\n";
-                if (!traceMgr->isEnabled())
-                {
-                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
-                }
-                return;
-            }
+            traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+            std::cout << "Enabled Memory tracing.\n";
+            if (!traceMgr->isEnabled())
+                std::cout << "Tracing is not turned on. Run: trace on\n";
+            return;
         }
-        if (args.size() >= 3 && args[2] == "disable")
+        if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::MEM);
-            std::cout << "Disabled Memory tracing\n";
+            std::cout << "Disabled Memory tracing.\n";
             if (traceMgr->isEnabled())
             {
                 std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
@@ -300,10 +295,18 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
         else if (args.size() >= 3 && args[2] == "list")
         {
-            std::cout << "Memory range: " << traceMgr->listMemRange() << "\n";
-            if (!traceMgr->isEnabled())
+            auto ranges = traceMgr->listMemRange();
+            if (ranges.empty())
             {
-                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "No memory ranges currently being traced.\n";
+            }
+            else
+            {
+                std::cout << "Memory range: " << traceMgr->listMemRange() << "\n";
+                if (!traceMgr->isEnabled())
+                {
+                    std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+                }
             }
             return;
         }
@@ -319,17 +322,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "pla")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::PLA);
             std::cout << "Enabled PLA tracing.\n";
             if (!traceMgr->isEnabled())
             {
-                std::cout << "racing is not turned on, when ready to activate run: trace on\n";
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::PLA);
             std::cout << "Disabled PLA tracing.\n";
@@ -342,7 +345,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "sid")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::SID);
             std::cout << "Enabled SID tracing.\n";
@@ -352,10 +355,10 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::SID);
-            std::cout << "Disabled SID tracing" << "\n";
+            std::cout << "Disabled SID tracing." << "\n";
             if (traceMgr->isEnabled())
             {
                 std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
@@ -365,7 +368,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     if (sub == "vic")
     {
-        if (args.size() >= 3 && args[2] == "enable")
+        if (args.size() >= 3 && (args[2] == "enable" || args[2] == "on"))
         {
             traceMgr->enableCategory(TraceManager::TraceCat::VIC);
             std::cout << "Enabled VIC tracing." << "\n";
@@ -375,7 +378,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             return;
         }
-        else if (args.size() >= 3 && args[2] == "disable")
+        else if (args.size() >= 3 && (args[2] == "disable" || args[2] == "off"))
         {
             traceMgr->disableCategory(TraceManager::TraceCat::VIC);
             std::cout << "Disabled VIC tracing." << "\n";
@@ -385,6 +388,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     // Unknown subcommand
     std::cout << help();
+    return;
 }
 
 std::string TraceCommand::joinArgs(const std::vector<std::string>& a, size_t start)
