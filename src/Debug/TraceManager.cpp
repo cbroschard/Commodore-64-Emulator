@@ -115,6 +115,34 @@ void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uin
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
+void TraceManager::recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp)
+{
+    if (!tracing) return;
+
+    // Check to ensure the correct CIA tracing is on
+    if ((cia == 1 && !catOn(TraceCat::CIA1)) || (cia == 2 && !catOn(TraceCat::CIA2))) return;
+
+    std::stringstream out;
+
+    out << makeStamp(stamp) << "CIA" << cia << ": Timer: " << timerName << " = " << value << " Underflow: " << (underflow ? "Yes" : "No");
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp)
+{
+    if (!tracing) return;
+
+    // Check to ensure the correct CIA tracing is on
+    if ((cia == 1 && !catOn(TraceCat::CIA1)) || (cia == 2 && !catOn(TraceCat::CIA2))) return;
+
+    std::stringstream out;
+
+    out << makeStamp(stamp) << "CIA" << cia << " ICR value: " << std::hex << int(icr) << " IRQ Raised: " << (irqRaised ? "True" : "False");
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
 void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
 {
     if (!tracing || !processor || !catOn(TraceCat::CPU)) return;

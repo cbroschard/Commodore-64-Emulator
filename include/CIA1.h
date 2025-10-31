@@ -11,6 +11,8 @@
 //Forward declarations
 class Cassette;
 class Keyboard;
+class TraceManager;
+class Vic;
 
 #include <bitset>
 #include <cstdint>
@@ -31,11 +33,14 @@ class CIA1
         virtual ~CIA1();
 
         // Pointers
-        inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
-        inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
+        inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
+        inline void attachTraceManagerInstance(TraceManager* tracemgr) { this->traceMgr = traceMgr; }
+        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
         void attachJoystickInstance(Joystick* joy);
 
         // Remove the Joystick(s)
@@ -88,12 +93,15 @@ class CIA1
 
         // Non-owning pointers
         Cassette* cass;
+        CPU* processor;
         IRQLine* IRQ;
         Joystick* joy1;
         Joystick* joy2;
         Keyboard* keyb;
         Logging* logger;
         Memory* mem;
+        TraceManager* traceMgr;
+        Vic* vicII;
 
         // Video
         VideoMode mode_;

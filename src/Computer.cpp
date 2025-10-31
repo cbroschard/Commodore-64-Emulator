@@ -65,15 +65,20 @@ Computer::Computer() :
     processor->attachLogInstance(logger.get());
     processor->attachTraceManagerInstance(traceMgr.get());
 
-    cia1object->attachKeyboardInstance(keyb.get());
-    cia1object->attachIRQLineInstance(IRQ.get());
     cia1object->attachCassetteInstance(cass.get());
-    cia1object->attachMemoryInstance(mem.get());
+    cia1object->attachCPUInstance(processor.get());
+    cia1object->attachIRQLineInstance(IRQ.get());
+    cia1object->attachKeyboardInstance(keyb.get());
     cia1object->attachLogInstance(logger.get());
+    cia1object->attachMemoryInstance(mem.get());
+    cia1object->attachTraceManagerInstance(traceMgr.get());
+    cia1object->attachVicInstance(vicII.get());
 
-    cia2object->attachProcessorInstance(processor.get());
+    cia2object->attachCPUInstance(processor.get());
     cia2object->attachIECBusInstance(bus.get());
     cia2object->attachLogInstance(logger.get());
+    cia2object->attachTraceManagerInstance(traceMgr.get());
+    cia2object->attachVicInstance(vicII.get());
 
     vicII->attachIOInstance(IO_adapter.get());
     vicII->attachCPUInstance(processor.get());
@@ -402,7 +407,7 @@ bool Computer::boot()
     // Attach backend pointer to MLMonitor
     monitor->attachMLMonitorBackendInstance(monbackend.get());
 
-    // Attach all devices to monitor backend
+    // Attach all devices to monitor back end
     monbackend->attachCartridgeInstance(cart.get());
     monbackend->attachCassetteInstance(cass.get());
     monbackend->attachCIA1Instance(cia1object.get());
@@ -418,7 +423,7 @@ bool Computer::boot()
     monbackend->attachSIDInstance(sidchip.get());
     monbackend->attachVICInstance(vicII.get());
 
-    // Wire up the trace manager backend as well
+    // Wire up the trace manager back end as well
     traceMgr->attachCartInstance(cart.get());
     traceMgr->attachCIA1Instance(cia1object.get());
     traceMgr->attachCIA2Instance(cia2object.get());

@@ -9,12 +9,15 @@
 
 CIA1::CIA1() :
     cass(nullptr),
+    processor(nullptr),
     IRQ(nullptr),
     joy1(nullptr),
     joy2(nullptr),
     keyb(nullptr),
     logger(nullptr),
-    mem(nullptr)
+    mem(nullptr),
+    traceMgr(nullptr),
+    vicII(nullptr)
 {
     setMode(VideoMode::NTSC);
 }
@@ -568,6 +571,12 @@ void CIA1::cntChangedA()
         {
             // --- Underflow semantics (same as phi2 path) ---
             triggerInterrupt(INTERRUPT_TIMER_A);
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+            {
+                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+                traceMgr->recordCiaTimer(1, 'A', timerA, true, stamp);
+            }
 
             // Serial shift on TA underflow if enabled (CRA bit6)
             if (timerAControl & 0x40)
@@ -616,6 +625,12 @@ void CIA1::cntChangedB()
     if (--current == 0)
     {
         triggerInterrupt(INTERRUPT_TIMER_B);
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        {
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordCiaTimer(1, 'B', timerB, true, stamp);
+        }
 
         const bool continuous = !(timerBControl & 0x08);
         if (continuous)
@@ -657,6 +672,13 @@ void CIA1::updateTimerA(uint32_t cyclesElapsed)
 
         // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_A);
+
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        {
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordCiaTimer(1, 'A', timerA, true, stamp);
+        }
 
         const bool continuous = !(timerAControl & 0x08); // RUNMODE=0 => continuous
         if (continuous)
@@ -715,6 +737,13 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
 
         // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_B);
+
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        {
+            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+            traceMgr->recordCiaTimer(1, 'B', timerB, true, stamp);
+        }
 
         const bool continuous = !(timerBControl & 0x08);
         if (continuous)
@@ -793,6 +822,13 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
         {
             todAlarmTriggered = true;
             triggerInterrupt(INTERRUPT_TOD_ALARM);
+
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+            {
+                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+                traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, stamp);
+            }
         }
     }
 }
@@ -820,6 +856,13 @@ void CIA1::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
 
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, stamp);
+    }
+
     refreshMasterBit();
     updateIRQLine();
 }
@@ -843,19 +886,27 @@ void CIA1::clearIFR(InterruptBit interruptBit)
 {
     interruptStatus &= ~interruptBit;
 
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, stamp);
+    }
+
     refreshMasterBit();
     updateIRQLine();
 }
 
 void CIA1::refreshMasterBit()
 {
-    if ((interruptStatus & 0x1F) != 0)
+    if ((interruptStatus & 0x1F) != 0) interruptStatus |= 0x80;
+    else interruptStatus &= ~0x80;
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
     {
-        interruptStatus |= 0x80;
-    }
-    else
-    {
-        interruptStatus &= ~0x80;
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, stamp);
     }
 }
 

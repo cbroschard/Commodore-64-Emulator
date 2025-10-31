@@ -54,6 +54,12 @@ std::string TraceCommand::help() const
         "  trace cart enable          Enable Cartridge tracing\n"
         "  trace cart disable         Disable Cartridge tracing\n"
         "\n"
+        "CIA tracing:\n"
+        " trace cia1 enable           Enable CIA1 tracing\n"
+        " trace cia1 disable          Disable CIA1 tracing\n"
+        " trace cia2 enable           Enable CIA2 tracing\n"
+        " trace cia2 disable          Disable CIA2 tracing\n"
+        "\n"
         "CPU tracing:\n"
         "  trace cpu enable           Enable CPU tracing\n"
         "  trace cpu disable          Disable CPU tracing\n"
@@ -168,6 +174,44 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (args.size() >= 3 && args[2] == "disable")
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CART);
+            std::cout << "Disabled Cartridge tracing." << "\n";
+            return;
+        }
+    }
+    if (sub == "cia1")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::CIA1);
+            std::cout << "Enabled Cartridge tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::CIA1);
+            std::cout << "Disabled Cartridge tracing." << "\n";
+            return;
+        }
+    }
+    if (sub == "cia2")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::CIA2);
+            std::cout << "Enabled Cartridge tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::CIA2);
             std::cout << "Disabled Cartridge tracing." << "\n";
             return;
         }

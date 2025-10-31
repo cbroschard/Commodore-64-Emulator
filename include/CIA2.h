@@ -13,6 +13,8 @@
 class Cassette;
 class CPU;
 class IECBUS;
+class TraceManager;
+class Vic;
 
 #include <cstdint>
 #include "common.h"
@@ -26,10 +28,12 @@ class CIA2
         CIA2();
         virtual ~CIA2();
 
-        inline void attachProcessorInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
         inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
         // Setter for NTSC/PAL
         void setMode(VideoMode mode);
@@ -94,6 +98,8 @@ class CIA2
         IECBUS* bus;
         Logging* logger;
         RS232Device* rs232dev;
+        TraceManager* traceMgr;
+        Vic* vicII;
 
         // Constants
         static constexpr uint8_t VIC_BANK0  = 0x01;  // PA0

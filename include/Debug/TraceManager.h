@@ -87,14 +87,14 @@ class TraceManager
         // Component specific traces
         void recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp);
         void recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp);  // Called every CPU step if tracing enabled
-        void recordMemRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
-        void recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
-        void recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp);
-        void recordVicIrq(bool level, Stamp stamp);
         void recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp);
         void recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp);
+        void recordMemRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
+        void recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
         void recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
         void recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp);
+        void recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp);
+        void recordVicIrq(bool level, Stamp stamp);
         void recordCustomEvent(const std::string& text);
 
     protected:

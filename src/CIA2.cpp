@@ -12,7 +12,9 @@ CIA2::CIA2() :
     processor(nullptr),
     bus(nullptr),
     logger(nullptr),
-    rs232dev(nullptr)
+    rs232dev(nullptr),
+    traceMgr(nullptr),
+    vicII(nullptr)
 {
     setMode(VideoMode::NTSC);
 }
@@ -464,7 +466,7 @@ void CIA2::updateTimerA(uint32_t cyclesElapsed)
     if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
 
     const bool cntMode = (timerAControl & 0x20) != 0;
-    if (cntMode) return; // TA counts on CNT edges elsewhere, if you wire it
+    if (cntMode) return;
 
     while (cyclesElapsed--)
     {
@@ -478,12 +480,16 @@ void CIA2::updateTimerA(uint32_t cyclesElapsed)
             interruptStatus |= INTERRUPT_TIMER_A;
             refreshNMI();
 
-            if (timerBControl & 0x40)
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
             {
-                ++pendingTBCASTicks;
+                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+                traceMgr->recordCiaTimer(2, 'A', timerA, true, stamp);
+                traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, stamp);
             }
 
-            // PB7 output per PBON/OUTMODE (bits 1–2), NOT bit6
+            if (timerBControl & 0x40) ++pendingTBCASTicks;
+
             const bool pbOn  = (timerAControl & 0x02);
             const bool pulse = (timerAControl & 0x04);
             if (pbOn && (dataDirectionPortB & DSR_MASK))
@@ -574,6 +580,13 @@ void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
             todAlarmTriggered = true;
             interruptStatus |= INTERRUPT_TOD_ALARM;
             refreshNMI();
+
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
+            {
+                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+                    vicII ? vicII->getRasterDot() : 0);
+                traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, stamp);
+            }
         }
     }
 }
@@ -897,6 +910,14 @@ void CIA2::handleTimerBUnderflow()
     // Latch IFR regardless of IER; refresh NMI level from (IFR & IER)
     interruptStatus |= INTERRUPT_TIMER_B;
     refreshNMI();
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
+        traceMgr->recordCiaTimer(2, 'B', timerA, true, stamp);
+        traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, stamp);
+    }
 
     const bool oneShot = (timerBControl & 0x08) != 0;  // RUNMODE=1 => one-shot
     if (oneShot)
