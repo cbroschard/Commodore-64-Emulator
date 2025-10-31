@@ -86,6 +86,7 @@ Computer::Computer() :
     vicII->attachCIA2Instance(cia2object.get());
     vicII->attachIRQLineInstance(IRQ.get());
     vicII->attachLogInstance(logger.get());
+    vicII->attachTraceManagerInstance(traceMgr.get());
 
     IO_adapter->attachVICInstance(vicII.get());
     IO_adapter->attachSIDInstance(sidchip.get());

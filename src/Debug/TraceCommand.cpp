@@ -79,6 +79,10 @@ std::string TraceCommand::help() const
         "  trace sid enable           Enable SID tracing\n"
         "  trace sid disable          Disable SID tracing\n"
         "\n"
+        "VIC tracing:\n"
+        "  trace vic enable           Enable VIC tracing\n"
+        "  trace vic disable          Disable VIC tracing\n"
+        "\n"
         "Notes:\n"
         "  - Addresses use $HHHH hex notation, e.g. $0800-$0FFF.\n"
         "  - 'trace mem add' does NOT enable the MEM category; use 'trace mem enable'.\n"
@@ -356,6 +360,25 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             {
                 std::cout << "Tracing is still enabled globally, if you would like to turn it off run: trace off\n";
             }
+            return;
+        }
+    }
+    if (sub == "vic")
+    {
+        if (args.size() >= 3 && args[2] == "enable")
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::VIC);
+            std::cout << "Enabled Cartridge tracing." << "\n";
+            if (!traceMgr->isEnabled())
+            {
+                std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
+            }
+            return;
+        }
+        else if (args.size() >= 3 && args[2] == "disable")
+        {
+            traceMgr->disableCategory(TraceManager::TraceCat::VIC);
+            std::cout << "Disabled Cartridge tracing." << "\n";
             return;
         }
     }

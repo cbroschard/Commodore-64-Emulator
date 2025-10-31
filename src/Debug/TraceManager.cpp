@@ -110,7 +110,7 @@ void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uin
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "Mapper: " << mapper << " Bank: " << bank << " CART_LO: " << std::hex << std::setw(4) << lo << " CART_HI: " << hi;
+    out << makeStamp(stamp) << "[CART] Mapper: " << mapper << " Bank: " << bank << " CART_LO: " << std::hex << std::setw(4) << lo << " CART_HI: " << hi;
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
@@ -124,7 +124,7 @@ void TraceManager::recordCiaTimer(int cia, char timerName, uint16_t value, bool 
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "CIA" << cia << ": Timer: " << timerName << " = " << value << " Underflow: " << (underflow ? "Yes" : "No");
+    out << makeStamp(stamp) << "[CIA" << cia << "] Timer: " << timerName << " = " << value << " Underflow: " << (underflow ? "Yes" : "No");
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
@@ -138,7 +138,7 @@ void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stam
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "CIA" << cia << " ICR value: " << std::hex << int(icr) << " IRQ Raised: " << (irqRaised ? "True" : "False");
+    out << makeStamp(stamp) << "[CIA" << cia << "] ICR value: " << std::hex << int(icr) << " IRQ Raised: " << (irqRaised ? "True" : "False");
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
@@ -153,7 +153,7 @@ void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
     out << makeStamp(stamp);
 
     auto st = processor->getState();
-    out << std::hex << std::uppercase << std::setfill('0')
+    out << "[CPU] std::hex" << std::uppercase << std::setfill('0')
         << "PC=$"  << std::setw(4) << pcExec
         << " OPC=$"<< std::setw(2) << int(opcode)
         << "  A=$" << std::setw(2) << int(st.A)
@@ -172,7 +172,7 @@ void TraceManager::recordMemRead(uint16_t address, uint8_t value, uint16_t pc, S
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "R: Address=$" << std::hex << std::uppercase << std::setfill('0')
+    out << makeStamp(stamp) << "[MEMORY] READ: Address=$" << std::hex << std::uppercase << std::setfill('0')
         << std::setw(4) << address
         << " Value=$" << std::setw(2) << int(value)
         << " PC=$" << std::setw(4) << pc;
@@ -187,7 +187,7 @@ void TraceManager::recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, 
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "W: Address=$" << std::hex << std::uppercase << std::setfill('0')
+    out << makeStamp(stamp) << "[MEMORY] WRITE: Address=$" << std::hex << std::uppercase << std::setfill('0')
         << std::setw(4) << address
         << " Value=$" << std::setw(2) << int(value)
         << " PC=$" << std::setw(4) << pc;
@@ -202,7 +202,7 @@ void TraceManager::recordPlaMode(uint8_t mode, bool game, bool exrom, bool chare
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "PLA Mode: " << int(mode) << " Game Line: " << (game ? "1 (inactive)" : "0 (asserted)") <<
+    out << makeStamp(stamp) << "[PLA] Mode: " << int(mode) << " Game Line: " << (game ? "1 (inactive)" : "0 (asserted)") <<
         " exRom: " << (exrom ? "1 (inactive" : "0 (asserted)") << " HIRAM: " << hiram << " LORAM: " << loram;
 
     buffer.push_back(out.str());
@@ -222,6 +222,35 @@ void TraceManager::recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp)
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";;
+}
+
+void TraceManager::recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::VIC)) return;
+
+    std::stringstream out;
+
+    out << makeStamp(stamp)
+    << "[VIC] Raster Line=" << std::dec << line
+    << " Dot=" << dot
+    << " IRQ=" << (irq ? "ON" : "OFF")
+    << " D011=$" << std::hex << std::setw(2) << std::setfill('0') << +d011
+    << " D012=$" << std::setw(2) << std::setfill('0') << +d012;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordVicIrq(bool level, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::VIC)) return;
+
+    std::stringstream out;
+
+    out << makeStamp(stamp) << "[VIC] IRQ Line Level: " << (level ? "High" : "Level");
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
 }
 
 void TraceManager::recordCustomEvent(const std::string& text)

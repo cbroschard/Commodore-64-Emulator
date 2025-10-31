@@ -15,6 +15,7 @@ Vic::Vic(VideoMode mode) :
     IRQ(nullptr),
     logger(nullptr),
     mem(nullptr),
+    traceMgr(nullptr),
     mode_(mode),
     cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG),
     rowCounter(0)
@@ -517,6 +518,15 @@ void Vic::tick(int cycles)
 
             // Now advance raster to the next line
             registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+            {
+                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
+
+                // Record raster state at end of line
+                traceMgr->recordVicRaster(registers.raster, currentCycle, (registers.interruptStatus & 0x01) != 0,
+                    registers.control, registers.rasterInterruptLine & 0xFF, stamp);
+            }
         }
 
         // Per-cycle bus arbitration
@@ -980,6 +990,12 @@ void Vic::updateIRQLine()
     if (!IRQ) return;
     if (any)  IRQ->raiseIRQ(IRQLine::VICII);
     else      IRQ->clearIRQ(IRQLine::VICII);
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
+        traceMgr->recordVicIrq(any, stamp);
+    }
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)

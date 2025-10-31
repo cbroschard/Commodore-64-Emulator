@@ -8,6 +8,9 @@
 #ifndef VIC_H
 #define VIC_H
 
+// Forward declarations
+class Vic;
+
 #include <algorithm>
 #include <cstdint>
 #include "common.h"
@@ -79,6 +82,7 @@ class Vic
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
         // Setter for video mode
         void setMode(VideoMode mode);
@@ -156,6 +160,7 @@ class Vic
         IRQLine* IRQ;
         Logging* logger;
         Memory* mem;
+        TraceManager* traceMgr;
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
 
