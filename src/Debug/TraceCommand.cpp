@@ -88,6 +88,7 @@ std::string TraceCommand::help() const
         "  trace on\n"
         "  trace cats\n"
         "  trace file traces.txt\n"
+        "  trace cia1 enable\n"
         "  trace cpu enable\n"
         "  trace mem add $0800-$0FFF\n"
         "  trace mem enable\n"
