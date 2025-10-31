@@ -188,7 +188,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && args[2] == "enable")
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CIA1);
-            std::cout << "Enabled Cartridge tracing." << "\n";
+            std::cout << "Enabled CIA1 tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
                 std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
@@ -198,7 +198,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (args.size() >= 3 && args[2] == "disable")
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CIA1);
-            std::cout << "Disabled Cartridge tracing." << "\n";
+            std::cout << "Disabled CIA1 tracing." << "\n";
             return;
         }
     }
@@ -207,7 +207,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && args[2] == "enable")
         {
             traceMgr->enableCategory(TraceManager::TraceCat::CIA2);
-            std::cout << "Enabled Cartridge tracing." << "\n";
+            std::cout << "Enabled CIA2 tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
                 std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
@@ -217,7 +217,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (args.size() >= 3 && args[2] == "disable")
         {
             traceMgr->disableCategory(TraceManager::TraceCat::CIA2);
-            std::cout << "Disabled Cartridge tracing." << "\n";
+            std::cout << "Disabled CIA2 tracing." << "\n";
             return;
         }
     }
@@ -368,7 +368,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && args[2] == "enable")
         {
             traceMgr->enableCategory(TraceManager::TraceCat::VIC);
-            std::cout << "Enabled Cartridge tracing." << "\n";
+            std::cout << "Enabled VIC tracing." << "\n";
             if (!traceMgr->isEnabled())
             {
                 std::cout << "Tracing is not turned on, when ready to activate run: trace on\n";
@@ -378,7 +378,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (args.size() >= 3 && args[2] == "disable")
         {
             traceMgr->disableCategory(TraceManager::TraceCat::VIC);
-            std::cout << "Disabled Cartridge tracing." << "\n";
+            std::cout << "Disabled VIC tracing." << "\n";
             return;
         }
     }
