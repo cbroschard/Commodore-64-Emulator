@@ -479,29 +479,6 @@ bool Computer::boot()
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
 
-    /*// Check for monitor hotkey
-    IO_adapter->setGuiCallback([this]()
-    {
-        if (!showMonitorOverlay) return;
-
-        // Minimal on-screen monitor
-        ImGui::SetNextWindowSize(ImVec2(1000, 600), ImGuiCond_Always);
-        ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_Always);
-        ImGui::Begin("C64 Monitor");
-        ImGui::Text("PC: $%04X   A:$%02X  X:$%02X  Y:$%02X  SP:$%02X",
-            processor->getPC(), processor->getA(), processor->getX(),
-            processor->getY(), processor->getSP());
-
-        static char cmd[256] = {};
-        if (ImGui::InputText("monitor>", cmd, IM_ARRAYSIZE(cmd),
-                             ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            monitor->handleCommand(std::string(cmd));
-            cmd[0] = '\0';
-        }
-        ImGui::End();
-    });*/
-
     // Graphics rendering thread
     IO_adapter->startRenderThread(running);
     IO_adapter->finishFrameAndSignal();
