@@ -109,6 +109,7 @@ class Cartridge
         inline void setGameLine(bool gameLine) { header.gameLine = gameLine; }
         inline WiringMode getWiringMode() { return wiringMode; }
         inline size_t getCartridgeSize() const { return cartSize / 1024; }
+        inline std::vector<chipSection>& getChipSections() { return chipSections; }
 
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }

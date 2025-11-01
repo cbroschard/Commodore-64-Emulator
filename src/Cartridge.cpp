@@ -629,73 +629,63 @@ bool Cartridge::processChipSections()
 
 void Cartridge::determineWiringMode()
 {
-    // Scan CHIP sections once
-    bool has8000   = false;   // any data in $8000-$9FFF
-    bool hasA000   = false;   // any data in $A000-$BFFF
-    bool hasE000   = false;   // any data in $E000-$FFFF (Ultimax-ish)
-    bool has16kBlk = false;   // a single 16K block starting at $8000
+    // Default to no cartridge mapped
+    wiringMode = WiringMode::NONE;
+    setExROMLine(true);
+    setGameLine(true);
+
+    bool any8000 = false, anyA000 = false, anyE000 = false, any16K = false;
 
     for (const auto& s : chipSections)
     {
         const uint32_t start = s.loadAddress;
-        const uint32_t end   = start + (uint32_t)s.data.size();
+        const uint32_t end   = s.loadAddress + static_cast<uint32_t>(s.data.size()); // exclusive
 
-        if (start == 0x8000 && s.data.size() == 16384)
-            has16kBlk = true;
-
-        if (start <= 0x9FFF && end > 0x8000)
-            has8000 = true;
-
-        if (start <= 0xBFFF && end > 0xA000)
-            hasA000 = true;
-
-        if (start <= 0xFFFF && end > 0xE000)
-            hasE000 = true;
+        if (s.loadAddress == 0x8000 && s.data.size() >= 16384) any16K = true;
+        if (start <= 0x9FFF && end > 0x8000)  any8000 = true;  // overlaps $8000-$9FFF
+        if (start <= 0xBFFF && end > 0xA000)  anyA000 = true;  // overlaps $A000-$BFFF
+        if (start <= 0xFFFF && end > 0xE000)  anyE000 = true;  // overlaps $E000-$FFFF
     }
 
-    if (hasE000)
-    {
+    if (anyE000) {
         wiringMode = WiringMode::CART_ULTIMAX;
         setExROMLine(true);
         setGameLine(false);
         return;
     }
 
-    if (mapperType == CartridgeType::OCEAN)
-    {
-        if (hasA000 || has16kBlk || cartSize > 128u * 1024u)
-        {
-            // 256K Ocean or 128K with A000 present
-            wiringMode = WiringMode::CART_16K;
+    if (mapperType == CartridgeType::OCEAN) {
+        if (anyA000 || any16K) {
+            wiringMode = WiringMode::CART_16K;   // GAME=0, EXROM=0
             setExROMLine(false);
             setGameLine(false);
-        }
-        else
-        {
-            wiringMode = WiringMode::CART_8K;
+        } else if (any8000) {
+            wiringMode = WiringMode::CART_8K;    // GAME=1, EXROM=0
             setExROMLine(false);
             setGameLine(true);
         }
         return;
     }
 
-    if (has8000 && hasA000)
-    {
+    if (!header.exROMLine && !header.gameLine) {
         wiringMode = WiringMode::CART_16K;
-        setExROMLine(false);
-        setGameLine(false);
-    }
-    else if (has8000)
-    {
+        setExROMLine(false); setGameLine(false);
+    } else if (!header.exROMLine && header.gameLine) {
         wiringMode = WiringMode::CART_8K;
-        setExROMLine(false);
-        setGameLine(true);
+        setExROMLine(false); setGameLine(true);
+    } else if (header.exROMLine && !header.gameLine) {
+        wiringMode = WiringMode::CART_ULTIMAX;
+        setExROMLine(true); setGameLine(false);
     }
-    else
-    {
-        wiringMode = WiringMode::NONE;
-        setExROMLine(true);
-        setGameLine(true);
+
+    if (wiringMode == WiringMode::NONE) {
+        if (anyA000 || any16K) {
+            wiringMode = WiringMode::CART_16K;
+            setExROMLine(false); setGameLine(false);
+        } else if (any8000) {
+            wiringMode = WiringMode::CART_8K;
+            setExROMLine(false); setGameLine(true);
+        }
     }
 }
 

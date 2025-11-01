@@ -24,6 +24,14 @@ class OceanMapper : public CartridgeMapper
     protected:
 
     private:
+
+        bool builtLists;
+        std::vector<uint16_t> loBanks; // CHIPs at $8000
+        std::vector<uint16_t> hiBanks; // CHIPs at $A000 (if any)
+        uint8_t sel;
+
+        void buildBankLists();
+        bool mapPair(size_t index);
 };
 
 #endif // OCEANMAPPER_H
