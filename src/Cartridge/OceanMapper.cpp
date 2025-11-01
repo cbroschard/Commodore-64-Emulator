@@ -81,6 +81,5 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
             }
         }
     }
-
     return loMapped || hiMapped || eMapped;
 }

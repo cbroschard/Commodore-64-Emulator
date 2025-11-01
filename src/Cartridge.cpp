@@ -98,6 +98,9 @@ bool Cartridge::loadROM(const std::string& path)
     // Detect type of cartridge
     mapperType = detectType(swap16(header.CartridgeHardwareType));
 
+    // Set lines based on cart type
+    determineWiringMode();
+
     switch(mapperType)
     {
         case CartridgeType::C64_GAME_SYSTEM:
@@ -621,46 +624,68 @@ bool Cartridge::processChipSections()
         // Update the offset to the next CHIP section
         offset += chipHdr.romSize;
     }
-
-    // Set lines based on cart type
-    determineWiringMode();
-
     return true;
 }
 
 void Cartridge::determineWiringMode()
 {
-    bool has8000 = false;
-    bool hasA000 = false;
-    bool hasE000 = false;
-    bool has16K  = false;
+    // Scan CHIP sections once
+    bool has8000   = false;   // any data in $8000-$9FFF
+    bool hasA000   = false;   // any data in $A000-$BFFF
+    bool hasE000   = false;   // any data in $E000-$FFFF (Ultimax-ish)
+    bool has16kBlk = false;   // a single 16K block starting at $8000
 
-    for (auto& s : chipSections)
+    for (const auto& s : chipSections)
     {
-        if (s.loadAddress == 0x8000 && s.data.size() == 16384)
-            has16K = true;  // single 16K block at $8000
+        const uint32_t start = s.loadAddress;
+        const uint32_t end   = start + (uint32_t)s.data.size();
 
-        uint32_t start = s.loadAddress;
-        uint32_t end   = s.loadAddress + (uint32_t)s.data.size(); // exclusve
-        if (start <= 0x9FFF && end > 0x8000) has8000 = true; // any overlap with $8000-$9FFF
-        if (start <= 0xBFFF && end > 0xA000) hasA000 = true; // any overlap with $A000-$BFFF
-        if (start <= 0xFFFF && end > 0xE000) hasE000 = true; // any overlap with $E000-$FFFF
+        if (start == 0x8000 && s.data.size() == 16384)
+            has16kBlk = true;
+
+        if (start <= 0x9FFF && end > 0x8000)
+            has8000 = true;
+
+        if (start <= 0xBFFF && end > 0xA000)
+            hasA000 = true;
+
+        if (start <= 0xFFFF && end > 0xE000)
+            hasE000 = true;
     }
 
-    // Determine wiring based on load addresses & sizes
     if (hasE000)
     {
         wiringMode = WiringMode::CART_ULTIMAX;
         setExROMLine(true);
         setGameLine(false);
+        return;
     }
-    else if (has16K || (has8000 && hasA000))
+
+    if (mapperType == CartridgeType::OCEAN)
+    {
+        if (hasA000 || has16kBlk || cartSize > 128u * 1024u)
+        {
+            // 256K Ocean or 128K with A000 present
+            wiringMode = WiringMode::CART_16K;
+            setExROMLine(false);
+            setGameLine(false);
+        }
+        else
+        {
+            wiringMode = WiringMode::CART_8K;
+            setExROMLine(false);
+            setGameLine(true);
+        }
+        return;
+    }
+
+    if (has8000 && hasA000)
     {
         wiringMode = WiringMode::CART_16K;
         setExROMLine(false);
         setGameLine(false);
     }
-    else if (has8000 && !hasA000)
+    else if (has8000)
     {
         wiringMode = WiringMode::CART_8K;
         setExROMLine(false);
