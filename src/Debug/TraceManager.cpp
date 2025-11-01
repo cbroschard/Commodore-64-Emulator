@@ -212,7 +212,7 @@ void TraceManager::recordPlaMode(uint8_t mode, bool game, bool exrom, bool chare
     std::stringstream out;
 
     out << makeStamp(stamp) << "[PLA] Mode: " << int(mode) << " Game Line: " << (game ? "1 (inactive)" : "0 (asserted)") <<
-        " exRom: " << (exrom ? "1 (inactive" : "0 (asserted)") << " HIRAM: " << hiram << " LORAM: " << loram;
+        " exRom: " << (exrom ? "1 (inactive" : "0 (asserted)") << " CHAREN: " << charen <<  " HIRAM: " << hiram << " LORAM: " << loram;
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
