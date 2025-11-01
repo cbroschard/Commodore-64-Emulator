@@ -52,8 +52,6 @@ bool RossMapper::loadIntoMemory(uint8_t bank)
             {
                 // Load to $8000 (cartLocation::LO)
                 mem->writeCartridge(i, section.data[i], cartLocation::LO);
-
-                // Also mirror to $9000 (if your emulator supports this)
                 mem->writeCartridge(i + 0x1000, section.data[i], cartLocation::LO);
             }
             mapped = true;

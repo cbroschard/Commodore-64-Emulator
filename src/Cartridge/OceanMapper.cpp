@@ -51,7 +51,6 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
     {
         cart->clearCartridge(cartLocation::HI);
 
-        // Pick the highest-numbered bank for $A000, unless your format specifies otherwise
         uint8_t fixedBank = 0;
         for (const auto& section : cart->getChipSections())
             if (section.loadAddress == CART_HI_START && section.bankNumber > fixedBank)
@@ -71,7 +70,6 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
     // --- E000: rarely used, but check if present ---
     if (cart->hasSectionAt(CART_HI_START1))
     {
-        // Note: reuse cartLocation::HI for now (unless you add a dedicated HI1).
         cart->clearCartridge(cartLocation::HI);
         for (const auto& section : cart->getChipSections())
         {
