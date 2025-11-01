@@ -179,6 +179,13 @@ class Computer
         std::string D1541LoROM;
         std::string D1541HiROM;
 
+        // Build the ImGui Menu
+        std::atomic<bool> uiQuit;
+        std::atomic<bool> uiWarmReset;
+        std::atomic<bool> uiColdReset;
+        std::atomic<bool> uiPaused;
+        void installMenu();
+
         // debugging
         bool isBASICReady();
         void debugBasicState();

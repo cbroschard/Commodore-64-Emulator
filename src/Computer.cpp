@@ -43,7 +43,11 @@ Computer::Computer() :
     joystick1Attached(false),
     joystick2Attached(false),
     frameReady(false),
-    running(true)
+    running(true),
+    uiQuit(false),
+    uiWarmReset(false),
+    uiColdReset(false),
+    uiPaused(false)
 {
     // Attach components to each other
     mem->attachProcessorInstance(processor.get());
@@ -479,6 +483,9 @@ bool Computer::boot()
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
 
+    // Install the ImGui menu
+    installMenu();
+
     // Graphics rendering thread
     IO_adapter->startRenderThread(running);
     IO_adapter->finishFrameAndSignal();
@@ -494,6 +501,8 @@ bool Computer::boot()
 
         while (SDL_PollEvent(&event))
             {
+                IO_adapter->processSDLEvent(event); // let ImGui see input events first
+
                 if (event.type == SDL_QUIT)
                 {
                     running = false;
@@ -584,6 +593,32 @@ bool Computer::boot()
             frameCycles += elapsedCycles;
         }
 
+        // Process menu items
+        if (uiQuit.exchange(false))
+        {
+            running = false;
+            IO_adapter->stopRenderThread(running);
+            return true;
+        }
+        if (uiWarmReset.exchange(false)) warmReset();
+        if (uiColdReset.exchange(false)) coldReset();
+        if (uiPaused.load())
+        {
+            IO_adapter->finishFrameAndSignal();
+            auto now = std::chrono::steady_clock::now();
+            if (now < nextFrameTime)
+            {
+                std::this_thread::sleep_until(nextFrameTime);
+                nextFrameTime += frameDuration;
+            }
+            else
+            {
+                nextFrameTime = now + frameDuration;
+            }
+            continue; // skip CPU/SID/CIA work while paused
+        }
+
+        // Handle loading a PRG
         if (prgAttached && !prgLoaded && prgDelay <= 0)
         {
             // Load the program into memory
@@ -698,6 +733,61 @@ void Computer::loadPrgIntoMem()
             mem->writeDirect(0x0277 + i, runKeys[i]);
         }
     }
+}
+
+void Computer::installMenu()
+{
+    IO_adapter->setGuiCallback([this]()
+    {
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("System"))
+            {
+                if (ImGui::MenuItem("Warm Reset", "Ctrl+W")) uiWarmReset = true;
+                if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) uiColdReset = true;
+
+                bool isPAL = (videoMode_ == VideoMode::PAL);
+                if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) setVideoMode("NTSC");
+                if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) setVideoMode("PAL");
+
+                ImGui::Separator();
+                bool paused = uiPaused.load();
+                if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
+
+                ImGui::Separator();
+                if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Input"))
+            {
+                bool j1 = joystick1Attached;
+                bool j2 = joystick2Attached;
+                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1))
+                    setJoystickAttached(1, !j1);
+                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2))
+                    setJoystickAttached(2, !j2);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Help"))
+            {
+                if (ImGui::MenuItem("About")) ImGui::OpenPopup("About C64 Emulator");
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
+
+        if (ImGui::BeginPopupModal("About C64 Emulator", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("C64 Emulator — ImGui Menu Overlay");
+            ImGui::Separator();
+            ImGui::Text("F12 opens ML Monitor.\nAlt+J, 1/2 attach joysticks.");
+            if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+    });
 }
 
 bool Computer::isBASICReady()

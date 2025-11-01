@@ -46,7 +46,7 @@ IO::IO() :
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsLight();
 
     // Platform + renderer backends for SDL2 + SDL_Renderer
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
