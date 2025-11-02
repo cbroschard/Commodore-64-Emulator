@@ -269,37 +269,32 @@ void IO::renderLoop(std::atomic<bool>& running)
 {
     const int pitch = screenWidthWithBorder * sizeof(uint32_t);
     SDL_Rect dstRect = { 0, 0, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE };
+    uint32_t* lastBuf = nullptr;
 
     while (running.load())
     {
-        uint32_t* buf = nullptr;
-        {
-            std::unique_lock lk(qMut);
-            qCond.wait(lk, [&]{
-                buf = readyBuffer.exchange(nullptr, std::memory_order_acquire);
-                return buf || !running.load();
-            });
-            if (!running.load()) break;
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            ImGui_ImplSDL2_ProcessEvent(&e);
+            if (e.type == SDL_QUIT) { running = false; }
         }
 
-        // Imgui rendering
+        if (auto buf = readyBuffer.exchange(nullptr, std::memory_order_acquire))
+            lastBuf = buf;
+
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-
-        if (guiCallback) guiCallback(); // let the app draw UI
-
+        if (guiCallback) guiCallback();
         ImGui::Render();
 
-        SDL_UpdateTexture(screenTexture, nullptr, buf, pitch);
+        if (lastBuf) SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch);
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
-
-        // Draw ImGui on top
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-
-        // Present
         SDL_RenderPresent(renderer);
+
+        SDL_Delay(1); // keep CPU usage tame when no new frames arrive
     }
 }
 
