@@ -180,11 +180,13 @@ class Computer
         std::string D1541HiROM;
 
         // Build the ImGui Menu
+        enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiWarmReset;
         std::atomic<bool> uiColdReset;
         std::atomic<bool> uiPaused;
-
+        std::atomic<bool> uiEnterMonitor;
+        std::atomic<CassCmd> uiCass{CassCmd::None};
         void installMenu();
 
         // debugging

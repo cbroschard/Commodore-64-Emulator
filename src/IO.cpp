@@ -273,11 +273,17 @@ void IO::renderLoop(std::atomic<bool>& running)
 
     while (running.load())
     {
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            ImGui_ImplSDL2_ProcessEvent(&e);
+        drainEvents([&](const SDL_Event& e){
+            ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e)); // feed Dear ImGui
+
+            ImGuiIO& io = ImGui::GetIO();
+            if (inputCallback) {
+                const bool kb_ok = !io.WantCaptureKeyboard || (e.type != SDL_KEYDOWN && e.type != SDL_KEYUP);
+                const bool ms_ok = !io.WantCaptureMouse    || (e.type < SDL_MOUSEMOTION || e.type > SDL_MOUSEWHEEL);
+                if (kb_ok && ms_ok) inputCallback(e);
+            }
             if (e.type == SDL_QUIT) { running = false; }
-        }
+        });
 
         if (auto buf = readyBuffer.exchange(nullptr, std::memory_order_acquire))
             lastBuf = buf;
@@ -294,7 +300,7 @@ void IO::renderLoop(std::atomic<bool>& running)
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
 
-        SDL_Delay(1); // keep CPU usage tame when no new frames arrive
+        SDL_Delay(1);
     }
 }
 
@@ -320,4 +326,20 @@ void IO::setScreenDimensions(int visibleW, int visibleH, int border)
 
     SDL_DestroyTexture(screenTexture);
     screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder, screenHeightWithBorder);
+}
+
+void IO::enqueueEvent(const SDL_Event& e)
+{
+    std::lock_guard<std::mutex> lk(evMut);
+    evQueue.push_back(e);
+}
+
+void IO::drainEvents(std::function<void(const SDL_Event&)> consumer)
+{
+    std::deque<SDL_Event> local;
+    {
+        std::lock_guard<std::mutex> lk(evMut);
+        local.swap(evQueue);
+    }
+    for (const SDL_Event& e : local) consumer(e);
 }

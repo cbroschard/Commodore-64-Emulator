@@ -47,7 +47,8 @@ Computer::Computer() :
     uiQuit(false),
     uiWarmReset(false),
     uiColdReset(false),
-    uiPaused(false)
+    uiPaused(false),
+    uiEnterMonitor(false)
 {
     // Attach components to each other
     bus->attachCIA2Instance(cia2object.get());
@@ -237,7 +238,7 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
     // Enter ML Monitor
     if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_F12)
     {
-        monitor->enter();
+        uiEnterMonitor = true;
         //showMonitorOverlay = !showMonitorOverlay;
         return true;
     }
@@ -254,26 +255,10 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
 
         if (down && (mods & KMOD_ALT))
         {
-            if (sc == SDL_SCANCODE_E)
-            {
-                cass->eject();
-                return true;
-            }
-            if (sc == SDL_SCANCODE_P)
-            {
-                cass->play();
-                return true;
-            }
-            if (sc == SDL_SCANCODE_R)
-            {
-                cass->rewind();
-                return true;
-            }
-            if (sc == SDL_SCANCODE_S)
-            {
-                cass->stop();
-                return true;
-            }
+            if (sc == SDL_SCANCODE_E) { uiCass = CassCmd::Eject;  return true; }
+            if (sc == SDL_SCANCODE_P) { uiCass = CassCmd::Play;   return true; }
+            if (sc == SDL_SCANCODE_R) { uiCass = CassCmd::Rewind; return true; }
+            if (sc == SDL_SCANCODE_S) { uiCass = CassCmd::Stop;   return true; }
         }
 
         // If Alt is down and the key is J, 1 or 2, swallow it unconditionally
@@ -504,34 +489,38 @@ bool Computer::boot()
     // Install the ImGui menu
     installMenu();
 
+    IO_adapter->setInputCallback([this](const SDL_Event& ev)
+    {
+        if (ev.type == SDL_QUIT)
+        {
+            running = false;
+            uiQuit  = true;
+            return;
+        }
+        (void)this->handleInputEvent(ev);
+    });
+
     // Graphics rendering thread
     IO_adapter->startRenderThread(running);
     IO_adapter->finishFrameAndSignal();
 
     const auto frameDuration = std::chrono::duration<double, std::milli>(1000.0 / cpuCfg_->frameRate);
-
-    SDL_Event event;
     auto nextFrameTime = std::chrono::steady_clock::now() + frameDuration;
 
     while (true)
     {
-        int frameCycles = 0;
-
-        while (SDL_PollEvent(&event))
-            {
-                IO_adapter->processSDLEvent(event); // let ImGui see input events first
-
-                if (event.type == SDL_QUIT)
-                {
-                    running = false;
-                    IO_adapter->stopRenderThread(running);
-                    return true; // Exit the emulator
-                }
-                if (handleInputEvent(event))
-                {
-                    continue;
-                }
+        SDL_Event e;
+        while (SDL_PollEvent(&e))
+        {
+            // forward to render thread for ImGui + input handling
+            IO_adapter->enqueueEvent(e);
+            if (e.type == SDL_QUIT) {
+                running = false;
+                uiQuit = true;
             }
+        }
+
+        int frameCycles = 0;
 
         // Main frame loop
         while (frameCycles < cpuCfg_->cyclesPerFrame())
@@ -620,6 +609,20 @@ bool Computer::boot()
         }
         if (uiWarmReset.exchange(false)) warmReset();
         if (uiColdReset.exchange(false)) coldReset();
+        if (uiEnterMonitor.exchange(false))
+        {
+            if (monitor) monitor->enter();
+        }
+
+        switch (uiCass.exchange(CassCmd::None))
+        {
+            case CassCmd::Play:   if (cass) cass->play();   break;
+            case CassCmd::Stop:   if (cass) cass->stop();   break;
+            case CassCmd::Rewind: if (cass) cass->rewind(); break;
+            case CassCmd::Eject:  if (cass) cass->eject();  break;
+            default: break;
+        }
+
         if (uiPaused.load())
         {
             IO_adapter->finishFrameAndSignal();
@@ -757,45 +760,37 @@ void Computer::installMenu()
 {
     IO_adapter->setGuiCallback([this]()
     {
+        static bool aboutRequested = false;
+
         if (ImGui::BeginMainMenuBar())
         {
-            if (ImGui::BeginMenu("System"))
-            {
+            if (ImGui::BeginMenu("System")) {
                 if (ImGui::MenuItem("Warm Reset", "Ctrl+W")) uiWarmReset = true;
                 if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) uiColdReset = true;
-
                 bool isPAL = (videoMode_ == VideoMode::PAL);
                 if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) setVideoMode("NTSC");
                 if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) setVideoMode("PAL");
-
                 ImGui::Separator();
                 bool paused = uiPaused.load();
                 if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
-
                 ImGui::Separator();
                 if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
                 ImGui::EndMenu();
             }
-
-            if (ImGui::BeginMenu("Input"))
-            {
-                bool j1 = joystick1Attached;
-                bool j2 = joystick2Attached;
-                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1))
-                    setJoystickAttached(1, !j1);
-                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2))
-                    setJoystickAttached(2, !j2);
+            if (ImGui::BeginMenu("Input")) {
+                bool j1 = joystick1Attached, j2 = joystick2Attached;
+                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) setJoystickAttached(1, !j1);
+                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) setJoystickAttached(2, !j2);
                 ImGui::EndMenu();
             }
-
-            if (ImGui::BeginMenu("Help"))
-            {
-                if (ImGui::MenuItem("About")) ImGui::OpenPopup("About C64 Emulator");
+            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("About")) aboutRequested = true; // buffer
                 ImGui::EndMenu();
             }
-
             ImGui::EndMainMenuBar();
         }
+
+        if (aboutRequested) { ImGui::OpenPopup("About C64 Emulator"); aboutRequested = false; }
 
         if (ImGui::BeginPopupModal("About C64 Emulator", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
