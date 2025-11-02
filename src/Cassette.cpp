@@ -20,7 +20,15 @@ Cassette::Cassette() :
 
 }
 
-Cassette::~Cassette() = default;
+Cassette::~Cassette()
+{
+    try
+    {
+        stop();
+        unloadCassette();
+    }
+    catch(...){}
+}
 
 void Cassette::startMotor()
 {
