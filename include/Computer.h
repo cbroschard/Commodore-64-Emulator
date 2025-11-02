@@ -181,6 +181,9 @@ class Computer
 
         // Build the ImGui Menu
         enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
+        std::atomic<int> uiVideoModeReq; // -1 = none, 0 = ntsc, 1 = pal
+        std::atomic<bool> uiToggleJoy1Req;
+        std::atomic<bool> uiToggleJoy2Req;
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiWarmReset;
         std::atomic<bool> uiColdReset;

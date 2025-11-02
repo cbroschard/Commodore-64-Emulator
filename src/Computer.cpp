@@ -44,6 +44,9 @@ Computer::Computer() :
     joystick2Attached(false),
     frameReady(false),
     running(true),
+    uiVideoModeReq(-1),
+    uiToggleJoy1Req(false),
+    uiToggleJoy2Req(false),
     uiQuit(false),
     uiWarmReset(false),
     uiColdReset(false),
@@ -129,12 +132,11 @@ Computer::~Computer() noexcept
     {
         if (IO_adapter)
         {
-            IO_adapter->setGuiCallback({});
-            IO_adapter->setInputCallback({});
-
             // Ensure the render thread is down
             running = false;
             IO_adapter->stopRenderThread(running);
+            IO_adapter->setGuiCallback({});
+            IO_adapter->setInputCallback({});
         }
 
         if (cia1object && joy1) { try { cia1object->detachJoystickInstance(joy1.get()); } catch (...) {} }
@@ -619,6 +621,12 @@ bool Computer::boot()
             if (monitor) monitor->enter();
         }
 
+        if (uiToggleJoy1Req.exchange(false)) setJoystickAttached(1, !joystick1Attached);
+        if (uiToggleJoy2Req.exchange(false)) setJoystickAttached(2, !joystick2Attached);
+
+        int vm = uiVideoModeReq.exchange(-1);
+        if (vm != -1) setVideoMode(vm ? "PAL" : "NTSC");
+
         switch (uiCass.exchange(CassCmd::None))
         {
             case CassCmd::Play:   if (cass) cass->play();   break;
@@ -769,12 +777,13 @@ void Computer::installMenu()
 
         if (ImGui::BeginMainMenuBar())
         {
-            if (ImGui::BeginMenu("System")) {
+            if (ImGui::BeginMenu("System"))
+            {
                 if (ImGui::MenuItem("Warm Reset", "Ctrl+W")) uiWarmReset = true;
                 if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) uiColdReset = true;
                 bool isPAL = (videoMode_ == VideoMode::PAL);
-                if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) setVideoMode("NTSC");
-                if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) setVideoMode("PAL");
+                if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) uiVideoModeReq = 0;
+                if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) uiVideoModeReq = 1;
                 ImGui::Separator();
                 bool paused = uiPaused.load();
                 if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
@@ -782,10 +791,11 @@ void Computer::installMenu()
                 if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
                 ImGui::EndMenu();
             }
-            if (ImGui::BeginMenu("Input")) {
+            if (ImGui::BeginMenu("Input"))
+            {
                 bool j1 = joystick1Attached, j2 = joystick2Attached;
-                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) setJoystickAttached(1, !j1);
-                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) setJoystickAttached(2, !j2);
+                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) uiToggleJoy1Req = true;
+                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) uiToggleJoy2Req = true;
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Help")) {
