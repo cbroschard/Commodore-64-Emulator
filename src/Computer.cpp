@@ -50,24 +50,17 @@ Computer::Computer() :
     uiPaused(false)
 {
     // Attach components to each other
-    mem->attachProcessorInstance(processor.get());
-    mem->attachVICInstance(vicII.get());
-    mem->attachCIA1Instance(cia1object.get());
-    mem->attachCIA2Instance(cia2object.get());
-    mem->attachSIDInstance(sidchip.get());
-    mem->attachCartridgeInstance(cart.get());
-    mem->attachCassetteInstance(cass.get());
-    mem->attachPLAInstance(pla.get());
-    mem->attachMonitorInstance(monitor.get());;
-    mem->attachLogInstance(logger.get());
-    mem->attachTraceManagerInstance(traceMgr.get());
+    bus->attachCIA2Instance(cia2object.get());
+    bus->attachLogInstance(logger.get());
 
-    processor->attachMemoryInstance(mem.get());
-    processor->attachCIA2Instance(cia2object.get());
-    processor->attachVICInstance(vicII.get());
-    processor->attachIRQLineInstance(IRQ.get());
-    processor->attachLogInstance(logger.get());
-    processor->attachTraceManagerInstance(traceMgr.get());
+    cart->attachCPUInstance(processor.get());
+    cart->attachMemoryInstance(mem.get());
+    cart->attachLogInstance(logger.get());
+    cart->attachTraceManagerInstance(traceMgr.get());
+    cart->attachVicInstance(vicII.get());
+
+    cass->attachMemoryInstance(mem.get());
+    cass->attachLogInstance(logger.get());
 
     cia1object->attachCassetteInstance(cass.get());
     cia1object->attachCPUInstance(processor.get());
@@ -84,17 +77,23 @@ Computer::Computer() :
     cia2object->attachTraceManagerInstance(traceMgr.get());
     cia2object->attachVicInstance(vicII.get());
 
-    vicII->attachIOInstance(IO_adapter.get());
-    vicII->attachCPUInstance(processor.get());
-    vicII->attachMemoryInstance(mem.get());
-    vicII->attachCIA2Instance(cia2object.get());
-    vicII->attachIRQLineInstance(IRQ.get());
-    vicII->attachLogInstance(logger.get());
-    vicII->attachTraceManagerInstance(traceMgr.get());
-
     IO_adapter->attachVICInstance(vicII.get());
     IO_adapter->attachSIDInstance(sidchip.get());
     IO_adapter->attachLogInstance(logger.get());
+
+    keyb->attachLogInstance(logger.get());
+
+    mem->attachProcessorInstance(processor.get());
+    mem->attachVICInstance(vicII.get());
+    mem->attachCIA1Instance(cia1object.get());
+    mem->attachCIA2Instance(cia2object.get());
+    mem->attachSIDInstance(sidchip.get());
+    mem->attachCartridgeInstance(cart.get());
+    mem->attachCassetteInstance(cass.get());
+    mem->attachPLAInstance(pla.get());
+    mem->attachMonitorInstance(monitor.get());;
+    mem->attachLogInstance(logger.get());
+    mem->attachTraceManagerInstance(traceMgr.get());
 
     pla->attachCartridgeInstance(cart.get());
     pla->attachCPUInstance(processor.get());
@@ -102,24 +101,25 @@ Computer::Computer() :
     pla->attachTraceManagerInstance(traceMgr.get());
     pla->attachVICInstance(vicII.get());
 
-    cart->attachCPUInstance(processor.get());
-    cart->attachMemoryInstance(mem.get());
-    cart->attachLogInstance(logger.get());
-    cart->attachTraceManagerInstance(traceMgr.get());
-    cart->attachVicInstance(vicII.get());
-
-    cass->attachMemoryInstance(mem.get());
-    cass->attachLogInstance(logger.get());
-
-    keyb->attachLogInstance(logger.get());
+    processor->attachMemoryInstance(mem.get());
+    processor->attachCIA2Instance(cia2object.get());
+    processor->attachVICInstance(vicII.get());
+    processor->attachIRQLineInstance(IRQ.get());
+    processor->attachLogInstance(logger.get());
+    processor->attachTraceManagerInstance(traceMgr.get());
 
     sidchip->attachCPUInstance(processor.get());;
     sidchip->attachLogInstance(logger.get());
     sidchip->attachTraceManagerInstance(traceMgr.get());
     sidchip->attachVicInstance(vicII.get());
 
-    bus->attachCIA2Instance(cia2object.get());
-    bus->attachLogInstance(logger.get());
+    vicII->attachIOInstance(IO_adapter.get());
+    vicII->attachCPUInstance(processor.get());
+    vicII->attachMemoryInstance(mem.get());
+    vicII->attachCIA2Instance(cia2object.get());
+    vicII->attachIRQLineInstance(IRQ.get());
+    vicII->attachLogInstance(logger.get());
+    vicII->attachTraceManagerInstance(traceMgr.get());
 }
 
 Computer::~Computer() noexcept
