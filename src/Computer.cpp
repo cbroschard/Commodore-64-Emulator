@@ -122,7 +122,25 @@ Computer::Computer() :
     bus->attachLogInstance(logger.get());
 }
 
-Computer::~Computer() = default;
+Computer::~Computer()
+{
+    try
+    {
+        if (IO_adapter)
+        {
+            IO_adapter->setGuiCallback({});
+        }
+
+        if (cia1object && joy1) { try { cia1object->detachJoystickInstance(joy1.get()); } catch (...) {} }
+        if (cia1object && joy2) { try { cia1object->detachJoystickInstance(joy2.get()); } catch (...) {} }
+
+        if (logger) logger->flush();
+    }
+    catch(...)
+    {
+
+    }
+}
 
 void Computer::setJoystickAttached(int port, bool flag)
 {

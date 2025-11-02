@@ -184,6 +184,7 @@ class Computer
         std::atomic<bool> uiWarmReset;
         std::atomic<bool> uiColdReset;
         std::atomic<bool> uiPaused;
+
         void installMenu();
 
         // debugging
