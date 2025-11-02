@@ -20,7 +20,7 @@ Cassette::Cassette() :
 
 }
 
-Cassette::~Cassette()
+Cassette::~Cassette() noexcept
 {
     try
     {

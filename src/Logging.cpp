@@ -18,14 +18,17 @@ Logging::Logging(const std::string& filename)
     bufferSize = 100;
 }
 
-Logging::~Logging()
+Logging::~Logging() noexcept
 {
-    if (logfile.is_open())
+    try
     {
-        flush();
-        logfile.close();
+        if (logfile.is_open())
+        {
+            flush();
+            logfile.close();
+        }
     }
-
+    catch(...){}
 }
 
 void Logging::setLogLevel(LogLevel level)

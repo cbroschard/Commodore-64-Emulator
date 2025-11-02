@@ -122,7 +122,7 @@ Computer::Computer() :
     bus->attachLogInstance(logger.get());
 }
 
-Computer::~Computer()
+Computer::~Computer() noexcept
 {
     try
     {
