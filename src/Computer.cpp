@@ -130,6 +130,11 @@ Computer::~Computer() noexcept
         if (IO_adapter)
         {
             IO_adapter->setGuiCallback({});
+            IO_adapter->setInputCallback({});
+
+            // Ensure the render thread is down
+            running = false;
+            IO_adapter->stopRenderThread(running);
         }
 
         if (cia1object && joy1) { try { cia1object->detachJoystickInstance(joy1.get()); } catch (...) {} }
