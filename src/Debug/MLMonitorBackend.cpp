@@ -119,6 +119,7 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
                 joy2->attachLogInstance(logger);
                 joy2->setLog(enabled);
             }
+            break;
         }
         case LogSet::Keyboard: if (keyb) keyb->setLog(enabled); break;
         case LogSet::Memory: if (mem) mem->setLog(enabled); break;
