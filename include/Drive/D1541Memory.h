@@ -77,8 +77,8 @@ class D1541Memory : public Memory
         // VIA Constants
         static const uint16_t VIA1_START = 0x1800;
         static const uint16_t VIA1_END = 0x180F;
-        static const uint16_t VIA2_START = 0x1810;
-        static const uint16_t VIA2_END =  0x181F;
+        static const uint16_t VIA2_START = 0x1C00;
+        static const uint16_t VIA2_END =  0x1C0F;
 
         // ROM Loader
         bool loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
