@@ -9,7 +9,8 @@
 #include "Peripheral.h"
 #include "IECBUS.h"
 
-D1541VIA::D1541VIA()
+D1541VIA::D1541VIA() :
+    srCount(0)
 {
     reset();
 }
@@ -47,8 +48,8 @@ void D1541VIA::reset()
     reserved2 = 0;
 }
 
-void D1541VIA::tick() {
-    // TimerÂ 1
+void D1541VIA::tick()
+{
     {
         uint16_t t1 = (static_cast<uint16_t>(timer1CounterHigh) << 8) | timer1CounterLow;
         if (t1 > 0)
@@ -58,9 +59,7 @@ void D1541VIA::tick() {
             timer1CounterHigh = (t1 >> 8) & 0xFF;
             if (t1 == 0)
             {
-                // flag TimerÂ 1
                 interruptFlagRegister |= IFR_T1;
-                // reload if continuous mode (ACR bitÂ 4)
                 bool cont = (auxiliaryControlRegister & (1 << 4)) != 0;
                 uint16_t lat = (static_cast<uint16_t>(timer1LatchHigh) << 8) | timer1LatchLow;
                 if (cont)
@@ -72,16 +71,11 @@ void D1541VIA::tick() {
         }
     }
 
-    // TimerÂ 2
     {
         if (timer2Counter > 0)
         {
             --timer2Counter;
-            if (timer2Counter == 0)
-            {
-                interruptFlagRegister |= IFR_T2;
-                // one shot only
-            }
+            if (timer2Counter == 0) interruptFlagRegister |= IFR_T2;
         }
     }
 
@@ -89,7 +83,6 @@ void D1541VIA::tick() {
     bool srEnabled = (auxiliaryControlRegister & (1 << 2)) != 0;
     if (srEnabled)
     {
-        static int srCount = 0;
         ++srCount;
         if (srCount >= 8)
         {
@@ -99,14 +92,8 @@ void D1541VIA::tick() {
     }
 
     bool irq = (interruptFlagRegister & interruptEnableRegister & 0x7F) != 0;
-    if (irq)
-    {
-        interruptFlagRegister |= IFR_IRQ;
-    }
-    else
-    {
-        interruptFlagRegister &= ~IFR_IRQ;
-    }
+    if (irq) interruptFlagRegister |= IFR_IRQ;
+    else  interruptFlagRegister &= ~IFR_IRQ;
 }
 
 uint8_t D1541VIA::readRegister(uint16_t address)

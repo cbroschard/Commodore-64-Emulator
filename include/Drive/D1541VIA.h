@@ -90,6 +90,8 @@ class D1541VIA
         // Reserved registers
         uint8_t reserved1;
         uint8_t reserved2;
+
+        int srCount;
 };
 
 #endif // D1541VIA_H
