@@ -194,7 +194,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
     {
         case 0x00:
         {
-            portB = value;
+            portB = (portB & ~ddrB) | (value & ddrB);
             if (viaRole == VIARole::VIA1_DataHandler && parentPeripheral)
             {
                 // Bit 6 = Clk, Bit 7 = Data
