@@ -407,6 +407,12 @@ void Computer::coldReset()
 
     // Reset CPU (reloads PC from $FFFC/$FFFD)
     processor->reset();
+
+    if (cartridgeAttached)
+    {
+        mem->setCartridgeAttached(true);
+        pla->setCartridgeAttached(true);
+    }
 }
 
 bool Computer::boot()
