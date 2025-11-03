@@ -54,6 +54,7 @@ class IO
 
         // Audio functions
         bool playAudio();
+        void stopAudio();
         inline int getBlockSamples() const { return obtainedSpec.samples; }
         inline int getSampleRate() const { return obtainedSpec.freq; }
         void fillAudioBuffer(Uint8* stream, int len);
@@ -118,6 +119,7 @@ class IO
         uint32_t palette32[16];
 
         std::mutex qMut;
+        std::mutex renderMut;
         std::condition_variable qCond;
         std::thread rThread;
 

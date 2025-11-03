@@ -15,7 +15,6 @@ Computer::Computer() :
     cia2object(std::make_unique<CIA2>()),
     processor(std::make_unique<CPU>()),
     bus(std::make_unique<IECBUS>()),
-    IO_adapter(std::make_unique<IO>()),
     IRQ(std::make_unique<IRQLine>()),
     keyb(std::make_unique<Keyboard>()),
     logger(std::make_unique<Logging>("debug.txt")),
@@ -24,6 +23,7 @@ Computer::Computer() :
     monbackend(std::make_unique<MLMonitorBackend>()),
     pla(std::make_unique<PLA>()),
     sidchip(std::make_unique<SID>(44100)),
+    IO_adapter(std::make_unique<IO>()),
     traceMgr(std::make_unique<TraceManager>()),
     vicII(std::make_unique<Vic>()),
     showMonitorOverlay(false),
@@ -45,6 +45,8 @@ Computer::Computer() :
     frameReady(false),
     running(true),
     uiVideoModeReq(-1),
+    uiAttachPRG(false),
+    uiAttachCRT(false),
     uiToggleJoy1Req(false),
     uiToggleJoy2Req(false),
     uiQuit(false),
@@ -137,6 +139,9 @@ Computer::~Computer() noexcept
             IO_adapter->stopRenderThread(running);
             IO_adapter->setGuiCallback({});
             IO_adapter->setInputCallback({});
+
+            // Audio shutdown
+            IO_adapter->stopAudio();
         }
 
         if (cia1object && joy1) { try { cia1object->detachJoystickInstance(joy1.get()); } catch (...) {} }
@@ -611,18 +616,24 @@ bool Computer::boot()
         if (uiQuit.exchange(false))
         {
             running = false;
-            IO_adapter->stopRenderThread(running);
-            return true;
+            break;
         }
+
+        // File Menu
+        if (uiAttachPRG.exchange(false)) attachPRGImage();
+        if (uiAttachCRT.exchange(false)) attachCRTImage();
+
+        // Input Menu
+        if (uiToggleJoy1Req.exchange(false)) setJoystickAttached(1, !joystick1Attached);
+        if (uiToggleJoy2Req.exchange(false)) setJoystickAttached(2, !joystick2Attached);
+
+        // System Menu
         if (uiWarmReset.exchange(false)) warmReset();
         if (uiColdReset.exchange(false)) coldReset();
         if (uiEnterMonitor.exchange(false))
         {
             if (monitor) monitor->enter();
         }
-
-        if (uiToggleJoy1Req.exchange(false)) setJoystickAttached(1, !joystick1Attached);
-        if (uiToggleJoy2Req.exchange(false)) setJoystickAttached(2, !joystick2Attached);
 
         int vm = uiVideoModeReq.exchange(-1);
         if (vm != -1) setVideoMode(vm ? "PAL" : "NTSC");
@@ -676,6 +687,15 @@ bool Computer::boot()
             nextFrameTime = now + frameDuration; // Added to test
         }
     }
+
+    if (IO_adapter)
+    {
+        running = false;
+        IO_adapter->stopRenderThread(running);
+        IO_adapter->setGuiCallback({});
+        IO_adapter->setInputCallback({});
+    }
+
     return true;
 }
 
@@ -777,6 +797,19 @@ void Computer::installMenu()
 
         if (ImGui::BeginMainMenuBar())
         {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Attach PRG image...", "Ctrl+P")) uiAttachPRG = true;
+                if (ImGui::MenuItem("Attach Cartridge image...", "Ctrl+C")) uiAttachCRT = true;
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Input"))
+            {
+                bool j1 = joystick1Attached, j2 = joystick2Attached;
+                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) uiToggleJoy1Req = true;
+                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) uiToggleJoy2Req = true;
+                ImGui::EndMenu();
+            }
             if (ImGui::BeginMenu("System"))
             {
                 if (ImGui::MenuItem("Warm Reset", "Ctrl+W")) uiWarmReset = true;
@@ -789,13 +822,6 @@ void Computer::installMenu()
                 if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
                 ImGui::Separator();
                 if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Input"))
-            {
-                bool j1 = joystick1Attached, j2 = joystick2Attached;
-                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) uiToggleJoy1Req = true;
-                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) uiToggleJoy2Req = true;
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Help")) {
@@ -816,6 +842,53 @@ void Computer::installMenu()
             ImGui::EndPopup();
         }
     });
+}
+
+void Computer::attachPRGImage()
+{
+#ifdef _WIN32
+    auto path = OpenPrgFileDialog();
+    if (!path) return;
+
+    prgPath     = *path;
+    prgAttached = true;
+    prgLoaded   = false;
+    prgDelay    = 140;
+
+    if (!loadPrgImage())
+    {
+        std::cout << "Unable to load program: " << prgPath << "\n";
+        prgAttached = false;
+    }
+    else
+    {
+        std::cout << "Queued program: " << prgPath << "\n";
+    }
+#endif
+}
+
+void Computer::attachCRTImage()
+{
+#ifdef _WIN32
+    auto path = OpenCartFileDialog();
+    if (!path) return;
+
+    cartridgePath     = *path;
+    cartridgeAttached = true;
+
+    if (!cart->loadROM(cartridgePath))
+    {
+        std::cout << "Unable to load cartridge: " << cartridgePath << "\n";
+        cartridgeAttached = false;
+        return;
+    }
+
+    if (mem) mem->setCartridgeAttached(true);
+    if (pla) pla->setCartridgeAttached(true);
+
+    warmReset();
+    std::cout << "Cartridge attached: " << cartridgePath << "\n";
+#endif
 }
 
 bool Computer::isBASICReady()

@@ -74,13 +74,7 @@ IO::IO() :
 
 IO::~IO()
 {
-    // SDL Audio Cleanup
-    if (dev != 0)
-    {
-        SDL_PauseAudioDevice(dev, 1);
-        SDL_Delay(1000);
-        SDL_CloseAudioDevice(dev);
-    }
+    stopAudio();
 
     // ImGui shutdown
     ImGui_ImplSDLRenderer2_Shutdown();
@@ -167,6 +161,20 @@ bool IO::playAudio()
 
     SDL_PauseAudioDevice(dev, 0); // Start playback. Pass 0 to unpause.
     return true;
+}
+
+void IO::stopAudio()
+{
+        // Stop playback
+        if (dev != 0)
+        {
+            SDL_PauseAudioDevice(dev, 1);
+
+            // Close device: SDL guarantees no more callbacks after this returns
+            SDL_CloseAudioDevice(dev);
+            dev = 0;
+        }
+        sidchip = nullptr;
 }
 
 void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
@@ -267,8 +275,6 @@ void IO::swapBuffer()
 
 void IO::renderLoop(std::atomic<bool>& running)
 {
-    const int pitch = screenWidthWithBorder * sizeof(uint32_t);
-    SDL_Rect dstRect = { 0, 0, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE };
     uint32_t* lastBuf = nullptr;
 
     while (running.load())
@@ -288,17 +294,31 @@ void IO::renderLoop(std::atomic<bool>& running)
         if (auto buf = readyBuffer.exchange(nullptr, std::memory_order_acquire))
             lastBuf = buf;
 
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
-        ImGui::NewFrame();
-        if (guiCallback) guiCallback();
-        ImGui::Render();
+        {
+            std::lock_guard<std::mutex> lk(renderMut);
 
-        if (lastBuf) SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch);
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-        SDL_RenderPresent(renderer);
+            ImGui_ImplSDLRenderer2_NewFrame();
+            ImGui_ImplSDL2_NewFrame();
+            ImGui::NewFrame();
+            if (guiCallback) guiCallback();
+            ImGui::Render();
+
+            if (lastBuf && screenTexture)
+            {
+                const int pitch = screenWidthWithBorder * sizeof(uint32_t);
+                SDL_Rect dstRect = {
+                    0, 0,
+                    screenWidthWithBorder * SCALE,
+                    screenHeightWithBorder * SCALE
+                };
+
+                SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch);
+                SDL_RenderClear(renderer);
+                SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
+                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+                SDL_RenderPresent(renderer);
+            }
+        }
 
         SDL_Delay(1);
     }
@@ -306,14 +326,19 @@ void IO::renderLoop(std::atomic<bool>& running)
 
 void IO::finishFrameAndSignal()
 {
-    backBuffer.swap(frontBuffer);
-    readyBuffer.store(frontBuffer.data(), std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lk(renderMut);
+        backBuffer.swap(frontBuffer);
+        readyBuffer.store(frontBuffer.data(), std::memory_order_release);
+    }
     std::lock_guard lk(qMut);
     qCond.notify_one();
 }
 
 void IO::setScreenDimensions(int visibleW, int visibleH, int border)
 {
+    std::lock_guard<std::mutex> lk(renderMut);
+
     visibleScreenWidth = visibleW;
     visibleScreenHeight = visibleH;
     borderSize = border;
@@ -324,8 +349,19 @@ void IO::setScreenDimensions(int visibleW, int visibleH, int border)
     frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
     backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
 
-    SDL_DestroyTexture(screenTexture);
-    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder, screenHeightWithBorder);
+    if (screenTexture)
+    {
+        SDL_DestroyTexture(screenTexture);
+        screenTexture = nullptr;
+    }
+
+    screenTexture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        screenWidthWithBorder,
+        screenHeightWithBorder
+    );
 }
 
 void IO::enqueueEvent(const SDL_Event& e)

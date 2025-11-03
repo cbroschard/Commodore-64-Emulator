@@ -30,6 +30,7 @@
 #include "Tape/TapeImageFactory.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
+#include "WinFileDialog.h"
 
 // Forward declarations
 class MLMonitor;
@@ -107,7 +108,6 @@ class Computer
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
         std::unique_ptr<IECBUS> bus;
-        std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Joystick> joy1;
         std::unique_ptr<Joystick> joy2;
@@ -118,6 +118,7 @@ class Computer
         std::unique_ptr<MLMonitorBackend> monbackend;
         std::unique_ptr<PLA> pla;
         std::unique_ptr<SID> sidchip;
+        std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<Vic> vicII;
 
@@ -182,6 +183,8 @@ class Computer
         // Build the ImGui Menu
         enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
         std::atomic<int> uiVideoModeReq; // -1 = none, 0 = ntsc, 1 = pal
+        std::atomic<bool> uiAttachPRG;
+        std::atomic<bool> uiAttachCRT;
         std::atomic<bool> uiToggleJoy1Req;
         std::atomic<bool> uiToggleJoy2Req;
         std::atomic<bool> uiQuit;
@@ -191,6 +194,10 @@ class Computer
         std::atomic<bool> uiEnterMonitor;
         std::atomic<CassCmd> uiCass{CassCmd::None};
         void installMenu();
+
+        // Menu helpers
+        void attachPRGImage();
+        void attachCRTImage();
 
         // debugging
         bool isBASICReady();
