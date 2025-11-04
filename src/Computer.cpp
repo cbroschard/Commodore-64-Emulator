@@ -48,6 +48,7 @@ Computer::Computer() :
     uiAttachPRG(false),
     uiAttachCRT(false),
     uiAttachT64(false),
+    uiAttachTAP(false),
     uiToggleJoy1Req(false),
     uiToggleJoy2Req(false),
     uiQuit(false),
@@ -634,6 +635,7 @@ bool Computer::boot()
         if (uiAttachPRG.exchange(false)) attachPRGImage();
         if (uiAttachCRT.exchange(false)) attachCRTImage();
         if (uiAttachT64.exchange(false)) attachT64Image();
+        if (uiAttachTAP.exchange(false)) attachTAPImage();
 
         // Input Menu
         if (uiToggleJoy1Req.exchange(false)) setJoystickAttached(1, !joystick1Attached);
@@ -833,6 +835,14 @@ void Computer::installMenu()
                     {
                         tapePath = path;
                         uiAttachT64 = true;
+                    });
+                }
+                if (ImGui::MenuItem("Attach TAP image...", "Ctrl+U"))
+                {
+                    startFileDialog("Select TAP image", { ".tap" }, [this](const std::string path)
+                    {
+                        tapePath = path;
+                        uiAttachTAP = true;
                     });
                 }
                 ImGui::EndMenu();
@@ -1185,11 +1195,19 @@ void Computer::attachT64Image()
 
     tapeAttached = true;
 
-    if (!cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << std::endl;
+    if (cass && !cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << "\n";
     else
     {
         if (cass) cass->play(); // Press play immediately for t64 files
     }
+}
+
+void Computer::attachTAPImage()
+{
+    if (tapePath.empty()) return;
+
+    tapeAttached = true;
+    if (cass && !cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << "\n";
 }
 
 bool Computer::isBASICReady()

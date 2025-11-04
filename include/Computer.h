@@ -187,6 +187,7 @@ class Computer
         std::atomic<bool> uiAttachPRG;
         std::atomic<bool> uiAttachCRT;
         std::atomic<bool> uiAttachT64;
+        std::atomic<bool> uiAttachTAP;
         std::atomic<bool> uiToggleJoy1Req;
         std::atomic<bool> uiToggleJoy2Req;
         std::atomic<bool> uiQuit;
@@ -201,6 +202,7 @@ class Computer
         void attachPRGImage();
         void attachCRTImage();
         void attachT64Image();
+        void attachTAPImage();
         void drawFileDialog();
         void startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept);
 
