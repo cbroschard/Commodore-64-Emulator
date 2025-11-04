@@ -283,7 +283,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             }
             else
             {
-                interruptEnableRegister &= ~mask;break;
+                interruptEnableRegister &= ~mask;
             }
             break;
         }
