@@ -47,6 +47,7 @@ Computer::Computer() :
     uiVideoModeReq(-1),
     uiAttachPRG(false),
     uiAttachCRT(false),
+    uiAttachT64(false),
     uiToggleJoy1Req(false),
     uiToggleJoy2Req(false),
     uiQuit(false),
@@ -632,6 +633,7 @@ bool Computer::boot()
         // File Menu
         if (uiAttachPRG.exchange(false)) attachPRGImage();
         if (uiAttachCRT.exchange(false)) attachCRTImage();
+        if (uiAttachT64.exchange(false)) attachT64Image();
 
         // Input Menu
         if (uiToggleJoy1Req.exchange(false)) setJoystickAttached(1, !joystick1Attached);
@@ -825,6 +827,14 @@ void Computer::installMenu()
                         uiAttachCRT = true;
                     });
                 }
+                if (ImGui::MenuItem("Attach T64 image...", "Ctrl+T"))
+                {
+                    startFileDialog("Select T64 image", { ".t64" }, [this](const std::string path)
+                    {
+                        tapePath = path;
+                        uiAttachT64 = true;
+                    });
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Input"))
@@ -1000,8 +1010,32 @@ void Computer::drawFileDialog()
         std::string name = entry.path().filename().string();
         bool isDir = entry.is_directory();
 
-        std::string label = isDir ? (name + "/") : name;
-        bool selected = (fileDlg.selectedEntry == name);
+        // 🔹 Filter out files whose extension is not in allowedExtensions
+        if (!isDir)
+        {
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            bool allowed = fileDlg.allowedExtensions.empty(); // if none, show all
+            if (!allowed)
+            {
+                for (auto a : fileDlg.allowedExtensions)
+                {
+                    std::transform(a.begin(), a.end(), a.begin(), ::tolower);
+                    if (ext == a)
+                    {
+                        allowed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!allowed)
+                continue; // skip drawing this file
+        }
+
+        std::string label   = isDir ? (name + "/") : name;
+        bool selected       = (fileDlg.selectedEntry == name);
 
         if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
@@ -1143,6 +1177,16 @@ void Computer::attachCRTImage()
 
     warmReset();
     std::cout << "Cartridge attached: " << cartridgePath << "\n";
+}
+
+void Computer::attachT64Image()
+{
+    if (tapePath.empty()) return;
+
+    tapeAttached = true;
+
+    if (!cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << std::endl;
+    else cass->play(); // Press play immediately for t64 files
 }
 
 bool Computer::isBASICReady()

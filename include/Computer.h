@@ -186,6 +186,7 @@ class Computer
         std::atomic<int> uiVideoModeReq; // -1 = none, 0 = ntsc, 1 = pal
         std::atomic<bool> uiAttachPRG;
         std::atomic<bool> uiAttachCRT;
+        std::atomic<bool> uiAttachT64;
         std::atomic<bool> uiToggleJoy1Req;
         std::atomic<bool> uiToggleJoy2Req;
         std::atomic<bool> uiQuit;
@@ -199,6 +200,7 @@ class Computer
         // Menu helpers
         void attachPRGImage();
         void attachCRTImage();
+        void attachT64Image();
         void drawFileDialog();
         void startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept);
 
