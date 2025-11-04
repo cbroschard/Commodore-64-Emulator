@@ -46,6 +46,7 @@ void D1541VIA::reset()
     interruptEnableRegister = 0;
     reserved1 = 0;
     reserved2 = 0;
+    srCount = 0;
 }
 
 void D1541VIA::tick()
