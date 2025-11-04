@@ -29,8 +29,13 @@ bool D1541::canMount(DiskFormat fmt) const
 
 void D1541::tick()
 {
-    driveCPU.tick();
     d1541mem.tick();
+    driveCPU.tick();
+}
+
+bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
+{
+
 }
 
 void D1541::reset()

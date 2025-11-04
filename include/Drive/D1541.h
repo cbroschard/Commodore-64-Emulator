@@ -21,8 +21,8 @@ class D1541 : public Drive
         // Advance drive via tick method
         void tick() override;
 
-        // Reset function
-        void reset() override;
+        // Initialize everything
+        bool initialize(const std::string& loRom, const std::string& hiRom);
 
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
@@ -71,6 +71,9 @@ class D1541 : public Drive
         // Owning pointers
         D1541Memory d1541mem;
         CPU driveCPU;
+
+        // Reset function
+        void reset() override;
 
         // Floppy Image
         std::string loadedDiskName;
