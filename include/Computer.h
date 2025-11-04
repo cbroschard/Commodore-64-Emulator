@@ -10,8 +10,10 @@
 
 #include <atomic>
 #include <chrono>
-#include <thread>
+#include <filesystem>
+#include <functional>
 #include <mutex>
+#include <thread>
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CIA1.h"
@@ -30,7 +32,6 @@
 #include "Tape/TapeImageFactory.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
-#include "WinFileDialog.h"
 
 // Forward declarations
 class MLMonitor;
@@ -198,6 +199,24 @@ class Computer
         // Menu helpers
         void attachPRGImage();
         void attachCRTImage();
+        void drawFileDialog();
+        void startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept);
+
+        struct FileDialogState
+        {
+            bool open;
+
+            std::filesystem::path currentDir;
+            std::string selectedEntry;
+            std::string error;
+
+            // Configuration for the current use
+            std::string title;
+            std::vector<std::string> allowedExtensions;
+            std::function<void(const std::string&)> onAccept;
+        };
+
+        FileDialogState fileDlg;
 
         // debugging
         bool isBASICReady();

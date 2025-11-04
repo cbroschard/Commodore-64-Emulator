@@ -55,6 +55,10 @@ Computer::Computer() :
     uiPaused(false),
     uiEnterMonitor(false)
 {
+    // Initialize file dialog struct
+    fileDlg.open = false;
+    fileDlg.currentDir = std::filesystem::current_path();
+
     // Attach components to each other
     bus->attachCIA2Instance(cia2object.get());
     bus->attachLogInstance(logger.get());
@@ -805,8 +809,22 @@ void Computer::installMenu()
         {
             if (ImGui::BeginMenu("File"))
             {
-                if (ImGui::MenuItem("Attach PRG image...", "Ctrl+P")) uiAttachPRG = true;
-                if (ImGui::MenuItem("Attach Cartridge image...", "Ctrl+C")) uiAttachCRT = true;
+                if (ImGui::MenuItem("Attach PRG/P00 image...", "Ctrl+P"))
+                {
+                    startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, [this](const std::string path)
+                    {
+                        prgPath = path;
+                        uiAttachPRG = true;
+                    });
+                }
+                if (ImGui::MenuItem("Attach Cartridge image...", "Ctrl+C"))
+                {
+                    startFileDialog("Select CRT Image", { ".crt" }, [this](const std::string path)
+                    {
+                        cartridgePath = path;
+                        uiAttachCRT = true;
+                    });
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Input"))
@@ -847,16 +865,183 @@ void Computer::installMenu()
             if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
+        drawFileDialog();
     });
+}
+
+void Computer::startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept)
+{
+    fileDlg.open = true;
+    fileDlg.title = title;
+    fileDlg.allowedExtensions = std::move(exts);
+    fileDlg.onAccept = std::move(onAccept);
+    fileDlg.selectedEntry.clear();
+    fileDlg.error.clear();
+}
+
+void Computer::drawFileDialog()
+{
+    if (!fileDlg.open)
+        return;
+
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+
+    const char* windowTitle = fileDlg.title.empty() ? "Select File" : fileDlg.title.c_str();
+
+    if (!ImGui::Begin(windowTitle, &fileDlg.open))
+    {
+        ImGui::End();
+        return;
+    }
+
+    namespace fs = std::filesystem;
+
+    std::string pathStr = fileDlg.currentDir.string();
+    ImGui::TextUnformatted(pathStr.c_str());
+    ImGui::Separator();
+
+    ImGui::BeginChild("##file_list", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()*2), true);
+
+    std::vector<fs::directory_entry> entries;
+    fileDlg.error.clear();
+
+    try
+    {
+        for (const auto& entry : fs::directory_iterator(fileDlg.currentDir))
+            entries.push_back(entry);
+
+        std::sort(entries.begin(), entries.end(),
+                  [](const fs::directory_entry& a, const fs::directory_entry& b)
+                  {
+                      bool ad = a.is_directory();
+                      bool bd = b.is_directory();
+                      if (ad != bd) return ad;   // dirs first
+                      return a.path().filename().string() < b.path().filename().string();
+                  });
+    }
+    catch (const std::exception& e)
+    {
+        fileDlg.error = e.what();
+    }
+
+    // ".." to go up
+    if (ImGui::Selectable("..", false))
+    {
+        auto parent = fileDlg.currentDir.parent_path();
+        if (!parent.empty())
+        {
+            fileDlg.currentDir    = parent;
+            fileDlg.selectedEntry.clear();
+        }
+    }
+
+    for (const auto& entry : entries)
+    {
+        std::string name = entry.path().filename().string();
+        bool isDir = entry.is_directory();
+
+        std::string label = isDir ? (name + "/") : name;
+        bool selected = (fileDlg.selectedEntry == name);
+
+        if (ImGui::Selectable(label.c_str(), selected))
+        {
+            fileDlg.selectedEntry = name;
+        }
+    }
+
+    ImGui::EndChild();
+
+    if (!fileDlg.error.empty())
+    {
+        ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", fileDlg.error.c_str());
+    }
+
+    // Bottom buttons
+    if (ImGui::Button("Up"))
+    {
+        auto parent = fileDlg.currentDir.parent_path();
+        if (!parent.empty())
+        {
+            fileDlg.currentDir    = parent;
+            fileDlg.selectedEntry.clear();
+        }
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Cancel"))
+    {
+        fileDlg.open = false;
+        ImGui::End();
+        return;
+    }
+
+    ImGui::SameLine();
+
+    bool hasSelection = !fileDlg.selectedEntry.empty();
+    if (!hasSelection)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("Open"))
+    {
+        fs::path path = fileDlg.currentDir / fileDlg.selectedEntry;
+
+        try
+        {
+            if (fs::is_directory(path))
+            {
+                fileDlg.currentDir    = path;
+                fileDlg.selectedEntry.clear();
+            }
+            else
+            {
+                // Check extension against allowed list, if any
+                std::string ext = path.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                bool allowed = fileDlg.allowedExtensions.empty();  // if none given, accept all
+                if (!allowed)
+                {
+                    for (const auto& a : fileDlg.allowedExtensions)
+                    {
+                        if (ext == a)
+                        {
+                            allowed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!allowed)
+                {
+                    fileDlg.error = "File type not allowed for this action.";
+                }
+                else
+                {
+                    if (fileDlg.onAccept)
+                    {
+                        fileDlg.onAccept(path.string());
+                    }
+                    fileDlg.open = false;
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            fileDlg.error = e.what();
+        }
+    }
+
+    if (!hasSelection)
+        ImGui::EndDisabled();
+
+    ImGui::End();
 }
 
 void Computer::attachPRGImage()
 {
-#ifdef _WIN32
-    auto path = OpenPrgFileDialog();
-    if (!path) return;
+    if (prgPath.empty()) return;
 
-    prgPath     = *path;
     prgAttached = true;
     prgLoaded   = false;
     prgDelay    = 140;
@@ -870,16 +1055,12 @@ void Computer::attachPRGImage()
     {
         std::cout << "Queued program: " << prgPath << "\n";
     }
-#endif
 }
 
 void Computer::attachCRTImage()
 {
-#ifdef _WIN32
-    auto path = OpenCartFileDialog();
-    if (!path) return;
+    if (cartridgePath.empty()) return;
 
-    cartridgePath     = *path;
     cartridgeAttached = true;
 
     if (!cart->loadROM(cartridgePath))
@@ -894,7 +1075,6 @@ void Computer::attachCRTImage()
 
     warmReset();
     std::cout << "Cartridge attached: " << cartridgePath << "\n";
-#endif
 }
 
 bool Computer::isBASICReady()
