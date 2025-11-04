@@ -56,11 +56,11 @@ uint8_t D1541Memory::read(uint16_t address)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        return d1541via1.readRegister(address - VIA1_START);
+        return d1541via1.readRegister((address - VIA1_START) & 0x0F);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        return d1541via2.readRegister(address - VIA2_START);
+        return d1541via2.readRegister((address - VIA2_START) & 0x0F);
     }
     else if (address >= ROM1_START && address <= ROM1_END)
     {
