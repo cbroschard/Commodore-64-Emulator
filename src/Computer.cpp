@@ -896,6 +896,56 @@ void Computer::drawFileDialog()
 
     namespace fs = std::filesystem;
 
+    auto openPath = [this](const fs::path& path)
+    {
+        try
+        {
+            if (fs::is_directory(path))
+            {
+                fileDlg.currentDir    = path;
+                fileDlg.selectedEntry.clear();
+            }
+            else
+            {
+                // Check extension against allowedExtensions (if not empty)
+                std::string ext = path.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                bool allowed = fileDlg.allowedExtensions.empty();
+                if (!allowed)
+                {
+                    for (const auto& a : fileDlg.allowedExtensions)
+                    {
+                        std::string lower = a;
+                        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+                        if (ext == lower)
+                        {
+                            allowed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!allowed)
+                {
+                    fileDlg.error = "File type not allowed for this action.";
+                }
+                else
+                {
+                    if (fileDlg.onAccept)
+                    {
+                        fileDlg.onAccept(path.string());
+                    }
+                    fileDlg.open = false;
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            fileDlg.error = e.what();
+        }
+    };
+
     std::string pathStr = fileDlg.currentDir.string();
     ImGui::TextUnformatted(pathStr.c_str());
     ImGui::Separator();
@@ -925,13 +975,23 @@ void Computer::drawFileDialog()
     }
 
     // ".." to go up
-    if (ImGui::Selectable("..", false))
+     if (ImGui::Selectable("..", false, ImGuiSelectableFlags_AllowDoubleClick))
     {
         auto parent = fileDlg.currentDir.parent_path();
         if (!parent.empty())
         {
-            fileDlg.currentDir    = parent;
-            fileDlg.selectedEntry.clear();
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                // Double-click: go up immediately
+                fileDlg.currentDir    = parent;
+                fileDlg.selectedEntry.clear();
+            }
+            else
+            {
+                // Single click: just go up too (or you could just select "..")
+                fileDlg.currentDir    = parent;
+                fileDlg.selectedEntry.clear();
+            }
         }
     }
 
@@ -943,9 +1003,17 @@ void Computer::drawFileDialog()
         std::string label = isDir ? (name + "/") : name;
         bool selected = (fileDlg.selectedEntry == name);
 
-        if (ImGui::Selectable(label.c_str(), selected))
+        if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
         {
+            // Always update selection on click
             fileDlg.selectedEntry = name;
+
+            // If it was a double-click, "open" the item immediately
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                fs::path path = fileDlg.currentDir / name;
+                openPath(path);
+            }
         }
     }
 
