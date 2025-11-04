@@ -35,7 +35,13 @@ void D1541::tick()
 
 bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
 {
+    if (!d1541mem.Initialize(loRom, hiRom))
+    {
+        return false;
+    }
 
+    reset();
+    return true;
 }
 
 void D1541::reset()
