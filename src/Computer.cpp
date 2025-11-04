@@ -1186,7 +1186,10 @@ void Computer::attachT64Image()
     tapeAttached = true;
 
     if (!cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << std::endl;
-    else cass->play(); // Press play immediately for t64 files
+    else
+    {
+        if (cass) cass->play(); // Press play immediately for t64 files
+    }
 }
 
 bool Computer::isBASICReady()
