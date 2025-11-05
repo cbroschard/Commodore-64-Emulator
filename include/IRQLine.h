@@ -21,6 +21,8 @@ class IRQLine
             NONE,
             CIA1,
             D1541_IRQ,
+            D1571_IRQ,
+            D1581_IRQ,
             VICII
         };
 
