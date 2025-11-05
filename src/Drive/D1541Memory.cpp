@@ -28,7 +28,7 @@ void D1541Memory::tick()
     via2.tick();
 
     // IRQ check from VIA chips
-    if ((via1.readRegister(0x0C) & 0x80) || (via2.readRegister(0x0C) & 0x80))
+    if ((via1.readRegister(0x0D) & 0x80) || (via2.readRegister(0x0D) & 0x80))
     {
         driveIRQ.raiseIRQ(IRQLine::D1541_IRQ);
     }
