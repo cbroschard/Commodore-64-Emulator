@@ -75,7 +75,8 @@ class D1541VIA
         uint8_t timer1CounterHigh;
         uint8_t timer1LatchLow;
         uint8_t timer1LatchHigh;
-        uint8_t timer2Counter;
+        uint8_t timer2CounterLowByte;
+        uint8_t timer2CounterHighByte;
 
         // Control registers
         uint8_t shiftRegister;
@@ -85,10 +86,6 @@ class D1541VIA
         // Interrupt registers
         uint8_t interruptFlagRegister;
         uint8_t interruptEnableRegister;
-
-        // Reserved registers
-        uint8_t reserved1;
-        uint8_t reserved2;
 
         int srCount;
 };
