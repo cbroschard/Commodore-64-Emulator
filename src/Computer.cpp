@@ -182,11 +182,11 @@ void Computer::setJoystickAttached(int port, bool flag)
                 }
                 catch(const std::runtime_error& error)
                 {
-                    std::cout << "Caught exception: " << error.what() << std::endl;
+                    std::cout << "Caught exception: " << error.what() << "\n";
                 }
                 catch(...)
                 {
-                    std::cout << "Caught unknown Joystick exception!" << std::endl;
+                    std::cout << "Caught unknown Joystick exception!" << "\n";
                 }
                 joy1.reset();
             }
@@ -209,11 +209,11 @@ void Computer::setJoystickAttached(int port, bool flag)
                 }
                 catch(const std::runtime_error& error)
                 {
-                    std::cout << "Caught exception: " << error.what() << std::endl;
+                    std::cout << "Caught exception: " << error.what() << "\n";
                 }
                 catch(...)
                 {
-                    std::cout << "Caught unknown Joystick exception!" << std::endl;
+                    std::cout << "Caught unknown Joystick exception!" << "\n";
                 }
                 joy2.reset();
             }
@@ -478,7 +478,7 @@ bool Computer::boot()
 
         if (!cart->loadROM(cartridgePath))
         {
-            std::cout << "Unable to load cartridge: " << cartridgePath << std::endl;
+            std::cout << "Unable to load cartridge: " << cartridgePath << "\n";
             // Load failed, exit completely
             return false;
         }
@@ -487,7 +487,7 @@ bool Computer::boot()
     {
         if (!cass->loadCassette(tapePath, videoMode_))
         {
-            std::cout << "Unable to load tape: " << tapePath << std::endl;
+            std::cout << "Unable to load tape: " << tapePath << "\n";
         }
         if (cass->isT64())
         {
@@ -498,11 +498,11 @@ bool Computer::boot()
     {
         if (!loadPrgImage())
         {
-            std::cout << "Unable to load program: " << prgPath << std::endl;
+            std::cout << "Unable to load program: " << prgPath << "\n";
         }
         else
         {
-            std::cout << "Successfully loaded the file: " << prgPath << std::endl;
+            std::cout << "Successfully loaded the file: " << prgPath << "\n";
         }
     }
 
@@ -561,7 +561,7 @@ bool Computer::boot()
                     if (monitor && monitor->hasBreakpoint(pc))
                     {
                         std::cout << "Hit breakpoint at $" << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-                            << pc << std::endl;
+                            << pc << "\n";
                         monitor->enter();
                     }
 
@@ -576,7 +576,7 @@ bool Computer::boot()
                         T64LoadResult result = cass->t64LoadPrgIntoMemory();
                             if (!result.success)
                             {
-                                std::cout << "Failed to load PRG from T64!" << std::endl;
+                                std::cout << "Failed to load PRG from T64!" << "\n";
                                 processor->setA(4); // Standard KERNAL read error code
                                 processor->setFlag(CPU::C, true); // Set Carry to indicate error
                             }
@@ -593,7 +593,7 @@ bool Computer::boot()
                 }
                 catch (const std::exception& e)
                 {
-                    std::cerr << "Exception caught: " << e.what() << std::endl;
+                    std::cerr << "Exception caught: " << e.what() << "\n";
                     logger->flush();
                     return false;
                 }
@@ -846,7 +846,7 @@ void Computer::installMenu()
                     });
                 }
                 ImGui::Separator();
-                if (ImGui::BeginMenu("Cassette Control..."))
+                if (ImGui::BeginMenu("Cassette Control"))
                 {
                     if (ImGui::MenuItem("Play", "Alt+P")) uiCass = CassCmd::Play;
                     if (ImGui::MenuItem("Stop", "Alt+S")) uiCass = CassCmd::Stop;
