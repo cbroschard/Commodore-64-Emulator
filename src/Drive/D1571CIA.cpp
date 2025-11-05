@@ -7,7 +7,13 @@
 // strictly prohibited without the prior written consent of the author.
 #include "D1571CIA.h"
 
-D1571CIA::D1571CIA()
+D1571CIA::D1571CIA() :
+    timerACounter(0),
+    timerALatch(0),
+    timerBCounter(0),
+    timerBLatch(0),
+    timerARunning(false),
+    timerBRunning(false)
 {
     //ctor
 }

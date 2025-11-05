@@ -7,7 +7,12 @@
 // strictly prohibited without the prior written consent of the author.
 #include "D1571VIA.h"
 
-D1571VIA::D1571VIA()
+D1571VIA::D1571VIA() :
+    t1Counter(0),
+    t1Latch(0),
+    t1Running(false),
+    t2Counter(0),
+    t2Latch(0)
 {
     //ctor
 }

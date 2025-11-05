@@ -19,6 +19,8 @@ class D1571VIA
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
+        void reset();
+
     protected:
 
     private:
@@ -48,7 +50,7 @@ class D1571VIA
             uint8_t interruptFlag;
             uint8_t interruptEnable;
             uint8_t oraIRANoHandshake;
-        };
+        } registers;
 
         uint16_t t1Counter;
         uint16_t t1Latch;

@@ -46,7 +46,20 @@ class D1571CIA
             uint8_t interruptControl;
             uint8_t controlRegisterA;
             uint8_t controlRegisterB;
-        };
+        } registers;
+
+        uint16_t timerACounter;
+        uint16_t timerALatch;
+        uint16_t timerBCounter;
+        uint16_t timerBLatch;
+        bool timerARunning;
+        bool timerBRunning;
+
+        // TOD Alarm
+        uint8_t todAlarm10th;
+        uint8_t todAlarmSeconds;
+        uint8_t todAlarmMinutes;
+        uint8_t todAlarmHours;
 
 };
 
