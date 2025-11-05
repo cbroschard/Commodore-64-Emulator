@@ -845,6 +845,17 @@ void Computer::installMenu()
                         uiAttachTAP = true;
                     });
                 }
+                ImGui::Separator();
+                if (ImGui::BeginMenu("Cassette Control..."))
+                {
+                    if (ImGui::MenuItem("Play", "Alt+P")) uiCass = CassCmd::Play;
+                    if (ImGui::MenuItem("Stop", "Alt+S")) uiCass = CassCmd::Stop;
+                    if (ImGui::MenuItem("Rewind", "Alt+R")) uiCass = CassCmd::Rewind;
+                    if (ImGui::MenuItem("Eject", "Alt+E")) uiCass = CassCmd::Eject;
+                    ImGui::EndMenu();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Input"))
@@ -864,8 +875,6 @@ void Computer::installMenu()
                 ImGui::Separator();
                 bool paused = uiPaused.load();
                 if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
-                ImGui::Separator();
-                if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Help")) {
