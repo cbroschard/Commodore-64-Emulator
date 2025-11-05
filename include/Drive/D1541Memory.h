@@ -38,7 +38,7 @@ class D1541Memory : public Memory
         void write(uint16_t address, uint8_t value);
 
         // Initialize function to load all ROMS passed in via config file, initialize RAM
-        bool Initialize(const std::string& D1541LoROM, const std::string& D1541HiROM);
+        bool initialize(const std::string& D1541LoROM, const std::string& D1541HiROM);
 
         // Getters for access for D1541
         IRQLine* getIRQLine();

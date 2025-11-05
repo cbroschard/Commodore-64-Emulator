@@ -100,7 +100,7 @@ void D1541Memory::write(uint16_t address, uint8_t value)
     }
 }
 
-bool D1541Memory::Initialize(const std::string& D1541LoROM, const std::string& D1541HiROM)
+bool D1541Memory::initialize(const std::string& D1541LoROM, const std::string& D1541HiROM)
 {
     // Initialize Drive RAM to 0's
     std::fill(D1541RAM.begin(), D1541RAM.end(), 0x00);
