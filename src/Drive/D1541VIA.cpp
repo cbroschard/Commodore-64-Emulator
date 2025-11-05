@@ -10,6 +10,7 @@
 #include "IECBUS.h"
 
 D1541VIA::D1541VIA() :
+    viaRole(VIARole::Unknown),
     srCount(0)
 {
     reset();
