@@ -21,7 +21,7 @@ class D1541VIA
         D1541VIA();
         virtual ~D1541VIA();
 
-         // Allow VIA1 and VIA2 to define their role
+        // Allow VIA1 and VIA2 to define their role
         enum class VIARole
         {
             Unknown,
@@ -51,8 +51,7 @@ class D1541VIA
         Logging* logger = nullptr;
         Peripheral* parentPeripheral = nullptr;
 
-        // Default role
-        VIARole viaRole = VIARole::Unknown;
+        VIARole viaRole;
 
         // bitâ€‘masks for IFR
         static constexpr uint8_t IFR_T1 = 1 << 0;
