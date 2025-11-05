@@ -39,33 +39,40 @@ void D1541VIA::reset()
     timer1CounterHigh = 0;
     timer1LatchLow = 0;
     timer1LatchHigh = 0;
-    timer2Counter = 0;
+    timer2CounterLowByte = 0;
+    timer2CounterHighByte = 0;
     shiftRegister = 0;
     auxiliaryControlRegister = 0;
     peripheralControlRegister = 0;
     interruptFlagRegister = 0;
     interruptEnableRegister = 0;
-    reserved1 = 0;
-    reserved2 = 0;
     srCount = 0;
 }
 
 void D1541VIA::tick()
 {
+    // ----- Timer 1 -----
     {
-        uint16_t t1 = (static_cast<uint16_t>(timer1CounterHigh) << 8) | timer1CounterLow;
+        uint16_t t1 = (static_cast<uint16_t>(timer1CounterHigh) << 8)
+                    |  static_cast<uint16_t>(timer1CounterLow);
+
         if (t1 > 0)
         {
             --t1;
             timer1CounterLow  =  t1 & 0xFF;
             timer1CounterHigh = (t1 >> 8) & 0xFF;
+
             if (t1 == 0)
             {
+                // Set T1 interrupt flag
                 interruptFlagRegister |= IFR_T1;
-                bool cont = (auxiliaryControlRegister & (1 << 4)) != 0;
-                uint16_t lat = (static_cast<uint16_t>(timer1LatchHigh) << 8) | timer1LatchLow;
-                if (cont)
+
+                // Continuous mode? (ACR bit 4)
+                bool continuous = (auxiliaryControlRegister & (1 << 4)) != 0;
+                if (continuous)
                 {
+                    uint16_t lat = (static_cast<uint16_t>(timer1LatchHigh) << 8)
+                                 |  static_cast<uint16_t>(timer1LatchLow);
                     timer1CounterLow  =  lat & 0xFF;
                     timer1CounterHigh = (lat >> 8) & 0xFF;
                 }
@@ -73,15 +80,30 @@ void D1541VIA::tick()
         }
     }
 
+    // ----- Timer 2 -----
     {
-        if (timer2Counter > 0)
+        // Treat T2 as a 16-bit down-counter just like T1
+        uint16_t t2 = (static_cast<uint16_t>(timer2CounterHighByte) << 8)
+                    |  static_cast<uint16_t>(timer2CounterLowByte);
+
+        if (t2 > 0)
         {
-            --timer2Counter;
-            if (timer2Counter == 0) interruptFlagRegister |= IFR_T2;
+            --t2;
+            timer2CounterLowByte  =  t2 & 0xFF;
+            timer2CounterHighByte = (t2 >> 8) & 0xFF;
+
+            if (t2 == 0)
+            {
+                // Set T2 interrupt flag
+                interruptFlagRegister |= IFR_T2;
+
+                // For now: leave it at 0. If you later model pulse-counter mode
+                // or reload behavior, you can extend this.
+            }
         }
     }
 
-    // Shift register
+    // ----- Shift register -----
     bool srEnabled = (auxiliaryControlRegister & (1 << 2)) != 0;
     if (srEnabled)
     {
@@ -93,9 +115,12 @@ void D1541VIA::tick()
         }
     }
 
-    bool irq = (interruptFlagRegister & interruptEnableRegister & 0x7F) != 0;
-    if (irq) interruptFlagRegister |= IFR_IRQ;
-    else  interruptFlagRegister &= ~IFR_IRQ;
+    // ----- IRQ summary bit (bit 7 of IFR) -----
+    bool anyEnabledPending = (interruptFlagRegister & interruptEnableRegister & 0x7F) != 0;
+    if (anyEnabledPending)
+        interruptFlagRegister |= IFR_IRQ;   // bit 7
+    else
+        interruptFlagRegister &= ~IFR_IRQ;
 }
 
 uint8_t D1541VIA::readRegister(uint16_t address)
@@ -149,35 +174,35 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         }
         case 0x08:
         {
-            return timer2Counter;
+            return timer2CounterLowByte;
         }
         case 0x09:
         {
-            return shiftRegister;
+            return timer2CounterHighByte;
         }
         case 0x0A:
         {
-            return auxiliaryControlRegister;
+            return shiftRegister;
         }
         case 0x0B:
         {
-            return peripheralControlRegister;
+            return auxiliaryControlRegister;
         }
         case 0x0C:
         {
-            return interruptFlagRegister;
+            return peripheralControlRegister;
         }
         case 0x0D:
         {
-            return interruptEnableRegister;
+            return interruptFlagRegister;
         }
         case 0x0E:
         {
-            return reserved1;
+            return interruptEnableRegister;
         }
         case 0x0F:
         {
-            return reserved2;
+            return portA;
         }
         default:
         {
@@ -252,30 +277,35 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         }
         case 0x08:
         {
-            timer2Counter = value;
+            timer2CounterLowByte = value;
             break;
         }
         case 0x09:
         {
-            shiftRegister = value;
+            timer2CounterHighByte = value;
             break;
         }
         case 0x0A:
         {
-            auxiliaryControlRegister = value;
+            shiftRegister = value;
             break;
         }
         case 0x0B:
         {
-            peripheralControlRegister = value;
+            auxiliaryControlRegister = value;
             break;
         }
         case 0x0C:
         {
-            interruptFlagRegister &= ~value;
+            peripheralControlRegister = value;
             break;
         }
         case 0x0D:
+        {
+            interruptFlagRegister &= ~value;
+            break;
+        }
+        case 0x0E:
         {
             bool set = (value & 0x80) != 0;
             uint8_t mask = value & 0x7F;
@@ -289,14 +319,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             }
             break;
         }
-        case 0x0E:
-        {
-            reserved1 = value;
-            break;
-        }
         case 0x0F:
         {
-            reserved2 = value;
+            // Same as 0x01 but without driving ATN/SRQ
+            portA = (portA & ~ddrA) | (value & ddrA);
             break;
         }
         default:
