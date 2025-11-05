@@ -8,6 +8,7 @@
 #ifndef D1571CIA_H
 #define D1571CIA_H
 
+#include <cstdint>
 
 class D1571CIA
 {
@@ -15,9 +16,38 @@ class D1571CIA
         D1571CIA();
         virtual ~D1571CIA();
 
+        uint8_t readRegister(uint16_t address);
+        void writeRegister(uint16_t address, uint8_t value);
+
     protected:
 
     private:
+
+        struct ciaRegs
+        {
+            // Ports and data direction
+            uint8_t portA;
+            uint8_t portB;
+            uint8_t ddrA;
+            uint8_t ddrB;
+
+            // Timers
+            uint8_t timerALowByte;
+            uint8_t timerAHighByte;
+            uint8_t timerBLowByte;
+            uint8_t timerBHighByte;
+            uint8_t tod10th;
+            uint8_t todSeconds;
+            uint8_t todMinutes;
+            uint8_t todHours;
+
+            // Serial/Interrupts/Control
+            uint8_t serialData;
+            uint8_t interruptControl;
+            uint8_t controlRegisterA;
+            uint8_t controlRegisterB;
+        };
+
 };
 
 #endif // D1571CIA_H
