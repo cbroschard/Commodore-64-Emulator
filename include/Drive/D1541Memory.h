@@ -53,8 +53,8 @@ class D1541Memory : public Memory
         Logging* logger = nullptr;
 
         // VIA objects
-        D1541VIA d1541via1;
-        D1541VIA d1541via2;
+        D1541VIA via1;
+        D1541VIA via2;
         IRQLine driveIRQ;
 
         // Memory vectors

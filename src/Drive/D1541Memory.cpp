@@ -24,11 +24,11 @@ void D1541Memory::attachLoggingInstance(Logging* logger)
 
 void D1541Memory::tick()
 {
-    d1541via1.tick();
-    d1541via2.tick();
+    via1.tick();
+    via2.tick();
 
     // IRQ check from VIA chips
-    if ((d1541via1.readRegister(0x0C) & 0x80) || (d1541via2.readRegister(0x0C) & 0x80))
+    if ((via1.readRegister(0x0C) & 0x80) || (via2.readRegister(0x0C) & 0x80))
     {
         driveIRQ.raiseIRQ(IRQLine::D1541_IRQ);
     }
@@ -44,8 +44,8 @@ void D1541Memory::reset()
     std::fill(D1541RAM.begin(), D1541RAM.end(), 0x00);
 
     // Reset both VIA chips
-    d1541via1.reset();
-    d1541via2.reset();
+    via1.reset();
+    via2.reset();
 }
 
 uint8_t D1541Memory::read(uint16_t address)
@@ -56,11 +56,11 @@ uint8_t D1541Memory::read(uint16_t address)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        return d1541via1.readRegister((address - VIA1_START) & 0x0F);
+        return via1.readRegister((address - VIA1_START) & 0x0F);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        return d1541via2.readRegister((address - VIA2_START) & 0x0F);
+        return via2.readRegister((address - VIA2_START) & 0x0F);
     }
     else if (address >= ROM1_START && address <= ROM1_END)
     {
@@ -85,11 +85,11 @@ void D1541Memory::write(uint16_t address, uint8_t value)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        d1541via1.writeRegister(address - VIA1_START, value);
+        via1.writeRegister(address - VIA1_START, value);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        d1541via2.writeRegister(address - VIA2_START, value);
+        via2.writeRegister(address - VIA2_START, value);
     }
     else
     {
@@ -125,12 +125,12 @@ IRQLine* D1541Memory::getIRQLine()
 
 D1541VIA& D1541Memory::getVIA1()
 {
-    return d1541via1;
+    return via1;
 }
 
 D1541VIA& D1541Memory::getVIA2()
 {
-    return d1541via2;
+    return via2;
 }
 
 bool D1541Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
