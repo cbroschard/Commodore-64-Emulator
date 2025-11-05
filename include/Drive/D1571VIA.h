@@ -9,6 +9,7 @@
 #define D1571VIA_H
 
 #include <cstdint>
+#include "Peripheral.h"
 
 class D1571VIA
 {
@@ -16,14 +17,31 @@ class D1571VIA
         D1571VIA();
         virtual ~D1571VIA();
 
+        // Allow VIA1 and VIA2 to define their role
+        enum class VIARole
+        {
+            Unknown,
+            VIA1_DataHandler,
+            VIA2_AtnMonitor
+        };
+
+        void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole);
+
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
         void reset();
+        void tick();
 
     protected:
 
     private:
+
+        // Non-owning pointers
+        Peripheral* parentPeripheral;
+
+        // Role
+        VIARole viaRole;
 
         struct viaRegs
         {

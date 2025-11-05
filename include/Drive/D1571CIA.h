@@ -9,6 +9,7 @@
 #define D1571CIA_H
 
 #include <cstdint>
+#include "Peripheral.h"
 
 class D1571CIA
 {
@@ -19,9 +20,17 @@ class D1571CIA
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
+        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
+        void reset();
+        void tick();
+
     protected:
 
     private:
+
+        // Non-owning pointers
+        Peripheral* parentPeripheral;
 
         struct ciaRegs
         {
