@@ -18,12 +18,30 @@ class D1571 : public Drive
         D1571(int deviceNumber);
         virtual ~D1571();
 
+        // Advance drive via tick method
+        void tick() override;
+
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
 
     protected:
-
+        bool motorOn;
     private:
+
+        void reset() override;
+
+        // Floppy Image
+        std::string loadedDiskName;
+        bool diskLoaded;
+
+        // Status tracking
+        DriveError lastError;
+        DriveStatus status;
+
+        // Drive geometry
+        uint8_t currentTrack;
+        uint8_t currentSector;
+
 };
 
 #endif // D1571_H

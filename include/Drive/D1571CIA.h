@@ -1,0 +1,23 @@
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
+#ifndef D1571CIA_H
+#define D1571CIA_H
+
+
+class D1571CIA
+{
+    public:
+        D1571CIA();
+        virtual ~D1571CIA();
+
+    protected:
+
+    private:
+};
+
+#endif // D1571CIA_H
