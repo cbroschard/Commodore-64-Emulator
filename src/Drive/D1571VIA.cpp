@@ -49,6 +49,12 @@ void D1571VIA::reset()
     registers.interruptFlag = 0x00;
     registers.interruptEnable = 0x00;
     registers.oraIRANoHandshake = 0x00;
+
+    t1Counter = 0;
+    t1Latch   = 0;
+    t1Running = false;
+    t2Counter = 0;
+    t2Latch   = 0;
 }
 
 void D1571VIA::tick()
@@ -100,7 +106,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0C:
         case 0x0D:
         case 0x0E:
-        case 0x0F:
+        case 0x0F: registers.oraIRANoHandshake = value; break;
         default: break;
     }
 }

@@ -15,10 +15,7 @@ D1571Memory::D1571Memory() :
     D1571ROM.resize(ROM_SIZE,0);
 }
 
-D1571Memory::~D1571Memory()
-{
-
-}
+D1571Memory::~D1571Memory() = default;
 
 void D1571Memory::reset()
 {
@@ -29,6 +26,28 @@ void D1571Memory::reset()
     via1.reset();
     via2.reset();
     cia.reset();
+    fdc.reset();
+}
+
+void D1571Memory::tick()
+{
+    via1.tick();
+    via2.tick();
+    cia.tick();
+    fdc.tick();
+}
+
+bool D1571Memory::initialize(const std::string& fileName)
+{
+    // Clear RAM/ROM
+    std::fill(D1571RAM.begin(), D1571RAM.end(), 0x00);
+    std::fill(D1571ROM.begin(), D1571ROM.end(), 0x00);
+
+    // Attempt to load passed in ROM file
+    if (!loadROM(fileName)) return false;
+
+    // All good
+    return true;
 }
 
 uint8_t D1571Memory::read(uint16_t address)
@@ -41,7 +60,7 @@ uint8_t D1571Memory::read(uint16_t address)
     {
         return D1571ROM[address - ROM_START];
     }
-    else if (address >= VIA1_START && address <= VIA2_END)
+    else if (address >= VIA1_START && address <= VIA1_END)
     {
         return via1.readRegister((address - VIA1_START) & 0x0F);
     }
@@ -53,6 +72,10 @@ uint8_t D1571Memory::read(uint16_t address)
     {
         return cia.readRegister((address - CIA_START) & 0x0F);
     }
+    else if (address >= FDC_START && address <= FDC_END)
+    {
+        return fdc.readRegister(address - FDC_START);
+    }
     return 0xFF; // open bus
 }
 
@@ -60,55 +83,27 @@ void D1571Memory::write(uint16_t address, uint8_t value)
 {
     if (address >= RAM_START && address <= RAM_END)
     {
-        D1571RAM[address] = value;
+        D1571RAM[address - RAM_START] = value;
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        via1.writeRegister(address, value);
+        via1.writeRegister(address - VIA1_START, value);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        via2.writeRegister(address, value);
+        via2.writeRegister(address - VIA2_START, value);
     }
     else if (address >= CIA_START && address <= CIA_END)
     {
-        cia.writeRegister(address, value);
+        cia.writeRegister(address - CIA_START, value);
+    }
+    else if (address >= FDC_START && address <= FDC_END)
+    {
+        fdc.writeRegister(address - FDC_START, value);
     }
 }
 
-bool D1571Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
+bool D1571Memory::loadROM(const std::string& filename)
 {
-    std::ifstream file(filename, std::ios::binary | std::ios::ate);
-    if (!file.is_open())
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Unable to open " + romName + " ROM file: " + filename);
-        }
-        return false;
-    }
-
-    std::streamsize fileSize = file.tellg();
-    if (static_cast<size_t>(fileSize) != expectedSize)
-    {
-        if (logger && setLogging)
-        {
-        logger->WriteLog("Error: " + romName + " ROM file is not correct size! Expected " +
-                         std::to_string(expectedSize) + " bytes, got " + std::to_string(fileSize) + " bytes.");
-        }
-        return false;
-    }
-
-    file.seekg(0, std::ios::beg);
-    if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), expectedSize))
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Error: Failed to read " + romName + " ROM file: " + filename);
-        }
-        return false;
-    }
-
-    file.close();
     return true;
 }
