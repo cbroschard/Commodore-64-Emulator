@@ -2,6 +2,7 @@
 bin/
 obj/
 tape/
+!Licenses/*.txt
 !include/tape/
 !src/tape/
 PRG/
