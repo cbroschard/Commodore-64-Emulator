@@ -21,8 +21,8 @@ Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an i
 ## 🚀 Getting Started
 
 ### Prerequisites
-- [SDL2](https://www.libsdl.org/)  
 - C++17 or newer compiler (GCC, Clang, MSVC, or MinGW).  
+- [SDL2](https://www.libsdl.org/)  
 - [Boost](https://www.boost.org/).
 - [Dear ImGUI](https://github.com/ocornut/imgui/)
 
