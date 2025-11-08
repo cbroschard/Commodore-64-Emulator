@@ -15,10 +15,11 @@
 #include "IRQLine.h"
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
+#include "Drive/FloppyControllerHost.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 
-class D1571 : public Drive
+class D1571 : public Drive, public FloppyControllerHost
 {
     public:
         D1571(int deviceNumber, const std::string& fileName);
@@ -38,7 +39,7 @@ class D1571 : public Drive
         // Floppy image handling
         bool mountDisk(const std::string& path);
         void unmountDisk();
-        bool readSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length);
+        bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
 
     protected:
         bool motorOn;

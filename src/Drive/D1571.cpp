@@ -109,7 +109,7 @@ void D1571::unmountDisk()
     status        = DriveStatus::IDLE;
 }
 
-bool D1571::readSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
+bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
 {
     if (!diskLoaded || !diskImage || buffer == nullptr || length == 0)
     {
