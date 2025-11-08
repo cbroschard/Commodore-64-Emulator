@@ -21,17 +21,20 @@ class D1571VIA
         enum class VIARole
         {
             Unknown,
-            VIA1_DataHandler,
-            VIA2_AtnMonitor
+            VIA1_IECBus,
+            VIA2_Mechanics
         };
 
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole);
 
-        uint8_t readRegister(uint16_t address);
-        void writeRegister(uint16_t address, uint8_t value);
+        // IRQ helper
+        bool checkIRQActive() const;
 
         void reset();
         void tick();
+
+        uint8_t readRegister(uint16_t address);
+        void writeRegister(uint16_t address, uint8_t value);
 
     protected:
 
@@ -73,8 +76,10 @@ class D1571VIA
         uint16_t t1Counter;
         uint16_t t1Latch;
         bool t1Running;
+
         uint16_t t2Counter;
         uint16_t t2Latch;
+        bool t2Running;
 };
 
 #endif // D1571VIA_H

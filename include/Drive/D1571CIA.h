@@ -25,12 +25,24 @@ class D1571CIA
         void reset();
         void tick();
 
+        inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
+
     protected:
 
     private:
 
         // Non-owning pointers
         Peripheral* parentPeripheral;
+
+        //Interrupt handling
+        enum InterruptBit : uint8_t
+        {
+            INTERRUPT_TIMER_A = 0x01,
+            INTERRUPT_TIMER_B = 0x02,
+            INTERRUPT_TOD_ALARM = 0x04,
+            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
+            INTERRUPT_FLAG_LINE = 0x10
+        };
 
         struct ciaRegs
         {
@@ -52,7 +64,7 @@ class D1571CIA
 
             // Serial/Interrupts/Control
             uint8_t serialData;
-            uint8_t interruptControl;
+            uint8_t interruptEnable;
             uint8_t controlRegisterA;
             uint8_t controlRegisterB;
         } registers;
@@ -70,6 +82,10 @@ class D1571CIA
         uint8_t todAlarmMinutes;
         uint8_t todAlarmHours;
 
+        // Track IRQ
+        uint8_t interruptStatus;
+        void triggerInterrupt(InterruptBit bit);
+        void refreshMasterBit();
 };
 
 #endif // D1571CIA_H

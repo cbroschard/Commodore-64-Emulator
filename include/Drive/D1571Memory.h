@@ -8,22 +8,29 @@
 #ifndef D1571MEMORY_H
 #define D1571MEMORY_H
 
+// Forward declarations
+class D1571;
+
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <vector>
 #include "Logging.h"
+#include "Memory.h"
+#include "Peripheral.h"
 #include "Drive/D1571CIA.h"
 #include "Drive/D1571VIA.h"
 #include "Drive/FDC177x.h"
 
-class D1571Memory
+class D1571Memory : public Memory
 {
     public:
         D1571Memory();
         virtual ~D1571Memory();
 
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
+        void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         void setLog(bool enable) { setLogging = enable; }
 
@@ -35,6 +42,18 @@ class D1571Memory
 
         bool initialize(const std::string& fileName);
 
+        // Getters
+        inline D1571VIA& getVIA1() { return via1; }
+        inline const D1571VIA& getVIA1() const { return via1; }
+
+        inline D1571VIA& getVIA2() { return via2; }
+        inline const D1571VIA& getVIA2() const { return via2; }
+
+        inline D1571CIA& getCIA() { return cia; }
+        inline const D1571CIA& getCIA()  const { return cia; }
+
+        inline FDC177x& getFDC() { return fdc; }
+        inline const FDC177x&  getFDC()  const { return fdc; }
 
     protected:
 
@@ -48,9 +67,13 @@ class D1571Memory
 
         // Non-owning pointers
         Logging* logger;
+        Peripheral* parentPeripheral;
 
         // Log enable/disable
         bool setLogging;
+
+        // Track last bus write
+        uint8_t lastBus;
 
         // RAM Constants
         static constexpr size_t RAM_SIZE = 0x0800; // 2K RAM
@@ -63,7 +86,7 @@ class D1571Memory
         static const uint16_t ROM_END  = 0xFFFF;
 
         // VIA Constants
-        static const uint16_t VIA1_START = 0x1000;
+        static const uint16_t VIA1_START = 0x1800;
         static const uint16_t VIA1_END = 0x1BFF;
         static const uint16_t VIA2_START = 0x1C00;
         static const uint16_t VIA2_END = 0x1FFF;

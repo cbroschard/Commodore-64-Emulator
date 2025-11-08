@@ -45,7 +45,7 @@ class Drive : public Peripheral
         virtual std::vector<uint8_t> getDirectoryListing() = 0;
         virtual std::vector<uint8_t> loadFileByName(const std::string& name) = 0;
 
-        enum class DriveError { NONE, NO_DISK, READ_ERROR, WRITE_ERROR } currentDriveError;
+        enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING } currentDriveStatus;
         enum class DriveBusState { IDLE, AWAITING_COMMAND, TALKING, LISTENING } currentDriveBusState;
 
