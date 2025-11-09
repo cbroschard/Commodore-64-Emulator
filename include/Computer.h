@@ -20,6 +20,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "Debug/MLMonitorBackend.h"
+#include "Drive/D1571.h"
 #include "IECBUS.h"
 #include "IO.h"
 #include "IRQLine.h"
@@ -94,9 +95,10 @@ class Computer
         inline void setBASIC_ROM(const std::string& basic) { BASIC_ROM = basic; }
         inline void setCHAR_ROM(const std::string& character) { CHAR_ROM = character; }
 
-        // Setters for 1541 ROM locations
+        // Setters for Drive model ROM locations
         inline void set1541LoROM(const std::string& loROM) { D1541LoROM = loROM; }
         inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
+        inline void set1571ROM(const std::string& rom) { D1571ROM = rom; }
 
     protected:
 
@@ -108,6 +110,7 @@ class Computer
         std::unique_ptr<CIA1> cia1object;
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
+        std::unique_ptr<D1571> drive8;
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Joystick> joy1;
@@ -174,12 +177,13 @@ class Computer
         std::atomic<bool>       frameReady;
         std::atomic<bool>       running;
 
-        // Filenames and path of the ROMS to boot the system and 1541
+        // Filenames and path of the ROMS to boot the system and Drive ROMS
         std::string KERNAL_ROM;
         std::string BASIC_ROM;
         std::string CHAR_ROM;
         std::string D1541LoROM;
         std::string D1541HiROM;
+        std::string D1571ROM;
 
         // Build the ImGui Menu
         enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
