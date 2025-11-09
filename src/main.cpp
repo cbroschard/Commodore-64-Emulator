@@ -30,6 +30,7 @@ po::options_description get_config_file_options()
         ("c64.CHAR.ROM", po::value<std::string>()->required(), "Full path and filename of the C64 BASIC ROM to load")
         ("1541.LO.ROM", po::value<std::string>(), "Full path and filename of the 1541 C000 ROM to load")
         ("1541.HI.ROM", po::value<std::string>(), "Full path and filename of the 1541 E000 ROM to load")
+        ("1571.ROM", po::value<std::string>(), "Full path and filename of the 1571 ROM to load")
         ("c64.Joy1", po::value<std::string>(), "Joystick 1 key bindings: Up,Down,Left,Right,Fire")
         ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire");
     return desc;
@@ -81,6 +82,12 @@ int main(int argc, char *argv[])
     {
         c64.set1541LoROM(vmConfig["1541.LO.ROM"].as<std::string>());
         c64.set1541HiROM(vmConfig["1541.HI.ROM"].as<std::string>());
+    }
+
+    // Update the C64 object with lcoations for 1571 ROM if present
+    if (vmConfig.count("1571.ROM"))
+    {
+        c64.set1571ROM(vmConfig["1571.ROM"].as<std::string>());
     }
 
     if (vmConfig.count("c64.Joy1"))
