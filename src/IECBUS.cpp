@@ -10,6 +10,7 @@
 
 IECBUS::IECBUS() :
     //Initialize to defaults
+    currentState(State::IDLE),
     cia2object(nullptr),
     currentTalker(nullptr),
     line_srqin(true), // SRQ starts high (inactive)
@@ -18,8 +19,7 @@ IECBUS::IECBUS() :
     c64DrivesDataLow(false),
     peripheralDrivesClkLow(false),
     peripheralDrivesDataLow(false),
-    peripheralDrivesAtnLow(false),
-    currentState(State::IDLE)
+    peripheralDrivesAtnLow(false)
 {
     currentListeners.clear(); // Ensure listener list is empty on start
     updateBusState(); // Update bus with defaults
@@ -64,9 +64,7 @@ void IECBUS::setAtnLine(bool state)
         }
         else  // ATN released (high) -> Transition state (usually TALK or LISTEN follows)
         {
-            // State transition depends on commands received during ATTENTION.
-            // For now, just go IDLE, tick() logic will handle actual TALK/LISTEN states.
-            currentState = State::IDLE; // Revisit this - may depend on last cmd
+            currentState = State::IDLE;
         }
     }
 }

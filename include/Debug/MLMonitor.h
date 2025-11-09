@@ -18,6 +18,7 @@
 #include "Debug/DisassembleCommand.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/GoCommand.h"
+#include "Debug/IECCommand.h"
 #include "Debug/IRQCommand.h"
 #include "Debug/JamCommand.h"
 #include "Debug/LogCommand.h"

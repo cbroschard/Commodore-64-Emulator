@@ -21,6 +21,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<DisassembleCommand>());
     registerCommand(std::make_unique<ExportDisassemblyCommand>());
     registerCommand(std::make_unique<GoCommand>());
+    registerCommand(std::make_unique<IECCommand>());
     registerCommand(std::make_unique<IRQCommand>());
     registerCommand(std::make_unique<JamCommand>());
     registerCommand(std::make_unique<LogCommand>());

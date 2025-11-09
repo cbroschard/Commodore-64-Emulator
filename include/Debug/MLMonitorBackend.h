@@ -80,6 +80,9 @@ class MLMonitorBackend
         void setJamMode(const std::string& mode);
         inline void setPC(uint16_t address) { processor->setPC(address); }
 
+        // ML Monitor IEC Bus
+        IECBUS* getIECBus() const { return bus; }
+
         // ML Monitor IRQ
         struct IRQSnapshot
         {

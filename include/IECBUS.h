@@ -24,6 +24,9 @@ class IECBUS
         IECBUS();
         virtual ~IECBUS();
 
+        // State of IEC bus
+        enum class State {IDLE, ATTENTION, TALK, LISTEN, UNLISTEN, UNTALK} currentState;
+
         // Pointers
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
@@ -59,6 +62,20 @@ class IECBUS
         // Main emulation cycle
         void tick(uint64_t cyclesPassed);
 
+        // ML Monitor Functions
+        inline IECBusLines getBusLines() const { return busLines; }
+        inline bool getSRQLine() const { return line_srqin; }
+        inline bool getC64DrivesAtnLow() const { return c64DrivesAtnLow; }
+        inline bool getC64DrivesClkLow() const { return c64DrivesClkLow; }
+        inline bool getC64DrivesDataLow() const { return c64DrivesDataLow; }
+        inline bool getPeripheralDrivesAtnLow() const { return peripheralDrivesAtnLow; }
+        inline bool getPeripheralDrivesClkLow() const { return peripheralDrivesClkLow; }
+        inline bool getPeripheralDrivesDataLow() const { return peripheralDrivesDataLow; }
+        inline State getState() const { return currentState; }
+        inline Peripheral* getCurrentTalker() const { return currentTalker; }
+        const std::vector<Peripheral*>& getCurrentListeners() const { return currentListeners; }
+        const std::map<int, Peripheral*>& getDevices() const { return devices; }
+
     protected:
 
     private:
@@ -79,9 +96,6 @@ class IECBUS
         bool peripheralDrivesClkLow;
         bool peripheralDrivesDataLow;
         bool peripheralDrivesAtnLow;
-
-        // State of IEC bus
-        enum class State {IDLE, ATTENTION, TALK, LISTEN, UNLISTEN, UNTALK} currentState;
 
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;
