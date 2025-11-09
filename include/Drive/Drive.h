@@ -10,10 +10,10 @@
 
 #include <queue>
 #include <memory>
+#include "cpu.h"
 #include "Floppy/DiskFactory.h"
 #include "Peripheral.h"
 #include "Logging.h"
-#include "cpu.h"
 
 class Drive : public Peripheral
 {
