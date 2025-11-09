@@ -27,6 +27,8 @@ class D1571 : public Drive, public FloppyControllerHost
 
         inline void attachBusInstance(IECBUS* bus) { this->bus = bus; }
 
+        void reset() override;
+
         // Advance drive via tick method
         void tick() override;
 
@@ -37,9 +39,13 @@ class D1571 : public Drive, public FloppyControllerHost
         void updateIRQ();
 
         // Floppy image handling
+        inline void setDiskWriteProtected(bool on) { diskWriteProtected = on; }
+        bool fdcIsWriteProtected() const override;
         bool mountDisk(const std::string& path);
         void unmountDisk();
         bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
+        bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) override;
+
 
     protected:
         bool motorOn;
@@ -57,11 +63,10 @@ class D1571 : public Drive, public FloppyControllerHost
         // Non-owning pointers
         IECBUS* bus;
 
-        void reset() override;
-
         // Floppy Image
         std::string loadedDiskName;
         bool diskLoaded;
+        bool diskWriteProtected;
 
         // Status tracking
         DriveError lastError;

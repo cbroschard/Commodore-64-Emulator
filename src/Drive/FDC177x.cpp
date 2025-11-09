@@ -9,8 +9,11 @@
 #include "Drive/D1571.h"
 
 FDC177x::FDC177x() :
+    host(nullptr),
     parentPeripheral(nullptr),
     dataIndex(0),
+    readSectorInProgress(false),
+    writeSectorInProgress(false),
     drq(false),
     intrq(false),
     cyclesUntilEvent(0)
@@ -30,8 +33,11 @@ void FDC177x::reset()
 
     currentType = CommandType::None;
 
+    dataIndex = 0;
     drq = false;
     intrq = false;
+    readSectorInProgress  = false;
+    writeSectorInProgress = false;
 
     cyclesUntilEvent = 0;
 }
@@ -46,11 +52,44 @@ void FDC177x::tick()
             switch (currentType)
             {
                 case CommandType::TypeI:
+                {
                     // Head move complete
                     setBusy(false);
                     setINTRQ(true);
+
+                    // Track 0 / Not Track 0 flag (lostDataOrNotT0 bit)
+                    if (registers.track == 0)
+                        registers.status |= lostDataOrNotT0; // TRK0 = 1
+                    else
+                        registers.status &= static_cast<uint8_t>(~lostDataOrNotT0);  // TRK0 = 0
+
                     break;
+                }
                 case CommandType::TypeII:
+                {
+                    if (readSectorInProgress)
+                    {
+                        // READ SECTOR: first byte is now ready
+                        if (dataIndex < sizeof(sectorBuffer))
+                        {
+                            // Don't advance dataIndex yet; wait until CPU reads
+                            registers.data = sectorBuffer[dataIndex];
+                        }
+                        setDRQ(true);   // tell CPU "you can read a byte now"
+                    }
+                    else if (writeSectorInProgress)
+                    {
+                        // WRITE SECTOR: ready for first data byte
+                        setDRQ(true);   // tell CPU "write a byte now"
+                    }
+                    else
+                    {
+                        setBusy(false);
+                        setDRQ(false);
+                        setINTRQ(true);
+                    }
+                    break;
+                }
                 case CommandType::TypeIII:
                     setBusy(false);
                     setDRQ(false);
@@ -68,13 +107,53 @@ uint8_t FDC177x::readRegister(uint16_t address)
     switch(address & 0x03)
     {
         case 0: // Status reg
-            return registers.status;
+        {
+            uint8_t status = registers.status;
+            setINTRQ(false);
+            return status;
+        }
         case 1: // Track reg
             return registers.track;
         case 2: // Sector reg
             return registers.sector;
         case 3: // Data reg
+        {
+            CommandGroup group = static_cast<CommandGroup>(registers.command & 0xF0);
+
+            if (currentType == CommandType::TypeII && group == CommandGroup::ReadSector && readSectorInProgress)
+            {
+                if (!drq)
+                {
+                    return registers.data;
+                }
+
+                uint8_t value = 0xFF;
+
+                if (dataIndex < sizeof(sectorBuffer))
+                {
+                    value = sectorBuffer[dataIndex++];
+                }
+
+                registers.data = value;
+                setDRQ(false);
+
+                if (dataIndex >= sizeof(sectorBuffer))
+                {
+                    // Last byte of the sector
+                    readSectorInProgress = false;
+                    setBusy(false);
+                    setINTRQ(true);
+                }
+                else
+                {
+                    setDRQ(true);
+                }
+
+                return value;
+            }
+            // Default: not in a READ SECTOR transfer, just return the latched data
             return registers.data;
+        }
         default:
             return 0xFF; // open bus should not hit
     }
@@ -98,8 +177,78 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
             registers.sector = value;
             break;
         case 3: // Data reg
-            registers.data = value;
+        {
+            CommandGroup group = static_cast<CommandGroup>(registers.command & 0xF0);
+
+            if (currentType == CommandType::TypeII && group == CommandGroup::WriteSector && writeSectorInProgress)
+            {
+                if (dataIndex < sizeof(sectorBuffer))
+                {
+                    sectorBuffer[dataIndex++] = value;
+                    registers.data = value;
+                    setDRQ(false);  // we've consumed this byte
+                }
+
+                if (dataIndex >= sizeof(sectorBuffer))
+                {
+                    // Complete sector, write to disk
+                    bool ok = false;
+
+                    if (!host)
+                    {
+                        // No host at all – treat as failure
+                        ok = false;
+                    }
+                    else if (host->fdcIsWriteProtected())
+                    {
+                        // Disk is write-protected: do NOT call fdcWriteSector.
+                        registers.status |= writeProtect;
+                        ok = false;
+                    }
+                    else
+                    {
+                        // Disk is not write-protected; try to write.
+                        ok = host->fdcWriteSector(registers.track,
+                                                  registers.sector,
+                                                  sectorBuffer,
+                                                  sizeof(sectorBuffer));
+                    }
+
+                    writeSectorInProgress = false;
+                    dataIndex             = 0;  // reset for next time
+
+                    if (ok)
+                    {
+                        setBusy(false);
+                        setDRQ(false);
+                        setINTRQ(true);
+                    }
+                    else
+                    {
+                        // If it wasn't write-protect, treat it as "record not found"
+                        if (!(registers.status & writeProtect))
+                        {
+                            registers.status |= recordNotFound;
+                        }
+
+                        setBusy(false);
+                        setDRQ(false);
+                        setINTRQ(true);
+                    }
+                    return;
+                }
+                else
+                {
+                    // Not done yet; request the next byte
+                    setDRQ(true);
+                }
+
+                return;
+            }
+
+            registers.data = value; // Default behavior
             break;
+        }
         default:
             // Ignore this
             break;
@@ -146,6 +295,9 @@ FDC177x::CommandType FDC177x::decodeCommandType(uint8_t cmd) const
 
 void FDC177x::startCommand(uint8_t cmd)
 {
+    readSectorInProgress  = false;
+    writeSectorInProgress = false;
+
     // Clear some status bits that are command-specific
     registers.status &= static_cast<uint8_t>(~(lostDataOrNotT0 | crcError | recordNotFound | spinUpOrDelData | writeProtect));
 
@@ -175,6 +327,7 @@ void FDC177x::startCommand(uint8_t cmd)
                     ++registers.track;
                     break;
                 case CommandGroup::StepOut:
+                    if (registers.track > 0)
                     --registers.track;
                     break;
                 default: break;
@@ -183,6 +336,47 @@ void FDC177x::startCommand(uint8_t cmd)
             break;
         }
         case CommandType::TypeII:
+        {
+            switch(group)
+            {
+                case CommandGroup::ReadSector:
+                {
+                    bool ok = false;
+                    if (host)
+                    {
+                        ok = host->fdcReadSector(registers.track, registers.sector, sectorBuffer, sizeof(sectorBuffer));
+                    }
+                    if (ok)
+                    {
+                        dataIndex            = 0;     // position in sectorBuffer
+                        readSectorInProgress = true;
+                        cyclesUntilEvent     = 2000;  // fake "read time"
+                    }
+                    else
+                    {
+                        // Sector not found or no disk
+                        registers.status |= recordNotFound;
+                        setBusy(false);
+                        setINTRQ(true);
+                        cyclesUntilEvent = 0;
+                    }
+                    break;
+                }
+                case CommandGroup::WriteSector:
+                {
+                    dataIndex = 0;
+                    setDRQ(false);
+                    setINTRQ(false);
+                    cyclesUntilEvent      = 2000;
+                    writeSectorInProgress = true;
+                    break;
+                }
+                default:
+                    cyclesUntilEvent = 2000;
+                    break;
+            }
+            break;
+        }
         case CommandType::TypeIII:
             cyclesUntilEvent = 2000;
             break;

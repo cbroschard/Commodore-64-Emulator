@@ -30,6 +30,9 @@ void D1571Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     via2.attachPeripheralInstance(parentPeripheral, D1571VIA::VIARole::VIA2_Mechanics);
     cia.attachPeripheralInstance(parentPeripheral);
     fdc.attachPeripheralInstance(parentPeripheral);
+
+    auto* host = dynamic_cast<FloppyControllerHost*>(parentPeripheral);
+    fdc.attachFloppyeControllerHostInstance(host);
 }
 
 void D1571Memory::reset()

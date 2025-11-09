@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include "Peripheral.h"
+#include "Drive/FloppyControllerHost.h"
 
 class FDC177x
 {
@@ -17,6 +18,7 @@ class FDC177x
         FDC177x();
         virtual ~FDC177x();
 
+        inline void attachFloppyeControllerHostInstance(FloppyControllerHost* host) { this->host = host; }
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
         void reset();
@@ -32,6 +34,7 @@ class FDC177x
     private:
 
         // Non-owning pointers
+        FloppyControllerHost* host;
         Peripheral* parentPeripheral;
 
         enum CommandType : uint8_t
@@ -85,6 +88,8 @@ class FDC177x
 
         uint8_t sectorBuffer[256]{};
         uint8_t dataIndex;
+        bool readSectorInProgress;
+        bool writeSectorInProgress;
 
         bool drq;
         bool intrq;

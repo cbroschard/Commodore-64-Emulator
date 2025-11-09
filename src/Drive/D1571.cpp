@@ -9,7 +9,8 @@
 
 D1571::D1571(int deviceNumber, const std::string& fileName) :
     motorOn(false),
-    diskLoaded(false)
+    diskLoaded(false),
+    diskWriteProtected(false)
 {
     setDeviceNumber(deviceNumber);
     d1571Mem.attachPeripheralInstance(this);
@@ -35,6 +36,7 @@ void D1571::reset()
     motorOn = false;
     loadedDiskName.clear();
     diskLoaded = false;
+    diskWriteProtected = false;
     lastError = DriveError::NONE;
     status = DriveStatus::IDLE;
     currentTrack = 0;
@@ -54,7 +56,7 @@ void D1571::updateIRQ()
     bool via1IRQ = d1571Mem.getVIA1().checkIRQActive();
     bool via2IRQ = d1571Mem.getVIA2().checkIRQActive();
     bool ciaIRQ = d1571Mem.getCIA().checkIRQActive();
-    bool fdcIRQ = d1571Mem.getFDC().checkIRQActive(); // until implemented
+    bool fdcIRQ = d1571Mem.getFDC().checkIRQActive();
 
     bool any = via1IRQ || via2IRQ || ciaIRQ || fdcIRQ;
 
@@ -64,6 +66,7 @@ void D1571::updateIRQ()
 
 bool D1571::mountDisk(const std::string& path)
 {
+    diskWriteProtected = false;
     auto img = DiskFactory::create(path);
     if (!img)
     {
@@ -98,6 +101,7 @@ bool D1571::mountDisk(const std::string& path)
 void D1571::unmountDisk()
 {
     // Drop the current image
+    diskWriteProtected = false;
     diskImage.reset();
     diskLoaded = false;
     loadedDiskName.clear();
@@ -132,4 +136,45 @@ bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     lastError     = DriveError::NONE;
 
     return true;
+}
+
+bool D1571::fdcWriteSector(uint8_t track,
+                           uint8_t sector,
+                           const uint8_t* buffer,
+                           size_t length)
+{
+    // Basic sanity
+    if (!diskLoaded || !diskImage || buffer == nullptr || length == 0)
+    {
+        lastError = DriveError::NO_DISK;   // or WRITE_FAILED etc.
+        return false;
+    }
+
+    constexpr size_t SECTOR_SIZE = 256;  // matches Disk::SECTOR_SIZE
+
+    const size_t toCopy = std::min(length, SECTOR_SIZE);
+
+    std::vector<uint8_t> data;
+    data.assign(buffer, buffer + toCopy);
+
+    if (data.size() < SECTOR_SIZE)
+        data.resize(SECTOR_SIZE, 0x00);
+
+    bool ok = diskImage->writeSector(track, sector, data);
+
+    if (!ok)
+    {
+        lastError = DriveError::BAD_SECTOR;  // or WRITE_FAILED
+        return false;
+    }
+
+    lastError     = DriveError::NONE;
+    currentTrack  = track;
+    currentSector = sector;
+    return true;
+}
+
+bool D1571::fdcIsWriteProtected() const
+{
+    return diskWriteProtected;
 }
