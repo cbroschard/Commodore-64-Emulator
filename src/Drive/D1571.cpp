@@ -51,8 +51,9 @@ void D1571::reset()
     diskWriteProtected = false;
     lastError = DriveError::NONE;
     status = DriveStatus::IDLE;
-    currentTrack = 0;
-    currentSector = 1;
+    currentTrack = 18;
+    currentSector = 0;
+    densityCode = 2;
 
     // IEC BUS reset
     atnLineLow         = false;
@@ -96,8 +97,21 @@ void D1571::setBurstClock2MHz(bool enable)
 
 bool D1571::getByteReadyLow() const
 {
-    // TODO: hook into gate array / VIA2 later.
-    return false;
+    auto* fdc = getFDC();
+    if (!fdc) return false;
+
+    bool drqActive = fdc->checkDRQActive();
+    bool intrqActive = fdc->checkIRQActive();
+    return drqActive || intrqActive;
+
+}
+
+void D1571::syncTrackFromFDC()
+{
+    auto* fdc = getFDC();
+    if (!fdc) return;
+
+    currentTrack = fdc->getCurrentTrack();
 }
 
 bool D1571::canMount(DiskFormat fmt) const

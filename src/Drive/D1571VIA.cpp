@@ -11,6 +11,8 @@
 D1571VIA::D1571VIA() :
     parentPeripheral(nullptr),
     viaRole(VIARole::Unknown),
+    ledOn(false),
+    syncDetectedLow(false),
     t1Counter(0),
     t1Latch(0),
     t1Running(false),
@@ -62,6 +64,10 @@ void D1571VIA::reset()
     t2Counter = 0;
     t2Latch   = 0;
     t2Running = false;
+
+    // Mechanics
+    ledOn           = false;
+    syncDetectedLow = false;
 }
 
 void D1571VIA::tick()
@@ -174,9 +180,67 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     }
                 }
             }
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // Bit 4: Write protect (input, active low)
+                    if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
+                    {
+                        bool wpLow = drive->fdcIsWriteProtected(); // true if disk is write-protected
+                        if (wpLow) value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT)); // 0 = protected
+                        else       value |=  static_cast<uint8_t> (1u << MECH_WRITE_PROTECT);  // 1 = writable
+                    }
+
+                    // Bit 7: Sync Detected
+                    if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
+                    {
+                        bool syncLow = isSyncDetectedLow();
+                        if (syncLow) value &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
+                        else         value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
+                    }
+                }
+            }
             return value;
         }
-        case 0x01: return registers.oraIRA;
+        case 0x01:
+        {
+            uint8_t value = registers.oraIRA;
+            uint8_t ddrA  = registers.ddrA;
+
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // Bit 0 Track 0
+                    if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
+                    {
+                        bool atTrack0 = drive->isTrack0();
+                        if (atTrack0) value &= (~(1u << PORTA_TRACK0_SENSOR));
+                        else          value |= (1u << PORTA_TRACK0_SENSOR);
+                    }
+
+                    // Bits 3&4 unused/pulled high
+                    if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
+                    {
+                        value |= (1u << PORTA_UNUSED3);
+                    }
+                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
+                    {
+                        value |= (1u << PORTA_UNUSED4);
+                    }
+
+                    // Bit 7 BYTE READY
+                    if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
+                    {
+                        bool byteReadLow = drive->getByteReadyLow();
+                        if (byteReadLow) value &= (~(1u << PORTA_BYTE_READY));
+                        else             value |= (1u << PORTA_BYTE_READY);
+                    }
+                }
+            }
+            return value;
+        }
         case 0x02: return registers.ddrB;
         case 0x03: return registers.ddrA;
         case 0x04: return registers.timer1CounterLowByte;
@@ -207,8 +271,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
+                    uint8_t ddrB = registers.ddrB;
+
                     // DATA OUT
-                    if (registers.ddrB & (1u << IEC_DATA_OUT_BIT))
+                    if (ddrB & (1u << IEC_DATA_OUT_BIT))
                     {
                         bool driveLow = (registers.orbIRB & (1u << IEC_DATA_OUT_BIT)) == 0;
                         drive->dataChanged(driveLow);
@@ -218,7 +284,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                         drive->dataChanged(false);
                     }
                     // CLK OUT
-                    if (registers.ddrB & (1u << IEC_CLK_OUT_BIT))
+                    if (ddrB & (1u << IEC_CLK_OUT_BIT))
                     {
                         bool driveLow = (registers.orbIRB & (1u << IEC_CLK_OUT_BIT)) == 0;
                         drive->clkChanged(driveLow);
@@ -229,7 +295,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     }
                     // ATN ACK
                     bool ackEnabled = false;
-                    if (registers.ddrB & (1u << IEC_ATN_ACK_BIT))
+                    if (ddrB & (1u << IEC_ATN_ACK_BIT))
                     {
                         // On real hardware: ATNA low (bit = 0) means "auto-ack enabled".
                         ackEnabled = (value & (1u << IEC_ATN_ACK_BIT)) == 0;
@@ -237,35 +303,65 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     drive->setAtnAckEnabled(ackEnabled);
                 }
             }
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    uint8_t ddrB = registers.ddrB;
+
+                    // Bit 2: Motor Control
+                    if (ddrB & (1u << MECH_SPINDLE_MOTOR))
+                    {
+                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) != 0;
+                        if (enable) drive->startMotor();
+                        else        drive->stopMotor();
+                    }
+
+                    // Bit 3: LED
+                    if (ddrB & (1u << MECH_LED))
+                    {
+                        bool on = (registers.orbIRB & (1u << MECH_LED)) != 0;
+                        setLed(on);
+                    }
+
+                    // Bit 5 & 6: Density Code
+                    if (ddrB & ((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1)))
+                    {
+                        uint8_t orb  = registers.orbIRB;
+                        uint8_t code = ((orb >> MECH_DENSITY_BIT0) & 0x01) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1);
+                        drive->setDensityCode(code);
+                    }
+                }
+            }
             break;
         }
         case 0x01:
             {
+                uint8_t ddrA = registers.ddrA;
                 registers.oraIRA = value;
+
                 if (viaRole == VIARole::VIA1_IECBus)
                 {
                     if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                     {
-                        uint8_t ddrA = registers.ddrA;
-
                         // Bit 1 Bus Driver Selection
                         if (ddrA & (1u << PORTA_FSM_DIRECTION))
                         {
-                            bool output = (value & (PORTA_FSM_DIRECTION)) != 0;
+                            bool output = (value & (1u << PORTA_FSM_DIRECTION)) != 0;
                             drive->setFastSerialBusDirection(output);
                         }
 
                         // Bit 2 Head Side Select
                         if (ddrA & (1u << PORTA_RWSIDE_SELECT))
                         {
-                            bool side1 = (value & (PORTA_RWSIDE_SELECT)) != 0;
+                            bool side1 = (value & (1u << PORTA_RWSIDE_SELECT)) != 0;
                             drive->setHeadSide(side1); // True = side 1(top)
                         }
 
                         // Bit 5 PHI2 Clock Select
                         if (ddrA & (1u << PORTA_PHI2_CLKSEL))
                         {
-                            bool twoMHz = (value & (PORTA_PHI2_CLKSEL)) != 0;
+                            bool twoMHz = (value & (1u << PORTA_PHI2_CLKSEL)) != 0;
                             drive->setBurstClock2MHz(twoMHz);
                         }
                     }
@@ -275,12 +371,12 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x02:
         {
             registers.ddrB = value;
+            uint8_t orb = registers.orbIRB;
+
             if (viaRole == VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    uint8_t orb = registers.orbIRB;
-
                     // Re-apply DATA OUT based on new DDRB
                     if (value & (1u << IEC_DATA_OUT_BIT))
                     {
@@ -312,9 +408,69 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     drive->setAtnAckEnabled(ackEnabled);
                 }
             }
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // Bit 2: Motor Control
+                    if (value & (1u << MECH_SPINDLE_MOTOR))
+                    {
+                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
+                        if (enable) drive->startMotor();
+                        else        drive->stopMotor();
+                    }
+
+                    // Bit 3: LED
+                    if (value & (1u << MECH_LED))
+                    {
+                        bool on = (orb & (1u << MECH_LED)) != 0;
+                        setLed(on);
+                    }
+
+                    // Bit 5 & 6: Density Code
+                    if (value & ((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1)))
+                    {
+                        uint8_t code = (((orb >> MECH_DENSITY_BIT0) & 0x01)) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1);
+                        drive->setDensityCode(code); // 0...3
+                    }
+                }
+            }
             break;
         }
-        case 0x03: registers.ddrA = value; break;
+        case 0x03:
+        {
+            registers.ddrA = value;
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    uint8_t ora = registers.oraIRA;
+                    uint8_t ddrA = registers.ddrA;
+
+                    // Bit 1 Bus Driver Selection
+                    if (ddrA & (1u << PORTA_FSM_DIRECTION))
+                    {
+                        bool output = (ora & (1u << PORTA_FSM_DIRECTION)) != 0;
+                        drive->setFastSerialBusDirection(output);
+                    }
+
+                    // Bit 2 Head Side Select
+                    if (ddrA & (1u << PORTA_RWSIDE_SELECT))
+                    {
+                        bool side1 = (ora & (1u << PORTA_RWSIDE_SELECT));
+                        drive->setHeadSide(side1);
+                    }
+
+                    // Bit 5 Phi2 Clock Select
+                    if (ddrA & (1u << PORTA_PHI2_CLKSEL))
+                    {
+                        bool twoMHz = (ora & (1u << PORTA_PHI2_CLKSEL));
+                        drive->setBurstClock2MHz(twoMHz);
+                    }
+                }
+            }
+            break;
+        }
         case 0x04:
         {
             registers.timer1CounterLowByte = value;

@@ -57,6 +57,7 @@ void D1571Memory::tick()
     if (parentPeripheral)
     {
         auto* drive = static_cast<D1571*>(parentPeripheral);
+        drive->syncTrackFromFDC();
         drive->updateIRQ();
     }
 }

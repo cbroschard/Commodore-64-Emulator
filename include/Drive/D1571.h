@@ -76,18 +76,20 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // Drive Runtime Properties
         inline void setHeadSide(bool side1) { currentSide = side1 ? 1 : 0; } // 0 = bottom, 1 = top
+        inline void setDensityCode(uint8_t code) { densityCode = code & 0x03; }
         inline bool isTrack0() { return currentTrack == 0; }
         void setFastSerialBusDirection(bool output);
         void setBurstClock2MHz(bool enable);
         bool getByteReadyLow() const;
+        void syncTrackFromFDC();
 
         // ML Monitor
-        inline CPU* getDriveCPU() { return &driveCPU; }
-        inline D1571Memory* getMemory() { return &d1571Mem; }
-        inline FDC177x* getFDC() override { return &d1571Mem.getFDC(); }
-        inline D1571CIA* getCIA() { return &d1571Mem.getCIA(); }
-        inline D1571VIA* getVIA1() { return &d1571Mem.getVIA1(); }
-        inline D1571VIA* getVIA2() { return &d1571Mem.getVIA2(); }
+        inline const CPU* getDriveCPU() const { return &driveCPU; }
+        inline const D1571Memory* getMemory() const { return &d1571Mem; }
+        inline const FDC177x* getFDC() const { return &d1571Mem.getFDC(); }
+        inline const D1571CIA* getCIA() const { return &d1571Mem.getCIA(); }
+        inline const D1571VIA* getVIA1() const { return &d1571Mem.getVIA1(); }
+        inline const D1571VIA* getVIA2() const { return &d1571Mem.getVIA2(); }
         const char* getDriveTypeName() const noexcept override { return "1571"; }
 
     protected:
@@ -116,6 +118,7 @@ class D1571 : public Drive, public FloppyControllerHost
         bool currentSide;
         bool fastSerialOutput;
         bool twoMHzMode;
+        uint8_t densityCode; // 0..3
 
         // ATN auto-ack state
         bool atnAckEnabled;      // latched from VIA bit 4 + DDRB

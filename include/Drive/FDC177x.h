@@ -28,6 +28,9 @@ class FDC177x
         void writeRegister(uint16_t address, uint8_t value);
 
         inline bool checkIRQActive() const { return intrq; }
+        inline bool checkDRQActive() const { return drq; }
+
+        inline uint8_t getCurrentTrack() const { return registers.track; }
 
     protected:
 

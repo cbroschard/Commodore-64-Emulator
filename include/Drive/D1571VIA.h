@@ -39,6 +39,11 @@ class D1571VIA
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
+        // Drive mechanics
+        inline void setLed(bool on) { ledOn = on; }
+        inline void setSyncDetected(bool low) { syncDetectedLow = low; }
+        inline bool isSyncDetectedLow() const { return syncDetectedLow; }
+
     protected:
 
     private:
@@ -72,6 +77,19 @@ class D1571VIA
             IEC_ATN_IN_BIT   = 7
         };
 
+        // Port B Mechanical Bits
+        enum : uint8_t
+        {
+            MECH_STEPPER_PHASE0 = 0, // PB0: stepper phase bit 0 (output)
+            MECH_STEPPER_PHASE1 = 1, // PB1: stepper phase bit 1 (output)
+            MECH_SPINDLE_MOTOR  = 2, // PB2: spindle motor on/off (output, 1 = on)
+            MECH_LED            = 3, // PB3: drive LED (output, 1 = on)
+            MECH_WRITE_PROTECT  = 4, // PB4: write-protect sensor (input, 0 = write-protected)
+            MECH_DENSITY_BIT0   = 5, // PB5: density select bit 0 (output)
+            MECH_DENSITY_BIT1   = 6, // PB6: density select bit 1 (output)
+            MECH_SYNC_DETECTED  = 7  // PB7: sync detected (input, 0 = sync seen)
+        };
+
         // Role
         VIARole viaRole;
 
@@ -101,6 +119,10 @@ class D1571VIA
             uint8_t interruptEnable;
             uint8_t oraIRANoHandshake;
         } registers;
+
+        // Drive Mechanics
+        bool ledOn;
+        bool syncDetectedLow;
 
         uint16_t t1Counter;
         uint16_t t1Latch;
