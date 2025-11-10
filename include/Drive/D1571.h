@@ -8,6 +8,9 @@
 #ifndef D1571_H
 #define D1571_H
 
+// Forward declarations
+class IECBUS;
+
 #include <algorithm>
 #include <cstring>
 #include "IECBUS.h"
@@ -35,17 +38,57 @@ class D1571 : public Drive, public FloppyControllerHost
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
 
+        // IEC getters
+        inline bool getAtnLineLow() const { return atnLineLow; }
+        inline bool getClkLineLow() const { return clkLineLow; }
+        inline bool getDataLineLow() const { return dataLineLow; }
+        inline bool getSRQAsserted() const { return srqAsserted; }
+
         // IRQ handling
         void updateIRQ();
 
+        // Drive Mechanics
+        inline void startMotor() override { motorOn = true; }
+        inline void stopMotor() override { motorOn = false; }
+        inline bool isMotorOn() const override { return motorOn; }
+
         // Floppy image handling
+        inline uint8_t getCurrentTrack() const override { return currentTrack; }
+        inline uint8_t getCurrentSector() const override { return currentSector; }
+        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
         inline void setDiskWriteProtected(bool on) { diskWriteProtected = on; }
+        inline bool isDiskLoaded() const override { return diskLoaded; }
         bool fdcIsWriteProtected() const override;
-        bool mountDisk(const std::string& path);
-        void unmountDisk();
+        void loadDisk(const std::string& path) override;
+        void unloadDisk() override;
         bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
         bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) override;
+        std::vector<unsigned char> getDirectoryListing() override;
+        std::vector<unsigned char> loadFileByName(const std::string& name) override;
 
+        // IECBUS
+        void atnChanged(bool atnLow) override;
+        void setAtnAckEnabled(bool enabled);
+        void clkChanged(bool clkState) override;
+        void dataChanged(bool dataState) override;
+        void setSRQAsserted(bool state) override;
+        inline bool isSRQAsserted() const override { return srqAsserted; }
+
+        // Drive Runtime Properties
+        inline void setHeadSide(bool side1) { currentSide = side1 ? 1 : 0; } // 0 = bottom, 1 = top
+        inline bool isTrack0() { return currentTrack == 0; }
+        void setFastSerialBusDirection(bool output);
+        void setBurstClock2MHz(bool enable);
+        bool getByteReadyLow() const;
+
+        // ML Monitor
+        inline CPU* getDriveCPU() { return &driveCPU; }
+        inline D1571Memory* getMemory() { return &d1571Mem; }
+        inline FDC177x* getFDC() override { return &d1571Mem.getFDC(); }
+        inline D1571CIA* getCIA() { return &d1571Mem.getCIA(); }
+        inline D1571VIA* getVIA1() { return &d1571Mem.getVIA1(); }
+        inline D1571VIA* getVIA2() { return &d1571Mem.getVIA2(); }
+        const char* getDriveTypeName() const noexcept override { return "1571"; }
 
     protected:
         bool motorOn;
@@ -63,6 +106,24 @@ class D1571 : public Drive, public FloppyControllerHost
         // Non-owning pointers
         IECBUS* bus;
 
+        // IECBUS
+        bool atnLineLow;
+        bool clkLineLow;
+        bool dataLineLow;
+        bool srqAsserted;
+
+        // Drive Properties
+        bool currentSide;
+        bool fastSerialOutput;
+        bool twoMHzMode;
+
+        // ATN auto-ack state
+        bool atnAckEnabled;      // latched from VIA bit 4 + DDRB
+        bool atnAckPullsDataLow; // current auto-ack contribution to DATA line
+
+        // Normal DATA OUT contribution from VIA
+        bool dataOutPullsLow;
+
         // Floppy Image
         std::string loadedDiskName;
         bool diskLoaded;
@@ -75,6 +136,8 @@ class D1571 : public Drive, public FloppyControllerHost
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
+        void applyDataLine();
+        void updateAtnAckState();
 };
 
 #endif // D1571_H

@@ -8,6 +8,9 @@
 #ifndef D1571VIA_H
 #define D1571VIA_H
 
+// Forward declarations
+class D1571;
+
 #include <cstdint>
 #include "Peripheral.h"
 
@@ -42,6 +45,32 @@ class D1571VIA
 
         // Non-owning pointers
         Peripheral* parentPeripheral;
+
+        // Port A Hardware Setting Bits
+        enum : uint8_t
+        {
+            PORTA_TRACK0_SENSOR     = 0,
+            PORTA_FSM_DIRECTION     = 1,
+            PORTA_RWSIDE_SELECT     = 2,
+            PORTA_UNUSED3           = 3,
+            PORTA_UNUSED4           = 4,
+            PORTA_PHI2_CLKSEL       = 5,
+            PORTA_UNUSED6           = 6,
+            PORTA_BYTE_READY        = 7
+        };
+
+        // Port B IEC Bits
+        enum : uint8_t
+        {
+            IEC_DATA_IN_BIT  = 0,
+            IEC_DATA_OUT_BIT = 1,
+            IEC_CLK_IN_BIT   = 2,
+            IEC_CLK_OUT_BIT  = 3,
+            IEC_ATN_ACK_BIT  = 4,
+            IEC_DEV_BIT0     = 5, // device address switch bit 0
+            IEC_DEV_BIT1     = 6, // device address switch bit 1
+            IEC_ATN_IN_BIT   = 7
+        };
 
         // Role
         VIARole viaRole;

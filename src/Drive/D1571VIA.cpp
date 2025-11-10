@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Drive/D1571.h"
 #include "Drive/D1571VIA.h"
 
 D1571VIA::D1571VIA() :
@@ -124,23 +125,73 @@ uint8_t D1571VIA::readRegister(uint16_t address)
 {
     switch(address)
     {
-        case 0x00: return registers.orbIRB; break;
-        case 0x01: return registers.oraIRA; break;
-        case 0x02: return registers.ddrB; break;
-        case 0x03: return registers.ddrA; break;
-        case 0x04: return registers.timer1CounterLowByte; break;
-        case 0x05: return registers.timer1CounterHighByte; break;
-        case 0x06: return registers.timer1LowLatch; break;
-        case 0x07: return registers.timer1HighLatch; break;
-        case 0x08: return registers.timer2CounterLowByte; break;
-        case 0x09: return registers.timer2CounterHighByte; break;
-        case 0x0A: return registers.serialShift; break;
-        case 0x0B: return registers.auxControlRegister; break;
-        case 0x0C: return registers.peripheralControlRegister; break;
-        case 0x0D: return registers.interruptFlag; break;
-        case 0x0E: return registers.interruptEnable; break;
-        case 0x0F: return registers.oraIRANoHandshake; break;
-        default: break;
+        case 0x00:
+        {
+            uint8_t value = registers.orbIRB; // read latch
+            uint8_t ddrB = registers.ddrB; // data direction
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // Data In
+                    if ((ddrB & (1u << IEC_DATA_IN_BIT)) == 0)
+                    {
+                        bool low = drive->getDataLineLow();
+                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_DATA_IN_BIT));
+                        else     value |= static_cast<uint8_t>(1u << IEC_DATA_IN_BIT);
+                    }
+                    // Clk In
+                    if ((ddrB & (1u << IEC_CLK_IN_BIT)) == 0)
+                    {
+                        bool low = drive->getClkLineLow();
+                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_CLK_IN_BIT));
+                        else     value |= static_cast<uint8_t>(1u << IEC_CLK_IN_BIT);
+                    }
+                    // Atn In
+                    if ((ddrB & (1u << IEC_ATN_IN_BIT)) == 0)
+                    {
+                        bool low = drive->getAtnLineLow();
+                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_ATN_IN_BIT));
+                        else     value |= static_cast<uint8_t>(1u << IEC_ATN_IN_BIT);
+                    }
+                    // Device number DIP "switches"
+                    int dev = drive->getDeviceNumber();
+                    int offset = dev - 8;
+                    if (offset < 0 || offset > 3) offset = 0; // Clamp value to reasonable number
+
+                    // PB5 (DEV_BIT0)
+                    if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)   // only override when configured as input
+                    {
+                        if (offset & 0x01) value |=  (1u << IEC_DEV_BIT0);
+                        else               value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
+                    }
+
+                    // PB6 (DEV_BIT1)
+                    if ((ddrB & (1u << IEC_DEV_BIT1)) == 0)
+                    {
+                        if (offset & 0x02) value |=  (1u << IEC_DEV_BIT1);
+                        else               value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT1));
+                    }
+                }
+            }
+            return value;
+        }
+        case 0x01: return registers.oraIRA;
+        case 0x02: return registers.ddrB;
+        case 0x03: return registers.ddrA;
+        case 0x04: return registers.timer1CounterLowByte;
+        case 0x05: return registers.timer1CounterHighByte;
+        case 0x06: return registers.timer1LowLatch;
+        case 0x07: return registers.timer1HighLatch;
+        case 0x08: return registers.timer2CounterLowByte;
+        case 0x09: return registers.timer2CounterHighByte;
+        case 0x0A: return registers.serialShift;
+        case 0x0B: return registers.auxControlRegister;
+        case 0x0C: return registers.peripheralControlRegister;
+        case 0x0D: return registers.interruptFlag;
+        case 0x0E: return registers.interruptEnable;
+        case 0x0F: return registers.oraIRANoHandshake;
+        default: return 0xFF; // open bus
     }
     return 0xFF;
 }
@@ -149,9 +200,120 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 {
     switch(address)
     {
-        case 0x00: registers.orbIRB = value; break;
-        case 0x01: registers.oraIRA = value; break;
-        case 0x02: registers.ddrB = value; break;
+        case 0x00:
+        {
+            registers.orbIRB = value;
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // DATA OUT
+                    if (registers.ddrB & (1u << IEC_DATA_OUT_BIT))
+                    {
+                        bool driveLow = (registers.orbIRB & (1u << IEC_DATA_OUT_BIT)) == 0;
+                        drive->dataChanged(driveLow);
+                    }
+                    else
+                    {
+                        drive->dataChanged(false);
+                    }
+                    // CLK OUT
+                    if (registers.ddrB & (1u << IEC_CLK_OUT_BIT))
+                    {
+                        bool driveLow = (registers.orbIRB & (1u << IEC_CLK_OUT_BIT)) == 0;
+                        drive->clkChanged(driveLow);
+                    }
+                    else
+                    {
+                        drive->clkChanged(false);
+                    }
+                    // ATN ACK
+                    bool ackEnabled = false;
+                    if (registers.ddrB & (1u << IEC_ATN_ACK_BIT))
+                    {
+                        // On real hardware: ATNA low (bit = 0) means "auto-ack enabled".
+                        ackEnabled = (value & (1u << IEC_ATN_ACK_BIT)) == 0;
+                    }
+                    drive->setAtnAckEnabled(ackEnabled);
+                }
+            }
+            break;
+        }
+        case 0x01:
+            {
+                registers.oraIRA = value;
+                if (viaRole == VIARole::VIA1_IECBus)
+                {
+                    if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                    {
+                        uint8_t ddrA = registers.ddrA;
+
+                        // Bit 1 Bus Driver Selection
+                        if (ddrA & (1u << PORTA_FSM_DIRECTION))
+                        {
+                            bool output = (value & (PORTA_FSM_DIRECTION)) != 0;
+                            drive->setFastSerialBusDirection(output);
+                        }
+
+                        // Bit 2 Head Side Select
+                        if (ddrA & (1u << PORTA_RWSIDE_SELECT))
+                        {
+                            bool side1 = (value & (PORTA_RWSIDE_SELECT)) != 0;
+                            drive->setHeadSide(side1); // True = side 1(top)
+                        }
+
+                        // Bit 5 PHI2 Clock Select
+                        if (ddrA & (1u << PORTA_PHI2_CLKSEL))
+                        {
+                            bool twoMHz = (value & (PORTA_PHI2_CLKSEL)) != 0;
+                            drive->setBurstClock2MHz(twoMHz);
+                        }
+                    }
+                }
+                break;
+            }
+        case 0x02:
+        {
+            registers.ddrB = value;
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    uint8_t orb = registers.orbIRB;
+
+                    // Re-apply DATA OUT based on new DDRB
+                    if (value & (1u << IEC_DATA_OUT_BIT))
+                    {
+                        bool pullDataLow = (orb & (1u << IEC_DATA_OUT_BIT)) == 0;
+                        drive->dataChanged(pullDataLow);
+                    }
+                    else
+                    {
+                        drive->dataChanged(false);
+                    }
+
+                    // Re-apply CLK OUT based on new DDRB
+                    if (value & (1u << IEC_CLK_OUT_BIT))
+                    {
+                        bool pullClkLow = (orb & (1u << IEC_CLK_OUT_BIT)) == 0;
+                        drive->clkChanged(pullClkLow);
+                    }
+                    else
+                    {
+                        drive->clkChanged(false);
+                    }
+
+                    // Recompute ATN-ACK enable based on DDRB[4] and ORB[4]
+                    bool ackEnabled = false;
+                    if (value & (1u << IEC_ATN_ACK_BIT))
+                    {
+                        ackEnabled = (orb & (1u << IEC_ATN_ACK_BIT)) == 0;
+                    }
+                    drive->setAtnAckEnabled(ackEnabled);
+                }
+            }
+            break;
+        }
         case 0x03: registers.ddrA = value; break;
         case 0x04:
         {

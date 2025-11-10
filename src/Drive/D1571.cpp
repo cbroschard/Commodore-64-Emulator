@@ -6,9 +6,21 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1571.h"
+#include "IECBUS.h"
 
 D1571::D1571(int deviceNumber, const std::string& fileName) :
     motorOn(false),
+    bus(nullptr),
+    atnLineLow(false),
+    clkLineLow(false),
+    dataLineLow(false),
+    srqAsserted(false),
+    currentSide(1),
+    fastSerialOutput(false),
+    twoMHzMode(false),
+    atnAckEnabled(false),
+    atnAckPullsDataLow(false),
+    dataOutPullsLow(false),
     diskLoaded(false),
     diskWriteProtected(false)
 {
@@ -42,8 +54,50 @@ void D1571::reset()
     currentTrack = 0;
     currentSector = 1;
 
+    // IEC BUS reset
+    atnLineLow         = false;
+    clkLineLow         = false;
+    dataLineLow        = false;
+    srqAsserted        = false;
+    atnAckEnabled      = false;
+    atnAckPullsDataLow = false;
+    dataOutPullsLow    = false;
+
+    // 1571 Runtime Properties reset
+    currentSide = 0;
+    fastSerialOutput = false;
+    twoMHzMode = false;
+
+    // Force reset state
+    applyDataLine();
+
     d1571Mem.reset();
     driveCPU.reset();
+}
+
+void D1571::setSRQAsserted(bool state)
+{
+    srqAsserted = state;
+    if (bus)
+    {
+        bus->setSrqLine(state);
+    }
+}
+
+void D1571::setFastSerialBusDirection(bool output)
+{
+    fastSerialOutput = output; // bool member, hook up later
+}
+
+void D1571::setBurstClock2MHz(bool enable)
+{
+    twoMHzMode = enable;       // bool member, hook up later to timing
+}
+
+bool D1571::getByteReadyLow() const
+{
+    // TODO: hook into gate array / VIA2 later.
+    return false;
 }
 
 bool D1571::canMount(DiskFormat fmt) const
@@ -64,7 +118,7 @@ void D1571::updateIRQ()
     else IRQ.clearIRQ(IRQLine::D1571_IRQ);
 }
 
-bool D1571::mountDisk(const std::string& path)
+void D1571::loadDisk(const std::string& path)
 {
     diskWriteProtected = false;
     auto img = DiskFactory::create(path);
@@ -74,7 +128,7 @@ bool D1571::mountDisk(const std::string& path)
         diskLoaded = false;
         loadedDiskName.clear();
         lastError = DriveError::NO_DISK;
-        return false;
+        return;
     }
 
     // Try to load the disk image from file
@@ -83,7 +137,7 @@ bool D1571::mountDisk(const std::string& path)
         diskLoaded = false;
         loadedDiskName.clear();
         lastError = DriveError::NO_DISK;
-        return false;
+        return;
     }
 
     // Success load it
@@ -94,11 +148,9 @@ bool D1571::mountDisk(const std::string& path)
 
     currentTrack  = 18;
     currentSector = 0;
-
-    return true;
 }
 
-void D1571::unmountDisk()
+void D1571::unloadDisk()
 {
     // Drop the current image
     diskWriteProtected = false;
@@ -177,4 +229,59 @@ bool D1571::fdcWriteSector(uint8_t track,
 bool D1571::fdcIsWriteProtected() const
 {
     return diskWriteProtected;
+}
+
+std::vector<unsigned char> D1571::getDirectoryListing()
+{
+    // TODO: implement via diskImage
+    return {};
+}
+
+std::vector<unsigned char> D1571::loadFileByName(const std::string& name)
+{
+    // TODO: implement via diskImage
+    return {};
+}
+
+void D1571::applyDataLine()
+{
+    bool drivePullsDataLow = dataOutPullsLow || atnAckPullsDataLow;
+    dataLineLow = drivePullsDataLow;
+
+    if (bus) bus->setDataLine(drivePullsDataLow);
+}
+
+void D1571::updateAtnAckState()
+{
+    bool newAckPullsLow = atnAckEnabled && atnLineLow;
+
+    if (newAckPullsLow != atnAckPullsDataLow)
+    {
+        atnAckPullsDataLow = newAckPullsLow;
+        applyDataLine(); // push updated combined state to the bus
+    }
+}
+
+void D1571::atnChanged(bool atnLow)
+{
+    atnLineLow = atnLow;
+    updateAtnAckState();
+}
+
+void D1571::setAtnAckEnabled(bool enabled)
+{
+    atnAckEnabled = enabled;
+    updateAtnAckState();
+}
+
+void D1571::clkChanged(bool clkState)
+{
+    clkLineLow = clkState;
+    if (bus) bus->setClkLine(clkState);
+}
+
+void D1571::dataChanged(bool dataState)
+{
+    dataOutPullsLow = dataState;
+    applyDataLine();
 }
