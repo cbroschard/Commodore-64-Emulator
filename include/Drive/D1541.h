@@ -63,6 +63,9 @@ class D1541 : public Drive
         // SRQ setter
         void setSRQAsserted(bool state) override;
 
+        // ML Monitor
+        const char* getDriveTypeName() const noexcept override { return "1541"; }
+
     protected:
         bool motorOn;
 

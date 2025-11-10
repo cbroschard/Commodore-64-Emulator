@@ -20,6 +20,9 @@ class D1581 : public Drive
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
 
+        // ML Monitor
+        const char* getDriveTypeName() const noexcept override { return "1581"; }
+
     protected:
 
     private:
