@@ -8,6 +8,9 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
+// Forward declarations
+class FDC177x;
+
 #include <queue>
 #include <memory>
 #include "cpu.h"
@@ -23,6 +26,7 @@ class Drive : public Peripheral
 
         // Pointers
         void attachLoggingInstance(Logging* logger);
+        virtual FDC177x* getFDC() { return nullptr; }
 
         // ATN Changed
         void atnChanged(bool atnAsserted) override;
@@ -56,6 +60,9 @@ class Drive : public Peripheral
         virtual void startMotor() = 0;
         virtual void stopMotor() = 0;
         virtual bool isMotorOn() const = 0;
+
+        // Drive model/type name for monitor / UI
+        virtual const char* getDriveTypeName() const noexcept = 0;
 
     protected:
 
