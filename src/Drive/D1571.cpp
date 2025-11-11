@@ -279,6 +279,10 @@ void D1571::updateAtnAckState()
 
 void D1571::atnChanged(bool atnLow)
 {
+    // Do base IEC level ATN first
+    Drive::atnChanged(atnLow);
+
+    // Now do local level
     atnLineLow = atnLow;
     updateAtnAckState();
 }
