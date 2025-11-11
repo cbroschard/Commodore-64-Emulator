@@ -136,7 +136,7 @@ void D1541::clkChanged(bool clkState)
 {
     if (bus)
     {
-        bus->setClkLine(clkState);
+        bus->setClkLine(!clkState);
     }
 }
 
@@ -144,7 +144,7 @@ void D1541::dataChanged(bool dataState)
 {
     if (bus)
     {
-        bus->setDataLine(dataState);
+        bus->setDataLine(!dataState);
     }
 }
 

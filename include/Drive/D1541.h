@@ -18,6 +18,9 @@ class D1541 : public Drive
         D1541(int deviceNumber);
         virtual ~D1541();
 
+        // Reset function
+        void reset() override;
+
         // Advance drive via tick method
         void tick() override;
 
@@ -74,9 +77,6 @@ class D1541 : public Drive
         // Owning pointers
         D1541Memory d1541mem;
         CPU driveCPU;
-
-        // Reset function
-        void reset() override;
 
         // Floppy Image
         std::string loadedDiskName;
