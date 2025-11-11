@@ -505,6 +505,13 @@ bool Computer::boot()
             std::cout << "Successfully loaded the file: " << prgPath << "\n";
         }
     }
+    else if (diskAttached)
+    {
+        drive8 = std::make_unique<D1571>(8, D1571ROM);
+        drive8->reset();
+        drive8->attachBusInstance(bus.get());
+        drive8->loadDisk(diskPath);
+    }
 
     // **Start Audio Playback**
     IO_adapter->playAudio();
@@ -613,6 +620,8 @@ bool Computer::boot()
 
             // VIC-II raster updates always occur
             vicII->tick(elapsedCycles);
+
+            if (drive8) drive8->tick();
 
             if (vicII->isFrameDone())
             {
