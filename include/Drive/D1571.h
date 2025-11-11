@@ -28,8 +28,6 @@ class D1571 : public Drive, public FloppyControllerHost
         D1571(int deviceNumber, const std::string& fileName);
         virtual ~D1571();
 
-        inline void attachBusInstance(IECBUS* bus) { this->bus = bus; }
-
         void reset() override;
 
         // Advance drive via tick method
