@@ -146,7 +146,8 @@ void D1571::loadDisk(const std::string& path)
     }
 
     // Try to load the disk image from file
-    if (!img->loadDisk(path)) {
+    if (!img->loadDisk(path))
+    {
         diskImage.reset();
         diskLoaded = false;
         loadedDiskName.clear();

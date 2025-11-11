@@ -9,7 +9,6 @@
 #define CPU_H
 
 // forward declarations
-class Memory;
 class CIA2;
 class Vic;
 class PLA;
@@ -20,9 +19,9 @@ class PLA;
 #include <functional>
 #include <stdint.h>
 #include "common.h"
+#include "CPUBus.h"
 #include "IRQLine.h"
 #include "Logging.h"
-#include "Memory.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
 
@@ -34,7 +33,7 @@ class CPU
         virtual ~CPU();
 
         // Pointers
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
+        inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
@@ -166,7 +165,7 @@ class CPU
         CIA2* cia2object;
         IRQLine* IRQ;
         Logging* logger;
-        Memory* mem;
+        CPUBus* mem;
         TraceManager* traceMgr;
         Vic* vicII;
 

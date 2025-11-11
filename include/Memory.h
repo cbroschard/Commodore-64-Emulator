@@ -27,13 +27,14 @@ class CIA1;
 #include "CIA2.h"
 #include "common.h"
 #include "CPU.h"
+#include "CPUBus.h"
 #include "Logging.h"
 #include "Mlmonitor.h"
 #include "PLA.h"
 #include "SID/SID.h"
 #include "Vic.h"
 
-class Memory
+class Memory : public CPUBus
 {
     public:
 

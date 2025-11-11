@@ -13,12 +13,12 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include "CPUBus.h"
 #include "D1541VIA.h"
 #include "Logging.h"
-#include "Memory.h"
 #include "IRQLine.h"
 
-class D1541Memory : public Memory
+class D1541Memory : public CPUBus
 {
     public:
         D1541Memory();
