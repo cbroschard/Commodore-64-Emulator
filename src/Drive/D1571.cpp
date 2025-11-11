@@ -10,7 +10,6 @@
 
 D1571::D1571(int deviceNumber, const std::string& fileName) :
     motorOn(false),
-    bus(nullptr),
     atnLineLow(false),
     clkLineLow(false),
     dataLineLow(false),

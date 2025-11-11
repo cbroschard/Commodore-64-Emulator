@@ -103,9 +103,6 @@ class D1571 : public Drive, public FloppyControllerHost
         // Floppy factory
         std::unique_ptr<Disk> diskImage;
 
-        // Non-owning pointers
-        IECBUS* bus;
-
         // IECBUS
         bool atnLineLow;
         bool clkLineLow;
