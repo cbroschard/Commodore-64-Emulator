@@ -644,27 +644,24 @@ void CIA2::dataChanged(bool state)
     lastDataLevel = state;
 }
 
-void CIA2::atnChanged(bool asserted)
+void CIA2::atnChanged(bool assertedLow)
 {
-    // Did we just go from high to low?
-    bool fallingEdge = lastAtnLevel && !asserted;
+    bool fallingEdge = !lastAtnLevel && assertedLow;
 
-    // Update the current ATN line level
-    atnLine = asserted;
+    atnLine = assertedLow;
 
     if (fallingEdge)
     {
         // ATN was just asserted by the C64
-        currentSecondaryAddress = 0xFF; // no address selected
+        currentSecondaryAddress = 0xFF;
         listening = false;
-        talking = false;
+        talking  = false;
         shiftReg = 0;
         bitCount = 0;
-        outBit = 7;
+        outBit   = 7;
     }
 
-    // Remember for next time
-    lastAtnLevel = asserted;
+    lastAtnLevel = assertedLow;
 }
 
 void CIA2::srqChanged(bool level)

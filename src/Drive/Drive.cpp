@@ -36,11 +36,12 @@ void Drive::atnChanged(bool atnAsserted)
 {
     if (atnAsserted)
     {
+        peripheralAssertClk(false);
+        peripheralAssertData(false);
+
         // ATN LOW (Command Mode)
         if (currentDriveBusState == DriveBusState::TALKING)
         {
-            peripheralAssertClk(true);   // release CLK
-            peripheralAssertData(true); // release DATA
             talkBitPos = -1;
             waitingForAck = false;
             while (!talkQueue.empty()) talkQueue.pop();
@@ -146,7 +147,7 @@ void Drive::tick()
                     listenBuffer.push_back(bitShiftRegister);
 
                     // ACK with DATA low
-                    peripheralAssertData(false);
+                    peripheralAssertData(true);
                     ackDelay = 2;
 
                     // Optional: process buffer on carriage return
@@ -174,7 +175,7 @@ void Drive::tick()
             if (lastClkHigh && !clk)
             {
                 bool bit = (currentTalkByte >> talkBitPos) & 1;
-                peripheralAssertData(!bit); // Active LOW
+                peripheralAssertData(bit == 0); // Active LOW
 
                 talkBitPos--;
 
@@ -189,7 +190,7 @@ void Drive::tick()
             {
                 waitingForAck = false;
                 talkBitPos = -1;
-                peripheralAssertData(true); // release DATA
+                peripheralAssertData(false); // release DATA
             }
         }
     }
@@ -200,7 +201,7 @@ void Drive::tick()
         ackDelay--;
         if (ackDelay == 0)
         {
-            peripheralAssertData(true); // release DATA
+            peripheralAssertData(false); // release DATA
         }
     }
 
