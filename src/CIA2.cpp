@@ -704,77 +704,74 @@ void CIA2::srqChanged(bool level)
 
 void CIA2::decodeIECCommand(uint8_t cmd)
 {
-    uint8_t code = cmd & 0xF0;
+    uint8_t code   = cmd & 0xF0;
     uint8_t device = cmd & 0x0F;
-    if (bus)
+
+    if (!bus)
+        return;
+
+    switch (code)
     {
-        switch (code)
+        case 0x20:  // LISTEN <device>
         {
-            case 0x20:  // LISTEN <device>
+            bus->listen(device);
+            listening  = true;
+            talking    = false;
+            currentSecondaryAddress  = 0xFF;
+            expectedSecondaryAddress = 0xFF;
+            break;
+        }
+
+        case 0x30:  // UNLISTEN <device>
+        {
+            bus->unListen(device);
+            listening  = false;
+            talking    = false;
+            currentSecondaryAddress  = 0xFF;
+            expectedSecondaryAddress = 0xFF;
+            break;
+        }
+
+        case 0x40:  // TALK <device>
+        {
+            bus->talk(device);
+            talking    = true;
+            listening  = false;
+            currentSecondaryAddress  = 0xFF;
+            expectedSecondaryAddress = 0xFF;
+            outBit = 7;
+            break;
+        }
+
+        case 0x60:  // UNTALK <device>
+        {
+            bus->unTalk(device);
+            talking    = false;
+            listening  = false;
+            currentSecondaryAddress  = 0xFF;
+            expectedSecondaryAddress = 0xFF;
+            break;
+        }
+
+        case 0xE0:  // secondary address
+        {
+            if (listening || talking)
             {
-                if (device == deviceNumber)
-                {
-                    bus->listen(device);
-                    listening = true;
-                    talking = false;
-                    currentSecondaryAddress = 0xFF;
-                    expectedSecondaryAddress = 0xFF;
-                }
-                break;
+                currentSecondaryAddress  = device;
+                expectedSecondaryAddress = currentSecondaryAddress;
             }
-            case 0x30:  // UNLISTEN <device>
+            break;
+        }
+
+        default:
+        {
+            if (logger && setLogging)
             {
-                if (device == deviceNumber)
-                {
-                    bus->unListen(device);
-                    listening = false;
-                    talking = false;
-                    currentSecondaryAddress = 0xFF;
-                    expectedSecondaryAddress = 0xFF;
-                }
-                break;
+                logger->WriteLog(
+                    "Error: Unknown IEC Bus command encountered: " +
+                    std::to_string(code));
             }
-            case 0x40:  // TALK <device>
-            {
-                if (device == deviceNumber)
-                {
-                    bus->talk(device);
-                    talking = true;
-                    listening = false;
-                    currentSecondaryAddress = 0xFF;
-                    expectedSecondaryAddress = 0xFF;
-                    outBit = 7;
-                }
-                break;
-            }
-            case 0x60:  // UNTALK <device>
-            {
-                if (device == deviceNumber)
-                {
-                    bus->unTalk(device);
-                    talking = false;
-                    listening = false;
-                    currentSecondaryAddress = 0xFF;
-                    expectedSecondaryAddress = 0xFF;
-                }
-                break;
-            }
-            case 0xE0:  // secondary address (if you need it)
-            {
-                if (listening || talking)
-                {
-                    currentSecondaryAddress = device;
-                    expectedSecondaryAddress = currentSecondaryAddress;
-                }
-                break;
-            }
-            default:
-                // ignore and log unknown command
-                if (logger && setLogging)
-                {
-                    logger->WriteLog("Error: Unknown IEC Bus command encountered: " + std::to_string(code));
-                }
-                break;
+            break;
         }
     }
 }
