@@ -602,24 +602,52 @@ bool CBMImage::isValidPETSCII(uint8_t c)
 
 bool CBMImage::validateHeader()
 {
-    // Validate there's a correctly formatted signature at track 18 ,sector 0
-    size_t offset = computeOffset(18, 0);
-    const char expectedDOSType[3] = { '2', 'A', ' ' };
-    if (offset + 0xA7 >= fileImageBuffer.size())
+    // Track 18, sector 0 is the BAM + header for 1541-style disks
+    size_t offset;
+    try
     {
-        return false; // Image too small for header check
+        offset = computeOffset(18, 0);
     }
-
-    // Check DOS Type signature
-    if (!(fileImageBuffer[offset + 0xA5] == expectedDOSType[0] &&
-          fileImageBuffer[offset + 0xA6] == expectedDOSType[1] &&
-          fileImageBuffer[offset + 0xA7] == expectedDOSType[2]))
+    catch (const std::out_of_range&)
     {
-        // Incorrect signature
         return false;
     }
 
-    return true; // Passed basic header validation checks
+    // We need at least up through $A7 in this sector
+    if (offset + 0xA7 >= fileImageBuffer.size())
+    {
+        return false; // image too small for header check
+    }
+
+    uint8_t dosType0 = fileImageBuffer[offset + 0xA5]; // first DOS type char
+    uint8_t dosType1 = fileImageBuffer[offset + 0xA6]; // second DOS type char
+
+    // Accept common DOS types:
+    //  "2A" = 1541 / 5.25" (standard D64)
+    //  "2B","2C","2D","3D" etc. exist on other drives, so don't be overly strict.
+    auto isValidType = [](uint8_t c0, uint8_t c1) -> bool
+    {
+        if (c0 != '2' && c0 != '3')
+            return false;
+
+        switch (c1)
+        {
+            case 'A': // 2A: standard 1541/1571 5.25"
+            case 'B':
+            case 'C':
+            case 'D': // 3D etc. used by other variants
+                return true;
+            default:
+                return false;
+        }
+    };
+
+    if (!isValidType(dosType0, dosType1))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool CBMImage::validateDiskNameAndID()
@@ -652,36 +680,54 @@ bool CBMImage::validateDiskNameAndID()
 
 bool CBMImage::validateDirectoryChain()
 {
-    uint8_t track = directoryStart.track;
+    uint8_t track  = directoryStart.track;
     uint8_t sector = directoryStart.sector;
 
     std::set<std::pair<uint8_t, uint8_t>> visited;
 
-    while (track != 0) {
+    while (track != 0)
+    {
+        // Detect loops
         if (visited.count({track, sector}))
         {
-            // Loop detected
             return false;
         }
         visited.insert({track, sector});
 
+        // Bounds for the *current* directory sector
         size_t offset = computeOffset(track, sector);
         if (offset + SECTOR_SIZE > fileImageBuffer.size())
         {
             return false;
         }
 
-        track = fileImageBuffer[offset];
-        sector = fileImageBuffer[offset + 1];
+        // Read the *next* link in the chain
+        uint8_t nextTrack  = fileImageBuffer[offset];
+        uint8_t nextSector = fileImageBuffer[offset + 1];
 
-        // Validate track and sector ranges
-        if (track > 40 || sector >= getSectorsForTrack(track))
+        // If this is not the end-of-chain marker, validate it
+        if (nextTrack != 0)
         {
-            return false;
+            // Check track in range of the loaded geometry
+            if (nextTrack < 1 ||
+                nextTrack > geom.sectorsPerTrack.size())
+            {
+                return false;
+            }
+
+            // Check sector in range for that track
+            if (nextSector >= getSectorsForTrack(nextTrack))
+            {
+                return false;
+            }
         }
+
+        // Advance
+        track  = nextTrack;
+        sector = nextSector;
     }
 
-    // All checks passed
+    // All directory sectors walked with sane links
     return true;
 }
 
