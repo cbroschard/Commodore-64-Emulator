@@ -20,7 +20,7 @@ class MLMonitorBackend
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
-        inline void attachCIA2Instance(CIA2* cai2object) { this->cia2object = cia2object; }
+        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
         inline void attachProcessorInstance(CPU* processor) { this->processor = processor; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
