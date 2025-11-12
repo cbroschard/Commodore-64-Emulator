@@ -29,6 +29,7 @@ bool D1541::canMount(DiskFormat fmt) const
 
 void D1541::tick()
 {
+    Drive::tick();
     d1541mem.tick();
     driveCPU.tick();
 }
