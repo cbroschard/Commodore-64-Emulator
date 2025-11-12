@@ -110,39 +110,24 @@ uint8_t CIA2::readRegister(uint16_t address)
         {
             uint8_t result = portA & dataDirectionPortA;
 
-             if (bus && !(dataDirectionPortA & ATN_MASK))
+            if (bus)
             {
                 if (bus->readAtnLine())
-                {
                     result |= ATN_MASK;
-                }
                 else
-                {
                     result &= ~ATN_MASK;
-                }
-            }
-            if (bus && !(dataDirectionPortA & CLK_MASK))
-            {
+
                 if (bus->readClkLine())
-                {
                     result |= CLK_MASK;
-                }
                 else
-                {
                     result &= ~CLK_MASK;
-                }
-            }
-            if (bus && !(dataDirectionPortA & DATA_MASK))
-            {
+
                 if (bus->readDataLine())
-                {
                     result |= DATA_MASK;
-                }
                 else
-                {
                     result &= ~DATA_MASK;
-                }
             }
+
             uint8_t others = ~dataDirectionPortA & ~(ATN_MASK|CLK_MASK|DATA_MASK);
             result |= others;
             return result;
@@ -253,21 +238,8 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             // Merge new outputs only on DDR=1 bits; keep all DDR=0 bits (VIC bank) intact
             portA = (portA & ~dataDirectionPortA) | (value &  dataDirectionPortA);
 
-            // ATN (PA3)
-            if (dataDirectionPortA & ATN_MASK && bus)
-            {
-                bus->setAtnLine( (portA & ATN_MASK) != 0 );
-            }
-            // CLK (PA4)
-            if (dataDirectionPortA & CLK_MASK && bus)
-            {
-                bus->setClkLine( (portA & CLK_MASK) != 0 );
-            }
-            // DATA (PA5)
-            if (dataDirectionPortA & DATA_MASK && bus)
-            {
-                bus->setDataLine((portA & DATA_MASK) != 0 );
-            }
+            recomputeIEC();
+
             if (logger && setLogging)
             {
                 std::stringstream out;
@@ -297,8 +269,11 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 break;
             }
         case 0xDD02: // Data direction Port A
-            dataDirectionPortA = value;
-            break;
+            {
+                dataDirectionPortA = value;
+                recomputeIEC();
+                break;
+            }
         case 0xDD03: // Data direction port B
             dataDirectionPortB = value;
             break;
@@ -946,4 +921,41 @@ void CIA2::setIERExact(uint8_t mask)
     mask &= 0x1F;
     interruptEnable = mask;
     refreshNMI();
+}
+
+void CIA2::recomputeIEC()
+{
+    auto lowIntent = [&](uint8_t bit) -> bool
+    {
+        bool out = (dataDirectionPortA & (1u << bit)) != 0;   // configured as output?
+        bool val = (portA & (1u << bit)) != 0;  // output data bit
+        return out && !val;                     // only drive LOW when out=1 & data=0
+    };
+
+        // Compute a bitmask of all PA bits that are actively pulled LOW
+    uint8_t lowMask = dataDirectionPortA & ~portA;
+
+    // TEMP DEBUG: show every time the lowMask changes
+    static uint8_t prevLowMask = 0xFF;
+    if (lowMask != prevLowMask) {
+        std::cout << "[CIA2] lowMask=$" << std::hex << int(lowMask)
+                  << "  DDRA=$" << int(dataDirectionPortA)
+                  << "  PA=$"   << int(portA) << std::dec << "\n";
+        prevLowMask = lowMask;
+    }
+
+    bool atnLow  = lowIntent(BIT_ATN);
+    bool clkLow  = lowIntent(BIT_CLK);
+    bool dataLow = lowIntent(BIT_DATA);
+
+    // setXLine(true) => bus HIGH; setXLine(false) => bus LOW
+    if (bus)
+    {
+        bus->setAtnLine(!atnLow);
+        bus->setClkLine(!clkLow);
+        bus->setDataLine(!dataLow);
+    }
+
+    std::cout << "[CIA2] DDRA=" << std::hex << int(dataDirectionPortA) << " PA=" << int(portA) << " | ATNlow=" << atnLow
+        << " CLKlow=" << clkLow << " DATAlow=" << dataLow << std::dec << "\n";
 }
