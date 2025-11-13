@@ -49,6 +49,9 @@ class Peripheral
         void peripheralAssertAtn(bool state);
         void peripheralAssertSrq(bool state);
 
+        // IEC Helper
+        virtual void iecClkEdge(bool dataLevel, bool clkLevel) {}
+
         // IEC BUS commands
         void onListen();
         inline void onUnListen() { listening = false; }
