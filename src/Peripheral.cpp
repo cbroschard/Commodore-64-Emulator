@@ -43,25 +43,12 @@ void Peripheral::detachBusInstance()
 
 void Peripheral::peripheralAssertClk(bool state)
 {
-    if (!bus) return;
-
-    // Prevent any drive from pulling CLK low when ATN is asserted
-    if (!bus->getBusLines().atn) {
-        // ATN is low (asserted) → release clock
-        bus->peripheralControlClk(this, false);
-        return;
-    }
-
-    // Normal behavior when ATN released
-    bus->peripheralControlClk(this, state);
+    if (bus) bus->peripheralControlClk(this, state);
 }
 
 void Peripheral::peripheralAssertData(bool state)
 {
-    if (bus)
-    {
-        bus->peripheralControlData(this, state);
-    }
+    if (bus) bus->peripheralControlData(this, state);
 }
 
 void Peripheral::peripheralAssertAtn(bool state)
