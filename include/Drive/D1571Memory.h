@@ -86,7 +86,7 @@ class D1571Memory : public CPUBus
         static const uint16_t ROM_END  = 0xFFFF;
 
         // VIA Constants
-        static const uint16_t VIA1_START = 0x1800;
+        static const uint16_t VIA1_START = 0x1000;
         static const uint16_t VIA1_END = 0x1BFF;
         static const uint16_t VIA2_START = 0x1C00;
         static const uint16_t VIA2_END = 0x1FFF;
