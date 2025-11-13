@@ -75,23 +75,116 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     auto bit = [](bool drivesLow) { return drivesLow ? '0' : '1'; }; // 0 = pulling low
 
-    const std::string& sub = args[1];
+    // Subcommand (if any)
+    std::string sub;
+    if (!args.empty() && args.size() >= 2)
+        sub = args[1];
 
-    if (isHelp(sub))
+    // Help
+    if (!sub.empty() && isHelp(sub))
     {
         std::cout << help();
         return;
     }
 
-    // BUS
-    if ((args.size() == 1 || sub == "all") || (sub == "bus"))
+    // === device <n> special-case ===
+    if (sub == "device")
+    {
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: iec device <n>\n";
+            return;
+        }
+
+        std::string devArg = args[2];
+        // Allow "device #8" as well as "device 8"
+        if (!devArg.empty() && devArg[0] == '#')
+            devArg.erase(0, 1);
+
+        int devNum = -1;
+        try
+        {
+            devNum = std::stoi(devArg);
+        }
+        catch (...)
+        {
+            std::cout << "Invalid device number: " << devArg << "\n";
+            return;
+        }
+
+        const auto& devMap = bus->getDevices();
+        auto it = devMap.find(static_cast<uint8_t>(devNum));
+
+        if (it == devMap.end() || !it->second)
+        {
+            std::cout << "Device #" << devNum << " is not attached to the IEC bus.\n";
+            return;
+        }
+
+        Peripheral* dev = it->second;
+
+        // Talker / listener status
+        Peripheral* talker = bus->getCurrentTalker();
+        const auto& listeners = bus->getCurrentListeners();
+
+        bool isTalker   = (talker == dev);
+        bool isListener = false;
+        for (auto* l : listeners)
+        {
+            if (l == dev)
+            {
+                isListener = true;
+                break;
+            }
+        }
+
+        // State string (same mapping as in the state block)
+        const char* stateStr = "UNKNOWN";
+        switch (bus->getState())
+        {
+            case IECBUS::State::IDLE:      stateStr = "IDLE";      break;
+            case IECBUS::State::ATTENTION: stateStr = "ATTENTION"; break;
+            case IECBUS::State::TALK:      stateStr = "TALK";      break;
+            case IECBUS::State::LISTEN:    stateStr = "LISTEN";    break;
+            case IECBUS::State::UNLISTEN:  stateStr = "UNLISTEN";  break;
+            case IECBUS::State::UNTALK:    stateStr = "UNTALK";    break;
+        }
+
+        std::cout << "IEC device #" << devNum << ":\n";
+        std::cout << "  Attached:          yes\n";
+        std::cout << "  Current bus state: " << stateStr << "\n";
+        std::cout << "  Currently talking: " << (isTalker   ? "yes" : "no") << "\n";
+        std::cout << "  Currently listening: "
+                  << (isListener ? "yes" : "no") << "\n";
+        std::cout << "\n";
+
+        return; // 'device' doesn’t show the global sections
+    }
+
+    // Do we want the full view?
+    bool wantAll = (args.size() == 1 || sub == "all");
+
+    // Unknown subcommand?
+    if (args.size() >= 2 &&
+        !wantAll &&
+        sub != "bus" &&
+        sub != "drivers" &&
+        sub != "state" &&
+        sub != "devices")
+    {
+        std::cout << "Unknown subcommand '" << sub
+                  << "'. Type 'iec ?' for help.\n";
+        return;
+    }
+
+    // === BUS ===
+    if (wantAll || sub == "bus")
     {
         const IECBusLines& lines = bus->getBusLines();
         bool srq = bus->getSRQLine();
 
-        auto hl  = [](bool v) { return v ? 'H' : 'L'; };          // H/L for lines
+        auto hl = [](bool v) { return v ? 'H' : 'L'; }; // H/L for lines
 
-        // 1) Bus line levels
         std::cout << "IEC bus:\n";
         std::cout << "  Lines: ATN=" << hl(lines.atn)
                   << "  CLK="  << hl(lines.clk)
@@ -100,8 +193,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "         (H = released/high, L = pulled low)\n\n";
     }
 
-    // Drivers
-    if ((args.size() == 1 || sub == "all") || (sub == "drivers"))
+    // === DRIVERS ===
+    if (wantAll || sub == "drivers")
     {
         std::cout << "Drivers (0 = pulling low, 1 = released):\n";
         std::cout << "  C64:         ATN=" << bit(bus->getC64DrivesAtnLow())
@@ -114,8 +207,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                   << "\n\n";
     }
 
-    // State
-    if ((args.size() == 1 || sub == "all") || (sub == "state"))
+    // === STATE ===
+    if (wantAll || sub == "state")
     {
         const char* stateStr = "UNKNOWN";
         switch (bus->getState())
@@ -131,7 +224,6 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "State:\n";
         std::cout << "  Mode: " << stateStr << "\n\n";
 
-        // Talkers/Listeners
         Peripheral* talker = bus->getCurrentTalker();
         std::cout << "Talker / listeners:\n";
         if (talker)
@@ -165,8 +257,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "\n";
     }
 
-    // Devices
-    if ((args.size() == 1 || sub == "all") || (sub == "devices"))
+    // === DEVICES ===
+    if (wantAll || sub == "devices")
     {
         const auto& devMap = bus->getDevices();
         std::cout << "Devices:\n";
@@ -179,9 +271,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             for (const auto& [num, dev] : devMap)
             {
                 if (!dev) continue;
-                std::cout << "  #" << num << "\n";
+                std::cout << "  #" << static_cast<int>(num) << "\n";
             }
         }
     }
 }
-
