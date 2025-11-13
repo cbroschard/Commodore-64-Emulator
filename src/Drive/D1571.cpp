@@ -281,6 +281,8 @@ void D1571::atnChanged(bool atnLow)
     atnLineLow = atnLow;
 
     peripheralAssertClk(false);
+
+    updateAtnAckState();
 }
 
 void D1571::setAtnAckEnabled(bool enabled)
@@ -297,4 +299,5 @@ void D1571::clkChanged(bool clkState)
 void D1571::dataChanged(bool dataState)
 {
     dataOutPullsLow = dataState;
+    applyDataLine();
 }
