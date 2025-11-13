@@ -8,7 +8,7 @@
 #include "Drive/D1571.h"
 #include "IECBUS.h"
 
-D1571::D1571(int deviceNumber, const std::string& fileName) :
+D1571::D1571(int deviceNumber, const std::string& romName) :
     motorOn(false),
     atnLineLow(false),
     clkLineLow(false),
@@ -27,7 +27,7 @@ D1571::D1571(int deviceNumber, const std::string& fileName) :
     d1571Mem.attachPeripheralInstance(this);
     driveCPU.attachIRQLineInstance(&IRQ);
     driveCPU.attachMemoryInstance(&d1571Mem);
-    if (!d1571Mem.initialize(fileName))
+    if (!d1571Mem.initialize(romName))
     {
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
     }
@@ -38,6 +38,7 @@ D1571::~D1571() = default;
 
 void D1571::tick()
 {
+    Drive::tick();
     driveCPU.tick();
     d1571Mem.tick();
 }
@@ -78,10 +79,6 @@ void D1571::reset()
 void D1571::setSRQAsserted(bool state)
 {
     srqAsserted = state;
-    if (bus)
-    {
-        bus->setSrqLine(state);
-    }
 }
 
 void D1571::setFastSerialBusDirection(bool output)
@@ -262,7 +259,7 @@ void D1571::applyDataLine()
     bool drivePullsDataLow = dataOutPullsLow || atnAckPullsDataLow;
     dataLineLow = drivePullsDataLow;
 
-    if (bus) bus->setDataLine(drivePullsDataLow);
+    peripheralAssertData(drivePullsDataLow);
 }
 
 void D1571::updateAtnAckState()
@@ -278,12 +275,12 @@ void D1571::updateAtnAckState()
 
 void D1571::atnChanged(bool atnLow)
 {
-    // Do base IEC level ATN first
+    // Always call base first
     Drive::atnChanged(atnLow);
 
-    // Now do local level
     atnLineLow = atnLow;
-    updateAtnAckState();
+
+    peripheralAssertClk(false);
 }
 
 void D1571::setAtnAckEnabled(bool enabled)
@@ -295,11 +292,9 @@ void D1571::setAtnAckEnabled(bool enabled)
 void D1571::clkChanged(bool clkState)
 {
     clkLineLow = clkState;
-    if (bus) bus->setClkLine(clkState);
 }
 
 void D1571::dataChanged(bool dataState)
 {
     dataOutPullsLow = dataState;
-    applyDataLine();
 }
