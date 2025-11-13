@@ -114,9 +114,9 @@ class CIA2
         static constexpr uint8_t DTR_MASK = 0x04;  // Data Terminal Ready PB2
         static constexpr uint8_t RTS_MASK = 0x02;  // Request To Send PB1
         static constexpr uint8_t RXD_MASK = 0x01;  // Receive Data PB0
-        static constexpr uint8_t BIT_DATA = 3; // PA3
+        static constexpr uint8_t BIT_ATN  = 3; // PA5
         static constexpr uint8_t BIT_CLK  = 4; // PA4
-        static constexpr uint8_t BIT_ATN  = 5; // PA5
+        static constexpr uint8_t BIT_DATA = 5; // PA3
 
         // Video mode
         VideoMode mode_; // NTSC or PAL
