@@ -102,11 +102,18 @@ class CIA2
         Vic* vicII;
 
         // Constants
+        static constexpr uint8_t BIT_ATN_OUT   = 3;  // PA3: ATN out
+        static constexpr uint8_t BIT_CLK_OUT   = 4;  // PA4: CLK out
+        static constexpr uint8_t BIT_DATA_OUT  = 5;  // PA5: DATA out
+        static constexpr uint8_t BIT_CLK_IN    = 6;  // PA6: CLK in
+        static constexpr uint8_t BIT_DATA_IN   = 7;  // PA7: DATA in
+        static constexpr uint8_t MASK_ATN_OUT  = (1u << BIT_ATN_OUT);
+        static constexpr uint8_t MASK_CLK_OUT  = (1u << BIT_CLK_OUT);
+        static constexpr uint8_t MASK_DATA_OUT = (1u << BIT_DATA_OUT);
+        static constexpr uint8_t MASK_CLK_IN   = (1u << BIT_CLK_IN);
+        static constexpr uint8_t MASK_DATA_IN  = (1u << BIT_DATA_IN);
         static constexpr uint8_t VIC_BANK0  = 0x01;  // PA0
         static constexpr uint8_t VIC_BANK1  = 0x02;  // PA1
-        static constexpr uint8_t ATN_MASK   = 0x08;  // PA3
-        static constexpr uint8_t CLK_MASK   = 0x10;  // PA4
-        static constexpr uint8_t DATA_MASK  = 0x20;  // PA5
         static constexpr uint8_t DSR_MASK = 0x80;  // Data Set Ready PB7
         static constexpr uint8_t CTS_MASK = 0x40;  // Clear To Send PB6
         static constexpr uint8_t DCD_MASK = 0x10;  // Data Carrier Detect PB4
@@ -114,9 +121,6 @@ class CIA2
         static constexpr uint8_t DTR_MASK = 0x04;  // Data Terminal Ready PB2
         static constexpr uint8_t RTS_MASK = 0x02;  // Request To Send PB1
         static constexpr uint8_t RXD_MASK = 0x01;  // Receive Data PB0
-        static constexpr uint8_t BIT_ATN  = 3; // PA5
-        static constexpr uint8_t BIT_CLK  = 4; // PA4
-        static constexpr uint8_t BIT_DATA = 5; // PA3
 
         // Video mode
         VideoMode mode_; // NTSC or PAL

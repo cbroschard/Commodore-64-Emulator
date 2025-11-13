@@ -108,28 +108,25 @@ uint8_t CIA2::readRegister(uint16_t address)
     {
         case 0xDD00:
         {
-            uint8_t result = portA & dataDirectionPortA;
+             // Start with normal 6526 semantics: outputs = latch, inputs float high
+            uint8_t result = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
 
             if (bus)
             {
-                if (bus->readAtnLine())
-                    result |= ATN_MASK;
-                else
-                    result &= ~ATN_MASK;
-
+                // PA6: CLK IN
                 if (bus->readClkLine())
-                    result |= CLK_MASK;
+                    result |= MASK_CLK_IN;   // line high
                 else
-                    result &= ~CLK_MASK;
+                    result &= ~MASK_CLK_IN;  // line low
 
+                // PA7: DATA IN
                 if (bus->readDataLine())
-                    result |= DATA_MASK;
+                    result |= MASK_DATA_IN;
                 else
-                    result &= ~DATA_MASK;
+                    result &= ~MASK_DATA_IN;
             }
 
-            uint8_t others = ~dataDirectionPortA & ~(ATN_MASK|CLK_MASK|DATA_MASK);
-            result |= others;
+            // ATN has no dedicated "input" bit on the real C64; leave PA3 as latch output.
             return result;
         }
         case 0xDD01: // Port B
@@ -927,15 +924,13 @@ void CIA2::recomputeIEC()
 {
     auto lowIntent = [&](uint8_t bit) -> bool
     {
-        bool out = (dataDirectionPortA & (1u << bit)) != 0;   // configured as output?
-        bool val = (portA & (1u << bit)) != 0;  // output data bit
-        return out && !val;                     // only drive LOW when out=1 & data=0
+        bool out = (dataDirectionPortA & (1u << bit)) != 0;   // DDR=1 => output
+        bool val = (portA & (1u << bit)) != 0;                // latch
+        return out && !val;                                   // 0 => pull low
     };
 
-        // Compute a bitmask of all PA bits that are actively pulled LOW
     uint8_t lowMask = dataDirectionPortA & ~portA;
 
-    // TEMP DEBUG: show every time the lowMask changes
     static uint8_t prevLowMask = 0xFF;
     if (lowMask != prevLowMask) {
         std::cout << "[CIA2] lowMask=$" << std::hex << int(lowMask)
@@ -944,18 +939,22 @@ void CIA2::recomputeIEC()
         prevLowMask = lowMask;
     }
 
-    bool atnLow  = lowIntent(BIT_ATN);
-    bool clkLow  = lowIntent(BIT_CLK);
-    bool dataLow = lowIntent(BIT_DATA);
+    bool atnLow  = lowIntent(BIT_ATN_OUT);
+    bool clkLow  = lowIntent(BIT_CLK_OUT);
+    bool dataLow = lowIntent(BIT_DATA_OUT);
 
-    // setXLine(true) => bus HIGH; setXLine(false) => bus LOW
     if (bus)
     {
-        bus->setAtnLine(!atnLow);
+        // Here ideally you'd call "C64 side" driver functions,
+        // but if you're still on the old API:
+        bus->setAtnLine(!atnLow);   // false = low, true = high
         bus->setClkLine(!clkLow);
         bus->setDataLine(!dataLow);
     }
 
-    std::cout << "[CIA2] DDRA=" << std::hex << int(dataDirectionPortA) << " PA=" << int(portA) << " | ATNlow=" << atnLow
-        << " CLKlow=" << clkLow << " DATAlow=" << dataLow << std::dec << "\n";
+    std::cout << "[CIA2] DDRA=" << std::hex << int(dataDirectionPortA)
+              << " PA="   << int(portA)
+              << " | ATNlow="  << atnLow
+              << " CLKlow="    << clkLow
+              << " DATAlow="   << dataLow << std::dec << "\n";
 }
