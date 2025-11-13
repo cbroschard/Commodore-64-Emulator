@@ -25,7 +25,7 @@ class IECBUS;
 class D1571 : public Drive, public FloppyControllerHost
 {
     public:
-        D1571(int deviceNumber, const std::string& fileName);
+        D1571(int deviceNumber, const std::string& romName);
         virtual ~D1571();
 
         void reset() override;
@@ -37,9 +37,9 @@ class D1571 : public Drive, public FloppyControllerHost
         bool canMount(DiskFormat fmt) const override;
 
         // IEC getters
-        inline bool getAtnLineLow() const { return atnLineLow; }
-        inline bool getClkLineLow() const { return clkLineLow; }
-        inline bool getDataLineLow() const { return dataLineLow; }
+        inline bool getAtnLineLow() const { return bus ? !bus->readAtnLine() : atnLineLow; }
+        inline bool getClkLineLow() const { return bus ? !bus->readClkLine() : clkLineLow; }
+        inline bool getDataLineLow() const { return bus ? !bus->readDataLine() :dataLineLow; }
         inline bool getSRQAsserted() const { return srqAsserted; }
 
         // IRQ handling
