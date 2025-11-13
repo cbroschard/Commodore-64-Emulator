@@ -97,12 +97,15 @@ class IECBUS
         bool peripheralDrivesDataLow;
         bool peripheralDrivesAtnLow;
 
+        bool lastClk;
+        bool lastData;
+
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;
         std::vector<Peripheral*> currentListeners;
 
         // Helper Methods
-        inline void updateBusState() { busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow, c64DrivesAtnLow, peripheralDrivesAtnLow); } // Calculates final line states using IECBusLines struct
+        void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
 };
 

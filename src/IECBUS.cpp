@@ -19,7 +19,8 @@ IECBUS::IECBUS() :
     c64DrivesDataLow(false),
     peripheralDrivesClkLow(false),
     peripheralDrivesDataLow(false),
-    peripheralDrivesAtnLow(false)
+    peripheralDrivesAtnLow(false),
+    lastClk(true)
 {
     currentListeners.clear(); // Ensure listener list is empty on start
     updateBusState(); // Update bus with defaults
@@ -40,6 +41,12 @@ void IECBUS::setAtnLine(bool state)
     {
         bool atnNowLow = !busLines.atn; // true if ATN is low
 
+        std::cout << "[BUS] setAtnLine(" << state
+              << ") oldATN=" << oldATNState
+              << " newATN=" << busLines.atn
+              << " atnNowLow=" << atnNowLow
+              << "\n";
+
         // Notify all peripherals of the change
         for (auto const& [num, dev] : devices)
         {
@@ -48,40 +55,63 @@ void IECBUS::setAtnLine(bool state)
 
         if (cia2object) cia2object->atnChanged((atnNowLow));
 
-        if (atnNowLow)  // ATN asserted (low) -> Attention state
+        if (atnNowLow)
         {
             currentState = State::ATTENTION;
             currentTalker = nullptr;
             currentListeners.clear();
 
-            // When ATN goes low, peripherals must release CLK/DATA
-            if(peripheralDrivesClkLow || peripheralDrivesDataLow)
+            // Release CLK only; don't stomp DATA here
+            if (peripheralDrivesClkLow)
             {
                 peripheralDrivesClkLow = false;
-                peripheralDrivesDataLow = false;
-                updateBusState(); // Recalculate state if peripheral intentions changed
+                updateBusState();
             }
         }
-        else  // ATN released (high) -> Transition state (usually TALK or LISTEN follows)
+        else
         {
             currentState = State::IDLE;
         }
+        updateBusState();
     }
 }
 
 void IECBUS::setClkLine(bool state)
 {
-    this->c64DrivesClkLow = !state;
-    // Notify the CIA2 of the new state
+    c64DrivesClkLow = !state;
     updateBusState();
-    if(cia2object) cia2object->clkChanged(busLines.clk);
+    if (cia2object) cia2object->clkChanged(busLines.clk);
+
+    if (!busLines.atn)
+    {
+        for (auto& [num, dev] : devices)
+        {
+            if (dev) dev->iecClkEdge(busLines.data, busLines.clk);
+        }
+    return; // done for the ATN-low case
+    }
+
+    for (auto& [num, dev] : devices)
+    {
+        if (dev && (currentState == State::TALK || currentState == State::LISTEN))
+        {
+            dev->iecClkEdge(busLines.data, busLines.clk);
+        }
+    }
 }
 
 void IECBUS::setDataLine(bool state)
 {
     this->c64DrivesDataLow = !state;
     updateBusState();
+    std::cout << "[BUS] setDataLine(" << state
+            << ") -> bus DATA=" << int(busLines.data) << "\n";
     if(cia2object) cia2object->dataChanged(busLines.data);
+
+    for (auto const& [num, dev] : devices)
+    {
+        if (dev) dev->dataChanged(busLines.data);
+    }
 }
 
 void IECBUS::setSrqLine(bool state)
@@ -95,54 +125,49 @@ void IECBUS::setSrqLine(bool state)
 
 void IECBUS::peripheralControlClk(Peripheral* device, bool state)
 {
-    if (device == nullptr) return;
-
-    // Ensure the peripheral is registered.
+    if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // If no peripheral has yet claimed control, assign the current talker.
-    if (currentTalker == nullptr) currentTalker = device;
+    // Forbid peripheral ownership of CLK while in ATTENTION (ATN low)
+    if (!busLines.atn || currentState == State::ATTENTION)
+    {
+        return; // C64 owns the clock during ATTENTION
+    }
 
-    // Only allow the designated current talker to drive the CLK line.
+    if (currentTalker == nullptr) currentTalker = device;
     if (device != currentTalker) return;
 
-    // Record the peripheral's intent for the CLK line.
-    // (true means the peripheral is asserting LOW)
-    peripheralDrivesClkLow = state;
+    peripheralDrivesClkLow = state;         // true = drive CLK low
+    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow)
+        currentTalker = nullptr;
 
-    // If the device releases both lines, clear currentTalker to allow another transfer.
-    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow) currentTalker = nullptr;
-
-    // Recalculate the bus state based on both the computer's and peripherals' intentions.
     updateBusState();
-
-   if (cia2object) cia2object->clkChanged(busLines.clk);
+    if (cia2object) cia2object->clkChanged(busLines.clk);
 }
 
 void IECBUS::peripheralControlData(Peripheral* device, bool state)
 {
-    if (device == nullptr) return;
-
-    // Check that the device is registered.
+    if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // If no talker is active, assign this device as the current talker.
-    if (currentTalker == nullptr) currentTalker = device;
+    // During ATTENTION (ATN low), *allow* any device to pulse DATA for presence/byte ACKs.
+    if (!busLines.atn || currentState == State::ATTENTION)
+    {
+        peripheralDrivesDataLow = state;     // true => drive DATA low
+        updateBusState();
+        if (cia2object) cia2object->dataChanged(busLines.data);
+        std::cout << "[BUS] periph DATA=" << state << " while ATN low -> line now " << busLines.data << "\n";
+        return;
+    }
 
-    // Only allow the current talker to drive the DATA line.
+    // Normal talking rules (ATN high)
+    if (currentTalker == nullptr) currentTalker = device;
     if (device != currentTalker) return;
 
-    // Record the peripheral's intent for the DATA line.
-    // (true means the peripheral is asserting LOW)
-
     peripheralDrivesDataLow = state;
-
-    // Clear currentTalker if the device has released both lines.
     if (!peripheralDrivesClkLow && !peripheralDrivesDataLow) currentTalker = nullptr;
 
-    // Update the final bus state.
     updateBusState();
-
     if (cia2object) cia2object->dataChanged(busLines.data);
 }
 
@@ -298,6 +323,12 @@ void IECBUS::tick(uint64_t cyclesPassed)
     updateSrqLine();
 
     updateBusState();
+}
+
+void IECBUS::updateBusState()
+{
+    busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow,
+        c64DrivesAtnLow, peripheralDrivesAtnLow);
 }
 
 void IECBUS::updateSrqLine()
