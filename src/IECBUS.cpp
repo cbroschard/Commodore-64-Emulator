@@ -50,6 +50,8 @@ void IECBUS::setAtnLine(bool state)
         // Notify all peripherals of the change
         for (auto const& [num, dev] : devices)
         {
+            std::cout << "[IECBUS] ATN notify device #" << num
+              << " ptr=" << dev << "\n";
             if (dev) dev->atnChanged(atnNowLow); // Pass true if ATN asserted/low
         }
 
@@ -80,23 +82,15 @@ void IECBUS::setClkLine(bool state)
 {
     c64DrivesClkLow = !state;
     updateBusState();
-    if (cia2object) cia2object->clkChanged(busLines.clk);
 
-    if (!busLines.atn)
-    {
-        for (auto& [num, dev] : devices)
-        {
-            if (dev) dev->iecClkEdge(busLines.data, busLines.clk);
-        }
-    return; // done for the ATN-low case
-    }
+    if (cia2object)
+        cia2object->clkChanged(busLines.clk);
 
+    // ALWAYS notify devices of clock edges.
     for (auto& [num, dev] : devices)
     {
-        if (dev && (currentState == State::TALK || currentState == State::LISTEN))
-        {
+        if (dev)
             dev->iecClkEdge(busLines.data, busLines.clk);
-        }
     }
 }
 
@@ -239,6 +233,8 @@ void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
 
     // Finally update bus state for good measure
     updateBusState();
+    std::cout << "[IECBUS] registerDevice " << deviceNumber
+          << " at ptr=" << device << "\n";
 }
 
 void IECBUS::unregisterDevice(int deviceNumber)
