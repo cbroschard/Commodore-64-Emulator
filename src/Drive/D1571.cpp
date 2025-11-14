@@ -298,6 +298,6 @@ void D1571::clkChanged(bool clkState)
 
 void D1571::dataChanged(bool dataState)
 {
-    dataOutPullsLow = dataState;
-    applyDataLine();
+    Drive::dataChanged(dataState);
+    dataLineLow = !dataState;
 }
