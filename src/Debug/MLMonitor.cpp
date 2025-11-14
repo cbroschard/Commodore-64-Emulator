@@ -50,6 +50,7 @@ void MLMonitor::enter()
     {
         std::cout << "monitor> ";
         if (!std::getline(std::cin, line)) break;
+        if (line.empty()) continue;
         handleCommand(line);
     }
 }
