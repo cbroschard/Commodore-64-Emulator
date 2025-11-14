@@ -204,7 +204,6 @@ void Drive::iecClkEdge(bool data, bool clk)
               << " bitCount=" << int(bitCount)
               << "\n";
 
-    // NEW: ignore the ATN presence-ACK handshake falling edge
     if (currentDriveBusState == DriveBusState::AWAITING_COMMAND &&
         falling && ackEdgeCountdown > 0)
     {
