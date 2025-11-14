@@ -108,7 +108,7 @@ uint8_t CIA2::readRegister(uint16_t address)
     {
         case 0xDD00:
         {
-             // Start with normal 6526 semantics: outputs = latch, inputs float high
+            // Base: outputs from latch, inputs = 1 (pull-ups)
             uint8_t result = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
 
             if (bus)
@@ -126,7 +126,6 @@ uint8_t CIA2::readRegister(uint16_t address)
                     result &= ~MASK_DATA_IN;
             }
 
-            // ATN has no dedicated "input" bit on the real C64; leave PA3 as latch output.
             return result;
         }
         case 0xDD01: // Port B
@@ -926,7 +925,7 @@ void CIA2::recomputeIEC()
     {
         bool out = (dataDirectionPortA & (1u << bit)) != 0;   // DDR=1 => output
         bool val = (portA & (1u << bit)) != 0;                // latch
-        return out && !val;                                   // 0 => pull low
+        return out && val;                                   // 1 => pull low
     };
 
     uint8_t lowMask = dataDirectionPortA & ~portA;
