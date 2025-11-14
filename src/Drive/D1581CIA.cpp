@@ -15,6 +15,32 @@ D1581CIA::D1581CIA() :
 
 D1581CIA::~D1581CIA() = default;
 
+void D1581CIA::reset()
+{
+    // Initialize all registers
+    registers.portA = 0x00;
+    registers.portB = 0x00;
+    registers.ddrA = 0x00;
+    registers.ddrB = 0x00;
+    registers.timerALowByte = 0x00;
+    registers.timerAHighByte = 0x00;
+    registers.timerBLowByte = 0x00;
+    registers.timerBHighByte = 0x00;
+    registers.tod10th = 0x00;
+    registers.todSeconds = 0x00;
+    registers.todMinutes = 0x00;
+    registers.todHours = 0x00;
+    registers.serialData = 0x00;
+    registers.interruptEnable = 0x00;
+    registers.controlRegisterA = 0x00;
+    registers.controlRegisterB = 0x00;
+}
+
+void D1581CIA::tick()
+{
+
+}
+
 uint8_t D1581CIA::readRegister(uint16_t address)
 {
     switch(address)

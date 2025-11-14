@@ -35,11 +35,24 @@ class D1581 : public Drive, public FloppyControllerHost
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
 
+        // IEC getters
+        inline bool getAtnLineLow() const { return bus ? !bus->readAtnLine() : atnLineLow; }
+        inline bool getClkLineLow() const { return bus ? !bus->readClkLine() : clkLineLow; }
+        inline bool getDataLineLow() const { return bus ? !bus->readDataLine() :dataLineLow; }
+        inline bool getSRQAsserted() const { return srqAsserted; }
+
+        // Drive Mechanics
+        inline void startMotor() override { motorOn = true; }
+        inline void stopMotor() override { motorOn = false; }
+        inline bool isMotorOn() const override { return motorOn; }
+
         // Floppy Image
         inline uint8_t getCurrentTrack() const override { return currentTrack; }
         inline uint8_t getCurrentSector() const override { return currentSector; }
+        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
+        inline void setDiskWriteProtected(bool on) { diskWriteProtected = on; }
+        inline bool isDiskLoaded() const override { return diskLoaded; }
 
-        // ML Monitor
         // ML Monitor
         inline const CPU* getDriveCPU() const { return &driveCPU; }
         inline const D1581Memory* getMemory() const { return &d1581Mem; }

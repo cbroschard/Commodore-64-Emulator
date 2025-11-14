@@ -18,6 +18,9 @@ class D1581CIA
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
+        void reset();
+        void tick();
+
         // API access
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
@@ -77,6 +80,19 @@ class D1581CIA
             PRB_WRTPRO  = 1u << 6,
             PRB_ATNIN   = 1u << 7
         };
+
+        uint16_t timerACounter;
+        uint16_t timerALatch;
+        uint16_t timerBCounter;
+        uint16_t timerBLatch;
+        bool timerARunning;
+        bool timerBRunning;
+
+        // TOD Alarm
+        uint8_t todAlarm10th;
+        uint8_t todAlarmSeconds;
+        uint8_t todAlarmMinutes;
+        uint8_t todAlarmHours;
 };
 
 #endif // D1581CIA_H
