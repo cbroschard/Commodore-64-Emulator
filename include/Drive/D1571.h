@@ -118,6 +118,9 @@ class D1571 : public Drive, public FloppyControllerHost
         // ATN auto-ack state
         bool atnAckEnabled;      // latched from VIA bit 4 + DDRB
         bool atnAckPullsDataLow; // current auto-ack contribution to DATA line
+        bool ackInProgress;
+        bool atnAckCompletedThisAtn;
+        bool handshakeSeen; // Track whether presence handshake was seen or not
 
         // Normal DATA OUT contribution from VIA
         bool dataOutPullsLow;
@@ -136,6 +139,8 @@ class D1571 : public Drive, public FloppyControllerHost
         uint8_t currentSector;
         void applyDataLine();
         void updateAtnAckState();
+        void beginAtnAck();
+        void endAtnAck();
 };
 
 #endif // D1571_H

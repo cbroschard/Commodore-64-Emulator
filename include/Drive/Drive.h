@@ -25,11 +25,12 @@ class Drive : public Peripheral
         virtual ~Drive();
 
         // Pointers
-        void attachLoggingInstance(Logging* logger);
+        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         virtual FDC177x* getFDC() { return nullptr; }
 
-        // ATN Changed
+        // Level Changed
         void atnChanged(bool atnAsserted) override;
+        void dataChanged(bool level) override;
 
         // Check the compatibility for the drive and floppy type
         virtual bool canMount(DiskFormat fmt) const = 0;
@@ -95,9 +96,14 @@ class Drive : public Peripheral
         uint8_t currentTalkByte;
         int talkBitPos;
         bool waitingForAck;
+        int ackEdgeCountdown;
+        bool prevClkLevel;
+        bool ackHold;
+        bool byteAckHold;
 
         // Helper
         void parseCommandByte(uint8_t byte);
+        void iecClkEdge(bool data, bool clk) override;
 };
 
 #endif // DRIVE_H

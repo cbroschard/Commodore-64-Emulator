@@ -17,8 +17,11 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     currentSide(1),
     fastSerialOutput(false),
     twoMHzMode(false),
-    atnAckEnabled(false),
+    atnAckEnabled(true),
     atnAckPullsDataLow(false),
+    ackInProgress(false),
+    atnAckCompletedThisAtn(false),
+    handshakeSeen(false),
     dataOutPullsLow(false),
     diskLoaded(false),
     diskWriteProtected(false)
@@ -56,13 +59,16 @@ void D1571::reset()
     densityCode = 2;
 
     // IEC BUS reset
-    atnLineLow         = false;
-    clkLineLow         = false;
-    dataLineLow        = false;
-    srqAsserted        = false;
-    atnAckEnabled      = false;
-    atnAckPullsDataLow = false;
-    dataOutPullsLow    = false;
+    atnLineLow              = false;
+    clkLineLow              = false;
+    dataLineLow             = false;
+    srqAsserted             = false;
+    atnAckEnabled           = true;
+    atnAckPullsDataLow      = false;
+    ackInProgress           = false;
+    atnAckCompletedThisAtn  = false;
+    handshakeSeen           = false;
+    dataOutPullsLow         = false;
 
     // 1571 Runtime Properties reset
     currentSide = 0;
@@ -262,38 +268,96 @@ void D1571::applyDataLine()
     peripheralAssertData(drivePullsDataLow);
 }
 
+void D1571::beginAtnAck()
+{
+    // Only once per ATN, only if enabled
+    if (!atnAckEnabled || !atnLineLow || ackInProgress || atnAckCompletedThisAtn)
+        return;
+
+    ackInProgress      = true;
+    atnAckPullsDataLow = true;
+    handshakeSeen      = false;
+    applyDataLine();
+
+    std::cout << "[D1571] Begin ATN ACK (DATA low)\n";
+}
+
+void D1571::endAtnAck()
+{
+    if (!ackInProgress)
+        return;
+
+    ackInProgress      = false;
+    atnAckPullsDataLow = false;
+    applyDataLine();
+
+    std::cout << "[D1571] End ATN ACK (DATA released)\n";
+}
+
 void D1571::updateAtnAckState()
 {
-    bool newAckPullsLow = atnAckEnabled && atnLineLow;
-
-    if (newAckPullsLow != atnAckPullsDataLow)
+    if (!atnLineLow || !atnAckEnabled || atnAckCompletedThisAtn)
     {
-        atnAckPullsDataLow = newAckPullsLow;
-        applyDataLine(); // push updated combined state to the bus
+        endAtnAck();
+    }
+    else
+    {
+        beginAtnAck();
     }
 }
 
 void D1571::atnChanged(bool atnLow)
 {
-    // Always call base first
-    Drive::atnChanged(atnLow);
-
     atnLineLow = atnLow;
 
-    peripheralAssertClk(false);
+    // Base class handles state machine (AWAITING_COMMAND, etc.)
+    Drive::atnChanged(atnLow);
 
-    updateAtnAckState();
+    if (atnLineLow)
+    {
+        // Fresh ATN pulse: allow one presence ACK
+        atnAckCompletedThisAtn = false;
+        beginAtnAck();
+    }
+    else
+    {
+        // ATN released: ACK must be off and ready for next ATN
+        endAtnAck();
+        atnAckCompletedThisAtn = false;
+        handshakeSeen = false;
+    }
 }
 
 void D1571::setAtnAckEnabled(bool enabled)
 {
     atnAckEnabled = enabled;
-    updateAtnAckState();
+    updateAtnAckState();   // will start/stop ACK depending on ATN & arm
 }
 
-void D1571::clkChanged(bool clkState)
+void D1571::clkChanged(bool clkLow)
 {
-    clkLineLow = clkState;
+    clkLineLow = clkLow;
+
+    // Only care about handshake if ATN is low and ACK is active.
+    if (!atnLineLow || !ackInProgress)
+        return;
+
+    if (!handshakeSeen && clkLow)
+    {
+        // First low of CLK while ATN is low: handshake pulse begins.
+        std::cout << "[D1571] CLK low while ATN -> handshake seen\n";
+        handshakeSeen = true;
+        // Keep DATA low here; ACK is still active.
+    }
+    else if (handshakeSeen && !clkLow)
+    {
+        // CLK rising back high with ATN still low:
+        // this ends the presence ACK for this ATN.
+        std::cout << "[D1571] CLK high while ATN -> end ATN ACK\n";
+        endAtnAck();
+        atnAckCompletedThisAtn = true;
+        handshakeSeen          = false;
+    }
 }
 
 void D1571::dataChanged(bool dataState)
