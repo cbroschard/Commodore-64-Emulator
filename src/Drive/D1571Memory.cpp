@@ -40,6 +40,11 @@ void D1571Memory::reset()
     // Reset all RAM to 0's
     std::fill(D1571RAM.begin(), D1571RAM.end(), 0x00);
 
+    lastBus = 0xFF;
+
+    // Disable MLMonitor logging by default
+    setLogging = false;
+
     // Reset all chips
     via1.reset();
     via2.reset();
@@ -96,19 +101,19 @@ uint8_t D1571Memory::read(uint16_t address)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        value = via1.readRegister((address - VIA1_START) & 0x0F);
+        value = via1.readRegister((address - VIA1_START) & 0x000F);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        value = via2.readRegister((address - VIA2_START) & 0x0F);
+        value = via2.readRegister((address - VIA2_START) & 0x000F);
     }
     else if (address >= CIA_START && address <= CIA_END)
     {
-        value = cia.readRegister((address - CIA_START) & 0x0F);
+        value = cia.readRegister((address - CIA_START) & 0x000F);
     }
     else if (address >= FDC_START && address <= FDC_END)
     {
-        value = fdc.readRegister((address - FDC_START) & 0x03);
+        value = fdc.readRegister((address - FDC_START) & 0x0003);
     }
     else
     {
@@ -133,19 +138,19 @@ void D1571Memory::write(uint16_t address, uint8_t value)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        via1.writeRegister((address - VIA1_START) & 0x0F, value);
+        via1.writeRegister((address - VIA1_START) & 0x000F, value);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        via2.writeRegister((address - VIA2_START) & 0x0F, value);
+        via2.writeRegister((address - VIA2_START) & 0x000F, value);
     }
     else if (address >= CIA_START && address <= CIA_END)
     {
-        cia.writeRegister((address - CIA_START) & 0x0F, value);
+        cia.writeRegister((address - CIA_START) & 0x000F, value);
     }
     else if (address >= FDC_START && address <= FDC_END)
     {
-        fdc.writeRegister((address - FDC_START) & 0x03, value);
+        fdc.writeRegister((address - FDC_START) & 0x0003, value);
     }
 }
 
