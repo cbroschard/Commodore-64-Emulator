@@ -921,35 +921,30 @@ void CIA2::setIERExact(uint8_t mask)
 
 void CIA2::recomputeIEC()
 {
-    auto lowIntent = [&](uint8_t bit) -> bool
-    {
-        bool out = (dataDirectionPortA & (1u << bit)) != 0;   // DDR=1 => output
-        bool val = (portA & (1u << bit)) != 0;                // latch
-        return out && val;                                   // 1 => pull low
-    };
+    if (!bus)
+        return;
 
-    uint8_t lowMask = dataDirectionPortA & ~portA;
+    // For CIA2 PA3–PA5: 1 = low/active, 0 = high/inactive.
+    // lowMask bit = 1  → this pin is pulling the IEC line LOW.
+    uint8_t lowMask = dataDirectionPortA & portA;
 
     static uint8_t prevLowMask = 0xFF;
-    if (lowMask != prevLowMask) {
+    if (lowMask != prevLowMask)
+    {
         std::cout << "[CIA2] lowMask=$" << std::hex << int(lowMask)
                   << "  DDRA=$" << int(dataDirectionPortA)
                   << "  PA=$"   << int(portA) << std::dec << "\n";
         prevLowMask = lowMask;
     }
 
-    bool atnLow  = lowIntent(BIT_ATN_OUT);
-    bool clkLow  = lowIntent(BIT_CLK_OUT);
-    bool dataLow = lowIntent(BIT_DATA_OUT);
+    bool atnLow  = (lowMask & MASK_ATN_OUT)  != 0;
+    bool clkLow  = (lowMask & MASK_CLK_OUT)  != 0;
+    bool dataLow = (lowMask & MASK_DATA_OUT) != 0;
 
-    if (bus)
-    {
-        // Here ideally you'd call "C64 side" driver functions,
-        // but if you're still on the old API:
-        bus->setAtnLine(!atnLow);   // false = low, true = high
-        bus->setClkLine(!clkLow);
-        bus->setDataLine(!dataLow);
-    }
+    // Bus API: true = line HIGH (released), false = line LOW (asserted)
+    bus->setAtnLine(!atnLow);
+    bus->setClkLine(!clkLow);
+    bus->setDataLine(!dataLow);
 
     std::cout << "[CIA2] DDRA=" << std::hex << int(dataDirectionPortA)
               << " PA="   << int(portA)
