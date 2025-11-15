@@ -31,6 +31,11 @@ class IECBUS
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
+        // Bus state getters
+        inline bool getAtnLine() const { return busLines.atn; }
+        inline bool getClkLine() const { return busLines.clk; }
+        inline bool getDataLine() const { return busLines.data; }
+
         // Line state management called by CIA1 and CIA2
         void setClkLine(bool state); // CLK line state (via CIA1 Port B bit 7)
         void setDataLine(bool state); // C64 drives DATA line state (via CIA1 Port B bit 6)
@@ -53,7 +58,7 @@ class IECBUS
         void registerDevice(int deviceNumber, Peripheral* device);
         void unregisterDevice(int deviceNumber);
 
-        // IEc commands
+        // IEC commands
         void listen(int deviceNumber);
         void unListen(int deviceNumber);
         void talk(int deviceNumber);
