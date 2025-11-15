@@ -90,7 +90,7 @@ void IECBUS::setClkLine(bool state)
     for (auto& [num, dev] : devices)
     {
         if (dev)
-            dev->iecClkEdge(busLines.data, busLines.clk);
+            dev->clkChanged(!busLines.clk);
     }
 }
 
@@ -151,7 +151,8 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     if (cia2object) cia2object->clkChanged(busLines.clk);
     for (auto& [num, dev] : devices)
     {
-        if (dev) dev->iecClkEdge(busLines.data, busLines.clk);
+        if (dev)
+            dev->clkChanged(!busLines.clk);
     }
 }
 
