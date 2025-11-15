@@ -126,7 +126,26 @@ uint8_t CIA2::readRegister(uint16_t address)
                     result &= ~MASK_DATA_IN;
             }
 
-            return result;
+            //return result;
+            //return portA;
+            uint8_t value = portA;
+            const uint8_t iec_mask = 0x38;
+
+            // 2. Clear the old IEC bits from the value
+            value &= ~iec_mask;
+
+            // 3. Get the current PHYSICAL state of the IEC bus pins (1=HIGH, 0=LOW)
+            uint8_t pin_states = 0;
+            // The bus line functions must return the actual line state (HIGH/LOW)
+            if (bus->getAtnLine())  pin_states |= MASK_ATN_OUT;
+            if (bus->getClkLine())  pin_states |= MASK_CLK_OUT;
+            if (bus->getDataLine()) pin_states |= MASK_DATA_OUT;
+
+            // 4. Merge the physical pin states back into the value
+            // This ensures the KERNAL reads the actual state of CLK/DATA/ATN.
+            value |= (pin_states & iec_mask);
+
+            return value;
         }
         case 0xDD01: // Port B
         {
@@ -231,10 +250,11 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
     {
         case 0xDD00:
         {  // Data Port A
+             uint8_t oldPA = portA;
             // Merge new outputs only on DDR=1 bits; keep all DDR=0 bits (VIC bank) intact
-            portA = (portA & ~dataDirectionPortA) | (value &  dataDirectionPortA);
-
-            recomputeIEC();
+            //portA = (portA & ~dataDirectionPortA) | (value &  dataDirectionPortA);
+            portA = value;
+            if (oldPA != portA) recomputeIEC();
 
             if (logger && setLogging)
             {
@@ -924,8 +944,6 @@ void CIA2::recomputeIEC()
     if (!bus)
         return;
 
-    // For CIA2 PA3–PA5: 1 = low/active, 0 = high/inactive.
-    // lowMask bit = 1  → this pin is pulling the IEC line LOW.
     uint8_t lowMask = dataDirectionPortA & portA;
 
     static uint8_t prevLowMask = 0xFF;
@@ -942,9 +960,9 @@ void CIA2::recomputeIEC()
     bool dataLow = (lowMask & MASK_DATA_OUT) != 0;
 
     // Bus API: true = line HIGH (released), false = line LOW (asserted)
-    bus->setAtnLine(!atnLow);
-    bus->setClkLine(!clkLow);
-    bus->setDataLine(!dataLow);
+    bus->setAtnLine(atnLow);
+    bus->setClkLine(clkLow);
+    bus->setDataLine(dataLow);
 
     std::cout << "[CIA2] DDRA=" << std::hex << int(dataDirectionPortA)
               << " PA="   << int(portA)
