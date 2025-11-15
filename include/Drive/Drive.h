@@ -72,6 +72,21 @@ class Drive : public Peripheral
         // Non-owning pointers
         Logging* logger = nullptr;
 
+        // Signal state
+        bool expectingListen;
+        bool expectingTalk;
+
+        // Talking state
+        uint8_t currentTalkByte;
+        int talkBitPos;
+        bool waitingForAck;
+        int ackEdgeCountdown;
+        bool prevClkLevel;
+        bool ackHold;
+        bool byteAckHold;
+        bool haveListenCommand;
+        bool haveSecondary;
+
         // Data receive state
         virtual void processListenBuffer();
         std::vector<uint8_t> listenBuffer;
@@ -84,26 +99,11 @@ class Drive : public Peripheral
 
     private:
 
-        // Signal state
-        bool expectingListen;
-        bool expectingTalk;
-
         // Serial receiver state
         uint8_t bitShiftRegister;
         int bitCount;
         bool lastClkHigh;
         int currentSecondaryAddress;
-
-        // Talking state
-        uint8_t currentTalkByte;
-        int talkBitPos;
-        bool waitingForAck;
-        int ackEdgeCountdown;
-        bool prevClkLevel;
-        bool ackHold;
-        bool byteAckHold;
-        bool haveListenCommand;
-        bool haveSecondary;
 
         // Helper
         void parseCommandByte(uint8_t byte);
