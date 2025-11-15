@@ -80,6 +80,8 @@ class Drive : public Peripheral
         // Talking state
         std::queue<uint8_t> talkQueue;
 
+        void iecClkEdge(bool data, bool clk) override;
+
     private:
 
         // Signal state
@@ -103,7 +105,6 @@ class Drive : public Peripheral
 
         // Helper
         void parseCommandByte(uint8_t byte);
-        void iecClkEdge(bool data, bool clk) override;
 };
 
 #endif // DRIVE_H
