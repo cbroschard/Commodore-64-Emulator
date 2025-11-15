@@ -24,7 +24,9 @@ Drive::Drive() :
     ackEdgeCountdown(0),
     prevClkLevel(true),
     ackHold(false),
-    byteAckHold(false)
+    byteAckHold(false),
+    haveListenCommand(false),
+    haveSecondary(false)
 {
 
 }
@@ -46,7 +48,7 @@ void Drive::atnChanged(bool atnAsserted)
 
         currentDriveBusState = DriveBusState::AWAITING_COMMAND;
 
-        // 🔹 NEW: ignore the *first* falling CLK edge after ATN goes low.
+        // Ignore the *first* falling CLK edge after ATN goes low.
         // That edge is the presence ACK handshake, not the first data bit.
         ackEdgeCountdown = 1;
         lastClkHigh      = true;  // assume CLK idle high before the first fall
@@ -55,13 +57,17 @@ void Drive::atnChanged(bool atnAsserted)
     }
     else
     {
-        // ATN released: decide final bus state based on parsed command.
-        if (expectingListen)
-            currentDriveBusState = DriveBusState::LISTENING;
-        else if (expectingTalk)
-            currentDriveBusState = DriveBusState::TALKING;
-        else
-            currentDriveBusState = DriveBusState::IDLE;
+        // ATN released: only force a state if we *haven't* already moved
+        // into LISTENING/TALKING from parseCommandByte().
+        if (currentDriveBusState == DriveBusState::AWAITING_COMMAND)
+        {
+            if (expectingListen)
+                currentDriveBusState = DriveBusState::LISTENING;
+            else if (expectingTalk)
+                currentDriveBusState = DriveBusState::TALKING;
+            else
+                currentDriveBusState = DriveBusState::IDLE;
+        }
 
         expectingListen = false;
         expectingTalk   = false;
@@ -149,29 +155,123 @@ void Drive::tick()
 
 void Drive::parseCommandByte(uint8_t byte)
 {
-     std::cout << "[Drive] parseCommandByte $" << std::hex << int(byte) << std::dec
+    std::cout << "[Drive] parseCommandByte $" << std::hex << int(byte) << std::dec
               << " for device " << deviceNumber << "\n";
 
-    uint8_t listenBase = 0x20;
-    uint8_t talkBase   = 0x40;
+    uint8_t code = byte & 0xF0;
+    uint8_t dev  = byte & 0x0F;
 
-    if ((byte & 0xF0) == listenBase && (byte & 0x0F) == deviceNumber)
+    // --- UNLISTEN (all devices) ---
+    if (byte == 0x3F)
     {
-        expectingListen = true;
+        std::cout << "[Drive] UNLISTEN (0x3F)\n";
+
+        if (currentDriveBusState == DriveBusState::LISTENING &&
+            !listenBuffer.empty())
+        {
+            // End of LISTEN string, e.g. "0:$"
+            processListenBuffer();
+        }
+
+        currentDriveBusState    = DriveBusState::AWAITING_COMMAND;
+        expectingListen         = false;
+        haveListenCommand       = false;
+        haveSecondary           = false;
+        currentSecondaryAddress = -1;
+        return;
     }
-    else if ((byte & 0xF0) == talkBase && (byte & 0x0F) == deviceNumber)
+
+    // --- UNTALK (all devices) ---
+    if (byte == 0x5F)
     {
-        expectingTalk = true;
+        std::cout << "[Drive] UNTALK (0x5F)\n";
+
+        currentDriveBusState    = DriveBusState::IDLE;
+        expectingTalk           = false;
+        haveSecondary           = false;
+        currentSecondaryAddress = -1;
+        waitingForAck           = false;
+        talkBitPos              = -1;
+        return;
     }
-    else if ((byte & 0xF0) == 0xE0)
+
+    // --- LISTEN <device> ---
+    if (code == 0x20 && dev == deviceNumber)
     {
-        // Secondary address (after LISTEN or TALK)
-        currentSecondaryAddress = byte & 0x0F;
+        std::cout << "[Drive] LISTEN for this device\n";
+
+        expectingListen   = true;
+        expectingTalk     = false;
+        haveListenCommand = true;
+        haveSecondary     = false;
+
+        // We stay in AWAITING_COMMAND while ATN is low; once
+        // we see a secondary (0xF0 / 0x60 / 0xE0) we treat
+        // subsequent bytes as payload => LISTENING.
+        return;
     }
-    else
+
+    // --- TALK <device> ---
+    if (code == 0x40 && dev == deviceNumber)
     {
-        // Unknown or not addressed to this device
+        std::cout << "[Drive] TALK for this device\n";
+
+        expectingTalk     = true;
+        expectingListen   = false;
+        haveListenCommand = false;
+        haveSecondary     = false;
+
+        currentDriveBusState = DriveBusState::TALKING;
+        return;
     }
+
+    // --- Secondary address / "reopen channel" 0x60–0x6F ---
+    if (code == 0x60)
+    {
+        currentSecondaryAddress = dev;   // channel # (0–15)
+        haveSecondary           = true;
+
+        std::cout << "[Drive] Secondary/reopen channel=" << int(dev) << "\n";
+
+        // In LISTEN context, following bytes are command string.
+        if (expectingListen)
+        {
+            currentDriveBusState = DriveBusState::LISTENING;
+        }
+        return;
+    }
+
+    // --- OPEN channel 0xF0–0xFF (we only really care about chan 0) ---
+    if (code == 0xF0)
+    {
+        std::cout << "[Drive] OPEN channel " << int(dev) << "\n";
+
+        currentSecondaryAddress = dev;
+        haveSecondary           = true;
+
+        if (expectingListen)
+        {
+            currentDriveBusState = DriveBusState::LISTENING;
+        }
+        return;
+    }
+
+    // --- CLOSE channel 0xE0–0xEF (can mostly ignore for now) ---
+    if (code == 0xE0)
+    {
+        std::cout << "[Drive] CLOSE channel " << int(dev) << "\n";
+        // For now we just clear the SA if it matches.
+        if (currentSecondaryAddress == dev)
+        {
+            currentSecondaryAddress = -1;
+            haveSecondary           = false;
+        }
+        return;
+    }
+
+    // Anything else we ignore for now
+    std::cout << "[Drive] Unknown/ignored command byte $" << std::hex
+              << int(byte) << std::dec << "\n";
 }
 
 void Drive::processListenBuffer()

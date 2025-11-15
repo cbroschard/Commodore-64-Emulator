@@ -102,6 +102,8 @@ class Drive : public Peripheral
         bool prevClkLevel;
         bool ackHold;
         bool byteAckHold;
+        bool haveListenCommand;
+        bool haveSecondary;
 
         // Helper
         void parseCommandByte(uint8_t byte);
