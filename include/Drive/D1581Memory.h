@@ -61,29 +61,22 @@ class D1581Memory : public CPUBus
         Logging* logger;
         Peripheral* parentPeripheral;
 
-        // RAM Constants
+        // Memory Constants
         static constexpr size_t RAM_SIZE    = 0x2000; // 8K RAM
         static const uint16_t RAM_START     = 0x0000;
         static const uint16_t RAM_END       = 0x1FFF;
-
-        // ROM ConstantC
         static constexpr size_t ROM_SIZE    = 0x8000; // 32K ROM
         static const uint16_t ROM_START     = 0x8000;
         static const uint16_t ROM_END       = 0xFFFF;
-
-        // CIA6526(I/O) CHIP
         static constexpr uint16_t CIA_START = 0x4000;
         static constexpr uint16_t CIA_END   = 0x5FFF;
-
-        // WDC FDC 1770/1772
         static constexpr uint16_t FDC_START = 0x6000;
         static constexpr uint16_t FDC_END   = 0x7FFF;
-
 
         // ML Monitor logging
         bool setLogging;
 
-        // Last Bus
+        // Last Bus tracking
         uint8_t lastBus;
 
         // CHIPS

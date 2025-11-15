@@ -27,12 +27,12 @@ void D1581::reset()
 {
     motorOn = false;
     loadedDiskName.clear();
-    diskLoaded = false;
-    diskWriteProtected = false;
-    lastError = DriveError::NONE;
-    status = DriveStatus::IDLE;
-    currentTrack = 18;
-    currentSector = 0;
+    diskLoaded          = false;
+    diskWriteProtected  = false;
+    lastError           = DriveError::NONE;
+    status              = DriveStatus::IDLE;
+    currentTrack        = 18;
+    currentSector       = 0;
 
     // IEC BUS reset
     atnLineLow         = false;
