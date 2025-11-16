@@ -128,11 +128,15 @@ class CIA2
         bool talking;
         bool lastClk; // Remember previous clock level
         bool atnLine;
+        bool atnHandshakePending;
         bool lastSrqLevel;
         bool lastDataLevel;
         bool lastAtnLevel;
         uint8_t shiftReg; // IECBUS accumulated bits
         int bitCount;
+        uint8_t iecCmdShiftReg;
+        int iecCmdBitCount;
+        bool lastClkOutHigh;
         void decodeIECCommand(uint8_t cmd);
 
         // Data ports
