@@ -13,7 +13,7 @@ IECBUS::IECBUS() :
     currentState(State::IDLE),
     cia2object(nullptr),
     currentTalker(nullptr),
-    line_srqin(true), // SRQ starts high (inactive)
+    line_srqin(true),
     c64DrivesAtnLow(false),
     c64DrivesClkLow(false),
     c64DrivesDataLow(false),
@@ -80,13 +80,27 @@ void IECBUS::setAtnLine(bool state)
 
 void IECBUS::setClkLine(bool state)
 {
+    // Remember the old resolved CLK level *before* the write.
+    bool oldClk = busLines.clk;
+
+    // C64 drives CLK low when state == false.
     c64DrivesClkLow = !state;
     updateBusState();
 
+    // If the resolved bus CLK level didn't change, there is no real edge.
+    if (busLines.clk == oldClk)
+        return;
+
+    std::cout << "[IECBUS] setClkLine from C64: state=" << state
+              << " oldBusClk=" << oldClk
+              << " newBusClk=" << busLines.clk
+              << " ATN=" << (busLines.atn ? "H" : "L")
+              << "\n";
+
+    // Now we have a real electrical change - notify CIA2 and drives.
     if (cia2object)
         cia2object->clkChanged(busLines.clk);
 
-    // ALWAYS notify devices of clock edges.
     for (auto& [num, dev] : devices)
     {
         if (dev)
@@ -96,11 +110,20 @@ void IECBUS::setClkLine(bool state)
 
 void IECBUS::setDataLine(bool state)
 {
-    this->c64DrivesDataLow = !state;
+    bool oldData = busLines.data;
+
+    c64DrivesDataLow = !state;
     updateBusState();
+
+    // Only log / notify if the visible DATA level actually changed.
+    if (busLines.data == oldData)
+        return;
+
     std::cout << "[BUS] setDataLine(" << state
-            << ") -> bus DATA=" << int(busLines.data) << "\n";
-    if(cia2object) cia2object->dataChanged(busLines.data);
+              << ") -> bus DATA=" << int(busLines.data) << "\n";
+
+    if (cia2object)
+        cia2object->dataChanged(busLines.data);
 
     for (auto const& [num, dev] : devices)
     {
@@ -125,8 +148,17 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     // Rule 1: If ATN is LOW (Attention), no peripheral can drive CLK.
     if (!busLines.atn /* && currentState == State::ATTENTION */)
     {
+        std::cout << "[IECBUS] peripheralControlClk from dev#"
+                  << int(device->getDeviceNumber())
+                  << " blocked (ATN low)\n";
         return; // C64 owns the clock during ATTENTION
     }
+
+    std::cout << "[IECBUS] peripheralControlClk from dev#"
+              << int(device->getDeviceNumber())
+              << " state=" << state
+              << " busClk(before)=" << busLines.clk
+              << "\n";
 
     // Rule 2: Any peripheral (Listener or Talker) can pull a line LOW (state == true).
     // This allows the Listener (drive) to assert CLK LOW for its ACK.

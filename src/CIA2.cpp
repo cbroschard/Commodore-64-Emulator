@@ -73,18 +73,22 @@ void CIA2::reset() {
     accumulatedCyclesB = 0;
 
     // IEC
-    deviceNumber = 0xFF;
-    listening = false;
-    talking = false;
-    currentSecondaryAddress = 0xFF;
-    expectedSecondaryAddress = 0xFF;
-    atnLine = false;
-    lastAtnLevel = false;
-    lastClk = false;
-    lastSrqLevel = false;
-    lastDataLevel = true;
-    shiftReg = 0;
-    bitCount = 0;
+    deviceNumber                = 0xFF;
+    listening                   = false;
+    talking                     = false;
+    currentSecondaryAddress     = 0xFF;
+    expectedSecondaryAddress    = 0xFF;
+    atnLine                     = false;
+    atnHandshakePending          = false;
+    lastAtnLevel                = false;
+    lastClk                     = false;
+    lastSrqLevel                = false;
+    lastDataLevel               = true;
+    shiftReg                    = 0;
+    bitCount                    = 0;
+    iecCmdShiftReg              = 0;
+    iecCmdBitCount              = 0;
+    lastClkOutHigh              = true;
 
     // CNT
     cntLevel = true;
@@ -114,15 +118,15 @@ uint8_t CIA2::readRegister(uint16_t address)
             {
                 // PA6: CLK IN
                 if (bus->readClkLine())
-                    result |= MASK_CLK_IN;   // line high
+                    result |= MASK_CLK_IN;
                 else
-                    result &= ~MASK_CLK_IN;  // line low
+                    result &= ~MASK_CLK_IN;
 
                 // PA7: DATA IN
                 if (bus->readDataLine())
-                    result |= MASK_DATA_IN;  // line high
+                    result |= MASK_DATA_IN;
                 else
-                    result &= ~MASK_DATA_IN; // line low
+                    result &= ~MASK_DATA_IN;
             }
 
             return result;
@@ -230,16 +234,16 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
     {
         case 0xDD00:
         {  // Data Port A
-             uint8_t oldPA = portA;
-            // Merge new outputs only on DDR=1 bits; keep all DDR=0 bits (VIC bank) intact
-            //portA = (portA & ~dataDirectionPortA) | (value &  dataDirectionPortA);
             portA = value;
-            if (oldPA != portA) recomputeIEC();
+            recomputeIEC();
 
             if (logger && setLogging)
             {
                 std::stringstream out;
-                out << "Updated Port A in CIA2 to: " << static_cast<int>(value) << " giving effective value: " << static_cast<int>(portA);
+                out << "Updated Port A in CIA2 to: "
+                    << static_cast<int>(value)
+                    << " giving effective value: "
+                    << static_cast<int>(portA);
                 logger->WriteLog(out.str());
             }
             break;
@@ -572,12 +576,79 @@ void CIA2::refreshNMI()
 
 void CIA2::clkChanged(bool level)
 {
+    bool was = lastClk;
     const bool falling = (lastClk && !level);
+    const bool rising  = (!lastClk && level);
     lastClk = level;
 
-    if (!falling || !bus) return;
+    if (!bus)
+        return;
 
-    // LISTEN receive (not under ATN): shift one bit in
+    std::cout << "[CIA2] CLK edge: level=" << level
+              << " was=" << was
+              << " rising=" << rising
+              << " falling=" << falling
+              << " ATN=" << (atnLine ? "L" : "H")
+              << " handshakePending=" << (atnHandshakePending ? "Y" : "N")
+              << " cmdBits=" << int(iecCmdBitCount)
+              << " listening=" << (listening ? "Y" : "N")
+              << " talking="  << (talking ? "Y" : "N")
+              << "\n";
+
+    if (falling)
+    {
+        std::cout << "[CIA2] CLK falling: ATN=" << (atnLine ? "L" : "H")
+                  << " handshakePending=" << (atnHandshakePending ? "Y" : "N")
+                  << " cmdBits=" << int(iecCmdBitCount)
+                  << " listening=" << (listening ? "Y" : "N")
+                  << " talking="  << (talking ? "Y" : "N")
+                  << "\n";
+    }
+
+    // --- Under ATN low: commands & secondary addresses from C64 ---
+    if (falling && atnLine)
+    {
+        if (atnHandshakePending)
+        {
+            std::cout << "[CIA2] Swallowing ATN handshake falling edge\n";
+            atnHandshakePending = false;
+            return;
+        }
+
+        // Now we are seeing real command/secondary bits from the C64.
+        bool dataHigh = bus->readDataLine(); // true = logical 1
+
+         std::cout
+        << "[CIA2] CMD BIT: dataHigh=" << int(dataHigh)
+        << " iecCmdBitCount=" << int(iecCmdBitCount)
+        << " shiftReg=$" << std::hex << int(iecCmdShiftReg)
+        << "\n";
+
+        iecCmdShiftReg =
+            static_cast<uint8_t>((iecCmdShiftReg << 1) | (dataHigh ? 1 : 0));
+        ++iecCmdBitCount;
+
+        std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
+                  << " cmdBits=" << int(iecCmdBitCount)
+                  << " byteSoFar=$" << std::hex << int(iecCmdShiftReg)
+                  << std::dec << "\n";
+
+        if (iecCmdBitCount == 8)
+        {
+            uint8_t cmd = iecCmdShiftReg;
+            std::cout << "[CIA2] IEC cmd from bus: $" << std::hex << int(cmd) << std::dec << "\n";
+            decodeIECCommand(cmd);
+            iecCmdShiftReg = 0;
+            iecCmdBitCount = 0;
+        }
+        return; // don't run LISTEN/TALK data I/O while ATN is low
+    }
+
+    // ATN released: normal serial protocol
+    if (!falling)
+        return;
+
+    // LISTEN receive (not under ATN): shift one byte into SR
     if (listening && !atnLine)
     {
         shiftReg = (shiftReg << 1) | (bus->readDataLine() ? 1 : 0);
@@ -623,13 +694,27 @@ void CIA2::atnChanged(bool assertedLow)
 
     if (fallingEdge)
     {
-        // ATN was just asserted by the C64
-        currentSecondaryAddress = 0xFF;
-        listening = false;
-        talking  = false;
-        shiftReg = 0;
-        bitCount = 0;
-        outBit   = 7;
+        // ATN was just asserted by the C64: new command sequence
+        currentSecondaryAddress  = 0xFF;
+        listening                = false;
+        talking                  = false;
+        shiftReg                 = 0;
+        bitCount                 = 0;
+        outBit                   = 7;
+
+        // Prepare for handshake + subsequent command bits
+        atnHandshakePending = true;
+        iecCmdShiftReg      = 0;
+        iecCmdBitCount      = 0;
+
+        lastClk = true;  // assume CLK was high before the handshake
+    }
+    else if (!assertedLow)
+    {
+        // ATN just went HIGH: make sure handshake state is cleared
+        atnHandshakePending = false;
+        iecCmdShiftReg      = 0;
+        iecCmdBitCount      = 0;
     }
 
     lastAtnLevel = assertedLow;
@@ -672,73 +757,89 @@ void CIA2::srqChanged(bool level)
 
 void CIA2::decodeIECCommand(uint8_t cmd)
 {
-    uint8_t code   = cmd & 0xF0;
-    uint8_t device = cmd & 0x0F;
+    if (!bus) return;
 
-    if (!bus)
+    uint8_t device = cmd & 0x1F;   // lower bits carry device or secondary
+    uint8_t code   = cmd & 0xF0;
+
+    if (cmd == 0x3F)    // UNLISTEN
+    {
+        // End any listening
+        if (listening && deviceNumber != 0xFF)
+        {
+            bus->unListen(deviceNumber);
+        }
+
+        listening                = false;
+        talking                  = false;
+        currentSecondaryAddress  = 0xFF;
+        expectedSecondaryAddress = 0xFF;
+        deviceNumber             = 0xFF;
         return;
+    }
+
+    if (cmd == 0x5F)    // UNTALK
+    {
+        // End any talking
+        if (talking && deviceNumber != 0xFF)
+        {
+            bus->unTalk(deviceNumber);
+        }
+
+        listening                = false;
+        talking                  = false;
+        currentSecondaryAddress  = 0xFF;
+        expectedSecondaryAddress = 0xFF;
+        deviceNumber             = 0xFF;
+        return;
+    }
 
     switch (code)
     {
-        case 0x20:  // LISTEN <device>
+        case 0x20: // LISTEN <device>  (0010 DDDD)
         {
-            bus->listen(device);
-            listening  = true;
-            talking    = false;
+            deviceNumber = device;
+            listening    = true;
+            talking      = false;
+
             currentSecondaryAddress  = 0xFF;
             expectedSecondaryAddress = 0xFF;
+
+            bus->listen(deviceNumber);
             break;
         }
 
-        case 0x30:  // UNLISTEN <device>
+        case 0x40: // TALK <device> (0100 DDDD)
         {
-            bus->unListen(device);
-            listening  = false;
-            talking    = false;
-            currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
-            break;
-        }
+            deviceNumber = device;
+            talking      = true;
+            listening    = false;
 
-        case 0x40:  // TALK <device>
-        {
-            bus->talk(device);
-            talking    = true;
-            listening  = false;
             currentSecondaryAddress  = 0xFF;
             expectedSecondaryAddress = 0xFF;
+
+            // Reset output bit position for sending bytes
             outBit = 7;
+
+            bus->talk(deviceNumber);
             break;
         }
 
-        case 0x60:  // UNTALK <device>
+        case 0x60: // Secondary address: 0110 AAAA
         {
-            bus->unTalk(device);
-            talking    = false;
-            listening  = false;
-            currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
-            break;
-        }
+            // Only meaningful if we are already in LISTEN or TALK
+            uint8_t secondary = device & 0x0F;
 
-        case 0xE0:  // secondary address
-        {
             if (listening || talking)
             {
-                currentSecondaryAddress  = device;
-                expectedSecondaryAddress = currentSecondaryAddress;
+                currentSecondaryAddress  = secondary;
+                expectedSecondaryAddress = secondary;
             }
             break;
         }
 
         default:
         {
-            if (logger && setLogging)
-            {
-                logger->WriteLog(
-                    "Error: Unknown IEC Bus command encountered: " +
-                    std::to_string(code));
-            }
             break;
         }
     }
@@ -924,28 +1025,35 @@ void CIA2::recomputeIEC()
     if (!bus)
         return;
 
-    auto lineHigh = [&](uint8_t mask) -> bool
+    // 6526 semantics:
+    // - DDRA bit = 1 => output
+    // - portA latch bit = 0 => drive line LOW
+    // - portA latch bit = 1 => release line (HIGH via pull-up)
+    //
+    // So bits we drive LOW are where DDR=1 and portA=0.
+    uint8_t lowMask = dataDirectionPortA & static_cast<uint8_t>(~portA);
+
+    static uint8_t prevLowMask = 0xFF;
+    if (lowMask != prevLowMask)
     {
-        // If DDR bit is 0, CIA releases the line: external pull-ups keep it high.
-        if ((dataDirectionPortA & mask) == 0)
-            return true;
+        std::cout << "[CIA2] lowMask=$" << std::hex << int(lowMask)
+                  << "  DDRA=$" << int(dataDirectionPortA)
+                  << "  PA=$"   << int(portA) << std::dec << "\n";
+        prevLowMask = lowMask;
+    }
 
-        // DDR=1: bit=1 means "release" (high), bit=0 means "pull low".
-        return (portA & mask) != 0;
-    };
-
-    bool atnHigh  = lineHigh(MASK_ATN_OUT);
-    bool clkHigh  = lineHigh(MASK_CLK_OUT);
-    bool dataHigh = lineHigh(MASK_DATA_OUT);
+    bool atnLow  = (lowMask & MASK_ATN_OUT)  != 0; // PA3
+    bool clkLow  = (lowMask & MASK_CLK_OUT)  != 0; // PA4
+    bool dataLow = (lowMask & MASK_DATA_OUT) != 0; // PA5
 
     // Bus API: true = line HIGH (released), false = line LOW (asserted)
-    bus->setAtnLine(atnHigh);
-    bus->setClkLine(clkHigh);
-    bus->setDataLine(dataHigh);
+    bus->setAtnLine(!atnLow);
+    bus->setClkLine(!clkLow);
+    bus->setDataLine(!dataLow);
 
     std::cout << "[CIA2] DDRA=$" << std::hex << int(dataDirectionPortA)
               << " PA=$"   << int(portA)
-              << " | ATN=" << atnHigh
-              << " CLK="   << clkHigh
-              << " DATA="  << dataHigh << std::dec << "\n";
+              << " | ATNlow="  << atnLow
+              << " CLKlow="    << clkLow
+              << " DATAlow="   << dataLow << std::dec << "\n";
 }
