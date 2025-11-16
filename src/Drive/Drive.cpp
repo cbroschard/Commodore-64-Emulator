@@ -11,13 +11,8 @@ Drive::Drive() :
     currentDriveError(DriveError::NONE),
     currentDriveStatus(DriveStatus::IDLE),
     currentDriveBusState(DriveBusState::IDLE),
-    ackDelay(0),
     expectingListen(false),
     expectingTalk(false),
-    bitShiftRegister(0),
-    bitCount(0),
-    lastClkHigh(true),
-    currentSecondaryAddress(-1),
     currentTalkByte(0),
     talkBitPos(-1),
     waitingForAck(false),
@@ -26,7 +21,12 @@ Drive::Drive() :
     ackHold(false),
     byteAckHold(false),
     haveListenCommand(false),
-    haveSecondary(false)
+    haveSecondary(false),
+    ackDelay(0),
+    bitShiftRegister(0),
+    bitCount(0),
+    lastClkHigh(true),
+    currentSecondaryAddress(-1)
 {
 
 }
@@ -40,37 +40,25 @@ void Drive::atnChanged(bool atnAsserted)
 
     if (atnAsserted)
     {
-        // New ATN phase: prepare to receive a command byte
-        bitShiftRegister = 0;
-        bitCount         = 0;
-        expectingListen  = false;
-        expectingTalk    = false;
-
+        // C64 is entering attention phase – we’re about to receive a command.
         currentDriveBusState = DriveBusState::AWAITING_COMMAND;
 
-        // Ignore the *first* falling CLK edge after ATN goes low.
-        // That edge is the presence ACK handshake, not the first data bit.
-        ackEdgeCountdown = 1;
-        lastClkHigh      = true;  // assume CLK idle high before the first fall
+        // We do NOT need a special "ignore first falling edge" counter anymore.
+        ackEdgeCountdown = 0;
 
-        // Do NOT touch DATA here; the 1571 handles presence ACK.
+        // Re-sync edge detection & RX state:
+        lastClkHigh      = true; // assume line is high so the next low is a falling edge
+        bitShiftRegister = 0;
+        bitCount         = 0;
     }
     else
     {
-        // ATN released: only force a state if we *haven't* already moved
-        // into LISTENING/TALKING from parseCommandByte().
+        // ATN released: if we were only awaiting a command and got nothing,
+        // go idle.
         if (currentDriveBusState == DriveBusState::AWAITING_COMMAND)
-        {
-            if (expectingListen)
-                currentDriveBusState = DriveBusState::LISTENING;
-            else if (expectingTalk)
-                currentDriveBusState = DriveBusState::TALKING;
-            else
-                currentDriveBusState = DriveBusState::IDLE;
-        }
+            currentDriveBusState = DriveBusState::IDLE;
 
-        expectingListen = false;
-        expectingTalk   = false;
+        ackEdgeCountdown = 0;
     }
 }
 
@@ -149,6 +137,7 @@ void Drive::tick()
         {
             // Release DATA back to "not driving low"
             peripheralAssertData(false);
+            byteAckHold = false;
         }
     }
 }
@@ -211,7 +200,7 @@ void Drive::parseCommandByte(uint8_t byte)
         return;
     }
 
-    // --- TALK <device> ---
+    //  TALK <device>
     if (code == 0x40 && dev == deviceNumber)
     {
         std::cout << "[Drive] TALK for this device\n";
@@ -225,7 +214,7 @@ void Drive::parseCommandByte(uint8_t byte)
         return;
     }
 
-    // --- Secondary address / "reopen channel" 0x60–0x6F ---
+    //  Secondary address / "reopen channel" 0x60–0x6F
     if (code == 0x60)
     {
         currentSecondaryAddress = dev;   // channel # (0–15)
@@ -241,7 +230,7 @@ void Drive::parseCommandByte(uint8_t byte)
         return;
     }
 
-    // --- OPEN channel 0xF0–0xFF (we only really care about chan 0) ---
+    // OPEN channel 0xF0–0xFF (we only really care about chan 0) ---
     if (code == 0xF0)
     {
         std::cout << "[Drive] OPEN channel " << int(dev) << "\n";
@@ -256,7 +245,7 @@ void Drive::parseCommandByte(uint8_t byte)
         return;
     }
 
-    // --- CLOSE channel 0xE0–0xEF (can mostly ignore for now) ---
+    // CLOSE channel 0xE0–0xEF (can mostly ignore for now)
     if (code == 0xE0)
     {
         std::cout << "[Drive] CLOSE channel " << int(dev) << "\n";
@@ -296,28 +285,34 @@ void Drive::iecClkEdge(bool data, bool clk)
     bool rising  = (!lastClkHigh && clk);
     bool falling = ( lastClkHigh && !clk);
 
+    if ((currentDriveBusState == DriveBusState::AWAITING_COMMAND ||
+     currentDriveBusState == DriveBusState::LISTENING) && falling)
+    {
+        std::cout << "[Drive] FALLING edge in RX state, data=" << data
+                  << " clk=" << clk
+                  << " state=" << int(currentDriveBusState)
+                  << " bitCount=" << int(bitCount) << "\n";
+    }
+
     std::cout << "[CLKEDGE] data=" << data
               << " clk=" << clk
               << " rising=" << rising
               << " falling=" << falling
               << " state=" << static_cast<int>(currentDriveBusState)
               << " bitCount=" << int(bitCount)
+              << " ackEdgeCountdown=" << ackEdgeCountdown
               << "\n";
 
-    if (currentDriveBusState == DriveBusState::AWAITING_COMMAND &&
-        falling && ackEdgeCountdown > 0)
-    {
-        std::cout << "[Drive] Ignoring ATN handshake falling edge\n";
-
-        --ackEdgeCountdown;
-        lastClkHigh = clk;
-        return;
-    }
-
-    // === 1. C64 -> drive: receive bits while LISTENing or awaiting command ===
     if (currentDriveBusState == DriveBusState::AWAITING_COMMAND ||
         currentDriveBusState == DriveBusState::LISTENING)
     {
+        if (byteAckHold)
+        {
+            // We’ve just ACKed a byte; ignore edges until ackDelay expires.
+            lastClkHigh = clk;
+            return;
+        }
+
         if (falling)
         {
             uint8_t bit = data ? 1 : 0;
@@ -330,7 +325,7 @@ void Drive::iecClkEdge(bool data, bool clk)
                       << " byte=$" << std::hex << int(bitShiftRegister)
                       << std::dec << "\n";
 
-            if (bitCount == 8)
+            if (bitCount >= 8)
             {
                 uint8_t received = bitShiftRegister;
 
@@ -347,13 +342,14 @@ void Drive::iecClkEdge(bool data, bool clk)
                 }
                 else
                 {
-                    // Payload data while drive is listening
+                    // Data while listening
                     listenBuffer.push_back(received);
                 }
 
                 // Byte-level ACK: briefly pull DATA low.
                 peripheralAssertData(true);
-                ackDelay = 2;   // Drive::tick() will release DATA later
+                ackDelay    = 2;    // Drive::tick() will release DATA
+                byteAckHold = true;
 
                 bitShiftRegister = 0;
                 bitCount         = 0;
@@ -364,7 +360,6 @@ void Drive::iecClkEdge(bool data, bool clk)
         return;
     }
 
-    // === 2. Drive -> C64: TALKING logic (unchanged) ===
     if (currentDriveBusState == DriveBusState::TALKING)
     {
         // While waiting for the C64’s ACK, ignore CLK edges.

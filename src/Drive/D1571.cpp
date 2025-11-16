@@ -89,12 +89,12 @@ void D1571::setSRQAsserted(bool state)
 
 void D1571::setFastSerialBusDirection(bool output)
 {
-    fastSerialOutput = output; // bool member, hook up later
+    fastSerialOutput = output;
 }
 
 void D1571::setBurstClock2MHz(bool enable)
 {
-    twoMHzMode = enable;       // bool member, hook up later to timing
+    twoMHzMode = enable;
 }
 
 bool D1571::getByteReadyLow() const
@@ -207,10 +207,7 @@ bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     return true;
 }
 
-bool D1571::fdcWriteSector(uint8_t track,
-                           uint8_t sector,
-                           const uint8_t* buffer,
-                           size_t length)
+bool D1571::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length)
 {
     // Basic sanity
     if (!diskLoaded || !diskImage || buffer == nullptr || length == 0)
@@ -309,22 +306,20 @@ void D1571::updateAtnAckState()
 void D1571::atnChanged(bool atnLow)
 {
     atnLineLow = atnLow;
-
-    // Base class handles state machine (AWAITING_COMMAND, etc.)
-    Drive::atnChanged(atnLow);
+    Drive::atnChanged(atnLow); // base class
 
     if (atnLineLow)
     {
-        // Fresh ATN pulse: allow one presence ACK
         atnAckCompletedThisAtn = false;
         beginAtnAck();
     }
     else
     {
-        // ATN released: ACK must be off and ready for next ATN
         endAtnAck();
         atnAckCompletedThisAtn = false;
         handshakeSeen = false;
+
+        //currentDriveBusState = DriveBusState::AWAITING_COMMAND;
     }
 }
 
@@ -338,30 +333,51 @@ void D1571::clkChanged(bool clkLow)
 {
     clkLineLow = clkLow;
 
-    // Only care about handshake if ATN is low and ACK is active.
-    if (!atnLineLow || !ackInProgress)
-        return;
+    // ATN ACK Handshake Logic
+    if (atnLineLow && ackInProgress)
+    {
+        if (!handshakeSeen && clkLow) // CLK falls while ATN low (Handshake start)
+        {
+            std::cout << "[D1571] CLK low while ATN -> handshake seen\n";
+            handshakeSeen = true;
+            return;
+        }
+        else if (handshakeSeen && !clkLow) // CLK rises while ATN low (Handshake end)
+        {
+            std::cout << "[D1571] CLK high while ATN -> end ATN ACK\n";
+            endAtnAck();
+            atnAckCompletedThisAtn = true;
+            handshakeSeen          = false;
+            return; // EXIT: This edge is part of the handshake, not a data bit.
+        }
 
-    if (!handshakeSeen && clkLow)
-    {
-        // First low of CLK while ATN is low: handshake pulse begins.
-        std::cout << "[D1571] CLK low while ATN -> handshake seen\n";
-        handshakeSeen = true;
-        // Keep DATA low here; ACK is still active.
+        // If we reached here, ATN is low, but the CLK edge was not one we cared about (e.g., an extra rise/fall).
+        return;
     }
-    else if (handshakeSeen && !clkLow)
-    {
-        // CLK rising back high with ATN still low:
-        // this ends the presence ACK for this ATN.
-        std::cout << "[D1571] CLK high while ATN -> end ATN ACK\n";
-        endAtnAck();
-        atnAckCompletedThisAtn = true;
-        handshakeSeen          = false;
-    }
+
+    std::cout << "[D1571] clkChanged atnLow=" << atnLineLow
+          << " clkLow=" << clkLow
+          << " dataLow=" << dataLineLow
+          << " ackInProgress=" << ackInProgress
+          << " handshakeSeen=" << handshakeSeen
+          << "\n";
+
+    bool dataIsHigh = !dataLineLow;
+    bool clkIsHigh  = !clkLow;
+
+    iecClkEdge(dataIsHigh, clkIsHigh);
 }
 
 void D1571::dataChanged(bool dataState)
 {
-    Drive::dataChanged(dataState);
+    bool performingHandshake = atnLineLow && ackInProgress;
+
+    if (!performingHandshake)
+    {
+        // dataState: true = line HIGH, false = line LOW
+        Drive::dataChanged(dataState);
+    }
+
+    // Store "line is low" as a bool
     dataLineLow = !dataState;
 }
