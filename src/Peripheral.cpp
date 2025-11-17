@@ -26,10 +26,6 @@ Peripheral::~Peripheral() = default;
 void Peripheral::attachBusInstance(IECBUS* bus)
 {
     this->bus = bus;
-    if (bus && deviceNumber >= 0)
-    {
-        bus->registerDevice(deviceNumber, this);
-    }
 }
 
 void Peripheral::detachBusInstance()

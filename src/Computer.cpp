@@ -508,7 +508,7 @@ bool Computer::boot()
     else if (diskAttached)
     {
         drive8 = std::make_unique<D1571>(8, D1571ROM);
-        drive8->attachBusInstance(bus.get());
+        bus->registerDevice(8, drive8.get());
         drive8->reset();
         drive8->loadDisk(diskPath);
     }
