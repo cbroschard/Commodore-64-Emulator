@@ -199,6 +199,10 @@ void IECBUS::peripheralControlData(Peripheral* device, bool state)
         peripheralDrivesDataLow = state;     // true => drive DATA low
         updateBusState();
         if (cia2object) cia2object->dataChanged(busLines.data);
+        for (auto const& [num,dev] : devices)
+        {
+            if (dev) dev->dataChanged(busLines.data);
+        }
         std::cout << "[BUS] periph DATA=" << state << " while ATN low -> line now " << busLines.data << "\n";
         return;
     }
@@ -212,6 +216,10 @@ void IECBUS::peripheralControlData(Peripheral* device, bool state)
 
     updateBusState();
     if (cia2object) cia2object->dataChanged(busLines.data);
+    for (auto const& [num,dev] : devices)
+    {
+        if (dev) dev->dataChanged(busLines.data);
+    }
 }
 
 void IECBUS::peripheralControlAtn(Peripheral* device, bool state)
