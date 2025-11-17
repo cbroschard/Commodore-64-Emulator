@@ -318,8 +318,6 @@ void D1571::atnChanged(bool atnLow)
         endAtnAck();
         atnAckCompletedThisAtn = false;
         handshakeSeen = false;
-
-        //currentDriveBusState = DriveBusState::AWAITING_COMMAND;
     }
 }
 
