@@ -180,7 +180,7 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     }
 
     updateBusState();
-    if (cia2object) cia2object->clkChanged(busLines.clk);
+    //if (cia2object) cia2object->clkChanged(busLines.clk);
     for (auto& [num, dev] : devices)
     {
         if (dev)
