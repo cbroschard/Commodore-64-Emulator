@@ -34,7 +34,7 @@ class D1541 : public Drive
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
         bool isDiskLoaded() const override;
-        const std::string& getLoadedDiskName() const override;
+        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
         uint8_t getCurrentTrack() const override;
         uint8_t getCurrentSector() const override;
 
@@ -68,6 +68,7 @@ class D1541 : public Drive
 
         // ML Monitor
         const char* getDriveTypeName() const noexcept override { return "1541"; }
+        bool isDrive() const override { return true; }
 
     protected:
         bool motorOn;
