@@ -57,6 +57,11 @@ class Peripheral
         void onTalk();
         inline void onUnTalk() { talking = false;}
 
+        // ML Monitor
+        virtual bool isDrive() const { return false; }
+        virtual const std::string& getLoadedDiskName() const = 0;
+        virtual const char* getDriveTypeName() const noexcept = 0;
+
         // Non-owning pointer
         IECBUS* bus;
 
