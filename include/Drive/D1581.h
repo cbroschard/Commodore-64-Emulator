@@ -49,9 +49,9 @@ class D1581 : public Drive, public FloppyControllerHost
         // Floppy Image
         inline uint8_t getCurrentTrack() const override { return currentTrack; }
         inline uint8_t getCurrentSector() const override { return currentSector; }
-        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
         inline void setDiskWriteProtected(bool on) { diskWriteProtected = on; }
         inline bool isDiskLoaded() const override { return diskLoaded; }
+        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
 
         // ML Monitor
         inline const CPU* getDriveCPU() const { return &driveCPU; }
@@ -59,6 +59,7 @@ class D1581 : public Drive, public FloppyControllerHost
         inline const FDC177x* getFDC() const { return &d1581Mem.getFDC(); }
         inline const D1581CIA* getCIA() const { return &d1581Mem.getCIA(); }
         const char* getDriveTypeName() const noexcept override { return "1581"; }
+        bool isDrive() const override { return true; }
 
     protected:
         bool motorOn;

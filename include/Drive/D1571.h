@@ -89,6 +89,7 @@ class D1571 : public Drive, public FloppyControllerHost
         inline const D1571VIA* getVIA1() const { return &d1571Mem.getVIA1(); }
         inline const D1571VIA* getVIA2() const { return &d1571Mem.getVIA2(); }
         const char* getDriveTypeName() const noexcept override { return "1571"; }
+        bool isDrive() const override { return true; }
 
     protected:
         bool motorOn;
@@ -121,6 +122,8 @@ class D1571 : public Drive, public FloppyControllerHost
         bool ackInProgress;
         bool atnAckCompletedThisAtn;
         bool handshakeSeen; // Track whether presence handshake was seen or not
+        bool cmdRxActive;
+        bool swallowPostHandshakeFalling;
 
         // Normal DATA OUT contribution from VIA
         bool dataOutPullsLow;
