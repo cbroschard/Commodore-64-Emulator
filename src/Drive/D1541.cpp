@@ -100,11 +100,6 @@ bool D1541::isDiskLoaded() const
     return diskLoaded;
 }
 
-const std::string& D1541::getLoadedDiskName() const
-{
-    return loadedDiskName;
-}
-
 uint8_t D1541::getCurrentTrack() const
 {
     return currentTrack;
