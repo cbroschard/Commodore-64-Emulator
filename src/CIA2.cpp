@@ -112,22 +112,34 @@ uint8_t CIA2::readRegister(uint16_t address)
     {
         case 0xDD00:
         {
-            uint8_t result = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
+            uint8_t result = 0;
 
-            if (bus)
-            {
-                // PA6: CLK IN
-                if (bus->readClkLine())
-                    result |= MASK_CLK_IN;
-                else
-                    result &= ~MASK_CLK_IN;
+            // ------------------------------------------
+            // PA0–PA1 : VIC bank select (always OUTPUT)
+            // ------------------------------------------
+            result |= (portA & 0x03);
 
-                // PA7: DATA IN
-                if (bus->readDataLine())
-                    result |= MASK_DATA_IN;
-                else
-                    result &= ~MASK_DATA_IN;
-            }
+            // ------------------------------------------
+            // PA2 : RS-232 TXD (always OUTPUT)
+            // ------------------------------------------
+            result |= (portA & 0x04);
+
+            // ------------------------------------------
+            // PA3–PA5 : IEC OUT (always OUTPUT)
+            // ------------------------------------------
+            result |= (portA & 0x38);
+
+            // ------------------------------------------
+            // PA6 : IEC CLOCK IN (real hardware input)
+            // ------------------------------------------
+            if (bus && bus->readClkLine()) result |= 0x40;
+            else                            result &= ~0x40;
+
+            // ------------------------------------------
+            // PA7 : IEC DATA IN (real hardware input)
+            // ------------------------------------------
+            if (bus && bus->readDataLine()) result |= 0x80;
+            else                             result &= ~0x80;
 
             return result;
         }
@@ -625,7 +637,7 @@ void CIA2::clkChanged(bool level)
         << "\n";
 
         iecCmdShiftReg =
-            static_cast<uint8_t>((iecCmdShiftReg << 1) | (dataHigh ? 1 : 0));
+            static_cast<uint8_t>((iecCmdShiftReg >> 1) | (dataHigh ? 0x80 : 0x00));
         ++iecCmdBitCount;
 
         std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
@@ -707,7 +719,15 @@ void CIA2::atnChanged(bool assertedLow)
         iecCmdShiftReg      = 0;
         iecCmdBitCount      = 0;
 
-        lastClk = true;  // assume CLK was high before the handshake
+        //lastClk = true;  // assume CLK was high before the handshake
+        if (bus)
+        {
+            lastClk = bus->readClkLine(); // Reads true for HIGH, false for LOW
+        }
+        else
+        {
+            lastClk = true; // Fallback if bus is not attached
+        }
     }
     else if (!assertedLow)
     {
@@ -1025,13 +1045,7 @@ void CIA2::recomputeIEC()
     if (!bus)
         return;
 
-    // 6526 semantics:
-    // - DDRA bit = 1 => output
-    // - portA latch bit = 0 => drive line LOW
-    // - portA latch bit = 1 => release line (HIGH via pull-up)
-    //
-    // So bits we drive LOW are where DDR=1 and portA=0.
-    uint8_t lowMask = dataDirectionPortA & static_cast<uint8_t>(~portA);
+    uint8_t lowMask = dataDirectionPortA & static_cast<uint8_t>(portA);
 
     static uint8_t prevLowMask = 0xFF;
     if (lowMask != prevLowMask)
