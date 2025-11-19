@@ -42,7 +42,6 @@ class Drive : public Peripheral
         virtual bool isDiskLoaded() const = 0;
         virtual void loadDisk(const std::string& path) = 0;
         virtual void unloadDisk() = 0;
-        virtual const std::string& getLoadedDiskName() const = 0;
 
         // Getters
         virtual uint8_t getCurrentTrack() const = 0;
@@ -61,9 +60,6 @@ class Drive : public Peripheral
         virtual void startMotor() = 0;
         virtual void stopMotor() = 0;
         virtual bool isMotorOn() const = 0;
-
-        // Drive model/type name for monitor / UI
-        virtual const char* getDriveTypeName() const noexcept = 0;
 
     protected:
 
