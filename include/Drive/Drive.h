@@ -28,7 +28,10 @@ class Drive : public Peripheral
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         virtual FDC177x* getFDC() { return nullptr; }
 
-        // Level Changed
+        void driveControlClkLine(bool clkLow);
+        void driveControlDataLine(bool dataLow);
+
+        // Level Changed (callbacks from IEC bus)
         void atnChanged(bool atnAsserted) override;
         void dataChanged(bool level) override;
 
@@ -46,8 +49,6 @@ class Drive : public Peripheral
         // Getters
         virtual uint8_t getCurrentTrack() const = 0;
         virtual uint8_t getCurrentSector() const = 0;
-        virtual std::vector<uint8_t> getDirectoryListing() = 0;
-        virtual std::vector<uint8_t> loadFileByName(const std::string& name) = 0;
 
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING } currentDriveStatus;
@@ -68,41 +69,27 @@ class Drive : public Peripheral
         // Non-owning pointers
         Logging* logger = nullptr;
 
-        // Signal state
-        bool expectingListen;
-        bool expectingTalk;
-
         // Talking state
-        uint8_t currentTalkByte;
-        int talkBitPos;
         bool waitingForAck;
         int ackEdgeCountdown;
+        bool swallowPostHandshakeFalling;
+        bool waitingForClkRelease;
         bool prevClkLevel;
         bool ackHold;
         bool byteAckHold;
-        bool haveListenCommand;
-        bool haveSecondary;
 
         // Data receive state
-        virtual void processListenBuffer();
-        std::vector<uint8_t> listenBuffer;
-        int ackDelay; // used to release data line after ACK
+        int ackDelay; // used to release data line after ACK (legacy use)
 
         // Talking state
         std::queue<uint8_t> talkQueue;
 
-        void iecClkEdge(bool data, bool clk) override;
-
     private:
 
-        // Serial receiver state
-        uint8_t bitShiftRegister;
-        int bitCount;
+        // Serial receiver state (legacy bit-shift state)
         bool lastClkHigh;
         int currentSecondaryAddress;
 
-        // Helper
-        void parseCommandByte(uint8_t byte);
 };
 
 #endif // DRIVE_H
