@@ -107,6 +107,9 @@ void CPU::handleIRQ()
         {
             case IRQLine::VICII:
             case IRQLine::CIA1:
+            case IRQLine::D1541_IRQ:
+            case IRQLine::D1571_IRQ:
+            case IRQLine::D1581_IRQ:
             {
                 executeIRQ();
                 break;
