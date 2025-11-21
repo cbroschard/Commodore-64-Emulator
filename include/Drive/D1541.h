@@ -47,10 +47,6 @@ class D1541 : public Drive
         bool renameFile(const std::string& oldName, const std::string& newName);
         bool copyFile(const std::string& srcName, const std::string& destName);
 
-        // File/Directory getters
-        std::vector<uint8_t> getDirectoryListing() override;
-        std::vector<uint8_t> loadFileByName(const std::string& name) override;
-
         // Motor control
         void startMotor() override;
         void stopMotor() override;
@@ -93,9 +89,6 @@ class D1541 : public Drive
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
-
-        // Listen buffer handling
-        void processListenBuffer() override;
 };
 
 #endif // D1541_H
