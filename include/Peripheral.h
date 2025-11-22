@@ -51,10 +51,10 @@ class Peripheral
         void peripheralAssertSrq(bool state);
 
         // IEC BUS commands
-        void onListen();
-        inline void onUnListen() { listening = false; }
-        void onTalk();
-        inline void onUnTalk() { talking = false;}
+        virtual void onListen() = 0;
+        virtual void onUnListen() = 0;
+        virtual void onTalk() = 0;
+        virtual void onUnTalk() = 0;
 
         // ML Monitor
         virtual bool isDrive() const { return false; }
