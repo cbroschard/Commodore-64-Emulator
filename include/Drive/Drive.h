@@ -75,6 +75,7 @@ class Drive : public Peripheral
         Logging* logger = nullptr;
 
         // Talking state
+        int currentSecondaryAddress;
         bool waitingForAck;
         int ackEdgeCountdown;
         bool swallowPostHandshakeFalling;
@@ -93,8 +94,6 @@ class Drive : public Peripheral
 
         // Serial receiver state (legacy bit-shift state)
         bool lastClkHigh;
-        int currentSecondaryAddress;
-
 };
 
 #endif // DRIVE_H
