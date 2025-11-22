@@ -63,6 +63,7 @@ class IECBUS
         void unListen(int deviceNumber);
         void talk(int deviceNumber);
         void unTalk(int deviceNumber);
+        void secondaryAddress(uint8_t devNum, uint8_t sa);
 
         // Main emulation cycle
         void tick(uint64_t cyclesPassed);

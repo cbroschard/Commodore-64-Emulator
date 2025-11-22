@@ -330,6 +330,8 @@ void IECBUS::unregisterDevice(int deviceNumber)
 
 void IECBUS::listen(int deviceNumber)
 {
+    std::cout << "[IECBUS] listen(" << deviceNumber << ")\n";
+
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
@@ -415,4 +417,13 @@ void IECBUS::updateSrqLine()
     line_srqin = !srqAsserted;
     // Update the CIA2
     if(cia2object) cia2object->srqChanged(line_srqin);
+}
+
+void IECBUS::secondaryAddress(uint8_t devNum, uint8_t sa)
+{
+    auto it = devices.find(devNum);
+    if (it == devices.end())
+        return;
+
+   it->second->onSecondaryAddress(sa);
 }
