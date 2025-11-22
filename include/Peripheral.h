@@ -55,6 +55,7 @@ class Peripheral
         virtual void onUnListen() = 0;
         virtual void onTalk() = 0;
         virtual void onUnTalk() = 0;
+        virtual void onSecondaryAddress(uint8_t sa) = 0;
 
         // ML Monitor
         virtual bool isDrive() const { return false; }
@@ -68,6 +69,7 @@ class Peripheral
     protected:
 
         int deviceNumber;
+        int currentSecondaryAddress;
 
         // Assert status
         bool assertClk;
