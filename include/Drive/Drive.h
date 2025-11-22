@@ -62,6 +62,11 @@ class Drive : public Peripheral
         virtual void stopMotor() = 0;
         virtual bool isMotorOn() const = 0;
 
+        // ML Monitor
+        virtual DriveStatus getDriveStatus() const = 0;
+        bool isDrive() const override { return true; }
+        Drive* asDrive() override { return this; }
+
     protected:
 
         std::unique_ptr<Disk> diskImage;
