@@ -9,6 +9,7 @@
 #define PERIPHERAL_H
 
 // Forward declarations
+class Drive;
 class IECBUS;
 
 #include <cstdint>
@@ -57,6 +58,7 @@ class Peripheral
 
         // ML Monitor
         virtual bool isDrive() const { return false; }
+        virtual Drive* asDrive() { return nullptr; }
         virtual const std::string& getLoadedDiskName() const = 0;
         virtual const char* getDriveTypeName() const noexcept = 0;
 
