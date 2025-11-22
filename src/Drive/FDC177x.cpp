@@ -6,11 +6,11 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/FDC177x.h"
-#include "Drive/D1571.h"
 
 FDC177x::FDC177x() :
     host(nullptr),
     parentPeripheral(nullptr),
+    currentSectorSize(256),
     dataIndex(0),
     readSectorInProgress(false),
     writeSectorInProgress(false),
@@ -40,6 +40,8 @@ void FDC177x::reset()
     writeSectorInProgress = false;
 
     cyclesUntilEvent = 0;
+
+    currentSectorSize = 256;
 }
 
 void FDC177x::tick()
@@ -129,7 +131,7 @@ uint8_t FDC177x::readRegister(uint16_t address)
 
                 uint8_t value = 0xFF;
 
-                if (dataIndex < sizeof(sectorBuffer))
+                if (dataIndex < currentSectorSize)
                 {
                     value = sectorBuffer[dataIndex++];
                 }
@@ -137,7 +139,7 @@ uint8_t FDC177x::readRegister(uint16_t address)
                 registers.data = value;
                 setDRQ(false);
 
-                if (dataIndex >= sizeof(sectorBuffer))
+                if (dataIndex >= currentSectorSize)
                 {
                     // Last byte of the sector
                     readSectorInProgress = false;
@@ -182,14 +184,14 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
 
             if (currentType == CommandType::TypeII && group == CommandGroup::WriteSector && writeSectorInProgress)
             {
-                if (dataIndex < sizeof(sectorBuffer))
+                if (dataIndex < currentSectorSize)
                 {
                     sectorBuffer[dataIndex++] = value;
                     registers.data = value;
                     setDRQ(false);  // we've consumed this byte
                 }
 
-                if (dataIndex >= sizeof(sectorBuffer))
+                if (dataIndex >= currentSectorSize)
                 {
                     // Complete sector, write to disk
                     bool ok = false;
@@ -344,7 +346,7 @@ void FDC177x::startCommand(uint8_t cmd)
                     bool ok = false;
                     if (host)
                     {
-                        ok = host->fdcReadSector(registers.track, registers.sector, sectorBuffer, sizeof(sectorBuffer));
+                        ok = host->fdcReadSector(registers.track, registers.sector, sectorBuffer, currentSectorSize);
                     }
                     if (ok)
                     {

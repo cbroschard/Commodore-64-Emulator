@@ -31,6 +31,7 @@ class FDC177x
         inline bool checkDRQActive() const { return drq; }
 
         inline uint8_t getCurrentTrack() const { return registers.track; }
+        inline void setSectorSize(uint16_t size) { currentSectorSize = size; }
 
     protected:
 
@@ -39,6 +40,8 @@ class FDC177x
         // Non-owning pointers
         FloppyControllerHost* host;
         Peripheral* parentPeripheral;
+
+        static constexpr size_t MaxSectorSize = 1024;
 
         enum CommandType : uint8_t
         {
@@ -89,7 +92,8 @@ class FDC177x
 
         CommandType currentType;
 
-        uint8_t sectorBuffer[256]{};
+        uint8_t sectorBuffer[MaxSectorSize]{};
+        uint16_t currentSectorSize;
         uint8_t dataIndex;
         bool readSectorInProgress;
         bool writeSectorInProgress;
