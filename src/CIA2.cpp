@@ -816,8 +816,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
         case 0x20: // LISTEN
         {
             deviceNumber = low;
-            listening    = true;
-            talking      = false;
+            listening    = false;
+            talking      = true;
             currentSecondaryAddress = 0xFF;
 
             std::cout << "[CIA2] LISTEN to device " << int(deviceNumber) << "\n";
@@ -832,8 +832,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
         case 0x40: // TALK
         {
             deviceNumber = low;
-            talking      = true;
-            listening    = false;
+            talking      = false;
+            listening    = true;
             currentSecondaryAddress = 0xFF;
 
             std::cout << "[CIA2] TALK from device " << int(deviceNumber) << "\n";
