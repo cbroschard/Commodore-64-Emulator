@@ -129,6 +129,7 @@ class CIA2
         bool lastClk; // Remember previous clock level
         bool atnLine;
         bool atnHandshakePending;
+        bool atnHandshakeJustCleared;
         bool lastSrqLevel;
         bool lastDataLevel;
         bool lastAtnLevel;

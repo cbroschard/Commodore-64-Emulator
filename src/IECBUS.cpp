@@ -127,7 +127,7 @@ void IECBUS::setDataLine(bool state)
 
     for (auto const& [num, dev] : devices)
     {
-        if (dev) dev->dataChanged(busLines.data);
+        if (dev) dev->dataChanged(!busLines.data);
     }
 }
 
@@ -146,7 +146,7 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
     // Rule 1: If ATN is LOW (Attention), no peripheral can drive CLK.
-    if (!busLines.atn /* && currentState == State::ATTENTION */)
+    if (!busLines.atn)
     {
         std::cout << "[IECBUS] peripheralControlClk from dev#"
                   << int(device->getDeviceNumber())
@@ -159,6 +159,9 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
               << " state=" << state
               << " busClk(before)=" << busLines.clk
               << "\n";
+
+    // Remember old resolved CLK level
+    bool oldClk = busLines.clk;
 
     // Rule 2: Any peripheral (Listener or Talker) can pull a line LOW (state == true).
     // This allows the Listener (drive) to assert CLK LOW for its ACK.
@@ -180,11 +183,18 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     }
 
     updateBusState();
-    //if (cia2object) cia2object->clkChanged(busLines.clk);
-    for (auto& [num, dev] : devices)
+
+    // Only notify if the *bus* CLK actually changed
+    if (busLines.clk != oldClk)
     {
-        if (dev)
-            dev->clkChanged(!busLines.clk);
+        if (cia2object)
+            cia2object->clkChanged(busLines.clk);
+
+        for (auto& [num, dev] : devices)
+        {
+            if (dev)
+                dev->clkChanged(!busLines.clk); // drives see "low" as true
+        }
     }
 }
 
@@ -218,7 +228,7 @@ void IECBUS::peripheralControlData(Peripheral* device, bool state)
     if (cia2object) cia2object->dataChanged(busLines.data);
     for (auto const& [num,dev] : devices)
     {
-        if (dev) dev->dataChanged(busLines.data);
+        if (dev) dev->dataChanged(!busLines.data);
     }
 }
 

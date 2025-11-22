@@ -79,7 +79,8 @@ void CIA2::reset() {
     currentSecondaryAddress     = 0xFF;
     expectedSecondaryAddress    = 0xFF;
     atnLine                     = false;
-    atnHandshakePending          = false;
+    atnHandshakePending         = false;
+    atnHandshakeJustCleared     = false;
     lastAtnLevel                = false;
     lastClk                     = false;
     lastSrqLevel                = false;
@@ -588,10 +589,10 @@ void CIA2::refreshNMI()
 
 void CIA2::clkChanged(bool level)
 {
-    bool was = lastClk;
-    const bool falling = (lastClk && !level);
-    const bool rising  = (!lastClk && level);
-    lastClk = level;
+    bool was     = lastClk;
+    bool falling = (lastClk && !level);
+    bool rising  = (!lastClk && level);
+    lastClk      = level;
 
     if (!bus)
         return;
@@ -617,50 +618,75 @@ void CIA2::clkChanged(bool level)
                   << "\n";
     }
 
-    // --- Under ATN low: commands & secondary addresses from C64 ---
-    if (falling && atnLine)
+    // --- ATN LOW: command / secondary bytes from the C64 ---
+    if (atnLine)
     {
-        if (atnHandshakePending)
+        // Handshake: swallow *only the first rising edge* after ATN is asserted
+        if (atnHandshakePending && rising)
         {
-            std::cout << "[CIA2] Swallowing ATN handshake falling edge\n";
+            std::cout << "[CIA2] Swallowing ATN handshake edge (rising)\n";
             atnHandshakePending = false;
+            atnHandshakeJustCleared = true;
             return;
         }
 
-        // Now we are seeing real command/secondary bits from the C64.
-        bool dataHigh = bus->readDataLine(); // true = logical 1
-
-         std::cout
-        << "[CIA2] CMD BIT: dataHigh=" << int(dataHigh)
-        << " iecCmdBitCount=" << int(iecCmdBitCount)
-        << " shiftReg=$" << std::hex << int(iecCmdShiftReg)
-        << "\n";
-
-        iecCmdShiftReg =
-            static_cast<uint8_t>((iecCmdShiftReg >> 1) | (dataHigh ? 0x80 : 0x00));
-        ++iecCmdBitCount;
-
-        std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
-                  << " cmdBits=" << int(iecCmdBitCount)
-                  << " byteSoFar=$" << std::hex << int(iecCmdShiftReg)
-                  << std::dec << "\n";
-
-        if (iecCmdBitCount == 8)
+        // After handshake is cleared, only FALLING edges carry command bits
+        if (!atnHandshakePending && falling)
         {
-            uint8_t cmd = iecCmdShiftReg;
-            std::cout << "[CIA2] IEC cmd from bus: $" << std::hex << int(cmd) << std::dec << "\n";
-            decodeIECCommand(cmd);
-            iecCmdShiftReg = 0;
-            iecCmdBitCount = 0;
+            if (atnHandshakeJustCleared)
+            {
+                // Ignore this first post-handshake edge (bus not ready)
+                atnHandshakeJustCleared = false;
+                std::cout << "[CIA2] Ignoring first post-handshake falling edge\n";
+                return;
+            }
+
+            bool dataHigh = bus->readDataLine(); // true = logical '1'
+
+            std::cout << "[CIA2] CMD BIT: dataHigh=" << int(dataHigh)
+                      << " iecCmdBitCount=" << int(iecCmdBitCount)
+                      << " shiftRegBits=$" << std::hex << int(iecCmdShiftReg)
+                      << std::dec << "\n";
+
+            // Build the command byte as LSB-first:
+            //   first bit we see -> bit 0
+            //   second bit       -> bit 1
+            //   ...
+            if (dataHigh)
+            {
+                iecCmdShiftReg |= static_cast<uint8_t>(1u << iecCmdBitCount);
+            }
+            ++iecCmdBitCount;
+
+            std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
+                      << " cmdBits=" << int(iecCmdBitCount)
+                      << " byteSoFar=$" << std::hex << int(iecCmdShiftReg)
+                      << std::dec << "\n";
+
+            if (iecCmdBitCount == 8)
+            {
+                uint8_t cmd = iecCmdShiftReg;
+                std::cout << "[CIA2] IEC cmd from bus: $" << std::hex << int(cmd) << std::dec << "\n";
+
+                decodeIECCommand(cmd);
+
+                iecCmdShiftReg = 0;
+                iecCmdBitCount = 0;
+            }
+
+            // While ATN is low we *only* care about command bytes, not data
+            return;
         }
-        return; // don't run LISTEN/TALK data I/O while ATN is low
+
+        // ATN low but no falling edge carrying a bit: nothing else to do
+        return;
     }
 
-    // ATN released: normal serial protocol
+    // --- ATN HIGH: normal serial data for TALK/LISTEN ---
     if (!falling)
         return;
 
-    // LISTEN receive (not under ATN): shift one byte into SR
+    // LISTEN receive (ATN released): shift one byte into SR
     if (listening && !atnLine)
     {
         shiftReg = (shiftReg << 1) | (bus->readDataLine() ? 1 : 0);
@@ -670,13 +696,13 @@ void CIA2::clkChanged(bool level)
             bitCount = 0;
             shiftReg = 0;
 
-            // Byte ready -> SR (not FLAG); IFR latches unconditionally
+            // Byte ready -> SR; IFR bit for SR set
             interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
             refreshNMI();
         }
     }
 
-    // TALK transmit
+    // TALK transmit (ATN released)
     if (talking && !atnLine)
     {
         bool bit = (serialDataRegister >> outBit) & 1;
@@ -777,89 +803,84 @@ void CIA2::srqChanged(bool level)
 
 void CIA2::decodeIECCommand(uint8_t cmd)
 {
-    if (!bus) return;
+    std::cout << "[CIA2] IEC cmd from bus: $"
+              << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+              << int(cmd)
+              << std::dec << "\n";
 
-    uint8_t device = cmd & 0x1F;   // lower bits carry device or secondary
-    uint8_t code   = cmd & 0xF0;
-
-    if (cmd == 0x3F)    // UNLISTEN
-    {
-        // End any listening
-        if (listening && deviceNumber != 0xFF)
-        {
-            bus->unListen(deviceNumber);
-        }
-
-        listening                = false;
-        talking                  = false;
-        currentSecondaryAddress  = 0xFF;
-        expectedSecondaryAddress = 0xFF;
-        deviceNumber             = 0xFF;
-        return;
-    }
-
-    if (cmd == 0x5F)    // UNTALK
-    {
-        // End any talking
-        if (talking && deviceNumber != 0xFF)
-        {
-            bus->unTalk(deviceNumber);
-        }
-
-        listening                = false;
-        talking                  = false;
-        currentSecondaryAddress  = 0xFF;
-        expectedSecondaryAddress = 0xFF;
-        deviceNumber             = 0xFF;
-        return;
-    }
+    uint8_t code = cmd & 0xF0;
+    uint8_t low  = cmd & 0x1F;  // device # or SA
 
     switch (code)
     {
-        case 0x20: // LISTEN <device>  (0010 DDDD)
+        case 0x20: // LISTEN
         {
-            deviceNumber = device;
+            deviceNumber = low;
             listening    = true;
             talking      = false;
+            currentSecondaryAddress = 0xFF;
 
-            currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
+            std::cout << "[CIA2] LISTEN to device " << int(deviceNumber) << "\n";
 
-            bus->listen(deviceNumber);
+            // NEW: tell the bus to put this device into listen mode
+            if (bus)
+                bus->listen(deviceNumber);
+
             break;
         }
 
-        case 0x40: // TALK <device> (0100 DDDD)
+        case 0x40: // TALK
         {
-            deviceNumber = device;
+            deviceNumber = low;
             talking      = true;
             listening    = false;
+            currentSecondaryAddress = 0xFF;
 
-            currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
+            std::cout << "[CIA2] TALK from device " << int(deviceNumber) << "\n";
 
-            // Reset output bit position for sending bytes
-            outBit = 7;
+            // NEW: tell the bus to make this device the talker
+            if (bus)
+                bus->talk(deviceNumber);
 
-            bus->talk(deviceNumber);
             break;
         }
 
-        case 0x60: // Secondary address: 0110 AAAA
+        case 0x60: // SECONDARY ADDRESS
         {
-            // Only meaningful if we are already in LISTEN or TALK
-            uint8_t secondary = device & 0x0F;
+            currentSecondaryAddress = low;
 
-            if (listening || talking)
-            {
-                currentSecondaryAddress  = secondary;
-                expectedSecondaryAddress = secondary;
-            }
+            std::cout << "[CIA2] SECONDARY address SA="
+                      << int(currentSecondaryAddress)
+                      << " ($" << std::hex << int(currentSecondaryAddress)
+                      << std::dec << ")\n";
             break;
         }
 
         default:
         {
+            if (cmd == 0x3F)  // UNLISTEN
+            {
+                listening = false;
+                std::cout << "[CIA2] UNLISTEN\n";
+
+                // Simplest approach: unlisten the last addressed device.
+                if (bus && deviceNumber != 0xFF)
+                    bus->unListen(deviceNumber);
+            }
+            else if (cmd == 0x5F) // UNTALK
+            {
+                talking = false;
+                std::cout << "[CIA2] UNTALK\n";
+
+                if (bus && deviceNumber != 0xFF)
+                    bus->unTalk(deviceNumber);
+            }
+            else
+            {
+                std::cout << "[CIA2] Unknown / unhandled IEC cmd $"
+                          << std::hex << int(cmd)
+                          << std::dec << "\n";
+            }
             break;
         }
     }
