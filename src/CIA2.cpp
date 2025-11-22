@@ -849,6 +849,9 @@ void CIA2::decodeIECCommand(uint8_t cmd)
         {
             currentSecondaryAddress = low;
 
+            if (bus && deviceNumber != 0xFF)
+                bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
+
             std::cout << "[CIA2] SECONDARY address SA="
                       << int(currentSecondaryAddress)
                       << " ($" << std::hex << int(currentSecondaryAddress)
@@ -992,9 +995,11 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     {
         out << "\nIEC Bus State\n\n";
         out << "Device Number = " << static_cast<int>(deviceNumber) << "\n";
-        out << "Listening = " << (listening ? "Yes" : "No") << "\n";
-        out << "Talking   = " << (talking ? "Yes" : "No") << "\n";
-        out << "ATN Line  = " << (atnLine ? "Asserted" : "Released") << "\n";
+
+        // These flags are *C64 perspective*
+        std::cout << "C64 acting as talker   = " << (talking   ? "Yes" : "No") << "\n";
+        std::cout << "C64 acting as listener = " << (listening ? "Yes" : "No") << "\n";
+        std::cout << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n";
     }
 
     return out.str();
