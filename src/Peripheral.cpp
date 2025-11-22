@@ -63,21 +63,6 @@ void Peripheral::peripheralAssertSrq(bool state)
     }
 }
 
-void Peripheral::onListen()
-{
-    listening = true;
-    shiftReg = 0;
-    bitsProcessed = 0;
-}
-
-
-void Peripheral::onTalk()
-{
-    talking = true;
-    shiftReg  = nextOutputByte();
-    bitsProcessed = 0;
-}
-
 uint8_t Peripheral::nextOutputByte()
 {
     return 0xFF; // Overriden by derived device
