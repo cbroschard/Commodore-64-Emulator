@@ -73,11 +73,19 @@ void Drive::dataChanged(bool level)
 void Drive::driveControlClkLine(bool clkLow)
 {
     peripheralAssertClk(clkLow);
+
+     // Debug print
+    std::cout << "[Drive] driveControlClkLine: clkLow=" << (clkLow ? 1 : 0)
+              << " (dev=" << deviceNumber << ")\n";
 }
 
 void Drive::driveControlDataLine(bool dataLow)
 {
     peripheralAssertData(dataLow);
+
+     // Debug print
+    std::cout << "[Drive] driveControlDataLine: dataLow=" << (dataLow ? 1 : 0)
+              << " (dev=" << deviceNumber << ")\n";
 }
 
 bool Drive::insert(const std::string &path)
