@@ -30,9 +30,6 @@ class D1571VIA
 
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole);
 
-        // IRQ helper
-        bool checkIRQActive() const;
-
         void reset();
         void tick();
 
@@ -40,9 +37,16 @@ class D1571VIA
         void writeRegister(uint16_t address, uint8_t value);
 
         // Drive mechanics
+        inline bool isLedOn() const { return ledOn; }
         inline void setLed(bool on) { ledOn = on; }
         inline void setSyncDetected(bool low) { syncDetectedLow = low; }
         inline bool isSyncDetectedLow() const { return syncDetectedLow; }
+
+        // Setters
+        void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
+
+        // IRQ helper
+        bool checkIRQActive() const;
 
     protected:
 
@@ -131,6 +135,26 @@ class D1571VIA
         uint16_t t2Counter;
         uint16_t t2Latch;
         bool t2Running;
+
+        // Interrupt Handling
+        enum : uint8_t
+        {
+            IFR_CA2    = 0x01, // Bit 0
+            IFR_CA1    = 0x02, // Bit 1
+            IFR_SR     = 0x04, // Bit 2
+            IFR_CB2    = 0x08, // Bit 3
+            IFR_CB1    = 0x10, // Bit 4
+            IFR_TIMER2 = 0x20, // Bit 5
+            IFR_TIMER1 = 0x40, // Bit 6
+            IFR_IRQ    = 0x80  // Bit 7: Master Interrupt Flag
+        };
+
+        void triggerInterrupt(uint8_t mask);
+        void clearIFR(uint8_t mask);
+        void refreshMasterBit();
+
+        // Helper
+        void updateIECOutputsFromPortB();
 };
 
 #endif // D1571VIA_H
