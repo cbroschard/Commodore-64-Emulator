@@ -31,12 +31,6 @@ void D1571VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole vi
     this->viaRole = viaRole;
 }
 
-bool D1571VIA::checkIRQActive() const
-{
-    bool active = registers.interruptEnable & registers.interruptFlag & 0x7F;
-    return active != 0;
-}
-
 void D1571VIA::reset()
 {
     // Initialize registers
@@ -85,8 +79,8 @@ void D1571VIA::tick()
 
             if (t1Counter == 0)
             {
-                // Set IFR6 (Timer 1 interrupt)
-                registers.interruptFlag |= 0x40;
+                // Set IFR6
+                 triggerInterrupt(IFR_TIMER1);
 
                 // Check ACR bit 6 to decide one-shot vs continuous
                 bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
@@ -118,7 +112,7 @@ void D1571VIA::tick()
             if (t2Counter == 0)
             {
                 // Set IFR bit 5
-                registers.interruptFlag |= 0x20;
+                 triggerInterrupt(IFR_TIMER2);
 
                 // Free-running: reload from latch and keep going
                 t2Counter = t2Latch;
@@ -252,7 +246,11 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x0A: return registers.serialShift;
         case 0x0B: return registers.auxControlRegister;
         case 0x0C: return registers.peripheralControlRegister;
-        case 0x0D: return registers.interruptFlag;
+        case 0x0D:
+        {
+            refreshMasterBit();
+            return registers.interruptFlag;
+        }
         case 0x0E: return registers.interruptEnable;
         case 0x0F: return registers.oraIRANoHandshake;
         default: return 0xFF; // open bus
@@ -267,41 +265,11 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x00:
         {
             registers.orbIRB = value;
+
             if (viaRole == VIARole::VIA1_IECBus)
             {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                {
-                    uint8_t ddrB = registers.ddrB;
-
-                    // DATA OUT
-                    if (ddrB & (1u << IEC_DATA_OUT_BIT))
-                    {
-                        bool driveLow = (registers.orbIRB & (1u << IEC_DATA_OUT_BIT)) == 0;
-                        drive->dataChanged(driveLow);
-                    }
-                    else
-                    {
-                        drive->dataChanged(false);
-                    }
-                    // CLK OUT
-                    if (ddrB & (1u << IEC_CLK_OUT_BIT))
-                    {
-                        bool driveLow = (registers.orbIRB & (1u << IEC_CLK_OUT_BIT)) == 0;
-                        drive->clkChanged(driveLow);
-                    }
-                    else
-                    {
-                        drive->clkChanged(false);
-                    }
-                    // ATN ACK
-                    bool ackEnabled = false;
-                    if (ddrB & (1u << IEC_ATN_ACK_BIT))
-                    {
-                        // On real hardware: ATNA low (bit = 0) means "auto-ack enabled".
-                        ackEnabled = (value & (1u << IEC_ATN_ACK_BIT)) == 0;
-                    }
-                    drive->setAtnAckEnabled(ackEnabled);
-                }
+                // Recompute IEC outputs based on (ORB, DDRB)
+                updateIECOutputsFromPortB();
             }
             if (viaRole == VIARole::VIA2_Mechanics)
             {
@@ -375,38 +343,9 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
             if (viaRole == VIARole::VIA1_IECBus)
             {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                {
-                    // Re-apply DATA OUT based on new DDRB
-                    if (value & (1u << IEC_DATA_OUT_BIT))
-                    {
-                        bool pullDataLow = (orb & (1u << IEC_DATA_OUT_BIT)) == 0;
-                        drive->dataChanged(pullDataLow);
-                    }
-                    else
-                    {
-                        drive->dataChanged(false);
-                    }
-
-                    // Re-apply CLK OUT based on new DDRB
-                    if (value & (1u << IEC_CLK_OUT_BIT))
-                    {
-                        bool pullClkLow = (orb & (1u << IEC_CLK_OUT_BIT)) == 0;
-                        drive->clkChanged(pullClkLow);
-                    }
-                    else
-                    {
-                        drive->clkChanged(false);
-                    }
-
-                    // Recompute ATN-ACK enable based on DDRB[4] and ORB[4]
-                    bool ackEnabled = false;
-                    if (value & (1u << IEC_ATN_ACK_BIT))
-                    {
-                        ackEnabled = (orb & (1u << IEC_ATN_ACK_BIT)) == 0;
-                    }
-                    drive->setAtnAckEnabled(ackEnabled);
-                }
+                // Direction changes can release or assert lines,
+                // so recompute outputs again.
+                updateIECOutputsFromPortB();
             }
             if (viaRole == VIARole::VIA2_Mechanics)
             {
@@ -486,7 +425,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             t1Running = true;
 
             // Clear T1 interrupt flag (IFR bit 6) when (re)loading the counter
-            registers.interruptFlag &= static_cast<uint8_t>(~0x40);
+            clearIFR(IFR_TIMER1);
             break;
         }
         case 0x06:
@@ -523,7 +462,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             t2Running = true;
 
             // Clear T2 IFR bit (bit 5) on reload
-            registers.interruptFlag &= static_cast<uint8_t>(~0x20);
+            clearIFR(IFR_TIMER2);
             break;
         }
         case 0x0A: registers.serialShift = value; break;
@@ -533,7 +472,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         {
             uint8_t mask = value & 0x7F;
             // Clear any bits where a 1 was written
-            registers.interruptFlag &= static_cast<uint8_t>(~mask);
+            clearIFR(mask);
             break;
         }
         case 0x0E:
@@ -552,4 +491,81 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0F: registers.oraIRANoHandshake = value; break;
         default: break;
     }
+}
+
+void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
+{
+    uint8_t oldIRB = registers.orbIRB;      // last input latch
+    uint8_t newIRB = oldIRB;
+
+    if (atnLow) newIRB &= ~(1 << IEC_ATN_IN_BIT);
+    else        newIRB |=  (1 << IEC_ATN_IN_BIT);
+
+    if (clkLow) newIRB &= ~(1 << IEC_CLK_IN_BIT);
+    else        newIRB |=  (1 << IEC_CLK_IN_BIT);
+
+    if (dataLow) newIRB &= ~(1 << IEC_DATA_IN_BIT);
+    else         newIRB |=  (1 << IEC_DATA_IN_BIT);
+
+    registers.orbIRB = newIRB;
+}
+
+void D1571VIA::updateIECOutputsFromPortB()
+{
+    if (viaRole != VIARole::VIA1_IECBus)
+        return;
+
+    auto* drive = dynamic_cast<Drive*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t orb  = registers.orbIRB;
+    const uint8_t ddrB = registers.ddrB;
+
+    // Only drive the line when the bit is OUTPUT (DDRB bit = 1)
+    // and ORB bit = 0 => pull the line LOW.
+    bool dataLow = false;
+    bool clkLow  = false;
+
+    // DATA OUT (PB0)
+    if (ddrB & (1u << IEC_DATA_OUT_BIT))
+    {
+        dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) == 0);
+    }
+
+    // CLK OUT (PB1)
+    if (ddrB & (1u << IEC_CLK_OUT_BIT))
+    {
+        clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) == 0);
+    }
+
+    drive->driveControlDataLine(dataLow);
+    drive->driveControlClkLine(clkLow);
+}
+
+
+bool D1571VIA::checkIRQActive() const
+{
+    uint8_t active = registers.interruptEnable & registers.interruptFlag & 0x7F;
+    return active != 0;
+}
+
+void D1571VIA::triggerInterrupt(uint8_t sourceMask)
+{
+    registers.interruptFlag |= sourceMask;
+    refreshMasterBit();
+}
+
+void D1571VIA::clearIFR(uint8_t sourceMask)
+{
+    registers.interruptFlag &= static_cast<uint8_t>(~sourceMask);
+    refreshMasterBit();
+}
+
+void D1571VIA::refreshMasterBit()
+{
+    if (registers.interruptFlag & 0x7F)
+        registers.interruptFlag |= IFR_IRQ;
+    else
+        registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
 }
