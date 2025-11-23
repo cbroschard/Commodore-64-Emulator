@@ -141,7 +141,7 @@ class CPU
         inline void setSEI() { setFlag(I, true); }
         inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
-        // Registers access
+        // ML Monitor
         CPUState getState() const;
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
@@ -152,6 +152,7 @@ class CPU
         inline uint8_t getY() const { return Y; }
         inline void setY(uint8_t value) { Y = value; }
         inline uint8_t getSP() const { return SP; }
+        uint8_t debugRead(uint16_t address) const;
 
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }

@@ -2326,3 +2326,9 @@ void CPU::XAA()
     setFlag(Z, A == 0);
     setFlag(N, A & 0x80);
 }
+
+uint8_t CPU::debugRead(uint16_t address) const
+{
+    if (!mem) return 0xFF;
+    return mem->read(address);
+}
