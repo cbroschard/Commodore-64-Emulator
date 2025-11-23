@@ -15,7 +15,6 @@ class IECBUS;
 #include <cstring>
 #include "IECBUS.h"
 #include "CPU.h"
-#include "IRQLine.h"
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
 #include "Drive/FloppyControllerHost.h"
@@ -37,10 +36,10 @@ class D1571 : public Drive, public FloppyControllerHost
         bool canMount(DiskFormat fmt) const override;
 
         // IEC getters
-        inline bool getAtnLineLow() const { return bus ? !bus->readAtnLine() : atnLineLow; }
-        inline bool getClkLineLow() const { return bus ? !bus->readClkLine() : clkLineLow; }
-        inline bool getDataLineLow() const { return bus ? !bus->readDataLine() :dataLineLow; }
-        inline bool getSRQAsserted() const { return srqAsserted; }
+        inline bool getAtnLineLow()  const  override { return bus ? !bus->readAtnLine() : atnLineLow; }
+        inline bool getClkLineLow()  const  override { return bus ? !bus->readClkLine() : clkLineLow; }
+        inline bool getDataLineLow() const override  { return bus ? !bus->readDataLine() :dataLineLow; }
+        inline bool getSRQAsserted() const override  { return srqAsserted; }
 
         // IRQ handling
         void updateIRQ();
@@ -61,8 +60,6 @@ class D1571 : public Drive, public FloppyControllerHost
         void unloadDisk() override;
         bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
         bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) override;
-        std::vector<unsigned char> getDirectoryListing() override;
-        std::vector<unsigned char> loadFileByName(const std::string& name) override;
 
         // IECBUS
         void atnChanged(bool atnLow) override;
@@ -72,14 +69,21 @@ class D1571 : public Drive, public FloppyControllerHost
         void setSRQAsserted(bool state) override;
         inline bool isSRQAsserted() const override { return srqAsserted; }
 
+        // IECBUS communcation
+        void onListen() override;
+        void onUnListen() override;
+        void onTalk() override;
+        void onUnTalk() override;
+        void onSecondaryAddress(uint8_t sa) override;
+
         // Drive Runtime Properties
         inline void setHeadSide(bool side1) { currentSide = side1 ? 1 : 0; } // 0 = bottom, 1 = top
         inline void setDensityCode(uint8_t code) { densityCode = code & 0x03; }
         inline bool isTrack0() { return currentTrack == 0; }
         void setFastSerialBusDirection(bool output);
         void setBurstClock2MHz(bool enable);
-        bool getByteReadyLow() const;
         void syncTrackFromFDC();
+        bool getByteReadyLow() const;
 
         // ML Monitor
         inline const CPU* getDriveCPU() const { return &driveCPU; }
@@ -88,8 +92,8 @@ class D1571 : public Drive, public FloppyControllerHost
         inline const D1571CIA* getCIA() const { return &d1571Mem.getCIA(); }
         inline const D1571VIA* getVIA1() const { return &d1571Mem.getVIA1(); }
         inline const D1571VIA* getVIA2() const { return &d1571Mem.getVIA2(); }
-        const char* getDriveTypeName() const noexcept override { return "1571"; }
-        bool isDrive() const override { return true; }
+        inline DriveStatus getDriveStatus() const override { return status; }
+        inline const char* getDriveTypeName() const noexcept override { return "1571"; }
 
     protected:
         bool motorOn;
@@ -109,6 +113,13 @@ class D1571 : public Drive, public FloppyControllerHost
         bool clkLineLow;
         bool dataLineLow;
         bool srqAsserted;
+        bool iecListening;
+        bool iecTalking;
+        bool presenceAckDone;
+        bool expectingSecAddr;
+        bool expectingDataByte;
+        uint8_t currentListenSA;
+        uint8_t currentTalkSA;
 
         // Drive Properties
         bool currentSide;
@@ -121,12 +132,6 @@ class D1571 : public Drive, public FloppyControllerHost
         bool atnAckPullsDataLow; // current auto-ack contribution to DATA line
         bool ackInProgress;
         bool atnAckCompletedThisAtn;
-        bool handshakeSeen; // Track whether presence handshake was seen or not
-        bool cmdRxActive;
-        bool swallowPostHandshakeFalling;
-
-        // Normal DATA OUT contribution from VIA
-        bool dataOutPullsLow;
 
         // Floppy Image
         std::string loadedDiskName;
