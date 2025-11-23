@@ -406,6 +406,12 @@ void D1571::clkChanged(bool clkLow)
 
             presenceAckDone = true;
         }
+        if (presenceAckDone && falling)
+        {
+            std::cout << "[D1571] LISTENER PRESENCE ACK: releasing DATA\n";
+            driveControlDataLine(false);
+            presenceAckDone = false;
+        }
     }
 
     // Normal path: just update VIA with the new CLK level

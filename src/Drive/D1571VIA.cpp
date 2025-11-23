@@ -67,9 +67,9 @@ void D1571VIA::reset()
     syncDetectedLow = false;
 
     // Serial shift
-    uint8_t  srShiftReg    = 0;
-    uint8_t  srBitCount    = 0;
-    bool     srShiftInMode = false;
+    srShiftReg    = 0;
+    srBitCount    = 0;
+    srShiftInMode = false;
 }
 
 void D1571VIA::tick()
@@ -584,10 +584,10 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
         return;
 
     // Recompute shift-in mode from ACR
-    bool shiftIn = (registers.auxControlRegister & 0x0C) == 0x04;
+    srShiftInMode = (registers.auxControlRegister & 0x0C) == 0x04;
     // 6522: ACR bits 2..3 = 01 => shift-in under external clock
 
-    if (rising && shiftIn)
+    if (rising && srShiftInMode)
     {
         // sample DATA IN bit as input
         bool dataLow = false;
@@ -609,6 +609,12 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
             triggerInterrupt(IFR_SR);
         }
     }
+
+    // DEBUG: show every received IEC byte on VIA1
+    std::cout << "[VIA1] IEC RX byte = $"
+              << std::hex << std::uppercase << int(registers.serialShift)
+              << " (ACR=$" << int(registers.auxControlRegister)
+              << ")\n";
 
     // CA1 IRQ on rising edge if CA1 is enabled for that edge mode.
     // For a first pass you can always signal CA1 on rising:
