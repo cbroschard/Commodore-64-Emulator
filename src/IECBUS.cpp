@@ -145,13 +145,13 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // Rule 1: If ATN is LOW (Attention), no peripheral can drive CLK.
-    if (!busLines.atn)
+    // Rule 1: If ATN is LOW (Attention), no peripheral can drive CLK low
+    if (!busLines.atn && state)
     {
         std::cout << "[IECBUS] peripheralControlClk from dev#"
                   << int(device->getDeviceNumber())
                   << " blocked (ATN low)\n";
-        return; // C64 owns the clock during ATTENTION
+        return; // C64 owns the clock during ATTENTION for driving low
     }
 
     std::cout << "[IECBUS] peripheralControlClk from dev#"
@@ -160,31 +160,36 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
               << " busClk(before)=" << busLines.clk
               << "\n";
 
-    // Remember old resolved CLK level
     bool oldClk = busLines.clk;
 
-    // Rule 2: Any peripheral (Listener or Talker) can pull a line LOW (state == true).
-    // This allows the Listener (drive) to assert CLK LOW for its ACK.
+    //
+    // OPEN COLLECTOR BEHAVIOR
+    // Any device may pull low
+    //
     if (state)
     {
+        // pull low
         peripheralDrivesClkLow = true;
     }
-    else // Peripheral wants to release CLK high (state == false)
+    else
     {
-        // Rule 3: Only the currently established Talker can command a line to be released/HIGH.
-        if (currentTalker == nullptr) currentTalker = device;
-        if (device != currentTalker) return; // Block unauthorized release
-
+        //  ALWAYS allow release
+        // (never block release based on talker)
         peripheralDrivesClkLow = false;
-
-        // Only clear Talker status if both CLK and DATA were released by the Talker
-        if (!peripheralDrivesClkLow && !peripheralDrivesDataLow)
-            currentTalker = nullptr;
     }
+
+    // determine if talker tracking should change
+    //
+    // Only assign talker when someone actually pulls low
+    if (state && currentTalker == nullptr)
+        currentTalker = device;
+
+    // If this device releases both lines, drop talker
+    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow)
+        currentTalker = nullptr;
 
     updateBusState();
 
-    // Only notify if the *bus* CLK actually changed
     if (busLines.clk != oldClk)
     {
         if (cia2object)
@@ -193,7 +198,7 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool state)
         for (auto& [num, dev] : devices)
         {
             if (dev)
-                dev->clkChanged(!busLines.clk); // drives see "low" as true
+                dev->clkChanged(!busLines.clk);
         }
     }
 }
@@ -203,32 +208,73 @@ void IECBUS::peripheralControlData(Peripheral* device, bool state)
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // During ATTENTION (ATN low), *allow* any device to pulse DATA for presence/byte ACKs.
+    // Save old bus data so we can avoid spurious notifications
+    bool oldData = busLines.data;
+
+    // Case 1: During ATTENTION (ATN low) we allow any device to pulse DATA.
+    // This covers ATN ACK and command/byte ACKs that happen with ATN low.
     if (!busLines.atn || currentState == State::ATTENTION)
     {
-        peripheralDrivesDataLow = state;     // true => drive DATA low
+        peripheralDrivesDataLow = state;   // true => pull DATA low
         updateBusState();
-        if (cia2object) cia2object->dataChanged(busLines.data);
-        for (auto const& [num,dev] : devices)
+
+        if (busLines.data != oldData)
         {
-            if (dev) dev->dataChanged(busLines.data);
+            if (cia2object) cia2object->dataChanged(busLines.data);
+            for (auto const& [num, dev] : devices)
+            {
+                if (dev) dev->dataChanged(!busLines.data); // devices see "low" as true
+            }
         }
-        std::cout << "[BUS] periph DATA=" << state << " while ATN low -> line now " << busLines.data << "\n";
+
+        std::cout << "[BUS] periph DATA=" << state
+                  << " while ATN low -> line now " << busLines.data << "\n";
         return;
     }
 
-    // Normal talking rules (ATN high)
-    if (currentTalker == nullptr) currentTalker = device;
-    if (device != currentTalker) return;
+    // Case 2: ATN is HIGH and there is NO peripheral talker.
+    // This is the critical window where the C64 is talker and listeners
+    // must be allowed to pull DATA low for presence ACK and byte ACKs.
+    //
+    // In this emulator, C64 is never in `devices`, so "C64 is talker"
+    // shows up as `currentTalker == nullptr` while CIA2 is generating clocks.
+    if (currentTalker == nullptr)
+    {
+        peripheralDrivesDataLow = state;
+        updateBusState();
+
+        if (busLines.data != oldData)
+        {
+            if (cia2object) cia2object->dataChanged(busLines.data);
+            for (auto const& [num, dev] : devices)
+            {
+                if (dev) dev->dataChanged(!busLines.data);
+            }
+        }
+
+        return;
+    }
+
+    // Case 3: ATN is HIGH and a **peripheral** is the talker.
+    // Only that talker is allowed to drive DATA.
+    if (device != currentTalker)
+        return;
 
     peripheralDrivesDataLow = state;
-    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow) currentTalker = nullptr;
+
+    // If the peripheral talker has released both lines, clear talker role.
+    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow)
+        currentTalker = nullptr;
 
     updateBusState();
-    if (cia2object) cia2object->dataChanged(busLines.data);
-    for (auto const& [num,dev] : devices)
+
+    if (busLines.data != oldData)
     {
-        if (dev) dev->dataChanged(!busLines.data);
+        if (cia2object) cia2object->dataChanged(busLines.data);
+        for (auto const& [num, dev] : devices)
+        {
+            if (dev) dev->dataChanged(!busLines.data);
+        }
     }
 }
 
