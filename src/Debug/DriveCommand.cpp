@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Computer.h"
 #include "Debug/DriveCommand.h"
 #include "Debug/MLMonitor.h"
 
@@ -54,5 +55,38 @@ Usage:
 
 void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
+    // Subcommand (if any)
+    std::string sub;
+    if (!args.empty() && args.size() >= 2)
+        sub = args[1];
 
+    // Help
+    if (!sub.empty() && isHelp(sub))
+    {
+        std::cout << help();
+        return;
+    }
+
+    if (args.size() == 1 ||
+    (args.size() == 2 && (sub == "all" || sub == "list")))
+    {
+        mon.mlmonitorbackend()->dumpDriveList();
+        return;
+    }
+
+    int id = -1;
+    try
+    {
+        id = std::stoi(args[1]);
+    }
+    catch (...)
+    {
+        std::cout << "Error: drive ID must be numeric.\n";
+        return;
+    }
+
+    if (args.size() == 2)
+    {
+        mon.mlmonitorbackend()->dumpDriveSummary(id);
+    }
 }

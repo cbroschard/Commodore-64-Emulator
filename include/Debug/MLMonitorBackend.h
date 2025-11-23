@@ -9,6 +9,7 @@
 #define MLMONITORBACKEND_H
 
 #include "Computer.h"
+#include "Drive.h"
 
 class MLMonitorBackend
 {
@@ -82,6 +83,10 @@ class MLMonitorBackend
 
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return bus; }
+        void dumpDriveList();
+        void dumpDriveSummary(int id);
+        void dumpDriveCPU(int id);
+        void dumpDriveMemory(int id, uint16_t startAddress, uint16_t endAddress);
 
         // ML Monitor IRQ
         struct IRQSnapshot
@@ -164,8 +169,9 @@ class MLMonitorBackend
         // ML Monitor IRQ snapshot
         IRQSnapshot snapshot;
 
-        // Helper for Jam Modes
+        // Helpers
         std::string jamModeToString() const;
+        std::string decodeDriveStatus(Drive::DriveStatus status);
 };
 
 #endif // MLMONITORBACKEND_H

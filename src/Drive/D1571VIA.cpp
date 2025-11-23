@@ -280,7 +280,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Bit 2: Motor Control
                     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) != 0;
+                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) == 0;
                         if (enable) drive->startMotor();
                         else        drive->stopMotor();
                     }
