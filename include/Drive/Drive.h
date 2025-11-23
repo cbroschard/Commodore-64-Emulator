@@ -50,6 +50,12 @@ class Drive : public Peripheral
         virtual uint8_t getCurrentTrack() const = 0;
         virtual uint8_t getCurrentSector() const = 0;
 
+        // IEC Bus
+        virtual bool getAtnLineLow() const = 0;
+        virtual bool getClkLineLow() const = 0;
+        virtual bool getDataLineLow() const = 0;
+        virtual bool getSRQAsserted() const = 0;
+
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
         enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING } currentDriveStatus;
         enum class DriveBusState { IDLE, AWAITING_COMMAND, TALKING, LISTENING } currentDriveBusState;
