@@ -14,6 +14,13 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     clkLineLow(false),
     dataLineLow(false),
     srqAsserted(false),
+    iecListening(false),
+    iecTalking(false),
+    presenceAckDone(false),
+    expectingSecAddr(false),
+    expectingDataByte(false),
+    currentListenSA(0),
+    currentTalkSA(0),
     currentSide(1),
     fastSerialOutput(false),
     twoMHzMode(false),
@@ -21,19 +28,21 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     atnAckPullsDataLow(false),
     ackInProgress(false),
     atnAckCompletedThisAtn(false),
-    handshakeSeen(false),
-    dataOutPullsLow(false),
     diskLoaded(false),
-    diskWriteProtected(false)
+    diskWriteProtected(false),
+    currentTrack(0),
+    currentSector(0)
 {
     setDeviceNumber(deviceNumber);
     d1571Mem.attachPeripheralInstance(this);
     driveCPU.attachIRQLineInstance(&IRQ);
     driveCPU.attachMemoryInstance(&d1571Mem);
+
     if (!d1571Mem.initialize(romName))
     {
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
     }
+
     reset();
 }
 
@@ -59,21 +68,28 @@ void D1571::reset()
     densityCode = 2;
 
     // IEC BUS reset
-    atnLineLow              = false;
-    clkLineLow              = false;
-    dataLineLow             = false;
-    srqAsserted             = false;
-    atnAckEnabled           = true;
-    atnAckPullsDataLow      = false;
-    ackInProgress           = false;
-    atnAckCompletedThisAtn  = false;
-    handshakeSeen           = false;
-    dataOutPullsLow         = false;
+    atnLineLow                  = false;
+    clkLineLow                  = false;
+    dataLineLow                 = false;
+    srqAsserted                 = false;
+    iecListening                = false;
+    iecTalking                  = false;
+    presenceAckDone             = false;
+    expectingSecAddr            = false;
+    expectingDataByte           = false;
+    atnAckEnabled               = true;
+    atnAckPullsDataLow          = false;
+    ackInProgress               = false;
+    atnAckCompletedThisAtn      = false;
+    currentListenSA             = 0;
+    currentTalkSA               = 0;
 
     // 1571 Runtime Properties reset
-    currentSide = 0;
-    fastSerialOutput = false;
-    twoMHzMode = false;
+    currentSide         = 0;
+    fastSerialOutput    = false;
+    twoMHzMode          = false;
+    currentTrack        = 0;
+    currentSector       = 0;
 
     // Force reset state
     applyDataLine();
@@ -245,21 +261,9 @@ bool D1571::fdcIsWriteProtected() const
     return diskWriteProtected;
 }
 
-std::vector<unsigned char> D1571::getDirectoryListing()
-{
-    // TODO: implement via diskImage
-    return {};
-}
-
-std::vector<unsigned char> D1571::loadFileByName(const std::string& name)
-{
-    // TODO: implement via diskImage
-    return {};
-}
-
 void D1571::applyDataLine()
 {
-    bool drivePullsDataLow = dataOutPullsLow || atnAckPullsDataLow;
+    bool drivePullsDataLow = atnAckPullsDataLow;
     dataLineLow = drivePullsDataLow;
 
     peripheralAssertData(drivePullsDataLow);
@@ -267,115 +271,239 @@ void D1571::applyDataLine()
 
 void D1571::beginAtnAck()
 {
-    // Only once per ATN, only if enabled
-    if (!atnAckEnabled || !atnLineLow || ackInProgress || atnAckCompletedThisAtn)
+    // Hardware-style: only start if ATN is low and ACK is enabled.
+    if (!atnLineLow || !atnAckEnabled)
+        return;
+
+    if (ackInProgress || atnAckCompletedThisAtn)
         return;
 
     ackInProgress      = true;
     atnAckPullsDataLow = true;
-    handshakeSeen      = false;
-    applyDataLine();
+
+    applyDataLine();   // pull DATA low
 
     std::cout << "[D1571] Begin ATN ACK (DATA low)\n";
 }
 
 void D1571::endAtnAck()
 {
-    if (!ackInProgress)
-        return;
+    ackInProgress          = false;
+    atnAckCompletedThisAtn = true;
 
-    ackInProgress      = false;
-    atnAckPullsDataLow = false;
-    applyDataLine();
-
-    std::cout << "[D1571] End ATN ACK (DATA released)\n";
+    atnAckPullsDataLow     = false;
+    applyDataLine();  // release DATA if nothing else wants it low
 }
 
 void D1571::updateAtnAckState()
 {
-    if (!atnLineLow || !atnAckEnabled || atnAckCompletedThisAtn)
+    if (atnLineLow && atnAckEnabled)
     {
-        endAtnAck();
+        // ATN asserted and ATNA enabled -> ensure ACK is active
+        beginAtnAck();
     }
     else
     {
-        beginAtnAck();
+        // Either ATN released or ATNA disabled -> no ACK
+        endAtnAck();
+        atnAckCompletedThisAtn = false;
     }
 }
 
 void D1571::atnChanged(bool atnLow)
 {
     atnLineLow = atnLow;
-    Drive::atnChanged(atnLow); // base class
 
-    if (atnLineLow)
+    // Keep VIA1’s IEC inputs in sync with the bus
+    auto& via1 = d1571Mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    if (atnLow)
     {
+        // New ATN phase: allow a fresh ACK.
+        ackInProgress          = false;
         atnAckCompletedThisAtn = false;
-        beginAtnAck();
+
+        // Immediately assert ATN ACK: pull DATA low as long as ATN is low.
+        beginAtnAck();   // sets ackInProgress + atnAckPullsDataLow, then calls applyDataLine()
+
+        // VIA sees the updated inputs after DATA goes low
+        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
     }
     else
     {
-        endAtnAck();
+        // ATN released: clear ACK state and release DATA
+        endAtnAck();               // clears ackInProgress, releases DATA
         atnAckCompletedThisAtn = false;
-        handshakeSeen = false;
+
+        // VIA may need to see the released DATA state
+        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    }
+
+    if (!atnLow && iecListening)
+    {
+        presenceAckDone = false;  // next CLK pulse under ATN=H we’ll ACK
     }
 }
 
 void D1571::setAtnAckEnabled(bool enabled)
 {
     atnAckEnabled = enabled;
-    updateAtnAckState();   // will start/stop ACK depending on ATN & arm
+    updateAtnAckState();
 }
 
 void D1571::clkChanged(bool clkLow)
 {
-    clkLineLow = clkLow;
+    bool prevClkLow  = clkLineLow;
+    clkLineLow       = clkLow;
 
-    // ATN ACK Handshake Logic
-    if (atnLineLow && ackInProgress)
+    bool prevClkHigh = !prevClkLow;
+    bool clkHigh     = !clkLow;
+
+    // Edge detection on the bus CLK line
+    bool rising  = (!prevClkHigh && clkHigh);    // low -> high
+    bool falling = ( prevClkHigh && !clkHigh );  // high -> low
+    bool edge    = rising || falling;
+
+    if (iecListening && !atnLineLow && rising)
     {
-        if (!handshakeSeen && clkLow) // CLK falls while ATN low (Handshake start)
-        {
-            std::cout << "[D1571] CLK low while ATN -> handshake seen\n";
-            handshakeSeen = true;
-            return;
-        }
-        else if (handshakeSeen && !clkLow) // CLK rises while ATN low (Handshake end)
-        {
-            std::cout << "[D1571] CLK high while ATN -> end ATN ACK\n";
-            endAtnAck();
-            atnAckCompletedThisAtn = true;
-            handshakeSeen          = false;
-            return; // EXIT: This edge is part of the handshake, not a data bit.
-        }
-
-        // If we reached here, ATN is low, but the CLK edge was not one we cared about (e.g., an extra rise/fall).
-        return;
+        std::cout << "[D1571] (LISTEN PHASE) CLK rising, drive should sample DATA here\n";
     }
 
     std::cout << "[D1571] clkChanged atnLow=" << atnLineLow
-          << " clkLow=" << clkLow
-          << " dataLow=" << dataLineLow
-          << " ackInProgress=" << ackInProgress
-          << " handshakeSeen=" << handshakeSeen
-          << "\n";
+              << " clkLow=" << clkLow
+              << " dataLow=" << dataLineLow
+              << " ackInProgress=" << ackInProgress
+              << " rising=" << rising
+              << " falling=" << falling << "\n";
 
-    bool dataIsHigh = !dataLineLow;
-    bool clkIsHigh  = !clkLow;
-
-    iecClkEdge(dataIsHigh, clkIsHigh);
-}
-
-void D1571::dataChanged(bool dataState)
-{
-    bool performingHandshake = atnLineLow && ackInProgress;
-
-    if (!performingHandshake)
+    // ---- ATN ACK hardware handshake ----
+    if (atnLineLow && ackInProgress && edge)
     {
-        // dataState: true = line HIGH, false = line LOW
-        Drive::dataChanged(dataState);
+        std::cout << "[D1571] Complete ATN ACK on CLK "
+                  << (falling ? "falling" : "rising") << " edge\n";
+
+        endAtnAck();
+
+        // Keep VIA's view of the IEC lines in sync after DATA/CLK changes
+        auto& via1 = d1571Mem.getVIA1();
+        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+        return;
     }
 
-    // Store "line is low" as a bool
-    dataLineLow = !dataState;
+    if (!atnLineLow && iecListening)
+    {
+        if (rising && !presenceAckDone)
+        {
+            // We’re a listener, ATN is high, C64 is pulsing CLK:
+            // announce ourselves by pulling DATA low once.
+
+            std::cout << "[D1571] LISTENER PRESENCE ACK: pulling DATA low\n";
+
+            // Use your existing helper that logs:
+            // [Drive] driveControlDataLine: dataLow=1 (dev=8)
+            driveControlDataLine(true);    // dataLow = true => pull line low
+
+            presenceAckDone = true;
+        }
+    }
+
+    // Normal path: just update VIA with the new CLK level
+    auto& via1 = d1571Mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+}
+
+void D1571::dataChanged(bool dataLow)
+{
+    if (iecListening && !atnLineLow)
+    {
+        std::cout << "[D1571] (LISTEN PHASE) seeing C64 data bit; clkLow="
+                  << clkLineLow << " dataLow=" << dataLineLow << "\n";
+    }
+
+    // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
+    dataLineLow = dataLow;
+
+    auto& via1 = d1571Mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    std::cout << "[D1571] dataChanged atnLow=" << atnLineLow << " clkLow=" << clkLineLow << " dataLow=" << dataLineLow << " ackInProgress=" << ackInProgress << "\n";
+}
+
+void D1571::onListen()
+{
+    // IEC bus has selected this drive as a listener
+    iecListening = true;
+    iecTalking   = false;
+
+    listening = true;
+    talking   = false;
+
+    // We're about to receive a secondary address byte after LISTEN
+    presenceAckDone   = false;   // so we do the LISTEN presence ACK
+    expectingSecAddr  = true;    // first byte after LISTEN is secondary address
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;  // "none" / invalid
+
+    std::cout << "[D1571] onListen() device=" << int(deviceNumber)
+              << " listening=1 talking=0\n";
+}
+
+void D1571::onUnListen()
+{
+    iecListening = false;
+    listening    = false;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    std::cout << "[D1571] onUnListen() device=" << int(deviceNumber) << "\n";
+}
+
+void D1571::onTalk()
+{
+    iecTalking   = true;
+    iecListening = false;
+
+    talking   = true;
+    listening = false;
+
+    // After TALK, the next byte from the C64 is a secondary address
+    expectingSecAddr  = true;
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;
+
+    std::cout << "[D1571] onTalk() device=" << int(deviceNumber)
+              << " talking=1 listening=0\n";
+}
+
+void D1571::onUnTalk()
+{
+    iecTalking = false;
+    talking    = false;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    std::cout << "[D1571] onUnTalk() device=" << int(deviceNumber) << "\n";
+}
+
+void D1571::onSecondaryAddress(uint8_t sa)
+{
+    currentSecondaryAddress = sa;
+
+    // We’ve now consumed the secondary address; next bytes are data/commands
+    expectingSecAddr  = false;
+    expectingDataByte = true;
+
+    const char* meaning = "";
+    if (sa == 0)
+        meaning = " (LOAD channel)";
+    else if (sa == 1)
+        meaning = " (SAVE channel)";
+    else if (sa == 15)
+        meaning = " (COMMAND channel)";
+
+    std::cout << "[D1571] onSecondaryAddress() device=" << int(deviceNumber)
+              << " sa=" << int(sa) << meaning << "\n";
 }
