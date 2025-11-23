@@ -427,3 +427,13 @@ void IECBUS::secondaryAddress(uint8_t devNum, uint8_t sa)
 
    it->second->onSecondaryAddress(sa);
 }
+
+Peripheral* IECBUS::getDevice(int id) const
+{
+    auto it = devices.find(static_cast<uint8_t>(id));
+    if (it == devices.end())
+    {
+        return nullptr;
+    }
+    return it->second;
+}
