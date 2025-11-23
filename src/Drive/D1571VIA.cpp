@@ -10,6 +10,9 @@
 
 D1571VIA::D1571VIA() :
     parentPeripheral(nullptr),
+    srShiftReg(0),
+    srBitCount(0),
+    srShiftInMode(false),
     viaRole(VIARole::Unknown),
     ledOn(false),
     syncDetectedLow(false),
@@ -62,6 +65,11 @@ void D1571VIA::reset()
     // Mechanics
     ledOn           = false;
     syncDetectedLow = false;
+
+    // Serial shift
+    uint8_t  srShiftReg    = 0;
+    uint8_t  srBitCount    = 0;
+    bool     srShiftInMode = false;
 }
 
 void D1571VIA::tick()
@@ -568,4 +576,41 @@ void D1571VIA::refreshMasterBit()
         registers.interruptFlag |= IFR_IRQ;
     else
         registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
+}
+
+void D1571VIA::onClkEdge(bool rising, bool falling)
+{
+    if (viaRole != VIARole::VIA1_IECBus)
+        return;
+
+    // Recompute shift-in mode from ACR
+    bool shiftIn = (registers.auxControlRegister & 0x0C) == 0x04;
+    // 6522: ACR bits 2..3 = 01 => shift-in under external clock
+
+    if (rising && shiftIn)
+    {
+        // sample DATA IN bit as input
+        bool dataLow = false;
+        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+        {
+            dataLow = drive->getDataLineLow();
+        }
+        int bit = dataLow ? 0 : 1;
+
+        srShiftReg = (srShiftReg >> 1) | (bit << 7);
+        srBitCount++;
+
+        if (srBitCount == 8)
+        {
+            registers.serialShift = srShiftReg;
+            srBitCount = 0;
+
+            // raise SR interrupt (IFR bit for SR – you'll define that mask)
+            triggerInterrupt(IFR_SR);
+        }
+    }
+
+    // CA1 IRQ on rising edge if CA1 is enabled for that edge mode.
+    // For a first pass you can always signal CA1 on rising:
+    triggerInterrupt(IFR_CA1);
 }

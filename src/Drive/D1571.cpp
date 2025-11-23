@@ -411,6 +411,7 @@ void D1571::clkChanged(bool clkLow)
     // Normal path: just update VIA with the new CLK level
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    via1.onClkEdge(rising, falling);
 }
 
 void D1571::dataChanged(bool dataLow)

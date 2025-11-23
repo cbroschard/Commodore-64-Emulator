@@ -48,12 +48,20 @@ class D1571VIA
         // IRQ helper
         bool checkIRQActive() const;
 
+        // Serial shift
+        void onClkEdge(bool rising, bool falling);
+
     protected:
 
     private:
 
         // Non-owning pointers
         Peripheral* parentPeripheral;
+
+        // Serial shift
+        uint8_t  srShiftReg;
+        uint8_t  srBitCount;
+        bool     srShiftInMode;
 
         // Port A Hardware Setting Bits
         enum : uint8_t
