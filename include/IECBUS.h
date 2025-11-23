@@ -79,8 +79,9 @@ class IECBUS
         inline bool getPeripheralDrivesDataLow() const { return peripheralDrivesDataLow; }
         inline State getState() const { return currentState; }
         inline Peripheral* getCurrentTalker() const { return currentTalker; }
-        const std::vector<Peripheral*>& getCurrentListeners() const { return currentListeners; }
-        const std::map<int, Peripheral*>& getDevices() const { return devices; }
+        inline const std::vector<Peripheral*>& getCurrentListeners() const { return currentListeners; }
+        inline const std::map<int, Peripheral*>& getDevices() const { return devices; }
+        Peripheral* getDevice(int id) const;
 
     protected:
 
