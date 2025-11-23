@@ -15,6 +15,7 @@ Drive::Drive() :
     currentDriveBusState(DriveBusState::IDLE),
     diskImage(),
     logger(nullptr),
+    currentSecondaryAddress(-1),
     waitingForAck(false),
     ackEdgeCountdown(0),
     waitingForClkRelease(false),
@@ -22,9 +23,9 @@ Drive::Drive() :
     ackHold(false),
     byteAckHold(false),
     ackDelay(0),
-    lastClkHigh(true),
-    currentSecondaryAddress(-1)
+    lastClkHigh(true)
 {
+
 }
 
 Drive::~Drive() = default;
