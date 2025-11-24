@@ -246,7 +246,14 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x02: return registers.ddrB;
         case 0x03: return registers.ddrA;
         case 0x04: return registers.timer1CounterLowByte;
-        case 0x05: return registers.timer1CounterHighByte;
+        case 0x05:
+        {
+            uint8_t value = registers.timer1CounterHighByte;
+
+            // 6522 behaviour: reading T1 counter high clears IFR bit 6 (Timer 1)
+            clearIFR(IFR_TIMER1);
+            return value;
+        }
         case 0x06: return registers.timer1LowLatch;
         case 0x07: return registers.timer1HighLatch;
         case 0x08: return registers.timer2CounterLowByte;
@@ -549,6 +556,10 @@ void D1571VIA::updateIECOutputsFromPortB()
 
     drive->driveControlDataLine(dataLow);
     drive->driveControlClkLine(clkLow);
+    std::cout << "[VIA1] PB write: ORB=$" << std::hex << int(orb)
+            << " DDRB=$" << int(ddrB)
+            << " => DATA low=" << dataLow
+            << " CLK low=" << clkLow << "\n";
 }
 
 
@@ -615,8 +626,28 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
               << std::hex << std::uppercase << int(registers.serialShift)
               << " (ACR=$" << int(registers.auxControlRegister)
               << ")\n";
+}
 
-    // CA1 IRQ on rising edge if CA1 is enabled for that edge mode.
-    // For a first pass you can always signal CA1 on rising:
-    triggerInterrupt(IFR_CA1);
+void D1571VIA::onCA1Edge(bool rising, bool falling)
+{
+    // PCR Bit 0 controls CA1 Active Edge
+    // 0 = Negative Edge (High to Low)
+    // 1 = Positive Edge (Low to High)
+    bool activeEdgePos = (registers.peripheralControlRegister & 0x01) != 0;
+    bool trigger = false;
+
+    if (activeEdgePos && rising) trigger = true;
+    else if (!activeEdgePos && falling) trigger = true;
+
+    // Interrupt handling for CA1
+    if (trigger)
+    {
+        triggerInterrupt(IFR_CA1);
+        std::cout << "[VIA1] CA1 IRQ: PCR=$"
+                  << std::hex << std::uppercase << int(registers.peripheralControlRegister)
+                  << " IFR=$" << int(registers.interruptFlag)
+                  << " IER=$" << int(registers.interruptEnable)
+                  << "\n";
+    }
+
 }
