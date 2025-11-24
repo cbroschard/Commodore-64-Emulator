@@ -23,7 +23,7 @@ class D1571;
 #include "Drive/D1571VIA.h"
 #include "Drive/FDC177x.h"
 
-class D1571Memory : public CPUBus
+class D1571Memory : public CPUBus, public DriveMemoryBase
 {
     public:
         D1571Memory();

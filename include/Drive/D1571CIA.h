@@ -9,9 +9,10 @@
 #define D1571CIA_H
 
 #include <cstdint>
+#include "Drive/DriveChips.h"
 #include "Peripheral.h"
 
-class D1571CIA
+class D1571CIA : public DriveCIABase
 {
     public:
         D1571CIA();

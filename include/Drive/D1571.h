@@ -86,12 +86,12 @@ class D1571 : public Drive, public FloppyControllerHost
         bool getByteReadyLow() const;
 
         // ML Monitor
-        inline const CPU* getDriveCPU() const { return &driveCPU; }
-        inline const D1571Memory* getMemory() const { return &d1571Mem; }
-        inline const FDC177x* getFDC() const { return &d1571Mem.getFDC(); }
-        inline const D1571CIA* getCIA() const { return &d1571Mem.getCIA(); }
-        inline const D1571VIA* getVIA1() const { return &d1571Mem.getVIA1(); }
-        inline const D1571VIA* getVIA2() const { return &d1571Mem.getVIA2(); }
+        inline const CPU* getDriveCPU() const override { return &driveCPU; }
+        inline const D1571Memory* getMemory() const override { return &d1571Mem; }
+        inline const FDC177x* getFDC() const override { return &d1571Mem.getFDC(); }
+        inline const D1571CIA* getCIA() const override { return &d1571Mem.getCIA(); }
+        inline const D1571VIA* getVIA1() const override { return &d1571Mem.getVIA1(); }
+        inline const D1571VIA* getVIA2() const override { return &d1571Mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "1571"; }
 
@@ -132,6 +132,11 @@ class D1571 : public Drive, public FloppyControllerHost
         bool atnAckPullsDataLow; // current auto-ack contribution to DATA line
         bool ackInProgress;
         bool atnAckCompletedThisAtn;
+
+        // IEC listener data RX (C64 -> drive, ATN high, drive listening)
+        bool iecRxActive;
+        int iecRxBitCount;
+        uint8_t iecRxByte;
 
         // Floppy Image
         std::string loadedDiskName;

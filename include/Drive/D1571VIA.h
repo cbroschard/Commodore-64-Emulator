@@ -12,9 +12,10 @@
 class D1571;
 
 #include <cstdint>
+#include "Drive/DriveChips.h"
 #include "Peripheral.h"
 
-class D1571VIA
+class D1571VIA : public DriveVIABase
 {
     public:
         D1571VIA();

@@ -8,9 +8,10 @@
 #ifndef D1581CIA_H
 #define D1581CIA_H
 
+#include "Drive/DriveChips.h"
 #include "Peripheral.h"
 
-class D1581CIA
+class D1581CIA : public DriveCIABase
 {
     public:
         D1581CIA();

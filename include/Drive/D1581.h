@@ -54,10 +54,10 @@ class D1581 : public Drive, public FloppyControllerHost
         inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
 
         // ML Monitor
-        inline const CPU* getDriveCPU() const { return &driveCPU; }
-        inline const D1581Memory* getMemory() const { return &d1581Mem; }
-        inline const FDC177x* getFDC() const { return &d1581Mem.getFDC(); }
-        inline const D1581CIA* getCIA() const { return &d1581Mem.getCIA(); }
+        inline const CPU* getDriveCPU() const override { return &driveCPU; }
+        inline const D1581Memory* getMemory() const override { return &d1581Mem; }
+        inline const FDC177x* getFDC() const override { return &d1581Mem.getFDC(); }
+        inline const D1581CIA* getCIA() const override { return &d1581Mem.getCIA(); }
         const char* getDriveTypeName() const noexcept override { return "1581"; }
         bool isDrive() const override { return true; }
 
