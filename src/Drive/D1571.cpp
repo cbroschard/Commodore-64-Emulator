@@ -28,6 +28,9 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     atnAckPullsDataLow(false),
     ackInProgress(false),
     atnAckCompletedThisAtn(false),
+    iecRxActive(false),
+    iecRxBitCount(0),
+    iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
     currentTrack(0),
@@ -83,6 +86,9 @@ void D1571::reset()
     atnAckCompletedThisAtn      = false;
     currentListenSA             = 0;
     currentTalkSA               = 0;
+    iecRxActive                 = false;
+    iecRxBitCount               = 0;
+    iecRxByte                   = 0;
 
     // 1571 Runtime Properties reset
     currentSide         = 0;
@@ -271,28 +277,26 @@ void D1571::applyDataLine()
 
 void D1571::beginAtnAck()
 {
-    // Hardware-style: only start if ATN is low and ACK is enabled.
-    if (!atnLineLow || !atnAckEnabled)
+    if (ackInProgress)
         return;
 
-    if (ackInProgress || atnAckCompletedThisAtn)
-        return;
+    ackInProgress = true;
 
-    ackInProgress      = true;
-    atnAckPullsDataLow = true;
-
-    applyDataLine();   // pull DATA low
-
+    // ATN is low here: device acknowledges by pulling DATA low.
+    // DO NOT touch CLK here.
     std::cout << "[D1571] Begin ATN ACK (DATA low)\n";
+    driveControlDataLine(true);   // pull DATA low
 }
 
 void D1571::endAtnAck()
 {
-    ackInProgress          = false;
-    atnAckCompletedThisAtn = true;
+    if (!ackInProgress)
+        return;
 
-    atnAckPullsDataLow     = false;
-    applyDataLine();  // release DATA if nothing else wants it low
+    ackInProgress = false;
+
+    std::cout << "[D1571] End ATN ACK (release DATA)\n";
+    driveControlDataLine(false);  // release DATA
 }
 
 void D1571::updateAtnAckState()
@@ -312,37 +316,27 @@ void D1571::updateAtnAckState()
 
 void D1571::atnChanged(bool atnLow)
 {
+    bool prev = atnLineLow;
     atnLineLow = atnLow;
 
-    // Keep VIA1’s IEC inputs in sync with the bus
+    std::cout << "[D1571] atnChanged: atnLow=" << atnLineLow
+              << " (prev=" << prev << ")\n";
+
+    // Keep VIA in sync with the new ATN level
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    if (atnLow)
+    // Optionally drive ATN-ACK here if this is the selected device
+    if (atnLineLow)
     {
-        // New ATN phase: allow a fresh ACK.
-        ackInProgress          = false;
-        atnAckCompletedThisAtn = false;
-
-        // Immediately assert ATN ACK: pull DATA low as long as ATN is low.
-        beginAtnAck();   // sets ackInProgress + atnAckPullsDataLow, then calls applyDataLine()
-
-        // VIA sees the updated inputs after DATA goes low
-        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+        // ATN just went LOW → start ATN ACK handshake
+        beginAtnAck();
     }
     else
     {
-        // ATN released: clear ACK state and release DATA
-        endAtnAck();               // clears ackInProgress, releases DATA
-        atnAckCompletedThisAtn = false;
-
-        // VIA may need to see the released DATA state
-        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-    }
-
-    if (!atnLow && iecListening)
-    {
-        presenceAckDone = false;  // next CLK pulse under ATN=H we’ll ACK
+        // ATN went HIGH → make sure ACK is cleared
+        if (ackInProgress)
+            endAtnAck();
     }
 }
 
@@ -391,8 +385,10 @@ void D1571::clkChanged(bool clkLow)
         return;
     }
 
+    // ---------- ATN HIGH: LISTENER PHASE ----------
     if (!atnLineLow && iecListening)
     {
+        // 1) Presence ACK (what you already had)
         if (rising && !presenceAckDone)
         {
             // We’re a listener, ATN is high, C64 is pulsing CLK:
@@ -411,6 +407,34 @@ void D1571::clkChanged(bool clkLow)
             std::cout << "[D1571] LISTENER PRESENCE ACK: releasing DATA\n";
             driveControlDataLine(false);
             presenceAckDone = false;
+        }
+
+        // 2) DATA RECEPTION (C64 -> drive, after presence ACK)
+        //
+        // IEC spec: receiver samples on CLOCK falling edge when ATN is high.
+        // We also skip while presenceAckDone is true so we don't count the
+        // presence-ACK edge as data.
+        if (falling && !presenceAckDone && !ackInProgress)
+        {
+            // On the bus, a '1' is DATA released (high), which in your
+            // logic is dataLow == false.
+            bool bit = !dataLineLow;   // DATA high -> 1, DATA low -> 0
+
+            // LSB-first assemble: shift right, drop new bit into bit 7.
+            iecRxByte = (iecRxByte >> 1) | (bit ? 0x80 : 0x00);
+            iecRxBitCount++;
+
+            if (iecRxBitCount == 8)
+            {
+                std::cout << "[D1571] LISTEN RX byte: $"
+                          << std::hex << int(iecRxByte) << std::dec
+                          << " (from C64 while listening)\n";
+
+                // TODO: later: feed this into your DOS command parser.
+                // For now, just reset for the next byte.
+                iecRxBitCount = 0;
+                iecRxByte     = 0;
+            }
         }
     }
 
@@ -445,6 +469,9 @@ void D1571::onListen()
 
     listening = true;
     talking   = false;
+    iecRxActive   = true;
+    iecRxBitCount = 0;
+    iecRxByte     = 0;
 
     // We're about to receive a secondary address byte after LISTEN
     presenceAckDone   = false;   // so we do the LISTEN presence ACK
@@ -460,6 +487,9 @@ void D1571::onUnListen()
 {
     iecListening = false;
     listening    = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
 
     expectingSecAddr  = false;
     expectingDataByte = false;
@@ -474,6 +504,10 @@ void D1571::onTalk()
 
     talking   = true;
     listening = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
 
     // After TALK, the next byte from the C64 is a secondary address
     expectingSecAddr  = true;
@@ -488,6 +522,10 @@ void D1571::onUnTalk()
 {
     iecTalking = false;
     talking    = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
 
     expectingSecAddr  = false;
     expectingDataByte = false;
