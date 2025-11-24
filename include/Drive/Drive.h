@@ -14,6 +14,7 @@ class FDC177x;
 #include <queue>
 #include <memory>
 #include "cpu.h"
+#include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
 #include "Peripheral.h"
 #include "Logging.h"
@@ -72,6 +73,12 @@ class Drive : public Peripheral
         virtual DriveStatus getDriveStatus() const = 0;
         bool isDrive() const override { return true; }
         Drive* asDrive() override { return this; }
+        virtual const CPU* getDriveCPU() const = 0;
+        virtual const FDC177x* getFDC() const = 0;
+        virtual const DriveMemoryBase* getMemory() const = 0;
+        virtual const DriveVIABase* getVIA1() const = 0;
+        virtual const DriveVIABase* getVIA2() const = 0;
+        virtual const DriveCIABase* getCIA() const = 0;
 
     protected:
 

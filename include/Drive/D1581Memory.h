@@ -17,12 +17,13 @@ class D1581;
 #include <string>
 #include <vector>
 #include "CPUBus.h"
+#include "Drive/DriveChips.h"
 #include "Logging.h"
 #include "Peripheral.h"
 #include "Drive/D1581CIA.h"
 #include "Drive/FDC177x.h"
 
-class D1581Memory : public CPUBus
+class D1581Memory : public CPUBus, public DriveMemoryBase
 {
     public:
         D1581Memory();
