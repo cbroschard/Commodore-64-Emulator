@@ -54,6 +54,10 @@ class D1581 : public Drive, public FloppyControllerHost
         inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
 
         // ML Monitor
+        inline bool hasCIA() const override { return true; }
+        inline bool hasVIA1() const override { return false; }
+        inline bool hasVIA2() const override { return false; }
+        inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline const D1581Memory* getMemory() const override { return &d1581Mem; }
         inline const FDC177x* getFDC() const override { return &d1581Mem.getFDC(); }
