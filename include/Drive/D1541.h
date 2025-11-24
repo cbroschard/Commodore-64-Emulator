@@ -63,6 +63,10 @@ class D1541 : public Drive
         void setSRQAsserted(bool state) override;
 
         // ML Monitor
+        inline bool hasCIA() const override { return false; }
+        inline bool hasVIA1() const override { return true; }
+        inline bool hasVIA2() const override { return true; }
+        inline bool hasFDC() const override  { return false; }
         const char* getDriveTypeName() const noexcept override { return "1541"; }
         bool isDrive() const override { return true; }
 
