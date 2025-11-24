@@ -24,10 +24,6 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     currentSide(1),
     fastSerialOutput(false),
     twoMHzMode(false),
-    atnAckEnabled(true),
-    atnAckPullsDataLow(false),
-    ackInProgress(false),
-    atnAckCompletedThisAtn(false),
     iecRxActive(false),
     iecRxBitCount(0),
     iecRxByte(0),
@@ -80,10 +76,6 @@ void D1571::reset()
     presenceAckDone             = false;
     expectingSecAddr            = false;
     expectingDataByte           = false;
-    atnAckEnabled               = true;
-    atnAckPullsDataLow          = false;
-    ackInProgress               = false;
-    atnAckCompletedThisAtn      = false;
     currentListenSA             = 0;
     currentTalkSA               = 0;
     iecRxActive                 = false;
@@ -96,9 +88,6 @@ void D1571::reset()
     twoMHzMode          = false;
     currentTrack        = 0;
     currentSector       = 0;
-
-    // Force reset state
-    applyDataLine();
 
     d1571Mem.reset();
     driveCPU.reset();
@@ -267,53 +256,6 @@ bool D1571::fdcIsWriteProtected() const
     return diskWriteProtected;
 }
 
-void D1571::applyDataLine()
-{
-    bool drivePullsDataLow = atnAckPullsDataLow;
-    dataLineLow = drivePullsDataLow;
-
-    peripheralAssertData(drivePullsDataLow);
-}
-
-void D1571::beginAtnAck()
-{
-    if (ackInProgress)
-        return;
-
-    ackInProgress = true;
-
-    // ATN is low here: device acknowledges by pulling DATA low.
-    // DO NOT touch CLK here.
-    std::cout << "[D1571] Begin ATN ACK (DATA low)\n";
-    driveControlDataLine(true);   // pull DATA low
-}
-
-void D1571::endAtnAck()
-{
-    if (!ackInProgress)
-        return;
-
-    ackInProgress = false;
-
-    std::cout << "[D1571] End ATN ACK (release DATA)\n";
-    driveControlDataLine(false);  // release DATA
-}
-
-void D1571::updateAtnAckState()
-{
-    if (atnLineLow && atnAckEnabled)
-    {
-        // ATN asserted and ATNA enabled -> ensure ACK is active
-        beginAtnAck();
-    }
-    else
-    {
-        // Either ATN released or ATNA disabled -> no ACK
-        endAtnAck();
-        atnAckCompletedThisAtn = false;
-    }
-}
-
 void D1571::atnChanged(bool atnLow)
 {
     bool prev = atnLineLow;
@@ -322,28 +264,9 @@ void D1571::atnChanged(bool atnLow)
     std::cout << "[D1571] atnChanged: atnLow=" << atnLineLow
               << " (prev=" << prev << ")\n";
 
-    // Keep VIA in sync with the new ATN level
+    // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-
-    // Optionally drive ATN-ACK here if this is the selected device
-    if (atnLineLow)
-    {
-        // ATN just went LOW → start ATN ACK handshake
-        beginAtnAck();
-    }
-    else
-    {
-        // ATN went HIGH → make sure ACK is cleared
-        if (ackInProgress)
-            endAtnAck();
-    }
-}
-
-void D1571::setAtnAckEnabled(bool enabled)
-{
-    atnAckEnabled = enabled;
-    updateAtnAckState();
 }
 
 void D1571::clkChanged(bool clkLow)
@@ -357,86 +280,12 @@ void D1571::clkChanged(bool clkLow)
     // Edge detection on the bus CLK line
     bool rising  = (!prevClkHigh && clkHigh);    // low -> high
     bool falling = ( prevClkHigh && !clkHigh );  // high -> low
-    bool edge    = rising || falling;
-
-    if (iecListening && !atnLineLow && rising)
-    {
-        std::cout << "[D1571] (LISTEN PHASE) CLK rising, drive should sample DATA here\n";
-    }
 
     std::cout << "[D1571] clkChanged atnLow=" << atnLineLow
               << " clkLow=" << clkLow
               << " dataLow=" << dataLineLow
-              << " ackInProgress=" << ackInProgress
-              << " rising=" << rising
+          << " rising=" << rising
               << " falling=" << falling << "\n";
-
-    // ---- ATN ACK hardware handshake ----
-    if (atnLineLow && ackInProgress && edge)
-    {
-        std::cout << "[D1571] Complete ATN ACK on CLK "
-                  << (falling ? "falling" : "rising") << " edge\n";
-
-        endAtnAck();
-
-        // Keep VIA's view of the IEC lines in sync after DATA/CLK changes
-        auto& via1 = d1571Mem.getVIA1();
-        via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-        return;
-    }
-
-    // ---------- ATN HIGH: LISTENER PHASE ----------
-    if (!atnLineLow && iecListening)
-    {
-        // 1) Presence ACK (what you already had)
-        if (rising && !presenceAckDone)
-        {
-            // We’re a listener, ATN is high, C64 is pulsing CLK:
-            // announce ourselves by pulling DATA low once.
-
-            std::cout << "[D1571] LISTENER PRESENCE ACK: pulling DATA low\n";
-
-            // Use your existing helper that logs:
-            // [Drive] driveControlDataLine: dataLow=1 (dev=8)
-            driveControlDataLine(true);    // dataLow = true => pull line low
-
-            presenceAckDone = true;
-        }
-        if (presenceAckDone && falling)
-        {
-            std::cout << "[D1571] LISTENER PRESENCE ACK: releasing DATA\n";
-            driveControlDataLine(false);
-            presenceAckDone = false;
-        }
-
-        // 2) DATA RECEPTION (C64 -> drive, after presence ACK)
-        //
-        // IEC spec: receiver samples on CLOCK falling edge when ATN is high.
-        // We also skip while presenceAckDone is true so we don't count the
-        // presence-ACK edge as data.
-        if (falling && !presenceAckDone && !ackInProgress)
-        {
-            // On the bus, a '1' is DATA released (high), which in your
-            // logic is dataLow == false.
-            bool bit = !dataLineLow;   // DATA high -> 1, DATA low -> 0
-
-            // LSB-first assemble: shift right, drop new bit into bit 7.
-            iecRxByte = (iecRxByte >> 1) | (bit ? 0x80 : 0x00);
-            iecRxBitCount++;
-
-            if (iecRxBitCount == 8)
-            {
-                std::cout << "[D1571] LISTEN RX byte: $"
-                          << std::hex << int(iecRxByte) << std::dec
-                          << " (from C64 while listening)\n";
-
-                // TODO: later: feed this into your DOS command parser.
-                // For now, just reset for the next byte.
-                iecRxBitCount = 0;
-                iecRxByte     = 0;
-            }
-        }
-    }
 
     // Normal path: just update VIA with the new CLK level
     auto& via1 = d1571Mem.getVIA1();
@@ -458,7 +307,7 @@ void D1571::dataChanged(bool dataLow)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    std::cout << "[D1571] dataChanged atnLow=" << atnLineLow << " clkLow=" << clkLineLow << " dataLow=" << dataLineLow << " ackInProgress=" << ackInProgress << "\n";
+    std::cout << "[D1571] dataChanged atnLow=" << atnLineLow << " clkLow=" << clkLineLow << " dataLow=" << dataLineLow << "\n";
 }
 
 void D1571::onListen()

@@ -63,7 +63,6 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // IECBUS
         void atnChanged(bool atnLow) override;
-        void setAtnAckEnabled(bool enabled);
         void clkChanged(bool clkState) override;
         void dataChanged(bool dataState) override;
         void setSRQAsserted(bool state) override;
@@ -86,6 +85,10 @@ class D1571 : public Drive, public FloppyControllerHost
         bool getByteReadyLow() const;
 
         // ML Monitor
+        inline bool hasCIA() const override { return true; }
+        inline bool hasVIA1() const override { return true; }
+        inline bool hasVIA2() const override { return true; }
+        inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline const D1571Memory* getMemory() const override { return &d1571Mem; }
         inline const FDC177x* getFDC() const override { return &d1571Mem.getFDC(); }
@@ -127,12 +130,6 @@ class D1571 : public Drive, public FloppyControllerHost
         bool twoMHzMode;
         uint8_t densityCode; // 0..3
 
-        // ATN auto-ack state
-        bool atnAckEnabled;      // latched from VIA bit 4 + DDRB
-        bool atnAckPullsDataLow; // current auto-ack contribution to DATA line
-        bool ackInProgress;
-        bool atnAckCompletedThisAtn;
-
         // IEC listener data RX (C64 -> drive, ATN high, drive listening)
         bool iecRxActive;
         int iecRxBitCount;
@@ -150,10 +147,6 @@ class D1571 : public Drive, public FloppyControllerHost
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
-        void applyDataLine();
-        void updateAtnAckState();
-        void beginAtnAck();
-        void endAtnAck();
 };
 
 #endif // D1571_H
