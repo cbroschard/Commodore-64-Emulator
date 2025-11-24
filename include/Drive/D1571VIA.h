@@ -46,11 +46,10 @@ class D1571VIA : public DriveVIABase
         // Setters
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
 
-        // IRQ helper
+        // Helpers
         bool checkIRQActive() const;
-
-        // Serial shift
         void onClkEdge(bool rising, bool falling);
+        void onCA1Edge(bool rising, bool falling);
 
     protected:
 
