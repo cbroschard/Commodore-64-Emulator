@@ -65,28 +65,26 @@ class D1541VIA
         static constexpr uint8_t IER_SR = 1 << 2;
 
         // I/O registers
-        uint8_t portA;
-        uint8_t portB;
-        uint8_t ddrA;
-        uint8_t ddrB;
+        struct viaRegs
+        {
+            uint8_t portA;
+            uint8_t portB;
+            uint8_t ddrA;
+            uint8_t ddrB;
+            uint8_t timer1CounterLow;
+            uint8_t timer1CounterHigh;
+            uint8_t timer1LatchLow;
+            uint8_t timer1LatchHigh;
+            uint8_t timer2CounterLow;
+            uint8_t timer2CounterHigh;
+            uint8_t shiftRegister;
+            uint8_t auxillaryControlRegister;
+            uint8_t peripheralControlRegister;
+            uint8_t interruptFlag;
+            uint8_t interruptEnable;
+        } registers;
 
-        // Timer registers
-        uint8_t timer1CounterLow;
-        uint8_t timer1CounterHigh;
-        uint8_t timer1LatchLow;
-        uint8_t timer1LatchHigh;
-        uint8_t timer2CounterLowByte;
-        uint8_t timer2CounterHighByte;
-
-        // Control registers
-        uint8_t shiftRegister;
-        uint8_t auxiliaryControlRegister;
-        uint8_t peripheralControlRegister;
-
-        // Interrupt registers
-        uint8_t interruptFlagRegister;
-        uint8_t interruptEnableRegister;
-
+        // Shift register counter
         int srCount;
 };
 
