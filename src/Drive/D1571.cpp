@@ -267,6 +267,11 @@ void D1571::atnChanged(bool atnLow)
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    // 1571 CA1 wrired to Atn
+    bool falling = (!prev && atnLineLow);
+    bool rising  = (prev && !atnLineLow);
+    via1.onCA1Edge(rising, falling);
 }
 
 void D1571::clkChanged(bool clkLow)
