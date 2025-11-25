@@ -29,8 +29,8 @@ class Drive : public Peripheral
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         virtual FDC177x* getFDC() { return nullptr; }
 
-        void driveControlClkLine(bool clkLow);
-        void driveControlDataLine(bool dataLow);
+        virtual void driveControlClkLine(bool clkLow);
+        virtual void driveControlDataLine(bool dataLow);
 
         // Level Changed (callbacks from IEC bus)
         void atnChanged(bool atnAsserted) override;
