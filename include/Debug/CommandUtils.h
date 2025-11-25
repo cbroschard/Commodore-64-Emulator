@@ -9,6 +9,7 @@
 #define COMMANDUTILS_H_INCLUDED
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -18,12 +19,12 @@
 // Accept address as hex or decimal
 uint16_t parseAddress(const std::string& arg);
 
-
-
 // Parse a range of memory addresses
 std::pair<uint16_t,uint16_t> parseRangePair(std::string input);
 
 // Helpers
+std::string hex2(uint8_t value);
+std::string hex4(uint8_t high, uint8_t low);
 std::string trimCopy(std::string s);
 std::string sanitizeAddrToken(std::string s);
 void printPaged(const std::string& text, int pageSize = 20);
