@@ -22,7 +22,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     currentListenSA(0),
     currentTalkSA(0),
     currentSide(1),
-    fastSerialOutput(false),
+    busDriversEnabled(true),
     twoMHzMode(false),
     iecRxActive(false),
     iecRxBitCount(0),
@@ -84,7 +84,7 @@ void D1571::reset()
 
     // 1571 Runtime Properties reset
     currentSide         = 0;
-    fastSerialOutput    = false;
+    busDriversEnabled   = true;
     twoMHzMode          = false;
     currentTrack        = 0;
     currentSector       = 0;
@@ -98,9 +98,9 @@ void D1571::setSRQAsserted(bool state)
     srqAsserted = state;
 }
 
-void D1571::setFastSerialBusDirection(bool output)
+void D1571::setBusDriversEnabled(bool output)
 {
-    fastSerialOutput = output;
+    busDriversEnabled = output;
 }
 
 void D1571::setBurstClock2MHz(bool enable)

@@ -79,7 +79,10 @@ class D1571 : public Drive, public FloppyControllerHost
         inline void setHeadSide(bool side1) { currentSide = side1 ? 1 : 0; } // 0 = bottom, 1 = top
         inline void setDensityCode(uint8_t code) { densityCode = code & 0x03; }
         inline bool isTrack0() { return currentTrack == 0; }
-        void setFastSerialBusDirection(bool output);
+        inline bool isIecTalking() const { return iecTalking; }
+        inline bool isIecListening() const { return iecListening; }
+        inline bool isBusDriversEnabled() const { return busDriversEnabled; }
+        void setBusDriversEnabled(bool output);
         void setBurstClock2MHz(bool enable);
         void syncTrackFromFDC();
         bool getByteReadyLow() const;
@@ -126,7 +129,7 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // Drive Properties
         bool currentSide;
-        bool fastSerialOutput;
+        bool busDriversEnabled;
         bool twoMHzMode;
         uint8_t densityCode; // 0..3
 
