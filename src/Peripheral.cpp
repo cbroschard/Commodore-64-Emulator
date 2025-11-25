@@ -49,18 +49,12 @@ void Peripheral::peripheralAssertData(bool state)
 
 void Peripheral::peripheralAssertAtn(bool state)
 {
-    if (bus)
-    {
-        bus->peripheralControlAtn(this, state);
-    }
+    if (bus) bus->peripheralControlAtn(this, state);
 }
 
 void Peripheral::peripheralAssertSrq(bool state)
 {
-    if (bus)
-    {
-        bus->peripheralControlSrq(this, state);
-    }
+    if (bus) bus->peripheralControlSrq(this, state);
 }
 
 uint8_t Peripheral::nextOutputByte()
