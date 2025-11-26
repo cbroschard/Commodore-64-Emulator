@@ -9,7 +9,8 @@
 #define MLMONITORBACKEND_H
 
 #include "Computer.h"
-#include "Drive.h"
+#include "Debug/CommandUtils.h"
+#include "Drive/Drive.h"
 
 class MLMonitorBackend
 {
@@ -33,11 +34,7 @@ class MLMonitorBackend
         inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
 
-        struct CPUState
-        {
-            uint16_t PC;
-            uint8_t  A, X, Y, SP, SR;
-        };
+         using CPUState = CPU::CPUState;
 
         // ML Monitor Cartridge methods
         inline Cartridge* getCart() { return cart; }
@@ -71,8 +68,7 @@ class MLMonitorBackend
         void warmReset();
 
         // ML Monitor CPU Methods
-        inline CPUState getCPUState() const { return CPUState{ processor->getPC(), processor->getA(), processor->getX(),
-                 processor->getY(), processor->getSP(), processor->getSR()}; }
+        inline CPUState getCPUState() const { return processor ? processor->getState() : CPUState{}; }
         inline uint8_t cpuGetSR() { return processor->getSR(); }
         inline void cpuStep() { return processor->tick(); }
         std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
@@ -81,14 +77,19 @@ class MLMonitorBackend
         void setJamMode(const std::string& mode);
         inline void setPC(uint16_t address) { processor->setPC(address); }
 
-        // ML Monitor IEC Bus
-        IECBUS* getIECBus() const { return bus; }
+        // ML Monitor Drives
         void dumpDriveList();
         void dumpDriveSummary(int id);
         void dumpDriveCPU(int id);
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t endAddress);
+        void dumpDriveVIA1(int id);
+        void dumpDriveVIA2(int id);
+        void dumpDriveCIA(int id);
 
-        // ML Monitor IRQ
+        // ML Monitor IEC Bus
+        IECBUS* getIECBus() const { return bus; }
+
+                // ML Monitor IRQ
         struct IRQSnapshot
         {
             bool has = false;
