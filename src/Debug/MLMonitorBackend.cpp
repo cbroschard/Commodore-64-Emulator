@@ -225,21 +225,369 @@ void MLMonitorBackend::dumpDriveSummary(int id)
         return;
     }
 
+    Drive* drive = dev->asDrive();
+
     // Get Drive status
     std::string currentStatus = decodeDriveStatus(dev->asDrive()->getDriveStatus());
 
     std::stringstream oss;
     oss << "Drive " << id << " Summary:\n";
-    oss << "  Type:        " << dev->getDriveTypeName() << "\n";
-    oss << "  Image:       " << dev->getLoadedDiskName() << "\n";
-    oss << "  Disk Loaded: " << (dev->asDrive()->isDiskLoaded() ? "Yes" : "No") << "\n\n";
-    oss << "  Track:       " << static_cast<int>(dev->asDrive()->getCurrentTrack()) << "\n";
-    oss << "  Sector:      " << static_cast<int>(dev->asDrive()->getCurrentSector()) << "\n";
-    oss << "  Motor:       " << (dev->asDrive()->isMotorOn() ? "On" : "Off") << "\n\n";
-    oss << "  ATN Line:    " << (dev->asDrive()->getAtnLineLow() ? "Low" : "High") << "\n";
-    oss << "  CLK Line:    " << (dev->asDrive()->getClkLineLow() ? "Low" : "High") << "\n";
-    oss << "  DATA Line:   " << (dev->asDrive()->getDataLineLow() ? "Low" : "High") << "\n\n";
+    oss << "  Type:        " << drive->getDriveTypeName() << "\n";
+    oss << "  Image:       " << drive->getLoadedDiskName() << "\n";
+    oss << "  Disk Loaded: " << (drive->isDiskLoaded() ? "Yes" : "No") << "\n\n";
+    oss << "  Track:       " << static_cast<int>(drive->getCurrentTrack()) << "\n";
+    oss << "  Sector:      " << static_cast<int>(drive->getCurrentSector()) << "\n";
+    oss << "  Motor:       " << (drive->isMotorOn() ? "On" : "Off") << "\n\n";
+    oss << "  ATN Line:    " << (drive->getAtnLineLow() ? "Low" : "High") << "\n";
+    oss << "  CLK Line:    " << (drive->getClkLineLow() ? "Low" : "High") << "\n";
+    oss << "  DATA Line:   " << (drive->getDataLineLow() ? "Low" : "High") << "\n\n";
     oss << "  Status:      " << currentStatus << "\n";
+    std::cout << oss.str();
+}
+
+void MLMonitorBackend::dumpDriveCIA(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    if (!drive->hasCIA())
+    {
+        std::cout << "Device has no CIA chip\n";
+        return;
+    }
+
+    auto* cia = dev->asDrive()->getCIA();
+    auto registers = cia->getRegsView();
+
+    std::stringstream oss;
+    oss << "CIA Registers:\n";
+    oss << std::left;
+
+    // Ports
+    oss << "  PORTA:  " << std::setw(10) << "" << "$" << hex2(registers.portA)
+        << std::setw(6) << "" << "PORTB:  " << std::setw(10) << ""
+        << "$" << hex2(registers.portB) << "\n";
+
+    oss << "  DDRA:   " << std::setw(10) << "" << "$" <<hex2(registers.ddrA)
+        << std::setw(4) << ""
+        << "  DDRB:   " << std::setw(10) << "" << "$" << hex2(registers.ddrB) << "\n";
+
+    // Timer bytes
+    oss << "  TimerA Low Byte:  $" << hex2(registers.tAL)
+        << std::setw(6) << ""
+        << "TimerA High Byte: $" << hex2(registers.tAH) << "\n";
+
+    oss << "  TimerB Low Byte:  $" << hex2(registers.tBL)
+        << std::setw(6) << ""
+        << "TimerB High Byte: $" << hex2(registers.tBH) << "\n";
+
+    // Timer words
+    oss << "  TimerA Counter:   $" << hex4(registers.tA)
+        << std::setw(4) << "" << "TimerA Latch:  "
+        << std::setw(3) << "" << "$" << hex4(registers.taLAT) << "\n";
+
+    oss << "  TimerB Counter:   $" << hex4(registers.tB)
+        << std::setw(4) << "" << "TimerB Latch:  "
+        << std::setw(3) << "" << "$" << hex4(registers.tbLAT) << "\n";
+
+    // TOD
+    oss << "  TOD 10ths:        $" << hex2(registers.tod10)
+    << std::setw(6) << ""
+    << "TOD Seconds:      $" << hex2(registers.todSec) << "\n";
+
+    oss << "  TOD Minutes:      $" << hex2(registers.todMin)
+        << std::setw(6) << ""
+        << "TOD Hours:        $" << hex2(registers.todHour) << "\n";
+
+    // Misc (aligned 2-column rows)
+    oss << "  Serial Data:      $" << hex2(registers.sd)
+        << std::setw(6) << ""
+        << "IER:              $" << hex2(registers.ier) << "\n";
+
+    oss << "  CRA:              $" << hex2(registers.cra)
+        << std::setw(6) << ""
+        << "CRB:              $" << hex2(registers.crb) << "\n";
+
+    std::cout << oss.str();
+}
+
+void MLMonitorBackend::dumpDriveCPU(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    const CPU* cpu = dev->asDrive()->getDriveCPU();
+    if (!cpu)
+    {
+        std::cout << "No CPU!\n";
+        return;
+    }
+
+    // Get current cpu state
+    CPUState st = cpu->getState();
+
+    auto hex2 = [](uint32_t v){
+        std::ostringstream s;
+        s << std::uppercase << std::hex << std::setw(2)
+          << std::setfill('0') << (v & 0xFF);
+        return s.str();
+    };
+    auto hex4 = [](uint32_t v){
+        std::ostringstream s;
+        s << std::uppercase << std::hex << std::setw(4)
+          << std::setfill('0') << (v & 0xFFFF);
+        return s.str();
+    };
+    auto flagsBits = [&](uint8_t p){
+        std::string b;
+        b += (p & 0x80) ? '1' : '0'; // N
+        b += (p & 0x40) ? '1' : '0'; // V
+        b += '-';                    // (unused)
+        b += (p & 0x10) ? '1' : '0'; // B
+        b += (p & 0x08) ? '1' : '0'; // D
+        b += (p & 0x04) ? '1' : '0'; // I
+        b += (p & 0x02) ? '1' : '0'; // Z
+        b += (p & 0x01) ? '1' : '0'; // C
+        return b;
+    };
+
+    // NEW: read opcode at PC
+    uint8_t op = cpu->debugRead(st.PC);
+
+    std::ostringstream out;
+    out << "Drive " << id << " CPU:\n";
+    out << "PC=$" << hex4(st.PC)
+        << "  A=$" << hex2(st.A)
+        << "  X=$" << hex2(st.X)
+        << "  Y=$" << hex2(st.Y)
+        << "  SP=$" << hex2(st.SP)
+        << "  P=$"  << hex2(st.SR)
+        << "  (NV-BDIZC=" << flagsBits(st.SR) << ")\n";
+    out << "OP=$" << hex2(op) << "\n";
+
+    std::cout << out.str();
+}
+
+void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t endAddress)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    auto* mem = dev->asDrive()->getMemory();
+
+    if (!mem)
+    {
+        std::cout << "No memory device.\n";
+        return;
+    }
+}
+
+void MLMonitorBackend::dumpDriveVIA1(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    if (!dev->asDrive()->hasVIA1())
+    {
+        std::cout << "Drive does not have a VIA1 chip\n";
+        return;
+    }
+
+    auto* via1 = dev->asDrive()->getVIA1();
+    if (!via1)
+    {
+        std::cout << "No VIA1!\n";
+        return;
+    }
+
+    auto registers = via1->getRegsView();
+
+    std::stringstream oss;
+    oss << "VIA1 Registers:\n";
+    oss << "  ORB: $" << hex2(registers.orbIRB)
+        << "  ORA: $" << hex2(registers.oraIRA) << "\n";
+    oss << "  DDRB: $" << hex2(registers.ddrB)
+        << "  DDRA: $" << hex2(registers.ddrA) << "\n";
+
+    // Timers as bytes
+    oss << "  T1 Low Byte:  $" << hex2(registers.t1CL)
+        << "  T1 High Byte: $" << hex2(registers.t1CH) << "\n";
+    oss << "  T1 Latch Low: $" << hex2(registers.t1LL)
+        << "  T1 Latch High:$" << hex2(registers.t1LH) << "\n";
+    oss << "  T2 Low Byte:  $" << hex2(registers.t2CL)
+        << "  T2 High Byte: $" << hex2(registers.t2CH) << "\n";
+
+    // Timers as 16-bit words
+    oss << "  T1 Counter:   $" << hex4(registers.t1CH, registers.t1CL)
+        << "  T1 Latch: $"    << hex4(registers.t1LH, registers.t1LL) << "\n";
+    oss << "  T2 Counter:   $" << hex4(registers.t2CH, registers.t2CL) << "\n";
+
+    oss << "  Serial Shift: $" << hex2(registers.sr) << "\n";
+    oss << "  Aux Control:  $" << hex2(registers.acr) << "\n";
+    oss << "  Periph Ctrl:  $" << hex2(registers.pcr) << "\n";
+    oss << "  IFR:          $" << hex2(registers.ifr) << "\n";
+    oss << "  IER:          $" << hex2(registers.ier) << "\n";
+    oss << "  ORA(no HS):   $" << hex2(registers.oraNoHS) << "\n";
+
+    // Is this VIA pulling IRQ?
+    bool irqActive = via1->checkIRQActive();
+    oss << "  IRQ Active:   " << (irqActive ? "YES" : "NO") << "\n";
+
+    std::cout << oss.str();
+}
+
+void MLMonitorBackend::dumpDriveVIA2(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    if (!dev->asDrive()->hasVIA2())
+    {
+        std::cout << "Drive does not have a VIA2 chip\n";
+        return;
+    }
+
+    auto* via2 = dev->asDrive()->getVIA2();
+    if (!via2)
+    {
+        std::cout << "No VIA2!\n";
+        return;
+    }
+
+    auto registers = via2->getRegsView();
+    auto mech  = via2->getMechanicsInfo();
+
+    std::stringstream oss;
+    oss << "VIA2 Registers (Mechanics):\n";
+    oss << "  ORB: $" << hex2(registers.orbIRB)
+        << "  ORA: $" << hex2(registers.oraIRA) << "\n";
+    oss << "  DDRB: $" << hex2(registers.ddrB)
+        << "  DDRA: $" << hex2(registers.ddrA) << "\n";
+
+    // Timers as bytes
+    oss << "  T1 Low Byte:   $" << hex2(registers.t1CL)
+        << "  T1 High Byte:  $" << hex2(registers.t1CH) << "\n";
+    oss << "  T1 Latch Low:  $" << hex2(registers.t1LL)
+        << "  T1 Latch High: $" << hex2(registers.t1LH) << "\n";
+    oss << "  T2 Low Byte:   $" << hex2(registers.t2CL)
+        << "  T2 High Byte:  $" << hex2(registers.t2CH) << "\n";
+
+    // Timers as 16-bit words
+    oss << "  T1 Counter:    $" << hex4(registers.t1CH, registers.t1CL)
+        << "  T1 Latch: $"      << hex4(registers.t1LH, registers.t1LL) << "\n";
+    oss << "  T2 Counter:    $" << hex4(registers.t2CH, registers.t2CL) << "\n";
+
+    oss << "  Serial Shift:  $" << hex2(registers.sr)  << "\n";
+    oss << "  Aux Control:   $" << hex2(registers.acr) << "\n";
+    oss << "  Periph Ctrl:   $" << hex2(registers.pcr) << "\n";
+    oss << "  IFR:           $" << hex2(registers.ifr) << "\n";
+    oss << "  IER:           $" << hex2(registers.ier) << "\n";
+    oss << "  ORA(no HS):    $" << hex2(registers.oraNoHS) << "\n";
+
+    // Mechanics decode from Port B
+    if (mech.valid)
+    {
+        oss << "\nMechanics (decoded):\n";
+        oss << "  Motor:   " << (mech.motorOn ? "ON" : "OFF") << "\n";
+        oss << "  LED:     " << (mech.ledOn ? "ON" : "OFF") << "\n";
+        oss << "  Density: code=" << static_cast<unsigned>(mech.densityCode)
+            << " (0-3)\n";
+    }
+    else
+    {
+        oss << "\nMechanics: (no mechanics info for this VIA)\n";
+    }
+
+    bool irqActive = via2->checkIRQActive();
+    oss << "  IRQ Active: " << (irqActive ? "YES" : "NO") << "\n";
+
     std::cout << oss.str();
 }
 
