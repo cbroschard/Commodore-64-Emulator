@@ -51,6 +51,14 @@ std::string hex4(uint8_t high, uint8_t low)
     return s.str();
 }
 
+std::string hex4(uint16_t value)
+{
+    std::ostringstream s;
+    s << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
+        << static_cast<unsigned>(value);
+    return s.str();
+}
+
 inline std::string trimCopy(std::string s)
 {
     auto notSpace = [](int ch){ return !std::isspace(ch); };
