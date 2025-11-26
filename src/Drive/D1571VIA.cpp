@@ -23,7 +23,7 @@ D1571VIA::D1571VIA() :
     t2Latch(0),
     t2Running(false)
 {
-
+    reset();
 }
 
 D1571VIA::~D1571VIA() = default;
@@ -32,12 +32,16 @@ void D1571VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole vi
 {
     this->parentPeripheral = parentPeripheral;
     this->viaRole = viaRole;
+    if (viaRole == VIARole::VIA1_IECBus) updateIECOutputsFromPortB();
 }
 
 void D1571VIA::reset()
 {
+    portAPins = 0xFF;
+    portBPins = 0xFF;
+
     // Initialize registers
-    registers.orbIRB = 0x00;
+    registers.orbIRB = 0xFF;
     registers.oraIRA = 0x00;
     registers.ddrB = 0x00;
     registers.ddrA = 0x00;
@@ -70,6 +74,9 @@ void D1571VIA::reset()
     srShiftReg    = 0;
     srBitCount    = 0;
     srShiftInMode = false;
+
+    if (viaRole == VIARole::VIA1_IECBus)
+        updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
 }
 
 void D1571VIA::tick()
@@ -135,46 +142,24 @@ uint8_t D1571VIA::readRegister(uint16_t address)
     {
         case 0x00:
         {
-            uint8_t value = registers.orbIRB; // read latch
-            uint8_t ddrB = registers.ddrB; // data direction
+            const uint8_t ddrB  = registers.ddrB;
+            uint8_t value = static_cast<uint8_t>((registers.orbIRB & ddrB) | (portBPins & static_cast<uint8_t>(~ddrB)));
+
             if (viaRole == VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Data In
-                    if ((ddrB & (1u << IEC_DATA_IN_BIT)) == 0)
-                    {
-                        bool low = drive->getDataLineLow();
-                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_DATA_IN_BIT));
-                        else     value |= static_cast<uint8_t>(1u << IEC_DATA_IN_BIT);
-                    }
-                    // Clk In
-                    if ((ddrB & (1u << IEC_CLK_IN_BIT)) == 0)
-                    {
-                        bool low = drive->getClkLineLow();
-                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_CLK_IN_BIT));
-                        else     value |= static_cast<uint8_t>(1u << IEC_CLK_IN_BIT);
-                    }
-                    // Atn In
-                    if ((ddrB & (1u << IEC_ATN_IN_BIT)) == 0)
-                    {
-                        bool low = drive->getAtnLineLow();
-                        if (low) value &= static_cast<uint8_t>(~(1u << IEC_ATN_IN_BIT));
-                        else     value |= static_cast<uint8_t>(1u << IEC_ATN_IN_BIT);
-                    }
-                    // Device number DIP "switches"
+                    // Device number DIP "switches" live on PB5/PB6 as inputs (only override if those bits are inputs)
                     int dev = drive->getDeviceNumber();
                     int offset = dev - 8;
-                    if (offset < 0 || offset > 3) offset = 0; // Clamp value to reasonable number
+                    if (offset < 0 || offset > 3) offset = 0;
 
-                    // PB5 (DEV_BIT0)
-                    if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)   // only override when configured as input
+                    if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)
                     {
                         if (offset & 0x01) value |=  (1u << IEC_DEV_BIT0);
                         else               value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
                     }
 
-                    // PB6 (DEV_BIT1)
                     if ((ddrB & (1u << IEC_DEV_BIT1)) == 0)
                     {
                         if (offset & 0x02) value |=  (1u << IEC_DEV_BIT1);
@@ -182,34 +167,34 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     }
                 }
             }
-            if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == VIARole::VIA2_Mechanics)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Bit 4: Write protect (input, active low)
+                    // WP input (active low)
                     if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
                     {
-                        bool wpLow = drive->fdcIsWriteProtected(); // true if disk is write-protected
-                        if (wpLow) value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT)); // 0 = protected
-                        else       value |=  static_cast<uint8_t> (1u << MECH_WRITE_PROTECT);  // 1 = writable
+                        bool wpLow = drive->fdcIsWriteProtected();
+                        if (wpLow) value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
+                        else       value |=  static_cast<uint8_t>( (1u << MECH_WRITE_PROTECT));
                     }
 
-                    // Bit 7: Sync Detected
+                    // Sync detected input (active low)
                     if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
                     {
                         bool syncLow = isSyncDetectedLow();
                         if (syncLow) value &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
-                        else         value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
+                        else         value |=  static_cast<uint8_t>( (1u << MECH_SYNC_DETECTED));
                     }
                 }
             }
+
             return value;
         }
         case 0x01:
         {
-            uint8_t value = registers.oraIRA;
             uint8_t ddrA  = registers.ddrA;
-
+            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
             if (viaRole == VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
@@ -331,7 +316,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                         if (ddrA & (1u << PORTA_FSM_DIRECTION))
                         {
                             bool output = (value & (1u << PORTA_FSM_DIRECTION)) != 0;
-                            drive->setFastSerialBusDirection(output);
+                            drive->setBusDriversEnabled(output);
+                            updateIECOutputsFromPortB();
                         }
 
                         // Bit 2 Head Side Select
@@ -405,7 +391,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     if (ddrA & (1u << PORTA_FSM_DIRECTION))
                     {
                         bool output = (ora & (1u << PORTA_FSM_DIRECTION)) != 0;
-                        drive->setFastSerialBusDirection(output);
+                        drive->setBusDriversEnabled(output);
+                        updateIECOutputsFromPortB();
                     }
 
                     // Bit 2 Head Side Select
@@ -510,58 +497,71 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
-    uint8_t oldIRB = registers.orbIRB;      // last input latch
-    uint8_t newIRB = oldIRB;
+    // remember previous ATN state as seen on PB7
+    bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
 
-    if (atnLow) newIRB &= ~(1 << IEC_ATN_IN_BIT);
-    else        newIRB |=  (1 << IEC_ATN_IN_BIT);
+    uint8_t pins = portBPins;
 
-    if (clkLow) newIRB &= ~(1 << IEC_CLK_IN_BIT);
-    else        newIRB |=  (1 << IEC_CLK_IN_BIT);
+    // IMPORTANT: The 1571 uses inverters (e.g. 74LS14) on the inputs.
+    // Bus Low (Active) -> Inverter Input Low -> Inverter Output High -> VIA Pin 1.
+    // Bus High (Released) -> Inverter Input High -> Inverter Output Low -> VIA Pin 0.
 
-    if (dataLow) newIRB &= ~(1 << IEC_DATA_IN_BIT);
-    else         newIRB |=  (1 << IEC_DATA_IN_BIT);
+    if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT); // Bus Low -> Pin High
+    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT); // Bus High -> Pin Low
 
-    registers.orbIRB = newIRB;
+    if (clkLow)  pins |= (uint8_t) (1u << IEC_CLK_IN_BIT);  // Bus Low -> Pin High
+    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);  // Bus High -> Pin Low
+
+    if (atnLow)  pins |= (uint8_t) (1u << IEC_ATN_IN_BIT);
+    else         pins &= (uint8_t)~(1u << IEC_ATN_IN_BIT);
+
+    portBPins = pins;
+
+    bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0); // Active is High at Pin
+    // NOTE: The logic below uses newAtnLow, but updateIECOutputsFromPortB checks the pin bit.
+    // This is fine as long as we are consistent that "Pin Bit 1" means "ATN Active".
+
+    if (viaRole == VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
+        updateIECOutputsFromPortB();
 }
 
 void D1571VIA::updateIECOutputsFromPortB()
 {
-    if (viaRole != VIARole::VIA1_IECBus)
-        return;
+    if (viaRole != VIARole::VIA1_IECBus) return;
 
-    auto* drive = dynamic_cast<Drive*>(parentPeripheral);
-    if (!drive)
-        return;
+    auto* d1571 = dynamic_cast<D1571*>(parentPeripheral);
+    if (!d1571) return;
 
     const uint8_t orb  = registers.orbIRB;
     const uint8_t ddrB = registers.ddrB;
 
-    // Only drive the line when the bit is OUTPUT (DDRB bit = 1)
-    // and ORB bit = 0 => pull the line LOW.
     bool dataLow = false;
     bool clkLow  = false;
 
-    // DATA OUT (PB0)
+    // Output logic: Inverted Open Collector buffers (7406).
+    // VIA Output '1' -> Buffer Input '1' -> Buffer Output '0' (Low/Active).
+    // VIA Output '0' -> Buffer Input '0' -> Buffer Output High-Z (Released).
+
     if (ddrB & (1u << IEC_DATA_OUT_BIT))
-    {
-        dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) == 0);
-    }
+        dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
 
-    // CLK OUT (PB1)
     if (ddrB & (1u << IEC_CLK_OUT_BIT))
-    {
-        clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) == 0);
-    }
+        clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
 
-    drive->driveControlDataLine(dataLow);
-    drive->driveControlClkLine(clkLow);
-    std::cout << "[VIA1] PB write: ORB=$" << std::hex << int(orb)
-            << " DDRB=$" << int(ddrB)
-            << " => DATA low=" << dataLow
-            << " CLK low=" << clkLow << "\n";
+    // ATN Input bit (Bit 7, PB7 or similar)
+    // NOTE: We rely on the fact that setIECInputLines sets the PIN high when Bus ATN is Low.
+    bool atnAsserted = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+
+    bool atnAckAuto = false;
+    if (ddrB & (1u << IEC_ATN_ACK_BIT))
+        atnAckAuto = ((orb & (1u << IEC_ATN_ACK_BIT)) == 0); // Check your specific schematic/ROM for this bit polarity
+
+    if (atnAsserted && atnAckAuto)
+        dataLow = true; // force DATA low as the acknowledge
+
+    d1571->driveControlDataLine(dataLow);
+    d1571->driveControlClkLine(clkLow);
 }
-
 
 bool D1571VIA::checkIRQActive() const
 {
@@ -606,7 +606,15 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
         {
             dataLow = drive->getDataLineLow();
         }
-        int bit = dataLow ? 0 : 1;
+
+        // IEC Logic:
+        // Bus Low (0V)  = Logical 1.
+        // Bus High (5V) = Logical 0.
+        // VIA CB2 (Data) is driven by Inverter. Bus Low -> Inverter -> CB2 High (1).
+        // 6522 SR shifts in the state of CB2.
+        // So: dataLow (Bus Low) -> bit 1.
+
+        int bit = dataLow ? 1 : 0;
 
         srShiftReg = (srShiftReg >> 1) | (bit << 7);
         srBitCount++;
@@ -616,16 +624,14 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
             registers.serialShift = srShiftReg;
             srBitCount = 0;
 
-            // raise SR interrupt (IFR bit for SR – you'll define that mask)
+            // raise SR interrupt
             triggerInterrupt(IFR_SR);
-        }
-    }
-
-    // DEBUG: show every received IEC byte on VIA1
-    std::cout << "[VIA1] IEC RX byte = $"
+            std::cout << "[VIA1] IEC RX byte = $"
               << std::hex << std::uppercase << int(registers.serialShift)
               << " (ACR=$" << int(registers.auxControlRegister)
               << ")\n";
+        }
+    }
 }
 
 void D1571VIA::onCA1Edge(bool rising, bool falling)
@@ -650,4 +656,50 @@ void D1571VIA::onCA1Edge(bool rising, bool falling)
                   << "\n";
     }
 
+}
+
+DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
+{
+    MechanicsInfo m{};
+    m.valid = false;          // assume not valid unless we know we're VIA2/mech
+
+    // Only VIA2 in mechanics role has meaningful data
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return m;
+
+    uint8_t orb  = registers.orbIRB;
+    uint8_t ddrB = registers.ddrB;
+
+    m.valid = true;
+
+    // Motor: output bit, 0 = ON, 1 = OFF (per your write logic)
+    if (ddrB & (1u << MECH_SPINDLE_MOTOR))
+    {
+        m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) == 0;
+    }
+    else
+    {
+        m.motorOn = false; // or leave as-is
+    }
+
+    // LED: output bit, 1 = ON, 0 = OFF
+    if (ddrB & (1u << MECH_LED))
+    {
+        m.ledOn = (orb & (1u << MECH_LED)) != 0;
+    }
+    else
+    {
+        m.ledOn = false;
+    }
+
+    // Density bits: PB5/PB6
+    uint8_t code = 0;
+    if (ddrB & (1u << MECH_DENSITY_BIT0))
+        code |= (orb >> MECH_DENSITY_BIT0) & 0x01;
+    if (ddrB & (1u << MECH_DENSITY_BIT1))
+        code |= ((orb >> MECH_DENSITY_BIT1) & 0x01) << 1;
+
+    m.densityCode = code;
+
+    return m;
 }

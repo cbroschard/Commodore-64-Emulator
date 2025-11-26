@@ -5,7 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "cia2.h"
+#include "CIA2.h"
 #include "CPU.h"
 
 CIA2::CIA2() :
@@ -649,9 +649,6 @@ void CIA2::clkChanged(bool level)
                       << std::dec << "\n";
 
             // Build the command byte as LSB-first:
-            //   first bit we see -> bit 0
-            //   second bit       -> bit 1
-            //   ...
             if (dataHigh)
             {
                 iecCmdShiftReg |= static_cast<uint8_t>(1u << iecCmdBitCount);
@@ -681,46 +678,10 @@ void CIA2::clkChanged(bool level)
         // ATN low but no falling edge carrying a bit: nothing else to do
         return;
     }
-
-    // --- ATN HIGH: normal serial data for TALK/LISTEN ---
-    if (!falling)
-        return;
-
-    // LISTEN receive (ATN released): shift one byte into SR
-    if (listening && !atnLine)
-    {
-        shiftReg = (shiftReg << 1) | (bus->readDataLine() ? 1 : 0);
-        if (++bitCount == 8)
-        {
-            serialDataRegister = shiftReg;
-            bitCount = 0;
-            shiftReg = 0;
-
-            // Byte ready -> SR; IFR bit for SR set
-            interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
-            refreshNMI();
-        }
-    }
-
-    // TALK transmit (ATN released)
-    if (talking && !atnLine)
-    {
-        bool bit = (serialDataRegister >> outBit) & 1;
-        bus->setDataLine(bit);
-        if (--outBit < 0) outBit = 7;
-    }
 }
 
 void CIA2::dataChanged(bool state)
 {
-    // on a falling DATA edge, if we're TALKing and not in ATN, push the next bit out
-    if (lastDataLevel && !state && talking && !atnLine && bus)
-    {
-        // grab next bit from shiftReg (MSB first)
-        bool bit = ((shiftReg >> outBit) & 1) != 0;
-        bus->setDataLine(bit);
-        if (--outBit < 0) outBit = 7;
-    }
     lastDataLevel = state;
 }
 
@@ -766,31 +727,7 @@ void CIA2::srqChanged(bool level)
     // detect falling edge of SRQ
     if (lastSrqLevel && !level)
     {
-        // LISTEN mode: sample DATA into shiftReg
-        if (listening && !atnLine && bus)
-        {
-            // read the IEC DATA line
-            bool data = bus->readDataLine();
-            // shift one bit in
-            shiftReg = (shiftReg << 1) | (data ? 1 : 0);
-            if (++bitCount == 8)
-            {
-                serialDataRegister = shiftReg;
-                bitCount = 0;
-                interruptStatus |= INTERRUPT_SERIAL_SHIFT_REGISTER;
-                refreshNMI();
-                shiftReg = 0;
-            }
-        }
-        // TALK mode: drive DATA from serialDataRegister
-        else if (talking && !atnLine && currentSecondaryAddress == expectedSecondaryAddress && bus)
-        {
-            // output bit outBitIndex of the byte
-            bool out = (serialDataRegister >> outBit) & 1;
-            bus->setDataLine(out);
-            if (--outBit < 0)
-                outBit = 7;
-        }
+        // Fast Serial logic should go here (using SR/CNT pins).
     }
 
     lastSrqLevel = level;
@@ -1132,3 +1069,4 @@ void CIA2::recomputeIEC()
               << " CLKlow="    << clkLow
               << " DATAlow="   << dataLow << std::dec << "\n";
 }
+
