@@ -28,6 +28,34 @@ class D1571CIA : public DriveCIABase
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
 
+        // ML Monitor
+        inline ciaRegsView getRegsView() const override
+        {
+            return
+                {
+                    registers.portA,
+                    registers.portB,
+                    registers.ddrA,
+                    registers.ddrB,
+                    registers.timerALowByte,
+                    registers.timerAHighByte,
+                    registers.timerBLowByte,
+                    registers.timerBHighByte,
+                    registers.tod10th,
+                    registers.todSeconds,
+                    registers.todMinutes,
+                    registers.todHours,
+                    registers.serialData,
+                    registers.interruptEnable,
+                    registers.controlRegisterA,
+                    registers.controlRegisterB,
+                    timerACounter,
+                    timerALatch,
+                    timerBCounter,
+                    timerBLatch
+                };
+        }
+
     protected:
 
     private:

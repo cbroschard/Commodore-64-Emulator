@@ -26,6 +26,34 @@ class D1581CIA : public DriveCIABase
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
+        // ML Monitor
+        inline ciaRegsView getRegsView() const override
+        {
+            return
+                {
+                    registers.portA,
+                    registers.portB,
+                    registers.ddrA,
+                    registers.ddrB,
+                    registers.timerALowByte,
+                    registers.timerAHighByte,
+                    registers.timerBLowByte,
+                    registers.timerBHighByte,
+                    registers.tod10th,
+                    registers.todSeconds,
+                    registers.todMinutes,
+                    registers.todHours,
+                    registers.serialData,
+                    registers.interruptEnable,
+                    registers.controlRegisterA,
+                    registers.controlRegisterB,
+                    timerACounter,
+                    timerALatch,
+                    timerBCounter,
+                    timerBLatch
+                };
+        }
+
     protected:
 
     private:
