@@ -47,9 +47,35 @@ class D1571VIA : public DriveVIABase
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
 
         // Helpers
-        bool checkIRQActive() const;
+        bool checkIRQActive() const override;
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
+
+        // ML Monitor
+        inline viaRegsView getRegsView() const override
+        {
+            return
+            {
+                registers.orbIRB,
+                registers.oraIRA,
+                registers.ddrB,
+                registers.ddrA,
+                registers.timer1CounterLowByte,
+                registers.timer1CounterHighByte,
+                registers.timer1LowLatch,
+                registers.timer1HighLatch,
+                registers.timer2CounterLowByte,
+                registers.timer2CounterHighByte,
+                registers.serialShift,
+                registers.auxControlRegister,
+                registers.peripheralControlRegister,
+                registers.interruptFlag,
+                registers.interruptEnable,
+                registers.oraIRANoHandshake
+            };
+        }
+
+        MechanicsInfo getMechanicsInfo() const override;
 
     protected:
 
@@ -104,6 +130,9 @@ class D1571VIA : public DriveVIABase
 
         // Role
         VIARole viaRole;
+
+        uint8_t portBPins;
+        uint8_t portAPins;
 
         struct viaRegs
         {
