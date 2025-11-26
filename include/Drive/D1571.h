@@ -68,7 +68,7 @@ class D1571 : public Drive, public FloppyControllerHost
         void setSRQAsserted(bool state) override;
         inline bool isSRQAsserted() const override { return srqAsserted; }
 
-        // IECBUS communcation
+        // IECBUS communication
         void onListen() override;
         void onUnListen() override;
         void onTalk() override;
