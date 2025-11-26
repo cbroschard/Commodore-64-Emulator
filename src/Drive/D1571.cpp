@@ -22,7 +22,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     currentListenSA(0),
     currentTalkSA(0),
     currentSide(1),
-    busDriversEnabled(true),
+    busDriversEnabled(false),
     twoMHzMode(false),
     iecRxActive(false),
     iecRxBitCount(0),
@@ -84,7 +84,7 @@ void D1571::reset()
 
     // 1571 Runtime Properties reset
     currentSide         = 0;
-    busDriversEnabled   = true;
+    busDriversEnabled   = false;
     twoMHzMode          = false;
     currentTrack        = 0;
     currentSector       = 0;
@@ -258,6 +258,8 @@ bool D1571::fdcIsWriteProtected() const
 
 void D1571::atnChanged(bool atnLow)
 {
+    if (atnLow == atnLineLow) return; // ignore no change
+
     bool prev = atnLineLow;
     atnLineLow = atnLow;
 
@@ -268,14 +270,16 @@ void D1571::atnChanged(bool atnLow)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    // 1571 CA1 wrired to Atn
-    bool falling = (!prev && atnLineLow);
-    bool rising  = (prev && !atnLineLow);
-    via1.onCA1Edge(rising, falling);
+    // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
+    bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low
+    bool ca1Falling = ( prev && !atnLineLow);  // ATN low->high
+    via1.onCA1Edge(ca1Rising, ca1Falling);
 }
 
 void D1571::clkChanged(bool clkLow)
 {
+    if (clkLow == clkLineLow) return; // ignore no change
+
     bool prevClkLow  = clkLineLow;
     clkLineLow       = clkLow;
 
@@ -300,6 +304,8 @@ void D1571::clkChanged(bool clkLow)
 
 void D1571::dataChanged(bool dataLow)
 {
+    if (dataLow == dataLineLow) return; // ignore no change
+
     if (iecListening && !atnLineLow)
     {
         std::cout << "[D1571] (LISTEN PHASE) seeing C64 data bit; clkLow="
