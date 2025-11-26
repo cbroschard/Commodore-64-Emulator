@@ -45,7 +45,7 @@ Usage:
   drive <id> mem a b     Dump memory range
   drive <id> via1        Show VIA1 state (1541/1571)
   drive <id> via2        Show VIA2 state
-  drive <id> cia         Show CIA state (1581)
+  drive <id> cia         Show CIA state (1571/1581)
   drive <id> fdc         Show FDC controller state
   drive <id> state       Show IEC protocol state
   drive <id> step        Tick drive once
@@ -55,29 +55,36 @@ Usage:
 
 void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    // Subcommand (if any)
-    std::string sub;
-    if (!args.empty() && args.size() >= 2)
-        sub = args[1];
-
-    // Help
-    if (!sub.empty() && isHelp(sub))
-    {
-        std::cout << help();
-        return;
-    }
-
-    if (args.size() == 1 ||
-    (args.size() == 2 && (sub == "all" || sub == "list")))
+    // No args or just "drive" => list all drives
+    if (args.empty())
     {
         mon.mlmonitorbackend()->dumpDriveList();
         return;
     }
 
+    // First token after "drive"
+    std::string first = args.size() >= 2 ? args[1] : std::string();
+
+    // Help: "drive help" or "drive ?"
+    if (!first.empty() && isHelp(first))
+    {
+        std::cout << help();
+        return;
+    }
+
+    // "drive" or "drive list" / "drive all"
+    if (args.size() == 1 ||
+        (args.size() == 2 && (first == "all" || first == "list")))
+    {
+        mon.mlmonitorbackend()->dumpDriveList();
+        return;
+    }
+
+    // At this point we expect a drive ID in args[1]
     int id = -1;
     try
     {
-        id = std::stoi(args[1]);
+        id = std::stoi(first);  // args[1] should be the numeric ID (e.g. "8")
     }
     catch (...)
     {
@@ -85,8 +92,38 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
+    // "drive 8" => summary
     if (args.size() == 2)
     {
         mon.mlmonitorbackend()->dumpDriveSummary(id);
+        return;
     }
+
+    // Subcommand after ID: e.g. "drive 8 cpu"
+    std::string subcmd = args[2];
+
+    if (subcmd == "cpu")
+    {
+        mon.mlmonitorbackend()->dumpDriveCPU(id);
+        return;
+    }
+    else if (subcmd == "cia")
+    {
+        mon.mlmonitorbackend()->dumpDriveCIA(id);
+        return;
+    }
+    else if (subcmd == "via1")
+    {
+        mon.mlmonitorbackend()->dumpDriveVIA1(id);
+        return;
+    }
+    else if (subcmd == "via2")
+    {
+        mon.mlmonitorbackend()->dumpDriveVIA2(id);
+        return;
+    }
+
+    // If we get here, it's an unknown subcommand:
+    std::cout << "Unknown drive subcommand: " << subcmd << "\n";
+    std::cout << help();
 }
