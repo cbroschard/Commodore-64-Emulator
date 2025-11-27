@@ -27,7 +27,6 @@ class Drive : public Peripheral
 
         // Pointers
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
-        virtual FDC177x* getFDC() { return nullptr; }
 
         virtual void driveControlClkLine(bool clkLow);
         virtual void driveControlDataLine(bool dataLow);
@@ -79,6 +78,7 @@ class Drive : public Peripheral
         Drive* asDrive() override { return this; }
         virtual const CPU* getDriveCPU() const = 0;
         virtual const FDC177x* getFDC() const = 0;
+        virtual DriveMemoryBase* getMemory() = 0;
         virtual const DriveMemoryBase* getMemory() const = 0;
         virtual const DriveVIABase* getVIA1() const = 0;
         virtual const DriveVIABase* getVIA2() const = 0;

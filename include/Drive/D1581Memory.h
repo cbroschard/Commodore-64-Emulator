@@ -23,7 +23,7 @@ class D1581;
 #include "Drive/D1581CIA.h"
 #include "Drive/FDC177x.h"
 
-class D1581Memory : public CPUBus, public DriveMemoryBase
+class D1581Memory : public DriveMemoryBase
 {
     public:
         D1581Memory();

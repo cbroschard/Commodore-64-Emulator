@@ -2,122 +2,126 @@
 #define DRIVECHIPS_H_INCLUDED
 
 #include <cstdint>
+#include "CPUBus.h"
 
-class DriveMemoryBase {
-public:
-    virtual ~DriveMemoryBase() = default;
+class DriveMemoryBase : public CPUBus
+{
+    public:
+        ~DriveMemoryBase() override = default;
 };
 
-class DriveCIABase {
-public:
-    virtual ~DriveCIABase() = default;
+class DriveCIABase
+{
+    public:
+        virtual ~DriveCIABase() = default;
+
+            // ML Monitor
+            struct ciaRegsView
+            {
+                const uint8_t& portA;
+                const uint8_t& portB;
+                const uint8_t& ddrA;
+                const uint8_t& ddrB;
+                const uint8_t& tAL;
+                const uint8_t& tAH;
+                const uint8_t& tBL;
+                const uint8_t& tBH;
+                const uint8_t& tod10;
+                const uint8_t& todSec;
+                const uint8_t& todMin;
+                const uint8_t& todHour;
+                const uint8_t& sd;
+                const uint8_t& ier;
+                const uint8_t& cra;
+                const uint8_t& crb;
+                const uint16_t& tA;
+                const uint16_t& taLAT;
+                const uint16_t& tB;
+                const uint16_t& tbLAT;
+            };
+
+            virtual ciaRegsView getRegsView() const = 0;
+};
+
+class DriveVIABase
+{
+    public:
+        virtual ~DriveVIABase() = default;
 
         // ML Monitor
-        struct ciaRegsView
+        struct viaRegsView
         {
-            const uint8_t& portA;
-            const uint8_t& portB;
-            const uint8_t& ddrA;
+            const uint8_t& orbIRB;
+            const uint8_t& oraIRA;
             const uint8_t& ddrB;
-            const uint8_t& tAL;
-            const uint8_t& tAH;
-            const uint8_t& tBL;
-            const uint8_t& tBH;
-            const uint8_t& tod10;
-            const uint8_t& todSec;
-            const uint8_t& todMin;
-            const uint8_t& todHour;
-            const uint8_t& sd;
+            const uint8_t& ddrA;
+            const uint8_t& t1CL;
+            const uint8_t& t1CH;
+            const uint8_t& t1LL;
+            const uint8_t& t1LH;
+            const uint8_t& t2CL;
+            const uint8_t& t2CH;
+            const uint8_t& sr;
+            const uint8_t& acr;
+            const uint8_t& pcr;
+            const uint8_t& ifr;
             const uint8_t& ier;
-            const uint8_t& cra;
-            const uint8_t& crb;
-            const uint16_t& tA;
-            const uint16_t& taLAT;
-            const uint16_t& tB;
-            const uint16_t& tbLAT;
+            const uint8_t& oraNoHS;
         };
 
-        virtual ciaRegsView getRegsView() const = 0;
-};
+        struct MechanicsInfo
+        {
+            bool valid;          // false = this VIA doesn't have mechanics info
+            bool motorOn;
+            bool ledOn;
+            uint8_t densityCode; // 0–3, if used by this model
+        };
 
-class DriveVIABase {
-public:
-    virtual ~DriveVIABase() = default;
-
-    // ML Monitor
-    struct viaRegsView
-    {
-        const uint8_t& orbIRB;
-        const uint8_t& oraIRA;
-        const uint8_t& ddrB;
-        const uint8_t& ddrA;
-        const uint8_t& t1CL;
-        const uint8_t& t1CH;
-        const uint8_t& t1LL;
-        const uint8_t& t1LH;
-        const uint8_t& t2CL;
-        const uint8_t& t2CH;
-        const uint8_t& sr;
-        const uint8_t& acr;
-        const uint8_t& pcr;
-        const uint8_t& ifr;
-        const uint8_t& ier;
-        const uint8_t& oraNoHS;
-    };
-
-    struct MechanicsInfo
-    {
-        bool valid;          // false = this VIA doesn't have mechanics info
-        bool motorOn;
-        bool ledOn;
-        uint8_t densityCode; // 0–3, if used by this model
-    };
-
-    virtual bool checkIRQActive() const = 0;
-    virtual viaRegsView getRegsView() const = 0;
-    virtual MechanicsInfo getMechanicsInfo() const
-    {
-        MechanicsInfo m{};
-        m.valid = false;
-        m.motorOn = false;
-        m.ledOn = false;
-        m.densityCode = 0;
-        return m;
-    }
+        virtual bool checkIRQActive() const = 0;
+        virtual viaRegsView getRegsView() const = 0;
+        virtual MechanicsInfo getMechanicsInfo() const
+        {
+            MechanicsInfo m{};
+            m.valid = false;
+            m.motorOn = false;
+            m.ledOn = false;
+            m.densityCode = 0;
+            return m;
+        }
 };
 
 class DriveFDCBase
 {
-public:
-    virtual ~DriveFDCBase() = default;
+    public:
+        virtual ~DriveFDCBase() = default;
 
-    // ML Monitor: snapshot-by-reference view (NO virtuals in here)
-    struct fdcRegsView
-    {
-        const uint8_t&  status;
-        const uint8_t&  command;
-        const uint8_t&  track;
-        const uint8_t&  sector;
-        const uint8_t&  data;
+        // ML Monitor: snapshot-by-reference view (NO virtuals in here)
+        struct fdcRegsView
+        {
+            const uint8_t&  status;
+            const uint8_t&  command;
+            const uint8_t&  track;
+            const uint8_t&  sector;
+            const uint8_t&  data;
 
-        const bool&     drq;
-        const bool&     intrq;
+            const bool&     drq;
+            const bool&     intrq;
 
-        const uint16_t& currentSectorSize;
-        const uint8_t&  dataIndex;
+            const uint16_t& currentSectorSize;
+            const uint8_t&  dataIndex;
 
-        const bool&     readSectorInProgress;
-        const bool&     writeSectorInProgress;
+            const bool&     readSectorInProgress;
+            const bool&     writeSectorInProgress;
 
-        const int32_t&  cyclesUntilEvent;
-    };
+            const int32_t&  cyclesUntilEvent;
+        };
 
-    // Polymorphic queries (your dump uses these too)
-    virtual bool     checkIRQActive() const = 0;
-    virtual bool     checkDRQActive() const = 0;
-    virtual uint16_t getSectorSize()  const = 0;
+        // Polymorphic queries (your dump uses these too)
+        virtual bool     checkIRQActive() const = 0;
+        virtual bool     checkDRQActive() const = 0;
+        virtual uint16_t getSectorSize()  const = 0;
 
-    virtual fdcRegsView getRegsView() const = 0;
+        virtual fdcRegsView getRegsView() const = 0;
 };
 
 #endif // DRIVECHIPS_H_INCLUDED

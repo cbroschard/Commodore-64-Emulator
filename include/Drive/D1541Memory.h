@@ -13,12 +13,12 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include "CPUBus.h"
-#include "D1541VIA.h"
+#include "Drive/D1541VIA.h"
+#include "Drive/DriveChips.h"
 #include "Logging.h"
 #include "IRQLine.h"
 
-class D1541Memory : public CPUBus
+class D1541Memory : public DriveMemoryBase
 {
     public:
         D1541Memory();

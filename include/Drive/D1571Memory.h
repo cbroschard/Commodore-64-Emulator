@@ -16,14 +16,14 @@ class D1571;
 #include <fstream>
 #include <string>
 #include <vector>
-#include "CPUBus.h"
 #include "Logging.h"
 #include "Peripheral.h"
 #include "Drive/D1571CIA.h"
 #include "Drive/D1571VIA.h"
+#include "Drive/DriveChips.h"
 #include "Drive/FDC177x.h"
 
-class D1571Memory : public CPUBus, public DriveMemoryBase
+class D1571Memory : public DriveMemoryBase
 {
     public:
         D1571Memory();

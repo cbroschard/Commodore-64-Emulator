@@ -81,10 +81,11 @@ class MLMonitorBackend
         void dumpDriveList();
         void dumpDriveSummary(int id);
         void dumpDriveCPU(int id);
-        void dumpDriveMemory(int id, uint16_t startAddress, uint16_t endAddress);
+        void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count);
         void dumpDriveVIA1(int id);
         void dumpDriveVIA2(int id);
         void dumpDriveCIA(int id);
+        void dumpDriveFDC(int id);
 
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return bus; }

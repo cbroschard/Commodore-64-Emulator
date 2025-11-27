@@ -39,17 +39,17 @@ std::string DriveCommand::help() const
 drive - Inspect IEC disk drives
 
 Usage:
-  drive                  Show all attached drives
-  drive <id>             Show summary for drive (8,9,10…)
-  drive <id> cpu         Show drive CPU state
-  drive <id> mem a b     Dump memory range
-  drive <id> via1        Show VIA1 state (1541/1571)
-  drive <id> via2        Show VIA2 state
-  drive <id> cia         Show CIA state (1571/1581)
-  drive <id> fdc         Show FDC controller state
-  drive <id> state       Show IEC protocol state
-  drive <id> step        Tick drive once
-  drive <id> run <n>     Run drive for n cycles
+  drive                             Show all attached drives
+  drive <id>                        Show summary for drive (8,9,10…)
+  drive <id> cpu                    Show drive CPU state
+  drive <id> mem address count      Dump memory range
+  drive <id> via1                   Show VIA1 state (1541/1571)
+  drive <id> via2                   Show VIA2 state
+  drive <id> cia                    Show CIA state (1571/1581)
+  drive <id> fdc                    Show FDC controller state
+  drive <id> state                  Show IEC protocol state
+  drive <id> step                   Tick drive once
+  drive <id> run <n>                Run drive for n cycles
 )";
 }
 
@@ -107,9 +107,19 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         mon.mlmonitorbackend()->dumpDriveCPU(id);
         return;
     }
+    else if (subcmd == "mem")
+    {
+        std::cout << "To be implemented.\n";
+        return;
+    }
     else if (subcmd == "cia")
     {
         mon.mlmonitorbackend()->dumpDriveCIA(id);
+        return;
+    }
+    else if (subcmd == "fdc")
+    {
+        mon.mlmonitorbackend()->dumpDriveFDC(id);
         return;
     }
     else if (subcmd == "via1")

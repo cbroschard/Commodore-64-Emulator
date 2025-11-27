@@ -404,8 +404,12 @@ void MLMonitorBackend::dumpDriveCPU(int id)
     std::cout << out.str();
 }
 
-void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t endAddress)
+void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count)
 {
+    // Define the default display count if count is 0
+    const uint16_t DEFAULT_COUNT = 16;
+    uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
+
     if (!bus)
     {
         std::cout << "No IEC bus attached.\n";
@@ -433,6 +437,59 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t e
         std::cout << "No memory device.\n";
         return;
     }
+
+    // Use a stream for formatted output
+    std::stringstream oss;
+    oss << "Drive " << id << " Memory Dump ($"
+        << hex4(startAddress) << " for " << bytesToDump << " bytes):\n";
+
+    // Set up formatting for hex values
+    oss << std::uppercase << std::hex << std::setfill('0');
+
+    uint16_t currentAddress = startAddress;
+    uint16_t bytesRead = 0;
+
+    while (bytesRead < bytesToDump)
+    {
+        // Print the starting address of the current line
+        oss << "$" << std::setw(4) << currentAddress << ": ";
+
+        // Buffer for ASCII representation
+        std::string ascii;
+
+        // Print 8 bytes per line
+        for (int i = 0; i < 8; ++i)
+        {
+            if (bytesRead >= bytesToDump)
+            {
+                // Fill remaining space if the last line is short
+                oss << "   ";
+            }
+            else
+            {
+                uint8_t value = mem->read(currentAddress);
+                oss << std::setw(2) << static_cast<int>(value) << " ";
+
+                // Append to ASCII string
+                if (value >= 0x20 && value <= 0x7E)
+                {
+                    ascii += static_cast<char>(value);
+                }
+                else
+                {
+                    ascii += '.'; // Non-printable character
+                }
+
+                currentAddress++;
+                bytesRead++;
+            }
+        }
+
+        // Print the ASCII representation
+        oss << " " << ascii << "\n";
+    }
+
+    std::cout << oss.str();
 }
 
 void MLMonitorBackend::dumpDriveVIA1(int id)
@@ -587,6 +644,119 @@ void MLMonitorBackend::dumpDriveVIA2(int id)
 
     bool irqActive = via2->checkIRQActive();
     oss << "  IRQ Active: " << (irqActive ? "YES" : "NO") << "\n";
+
+    std::cout << oss.str();
+}
+
+void MLMonitorBackend::dumpDriveFDC(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    if (!dev->asDrive()->hasFDC())
+    {
+        std::cout << "Drive does not have a FDC\n";
+        return;
+    }
+
+    auto* fdc = dev->asDrive()->getFDC();
+
+    if (!fdc)
+    {
+        std::cout << "No FDC\n";
+        return;
+    }
+
+    auto registers = fdc->getRegsView();
+
+    auto yn = [](bool b){ return b ? "Y" : "N"; };
+
+    // FDC177x Status bit masks (from your header)
+    auto st = [&](uint8_t mask){ return (registers.status & mask) != 0; };
+
+    auto decodeCmd = [](uint8_t cmd) -> const char*
+    {
+        switch (cmd & 0xF0)
+        {
+            case 0x00: return "RESTORE (I)";
+            case 0x10: return "SEEK (I)";
+            case 0x20: return "STEP (I)";
+            case 0x40: return "STEP IN (I)";
+            case 0x60: return "STEP OUT (I)";
+            case 0x80: return "READ SECTOR (II)";
+            case 0xA0: return "WRITE SECTOR (II)";
+            case 0xC0: return "READ ADDRESS (III)";
+            case 0xD0: return "FORCE INT (IV)";
+            case 0xE0: return "READ TRACK (III)";
+            case 0xF0: return "WRITE TRACK (III)";
+            default:   return "UNKNOWN";
+        }
+    };
+
+    auto hex4 = [](uint16_t v){
+        std::ostringstream s;
+        s << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << v;
+        return s.str();
+    };
+
+    std::stringstream oss;
+
+    oss << "FDC Registers:\n";
+    oss << "  Status:  $" << hex2(registers.status)
+        << "  [BUSY=" << yn(st(0x01))
+        << " DRQ="    << yn(st(0x02))
+        << " LOST/T0="<< yn(st(0x04))
+        << " CRC="    << yn(st(0x08))
+        << " RNF="    << yn(st(0x10))
+        << " SPIN/DD="<< yn(st(0x20))
+        << " WP="     << yn(st(0x40))
+        << " MOTOR="  << yn(st(0x80))
+        << "]\n";
+
+    oss << "  Command: $" << hex2(registers.command)
+        << "  " << decodeCmd(registers.command) << "\n";
+
+    oss << "  Track:   $" << hex2(registers.track)
+        << " (" << std::dec << static_cast<unsigned>(registers.track) << ")\n";
+
+    oss << "  Sector:  $" << hex2(registers.sector)
+        << " (" << std::dec << static_cast<unsigned>(registers.sector) << ")\n";
+
+    oss << "  Data:    $" << hex2(registers.data)
+        << " (" << std::dec << static_cast<unsigned>(registers.data) << ")\n";
+
+    oss << "  DRQ:     " << yn(registers.drq)
+        << "  (check=" << yn(fdc->checkDRQActive()) << ")\n";
+
+    oss << "  INTRQ:   " << yn(registers.intrq)
+        << "  (check=" << yn(fdc->checkIRQActive()) << ")\n";
+
+    oss << "  Sector Size: $" << hex4(registers.currentSectorSize)
+        << " (" << std::dec << registers.currentSectorSize << " bytes)\n";
+
+    oss << "  Data Index:  $" << hex2(registers.dataIndex)
+        << " (" << std::dec << static_cast<unsigned>(registers.dataIndex) << ")\n";
+
+    oss << "  In-Progress: read=" << yn(registers.readSectorInProgress)
+        << " write=" << yn(registers.writeSectorInProgress)
+        << " cyclesUntilEvent=" << registers.cyclesUntilEvent << "\n";
 
     std::cout << oss.str();
 }
