@@ -83,6 +83,43 @@ class Drive : public Peripheral
         virtual const DriveVIABase* getVIA1() const = 0;
         virtual const DriveVIABase* getVIA2() const = 0;
         virtual const DriveCIABase* getCIA() const = 0;
+        struct IECSnapshot
+        {
+            // Observed bus levels (as seen by the drive)
+            bool atnLow;
+            bool clkLow;
+            bool dataLow;
+            bool srqLow;
+
+            // What the drive is actively pulling low (from Peripheral::assert*)
+            bool drvAssertAtn;
+            bool drvAssertClk;
+            bool drvAssertData;
+            bool drvAssertSrq;
+
+            // Protocol mode
+            DriveBusState busState;
+            bool listening;
+            bool talking;
+            int secondaryAddress;
+
+            // Legacy bit shift state (from Peripheral)
+            uint8_t shiftReg;
+            int bitsProcessed;
+
+            // Handshake / talker state (from Drive)
+            bool waitingForAck;
+            int  ackEdgeCountdown;
+            bool swallowPostHandshakeFalling;
+            bool waitingForClkRelease;
+            bool prevClkLevel;
+            bool ackHold;
+            bool byteAckHold;
+            int  ackDelay;
+            size_t talkQueueLen;
+        };
+
+        virtual IECSnapshot snapshotIEC() const;
 
     protected:
 

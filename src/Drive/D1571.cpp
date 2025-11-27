@@ -412,3 +412,42 @@ void D1571::onSecondaryAddress(uint8_t sa)
     std::cout << "[D1571] onSecondaryAddress() device=" << int(deviceNumber)
               << " sa=" << int(sa) << meaning << "\n";
 }
+
+Drive::IECSnapshot D1571::snapshotIEC() const
+{
+    Drive::IECSnapshot s{};
+
+    s.atnLow  = getAtnLineLow();
+    s.clkLow  = getClkLineLow();
+    s.dataLow = getDataLineLow();
+    s.srqLow  = getSRQAsserted();
+
+    s.drvAssertAtn  = assertAtn;
+    s.drvAssertClk  = assertClk;
+    s.drvAssertData = assertData;
+    s.drvAssertSrq  = assertSrq;
+
+    // Protocol state
+    s.busState  = currentDriveBusState;
+    s.listening = listening;
+    s.talking   = talking;
+
+    s.secondaryAddress = this->currentSecondaryAddress;
+
+    // Legacy shifter (from Peripheral)
+    s.shiftReg = shiftReg;
+    s.bitsProcessed = bitsProcessed;
+
+    // Handshake + talk queue (from Drive)
+    s.waitingForAck = waitingForAck;
+    s.ackEdgeCountdown = ackEdgeCountdown;
+    s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
+    s.waitingForClkRelease = waitingForClkRelease;
+    s.prevClkLevel = prevClkLevel;
+    s.ackHold = ackHold;
+    s.byteAckHold = byteAckHold;
+    s.ackDelay = ackDelay;
+    s.talkQueueLen = talkQueue.size();
+
+    return s;
+}

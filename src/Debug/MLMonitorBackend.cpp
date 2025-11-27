@@ -492,6 +492,86 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
     std::cout << oss.str();
 }
 
+void MLMonitorBackend::dumpDriveIECState(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    Drive* d = dev->asDrive();
+    const Drive::IECSnapshot s = d->snapshotIEC();
+
+    auto HL = [](bool low) { return low ? "L" : "H"; };
+    auto yn = [](bool v) { return v ? "1" : "0"; };
+
+    // Pretty name for bus state
+    auto busStateToStr = [](Drive::DriveBusState st) {
+        switch (st)
+        {
+            case Drive::DriveBusState::IDLE:             return "IDLE";
+            case Drive::DriveBusState::AWAITING_COMMAND: return "AWAITING_COMMAND";
+            case Drive::DriveBusState::LISTENING:        return "LISTENING";
+            case Drive::DriveBusState::TALKING:          return "TALKING";
+            default:                                     return "UNKNOWN";
+        }
+    };
+
+    std::cout << "Drive #" << id << " IEC state:\n";
+
+    std::cout << "  Lines (seen):        "
+              << "ATN="  << HL(s.atnLow)  << "  "
+              << "CLK="  << HL(s.clkLow)  << "  "
+              << "DATA=" << HL(s.dataLow) << "  "
+              << "SRQ="  << HL(s.srqLow)  << "\n";
+
+    std::cout << "  Drive drives(low?):  "
+              << "ATN="  << yn(s.drvAssertAtn)  << "  "
+              << "CLK="  << yn(s.drvAssertClk)  << "  "
+              << "DATA=" << yn(s.drvAssertData) << "  "
+              << "SRQ="  << yn(s.drvAssertSrq)  << "\n";
+
+    std::cout << "  Mode: " << busStateToStr(s.busState)
+              << "   listen=" << yn(s.listening)
+              << " talk=" << yn(s.talking)
+              << "   SA=";
+
+    if (s.secondaryAddress < 0) std::cout << "(none)\n";
+    else                        std::cout << "$" << hex2(static_cast<uint8_t>(s.secondaryAddress)) << "\n";
+
+    std::cout << "  Shifter: shift=$" << hex2(s.shiftReg)
+              << " bits=" << s.bitsProcessed << "\n";
+
+    std::cout << "  Handshake: waitingForAck=" << yn(s.waitingForAck)
+              << " ackEdgeCountdown=" << s.ackEdgeCountdown
+              << " waitingForClkRelease=" << yn(s.waitingForClkRelease)
+              << " prevClkLevel=" << yn(s.prevClkLevel)
+              << "\n";
+
+    std::cout << "            ackHold=" << yn(s.ackHold)
+              << " byteAckHold=" << yn(s.byteAckHold)
+              << " ackDelay=" << s.ackDelay
+              << " swallowFalling=" << yn(s.swallowPostHandshakeFalling)
+              << "\n";
+
+    std::cout << "  Talk queue: " << s.talkQueueLen << "\n";
+}
+
 void MLMonitorBackend::dumpDriveVIA1(int id)
 {
     if (!bus)

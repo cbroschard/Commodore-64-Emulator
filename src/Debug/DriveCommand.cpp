@@ -42,7 +42,7 @@ Usage:
   drive                             Show all attached drives
   drive <id>                        Show summary for drive (8,9,10…)
   drive <id> cpu                    Show drive CPU state
-  drive <id> mem address count      Dump memory range
+  drive <id> mem address [count]    Dump memory range
   drive <id> via1                   Show VIA1 state (1541/1571)
   drive <id> via2                   Show VIA2 state
   drive <id> cia                    Show CIA state (1571/1581)
@@ -170,6 +170,11 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (subcmd == "fdc")
     {
         mon.mlmonitorbackend()->dumpDriveFDC(id);
+        return;
+    }
+    else if (subcmd == "state")
+    {
+        mon.mlmonitorbackend()->dumpDriveIECState(id);
         return;
     }
     else if (subcmd == "via1")
