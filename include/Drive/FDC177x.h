@@ -10,9 +10,10 @@
 
 #include <cstdint>
 #include "Peripheral.h"
+#include "Drive/DriveChips.h"
 #include "Drive/FloppyControllerHost.h"
 
-class FDC177x
+class FDC177x : public DriveFDCBase
 {
     public:
         FDC177x();
@@ -27,11 +28,36 @@ class FDC177x
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
-        inline bool checkIRQActive() const { return intrq; }
-        inline bool checkDRQActive() const { return drq; }
+        inline bool checkIRQActive() const override { return intrq; }
+        inline bool checkDRQActive() const override { return drq; }
 
         inline uint8_t getCurrentTrack() const { return registers.track; }
         inline void setSectorSize(uint16_t size) { currentSectorSize = size; }
+
+        // ML Monitor
+        inline fdcRegsView getRegsView() const override
+        {
+            return {
+                registers.status,
+                registers.command,
+                registers.track,
+                registers.sector,
+                registers.data,
+
+                drq,
+                intrq,
+
+                currentSectorSize,
+                dataIndex,
+
+                readSectorInProgress,
+                writeSectorInProgress,
+
+                cyclesUntilEvent
+            };
+        }
+
+        inline uint16_t getSectorSize() const override { return currentSectorSize; }
 
     protected:
 

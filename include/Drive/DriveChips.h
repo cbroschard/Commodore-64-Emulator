@@ -86,4 +86,38 @@ public:
     }
 };
 
+class DriveFDCBase
+{
+public:
+    virtual ~DriveFDCBase() = default;
+
+    // ML Monitor: snapshot-by-reference view (NO virtuals in here)
+    struct fdcRegsView
+    {
+        const uint8_t&  status;
+        const uint8_t&  command;
+        const uint8_t&  track;
+        const uint8_t&  sector;
+        const uint8_t&  data;
+
+        const bool&     drq;
+        const bool&     intrq;
+
+        const uint16_t& currentSectorSize;
+        const uint8_t&  dataIndex;
+
+        const bool&     readSectorInProgress;
+        const bool&     writeSectorInProgress;
+
+        const int32_t&  cyclesUntilEvent;
+    };
+
+    // Polymorphic queries (your dump uses these too)
+    virtual bool     checkIRQActive() const = 0;
+    virtual bool     checkDRQActive() const = 0;
+    virtual uint16_t getSectorSize()  const = 0;
+
+    virtual fdcRegsView getRegsView() const = 0;
+};
+
 #endif // DRIVECHIPS_H_INCLUDED
