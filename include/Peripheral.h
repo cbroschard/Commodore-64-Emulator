@@ -69,7 +69,6 @@ class Peripheral
     protected:
 
         int deviceNumber;
-        int currentSecondaryAddress;
 
         // Assert status
         bool assertClk;
