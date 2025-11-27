@@ -21,7 +21,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     expectingDataByte(false),
     currentListenSA(0),
     currentTalkSA(0),
-    currentSide(1),
+    currentSide(0),
     busDriversEnabled(false),
     twoMHzMode(false),
     iecRxActive(false),
@@ -29,7 +29,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
-    currentTrack(0),
+    currentTrack(18),
     currentSector(0)
 {
     setDeviceNumber(deviceNumber);
