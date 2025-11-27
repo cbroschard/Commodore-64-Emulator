@@ -38,15 +38,6 @@ class D1541 : public Drive
         uint8_t getCurrentTrack() const override;
         uint8_t getCurrentSector() const override;
 
-        // DOS operations
-        std::vector<uint8_t> readSector(uint8_t track, uint8_t sector);
-        bool writeSector(uint8_t track, uint8_t sector, const std::vector<uint8_t>& data);
-        bool formatDisk(const std::string& volumeName, const std::string& volumeID);
-        bool writeFile(const std::string& fileName, const std::vector<uint8_t>& fileData);
-        bool deleteFile(const std::string& fileName);
-        bool renameFile(const std::string& oldName, const std::string& newName);
-        bool copyFile(const std::string& srcName, const std::string& destName);
-
         // Motor control
         void startMotor() override;
         void stopMotor() override;
