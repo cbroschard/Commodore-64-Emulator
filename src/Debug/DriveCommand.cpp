@@ -109,7 +109,57 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (subcmd == "mem")
     {
-        std::cout << "To be implemented.\n";
+
+        if (args.size() < 4)
+        {
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " mem <addr> [count]\n";
+            std::cout << "  drive " << id << " mem <start>-<end>\n";
+            return;
+        }
+
+        uint16_t start = 0;
+        uint16_t count = 0; // 0 => backend default (your backend uses DEFAULT_COUNT when count==0)
+
+        try
+        {
+            const std::string& spec = args[3];
+
+            const bool looksLikeRange =
+                (spec.find('-')  != std::string::npos) ||
+                (spec.find("..") != std::string::npos) ||
+                (spec.find(':')  != std::string::npos);
+
+            if (looksLikeRange)
+            {
+                auto [a, b] = parseRangePair(spec);
+                start = a;
+
+                uint32_t len = static_cast<uint32_t>(b) - static_cast<uint32_t>(a) + 1u;
+                if (len == 0 || len > 0xFFFFu)
+                    throw std::runtime_error("Range too large");
+
+                count = static_cast<uint16_t>(len);
+            }
+            else
+            {
+                // Single address; optional count
+                start = parseAddress(spec);
+
+                if (args.size() >= 5)
+                    count = parseAddress(args[4]); // allows $40 / 0x40 / 64 etc.
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Error parsing mem arguments: " << e.what() << "\n";
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " mem <addr> [count]\n";
+            std::cout << "  drive " << id << " mem <start>-<end>\n";
+            return;
+        }
+
+        mon.mlmonitorbackend()->dumpDriveMemory(id, start, count);
         return;
     }
     else if (subcmd == "cia")
