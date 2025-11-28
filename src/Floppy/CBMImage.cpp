@@ -29,12 +29,11 @@ std::vector<uint8_t> CBMImage::getDirectoryListing()
         {
             size_t base = 2 + entry * 32;
             uint8_t ft = sectorData[base + 0];
-            if ((ft & 0x80) == 0) continue;       // unused slot
+            if (ft == 0x00) continue;  // unused slot
 
-            // Decode file type
-            static const char *types[] = { "SEQ", "PRG", "USR", "REL" };
+            static const char* types[] = { "DEL", "SEQ", "PRG", "USR", "REL" };
             uint8_t typeCode = ft & 0x07;
-            const char *typeStr = (typeCode < 4 ? types[typeCode] : "   ");
+            const char* typeStr = (typeCode <= 4 ? types[typeCode] : "???");
 
             // Get start T/S
             uint8_t fileTrack  = sectorData[base + 1];
@@ -84,15 +83,31 @@ std::vector<uint8_t> CBMImage::getDirectoryListing()
         sector = nextSector;
     }
 
-    // Compute total free blocks from all BAM sectors
+    // Compute total free blocks from BAM(s) using geometry, not bam[2]
     size_t freeBlocks = 0;
-    for (auto [bamTrack, bamSector] : bamLocations)
+
+    const size_t totalTracks = geom.sectorsPerTrack.size();
+    const size_t bamCount = bamLocations.size();
+    if (bamCount && totalTracks)
     {
-        auto bamData = readSector(bamTrack, bamSector);
-        size_t nTracks = bamData[2];
-        for (size_t t = 1; t <= nTracks; ++t)
+        const size_t tracksPerBam = totalTracks / bamCount;
+        size_t baseTrack = 1;
+
+        for (size_t bamIndex = 0; bamIndex < bamCount; ++bamIndex)
         {
-            freeBlocks += bamData[4 + (t-1)*4];
+            const auto& loc = bamLocations[bamIndex];
+            auto bamData = readSector(loc.track, loc.sector);
+
+            size_t thisBamTracks = tracksPerBam;
+            if (bamIndex + 1 == bamCount)
+                thisBamTracks = totalTracks - (baseTrack - 1);
+
+            for (size_t local = 1; local <= thisBamTracks; ++local)
+            {
+                freeBlocks += bamData[4 + (local - 1) * 4];
+            }
+
+            baseTrack += thisBamTracks;
         }
     }
 
@@ -125,7 +140,7 @@ std::vector<uint8_t> CBMImage::loadFileByName(const std::string& name)
             size_t offset = 2 + (i * 32);
             uint8_t fileType = sectorData[offset + 0];
 
-            if ((fileType & 0x80) == 0) continue; // unused slot
+            if ((fileType & 0x00) == 0) continue; // unused slot
 
             // Read raw PETSCII filename
             std::string filename;
@@ -136,7 +151,9 @@ std::vector<uint8_t> CBMImage::loadFileByName(const std::string& name)
             }
 
             // Trim and match
-            filename.erase(filename.find_last_not_of(' ') + 1);
+            auto pos = filename.find_last_not_of(' ');
+            if (pos == std::string::npos) filename.clear();
+            else filename.erase(pos + 1);
             std::string normalized = filename;
             std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::toupper);
             std::string search = name;
@@ -315,7 +332,7 @@ bool CBMImage::deleteFile(const std::string& fileName)
         {
             size_t off = 2 + i * 32;
             uint8_t type = dirBuf[off];
-            if ((type & 0x80) == 0)
+            if ((type & 0x00) == 0)
             {
                  continue;  // unused slot
             }
@@ -417,7 +434,7 @@ bool CBMImage::renameFile(const std::string& oldName, const std::string& newName
         {
             size_t off = 2 + i * 32;
             uint8_t type = dirBuf[off];
-            if ((type & 0x80) == 0)
+            if ((type & 0x00) == 0)
             {
                 continue;
             }
@@ -757,7 +774,7 @@ uint8_t CBMImage::asciiToPetscii(unsigned char asciiChar)
                 0xe0,0xe1,0xe2,0xe3,0xe4,0xe5,0xe6,0xe7,0xe8,0xe9,0xea,0xeb,0xec,0xed,0xee,0xef,
                 0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
             };
-    if (asciiChar <= ascii_to_petscii_table.size())
+    if (asciiChar < ascii_to_petscii_table.size())
     {
         return ascii_to_petscii_table[asciiChar];
     }
@@ -769,45 +786,119 @@ uint8_t CBMImage::asciiToPetscii(unsigned char asciiChar)
 
 bool CBMImage::allocateSector(uint8_t& outTrack, uint8_t& outSector)
 {
-    for (auto [bamTrack, bamSector] : bamLocations)
+    const size_t totalTracks = geom.sectorsPerTrack.size();
+    const size_t bamCount = bamLocations.size();
+    if (bamCount == 0 || totalTracks == 0) return false;
+
+    const size_t tracksPerBam = totalTracks / bamCount;
+    if (tracksPerBam == 0) return false;
+
+    size_t baseTrack = 1;
+
+    for (size_t bamIndex = 0; bamIndex < bamCount; ++bamIndex)
     {
-        auto bam = readSector(bamTrack, bamSector);
-        size_t nTracks = bam[2];  // number of tracks in this BAM
-        for (uint8_t t = 1; t <= nTracks; ++t)
+        const auto& loc = bamLocations[bamIndex];
+        auto bam = readSector(loc.track, loc.sector);
+
+        size_t thisBamTracks = tracksPerBam;
+        if (bamIndex + 1 == bamCount)
+            thisBamTracks = totalTracks - (baseTrack - 1);
+
+        for (size_t local = 1; local <= thisBamTracks; ++local)
         {
-            size_t entry = 4 + (t - 1) * 4;
+            const uint8_t track = static_cast<uint8_t>(baseTrack + (local - 1));
+            const size_t entry = 4 + (local - 1) * 4;
+
             if (bam[entry] == 0) continue;
+
             for (uint8_t byteOff = 1; byteOff <= 3; ++byteOff)
             {
                 uint8_t mask = bam[entry + byteOff];
                 if (!mask) continue;
-                int bit = std::countr_zero(mask);
-                outTrack  = t;
-                outSector = (byteOff - 1) * 8 + bit + 1;
-                // update BAM
-                bam[entry]--;
-                bam[entry + byteOff] &= ~(1 << bit);
-                writeSector(bamTrack, bamSector, bam);
-                return true;
+
+                for (uint8_t bit = 0; bit < 8; ++bit)
+                {
+                    if ((mask & (1u << bit)) == 0) continue;
+
+                    const uint8_t sector = static_cast<uint8_t>((byteOff - 1) * 8 + bit);
+                    if (sector >= getSectorsForTrack(track)) continue;
+
+                    // Don’t allocate BAM sectors or your first directory sector
+                    if (track == directoryStart.track && sector == directoryStart.sector)
+                        continue;
+
+                    bool isBamSector = false;
+                    for (const auto& r : bamLocations)
+                    {
+                        if (track == r.track && sector == r.sector) { isBamSector = true; break; }
+                    }
+                    if (isBamSector) continue;
+
+                    // Allocate it
+                    bam[entry]--;
+                    bam[entry + byteOff] &= static_cast<uint8_t>(~(1u << bit));
+                    writeSector(loc.track, loc.sector, bam);
+
+                    outTrack = track;
+                    outSector = sector; // 0-based
+                    return true;
+                }
             }
         }
+
+        baseTrack += thisBamTracks;
     }
+
     return false;
 }
 
 void CBMImage::freeSector(uint8_t track, uint8_t sector)
 {
-    for (auto [bamTrack, bamSector] : bamLocations)
+    const size_t totalTracks = geom.sectorsPerTrack.size();
+    const size_t bamCount = bamLocations.size();
+    if (bamCount == 0 || totalTracks == 0) return;
+
+    if (track < 1 || track > totalTracks) return;
+    if (sector >= getSectorsForTrack(track)) return;
+
+    // Don’t free BAM or first directory sector
+    if (track == directoryStart.track && sector == directoryStart.sector) return;
+    for (const auto& r : bamLocations)
+        if (track == r.track && sector == r.sector) return;
+
+    const size_t tracksPerBam = totalTracks / bamCount;
+    if (tracksPerBam == 0) return;
+
+    size_t baseTrack = 1;
+
+    for (size_t bamIndex = 0; bamIndex < bamCount; ++bamIndex)
     {
-        auto bam = readSector(bamTrack, bamSector);
-        size_t nTracks = bam[2];
-        if (track < 1 || track > nTracks) continue;
-        size_t entry = 4 + (track - 1) * 4;
-        uint8_t byteOff = 1 + ((sector - 1) / 8);
-        uint8_t bit     = (sector - 1) % 8;
-        bam[entry]++;
-        bam[entry + byteOff] |= (1 << bit);
-        writeSector(bamTrack, bamSector, bam);
-        return;
+        size_t thisBamTracks = tracksPerBam;
+        if (bamIndex + 1 == bamCount)
+            thisBamTracks = totalTracks - (baseTrack - 1);
+
+        if (track >= baseTrack && track < baseTrack + thisBamTracks)
+        {
+            const auto& loc = bamLocations[bamIndex];
+            auto bam = readSector(loc.track, loc.sector);
+
+            const size_t local = static_cast<size_t>(track - baseTrack + 1); // 1-based
+            const size_t entry = 4 + (local - 1) * 4;
+
+            const uint8_t byteOff = static_cast<uint8_t>(1 + (sector / 8));
+            const uint8_t bit     = static_cast<uint8_t>(sector % 8);
+            const uint8_t bitMask = static_cast<uint8_t>(1u << bit);
+
+            // Only change if it wasn't already free
+            if ((bam[entry + byteOff] & bitMask) == 0)
+            {
+                bam[entry]++;
+                bam[entry + byteOff] |= bitMask;
+                writeSector(loc.track, loc.sector, bam);
+            }
+            return;
+        }
+
+        baseTrack += thisBamTracks;
     }
 }

@@ -35,6 +35,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     halfTrackPos(18 * 2),
     currentTrack(17),
     currentSector(0),
+    gcrBitCounter(0),
     gcrPos(0),
     gcrDirty(true)
 {
@@ -58,7 +59,14 @@ void D1571::tick()
     Drive::tick();
 
     // Feed VIA2 shift register in 1541/GCR mode
-    if (isGCRMode() && motorOn && diskLoaded) gcrTick();
+    if (isGCRMode() && motorOn && diskLoaded)
+    {
+        if (++gcrBitCounter >= 32)
+        {
+            gcrTick();
+            gcrBitCounter = 0;
+        }
+    }
 
     d1571Mem.tick();
     driveCPU.tick();
@@ -92,8 +100,6 @@ void D1571::gcrTick()
 void D1571::reset()
 {
     motorOn = false;
-    loadedDiskName.clear();
-    diskLoaded = false;
     diskWriteProtected = false;
     lastError = DriveError::NONE;
     status = DriveStatus::IDLE;
@@ -124,6 +130,7 @@ void D1571::reset()
     busDriversEnabled   = false;
     twoMHzMode          = false;
     halfTrackPos        = currentTrack * 2;
+    gcrBitCounter       = 0;
     gcrPos              = 0;
     gcrDirty            = true;
 
@@ -131,6 +138,12 @@ void D1571::reset()
 
     d1571Mem.reset();
     driveCPU.reset();
+}
+
+void D1571VIA::resetShift()
+{
+    srShiftReg = 0;
+    srBitCount = 0;
 }
 
 void D1571::setSRQAsserted(bool state)
@@ -225,15 +238,25 @@ void D1571::rebuildGCRTrackStream()
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
         if (sec.size() != 256) sec.assign(256, 0x00);
 
+        // DEBUG: log directory track contents
+        if (imageTrack1based == 18 && currentSide == 0)
+        {
+            std::cout << "[1571] Track 18 sector " << sector
+                      << " linkTS=" << int(sec[0]) << "/" << int(sec[1])
+                      << " fileType0=$" << std::hex << int(sec[2])
+                      << " fileType1=$" << int(sec[0x20 + 2])
+                      << std::dec << "\n";
+        }
+
         // ---- HEADER ----
         pushN(0xFF, 10); // sync
 
         uint8_t hdr[8];
         hdr[0] = 0x08;
-        hdr[2] = uint8_t(sector);
-        hdr[3] = uint8_t(trackOnSide1based);  // important: 1..35, no side offset
-        hdr[4] = id2;
-        hdr[5] = id1;
+        hdr[2] = uint8_t(trackOnSide1based);
+        hdr[3] = uint8_t(sector);
+        hdr[4] = id1;
+        hdr[5] = id2;
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
@@ -245,17 +268,23 @@ void D1571::rebuildGCRTrackStream()
         pushN(0xFF, 10); // sync
 
         std::vector<uint8_t> raw(260);
-        raw[0] = 0x07;
-
-        std::copy(sec.begin(), sec.end(), raw.begin() + 1);
+        raw[0] = 0x07;  // data block ID
 
         uint8_t csum = 0;
-        for (int i = 0; i < 256; ++i) csum ^= sec[i];
-        raw[257] = csum;
-        raw[258] = 0x00;
+
+        // Put checksum at raw[1], data at raw[2..257]
+        for (int i = 0; i < 256; ++i)
+        {
+            uint8_t b = sec[i];
+            raw[2 + i] = b;
+            csum ^= b;
+        }
+
+        raw[1]   = csum;   // checksum byte
+        raw[258] = 0x00;   // gap bytes
         raw[259] = 0x00;
 
-        gcrEncodeBytes(raw.data(), raw.size(), gcrTrackStream); // 260 -> 325
+        gcrEncodeBytes(raw.data(), raw.size(), gcrTrackStream);
         pushN(0x55, 30);
     }
 
@@ -475,6 +504,13 @@ void D1571::atnChanged(bool atnLow)
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    // If ATN just asserted (bus high->low), this is the start of a new command
+    // phase. Resync the serial shift register so we don't carry partial bytes.
+    if (!prev && atnLineLow)
+    {
+        via1.resetShift();
+    }
 
     // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
     bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low

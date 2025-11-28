@@ -798,7 +798,23 @@ void CIA2::decodeIECCommand(uint8_t cmd)
                 bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
             break;
         }
+        case 0xC0:  // OPEN for TALK (0xC0–0xCF)
+        {
+            uint8_t sa = cmd & 0x0F;
 
+            currentSecondaryAddress = sa;
+
+            std::cout << "[CIA2] OPEN TALK (0xC0) cmd=$"
+                      << std::hex << int(cmd)
+                      << std::dec
+                      << " dev=" << int(deviceNumber)
+                      << " sa="  << int(currentSecondaryAddress)
+                      << "\n";
+
+            if (bus && deviceNumber != 0xFF)
+                bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
+            break;
+        }
         case 0xF0: // OPEN + secondary address
         {
             uint8_t sa = cmd & 0x0F;

@@ -34,6 +34,8 @@ class D1571VIA : public DriveVIABase
         void reset();
         void tick();
 
+        void resetShift();
+
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 

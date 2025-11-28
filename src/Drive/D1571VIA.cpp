@@ -246,11 +246,13 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x0A:
         {
             if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                clearIFR(IFR_SR);
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    clearIFR(IFR_SR);
                     return drive->gcrReadShiftReg();
                 }
+            }
             return registers.serialShift;
         }
         case 0x0B: return registers.auxControlRegister;
@@ -300,7 +302,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Bit 2: Motor Control
                     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) == 0;
+                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) != 0;
                         if (enable) drive->startMotor();
                         else        drive->stopMotor();
                     }
@@ -375,7 +377,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Bit 2: Motor Control
                     if (value & (1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) == 0;
+                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
                         if (enable) drive->startMotor();
                         else        drive->stopMotor();
                     }
@@ -531,10 +533,9 @@ void D1571VIA::setSyncDetected(bool low)
 
     if (viaRole == VIARole::VIA2_Mechanics && prev != low)
     {
-        // If your SYNC signal is active-low, "syncLow=true" is the asserted state.
-        bool rising  = (!prev && low);
-        bool falling = ( prev && !low);
-        onCA1Edge(rising, falling);
+        bool pinRising  = (prev && !low); // low -> high
+        bool pinFalling = (!prev && low); // high -> low
+        onCA1Edge(pinRising, pinFalling);
     }
 }
 
@@ -549,7 +550,7 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncLow)
         setSyncDetected(syncLow);
 
         // Tell the ROM "SR completed / byte ready"
-        triggerInterrupt(IFR_SR);
+        if (!syncLow) triggerInterrupt(IFR_SR);
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
@@ -657,23 +658,11 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
 
     if (rising && srShiftInMode)
     {
-        // sample DATA IN bit as input
-        bool dataLow = false;
-        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-        {
-            dataLow = drive->getDataLineLow();
-        }
+        bool pinHigh = (portBPins & (1u << IEC_DATA_IN_BIT)) != 0;
 
-        // IEC Logic:
-        // Bus Low (0V)  = Logical 1.
-        // Bus High (5V) = Logical 0.
-        // VIA CB2 (Data) is driven by Inverter. Bus Low -> Inverter -> CB2 High (1).
-        // 6522 SR shifts in the state of CB2.
-        // So: dataLow (Bus Low) -> bit 1.
+        int bit = pinHigh ? 1 : 0;
 
-        int bit = dataLow ? 1 : 0;
-
-        srShiftReg = (srShiftReg >> 1) | (bit << 7);
+        srShiftReg = static_cast<uint8_t>((srShiftReg >> 1) | (bit << 7));
         srBitCount++;
 
         if (srBitCount == 8)
@@ -681,14 +670,14 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
             registers.serialShift = srShiftReg;
             srBitCount = 0;
 
-            // raise SR interrupt
             triggerInterrupt(IFR_SR);
             std::cout << "[VIA1] IEC RX byte = $"
-              << std::hex << std::uppercase << int(registers.serialShift)
-              << " (ACR=$" << int(registers.auxControlRegister)
-              << ")\n";
+                      << std::hex << std::uppercase << int(registers.serialShift)
+                      << " (ACR=$" << int(registers.auxControlRegister)
+                      << ")\n";
         }
     }
+
 }
 
 void D1571VIA::onCA1Edge(bool rising, bool falling)
@@ -732,7 +721,7 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
     // Motor: output bit, 0 = ON, 1 = OFF (per your write logic)
     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
     {
-        m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) == 0;
+        m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
     }
     else
     {

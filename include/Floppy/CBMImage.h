@@ -47,10 +47,12 @@ class CBMImage : public Disk
         // Helper to convert ASCII to PETSCII
         uint8_t asciiToPetscii(unsigned char asciiChar);
 
-    private:
-
         bool allocateSector(uint8_t& outTrack, uint8_t& outSector) override;
         void freeSector(uint8_t track, uint8_t sector) override;
+
+    private:
+
+
 };
 
 #endif // CBMIMAGE_H
