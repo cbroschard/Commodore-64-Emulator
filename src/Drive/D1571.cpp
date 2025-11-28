@@ -10,6 +10,7 @@
 
 D1571::D1571(int deviceNumber, const std::string& romName) :
     motorOn(false),
+    mediaPath(MediaPath::GCR_1541),
     atnLineLow(false),
     clkLineLow(false),
     dataLineLow(false),
@@ -21,6 +22,8 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     expectingDataByte(false),
     currentListenSA(0),
     currentTalkSA(0),
+    gcrByteReadyLow(false),
+    gcrShiftReg(0),
     currentSide(0),
     busDriversEnabled(false),
     twoMHzMode(false),
@@ -29,8 +32,11 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
-    currentTrack(18),
-    currentSector(0)
+    halfTrackPos(18 * 2),
+    currentTrack(17),
+    currentSector(0),
+    gcrPos(0),
+    gcrDirty(true)
 {
     setDeviceNumber(deviceNumber);
     d1571Mem.attachPeripheralInstance(this);
@@ -50,8 +56,37 @@ D1571::~D1571() = default;
 void D1571::tick()
 {
     Drive::tick();
-    driveCPU.tick();
+
+    // Feed VIA2 shift register in 1541/GCR mode
+    if (isGCRMode() && motorOn && diskLoaded) gcrTick();
+
     d1571Mem.tick();
+    driveCPU.tick();
+}
+
+void D1571::gcrTick()
+{
+    if (gcrDirty)
+    {
+        rebuildGCRTrackStream();
+        gcrDirty = false;
+        gcrPos = 0;
+    }
+
+    // Don’t overwrite a byte the ROM hasn’t consumed yet
+    if (gcrByteReadyLow)
+        return;
+
+    if (gcrTrackStream.empty())
+        return;
+
+    gcrShiftReg = gcrTrackStream[gcrPos++];
+    if (gcrPos >= gcrTrackStream.size()) gcrPos = 0;
+
+    gcrByteReadyLow = true;
+
+    // sync detect (very rough start: treat 0xFF as sync byte)
+    d1571Mem.getVIA2().diskByteFromMedia(gcrShiftReg, (gcrShiftReg == 0xFF));
 }
 
 void D1571::reset()
@@ -62,7 +97,7 @@ void D1571::reset()
     diskWriteProtected = false;
     lastError = DriveError::NONE;
     status = DriveStatus::IDLE;
-    currentTrack = 18;
+    currentTrack = 17;
     currentSector = 0;
     densityCode = 2;
 
@@ -83,11 +118,16 @@ void D1571::reset()
     iecRxByte                   = 0;
 
     // 1571 Runtime Properties reset
+    gcrByteReadyLow     = false;
+    gcrShiftReg         = 0;
     currentSide         = 0;
     busDriversEnabled   = false;
     twoMHzMode          = false;
-    currentTrack        = 0;
-    currentSector       = 0;
+    halfTrackPos        = currentTrack * 2;
+    gcrPos              = 0;
+    gcrDirty            = true;
+
+    gcrTrackStream.clear();
 
     d1571Mem.reset();
     driveCPU.reset();
@@ -96,6 +136,28 @@ void D1571::reset()
 void D1571::setSRQAsserted(bool state)
 {
     srqAsserted = state;
+}
+
+void D1571::setDensityCode(uint8_t code)
+{
+    uint8_t oldCode = densityCode;
+    if (oldCode != code)
+    {
+        densityCode     = code & 0x03;
+        gcrDirty        = true;
+        gcrByteReadyLow = false;
+    }
+}
+
+void D1571::setHeadSide(bool side1)
+{
+    bool prevSide = currentSide;
+    if(prevSide != side1)
+    {
+        currentSide     = side1 ? 1 : 0;
+        gcrDirty        = true;
+        gcrByteReadyLow = false;
+    }
 }
 
 void D1571::setBusDriversEnabled(bool output)
@@ -110,13 +172,133 @@ void D1571::setBurstClock2MHz(bool enable)
 
 bool D1571::getByteReadyLow() const
 {
+    if (isGCRMode()) return gcrByteReadyLow;
+
     auto* fdc = getFDC();
     if (!fdc) return false;
 
     bool drqActive = fdc->checkDRQActive();
     bool intrqActive = fdc->checkIRQActive();
     return drqActive || intrqActive;
+}
 
+uint8_t D1571::gcrReadShiftReg()
+{
+    gcrByteReadyLow = false; // ROM consumed it
+    return gcrShiftReg;
+}
+
+void D1571::gcrWriteShiftReg(uint8_t value)
+{
+    gcrShiftReg = value;
+}
+
+void D1571::rebuildGCRTrackStream()
+{
+    gcrTrackStream.clear();
+    gcrPos = 0;
+
+    if (!diskLoaded || !diskImage)
+        return;
+
+    const int trackOnSide1based = int(currentTrack) + 1; // 1..35
+    const int spt = sectorsPerTrack1541(trackOnSide1based);
+
+    // D71: second side is tracks 36..70 in the image.
+    const int imageTrack1based = trackOnSide1based + (currentSide ? 35 : 0);
+
+    // Disk ID bytes (normally from BAM at track 18 sector 0)
+    auto bam = diskImage->readSector(18, 0);
+    uint8_t id1 = bam[0xA2];
+    uint8_t id2 = bam[0xA3];
+
+    auto pushN = [&](uint8_t v, int count) {
+        gcrTrackStream.insert(gcrTrackStream.end(), count, v);
+    };
+
+    // lead-in gap
+    pushN(0x55, 64);
+
+    for (int sector = 0; sector < spt; ++sector)
+    {
+        // ---- read 256 bytes from image ----
+        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
+        if (sec.size() != 256) sec.assign(256, 0x00);
+
+        // ---- HEADER ----
+        pushN(0xFF, 10); // sync
+
+        uint8_t hdr[8];
+        hdr[0] = 0x08;
+        hdr[2] = uint8_t(sector);
+        hdr[3] = uint8_t(trackOnSide1based);  // important: 1..35, no side offset
+        hdr[4] = id2;
+        hdr[5] = id1;
+        hdr[6] = 0x0F;
+        hdr[7] = 0x0F;
+        hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
+
+        gcrEncodeBytes(hdr, 8, gcrTrackStream); // 8 -> 10
+        pushN(0x55, 20);
+
+        // ---- DATA ----
+        pushN(0xFF, 10); // sync
+
+        std::vector<uint8_t> raw(260);
+        raw[0] = 0x07;
+
+        std::copy(sec.begin(), sec.end(), raw.begin() + 1);
+
+        uint8_t csum = 0;
+        for (int i = 0; i < 256; ++i) csum ^= sec[i];
+        raw[257] = csum;
+        raw[258] = 0x00;
+        raw[259] = 0x00;
+
+        gcrEncodeBytes(raw.data(), raw.size(), gcrTrackStream); // 260 -> 325
+        pushN(0x55, 30);
+    }
+
+    // trailing gap so the stream never runs dry
+    pushN(0x55, 128);
+}
+
+void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
+{
+    uint8_t n[8] = {
+        uint8_t(in[0] >> 4), uint8_t(in[0] & 0x0F),
+        uint8_t(in[1] >> 4), uint8_t(in[1] & 0x0F),
+        uint8_t(in[2] >> 4), uint8_t(in[2] & 0x0F),
+        uint8_t(in[3] >> 4), uint8_t(in[3] & 0x0F),
+    };
+
+    uint64_t bits = 0;
+    for (int i = 0; i < 8; i++)
+        bits = (bits << 5) | (GCR5[n[i]] & 0x1F);
+
+    out[0] = uint8_t((bits >> 32) & 0xFF);
+    out[1] = uint8_t((bits >> 24) & 0xFF);
+    out[2] = uint8_t((bits >> 16) & 0xFF);
+    out[3] = uint8_t((bits >>  8) & 0xFF);
+    out[4] = uint8_t((bits >>  0) & 0xFF);
+}
+
+void D1571::gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out)
+{
+    for (size_t i = 0; i < len; i += 4)
+    {
+        uint8_t g[5];
+        gcrEncode4Bytes(&in[i], g);
+        out.insert(out.end(), g, g + 5);
+    }
+}
+
+int D1571::sectorsPerTrack1541(int track1based)
+{
+    if (track1based <= 17) return 21;
+    if (track1based <= 24) return 19;
+    if (track1based <= 30) return 18;
+    return 17; // 31..35
 }
 
 void D1571::syncTrackFromFDC()
@@ -143,6 +325,26 @@ void D1571::updateIRQ()
 
     if (any) IRQ.raiseIRQ(IRQLine::D1571_IRQ);
     else IRQ.clearIRQ(IRQLine::D1571_IRQ);
+}
+
+void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
+{
+    oldPhase &= 0x03;
+    newPhase &= 0x03;
+    if (oldPhase == newPhase) return;
+
+    // delta mod-4: 1 = step inward, 3 = step outward, 2 = ignore for now
+    const uint8_t delta = (newPhase - oldPhase) & 0x03;
+
+    int step = 0;
+    if (delta == 1) step = +1;
+    else if (delta == 3) step = -1;
+    else return;
+
+    halfTrackPos    = std::clamp(halfTrackPos + step, 0, 34 * 2);
+    currentTrack    = static_cast<uint8_t>(halfTrackPos / 2);
+    gcrDirty        = true;
+    gcrByteReadyLow = false;
 }
 
 void D1571::loadDisk(const std::string& path)
@@ -173,9 +375,13 @@ void D1571::loadDisk(const std::string& path)
     diskLoaded     = true;
     loadedDiskName = path;
     lastError      = DriveError::NONE;
+    gcrDirty       = true;
 
-    currentTrack  = 18;
+    currentTrack  = 17;
     currentSector = 0;
+    halfTrackPos = currentTrack * 2;
+
+    gcrTrackStream.clear();
 }
 
 void D1571::unloadDisk()
@@ -188,7 +394,7 @@ void D1571::unloadDisk()
 
     // Reset basic geometry/status
     currentTrack  = 0;
-    currentSector = 1;
+    currentSector = 0;
     lastError     = DriveError::NONE;
     status        = DriveStatus::IDLE;
 }

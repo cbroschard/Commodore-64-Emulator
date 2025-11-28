@@ -40,8 +40,9 @@ class D1571VIA : public DriveVIABase
         // Drive mechanics
         inline bool isLedOn() const { return ledOn; }
         inline void setLed(bool on) { ledOn = on; }
-        inline void setSyncDetected(bool low) { syncDetectedLow = low; }
         inline bool isSyncDetectedLow() const { return syncDetectedLow; }
+        void setSyncDetected(bool low);
+        void diskByteFromMedia(uint8_t byte, bool syncLow);
 
         // Setters
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);

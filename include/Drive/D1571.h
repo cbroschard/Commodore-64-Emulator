@@ -31,6 +31,7 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // Advance drive via tick method
         void tick() override;
+        void gcrTick();
 
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
@@ -48,6 +49,7 @@ class D1571 : public Drive, public FloppyControllerHost
         inline void startMotor() override { motorOn = true; }
         inline void stopMotor() override { motorOn = false; }
         inline bool isMotorOn() const override { return motorOn; }
+        void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
 
         // Floppy image handling
         inline uint8_t getCurrentTrack() const override { return currentTrack; }
@@ -76,16 +78,19 @@ class D1571 : public Drive, public FloppyControllerHost
         void onSecondaryAddress(uint8_t sa) override;
 
         // Drive Runtime Properties
-        inline void setHeadSide(bool side1) { currentSide = side1 ? 1 : 0; } // 0 = bottom, 1 = top
-        inline void setDensityCode(uint8_t code) { densityCode = code & 0x03; }
+        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_1541; }
         inline bool isTrack0() { return currentTrack == 0; }
         inline bool isIecTalking() const { return iecTalking; }
         inline bool isIecListening() const { return iecListening; }
         inline bool isBusDriversEnabled() const { return busDriversEnabled; }
+        void setDensityCode(uint8_t code);
+        void setHeadSide(bool side);
         void setBusDriversEnabled(bool output);
         void setBurstClock2MHz(bool enable);
         void syncTrackFromFDC();
         bool getByteReadyLow() const;
+        uint8_t gcrReadShiftReg();
+        void gcrWriteShiftReg(uint8_t value);
 
         // ML Monitor
         inline bool hasCIA() const override { return true; }
@@ -113,8 +118,19 @@ class D1571 : public Drive, public FloppyControllerHost
         D1571Memory d1571Mem;
         IRQLine IRQ;
 
+        static constexpr uint8_t GCR5[16] =
+        {
+            0x0A, 0x0B, 0x12, 0x13,
+            0x0E, 0x0F, 0x16, 0x17,
+            0x09, 0x19, 0x1A, 0x1B,
+            0x0D, 0x1D, 0x1E, 0x15
+        };
+
         // Floppy factory
         std::unique_ptr<Disk> diskImage;
+
+        enum class MediaPath { FDC_MFM, GCR_1541 };
+        MediaPath mediaPath;
 
         // IECBUS
         bool atnLineLow;
@@ -130,6 +146,8 @@ class D1571 : public Drive, public FloppyControllerHost
         uint8_t currentTalkSA;
 
         // Drive Properties
+        bool gcrByteReadyLow;
+        uint8_t gcrShiftReg;
         bool currentSide;
         bool busDriversEnabled;
         bool twoMHzMode;
@@ -150,8 +168,18 @@ class D1571 : public Drive, public FloppyControllerHost
         DriveStatus status;
 
         // Drive geometry
+        int halfTrackPos;
         uint8_t currentTrack;
         uint8_t currentSector;
+
+        // GCR
+        std::vector<uint8_t> gcrTrackStream;
+        size_t gcrPos;
+        bool gcrDirty;
+        void rebuildGCRTrackStream();
+        void gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5]);
+        void gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);
+        int sectorsPerTrack1541(int track1based);
 };
 
 #endif // D1571_H

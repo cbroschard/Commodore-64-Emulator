@@ -243,7 +243,16 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x07: return registers.timer1HighLatch;
         case 0x08: return registers.timer2CounterLowByte;
         case 0x09: return registers.timer2CounterHighByte;
-        case 0x0A: return registers.serialShift;
+        case 0x0A:
+        {
+            if (viaRole == VIARole::VIA2_Mechanics)
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    clearIFR(IFR_SR);
+                    return drive->gcrReadShiftReg();
+                }
+            return registers.serialShift;
+        }
         case 0x0B: return registers.auxControlRegister;
         case 0x0C: return registers.peripheralControlRegister;
         case 0x0D:
@@ -264,6 +273,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
     {
         case 0x00:
         {
+            uint8_t prevORB  = registers.orbIRB;
             registers.orbIRB = value;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -276,6 +286,16 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
                     uint8_t ddrB = registers.ddrB;
+
+                     // PB0/PB1: stepper phase (1541-style head move)
+                    const uint8_t stepMask = (1u << MECH_STEPPER_PHASE0) | (1u << MECH_STEPPER_PHASE1);
+                    if ((ddrB & stepMask) == stepMask) // only if both bits are outputs
+                    {
+                        const uint8_t oldPhase = prevORB & 0x03;
+                        const uint8_t newPhase = registers.orbIRB & 0x03;
+                        if (oldPhase != newPhase)
+                            drive->onStepperPhaseChange(oldPhase, newPhase);
+                    }
 
                     // Bit 2: Motor Control
                     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
@@ -355,7 +375,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Bit 2: Motor Control
                     if (value & (1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
+                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) == 0;
                         if (enable) drive->startMotor();
                         else        drive->stopMotor();
                     }
@@ -467,7 +487,16 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             clearIFR(IFR_TIMER2);
             break;
         }
-        case 0x0A: registers.serialShift = value; break;
+        case 0x0A:
+        {
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                    drive->gcrWriteShiftReg(value);
+            }
+            registers.serialShift = value; // keep for debug visibility
+            break;
+        }
         case 0x0B: registers.auxControlRegister = value; break;
         case 0x0C: registers.peripheralControlRegister = value; break;
         case 0x0D:
@@ -493,6 +522,34 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0F: registers.oraIRANoHandshake = value; break;
         default: break;
     }
+}
+
+void D1571VIA::setSyncDetected(bool low)
+{
+    bool prev = syncDetectedLow;
+    syncDetectedLow = low;
+
+    if (viaRole == VIARole::VIA2_Mechanics && prev != low)
+    {
+        // If your SYNC signal is active-low, "syncLow=true" is the asserted state.
+        bool rising  = (!prev && low);
+        bool falling = ( prev && !low);
+        onCA1Edge(rising, falling);
+    }
+}
+
+void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncLow)
+{
+    if (viaRole != VIARole::VIA2_Mechanics)
+            return;
+
+        registers.serialShift = byte;
+
+        // Make SYNC act like a real input transition (see B)
+        setSyncDetected(syncLow);
+
+        // Tell the ROM "SR completed / byte ready"
+        triggerInterrupt(IFR_SR);
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
