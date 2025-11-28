@@ -14,7 +14,8 @@ CIA2::CIA2() :
     logger(nullptr),
     rs232dev(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr)
+    vicII(nullptr),
+    iecProtocolEnabled(false)
 {
     setMode(VideoMode::NTSC);
 }
@@ -594,8 +595,9 @@ void CIA2::clkChanged(bool level)
     bool rising  = (!lastClk && level);
     lastClk      = level;
 
-    if (!bus)
-        return;
+    if (!iecProtocolEnabled) return;
+
+    if (!bus) return;
 
     std::cout << "[CIA2] CLK edge: level=" << level
               << " was=" << was
@@ -690,6 +692,10 @@ void CIA2::atnChanged(bool assertedLow)
     bool fallingEdge = !lastAtnLevel && assertedLow;
 
     atnLine = assertedLow;
+    lastAtnLevel = assertedLow;
+
+    // Debug
+    if (!iecProtocolEnabled) return;
 
     if (fallingEdge)
     {
@@ -718,8 +724,6 @@ void CIA2::atnChanged(bool assertedLow)
         iecCmdShiftReg           = 0;
         iecCmdBitCount           = 0;
     }
-
-    lastAtnLevel = assertedLow;
 }
 
 void CIA2::srqChanged(bool level)

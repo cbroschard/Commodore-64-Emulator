@@ -207,6 +207,9 @@ class CIA2
         uint32_t accumulatedCyclesA;
         uint32_t accumulatedCyclesB;
 
+        // IEC Debugging flag
+        bool iecProtocolEnabled;
+
         // TOD Handling
         void latchTODClock();
 
