@@ -234,8 +234,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x05:
         {
             uint8_t value = registers.timer1CounterHighByte;
-
-            // 6522 behaviour: reading T1 counter high clears IFR bit 6 (Timer 1)
             clearIFR(IFR_TIMER1);
             return value;
         }
@@ -612,7 +610,7 @@ void D1571VIA::updateIECOutputsFromPortB()
 
     bool atnAckAuto = false;
     if (ddrB & (1u << IEC_ATN_ACK_BIT))
-        atnAckAuto = ((orb & (1u << IEC_ATN_ACK_BIT)) == 0); // Check your specific schematic/ROM for this bit polarity
+        atnAckAuto = ((orb & (1u << IEC_ATN_ACK_BIT)) == 0);
 
     if (atnAsserted && atnAckAuto)
         dataLow = true; // force DATA low as the acknowledge
@@ -652,32 +650,40 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
     if (viaRole != VIARole::VIA1_IECBus)
         return;
 
-    // Recompute shift-in mode from ACR
-    srShiftInMode = (registers.auxControlRegister & 0x0C) == 0x04;
     // 6522: ACR bits 2..3 = 01 => shift-in under external clock
+    srShiftInMode = (registers.auxControlRegister & 0x0C) == 0x04;
 
     if (rising && srShiftInMode)
     {
-        bool pinHigh = (portBPins & (1u << IEC_DATA_IN_BIT)) != 0;
+        bool dataLow = false;
+        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+        {
+            dataLow = drive->getDataLineLow();
+        }
 
-        int bit = pinHigh ? 1 : 0;
+        // IEC: bus low = logical 1, high = logical 0
+        const int bit = dataLow ? 1 : 0;
 
-        srShiftReg = static_cast<uint8_t>((srShiftReg >> 1) | (bit << 7));
-        srBitCount++;
+        srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
+        ++srBitCount;
 
         if (srBitCount == 8)
         {
             registers.serialShift = srShiftReg;
-            srBitCount = 0;
 
-            triggerInterrupt(IFR_SR);
             std::cout << "[VIA1] IEC RX byte = $"
                       << std::hex << std::uppercase << int(registers.serialShift)
-                      << " (ACR=$" << int(registers.auxControlRegister)
-                      << ")\n";
+                      << " (LSB-first, ACR=$" << int(registers.auxControlRegister)
+                      << ")\n" << std::dec;
+
+            // reset for next byte
+            srShiftReg = 0;
+            srBitCount = 0;
+
+            // raise SR interrupt
+            triggerInterrupt(IFR_SR);
         }
     }
-
 }
 
 void D1571VIA::onCA1Edge(bool rising, bool falling)
@@ -718,7 +724,6 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
 
     m.valid = true;
 
-    // Motor: output bit, 0 = ON, 1 = OFF (per your write logic)
     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
     {
         m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
