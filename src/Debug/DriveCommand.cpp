@@ -49,7 +49,6 @@ Usage:
   drive <id> fdc                    Show FDC controller state
   drive <id> state                  Show IEC protocol state
   drive <id> step                   Tick drive once
-  drive <id> run <n>                Run drive for n cycles
 )";
 }
 
