@@ -130,6 +130,10 @@ class CPU
         void handleIRQ();
         void handleNMI();
 
+        // 1541/1571 SO
+        void setSO(bool level);
+        void pulseSO();
+
         // RTS helper for the quick load for T64 images
         void rtsFromQuickLoad();
 
@@ -208,6 +212,9 @@ class CPU
 
         // ML Monitor logging
         bool setLogging;
+
+        // SO handling
+        bool soLevel;
 
         // Video mode
         uint32_t CYCLES_PER_FRAME;

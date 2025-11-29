@@ -53,17 +53,18 @@ void CPU::reset()
     PC = (mem->read(0xFFFC) | (mem->read(0xFFFD) << 8));
 
     // Defaults
-    SP = 0xFD;
-    SR = 0x24;
-    cycles = 0;
-    totalCycles = 0;
-    elapsedCycles = 0;
-    lastCycleCount = 0;
-    baHold = false;
-    setLogging = false;
-    nmiPending = false;
-    nmiLine = false;
-    irqSuppressOne = false;
+    SP              = 0xFD;
+    SR              = 0x24;
+    cycles          = 0;
+    totalCycles     = 0;
+    elapsedCycles   = 0;
+    lastCycleCount  = 0;
+    baHold          = false;
+    setLogging      = false;
+    nmiPending      = false;
+    nmiLine         = false;
+    irqSuppressOne  = false;
+    soLevel         = true;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -123,6 +124,21 @@ void CPU::handleNMI()
     if (!nmiPending) return;
     nmiPending = false;
     executeNMI();
+}
+
+void CPU::setSO(bool level)
+{
+    if (soLevel && !level)
+        SR |= V;
+
+    soLevel = level;
+}
+
+void CPU::pulseSO()
+{
+    if (!soLevel) setSO(true);
+    setSO(false); // falling edge => sets V
+    setSO(true);  // back to idle so next pulse works
 }
 
 void CPU::executeIRQ()
