@@ -16,6 +16,8 @@ D1571VIA::D1571VIA() :
     viaRole(VIARole::Unknown),
     ledOn(false),
     syncDetectedLow(false),
+    mechDataLatch(0xFF),
+    mechBytePending(false),
     t1Counter(0),
     t1Latch(0),
     t1Running(false),
@@ -69,11 +71,22 @@ void D1571VIA::reset()
     // Mechanics
     ledOn           = false;
     syncDetectedLow = false;
+    mechDataLatch   = 0xFF;
+    mechBytePending = false;
 
     // Serial shift
     srShiftReg    = 0;
     srBitCount    = 0;
     srShiftInMode = false;
+
+    if (viaRole == VIARole::VIA1_IECBus)
+    {
+        portBPins &= static_cast<uint8_t>(~(
+            (1u << IEC_ATN_IN_BIT) |
+            (1u << IEC_CLK_IN_BIT) |
+            (1u << IEC_DATA_IN_BIT)
+        ));
+    }
 
     if (viaRole == VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
@@ -226,6 +239,22 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     }
                 }
             }
+            else if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                // Present disk byte on input pins (bits where DDR=0)
+                value = static_cast<uint8_t>((registers.oraIRA & ddrA) |
+                                             (mechDataLatch & static_cast<uint8_t>(~ddrA)));
+
+                // Reading Port A consumes "byte pending" and clears CA1 IFR
+                if (mechBytePending)
+                {
+                    #ifdef Debug
+                    std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
+                    #endif
+                    mechBytePending = false;
+                    clearIFR(IFR_CA1);
+                }
+            }
             return value;
         }
         case 0x02: return registers.ddrB;
@@ -243,13 +272,16 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x09: return registers.timer2CounterHighByte;
         case 0x0A:
         {
+            clearIFR(IFR_SR);
             if (viaRole == VIARole::VIA2_Mechanics)
             {
-                clearIFR(IFR_SR);
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                uint8_t ret = mechDataLatch;
+                if (mechBytePending)
                 {
-                    return drive->gcrReadShiftReg();
+                    mechBytePending = false;
+                    clearIFR(IFR_CA1);
                 }
+                return ret;
             }
             return registers.serialShift;
         }
@@ -287,16 +319,19 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                 {
                     uint8_t ddrB = registers.ddrB;
 
-                     // PB0/PB1: stepper phase (1541-style head move)
-                    const uint8_t stepMask = (1u << MECH_STEPPER_PHASE0) | (1u << MECH_STEPPER_PHASE1);
-                    if ((ddrB & stepMask) == stepMask) // only if both bits are outputs
-                    {
-                        const uint8_t oldPhase = prevORB & 0x03;
-                        const uint8_t newPhase = registers.orbIRB & 0x03;
-                        if (oldPhase != newPhase)
-                            drive->onStepperPhaseChange(oldPhase, newPhase);
-                    }
+                    // PB0/PB1: stepper phase (1541-style head move)
+                    const uint8_t phaseMask = 0x03;
 
+                    const uint8_t oldPhase = prevORB & phaseMask;
+                    const uint8_t newPhase = registers.orbIRB & phaseMask;
+
+                    if (oldPhase != newPhase)
+                    {
+                        #ifdef Debug
+                        std::cout << "[VIA2] step phase " << int(oldPhase) << " -> " << int(newPhase) << "\n";
+                        #endif
+                        drive->onStepperPhaseChange(oldPhase, newPhase);
+                    }
                     // Bit 2: Motor Control
                     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
                     {
@@ -487,16 +522,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             clearIFR(IFR_TIMER2);
             break;
         }
-        case 0x0A:
-        {
-            if (viaRole == VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                    drive->gcrWriteShiftReg(value);
-            }
-            registers.serialShift = value; // keep for debug visibility
-            break;
-        }
+        case 0x0A: registers.serialShift = value; break;
         case 0x0B: registers.auxControlRegister = value; break;
         case 0x0C: registers.peripheralControlRegister = value; break;
         case 0x0D:
@@ -526,29 +552,29 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
 void D1571VIA::setSyncDetected(bool low)
 {
-    bool prev = syncDetectedLow;
     syncDetectedLow = low;
-
-    if (viaRole == VIARole::VIA2_Mechanics && prev != low)
-    {
-        bool pinRising  = (prev && !low); // low -> high
-        bool pinFalling = (!prev && low); // high -> low
-        onCA1Edge(pinRising, pinFalling);
-    }
 }
 
 void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncLow)
 {
-    if (viaRole != VIARole::VIA2_Mechanics)
-            return;
+    if (viaRole != VIARole::VIA2_Mechanics) return;
 
-        registers.serialShift = byte;
+    mechDataLatch   = byte;
+    mechBytePending = true;
 
-        // Make SYNC act like a real input transition (see B)
-        setSyncDetected(syncLow);
+    // Update SYNC input bit (on Port B in your model)
+    setSyncDetected(syncLow);
 
-        // Tell the ROM "SR completed / byte ready"
-        if (!syncLow) triggerInterrupt(IFR_SR);
+    auto* drive = static_cast<D1571*>(parentPeripheral);
+    if (drive) drive->asDrive()->getDriveCPU()->pulseSO();
+
+    // Generate a CA1 "byte-ready" pulse.
+    // Call both edges so PCR can choose which edge is "active".
+    onCA1Edge(false, true);  // falling
+    onCA1Edge(true,  false); // rising
+
+    registers.serialShift = byte;   // mirror
+    triggerInterrupt(IFR_SR);       // so SR polling/IRQ can work too
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
@@ -661,8 +687,7 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
             dataLow = drive->getDataLineLow();
         }
 
-        // IEC: bus low = logical 1, high = logical 0
-        const int bit = dataLow ? 1 : 0;
+        const int bit = dataLow ? 0 : 1;
 
         srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
         ++srBitCount;
@@ -671,10 +696,12 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
         {
             registers.serialShift = srShiftReg;
 
+            #ifdef Debug
             std::cout << "[VIA1] IEC RX byte = $"
                       << std::hex << std::uppercase << int(registers.serialShift)
                       << " (LSB-first, ACR=$" << int(registers.auxControlRegister)
                       << ")\n" << std::dec;
+            #endif
 
             // reset for next byte
             srShiftReg = 0;
@@ -701,11 +728,6 @@ void D1571VIA::onCA1Edge(bool rising, bool falling)
     if (trigger)
     {
         triggerInterrupt(IFR_CA1);
-        std::cout << "[VIA1] CA1 IRQ: PCR=$"
-                  << std::hex << std::uppercase << int(registers.peripheralControlRegister)
-                  << " IFR=$" << int(registers.interruptFlag)
-                  << " IER=$" << int(registers.interruptEnable)
-                  << "\n";
     }
 
 }
