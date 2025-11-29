@@ -599,6 +599,7 @@ void CIA2::clkChanged(bool level)
 
     if (!bus) return;
 
+    #ifdef Debug
     std::cout << "[CIA2] CLK edge: level=" << level
               << " was=" << was
               << " rising=" << rising
@@ -609,15 +610,18 @@ void CIA2::clkChanged(bool level)
               << " listening=" << (listening ? "Y" : "N")
               << " talking="  << (talking ? "Y" : "N")
               << "\n";
+    #endif
 
     if (falling)
     {
+        #ifdef Debug
         std::cout << "[CIA2] CLK falling: ATN=" << (atnLine ? "L" : "H")
                   << " handshakePending=" << (atnHandshakePending ? "Y" : "N")
                   << " cmdBits=" << int(iecCmdBitCount)
                   << " listening=" << (listening ? "Y" : "N")
                   << " talking="  << (talking ? "Y" : "N")
                   << "\n";
+        #endif
     }
 
     // --- ATN LOW: command / secondary bytes from the C64 ---
@@ -626,7 +630,9 @@ void CIA2::clkChanged(bool level)
         // Handshake: swallow *only the first rising edge* after ATN is asserted
         if (atnHandshakePending && rising)
         {
+            #ifdef Debug
             std::cout << "[CIA2] Swallowing ATN handshake edge (rising)\n";
+            #endif
             atnHandshakePending = false;
             atnHandshakeJustCleared = true;
             return;
@@ -639,16 +645,20 @@ void CIA2::clkChanged(bool level)
             {
                 // Ignore this first post-handshake edge (bus not ready)
                 atnHandshakeJustCleared = false;
+                #ifdef Debug
                 std::cout << "[CIA2] Ignoring first post-handshake falling edge\n";
+                #endif
                 return;
             }
 
             bool dataHigh = bus->readDataLine(); // true = logical '1'
 
+            #ifdef Debug
             std::cout << "[CIA2] CMD BIT: dataHigh=" << int(dataHigh)
                       << " iecCmdBitCount=" << int(iecCmdBitCount)
                       << " shiftRegBits=$" << std::hex << int(iecCmdShiftReg)
-                      << std::dec << "\n";
+                    << std::dec << "\n";
+            #endif
 
             // Build the command byte as LSB-first:
             if (dataHigh)
@@ -657,10 +667,12 @@ void CIA2::clkChanged(bool level)
             }
             ++iecCmdBitCount;
 
+            #ifdef Debug
             std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
                       << " cmdBits=" << int(iecCmdBitCount)
                       << " byteSoFar=$" << std::hex << int(iecCmdShiftReg)
                       << std::dec << "\n";
+            #endif
 
             if (iecCmdBitCount == 8)
             {

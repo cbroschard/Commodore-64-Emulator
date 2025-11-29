@@ -366,8 +366,9 @@ Joystick* Computer::getJoy2()
 
 void Computer::warmReset()
 {
+    #ifdef Debug
     std::cout << "Performing warm reset...\n";
-
+    #endif
     if (!cartridgeAttached && cart)
     {
         cart->setGameLine(true);
@@ -389,7 +390,9 @@ void Computer::warmReset()
 
 void Computer::coldReset()
 {
+    #ifdef Debug
     std::cout << "Performing cold reset...\n";
+    #endif
 
     if (!cartridgeAttached && cart)
     {
