@@ -11,9 +11,11 @@
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>
+#include <iostream>
 #include <sdl2/sdl.h>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 // Cartridge memory location
 enum cartLocation { LO, HI };
@@ -58,6 +60,44 @@ inline uint8_t asciiToPetscii(char c)
     // Fallback to space
     return 0x20;
 }
+
+static inline std::string petsciiToAscii(const uint8_t* s, int n)
+{
+    std::string out;
+    for (int i = 0; i < n; i++)
+    {
+        uint8_t c = s[i];
+        if (c == 0xA0) break; // PETSCII space padding in filenames
+        if (c >= 0x20 && c <= 0x7E) out.push_back(char(c));
+        else out.push_back('.');
+    }
+    return out;
+}
+
+static inline void dumpDirBlock(const std::vector<uint8_t>& sec)
+{
+    std::cout << "[DIR] link=" << int(sec[0]) << "/" << int(sec[1]) << "\n";
+
+    for (int i = 0; i < 8; i++)
+    {
+        int off = 0x02 + i * 0x20;
+        uint8_t type = sec[off + 0];
+        uint8_t t    = sec[off + 1];
+        uint8_t s    = sec[off + 2];
+
+        if (type == 0x00) continue; // unused -> end-ish
+
+        std::string name = petsciiToAscii(&sec[off + 3], 16);
+        uint16_t blocks  = uint16_t(sec[off + 0x1E]) | (uint16_t(sec[off + 0x1F]) << 8);
+
+        std::cout << "[DIR] #" << i
+                  << " type=$" << std::hex << int(type) << std::dec
+                  << " start=" << int(t) << "/" << int(s)
+                  << " blocks=" << blocks
+                  << " name=\"" << name << "\"\n";
+    }
+}
+
 
 // Struct to hold the joystick 1 and 2 mappings from configuration file
 struct JoystickMapping
