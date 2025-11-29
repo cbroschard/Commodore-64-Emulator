@@ -32,9 +32,10 @@ Drive::~Drive() = default;
 
 void Drive::atnChanged(bool atnAsserted)
 {
-    // atnAsserted == true  → ATN line is low/active.
+    #ifdef Debug
     std::cout << "[Drive] atnChanged: " << (atnAsserted ? "LOW" : "HIGH")
               << " this=" << this << "\n";
+    #endif
 
     if (atnAsserted)
     {
@@ -67,26 +68,30 @@ void Drive::atnChanged(bool atnAsserted)
 
 void Drive::dataChanged(bool level)
 {
+    #ifdef Debug
     std::cout << "[Drive] dataChanged (bus notification): DATA="
               << (level ? "HIGH" : "LOW") << "\n";
+    #endif
 }
 
 void Drive::driveControlClkLine(bool clkLow)
 {
     peripheralAssertClk(clkLow);
 
-     // Debug print
+    #ifdef Debug
     std::cout << "[Drive] driveControlClkLine: clkLow=" << (clkLow ? 1 : 0)
               << " (dev=" << deviceNumber << ")\n";
+    #endif
 }
 
 void Drive::driveControlDataLine(bool dataLow)
 {
     peripheralAssertData(dataLow);
 
-     // Debug print
+    #ifdef Debug
     std::cout << "[Drive] driveControlDataLine: dataLow=" << (dataLow ? 1 : 0)
               << " (dev=" << deviceNumber << ")\n";
+    #endif
 }
 
 bool Drive::insert(const std::string &path)
