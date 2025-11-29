@@ -404,6 +404,82 @@ void MLMonitorBackend::dumpDriveCPU(int id)
     std::cout << out.str();
 }
 
+void MLMonitorBackend::driveCPUStep(int id)
+{
+    if (!bus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = bus->getDevice(id);
+
+    if (!dev)
+    {
+        std::cout << "No such device with ID:" << id << "\n";
+        return;
+    }
+
+    if (!dev->isDrive())
+    {
+        std::cout << "Device is not a Floppy Drive\n";
+        return;
+    }
+
+    CPU* cpu = dev->asDrive()->getDriveCPU();
+    if (!cpu)
+    {
+        std::cout << "No CPU!\n";
+        return;
+    }
+
+    auto* mem = dev->asDrive()->getMemory();
+    uint16_t pc = cpu->getPC();
+
+    // Output disassembly at PC
+    std::string disASM = Disassembler::disassembleAt(pc, *mem);
+    std::cout << disASM << std::endl;
+
+    // Execute tick to step
+    cpu->tick();
+
+    // Dump CPU registers
+    auto st = cpu->getState();
+    auto hex2 = [](uint32_t v){
+        std::ostringstream s;
+        s << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << (v & 0xFF);
+        return s.str();
+    };
+    auto hex4 = [](uint32_t v){
+        std::ostringstream s;
+        s << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << (v & 0xFFFF);
+        return s.str();
+    };
+    auto flagsBits = [&](uint8_t p){
+        std::string b;
+        b += (p & 0x80) ? '1' : '0'; // N
+        b += (p & 0x40) ? '1' : '0'; // V
+        b += '-';                    // (unused)
+        b += (p & 0x10) ? '1' : '0'; // B
+        b += (p & 0x08) ? '1' : '0'; // D
+        b += (p & 0x04) ? '1' : '0'; // I
+        b += (p & 0x02) ? '1' : '0'; // Z
+        b += (p & 0x01) ? '1' : '0'; // C
+        return b;
+    };
+
+    std::ostringstream out;
+    out << "PC=$" << hex4(st.PC)
+         << "  A=$" << hex2(st.A)
+         << "  X=$" << hex2(st.X)
+         << "  Y=$" << hex2(st.Y)
+         << "  SP=$" << hex2(st.SP)
+         << "  P=$" << hex2(st.SR)
+         << "  (NV-BDIZC=" << flagsBits(st.SR) << ")\n";
+
+    std::cout << out.str();
+}
+
 void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count)
 {
     // Define the default display count if count is 0

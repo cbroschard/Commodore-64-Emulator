@@ -77,6 +77,7 @@ class Drive : public Peripheral
         virtual bool hasFDC() const = 0;
         Drive* asDrive() override { return this; }
         virtual const CPU* getDriveCPU() const = 0;
+        virtual CPU* getDriveCPU() = 0;
         virtual const FDC177x* getFDC() const = 0;
         virtual DriveMemoryBase* getMemory() = 0;
         virtual const DriveMemoryBase* getMemory() const = 0;

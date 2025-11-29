@@ -82,6 +82,7 @@ class MLMonitorBackend
         void dumpDriveSummary(int id);
         void dumpDriveCIA(int id);
         void dumpDriveCPU(int id);
+        void driveCPUStep(int id);
         void dumpDriveFDC(int id);
         void dumpDriveIECState(int id);
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count);

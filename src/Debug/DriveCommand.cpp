@@ -177,6 +177,11 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         mon.mlmonitorbackend()->dumpDriveIECState(id);
         return;
     }
+    else if (subcmd == "step")
+    {
+        mon.mlmonitorbackend()->driveCPUStep(id);
+        return;
+    }
     else if (subcmd == "via1")
     {
         mon.mlmonitorbackend()->dumpDriveVIA1(id);
