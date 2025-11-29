@@ -140,7 +140,7 @@ std::vector<uint8_t> CBMImage::loadFileByName(const std::string& name)
             size_t offset = 2 + (i * 32);
             uint8_t fileType = sectorData[offset + 0];
 
-            if ((fileType & 0x00) == 0) continue; // unused slot
+            if (fileType == 0x00) continue; // unused slot
 
             // Read raw PETSCII filename
             std::string filename;
@@ -332,10 +332,7 @@ bool CBMImage::deleteFile(const std::string& fileName)
         {
             size_t off = 2 + i * 32;
             uint8_t type = dirBuf[off];
-            if ((type & 0x00) == 0)
-            {
-                 continue;  // unused slot
-            }
+            if (type == 0x00) continue;  // unused slot
 
             // extract and trim the PETSCII filename
             std::string fn;
@@ -434,10 +431,7 @@ bool CBMImage::renameFile(const std::string& oldName, const std::string& newName
         {
             size_t off = 2 + i * 32;
             uint8_t type = dirBuf[off];
-            if ((type & 0x00) == 0)
-            {
-                continue;
-            }
+            if (type == 0x00) continue;
 
             // extract and trim filename
             std::string fn;
@@ -599,7 +593,7 @@ bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volu
     // Write out a blank directory start sector so LOAD"$",8 will return 0 files
     std::vector<uint8_t> directoryBuffer(SECTOR_SIZE, 0x00);
     directoryBuffer[0] = 0;
-    directoryBuffer[1] = 0;
+    directoryBuffer[1] = 0xFF;
     if (!writeSector(directoryStart.track, directoryStart.sector, directoryBuffer))
     {
         return false;
