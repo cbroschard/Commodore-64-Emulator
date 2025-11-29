@@ -13,13 +13,14 @@ class IECBUS;
 
 #include <algorithm>
 #include <cstring>
-#include "IECBUS.h"
+#include "common.h"
 #include "CPU.h"
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
 #include "Drive/FloppyControllerHost.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
+#include "IECBUS.h"
 
 class D1571 : public Drive, public FloppyControllerHost
 {
@@ -89,8 +90,6 @@ class D1571 : public Drive, public FloppyControllerHost
         void setBurstClock2MHz(bool enable);
         void syncTrackFromFDC();
         bool getByteReadyLow() const;
-        uint8_t gcrReadShiftReg();
-        void gcrWriteShiftReg(uint8_t value);
 
         // ML Monitor
         inline bool hasCIA() const override { return true; }
@@ -98,6 +97,7 @@ class D1571 : public Drive, public FloppyControllerHost
         inline bool hasVIA2() const override { return true; }
         inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
+        inline CPU* getDriveCPU() override { return &driveCPU; }
         inline const D1571Memory* getMemory() const override { return &d1571Mem; }
         inline D1571Memory* getMemory() override { return &d1571Mem; }
         inline const FDC177x* getFDC() const override { return &d1571Mem.getFDC(); }
@@ -146,8 +146,6 @@ class D1571 : public Drive, public FloppyControllerHost
         uint8_t currentTalkSA;
 
         // Drive Properties
-        bool gcrByteReadyLow;
-        uint8_t gcrShiftReg;
         bool currentSide;
         bool busDriversEnabled;
         bool twoMHzMode;
@@ -181,6 +179,9 @@ class D1571 : public Drive, public FloppyControllerHost
         void gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5]);
         void gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);
         int sectorsPerTrack1541(int track1based);
+
+        // Helper
+        int stepIndex(uint8_t p);
 };
 
 #endif // D1571_H

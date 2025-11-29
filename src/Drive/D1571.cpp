@@ -22,8 +22,6 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     expectingDataByte(false),
     currentListenSA(0),
     currentTalkSA(0),
-    gcrByteReadyLow(false),
-    gcrShiftReg(0),
     currentSide(0),
     busDriversEnabled(false),
     twoMHzMode(false),
@@ -61,7 +59,15 @@ void D1571::tick()
     // Feed VIA2 shift register in 1541/GCR mode
     if (isGCRMode() && motorOn && diskLoaded)
     {
-        if (++gcrBitCounter >= 32)
+        // Determine the correct cycle count for the current zone
+        int cyclesPerByte = 32; // Default/Zone 0 (Tracks 31+)
+
+        if (currentTrack <= 16)      cyclesPerByte = 26;
+        else if (currentTrack <= 23) cyclesPerByte = 28;
+        else if (currentTrack <= 29) cyclesPerByte = 30;
+        else                         cyclesPerByte = 32;
+
+        if (++gcrBitCounter >= cyclesPerByte)
         {
             gcrTick();
             gcrBitCounter = 0;
@@ -69,32 +75,25 @@ void D1571::tick()
     }
 
     d1571Mem.tick();
+    updateIRQ();
     driveCPU.tick();
 }
 
 void D1571::gcrTick()
 {
-    if (gcrDirty)
-    {
-        rebuildGCRTrackStream();
-        gcrDirty = false;
-        gcrPos = 0;
-    }
+    if (gcrDirty) { rebuildGCRTrackStream(); gcrDirty = false; gcrPos = 0; }
 
-    // Don’t overwrite a byte the ROM hasn’t consumed yet
-    if (gcrByteReadyLow)
-        return;
+    auto& via2 = d1571Mem.getVIA2();
+    if (via2.mechHasBytePending()) return;
 
-    if (gcrTrackStream.empty())
-        return;
+    if (gcrTrackStream.empty()) return;
 
-    gcrShiftReg = gcrTrackStream[gcrPos++];
+    uint8_t gcrByte = gcrTrackStream[gcrPos++];
     if (gcrPos >= gcrTrackStream.size()) gcrPos = 0;
 
-    gcrByteReadyLow = true;
+    bool syncLow = (gcrByte == 0xFF);
 
-    // sync detect (very rough start: treat 0xFF as sync byte)
-    d1571Mem.getVIA2().diskByteFromMedia(gcrShiftReg, (gcrShiftReg == 0xFF));
+    d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncLow);
 }
 
 void D1571::reset()
@@ -124,8 +123,6 @@ void D1571::reset()
     iecRxByte                   = 0;
 
     // 1571 Runtime Properties reset
-    gcrByteReadyLow     = false;
-    gcrShiftReg         = 0;
     currentSide         = 0;
     busDriversEnabled   = false;
     twoMHzMode          = false;
@@ -158,7 +155,6 @@ void D1571::setDensityCode(uint8_t code)
     {
         densityCode     = code & 0x03;
         gcrDirty        = true;
-        gcrByteReadyLow = false;
     }
 }
 
@@ -169,7 +165,6 @@ void D1571::setHeadSide(bool side1)
     {
         currentSide     = side1 ? 1 : 0;
         gcrDirty        = true;
-        gcrByteReadyLow = false;
     }
 }
 
@@ -185,7 +180,8 @@ void D1571::setBurstClock2MHz(bool enable)
 
 bool D1571::getByteReadyLow() const
 {
-    if (isGCRMode()) return gcrByteReadyLow;
+    if (isGCRMode())
+        return d1571Mem.getVIA2().mechHasBytePending();
 
     auto* fdc = getFDC();
     if (!fdc) return false;
@@ -193,17 +189,6 @@ bool D1571::getByteReadyLow() const
     bool drqActive = fdc->checkDRQActive();
     bool intrqActive = fdc->checkIRQActive();
     return drqActive || intrqActive;
-}
-
-uint8_t D1571::gcrReadShiftReg()
-{
-    gcrByteReadyLow = false; // ROM consumed it
-    return gcrShiftReg;
-}
-
-void D1571::gcrWriteShiftReg(uint8_t value)
-{
-    gcrShiftReg = value;
 }
 
 void D1571::rebuildGCRTrackStream()
@@ -236,16 +221,22 @@ void D1571::rebuildGCRTrackStream()
     {
         // ---- read 256 bytes from image ----
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
+        if (imageTrack1based == 18 && currentSide == 0 && sector == 1)
+        {
+            dumpDirBlock(sec);
+        }
         if (sec.size() != 256) sec.assign(256, 0x00);
 
         // DEBUG: log directory track contents
         if (imageTrack1based == 18 && currentSide == 0)
         {
+            #ifdef Debug
             std::cout << "[1571] Track 18 sector " << sector
                       << " linkTS=" << int(sec[0]) << "/" << int(sec[1])
                       << " fileType0=$" << std::hex << int(sec[2])
                       << " fileType1=$" << int(sec[0x20 + 2])
                       << std::dec << "\n";
+            #endif
         }
 
         // ---- HEADER ----
@@ -253,10 +244,10 @@ void D1571::rebuildGCRTrackStream()
 
         uint8_t hdr[8];
         hdr[0] = 0x08;
-        hdr[2] = uint8_t(trackOnSide1based);
-        hdr[3] = uint8_t(sector);
-        hdr[4] = id1;
-        hdr[5] = id2;
+        hdr[2] = uint8_t(sector);
+        hdr[3] = uint8_t(trackOnSide1based);
+        hdr[4] = id2;
+        hdr[5] = id1;
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
@@ -267,21 +258,18 @@ void D1571::rebuildGCRTrackStream()
         // ---- DATA ----
         pushN(0xFF, 10); // sync
 
-        std::vector<uint8_t> raw(260);
-        raw[0] = 0x07;  // data block ID
+        std::vector<uint8_t> raw(260, 0x00);
+        raw[0] = 0x07;
 
         uint8_t csum = 0;
-
-        // Put checksum at raw[1], data at raw[2..257]
-        for (int i = 0; i < 256; ++i)
-        {
+        for (int i = 0; i < 256; ++i) {
             uint8_t b = sec[i];
             raw[2 + i] = b;
             csum ^= b;
         }
 
-        raw[1]   = csum;   // checksum byte
-        raw[258] = 0x00;   // gap bytes
+        raw[1]   = csum;
+        raw[258] = 0x00;
         raw[259] = 0x00;
 
         gcrEncodeBytes(raw.data(), raw.size(), gcrTrackStream);
@@ -356,24 +344,54 @@ void D1571::updateIRQ()
     else IRQ.clearIRQ(IRQLine::D1571_IRQ);
 }
 
+int D1571::stepIndex(uint8_t p)
+{
+    switch (p & 0x0F)
+    {
+        case 0x01: return 0;
+        case 0x03: return 1;
+        case 0x02: return 2;
+        case 0x06: return 3;
+        case 0x04: return 4;
+        case 0x0C: return 5;
+        case 0x08: return 6;
+        case 0x09: return 7;
+        default:   return -1; // illegal/idle pattern
+    }
+}
+
 void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
+    #ifdef Debug
+    std::cout << "[1571] onStepperPhaseChange(" << int(oldPhase) << "->" << int(newPhase) << ")\n";
+    #endif
+
     oldPhase &= 0x03;
     newPhase &= 0x03;
     if (oldPhase == newPhase) return;
 
-    // delta mod-4: 1 = step inward, 3 = step outward, 2 = ignore for now
-    const uint8_t delta = (newPhase - oldPhase) & 0x03;
+    int delta = (int(newPhase) - int(oldPhase)) & 0x03; // mod 4
 
     int step = 0;
     if (delta == 1) step = +1;
     else if (delta == 3) step = -1;
-    else return;
+    else
+    {
+        #ifdef Debug
+        std::cout << "[1571] step ignored (delta=" << delta << ")\n";
+        #endif // Debug
+        return;
+    }
 
-    halfTrackPos    = std::clamp(halfTrackPos + step, 0, 34 * 2);
-    currentTrack    = static_cast<uint8_t>(halfTrackPos / 2);
-    gcrDirty        = true;
-    gcrByteReadyLow = false;
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);
+    currentTrack = uint8_t(halfTrackPos / 2);
+    gcrDirty = true;
+
+    #ifdef Debug
+    std::cout << "[1571] head step " << step
+              << " halfTrackPos=" << halfTrackPos
+              << " track1based=" << int(currentTrack + 1) << "\n";
+    #endif
 }
 
 void D1571::loadDisk(const std::string& path)
@@ -498,8 +516,10 @@ void D1571::atnChanged(bool atnLow)
     bool prev = atnLineLow;
     atnLineLow = atnLow;
 
+    #ifdef Debug
     std::cout << "[D1571] atnChanged: atnLow=" << atnLineLow
               << " (prev=" << prev << ")\n";
+    #endif
 
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
@@ -532,11 +552,13 @@ void D1571::clkChanged(bool clkLow)
     bool rising  = (!prevClkHigh && clkHigh);    // low -> high
     bool falling = ( prevClkHigh && !clkHigh );  // high -> low
 
+    #ifdef Debug
     std::cout << "[D1571] clkChanged atnLow=" << atnLineLow
               << " clkLow=" << clkLow
               << " dataLow=" << dataLineLow
           << " rising=" << rising
               << " falling=" << falling << "\n";
+    #endif // Debug
 
     // Normal path: just update VIA with the new CLK level
     auto& via1 = d1571Mem.getVIA1();
@@ -548,11 +570,13 @@ void D1571::dataChanged(bool dataLow)
 {
     if (dataLow == dataLineLow) return; // ignore no change
 
+    #ifdef Debug
     if (iecListening && !atnLineLow)
     {
         std::cout << "[D1571] (LISTEN PHASE) seeing C64 data bit; clkLow="
                   << clkLineLow << " dataLow=" << dataLineLow << "\n";
     }
+    #endif
 
     // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
@@ -560,7 +584,9 @@ void D1571::dataChanged(bool dataLow)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
+    #ifdef Debug
     std::cout << "[D1571] dataChanged atnLow=" << atnLineLow << " clkLow=" << clkLineLow << " dataLow=" << dataLineLow << "\n";
+    #endif
 }
 
 void D1571::onListen()
@@ -581,8 +607,10 @@ void D1571::onListen()
     expectingDataByte = false;
     currentSecondaryAddress = 0xFF;  // "none" / invalid
 
+    #ifdef Debug
     std::cout << "[D1571] onListen() device=" << int(deviceNumber)
               << " listening=1 talking=0\n";
+    #endif
 }
 
 void D1571::onUnListen()
@@ -596,7 +624,9 @@ void D1571::onUnListen()
     expectingSecAddr  = false;
     expectingDataByte = false;
 
+    #ifdef Debug
     std::cout << "[D1571] onUnListen() device=" << int(deviceNumber) << "\n";
+    #endif // Debug
 }
 
 void D1571::onTalk()
@@ -616,8 +646,10 @@ void D1571::onTalk()
     expectingDataByte = false;
     currentSecondaryAddress = 0xFF;
 
+    #ifdef Debug
     std::cout << "[D1571] onTalk() device=" << int(deviceNumber)
               << " talking=1 listening=0\n";
+    #endif
 }
 
 void D1571::onUnTalk()
@@ -632,7 +664,9 @@ void D1571::onUnTalk()
     expectingSecAddr  = false;
     expectingDataByte = false;
 
+    #ifdef Debug
     std::cout << "[D1571] onUnTalk() device=" << int(deviceNumber) << "\n";
+    #endif
 }
 
 void D1571::onSecondaryAddress(uint8_t sa)
@@ -651,8 +685,10 @@ void D1571::onSecondaryAddress(uint8_t sa)
     else if (sa == 15)
         meaning = " (COMMAND channel)";
 
+    #ifdef Debug
     std::cout << "[D1571] onSecondaryAddress() device=" << int(deviceNumber)
               << " sa=" << int(sa) << meaning << "\n";
+    #endif
 }
 
 Drive::IECSnapshot D1571::snapshotIEC() const
