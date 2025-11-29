@@ -83,15 +83,16 @@ void D1571::gcrTick()
 {
     if (gcrDirty) { rebuildGCRTrackStream(); gcrDirty = false; gcrPos = 0; }
 
-    auto& via2 = d1571Mem.getVIA2();
-    if (via2.mechHasBytePending()) return;
-
     if (gcrTrackStream.empty()) return;
 
-    uint8_t gcrByte = gcrTrackStream[gcrPos++];
-    if (gcrPos >= gcrTrackStream.size()) gcrPos = 0;
+    if (gcrSync.size() != gcrTrackStream.size())
+        gcrSync.assign(gcrTrackStream.size(), 0);
 
-    bool syncLow = (gcrByte == 0xFF);
+    uint8_t gcrByte = gcrTrackStream[gcrPos];
+    bool syncLow    = (gcrSync[gcrPos] != 0);
+
+    gcrPos++;
+    if (gcrPos >= gcrTrackStream.size()) gcrPos = 0;
 
     d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncLow);
 }
@@ -132,6 +133,7 @@ void D1571::reset()
     gcrDirty            = true;
 
     gcrTrackStream.clear();
+    gcrSync.clear();
 
     d1571Mem.reset();
     driveCPU.reset();
@@ -194,53 +196,46 @@ bool D1571::getByteReadyLow() const
 void D1571::rebuildGCRTrackStream()
 {
     gcrTrackStream.clear();
+    gcrSync.clear();
     gcrPos = 0;
 
-    if (!diskLoaded || !diskImage)
-        return;
+    if (!diskLoaded || !diskImage) return;
 
-    const int trackOnSide1based = int(currentTrack) + 1; // 1..35
+    const int trackOnSide1based = int(currentTrack) + 1;
     const int spt = sectorsPerTrack1541(trackOnSide1based);
-
-    // D71: second side is tracks 36..70 in the image.
     const int imageTrack1based = trackOnSide1based + (currentSide ? 35 : 0);
 
-    // Disk ID bytes (normally from BAM at track 18 sector 0)
     auto bam = diskImage->readSector(18, 0);
+    if (bam.size() < 256) bam.resize(256, 0x00);
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
 
-    auto pushN = [&](uint8_t v, int count) {
+    auto pushN = [&](uint8_t v, int count, bool isSync) {
         gcrTrackStream.insert(gcrTrackStream.end(), count, v);
+        gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
     };
 
-    // lead-in gap
-    pushN(0x55, 64);
+    auto pushEncoded = [&](const uint8_t* in, size_t len) {
+        // encodes into gcrTrackStream AND appends 0s into gcrSync
+        for (size_t i = 0; i < len; i += 4)
+        {
+            uint8_t g[5];
+            gcrEncode4Bytes(&in[i], g);
+            gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
+            gcrSync.insert(gcrSync.end(), 5, 0);
+        }
+    };
+
+    // lead-in gap (NOT sync)
+    pushN(0x55, 64, false);
 
     for (int sector = 0; sector < spt; ++sector)
     {
-        // ---- read 256 bytes from image ----
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
-        if (imageTrack1based == 18 && currentSide == 0 && sector == 1)
-        {
-            dumpDirBlock(sec);
-        }
         if (sec.size() != 256) sec.assign(256, 0x00);
 
-        // DEBUG: log directory track contents
-        if (imageTrack1based == 18 && currentSide == 0)
-        {
-            #ifdef Debug
-            std::cout << "[1571] Track 18 sector " << sector
-                      << " linkTS=" << int(sec[0]) << "/" << int(sec[1])
-                      << " fileType0=$" << std::hex << int(sec[2])
-                      << " fileType1=$" << int(sec[0x20 + 2])
-                      << std::dec << "\n";
-            #endif
-        }
-
         // ---- HEADER ----
-        pushN(0xFF, 10); // sync
+        pushN(0xFF, 10, true);        // sync region
 
         uint8_t hdr[8];
         hdr[0] = 0x08;
@@ -252,32 +247,30 @@ void D1571::rebuildGCRTrackStream()
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
 
-        gcrEncodeBytes(hdr, 8, gcrTrackStream); // 8 -> 10
-        pushN(0x55, 20);
+        pushEncoded(hdr, 8);
+        pushN(0x55, 20, false);
 
         // ---- DATA ----
-        pushN(0xFF, 10); // sync
+        pushN(0xFF, 10, true);       // sync region
 
         std::vector<uint8_t> raw(260, 0x00);
         raw[0] = 0x07;
 
         uint8_t csum = 0;
-        for (int i = 0; i < 256; ++i) {
-            uint8_t b = sec[i];
-            raw[2 + i] = b;
-            csum ^= b;
-        }
-
-        raw[1]   = csum;
+        for (int i = 0; i < 256; ++i) { raw[2+i] = sec[i]; csum ^= sec[i]; }
+        raw[1] = csum;
         raw[258] = 0x00;
         raw[259] = 0x00;
 
-        gcrEncodeBytes(raw.data(), raw.size(), gcrTrackStream);
-        pushN(0x55, 30);
+        pushEncoded(raw.data(), raw.size());
+        pushN(0x55, 30, false);
     }
 
-    // trailing gap so the stream never runs dry
-    pushN(0x55, 128);
+    pushN(0x55, 128, false);
+
+    // sanity
+    if (gcrSync.size() != gcrTrackStream.size())
+        gcrSync.assign(gcrTrackStream.size(), 0);
 }
 
 void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
@@ -362,36 +355,24 @@ int D1571::stepIndex(uint8_t p)
 
 void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
-    #ifdef Debug
-    std::cout << "[1571] onStepperPhaseChange(" << int(oldPhase) << "->" << int(newPhase) << ")\n";
-    #endif
+    const int oldIdx = stepIndex(oldPhase);
+    const int newIdx = stepIndex(newPhase);
 
-    oldPhase &= 0x03;
-    newPhase &= 0x03;
-    if (oldPhase == newPhase) return;
+    if (oldIdx < 0 || newIdx < 0 || oldIdx == newIdx)
+        return;
 
-    int delta = (int(newPhase) - int(oldPhase)) & 0x03; // mod 4
+    // delta in [0..7]
+    const int delta = (newIdx - oldIdx + 8) & 7;
 
     int step = 0;
-    if (delta == 1) step = +1;
-    else if (delta == 3) step = -1;
+    if (delta == 1)      step = +1;   // forward one half-track
+    else if (delta == 7) step = -1;   // backward one half-track
     else
-    {
-        #ifdef Debug
-        std::cout << "[1571] step ignored (delta=" << delta << ")\n";
-        #endif // Debug
-        return;
-    }
+        return; // ignore illegal jumps (delta 2..6)
 
-    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);
-    currentTrack = uint8_t(halfTrackPos / 2);
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
+    currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
     gcrDirty = true;
-
-    #ifdef Debug
-    std::cout << "[1571] head step " << step
-              << " halfTrackPos=" << halfTrackPos
-              << " track1based=" << int(currentTrack + 1) << "\n";
-    #endif
 }
 
 void D1571::loadDisk(const std::string& path)

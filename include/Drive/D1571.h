@@ -172,6 +172,7 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // GCR
         std::vector<uint8_t> gcrTrackStream;
+        std::vector<uint8_t> gcrSync;
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;

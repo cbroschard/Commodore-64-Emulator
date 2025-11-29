@@ -319,8 +319,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                 {
                     uint8_t ddrB = registers.ddrB;
 
-                    // PB0/PB1: stepper phase (1541-style head move)
-                    const uint8_t phaseMask = 0x03;
+                    // PB0...PB3: stepper phase (1541-style head move)
+                    const uint8_t phaseMask = 0x0F;
 
                     const uint8_t oldPhase = prevORB & phaseMask;
                     const uint8_t newPhase = registers.orbIRB & phaseMask;
@@ -562,19 +562,22 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncLow)
     mechDataLatch   = byte;
     mechBytePending = true;
 
-    // Update SYNC input bit (on Port B in your model)
-    setSyncDetected(syncLow);
+    registers.serialShift = byte;
+    triggerInterrupt(IFR_SR);
+
+    bool wasSyncLow = syncDetectedLow;   // previous
+    setSyncDetected(syncLow);            // updates syncDetectedLow
 
     auto* drive = static_cast<D1571*>(parentPeripheral);
-    if (drive) drive->asDrive()->getDriveCPU()->pulseSO();
+    if (drive)
+    {
+        // Pulse SO only when we ENTER sync (edge), not every byte.
+        if (syncLow && !wasSyncLow)
+            drive->asDrive()->getDriveCPU()->pulseSO();
+    }
 
-    // Generate a CA1 "byte-ready" pulse.
-    // Call both edges so PCR can choose which edge is "active".
-    onCA1Edge(false, true);  // falling
-    onCA1Edge(true,  false); // rising
-
-    registers.serialShift = byte;   // mirror
-    triggerInterrupt(IFR_SR);       // so SR polling/IRQ can work too
+    onCA1Edge(false, true);
+    onCA1Edge(true,  false);
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
@@ -665,7 +668,9 @@ void D1571VIA::clearIFR(uint8_t sourceMask)
 
 void D1571VIA::refreshMasterBit()
 {
-    if (registers.interruptFlag & 0x7F)
+    const uint8_t pendingEnabled = registers.interruptFlag & registers.interruptEnable & 0x7F;
+
+    if (pendingEnabled)
         registers.interruptFlag |= IFR_IRQ;
     else
         registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
@@ -755,7 +760,6 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
         m.motorOn = false; // or leave as-is
     }
 
-    // LED: output bit, 1 = ON, 0 = OFF
     if (ddrB & (1u << MECH_LED))
     {
         m.ledOn = (orb & (1u << MECH_LED)) != 0;
