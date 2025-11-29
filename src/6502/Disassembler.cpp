@@ -38,6 +38,33 @@ std::string Disassembler::disassembleAt(uint16_t pc, Memory& mem)
     return out.str();
 }
 
+std::string Disassembler::disassembleAt(uint16_t pc, CPUBus& bus)
+{
+    uint8_t opcode = bus.read(pc);
+    const InstructionInfo& info = OPCODES[opcode];
+
+    std::ostringstream out;
+
+    // Address
+    out << hexWord(pc) << "  ";
+
+    // Raw bytes
+    for (int i = 0; i < info.length; i++) {
+        out << hexByte(bus.read(pc + i)) << " ";
+    }
+    for (int i = info.length; i < 3; i++) {
+        out << "   "; // padding
+    }
+
+    // Mnemonic
+    out << " " << info.mnemonic << " ";
+
+    // Operand
+    out << formatOperand(info, pc, bus);
+
+    return out.str();
+}
+
 std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_t& lastPC, Memory& mem)
 {
     std::ostringstream out;
@@ -99,6 +126,61 @@ std::string Disassembler::formatOperand(const InstructionInfo& info, uint16_t pc
             break;
         case AddressingMode::Relative: {
             int8_t offset = static_cast<int8_t>(mem.read(pc + 1));
+            uint16_t target = pc + 2 + offset;
+            out << "$" << hexWord(target);
+            break;
+        }
+        case AddressingMode::Accumulator:
+            out << "A";
+            break;
+        case AddressingMode::Implied:
+            // no operand
+            break;
+        default:
+            out << "???";
+            break;
+    }
+
+    return out.str();
+}
+
+std::string Disassembler::formatOperand(const InstructionInfo& info, uint16_t pc, CPUBus& bus)
+{
+    std::ostringstream out;
+
+    switch (info.mode) {
+        case AddressingMode::Immediate:
+            out << "#$" << hexByte(bus.read(pc + 1));
+            break;
+        case AddressingMode::ZeroPage:
+            out << "$" << hexByte(bus.read(pc + 1));
+            break;
+        case AddressingMode::ZeroPageX:
+            out << "$" << hexByte(bus.read(pc + 1)) << ",X";
+            break;
+        case AddressingMode::ZeroPageY:
+            out << "$" << hexByte(bus.read(pc + 1)) << ",Y";
+            break;
+        case AddressingMode::Absolute:
+            out << "$" << hexWord(bus.read(pc + 1) | (bus.read(pc + 2) << 8));
+            break;
+        case AddressingMode::AbsoluteX:
+            out << "$" << hexWord(bus.read(pc + 1) | (bus.read(pc + 2) << 8)) << ",X";
+            break;
+        case AddressingMode::AbsoluteY:
+            out << "$" << hexWord(bus.read(pc + 1) | (bus.read(pc + 2) << 8)) << ",Y";
+            break;
+        case AddressingMode::Indirect:
+            out << "($" << hexWord(bus.read(pc + 1) | (bus.read(pc + 2) << 8)) << ")";
+            break;
+        case AddressingMode::IndirectX:
+            out << "($" << hexByte(bus.read(pc + 1)) << ",X)";
+            break;
+        case AddressingMode::IndirectY:
+            out << "($" << hexByte(bus.read(pc + 1)) << "),Y";
+            break;
+        case AddressingMode::Relative: {
+            int8_t offset = static_cast<int8_t>(bus.read(pc + 1));
             uint16_t target = pc + 2 + offset;
             out << "$" << hexWord(target);
             break;
