@@ -1241,7 +1241,7 @@ void Computer::attachCRTImage()
     if (mem) mem->setCartridgeAttached(true);
     if (pla) pla->setCartridgeAttached(true);
 
-    warmReset();
+    coldReset();
     std::cout << "Cartridge attached: " << cartridgePath << "\n";
 }
 
