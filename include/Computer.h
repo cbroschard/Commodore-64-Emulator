@@ -190,6 +190,7 @@ class Computer
         // Build the ImGui Menu
         enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
         std::atomic<int> uiVideoModeReq; // -1 = none, 0 = ntsc, 1 = pal
+        std::atomic<bool> uiAttachD64;
         std::atomic<bool> uiAttachPRG;
         std::atomic<bool> uiAttachCRT;
         std::atomic<bool> uiAttachT64;
@@ -205,6 +206,7 @@ class Computer
         void installMenu();
 
         // Menu helpers
+        void attachD64Image();
         void attachPRGImage();
         void attachCRTImage();
         void attachT64Image();

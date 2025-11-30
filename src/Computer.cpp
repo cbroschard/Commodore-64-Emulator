@@ -45,6 +45,7 @@ Computer::Computer() :
     frameReady(false),
     running(true),
     uiVideoModeReq(-1),
+    uiAttachD64(false),
     uiAttachPRG(false),
     uiAttachCRT(false),
     uiAttachT64(false),
@@ -510,10 +511,7 @@ bool Computer::boot()
     }
     else if (diskAttached)
     {
-        drive8 = std::make_unique<D1571>(8, D1571ROM);
-        bus->registerDevice(8, drive8.get());
-        drive8->reset();
-        drive8->loadDisk(diskPath);
+        attachD64Image();
     }
 
     // **Start Audio Playback**
@@ -650,6 +648,7 @@ bool Computer::boot()
         }
 
         // File Menu
+        if (uiAttachD64.exchange(false)) attachD64Image();
         if (uiAttachPRG.exchange(false)) attachPRGImage();
         if (uiAttachCRT.exchange(false)) attachCRTImage();
         if (uiAttachT64.exchange(false)) attachT64Image();
@@ -831,6 +830,14 @@ void Computer::installMenu()
         {
             if (ImGui::BeginMenu("File"))
             {
+                if (ImGui::MenuItem("Attach D64/D71 image...", "Ctrl+D"))
+                {
+                    startFileDialog("Select D64/D71 Image", { ".d64", ".d71"}, [this](const std::string path)
+                    {
+                        diskPath = path;
+                        uiAttachD64 = true;
+                    });
+                }
                 if (ImGui::MenuItem("Attach PRG/P00 image...", "Ctrl+P"))
                 {
                     startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, [this](const std::string path)
@@ -1175,6 +1182,28 @@ void Computer::drawFileDialog()
         ImGui::EndDisabled();
 
     ImGui::End();
+}
+
+void Computer::attachD64Image()
+{
+    if (diskPath.empty())
+    {
+        std::cout << "No disk image selected.\n";
+        return;
+    }
+
+    // Lazily create and register drive #8 if it doesn't exist yet
+    if (!drive8)
+    {
+        drive8 = std::make_unique<D1571>(8, D1571ROM);
+        bus->registerDevice(8, drive8.get());
+        drive8->reset();
+    }
+
+    if (drive8) drive8->loadDisk(diskPath);
+
+    diskAttached = true;
+    std::cout << "Attached disk image: " << diskPath << "\n";
 }
 
 void Computer::attachPRGImage()
