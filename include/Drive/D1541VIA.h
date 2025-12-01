@@ -54,15 +54,15 @@ class D1541VIA
         VIARole viaRole;
 
         // bit masks for IFR
-        static constexpr uint8_t IFR_T1 = 1 << 0;
-        static constexpr uint8_t IFR_T2 = 1 << 1;
-        static constexpr uint8_t IFR_SR = 1 << 2;
+        static constexpr uint8_t IFR_T1   = 1 << 0;
+        static constexpr uint8_t IFR_T2   = 1 << 1;
+        static constexpr uint8_t IFR_SR   = 1 << 2;
         static constexpr uint8_t IFR_IRQ  = 1 << 7; // global interrupt flag
 
-        // bit masks for IER (interrupt enables)
-        static constexpr uint8_t IER_T1 = 1 << 0;
-        static constexpr uint8_t IER_T2 = 1 << 1;
-        static constexpr uint8_t IER_SR = 1 << 2;
+        // bit masks for IER (interrupt enable)
+        static constexpr uint8_t IER_T1    = 1 << 0;
+        static constexpr uint8_t IER_T2    = 1 << 1;
+        static constexpr uint8_t IER_SR    = 1 << 2;
 
         // I/O registers
         struct viaRegs
