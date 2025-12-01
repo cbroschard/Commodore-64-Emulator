@@ -32,7 +32,7 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // Advance drive via tick method
         void tick() override;
-        void gcrTick();
+        bool gcrTick();
 
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
@@ -123,7 +123,7 @@ class D1571 : public Drive, public FloppyControllerHost
             0x0A, 0x0B, 0x12, 0x13,
             0x0E, 0x0F, 0x16, 0x17,
             0x09, 0x19, 0x1A, 0x1B,
-            0x0D, 0x1D, 0x1E, 0x15
+            0x0D, 0x1D, 0x1E, 0x1F
         };
 
         // Floppy factory
@@ -182,7 +182,7 @@ class D1571 : public Drive, public FloppyControllerHost
         int sectorsPerTrack1541(int track1based);
 
         // Helper
-        int stepIndex(uint8_t p);
+        int stepIndex(uint8_t p) const;
 };
 
 #endif // D1571_H

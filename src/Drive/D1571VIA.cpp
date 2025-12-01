@@ -15,7 +15,7 @@ D1571VIA::D1571VIA() :
     srShiftInMode(false),
     viaRole(VIARole::Unknown),
     ledOn(false),
-    syncDetectedLow(false),
+    syncDetected(false),
     mechDataLatch(0xFF),
     mechBytePending(false),
     t1Counter(0),
@@ -70,7 +70,7 @@ void D1571VIA::reset()
 
     // Mechanics
     ledOn           = false;
-    syncDetectedLow = false;
+    syncDetected    = false;
     mechDataLatch   = 0xFF;
     mechBytePending = false;
 
@@ -192,12 +192,11 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                         else       value |=  static_cast<uint8_t>( (1u << MECH_WRITE_PROTECT));
                     }
 
-                    // Sync detected input (active low)
                     if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
                     {
-                        bool syncLow = isSyncDetectedLow();
-                        if (syncLow) value &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
-                        else         value |=  static_cast<uint8_t>( (1u << MECH_SYNC_DETECTED));
+                        bool sync = isSyncDetected();
+                        if (sync)    value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
+                        else         value &=  static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
                     }
                 }
             }
@@ -244,7 +243,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                 // Present disk byte on input pins (bits where DDR=0)
                 value = static_cast<uint8_t>((registers.oraIRA & ddrA) |
                                              (mechDataLatch & static_cast<uint8_t>(~ddrA)));
-
                 // Reading Port A consumes "byte pending" and clears CA1 IFR
                 if (mechBytePending)
                 {
@@ -275,13 +273,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             clearIFR(IFR_SR);
             if (viaRole == VIARole::VIA2_Mechanics)
             {
-                uint8_t ret = mechDataLatch;
-                if (mechBytePending)
-                {
-                    mechBytePending = false;
-                    clearIFR(IFR_CA1);
-                }
-                return ret;
+                return mechDataLatch;
             }
             return registers.serialShift;
         }
@@ -319,8 +311,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                 {
                     uint8_t ddrB = registers.ddrB;
 
-                    // PB0...PB3: stepper phase (1541-style head move)
-                    const uint8_t phaseMask = 0x0F;
+                    // stepper phase (1541-style head move)
+                    const uint8_t phaseMask = 0x03;
 
                     const uint8_t oldPhase = prevORB & phaseMask;
                     const uint8_t newPhase = registers.orbIRB & phaseMask;
@@ -550,34 +542,24 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
-void D1571VIA::setSyncDetected(bool low)
+void D1571VIA::setSyncDetected(bool present)
 {
-    syncDetectedLow = low;
+    syncDetected = present;
 }
 
-void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncLow)
+void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncHigh)
 {
     if (viaRole != VIARole::VIA2_Mechanics) return;
 
     mechDataLatch   = byte;
     mechBytePending = true;
 
-    registers.serialShift = byte;
-    triggerInterrupt(IFR_SR);
+    triggerInterrupt(IFR_CA1);
 
-    bool wasSyncLow = syncDetectedLow;   // previous
-    setSyncDetected(syncLow);            // updates syncDetectedLow
+    setSyncDetected(syncHigh);
 
     auto* drive = static_cast<D1571*>(parentPeripheral);
-    if (drive)
-    {
-        // Pulse SO only when we ENTER sync (edge), not every byte.
-        if (syncLow && !wasSyncLow)
-            drive->asDrive()->getDriveCPU()->pulseSO();
-    }
-
-    onCA1Edge(false, true);
-    onCA1Edge(true,  false);
+    drive->asDrive()->getDriveCPU()->pulseSO();
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
@@ -586,10 +568,6 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
     bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
 
     uint8_t pins = portBPins;
-
-    // IMPORTANT: The 1571 uses inverters (e.g. 74LS14) on the inputs.
-    // Bus Low (Active) -> Inverter Input Low -> Inverter Output High -> VIA Pin 1.
-    // Bus High (Released) -> Inverter Input High -> Inverter Output Low -> VIA Pin 0.
 
     if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT); // Bus Low -> Pin High
     else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT); // Bus High -> Pin Low

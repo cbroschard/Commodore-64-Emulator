@@ -42,10 +42,10 @@ class D1571VIA : public DriveVIABase
         // Drive mechanics
         inline bool isLedOn() const { return ledOn; }
         inline void setLed(bool on) { ledOn = on; }
-        inline bool isSyncDetectedLow() const { return syncDetectedLow; }
+        inline bool isSyncDetected() const { return syncDetected; }
         inline bool mechHasBytePending() const { return mechBytePending; }
-        void setSyncDetected(bool low);
-        void diskByteFromMedia(uint8_t byte, bool syncLow);
+        void setSyncDetected(bool present);
+        void diskByteFromMedia(uint8_t byte, bool syncHigh);
 
         // Setters
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
@@ -167,7 +167,7 @@ class D1571VIA : public DriveVIABase
 
         // Drive Mechanics
         bool    ledOn;
-        bool    syncDetectedLow;
+        bool    syncDetected;
         uint8_t mechDataLatch;
         bool    mechBytePending;
 

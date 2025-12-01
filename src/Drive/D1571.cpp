@@ -56,21 +56,23 @@ void D1571::tick()
 {
     Drive::tick();
 
-    // Feed VIA2 shift register in 1541/GCR mode
     if (isGCRMode() && motorOn && diskLoaded)
     {
-        // Determine the correct cycle count for the current zone
-        int cyclesPerByte = 32; // Default/Zone 0 (Tracks 31+)
-
-        if (currentTrack <= 16)      cyclesPerByte = 26;
-        else if (currentTrack <= 23) cyclesPerByte = 28;
-        else if (currentTrack <= 29) cyclesPerByte = 30;
-        else                         cyclesPerByte = 32;
+        // Map 1571 density code (0..3) to an approximate
+        // "CPU cycles per GCR byte".
+        int cyclesPerByte;
+        switch (densityCode & 0x03)
+        {
+            case 0:  cyclesPerByte = 26; break; // fastest
+            case 1:  cyclesPerByte = 28; break;
+            case 2:  cyclesPerByte = 30; break;
+            default: cyclesPerByte = 32; break; // slowest
+        }
 
         if (++gcrBitCounter >= cyclesPerByte)
         {
-            gcrTick();
-            gcrBitCounter = 0;
+            if (gcrTick())
+                gcrBitCounter = 0;
         }
     }
 
@@ -79,22 +81,33 @@ void D1571::tick()
     driveCPU.tick();
 }
 
-void D1571::gcrTick()
+bool D1571::gcrTick()
 {
-    if (gcrDirty) { rebuildGCRTrackStream(); gcrDirty = false; gcrPos = 0; }
+    if (gcrDirty)
+    {
+        size_t oldPos = gcrPos;
+        rebuildGCRTrackStream();
+        gcrDirty = false;
 
-    if (gcrTrackStream.empty()) return;
+        if (!gcrTrackStream.empty())
+            gcrPos = oldPos % gcrTrackStream.size();
+        else
+            gcrPos = 0;
+    }
 
+    if (gcrTrackStream.empty()) return false;
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
 
+    //if (d1571Mem.getVIA2().mechHasBytePending())
+        //return false;
+
     uint8_t gcrByte = gcrTrackStream[gcrPos];
-    bool syncLow    = (gcrSync[gcrPos] != 0);
+    bool syncHigh    = (gcrSync[gcrPos] != 0);
 
-    gcrPos++;
-    if (gcrPos >= gcrTrackStream.size()) gcrPos = 0;
-
-    d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncLow);
+    gcrPos = (gcrPos + 1) % gcrTrackStream.size();
+    d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
+    return true;
 }
 
 void D1571::reset()
@@ -197,7 +210,6 @@ void D1571::rebuildGCRTrackStream()
 {
     gcrTrackStream.clear();
     gcrSync.clear();
-    gcrPos = 0;
 
     if (!diskLoaded || !diskImage) return;
 
@@ -206,6 +218,12 @@ void D1571::rebuildGCRTrackStream()
     const int imageTrack1based = trackOnSide1based + (currentSide ? 35 : 0);
 
     auto bam = diskImage->readSector(18, 0);
+    #ifdef Debug
+    std::cout << "[BAM] 18/0 first bytes: "
+              << std::hex
+              << int(bam[0]) << " " << int(bam[1]) << " " << int(bam[2]) << " " << int(bam[3])
+              << std::dec << "\n";
+    #endif
     if (bam.size() < 256) bam.resize(256, 0x00);
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
@@ -226,44 +244,65 @@ void D1571::rebuildGCRTrackStream()
         }
     };
 
+    // CBM DOS-ish defaults
+    constexpr int SYNC_LEN      = 5;   // five $FF bytes in sync mode
+    constexpr int HEADER_GAP    = 8;   // eight $55 bytes
+    constexpr int TAIL_GAP      = 8;   // typical 4..12 between sectors
+
     // lead-in gap (NOT sync)
     pushN(0x55, 64, false);
 
     for (int sector = 0; sector < spt; ++sector)
     {
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
+        #ifdef Debug
+        if (!currentSide && imageTrack1based == 18 && sector == 1)
+        {
+            std::cout << "[DIR] T18 S1 link=" << int(sec[0]) << "/" << int(sec[1])
+                      << " type=$" << std::hex << int(sec[2]) << std::dec << "\n";
+
+            std::cout << "      first 32 bytes: ";
+            for (int i = 0; i < 32; i++) std::cout << std::hex << int(sec[i]) << " ";
+            std::cout << std::dec << "\n";
+        }
+        #endif
         if (sec.size() != 256) sec.assign(256, 0x00);
 
         // ---- HEADER ----
-        pushN(0xFF, 10, true);        // sync region
+        pushN(0xFF, SYNC_LEN, true);        // sync region
 
         uint8_t hdr[8];
         hdr[0] = 0x08;
-        hdr[2] = uint8_t(sector);
-        hdr[3] = uint8_t(trackOnSide1based);
-        hdr[4] = id2;
-        hdr[5] = id1;
+        hdr[2] = uint8_t(trackOnSide1based);
+        hdr[3] = uint8_t(sector);
+        hdr[4] = id1;
+        hdr[5] = id2;
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
 
         pushEncoded(hdr, 8);
-        pushN(0x55, 20, false);
+        pushN(0x55, HEADER_GAP, false);
 
         // ---- DATA ----
-        pushN(0xFF, 10, true);       // sync region
+        pushN(0xFF, SYNC_LEN, true); // or whatever you’re using
 
         std::vector<uint8_t> raw(260, 0x00);
-        raw[0] = 0x07;
+        raw[0] = 0x07;          // data block ID
 
-        uint8_t csum = 0;
-        for (int i = 0; i < 256; ++i) { raw[2+i] = sec[i]; csum ^= sec[i]; }
-        raw[1] = csum;
+        uint8_t csum = raw[0];
+
+        for (int i = 0; i < 256; ++i) {
+            raw[1 + i] = sec[i];
+            csum ^= sec[i];
+        }
+
+        raw[257] = csum;        // checksum goes AFTER the 256 data bytes
         raw[258] = 0x00;
         raw[259] = 0x00;
 
         pushEncoded(raw.data(), raw.size());
-        pushN(0x55, 30, false);
+        pushN(0x55, TAIL_GAP, false);
     }
 
     pushN(0x55, 128, false);
@@ -337,21 +376,14 @@ void D1571::updateIRQ()
     else IRQ.clearIRQ(IRQLine::D1571_IRQ);
 }
 
-int D1571::stepIndex(uint8_t p)
+int D1571::stepIndex(uint8_t p) const
 {
-    switch (p & 0x0F)
-    {
-        case 0x01: return 0;
-        case 0x03: return 1;
-        case 0x02: return 2;
-        case 0x06: return 3;
-        case 0x04: return 4;
-        case 0x0C: return 5;
-        case 0x08: return 6;
-        case 0x09: return 7;
-        default:   return -1; // illegal/idle pattern
-    }
+    // The 1571 ROM outputs a binary sequence (0, 1, 2, 3) for stepping.
+    // We map this linearly to internal indices 0, 2, 4, 6 to support
+    // the (new - old + 8) & 7 delta logic.
+    return (p & 0x03) * 2;
 }
+
 
 void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
@@ -365,8 +397,8 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
     const int delta = (newIdx - oldIdx + 8) & 7;
 
     int step = 0;
-    if (delta == 1)      step = +1;   // forward one half-track
-    else if (delta == 7) step = -1;   // backward one half-track
+    if (delta == 2)      step = +1;   // forward one half-track
+    else if (delta == 6) step = -1;   // backward one half-track
     else
         return; // ignore illegal jumps (delta 2..6)
 
