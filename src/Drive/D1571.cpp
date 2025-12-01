@@ -99,9 +99,6 @@ bool D1571::gcrTick()
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
 
-    //if (d1571Mem.getVIA2().mechHasBytePending())
-        //return false;
-
     uint8_t gcrByte = gcrTrackStream[gcrPos];
     bool syncHigh    = (gcrSync[gcrPos] != 0);
 
@@ -245,9 +242,9 @@ void D1571::rebuildGCRTrackStream()
     };
 
     // CBM DOS-ish defaults
-    constexpr int SYNC_LEN      = 5;   // five $FF bytes in sync mode
-    constexpr int HEADER_GAP    = 8;   // eight $55 bytes
-    constexpr int TAIL_GAP      = 8;   // typical 4..12 between sectors
+    constexpr int SYNC_LEN      = 10;   // $FF bytes in sync mode
+    constexpr int HEADER_GAP    = 9;   //  $55 bytes
+    constexpr int TAIL_GAP      = 9;   // typical 4..12 between sectors
 
     // lead-in gap (NOT sync)
     pushN(0x55, 64, false);
@@ -271,12 +268,12 @@ void D1571::rebuildGCRTrackStream()
         // ---- HEADER ----
         pushN(0xFF, SYNC_LEN, true);        // sync region
 
-        uint8_t hdr[8];
+        uint8_t hdr[8] = {0};
         hdr[0] = 0x08;
-        hdr[2] = uint8_t(trackOnSide1based);
-        hdr[3] = uint8_t(sector);
-        hdr[4] = id1;
-        hdr[5] = id2;
+        hdr[2] = uint8_t(sector);            // Byte 2 is Sector
+        hdr[3] = uint8_t(trackOnSide1based); // Byte 3 is Track
+        hdr[4] = id2;                        // Byte 4 is ID2
+        hdr[5] = id1;                        // Byte 5 is ID1
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
@@ -292,9 +289,10 @@ void D1571::rebuildGCRTrackStream()
 
         uint8_t csum = raw[0];
 
-        for (int i = 0; i < 256; ++i) {
+        for (int i = 0; i < 256; ++i)
+        {
             raw[1 + i] = sec[i];
-            csum ^= sec[i];
+            csum ^= raw[1 + i];
         }
 
         raw[257] = csum;        // checksum goes AFTER the 256 data bytes

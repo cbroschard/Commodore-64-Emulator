@@ -69,10 +69,10 @@ void D1571VIA::reset()
     t2Running = false;
 
     // Mechanics
-    ledOn           = false;
-    syncDetected    = false;
-    mechDataLatch   = 0xFF;
-    mechBytePending = false;
+    ledOn            = false;
+    syncDetected     = false;
+    mechDataLatch    = 0xFF;
+    mechBytePending  = false;
 
     // Serial shift
     srShiftReg    = 0;
@@ -249,7 +249,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     #ifdef Debug
                     std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
                     #endif
-                    mechBytePending = false;
+                    mechBytePending  = false;
                     clearIFR(IFR_CA1);
                 }
             }
