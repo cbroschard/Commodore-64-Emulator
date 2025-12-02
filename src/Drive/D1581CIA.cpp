@@ -51,7 +51,7 @@ void D1581CIA::reset()
     todAlarmHours   = 0x00;
 }
 
-void D1581CIA::tick()
+void D1581CIA::tick(uint32_t cycles)
 {
 
 }

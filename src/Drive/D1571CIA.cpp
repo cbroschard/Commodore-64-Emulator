@@ -59,35 +59,38 @@ void D1571CIA::reset()
     timerBRunning = false;
 }
 
-void D1571CIA::tick()
+void D1571CIA::tick(uint32_t cycles)
 {
-    // Timer A
-    if (timerARunning && timerACounter > 0)
+    while(cycles-- > 0)
     {
-        --timerACounter;
-
-        registers.timerALowByte  = static_cast<uint8_t>(timerACounter & 0x00FF);
-        registers.timerAHighByte = static_cast<uint8_t>((timerACounter >> 8) & 0x00FF);
-
-        if (timerACounter == 0)
+        // Timer A
+        if (timerARunning && timerACounter > 0)
         {
-            triggerInterrupt(INTERRUPT_TIMER_A);
-            timerACounter = timerALatch;
+            --timerACounter;
+
+            registers.timerALowByte  = static_cast<uint8_t>(timerACounter & 0x00FF);
+            registers.timerAHighByte = static_cast<uint8_t>((timerACounter >> 8) & 0x00FF);
+
+            if (timerACounter == 0)
+            {
+                triggerInterrupt(INTERRUPT_TIMER_A);
+                timerACounter = timerALatch;
+            }
         }
-    }
 
-    // Timer B
-    if (timerBRunning && timerBCounter > 0)
-    {
-        --timerBCounter;
-
-        registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0x00FF);
-        registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0x00FF);
-
-        if (timerBCounter == 0)
+        // Timer B
+        if (timerBRunning && timerBCounter > 0)
         {
-            triggerInterrupt(INTERRUPT_TIMER_B);
-            timerBCounter = timerBLatch;
+            --timerBCounter;
+
+            registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0x00FF);
+            registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0x00FF);
+
+            if (timerBCounter == 0)
+            {
+                triggerInterrupt(INTERRUPT_TIMER_B);
+                timerBCounter = timerBLatch;
+            }
         }
     }
 }

@@ -34,7 +34,7 @@ class D1541VIA
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
 
         // Advance VIA via tick
-        void tick();
+        void tick(uint32_t cycles);
 
         // Reset all
         void reset();

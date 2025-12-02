@@ -52,18 +52,21 @@ void D1571Memory::reset()
     fdc.reset();
 }
 
-void D1571Memory::tick()
+void D1571Memory::tick(uint32_t cycles)
 {
-    via1.tick();
-    via2.tick();
-    cia.tick();
-    fdc.tick();
-
-    if (parentPeripheral)
+    while(cycles-- > 0)
     {
-        auto* drive = static_cast<D1571*>(parentPeripheral);
-        if (!drive->isGCRMode()) drive->syncTrackFromFDC();
-        drive->updateIRQ();
+        via1.tick(1);
+        via2.tick(1);
+        cia.tick(1);
+        fdc.tick(1);
+
+        if (parentPeripheral)
+        {
+            auto* drive = static_cast<D1571*>(parentPeripheral);
+            if (!drive->isGCRMode()) drive->syncTrackFromFDC();
+            drive->updateIRQ();
+        }
     }
 }
 

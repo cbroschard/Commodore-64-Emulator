@@ -44,61 +44,64 @@ void FDC177x::reset()
     currentSectorSize = 256;
 }
 
-void FDC177x::tick()
+void FDC177x::tick(uint32_t cycles)
 {
-    if (cyclesUntilEvent > 0)
+    while(cycles-- > 0)
     {
-        --cyclesUntilEvent;
-        if (cyclesUntilEvent == 0)
+        if (cyclesUntilEvent > 0)
         {
-            switch (currentType)
+            --cyclesUntilEvent;
+            if (cyclesUntilEvent == 0)
             {
-                case CommandType::TypeI:
+                switch (currentType)
                 {
-                    // Head move complete
-                    setBusy(false);
-                    setINTRQ(true);
-
-                    // Track 0 / Not Track 0 flag (lostDataOrNotT0 bit)
-                    if (registers.track == 0)
-                        registers.status |= lostDataOrNotT0; // TRK0 = 1
-                    else
-                        registers.status &= static_cast<uint8_t>(~lostDataOrNotT0);  // TRK0 = 0
-
-                    break;
-                }
-                case CommandType::TypeII:
-                {
-                    if (readSectorInProgress)
+                    case CommandType::TypeI:
                     {
-                        // READ SECTOR: first byte is now ready
-                        if (dataIndex < sizeof(sectorBuffer))
+                        // Head move complete
+                        setBusy(false);
+                        setINTRQ(true);
+
+                        // Track 0 / Not Track 0 flag (lostDataOrNotT0 bit)
+                        if (registers.track == 0)
+                            registers.status |= lostDataOrNotT0; // TRK0 = 1
+                        else
+                            registers.status &= static_cast<uint8_t>(~lostDataOrNotT0);  // TRK0 = 0
+
+                        break;
+                    }
+                    case CommandType::TypeII:
+                    {
+                        if (readSectorInProgress)
                         {
-                            // Don't advance dataIndex yet; wait until CPU reads
-                            registers.data = sectorBuffer[dataIndex];
+                            // READ SECTOR: first byte is now ready
+                            if (dataIndex < sizeof(sectorBuffer))
+                            {
+                                // Don't advance dataIndex yet; wait until CPU reads
+                                registers.data = sectorBuffer[dataIndex];
+                            }
+                            setDRQ(true);   // tell CPU "you can read a byte now"
                         }
-                        setDRQ(true);   // tell CPU "you can read a byte now"
+                        else if (writeSectorInProgress)
+                        {
+                            // WRITE SECTOR: ready for first data byte
+                            setDRQ(true);   // tell CPU "write a byte now"
+                        }
+                        else
+                        {
+                            setBusy(false);
+                            setDRQ(false);
+                            setINTRQ(true);
+                        }
+                        break;
                     }
-                    else if (writeSectorInProgress)
-                    {
-                        // WRITE SECTOR: ready for first data byte
-                        setDRQ(true);   // tell CPU "write a byte now"
-                    }
-                    else
-                    {
+                    case CommandType::TypeIII:
                         setBusy(false);
                         setDRQ(false);
                         setINTRQ(true);
-                    }
-                    break;
+                        break;
+                    default:
+                        break;
                 }
-                case CommandType::TypeIII:
-                    setBusy(false);
-                    setDRQ(false);
-                    setINTRQ(true);
-                    break;
-                default:
-                    break;
             }
         }
     }

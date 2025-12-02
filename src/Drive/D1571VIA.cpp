@@ -92,58 +92,61 @@ void D1571VIA::reset()
         updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
 }
 
-void D1571VIA::tick()
+void D1571VIA::tick(uint32_t cycles)
 {
-    // Timer 1
-    if (t1Running)
+    while(cycles-- > 0)
     {
-        if (t1Counter > 0)
+        // Timer 1
+        if (t1Running)
         {
-            --t1Counter;
-
-            // Reflect back into the visible counter registers
-            registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0x00FF);
-            registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
-
-            if (t1Counter == 0)
+            if (t1Counter > 0)
             {
-                // Set IFR6
-                 triggerInterrupt(IFR_TIMER1);
+                --t1Counter;
 
-                // Check ACR bit 6 to decide one-shot vs continuous
-                bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
+                // Reflect back into the visible counter registers
+                registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0x00FF);
+                registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
 
-                if (t1Continuous)
+                if (t1Counter == 0)
                 {
-                    // Free-run: reload from latch and keep going
-                    t1Counter = t1Latch;
-                }
-                else
-                {
-                    // One-shot: stop the timer
-                    t1Running = false;
+                    // Set IFR6
+                     triggerInterrupt(IFR_TIMER1);
+
+                    // Check ACR bit 6 to decide one-shot vs continuous
+                    bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
+
+                    if (t1Continuous)
+                    {
+                        // Free-run: reload from latch and keep going
+                        t1Counter = t1Latch;
+                    }
+                    else
+                    {
+                        // One-shot: stop the timer
+                        t1Running = false;
+                    }
                 }
             }
         }
-    }
 
-    // Timer 2
-    if (t2Running)
-    {
-        if (t2Counter > 0)
+        // Timer 2
+        if (t2Running)
         {
-            --t2Counter;
-
-            registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
-            registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
-
-            if (t2Counter == 0)
+            if (t2Counter > 0)
             {
-                // Set IFR bit 5
-                 triggerInterrupt(IFR_TIMER2);
+                --t2Counter;
 
-                // Free-running: reload from latch and keep going
-                t2Counter = t2Latch;
+                registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
+                registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
+
+                if (t2Counter == 0)
+                {
+                    // Set IFR bit 5
+                     triggerInterrupt(IFR_TIMER2);
+
+                    // Free-running: reload from latch and keep going
+                    t2Counter = t2Latch;
+                }
             }
         }
     }

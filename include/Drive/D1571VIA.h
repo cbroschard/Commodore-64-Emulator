@@ -32,7 +32,7 @@ class D1571VIA : public DriveVIABase
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole);
 
         void reset();
-        void tick();
+        void tick(uint32_t cycles);
 
         void resetShift();
 

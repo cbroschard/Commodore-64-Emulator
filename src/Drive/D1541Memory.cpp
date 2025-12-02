@@ -24,8 +24,8 @@ void D1541Memory::attachLoggingInstance(Logging* logger)
 
 void D1541Memory::tick()
 {
-    via1.tick();
-    via2.tick();
+    via1.tick(1);
+    via2.tick(1);
 
     // IRQ check from VIA chips
     if ((via1.readRegister(0x0D) & 0x80) || (via2.readRegister(0x0D) & 0x80))

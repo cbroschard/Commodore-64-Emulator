@@ -39,7 +39,7 @@ class D1581Memory : public DriveMemoryBase
         void write(uint16_t address, uint8_t value);
 
         void reset();
-        void tick();
+        void tick(uint32_t cycles);
 
         bool initialize(const std::string& fileName);
 

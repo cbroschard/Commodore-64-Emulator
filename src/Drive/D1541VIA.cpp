@@ -52,75 +52,78 @@ void D1541VIA::reset()
     srCount = 0;
 }
 
-void D1541VIA::tick()
+void D1541VIA::tick(uint32_t cycles)
 {
-    // ----- Timer 1 -----
+    while(cycles-- > 0)
     {
-        uint16_t t1 = (static_cast<uint16_t>(registers.timer1CounterHigh) << 8)
-                    |  static_cast<uint16_t>(registers.timer1CounterLow);
-
-        if (t1 > 0)
+        // ----- Timer 1 -----
         {
-            --t1;
-            registers.timer1CounterLow  =  t1 & 0xFF;
-            registers.timer1CounterHigh = (t1 >> 8) & 0xFF;
+            uint16_t t1 = (static_cast<uint16_t>(registers.timer1CounterHigh) << 8)
+                        |  static_cast<uint16_t>(registers.timer1CounterLow);
 
-            if (t1 == 0)
+            if (t1 > 0)
             {
-                // Set T1 interrupt flag
-                registers.interruptFlag |= IFR_T1;
+                --t1;
+                registers.timer1CounterLow  =  t1 & 0xFF;
+                registers.timer1CounterHigh = (t1 >> 8) & 0xFF;
 
-                // Continuous mode? (ACR bit 4)
-                bool continuous = (registers.auxillaryControlRegister & (1 << 4)) != 0;
-                if (continuous)
+                if (t1 == 0)
                 {
-                    uint16_t lat = (static_cast<uint16_t>(registers.timer1LatchHigh) << 8)
-                                 |  static_cast<uint16_t>(registers.timer1LatchLow);
-                    registers.timer1CounterLow  =  lat & 0xFF;
-                    registers.timer1CounterHigh = (lat >> 8) & 0xFF;
+                    // Set T1 interrupt flag
+                    registers.interruptFlag |= IFR_T1;
+
+                    // Continuous mode? (ACR bit 4)
+                    bool continuous = (registers.auxillaryControlRegister & (1 << 4)) != 0;
+                    if (continuous)
+                    {
+                        uint16_t lat = (static_cast<uint16_t>(registers.timer1LatchHigh) << 8)
+                                     |  static_cast<uint16_t>(registers.timer1LatchLow);
+                        registers.timer1CounterLow  =  lat & 0xFF;
+                        registers.timer1CounterHigh = (lat >> 8) & 0xFF;
+                    }
                 }
             }
         }
-    }
 
-    // ----- Timer 2 -----
-    {
-        // Treat T2 as a 16-bit down-counter just like T1
-        uint16_t t2 = (static_cast<uint16_t>(registers.timer2CounterHigh) << 8)
-                    |  static_cast<uint16_t>(registers.timer2CounterLow);
-
-        if (t2 > 0)
+        // ----- Timer 2 -----
         {
-            --t2;
-            registers.timer2CounterLow  =  t2 & 0xFF;
-            registers.timer2CounterHigh = (t2 >> 8) & 0xFF;
+            // Treat T2 as a 16-bit down-counter just like T1
+            uint16_t t2 = (static_cast<uint16_t>(registers.timer2CounterHigh) << 8)
+                        |  static_cast<uint16_t>(registers.timer2CounterLow);
 
-            if (t2 == 0)
+            if (t2 > 0)
             {
-                // Set T2 interrupt flag
-                registers.interruptFlag |= IFR_T2;
+                --t2;
+                registers.timer2CounterLow  =  t2 & 0xFF;
+                registers.timer2CounterHigh = (t2 >> 8) & 0xFF;
+
+                if (t2 == 0)
+                {
+                    // Set T2 interrupt flag
+                    registers.interruptFlag |= IFR_T2;
+                }
             }
         }
-    }
 
-    // ----- Shift register -----
-    bool srEnabled = (registers.auxillaryControlRegister & (1 << 2)) != 0;
-    if (srEnabled)
-    {
-        ++srCount;
-        if (srCount >= 8)
+        // ----- Shift register -----
+        bool srEnabled = (registers.auxillaryControlRegister & (1 << 2)) != 0;
+        if (srEnabled)
         {
-            registers.interruptFlag |= IFR_SR;
-            srCount = 0;
+            ++srCount;
+            if (srCount >= 8)
+            {
+                registers.interruptFlag |= IFR_SR;
+                srCount = 0;
+            }
         }
-    }
 
-    // ----- IRQ summary bit (bit 7 of IFR) -----
-    bool anyEnabledPending = (registers.interruptFlag & registers.interruptEnable & 0x7F) != 0;
-    if (anyEnabledPending)
-        registers.interruptFlag |= IFR_IRQ;   // bit 7
-    else
-        registers.interruptFlag &= ~IFR_IRQ;
+        // ----- IRQ summary bit (bit 7 of IFR) -----
+        bool anyEnabledPending = (registers.interruptFlag & registers.interruptEnable & 0x7F) != 0;
+        if (anyEnabledPending)
+            registers.interruptFlag |= IFR_IRQ;   // bit 7
+        else
+            registers.interruptFlag &= ~IFR_IRQ;
+    }
 }
 
 uint8_t D1541VIA::readRegister(uint16_t address)

@@ -23,7 +23,7 @@ class FDC177x : public DriveFDCBase
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
         void reset();
-        void tick();
+        void tick(uint32_t cycles);
 
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);

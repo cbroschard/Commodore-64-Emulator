@@ -150,14 +150,17 @@ bool Drive::insert(const std::string &path)
 
 void Drive::tick(uint32_t cycles)
 {
-    if (ackDelay > 0)
+    while(cycles-- > 0)
     {
-        --ackDelay;
-        if (ackDelay == 0)
+        if (ackDelay > 0)
         {
-            // Release DATA back to not-driving state if some legacy code used it.
-            peripheralAssertData(false);
-            byteAckHold = false;
+            --ackDelay;
+            if (ackDelay == 0)
+            {
+                // Release DATA back to not-driving state if some legacy code used it.
+                peripheralAssertData(false);
+                byteAckHold = false;
+            }
         }
     }
 }

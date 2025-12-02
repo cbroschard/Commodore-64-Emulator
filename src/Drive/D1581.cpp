@@ -50,7 +50,7 @@ void D1581::tick(uint32_t cycles)
         if(dc == 0) dc = 1;
 
         Drive::tick(dc);
-        d1581Mem.tick();
+        d1581Mem.tick(dc);
         cycles -= dc;
     }
 }

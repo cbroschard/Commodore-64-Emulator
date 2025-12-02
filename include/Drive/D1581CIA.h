@@ -20,7 +20,7 @@ class D1581CIA : public DriveCIABase
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
         void reset();
-        void tick();
+        void tick(uint32_t cycles);
 
         // API access
         uint8_t readRegister(uint16_t address);

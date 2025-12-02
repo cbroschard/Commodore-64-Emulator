@@ -47,10 +47,13 @@ void D1581Memory::reset()
     fdc.reset();
 }
 
-void D1581Memory::tick()
+void D1581Memory::tick(uint32_t cycles)
 {
-    cia.tick();
-    fdc.tick();
+    while(cycles-- > 0)
+    {
+        cia.tick(1);
+        fdc.tick(1);
+    }
 }
 
 bool D1581Memory::initialize(const std::string& fileName)

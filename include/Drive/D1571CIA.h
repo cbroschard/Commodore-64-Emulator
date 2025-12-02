@@ -24,7 +24,7 @@ class D1571CIA : public DriveCIABase
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
         void reset();
-        void tick();
+        void tick(uint32_t cycles);
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
 

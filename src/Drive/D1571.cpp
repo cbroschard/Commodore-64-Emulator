@@ -54,21 +54,21 @@ D1571::~D1571() = default;
 
 void D1571::tick(uint32_t cycles)
 {
-    while(cycles > 0)
+    while (cycles > 0)
     {
         driveCPU.tick();
-        uint32_t dc = driveCPU.getElapsedCycles();
-        if(dc == 0) dc = 1;
 
+        uint32_t dc = driveCPU.getElapsedCycles();
+        if (dc == 0) dc = 1;
+        if (dc > cycles) dc = cycles;
+
+        // Tick “hardware time”
+        d1571Mem.tick(dc);
         Drive::tick(dc);
 
         if (isGCRMode() && motorOn && diskLoaded)
-        {
             gcrAdvance(dc);
-        }
 
-        d1571Mem.tick();
-        updateIRQ();
         cycles -= dc;
     }
 }
