@@ -31,8 +31,7 @@ class D1571 : public Drive, public FloppyControllerHost
         void reset() override;
 
         // Advance drive via tick method
-        void tick() override;
-        bool gcrTick();
+        void tick(uint32_t cycles) override;
 
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;
@@ -176,6 +175,9 @@ class D1571 : public Drive, public FloppyControllerHost
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;
+
+        bool gcrTick();
+        void gcrAdvance(uint32_t dc);
         void rebuildGCRTrackStream();
         void gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5]);
         void gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);

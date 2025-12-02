@@ -30,7 +30,7 @@ class D1581 : public Drive, public FloppyControllerHost
         void reset() override;
 
         // Advance drive via tick method
-        void tick() override;
+        void tick(uint32_t cycles) override;
 
         // Compatibility check
         bool canMount(DiskFormat fmt) const override;

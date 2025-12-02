@@ -41,12 +41,18 @@ void D1581::reset()
     srqAsserted        = false;
 }
 
-void D1581::tick()
+void D1581::tick(uint32_t cycles)
 {
-    // Always call Drive tick first
-    Drive::tick();
-    driveCPU.tick();
-    d1581Mem.tick();
+    while(cycles > 0)
+    {
+        driveCPU.tick();
+        uint32_t dc = driveCPU.getElapsedCycles();
+        if(dc == 0) dc = 1;
+
+        Drive::tick(dc);
+        d1581Mem.tick();
+        cycles -= dc;
+    }
 }
 
 bool D1581::canMount(DiskFormat fmt) const

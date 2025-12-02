@@ -22,7 +22,7 @@ class D1541 : public Drive
         void reset() override;
 
         // Advance drive via tick method
-        void tick() override;
+        void tick(uint32_t cycles) override;
 
         // Initialize everything
         bool initialize(const std::string& loRom, const std::string& hiRom);

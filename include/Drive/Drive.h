@@ -61,7 +61,7 @@ class Drive : public Peripheral
         enum class DriveBusState { IDLE, AWAITING_COMMAND, TALKING, LISTENING } currentDriveBusState;
 
         // Timing simulation.
-        virtual void tick() = 0; // Called each emulation cycle
+        virtual void tick(uint32_t cycles) = 0; // Called each emulation cycle
 
         // Motor control.
         virtual void startMotor() = 0;

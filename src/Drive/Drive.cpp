@@ -148,7 +148,7 @@ bool Drive::insert(const std::string &path)
     return true;
 }
 
-void Drive::tick()
+void Drive::tick(uint32_t cycles)
 {
     if (ackDelay > 0)
     {

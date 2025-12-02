@@ -52,33 +52,25 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
 
 D1571::~D1571() = default;
 
-void D1571::tick()
+void D1571::tick(uint32_t cycles)
 {
-    Drive::tick();
-
-    if (isGCRMode() && motorOn && diskLoaded)
+    while(cycles > 0)
     {
-        // Map 1571 density code (0..3) to an approximate
-        // "CPU cycles per GCR byte".
-        int cyclesPerByte;
-        switch (densityCode & 0x03)
+        driveCPU.tick();
+        uint32_t dc = driveCPU.getElapsedCycles();
+        if(dc == 0) dc = 1;
+
+        Drive::tick(dc);
+
+        if (isGCRMode() && motorOn && diskLoaded)
         {
-            case 0:  cyclesPerByte = 26; break; // fastest
-            case 1:  cyclesPerByte = 28; break;
-            case 2:  cyclesPerByte = 30; break;
-            default: cyclesPerByte = 32; break; // slowest
+            gcrAdvance(dc);
         }
 
-        if (++gcrBitCounter >= cyclesPerByte)
-        {
-            if (gcrTick())
-                gcrBitCounter = 0;
-        }
+        d1571Mem.tick();
+        updateIRQ();
+        cycles -= dc;
     }
-
-    d1571Mem.tick();
-    updateIRQ();
-    driveCPU.tick();
 }
 
 bool D1571::gcrTick()
@@ -105,6 +97,28 @@ bool D1571::gcrTick()
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
     d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
     return true;
+}
+
+void D1571::gcrAdvance(uint32_t dc)
+{
+    // Map 1571 density code (0..3) to an approximate
+    // "CPU cycles per GCR byte".
+    int cyclesPerByte;
+    switch (densityCode & 0x03)
+    {
+        case 0:  cyclesPerByte = 26; break; // fastest
+        case 1:  cyclesPerByte = 28; break;
+        case 2:  cyclesPerByte = 30; break;
+        default: cyclesPerByte = 32; break; // slowest
+    }
+
+    gcrBitCounter += dc;
+
+    while (gcrBitCounter >= cyclesPerByte)
+    {
+        gcrBitCounter -= cyclesPerByte;
+        gcrTick();
+    }
 }
 
 void D1571::reset()

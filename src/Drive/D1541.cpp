@@ -27,11 +27,18 @@ bool D1541::canMount(DiskFormat fmt) const
     return fmt == DiskFormat::D64;
 }
 
-void D1541::tick()
+void D1541::tick(uint32_t cycles)
 {
-    Drive::tick();
-    d1541mem.tick();
-    driveCPU.tick();
+    while(cycles > 0)
+    {
+        driveCPU.tick();
+        uint32_t dc = driveCPU.getElapsedCycles();
+        if(dc == 0) dc = 1;
+
+        Drive::tick(dc);
+        d1541mem.tick();
+        cycles -= dc;
+    }
 }
 
 bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
