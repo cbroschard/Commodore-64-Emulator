@@ -99,7 +99,7 @@ class IO
         // Audio constants
         static const int SAMPLE_RATE = 44100;
         static const int CHANNELS = 2;
-        static const int BUFFER_SIZE = 737;
+        static const int BUFFER_SIZE = 2048;
 
         // SDL setup
         static const int SCALE = 2; // Scale window size by a factor of 2
