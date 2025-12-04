@@ -123,13 +123,13 @@ void D1571::gcrAdvance(uint32_t dc)
 
 void D1571::reset()
 {
-    motorOn = false;
-    diskWriteProtected = false;
-    lastError = DriveError::NONE;
-    status = DriveStatus::IDLE;
-    currentTrack = 17;
-    currentSector = 0;
-    densityCode = 2;
+    motorOn                     = false;
+    diskWriteProtected          = false;
+    lastError                   = DriveError::NONE;
+    status                      = DriveStatus::IDLE;
+    currentTrack                = 17;
+    currentSector               = 0;
+    densityCode                 = 2;
 
     // IEC BUS reset
     atnLineLow                  = false;
@@ -148,13 +148,13 @@ void D1571::reset()
     iecRxByte                   = 0;
 
     // 1571 Runtime Properties reset
-    currentSide         = 0;
-    busDriversEnabled   = false;
-    twoMHzMode          = false;
-    halfTrackPos        = currentTrack * 2;
-    gcrBitCounter       = 0;
-    gcrPos              = 0;
-    gcrDirty            = true;
+    currentSide                 = 0;
+    busDriversEnabled           = false;
+    twoMHzMode                  = false;
+    halfTrackPos                = currentTrack * 2;
+    gcrBitCounter               = 0;
+    gcrPos                      = 0;
+    gcrDirty                    = true;
 
     gcrTrackStream.clear();
     gcrSync.clear();
@@ -186,11 +186,22 @@ void D1571::setDensityCode(uint8_t code)
 
 void D1571::setHeadSide(bool side1)
 {
-    bool prevSide = currentSide;
-    if(prevSide != side1)
+    // In 1541 (D64) mode, ignore side-select completely.
+    if (mediaPath == MediaPath::GCR_1541)
     {
-        currentSide     = side1 ? 1 : 0;
-        gcrDirty        = true;
+        if (currentSide != 0)
+        {
+            currentSide = 0;
+            gcrDirty    = true;
+        }
+        return;
+    }
+
+    bool prevSide = currentSide;
+    if (prevSide != side1)
+    {
+        currentSide = side1 ? 1 : 0;
+        gcrDirty    = true;
     }
 }
 
@@ -226,7 +237,9 @@ void D1571::rebuildGCRTrackStream()
 
     const int trackOnSide1based = int(currentTrack) + 1;
     const int spt = sectorsPerTrack1541(trackOnSide1based);
-    const int imageTrack1based = trackOnSide1based + (currentSide ? 35 : 0);
+    int imageTrack1based = trackOnSide1based;
+    if  (mediaPath != MediaPath::GCR_1541 && currentSide)
+        imageTrack1based += 35;
 
     auto bam = diskImage->readSector(18, 0);
     #ifdef Debug
@@ -286,8 +299,8 @@ void D1571::rebuildGCRTrackStream()
         hdr[0] = 0x08;
         hdr[2] = uint8_t(sector);            // Byte 2 is Sector
         hdr[3] = uint8_t(trackOnSide1based); // Byte 3 is Track
-        hdr[4] = id2;                        // Byte 4 is ID2
-        hdr[5] = id1;                        // Byte 5 is ID1
+        hdr[4] = id2;
+        hdr[5] = id1;
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
@@ -301,7 +314,7 @@ void D1571::rebuildGCRTrackStream()
         std::vector<uint8_t> raw(260, 0x00);
         raw[0] = 0x07;          // data block ID
 
-        uint8_t csum = raw[0];
+        uint8_t csum = 0;
 
         for (int i = 0; i < 256; ++i)
         {
@@ -322,6 +335,11 @@ void D1571::rebuildGCRTrackStream()
     // sanity
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
+
+    // Reset
+    gcrPos = 0;
+
+    d1571Mem.getVIA2().clearMechBytePending();
 }
 
 void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
@@ -541,11 +559,6 @@ void D1571::atnChanged(bool atnLow)
     bool prev = atnLineLow;
     atnLineLow = atnLow;
 
-    #ifdef Debug
-    std::cout << "[D1571] atnChanged: atnLow=" << atnLineLow
-              << " (prev=" << prev << ")\n";
-    #endif
-
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
@@ -577,14 +590,6 @@ void D1571::clkChanged(bool clkLow)
     bool rising  = (!prevClkHigh && clkHigh);    // low -> high
     bool falling = ( prevClkHigh && !clkHigh );  // high -> low
 
-    #ifdef Debug
-    std::cout << "[D1571] clkChanged atnLow=" << atnLineLow
-              << " clkLow=" << clkLow
-              << " dataLow=" << dataLineLow
-          << " rising=" << rising
-              << " falling=" << falling << "\n";
-    #endif // Debug
-
     // Normal path: just update VIA with the new CLK level
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
@@ -595,23 +600,11 @@ void D1571::dataChanged(bool dataLow)
 {
     if (dataLow == dataLineLow) return; // ignore no change
 
-    #ifdef Debug
-    if (iecListening && !atnLineLow)
-    {
-        std::cout << "[D1571] (LISTEN PHASE) seeing C64 data bit; clkLow="
-                  << clkLineLow << " dataLow=" << dataLineLow << "\n";
-    }
-    #endif
-
     // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
 
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-
-    #ifdef Debug
-    std::cout << "[D1571] dataChanged atnLow=" << atnLineLow << " clkLow=" << clkLineLow << " dataLow=" << dataLineLow << "\n";
-    #endif
 }
 
 void D1571::onListen()

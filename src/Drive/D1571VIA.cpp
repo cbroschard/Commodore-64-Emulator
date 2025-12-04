@@ -198,8 +198,8 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
                     {
                         bool sync = isSyncDetected();
-                        if (sync)    value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
-                        else         value &=  static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
+                        if (sync)   value &= ~(1u << MECH_SYNC_DETECTED); // active-low: SYNC => 0
+                        else        value |=  (1u << MECH_SYNC_DETECTED); // no sync => 1
                     }
                 }
             }
@@ -550,19 +550,35 @@ void D1571VIA::setSyncDetected(bool present)
     syncDetected = present;
 }
 
-void D1571VIA::diskByteFromMedia(uint8_t byte, bool syncHigh)
+void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
     if (viaRole != VIARole::VIA2_Mechanics) return;
+
+    // Update sync marker state (PB7 handling happens in readRegister($00))
+    setSyncDetected(inSync);
+
+    // During SYNC marks, don't deliver bytes / don't generate byte-ready events
+    if (inSync)
+    {
+        mechBytePending = false;
+        clearIFR(IFR_CA1);
+        return;
+    }
+
+    if (mechBytePending)
+        return;
 
     mechDataLatch   = byte;
     mechBytePending = true;
 
     triggerInterrupt(IFR_CA1);
 
-    setSyncDetected(syncHigh);
-
-    auto* drive = static_cast<D1571*>(parentPeripheral);
-    drive->asDrive()->getDriveCPU()->pulseSO();
+    // Pulse SO to set V flag for the BVC loop
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1571*>(parentPeripheral);
+        drive->asDrive()->getDriveCPU()->pulseSO();
+    }
 }
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
@@ -760,4 +776,10 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
     m.densityCode = code;
 
     return m;
+}
+
+void D1571VIA::clearMechBytePending()
+{
+    mechBytePending = false;
+    clearIFR(IFR_CA1);
 }

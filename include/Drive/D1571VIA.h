@@ -54,6 +54,7 @@ class D1571VIA : public DriveVIABase
         bool checkIRQActive() const override;
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
+        void clearMechBytePending();
 
         // ML Monitor
         inline viaRegsView getRegsView() const override
