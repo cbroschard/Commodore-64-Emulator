@@ -546,7 +546,8 @@ bool Computer::boot()
         {
             // forward to render thread for ImGui + input handling
             IO_adapter->enqueueEvent(e);
-            if (e.type == SDL_QUIT) {
+            if (e.type == SDL_QUIT)
+            {
                 running = false;
                 uiQuit = true;
             }
