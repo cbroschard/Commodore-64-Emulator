@@ -246,7 +246,6 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
         logger->WriteLog("Key Down Event: SDL Scancode = " + std::to_string(key));
     }
 
-    // Convert the scancode to a keycode so that modifiers (like Shift) are taken into account
     SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
 
     if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
@@ -277,7 +276,6 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
         logger->WriteLog("Key Up Event: SDL Scancode = " + std::to_string(key));
     }
 
-    // Convert the scancode to a keycode so that modifiers (like Shift) are taken into account
     SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
 
     if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
