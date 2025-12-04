@@ -590,7 +590,6 @@ void CIA2::refreshNMI()
 
 void CIA2::clkChanged(bool level)
 {
-    bool was     = lastClk;
     bool falling = (lastClk && !level);
     bool rising  = (!lastClk && level);
     lastClk      = level;
@@ -599,40 +598,12 @@ void CIA2::clkChanged(bool level)
 
     if (!bus) return;
 
-    #ifdef Debug
-    std::cout << "[CIA2] CLK edge: level=" << level
-              << " was=" << was
-              << " rising=" << rising
-              << " falling=" << falling
-              << " ATN=" << (atnLine ? "L" : "H")
-              << " handshakePending=" << (atnHandshakePending ? "Y" : "N")
-              << " cmdBits=" << int(iecCmdBitCount)
-              << " listening=" << (listening ? "Y" : "N")
-              << " talking="  << (talking ? "Y" : "N")
-              << "\n";
-    #endif
-
-    if (falling)
-    {
-        #ifdef Debug
-        std::cout << "[CIA2] CLK falling: ATN=" << (atnLine ? "L" : "H")
-                  << " handshakePending=" << (atnHandshakePending ? "Y" : "N")
-                  << " cmdBits=" << int(iecCmdBitCount)
-                  << " listening=" << (listening ? "Y" : "N")
-                  << " talking="  << (talking ? "Y" : "N")
-                  << "\n";
-        #endif
-    }
-
     // --- ATN LOW: command / secondary bytes from the C64 ---
     if (atnLine)
     {
         // Handshake: swallow *only the first rising edge* after ATN is asserted
         if (atnHandshakePending && rising)
         {
-            #ifdef Debug
-            std::cout << "[CIA2] Swallowing ATN handshake edge (rising)\n";
-            #endif
             atnHandshakePending = false;
             atnHandshakeJustCleared = true;
             return;
@@ -645,20 +616,10 @@ void CIA2::clkChanged(bool level)
             {
                 // Ignore this first post-handshake edge (bus not ready)
                 atnHandshakeJustCleared = false;
-                #ifdef Debug
-                std::cout << "[CIA2] Ignoring first post-handshake falling edge\n";
-                #endif
                 return;
             }
 
             bool dataHigh = bus->readDataLine(); // true = logical '1'
-
-            #ifdef Debug
-            std::cout << "[CIA2] CMD BIT: dataHigh=" << int(dataHigh)
-                      << " iecCmdBitCount=" << int(iecCmdBitCount)
-                      << " shiftRegBits=$" << std::hex << int(iecCmdShiftReg)
-                    << std::dec << "\n";
-            #endif
 
             // Build the command byte as LSB-first:
             if (dataHigh)
@@ -667,17 +628,9 @@ void CIA2::clkChanged(bool level)
             }
             ++iecCmdBitCount;
 
-            #ifdef Debug
-            std::cout << "[CIA2] CMD bit=" << (dataHigh ? 1 : 0)
-                      << " cmdBits=" << int(iecCmdBitCount)
-                      << " byteSoFar=$" << std::hex << int(iecCmdShiftReg)
-                      << std::dec << "\n";
-            #endif
-
             if (iecCmdBitCount == 8)
             {
                 uint8_t cmd = iecCmdShiftReg;
-                std::cout << "[CIA2] IEC cmd from bus: $" << std::hex << int(cmd) << std::dec << "\n";
 
                 decodeIECCommand(cmd);
 
@@ -706,7 +659,6 @@ void CIA2::atnChanged(bool assertedLow)
     atnLine = assertedLow;
     lastAtnLevel = assertedLow;
 
-    // Debug
     if (!iecProtocolEnabled) return;
 
     if (fallingEdge)
@@ -751,11 +703,6 @@ void CIA2::srqChanged(bool level)
 
 void CIA2::decodeIECCommand(uint8_t cmd)
 {
-    std::cout << "[CIA2] IEC cmd from bus: $"
-              << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-              << int(cmd)
-              << std::dec << "\n";
-
     uint8_t code = cmd & 0xF0;
     uint8_t low  = cmd & 0x1F;  // device # or SA (0-31); SA is low nibble
 
@@ -769,9 +716,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
 
             currentSecondaryAddress  = 0xFF;
             expectedSecondaryAddress = 0xFF;
-
-            std::cout << "[CIA2] LISTEN to device " << int(deviceNumber)
-                      << " (C64=talker, device=listener)\n";
 
             if (bus)
                 bus->listen(deviceNumber);
@@ -788,9 +732,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             currentSecondaryAddress  = 0xFF;
             expectedSecondaryAddress = 0xFF;
 
-            std::cout << "[CIA2] TALK from device " << int(deviceNumber)
-                      << " (C64=listener, device=talker)\n";
-
             if (bus)
                 bus->talk(deviceNumber);
 
@@ -803,13 +744,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
 
             currentSecondaryAddress = sa;
 
-            std::cout << "[CIA2] SECONDARY (0x60) cmd=$"
-                      << std::hex << int(cmd)
-                      << std::dec
-                      << " dev=" << int(deviceNumber)
-                      << " sa="  << int(currentSecondaryAddress)
-                      << "\n";
-
             if (bus && deviceNumber != 0xFF)
                 bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
             break;
@@ -819,13 +753,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             uint8_t sa = cmd & 0x0F;
 
             currentSecondaryAddress = sa;
-
-            std::cout << "[CIA2] OPEN TALK (0xC0) cmd=$"
-                      << std::hex << int(cmd)
-                      << std::dec
-                      << " dev=" << int(deviceNumber)
-                      << " sa="  << int(currentSecondaryAddress)
-                      << "\n";
 
             if (bus && deviceNumber != 0xFF)
                 bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
@@ -837,13 +764,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
 
             currentSecondaryAddress = sa;
 
-            std::cout << "[CIA2] SECONDARY OPEN (0xF0) cmd=$"
-                      << std::hex << int(cmd)
-                      << std::dec
-                      << " dev=" << int(deviceNumber)
-                      << " sa="  << int(currentSecondaryAddress)
-                      << "\n";
-
             if (bus && deviceNumber != 0xFF)
                 bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
             break;
@@ -852,15 +772,7 @@ void CIA2::decodeIECCommand(uint8_t cmd)
         case 0xE0: // CLOSE + secondary address
         {
             uint8_t sa = cmd & 0x0F;
-
-            std::cout << "[CIA2] CLOSE (0xE0) cmd=$"
-                      << std::hex << int(cmd)
-                      << std::dec
-                      << " dev=" << int(deviceNumber)
-                      << " sa="  << int(sa)
-                      << "\n";
-
-            // Optional: later you could add a bus->close(deviceNumber, sa) if desired.
+            std::cout << "[CIA2]Secondary address: " << static_cast<int>(sa) << "\n";
             break;
         }
 
@@ -869,7 +781,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             if (cmd == 0x3F)  // UNLISTEN
             {
                 listening = false;
-                std::cout << "[CIA2] UNLISTEN\n";
 
                 if (bus && deviceNumber != 0xFF)
                     bus->unListen(deviceNumber);
@@ -877,7 +788,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             else if (cmd == 0x5F) // UNTALK
             {
                 talking = false;
-                std::cout << "[CIA2] UNTALK\n";
 
                 if (bus && deviceNumber != 0xFF)
                     bus->unTalk(deviceNumber);
@@ -1080,9 +990,6 @@ void CIA2::recomputeIEC()
     static uint8_t prevLowMask = 0xFF;
     if (lowMask != prevLowMask)
     {
-        std::cout << "[CIA2] lowMask=$" << std::hex << int(lowMask)
-                  << "  DDRA=$" << int(dataDirectionPortA)
-                  << "  PA=$"   << int(portA) << std::dec << "\n";
         prevLowMask = lowMask;
     }
 
@@ -1094,11 +1001,4 @@ void CIA2::recomputeIEC()
     bus->setAtnLine(!atnLow);
     bus->setClkLine(!clkLow);
     bus->setDataLine(!dataLow);
-
-    std::cout << "[CIA2] DDRA=$" << std::hex << int(dataDirectionPortA)
-              << " PA=$"   << int(portA)
-              << " | ATNlow="  << atnLow
-              << " CLKlow="    << clkLow
-              << " DATAlow="   << dataLow << std::dec << "\n";
 }
-

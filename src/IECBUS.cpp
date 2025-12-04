@@ -30,21 +30,12 @@ IECBUS::~IECBUS() = default;
 
 void IECBUS::setAtnLine(bool c64ReleasesLine)
 {
-    bool oldBusATN = busLines.atn;
-
     c64DrivesAtnLow = !c64ReleasesLine;
 
     // Recompute bus lines from all drivers (C64 + peripherals)
     updateBusState();
 
     bool atnNowLow = !busLines.atn;
-
-    #ifdef Debug
-    std::cout << "[BUS] setAtnLine(" << c64ReleasesLine
-              << ") oldATN=" << oldBusATN
-              << " newBusATN=" << busLines.atn
-              << " atnNowLow=" << atnNowLow << "\n";
-    #endif
 
     // Update high-level bus state
     currentState = atnNowLow ? State::ATTENTION : State::IDLE;
@@ -74,14 +65,6 @@ void IECBUS::setClkLine(bool state)
     if (busLines.clk == oldClk)
         return;
 
-    #ifdef Debug
-    std::cout << "[IECBUS] setClkLine from C64: state=" << state
-              << " oldBusClk=" << oldClk
-              << " newBusClk=" << busLines.clk
-              << " ATN=" << (busLines.atn ? "H" : "L")
-              << "\n";
-    #endif
-
     // Now we have a real electrical change - notify CIA2 and drives.
     if (cia2object)
         cia2object->clkChanged(busLines.clk);
@@ -103,11 +86,6 @@ void IECBUS::setDataLine(bool state)
     // Only log / notify if the visible DATA level actually changed.
     if (busLines.data == oldData)
         return;
-
-    #ifdef Debug
-    std::cout << "[BUS] setDataLine(" << state
-              << ") -> bus DATA=" << int(busLines.data) << "\n";
-    #endif
 
     if (cia2object)
         cia2object->dataChanged(busLines.data);
@@ -252,11 +230,6 @@ void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
 
     // Finally update bus state for good measure
     updateBusState();
-
-    #ifdef Debug
-    std::cout << "[IECBUS] registerDevice " << deviceNumber
-          << " at ptr=" << device << "\n";
-    #endif
 }
 
 void IECBUS::unregisterDevice(int deviceNumber)
@@ -285,10 +258,6 @@ void IECBUS::unregisterDevice(int deviceNumber)
 
 void IECBUS::listen(int deviceNumber)
 {
-    #ifdef Debug
-    std::cout << "[IECBUS] listen(" << deviceNumber << ")\n";
-    #endif
-
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
@@ -351,14 +320,6 @@ void IECBUS::updateBusState()
 {
     busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow,
         c64DrivesAtnLow, peripheralDrivesAtnLow);
-
-    #ifdef Debug
-    std::cout << "[BUS] state=" << static_cast<int>(currentState)
-              << " C64ATNlow=" << c64DrivesAtnLow
-              << " PeriphATNlow=" << peripheralDrivesAtnLow
-              << " busATN=" << busLines.atn
-              << "\n";
-    #endif
 }
 
 void IECBUS::updateSrqLine()

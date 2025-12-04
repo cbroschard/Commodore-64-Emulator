@@ -32,11 +32,6 @@ Drive::~Drive() = default;
 
 void Drive::atnChanged(bool atnAsserted)
 {
-    #ifdef Debug
-    std::cout << "[Drive] atnChanged: " << (atnAsserted ? "LOW" : "HIGH")
-              << " this=" << this << "\n";
-    #endif
-
     if (atnAsserted)
     {
         // Enter a generic "command phase". The drive ROM will decode
@@ -68,30 +63,17 @@ void Drive::atnChanged(bool atnAsserted)
 
 void Drive::dataChanged(bool level)
 {
-    #ifdef Debug
-    std::cout << "[Drive] dataChanged (bus notification): DATA="
-              << (level ? "HIGH" : "LOW") << "\n";
-    #endif
+ // No-op
 }
 
 void Drive::driveControlClkLine(bool clkLow)
 {
     peripheralAssertClk(clkLow);
-
-    #ifdef Debug
-    std::cout << "[Drive] driveControlClkLine: clkLow=" << (clkLow ? 1 : 0)
-              << " (dev=" << deviceNumber << ")\n";
-    #endif
 }
 
 void Drive::driveControlDataLine(bool dataLow)
 {
     peripheralAssertData(dataLow);
-
-    #ifdef Debug
-    std::cout << "[Drive] driveControlDataLine: dataLow=" << (dataLow ? 1 : 0)
-              << " (dev=" << deviceNumber << ")\n";
-    #endif
 }
 
 bool Drive::insert(const std::string &path)
