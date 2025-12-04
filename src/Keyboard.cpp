@@ -76,6 +76,7 @@ void Keyboard::initKeyboard()
     charMap['\\'] = {SDL_SCANCODE_BACKSLASH};
     charMap['\''] = {SDL_SCANCODE_APOSTROPHE};
     charMap['+'] = {SDL_SCANCODE_KP_PLUS};
+    charMap['*'] = {SDL_SCANCODE_KP_MULTIPLY};
     charMap[':'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_SEMICOLON};
     charMap['_'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_MINUS};
     charMap['~'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_GRAVE};
@@ -89,7 +90,6 @@ void Keyboard::initKeyboard()
     charMap['%'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_5};
     charMap['^'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_6};
     charMap['&'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_7};
-    charMap['*'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_8};
     charMap['('] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_9};
     charMap[')'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_0};
     charMap['{'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_LEFTBRACKET};
@@ -163,6 +163,7 @@ void Keyboard::initKeyboard()
     // PUNCTUATION & SYMBOLS
     keyMap[SDL_SCANCODE_EQUALS] = std::make_pair(6,5);      // =
     keyMap[SDL_SCANCODE_KP_PLUS] = std::make_pair(5,0);     // +
+    keyMap[SDL_SCANCODE_KP_MULTIPLY] = std::make_pair(6,1); // *
     keyMap[SDL_SCANCODE_PERIOD] = std::make_pair(5,4);      // .
     keyMap[SDL_SCANCODE_MINUS] = std::make_pair(5,3);       // -
     keyMap[SDL_SCANCODE_SLASH] = std::make_pair(6,7);       // /
