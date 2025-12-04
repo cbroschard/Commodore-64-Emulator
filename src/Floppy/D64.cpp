@@ -18,26 +18,33 @@ D64::~D64() = default;
 bool D64::loadDisk(const std::string& filePath)
 {
     geom.hasPerSectorCRC = false;
-    geom.sectorsPerTrack.resize(40);
-    for (int t = 1; t <= 40; ++t)
-        geom.sectorsPerTrack[t-1] = getSectorsForTrack(t);
 
-    geom.trackOffsets.resize(40);
+    if (!loadDiskImage(filePath))
+        return false;
+
+    const size_t sz = fileImageBuffer.size();
+
+    int numTracks = 0;
+
+    if (sz == D64_STANDARD_SIZE_35 || sz == D64_STANDARD_SIZE_35_ERR)      numTracks = 35;
+    else if (sz == D64_STANDARD_SIZE_40 || sz == D64_STANDARD_SIZE_40_ERR) numTracks = 40;
+    else if (sz == D64_STANDARD_SIZE_42 || sz == D64_STANDARD_SIZE_42_ERR) numTracks = 42;
+    else
+        return false;
+
+    // Build geometry for the detected track count
+    geom.sectorsPerTrack.resize(numTracks);
+    for (int t = 1; t <= numTracks; ++t)
+        geom.sectorsPerTrack[t - 1] = getSectorsForTrack(static_cast<uint8_t>(t));
+
+    geom.trackOffsets.resize(numTracks);
+    size_t offset = 0;
+    for (int t = 1; t <= numTracks; ++t)
     {
-      size_t offset = 0;
-      for (int t = 1; t <= 40; ++t) {
-        geom.trackOffsets[t-1] = offset;
-        offset += geom.sectorsPerTrack[t-1] * SECTOR_SIZE
-             + (geom.hasPerSectorCRC ? geom.sectorsPerTrack[t-1]*2 : 0);
-      }
+        geom.trackOffsets[t - 1] = offset;
+        offset += size_t(geom.sectorsPerTrack[t - 1]) * SECTOR_SIZE;
     }
 
-    if (!loadDiskImage(filePath)) return false;
-
-    // Shrink geometry to the *actual* number of tracks (35 or 40)
-    uint8_t numTracks = (fileImageBuffer.size() == D64_STANDARD_SIZE_35 ? 35 : 40);
-    geom.sectorsPerTrack.resize(numTracks);
-    geom.trackOffsets   .resize(numTracks);
     return true;
 }
 
@@ -74,47 +81,25 @@ const std::vector<uint8_t>& D64::getRawImage() const
 
 uint16_t D64::getSectorsForTrack(uint8_t track)
 {
-    static const std::vector<TrackSectorInfo> trackSectorInfo =
-    {
-        {1, 17, 21},
-        {18, 24, 19},
-        {25, 30, 18},
-        {31, 40, 17}
-    };
+    if (track >= 1  && track <= 17) return 21;
+    if (track >= 18 && track <= 24) return 19;
+    if (track >= 25 && track <= 30) return 18;
+    if (track >= 31 && track <= 42) return 17;
 
-    for (const auto& info : trackSectorInfo)
-    {
-        if (track >= info.startTrack && track <= info.endTrack)
-        {
-            return info.numSectors;
-        }
-    }
-
-    // Throw an exception if not found
-     throw std::out_of_range("Invalid track number provided");
+    throw std::out_of_range("Invalid track number provided");
 }
 
 bool D64::validateDiskImage()
 {
-    if (fileImageBuffer.size() != D64_STANDARD_SIZE_35 && fileImageBuffer.size() != D64_STANDARD_SIZE_40)
+    const size_t sz = fileImageBuffer.size();
+
+    // Fast-path: known common sizes
+    if (sz == D64_STANDARD_SIZE_35 || sz == D64_STANDARD_SIZE_35_ERR ||
+        sz == D64_STANDARD_SIZE_40 || sz == D64_STANDARD_SIZE_40_ERR ||
+        sz == D64_STANDARD_SIZE_42 || sz == D64_STANDARD_SIZE_42_ERR)
     {
-        return false;
-    }
-    if (!validateHeader())
-    {
-        return false;
+        return true;
     }
 
-    if (!validateDiskNameAndID())
-    {
-        return false;
-    }
-
-    if (!validateDirectoryChain())
-    {
-        return false;
-    }
-
-    // ALl checks passed
-    return true;
+    return false;
 }

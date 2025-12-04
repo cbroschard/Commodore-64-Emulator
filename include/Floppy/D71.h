@@ -34,8 +34,11 @@ class D71 : public CBMImage
     private:
 
         // Disk size constants for D71
-        static constexpr size_t D71_STANDARD_SIZE_70 = 349696; // 70 tracks (35+35)
-        static constexpr size_t D71_EXTENDED_SIZE_80 = 393216; // 80 tracks (40+40)
+        static constexpr size_t D71_STANDARD_SIZE_70     = 349696; // 70 tracks (35+35)
+        static constexpr size_t D71_STANDARD_SIZE_70_ERR = 351062; // +1366 error bytes (683*2)
+
+        static constexpr size_t D71_EXTENDED_SIZE_80     = 393216; // 80 tracks (40+40)
+        static constexpr size_t D71_EXTENDED_SIZE_80_ERR = 394752; // +1536 error bytes (768*2)
 
         // Helpers for disk access
         uint16_t getSectorsForTrack(uint8_t track) override;

@@ -18,31 +18,28 @@ D71::~D71() = default;
 bool D71::loadDisk(const std::string& filePath)
 {
     geom.hasPerSectorCRC = false;
-    geom.sectorsPerTrack.resize(80);
-    for (int t = 1; t <= 80; ++t)
-        geom.sectorsPerTrack[t-1] = getSectorsForTrack(t);
-
-    geom.trackOffsets.resize(80);
-    {
-      size_t offset = 0;
-      for (int t = 1; t <= 80; ++t) {
-        geom.trackOffsets[t-1] = offset;
-        offset += geom.sectorsPerTrack[t-1] * SECTOR_SIZE
-             + (geom.hasPerSectorCRC ? geom.sectorsPerTrack[t-1]*2 : 0);
-      }
-    }
 
     if (!loadDiskImage(filePath)) return false;
 
-    // Shrink geometry to the *actual* number of tracks (35 or 40)
-    uint8_t numTracks = (fileImageBuffer.size() == D71_STANDARD_SIZE_70 ? 70 :
-                         fileImageBuffer.size() == D71_EXTENDED_SIZE_80 ? 80 : 0);
-    if (numTracks == 0)
-    {
-        return false;
-    }
+    const size_t sz = fileImageBuffer.size();
+
+    uint8_t numTracks = 0;
+    if (sz == D71_STANDARD_SIZE_70 || sz == D71_STANDARD_SIZE_70_ERR)      numTracks = 70;
+    else if (sz == D71_EXTENDED_SIZE_80 || sz == D71_EXTENDED_SIZE_80_ERR) numTracks = 80;
+    else return false;
+
     geom.sectorsPerTrack.resize(numTracks);
-    geom.trackOffsets   .resize(numTracks);
+    for (int t = 1; t <= numTracks; ++t)
+        geom.sectorsPerTrack[t-1] = getSectorsForTrack(uint8_t(t));
+
+    geom.trackOffsets.resize(numTracks);
+    size_t offset = 0;
+    for (int t = 1; t <= numTracks; ++t)
+    {
+        geom.trackOffsets[t-1] = offset;
+        offset += size_t(geom.sectorsPerTrack[t-1]) * SECTOR_SIZE;
+    }
+
     return true;
 }
 
@@ -96,26 +93,8 @@ uint16_t D71::getSectorsForTrack(uint8_t track)
 
 bool D71::validateDiskImage()
 {
-    size_t size = fileImageBuffer.size();
-    if (size != D71_STANDARD_SIZE_70 && size != D71_EXTENDED_SIZE_80)
-    {
-        return false;
-    }
-    if (!validateHeader())
-    {
-        return false;
-    }
+    const size_t sz = fileImageBuffer.size();
 
-    if (!validateDiskNameAndID())
-    {
-        return false;
-    }
-
-    if (!validateDirectoryChain())
-    {
-        return false;
-    }
-
-    // ALl checks passed
-    return true;
+    return (sz == D71_STANDARD_SIZE_70     || sz == D71_STANDARD_SIZE_70_ERR ||
+            sz == D71_EXTENDED_SIZE_80     || sz == D71_EXTENDED_SIZE_80_ERR);
 }

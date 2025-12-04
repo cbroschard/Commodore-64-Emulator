@@ -36,7 +36,14 @@ class D64 : public CBMImage
 
         // Disk size constants
         static constexpr size_t D64_STANDARD_SIZE_35 = 174848;
+        static constexpr size_t D64_STANDARD_SIZE_35_ERR = 175531;   // + 683 error bytes
+
         static constexpr size_t D64_STANDARD_SIZE_40 = 196608;
+        static constexpr size_t D64_STANDARD_SIZE_40_ERR = 197376;   // + 768 error bytes
+
+        static constexpr size_t D64_STANDARD_SIZE_42 = 205312;
+        static constexpr size_t D64_STANDARD_SIZE_42_ERR = 206114;   // + 802 error bytes
+
 
         // Helpers for disk access
         uint16_t getSectorsForTrack(uint8_t track) override;
