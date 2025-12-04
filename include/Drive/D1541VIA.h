@@ -30,7 +30,6 @@ class D1541VIA
         };
 
         // Pointers
-        void attachLoggingInstance(Logging* logger);
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
 
         // Advance VIA via tick
@@ -48,21 +47,22 @@ class D1541VIA
     private:
 
         // Non-owning pointers
-        Logging* logger = nullptr;
         Peripheral* parentPeripheral = nullptr;
 
         VIARole viaRole;
 
-        // bit masks for IFR
-        static constexpr uint8_t IFR_T1   = 1 << 0;
-        static constexpr uint8_t IFR_T2   = 1 << 1;
-        static constexpr uint8_t IFR_SR   = 1 << 2;
-        static constexpr uint8_t IFR_IRQ  = 1 << 7; // global interrupt flag
-
-        // bit masks for IER (interrupt enable)
-        static constexpr uint8_t IER_T1    = 1 << 0;
-        static constexpr uint8_t IER_T2    = 1 << 1;
-        static constexpr uint8_t IER_SR    = 1 << 2;
+        // Interrupt Handling
+        enum : uint8_t
+        {
+            IFR_CA2    = 0x01, // Bit 0
+            IFR_CA1    = 0x02, // Bit 1
+            IFR_SR     = 0x04, // Bit 2
+            IFR_CB2    = 0x08, // Bit 3
+            IFR_CB1    = 0x10, // Bit 4
+            IFR_TIMER2 = 0x20, // Bit 5
+            IFR_TIMER1 = 0x40, // Bit 6
+            IFR_IRQ    = 0x80  // Bit 7: Master Interrupt Flag
+        };
 
         // I/O registers
         struct viaRegs
@@ -84,8 +84,21 @@ class D1541VIA
             uint8_t interruptEnable;
         } registers;
 
+        // Timers
+        uint16_t t1Counter;
+        uint16_t t1Latch;
+        bool     t1Running;
+        uint16_t t2Counter;
+        uint16_t t2Latch;
+        bool     t2Running;
+
         // Shift register counter
         int srCount;
+
+        // IRQ
+        void triggerInterrupt(uint8_t mask);
+        void clearIFR(uint8_t mask);
+        void refreshMasterBit();
 };
 
 #endif // D1541VIA_H

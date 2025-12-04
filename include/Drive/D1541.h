@@ -28,38 +28,38 @@ class D1541 : public Drive
         bool initialize(const std::string& loRom, const std::string& hiRom);
 
         // Compatibility check
-        bool canMount(DiskFormat fmt) const override;
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }
 
         // Drive interface
+        inline bool isDiskLoaded() const override { return diskLoaded; }
+        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
+        inline uint8_t getCurrentTrack() const override { return currentTrack; }
+        inline uint8_t getCurrentSector() const override { return currentSector; }
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
-        bool isDiskLoaded() const override;
-        inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
-        uint8_t getCurrentTrack() const override;
-        uint8_t getCurrentSector() const override;
 
         // Motor control
-        void startMotor() override;
-        void stopMotor() override;
-        bool isMotorOn() const override;
+        inline void startMotor() override { motorOn = true;  }
+        inline void stopMotor()  override { motorOn = false; }
+        inline bool isMotorOn() const override { return motorOn; }
 
-        // Peripheral interface
+        // IEC
+        inline bool isSRQAsserted() const override { return SRQAsserted; }
+        inline void setSRQAsserted(bool state) override { SRQAsserted = state; }
         void clkChanged(bool clkState)  override;
         void dataChanged(bool dataState) override;
 
-        // SRQ getter
-        bool isSRQAsserted() const override;
-
-        // SRQ setter
-        void setSRQAsserted(bool state) override;
+        // Status tracking
+        DriveError  lastError;
+        DriveStatus status;
 
         // ML Monitor
-        inline bool hasCIA() const override { return false; }
-        inline bool hasVIA1() const override { return true; }
-        inline bool hasVIA2() const override { return true; }
-        inline bool hasFDC() const override  { return false; }
+        inline bool hasCIA()  const override { return false; }
+        inline bool hasVIA1() const override { return true;  }
+        inline bool hasVIA2() const override { return true;  }
+        inline bool hasFDC()  const override { return false; }
+        inline bool isDrive() const override { return true;  }
         const char* getDriveTypeName() const noexcept override { return "1541"; }
-        bool isDrive() const override { return true; }
 
     protected:
         bool motorOn;
@@ -72,16 +72,14 @@ class D1541 : public Drive
 
         // Floppy Image
         std::string loadedDiskName;
-        bool diskLoaded;
+        bool        diskLoaded;
+        bool        diskWriteProtected;
 
         // SRQ status
         bool SRQAsserted;
 
-        // Status tracking
-        DriveError lastError;
-        DriveStatus status;
-
         // Drive geometry
+        int     halfTrackPos;
         uint8_t currentTrack;
         uint8_t currentSector;
 };

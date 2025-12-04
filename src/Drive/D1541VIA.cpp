@@ -18,11 +18,6 @@ D1541VIA::D1541VIA() :
 
 D1541VIA::~D1541VIA() = default;
 
-void D1541VIA::attachLoggingInstance(Logging* logger)
-{
-    this->logger = logger;
-}
-
 void D1541VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole)
 {
     this->parentPeripheral = parentPeripheral;
@@ -56,73 +51,59 @@ void D1541VIA::tick(uint32_t cycles)
 {
     while(cycles-- > 0)
     {
-        // ----- Timer 1 -----
+        // Timer 1
+        if (t1Running)
         {
-            uint16_t t1 = (static_cast<uint16_t>(registers.timer1CounterHigh) << 8)
-                        |  static_cast<uint16_t>(registers.timer1CounterLow);
-
-            if (t1 > 0)
+            if (t1Counter > 0)
             {
-                --t1;
-                registers.timer1CounterLow  =  t1 & 0xFF;
-                registers.timer1CounterHigh = (t1 >> 8) & 0xFF;
+                --t1Counter;
 
-                if (t1 == 0)
+                // Reflect back into the visible counter registers
+                registers.timer1CounterLow  = static_cast<uint8_t>(t1Counter & 0x00FF);
+                registers.timer1CounterHigh = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
+
+                if (t1Counter == 0)
                 {
-                    // Set T1 interrupt flag
-                    registers.interruptFlag |= IFR_T1;
+                    // Set IFR6
+                     triggerInterrupt(IFR_TIMER1);
 
-                    // Continuous mode? (ACR bit 4)
-                    bool continuous = (registers.auxillaryControlRegister & (1 << 4)) != 0;
-                    if (continuous)
+                    // Check ACR bit 6 to decide one-shot vs continuous
+                    bool t1Continuous = (registers.auxillaryControlRegister & 0x40) != 0;
+
+                    if (t1Continuous)
                     {
-                        uint16_t lat = (static_cast<uint16_t>(registers.timer1LatchHigh) << 8)
-                                     |  static_cast<uint16_t>(registers.timer1LatchLow);
-                        registers.timer1CounterLow  =  lat & 0xFF;
-                        registers.timer1CounterHigh = (lat >> 8) & 0xFF;
+                        // Free-run: reload from latch and keep going
+                        t1Counter = t1Latch;
+                    }
+                    else
+                    {
+                        // One-shot: stop the timer
+                        t1Running = false;
                     }
                 }
             }
         }
 
-        // ----- Timer 2 -----
+        // Timer 2
+        if (t2Running)
         {
-            // Treat T2 as a 16-bit down-counter just like T1
-            uint16_t t2 = (static_cast<uint16_t>(registers.timer2CounterHigh) << 8)
-                        |  static_cast<uint16_t>(registers.timer2CounterLow);
-
-            if (t2 > 0)
+            if (t2Counter > 0)
             {
-                --t2;
-                registers.timer2CounterLow  =  t2 & 0xFF;
-                registers.timer2CounterHigh = (t2 >> 8) & 0xFF;
+                --t2Counter;
 
-                if (t2 == 0)
+                registers.timer2CounterLow  = static_cast<uint8_t>(t2Counter & 0x00FF);
+                registers.timer2CounterHigh = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
+
+                if (t2Counter == 0)
                 {
-                    // Set T2 interrupt flag
-                    registers.interruptFlag |= IFR_T2;
+                    // Set IFR bit 5
+                     triggerInterrupt(IFR_TIMER2);
+
+                    // Free-running: reload from latch and keep going
+                    t2Counter = t2Latch;
                 }
             }
         }
-
-        // ----- Shift register -----
-        bool srEnabled = (registers.auxillaryControlRegister & (1 << 2)) != 0;
-        if (srEnabled)
-        {
-            ++srCount;
-            if (srCount >= 8)
-            {
-                registers.interruptFlag |= IFR_SR;
-                srCount = 0;
-            }
-        }
-
-        // ----- IRQ summary bit (bit 7 of IFR) -----
-        bool anyEnabledPending = (registers.interruptFlag & registers.interruptEnable & 0x7F) != 0;
-        if (anyEnabledPending)
-            registers.interruptFlag |= IFR_IRQ;   // bit 7
-        else
-            registers.interruptFlag &= ~IFR_IRQ;
     }
 }
 
@@ -151,70 +132,21 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             }
             return registers.portA;
         }
-        case 0x02:
-        {
-            return registers.ddrB;
-        }
-        case 0x03:
-        {
-            return registers.ddrA;
-        }
-        case 0x04:
-        {
-            return registers.timer1CounterLow;
-        }
-        case 0x05:
-        {
-            return registers.timer1CounterHigh;
-        }
-        case 0x06:
-        {
-            return registers.timer1LatchLow;
-        }
-        case 0x07:
-        {
-            return registers.timer1LatchHigh;
-        }
-        case 0x08:
-        {
-            return registers.timer2CounterLow;
-        }
-        case 0x09:
-        {
-            return registers.timer2CounterHigh;
-        }
-        case 0x0A:
-        {
-            return registers.shiftRegister;
-        }
-        case 0x0B:
-        {
-            return registers.auxillaryControlRegister;
-        }
-        case 0x0C:
-        {
-            return registers.peripheralControlRegister;
-        }
-        case 0x0D:
-        {
-            return registers.interruptFlag;
-        }
-        case 0x0E:
-        {
-            return registers.interruptEnable;
-        }
-        case 0x0F:
-        {
-            return registers.portA;
-        }
-        default:
-        {
-            if (logger)
-            {
-                logger->WriteLog("Error: attempted to read to undefined VIA area, returning 0xFF!");
-            }
-            return 0xFF;
-        }
+        case 0x02: return registers.ddrB;
+        case 0x03: return registers.ddrA;
+        case 0x04: return registers.timer1CounterLow;
+        case 0x05: return registers.timer1CounterHigh;
+        case 0x06: return registers.timer1LatchLow;
+        case 0x07: return registers.timer1LatchHigh;
+        case 0x08: return registers.timer2CounterLow;
+        case 0x09: return registers.timer2CounterHigh;
+        case 0x0A: return registers.shiftRegister;
+        case 0x0B: return registers.auxillaryControlRegister;
+        case 0x0C: return registers.peripheralControlRegister;
+        case 0x0D: return registers.interruptFlag;
+        case 0x0E: return registers.interruptEnable;
+        case 0x0F: return registers.portA;
+        default: return 0xFF;
     }
 }
 
@@ -328,13 +260,28 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             registers.portA = (registers.portA & ~registers.ddrA) | (value & registers.ddrA);
             break;
         }
-        default:
-        {
-            if (logger)
-            {
-                logger->WriteLog("Error: Attempted to write to undefined VIA1 area!");
-            }
-            break;
-        }
+        default: break;
     }
+}
+
+void D1541VIA::triggerInterrupt(uint8_t mask)
+{
+    registers.interruptFlag |= mask;
+    refreshMasterBit();
+}
+
+void D1541VIA::clearIFR(uint8_t mask)
+{
+    registers.interruptFlag &= static_cast<uint8_t>(~mask);
+    refreshMasterBit();
+}
+
+void D1541VIA::refreshMasterBit()
+{
+    const uint8_t pendingEnabled = registers.interruptFlag & registers.interruptEnable & 0x7F;
+
+    if (pendingEnabled)
+        registers.interruptFlag |= IFR_IRQ;
+    else
+        registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
 }
