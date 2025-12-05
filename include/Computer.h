@@ -230,6 +230,9 @@ class Computer
 
         FileDialogState fileDlg;
 
+        // Cartridge helper for attaching new cartridge over top of existing one
+        void recreateCartridge();
+
         // debugging
         bool isBASICReady();
         void debugBasicState();

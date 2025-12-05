@@ -391,23 +391,35 @@ void Computer::warmReset()
 
 void Computer::coldReset()
 {
-    #ifdef Debug
-    std::cout << "Performing cold reset...\n";
-    #endif
+#ifdef Debug
+    std::cout << "Performing cold reset.\n";
+#endif
 
+    // If no cart attached, force default lines (KERNAL boot)
     if (!cartridgeAttached && cart)
     {
         cart->setGameLine(true);
         cart->setExROMLine(true);
     }
 
+    // Power-cycle RAM/ROM init
     if (!mem->Initialize(BASIC_ROM, KERNAL_ROM, CHAR_ROM))
-    {
         throw std::runtime_error("Error: Problem encountered initializing memory!");
-    }
 
-    // Reset memory control register to default
+    // Reset PLA FIRST (because it likely clears "cart attached" bookkeeping)
     pla->reset();
+
+    // Re-assert cartridge presence AFTER Initialize + PLA reset, BEFORE CPU reset
+    if (cartridgeAttached)
+    {
+        mem->setCartridgeAttached(true);
+        pla->setCartridgeAttached(true);
+    }
+    else
+    {
+        mem->setCartridgeAttached(false);
+        pla->setCartridgeAttached(false);
+    }
 
     // Reset major chips
     vicII->reset();
@@ -415,14 +427,8 @@ void Computer::coldReset()
     cia2object->reset();
     sidchip->reset();
 
-    // Reset CPU (reloads PC from $FFFC/$FFFD)
+    // Reset CPU LAST so it fetches vectors under correct mapping
     processor->reset();
-
-    if (cartridgeAttached)
-    {
-        mem->setCartridgeAttached(true);
-        pla->setCartridgeAttached(true);
-    }
 }
 
 bool Computer::boot()
@@ -1224,6 +1230,9 @@ void Computer::attachCRTImage()
 {
     if (cartridgePath.empty()) return;
 
+    // Fully drop old cart state so we can't "reuse" its mapper/banks
+    recreateCartridge();
+
     cartridgeAttached = true;
 
     if (!cart->loadROM(cartridgePath))
@@ -1259,6 +1268,23 @@ void Computer::attachTAPImage()
 
     tapeAttached = true;
     if (cass && !cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << "\n";
+}
+
+void Computer::recreateCartridge()
+{
+    cart = std::make_unique<Cartridge>();
+
+    cart->attachCPUInstance(processor.get());
+    cart->attachMemoryInstance(mem.get());
+    cart->attachLogInstance(logger.get());
+    cart->attachTraceManagerInstance(traceMgr.get());
+    cart->attachVicInstance(vicII.get());
+
+    // Make sure Memory/PLA/monitor backends now point at the new cart instance
+    mem->attachCartridgeInstance(cart.get());
+    pla->attachCartridgeInstance(cart.get());
+    monbackend->attachCartridgeInstance(cart.get());
+    traceMgr->attachCartInstance(cart.get());
 }
 
 bool Computer::isBASICReady()
