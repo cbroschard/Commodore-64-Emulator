@@ -419,7 +419,7 @@ void Vic::tick(int cycles)
             denSeenOn30 = false;
         }
 
-        if ((registers.raster == 0x30) && (d011_per_raster[registers.raster] & 0x10)) denSeenOn30 = true;
+        if ((registers.raster == 0x30) && (registers.control & 0x10)) denSeenOn30 = true;
 
         // Fire raster IRQ at start of the line
         if (currentCycle == 0)
@@ -434,14 +434,10 @@ void Vic::tick(int cycles)
         // N-1 latching
         uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
-        if (currentCycle == 12)
-        {
-            d016_per_raster[nextRaster] = registers.control2;
-        }
-
         if (currentCycle == cfg_->DMAStartCycle)
         {
             d011_per_raster[nextRaster] = registers.control & 0x7F;
+            d016_per_raster[nextRaster] = registers.control2;
             d018_per_raster[nextRaster] = registers.memory_pointer;
             dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
             updateMonitorCaches(nextRaster);
@@ -581,16 +577,13 @@ void Vic::updateAEC()
 
 bool Vic::isBadLine(int raster)
 {
-
     if (!denSeenOn30) return false;
+    if (!(d011_per_raster[raster] & 0x10)) return false; // DEN
 
-    // DEN must be on
-    if (!(d011_per_raster[raster] & 0x10)) return false;
+    const bool rsel = getRSEL(raster);                   // $D011 bit 3
+    const int last = rsel ? 0xF7 : 0xEF;                 // 25 rows vs 24 rows
 
-    // Must be within raster range 0x30 to 0xF7 (48-247)
-    if (raster < 0x30 || raster > 0xF7) return false;
-
-    // Check Y scroll alignment
+    if (raster < 0x30 || raster > last) return false;
     if ((raster & 0x07) != fineYScroll(raster)) return false;
 
     return true;
