@@ -391,9 +391,12 @@ void Computer::warmReset()
 
 void Computer::coldReset()
 {
-#ifdef Debug
-    std::cout << "Performing cold reset.\n";
-#endif
+    #ifdef Debug
+        std::cout << "Performing cold reset.\n";
+    #endif
+
+    // If there's any drives attached, reset them as well
+    if (drive8) drive8->reset();
 
     // If no cart attached, force default lines (KERNAL boot)
     if (!cartridgeAttached && cart)
