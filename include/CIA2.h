@@ -30,7 +30,7 @@ class CIA2
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
-        inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
+        inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; recomputeIEC(); }
         inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
