@@ -186,7 +186,7 @@ static const PLAMapper::modeMapping mappings[32] =
        {
             {0x0000, 0x0FFF, PLA::RAM, 0},
             {0x1000, 0x7FFF, PLA::RAM, 0},
-            {0x8000, 0x9FFF, PLA::RAM, 0},
+            {0x8000, 0x9FFF, PLA::CARTRIDGE_LO, 0x8000},
             {0xA000, 0xBFFF, PLA::RAM, 0},
             {0xC000, 0xCFFF, PLA::RAM, 0},
             {0xD000, 0xDFFF, PLA::IO, 0},
