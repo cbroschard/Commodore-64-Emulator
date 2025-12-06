@@ -66,6 +66,8 @@ void D1571::tick(uint32_t cycles)
         d1571Mem.tick(dc);
         Drive::tick(dc);
 
+        if (atnLineLow) peripheralAssertClk(false);
+
         if (isGCRMode() && motorOn && diskLoaded)
             gcrAdvance(dc);
 
@@ -570,6 +572,9 @@ void D1571::atnChanged(bool atnLow)
     bool prev = atnLineLow;
     atnLineLow = atnLow;
 
+    // Force clk to release when Atn is asserted by the C64
+    if (atnLineLow) peripheralAssertClk(false);
+
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571Mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
@@ -653,6 +658,8 @@ void D1571::onUnListen()
     expectingSecAddr  = false;
     expectingDataByte = false;
 
+    peripheralAssertData(false);
+
     #ifdef Debug
     std::cout << "[D1571] onUnListen() device=" << int(deviceNumber) << "\n";
     #endif // Debug
@@ -674,6 +681,8 @@ void D1571::onTalk()
     expectingSecAddr  = true;
     expectingDataByte = false;
     currentSecondaryAddress = 0xFF;
+
+    peripheralAssertClk(false);
 
     #ifdef Debug
     std::cout << "[D1571] onTalk() device=" << int(deviceNumber)
