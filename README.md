@@ -29,10 +29,9 @@ Supports multiple cartridge formats, VIC-II video rendering, SID audio, and an i
 ---
 
 ## 🎮 Usage
-Run the emulator, then use the built-in monitor to load software:
+Run the emulator, use the menu to load various image types (Cartridge, Disk, etc.)
 
 ```text
-Note: Disk is under active development 
 Command line options:
   --help                Produce the help message
   --cartridge arg       Path and filename for cartridge to load on boot
