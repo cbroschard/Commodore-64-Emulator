@@ -24,7 +24,7 @@ CIA2::~CIA2() = default;
 
 void CIA2::reset() {
     // Ports & DDRs
-    portA = 0xFF;
+    portA = 0x07;
     portB = 0xFF;
     dataDirectionPortA = 0x00;
     dataDirectionPortB = 0x00;
@@ -98,6 +98,9 @@ void CIA2::reset() {
     pendingTBCNTTicks = 0;
     pendingTBCASTicks = 0;
 
+    // IEC Bus
+    recomputeIEC();
+
     // ML Monitor logging disable by default
     setLogging = false;
 }
@@ -114,34 +117,17 @@ uint8_t CIA2::readRegister(uint16_t address)
     {
         case 0xDD00:
         {
-            uint8_t result = 0;
+            uint8_t result = uint8_t((portA & dataDirectionPortA) | (~dataDirectionPortA));
 
-            // ------------------------------------------
-            // PA0–PA1 : VIC bank select (always OUTPUT)
-            // ------------------------------------------
-            result |= (portA & 0x03);
+            // Always sample IEC input wires for PA6/PA7 (BIT $DD00 polls these)
+            if (bus)
+            {
+                const bool clkHigh  = bus->readClkLine();   // true = wire high (released)
+                const bool dataHigh = bus->readDataLine();  // true = wire high (released)
 
-            // ------------------------------------------
-            // PA2 : RS-232 TXD (always OUTPUT)
-            // ------------------------------------------
-            result |= (portA & 0x04);
-
-            // ------------------------------------------
-            // PA3–PA5 : IEC OUT (always OUTPUT)
-            // ------------------------------------------
-            result |= (portA & 0x38);
-
-            // ------------------------------------------
-            // PA6 : IEC CLOCK IN (real hardware input)
-            // ------------------------------------------
-            if (bus && bus->readClkLine()) result |= 0x40;
-            else                            result &= ~0x40;
-
-            // ------------------------------------------
-            // PA7 : IEC DATA IN (real hardware input)
-            // ------------------------------------------
-            if (bus && bus->readDataLine()) result |= 0x80;
-            else                             result &= ~0x80;
+                if (clkHigh)  result |= MASK_CLK_IN;  else result &= ~MASK_CLK_IN;
+                if (dataHigh) result |= MASK_DATA_IN; else result &= ~MASK_DATA_IN;
+            }
 
             return result;
         }
@@ -692,12 +678,12 @@ void CIA2::atnChanged(bool assertedLow)
 
 void CIA2::srqChanged(bool level)
 {
-    // detect falling edge of SRQ
+    // falling edge
     if (lastSrqLevel && !level)
     {
-        // Fast Serial logic should go here (using SR/CNT pins).
+        interruptStatus |= INTERRUPT_FLAG_LINE;
+        refreshNMI();
     }
-
     lastSrqLevel = level;
 }
 
@@ -982,23 +968,15 @@ void CIA2::setIERExact(uint8_t mask)
 
 void CIA2::recomputeIEC()
 {
-    if (!bus)
-        return;
+    if (!bus) return;
 
-    uint8_t lowMask = dataDirectionPortA & static_cast<uint8_t>(portA);
-
-    static uint8_t prevLowMask = 0xFF;
-    if (lowMask != prevLowMask)
+    auto released = [&](uint8_t mask) -> bool
     {
-        prevLowMask = lowMask;
-    }
+        if (!(dataDirectionPortA & mask)) return true;   // input = released
+        return (portA & mask) == 0;                      // output 0 = released, 1 = pull low
+    };
 
-    bool atnLow  = (lowMask & MASK_ATN_OUT)  != 0; // PA3
-    bool clkLow  = (lowMask & MASK_CLK_OUT)  != 0; // PA4
-    bool dataLow = (lowMask & MASK_DATA_OUT) != 0; // PA5
-
-    // Bus API: true = line HIGH (released), false = line LOW (asserted)
-    bus->setAtnLine(!atnLow);
-    bus->setClkLine(!clkLow);
-    bus->setDataLine(!dataLow);
+    bus->setAtnLine (released(0x08));
+    bus->setClkLine (released(0x10));
+    bus->setDataLine(released(0x20));
 }
