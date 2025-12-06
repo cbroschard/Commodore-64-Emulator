@@ -156,6 +156,17 @@ void D1571::reset()
     gcrPos                      = 0;
     gcrDirty                    = true;
 
+    if (bus)
+    {
+        bus->unTalk(deviceNumber);
+        bus->unListen(deviceNumber);
+    }
+
+    // Reset actual line states
+    peripheralAssertClk(false);  // Release Clock
+    peripheralAssertData(false); // Release Data
+    peripheralAssertSrq(false);  // Release SRQ
+
     gcrTrackStream.clear();
     gcrSync.clear();
 
