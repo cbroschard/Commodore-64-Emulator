@@ -301,7 +301,12 @@ void IECBUS::unTalk(int deviceNumber)
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
-    currentTalker->onUnTalk();
+    // Only call onUnTalk if there is actually a current talker!
+    if (currentTalker)
+    {
+        currentTalker->onUnTalk();
+    }
+
     currentTalker = nullptr;
     currentState = State::UNTALK;
     // Let the C64 regain control of the lines
