@@ -545,11 +545,6 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
-void D1571VIA::setSyncDetected(bool present)
-{
-    syncDetected = present;
-}
-
 void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
     if (viaRole != VIARole::VIA2_Mechanics) return;
