@@ -44,8 +44,8 @@ class D1571VIA : public DriveVIABase
         inline void setLed(bool on) { ledOn = on; }
         inline bool isSyncDetected() const { return syncDetected; }
         inline bool mechHasBytePending() const { return mechBytePending; }
-        void setSyncDetected(bool present);
-        void diskByteFromMedia(uint8_t byte, bool syncHigh);
+        inline void setSyncDetected(bool present) { syncDetected = present; }
+        void diskByteFromMedia(uint8_t byte, bool inSync);
 
         // Setters
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
