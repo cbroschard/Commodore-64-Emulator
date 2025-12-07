@@ -9,14 +9,15 @@
 #define D1541MEMORY_H
 
 #include <algorithm>
-#include <vector>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <vector>
 #include "Drive/D1541VIA.h"
 #include "Drive/DriveChips.h"
-#include "Logging.h"
 #include "IRQLine.h"
+#include "Logging.h"
+#include "Peripheral.h"
 
 class D1541Memory : public DriveMemoryBase
 {
@@ -26,9 +27,10 @@ class D1541Memory : public DriveMemoryBase
 
         // Pointers
         void attachLoggingInstance(Logging* logger);
+        void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         // Tick to advance the VIA chips
-        void tick();
+        void tick(uint32_t cycles);
 
         // reset function
         void reset();
@@ -56,6 +58,7 @@ class D1541Memory : public DriveMemoryBase
 
         // Non-owning pointers
         Logging* logger = nullptr;
+        Peripheral* parentPeripheral;
 
         // VIA objects
         D1541VIA via1;

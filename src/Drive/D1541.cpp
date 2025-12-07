@@ -8,7 +8,6 @@
 #include "Drive/D1541.h"
 
 D1541::D1541(int deviceNumber) :
-    // Power on defaults
     motorOn(false),
     diskLoaded(false),
     atnLineLow(false),
@@ -17,18 +16,22 @@ D1541::D1541(int deviceNumber) :
     srqAsserted(false),
     iecListening(false),
     iecTalking(false),
+    busDriversEnabled(false),
     presenceAckDone(false),
     expectingSecAddr(false),
     expectingDataByte(false),
     currentListenSA(0),
     currentTalkSA(0),
     currentTrack(17),
-    currentSector(0)
+    currentSector(0),
+    gcrBitCounter(0),
+    gcrPos(0),
+    gcrDirty(true)
 {
     setDeviceNumber(deviceNumber);
 
     driveCPU.attachMemoryInstance(&d1541mem);
-    driveCPU.attachIRQLineInstance(d1541mem.getIRQLine());
+    driveCPU.attachIRQLineInstance(&IRQ);
     d1541mem.getVIA1().attachPeripheralInstance(this, D1541VIA::VIARole::VIA1_IECBus);
     d1541mem.getVIA2().attachPeripheralInstance(this, D1541VIA::VIARole::VIA2_Mechanics);
 }
@@ -50,6 +53,7 @@ void D1541::reset()
     diskWriteProtected  = false;
     currentTrack        = 17;
     currentSector       = 0;
+    densityCode         = 2;
     halfTrackPos        = currentTrack * 2;
     loadedDiskName.clear();
 
@@ -60,6 +64,7 @@ void D1541::reset()
     srqAsserted                 = false;
     iecListening                = false;
     iecTalking                  = false;
+    busDriversEnabled           = false;
     presenceAckDone             = false;
     expectingSecAddr            = false;
     expectingDataByte           = false;
@@ -69,7 +74,24 @@ void D1541::reset()
     iecRxBitCount               = 0;
     iecRxByte                   = 0;
 
-    // CHIPS
+    // Reset actual line states
+    peripheralAssertClk(false);  // Release Clock
+    peripheralAssertData(false); // Release Data
+    peripheralAssertSrq(false);  // Release SRQ
+
+    if (bus)
+    {
+        bus->unTalk(deviceNumber);
+        bus->unListen(deviceNumber);
+    }
+
+    gcrPos                      = 0;
+    gcrBitCounter               = 0;
+    gcrDirty                    = true;
+
+    gcrTrackStream.clear();
+    gcrSync.clear();
+
     d1541mem.reset();
     driveCPU.reset();
 }
@@ -81,11 +103,161 @@ void D1541::tick(uint32_t cycles)
         driveCPU.tick();
         uint32_t dc = driveCPU.getElapsedCycles();
         if(dc == 0) dc = 1;
+        if(dc > cycles) dc = cycles;
 
+        d1541mem.tick(dc);
         Drive::tick(dc);
-        d1541mem.tick();
+
+        if (atnLineLow) peripheralAssertClk(false);
+
+        if (motorOn && diskLoaded)
+            gcrAdvance(dc);
+
         cycles -= dc;
     }
+}
+
+bool D1541::gcrTick()
+{
+    if (gcrDirty)
+    {
+        size_t oldPos = gcrPos;
+        rebuildGCRTrackStream();
+        gcrDirty = false;
+
+        if (!gcrTrackStream.empty())
+            gcrPos = oldPos % gcrTrackStream.size();
+        else
+            gcrPos = 0;
+    }
+
+    if (gcrTrackStream.empty()) return false;
+    if (gcrSync.size() != gcrTrackStream.size())
+        gcrSync.assign(gcrTrackStream.size(), 0);
+
+    uint8_t gcrByte = gcrTrackStream[gcrPos];
+    bool syncHigh    = (gcrSync[gcrPos] != 0);
+
+    gcrPos = (gcrPos + 1) % gcrTrackStream.size();
+    d1541mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
+    return true;
+}
+
+void D1541::gcrAdvance(uint32_t dc)
+{
+    const int track1based   = int(currentTrack) + 1;
+    const int cyclesPerByte = cyclesPerByte1541(track1based);
+
+    gcrBitCounter += int(dc);
+
+    while (gcrBitCounter >= cyclesPerByte)
+    {
+        gcrBitCounter -= cyclesPerByte;
+        gcrTick();
+    }
+}
+
+void D1541::rebuildGCRTrackStream()
+{
+    gcrTrackStream.clear();
+    gcrSync.clear();
+
+    if (!diskLoaded || !diskImage) return;
+
+    const int track1based = int(currentTrack) + 1;
+    const int spt = gcrCodec.sectorsPerTrack1541(track1based);
+
+    // Pull disk ID from BAM (track 18 sector 0), same as your D1571 code path
+    auto bam = diskImage->readSector(18, 0);
+    if (bam.size() < 256) bam.resize(256, 0x00);
+    const uint8_t id1 = bam[0xA2];
+    const uint8_t id2 = bam[0xA3];
+
+    auto pushN = [&](uint8_t v, int count, bool isSync)
+    {
+        gcrTrackStream.insert(gcrTrackStream.end(), count, v);
+        gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
+    };
+
+    auto pushEncoded = [&](const uint8_t* in, size_t len)
+    {
+        // Must be multiple of 4 bytes (hdr=8, raw=260 are OK)
+        for (size_t i = 0; i < len; i += 4)
+        {
+            uint8_t g[5];
+            gcrCodec.encode4Bytes(&in[i], g);
+            gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
+            gcrSync.insert(gcrSync.end(), 5, 0);
+        }
+    };
+
+    // Same “DOS-ish defaults” as D1571
+    constexpr int SYNC_LEN   = 10;
+    constexpr int HEADER_GAP = 9;
+    constexpr int TAIL_GAP   = 9;
+
+    // Lead-in gap (NOT sync)
+    pushN(0x55, 64, false);
+
+    for (int sector = 0; sector < spt; ++sector)
+    {
+        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(track1based), uint8_t(sector));
+        if (sec.size() != 256) sec.assign(256, 0x00);
+
+        // ---- HEADER ----
+        pushN(0xFF, SYNC_LEN, true);
+
+        uint8_t hdr[8] = {0};
+        hdr[0] = 0x08;
+        hdr[2] = uint8_t(sector);     // sector
+        hdr[3] = uint8_t(track1based);// track
+        hdr[4] = id2;
+        hdr[5] = id1;
+        hdr[6] = 0x0F;
+        hdr[7] = 0x0F;
+        hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]); // header checksum
+
+        pushEncoded(hdr, 8);
+        pushN(0x55, HEADER_GAP, false);
+
+        // ---- DATA ----
+        pushN(0xFF, SYNC_LEN, true);
+
+        std::vector<uint8_t> raw(260, 0x00);
+        raw[0] = 0x07; // data block ID
+
+        uint8_t csum = 0;
+        for (int i = 0; i < 256; ++i)
+        {
+            raw[1 + i] = sec[i];
+            csum ^= raw[1 + i];
+        }
+        raw[257] = csum;
+        raw[258] = 0x00;
+        raw[259] = 0x00;
+
+        pushEncoded(raw.data(), raw.size());
+        pushN(0x55, TAIL_GAP, false);
+    }
+
+    // Trailing gap
+    pushN(0x55, 128, false);
+
+    // Sanity
+    if (gcrSync.size() != gcrTrackStream.size())
+        gcrSync.assign(gcrTrackStream.size(), 0);
+
+    gcrPos = 0;
+
+    d1541mem.getVIA2().clearMechBytePending();
+}
+
+int D1541::cyclesPerByte1541(int track1Based)
+{
+    if (track1Based <= 17) return 26; // zone 0 (fastest)
+    if (track1Based <= 24) return 28; // zone 1
+    if (track1Based <= 30) return 30; // zone 2
+    return 32;                        // zone 3 (slowest, 31-35)
 }
 
 bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
@@ -99,6 +271,17 @@ bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
     return true;
 }
 
+void D1541::updateIRQ()
+{
+    bool via1IRQ = d1541mem.getVIA1().checkIRQActive();
+    bool via2IRQ = d1541mem.getVIA2().checkIRQActive();
+
+    bool any = via1IRQ || via2IRQ;
+
+    if (any) IRQ.raiseIRQ(IRQLine::D1541_IRQ);
+    else IRQ.clearIRQ(IRQLine::D1541_IRQ);
+}
+
 void D1541::loadDisk(const std::string& path)
 {
     diskWriteProtected = false;
@@ -106,9 +289,9 @@ void D1541::loadDisk(const std::string& path)
     if (!img)
     {
         diskImage.reset();
-        diskLoaded = false;
         loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
+        diskLoaded  = false;
+        lastError   = DriveError::NO_DISK;
         return;
     }
 
@@ -116,21 +299,28 @@ void D1541::loadDisk(const std::string& path)
     if (!img->loadDisk(path))
     {
         diskImage.reset();
-        diskLoaded = false;
         loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
+
+        diskLoaded  = false;
+        lastError   = DriveError::NO_DISK;
         return;
     }
 
     // Success load it
-    diskImage      = std::move(img);
-    diskLoaded     = true;
-    loadedDiskName = path;
-    lastError      = DriveError::NONE;
+    diskImage       = std::move(img);
+    diskLoaded      = true;
+    loadedDiskName  = path;
+    lastError       = DriveError::NONE;
 
-    currentTrack  = 17;
-    currentSector = 0;
-    halfTrackPos = currentTrack * 2;
+    currentTrack    = 17;
+    currentSector   = 0;
+    halfTrackPos    = currentTrack * 2;
+    gcrDirty        = true;
+    gcrPos          = 0;
+    gcrBitCounter   = 0;
+
+    gcrTrackStream.clear();
+    gcrSync.clear();
 }
 
 void D1541::unloadDisk()
@@ -250,20 +440,106 @@ void D1541::onSecondaryAddress(uint8_t sa)
     #endif
 }
 
-void D1541::clkChanged(bool clkState)
+void D1541::atnChanged(bool atnLow)
 {
-    if (bus)
+    if (atnLow == atnLineLow) return; // ignore no change
+
+    bool prev = atnLineLow;
+    atnLineLow = atnLow;
+
+    // Force clk to release when Atn is asserted by the C64
+    if (atnLineLow) peripheralAssertClk(false);
+
+    // Keep VIA in sync with the new ATN level (PB4 input)
+    auto& via1 = d1541mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    // If ATN just asserted (bus high->low), this is the start of a new command
+    // phase. Resync the serial shift register so we don't carry partial bytes.
+    if (!prev && atnLineLow)
     {
-        bus->setClkLine(!clkState);
+        via1.resetShift();
+    }
+
+    // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
+    bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low
+    bool ca1Falling = ( prev && !atnLineLow);  // ATN low->high
+    via1.onCA1Edge(ca1Rising, ca1Falling);
+}
+
+void D1541::clkChanged(bool clkLow)
+{
+    if (clkLow == clkLineLow) return; // ignore no change
+
+    bool prevClkLow  = clkLineLow;
+    clkLineLow       = clkLow;
+
+    bool prevClkHigh = !prevClkLow;
+    bool clkHigh     = !clkLow;
+
+    // Edge detection on the bus CLK line
+    bool rising  = (!prevClkHigh && clkHigh);    // low -> high
+    bool falling = ( prevClkHigh && !clkHigh );  // high -> low
+
+    // Normal path: just update VIA with the new CLK level
+    auto& via1 = d1541mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    via1.onClkEdge(rising, falling);
+}
+
+void D1541::dataChanged(bool dataLow)
+{
+    if (dataLow == dataLineLow) return; // ignore no change
+
+    // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
+    dataLineLow = dataLow;
+
+    auto& via1 = d1541mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+}
+
+void D1541::setBusDriversEnabled(bool enabled)
+{
+    busDriversEnabled = enabled;
+
+    if (!busDriversEnabled)
+    {
+        // release lines immediately
+        driveControlDataLine(false);
+        driveControlClkLine(false);
     }
 }
 
-void D1541::dataChanged(bool dataState)
+void D1541::setDensityCode(uint8_t code)
 {
-    if (bus)
+    uint8_t oldCode = densityCode;
+    if (oldCode != code)
     {
-        bus->setDataLine(!dataState);
+        densityCode     = code & 0x03;
+        gcrDirty        = true;
     }
+}
+
+void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
+{
+    const int oldIdx = stepIndex(oldPhase);
+    const int newIdx = stepIndex(newPhase);
+
+    if (oldIdx < 0 || newIdx < 0 || oldIdx == newIdx)
+        return;
+
+    // delta in [0..7]
+    const int delta = (newIdx - oldIdx + 8) & 7;
+
+    int step = 0;
+    if (delta == 2)      step = +1;   // forward one half-track
+    else if (delta == 6) step = -1;   // backward one half-track
+    else
+        return; // ignore illegal jumps (delta 2..6)
+
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
+    currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
+    gcrDirty = true;
 }
 
 Drive::IECSnapshot D1541::snapshotIEC() const

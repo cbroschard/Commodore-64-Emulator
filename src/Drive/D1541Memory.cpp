@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Drive/D1541.h"
 #include "Drive/D1541Memory.h"
 
 D1541Memory::D1541Memory()
@@ -22,19 +23,15 @@ void D1541Memory::attachLoggingInstance(Logging* logger)
     this->logger = logger;
 }
 
-void D1541Memory::tick()
+void D1541Memory::tick(uint32_t cycles)
 {
-    via1.tick(1);
-    via2.tick(1);
+    via1.tick(cycles);
+    via2.tick(cycles);
 
-    // IRQ check from VIA chips
-    if ((via1.readRegister(0x0D) & 0x80) || (via2.readRegister(0x0D) & 0x80))
+    if (parentPeripheral)
     {
-        driveIRQ.raiseIRQ(IRQLine::D1541_IRQ);
-    }
-    else
-    {
-        driveIRQ.clearIRQ(IRQLine::D1541_IRQ);
+        auto* drive = static_cast<D1541*>(parentPeripheral);
+        drive->updateIRQ();
     }
 }
 

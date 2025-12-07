@@ -8,11 +8,14 @@
 #ifndef D1541_H
 #define D1541_H
 
-#include "Drive.h"
-#include "D1541Memory.h"
-#include "D1541VIA.h"
+#include "Drive/Drive.h"
+#include "Drive/D1541Memory.h"
+#include "Floppy/Disk.h"
+#include "Floppy/DiskFactory.h"
+#include "Drive/FloppyControllerHost.h"
+#include "Drive/D1541VIA.h"
 
-class D1541 : public Drive
+class D1541 : public Drive, public FloppyControllerHost
 {
     public:
         D1541(int deviceNumber);
@@ -29,6 +32,9 @@ class D1541 : public Drive
 
         // Compatibility check
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }
+
+        // IRQ handling
+        void updateIRQ();
 
         // Drive interface
         inline bool isDiskLoaded() const override { return diskLoaded; }
@@ -53,8 +59,14 @@ class D1541 : public Drive
         // IEC
         inline bool isSRQAsserted() const override { return srqAsserted; }
         inline void setSRQAsserted(bool state) override { srqAsserted = state; }
-        void clkChanged(bool clkState)  override;
-        void dataChanged(bool dataState) override;
+        void atnChanged(bool atnLow) override;
+        void clkChanged(bool clkLow)  override;
+        void dataChanged(bool dataLow) override;
+        void setBusDriversEnabled(bool enabled);
+
+        // Drive Mechanics
+        void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
+        void setDensityCode(uint8_t code);
 
         // Status tracking
         DriveError  lastError;
@@ -84,6 +96,11 @@ class D1541 : public Drive
         // Owning pointers
         D1541Memory d1541mem;
         CPU driveCPU;
+        GCRCodec gcrCodec;
+        IRQLine IRQ;
+
+        // Floppy factory
+        std::unique_ptr<Disk> diskImage;
 
         // Floppy Image
         std::string loadedDiskName;
@@ -97,6 +114,7 @@ class D1541 : public Drive
         bool srqAsserted;
         bool iecListening;
         bool iecTalking;
+        bool busDriversEnabled;
         bool presenceAckDone;
         bool expectingSecAddr;
         bool expectingDataByte;
@@ -112,6 +130,22 @@ class D1541 : public Drive
         int     halfTrackPos;
         uint8_t currentTrack;
         uint8_t currentSector;
+        uint8_t densityCode; // 0..3
+
+        // GCR
+        std::vector<uint8_t> gcrTrackStream;
+        std::vector<uint8_t> gcrSync;
+        int  gcrBitCounter; // Used to rate limit bits
+        size_t gcrPos;
+        bool gcrDirty;
+
+        bool gcrTick();
+        void gcrAdvance(uint32_t dc);
+        void rebuildGCRTrackStream();
+
+        // Helpers
+        inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
+        int cyclesPerByte1541(int track1Based);
 };
 
 #endif // D1541_H

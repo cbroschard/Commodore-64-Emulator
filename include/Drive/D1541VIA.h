@@ -9,11 +9,13 @@
 #define D1541VIA_H
 
 // Forward declaration
+class D1541;
 class Peripheral;
 class IECBUS;
 
 #include <cstdint>
 #include "Drive/DriveChips.h"
+#include "Drive/GCRCodec.h"
 #include "Logging.h"
 
 class D1541VIA : public DriveVIABase
@@ -39,11 +41,30 @@ class D1541VIA : public DriveVIABase
         // Reset all
         void reset();
 
+        void resetShift();
+
         // Register access
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
         bool checkIRQActive() const override;
+
+        // Drive mechanics
+        inline bool isLedOn() const { return ledOn; }
+        inline void setLed(bool on) { ledOn = on; }
+        inline bool isSyncDetected() const { return syncDetected; }
+        inline bool mechHasBytePending() const { return mechBytePending; }
+        inline void setSyncDetected(bool present) { syncDetected = present; }
+        void diskByteFromMedia(uint8_t byte, bool inSync);
+
+
+        // Setters
+        void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
+
+        // Helpers
+        void clearMechBytePending();
+        void onClkEdge(bool rising, bool falling);
+        void onCA1Edge(bool rising, bool falling);
 
         // ML Monitor
         inline viaRegsView getRegsView() const override
@@ -80,17 +101,35 @@ class D1541VIA : public DriveVIABase
 
         VIARole viaRole;
 
-        // Interrupt Handling
+        // Serial shift
+        uint8_t  srShiftReg;
+        uint8_t  srBitCount;
+        bool     srShiftInMode;
+
+        // Port B IEC Bits
         enum : uint8_t
         {
-            IFR_CA2    = 0x01, // Bit 0
-            IFR_CA1    = 0x02, // Bit 1
-            IFR_SR     = 0x04, // Bit 2
-            IFR_CB2    = 0x08, // Bit 3
-            IFR_CB1    = 0x10, // Bit 4
-            IFR_TIMER2 = 0x20, // Bit 5
-            IFR_TIMER1 = 0x40, // Bit 6
-            IFR_IRQ    = 0x80  // Bit 7: Master Interrupt Flag
+            IEC_DATA_IN_BIT  = 0,
+            IEC_DATA_OUT_BIT = 1,
+            IEC_CLK_IN_BIT   = 2,
+            IEC_CLK_OUT_BIT  = 3,
+            IEC_ATN_ACK_BIT  = 4,
+            IEC_DEV_BIT0     = 5, // device address switch bit 0
+            IEC_DEV_BIT1     = 6, // device address switch bit 1
+            IEC_ATN_IN_BIT   = 7
+        };
+
+        // Port A Hardware Setting Bits
+        enum : uint8_t
+        {
+            PORTA_TRACK0_SENSOR     = 0,
+            PORTA_FSM_DIRECTION     = 1,
+            PORTA_RWSIDE_SELECT     = 2,
+            PORTA_UNUSED3           = 3,
+            PORTA_UNUSED4           = 4,
+            PORTA_PHI2_CLKSEL       = 5,
+            PORTA_UNUSED6           = 6,
+            PORTA_BYTE_READY        = 7
         };
 
         // Port B Mechanical Bits
@@ -105,6 +144,22 @@ class D1541VIA : public DriveVIABase
             MECH_DENSITY_BIT1   = 6, // PB6: density select bit 1 (output)
             MECH_SYNC_DETECTED  = 7  // PB7: sync detected (input, 0 = sync seen)
         };
+
+        // Interrupt Bits
+        enum : uint8_t
+        {
+            IFR_CA2    = 0x01, // Bit 0
+            IFR_CA1    = 0x02, // Bit 1
+            IFR_SR     = 0x04, // Bit 2
+            IFR_CB2    = 0x08, // Bit 3
+            IFR_CB1    = 0x10, // Bit 4
+            IFR_TIMER2 = 0x20, // Bit 5
+            IFR_TIMER1 = 0x40, // Bit 6
+            IFR_IRQ    = 0x80  // Bit 7: Master Interrupt Flag
+        };
+
+        uint8_t portBPins;
+        uint8_t portAPins;
 
         struct viaRegs
         {
@@ -133,6 +188,12 @@ class D1541VIA : public DriveVIABase
             uint8_t oraIRANoHandshake;
         } registers;
 
+        // Drive Mechanics
+        bool    ledOn;
+        bool    syncDetected;
+        uint8_t mechDataLatch;
+        bool    mechBytePending;
+
         // Timers
         uint16_t t1Counter;
         uint16_t t1Latch;
@@ -148,6 +209,9 @@ class D1541VIA : public DriveVIABase
         void triggerInterrupt(uint8_t mask);
         void clearIFR(uint8_t mask);
         void refreshMasterBit();
+
+        // Helpers
+        void updateIECOutputsFromPortB();
 };
 
 #endif // D1541VIA_H
