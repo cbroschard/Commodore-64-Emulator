@@ -82,11 +82,11 @@ void D1541Memory::write(uint16_t address, uint8_t value)
     }
     else if (address >= VIA1_START && address <= VIA1_END)
     {
-        via1.writeRegister(address - VIA1_START, value);
+        via1.writeRegister((address - VIA1_START) & 0x0F, value);
     }
     else if (address >= VIA2_START && address <= VIA2_END)
     {
-        via2.writeRegister(address - VIA2_START, value);
+        via2.writeRegister((address - VIA2_START) & 0x0F, value);
     }
     else
     {

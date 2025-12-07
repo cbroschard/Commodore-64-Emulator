@@ -678,6 +678,13 @@ void D1541VIA::updateIECOutputsFromPortB()
     auto* d1541 = dynamic_cast<D1541*>(parentPeripheral);
     if (!d1541) return;
 
+    if (!d1541->isBusDriversEnabled())
+    {
+        d1541->driveControlDataLine(false); // release
+        d1541->driveControlClkLine(false);  // release
+        return;
+    }
+
     const uint8_t orb  = registers.orbIRB;
     const uint8_t ddrB = registers.ddrB;
 

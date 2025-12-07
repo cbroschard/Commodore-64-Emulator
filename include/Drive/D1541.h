@@ -62,6 +62,7 @@ class D1541 : public Drive, public FloppyControllerHost
         // IEC
         inline bool isSRQAsserted() const override { return srqAsserted; }
         inline void setSRQAsserted(bool state) override { srqAsserted = state; }
+        inline bool isBusDriversEnabled() const { return busDriversEnabled; }
         void atnChanged(bool atnLow) override;
         void clkChanged(bool clkLow)  override;
         void dataChanged(bool dataLow) override;
@@ -149,6 +150,7 @@ class D1541 : public Drive, public FloppyControllerHost
         // Helpers
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
         int cyclesPerByte1541(int track1Based);
+        int cyclesPerByteFromDensity(uint8_t code) const;
 };
 
 #endif // D1541_H

@@ -146,8 +146,8 @@ bool D1541::gcrTick()
 
 void D1541::gcrAdvance(uint32_t dc)
 {
-    const int track1based   = int(currentTrack) + 1;
-    const int cyclesPerByte = cyclesPerByte1541(track1based);
+    // Use the VIA2 density latch as the source of truth for bit rate.
+    const int cyclesPerByte = cyclesPerByteFromDensity(densityCode);
 
     gcrBitCounter += int(dc);
 
@@ -285,40 +285,42 @@ void D1541::updateIRQ()
 
 void D1541::loadDisk(const std::string& path)
 {
-    diskWriteProtected = false;
-    auto img = DiskFactory::create(path);
-    if (!img)
+     if (!diskImage)
     {
-        diskImage.reset();
-        loadedDiskName.clear();
-        diskLoaded  = false;
-        lastError   = DriveError::NO_DISK;
-        return;
+        auto img = DiskFactory::create(path);
+        if (!img)
+        {
+            diskImage.reset();
+            loadedDiskName.clear();
+            diskLoaded = false;
+            lastError  = DriveError::NO_DISK;
+            return;
+        }
+
+        if (!img->loadDisk(path))
+        {
+            diskImage.reset();
+            loadedDiskName.clear();
+            diskLoaded = false;
+            lastError  = DriveError::NO_DISK;
+            return;
+        }
+
+        diskImage = std::move(img);
     }
 
-    // Try to load the disk image from file
-    if (!img->loadDisk(path))
-    {
-        diskImage.reset();
-        loadedDiskName.clear();
+    // Sync internal state for a newly mounted disk image
+    diskLoaded     = (diskImage != nullptr);
+    loadedDiskName = path;
+    lastError      = diskLoaded ? DriveError::NONE : DriveError::NO_DISK;
 
-        diskLoaded  = false;
-        lastError   = DriveError::NO_DISK;
-        return;
-    }
+    currentTrack   = 17;
+    currentSector  = 0;
+    halfTrackPos   = currentTrack * 2;
 
-    // Success load it
-    diskImage       = std::move(img);
-    diskLoaded      = true;
-    loadedDiskName  = path;
-    lastError       = DriveError::NONE;
-
-    currentTrack    = 17;
-    currentSector   = 0;
-    halfTrackPos    = currentTrack * 2;
-    gcrDirty        = true;
-    gcrPos          = 0;
-    gcrBitCounter   = 0;
+    gcrDirty       = true;
+    gcrPos         = 0;
+    gcrBitCounter  = 0;
 
     gcrTrackStream.clear();
     gcrSync.clear();
@@ -513,12 +515,8 @@ void D1541::setBusDriversEnabled(bool enabled)
 
 void D1541::setDensityCode(uint8_t code)
 {
-    uint8_t oldCode = densityCode;
-    if (oldCode != code)
-    {
-        densityCode     = code & 0x03;
-        gcrDirty        = true;
-    }
+    code &= 0x03;
+    if (densityCode != code) densityCode = code;
 }
 
 void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
@@ -541,6 +539,13 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
     halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
     currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
     gcrDirty = true;
+}
+
+int D1541::cyclesPerByteFromDensity(uint8_t code) const
+{
+    static constexpr int kCycles[4] = { 26, 28, 30, 32 };
+
+    return kCycles[code & 0x03];
 }
 
 Drive::IECSnapshot D1541::snapshotIEC() const
