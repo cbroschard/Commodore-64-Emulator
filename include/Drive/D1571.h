@@ -184,7 +184,7 @@ class D1571 : public Drive, public FloppyControllerHost
         int sectorsPerTrack1541(int track1based);
 
         // Helper
-        int stepIndex(uint8_t p) const;
+        inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
 };
 
 #endif // D1571_H
