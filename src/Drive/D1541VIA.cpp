@@ -17,9 +17,14 @@ D1541VIA::D1541VIA() :
     srBitCount(0),
     srShiftInMode(false),
     ledOn(false),
-    syncDetected(false),
     mechDataLatch(0xFF),
     mechBytePending(false),
+    t1Counter(0),
+    t1Latch(0),
+    t1Running(false),
+    t2Counter(0),
+    t2Latch(0),
+    t2Running(false),
     srCount(0)
 {
     reset();
@@ -56,6 +61,14 @@ void D1541VIA::reset()
     registers.interruptEnable           = 0x00;
     registers.oraIRANoHandshake         = 0x00;
 
+    // Timers
+    t1Counter                           = 0x00;
+    t1Latch                             = 0x00;
+    t1Running                           = false;
+    t2Counter                           = 0x00;
+    t2Latch                             = 0x00;
+    t2Running                           = false;
+
     // Drive Mechanics
     ledOn                               = false;
     syncDetected                        = false;
@@ -63,12 +76,10 @@ void D1541VIA::reset()
     mechDataLatch                       = 0xFF;
 
     // Serial shift
-    srShiftReg    = 0;
-    srBitCount    = 0;
-    srShiftInMode = false;
-
-    // Shift registers
+    srShiftReg                          = 0;
+    srBitCount                          = 0;
     srCount                             = 0;
+    srShiftInMode                       = false;
 }
 
 void D1541VIA::resetShift()
@@ -176,7 +187,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     // WP input (active low)
                     if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
                     {
-                        bool wpLow = drive->fdcIsWriteProtected();
+                        bool wpLow = drive->isWriteProtected();
                         if (wpLow) value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
                         else       value |=  static_cast<uint8_t>( (1u << MECH_WRITE_PROTECT));
                     }
@@ -197,7 +208,34 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             const uint8_t ddrA  = registers.ddrA;
 
             // Default: normal VIA port behavior
-            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
+            uint8_t value = static_cast<uint8_t>(registers.oraIRA & ddrA);
+
+            uint8_t inputPins = portAPins;
+
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                {
+                    // The 1541 ROM steps the head back until this bit goes LOW.
+                    if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
+                    {
+                        bool atTrack0 = drive->isTrack0();
+                        if (atTrack0) inputPins &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
+                        else          inputPins |= (1u << PORTA_TRACK0_SENSOR);
+                    }
+
+                    // The 1541 ROM polls this bit to know when to read VIA2.
+                    if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
+                    {
+                        bool byteReadyLow = drive->getByteReadyLow(); // You added this to D1541.h
+                        if (byteReadyLow) inputPins &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
+                        else              inputPins |= (1u << PORTA_BYTE_READY);
+                    }
+                }
+            }
+
+            // Combine inputs with the DDR mask
+            value |= (inputPins & static_cast<uint8_t>(~ddrA));
 
             if (viaRole == VIARole::VIA2_Mechanics)
             {
@@ -210,7 +248,6 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     clearIFR(IFR_CA1);
                 }
             }
-
             return value;
         }
         case 0x02: return registers.ddrB;
@@ -218,9 +255,9 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         case 0x04: return registers.timer1CounterLowByte;
         case 0x05:
         {
-            uint8_t v = registers.timer1CounterHighByte;
+            uint8_t value = registers.timer1CounterHighByte;
             clearIFR(IFR_TIMER1);
-            return v;
+            return value;
         }
         case 0x06: return registers.timer1LowLatch;
         case 0x07: return registers.timer1HighLatch;

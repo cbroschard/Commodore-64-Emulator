@@ -37,10 +37,13 @@ class D1541 : public Drive, public FloppyControllerHost
         void updateIRQ();
 
         // Drive interface
+        inline bool isTrack0() { return currentTrack == 0; }
         inline bool isDiskLoaded() const override { return diskLoaded; }
         inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
         inline uint8_t getCurrentTrack() const override { return currentTrack; }
         inline uint8_t getCurrentSector() const override { return currentSector; }
+        inline bool getByteReadyLow() const { return d1541mem.getVIA2().mechHasBytePending(); }
+        inline bool isWriteProtected() const { return diskWriteProtected; }
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
 

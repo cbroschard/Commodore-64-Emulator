@@ -10,6 +10,7 @@
 D1541::D1541(int deviceNumber) :
     motorOn(false),
     diskLoaded(false),
+    diskWriteProtected(false),
     atnLineLow(false),
     clkLineLow(false),
     dataLineLow(false),
