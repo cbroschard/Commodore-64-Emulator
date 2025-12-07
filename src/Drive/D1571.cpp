@@ -265,12 +265,14 @@ void D1571::rebuildGCRTrackStream()
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
 
-    auto pushN = [&](uint8_t v, int count, bool isSync) {
+    auto pushN = [&](uint8_t v, int count, bool isSync)
+    {
         gcrTrackStream.insert(gcrTrackStream.end(), count, v);
         gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
     };
 
-    auto pushEncoded = [&](const uint8_t* in, size_t len) {
+    auto pushEncoded = [&](const uint8_t* in, size_t len)
+    {
         // encodes into gcrTrackStream AND appends 0s into gcrSync
         for (size_t i = 0; i < len; i += 4)
         {
