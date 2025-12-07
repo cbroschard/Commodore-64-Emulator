@@ -718,7 +718,7 @@ void D1541VIA::updateIECOutputsFromPortB()
 DriveVIABase::MechanicsInfo D1541VIA::getMechanicsInfo() const
 {
     MechanicsInfo m{};
-    m.valid = false;          // assume not valid unless we know we're VIA2/mech
+    m.valid = false;
 
     // Only VIA2 in mechanics role has meaningful data
     if (viaRole != VIARole::VIA2_Mechanics)
