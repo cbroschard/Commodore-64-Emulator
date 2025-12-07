@@ -11,7 +11,17 @@ D1541::D1541(int deviceNumber) :
     // Power on defaults
     motorOn(false),
     diskLoaded(false),
-    SRQAsserted(false),
+    atnLineLow(false),
+    clkLineLow(false),
+    dataLineLow(false),
+    srqAsserted(false),
+    iecListening(false),
+    iecTalking(false),
+    presenceAckDone(false),
+    expectingSecAddr(false),
+    expectingDataByte(false),
+    currentListenSA(0),
+    currentTalkSA(0),
     currentTrack(17),
     currentSector(0)
 {
@@ -43,8 +53,21 @@ void D1541::reset()
     halfTrackPos        = currentTrack * 2;
     loadedDiskName.clear();
 
-    // IEC
-    SRQAsserted = false;
+    // IEC BUS reset
+    atnLineLow                  = false;
+    clkLineLow                  = false;
+    dataLineLow                 = false;
+    srqAsserted                 = false;
+    iecListening                = false;
+    iecTalking                  = false;
+    presenceAckDone             = false;
+    expectingSecAddr            = false;
+    expectingDataByte           = false;
+    currentListenSA             = 0;
+    currentTalkSA               = 0;
+    iecRxActive                 = false;
+    iecRxBitCount               = 0;
+    iecRxByte                   = 0;
 
     // CHIPS
     d1541mem.reset();
@@ -120,6 +143,111 @@ void D1541::unloadDisk()
     currentSector   = 1;
     lastError       = DriveError::NONE;
     status          = DriveStatus::IDLE;
+}
+
+void D1541::onListen()
+{
+    // IEC bus has selected this drive as a listener
+    iecListening = true;
+    iecTalking   = false;
+
+    listening = true;
+    talking   = false;
+    iecRxActive   = true;
+    iecRxBitCount = 0;
+    iecRxByte     = 0;
+
+    // We're about to receive a secondary address byte after LISTEN
+    presenceAckDone   = false;   // so we do the LISTEN presence ACK
+    expectingSecAddr  = true;    // first byte after LISTEN is secondary address
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;  // "none" / invalid
+
+    #ifdef Debug
+    std::cout << "[D1541] onListen() device=" << int(deviceNumber)
+              << " listening=1 talking=0\n";
+    #endif
+}
+
+void D1541::onUnListen()
+{
+    iecListening = false;
+    listening    = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    peripheralAssertData(false);
+
+    #ifdef Debug
+    std::cout << "[D1541] onUnListen() device=" << int(deviceNumber) << "\n";
+    #endif // Debug
+}
+
+void D1541::onTalk()
+{
+    iecTalking   = true;
+    iecListening = false;
+
+    talking   = true;
+    listening = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
+
+    // After TALK, the next byte from the C64 is a secondary address
+    expectingSecAddr  = true;
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;
+
+    peripheralAssertClk(false);
+
+    #ifdef Debug
+    std::cout << "[D1541] onTalk() device=" << int(deviceNumber)
+              << " talking=1 listening=0\n";
+    #endif
+}
+
+void D1541::onUnTalk()
+{
+    iecTalking = false;
+    talking    = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    #ifdef Debug
+    std::cout << "[D1541] onUnTalk() device=" << int(deviceNumber) << "\n";
+    #endif
+}
+
+void D1541::onSecondaryAddress(uint8_t sa)
+{
+    currentSecondaryAddress = sa;
+
+    // We’ve now consumed the secondary address; next bytes are data/commands
+    expectingSecAddr  = false;
+    expectingDataByte = true;
+
+    const char* meaning = "";
+    if (sa == 0)
+        meaning = " (LOAD channel)";
+    else if (sa == 1)
+        meaning = " (SAVE channel)";
+    else if (sa == 15)
+        meaning = " (COMMAND channel)";
+
+    #ifdef Debug
+    std::cout << "[D1541] onSecondaryAddress() device=" << int(deviceNumber)
+              << " sa=" << int(sa) << meaning << "\n";
+    #endif
 }
 
 void D1541::clkChanged(bool clkState)

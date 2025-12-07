@@ -38,14 +38,21 @@ class D1541 : public Drive
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
 
+        // IECBUS communication
+        void onListen() override;
+        void onUnListen() override;
+        void onTalk() override;
+        void onUnTalk() override;
+        void onSecondaryAddress(uint8_t sa) override;
+
         // Motor control
         inline void startMotor() override { motorOn = true;  }
         inline void stopMotor()  override { motorOn = false; }
         inline bool isMotorOn() const override { return motorOn; }
 
         // IEC
-        inline bool isSRQAsserted() const override { return SRQAsserted; }
-        inline void setSRQAsserted(bool state) override { SRQAsserted = state; }
+        inline bool isSRQAsserted() const override { return srqAsserted; }
+        inline void setSRQAsserted(bool state) override { srqAsserted = state; }
         void clkChanged(bool clkState)  override;
         void dataChanged(bool dataState) override;
 
@@ -75,8 +82,23 @@ class D1541 : public Drive
         bool        diskLoaded;
         bool        diskWriteProtected;
 
-        // SRQ status
-        bool SRQAsserted;
+        // IECBUS
+        bool atnLineLow;
+        bool clkLineLow;
+        bool dataLineLow;
+        bool srqAsserted;
+        bool iecListening;
+        bool iecTalking;
+        bool presenceAckDone;
+        bool expectingSecAddr;
+        bool expectingDataByte;
+        uint8_t currentListenSA;
+        uint8_t currentTalkSA;
+
+        // IEC listener data RX (C64 -> drive, ATN high, drive listening)
+        bool iecRxActive;
+        int iecRxBitCount;
+        uint8_t iecRxByte;
 
         // Drive geometry
         int     halfTrackPos;
