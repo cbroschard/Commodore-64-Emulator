@@ -42,8 +42,13 @@ class D1541Memory : public DriveMemoryBase
 
         // Getters for access for D1541
         IRQLine* getIRQLine();
-        D1541VIA& getVIA1();
-        D1541VIA& getVIA2();
+
+        inline D1541VIA& getVIA1() { return via1; }
+        inline const D1541VIA& getVIA1() const { return via1; }
+
+        inline D1541VIA& getVIA2() { return via2; }
+        inline const D1541VIA& getVIA2() const { return via2; }
+
 
     protected:
 

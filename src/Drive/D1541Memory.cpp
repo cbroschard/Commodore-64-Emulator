@@ -123,16 +123,6 @@ IRQLine* D1541Memory::getIRQLine()
     return &driveIRQ;
 }
 
-D1541VIA& D1541Memory::getVIA1()
-{
-    return via1;
-}
-
-D1541VIA& D1541Memory::getVIA2()
-{
-    return via2;
-}
-
 bool D1541Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);

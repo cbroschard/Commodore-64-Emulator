@@ -66,7 +66,15 @@ class D1541 : public Drive
         inline bool hasVIA2() const override { return true;  }
         inline bool hasFDC()  const override { return false; }
         inline bool isDrive() const override { return true;  }
+        inline const CPU* getDriveCPU() const override { return &driveCPU; }
+        inline CPU* getDriveCPU() override { return &driveCPU; }
+        inline const D1541Memory* getMemory() const override { return &d1541mem; }
+        inline D1541Memory* getMemory() override { return &d1541mem; }
+        inline const D1541VIA* getVIA1() const override { return &d1541mem.getVIA1(); }
+        inline const D1541VIA* getVIA2() const override { return &d1541mem.getVIA2(); }
+        inline DriveStatus getDriveStatus() const override { return status; }
         const char* getDriveTypeName() const noexcept override { return "1541"; }
+        IECSnapshot snapshotIEC() const override;
 
     protected:
         bool motorOn;
