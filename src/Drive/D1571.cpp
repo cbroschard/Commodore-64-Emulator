@@ -698,7 +698,6 @@ void D1571::onUnTalk()
     iecRxBitCount = 0;
     iecRxByte = 0;
 
-
     expectingSecAddr  = false;
     expectingDataByte = false;
 
