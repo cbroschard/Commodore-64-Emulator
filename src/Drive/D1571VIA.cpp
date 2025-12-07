@@ -595,8 +595,6 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
     portBPins = pins;
 
     bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0); // Active is High at Pin
-    // NOTE: The logic below uses newAtnLow, but updateIECOutputsFromPortB checks the pin bit.
-    // This is fine as long as we are consistent that "Pin Bit 1" means "ATN Active".
 
     if (viaRole == VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
         updateIECOutputsFromPortB();
@@ -626,7 +624,6 @@ void D1571VIA::updateIECOutputsFromPortB()
         clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
 
     // ATN Input bit (Bit 7, PB7 or similar)
-    // NOTE: We rely on the fact that setIECInputLines sets the PIN high when Bus ATN is Low.
     bool atnAsserted = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
 
     bool atnAckAuto = false;
