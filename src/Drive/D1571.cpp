@@ -421,15 +421,6 @@ void D1571::updateIRQ()
     else IRQ.clearIRQ(IRQLine::D1571_IRQ);
 }
 
-int D1571::stepIndex(uint8_t p) const
-{
-    // The 1571 ROM outputs a binary sequence (0, 1, 2, 3) for stepping.
-    // We map this linearly to internal indices 0, 2, 4, 6 to support
-    // the (new - old + 8) & 7 delta logic.
-    return (p & 0x03) * 2;
-}
-
-
 void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
     const int oldIdx = stepIndex(oldPhase);
