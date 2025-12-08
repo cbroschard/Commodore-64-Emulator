@@ -78,12 +78,12 @@ class Drive : public Peripheral
         Drive* asDrive() override { return this; }
         virtual const CPU* getDriveCPU() const = 0;
         virtual CPU* getDriveCPU() = 0;
-        virtual const FDC177x* getFDC() const = 0;
+        virtual const FDC177x* getFDC() const { return nullptr; }
         virtual DriveMemoryBase* getMemory() = 0;
         virtual const DriveMemoryBase* getMemory() const = 0;
         virtual const DriveVIABase* getVIA1() const = 0;
         virtual const DriveVIABase* getVIA2() const = 0;
-        virtual const DriveCIABase* getCIA() const = 0;
+        virtual const DriveCIABase* getCIA() const { return nullptr; }
         struct IECSnapshot
         {
             // Observed bus levels (as seen by the drive)
