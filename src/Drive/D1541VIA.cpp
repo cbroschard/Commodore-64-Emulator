@@ -80,6 +80,18 @@ void D1541VIA::reset()
     srBitCount                          = 0;
     srCount                             = 0;
     srShiftInMode                       = false;
+
+    if (viaRole == VIARole::VIA1_IECBus)
+    {
+        portBPins &= static_cast<uint8_t>(~(
+            (1u << IEC_ATN_IN_BIT) |
+            (1u << IEC_CLK_IN_BIT) |
+            (1u << IEC_DATA_IN_BIT)
+        ));
+    }
+
+    if (viaRole == VIARole::VIA1_IECBus)
+        updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
 }
 
 void D1541VIA::resetShift()
@@ -139,10 +151,8 @@ void D1541VIA::tick(uint32_t cycles)
                 if (t2Counter == 0)
                 {
                     // Set IFR bit 5
-                     triggerInterrupt(IFR_TIMER2);
-
-                    // Free-running: reload from latch and keep going
-                    t2Counter = t2Latch;
+                    triggerInterrupt(IFR_TIMER2);
+                    t2Running = false;;
                 }
             }
         }
@@ -261,7 +271,12 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         }
         case 0x06: return registers.timer1LowLatch;
         case 0x07: return registers.timer1HighLatch;
-        case 0x08: return registers.timer2CounterLowByte;
+        case 0x08:
+        {
+            uint8_t value = registers.timer2CounterLowByte;
+            clearIFR(IFR_TIMER2);
+            return value;
+        }
         case 0x09: return registers.timer2CounterHighByte;
         case 0x0A:
         {
@@ -718,7 +733,7 @@ void D1541VIA::updateIECOutputsFromPortB()
 DriveVIABase::MechanicsInfo D1541VIA::getMechanicsInfo() const
 {
     MechanicsInfo m{};
-    m.valid = false;
+    m.valid = false;          // assume not valid unless we know we're VIA2/mech
 
     // Only VIA2 in mechanics role has meaningful data
     if (viaRole != VIARole::VIA2_Mechanics)
