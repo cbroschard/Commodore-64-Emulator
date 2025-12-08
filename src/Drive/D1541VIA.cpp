@@ -141,19 +141,14 @@ void D1541VIA::tick(uint32_t cycles)
         // Timer 2
         if (t2Running)
         {
-            if (t2Counter > 0)
+            t2Counter--; // Wraps at 0xFFFF
+            registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
+            registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
+
+            if (t2Counter == 0xFFFF)
             {
-                --t2Counter;
-
-                registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
-                registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
-
-                if (t2Counter == 0)
-                {
-                    // Set IFR bit 5
-                    triggerInterrupt(IFR_TIMER2);
-                    t2Running = false;;
-                }
+                triggerInterrupt(IFR_TIMER2);
+                t2Running = false;;
             }
         }
     }
