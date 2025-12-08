@@ -23,6 +23,16 @@ void D1541Memory::attachLoggingInstance(Logging* logger)
     this->logger = logger;
 }
 
+void D1541Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
+{
+    // Attach the drive first
+    this->parentPeripheral = parentPeripheral;
+
+    // Attach the chips to the drive
+    via1.attachPeripheralInstance(parentPeripheral, D1541VIA::VIARole::VIA1_IECBus);
+    via2.attachPeripheralInstance(parentPeripheral, D1541VIA::VIARole::VIA2_Mechanics);
+}
+
 void D1541Memory::tick(uint32_t cycles)
 {
     via1.tick(cycles);
