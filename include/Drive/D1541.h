@@ -17,7 +17,7 @@
 class D1541 : public Drive
 {
     public:
-        D1541(int deviceNumber);
+        D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         virtual ~D1541();
 
         // Reset function
@@ -25,9 +25,6 @@ class D1541 : public Drive
 
         // Advance drive via tick method
         void tick(uint32_t cycles) override;
-
-        // Initialize everything
-        bool initialize(const std::string& loRom, const std::string& hiRom);
 
         // Compatibility check
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }

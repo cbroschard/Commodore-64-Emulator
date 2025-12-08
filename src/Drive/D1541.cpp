@@ -7,7 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1541.h"
 
-D1541::D1541(int deviceNumber) :
+D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom) :
     motorOn(false),
     diskLoaded(false),
     diskWriteProtected(false),
@@ -35,6 +35,13 @@ D1541::D1541(int deviceNumber) :
     driveCPU.attachIRQLineInstance(&IRQ);
     d1541mem.getVIA1().attachPeripheralInstance(this, D1541VIA::VIARole::VIA1_IECBus);
     d1541mem.getVIA2().attachPeripheralInstance(this, D1541VIA::VIARole::VIA2_Mechanics);
+
+    if (!d1541mem.initialize(loRom, hiRom))
+    {
+        throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
+    }
+
+    reset();
 }
 
 D1541::~D1541() = default;
@@ -253,17 +260,6 @@ void D1541::rebuildGCRTrackStream()
     d1541mem.getVIA2().clearMechBytePending();
 }
 
-bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
-{
-    if (!d1541mem.initialize(loRom, hiRom))
-    {
-        return false;
-    }
-
-    reset();
-    return true;
-}
-
 void D1541::updateIRQ()
 {
     bool via1IRQ = d1541mem.getVIA1().checkIRQActive();
@@ -318,8 +314,8 @@ void D1541::unloadDisk()
     loadedDiskName.clear();
 
     diskLoaded      = false;
-    currentTrack    = 0;
-    currentSector   = 1;
+    currentTrack    = 17;
+    currentSector   = 0;
     lastError       = DriveError::NONE;
     status          = DriveStatus::IDLE;
 }
