@@ -12,10 +12,9 @@
 #include "Drive/D1541Memory.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
-#include "Drive/FloppyControllerHost.h"
 #include "Drive/D1541VIA.h"
 
-class D1541 : public Drive, public FloppyControllerHost
+class D1541 : public Drive
 {
     public:
         D1541(int deviceNumber);
@@ -67,6 +66,12 @@ class D1541 : public Drive, public FloppyControllerHost
         void clkChanged(bool clkLow)  override;
         void dataChanged(bool dataLow) override;
         void setBusDriversEnabled(bool enabled);
+
+        // Getters
+        inline bool getAtnLineLow() const override { return atnLineLow; }
+        inline bool getClkLineLow() const override { return clkLineLow; }
+        inline bool getDataLineLow() const override { return dataLineLow; }
+        inline bool getSRQAsserted() const override { return srqAsserted; }
 
         // Drive Mechanics
         void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
@@ -149,7 +154,6 @@ class D1541 : public Drive, public FloppyControllerHost
 
         // Helpers
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
-        int cyclesPerByte1541(int track1Based);
         int cyclesPerByteFromDensity(uint8_t code) const;
 };
 

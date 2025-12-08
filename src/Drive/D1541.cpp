@@ -253,14 +253,6 @@ void D1541::rebuildGCRTrackStream()
     d1541mem.getVIA2().clearMechBytePending();
 }
 
-int D1541::cyclesPerByte1541(int track1Based)
-{
-    if (track1Based <= 17) return 26; // zone 0 (fastest)
-    if (track1Based <= 24) return 28; // zone 1
-    if (track1Based <= 30) return 30; // zone 2
-    return 32;                        // zone 3 (slowest, 31-35)
-}
-
 bool D1541::initialize(const std::string& loRom, const std::string& hiRom)
 {
     if (!d1541mem.initialize(loRom, hiRom))
@@ -285,45 +277,39 @@ void D1541::updateIRQ()
 
 void D1541::loadDisk(const std::string& path)
 {
-     if (!diskImage)
+     diskWriteProtected = false;
+    auto img = DiskFactory::create(path);
+    if (!img)
     {
-        auto img = DiskFactory::create(path);
-        if (!img)
-        {
-            diskImage.reset();
-            loadedDiskName.clear();
-            diskLoaded = false;
-            lastError  = DriveError::NO_DISK;
-            return;
-        }
-
-        if (!img->loadDisk(path))
-        {
-            diskImage.reset();
-            loadedDiskName.clear();
-            diskLoaded = false;
-            lastError  = DriveError::NO_DISK;
-            return;
-        }
-
-        diskImage = std::move(img);
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
     }
 
-    // Sync internal state for a newly mounted disk image
-    diskLoaded     = (diskImage != nullptr);
+    // Try to load the disk image from file
+    if (!img->loadDisk(path))
+    {
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
+    }
+
+    // Success load it
+    diskImage      = std::move(img);
+    diskLoaded     = true;
     loadedDiskName = path;
-    lastError      = diskLoaded ? DriveError::NONE : DriveError::NO_DISK;
-
-    currentTrack   = 17;
-    currentSector  = 0;
-    halfTrackPos   = currentTrack * 2;
-
+    lastError      = DriveError::NONE;
     gcrDirty       = true;
-    gcrPos         = 0;
-    gcrBitCounter  = 0;
+
+    currentTrack  = 17;
+    currentSector = 0;
+    halfTrackPos = currentTrack * 2;
 
     gcrTrackStream.clear();
-    gcrSync.clear();
 }
 
 void D1541::unloadDisk()
