@@ -36,7 +36,7 @@ bool Disk::loadDiskImage(const std::string& imagePath)
         return false;
     }
 
-    std::cout << "Loaded ROM file: " << imagePath << " (" << size << " bytes)" << std::endl;
+    std::cout << "Loaded file: " << imagePath << " (" << size << " bytes)" << std::endl;
     return true;
 }
 
