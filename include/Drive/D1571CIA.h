@@ -66,11 +66,11 @@ class D1571CIA : public DriveCIABase
         //Interrupt handling
         enum InterruptBit : uint8_t
         {
-            INTERRUPT_TIMER_A = 0x01,
-            INTERRUPT_TIMER_B = 0x02,
-            INTERRUPT_TOD_ALARM = 0x04,
-            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
-            INTERRUPT_FLAG_LINE = 0x10
+            INTERRUPT_TIMER_A                   = 0x01,
+            INTERRUPT_TIMER_B                   = 0x02,
+            INTERRUPT_TOD_ALARM                 = 0x04,
+            INTERRUPT_SERIAL_SHIFT_REGISTER     = 0x08,
+            INTERRUPT_FLAG_LINE                 = 0x10
         };
 
         struct ciaRegs
@@ -114,7 +114,6 @@ class D1571CIA : public DriveCIABase
         // Track IRQ
         uint8_t interruptStatus;
         void triggerInterrupt(InterruptBit bit);
-        void refreshMasterBit();
 };
 
 #endif // D1571CIA_H
