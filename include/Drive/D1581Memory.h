@@ -20,7 +20,7 @@ class D1581;
 #include "Drive/DriveChips.h"
 #include "Logging.h"
 #include "Peripheral.h"
-#include "Drive/D1581CIA.h"
+#include "Drive/DriveCIA.h"
 #include "Drive/FDC177x.h"
 
 class D1581Memory : public DriveMemoryBase
@@ -44,8 +44,8 @@ class D1581Memory : public DriveMemoryBase
         bool initialize(const std::string& fileName);
 
               // Getters
-        inline D1581CIA& getCIA() { return cia; }
-        inline const D1581CIA& getCIA()  const { return cia; }
+        inline DriveCIA& getCIA() { return cia; }
+        inline const DriveCIA& getCIA()  const { return cia; }
 
         inline FDC177x& getFDC() { return fdc; }
         inline const FDC177x&  getFDC()  const { return fdc; }
@@ -55,7 +55,7 @@ class D1581Memory : public DriveMemoryBase
     private:
 
         // Chips
-        D1581CIA cia;
+        DriveCIA cia;
         FDC177x  fdc;
 
         // Non-owning pointers
