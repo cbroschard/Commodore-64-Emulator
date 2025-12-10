@@ -61,7 +61,7 @@ class D1581 : public Drive, public FloppyControllerHost
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline const D1581Memory* getMemory() const override { return &d1581mem; }
         inline const FDC177x* getFDC() const override { return &d1581mem.getFDC(); }
-        inline const D1581CIA* getCIA() const override { return &d1581mem.getCIA(); }
+        inline const DriveCIA* getCIA() const override { return &d1581mem.getCIA(); }
         const char* getDriveTypeName() const noexcept override { return "1581"; }
         bool isDrive() const override { return true; }
 
