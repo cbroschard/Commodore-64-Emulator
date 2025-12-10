@@ -37,9 +37,9 @@ class Cartridge
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
-        bool loadROM(const std::string& path); // load the Cartridge
+        bool loadROM(const std::string& path);  // load the Cartridge
 
-        bool setCurrentBank(uint8_t bank); // Update the current bank for loading
+        bool setCurrentBank(uint8_t bank);      // Update the current bank for loading
 
         // Getters to help determine how to set memory control register
         inline bool getExROMLine() const { return header.exROMLine; }
@@ -55,7 +55,7 @@ class Cartridge
         struct chipSection
         {
             uint8_t chipType;               // Same as in crtChipHeader
-            uint8_t bankNumber;            // Bank number of 16k section
+            uint8_t bankNumber;             // Bank number of 16k section
             uint16_t loadAddress;           // Same as in crtChipHeader
             std::vector<uint8_t> data;      // CHIP section data to load
         };
@@ -121,11 +121,11 @@ class Cartridge
         static constexpr size_t CART_HI_START = 0xA000;
         static constexpr size_t CART_HI_START1 = 0xE000;
 
-        std::vector<chipSection> chipSections; // vector for ROM chip banks
-        std::vector<uint8_t> romData; // vector to store the Cartridge rom
-        std::vector<uint8_t> ramData; // vector for Cartridge ram if supported
-        bool hasRAM; // Set for Cartridges that have RAM
-        uint8_t currentBank; // Support bank switching
+        std::vector<chipSection> chipSections;  // vector for ROM chip banks
+        std::vector<uint8_t> romData;           // vector to store the Cartridge rom
+        std::vector<uint8_t> ramData;           // vector for Cartridge ram if supported
+        bool hasRAM;                            // Set for Cartridges that have RAM
+        uint8_t currentBank;                    // Support bank switching
 
     private:
 
@@ -163,27 +163,27 @@ class Cartridge
         #pragma pack(push,1)
         struct crtHeader
         {
-            char magic[16];                 // Magic Header should say C64 CARTRIDGE
-            uint32_t headerLength;          // File header length in high/low format
-            uint16_t CartridgeVersion;      // Cartridge version high/low format
+            char magic[16];                  // Magic Header should say C64 CARTRIDGE
+            uint32_t headerLength;           // File header length in high/low format
+            uint16_t CartridgeVersion;       // Cartridge version high/low format
             uint16_t CartridgeHardwareType;  // Cartridge hardware type in high/low format
-            uint8_t exROMLine;              // Helps determine type of Cartridge (8k,16K,ultimax)
-            uint8_t gameLine;               // Helps determine type of Cartridge (8k,16K,ultimax)
-            uint8_t revision;               // Should be 0
-            uint8_t reserved[5];               // Reserved and not currently used
-            char gameName[32];              // Name of the game
+            uint8_t exROMLine;               // Helps determine type of Cartridge (8k,16K,ultimax)
+            uint8_t gameLine;                // Helps determine type of Cartridge (8k,16K,ultimax)
+            uint8_t revision;                // Should be 0
+            uint8_t reserved[5];             // Reserved and not currently used
+            char gameName[32];               // Name of the game
         } header;
         #pragma pack(pop)
 
         #pragma pack(push,1)
         struct crtChipHeader
         {
-            char signature[4];              // Should read as CHIP
-            uint32_t packetLength;          // Length of ROM image size and header combined
+            char signature[4];               // Should read as CHIP
+            uint32_t packetLength;           // Length of ROM image size and header combined
             uint16_t chipType;               //  0 - ROM, 1 - RAM, 2 - Flash ROM, 3 - EEPROM
-            uint16_t bankNumber;            // Number of the bank this CHIP is in
-            uint16_t loadAddress;           // Used to tell the loader which part of the given bank is to be used for this chunk
-            uint16_t romSize;               // The size of the ROM image in bytes
+            uint16_t bankNumber;             // Number of the bank this CHIP is in
+            uint16_t loadAddress;            // Used to tell the loader which part of the given bank is to be used for this chunk
+            uint16_t romSize;                // The size of the ROM image in bytes
         };
         #pragma pack(pop)
 
