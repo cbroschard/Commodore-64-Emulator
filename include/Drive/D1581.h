@@ -59,9 +59,9 @@ class D1581 : public Drive, public FloppyControllerHost
         inline bool hasVIA2() const override { return false; }
         inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
-        inline const D1581Memory* getMemory() const override { return &d1581Mem; }
-        inline const FDC177x* getFDC() const override { return &d1581Mem.getFDC(); }
-        inline const D1581CIA* getCIA() const override { return &d1581Mem.getCIA(); }
+        inline const D1581Memory* getMemory() const override { return &d1581mem; }
+        inline const FDC177x* getFDC() const override { return &d1581mem.getFDC(); }
+        inline const D1581CIA* getCIA() const override { return &d1581mem.getCIA(); }
         const char* getDriveTypeName() const noexcept override { return "1581"; }
         bool isDrive() const override { return true; }
 
@@ -72,7 +72,7 @@ class D1581 : public Drive, public FloppyControllerHost
 
         // CHIPS
         CPU         driveCPU;
-        D1581Memory d1581Mem;
+        D1581Memory d1581mem;
         IRQLine     irq;
 
         // IECBUS
@@ -93,8 +93,6 @@ class D1581 : public Drive, public FloppyControllerHost
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
-        void applyDataLine();
-        void updateAtnAckState();
 };
 
 #endif // D1581_H

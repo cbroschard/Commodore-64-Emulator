@@ -110,6 +110,17 @@ class D1581CIA : public DriveCIABase
             PRB_ATNIN   = 1u << 7
         };
 
+        //Interrupt handling
+        enum InterruptBit : uint8_t
+        {
+            INTERRUPT_TIMER_A                   = 0x01,
+            INTERRUPT_TIMER_B                   = 0x02,
+            INTERRUPT_TOD_ALARM                 = 0x04,
+            INTERRUPT_SERIAL_SHIFT_REGISTER     = 0x08,
+            INTERRUPT_FLAG_LINE                 = 0x10
+        };
+
+
         uint16_t timerACounter;
         uint16_t timerALatch;
         uint16_t timerBCounter;
@@ -122,6 +133,10 @@ class D1581CIA : public DriveCIABase
         uint8_t todAlarmSeconds;
         uint8_t todAlarmMinutes;
         uint8_t todAlarmHours;
+
+        // Interrupt
+        uint8_t interruptStatus;
+        void triggerInterrupt(InterruptBit bit);
 };
 
 #endif // D1581CIA_H

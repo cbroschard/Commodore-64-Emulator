@@ -8,7 +8,8 @@
 #include "Drive/D1581CIA.h"
 
 D1581CIA::D1581CIA() :
-    parentPeripheral(nullptr)
+    parentPeripheral(nullptr),
+    interruptStatus(0x00)
 {
 
 }
@@ -18,42 +19,75 @@ D1581CIA::~D1581CIA() = default;
 void D1581CIA::reset()
 {
     // Initialize all registers
-    registers.portA              = 0x00;
-    registers.portB              = 0x00;
-    registers.ddrA               = 0x00;
-    registers.ddrB               = 0x00;
-    registers.timerALowByte      = 0x00;
-    registers.timerAHighByte     = 0x00;
-    registers.timerBLowByte      = 0x00;
-    registers.timerBHighByte     = 0x00;
-    registers.tod10th            = 0x00;
-    registers.todSeconds         = 0x00;
-    registers.todMinutes         = 0x00;
-    registers.todHours           = 0x00;
-    registers.serialData         = 0x00;
-    registers.interruptEnable    = 0x00;
-    registers.controlRegisterA   = 0x00;
-    registers.controlRegisterB   = 0x00;
+    registers.portA = 0x00;
+    registers.portB = 0x00;
+    registers.ddrA = 0x00;
+    registers.ddrB = 0x00;
+    registers.timerALowByte = 0x00;
+    registers.timerAHighByte = 0x00;
+    registers.timerBLowByte = 0x00;
+    registers.timerBHighByte = 0x00;
+    registers.tod10th = 0x00;
+    registers.todSeconds = 0x00;
+    registers.todMinutes = 0x00;
+    registers.todHours = 0x00;
+    registers.serialData = 0x00;
+    registers.interruptEnable = 0x00;
+    registers.controlRegisterA = 0x00;
+    registers.controlRegisterB = 0x00;
 
-    // Reset timers
-    timerACounter = 0x00;
-    timerALatch   = 0x00;
-    timerBCounter = 0x00;
-    timerBLatch   = 0x00;
+    // IRQ reset
+    interruptStatus = 0x00;
 
-    timerARunning = false;
-    timerBRunning = false;
-
-    // Reset TOD
-    todAlarm10th    = 0x00;
+    // Reset alarms
+    todAlarm10th = 0x00;
     todAlarmSeconds = 0x00;
     todAlarmMinutes = 0x00;
-    todAlarmHours   = 0x00;
+    todAlarmHours = 0x00;
+
+    // Reset timers
+    timerACounter = 0;
+    timerALatch = 0;
+    timerARunning = false;
+    timerBCounter = 0;
+    timerBLatch = 0;
+    timerBRunning = false;
 }
 
 void D1581CIA::tick(uint32_t cycles)
 {
+    while(cycles-- > 0)
+    {
+        // Timer A
+        if (timerARunning && timerACounter > 0)
+        {
+            --timerACounter;
 
+            registers.timerALowByte  = static_cast<uint8_t>(timerACounter & 0x00FF);
+            registers.timerAHighByte = static_cast<uint8_t>((timerACounter >> 8) & 0x00FF);
+
+            if (timerACounter == 0)
+            {
+                triggerInterrupt(INTERRUPT_TIMER_A);
+                timerACounter = timerALatch;
+            }
+        }
+
+        // Timer B
+        if (timerBRunning && timerBCounter > 0)
+        {
+            --timerBCounter;
+
+            registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0x00FF);
+            registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0x00FF);
+
+            if (timerBCounter == 0)
+            {
+                triggerInterrupt(INTERRUPT_TIMER_B);
+                timerBCounter = timerBLatch;
+            }
+        }
+    }
 }
 
 uint8_t D1581CIA::readRegister(uint16_t address)
@@ -73,7 +107,17 @@ uint8_t D1581CIA::readRegister(uint16_t address)
         case 0x0A: return registers.todMinutes;
         case 0x0B: return registers.todHours;
         case 0x0C: return registers.serialData;;
-        case 0x0D: return registers.interruptEnable;
+        case 0x0D:
+        {
+            uint8_t pending = interruptStatus & 0x1F;
+            uint8_t result = pending;
+            if (pending & registers.interruptEnable) result |= 0x80;
+
+            // Clear the acknowledged sources (bits 0–4 that were set)
+            interruptStatus &= static_cast<uint8_t>(~pending);
+
+            return result;
+        }
         case 0x0E: return registers.controlRegisterA;
         case 0x0F: return registers.controlRegisterB;
         default: return 0xFF;
@@ -89,18 +133,64 @@ void D1581CIA::writeRegister(uint16_t address, uint8_t value)
         case 0x01: registers.portB = value; break;
         case 0x02: registers.ddrA = value; break;
         case 0x03: registers.ddrB = value; break;
-        case 0x04: registers.timerALowByte = value; break;
-        case 0x05: registers.timerAHighByte = value; break;
-        case 0x06: registers.timerBLowByte = value; break;
-        case 0x07: registers.timerBHighByte = value; break;
+        {
+            registers.timerALowByte = value;
+            timerACounter = (timerACounter & 0xFF00) | value;
+            break;
+        }
+        case 0x05:
+        {
+            registers.timerAHighByte = value;
+            timerACounter = static_cast<uint16_t>((registers.timerAHighByte) << 8) | static_cast<uint16_t>(registers.timerALowByte);
+
+            timerALatch = timerACounter;
+
+            // Start Timer A
+            timerARunning = true;
+            break;
+        }
+        case 0x06:
+        {
+            registers.timerBLowByte = value;
+            timerBCounter = (timerBCounter & 0xFF00) | value;
+            break;
+        }
+        case 0x07:
+        {
+            registers.timerBHighByte = value;
+            timerBCounter = static_cast<uint16_t>((registers.timerBHighByte) << 8) | static_cast<uint16_t>(registers.timerBLowByte);
+
+            timerBLatch = timerBCounter;
+
+            // Start Timer B
+            timerBRunning = true;
+            break;
+        }
         case 0x08: registers.tod10th = value; break;
         case 0x09: registers.todSeconds = value; break;
         case 0x0A: registers.todMinutes = value; break;
         case 0x0B: registers.todHours = value; break;
         case 0x0C: registers.serialData = value; break;
-        case 0x0D: registers.interruptEnable = value; break;
+        case 0x0D:
+        {
+            uint8_t mask = value & 0x1F;
+            if (value & 0x80)
+            {
+                registers.interruptEnable |= mask;
+            }
+            else
+            {
+                registers.interruptEnable &= static_cast<uint8_t>(~mask);
+            }
+            break;
+        }
         case 0x0E: registers.controlRegisterA = value; break;
         case 0x0F: registers.controlRegisterB = value; break;
         default: break;
     }
+}
+
+void D1581CIA::triggerInterrupt(InterruptBit bit)
+{
+    interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
 }
