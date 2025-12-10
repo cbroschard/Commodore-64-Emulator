@@ -24,54 +24,51 @@ CIA2::~CIA2() = default;
 
 void CIA2::reset() {
     // Ports & DDRs
-    portA = 0x07;
-    portB = 0xFF;
-    dataDirectionPortA = 0x00;
-    dataDirectionPortB = 0x00;
+    portA                       = 0x07;
+    portB                       = 0xFF;
+    dataDirectionPortA          = 0x00;
+    dataDirectionPortB          = 0x00;
 
     // Timers & tick state
-    timerALowByte = 0x00;
-    timerAHighByte = 0x00;
-    timerBLowByte = 0x00;
-    timerBHighByte = 0x00;
-    timerA = 0;
-    timerB = 0;
-    ticksA = 0;
-    ticksB = 0;
-    clkSelA = 0;
-    clkSelB = 0;
-    timerASnap = 0;
-    timerBSnap = 0;
-    timerALatched = false;
-    timerBLatched = false;
+    timerALowByte               = 0x00;
+    timerAHighByte              = 0x00;
+    timerBLowByte               = 0x00;
+    timerBHighByte              = 0x00;
+    timerA                      = 0;
+    timerB                      = 0;
+    ticksA                      = 0;
+    ticksB                      = 0;
+    clkSelA                     = 0;
+    clkSelB                     = 0;
+    timerASnap                  = 0;
+    timerBSnap                  = 0;
+    timerALatched               = false;
+    timerBLatched               = false;
 
     // TOD
-    todTicks = 0;
-    todLatched = false;
-    todAlarmSetMode = false;
-    todAlarmTriggered = false;
-    std::fill(std::begin(todClock), std::end(todClock), 0);
-    std::fill(std::begin(todAlarm), std::end(todAlarm), 0);
-    std::fill(std::begin(todLatch), std::end(todLatch), 0);
+    todTicks                    = 0;
+    todLatched                  = false;
+    todAlarmSetMode             = false;
+    todAlarmTriggered           = false;
 
     // Timer control
-    timerAControl = 0;
-    timerBControl = 0;
-    timerAPulseFlag = false;
+    timerAControl               = 0;
+    timerBControl               = 0;
+    timerAPulseFlag             = false;
 
     // Interrupt / NMI
-    interruptEnable = 0;
-    interruptStatus = 0;
-    status = 0;
-    nmiAsserted = false;
+    interruptEnable             = 0;
+    interruptStatus             = 0;
+    status                      = 0;
+    nmiAsserted                 = false;
 
     // Serial
-    serialDataRegister = 0xFF;
-    outBit = 7;
+    serialDataRegister          = 0xFF;
+    outBit                      = 7;
 
     // Cycle accumulators
-    accumulatedCyclesA = 0;
-    accumulatedCyclesB = 0;
+    accumulatedCyclesA          = 0;
+    accumulatedCyclesB          = 0;
 
     // IEC
     deviceNumber                = 0xFF;
@@ -93,16 +90,21 @@ void CIA2::reset() {
     lastClkOutHigh              = true;
 
     // CNT
-    cntLevel = true;
-    lastCNT = true;
-    pendingTBCNTTicks = 0;
-    pendingTBCASTicks = 0;
+    cntLevel                    = true;
+    lastCNT                     = true;
+    pendingTBCNTTicks           = 0;
+    pendingTBCASTicks           = 0;
 
     // IEC Bus
     recomputeIEC();
 
     // ML Monitor logging disable by default
-    setLogging = false;
+    setLogging                  = false;
+
+    // TOD
+    std::fill(std::begin(todClock), std::end(todClock), 0);
+    std::fill(std::begin(todAlarm), std::end(todAlarm), 0);
+    std::fill(std::begin(todLatch), std::end(todLatch), 0);
 }
 
 void CIA2::setMode(VideoMode mode)
