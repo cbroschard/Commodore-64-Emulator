@@ -121,9 +121,6 @@ uint8_t D1571CIA::readRegister(uint16_t address)
             // Clear the acknowledged sources (bits 0–4 that were set)
             interruptStatus &= static_cast<uint8_t>(~pending);
 
-            // Update master bit
-            refreshMasterBit();
-
             return result;
         }
         case 0x0E: return registers.controlRegisterA;
@@ -201,13 +198,5 @@ void D1571CIA::writeRegister(uint16_t address, uint8_t value)
 
 void D1571CIA::triggerInterrupt(InterruptBit bit)
 {
-    interruptStatus |= bit;
-    refreshMasterBit();
-}
-
-void D1571CIA::refreshMasterBit()
-{
-    // Refresh master bit 7
-    if ((interruptStatus & 0x1F) != 0) interruptStatus |= 0x80;
-    else interruptStatus &= ~0x80;
+    interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
 }
