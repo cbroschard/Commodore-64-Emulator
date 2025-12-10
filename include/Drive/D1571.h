@@ -100,7 +100,7 @@ class D1571 : public Drive, public FloppyControllerHost
         inline const D1571Memory* getMemory() const override { return &d1571Mem; }
         inline D1571Memory* getMemory() override { return &d1571Mem; }
         inline const FDC177x* getFDC() const override { return &d1571Mem.getFDC(); }
-        inline const D1571CIA* getCIA() const override { return &d1571Mem.getCIA(); }
+        inline const DriveCIA* getCIA() const override { return &d1571Mem.getCIA(); }
         inline const D1571VIA* getVIA1() const override { return &d1571Mem.getVIA1(); }
         inline const D1571VIA* getVIA2() const override { return &d1571Mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
