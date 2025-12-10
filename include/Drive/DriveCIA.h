@@ -26,6 +26,8 @@ class DriveCIA : public DriveCIABase
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
+        inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
+
         // ML Monitor
         inline ciaRegsView getRegsView() const override
         {
