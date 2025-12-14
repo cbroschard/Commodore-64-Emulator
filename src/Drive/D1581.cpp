@@ -10,6 +10,7 @@
 
 D1581::D1581(int deviceNumber, const std::string& romName) :
     motorOn(false),
+    currentSide(0),
     atnLineLow(false),
     clkLineLow(false),
     dataLineLow(false),
@@ -39,9 +40,6 @@ void D1581::reset()
     motorOn = false;
 
     // Status
-    loadedDiskName.clear();
-    diskLoaded          = false;
-    diskWriteProtected  = false;
     lastError           = DriveError::NONE;
     status              = DriveStatus::IDLE;
     currentTrack        = 17;
@@ -63,6 +61,9 @@ void D1581::reset()
         bus->unTalk(deviceNumber);
         bus->unListen(deviceNumber);
     }
+
+    d1581mem.reset();
+    driveCPU.reset();
 }
 
 void D1581::tick(uint32_t cycles)
@@ -79,7 +80,103 @@ void D1581::tick(uint32_t cycles)
     }
 }
 
-bool D1581::canMount(DiskFormat fmt) const
+void D1581::syncTrackFromFDC()
 {
-    return fmt == DiskFormat::D81;
+    auto* fdc = getFDC();
+    if (!fdc) return;
+
+    currentTrack = fdc->getCurrentTrack();
+}
+
+void D1581::updateIRQ()
+{
+    bool ciaIRQ = d1581mem.getCIA().checkIRQActive();
+    bool fdcIRQ = d1581mem.getFDC().checkIRQActive();
+
+    bool any = ciaIRQ || fdcIRQ;
+
+    if (any) irq.raiseIRQ(IRQLine::D1581_IRQ);
+    else irq.clearIRQ(IRQLine::D1581_IRQ);
+}
+
+bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
+{
+    if (!diskLoaded || !diskImage || !buffer || length == 0)
+    {
+        lastError = DriveError::NO_DISK;
+        return false;
+    }
+
+    const uint16_t d81Track = mapFdcTrackToD81Track(track);
+    auto data = diskImage->readSector((uint8_t)d81Track, sector);
+    if (data.empty())
+    {
+        lastError = DriveError::BAD_SECTOR;
+        return false;
+    }
+
+    // Prefer: enforce full sector size (512 for 1581)
+    if (data.size() < length) data.resize(length, 0x00);
+    std::memcpy(buffer, data.data(), length);
+
+    currentTrack  = track;
+    currentSector = sector;
+    lastError     = DriveError::NONE;
+    return true;
+}
+
+bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length)
+{
+    if (!diskLoaded || !diskImage || !buffer || length == 0)
+    {
+        lastError = DriveError::NO_DISK;
+        return false;
+    }
+
+    if (fdcIsWriteProtected()) return false;
+
+    const uint16_t d81Track = mapFdcTrackToD81Track(track);
+    std::vector<uint8_t> data(buffer, buffer + length);
+    return diskImage->writeSector((uint8_t)d81Track, sector, data);
+}
+
+void D1581::loadDisk(const std::string& path)
+{
+    diskWriteProtected = false;
+    auto img = DiskFactory::create(path);
+    if (!img)
+    {
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
+    }
+
+    // Try to load the disk image from file
+    if (!img->loadDisk(path))
+    {
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
+    }
+
+    // Success load it
+    diskImage      = std::move(img);
+    diskLoaded     = true;
+    loadedDiskName = path;
+    lastError      = DriveError::NONE;
+
+    currentTrack  = 17;
+
+    currentSector = 0;
+}
+
+uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
+{
+    const uint16_t cyl  = uint16_t(fdcTrack);        // 0..79
+    const uint16_t side = uint16_t(getCurrentSide() & 1); // 0/1
+    return (side * 80) + (cyl + 1);                  // 1..160
 }

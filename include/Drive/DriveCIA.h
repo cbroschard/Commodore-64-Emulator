@@ -8,14 +8,53 @@
 #ifndef DRIVECIA_H
 #define DRIVECIA_H
 
+#include <cstdint>
+#include "Drive/Drive.h"
 #include "Drive/DriveChips.h"
-#include "Peripheral.h"
+
+// Forward declaration for struct
+class DriveCIA;
+
+enum class DriveCIAType { D1571, D1581 };
+
+struct DriveCIAWiring
+{
+    void (*samplePortAPins)(DriveCIA& cia, Drive& drive, uint8_t& outPinsA) = nullptr;
+    void (*samplePortBPins)(DriveCIA& cia, Drive& drive, uint8_t& outPinsB) = nullptr;
+
+    void (*applyPortAOutputs)(DriveCIA& cia, Drive& drive, uint8_t pra, uint8_t ddra) = nullptr;
+    void (*applyPortBOutputs)(DriveCIA& cia, Drive& drive, uint8_t prb, uint8_t ddrb) = nullptr;
+};
 
 class DriveCIA : public DriveCIABase
 {
     public:
         DriveCIA();
         virtual ~DriveCIA();
+
+        enum CIA_PRA : uint8_t
+        {
+            PRA_SIDE    = 1u << 0, // 0 = side 0, 1 = side 1
+            PRA_DRVRDY  = 1u << 1, // 1 = drive ready (input)
+            PRA_MOTOR   = 1u << 2, // 0 = on, 1 = off
+            PRA_DEVSW2  = 1u << 3, // device switch 2 (right)
+            PRA_DEVSW1  = 1u << 4, // device switch 1 (left)
+            PRA_ERRLED  = 1u << 5, // red LED
+            PRA_ACTLED  = 1u << 6, // green LED
+            PRA_DSKCH   = 1u << 7  // disk present/change
+        };
+
+        enum CIA_PRB : uint8_t
+        {
+            PRB_DATAIN  = 1u << 0,
+            PRB_DATOUT  = 1u << 1,
+            PRB_CLKIN   = 1u << 2,
+            PRB_CLKOUT  = 1u << 3,
+            PRB_ATNACK  = 1u << 4,
+            PRB_BUSDIR  = 1u << 5,
+            PRB_WRTPRO  = 1u << 6,
+            PRB_ATNIN   = 1u << 7
+        };
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
@@ -27,6 +66,8 @@ class DriveCIA : public DriveCIABase
         void writeRegister(uint16_t address, uint8_t value);
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
+
+        void setWiring(const DriveCIAWiring* w) { wiring = w; }
 
         // ML Monitor
         inline ciaRegsView getRegsView() const override
@@ -60,8 +101,26 @@ class DriveCIA : public DriveCIABase
 
     private:
 
+        const DriveCIAWiring* wiring = nullptr;
+
         // Non-owning pointers
         Peripheral* parentPeripheral;
+
+        // CRA ($0E)
+        static constexpr uint8_t CRA_START    = 1 << 0;
+        static constexpr uint8_t CRA_RUNMODE  = 1 << 3; // 1=one-shot
+        static constexpr uint8_t CRA_LOAD     = 1 << 4; // strobe
+        static constexpr uint8_t CRA_INMODE   = 1 << 5; // 1=count CNT rising edges
+
+        // CRB ($0F)
+        static constexpr uint8_t CRB_START    = 1 << 0;
+        static constexpr uint8_t CRB_RUNMODE  = 1 << 3;
+        static constexpr uint8_t CRB_LOAD     = 1 << 4;
+        static constexpr uint8_t CRB_INMODE_MASK = (3 << 5); // bits 5-6
+        static constexpr uint8_t CRB_INMODE_PHI2  = (0 << 5);
+        static constexpr uint8_t CRB_INMODE_CNT   = (1 << 5);
+        static constexpr uint8_t CRB_INMODE_TA    = (2 << 5); // Timer A underflow
+        static constexpr uint8_t CRB_INMODE_TA_CNT= (3 << 5); // TA underflow while CNT high
 
         struct ciaRegs
         {
@@ -88,30 +147,6 @@ class DriveCIA : public DriveCIABase
             uint8_t controlRegisterB;
         } registers;
 
-        enum CIA_PRA : uint8_t
-        {
-            PRA_SIDE    = 1u << 0, // 0 = side 0, 1 = side 1
-            PRA_DRVRDY  = 1u << 1, // 1 = drive ready (input)
-            PRA_MOTOR   = 1u << 2, // 0 = on, 1 = off
-            PRA_DEVSW2  = 1u << 3, // device switch 2 (right)
-            PRA_DEVSW1  = 1u << 4, // device switch 1 (left)
-            PRA_ERRLED  = 1u << 5, // red LED
-            PRA_ACTLED  = 1u << 6, // green LED
-            PRA_DSKCH   = 1u << 7  // disk present/change
-        };
-
-        enum CIA_PRB : uint8_t
-        {
-            PRB_DATAIN  = 1u << 0,
-            PRB_DATOUT  = 1u << 1,
-            PRB_CLKIN   = 1u << 2,
-            PRB_CLKOUT  = 1u << 3,
-            PRB_ATNACK  = 1u << 4,
-            PRB_BUSDIR  = 1u << 5,
-            PRB_WRTPRO  = 1u << 6,
-            PRB_ATNIN   = 1u << 7
-        };
-
         //Interrupt handling
         enum InterruptBit : uint8_t
         {
@@ -122,7 +157,14 @@ class DriveCIA : public DriveCIABase
             INTERRUPT_FLAG_LINE                 = 0x10
         };
 
+        // Port pins
+        uint8_t portAPins;
+        uint8_t portBPins;
 
+        bool cntLevel;
+        bool lastCntLevel;
+
+        // Timers
         uint16_t timerACounter;
         uint16_t timerALatch;
         uint16_t timerBCounter;
@@ -135,10 +177,17 @@ class DriveCIA : public DriveCIABase
         uint8_t todAlarmSeconds;
         uint8_t todAlarmMinutes;
         uint8_t todAlarmHours;
+        uint8_t todAlarmSetMode;
+        bool    todAlarmTriggered;
 
         // Interrupt
         uint8_t interruptStatus;
         void triggerInterrupt(InterruptBit bit);
+
+        // Port updates
+        void updatePinsFromBus();
+        void applyIECOutputs();
+        void applyPortOutputs();
 };
 
 #endif // DRIVECIA_H

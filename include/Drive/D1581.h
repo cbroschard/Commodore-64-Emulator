@@ -13,7 +13,6 @@ class IECBUS;
 
 #include "CPU.h"
 #include "Drive/Drive.h"
-#include "Drive/D1581.h"
 #include "Drive/D1581Memory.h"
 #include "Drive/FloppyControllerHost.h"
 #include "Floppy/Disk.h"
@@ -33,7 +32,15 @@ class D1581 : public Drive, public FloppyControllerHost
         void tick(uint32_t cycles) override;
 
         // Compatibility check
-        bool canMount(DiskFormat fmt) const override;
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D81; }
+        inline uint8_t getCurrentSide() const { return currentSide; }
+        inline void setCurrentSide(uint8_t side) { currentSide = side; }
+
+        // FDC Sync
+        void syncTrackFromFDC();
+
+        // IRQ handling
+        void updateIRQ();
 
         // IEC getters
         inline bool getAtnLineLow() const { return bus ? !bus->readAtnLine() : atnLineLow; }
@@ -75,6 +82,16 @@ class D1581 : public Drive, public FloppyControllerHost
         D1581Memory d1581mem;
         IRQLine     irq;
 
+        std::unique_ptr<Disk> diskImage;
+
+        uint8_t currentSide;
+
+        inline bool fdcIsWriteProtected() const override { return diskWriteProtected; }
+        bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
+        bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) override;
+
+        void loadDisk(const std::string& path) override;
+
         // IECBUS
         bool atnLineLow;
         bool clkLineLow;
@@ -93,6 +110,9 @@ class D1581 : public Drive, public FloppyControllerHost
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
+
+        // Helpers
+        uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
 };
 
 #endif // D1581_H

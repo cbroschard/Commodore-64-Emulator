@@ -216,7 +216,7 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
                         ok = host->fdcWriteSector(registers.track,
                                                   registers.sector,
                                                   sectorBuffer,
-                                                  sizeof(sectorBuffer));
+                                                  currentSectorSize);
                     }
 
                     writeSectorInProgress = false;
