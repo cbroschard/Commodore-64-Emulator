@@ -1,40 +1,62 @@
 ﻿// Copyright (c) 2025 Christopher Broschard
 // All rights reserved.
-//
-// This source code is provided for personal, educational, and
-// non-commercial use only. Redistribution, modification, or use
-// of this code in whole or in part for any other purpose is
-// strictly prohibited without the prior written consent of the author.
 #ifndef LOGGING_H
 #define LOGGING_H
 
-#include <iostream>
 #include <fstream>
 #include <string>
-#include <ctime>
-#include <iomanip>
+#include <string_view>
 #include <vector>
+#include <ctime>
+#include <array>
+#include <cstdint>
 
 class Logging
 {
-    public:
-        Logging(const std::string& filename);
-        virtual ~Logging();
+public:
+    enum class LogLevel : uint8_t { DEBUG = 0, INFO = 1, WARNING = 2, ERROR = 3 };
 
-        enum LogLevel {DEBUG, INFO, WARNING, ERROR};
+    explicit Logging(const std::string& filename,
+                     size_t flushThresholdBytes = 64 * 1024,
+                     size_t fileBufferBytes     = 256 * 1024);
 
-        void setLogLevel(LogLevel level);
-        void WriteLog(const std::string& message);
-        void flush(); // Method to flush buffer for performance
+    ~Logging() noexcept;
 
-    protected:
+    // Treat this as "minimum level to log"
+    void setLogLevel(LogLevel minLevel) noexcept;
 
-    private:
+    // Compatibility: logs at INFO
+    void WriteLog(const std::string& message) { WriteLog(LogLevel::INFO, message); }
 
-        LogLevel CurrentLogLevel = INFO;
-        std::ofstream logfile;
-        std::vector<std::string> logBuffer; // Buffer for logs
-        size_t bufferSize;      // Number of logs before flush
+    // Fast path
+    void WriteLog(LogLevel level, std::string_view message);
+
+    // Forces buffered data to the stream + flush()
+    void flush() noexcept;
+
+    void enableTimestamps(bool enabled) noexcept { timestampsEnabled = enabled; }
+
+private:
+    void appendTimestamp();
+    static constexpr std::array<std::string_view, 4> LevelTags = {
+        "[DEBUG]", "[INFO]", "[WARNING]", "[ERROR]"
+    };
+
+    LogLevel minLevel = LogLevel::INFO;
+
+    std::ofstream logfile;
+
+    // Bigger OS/stdio buffer (optional but helps)
+    std::vector<char> fileIoBuffer;
+
+    // One big accumulation buffer
+    std::string outBuffer;
+    size_t flushThresholdBytes;
+
+    // Timestamp cache (updates once/sec)
+    bool timestampsEnabled = true;
+    std::time_t cachedSec = 0;
+    char cachedTimestamp[32] = {0}; // e.g. "[2025-12-13 21:03:59]"
 };
 
 #endif // LOGGING_H
