@@ -8,6 +8,7 @@
 #ifndef FLOPPYCONTROLLERHOST_H
 #define FLOPPYCONTROLLERHOST_H
 
+#include <cstddef>
 #include <cstdint>
 
 class FloppyControllerHost
