@@ -20,6 +20,34 @@ D1571Memory::D1571Memory() :
 
 D1571Memory::~D1571Memory() = default;
 
+namespace
+{
+    void sampleA_1571(DriveCIA&, Drive&, uint8_t& outPinsA)
+    {
+        outPinsA = 0xFF; // TODO: set DRVRDY/DSKCH/devswitch pins later
+    }
+
+    void sampleB_1571(DriveCIA&, Drive& drive, uint8_t& outPinsB)
+    {
+        outPinsB = 0xFF;
+
+        const auto s = drive.snapshotIEC();
+        if (s.dataLow) outPinsB &= ~DriveCIA::PRB_DATAIN;
+        if (s.clkLow)  outPinsB &= ~DriveCIA::PRB_CLKIN;
+        if (s.atnLow)  outPinsB &= ~DriveCIA::PRB_ATNIN;
+    }
+
+    void applyA_1571(DriveCIA&, Drive&, uint8_t, uint8_t) {}
+    void applyB_1571(DriveCIA&, Drive&, uint8_t, uint8_t) {}
+
+    const DriveCIAWiring kCIA1571Wiring {
+        &sampleA_1571,
+        &sampleB_1571,
+        &applyA_1571,
+        &applyB_1571
+    };
+}
+
 void D1571Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 {
     // Attach the drive first
@@ -29,6 +57,7 @@ void D1571Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     via1.attachPeripheralInstance(parentPeripheral, D1571VIA::VIARole::VIA1_IECBus);
     via2.attachPeripheralInstance(parentPeripheral, D1571VIA::VIARole::VIA2_Mechanics);
     cia.attachPeripheralInstance(parentPeripheral);
+    cia.setWiring(&kCIA1571Wiring);
     fdc.attachPeripheralInstance(parentPeripheral);
 
     auto* host = dynamic_cast<FloppyControllerHost*>(parentPeripheral);
