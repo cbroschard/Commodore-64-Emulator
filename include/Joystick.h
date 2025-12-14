@@ -9,6 +9,7 @@
 #define JOYSTICK_H
 
 #include <cstdint>
+#include <sstream>
 #include <stdexcept>
 #include "Logging.h"
 
