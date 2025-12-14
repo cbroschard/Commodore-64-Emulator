@@ -34,7 +34,7 @@ class D1571 : public Drive, public FloppyControllerHost
         void tick(uint32_t cycles) override;
 
         // Compatibility check
-        bool canMount(DiskFormat fmt) const override;
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::D71; }
 
         // IEC getters
         inline bool getAtnLineLow()  const  override { return bus ? !bus->readAtnLine() : atnLineLow; }
@@ -97,12 +97,12 @@ class D1571 : public Drive, public FloppyControllerHost
         inline bool hasFDC() const override  { return true; }
         inline const CPU* getDriveCPU() const override { return &driveCPU; }
         inline CPU* getDriveCPU() override { return &driveCPU; }
-        inline const D1571Memory* getMemory() const override { return &d1571Mem; }
-        inline D1571Memory* getMemory() override { return &d1571Mem; }
-        inline const FDC177x* getFDC() const override { return &d1571Mem.getFDC(); }
-        inline const DriveCIA* getCIA() const override { return &d1571Mem.getCIA(); }
-        inline const D1571VIA* getVIA1() const override { return &d1571Mem.getVIA1(); }
-        inline const D1571VIA* getVIA2() const override { return &d1571Mem.getVIA2(); }
+        inline const D1571Memory* getMemory() const override { return &d1571mem; }
+        inline D1571Memory* getMemory() override { return &d1571mem; }
+        inline const FDC177x* getFDC() const override { return &d1571mem.getFDC(); }
+        inline const DriveCIA* getCIA() const override { return &d1571mem.getCIA(); }
+        inline const D1571VIA* getVIA1() const override { return &d1571mem.getVIA1(); }
+        inline const D1571VIA* getVIA2() const override { return &d1571mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         inline const char* getDriveTypeName() const noexcept override { return "1571"; }
         IECSnapshot snapshotIEC() const override;
@@ -114,7 +114,7 @@ class D1571 : public Drive, public FloppyControllerHost
 
         // Drive chips
         CPU driveCPU;
-        D1571Memory d1571Mem;
+        D1571Memory d1571mem;
         IRQLine IRQ;
 
         static constexpr uint8_t GCR5[16] =

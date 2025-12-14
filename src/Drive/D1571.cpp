@@ -38,11 +38,11 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     gcrDirty(true)
 {
     setDeviceNumber(deviceNumber);
-    d1571Mem.attachPeripheralInstance(this);
+    d1571mem.attachPeripheralInstance(this);
     driveCPU.attachIRQLineInstance(&IRQ);
-    driveCPU.attachMemoryInstance(&d1571Mem);
+    driveCPU.attachMemoryInstance(&d1571mem);
 
-    if (!d1571Mem.initialize(romName))
+    if (!d1571mem.initialize(romName))
     {
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
     }
@@ -63,7 +63,7 @@ void D1571::tick(uint32_t cycles)
         if (dc > cycles) dc = cycles;
 
         // Tick “hardware time”
-        d1571Mem.tick(dc);
+        d1571mem.tick(dc);
         Drive::tick(dc);
 
         if (atnLineLow) peripheralAssertClk(false);
@@ -97,7 +97,7 @@ bool D1571::gcrTick()
     bool syncHigh    = (gcrSync[gcrPos] != 0);
 
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
-    d1571Mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
+    d1571mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
     return true;
 }
 
@@ -172,7 +172,7 @@ void D1571::reset()
     gcrTrackStream.clear();
     gcrSync.clear();
 
-    d1571Mem.reset();
+    d1571mem.reset();
     driveCPU.reset();
 }
 
@@ -231,7 +231,7 @@ void D1571::setBurstClock2MHz(bool enable)
 bool D1571::getByteReadyLow() const
 {
     if (isGCRMode())
-        return d1571Mem.getVIA2().mechHasBytePending();
+        return d1571mem.getVIA2().mechHasBytePending();
 
     auto* fdc = getFDC();
     if (!fdc) return false;
@@ -354,7 +354,7 @@ void D1571::rebuildGCRTrackStream()
     // Reset
     gcrPos = 0;
 
-    d1571Mem.getVIA2().clearMechBytePending();
+    d1571mem.getVIA2().clearMechBytePending();
 }
 
 void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
@@ -403,17 +403,12 @@ void D1571::syncTrackFromFDC()
     currentTrack = fdc->getCurrentTrack();
 }
 
-bool D1571::canMount(DiskFormat fmt) const
-{
-    return fmt == DiskFormat::D64 || fmt == DiskFormat::D71;
-}
-
 void D1571::updateIRQ()
 {
-    bool via1IRQ = d1571Mem.getVIA1().checkIRQActive();
-    bool via2IRQ = d1571Mem.getVIA2().checkIRQActive();
-    bool ciaIRQ = d1571Mem.getCIA().checkIRQActive();
-    bool fdcIRQ = d1571Mem.getFDC().checkIRQActive();
+    bool via1IRQ = d1571mem.getVIA1().checkIRQActive();
+    bool via2IRQ = d1571mem.getVIA2().checkIRQActive();
+    bool ciaIRQ = d1571mem.getCIA().checkIRQActive();
+    bool fdcIRQ = d1571mem.getFDC().checkIRQActive();
 
     bool any = via1IRQ || via2IRQ || ciaIRQ || fdcIRQ;
 
@@ -569,7 +564,7 @@ void D1571::atnChanged(bool atnLow)
     if (atnLineLow) peripheralAssertClk(false);
 
     // Keep VIA in sync with the new ATN level (PB4 input)
-    auto& via1 = d1571Mem.getVIA1();
+    auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
     // If ATN just asserted (bus high->low), this is the start of a new command
@@ -600,7 +595,7 @@ void D1571::clkChanged(bool clkLow)
     bool falling = ( prevClkHigh && !clkHigh );  // high -> low
 
     // Normal path: just update VIA with the new CLK level
-    auto& via1 = d1571Mem.getVIA1();
+    auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
     via1.onClkEdge(rising, falling);
 }
@@ -612,7 +607,7 @@ void D1571::dataChanged(bool dataLow)
     // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
 
-    auto& via1 = d1571Mem.getVIA1();
+    auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }
 
