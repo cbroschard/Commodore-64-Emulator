@@ -17,7 +17,6 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     srqAsserted(false),
     iecListening(false),
     iecTalking(false),
-    busDriversEnabled(false),
     presenceAckDone(false),
     expectingSecAddr(false),
     expectingDataByte(false),
@@ -30,7 +29,6 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     gcrDirty(true)
 {
     setDeviceNumber(deviceNumber);
-
     d1541mem.attachPeripheralInstance(this);
     driveCPU.attachMemoryInstance(&d1541mem);
     driveCPU.attachIRQLineInstance(&IRQ);
@@ -52,16 +50,16 @@ void D1541::reset()
     motorOn = false;
 
     // Status
-    lastError           = DriveError::NONE;
-    status              = DriveStatus::IDLE;
+    lastError                   = DriveError::NONE;
+    status                      = DriveStatus::IDLE;
 
     // Disk
-    diskLoaded          = false;
-    diskWriteProtected  = false;
-    currentTrack        = 17;
-    currentSector       = 0;
-    densityCode         = 2;
-    halfTrackPos        = currentTrack * 2;
+    diskLoaded                  = false;
+    diskWriteProtected          = false;
+    currentTrack                = 17;
+    currentSector               = 0;
+    densityCode                 = 3;
+    halfTrackPos                = currentTrack * 2;
     loadedDiskName.clear();
 
     // IEC BUS reset
@@ -71,7 +69,6 @@ void D1541::reset()
     srqAsserted                 = false;
     iecListening                = false;
     iecTalking                  = false;
-    busDriversEnabled           = false;
     presenceAckDone             = false;
     expectingSecAddr            = false;
     expectingDataByte           = false;
@@ -101,6 +98,7 @@ void D1541::reset()
 
     d1541mem.reset();
     driveCPU.reset();
+    d1541mem.getVIA1().setIECInputLines(false, false, false);
 }
 
 void D1541::tick(uint32_t cycles)
@@ -113,9 +111,6 @@ void D1541::tick(uint32_t cycles)
         if(dc > cycles) dc = cycles;
 
         d1541mem.tick(dc);
-        Drive::tick(dc);
-
-        if (atnLineLow) peripheralAssertClk(false);
 
         if (motorOn && diskLoaded)
             gcrAdvance(dc);
@@ -272,7 +267,7 @@ void D1541::updateIRQ()
 
 void D1541::loadDisk(const std::string& path)
 {
-     diskWriteProtected = false;
+    diskWriteProtected = false;
     auto img = DiskFactory::create(path);
     if (!img)
     {
@@ -363,19 +358,19 @@ void D1541::onUnListen()
 
 void D1541::onTalk()
 {
-    iecTalking   = true;
-    iecListening = false;
+    iecTalking              = true;
+    iecListening            = false;
 
-    talking   = true;
-    listening = false;
-    iecRxActive = false;
-    iecRxBitCount = 0;
-    iecRxByte = 0;
-
+    talking                 = true;
+    listening               = false;
+    iecRxActive             = false;
+    iecRxBitCount           = 0;
+    iecRxByte               = 0;
+    presenceAckDone         = false;
 
     // After TALK, the next byte from the C64 is a secondary address
-    expectingSecAddr  = true;
-    expectingDataByte = false;
+    expectingSecAddr        = true;
+    expectingDataByte       = false;
     currentSecondaryAddress = 0xFF;
 
     peripheralAssertClk(false);
@@ -426,72 +421,63 @@ void D1541::onSecondaryAddress(uint8_t sa)
 
 void D1541::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow) return; // ignore no change
+    if (atnLow == atnLineLow) return;
 
-    bool prev = atnLineLow;
+    bool prevAtnLow = atnLineLow;
     atnLineLow = atnLow;
 
-    // Force clk to release when Atn is asserted by the C64
-    if (atnLineLow) peripheralAssertClk(false);
-
-    // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    // If ATN just asserted (bus high->low), this is the start of a new command
-    // phase. Resync the serial shift register so we don't carry partial bytes.
-    if (!prev && atnLineLow)
-    {
+    if (!prevAtnLow && atnLineLow)
         via1.resetShift();
-    }
-
-    // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
-    bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low
-    bool ca1Falling = ( prev && !atnLineLow);  // ATN low->high
-    via1.onCA1Edge(ca1Rising, ca1Falling);
 }
 
 void D1541::clkChanged(bool clkLow)
 {
-    if (clkLow == clkLineLow) return; // ignore no change
+    if (clkLow == clkLineLow)
+        return; // ignore no change
 
-    bool prevClkLow  = clkLineLow;
-    clkLineLow       = clkLow;
+    const bool prevClkLow = clkLineLow;
+    clkLineLow = clkLow;
 
-    bool prevClkHigh = !prevClkLow;
-    bool clkHigh     = !clkLow;
-
-    // Edge detection on the bus CLK line
-    bool rising  = (!prevClkHigh && clkHigh);    // low -> high
-    bool falling = ( prevClkHigh && !clkHigh );  // high -> low
-
-    // Normal path: just update VIA with the new CLK level
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    // Line is low-true. So:
+    // rising  = low -> high  (true -> false)
+    // falling = high -> low  (false -> true)
+    const bool rising  = (prevClkLow && !clkLineLow);
+    const bool falling = (!prevClkLow && clkLineLow);
+
     via1.onClkEdge(rising, falling);
+
+#ifdef Debug
+    std::cout << "[D1541] clkChanged: atnLow=" << atnLineLow
+              << " clkLow=" << clkLow
+              << " rising=" << rising
+              << " falling=" << falling
+              << "\n";
+#endif
 }
 
 void D1541::dataChanged(bool dataLow)
 {
-    if (dataLow == dataLineLow) return; // ignore no change
+    if (dataLow == dataLineLow)
+        return; // ignore no change
 
     // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-}
 
-void D1541::setBusDriversEnabled(bool enabled)
-{
-    busDriversEnabled = enabled;
-
-    if (!busDriversEnabled)
-    {
-        // release lines immediately
-        driveControlDataLine(false);
-        driveControlClkLine(false);
-    }
+    #ifdef Debug
+        std::cout << "[D1541] dataChanged: atnLow=" << atnLineLow
+                  << " clkLow=" << clkLineLow
+                  << " dataLow=" << dataLineLow
+                  << "\n";
+    #endif
 }
 
 void D1541::setDensityCode(uint8_t code)
@@ -524,7 +510,7 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
 int D1541::cyclesPerByteFromDensity(uint8_t code) const
 {
-    static constexpr int kCycles[4] = { 26, 28, 30, 32 };
+    static constexpr int kCycles[4] = { 32, 30, 28, 26 };
 
     return kCycles[code & 0x03];
 }

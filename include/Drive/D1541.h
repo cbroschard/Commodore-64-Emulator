@@ -58,17 +58,20 @@ class D1541 : public Drive
         // IEC
         inline bool isSRQAsserted() const override { return srqAsserted; }
         inline void setSRQAsserted(bool state) override { srqAsserted = state; }
-        inline bool isBusDriversEnabled() const { return busDriversEnabled; }
         void atnChanged(bool atnLow) override;
         void clkChanged(bool clkLow)  override;
         void dataChanged(bool dataLow) override;
-        void setBusDriversEnabled(bool enabled);
 
         // Getters
         inline bool getAtnLineLow() const override { return atnLineLow; }
         inline bool getClkLineLow() const override { return clkLineLow; }
         inline bool getDataLineLow() const override { return dataLineLow; }
         inline bool getSRQAsserted() const override { return srqAsserted; }
+
+        // Presence helpers
+        inline bool hasDonePresenceAck() const { return presenceAckDone; }
+        inline void markPresenceAckDone()      { presenceAckDone = true; }
+        inline bool isIECSelected() const      { return iecListening || iecTalking; }
 
         // Drive Mechanics
         void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
@@ -77,6 +80,10 @@ class D1541 : public Drive
         // Status tracking
         DriveError  lastError;
         DriveStatus status;
+
+        // Atn Ack
+        inline void setPresenceAckDone(bool done) { presenceAckDone = done; }
+        inline bool getPresenceAckDone() const { return presenceAckDone; }
 
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
@@ -120,7 +127,6 @@ class D1541 : public Drive
         bool srqAsserted;
         bool iecListening;
         bool iecTalking;
-        bool busDriversEnabled;
         bool presenceAckDone;
         bool expectingSecAddr;
         bool expectingDataByte;

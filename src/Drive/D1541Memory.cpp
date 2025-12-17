@@ -61,11 +61,11 @@ uint8_t D1541Memory::read(uint16_t address)
     {
         return D1541RAM[address - D1541_RAM_START];
     }
-    else if (address >= VIA1_START && address <= VIA1_END)
+    else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
     {
         return via1.readRegister((address - VIA1_START) & 0x0F);
     }
-    else if (address >= VIA2_START && address <= VIA2_END)
+    else if (address >= VIA2_START && address <= (VIA2_START + 0x03FF))
     {
         return via2.readRegister((address - VIA2_START) & 0x0F);
     }
@@ -90,11 +90,11 @@ void D1541Memory::write(uint16_t address, uint8_t value)
     {
         D1541RAM[address - D1541_RAM_START] = value;
     }
-    else if (address >= VIA1_START && address <= VIA1_END)
+    else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
     {
         via1.writeRegister((address - VIA1_START) & 0x0F, value);
     }
-    else if (address >= VIA2_START && address <= VIA2_END)
+    else if (address >= VIA2_START && address <= (VIA2_START + 0x03FF))
     {
         via2.writeRegister((address - VIA2_START) & 0x0F, value);
     }
@@ -123,11 +123,6 @@ bool D1541Memory::initialize(const std::string& D1541LoROM, const std::string& D
     }
 
     return true;
-}
-
-IRQLine* D1541Memory::getIRQLine()
-{
-    return &driveIRQ;
 }
 
 bool D1541Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)

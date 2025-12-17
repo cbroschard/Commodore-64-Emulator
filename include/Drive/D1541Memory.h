@@ -43,7 +43,7 @@ class D1541Memory : public DriveMemoryBase
         bool initialize(const std::string& D1541LoROM, const std::string& D1541HiROM);
 
         // Getters for access for D1541
-        IRQLine* getIRQLine();
+        IRQLine* getIRQLine() { return &driveIRQ; }
 
         inline D1541VIA& getVIA1() { return via1; }
         inline const D1541VIA& getVIA1() const { return via1; }
@@ -84,9 +84,9 @@ class D1541Memory : public DriveMemoryBase
 
         // VIA Constants
         static const uint16_t VIA1_START = 0x1800;
-        static const uint16_t VIA1_END = 0x180F;
+        static const uint16_t VIA1_END = 0x1BFF;
         static const uint16_t VIA2_START = 0x1C00;
-        static const uint16_t VIA2_END =  0x1C0F;
+        static const uint16_t VIA2_END =  0x1FFF;
 
         // ROM Loader
         bool loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);

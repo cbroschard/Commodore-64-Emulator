@@ -16,16 +16,26 @@ D1541VIA::D1541VIA() :
     srShiftReg(0),
     srBitCount(0),
     srShiftInMode(false),
+    iecRxPending(false),
+    iecRxByte(0),
     ledOn(false),
     mechDataLatch(0xFF),
     mechBytePending(false),
+    atnAckArmed(false),
     t1Counter(0),
     t1Latch(0),
     t1Running(false),
     t2Counter(0),
     t2Latch(0),
     t2Running(false),
-    srCount(0)
+    busAtnLow(false),
+    busClkLow(false),
+    busDataLow(false),
+    srCount(0),
+    ca1Level(false),
+    ca2Level(false),
+    cb1Level(false),
+    cb2Level(false)
 {
     reset();
 }
@@ -36,6 +46,7 @@ void D1541VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole vi
 {
     this->parentPeripheral = parentPeripheral;
     this->viaRole = viaRole;
+    if (viaRole == VIARole::VIA1_IECBus) updateIECOutputsFromPortB();
 }
 
 void D1541VIA::reset()
@@ -44,7 +55,7 @@ void D1541VIA::reset()
     portBPins                           = 0xFF;
 
     // Initialize registers
-    registers.orbIRB                    = 0xFF;
+    registers.orbIRB                    = 0x00;
     registers.oraIRA                    = 0x00;
     registers.ddrB                      = 0x00;
     registers.ddrA                      = 0x00;
@@ -69,6 +80,14 @@ void D1541VIA::reset()
     t2Latch                             = 0x00;
     t2Running                           = false;
 
+    // Latched real bus levels
+    busAtnLow                           = false;
+    busClkLow                           = false;
+    busDataLow                          = false;
+
+    // Handshake
+    atnAckArmed                         = false;
+
     // Drive Mechanics
     ledOn                               = false;
     syncDetected                        = false;
@@ -81,14 +100,22 @@ void D1541VIA::reset()
     srCount                             = 0;
     srShiftInMode                       = false;
 
-    if (viaRole == VIARole::VIA1_IECBus)
-    {
-        portBPins &= static_cast<uint8_t>(~(
-            (1u << IEC_ATN_IN_BIT) |
-            (1u << IEC_CLK_IN_BIT) |
-            (1u << IEC_DATA_IN_BIT)
-        ));
-    }
+    // IEC Bits
+    iecRxPending                        = false;
+    iecRxByte                           = 0;
+
+    // CA1 + CA2
+    ca1Level                            = false;
+    ca2Level                            = false;
+    cb1Level                            = false;
+    cb2Level                            = false;
+
+    portBPins &= (uint8_t)
+    ~(
+        (1u << IEC_ATN_IN_BIT) |
+        (1u << IEC_CLK_IN_BIT) |
+        (1u << IEC_DATA_IN_BIT)
+    );
 
     if (viaRole == VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
@@ -103,7 +130,7 @@ void D1541VIA::resetShift()
 
 void D1541VIA::tick(uint32_t cycles)
 {
-    while(cycles-- > 0)
+    while (cycles-- > 0)
     {
         // Timer 1
         if (t1Running)
@@ -112,18 +139,14 @@ void D1541VIA::tick(uint32_t cycles)
             {
                 --t1Counter;
 
-                // Reflect back into the visible counter registers
                 registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0x00FF);
                 registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
 
                 if (t1Counter == 0)
                 {
-                    // Set IFR6
-                     triggerInterrupt(IFR_TIMER1);
+                    triggerInterrupt(IFR_TIMER1);
 
-                    // Check ACR bit 6 to decide one-shot vs continuous
                     bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
-
                     if (t1Continuous)
                     {
                         // Free-run: reload from latch and keep going
@@ -138,17 +161,21 @@ void D1541VIA::tick(uint32_t cycles)
             }
         }
 
-        // Timer 2
+        // Timer 2 (ONE-SHOT: do NOT reload automatically)
         if (t2Running)
         {
-            t2Counter--; // Wraps at 0xFFFF
-            registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
-            registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
-
-            if (t2Counter == 0xFFFF)
+            if (t2Counter > 0)
             {
-                triggerInterrupt(IFR_TIMER2);
-                t2Running = false;;
+                --t2Counter;
+
+                registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
+                registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
+
+                if (t2Counter == 0)
+                {
+                    triggerInterrupt(IFR_TIMER2);
+                    t2Running = false;
+                }
             }
         }
     }
@@ -205,7 +232,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     }
                 }
             }
-
+            clearIFR(IFR_CB1);
             return value;
         }
         case 0x01: // ORA/IRA (Port A)
@@ -249,28 +276,32 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                 // Reading PRA consumes the pending byte and clears CA1 IFR
                 if (mechBytePending)
                 {
+                    #ifdef Debug
+                    std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
+                    #endif
                     mechBytePending = false;
-                    clearIFR(IFR_CA1);
                 }
             }
+            clearIFR(IFR_CA1);
             return value;
         }
         case 0x02: return registers.ddrB;
         case 0x03: return registers.ddrA;
-        case 0x04: return registers.timer1CounterLowByte;
-        case 0x05:
+        case 0x04: // T1C-L
         {
-            uint8_t value = registers.timer1CounterHighByte;
             clearIFR(IFR_TIMER1);
-            return value;
+            return registers.timer1CounterLowByte;
+        }
+        case 0x05: // T1C-H
+        {
+            return registers.timer1CounterHighByte;
         }
         case 0x06: return registers.timer1LowLatch;
         case 0x07: return registers.timer1HighLatch;
         case 0x08:
         {
-            uint8_t value = registers.timer2CounterLowByte;
             clearIFR(IFR_TIMER2);
-            return value;
+            return registers.timer2CounterLowByte;
         }
         case 0x09: return registers.timer2CounterHighByte;
         case 0x0A:
@@ -290,7 +321,14 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             return registers.interruptFlag;
         }
         case 0x0E: return registers.interruptEnable;
-        case 0x0F: return registers.oraIRANoHandshake;
+        case 0x0F: // ORA/IRA (no handshake) — still clears CA1 on read
+        {
+            const uint8_t ddrA = registers.ddrA;
+
+            uint8_t inputPins = portAPins;
+            uint8_t value = (registers.oraIRA & ddrA) | (inputPins & (uint8_t)~ddrA);
+            return value;
+        }
         default: return 0xFF;
     }
 }
@@ -301,6 +339,15 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
     {
         case 0x00:
         {
+            #ifdef Debug
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                std::cout << "[VIA1] ORB write: $" << std::hex << int(value)
+                          << " (old=$" << int(registers.orbIRB) << ")"
+                          << " DDRB=$" << int(registers.ddrB)
+                          << std::dec << "\n";
+            }
+            #endif
             uint8_t prevORB  = registers.orbIRB;
             registers.orbIRB = value;
 
@@ -356,26 +403,20 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         }
         case 0x01:
         {
-            uint8_t ddrA = registers.ddrA;
             registers.oraIRA = value;
-
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    // Bit 1 Bus Driver Selection
-                    if (ddrA & (1u << PORTA_FSM_DIRECTION))
-                    {
-                        bool output = (value & (1u << PORTA_FSM_DIRECTION)) != 0;
-                        drive->setBusDriversEnabled(output);
-                        updateIECOutputsFromPortB();
-                    }
-                }
-            }
             break;
         }
         case 0x02:
         {
+            #ifdef Debug
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                std::cout << "[VIA1] DDRB write: $" << std::hex << int(value)
+                          << " (old=$" << int(registers.ddrB) << ")"
+                          << " ORB=$" << int(registers.orbIRB)
+                          << std::dec << "\n";
+            }
+            #endif
             registers.ddrB = value;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -415,42 +456,27 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             }
             break;
         }
-        case 0x03:
-        {
-            registers.ddrA = value;
-
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    const uint8_t ora  = registers.oraIRA;
-                    const uint8_t ddrA = registers.ddrA;
-
-                    // If you keep these hooks for shared code: bus driver enable is OK;
-                    // head-side + burst should be NO-OPs on D1541.
-                    if (ddrA & (1u << PORTA_FSM_DIRECTION))
-                    {
-                        bool output = (ora & (1u << PORTA_FSM_DIRECTION)) != 0;
-                        drive->setBusDriversEnabled(output);
-                        updateIECOutputsFromPortB();
-                    }
-                }
-            }
-            break;
-        }
+        case 0x03: registers.ddrA = value; break;
         case 0x04: // T1C-L
         {
+            // On real 6522 this also updates the latch low byte.
             registers.timer1CounterLowByte = value;
-            t1Counter = (t1Counter & 0xFF00) | value;
+            registers.timer1LowLatch       = value;
+
+            t1Latch = (t1Latch & 0xFF00) | value;
             break;
         }
         case 0x05: // T1C-H (loads/starts)
         {
+            // On real 6522 this also updates latch high and loads counter from latch.
             registers.timer1CounterHighByte = value;
-            t1Counter = (static_cast<uint16_t>(registers.timer1CounterHighByte) << 8) |
-                        static_cast<uint16_t>(registers.timer1CounterLowByte);
+            registers.timer1HighLatch       = value;
 
-            t1Running = true;
+            t1Latch = (static_cast<uint16_t>(registers.timer1HighLatch) << 8) |
+                      static_cast<uint16_t>(registers.timer1LowLatch);
+
+            t1Counter  = t1Latch;
+            t1Running  = true;
             clearIFR(IFR_TIMER1);
             break;
         }
@@ -491,12 +517,20 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         }
         case 0x0B:
         {
+            #ifdef Debug
+            std::cout << "Updated AUX Control Register with value: " << static_cast<int>(value) << "\n";
+            #endif // Debug
             registers.auxControlRegister = value;
             break;
         }
-        case 0x0C:
+        case 0x0C: // PCR
         {
             registers.peripheralControlRegister = value;
+        #ifdef Debug
+            std::cout << "[VIA1] PCR write: $" << hex2(value)
+                      << "  CA1_edge=" << ((value & 0x01) ? "POS" : "NEG")
+                      << "\n";
+        #endif
             break;
         }
         case 0x0D:
@@ -506,18 +540,18 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             clearIFR(mask);
             break;
         }
-        case 0x0E:
+        case 0x0E: // IER
         {
-            bool set = (value & 0x80) != 0;
-            uint8_t mask = value & 0x7F;
-            if (set)
-            {
-                registers.interruptEnable |= mask;
-            }
-            else
-            {
-                registers.interruptEnable &= ~mask;
-            }
+            const bool set = (value & 0x80) != 0;
+            const uint8_t mask = (value & 0x7F);
+            if (set) registers.interruptEnable |= mask;
+            else     registers.interruptEnable &= ~mask;
+
+        #ifdef Debug
+            std::cout << "[VIA1] IER write: $" << hex2(value)
+                      << "  IER=$" << hex2(registers.interruptEnable)
+                      << "\n";
+        #endif
             refreshMasterBit();
             break;
         }
@@ -564,32 +598,107 @@ void D1541VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
 void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
-    // remember previous ATN state as seen on PB7
-    bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    if (viaRole != VIARole::VIA1_IECBus) return;
+
+    const bool prevAtnLow = busAtnLow;
+    const bool prevClkLow = busClkLow;
+
+    busAtnLow  = atnLow;
+    busClkLow  = clkLow;
+    busDataLow = dataLow;
+
+    setCA1Level(busAtnLow);
+    if (!prevAtnLow && busAtnLow)
+        atnAckArmed = true;
+
+    // Also disarm when ATN deasserts
+    if (prevAtnLow && !busAtnLow)
+        atnAckArmed = false;
 
     uint8_t pins = portBPins;
 
-    if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT); // Bus Low -> Pin High
-    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT); // Bus High -> Pin Low
+    // These reflect the inverted sense presented to the VIA inputs in your convention
+    if (dataLow) pins |=  (uint8_t)(1u << IEC_DATA_IN_BIT);
+    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT);
 
-    if (clkLow)  pins |= (uint8_t) (1u << IEC_CLK_IN_BIT);  // Bus Low -> Pin High
-    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);  // Bus High -> Pin Low
+    if (clkLow)  pins |=  (uint8_t)(1u << IEC_CLK_IN_BIT);
+    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);
 
-    if (atnLow)  pins |= (uint8_t) (1u << IEC_ATN_IN_BIT);
+    if (atnLow)  pins |=  (uint8_t)(1u << IEC_ATN_IN_BIT);
     else         pins &= (uint8_t)~(1u << IEC_ATN_IN_BIT);
 
     portBPins = pins;
 
-    bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0); // Active is High at Pin
-
-    if (viaRole == VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
+    // If either changed, recompute outputs
+    if ((busAtnLow != prevAtnLow) || (busClkLow != prevClkLow))
         updateIECOutputsFromPortB();
+
+#ifdef Debug
+    std::cout << "[VIA1 setIECInputLines] ATN=" << busAtnLow
+              << " CLK=" << busClkLow
+              << " DATA=" << busDataLow
+              << " CA1=" << ca1Level
+              << "\n";
+#endif
 }
 
 void D1541VIA::clearMechBytePending()
 {
     mechBytePending = false;
     clearIFR(IFR_CA1);
+}
+
+void D1541VIA::setCA1Level(bool level)
+{
+    if (level == ca1Level) return;
+
+    const bool old = ca1Level;
+    ca1Level = level;
+
+    const bool rising  = (!old &&  level);
+    const bool falling = ( old && !level);
+
+#ifdef Debug
+    std::cout << "[VIA1] CA1 edge: " << (rising ? "RISING" : "FALLING")
+              << "  PCR=$" << hex2(registers.peripheralControlRegister)
+              << "  IFR=$" << hex2(registers.interruptFlag)
+              << "  IER=$" << hex2(registers.interruptEnable)
+              << "\n";
+#endif
+
+    onCA1Edge(rising, falling);
+}
+
+void D1541VIA::setCA2Level(bool level)
+{
+    if (level == ca2Level) return;
+    bool rising  = (!ca2Level && level);
+    bool falling = (ca2Level && !level);
+    ca2Level = level;
+
+    onCA2Edge(rising, falling);
+}
+
+void D1541VIA::setCB2Level(bool level)
+{
+    if (level == cb2Level) return;
+
+    bool rising  = (!cb2Level && level);
+    bool falling = ( cb2Level && !level);
+    cb2Level = level;
+
+    onCB2Edge(rising, falling);
+}
+
+void D1541VIA::setCB1Level(bool level)
+{
+    if (level == cb1Level) return;
+
+    bool rising  = (!cb1Level && level);
+    bool falling = ( cb1Level && !level);
+    cb1Level = level;
+
+    onCB1Edge(rising, falling);
 }
 
 bool D1541VIA::checkIRQActive() const
@@ -625,18 +734,18 @@ void D1541VIA::onClkEdge(bool rising, bool falling)
     if (viaRole != VIARole::VIA1_IECBus)
         return;
 
-    // 6522: ACR bits 2..3 = 01 => shift-in under external clock
-    srShiftInMode = (registers.auxControlRegister & 0x0C) == 0x04;
+    // 6522 SR mode is selected by ACR bits 4..2 (shifted down by 2 => 0..7)
+    const uint8_t srMode = (registers.auxControlRegister >> 2) & 0x07;
 
-    if (rising && srShiftInMode)
+    // 0: disabled
+    // 1..3: shift IN (T2 / φ2 / external clock)
+    // 4..7: shift OUT (...)
+    const bool srShiftIn = (srMode >= 1 && srMode <= 3);
+
+    if (rising && srShiftIn)
     {
-        bool dataLow = false;
-        if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-        {
-            dataLow = drive->getDataLineLow();
-        }
-
-        const int bit = dataLow ? 0 : 1;
+        bool dataLow = ((portBPins & (1u << IEC_DATA_IN_BIT)) != 0);
+        int bit = dataLow ? 0 : 1;
 
         srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
         ++srBitCount;
@@ -644,19 +753,8 @@ void D1541VIA::onClkEdge(bool rising, bool falling)
         if (srBitCount == 8)
         {
             registers.serialShift = srShiftReg;
-
-            #ifdef Debug
-            std::cout << "[VIA1] IEC RX byte = $"
-                      << std::hex << std::uppercase << int(registers.serialShift)
-                      << " (LSB-first, ACR=$" << int(registers.auxControlRegister)
-                      << ")\n" << std::dec;
-            #endif
-
-            // reset for next byte
             srShiftReg = 0;
             srBitCount = 0;
-
-            // raise SR interrupt
             triggerInterrupt(IFR_SR);
         }
     }
@@ -675,54 +773,98 @@ void D1541VIA::onCA1Edge(bool rising, bool falling)
 
     // Interrupt handling for CA1
     if (trigger)
-    {
         triggerInterrupt(IFR_CA1);
-    }
+}
 
+void D1541VIA::onCA2Edge(bool rising, bool falling)
+{
+    // PCR bits 3..1 = CA2 control
+    // If PCR bit 3 == 0 => CA2 is INPUT (interrupt capable)
+    // In input mode:
+    //   000 = negative edge, 001 = positive edge  (PCR bit 1 selects)
+    const uint8_t pcr = registers.peripheralControlRegister;
+
+    const bool ca2IsInput = (pcr & 0x08) == 0;     // bit 3
+    if (!ca2IsInput) return;                       // output/handshake modes: no CA2 input IRQ
+
+    const bool activeEdgePos = (pcr & 0x02) != 0;  // bit 1
+    bool trigger = (activeEdgePos && rising) || (!activeEdgePos && falling);
+
+    if (trigger)
+        triggerInterrupt(IFR_CA2);
+}
+
+void D1541VIA::onCB1Edge(bool rising, bool falling)
+{
+    // PCR Bit 4 controls CB1 Active Edge
+    // 0 = Negative Edge (High to Low)
+    // 1 = Positive Edge (Low to High)
+    const uint8_t pcr = registers.peripheralControlRegister;
+
+    const bool activeEdgePos = (pcr & 0x10) != 0; // bit 4
+    bool trigger = false;
+
+    if (activeEdgePos && rising)
+        trigger = true;
+    else if (!activeEdgePos && falling)
+        trigger = true;
+
+    if (trigger)
+        triggerInterrupt(IFR_CB1);
+}
+
+void D1541VIA::onCB2Edge(bool rising, bool falling)
+{
+    // PCR bits 7..5 = CB2 control
+    // If PCR bit 7 == 0 => CB2 is INPUT (interrupt capable)
+    // In input mode:
+    //   000 = negative edge, 001 = positive edge  (PCR bit 5 selects)
+    const uint8_t pcr = registers.peripheralControlRegister;
+
+    const bool cb2IsInput = (pcr & 0x80) == 0;    // bit 7
+    if (!cb2IsInput)
+        return;
+
+    const bool activeEdgePos = (pcr & 0x20) != 0; // bit 5
+    bool trigger = (activeEdgePos && rising) || (!activeEdgePos && falling);
+
+    if (trigger)
+        triggerInterrupt(IFR_CB2);
 }
 
 void D1541VIA::updateIECOutputsFromPortB()
 {
-    if (viaRole != VIARole::VIA1_IECBus) return;
+    if (!parentPeripheral || viaRole != VIARole::VIA1_IECBus) return;
+    auto* drive = static_cast<D1541*>(parentPeripheral);
 
-    auto* d1541 = dynamic_cast<D1541*>(parentPeripheral);
-    if (!d1541) return;
+    const uint8_t ddrB = registers.ddrB;
+    const uint8_t orb  = registers.orbIRB;
 
-    if (!d1541->isBusDriversEnabled())
+    const bool dataOutLow =
+        (ddrB & (1u << IEC_DATA_OUT_BIT)) && ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
+
+    const bool clkOutLow =
+        (ddrB & (1u << IEC_CLK_OUT_BIT)) && ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
+
+    bool atnaHigh = true;
+    if (ddrB & (1u << IEC_ATN_ACK_BIT))
     {
-        d1541->driveControlDataLine(false); // release
-        d1541->driveControlClkLine(false);  // release
-        return;
+        const bool pb4High = ((orb & (1u << IEC_ATN_ACK_BIT)) != 0);
+        atnaHigh = !pb4High; // your 7406 inversion convention
     }
 
-    const uint8_t orb  = registers.orbIRB;
-    const uint8_t ddrB = registers.ddrB;
+    // FIX: Hardware Latch Reset Logic
+    // If the CPU sets PB4 High (atnaHigh = false), it resets the 7474 ATN latch.
+    if (!atnaHigh && atnAckArmed)
+    {
+        atnAckArmed = false;
+    }
 
-    bool dataLow = false;
-    bool clkLow  = false;
+    const bool gatePullsDataLow = (busAtnLow && atnAckArmed && atnaHigh);
+    const bool finalDataLow = dataOutLow || gatePullsDataLow;
 
-    // Output logic: Inverted Open Collector buffers (7406).
-    // VIA Output '1' -> Buffer Input '1' -> Buffer Output '0' (Low/Active).
-    // VIA Output '0' -> Buffer Input '0' -> Buffer Output High-Z (Released).
-
-    if (ddrB & (1u << IEC_DATA_OUT_BIT))
-        dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
-
-    if (ddrB & (1u << IEC_CLK_OUT_BIT))
-        clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
-
-    // ATN Input bit (Bit 7, PB7 or similar)
-    bool atnAsserted = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
-
-    bool atnAckAuto = false;
-    if (ddrB & (1u << IEC_ATN_ACK_BIT))
-        atnAckAuto = ((orb & (1u << IEC_ATN_ACK_BIT)) == 0);
-
-    if (atnAsserted && atnAckAuto)
-        dataLow = true; // force DATA low as the acknowledge
-
-    d1541->driveControlDataLine(dataLow);
-    d1541->driveControlClkLine(clkLow);
+    drive->driveControlDataLine(finalDataLow);
+    drive->driveControlClkLine(clkOutLow);
 }
 
 DriveVIABase::MechanicsInfo D1541VIA::getMechanicsInfo() const

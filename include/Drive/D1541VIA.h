@@ -57,14 +57,16 @@ class D1541VIA : public DriveVIABase
         inline void setSyncDetected(bool present) { syncDetected = present; }
         void diskByteFromMedia(uint8_t byte, bool inSync);
 
-
-        // Setters
-        void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
-
         // Helpers
         void clearMechBytePending();
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
+        void onCA2Edge(bool rising, bool falling);
+        void onCB1Edge(bool rising, bool falling);
+        void onCB2Edge(bool rising, bool falling);
+
+        // Setters
+        void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
 
         // ML Monitor
         inline viaRegsView getRegsView() const override
@@ -105,6 +107,10 @@ class D1541VIA : public DriveVIABase
         uint8_t  srShiftReg;
         uint8_t  srBitCount;
         bool     srShiftInMode;
+
+        // IEC Bits
+        bool    iecRxPending;
+        uint8_t iecRxByte;
 
         // Port B IEC Bits
         enum : uint8_t
@@ -194,6 +200,9 @@ class D1541VIA : public DriveVIABase
         uint8_t mechDataLatch;
         bool    mechBytePending;
 
+        // Handshake
+        bool    atnAckArmed;
+
         // Timers
         uint16_t t1Counter;
         uint16_t t1Latch;
@@ -202,15 +211,31 @@ class D1541VIA : public DriveVIABase
         uint16_t t2Latch;
         bool     t2Running;
 
+        // Latched real bus levels (true = line is LOW on the IEC bus)
+        bool busAtnLow;
+        bool busClkLow;
+        bool busDataLow;
+
         // Shift register counter
         int srCount;
+
+        // CA1 and CA2 pin states
+        bool ca1Level;
+        bool ca2Level;
+        bool cb1Level;
+        bool cb2Level;
+
+        void setCA1Level(bool level);
+        void setCA2Level(bool level);
+        void setCB1Level(bool level);
+        void setCB2Level(bool level);
 
         // IRQ
         void triggerInterrupt(uint8_t mask);
         void clearIFR(uint8_t mask);
         void refreshMasterBit();
 
-        // Helpers
+                // Helpers
         void updateIECOutputsFromPortB();
 };
 

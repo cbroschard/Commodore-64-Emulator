@@ -20,11 +20,83 @@ D1581Memory::D1581Memory() :
 
 D1581Memory::~D1581Memory() = default;
 
+namespace
+{
+    void sampleA_1581(DriveCIA&, Drive& drive, uint8_t& outPinsA)
+    {
+        outPinsA = 0xFF;
+
+        // Device number switches (typical mapping: both open=8, SW1 closed=9, SW2 closed=10, both=11)
+        const int dn = drive.getDeviceNumber(); // if you don't have this, add a getter in Drive
+        const bool sw1Closed = (dn == 9 || dn == 11);
+        const bool sw2Closed = (dn == 10 || dn == 11);
+
+        if (sw1Closed) outPinsA &= ~DriveCIA::PRA_DEVSW1;
+        if (sw2Closed) outPinsA &= ~DriveCIA::PRA_DEVSW2;
+
+        // Disk present / ready (start simple: "loaded" => ready)
+        if (drive.isDiskLoaded()) outPinsA |=  DriveCIA::PRA_DRVRDY;
+        else                      outPinsA &= ~DriveCIA::PRA_DRVRDY;
+
+        if (drive.isDiskLoaded()) outPinsA |=  DriveCIA::PRA_DSKCH;
+        else                      outPinsA &= ~DriveCIA::PRA_DSKCH;
+    }
+
+    void applyA_1581(DriveCIA&, Drive& drive, uint8_t pra, uint8_t ddra)
+    {
+        auto& d = static_cast<D1581&>(drive);
+
+        // Motor control: PRA_MOTOR comment says 0=on, 1=off :contentReference[oaicite:7]{index=7}
+        if (ddra & DriveCIA::PRA_MOTOR)
+        {
+            if (pra & DriveCIA::PRA_MOTOR) d.stopMotor();
+            else                           d.startMotor();
+        }
+
+        // Side select (store it so fdcReadSector can use it)
+        if (ddra & DriveCIA::PRA_SIDE)
+        {
+            uint8_t side = (pra & DriveCIA::PRA_SIDE) ? 1 : 0;
+            d.setCurrentSide(side);
+        }
+
+        // LEDs can be latched/logged later; not required for LOAD to work.
+    }
+
+    void sampleB_1581(DriveCIA& cia, Drive& drive, uint8_t& outPinsB)
+    {
+        outPinsB = 0xFF;
+
+        const auto s = drive.snapshotIEC();
+        if (s.dataLow) outPinsB &= ~DriveCIA::PRB_DATAIN;
+        if (s.clkLow)  outPinsB &= ~DriveCIA::PRB_CLKIN;
+        if (s.atnLow)  outPinsB &= ~DriveCIA::PRB_ATNIN;
+
+        if (auto* host = dynamic_cast<FloppyControllerHost*>(&drive))
+        {
+            if (host->fdcIsWriteProtected())
+                outPinsB &= ~DriveCIA::PRB_WRTPRO;  // "protected" reads low
+            else
+                outPinsB |=  DriveCIA::PRB_WRTPRO;
+        }
+    }
+
+    void applyB_1581(DriveCIA&, Drive&, uint8_t, uint8_t) {}
+
+    const DriveCIAWiring kCIA1581Wiring {
+        &sampleA_1581,
+        &sampleB_1581,
+        &applyA_1581,
+        &applyB_1581
+    };
+}
+
 void D1581Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 {
     this->parentPeripheral = parentPeripheral;
 
     cia.attachPeripheralInstance(parentPeripheral);
+    cia.setWiring(&kCIA1581Wiring);
     fdc.attachPeripheralInstance(parentPeripheral);
 
     auto* host = dynamic_cast<FloppyControllerHost*>(parentPeripheral);
@@ -45,6 +117,7 @@ void D1581Memory::reset()
     // Reset chips
     cia.reset();
     fdc.reset();
+    fdc.setSectorSize(512);
 }
 
 void D1581Memory::tick(uint32_t cycles)
@@ -53,6 +126,13 @@ void D1581Memory::tick(uint32_t cycles)
     {
         cia.tick(1);
         fdc.tick(1);
+    }
+
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1581*>(parentPeripheral);
+        drive->syncTrackFromFDC();
+        drive->updateIRQ();
     }
 }
 
@@ -74,22 +154,16 @@ bool D1581Memory::initialize(const std::string& fileName)
 
 uint8_t D1581Memory::read(uint16_t address)
 {
-    uint8_t value; // Hold for updating last bus
+    uint8_t value = lastBus;
 
     if (address >= RAM_START && address <= RAM_END)
-    {
         value = D1581RAM[address - RAM_START];
-    }
-    if (address >= CIA_START && address <= CIA_END)
-    {
-        uint8_t offset = (address - CIA_START) & 0x000F;
-        value = cia.readRegister(offset);
-    }
-    if (address >= FDC_START && address <= FDC_END)
-    {
-        uint8_t offset = (address - FDC_START) & 0x0003;
-        value = fdc.readRegister(offset);
-    }
+    else if (address >= CIA_START && address <= CIA_END)
+        value = cia.readRegister((address - CIA_START) & 0x000F);
+    else if (address >= FDC_START && address <= FDC_END)
+        value = fdc.readRegister((address - FDC_START) & 0x0003);
+    else if (address >= ROM_START && address <= ROM_END)
+        value = D1581ROM[address - ROM_START];
 
     lastBus = value;
     return value;
@@ -101,15 +175,13 @@ void D1581Memory::write(uint16_t address, uint8_t value)
 
     if (address >= RAM_START && address <= RAM_END)
     {
-        D1581RAM[address] = value;
+        D1581RAM[address - RAM_START] = value;
     }
-
-    if (address >= CIA_START && address <= CIA_END)
+    else if (address >= CIA_START && address <= CIA_END)
     {
         cia.writeRegister((address - CIA_START) & 0x000F, value);
     }
-
-    if (address >= FDC_START && address <= FDC_END)
+    else if (address >= FDC_START && address <= FDC_END)
     {
         fdc.writeRegister((address - FDC_START) & 0x0003, value);
     }
