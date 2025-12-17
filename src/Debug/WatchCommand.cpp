@@ -30,7 +30,7 @@ std::string WatchCommand::category() const
 
 std::string WatchCommand::shortHelp() const
 {
-    return "watch [read|write|both] ...  — Manage watchpoints";
+    return "watch [read|write|both]      - Manage watchpoints";
 }
 
 std::string WatchCommand::help() const
