@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
+#include "Drive/Drive.h"
 #include "IECBUS.h"
 
 IECBUS::IECBUS() :
@@ -28,27 +29,46 @@ IECBUS::IECBUS() :
 
 IECBUS::~IECBUS() = default;
 
-void IECBUS::setAtnLine(bool c64ReleasesLine)
+void IECBUS::setAtnLine(bool state)
 {
-    c64DrivesAtnLow = !c64ReleasesLine;
+    const bool oldAtn  = busLines.atn;
+    const bool oldClk  = busLines.clk;
+    const bool oldData = busLines.data;
 
-    // Recompute bus lines from all drivers (C64 + peripherals)
+    c64DrivesAtnLow = !state;
+    currentState = (!state) ? State::ATTENTION : State::IDLE;
+
     updateBusState();
 
-    bool atnNowLow = !busLines.atn;
-
-    // Update high-level bus state
-    currentState = atnNowLow ? State::ATTENTION : State::IDLE;
-
-    // Notify CIA2: it wants "ATN is LOW?" as the argument.
-    if (cia2object)
-        cia2object->atnChanged(atnNowLow);
-
-    // Notify all peripherals (drives, etc.), which also want "ATN is LOW?"
-    for (auto& [num, dev] : devices)
+    // If ATN level actually changed, notify ATN FIRST
+    if (busLines.atn != oldAtn)
     {
-        if (dev)
-            dev->atnChanged(atnNowLow);
+        const bool atnLow = !busLines.atn;
+
+        if (cia2object)
+            cia2object->atnChanged(atnLow);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->atnChanged(atnLow);
+    }
+
+    // Only generate CLK/DATA notifications if those lines truly changed electrically
+    if (busLines.clk != oldClk)
+    {
+        if (cia2object)
+            cia2object->clkChanged(busLines.clk);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->clkChanged(!busLines.clk);
+    }
+
+    if (busLines.data != oldData)
+    {
+        if (cia2object)
+            cia2object->dataChanged(busLines.data);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->dataChanged(!busLines.data);
     }
 }
 
@@ -64,6 +84,16 @@ void IECBUS::setClkLine(bool state)
     // If the resolved bus CLK level didn't change, there is no real edge.
     if (busLines.clk == oldClk)
         return;
+
+    #ifdef Debug
+    if (!busLines.atn)  // only log while ATN is low (handshake phase)
+    {
+        std::cout << "[IECBUS] CLK edge from C64: busClk="
+                  << (busLines.clk ? "H" : "L")
+                  << " (C64 wrote state=" << state << ")\n";
+        debugDumpDevices("after C64 CLK edge");
+    }
+    #endif
 
     // Now we have a real electrical change - notify CIA2 and drives.
     if (cia2object)
@@ -86,6 +116,16 @@ void IECBUS::setDataLine(bool state)
     // Only log / notify if the visible DATA level actually changed.
     if (busLines.data == oldData)
         return;
+
+    #ifdef Debug
+    if (!busLines.atn)
+    {
+        std::cout << "[IECBUS] DATA change from C64: busData="
+                  << (busLines.data ? "H" : "L")
+                  << " (C64 wrote state=" << state << ")\n";
+        debugDumpDevices("after C64 DATA change");
+    }
+    #endif
 
     if (cia2object)
         cia2object->dataChanged(busLines.data);
@@ -125,6 +165,16 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
 
     if (busLines.clk != oldClk)
     {
+        #ifdef Debug
+        if (!busLines.atn)
+        {
+            std::cout << "[IECBUS] CLK edge from dev "
+                      << device->getDeviceNumber()
+                      << " -> busClk=" << (busLines.clk ? "H" : "L")
+                      << " (clkLow=" << clkLow << ")\n";
+            debugDumpDevices("after dev CLK edge");
+        }
+        #endif
         if (cia2object)
             cia2object->clkChanged(busLines.clk);   // CIA sees true = high, false = low
 
@@ -150,6 +200,17 @@ void IECBUS::peripheralControlData(Peripheral* device, bool stateLow)
 
     if (busLines.data != oldData)
     {
+        #ifdef Debug
+        if (!busLines.atn)
+        {
+            std::cout << "[IECBUS] DATA change from dev "
+                      << device->getDeviceNumber()
+                      << " -> busData=" << (busLines.data ? "H" : "L")
+                      << " (stateLow=" << stateLow << ")\n";
+            debugDumpDevices("after dev DATA change");
+        }
+        #endif
+
         // CIA2 sees bus level directly (true = high)
         if (cia2object)
             cia2object->dataChanged(busLines.data);
@@ -361,4 +422,42 @@ Peripheral* IECBUS::getDevice(int id) const
         return nullptr;
     }
     return it->second;
+}
+
+void IECBUS::debugDumpDevices(const char* tag)
+{
+    std::cout << "[IECBUS] " << tag
+              << "  ATN=" << (busLines.atn ? "H" : "L")
+              << " CLK=" << (busLines.clk ? "H" : "L")
+              << " DATA=" << (busLines.data ? "H" : "L")
+              << " state=" << (currentState == State::ATTENTION ? "ATTENTION" : "IDLE")
+              << "\n";
+
+    for (auto const& [num, dev] : devices)
+    {
+        if (!dev) continue;
+
+        auto* drive = dynamic_cast<Drive*>(dev);
+        if (!drive)
+        {
+            std::cout << "  dev " << int(num)
+                      << " (non-drive peripheral)\n";
+            continue;
+        }
+
+        auto s = drive->snapshotIEC();   // already implemented in D1541/D1571
+
+        std::cout << "  dev " << int(num)
+                  << " atnLow="   << s.atnLow
+                  << " clkLow="   << s.clkLow
+                  << " dataLow="  << s.dataLow
+                  << " drvAssertClk="  << s.drvAssertClk
+                  << " drvAssertData=" << s.drvAssertData
+                  << " listening="<< s.listening
+                  << " talking="  << s.talking
+                  << " busState=" << int(s.busState)
+                  << " waitingForAck=" << s.waitingForAck
+                  << " talkQueueLen="  << s.talkQueueLen
+                  << "\n";
+    }
 }

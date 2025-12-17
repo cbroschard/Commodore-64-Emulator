@@ -114,6 +114,9 @@ class IECBUS
         // Helper Methods
         void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
+
+        // Debug
+        void debugDumpDevices(const char* tag);
 };
 
 #endif // IECBUS_H
