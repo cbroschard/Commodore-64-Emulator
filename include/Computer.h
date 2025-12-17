@@ -112,7 +112,7 @@ class Computer
         std::unique_ptr<CIA1> cia1object;
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
-        std::unique_ptr<D1571> drive8;
+        std::unique_ptr<D1541> drive8;
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Joystick> joy1;

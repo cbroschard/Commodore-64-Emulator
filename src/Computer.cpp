@@ -1199,7 +1199,7 @@ void Computer::attachD64Image()
     // Lazily create and register drive #8 if it doesn't exist yet
     if (!drive8)
     {
-        drive8 = std::make_unique<D1571>(8, D1571ROM);
+        drive8 = std::make_unique<D1541>(8, D1541LoROM, D1541HiROM);
         bus->registerDevice(8, drive8.get());
         drive8->reset();
     }
@@ -1207,7 +1207,6 @@ void Computer::attachD64Image()
     if (drive8) drive8->loadDisk(diskPath);
 
     diskAttached = true;
-    std::cout << "Attached disk image: " << diskPath << "\n";
 }
 
 void Computer::attachPRGImage()
