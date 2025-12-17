@@ -39,11 +39,19 @@ void Peripheral::detachBusInstance()
 
 void Peripheral::peripheralAssertClk(bool state)
 {
+    if (assertClk == state) return;
+
+    assertClk = state;
+
     if (bus) bus->peripheralControlClk(this, state);
 }
 
 void Peripheral::peripheralAssertData(bool state)
 {
+    if (assertData == state) return;
+
+    assertData = state;
+
     if (bus) bus->peripheralControlData(this, state);
 }
 
