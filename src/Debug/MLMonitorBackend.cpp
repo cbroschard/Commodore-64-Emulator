@@ -442,6 +442,8 @@ void MLMonitorBackend::driveCPUStep(int id)
 
     // Execute tick to step
     cpu->tick();
+    uint32_t cycles = cpu->getElapsedCycles();
+    dev->asDrive()->getMemory()->tick(cycles);
 
     // Dump CPU registers
     auto st = cpu->getState();
