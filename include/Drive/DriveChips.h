@@ -8,6 +8,8 @@ class DriveMemoryBase : public CPUBus
 {
     public:
         ~DriveMemoryBase() override = default;
+
+        virtual void tick(uint32_t cycles) { (void)cycles; }
 };
 
 class DriveCIABase
