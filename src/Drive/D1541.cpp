@@ -432,13 +432,6 @@ void D1541::atnChanged(bool atnLow)
 
     if (!prevAtnLow && atnLineLow)
         via1.resetShift();
-
-    #ifdef Debug
-        std::cout << "[D1541] AtnChanged: atnLow=" << atnLineLow
-                  << " clkLow=" << clkLineLow
-                  << " dataLow=" << dataLineLow
-                  << "\n";
-    #endif
 }
 
 void D1541::clkChanged(bool clkLow)
@@ -450,13 +443,6 @@ void D1541::clkChanged(bool clkLow)
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-
-    #ifdef Debug
-        std::cout << "[D1541] ClkChanged: atnLow=" << atnLineLow
-                  << " clkLow=" << clkLineLow
-                  << " dataLow=" << dataLineLow
-                  << "\n";
-    #endif
 }
 
 void D1541::dataChanged(bool dataLow)
@@ -469,13 +455,6 @@ void D1541::dataChanged(bool dataLow)
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-
-    #ifdef Debug
-        std::cout << "[D1541] dataChanged: atnLow=" << atnLineLow
-                  << " clkLow=" << clkLineLow
-                  << " dataLow=" << dataLineLow
-                  << "\n";
-    #endif
 }
 
 void D1541::setDensityCode(uint8_t code)

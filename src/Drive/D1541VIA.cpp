@@ -400,15 +400,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
     {
         case 0x00:
         {
-            #ifdef Debug
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                std::cout << "[VIA1] ORB write: $" << std::hex << int(value)
-                          << " (old=$" << int(registers.orbIRB) << ")"
-                          << " DDRB=$" << int(registers.ddrB)
-                          << std::dec << "\n";
-            }
-            #endif
             uint8_t prevORB  = registers.orbIRB;
             registers.orbIRB = value;
 
