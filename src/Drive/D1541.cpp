@@ -103,19 +103,20 @@ void D1541::reset()
 
 void D1541::tick(uint32_t cycles)
 {
-    while(cycles > 0)
+    int32_t remaining = cycles;
+
+    while(remaining > 0)
     {
         driveCPU.tick();
         uint32_t dc = driveCPU.getElapsedCycles();
         if(dc == 0) dc = 1;
-        if(dc > cycles) dc = cycles;
 
         d1541mem.tick(dc);
 
         if (motorOn && diskLoaded)
             gcrAdvance(dc);
 
-        cycles -= dc;
+        remaining -= dc;
     }
 }
 

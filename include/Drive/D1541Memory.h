@@ -42,9 +42,6 @@ class D1541Memory : public DriveMemoryBase
         // Initialize function to load all ROMS passed in via config file, initialize RAM
         bool initialize(const std::string& D1541LoROM, const std::string& D1541HiROM);
 
-        // Getters for access for D1541
-        IRQLine* getIRQLine() { return &driveIRQ; }
-
         inline D1541VIA& getVIA1() { return via1; }
         inline const D1541VIA& getVIA1() const { return via1; }
 
@@ -63,7 +60,6 @@ class D1541Memory : public DriveMemoryBase
         // VIA objects
         D1541VIA via1;
         D1541VIA via2;
-        IRQLine driveIRQ;
 
         // Memory vectors
         std::vector<uint8_t> D1541RAM;

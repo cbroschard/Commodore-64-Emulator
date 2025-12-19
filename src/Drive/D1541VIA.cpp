@@ -150,63 +150,60 @@ void D1541VIA::tick(uint32_t cycles)
 {
     while (cycles-- > 0)
     {
-        // Timer 1
+        // -----------------------
+        // Timer 1 (T1)
+        // -----------------------
         if (t1Running)
         {
-            const bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
-
-            // If we scheduled a reload (free-run), do it now (next PHI2)
             if (t1ReloadPending)
             {
                 t1Counter = t1Latch;
                 t1ReloadPending = false;
                 t1JustLoaded = true;
 
+                // mirror
                 registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0xFF);
                 registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0xFF);
             }
 
-            // After a load via T1C-H, real VIA starts decrementing on the *next* PHI2
+            // After a write to T1C-H, the first decrement happens on the NEXT PHI2.
             if (t1JustLoaded)
             {
                 t1JustLoaded = false;
             }
             else
             {
-                t1Counter = static_cast<uint16_t>(t1Counter - 1);
+                t1Counter = static_cast<uint16_t>(t1Counter - 1); // wraps naturally
 
+                // mirror
                 registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0xFF);
                 registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0xFF);
 
-                // Timeout when counter REACHES 0
+                // Datasheet behavior: IFR sets when the counter reaches zero. :contentReference[oaicite:2]{index=2}
                 if (t1Counter == 0x0000)
                 {
-                    if (t1Continuous)
+                    triggerInterrupt(IFR_TIMER1);
+
+                    const bool t1FreeRun = (registers.auxControlRegister & 0x40) != 0;
+                    if (t1FreeRun)
                     {
-                        triggerInterrupt(IFR_TIMER1);
-                        t1ReloadPending = true; // reload from latch next cycle
-                    }
-                    else
-                    {
-                        // One-shot: only one IFR set until next T1C-H write
-                        if (!t1InhibitIRQ)
-                        {
-                            triggerInterrupt(IFR_TIMER1);
-                            t1InhibitIRQ = true;
-                        }
-                        // DO NOT stop timer; it continues running through 0xFFFF
+                        // In free-run, reload from latch instead of running through 0 -> FFFF. :contentReference[oaicite:4]{index=4}
+                        t1ReloadPending = true;
                     }
                 }
             }
         }
-        // Timer 2
+
+        // -----------------------
+        // Timer 2 (T2)
+        // -----------------------
         if (t2Running)
         {
-            const bool t2PulseMode = (registers.auxControlRegister & 0x20) != 0;
+            const bool t2PulseCountMode = (registers.auxControlRegister & 0x20) != 0;
 
-            if (!t2PulseMode)
+            if (!t2PulseCountMode)
             {
-                // Interval mode: decrement on PHI2
+                // Interval mode: decrement each PHI2 after the initial load cycle.
                 if (t2JustLoaded)
                 {
                     t2JustLoaded = false;
@@ -215,25 +212,20 @@ void D1541VIA::tick(uint32_t cycles)
                 {
                     t2Counter = static_cast<uint16_t>(t2Counter - 1);
 
+                    // mirror
                     registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0xFF);
                     registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0xFF);
 
-                    // Timeout when counter REACHES 0
-                    if (t2Counter == 0x0000)
+                    // Datasheet: T2 provides a single interrupt per "write T2C-H",
+                    // then disables further flag setting until rewritten. :contentReference[oaicite:5]{index=5}
+                    if (t2Counter == 0x0000 && !t2InhibitIRQ)
                     {
-                        if (!t2InhibitIRQ)
-                        {
-                            triggerInterrupt(IFR_TIMER2);
-                            t2InhibitIRQ = true;
-                        }
-                        // DO NOT stop timer; it continues running through 0xFFFF
+                        triggerInterrupt(IFR_TIMER2);
+                        t2InhibitIRQ = true;
                     }
                 }
             }
-            else
-            {
-                // Pulse-count mode: do NOT decrement here (should decrement on PB6 negative edges)
-            }
+            // Pulse-count mode is NOT decremented here by design.
         }
     }
 }
@@ -246,6 +238,13 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         {
             const uint8_t ddrB  = registers.ddrB;
             uint8_t value = static_cast<uint8_t>((registers.orbIRB & ddrB) | (portBPins & static_cast<uint8_t>(~ddrB)));
+
+            clearIFR(IFR_CB1);
+
+            const uint8_t cb2Mode = (registers.peripheralControlRegister >> 5) & 0x07; // PCR7..PCR5
+            const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
+            if (!cb2Independent)
+                clearIFR(IFR_CB2);
 
             if (viaRole == VIARole::VIA1_IECBus)
             {
@@ -289,7 +288,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     }
                 }
             }
-            clearIFR(IFR_CB1);
+
             return value;
         }
         case 0x01: // ORA/IRA (Port A)
@@ -339,7 +338,15 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     mechBytePending = false;
                 }
             }
+            // Clear CA1 on ORA access
             clearIFR(IFR_CA1);
+
+            // Clear CA2 too, EXCEPT in CA2 independent input mode
+            const uint8_t ca2Mode = (registers.peripheralControlRegister >> 1) & 0x07; // PCR3..PCR1
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);      // independent input modes
+            if (!ca2Independent)
+                clearIFR(IFR_CA2);
+
             return value;
         }
         case 0x02: return registers.ddrB;
@@ -377,10 +384,10 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         case 0x0E: return registers.interruptEnable;
         case 0x0F:
         {
-            const uint8_t ddrA = registers.ddrA;
-
-            uint8_t inputPins = portAPins;
+            const uint8_t ddrA  = registers.ddrA;
+            const uint8_t inputPins = portAPins;
             uint8_t value = (registers.oraIRA & ddrA) | (inputPins & (uint8_t)~ddrA);
+
             return value;
         }
         default: return 0xFF;
@@ -453,11 +460,28 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                     }
                 }
             }
+
+            // ORB write clears CB1 always, CB2 unless independent mode
+            clearIFR(IFR_CB1);
+
+            const uint8_t cb2Mode = (registers.peripheralControlRegister >> 5) & 0x07;
+            const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
+            if (!cb2Independent)
+                clearIFR(IFR_CB2);
+
             break;
         }
         case 0x01:
         {
             registers.oraIRA = value;
+
+            clearIFR(IFR_CA1);
+
+            const uint8_t ca2Mode = (registers.peripheralControlRegister >> 1) & 0x07;
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
+            if (!ca2Independent)
+                clearIFR(IFR_CA2);
+
             break;
         }
         case 0x02:
@@ -555,6 +579,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             registers.timer1HighLatch = value;
             t1Latch = (static_cast<uint16_t>(registers.timer1HighLatch) << 8) |
                       static_cast<uint16_t>(registers.timer1LowLatch);
+            clearIFR(IFR_TIMER1);
             break;
         }
         case 0x08: // T2C-L
@@ -587,6 +612,8 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0A:
         {
             registers.serialShift = value;
+            clearIFR(IFR_SR);
+            resetShift();
             break;
         }
         case 0x0B:
@@ -631,8 +658,15 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         }
         case 0x0F:
         {
-            // Same as 0x01 but without driving ATN/SRQ
-            registers.oraIRANoHandshake = (registers.oraIRANoHandshake & ~registers.ddrA) | (value & registers.ddrA);
+            registers.oraIRA = value;
+
+            clearIFR(IFR_CA1);
+
+            const uint8_t ca2Mode = (registers.peripheralControlRegister >> 1) & 0x07;
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
+            if (!ca2Independent)
+                clearIFR(IFR_CA2);
+
             break;
         }
         default: break;
@@ -712,6 +746,25 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
     {
         atnAckArmed = false;
         atnAckLatch = false;
+    }
+
+    if (!prevAtnLow && busAtnLow)
+    {
+        atnAckArmed = true;
+
+        // NEW: if CLK is already HIGH, assert presence immediately
+        if (!busClkLow && !isAtnAckClearAsserted())
+        {
+            atnAckLatch = true;
+            atnAckArmed = false;
+        }
+    }
+
+    // Existing: if ATN fell while CLK was low, latch on CLK rising
+    if (atnAckArmed && prevClkLow && !busClkLow && !isAtnAckClearAsserted())
+    {
+        atnAckLatch = true;
+        atnAckArmed = false;
     }
 
     setCA1Level(busAtnLow);
