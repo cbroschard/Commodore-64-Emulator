@@ -672,7 +672,7 @@ void CIA2::atnChanged(bool assertedLow)
     {
         // ATN released
         atnHandshakePending      = false;
-        atnHandshakeJustCleared  = false;   // <--- important
+        atnHandshakeJustCleared  = false;
         iecCmdShiftReg           = 0;
         iecCmdBitCount           = 0;
     }
