@@ -202,6 +202,8 @@ class D1541VIA : public DriveVIABase
 
         // Handshake
         bool    atnAckArmed;
+        bool    atnAckLatch;
+        bool    prevAtnAckClear;
 
         // Timers
         uint16_t t1Counter;
@@ -210,6 +212,15 @@ class D1541VIA : public DriveVIABase
         uint16_t t2Counter;
         uint16_t t2Latch;
         bool     t2Running;
+        bool     t1JustLoaded;
+        bool     t1ReloadPending;
+        bool     t1InhibitIRQ;
+        bool     t2JustLoaded;
+        bool     t2InhibitIRQ;
+        uint8_t  t2LowLatchByte;
+
+        // PB7 output when ACR7=1 (timer output)
+        bool t1PB7Level = true;
 
         // Latched real bus levels (true = line is LOW on the IEC bus)
         bool busAtnLow;
@@ -237,6 +248,7 @@ class D1541VIA : public DriveVIABase
 
                 // Helpers
         void updateIECOutputsFromPortB();
+        bool isAtnAckClearAsserted() const;
 };
 
 #endif // D1541VIA_H
