@@ -31,109 +31,22 @@ IECBUS::~IECBUS() = default;
 
 void IECBUS::setAtnLine(bool state)
 {
-    const bool oldAtn  = busLines.atn;
-    const bool oldClk  = busLines.clk;
-    const bool oldData = busLines.data;
-
     c64DrivesAtnLow = !state;
-    currentState = (!state) ? State::ATTENTION : State::IDLE;
+    currentState = c64DrivesAtnLow ? State::ATTENTION : State::IDLE;
 
-    updateBusState();
-
-    // If ATN level actually changed, notify ATN FIRST
-    if (busLines.atn != oldAtn)
-    {
-        const bool atnLow = !busLines.atn;
-
-        if (cia2object)
-            cia2object->atnChanged(atnLow);
-
-        for (auto const& [num, dev] : devices)
-            if (dev) dev->atnChanged(atnLow);
-    }
-
-    // Only generate CLK/DATA notifications if those lines truly changed electrically
-    if (busLines.clk != oldClk)
-    {
-        if (cia2object)
-            cia2object->clkChanged(busLines.clk);
-
-        for (auto const& [num, dev] : devices)
-            if (dev) dev->clkChanged(!busLines.clk);
-    }
-
-    if (busLines.data != oldData)
-    {
-        if (cia2object)
-            cia2object->dataChanged(busLines.data);
-
-        for (auto const& [num, dev] : devices)
-            if (dev) dev->dataChanged(!busLines.data);
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::setClkLine(bool state)
 {
-    // Remember the old resolved CLK level *before* the write.
-    bool oldClk = busLines.clk;
-
-    // C64 drives CLK low when state == false.
     c64DrivesClkLow = !state;
-    updateBusState();
-
-    // If the resolved bus CLK level didn't change, there is no real edge.
-    if (busLines.clk == oldClk)
-        return;
-
-    #ifdef Debug
-    if (!busLines.atn)  // only log while ATN is low (handshake phase)
-    {
-        std::cout << "[IECBUS] CLK edge from C64: busClk="
-                  << (busLines.clk ? "H" : "L")
-                  << " (C64 wrote state=" << state << ")\n";
-        debugDumpDevices("after C64 CLK edge");
-    }
-    #endif
-
-    // Now we have a real electrical change - notify CIA2 and drives.
-    if (cia2object)
-        cia2object->clkChanged(busLines.clk);
-
-    for (auto& [num, dev] : devices)
-    {
-        if (dev)
-            dev->clkChanged(!busLines.clk);
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::setDataLine(bool state)
 {
-    bool oldData = busLines.data;
-
     c64DrivesDataLow = !state;
-    updateBusState();
-
-    // Only log / notify if the visible DATA level actually changed.
-    if (busLines.data == oldData)
-        return;
-
-    #ifdef Debug
-    if (!busLines.atn)
-    {
-        std::cout << "[IECBUS] DATA change from C64: busData="
-                  << (busLines.data ? "H" : "L")
-                  << " (C64 wrote state=" << state << ")\n";
-        debugDumpDevices("after C64 DATA change");
-    }
-    #endif
-
-    if (cia2object)
-        cia2object->dataChanged(busLines.data);
-
-    for (auto const& [num, dev] : devices)
-    {
-        if (dev) dev->dataChanged(!busLines.data);
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::setSrqLine(bool state)
@@ -150,40 +63,8 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // Remember old bus CLK so we only notify on real changes
-    bool oldClk = busLines.clk;
-
-    // Open-collector behaviour:
-    //  clkLow == true  -> this peripheral wants the line LOW
-    //  clkLow == false -> this peripheral releases its pull-down
     peripheralDrivesClkLow = clkLow;
-
-    // (Optional) do *not* mess with currentTalker here – just leave
-    // your currentTalker logic driven by commands / data if you have it.
-
-    updateBusState();
-
-    if (busLines.clk != oldClk)
-    {
-        #ifdef Debug
-        if (!busLines.atn)
-        {
-            std::cout << "[IECBUS] CLK edge from dev "
-                      << device->getDeviceNumber()
-                      << " -> busClk=" << (busLines.clk ? "H" : "L")
-                      << " (clkLow=" << clkLow << ")\n";
-            debugDumpDevices("after dev CLK edge");
-        }
-        #endif
-        if (cia2object)
-            cia2object->clkChanged(busLines.clk);   // CIA sees true = high, false = low
-
-        for (auto& [num, dev] : devices)
-        {
-            if (dev)
-                dev->clkChanged(!busLines.clk);     // drives see "low" as true
-        }
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::peripheralControlData(Peripheral* device, bool stateLow)
@@ -191,68 +72,24 @@ void IECBUS::peripheralControlData(Peripheral* device, bool stateLow)
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // stateLow == true  => peripheral pulls DATA low
-    // stateLow == false => releases DATA
-    bool oldData = busLines.data;
-
     peripheralDrivesDataLow = stateLow;
-    updateBusState();   // recompute busLines.data from C64 + peripherals
-
-    if (busLines.data != oldData)
-    {
-        #ifdef Debug
-        if (!busLines.atn)
-        {
-            std::cout << "[IECBUS] DATA change from dev "
-                      << device->getDeviceNumber()
-                      << " -> busData=" << (busLines.data ? "H" : "L")
-                      << " (stateLow=" << stateLow << ")\n";
-            debugDumpDevices("after dev DATA change");
-        }
-        #endif
-
-        // CIA2 sees bus level directly (true = high)
-        if (cia2object)
-            cia2object->dataChanged(busLines.data);
-
-        // Drives get "dataLow" semantics, so invert
-        for (auto const& [num, dev] : devices)
-        {
-            if (dev) dev->dataChanged(!busLines.data);
-        }
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::peripheralControlAtn(Peripheral* device, bool state)
 {
-    if (device == nullptr) return;
-
-    // Check that the device is registered.
+    if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    // If no talker is active, assign this device as the current talker.
     if (currentTalker == nullptr) currentTalker = device;
-
-    // Only allow the current talker to drive the ATN line.
     if (device != currentTalker) return;
 
-    // Record the peripheral’s intent: true = asserting LOW
     peripheralDrivesAtnLow = state;
 
-    // If device released all lines (CLK, DATA, ATN), drop talker
-    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow && !peripheralDrivesAtnLow) currentTalker = nullptr;
+    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow && !peripheralDrivesAtnLow)
+        currentTalker = nullptr;
 
-    // Recompute the overall bus lines
-    updateBusState();
-
-    bool atnNowLow = !busLines.atn;
-    for (auto const& [num, dev] : devices)
-    {
-        if (dev) dev->atnChanged(atnNowLow);
-    }
-
-    // Update the CIA2
-    if (cia2object) cia2object->atnChanged(atnNowLow);
+    recalcAndNotify();
 }
 
 void IECBUS::peripheralControlSrq(Peripheral* device, bool state)
@@ -277,44 +114,37 @@ void IECBUS::peripheralControlSrq(Peripheral* device, bool state)
 
 void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
 {
-    // Exit if no device attached
-    if (device == nullptr) return;
-
-    // Check if a device with this number is already registered
+    if (!device) return;
     if (devices.find(deviceNumber) != devices.end()) return;
 
-    // Add device to the map
     devices[deviceNumber] = device;
-
-    // Attach the IECBUS pointer to the device
     device->attachBusInstance(this);
 
-    // Finally update bus state for good measure
-    updateBusState();
+    // Bring busLines up to date and notify any changes to existing devices
+    recalcAndNotify();
+
+    // Sync the new device to current levels (no edge required)
+    device->atnChanged(!busLines.atn);
+    device->clkChanged(!busLines.clk);
+    device->dataChanged(!busLines.data);
 }
 
 void IECBUS::unregisterDevice(int deviceNumber)
 {
-    // First find the device to remove in the map
     auto it = devices.find(deviceNumber);
+    if (it == devices.end()) return;
 
-    if (it != devices.end())
-    {
-        Peripheral* device = it->second;
+    Peripheral* device = it->second;
+    if (currentTalker == device) currentTalker = nullptr;
 
-        // If this device is the current talker clear the pointer
-        if (currentTalker == device) currentTalker = nullptr;
+    currentListeners.erase(
+        std::remove(currentListeners.begin(), currentListeners.end(), device),
+        currentListeners.end()
+    );
 
-        // Also remove the device from any currentListeners
-        currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), device),
-            currentListeners.end());
+    devices.erase(it);
 
-        // Remove the devices registration
-        devices.erase(it);
-
-        // Finally update the bus state
-        updateBusState();
-    }
+    recalcAndNotify();
 }
 
 void IECBUS::listen(int deviceNumber)
@@ -347,13 +177,13 @@ void IECBUS::talk(int deviceNumber)
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
-    auto dev = it->second;
-    currentTalker = dev;
-    currentState = State::TALK;
-    // When a device starts talking, it should release DATA/CLK lines by default until it drives them
-    peripheralDrivesClkLow = false;
+    currentTalker = it->second;
+    currentState  = State::TALK;
+
+    peripheralDrivesClkLow  = false;
     peripheralDrivesDataLow = false;
-    updateBusState();
+
+    recalcAndNotify();
     currentTalker->onTalk();
 }
 
@@ -362,24 +192,22 @@ void IECBUS::unTalk(int deviceNumber)
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
-    // Only call onUnTalk if there is actually a current talker!
     if (currentTalker)
-    {
         currentTalker->onUnTalk();
-    }
 
     currentTalker = nullptr;
-    currentState = State::UNTALK;
-    // Let the C64 regain control of the lines
-    peripheralDrivesClkLow = peripheralDrivesDataLow = false;
-    updateBusState();
+    currentState  = State::UNTALK;
+
+    peripheralDrivesClkLow  = false;
+    peripheralDrivesDataLow = false;
+
+    recalcAndNotify();
 }
 
 void IECBUS::tick(uint64_t cyclesPassed)
 {
     updateSrqLine();
-
-    updateBusState();
+    recalcAndNotify();
 }
 
 void IECBUS::updateBusState()
@@ -459,5 +287,48 @@ void IECBUS::debugDumpDevices(const char* tag)
                   << " waitingForAck=" << s.waitingForAck
                   << " talkQueueLen="  << s.talkQueueLen
                   << "\n";
+    }
+}
+
+void IECBUS::recalcAndNotify()
+{
+    const bool oldAtn  = busLines.atn;
+    const bool oldClk  = busLines.clk;
+    const bool oldData = busLines.data;
+
+    updateBusState();
+
+    // ATN first
+    if (busLines.atn != oldAtn)
+    {
+        const bool atnLow = !busLines.atn;
+
+        if (cia2object)
+            cia2object->atnChanged(atnLow);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->atnChanged(atnLow);
+    }
+
+    if (busLines.clk != oldClk)
+    {
+        const bool clkLow = !busLines.clk;
+
+        if (cia2object)
+            cia2object->clkChanged(busLines.clk);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->clkChanged(clkLow);
+    }
+
+    if (busLines.data != oldData)
+    {
+        const bool dataLow = !busLines.data;
+
+        if (cia2object)
+            cia2object->dataChanged(busLines.data);
+
+        for (auto const& [num, dev] : devices)
+            if (dev) dev->dataChanged(dataLow);
     }
 }
