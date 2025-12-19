@@ -627,11 +627,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0C: // PCR
         {
             registers.peripheralControlRegister = value;
-        #ifdef Debug
-            std::cout << "[VIA1] PCR write: $" << hex2(value)
-                      << "  CA1_edge=" << ((value & 0x01) ? "POS" : "NEG")
-                      << "\n";
-        #endif
             break;
         }
         case 0x0D:
@@ -648,11 +643,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             if (set) registers.interruptEnable |= mask;
             else     registers.interruptEnable &= ~mask;
 
-        #ifdef Debug
-            std::cout << "[VIA1] IER write: $" << hex2(value)
-                      << "  IER=$" << hex2(registers.interruptEnable)
-                      << "\n";
-        #endif
             refreshMasterBit();
             break;
         }
