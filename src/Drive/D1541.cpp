@@ -431,6 +431,13 @@ void D1541::atnChanged(bool atnLow)
 
     if (!prevAtnLow && atnLineLow)
         via1.resetShift();
+
+    #ifdef Debug
+        std::cout << "[D1541] AtnChanged: atnLow=" << atnLineLow
+                  << " clkLow=" << clkLineLow
+                  << " dataLow=" << dataLineLow
+                  << "\n";
+    #endif
 }
 
 void D1541::clkChanged(bool clkLow)
@@ -438,27 +445,17 @@ void D1541::clkChanged(bool clkLow)
     if (clkLow == clkLineLow)
         return; // ignore no change
 
-    const bool prevClkLow = clkLineLow;
     clkLineLow = clkLow;
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    // Line is low-true. So:
-    // rising  = low -> high  (true -> false)
-    // falling = high -> low  (false -> true)
-    const bool rising  = (prevClkLow && !clkLineLow);
-    const bool falling = (!prevClkLow && clkLineLow);
-
-    via1.onClkEdge(rising, falling);
-
-#ifdef Debug
-    std::cout << "[D1541] clkChanged: atnLow=" << atnLineLow
-              << " clkLow=" << clkLow
-              << " rising=" << rising
-              << " falling=" << falling
-              << "\n";
-#endif
+    #ifdef Debug
+        std::cout << "[D1541] ClkChanged: atnLow=" << atnLineLow
+                  << " clkLow=" << clkLineLow
+                  << " dataLow=" << dataLineLow
+                  << "\n";
+    #endif
 }
 
 void D1541::dataChanged(bool dataLow)
