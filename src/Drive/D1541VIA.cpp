@@ -787,14 +787,6 @@ void D1541VIA::setCA1Level(bool level)
     const bool rising  = (!old &&  level);
     const bool falling = ( old && !level);
 
-#ifdef Debug
-    std::cout << "[VIA1] CA1 edge: " << (rising ? "RISING" : "FALLING")
-              << "  PCR=$" << hex2(registers.peripheralControlRegister)
-              << "  IFR=$" << hex2(registers.interruptFlag)
-              << "  IER=$" << hex2(registers.interruptEnable)
-              << "\n";
-#endif
-
     onCA1Edge(rising, falling);
 }
 
