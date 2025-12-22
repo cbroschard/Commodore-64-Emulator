@@ -35,7 +35,7 @@ IO::IO() :
         throw std::runtime_error(std::string("Unable to create SDL Window: ") + SDL_GetError());
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr)
     {
         SDL_DestroyWindow(window);
