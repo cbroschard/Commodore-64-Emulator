@@ -27,6 +27,11 @@ IO::IO() :
         throw std::runtime_error(std::string("SDL Video/Sound Init Failed: ") + SDL_GetError());
     }
 
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != 0)
+    {
+        throw std::runtime_error(std::string("SDL game controller subsystem failed to initialize!") + SDL_GetError());
+    }
+
     window = SDL_CreateWindow("Commodore 64 Emulator",SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidthWithBorder * SCALE,
             screenHeightWithBorder * SCALE, SDL_WINDOW_SHOWN);
     if (window == nullptr)

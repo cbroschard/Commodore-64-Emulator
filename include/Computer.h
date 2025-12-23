@@ -10,10 +10,16 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <unordered_map>
+#include <vector>
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CIA1.h"
@@ -128,6 +134,9 @@ class Computer
         std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<Vic> vicII;
 
+        SDL_GameController* pad1;
+        SDL_GameController* pad2;
+
         // Imgui monitor toggle
         bool showMonitorOverlay;
 
@@ -167,11 +176,16 @@ class Computer
         // Disk image
         bool diskAttached;
         std::string diskPath;
+        std::mutex mediaMut;
+        std::string pendingDiskPath;
 
         // Game controls
         bool joystick1Attached;
         bool joystick2Attached;
         bool checkCombo(SDL_Keymod modMask, SDL_Scancode a, SDL_Scancode b);
+        enum class JoyInputMode : uint8_t { Auto, Keyboard, Gamepad };
+        JoyInputMode joyMode[3] = { JoyInputMode::Auto, JoyInputMode::Auto, JoyInputMode::Auto };
+        SDL_JoystickID portPadId[3] = { -1, -1, -1 };
 
         // Graphics loop threading
         std::mutex              frameMut;
@@ -232,6 +246,14 @@ class Computer
 
         // Cartridge helper for attaching new cartridge over top of existing one
         void recreateCartridge();
+
+        // Joystick helper for external controllers
+        void detectAndAddGameController();
+        void updateJoystickFromController(SDL_GameController* pad, Joystick* joy);
+        SDL_JoystickID getInstanceId(SDL_GameController* pad);
+        SDL_GameController* findPadByInstanceId(SDL_JoystickID id);
+        void assignPadToPort(SDL_GameController* pad, int port);
+        void unassignPadFromPorts(SDL_JoystickID id);
 
         // debugging
         bool isBASICReady();

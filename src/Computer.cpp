@@ -26,6 +26,8 @@ Computer::Computer() :
     IO_adapter(std::make_unique<IO>()),
     traceMgr(std::make_unique<TraceManager>()),
     vicII(std::make_unique<Vic>()),
+    pad1(nullptr),
+    pad2(nullptr),
     showMonitorOverlay(false),
     prgDelay(140),
     videoMode_(VideoMode::NTSC),
@@ -151,6 +153,9 @@ Computer::~Computer() noexcept
             IO_adapter->stopAudio();
         }
 
+        if (pad1) { SDL_GameControllerClose(pad1); pad1 = nullptr; }
+        if (pad2) { SDL_GameControllerClose(pad2); pad2 = nullptr; }
+
         if (cia1object && joy1) { try { cia1object->detachJoystickInstance(joy1.get()); } catch (...) {} }
         if (cia1object && joy2) { try { cia1object->detachJoystickInstance(joy2.get()); } catch (...) {} }
 
@@ -171,15 +176,18 @@ void Computer::setJoystickAttached(int port, bool flag)
             if (flag)
             {
                 joystick1Attached = true;
-                joy1 = std::make_unique<Joystick>(1);
-                cia1object->attachJoystickInstance(joy1.get());
+                if (!joy1)
+                {
+                    joy1 = std::make_unique<Joystick>(1);
+                    cia1object->attachJoystickInstance(joy1.get());
+                }
             }
             else
             {
                 joystick1Attached = false;
                 try
                 {
-                    cia1object->detachJoystickInstance(joy1.get());
+                    if(joy1) cia1object->detachJoystickInstance(joy1.get());
                 }
                 catch(const std::runtime_error& error)
                 {
@@ -198,15 +206,18 @@ void Computer::setJoystickAttached(int port, bool flag)
             if (flag)
             {
                 joystick2Attached = true;
-                joy2 = std::make_unique<Joystick>(2);
-                cia1object->attachJoystickInstance(joy2.get());
+                if (!joy2)
+                {
+                    joy2 = std::make_unique<Joystick>(2);
+                    cia1object->attachJoystickInstance(joy2.get());
+                }
             }
             else
             {
                 joystick2Attached = false;
                 try
                 {
-                    cia1object->detachJoystickInstance(joy2.get());
+                    if(joy2) cia1object->detachJoystickInstance(joy2.get());
                 }
                 catch(const std::runtime_error& error)
                 {
@@ -301,23 +312,19 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
         for (int port = 1; port <= 2; ++port)
         {
             auto& joyPtr = (port == 1 ? joy1 : joy2);
-            if (!joyPtr)
-            {
+            if (!joyPtr) continue;
+
+            // If a controller is assigned to this port, DO NOT consume joystick key mappings.
+            // Let the key fall through to the C64 keyboard instead.
+            if (findPadByInstanceId(portPadId[port]) != nullptr)
                 continue;
-            }
 
             auto it = joyMap[port].find(sc);
             if (it != joyMap[port].end())
             {
                 uint8_t state = joyPtr->getState();
-                if (down)
-                {
-                    state &= ~it->second;  // clear bit (pressed)
-                }
-                else
-                {
-                    state |=  it->second;  // set bit (released)
-                }
+                if (down) state &= ~it->second;
+                else      state |=  it->second;
                 joyPtr->setState(state);
                 return true;
             }
@@ -340,6 +347,8 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
 
 void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
 {
+    if (port != 1 && port != 2) return;
+
     // clear any existing mapping for this port
     joyMap[port].clear();
 
@@ -530,6 +539,12 @@ bool Computer::boot()
     // Install the ImGui menu
     installMenu();
 
+    // Detect controllers now that SDL is initialized
+    detectAndAddGameController();
+
+    if (pad1 && portPadId[2] == -1) assignPadToPort(pad1, 2);
+    if (pad2 && portPadId[1] == -1) assignPadToPort(pad2, 1);
+
     IO_adapter->setInputCallback([this](const SDL_Event& ev)
     {
         if (ev.type == SDL_QUIT)
@@ -553,6 +568,38 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
+            if (e.type == SDL_CONTROLLERDEVICEADDED)
+            {
+                int deviceIndex = e.cdevice.which; // device index
+
+                if (SDL_IsGameController(deviceIndex))
+                {
+                    SDL_GameController* c = SDL_GameControllerOpen(deviceIndex);
+                    if (c)
+                    {
+                        if (!pad1) pad1 = c;
+                        else if (!pad2) pad2 = c;
+                        else SDL_GameControllerClose(c);
+
+                        // Auto-assign when a new pad appears
+                        if (c == pad1 && portPadId[2] == -1) assignPadToPort(pad1, 2);
+                        else if (c == pad2 && portPadId[1] == -1) assignPadToPort(pad2, 1);
+                    }
+                }
+            }
+
+            if (e.type == SDL_CONTROLLERDEVICEREMOVED)
+            {
+                SDL_JoystickID id = e.cdevice.which; // instance id
+
+                // Unassign from ports (enables keyboard fallback if Auto)
+                unassignPadFromPorts(id);
+
+                // Close the pad slot
+                if (pad1 && getInstanceId(pad1) == id) { SDL_GameControllerClose(pad1); pad1 = nullptr; }
+                if (pad2 && getInstanceId(pad2) == id) { SDL_GameControllerClose(pad2); pad2 = nullptr; }
+            }
+
             // forward to render thread for ImGui + input handling
             IO_adapter->enqueueEvent(e);
             if (e.type == SDL_QUIT)
@@ -561,6 +608,20 @@ bool Computer::boot()
                 uiQuit = true;
             }
         }
+
+        SDL_GameControllerUpdate();
+
+        auto drivePort = [&](int port, std::unique_ptr<Joystick>& joyPtr)
+        {
+            if (!joyPtr) return;
+
+            SDL_GameController* pad = findPadByInstanceId(portPadId[port]);
+            if (!pad) return;                 // no pad assigned or it was removed
+            updateJoystickFromController(pad, joyPtr.get());
+        };
+
+        if (joystick1Attached) drivePort(1, joy1);
+        if (joystick2Attached) drivePort(2, joy2);
 
         int frameCycles = 0;
 
@@ -892,6 +953,26 @@ void Computer::installMenu()
                 bool j1 = joystick1Attached, j2 = joystick2Attached;
                 if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) uiToggleJoy1Req = true;
                 if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) uiToggleJoy2Req = true;
+                ImGui::Separator();
+                ImGui::Text("Gamepad Routing");
+
+                auto padName = [&](SDL_GameController* p) -> const char*
+                {
+                    return p ? SDL_GameControllerName(p) : "None";
+                };
+
+                ImGui::Text("Pad1: %s", padName(pad1));
+                ImGui::Text("Pad2: %s", padName(pad2));
+
+                if (pad1 && ImGui::MenuItem("Assign Pad1 -> Port 1")) assignPadToPort(pad1, 1);
+                if (pad1 && ImGui::MenuItem("Assign Pad1 -> Port 2")) assignPadToPort(pad1, 2);
+                if (pad2 && ImGui::MenuItem("Assign Pad2 -> Port 1")) assignPadToPort(pad2, 1);
+                if (pad2 && ImGui::MenuItem("Assign Pad2 -> Port 2")) assignPadToPort(pad2, 2);
+
+                if (ImGui::MenuItem("Clear Port 1 Pad")) portPadId[1] = -1;
+                if (ImGui::MenuItem("Clear Port 2 Pad")) portPadId[2] = -1;
+
+                if (ImGui::MenuItem("Swap Port 1/2 Pads")) std::swap(portPadId[1], portPadId[2]);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("System"))
@@ -1287,6 +1368,108 @@ void Computer::recreateCartridge()
     pla->attachCartridgeInstance(cart.get());
     monbackend->attachCartridgeInstance(cart.get());
     traceMgr->attachCartInstance(cart.get());
+}
+
+void Computer::detectAndAddGameController()
+{
+    for (int i = 0; i < SDL_NumJoysticks(); ++i)
+    {
+        if (!SDL_IsGameController(i)) continue;
+
+        SDL_GameController* c = SDL_GameControllerOpen(i);
+        if (!c) continue;
+
+        // store as controller for port 1 if empty, else port 2
+        if (!pad1) pad1 = c;
+        else if (!pad2) pad2 = c;
+
+        if (pad1 && pad2) break;
+    }
+}
+
+static inline int16_t deadzone(int16_t v, int16_t dz = 8000)
+{
+    return (std::abs((int)v) < dz) ? 0 : v;
+}
+
+void Computer::updateJoystickFromController(SDL_GameController* pad, Joystick* joy)
+{
+    if (!pad || !joy) return;
+
+    // Start with "all released" (all bits set)
+    uint8_t state = 0xFF;
+
+    // D-pad
+    bool up    = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
+    bool down  = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    bool left  = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+    bool right = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+
+    // Left stick also (optional)
+    int16_t lx = deadzone(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX));
+    int16_t ly = deadzone(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY));
+
+    if (ly < 0) up = true;
+    if (ly > 0) down = true;
+    if (lx < 0) left = true;
+    if (lx > 0) right = true;
+
+    // Fire (A button)
+    bool fire =
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_A) ||
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_B) ||
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_X) ||
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_Y) ||
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) ||
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+
+    // Treat triggers as fire too (great for Xbox/PS controllers)
+    const int lt = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
+    const int rt = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+    if (lt > 8000 || rt > 8000) fire = true;
+
+    // Active-low bits: pressed => clear bit
+    if (up)    state &= ~Joystick::direction::up;
+    if (down)  state &= ~Joystick::direction::down;
+    if (left)  state &= ~Joystick::direction::left;
+    if (right) state &= ~Joystick::direction::right;
+    if (fire)  state &= ~Joystick::direction::button;
+
+    joy->setState(state);
+}
+
+SDL_JoystickID Computer::getInstanceId(SDL_GameController* pad)
+{
+    if (!pad) return -1;
+    SDL_Joystick* j = SDL_GameControllerGetJoystick(pad);
+    return SDL_JoystickInstanceID(j);
+}
+
+SDL_GameController* Computer::findPadByInstanceId(SDL_JoystickID id)
+{
+    if (id < 0) return nullptr;
+    if (pad1 && getInstanceId(pad1) == id) return pad1;
+    if (pad2 && getInstanceId(pad2) == id) return pad2;
+    return nullptr;
+}
+
+void Computer::assignPadToPort(SDL_GameController* pad, int port)
+{
+    if (port != 1 && port != 2) return;
+
+    // Ensure joystick object exists so CIA can read it
+    setJoystickAttached(port, true);
+
+    portPadId[port] = getInstanceId(pad);
+}
+
+void Computer::unassignPadFromPorts(SDL_JoystickID id)
+{
+    for (int port = 1; port <= 2; ++port)
+    {
+        if (portPadId[port] == id)
+            portPadId[port] = -1; // will fall back to keyboard in Auto mode
+    }
 }
 
 bool Computer::isBASICReady()
