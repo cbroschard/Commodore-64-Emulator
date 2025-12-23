@@ -289,6 +289,9 @@ void D1541::loadDisk(const std::string& path)
         return;
     }
 
+    // Hard reset first to clear any old disks
+    reset();
+
     // Success load it
     diskImage      = std::move(img);
     diskLoaded     = true;

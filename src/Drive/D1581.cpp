@@ -163,6 +163,9 @@ void D1581::loadDisk(const std::string& path)
         return;
     }
 
+    // Hard reset in case user switched disk
+    reset();
+
     // Success load it
     diskImage      = std::move(img);
     diskLoaded     = true;
