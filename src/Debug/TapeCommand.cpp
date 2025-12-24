@@ -30,7 +30,7 @@ std::string TapeCommand::category() const
 
 std::string TapeCommand::shortHelp() const
 {
-    return "tape [count] - Show current tape position and upcoming pulses";
+    return "tape      - Show current tape position and upcoming pulses";
 }
 
 std::string TapeCommand::help() const

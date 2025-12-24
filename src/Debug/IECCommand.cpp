@@ -30,7 +30,7 @@ std::string IECCommand::category() const
 
 std::string IECCommand::shortHelp() const
 {
-    return "iec           - IEC bus lines & protocol";
+    return "iec       - IEC bus lines & protocol";
 }
 
 std::string IECCommand::help() const

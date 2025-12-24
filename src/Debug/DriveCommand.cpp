@@ -30,7 +30,7 @@ std::string DriveCommand::category() const
 
 std::string DriveCommand::shortHelp() const
 {
-    return "drive         - Drive status and control";
+    return "drive     - Drive status and control";
 }
 
 std::string DriveCommand::help() const

@@ -30,7 +30,7 @@ std::string JamCommand::category() const
 
 std::string JamCommand::shortHelp() const
 {
-    return "jam [mode]  - Show or set how JAM/KIL opcodes are handled";
+    return "jam       - Show or set how JAM/KIL opcodes are handled";
 }
 
 std::string JamCommand::help() const
