@@ -315,7 +315,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     // The 1541 ROM polls this bit to know when to read VIA2.
                     if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
                     {
-                        bool byteReadyLow = drive->getByteReadyLow(); // You added this to D1541.h
+                        bool byteReadyLow = drive->getByteReadyLow();
                         if (byteReadyLow) inputPins &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
                         else              inputPins |= (1u << PORTA_BYTE_READY);
                     }
@@ -697,59 +697,58 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
     busClkLow  = clkLow;
     busDataLow = dataLow;
 
-    // Detect clock edges from "clkLow"
-    const bool clkRising  = (prevClkLow && !busClkLow); // low -> high
-    const bool clkFalling = (!prevClkLow && busClkLow); // high -> low
+    // Edge Detection
+    const bool atnFallingEdge = !prevAtnLow && busAtnLow; // High -> Low (Host asserts ATN)
+    const bool atnRisingEdge  = prevAtnLow && !busAtnLow; // Low -> High (Host releases ATN)
+    const bool clkRisingEdge  = prevClkLow && !busClkLow; // Low -> High (Host releases CLK)
 
-    // --- 7474 ATN ACK latch ---
-    const bool latchSetNow = (!prevAtnLow && busAtnLow); // ATN high->low
+    // --- 7474 ATN ACK Handshake Logic ---
 
-    if (latchSetNow)
+    // 1. ATN Activation (Falling Edge)
+    // When ATN goes LOW, the 7474 latch should SET (Pull Data Low), unless cleared by PB4.
+    if (atnFallingEdge)
     {
-        // If PB4/ATNA clear is already asserted, the 7474 can't latch "set".
         if (!isAtnAckClearAsserted())
         {
-            atnAckArmed = true;
             atnAckLatch = true;
+            atnAckArmed = true; // Arm for the CLK hold-off check logic (if used)
         }
         else
         {
-            atnAckArmed = false;
+            // If PB4 is asserting clear, the latch cannot set.
             atnAckLatch = false;
-        }
-
-        updateIECOutputsFromPortB();
-    }
-
-
-    // ATN low->high clears async
-    if (prevAtnLow && !busAtnLow)
-    {
-        atnAckArmed = false;
-        atnAckLatch = false;
-    }
-
-    if (!prevAtnLow && busAtnLow)
-    {
-        atnAckArmed = true;
-
-        // NEW: if CLK is already HIGH, assert presence immediately
-        if (!busClkLow && !isAtnAckClearAsserted())
-        {
-            atnAckLatch = true;
             atnAckArmed = false;
         }
     }
 
-    // Existing: if ATN fell while CLK was low, latch on CLK rising
-    if (atnAckArmed && prevClkLow && !busClkLow && !isAtnAckClearAsserted())
+    // 2. ATN Release (Rising Edge)
+    // Always clears the latch and disarms the circuit.
+    if (atnRisingEdge)
+    {
+        atnAckLatch = false;
+        atnAckArmed = false;
+    }
+
+    // 3. CLK Release (Rising Edge)
+    // If ATN is active and we were waiting (Armed) for CLK to go high, ensure latch is set now.
+    // This covers cases where ATN went low while CLK was low.
+    if (busAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
     {
         atnAckLatch = true;
         atnAckArmed = false;
     }
 
+    // Apply the latch state to the output lines immediately
+    // Only update if something relevant changed to avoid thrashing
+    if (atnFallingEdge || atnRisingEdge || clkRisingEdge)
+    {
+        updateIECOutputsFromPortB();
+    }
+
+    // --- CA1 Interrupt (ATN Edge) ---
     setCA1Level(busAtnLow);
 
+    // --- Update Port B Input Pins ---
     uint8_t pins = portBPins;
 
     if (dataLow) pins |=  (1u << IEC_DATA_IN_BIT);
@@ -763,12 +762,9 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 
     portBPins = pins;
 
-    // Feed clock edges into the SR logic too
-    if (clkRising || clkFalling)
-        onClkEdge(clkRising, clkFalling);
-
-    if ((busAtnLow != prevAtnLow) || (busClkLow != prevClkLow))
-        updateIECOutputsFromPortB();
+    // --- Serial Shift Register (Fast Serial) ---
+    if (clkRisingEdge || (!prevClkLow && busClkLow)) // Rising or Falling
+        onClkEdge(prevClkLow && !busClkLow, !prevClkLow && busClkLow);
 }
 
 void D1541VIA::clearMechBytePending()
@@ -1044,5 +1040,40 @@ bool D1541VIA::isAtnAckClearAsserted() const
     const bool pb4IsOutput = (ddrB & (1u << IEC_ATN_ACK_BIT)) != 0;
     const bool pb4High     = (orb  & (1u << IEC_ATN_ACK_BIT)) != 0;
 
-    return pb4IsOutput && pb4High;
+    // Hardware Logic:
+    // 1. If PB4 is Output and High, it drives the 7406 inverter input High -> Clear Active.
+    // 2. If PB4 is Input, the 7406 input floats High (TTL behavior) -> Clear Active.
+    // Therefore, the Clear is asserted if we are NOT driving Low.
+
+    // Original Buggy Code: return pb4IsOutput && pb4High;
+
+    // Correct Logic:
+    // We are asserting clear unless we are explicitly driving the line LOW as an output.
+    // (Input = Clear Asserted).
+
+    if (!pb4IsOutput) return true; // Input (Float High) -> Assert Clear
+    return pb4High;                // Output -> Assert Clear if High
+}
+
+void D1541VIA::clearIECTransientState()
+{
+    // clear only transient emu state, NOT registers
+    srShiftReg      = 0;
+    srBitCount      = 0;
+    srShiftInMode   = false;
+    iecRxPending    = false;
+    iecRxByte       = 0;
+
+    atnAckArmed     = false;
+    atnAckLatch     = false;
+    prevAtnAckClear = false;
+
+    // Recompute outputs so DATA gets released if latch was holding it low
+    updateIECOutputsFromPortB();
+}
+
+void D1541VIA::clearMechLatch()
+{
+    mechDataLatch   = 0xFF;
+    mechBytePending = false;
 }

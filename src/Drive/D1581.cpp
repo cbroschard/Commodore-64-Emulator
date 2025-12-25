@@ -171,10 +171,6 @@ void D1581::loadDisk(const std::string& path)
     diskLoaded     = true;
     loadedDiskName = path;
     lastError      = DriveError::NONE;
-
-    currentTrack  = 17;
-
-    currentSector = 0;
 }
 
 uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const

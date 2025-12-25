@@ -27,7 +27,7 @@ namespace
         outPinsA = 0xFF;
 
         // Device number switches (typical mapping: both open=8, SW1 closed=9, SW2 closed=10, both=11)
-        const int dn = drive.getDeviceNumber(); // if you don't have this, add a getter in Drive
+        const int dn = drive.getDeviceNumber();
         const bool sw1Closed = (dn == 9 || dn == 11);
         const bool sw2Closed = (dn == 10 || dn == 11);
 

@@ -324,7 +324,7 @@ void D1571::rebuildGCRTrackStream()
         pushN(0x55, HEADER_GAP, false);
 
         // ---- DATA ----
-        pushN(0xFF, SYNC_LEN, true); // or whatever you’re using
+        pushN(0xFF, SYNC_LEN, true);
 
         std::vector<uint8_t> raw(260, 0x00);
         raw[0] = 0x07;          // data block ID
@@ -470,10 +470,6 @@ void D1571::loadDisk(const std::string& path)
     loadedDiskName = path;
     lastError      = DriveError::NONE;
     gcrDirty       = true;
-
-    currentTrack  = 17;
-    currentSector = 0;
-    halfTrackPos = currentTrack * 2;
 
     gcrTrackStream.clear();
 }

@@ -64,6 +64,8 @@ class D1541VIA : public DriveVIABase
         void onCA2Edge(bool rising, bool falling);
         void onCB1Edge(bool rising, bool falling);
         void onCB2Edge(bool rising, bool falling);
+        void clearIECTransientState();
+        void clearMechLatch();
 
         // Setters
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);

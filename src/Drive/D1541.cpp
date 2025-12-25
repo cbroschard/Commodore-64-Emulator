@@ -170,7 +170,6 @@ void D1541::rebuildGCRTrackStream()
     const int track1based = int(currentTrack) + 1;
     const int spt = gcrCodec.sectorsPerTrack1541(track1based);
 
-    // Pull disk ID from BAM (track 18 sector 0), same as your D1571 code path
     auto bam = diskImage->readSector(18, 0);
     if (bam.size() < 256) bam.resize(256, 0x00);
     const uint8_t id1 = bam[0xA2];
@@ -268,42 +267,42 @@ void D1541::updateIRQ()
 
 void D1541::loadDisk(const std::string& path)
 {
+    resetForMediaChange();
+
     diskWriteProtected = false;
+
     auto img = DiskFactory::create(path);
-    if (!img)
+    if (!img || !img->loadDisk(path))
     {
+        // "Door open / no media" behavior: don't reset the drive computer
         diskImage.reset();
         diskLoaded = false;
         loadedDiskName.clear();
         lastError = DriveError::NO_DISK;
+
+        // Invalidate any ongoing media stream
+        gcrDirty = true;
+        gcrPos = 0;
+        gcrBitCounter = 0;
+        gcrTrackStream.clear();
+        gcrSync.clear();
+        d1541mem.getVIA2().clearMechBytePending();
         return;
     }
 
-    // Try to load the disk image from file
-    if (!img->loadDisk(path))
-    {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
-        return;
-    }
-
-    // Hard reset first to clear any old disks
-    reset();
-
-    // Success load it
+    // HOT SWAP
     diskImage      = std::move(img);
     diskLoaded     = true;
     loadedDiskName = path;
     lastError      = DriveError::NONE;
-    gcrDirty       = true;
 
-    currentTrack  = 17;
-    currentSector = 0;
-    halfTrackPos = currentTrack * 2;
-
+    // Invalidate/rebuild media stream for the newly inserted disk
+    gcrDirty = true;
+    gcrPos = 0;
+    gcrBitCounter = 0;
     gcrTrackStream.clear();
+    gcrSync.clear();
+    d1541mem.getVIA2().clearMechBytePending();
 }
 
 void D1541::unloadDisk()
@@ -493,6 +492,78 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
     static constexpr int kCycles[4] = { 32, 30, 28, 26 };
 
     return kCycles[code & 0x03];
+}
+
+void D1541::resetForMediaChange()
+{
+    // --- D1541-level flags ---
+    atnLineLow = clkLineLow = dataLineLow = srqAsserted = false;
+
+    iecListening = false;
+    iecTalking   = false;
+
+    presenceAckDone   = false;
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    currentListenSA = 0;
+    currentTalkSA   = 0;
+
+    iecRxActive   = false;
+    iecRxBitCount = 0;
+    iecRxByte     = 0;
+
+    // --- IMPORTANT: Drive/Peripheral protocol abort ---
+    listening = false;
+    talking   = false;
+
+    currentSecondaryAddress = 0xFF;   // ensure “no channel selected”
+
+    shiftReg = 0;
+    bitsProcessed = 0;
+
+    // Clear handshake state so next LISTEN/TALK starts fresh
+    waitingForAck = false;
+    ackEdgeCountdown = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease = false;
+    prevClkLevel = true;     // idle CLK high
+    ackHold = false;
+    byteAckHold = false;
+    ackDelay = 0;
+
+    // Clear any pending outgoing bytes
+    while (!talkQueue.empty()) talkQueue.pop();
+
+    currentDriveBusState = DriveBusState::IDLE;
+
+    // --- VIA transient clears ---
+    d1541mem.getVIA1().clearIECTransientState();
+    d1541mem.getVIA2().clearMechBytePending();
+    d1541mem.getVIA2().clearMechLatch();
+
+    // --- Release actual line states ---
+    peripheralAssertClk(false);
+    peripheralAssertData(false);
+    peripheralAssertSrq(false);
+
+    // --- Drop bus associations ---
+    if (bus)
+    {
+        bus->unTalk(deviceNumber);
+        bus->unListen(deviceNumber);
+    }
+
+    // --- Media/GCR reset ---
+    gcrPos = 0;
+    gcrBitCounter = 0;
+    gcrDirty = true;
+    gcrTrackStream.clear();
+    gcrSync.clear();
+
+    uint16_t pc = driveCPU.getPC();
+    if (!(pc < 0x0800))
+        driveCPU.reset();
 }
 
 Drive::IECSnapshot D1541::snapshotIEC() const

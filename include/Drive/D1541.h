@@ -158,6 +158,7 @@ class D1541 : public Drive
         // Helpers
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
         int cyclesPerByteFromDensity(uint8_t code) const;
+        void resetForMediaChange();
 };
 
 #endif // D1541_H
