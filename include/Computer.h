@@ -248,7 +248,6 @@ class Computer
         void recreateCartridge();
 
         // Joystick helper for external controllers
-        void detectAndAddGameController();
         void updateJoystickFromController(SDL_GameController* pad, Joystick* joy);
         SDL_JoystickID getInstanceId(SDL_GameController* pad);
         SDL_GameController* findPadByInstanceId(SDL_JoystickID id);

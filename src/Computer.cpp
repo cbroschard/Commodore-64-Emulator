@@ -1367,23 +1367,6 @@ void Computer::recreateCartridge()
     traceMgr->attachCartInstance(cart.get());
 }
 
-void Computer::detectAndAddGameController()
-{
-    for (int i = 0; i < SDL_NumJoysticks(); ++i)
-    {
-        if (!SDL_IsGameController(i)) continue;
-
-        SDL_GameController* c = SDL_GameControllerOpen(i);
-        if (!c) continue;
-
-        // store as controller for port 1 if empty, else port 2
-        if (!pad1) pad1 = c;
-        else if (!pad2) pad2 = c;
-
-        if (pad1 && pad2) break;
-    }
-}
-
 static inline int16_t deadzone(int16_t v, int16_t dz = 8000)
 {
     return (std::abs((int)v) < dz) ? 0 : v;
