@@ -539,9 +539,6 @@ bool Computer::boot()
     // Install the ImGui menu
     installMenu();
 
-    // Detect controllers now that SDL is initialized
-    detectAndAddGameController();
-
     if (pad1 && portPadId[2] == -1) assignPadToPort(pad1, 2);
     if (pad2 && portPadId[1] == -1) assignPadToPort(pad2, 1);
 
