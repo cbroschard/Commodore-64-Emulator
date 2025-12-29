@@ -513,7 +513,30 @@ bool Computer::boot()
         }
         if (cass->isT64())
         {
-            cass->play(); // Press play immediately for t64 files
+            T64LoadResult result = cass->t64LoadPrgIntoMemory();
+            if (result.success)
+            {
+                // Scan for end of BASIC
+                uint16_t scan = 0x0801;
+                uint16_t nextLine;
+                do {
+                    nextLine = mem->read(scan) | (mem->read(scan + 1) << 8);
+                    if (nextLine == 0) break;
+                    scan = nextLine;
+                } while (true);
+                uint16_t basicEnd = scan + 2;
+
+                // Update Pointers
+                mem->writeDirect(0x2B, 0x01); mem->writeDirect(0x2C, 0x08);
+                mem->writeDirect(0x2D, basicEnd & 0xFF); mem->writeDirect(0x2E, basicEnd >> 8);
+                mem->writeDirect(0x2F, basicEnd & 0xFF); mem->writeDirect(0x30, basicEnd >> 8);
+                mem->writeDirect(0x31, basicEnd & 0xFF); mem->writeDirect(0x32, basicEnd >> 8);
+
+                // Inject RUN
+                const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
+                mem->writeDirect(0xC6, 4);
+                for (int i = 0; i < 4; ++i) mem->writeDirect(0x0277 + i, runKeys[i]);
+            }
         }
     }
     else if (prgAttached)
@@ -644,28 +667,6 @@ bool Computer::boot()
                     // Execute one CPU instruction
                     processor->tick();
                     elapsedCycles = processor->getElapsedCycles();
-
-                    // F4A5 equals Kernal tape loader routine
-                    if (processor->getPC() == 0xF4A5 && !t64Injected && cass->isT64())
-                    {
-                        cass->stop();
-                        T64LoadResult result = cass->t64LoadPrgIntoMemory();
-                            if (!result.success)
-                            {
-                                std::cout << "Failed to load PRG from T64!" << "\n";
-                                processor->setA(4); // Standard KERNAL read error code
-                                processor->setFlag(CPU::C, true); // Set Carry to indicate error
-                            }
-                            else
-                            {
-                                processor->setA(0); // Status OK
-                                processor->setX(result.prgEnd & 0xFF); // Low byte of program end address
-                                processor->setY((result.prgEnd >> 8) & 0xFF); // High byte of program end address
-                                processor->setFlag(CPU::C, false); // No error
-                                processor->rtsFromQuickLoad();
-                            }
-                            t64Injected = true;
-                    }
                 }
                 catch (const std::exception& e)
                 {
@@ -1274,7 +1275,7 @@ void Computer::attachD64Image()
         return;
     }
 
-    // Lazily create and register drive #8 if it doesn't exist yet
+    // Lazily create and register drive #8 if it does not exist yet
     if (!drive8)
     {
         drive8 = std::make_unique<D1541>(8, D1541LoROM, D1541HiROM);
@@ -1335,10 +1336,48 @@ void Computer::attachT64Image()
 
     tapeAttached = true;
 
-    if (cass && !cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << "\n";
+    if (cass && !cass->loadCassette(tapePath, videoMode_))
+    {
+        #ifdef Debug
+        std::cout << "Unable to load tape: " << tapePath << "\n";
+        #endif
+    }
     else
     {
-        if (cass) cass->play(); // Press play immediately for t64 files
+        // T64 Auto-Load Logic
+        if (cass && cass->isT64())
+        {
+            T64LoadResult result = cass->t64LoadPrgIntoMemory();
+            if (result.success)
+            {
+                // 1. Calculate end of BASIC area (Assuming start at $0801)
+                // We scan memory to find the end of the BASIC chain
+                uint16_t scan = 0x0801;
+                uint16_t nextLine;
+                do {
+                    nextLine = mem->read(scan) | (mem->read(scan + 1) << 8);
+                    if (nextLine == 0) break;
+                    scan = nextLine;
+                } while (true);
+
+                uint16_t basicEnd = scan + 2;
+
+                // 2. Update BASIC Pointers so the C64 knows a program is loaded
+                mem->writeDirect(0x2B, 0x01); mem->writeDirect(0x2C, 0x08); // TXTAB ($0801)
+                mem->writeDirect(0x2D, basicEnd & 0xFF); mem->writeDirect(0x2E, basicEnd >> 8); // VARTAB
+                mem->writeDirect(0x2F, basicEnd & 0xFF); mem->writeDirect(0x30, basicEnd >> 8); // ARYTAB
+                mem->writeDirect(0x31, basicEnd & 0xFF); mem->writeDirect(0x32, basicEnd >> 8); // STREND
+
+                // 3. Inject "RUN" + Return into keyboard buffer
+                const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
+                mem->writeDirect(0xC6, 4); // Buffer size
+                for (int i = 0; i < 4; ++i) mem->writeDirect(0x0277 + i, runKeys[i]);
+
+                #ifdef Debug
+                std::cout << "T64 attached and auto-loaded successfully.\n";
+                #endif
+            }
+        }
     }
 }
 

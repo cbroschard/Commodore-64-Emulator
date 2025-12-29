@@ -190,13 +190,6 @@ void CPU::executeNMI()
     cycles += 7;
 }
 
-void CPU::rtsFromQuickLoad()
-{
-    uint8_t low = pop();
-    uint8_t high = pop();
-    PC = ((high << 8) | low) & 0xFFFF;
-}
-
 CPU::CPUState CPU::getState() const
 {
     CPUState st;

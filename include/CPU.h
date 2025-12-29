@@ -134,9 +134,6 @@ class CPU
         void setSO(bool level);
         void pulseSO();
 
-        // RTS helper for the quick load for T64 images
-        void rtsFromQuickLoad();
-
         // BA flag hold
         inline void setBAHold(bool flag) { baHold = flag; }
 
