@@ -138,7 +138,8 @@ class Computer
         SDL_GameController* pad2;
 
         // Imgui monitor toggle
-        bool showMonitorOverlay;
+        std::atomic<bool> showMonitorOverlay;
+        bool showMonitorWindow;
 
         // Program loading delay counter
         int prgDelay;
