@@ -43,7 +43,6 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
 
 D1541::~D1541() = default;
 
-
 void D1541::reset()
 {
     // Mechanics
@@ -408,6 +407,7 @@ void D1541::onSecondaryAddress(uint8_t sa)
     expectingSecAddr  = false;
     expectingDataByte = true;
 
+    #ifdef Debug
     const char* meaning = "";
     if (sa == 0)
         meaning = " (LOAD channel)";
@@ -416,7 +416,6 @@ void D1541::onSecondaryAddress(uint8_t sa)
     else if (sa == 15)
         meaning = " (COMMAND channel)";
 
-    #ifdef Debug
     std::cout << "[D1541] onSecondaryAddress() device=" << int(deviceNumber)
               << " sa=" << int(sa) << meaning << "\n";
     #endif
