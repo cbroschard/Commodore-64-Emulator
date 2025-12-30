@@ -37,6 +37,7 @@
 #include "Logging.h"
 #include "Memory.h"
 #include "PLA.h"
+#include "SDLMonitorWindow.h"
 #include "SID/SID.h"
 #include "Tape/TapeImageFactory.h"
 #include "Debug/TraceManager.h"
@@ -140,6 +141,9 @@ class Computer
         // Imgui monitor toggle
         std::atomic<bool> showMonitorOverlay;
         bool showMonitorWindow;
+
+        SDLMonitorWindow sdlMonitor;
+        std::atomic<bool> pausedBySdlMonitor;
 
         // Program loading delay counter
         int prgDelay;

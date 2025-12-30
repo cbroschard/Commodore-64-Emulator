@@ -56,8 +56,10 @@ class MLMonitor
         void draw(bool* p_open);
         void addLog(const char* fmt, ...);
         void execCommand(const char* command_line);
+        std::string executeAndCapture(const std::string& cmdLine);
 
         inline void setRunningFlag(bool flag) { running = flag; }
+        inline bool getRunningFlag() const { return running; }
 
         inline void attachMLMonitorBackendInstance(MLMonitorBackend* monbackend) { this->monbackend = monbackend; }
         inline MLMonitorBackend* mlmonitorbackend() const { return monbackend; }

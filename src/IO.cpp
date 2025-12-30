@@ -284,15 +284,36 @@ void IO::renderLoop(std::atomic<bool>& running)
 
     while (running.load())
     {
-        drainEvents([&](const SDL_Event& e){
-            ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e)); // feed Dear ImGui
+        drainEvents([&](const SDL_Event& e)
+        {
+            // Always give the monitor first shot.
+            sdlMon.handleEvent(e);
+
+            // If monitor is open, swallow typing/keys so they don't go to ImGui/emulator.
+            if (sdlMon.isOpen())
+            {
+                if (e.type == SDL_TEXTINPUT ||
+                    e.type == SDL_TEXTEDITING ||
+                    e.type == SDL_KEYDOWN ||
+                    e.type == SDL_KEYUP)
+                {
+                    // Still let QUIT through
+                    if (e.type == SDL_QUIT) running = false;
+                    return;
+                }
+            }
+
+            // Feed Dear ImGui
+            ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e));
 
             ImGuiIO& io = ImGui::GetIO();
-            if (inputCallback) {
+            if (inputCallback)
+            {
                 const bool kb_ok = !io.WantCaptureKeyboard || (e.type != SDL_KEYDOWN && e.type != SDL_KEYUP);
                 const bool ms_ok = !io.WantCaptureMouse    || (e.type < SDL_MOUSEMOTION || e.type > SDL_MOUSEWHEEL);
                 if (kb_ok && ms_ok) inputCallback(e);
             }
+
             if (e.type == SDL_QUIT) { running = false; }
         });
 
@@ -304,6 +325,7 @@ void IO::renderLoop(std::atomic<bool>& running)
 
             ImGui_ImplSDLRenderer2_NewFrame();
             ImGui_ImplSDL2_NewFrame();
+            if (sdlMon.isOpen()) SDL_StartTextInput();
             ImGui::NewFrame();
             if (guiCallback) guiCallback();
             ImGui::Render();
@@ -311,7 +333,8 @@ void IO::renderLoop(std::atomic<bool>& running)
             if (lastBuf && screenTexture)
             {
                 const int pitch = screenWidthWithBorder * sizeof(uint32_t);
-                SDL_Rect dstRect = {
+                SDL_Rect dstRect =
+                {
                     0, 0,
                     screenWidthWithBorder * SCALE,
                     screenHeightWithBorder * SCALE
@@ -323,6 +346,7 @@ void IO::renderLoop(std::atomic<bool>& running)
                 ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
                 SDL_RenderPresent(renderer);
             }
+            if (sdlMon.isOpen()) sdlMon.render();
         }
 
         SDL_Delay(1);

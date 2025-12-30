@@ -30,6 +30,7 @@ Computer::Computer() :
     pad2(nullptr),
     showMonitorOverlay(false),
     showMonitorWindow(false),
+    pausedBySdlMonitor(false),
     prgDelay(140),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
@@ -145,6 +146,7 @@ Computer::~Computer() noexcept
         if (IO_adapter)
         {
             // Ensure the render thread is down
+            if (sdlMonitor.isOpen()) sdlMonitor.close();
             running = false;
             IO_adapter->stopRenderThread(running);
             IO_adapter->setGuiCallback({});
@@ -266,12 +268,21 @@ void Computer::setVideoMode(const std::string& mode)
 
 bool Computer::handleInputEvent(const SDL_Event& ev)
 {
-    // Enter ML Monitor
-    if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_F12)
+    if (sdlMonitor.isOpen())
     {
-        uiEnterMonitor = true;
-        //showMonitorOverlay = !showMonitorOverlay;
-        return true;
+        sdlMonitor.handleEvent(ev);
+
+        // If a monitor command requested "exit" (g, quit, etc), close the window.
+        if (monitor && !monitor->getRunningFlag() && sdlMonitor.isOpen())
+            sdlMonitor.close();
+
+        // If the monitor closed (X/ESC/flag), unpause cleanly.
+        if (!sdlMonitor.isOpen() && pausedBySdlMonitor.exchange(false))
+            uiPaused = false;
+
+        // While monitor is open, swallow keyboard/text so it doesn't hit the emulator
+        if (ev.type == SDL_TEXTINPUT || ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP)
+            return true;
     }
 
     // Only care about key-down/up (ignore auto-repeats)
@@ -589,6 +600,26 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
+            if (sdlMonitor.isOpen())
+            {
+                sdlMonitor.handleEvent(e);
+
+                // If the monitor just got closed via [X] or ESC, unpause.
+                if (!sdlMonitor.isOpen() && pausedBySdlMonitor.exchange(false))
+                    uiPaused = false;
+
+                // While monitor is open, swallow keyboard/text events so they don't hit emulator/ImGui.
+                if (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
+                    continue;
+            }
+
+            // F12 toggles the separate SDL monitor window (always, all builds)
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12)
+            {
+                uiEnterMonitor = true;   // handled below in the main thread
+                continue;                // don't forward to IO/ImGui
+            }
+
             if (e.type == SDL_CONTROLLERDEVICEADDED)
             {
                 int deviceIndex = e.cdevice.which; // device index
@@ -632,6 +663,15 @@ bool Computer::boot()
 
         SDL_GameControllerUpdate();
 
+        if (sdlMonitor.isOpen() && monitor && !monitor->getRunningFlag())
+        {
+            sdlMonitor.close();
+            if (pausedBySdlMonitor.exchange(false))
+                uiPaused = false;
+        }
+
+        if (sdlMonitor.isOpen()) sdlMonitor.render();
+
         auto drivePort = [&](int port, std::unique_ptr<Joystick>& joyPtr)
         {
             if (!joyPtr) return;
@@ -660,9 +700,27 @@ bool Computer::boot()
                     uint16_t pc = processor->getPC();
                     if (monitor && monitor->hasBreakpoint(pc))
                     {
-                        std::cout << "Hit breakpoint at $" << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-                            << pc << "\n";
-                        monitor->enter();
+                        #ifdef Debug
+                        std::cout << "Hit breakpoint at $" << std::uppercase << std::hex
+                                  << std::setw(4) << std::setfill('0') << pc << "\n";
+                        #endif
+
+                        uiPaused = true;
+                        pausedBySdlMonitor = true;
+
+                        if (monitor) monitor->setRunningFlag(true);
+
+                        if (!sdlMonitor.isOpen())
+                        {
+                            sdlMonitor.open("ML Monitor", 900, 550,
+                                [this](const std::string& cmd) -> std::string
+                                {
+                                    if (!monitor) return "Monitor not available\n";
+                                    return monitor->executeAndCapture(cmd);
+                                });
+                        }
+
+                        break; // break out of the per-frame CPU loop so we stop immediately at the breakpoint
                     }
 
                     // Execute one CPU instruction
@@ -727,7 +785,26 @@ bool Computer::boot()
         if (uiColdReset.exchange(false)) coldReset();
         if (uiEnterMonitor.exchange(false))
         {
-            if (monitor) monitor->enter();
+            if (sdlMonitor.isOpen())
+            {
+                sdlMonitor.close();
+                if (pausedBySdlMonitor.exchange(false))
+                    uiPaused = false;
+            }
+            else
+            {
+                uiPaused = true;
+                pausedBySdlMonitor = true;
+
+                if (monitor) monitor->setRunningFlag(true);
+
+                sdlMonitor.open("ML Monitor", 900, 550,
+                    [this](const std::string& cmd) -> std::string
+                    {
+                        if (!monitor) return "Monitor not available\n";
+                        return monitor->executeAndCapture(cmd); // from your MLMonitor step
+                    });
+            }
         }
 
         int vm = uiVideoModeReq.exchange(-1);

@@ -25,6 +25,7 @@ class Vic;
 #include "imgui/imgui_impl_sdlrenderer2.h"
 #include "Logging.h"
 #include "sdl2/sdl.h"
+#include "SDLMonitorWindow.h"
 #include "SID/SID.h"
 
 class IO
@@ -93,6 +94,8 @@ class IO
         Logging* logger;
         SID* sidchip;
         Vic* vicII;
+
+        SDLMonitorWindow sdlMon; // For monitor debugger
 
         std::function<void()> guiCallback;
 
