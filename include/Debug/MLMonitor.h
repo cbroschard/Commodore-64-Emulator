@@ -8,7 +8,10 @@
 #ifndef MLMONITOR_H
 #define MLMONITOR_H
 
+#include <algorithm>
+#include <iostream>
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include "Debug/AssembleCommand.h"
@@ -37,6 +40,7 @@
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
 #include "Debug/MonitorCommand.h"
+#include "imgui/imgui.h"
 
 // Forward declarations
 class Computer;
@@ -49,6 +53,9 @@ class MLMonitor
         virtual ~MLMonitor();
 
         void enter();  // pause emulation and enter monitor
+        void draw(bool* p_open);
+        void addLog(const char* fmt, ...);
+        void execCommand(const char* command_line);
 
         inline void setRunningFlag(bool flag) { running = flag; }
 
@@ -92,7 +99,6 @@ class MLMonitor
 
         std::unordered_map<std::string, std::unique_ptr<MonitorCommand>> commands;
 
-
         // Flag to set running state
         bool running;
 
@@ -103,9 +109,19 @@ class MLMonitor
         std::unordered_map<uint16_t, uint8_t> writeWatches; // addr -> last value
         std::unordered_set<uint16_t> readWatches;
 
+        // ImGui Console State
+        ImGuiTextBuffer Items;
+        std::vector<int> LineOffsets; // Index to lines offset.
+        bool AutoScroll;
+        bool ScrollToBottom;
+        char InputBuf[256];
+        std::vector<std::string> History;
+        int HistoryPos; // -1: new line, 0..History.size()-1 browsing history.
+
         // Monitor helpers
         void registerCommand(std::unique_ptr<MonitorCommand> cmd);
         void handleCommand(const std::string& line);
+        void captureOutputAndExecute(const std::string& cmdLine);
 };
 
 #endif // MLMONITOR_H
