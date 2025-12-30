@@ -1,5 +1,7 @@
 .tmp.driveupload/
 bin/
+include/imgui/
+src/imgui/
 obj/
 tape/
 !Licenses/*.txt
