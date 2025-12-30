@@ -29,6 +29,7 @@ Computer::Computer() :
     pad1(nullptr),
     pad2(nullptr),
     showMonitorOverlay(false),
+    showMonitorWindow(false),
     prgDelay(140),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
