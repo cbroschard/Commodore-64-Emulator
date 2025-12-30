@@ -704,8 +704,6 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 
     // --- 7474 ATN ACK Handshake Logic ---
 
-    // 1. ATN Activation (Falling Edge)
-    // When ATN goes LOW, the 7474 latch should SET (Pull Data Low), unless cleared by PB4.
     if (atnFallingEdge)
     {
         if (!isAtnAckClearAsserted())
@@ -721,25 +719,18 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
         }
     }
 
-    // 2. ATN Release (Rising Edge)
-    // Always clears the latch and disarms the circuit.
     if (atnRisingEdge)
     {
         atnAckLatch = false;
         atnAckArmed = false;
     }
 
-    // 3. CLK Release (Rising Edge)
-    // If ATN is active and we were waiting (Armed) for CLK to go high, ensure latch is set now.
-    // This covers cases where ATN went low while CLK was low.
     if (busAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
     {
         atnAckLatch = true;
         atnAckArmed = false;
     }
 
-    // Apply the latch state to the output lines immediately
-    // Only update if something relevant changed to avoid thrashing
     if (atnFallingEdge || atnRisingEdge || clkRisingEdge)
     {
         updateIECOutputsFromPortB();
@@ -1039,17 +1030,6 @@ bool D1541VIA::isAtnAckClearAsserted() const
 
     const bool pb4IsOutput = (ddrB & (1u << IEC_ATN_ACK_BIT)) != 0;
     const bool pb4High     = (orb  & (1u << IEC_ATN_ACK_BIT)) != 0;
-
-    // Hardware Logic:
-    // 1. If PB4 is Output and High, it drives the 7406 inverter input High -> Clear Active.
-    // 2. If PB4 is Input, the 7406 input floats High (TTL behavior) -> Clear Active.
-    // Therefore, the Clear is asserted if we are NOT driving Low.
-
-    // Original Buggy Code: return pb4IsOutput && pb4High;
-
-    // Correct Logic:
-    // We are asserting clear unless we are explicitly driving the line LOW as an output.
-    // (Input = Clear Asserted).
 
     if (!pb4IsOutput) return true; // Input (Float High) -> Assert Clear
     return pb4High;                // Output -> Assert Clear if High
