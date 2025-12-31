@@ -108,6 +108,9 @@ static const uint8_t font8x8_basic[96][8] = {
 };
 
 SDLMonitorWindow::SDLMonitorWindow() :
+    win(nullptr),
+    ren(nullptr),
+    fontTex(nullptr),
     width(900),
     height(550),
     charWidth(8),

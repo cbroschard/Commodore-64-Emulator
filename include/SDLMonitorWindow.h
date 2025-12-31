@@ -36,10 +36,9 @@ class SDLMonitorWindow
 
     private:
 
-        SDL_Window* win = nullptr;
-        SDL_Renderer* ren = nullptr;
-
-        SDL_Texture* fontTex = nullptr;
+        SDL_Window* win;
+        SDL_Renderer* ren;
+        SDL_Texture* fontTex;
 
         // window dimensions cached
         int width;
