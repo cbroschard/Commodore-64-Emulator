@@ -11,9 +11,12 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <sstream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "Debug/AssembleCommand.h"
 #include "Debug/BreakpointCommand.h"
 #include "Debug/CartridgeCommand.h"
@@ -40,6 +43,7 @@
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
 #include "Debug/MonitorCommand.h"
+#include "imgui/imgui.h"
 
 // Forward declarations
 class Computer;
@@ -51,8 +55,6 @@ class MLMonitor
         MLMonitor();
         virtual ~MLMonitor();
 
-        void addLog(const char* fmt, ...);
-        void execCommand(const char* command_line);
         std::string executeAndCapture(const std::string& cmdLine);
 
         inline void setRunningFlag(bool flag) { running = flag; }
@@ -92,6 +94,10 @@ class MLMonitor
         // Monitor access
         void enterMonitor();
 
+        // std::cout queuing/draining
+        void queueAsyncLine(const std::string& s);
+        std::vector<std::string> drainAsyncLines();
+
     protected:
 
     private:
@@ -100,6 +106,10 @@ class MLMonitor
         MLMonitorBackend* monbackend;
 
         std::unordered_map<std::string, std::unique_ptr<MonitorCommand>> commands;
+
+        // std::cout queue
+        std::mutex asyncMutex;
+        std::vector<std::string> asyncLines;
 
         // Flag to set running state
         bool running;
@@ -110,15 +120,6 @@ class MLMonitor
         // Unordered list to hold any watches set
         std::unordered_map<uint16_t, uint8_t> writeWatches; // addr -> last value
         std::unordered_set<uint16_t> readWatches;
-
-        // ImGui Console State
-        ImGuiTextBuffer Items;
-        std::vector<int> LineOffsets; // Index to lines offset.
-        bool AutoScroll;
-        bool ScrollToBottom;
-        char InputBuf[256];
-        std::vector<std::string> History;
-        int HistoryPos; // -1: new line, 0..History.size()-1 browsing history.
 
         // Monitor helpers
         void registerCommand(std::unique_ptr<MonitorCommand> cmd);

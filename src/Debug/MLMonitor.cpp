@@ -13,8 +13,6 @@ MLMonitor::MLMonitor() :
     monbackend(nullptr),
     running(false)
 {
-    memset(InputBuf, 0, sizeof(InputBuf));
-
     // Register all commands
     registerCommand(std::make_unique<AssembleCommand>());
     registerCommand(std::make_unique<BreakpointCommand>());
@@ -41,36 +39,9 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<TraceCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());
-
-    addLog("Welcome to the Commodore 64 Monitor Debugger.");
-    addLog("Type 'help' for available commands.");
 }
 
 MLMonitor::~MLMonitor() = default;
-
-void MLMonitor::addLog(const char* fmt, ...)
-{
-    int old_size = Items.size();
-    va_list args;
-    va_start(args, fmt);
-    Items.appendfv(fmt, args);
-    va_end(args);
-    Items.append("\n");
-
-    // Update line offsets
-    for (int new_size = Items.size(); old_size < new_size; old_size++)
-        if (Items[old_size] == '\n')
-            LineOffsets.push_back(old_size + 1);
-
-    if (AutoScroll) ScrollToBottom = true;
-}
-
-void MLMonitor::captureOutputAndExecute(const std::string& cmdLine)
-{
-    const std::string out = executeAndCapture(cmdLine);
-    if (!out.empty())
-        addLog("%s", out.c_str());
-}
 
 std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
 {
@@ -94,22 +65,23 @@ std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
     return buffer.str();
 }
 
-void MLMonitor::execCommand(const char* command_line)
-{
-    addLog("# %s\n", command_line);
-
-    // Add to history
-    HistoryPos = -1;
-    for (int i = History.size() - 1; i >= 0; i--)
-        if (History[i] == command_line) { History.erase(History.begin() + i); break; }
-    History.push_back(command_line);
-
-    captureOutputAndExecute(command_line);
-}
-
 void MLMonitor::enterMonitor()
 {
     if (monbackend) monbackend->enterMonitor();
+}
+
+void MLMonitor::queueAsyncLine(const std::string& s)
+{
+    std::lock_guard<std::mutex> lock(asyncMutex);
+    asyncLines.push_back(s);
+}
+
+std::vector<std::string> MLMonitor::drainAsyncLines()
+{
+    std::lock_guard<std::mutex> lock(asyncMutex);
+    std::vector<std::string> out;
+    out.swap(asyncLines);
+    return out;
 }
 
 void MLMonitor::attachTraceManagerInstance(TraceManager* tm)
@@ -198,10 +170,14 @@ bool MLMonitor::checkWatchWrite(uint16_t address, uint8_t newVal)
             uint8_t oldVal = it->second;
             it->second = newVal;
 
-            std::cout << ">>> Watchpoint hit at $" << std::hex << std::setw(4) << std::setfill('0') << address
-                      << ": old=$" << std::setw(2) << static_cast<int>(oldVal)
-                      << " new=$" << std::setw(2) << static_cast<int>(newVal) << "\n";
-            return true; // signal to break execution
+            std::ostringstream oss;
+            oss << ">>> Watchpoint hit at $"
+                << std::hex << std::setw(4) << std::setfill('0') << address
+                << ": old=$" << std::setw(2) << static_cast<int>(oldVal)
+                << " new=$" << std::setw(2) << static_cast<int>(newVal);
+
+            queueAsyncLine(oss.str());
+            return true;
         }
     }
     return false;
@@ -253,10 +229,13 @@ bool MLMonitor::checkWatchRead(uint16_t address, uint8_t value)
 {
     if (readWatches.find(address) != readWatches.end())
     {
-        std::cout << ">>> Read watchpoint hit at $"
-                  << std::hex << std::setw(4) << std::setfill('0') << address
-                  << " (value=$" << std::setw(2) << static_cast<int>(value) << ")\n";
-        return true; // tell the caller to break execution
+        std::ostringstream oss;
+        oss << ">>> Read watchpoint hit at $"
+            << std::hex << std::setw(4) << std::setfill('0') << address
+            << " (value=$" << std::setw(2) << static_cast<int>(value) << ")";
+
+        queueAsyncLine(oss.str());
+        return true;
     }
     return false;
 }

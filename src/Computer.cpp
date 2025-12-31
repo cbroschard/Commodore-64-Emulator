@@ -281,6 +281,8 @@ void Computer::enterMonitor()
                 if (!monitor) return "Monitor not available\n";
                 return monitor->executeAndCapture(cmd);
             });
+        for (const auto& line : monitor->drainAsyncLines())
+        sdlMonitor.appendLine(line);
     }
 }
 
