@@ -2,6 +2,12 @@
 #include <algorithm>
 #include <cstring>
 
+// Color Definitions
+static const SDL_Color COL_TEXT   = {160, 160, 255, 255}; // C64 Light Blue
+static const SDL_Color COL_PROMPT = {100, 255, 100, 255}; // Green
+static const SDL_Color COL_ERROR  = {255, 80,  80,  255}; // Red
+static const SDL_Color COL_HEADER = {255, 255, 255, 255}; // White
+
 static const uint8_t font8x8_basic[96][8] = {
     {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}, // space
     {0x18,0x3C,0x3C,0x18,0x18,0x00,0x18,0x00}, // !
@@ -107,6 +113,7 @@ SDLMonitorWindow::SDLMonitorWindow() :
     charWidth(8),
     charHeight(8),
     opened(false),
+    historyIndex(0),
     scrollOffset(0)
 {
 
@@ -182,13 +189,19 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec)
     opened = true;
     lines.clear();
     input.clear();
+
+    // Clear history or leave it for persistence?
+    // Usually convenient to keep history, but for simplicity we can clear or keep.
+    // Let's keep it but reset index.
+    historyIndex = history.size();
+
     scrollOffset = 0;
 
     // Enables SDL_TEXTINPUT events for typing
     SDL_StartTextInput();
 
-    lines.push_back("ML Monitor (SDL) - type 'help' and press Enter");
-    lines.push_back("------------------------------------------------");
+    appendLine("ML Monitor (SDL) - type 'help' and press Enter", COL_HEADER);
+    appendLine("------------------------------------------------", COL_HEADER);
 
     return true;
 }
@@ -211,7 +224,12 @@ void SDLMonitorWindow::close()
 
 void SDLMonitorWindow::appendLine(const std::string& s)
 {
-    lines.push_back(s);
+    appendLine(s, COL_TEXT);
+}
+
+void SDLMonitorWindow::appendLine(const std::string& s, SDL_Color color)
+{
+    lines.push_back({s, color});
     // clamp scroll to bottom (reset offset)
     scrollOffset = 0;
 }
@@ -231,8 +249,19 @@ void SDLMonitorWindow::backspace()
 
 void SDLMonitorWindow::submitCommand()
 {
-    // Echo command
-    lines.push_back("> " + input);
+    // Echo command in Green
+    appendLine("> " + input, COL_PROMPT);
+
+    // Add to history if not empty
+    if (!input.empty())
+    {
+        // Optional: don't add duplicates if same as last command
+        if (history.empty() || history.back() != input)
+        {
+            history.push_back(input);
+        }
+        historyIndex = history.size(); // point to new blank line at end
+    }
 
     std::string out;
     if (execFn && !input.empty())
@@ -243,13 +272,29 @@ void SDLMonitorWindow::submitCommand()
     while (!out.empty() && start < out.size())
     {
         size_t nl = out.find('\n', start);
+        std::string sub;
+
         if (nl == std::string::npos)
         {
-            lines.push_back(out.substr(start));
-            break;
+            sub = out.substr(start);
+            start = out.size();
         }
-        lines.push_back(out.substr(start, nl - start));
-        start = nl + 1;
+        else
+        {
+            sub = out.substr(start, nl - start);
+            start = nl + 1;
+        }
+
+        // Simple heuristic for error coloring
+        SDL_Color lineColor = COL_TEXT;
+        if (sub.rfind("Error", 0) == 0 || sub.rfind("Unable", 0) == 0)
+        {
+            lineColor = COL_ERROR;
+        }
+
+        appendLine(sub, lineColor);
+
+        if (start >= out.size()) break;
     }
 
     input.clear();
@@ -297,6 +342,30 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
             case SDLK_ESCAPE:    close(); break;
             case SDLK_PAGEUP:    scrollOffset += 10; break;
             case SDLK_PAGEDOWN:  scrollOffset = std::max(scrollOffset - 10, 0); break;
+
+            // History Navigation
+            case SDLK_UP:
+                if (historyIndex > 0)
+                {
+                    historyIndex--;
+                    input = history[historyIndex];
+                }
+                break;
+            case SDLK_DOWN:
+                if (historyIndex < (int)history.size())
+                {
+                    historyIndex++;
+                    if (historyIndex == (int)history.size())
+                    {
+                        input.clear(); // Past the last history item = blank line
+                    }
+                    else
+                    {
+                        input = history[historyIndex];
+                    }
+                }
+                break;
+
             default: break;
         }
 
@@ -346,17 +415,14 @@ void SDLMonitorWindow::render()
     const int padding = 5;
     const int lineHeight = 10; // 8px char + 2px spacing
 
-    // Color: Classic C64 Light Blue/Cyan for text
-    SDL_Color textColor = {160, 160, 255, 255};
-    SDL_Color promptColor = {100, 255, 100, 255}; // Green prompt
-
     // 1. Render Input Line at bottom
     int inputY = height - padding - lineHeight;
 
     std::string prompt = "> ";
-    drawString(padding, inputY, prompt, promptColor);
-    drawString(padding + (prompt.length() * 8), inputY, input, textColor);
+    drawString(padding, inputY, prompt, COL_PROMPT);
+    drawString(padding + (prompt.length() * 8), inputY, input, COL_TEXT);
 
+    // Blinking cursor
     if ((SDL_GetTicks() / 500) % 2 == 0)
     {
         int cursorX = padding + (prompt.length() + input.length()) * 8;
@@ -377,7 +443,8 @@ void SDLMonitorWindow::render()
     {
         if (currentY < 0) break; // Off top of screen
 
-        drawString(padding, currentY, lines[i], textColor);
+        // Now passing the stored color for each line
+        drawString(padding, currentY, lines[i].text, lines[i].color);
         currentY -= lineHeight;
     }
 

@@ -4,6 +4,12 @@
 #include <vector>
 #include "sdl2/SDL.h"
 
+// Struct to hold text and its specific color
+struct ConsoleLine {
+    std::string text;
+    SDL_Color color;
+};
+
 class SDLMonitorWindow
 {
     public:
@@ -22,8 +28,9 @@ class SDLMonitorWindow
         // Call once per frame from render loop
         void render();
 
-        // Allow external push (optional)
+        // Allow external push (optional) - Overloaded to support colors
         void appendLine(const std::string& s);
+        void appendLine(const std::string& s, SDL_Color color);
 
     protected:
 
@@ -45,8 +52,16 @@ class SDLMonitorWindow
         bool opened;
         ExecFn execFn;
 
-        std::vector<std::string> lines;
+        // Output buffer
+        std::vector<ConsoleLine> lines;
+
+        // Input handling
         std::string input;
+
+        // History handling
+        std::vector<std::string> history;
+        int historyIndex; // Points to current history item (or history.size() for new line)
+
         int scrollOffset;
 
         void submitCommand();

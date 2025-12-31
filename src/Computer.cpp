@@ -677,7 +677,7 @@ bool Computer::boot()
             if (!joyPtr) return;
 
             SDL_GameController* pad = findPadByInstanceId(portPadId[port]);
-            if (!pad) return;                 // no pad assigned or it was removed
+            if (!pad) return; // no pad assigned or it was removed
             updateJoystickFromController(pad, joyPtr.get());
         };
 
