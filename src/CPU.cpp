@@ -1111,7 +1111,7 @@ void CPU::BEQ()
 
 void CPU::BIT(uint8_t opcode)
 {
-    uint8_t value;
+    uint8_t value = 0;
 
     switch(opcode)
     {
@@ -2037,7 +2037,7 @@ void CPU::RTS()
 
 void CPU::SAX(uint8_t opcode)
 {
-    uint16_t address;
+    uint16_t address = 0;
     switch (opcode)
     {
         case 0x83: address = indirectXAddress(); break;
