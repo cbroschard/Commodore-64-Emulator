@@ -436,9 +436,31 @@ void MLMonitor::handleCommand(const std::string& line)
 
     if (cmd == "help" || cmd == "h" || cmd == "?")
     {
-        std::map<std::string, std::vector<std::string>> grouped;
+        // If user typed: help <command>
+        std::string topic;
+        if (iss >> topic)
+        {
+            std::transform(topic.begin(), topic.end(), topic.begin(), ::tolower);
 
-        for (const auto& kv : commands) grouped[kv.second->category()].push_back(kv.second->shortHelp());
+            auto it = commands.find(topic);
+            if (it != commands.end())
+            {
+                const std::string txt = it->second->help();
+                std::cout << txt;
+                if (!txt.empty() && txt.back() != '\n')
+                    std::cout << "\n";
+            }
+            else
+            {
+                std::cout << "Unknown command: " << topic << "\n";
+            }
+            return;
+        }
+
+        // Plain "help" => main help
+        std::map<std::string, std::vector<std::string>> grouped;
+        for (const auto& kv : commands)
+            grouped[kv.second->category()].push_back(kv.second->shortHelp());
 
         std::cout << "Available commands:\n";
         for (auto& [cat, cmds] : grouped)
