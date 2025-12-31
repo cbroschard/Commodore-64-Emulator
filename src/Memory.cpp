@@ -58,7 +58,7 @@ uint8_t Memory::read(uint16_t address)
         // Check for watch hit and enter monitor
         if (monitor && monitor->checkWatchRead(address, v))
         {
-            monitor->enter();
+            monitor->enterMonitor();
         }
         return v;
     };
@@ -348,7 +348,7 @@ void Memory::write(uint16_t address, uint8_t value)
     if (monitor && monitor->checkWatchWrite(accessInfo.offset, value))
     {
         // Enter the monitor as we hit a watch point
-        monitor->enter();
+        monitor->enterMonitor();
     }
 }
 
@@ -379,7 +379,7 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
 
     if (monitor && monitor->checkWatchWrite(address, value))
     {
-        monitor->enter();
+        monitor->enterMonitor();
     }
 }
 

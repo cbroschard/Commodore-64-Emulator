@@ -49,6 +49,11 @@ void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
     }
 }
 
+void MLMonitorBackend::enterMonitor()
+{
+    if (comp) comp->enterMonitor();
+}
+
 void MLMonitorBackend::coldReset()
 {
     if (comp) comp->coldReset();

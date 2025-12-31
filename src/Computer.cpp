@@ -266,6 +266,24 @@ void Computer::setVideoMode(const std::string& mode)
     cia2object->setMode(videoMode_);
 }
 
+void Computer::enterMonitor()
+{
+    uiPaused = true;
+    pausedBySdlMonitor = true;
+
+    if (monitor) monitor->setRunningFlag(true);
+
+    if (!sdlMonitor.isOpen())
+    {
+        sdlMonitor.open("ML Monitor", 900, 550,
+            [this](const std::string& cmd) -> std::string
+            {
+                if (!monitor) return "Monitor not available\n";
+                return monitor->executeAndCapture(cmd);
+            });
+    }
+}
+
 bool Computer::handleInputEvent(const SDL_Event& ev)
 {
     if (sdlMonitor.isOpen())
@@ -726,6 +744,9 @@ bool Computer::boot()
                     // Execute one CPU instruction
                     processor->tick();
                     elapsedCycles = processor->getElapsedCycles();
+
+                    // If a watch point paused us during the instruction, stop immediately.
+                    if (uiPaused.load()) break;
                 }
                 catch (const std::exception& e)
                 {

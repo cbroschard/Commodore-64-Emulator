@@ -64,6 +64,7 @@ class MLMonitorBackend
         inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
 
         // ML Monitor Computer Methods
+        void enterMonitor();
         void coldReset();
         void warmReset();
 

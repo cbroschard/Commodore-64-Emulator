@@ -40,7 +40,6 @@
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
 #include "Debug/MonitorCommand.h"
-#include "imgui/imgui.h"
 
 // Forward declarations
 class Computer;
@@ -52,8 +51,6 @@ class MLMonitor
         MLMonitor();
         virtual ~MLMonitor();
 
-        void enter();  // pause emulation and enter monitor
-        void draw(bool* p_open);
         void addLog(const char* fmt, ...);
         void execCommand(const char* command_line);
         std::string executeAndCapture(const std::string& cmdLine);
@@ -91,6 +88,9 @@ class MLMonitor
         inline bool breakpointsEmpty() const { return breakpoints.empty(); }
         inline bool hasBreakpoint(uint16_t pc) { return (breakpoints.find(pc) != breakpoints.end()); }
         bool isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster);
+
+        // Monitor access
+        void enterMonitor();
 
     protected:
 

@@ -109,6 +109,9 @@ class Computer
         inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
         inline void set1571ROM(const std::string& rom) { D1571ROM = rom; }
 
+        // ML Monitor
+        void enterMonitor();
+
     protected:
 
     private:

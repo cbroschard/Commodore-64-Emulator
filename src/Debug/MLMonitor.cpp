@@ -65,108 +65,6 @@ void MLMonitor::addLog(const char* fmt, ...)
     if (AutoScroll) ScrollToBottom = true;
 }
 
-void MLMonitor::draw(bool* p_open)
-{
-    ImGui::SetNextWindowSize(ImVec2(900, 550), ImGuiCond_Appearing);
-    ImGui::SetNextWindowPos(ImVec2(60, 60), ImGuiCond_Appearing);
-
-    if (!ImGui::Begin("ML Monitor", p_open))
-    {
-        ImGui::End();
-        return;
-    }
-
-    // Ensure this window grabs focus when it appears (helps caret show up immediately)
-    if (ImGui::IsWindowAppearing())
-        ImGui::SetWindowFocus();
-
-    // Options menu
-    if (ImGui::BeginPopup("Options"))
-    {
-        ImGui::Checkbox("Auto-scroll", &AutoScroll);
-        if (ImGui::Button("Clear")) { Items.clear(); LineOffsets.clear(); }
-        ImGui::EndPopup();
-    }
-    if (ImGui::Button("Options")) ImGui::OpenPopup("Options");
-    ImGui::SameLine();
-    if (ImGui::Button("Clear")) { Items.clear(); LineOffsets.clear(); }
-
-    ImGui::Separator();
-
-    // Reserve space for a separator + InputText
-    const float footer_height_to_reserve =
-        ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-
-    // Scrolling Region
-    ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
-
-    if (ImGui::BeginPopupContextWindow())
-    {
-        if (ImGui::Selectable("Clear")) { Items.clear(); LineOffsets.clear(); }
-        ImGui::EndPopup();
-    }
-
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tight spacing
-    const char* buf = Items.begin();
-    const char* buf_end = Items.end();
-    ImGui::TextUnformatted(buf, buf_end);
-
-    if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f))
-        ImGui::SetScrollHereY(1.0f);
-    ScrollToBottom = false;
-
-    ImGui::PopStyleVar();
-    ImGui::EndChild();
-
-    // If user clicks the scrollback, bring focus back to input next frame
-    if (ImGui::IsItemClicked())
-        { static bool& f = *(new bool(false)); (void)f; } // <-- remove this line, see note below
-    // (we'll set focus_input_next_frame below where it exists)
-
-    ImGui::Separator();
-
-    // --- Command line (always visible + obvious) ---
-    static bool focus_input_next_frame = false;
-
-    // If user clicked scrollback, refocus input
-    if (ImGui::IsItemClicked())
-        focus_input_next_frame = true;
-
-    ImGui::Spacing();
-    ImGui::TextDisabled("Command:");
-    ImGui::SameLine();
-
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(">");
-    ImGui::SameLine();
-
-    ImGui::SetNextItemWidth(-1.0f);
-
-    ImGuiInputTextFlags input_flags =
-        ImGuiInputTextFlags_EnterReturnsTrue |
-        ImGuiInputTextFlags_CallbackCompletion |
-        ImGuiInputTextFlags_CallbackHistory;
-
-    if (ImGui::IsWindowAppearing() || focus_input_next_frame)
-    {
-        ImGui::SetKeyboardFocusHere();
-        focus_input_next_frame = false;
-    }
-
-    if (ImGui::InputText("##Input", InputBuf, IM_ARRAYSIZE(InputBuf), input_flags,
-        [](ImGuiInputTextCallbackData* data) { return 0; }))
-    {
-        char* s = InputBuf;
-        if (s[0]) execCommand(s);
-        strcpy(s, "");
-
-        focus_input_next_frame = true;
-    }
-
-    ImGui::End();
-}
-
 void MLMonitor::captureOutputAndExecute(const std::string& cmdLine)
 {
     const std::string out = executeAndCapture(cmdLine);
@@ -209,17 +107,9 @@ void MLMonitor::execCommand(const char* command_line)
     captureOutputAndExecute(command_line);
 }
 
-void MLMonitor::enter()
+void MLMonitor::enterMonitor()
 {
-    running = true;
-    std::string line;
-    while (running)
-    {
-        std::cout << "monitor> ";
-        if (!std::getline(std::cin, line)) break;
-        if (line.empty()) continue;
-        handleCommand(line);
-    }
+    if (monbackend) monbackend->enterMonitor();
 }
 
 void MLMonitor::attachTraceManagerInstance(TraceManager* tm)
