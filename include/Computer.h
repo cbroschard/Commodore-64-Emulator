@@ -36,8 +36,8 @@
 #include "keyboard.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "MonitorController.h"
 #include "PLA.h"
-#include "SDLMonitorWindow.h"
 #include "SID/SID.h"
 #include "Tape/TapeImageFactory.h"
 #include "Debug/TraceManager.h"
@@ -132,6 +132,7 @@ class Computer
         std::unique_ptr<Memory> mem;
         std::unique_ptr<MLMonitor> monitor;
         std::unique_ptr<MLMonitorBackend> monbackend;
+        std::unique_ptr<MonitorController> monitorCtl;
         std::unique_ptr<PLA> pla;
         std::unique_ptr<SID> sidchip;
         std::unique_ptr<IO> IO_adapter;
@@ -140,13 +141,6 @@ class Computer
 
         SDL_GameController* pad1;
         SDL_GameController* pad2;
-
-        // Imgui monitor toggle
-        std::atomic<bool> showMonitorOverlay;
-        bool showMonitorWindow;
-
-        SDLMonitorWindow sdlMonitor;
-        std::atomic<bool> pausedBySdlMonitor;
 
         // Program loading delay counter
         int prgDelay;
@@ -171,7 +165,6 @@ class Computer
         // Tape image
         bool tapeAttached;
         std::string tapePath;
-        bool t64Injected; // keep track of whether or not we loaded into memory direct for t64 image
 
         // Program file
         bool prgAttached;
