@@ -52,16 +52,6 @@ Third‑party licenses are listed in the **Licenses/** folder.
 
 ---
 
-## 🧩 ROMs (important)
-
-This emulator typically needs C64 ROM images (KERNAL/BASIC/CHAR).
-
-Because ROMs are copyrighted, they are **not** included in this repo.
-
-Provide your own ROM images and configure the emulator to find them (via your config/settings or the repo’s expected ROM path, depending on your setup).
-
----
-
 ## 🚀 Running
 
 Run the emulator and use the UI/menu to load images (Cartridge, Disk, Tape, Program, etc.).
