@@ -91,10 +91,12 @@ Build steps depend on your environment. Common setups:
 ### Windows (MinGW / MSVC)
 - Install SDL2 and ensure your compiler can find headers/libs
 - Install Boost
+- Install Dear ImGUI
 - Build the project using your preferred IDE/toolchain
 
 ### Linux / macOS
 - Install SDL2 and Boost from your package manager
+- Install Dear ImGUI
 - Build with your compiler/IDE toolchain
 
 If your repo includes project files or a build system (e.g., IDE project files or CMake), follow those instructions.
