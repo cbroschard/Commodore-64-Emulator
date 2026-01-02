@@ -141,9 +141,6 @@ class Computer
         std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<Vic> vicII;
 
-        SDL_GameController* pad1;
-        SDL_GameController* pad2;
-
         // Program loading delay counter
         int prgDelay;
 
@@ -154,7 +151,6 @@ class Computer
         void setJoystickAttached(int port, bool flag);
         JoystickMapping joy1Config;
         JoystickMapping joy2Config;
-        std::unordered_map<SDL_Scancode, Joystick::direction> joyMap[3];
 
         // Video/CPU mode setup
         VideoMode videoMode_ = VideoMode::NTSC;
@@ -183,8 +179,6 @@ class Computer
         std::string pendingDiskPath;
 
         // Game controls
-        bool joystick1Attached;
-        bool joystick2Attached;
         bool checkCombo(SDL_Keymod modMask, SDL_Scancode a, SDL_Scancode b);
         enum class JoyInputMode : uint8_t { Auto, Keyboard, Gamepad };
         JoyInputMode joyMode[3] = { JoyInputMode::Auto, JoyInputMode::Auto, JoyInputMode::Auto };
@@ -249,13 +243,6 @@ class Computer
 
         // Cartridge helper for attaching new cartridge over top of existing one
         void recreateCartridge();
-
-        // Joystick helper for external controllers
-        void updateJoystickFromController(SDL_GameController* pad, Joystick* joy);
-        SDL_JoystickID getInstanceId(SDL_GameController* pad);
-        SDL_GameController* findPadByInstanceId(SDL_JoystickID id);
-        void assignPadToPort(SDL_GameController* pad, int port);
-        void unassignPadFromPorts(SDL_JoystickID id);
 
         // debugging
         bool isBASICReady();

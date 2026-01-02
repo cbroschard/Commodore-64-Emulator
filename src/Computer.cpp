@@ -27,8 +27,6 @@ Computer::Computer() :
     IO_adapter(std::make_unique<IO>()),
     traceMgr(std::make_unique<TraceManager>()),
     vicII(std::make_unique<Vic>()),
-    pad1(nullptr),
-    pad2(nullptr),
     prgDelay(140),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
@@ -41,8 +39,6 @@ Computer::Computer() :
     prgPath(""),
     diskAttached(false),
     diskPath(""),
-    joystick1Attached(false),
-    joystick2Attached(false),
     frameReady(false),
     running(true),
     uiVideoModeReq(-1),
@@ -1257,91 +1253,6 @@ void Computer::recreateCartridge()
     pla->attachCartridgeInstance(cart.get());
     monbackend->attachCartridgeInstance(cart.get());
     traceMgr->attachCartInstance(cart.get());
-}
-
-static inline int16_t deadzone(int16_t v, int16_t dz = 8000)
-{
-    return (std::abs((int)v) < dz) ? 0 : v;
-}
-
-void Computer::updateJoystickFromController(SDL_GameController* pad, Joystick* joy)
-{
-    if (!pad || !joy) return;
-
-    // Start with "all released" (all bits set)
-    uint8_t state = 0xFF;
-
-    // D-pad
-    bool up    = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    bool down  = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-    bool left  = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
-    bool right = SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
-
-    // Left stick also (optional)
-    int16_t lx = deadzone(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX));
-    int16_t ly = deadzone(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY));
-
-    if (ly < 0) up = true;
-    if (ly > 0) down = true;
-    if (lx < 0) left = true;
-    if (lx > 0) right = true;
-
-    // Fire (A button)
-    bool fire =
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_A) ||
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_B) ||
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_X) ||
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_Y) ||
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) ||
-        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
-
-    // Treat triggers as fire too (great for Xbox/PS controllers)
-    const int lt = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-    const int rt = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
-    if (lt > 8000 || rt > 8000) fire = true;
-
-    // Active-low bits: pressed => clear bit
-    if (up)    state &= ~Joystick::direction::up;
-    if (down)  state &= ~Joystick::direction::down;
-    if (left)  state &= ~Joystick::direction::left;
-    if (right) state &= ~Joystick::direction::right;
-    if (fire)  state &= ~Joystick::direction::button;
-
-    joy->setState(state);
-}
-
-SDL_JoystickID Computer::getInstanceId(SDL_GameController* pad)
-{
-    if (!pad) return -1;
-    SDL_Joystick* j = SDL_GameControllerGetJoystick(pad);
-    return SDL_JoystickInstanceID(j);
-}
-
-SDL_GameController* Computer::findPadByInstanceId(SDL_JoystickID id)
-{
-    if (id < 0) return nullptr;
-    if (pad1 && getInstanceId(pad1) == id) return pad1;
-    if (pad2 && getInstanceId(pad2) == id) return pad2;
-    return nullptr;
-}
-
-void Computer::assignPadToPort(SDL_GameController* pad, int port)
-{
-    if (port != 1 && port != 2) return;
-
-    // Ensure joystick object exists so CIA can read it
-    setJoystickAttached(port, true);
-
-    portPadId[port] = getInstanceId(pad);
-}
-
-void Computer::unassignPadFromPorts(SDL_JoystickID id)
-{
-    for (int port = 1; port <= 2; ++port)
-    {
-        if (portPadId[port] == id)
-            portPadId[port] = -1; // will fall back to keyboard in Auto mode
-    }
 }
 
 bool Computer::isBASICReady()
