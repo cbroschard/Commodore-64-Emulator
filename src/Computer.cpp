@@ -39,7 +39,6 @@ Computer::Computer() :
     prgPath(""),
     diskAttached(false),
     diskPath(""),
-    frameReady(false),
     running(true),
     uiVideoModeReq(-1),
     uiAttachD64(false),
@@ -59,84 +58,8 @@ Computer::Computer() :
     fileDlg.open = false;
     fileDlg.currentDir = std::filesystem::current_path();
 
-    // Attach components to each other
-    bus->attachCIA2Instance(cia2object.get());
-    bus->attachLogInstance(logger.get());
-
-    cart->attachCPUInstance(processor.get());
-    cart->attachMemoryInstance(mem.get());
-    cart->attachLogInstance(logger.get());
-    cart->attachTraceManagerInstance(traceMgr.get());
-    cart->attachVicInstance(vicII.get());
-
-    cass->attachMemoryInstance(mem.get());
-    cass->attachLogInstance(logger.get());
-
-    cia1object->attachCassetteInstance(cass.get());
-    cia1object->attachCPUInstance(processor.get());
-    cia1object->attachIRQLineInstance(IRQ.get());
-    cia1object->attachKeyboardInstance(keyb.get());
-    cia1object->attachLogInstance(logger.get());
-    cia1object->attachMemoryInstance(mem.get());
-    cia1object->attachTraceManagerInstance(traceMgr.get());
-    cia1object->attachVicInstance(vicII.get());
-
-    cia2object->attachCPUInstance(processor.get());
-    cia2object->attachIECBusInstance(bus.get());
-    cia2object->attachLogInstance(logger.get());
-    cia2object->attachTraceManagerInstance(traceMgr.get());
-    cia2object->attachVicInstance(vicII.get());
-
-    IO_adapter->attachVICInstance(vicII.get());
-    IO_adapter->attachSIDInstance(sidchip.get());
-    IO_adapter->attachLogInstance(logger.get());
-
-    keyb->attachLogInstance(logger.get());
-
-    mem->attachProcessorInstance(processor.get());
-    mem->attachVICInstance(vicII.get());
-    mem->attachCIA1Instance(cia1object.get());
-    mem->attachCIA2Instance(cia2object.get());
-    mem->attachSIDInstance(sidchip.get());
-    mem->attachCartridgeInstance(cart.get());
-    mem->attachCassetteInstance(cass.get());
-    mem->attachPLAInstance(pla.get());
-    mem->attachMonitorInstance(monitor.get());;
-    mem->attachLogInstance(logger.get());
-    mem->attachTraceManagerInstance(traceMgr.get());
-
-    monitorCtl = std::make_unique<MonitorController>(uiPaused);
-    monitorCtl->attachMonitorInstance(monitor.get());
-
-    input->attachCIA1Instance(cia1object.get());
-    input->attachKeyboardInstance(keyb.get());
-    input->attachMonitorControllerInstance(monitorCtl.get());
-
-    pla->attachCartridgeInstance(cart.get());
-    pla->attachCPUInstance(processor.get());
-    pla->attachLogInstance(logger.get());
-    pla->attachTraceManagerInstance(traceMgr.get());
-    pla->attachVICInstance(vicII.get());
-
-    processor->attachMemoryInstance(mem.get());
-    processor->attachCIA2Instance(cia2object.get());
-    processor->attachVICInstance(vicII.get());
-    processor->attachIRQLineInstance(IRQ.get());
-    processor->attachLogInstance(logger.get());
-    processor->attachTraceManagerInstance(traceMgr.get());
-
-    sidchip->attachCPUInstance(processor.get());;
-    sidchip->attachLogInstance(logger.get());
-    sidchip->attachTraceManagerInstance(traceMgr.get());
-    sidchip->attachVicInstance(vicII.get());
-
-    vicII->attachIOInstance(IO_adapter.get());
-    vicII->attachCPUInstance(processor.get());
-    vicII->attachMemoryInstance(mem.get());
-    vicII->attachCIA2Instance(cia2object.get());
-    vicII->attachIRQLineInstance(IRQ.get());
-    vicII->attachLogInstance(logger.get());
-    vicII->attachTraceManagerInstance(traceMgr.get());
+    // Wire components
+    wireUp();
 }
 
 Computer::~Computer() noexcept
@@ -167,12 +90,6 @@ Computer::~Computer() noexcept
 void Computer::setJoystickAttached(int port, bool flag)
 {
     if (input) input->setJoystickAttached(port, flag);
-}
-
-bool Computer::checkCombo(SDL_Keymod modMask, SDL_Scancode a, SDL_Scancode b)
-{
-    const Uint8* ks = SDL_GetKeyboardState(nullptr);
-    return (SDL_GetModState() & modMask) && ks[a] && ks[b];
 }
 
 void Computer::setVideoMode(const std::string& mode)
@@ -1255,59 +1172,84 @@ void Computer::recreateCartridge()
     traceMgr->attachCartInstance(cart.get());
 }
 
-bool Computer::isBASICReady()
+void Computer::wireUp()
 {
-    static const uint8_t readySC[6] = { 0x12, 0x05, 0x01, 0x04, 0x19, 0x2E };
-    for (uint16_t addr = 0x0400; addr <= 0x07E8; ++addr)
-    {   // last full 6 byte window
-        bool match = true;
-        for (int i = 0; i < 6; ++i)
-            if (mem->read(addr + i) != readySC[i]) { match = false; break; }
-        if (match) return true;
-    }
-    return false;
-}
+    // Attach components to each other
+    bus->attachCIA2Instance(cia2object.get());
+    bus->attachLogInstance(logger.get());
 
-void Computer::debugBasicState()
-{
-    // Check if PC is at the main BASIC loop
-    if (processor->getPC() == 0xA47B || isBASICReady())
-    {
-        printf("BASIC has booted! Dumping memory...\n");
+    cart->attachCPUInstance(processor.get());
+    cart->attachMemoryInstance(mem.get());
+    cart->attachLogInstance(logger.get());
+    cart->attachTraceManagerInstance(traceMgr.get());
+    cart->attachVicInstance(vicII.get());
 
-        // Dump Zero Page
-        for (int i = 0x0002; i < 0x0100; i++)
-        {
-            printf("Zero Page RAM[%04X] = %02X\n", i, mem->read(i));
-        }
+    cass->attachMemoryInstance(mem.get());
+    cass->attachLogInstance(logger.get());
 
-        // Dump BASIC Program Memory
-        for (int i = 0x0800; i < 0x0820; i++)
-        {
-            printf("BASIC RAM[%04X] = %02X\n", i, mem->read(i));
-        }
+    cia1object->attachCassetteInstance(cass.get());
+    cia1object->attachCPUInstance(processor.get());
+    cia1object->attachIRQLineInstance(IRQ.get());
+    cia1object->attachKeyboardInstance(keyb.get());
+    cia1object->attachLogInstance(logger.get());
+    cia1object->attachMemoryInstance(mem.get());
+    cia1object->attachTraceManagerInstance(traceMgr.get());
+    cia1object->attachVicInstance(vicII.get());
 
-        // Dump System RAM Vectors
-        for (int i = 0x0300; i < 0x0320; i++)
-        {
-            printf("System RAM[%04X] = %02X\n", i, mem->read(i));
-        }
+    cia2object->attachCPUInstance(processor.get());
+    cia2object->attachIECBusInstance(bus.get());
+    cia2object->attachLogInstance(logger.get());
+    cia2object->attachTraceManagerInstance(traceMgr.get());
+    cia2object->attachVicInstance(vicII.get());
 
-        // Dump IRQ Vector
-        uint16_t irqVector = mem->read(0x0314) | (mem->read(0x0315) << 8);
-        printf("IRQ Vector Address: %04X\n", irqVector);
+    IO_adapter->attachVICInstance(vicII.get());
+    IO_adapter->attachSIDInstance(sidchip.get());
+    IO_adapter->attachLogInstance(logger.get());
 
-        // Dump Stack
-        printf("SP: %02X, Stack Top = %02X\n", processor->getSP(), mem->read(0x100 + processor->getSP()));
+    keyb->attachLogInstance(logger.get());
 
-        // Dump CPU Fetch
-        uint8_t opcode = mem->read(processor->getPC());
-        printf("PC = %04X, Fetching Opcode = %02X\n", processor->getPC(), opcode);
+    mem->attachProcessorInstance(processor.get());
+    mem->attachVICInstance(vicII.get());
+    mem->attachCIA1Instance(cia1object.get());
+    mem->attachCIA2Instance(cia2object.get());
+    mem->attachSIDInstance(sidchip.get());
+    mem->attachCartridgeInstance(cart.get());
+    mem->attachCassetteInstance(cass.get());
+    mem->attachPLAInstance(pla.get());
+    mem->attachMonitorInstance(monitor.get());;
+    mem->attachLogInstance(logger.get());
+    mem->attachTraceManagerInstance(traceMgr.get());
 
-        // Dump Screen Memory
-        for (int i = 0x0400; i < 0x07FF; i++)
-        {
-            printf("Screen memory[%04X] = %02x\n", i, mem->read(i));
-        }
-    }
+    monitorCtl = std::make_unique<MonitorController>(uiPaused);
+    monitorCtl->attachMonitorInstance(monitor.get());
+
+    input->attachCIA1Instance(cia1object.get());
+    input->attachKeyboardInstance(keyb.get());
+    input->attachMonitorControllerInstance(monitorCtl.get());
+
+    pla->attachCartridgeInstance(cart.get());
+    pla->attachCPUInstance(processor.get());
+    pla->attachLogInstance(logger.get());
+    pla->attachTraceManagerInstance(traceMgr.get());
+    pla->attachVICInstance(vicII.get());
+
+    processor->attachMemoryInstance(mem.get());
+    processor->attachCIA2Instance(cia2object.get());
+    processor->attachVICInstance(vicII.get());
+    processor->attachIRQLineInstance(IRQ.get());
+    processor->attachLogInstance(logger.get());
+    processor->attachTraceManagerInstance(traceMgr.get());
+
+    sidchip->attachCPUInstance(processor.get());;
+    sidchip->attachLogInstance(logger.get());
+    sidchip->attachTraceManagerInstance(traceMgr.get());
+    sidchip->attachVicInstance(vicII.get());
+
+    vicII->attachIOInstance(IO_adapter.get());
+    vicII->attachCPUInstance(processor.get());
+    vicII->attachMemoryInstance(mem.get());
+    vicII->attachCIA2Instance(cia2object.get());
+    vicII->attachIRQLineInstance(IRQ.get());
+    vicII->attachLogInstance(logger.get());
+    vicII->attachTraceManagerInstance(traceMgr.get());
 }

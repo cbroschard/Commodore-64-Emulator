@@ -127,8 +127,6 @@ class Computer
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<InputManager> input;
         std::unique_ptr<IRQLine> IRQ;
-        std::unique_ptr<Joystick> joy1;
-        std::unique_ptr<Joystick> joy2;
         std::unique_ptr<Keyboard> keyb;
         std::unique_ptr<Logging> logger;
         std::unique_ptr<Memory> mem;
@@ -149,8 +147,6 @@ class Computer
 
         // Joystick
         void setJoystickAttached(int port, bool flag);
-        JoystickMapping joy1Config;
-        JoystickMapping joy2Config;
 
         // Video/CPU mode setup
         VideoMode videoMode_ = VideoMode::NTSC;
@@ -179,7 +175,6 @@ class Computer
         std::string pendingDiskPath;
 
         // Game controls
-        bool checkCombo(SDL_Keymod modMask, SDL_Scancode a, SDL_Scancode b);
         enum class JoyInputMode : uint8_t { Auto, Keyboard, Gamepad };
         JoyInputMode joyMode[3] = { JoyInputMode::Auto, JoyInputMode::Auto, JoyInputMode::Auto };
         SDL_JoystickID portPadId[3] = { -1, -1, -1 };
@@ -187,7 +182,6 @@ class Computer
         // Graphics loop threading
         std::mutex              frameMut;
         std::condition_variable frameCond;
-        std::atomic<bool>       frameReady;
         std::atomic<bool>       running;
 
         // Filenames and path of the ROMS to boot the system and Drive ROMS
@@ -244,9 +238,8 @@ class Computer
         // Cartridge helper for attaching new cartridge over top of existing one
         void recreateCartridge();
 
-        // debugging
-        bool isBASICReady();
-        void debugBasicState();
+        // Wire all the components together
+        void wireUp();
 };
 
 #endif // COMPUTER_H
