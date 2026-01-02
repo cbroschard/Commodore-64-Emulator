@@ -31,6 +31,7 @@
 #include "Drive/D1581.h"
 #include "IECBUS.h"
 #include "IO.h"
+#include "InputManager.h"
 #include "IRQLine.h"
 #include "Joystick.h"
 #include "keyboard.h"
@@ -90,8 +91,8 @@ class Computer
 
         // Getters
         inline bool getCartridgeAttached() { return cartridgeAttached; }
-        Joystick* getJoy1();
-        Joystick* getJoy2();
+        inline Joystick* getJoy1() { return input ? input->getJoy1() : nullptr; }
+        inline Joystick* getJoy2() { return input ? input->getJoy2() : nullptr; }
 
         // Game controls
         void setJoystickConfig(int port, JoystickMapping& cfg);
@@ -124,6 +125,7 @@ class Computer
         std::unique_ptr<CPU> processor;
         std::unique_ptr<D1541> drive8;
         std::unique_ptr<IECBUS> bus;
+        std::unique_ptr<InputManager> input;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Joystick> joy1;
         std::unique_ptr<Joystick> joy2;
