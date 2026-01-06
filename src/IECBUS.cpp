@@ -55,7 +55,7 @@ void IECBUS::setSrqLine(bool state)
     line_srqin = state;
     updateBusState();
     // Only notify CIA2 if it actually changed
-    if (old != line_srqin) cia2object->srqChanged(line_srqin);
+    if (old != line_srqin && cia2object) cia2object->srqChanged(line_srqin);
 }
 
 void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
