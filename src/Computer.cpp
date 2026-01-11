@@ -1046,7 +1046,6 @@ void Computer::attachD64Image()
     {
         drive8 = std::make_unique<D1541>(8, D1541LoROM, D1541HiROM);
         bus->registerDevice(8, drive8.get());
-        drive8->reset();
     }
 
     if (drive8) drive8->loadDisk(diskPath);
