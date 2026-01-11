@@ -97,7 +97,16 @@ void D1541::reset()
 
     d1541mem.reset();
     driveCPU.reset();
-    d1541mem.getVIA1().setIECInputLines(false, false, false);
+
+    bool atnLow=false, clkLow=false, dataLow=false;
+    if (bus)
+    {
+        // however your bus exposes the current resolved line states:
+        atnLow  = bus->getAtnLine();
+        clkLow  = bus->getClkLine();
+        dataLow = bus->getDataLine();
+    }
+    d1541mem.getVIA1().setIECInputLines(atnLow, clkLow, dataLow);
 }
 
 void D1541::tick(uint32_t cycles)
