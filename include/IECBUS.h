@@ -104,6 +104,11 @@ class IECBUS
         bool peripheralDrivesDataLow;
         bool peripheralDrivesAtnLow;
 
+        // Per device lines
+        std::map<Peripheral*, bool> devDrivesClkLow;
+        std::map<Peripheral*, bool> devDrivesDataLow;
+        std::map<Peripheral*, bool> devDrivesAtnLow;
+
         bool lastClk;
         bool lastData;
 

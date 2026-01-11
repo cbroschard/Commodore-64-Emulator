@@ -63,32 +63,25 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    peripheralDrivesClkLow = clkLow;
+    devDrivesClkLow[device] = clkLow;
     recalcAndNotify();
 }
 
-void IECBUS::peripheralControlData(Peripheral* device, bool stateLow)
+void IECBUS::peripheralControlData(Peripheral* device, bool dataLow)
 {
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    peripheralDrivesDataLow = stateLow;
+    devDrivesDataLow[device] = dataLow;
     recalcAndNotify();
 }
 
-void IECBUS::peripheralControlAtn(Peripheral* device, bool state)
+void IECBUS::peripheralControlAtn(Peripheral* device, bool atnLow)
 {
     if (!device) return;
     if (devices.find(device->getDeviceNumber()) == devices.end()) return;
 
-    if (currentTalker == nullptr) currentTalker = device;
-    if (device != currentTalker) return;
-
-    peripheralDrivesAtnLow = state;
-
-    if (!peripheralDrivesClkLow && !peripheralDrivesDataLow && !peripheralDrivesAtnLow)
-        currentTalker = nullptr;
-
+    devDrivesAtnLow[device] = atnLow;
     recalcAndNotify();
 }
 
@@ -135,6 +128,11 @@ void IECBUS::unregisterDevice(int deviceNumber)
     if (it == devices.end()) return;
 
     Peripheral* device = it->second;
+
+    devDrivesClkLow.erase(device);
+    devDrivesDataLow.erase(device);
+    devDrivesAtnLow.erase(device);
+
     if (currentTalker == device) currentTalker = nullptr;
 
     currentListeners.erase(
@@ -212,8 +210,23 @@ void IECBUS::tick(uint64_t cyclesPassed)
 
 void IECBUS::updateBusState()
 {
-    busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow,
-        c64DrivesAtnLow, peripheralDrivesAtnLow);
+    bool anyClkLow  = false;
+    bool anyDataLow = false;
+    bool anyAtnLow  = false;
+
+    for (auto& [dev, v] : devDrivesClkLow)  anyClkLow  |= v;
+    for (auto& [dev, v] : devDrivesDataLow) anyDataLow |= v;
+    for (auto& [dev, v] : devDrivesAtnLow)  anyAtnLow  |= v;
+
+    peripheralDrivesClkLow  = anyClkLow;
+    peripheralDrivesDataLow = anyDataLow;
+    peripheralDrivesAtnLow  = anyAtnLow;
+
+    busLines.updateLineState(
+        c64DrivesClkLow, c64DrivesDataLow,
+        peripheralDrivesClkLow, peripheralDrivesDataLow,
+        c64DrivesAtnLow, peripheralDrivesAtnLow
+    );
 }
 
 void IECBUS::updateSrqLine()
@@ -315,7 +328,7 @@ void IECBUS::recalcAndNotify()
         const bool clkLow = !busLines.clk;
 
         if (cia2object)
-            cia2object->clkChanged(busLines.clk);
+            cia2object->clkChanged(clkLow);
 
         for (auto const& [num, dev] : devices)
             if (dev) dev->clkChanged(clkLow);
@@ -326,7 +339,7 @@ void IECBUS::recalcAndNotify()
         const bool dataLow = !busLines.data;
 
         if (cia2object)
-            cia2object->dataChanged(busLines.data);
+            cia2object->dataChanged(dataLow);
 
         for (auto const& [num, dev] : devices)
             if (dev) dev->dataChanged(dataLow);
