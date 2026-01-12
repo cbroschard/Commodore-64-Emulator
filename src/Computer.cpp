@@ -160,6 +160,7 @@ void Computer::warmReset()
     pla->updateMemoryControlRegister(0x37);
 
     // Reset major chips
+    bus->reset();
     vicII->reset();
     cia1object->reset();
     cia2object->reset();

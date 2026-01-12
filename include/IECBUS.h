@@ -31,6 +31,9 @@ class IECBUS
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
+        // Reset
+        void reset();
+
         // Bus state getters
         inline bool getAtnLine() const { return busLines.atn; }
         inline bool getClkLine() const { return busLines.clk; }

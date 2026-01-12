@@ -24,10 +24,58 @@ IECBUS::IECBUS() :
     lastClk(true)
 {
     currentListeners.clear(); // Ensure listener list is empty on start
-    updateBusState(); // Update bus with defaults
+    reset();
 }
 
 IECBUS::~IECBUS() = default;
+
+void IECBUS::reset()
+{
+    // Reset bus-level state machine
+    currentState   = State::IDLE;
+    currentTalker  = nullptr;
+    currentListeners.clear();
+
+    // Release C64-driven open-collector lines (idle = HIGH)
+    c64DrivesAtnLow  = false;
+    c64DrivesClkLow  = false;
+    c64DrivesDataLow = false;
+
+    // Release SRQ (idle = HIGH)
+    line_srqin = true;
+
+    // CRITICAL: clear *all* device pull-low contributions so nothing "sticks low"
+    devDrivesClkLow.clear();
+    devDrivesDataLow.clear();
+    devDrivesAtnLow.clear();
+
+    // Recompute resolved line levels (should become HIGH/HIGH/HIGH)
+    updateBusState();
+
+    // Sync CIA2 + devices to the resolved state so they have correct baseline.
+    // We do NOT want to rely on edge detection during reset.
+    const bool atnLow  = !busLines.atn;
+    const bool clkLow  = !busLines.clk;
+    const bool dataLow = !busLines.data;
+
+    if (cia2object)
+    {
+        cia2object->atnChanged(atnLow);
+        cia2object->clkChanged(clkLow);
+        cia2object->dataChanged(dataLow);
+        cia2object->srqChanged(line_srqin);
+    }
+
+    for (auto const& [num, dev] : devices)
+    {
+        if (!dev) continue;
+        dev->atnChanged(atnLow);
+        dev->clkChanged(clkLow);
+        dev->dataChanged(dataLow);
+    }
+
+    lastClk = busLines.clk;
+}
 
 void IECBUS::setAtnLine(bool state)
 {
