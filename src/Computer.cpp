@@ -206,6 +206,7 @@ void Computer::coldReset()
     }
 
     // Reset major chips
+    bus->reset();
     vicII->reset();
     cia1object->reset();
     cia2object->reset();
@@ -223,6 +224,7 @@ bool Computer::boot()
     }
 
     // Reset all chips
+    bus->reset();
     pla->reset();
     processor->reset();
     vicII->reset();
@@ -1047,6 +1049,8 @@ void Computer::attachD64Image()
     {
         drive8 = std::make_unique<D1541>(8, D1541LoROM, D1541HiROM);
         bus->registerDevice(8, drive8.get());
+        drive8->forceSyncIEC();
+        bus->reset();
     }
 
     if (drive8) drive8->loadDisk(diskPath);

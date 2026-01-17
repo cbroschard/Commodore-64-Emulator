@@ -15,6 +15,7 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     clkLineLow(false),
     dataLineLow(false),
     srqAsserted(false),
+    iecLinesPrimed(false),
     iecListening(false),
     iecTalking(false),
     presenceAckDone(false),
@@ -66,6 +67,7 @@ void D1541::reset()
     clkLineLow                  = false;
     dataLineLow                 = false;
     srqAsserted                 = false;
+    iecLinesPrimed              = false;
     iecListening                = false;
     iecTalking                  = false;
     presenceAckDone             = false;
@@ -102,9 +104,9 @@ void D1541::reset()
     if (bus)
     {
         // however your bus exposes the current resolved line states:
-        atnLow  = bus->getAtnLine();
-        clkLow  = bus->getClkLine();
-        dataLow = bus->getDataLine();
+        atnLow  = !bus->getAtnLine();
+        clkLow  = !bus->getClkLine();
+        dataLow = !bus->getDataLine();
     }
     d1541mem.getVIA1().setIECInputLines(atnLow, clkLow, dataLow);
 }
@@ -432,7 +434,8 @@ void D1541::onSecondaryAddress(uint8_t sa)
 
 void D1541::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow) return;
+    // Always forward the very first notification so VIA1 gets a baseline sample
+    if (iecLinesPrimed && atnLow == atnLineLow) return;
 
     bool prevAtnLow = atnLineLow;
     atnLineLow = atnLow;
@@ -440,31 +443,35 @@ void D1541::atnChanged(bool atnLow)
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
+    // Only reset fast-serial shift on a real ATN falling edge (high->low)
     if (!prevAtnLow && atnLineLow)
         via1.resetShift();
+
+    iecLinesPrimed = true;
 }
 
 void D1541::clkChanged(bool clkLow)
 {
-    if (clkLow == clkLineLow)
-        return; // ignore no change
+    if (iecLinesPrimed && clkLow == clkLineLow) return;
 
     clkLineLow = clkLow;
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    iecLinesPrimed = true;
 }
 
 void D1541::dataChanged(bool dataLow)
 {
-    if (dataLow == dataLineLow)
-        return; // ignore no change
+    if (iecLinesPrimed && dataLow == dataLineLow) return;
 
-    // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
 
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    iecLinesPrimed = true;
 }
 
 void D1541::setDensityCode(uint8_t code)
@@ -572,43 +579,52 @@ void D1541::resetForMediaChange()
     uint16_t pc = driveCPU.getPC();
     if (!(pc < 0x0800))
         driveCPU.reset();
+
+    forceSyncIEC();
 }
 
 Drive::IECSnapshot D1541::snapshotIEC() const
 {
     Drive::IECSnapshot s{};
 
-    s.atnLow  = getAtnLineLow();
-    s.clkLow  = getClkLineLow();
-    s.dataLow = getDataLineLow();
-    s.srqLow  = getSRQAsserted();
+    s.atnLow            = getAtnLineLow();
+    s.clkLow            = getClkLineLow();
+    s.dataLow           = getDataLineLow();
+    s.srqLow            = getSRQAsserted();
 
-    s.drvAssertAtn  = assertAtn;
-    s.drvAssertClk  = assertClk;
-    s.drvAssertData = assertData;
-    s.drvAssertSrq  = assertSrq;
+    s.drvAssertAtn      = assertAtn;
+    s.drvAssertClk      = assertClk;
+    s.drvAssertData     = assertData;
+    s.drvAssertSrq      = assertSrq;
 
     // Protocol state
-    s.busState  = currentDriveBusState;
-    s.listening = listening;
-    s.talking   = talking;
+    s.busState          = currentDriveBusState;
+    s.listening         = listening;
+    s.talking           = talking;
 
-    s.secondaryAddress = this->currentSecondaryAddress;
+    s.secondaryAddress  = this->currentSecondaryAddress;
 
     // Legacy shifter (from Peripheral)
-    s.shiftReg = shiftReg;
-    s.bitsProcessed = bitsProcessed;
+    s.shiftReg          = shiftReg;
+    s.bitsProcessed     = bitsProcessed;
 
     // Handshake + talk queue (from Drive)
-    s.waitingForAck = waitingForAck;
-    s.ackEdgeCountdown = ackEdgeCountdown;
+    s.waitingForAck     = waitingForAck;
+    s.ackEdgeCountdown  = ackEdgeCountdown;
     s.swallowPostHandshakeFalling = swallowPostHandshakeFalling;
     s.waitingForClkRelease = waitingForClkRelease;
-    s.prevClkLevel = prevClkLevel;
-    s.ackHold = ackHold;
-    s.byteAckHold = byteAckHold;
-    s.ackDelay = ackDelay;
-    s.talkQueueLen = talkQueue.size();
+    s.prevClkLevel      = prevClkLevel;
+    s.ackHold           = ackHold;
+    s.byteAckHold       = byteAckHold;
+    s.ackDelay          = ackDelay;
+    s.talkQueueLen      = talkQueue.size();
 
     return s;
+}
+
+void D1541::forceSyncIEC()
+{
+    // Push current line states into VIA even if nothing changed
+    auto& via1 = d1541mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }

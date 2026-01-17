@@ -85,6 +85,9 @@ class D1541 : public Drive
         inline void setPresenceAckDone(bool done) { presenceAckDone = done; }
         inline bool getPresenceAckDone() const { return presenceAckDone; }
 
+        // Helper to force the IEC BUS state
+        void forceSyncIEC();
+
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
         inline bool hasVIA1() const override { return true;  }
@@ -125,6 +128,7 @@ class D1541 : public Drive
         bool clkLineLow;
         bool dataLineLow;
         bool srqAsserted;
+        bool iecLinesPrimed;
         bool iecListening;
         bool iecTalking;
         bool presenceAckDone;

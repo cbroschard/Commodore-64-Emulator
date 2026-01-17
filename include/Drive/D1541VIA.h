@@ -224,6 +224,9 @@ class D1541VIA : public DriveVIABase
         // PB7 output when ACR7=1 (timer output)
         bool t1PB7Level = true;
 
+        // Flag to allow priming of the levels on boot
+        bool iecInputPrimed;
+
         // Latched real bus levels (true = line is LOW on the IEC bus)
         bool busAtnLow;
         bool busClkLow;

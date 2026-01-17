@@ -37,6 +37,7 @@ D1541VIA::D1541VIA() :
     t2InhibitIRQ(false),
     t2LowLatchByte(0x00),
     t1PB7Level(true),
+    iecInputPrimed(false),
     busAtnLow(false),
     busClkLow(false),
     busDataLow(false),
@@ -95,6 +96,8 @@ void D1541VIA::reset()
     t2InhibitIRQ                        = false;
     t2LowLatchByte                      = 0x00;
     t1PB7Level                          = true;
+
+    iecInputPrimed                      = false;
 
     // Latched real bus levels
     busAtnLow                           = false;
@@ -689,6 +692,36 @@ void D1541VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
     if (viaRole != VIARole::VIA1_IECBus)
         return;
+
+    // PRIME: first time we ever see bus levels after attach/reset,
+    // just latch them as baseline and update input pins — NO EDGES.
+    if (!iecInputPrimed)
+    {
+        iecInputPrimed = true;
+
+        busAtnLow  = atnLow;
+        busClkLow  = clkLow;
+        busDataLow = dataLow;
+
+        // Update CA1 level (ATN level) without edge-triggering
+        ca1Level = busAtnLow;
+
+        // Update Port B input pins to match current bus level
+        uint8_t pins = portBPins;
+
+        if (dataLow) pins |=  (1u << IEC_DATA_IN_BIT);
+        else         pins &= ~(1u << IEC_DATA_IN_BIT);
+
+        if (clkLow)  pins |=  (1u << IEC_CLK_IN_BIT);
+        else         pins &= ~(1u << IEC_CLK_IN_BIT);
+
+        if (atnLow)  pins |=  (1u << IEC_ATN_IN_BIT);
+        else         pins &= ~(1u << IEC_ATN_IN_BIT);
+
+        portBPins = pins;
+
+        return;
+    }
 
     const bool prevAtnLow = busAtnLow;
     const bool prevClkLow = busClkLow;
