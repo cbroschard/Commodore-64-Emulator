@@ -17,18 +17,32 @@ EmulatorUI::~EmulatorUI() = default;
 
 void EmulatorUI::draw()
 {
-    installMenu();
+    MediaViewState snapshot;
+    {
+        std::lock_guard<std::mutex> lock(viewMutex_);
+        snapshot = view_;
+    }
+
+    installMenu(snapshot);
 }
 
 std::vector<UiCommand> EmulatorUI::consumeCommands()
 {
+    std::lock_guard<std::mutex> lock(outMutex_);
     auto tmp = std::move(out_);
     out_.clear();
     return tmp;
 }
 
+void EmulatorUI::setMediaViewState(const MediaViewState & s)
+{
+    std::lock_guard<std::mutex> lock(viewMutex_);
+    view_ = s;
+}
+
 void EmulatorUI::push(UiCommand::Type t, std::string path)
 {
+    std::lock_guard<std::mutex> lock(outMutex_);
     out_.push_back(UiCommand{ t, std::move(path) });
 }
 
@@ -290,7 +304,7 @@ void EmulatorUI::drawFileDialog()
     ImGui::End();
 }
 
-void EmulatorUI::installMenu()
+void EmulatorUI::installMenu(const MediaViewState& v)
 {
     static bool aboutRequested = false;
 
@@ -332,10 +346,23 @@ void EmulatorUI::installMenu()
 
         if (ImGui::BeginMenu("Input"))
         {
-            bool j1 = view_.joy1Attached;
-            bool j2 = view_.joy2Attached;
+            bool j1 = v.joy1Attached;
+            bool j2 = v.joy2Attached;
             if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) push(UiCommand::Type::ToggleJoy1);
             if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) push(UiCommand::Type::ToggleJoy2);
+            ImGui::Separator();
+            ImGui::TextUnformatted("Gamepad Routing");
+            ImGui::Text("Pad1: %s", v.pad1Name.c_str());
+            ImGui::Text("Pad2: %s", v.pad2Name.c_str());
+
+            if (ImGui::MenuItem("Assign Pad1 -> Port 1")) push(UiCommand::Type::AssignPad1ToPort1);
+            if (ImGui::MenuItem("Assign Pad1 -> Port 2")) push(UiCommand::Type::AssignPad1ToPort2);
+            if (ImGui::MenuItem("Assign Pad2 -> Port 1")) push(UiCommand::Type::AssignPad2ToPort1);
+            if (ImGui::MenuItem("Assign Pad2 -> Port 2")) push(UiCommand::Type::AssignPad2ToPort2);
+
+            if (ImGui::MenuItem("Clear Port 1 Pad")) push(UiCommand::Type::ClearPort1Pad);
+            if (ImGui::MenuItem("Clear Port 2 Pad")) push(UiCommand::Type::ClearPort2Pad);
+            if (ImGui::MenuItem("Swap Port 1/2 Pads")) push(UiCommand::Type::SwapPortPads);
             ImGui::EndMenu();
         }
 
@@ -344,13 +371,13 @@ void EmulatorUI::installMenu()
             if (ImGui::MenuItem("Warm Reset", "Ctrl+W"))       push(UiCommand::Type::WarmReset);
             if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) push(UiCommand::Type::ColdReset);
 
-            bool isPAL = view_.pal;
+            bool isPAL = v.pal;
             if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) push(UiCommand::Type::SetNTSC);
             if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) push(UiCommand::Type::SetPAL);
 
             ImGui::Separator();
 
-            bool paused = view_.paused;
+            bool paused = v.paused;
             if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) push(UiCommand::Type::TogglePause);
 
             ImGui::EndMenu();

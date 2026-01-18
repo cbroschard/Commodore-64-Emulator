@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <initializer_list>
+#include <mutex>
 #include <string>
 #include <vector>
 #include "imgui/imgui.h"
@@ -29,17 +30,22 @@ class EmulatorUI
 
         struct MediaViewState
         {
-            bool diskAttached=false;      std::string diskPath;
-            bool cartAttached=false;      std::string cartPath;
-            bool tapeAttached=false;      std::string tapePath;
-            bool prgAttached=false;       std::string prgPath;
-            bool joy1Attached=false;
-            bool joy2Attached=false;
-            bool paused=false;
-            bool pal=true;
+            bool diskAttached    = false;       std::string diskPath;
+            bool cartAttached    = false;       std::string cartPath;
+            bool tapeAttached    = false;       std::string tapePath;
+            bool prgAttached     = false;       std::string prgPath;
+
+            bool joy1Attached    = false;
+            bool joy2Attached    = false;
+
+            std::string pad1Name = "None";
+            std::string pad2Name = "None";
+
+            bool paused          = false;
+            bool pal             = true;
         };
 
-        void setMediaViewState(const MediaViewState& s) { view_ = s; }
+        void setMediaViewState(const MediaViewState& s);
 
     protected:
 
@@ -48,6 +54,11 @@ class EmulatorUI
         bool fileDialogOpen_ = false;
         std::string pendingPath_;
         UiCommand::Type pendingType_;
+
+        bool joy1Attached;
+        bool joy2Attached;
+        std::string pad1Name;
+        std::string pad2Name;
 
         struct FileDialog
         {
@@ -61,9 +72,12 @@ class EmulatorUI
         FileDialog fileDlg;
 
         std::vector<UiCommand> out_;
-        MediaViewState view_;
+        mutable std::mutex outMutex_;
 
-        void installMenu();
+        MediaViewState view_;
+        mutable std::mutex viewMutex_;
+
+        void installMenu(const MediaViewState& v);
         void startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type);
         void drawFileDialog();
 
