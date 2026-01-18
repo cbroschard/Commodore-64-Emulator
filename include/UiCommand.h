@@ -35,6 +35,13 @@ struct UiCommand
         CassRewind,
         CassEject,
 
+        AssignPad1ToPort1,
+        AssignPad1ToPort2,
+        AssignPad2ToPort1,
+        AssignPad2ToPort2,
+        ClearPort1Pad,
+        ClearPort2Pad,
+        SwapPortPads,
         ToggleJoy1,
         ToggleJoy2,
 
