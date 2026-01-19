@@ -104,23 +104,54 @@ void Computer::enterMonitor()
 
 bool Computer::handleInputEvent(const SDL_Event& ev)
 {
+    // F12 global monitor toggle (do this BEFORE monitorCtl->handleEvent)
+    if (ev.type == SDL_KEYDOWN && !ev.key.repeat &&
+        ev.key.keysym.scancode == SDL_SCANCODE_F12)
+    {
+        if (monitorCtl) monitorCtl->toggle();
+        return true;
+    }
+
+    // Let monitor consume events next
     if (monitorCtl && monitorCtl->handleEvent(ev)) return true;
 
-    if ((ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP) && !ev.key.repeat)
+    if (ev.type == SDL_KEYDOWN && !ev.key.repeat)
     {
-        const bool down = (ev.type == SDL_KEYDOWN);
-        const auto sc   = ev.key.keysym.scancode;
+        const SDL_Scancode sc = ev.key.keysym.scancode;
         const SDL_Keymod mods = static_cast<SDL_Keymod>(ev.key.keysym.mod);
 
-        if (down && (mods & KMOD_ALT))
+        // SPACE pause
+        if (sc == SDL_SCANCODE_SPACE)
         {
-            if (sc == SDL_SCANCODE_E) { pushHotkeyCommand({UiCommand::Type::CassEject});  return true; }
-            if (sc == SDL_SCANCODE_P) { pushHotkeyCommand({UiCommand::Type::CassPlay});   return true; }
-            if (sc == SDL_SCANCODE_R) { pushHotkeyCommand({UiCommand::Type::CassRewind}); return true; }
-            if (sc == SDL_SCANCODE_S) { pushHotkeyCommand({UiCommand::Type::CassStop});   return true; }
+            uiPaused = !uiPaused.load();
+            return true;
+        }
+
+        // CTRL+W warm reset
+        if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_W)
+        {
+            warmReset();
+            return true;
+        }
+
+        // CTRL+SHIFT+R cold reset
+        if ((mods & KMOD_CTRL) && (mods & KMOD_SHIFT) && sc == SDL_SCANCODE_R)
+        {
+            coldReset();
+            return true;
+        }
+
+        // ALT cassette controls
+        if (mods & KMOD_ALT)
+        {
+            if (sc == SDL_SCANCODE_P) { if (cass) cass->play();   return true; }
+            if (sc == SDL_SCANCODE_S) { if (cass) cass->stop();   return true; }
+            if (sc == SDL_SCANCODE_R) { if (cass) cass->rewind(); return true; }
+            if (sc == SDL_SCANCODE_E) { if (cass) cass->eject();  return true; }
         }
     }
 
+    // Feed InputManager (keyboard/joystick mapping)
     if (input) return input->handleEvent(ev);
     return false;
 }
@@ -326,17 +357,6 @@ bool Computer::boot()
         if (ui) ui->draw();
     });
 
-    IO_adapter->setInputCallback([this](const SDL_Event& ev)
-    {
-        if (ev.type == SDL_QUIT)
-        {
-            running = false;
-            uiQuit  = true;
-            return;
-        }
-        (void)this->handleInputEvent(ev);
-    });
-
     // Graphics rendering thread
     IO_adapter->startRenderThread(running);
     IO_adapter->finishFrameAndSignal();
@@ -349,20 +369,11 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
-            // Handle hot keys first
-            if (handleHotkeys(e))
+            // handle hotkeys / monitor / input mapping first
+            if (handleInputEvent(e))
                 continue;
 
-            // F12 toggles the separate SDL monitor window (always)
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12 && !e.key.repeat)
-            {
-                if (monitorCtl) monitorCtl->toggle();   // or open()
-                continue;
-            }
-
-            // Let the monitor consume events only AFTER the global hotkey
-            if (monitorCtl && monitorCtl->handleEvent(e)) continue;
-
+            // Controller add/remove
             if (e.type == SDL_CONTROLLERDEVICEADDED)
             {
                 if (input) input->handleControllerDeviceAdded(e.cdevice.which);
@@ -375,8 +386,10 @@ bool Computer::boot()
                 continue;
             }
 
+            // Forward the event to ImGui/render thread
             IO_adapter->enqueueEvent(e);
 
+            // Quit
             if (e.type == SDL_QUIT)
             {
                 running = false;
@@ -470,20 +483,6 @@ bool Computer::boot()
         if (ui)
         {
             ui->setMediaViewState(buildUIState());
-        }
-
-        // Run hotkey commands (generated from input callback thread)
-        for (const auto& cmd : consumeHotkeyCommands())
-        {
-            // reuse the same switch logic as processUICommands
-            switch (cmd.type)
-            {
-                case UiCommand::Type::CassPlay:   if (cass) cass->play();   break;
-                case UiCommand::Type::CassStop:   if (cass) cass->stop();   break;
-                case UiCommand::Type::CassRewind: if (cass) cass->rewind(); break;
-                case UiCommand::Type::CassEject:  if (cass) cass->eject();  break;
-                default: break;
-            }
         }
 
         // Handle loading a PRG
@@ -612,72 +611,6 @@ void Computer::loadPrgIntoMem()
             mem->writeDirect(0x0277 + i, runKeys[i]);
         }
     }
-}
-
-void Computer::pushHotkeyCommand(const UiCommand& c)
-{
-    std::lock_guard<std::mutex> lock(hotkeyMut_);
-    hotkeyCmds_.push_back(c);
-}
-
-std::vector<UiCommand> Computer::consumeHotkeyCommands()
-{
-    std::lock_guard<std::mutex> lock(hotkeyMut_);
-    auto out = std::move(hotkeyCmds_);
-    hotkeyCmds_.clear();
-    return out;
-}
-
-bool Computer::handleHotkeys(const SDL_Event& e)
-{
-    if (e.type != SDL_KEYDOWN || e.key.repeat)
-        return false;
-
-    const SDL_Scancode sc = e.key.keysym.scancode;
-    const SDL_Keymod mods = static_cast<SDL_Keymod>(e.key.keysym.mod);
-
-    // F12 = toggle monitor window
-    if (sc == SDL_SCANCODE_F12)
-    {
-        if (monitorCtl) monitorCtl->toggle();
-        return true;
-    }
-
-    // ALT + cassette controls
-    if (mods & KMOD_ALT)
-    {
-        switch (sc)
-        {
-            case SDL_SCANCODE_P: if (cass) cass->play();   return true;
-            case SDL_SCANCODE_S: if (cass) cass->stop();   return true;
-            case SDL_SCANCODE_R: if (cass) cass->rewind(); return true;
-            case SDL_SCANCODE_E: if (cass) cass->eject();  return true;
-            default: break;
-        }
-    }
-
-    // SPACE = pause / resume
-    if (sc == SDL_SCANCODE_SPACE)
-    {
-        uiPaused = !uiPaused.load();
-        return true;
-    }
-
-    // CTRL+W = warm reset
-    if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_W)
-    {
-        warmReset();
-        return true;
-    }
-
-    // CTRL+SHIFT+R = cold reset
-    if ((mods & KMOD_CTRL) && (mods & KMOD_SHIFT) && sc == SDL_SCANCODE_R)
-    {
-        coldReset();
-        return true;
-    }
-
-    return false;
 }
 
 void Computer::attachD64Image()

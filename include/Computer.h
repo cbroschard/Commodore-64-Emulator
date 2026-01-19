@@ -169,13 +169,6 @@ class Computer
         bool diskAttached;
         std::string diskPath;
 
-        // Hotkeys
-        mutable std::mutex      hotkeyMut_;
-        std::vector<UiCommand>  hotkeyCmds_;
-        void pushHotkeyCommand(const UiCommand& c);
-        std::vector<UiCommand> consumeHotkeyCommands();
-        bool handleHotkeys(const SDL_Event& e);
-
         // Graphics loop threading
         std::atomic<bool>       running;
 
