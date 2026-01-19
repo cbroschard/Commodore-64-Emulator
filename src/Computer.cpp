@@ -14,6 +14,7 @@ Computer::Computer() :
     cia1object(std::make_unique<CIA1>()),
     cia2object(std::make_unique<CIA2>()),
     processor(std::make_unique<CPU>()),
+    ui(std::make_unique<EmulatorUI>()),
     bus(std::make_unique<IECBUS>()),
     input(std::make_unique<InputManager>()),
     IRQ(std::make_unique<IRQLine>()),
@@ -40,24 +41,9 @@ Computer::Computer() :
     diskAttached(false),
     diskPath(""),
     running(true),
-    uiVideoModeReq(-1),
-    uiAttachD64(false),
-    uiAttachPRG(false),
-    uiAttachCRT(false),
-    uiAttachT64(false),
-    uiAttachTAP(false),
-    uiToggleJoy1Req(false),
-    uiToggleJoy2Req(false),
     uiQuit(false),
-    uiWarmReset(false),
-    uiColdReset(false),
-    uiPaused(false),
-    uiEnterMonitor(false)
+    uiPaused(false)
 {
-    // Initialize file dialog struct
-    fileDlg.open = false;
-    fileDlg.currentDir = std::filesystem::current_path();
-
     // Wire components
     wireUp();
 }
@@ -124,14 +110,14 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
     {
         const bool down = (ev.type == SDL_KEYDOWN);
         const auto sc   = ev.key.keysym.scancode;
-        const auto mods = SDL_GetModState();
+        const SDL_Keymod mods = static_cast<SDL_Keymod>(ev.key.keysym.mod);
 
         if (down && (mods & KMOD_ALT))
         {
-            if (sc == SDL_SCANCODE_E) { uiCass = CassCmd::Eject;  return true; }
-            if (sc == SDL_SCANCODE_P) { uiCass = CassCmd::Play;   return true; }
-            if (sc == SDL_SCANCODE_R) { uiCass = CassCmd::Rewind; return true; }
-            if (sc == SDL_SCANCODE_S) { uiCass = CassCmd::Stop;   return true; }
+            if (sc == SDL_SCANCODE_E) { pushHotkeyCommand({UiCommand::Type::CassEject});  return true; }
+            if (sc == SDL_SCANCODE_P) { pushHotkeyCommand({UiCommand::Type::CassPlay});   return true; }
+            if (sc == SDL_SCANCODE_R) { pushHotkeyCommand({UiCommand::Type::CassRewind}); return true; }
+            if (sc == SDL_SCANCODE_S) { pushHotkeyCommand({UiCommand::Type::CassStop});   return true; }
         }
     }
 
@@ -334,8 +320,11 @@ bool Computer::boot()
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
 
-    // Install the ImGui menu
-    installMenu();
+    // show the ImGui menu
+    IO_adapter->setGuiCallback([this]()
+    {
+        if (ui) ui->draw();
+    });
 
     IO_adapter->setInputCallback([this](const SDL_Event& ev)
     {
@@ -360,14 +349,15 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
-            if (monitorCtl && monitorCtl->handleEvent(e)) continue;
-
-            // F12 toggles the separate SDL monitor window (always, all builds)
-            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12)
+            // F12 toggles the separate SDL monitor window (always)
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12 && !e.key.repeat)
             {
-                uiEnterMonitor = true;
+                if (monitorCtl) monitorCtl->toggle();   // or open()
                 continue;
             }
+
+            // Let the monitor consume events only AFTER the global hotkey
+            if (monitorCtl && monitorCtl->handleEvent(e)) continue;
 
             if (e.type == SDL_CONTROLLERDEVICEADDED)
             {
@@ -381,8 +371,8 @@ bool Computer::boot()
                 continue;
             }
 
-            // forward to render thread for ImGui + input handling
             IO_adapter->enqueueEvent(e);
+
             if (e.type == SDL_QUIT)
             {
                 running = false;
@@ -473,54 +463,23 @@ bool Computer::boot()
             break;
         }
 
-        // File Menu
-        if (uiAttachD64.exchange(false)) attachD64Image();
-        if (uiAttachPRG.exchange(false)) attachPRGImage();
-        if (uiAttachCRT.exchange(false)) attachCRTImage();
-        if (uiAttachT64.exchange(false)) attachT64Image();
-        if (uiAttachTAP.exchange(false)) attachTAPImage();
-
-        // Input Menu
-        if (uiToggleJoy1Req.exchange(false) && input)
-            input->setJoystickAttached(1, !input->isJoy1Attached());
-
-        if (uiToggleJoy2Req.exchange(false) && input)
-            input->setJoystickAttached(2, !input->isJoy2Attached());
-
-        // System Menu
-        if (uiWarmReset.exchange(false)) warmReset();
-        if (uiColdReset.exchange(false)) coldReset();
-        if (uiEnterMonitor.exchange(false))
+        if (ui)
         {
-            if (monitorCtl) monitorCtl->toggle();
+            ui->setMediaViewState(buildUIState());
         }
 
-        int vm = uiVideoModeReq.exchange(-1);
-        if (vm != -1) setVideoMode(vm ? "PAL" : "NTSC");
-
-        switch (uiCass.exchange(CassCmd::None))
+        // Run hotkey commands (generated from input callback thread)
+        for (const auto& cmd : consumeHotkeyCommands())
         {
-            case CassCmd::Play:   if (cass) cass->play();   break;
-            case CassCmd::Stop:   if (cass) cass->stop();   break;
-            case CassCmd::Rewind: if (cass) cass->rewind(); break;
-            case CassCmd::Eject:  if (cass) cass->eject();  break;
-            default: break;
-        }
-
-        if (uiPaused.load())
-        {
-            IO_adapter->finishFrameAndSignal();
-            auto now = std::chrono::steady_clock::now();
-            if (now < nextFrameTime)
+            // reuse the same switch logic as processUICommands
+            switch (cmd.type)
             {
-                std::this_thread::sleep_until(nextFrameTime);
-                nextFrameTime += frameDuration;
+                case UiCommand::Type::CassPlay:   if (cass) cass->play();   break;
+                case UiCommand::Type::CassStop:   if (cass) cass->stop();   break;
+                case UiCommand::Type::CassRewind: if (cass) cass->rewind(); break;
+                case UiCommand::Type::CassEject:  if (cass) cass->eject();  break;
+                default: break;
             }
-            else
-            {
-                nextFrameTime = now + frameDuration;
-            }
-            continue; // skip CPU/SID/CIA work while paused
         }
 
         // Handle loading a PRG
@@ -546,6 +505,8 @@ bool Computer::boot()
         {
             nextFrameTime = now + frameDuration; // Added to test
         }
+        processUICommands();
+        if (!running) break;
     }
 
     if (IO_adapter)
@@ -649,391 +610,18 @@ void Computer::loadPrgIntoMem()
     }
 }
 
-void Computer::installMenu()
+void Computer::pushHotkeyCommand(const UiCommand& c)
 {
-    IO_adapter->setGuiCallback([this]()
-    {
-        static bool aboutRequested = false;
-
-        if (ImGui::BeginMainMenuBar())
-        {
-            if (ImGui::BeginMenu("File"))
-            {
-                if (ImGui::MenuItem("Attach D64/D71 image...", "Ctrl+D"))
-                {
-                    startFileDialog("Select D64/D71 Image", { ".d64", ".d71"}, [this](const std::string path)
-                    {
-                        diskPath = path;
-                        uiAttachD64 = true;
-                    });
-                }
-                if (ImGui::MenuItem("Attach PRG/P00 image...", "Ctrl+P"))
-                {
-                    startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, [this](const std::string path)
-                    {
-                        prgPath = path;
-                        uiAttachPRG = true;
-                    });
-                }
-                if (ImGui::MenuItem("Attach Cartridge image...", "Ctrl+C"))
-                {
-                    startFileDialog("Select CRT Image", { ".crt" }, [this](const std::string path)
-                    {
-                        cartridgePath = path;
-                        uiAttachCRT = true;
-                    });
-                }
-                if (ImGui::MenuItem("Attach T64 image...", "Ctrl+T"))
-                {
-                    startFileDialog("Select T64 image", { ".t64" }, [this](const std::string path)
-                    {
-                        tapePath = path;
-                        uiAttachT64 = true;
-                    });
-                }
-                if (ImGui::MenuItem("Attach TAP image...", "Ctrl+U"))
-                {
-                    startFileDialog("Select TAP image", { ".tap" }, [this](const std::string path)
-                    {
-                        tapePath = path;
-                        uiAttachTAP = true;
-                    });
-                }
-                ImGui::Separator();
-                if (ImGui::BeginMenu("Cassette Control"))
-                {
-                    if (ImGui::MenuItem("Play", "Alt+P")) uiCass = CassCmd::Play;
-                    if (ImGui::MenuItem("Stop", "Alt+S")) uiCass = CassCmd::Stop;
-                    if (ImGui::MenuItem("Rewind", "Alt+R")) uiCass = CassCmd::Rewind;
-                    if (ImGui::MenuItem("Eject", "Alt+E")) uiCass = CassCmd::Eject;
-                    ImGui::EndMenu();
-                }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Quit", "Alt+F4")) uiQuit = true;
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Input"))
-            {
-                bool j1 = input ? input->isJoy1Attached() : false;
-                bool j2 = input ? input->isJoy2Attached() : false;
-                if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) uiToggleJoy1Req = true;
-                if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) uiToggleJoy2Req = true;
-                ImGui::Separator();
-                ImGui::Text("Gamepad Routing");
-
-                SDL_GameController* p1 = input ? input->getPad1() : nullptr;
-                SDL_GameController* p2 = input ? input->getPad2() : nullptr;
-
-                auto padName = [&](SDL_GameController* p) -> const char*
-                {
-                    return p ? SDL_GameControllerName(p) : "None";
-                };
-
-                ImGui::Text("Pad1: %s", padName(p1));
-                ImGui::Text("Pad2: %s", padName(p2));
-
-                if (input && p1 && ImGui::MenuItem("Assign Pad1 -> Port 1")) input->assignPadToPort(p1, 1);
-                if (input && p1 && ImGui::MenuItem("Assign Pad1 -> Port 2")) input->assignPadToPort(p1, 2);
-                if (input && p2 && ImGui::MenuItem("Assign Pad2 -> Port 1")) input->assignPadToPort(p2, 1);
-                if (input && p2 && ImGui::MenuItem("Assign Pad2 -> Port 2")) input->assignPadToPort(p2, 2);
-
-                if (input && ImGui::MenuItem("Clear Port 1 Pad")) input->clearPortPad(1);
-                if (input && ImGui::MenuItem("Clear Port 2 Pad")) input->clearPortPad(2);
-                if (input && ImGui::MenuItem("Swap Port 1/2 Pads")) input->swapPortPads();
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("System"))
-            {
-                if (ImGui::MenuItem("Warm Reset", "Ctrl+W")) uiWarmReset = true;
-                if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) uiColdReset = true;
-                bool isPAL = (videoMode_ == VideoMode::PAL);
-                if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) uiVideoModeReq = 0;
-                if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) uiVideoModeReq = 1;
-                ImGui::Separator();
-                bool paused = uiPaused.load();
-                if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) uiPaused = !paused;
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Help")) {
-                if (ImGui::MenuItem("About")) aboutRequested = true; // buffer
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-
-        if (aboutRequested) { ImGui::OpenPopup("About C64 Emulator"); aboutRequested = false; }
-
-        if (ImGui::BeginPopupModal("About C64 Emulator", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            ImGui::Text("C64 Emulator — ImGui Menu Overlay");
-            ImGui::Separator();
-            ImGui::Text("F12 opens ML Monitor.\nAlt+J, 1/2 attach joysticks.");
-            if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-        }
-        drawFileDialog();
-    });
+    std::lock_guard<std::mutex> lock(hotkeyMut_);
+    hotkeyCmds_.push_back(c);
 }
 
-void Computer::startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept)
+std::vector<UiCommand> Computer::consumeHotkeyCommands()
 {
-    fileDlg.open = true;
-    fileDlg.title = title;
-    fileDlg.allowedExtensions = std::move(exts);
-    fileDlg.onAccept = std::move(onAccept);
-    fileDlg.selectedEntry.clear();
-    fileDlg.error.clear();
-}
-
-void Computer::drawFileDialog()
-{
-    if (!fileDlg.open)
-        return;
-
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-
-    const char* windowTitle = fileDlg.title.empty() ? "Select File" : fileDlg.title.c_str();
-
-    if (!ImGui::Begin(windowTitle, &fileDlg.open))
-    {
-        ImGui::End();
-        return;
-    }
-
-    namespace fs = std::filesystem;
-
-    auto openPath = [this](const fs::path& path)
-    {
-        try
-        {
-            if (fs::is_directory(path))
-            {
-                fileDlg.currentDir    = path;
-                fileDlg.selectedEntry.clear();
-            }
-            else
-            {
-                // Check extension against allowedExtensions (if not empty)
-                std::string ext = path.extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-                bool allowed = fileDlg.allowedExtensions.empty();
-                if (!allowed)
-                {
-                    for (const auto& a : fileDlg.allowedExtensions)
-                    {
-                        std::string lower = a;
-                        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                        if (ext == lower)
-                        {
-                            allowed = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!allowed)
-                {
-                    fileDlg.error = "File type not allowed for this action.";
-                }
-                else
-                {
-                    if (fileDlg.onAccept)
-                    {
-                        fileDlg.onAccept(path.string());
-                    }
-                    fileDlg.open = false;
-                }
-            }
-        }
-        catch (const std::exception& e)
-        {
-            fileDlg.error = e.what();
-        }
-    };
-
-    std::string pathStr = fileDlg.currentDir.string();
-    ImGui::TextUnformatted(pathStr.c_str());
-    ImGui::Separator();
-
-    ImGui::BeginChild("##file_list", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()*2), true);
-
-    std::vector<fs::directory_entry> entries;
-    fileDlg.error.clear();
-
-    try
-    {
-        for (const auto& entry : fs::directory_iterator(fileDlg.currentDir))
-            entries.push_back(entry);
-
-        std::sort(entries.begin(), entries.end(),
-                  [](const fs::directory_entry& a, const fs::directory_entry& b)
-                  {
-                      bool ad = a.is_directory();
-                      bool bd = b.is_directory();
-                      if (ad != bd) return ad;   // dirs first
-                      return a.path().filename().string() < b.path().filename().string();
-                  });
-    }
-    catch (const std::exception& e)
-    {
-        fileDlg.error = e.what();
-    }
-
-    // ".." to go up
-     if (ImGui::Selectable("..", false, ImGuiSelectableFlags_AllowDoubleClick))
-    {
-        auto parent = fileDlg.currentDir.parent_path();
-        if (!parent.empty())
-        {
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-            {
-                // Double-click: go up immediately
-                fileDlg.currentDir    = parent;
-                fileDlg.selectedEntry.clear();
-            }
-            else
-            {
-                // Single click: just go up too (or you could just select "..")
-                fileDlg.currentDir    = parent;
-                fileDlg.selectedEntry.clear();
-            }
-        }
-    }
-
-    for (const auto& entry : entries)
-    {
-        std::string name = entry.path().filename().string();
-        bool isDir = entry.is_directory();
-
-        // 🔹 Filter out files whose extension is not in allowedExtensions
-        if (!isDir)
-        {
-            std::string ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-            bool allowed = fileDlg.allowedExtensions.empty(); // if none, show all
-            if (!allowed)
-            {
-                for (auto a : fileDlg.allowedExtensions)
-                {
-                    std::transform(a.begin(), a.end(), a.begin(), ::tolower);
-                    if (ext == a)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!allowed)
-                continue; // skip drawing this file
-        }
-
-        std::string label   = isDir ? (name + "/") : name;
-        bool selected       = (fileDlg.selectedEntry == name);
-
-        if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
-        {
-            // Always update selection on click
-            fileDlg.selectedEntry = name;
-
-            // If it was a double-click, "open" the item immediately
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-            {
-                fs::path path = fileDlg.currentDir / name;
-                openPath(path);
-            }
-        }
-    }
-
-    ImGui::EndChild();
-
-    if (!fileDlg.error.empty())
-    {
-        ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", fileDlg.error.c_str());
-    }
-
-    // Bottom buttons
-    if (ImGui::Button("Up"))
-    {
-        auto parent = fileDlg.currentDir.parent_path();
-        if (!parent.empty())
-        {
-            fileDlg.currentDir    = parent;
-            fileDlg.selectedEntry.clear();
-        }
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Cancel"))
-    {
-        fileDlg.open = false;
-        ImGui::End();
-        return;
-    }
-
-    ImGui::SameLine();
-
-    bool hasSelection = !fileDlg.selectedEntry.empty();
-    if (!hasSelection)
-        ImGui::BeginDisabled();
-
-    if (ImGui::Button("Open"))
-    {
-        fs::path path = fileDlg.currentDir / fileDlg.selectedEntry;
-
-        try
-        {
-            if (fs::is_directory(path))
-            {
-                fileDlg.currentDir    = path;
-                fileDlg.selectedEntry.clear();
-            }
-            else
-            {
-                // Check extension against allowed list, if any
-                std::string ext = path.extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-                bool allowed = fileDlg.allowedExtensions.empty();  // if none given, accept all
-                if (!allowed)
-                {
-                    for (const auto& a : fileDlg.allowedExtensions)
-                    {
-                        if (ext == a)
-                        {
-                            allowed = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!allowed)
-                {
-                    fileDlg.error = "File type not allowed for this action.";
-                }
-                else
-                {
-                    if (fileDlg.onAccept)
-                    {
-                        fileDlg.onAccept(path.string());
-                    }
-                    fileDlg.open = false;
-                }
-            }
-        }
-        catch (const std::exception& e)
-        {
-            fileDlg.error = e.what();
-        }
-    }
-
-    if (!hasSelection)
-        ImGui::EndDisabled();
-
-    ImGui::End();
+    std::lock_guard<std::mutex> lock(hotkeyMut_);
+    auto out = std::move(hotkeyCmds_);
+    hotkeyCmds_.clear();
+    return out;
 }
 
 void Computer::attachD64Image()
@@ -1174,6 +762,164 @@ void Computer::recreateCartridge()
     pla->attachCartridgeInstance(cart.get());
     monbackend->attachCartridgeInstance(cart.get());
     traceMgr->attachCartInstance(cart.get());
+}
+
+EmulatorUI::MediaViewState Computer::buildUIState() const
+{
+    EmulatorUI::MediaViewState s;
+
+    s.diskAttached = diskAttached;
+    s.diskPath     = diskPath;
+
+    s.cartAttached = cartridgeAttached;
+    s.cartPath     = cartridgePath;
+
+    s.tapeAttached = tapeAttached;
+    s.tapePath     = tapePath;
+
+    s.prgAttached  = prgAttached;
+    s.prgPath      = prgPath;
+
+    if (input)
+    {
+        s.joy1Attached = input->isJoy1Attached();
+        s.joy2Attached = input->isJoy2Attached();
+
+        auto p1 = input->getPad1();
+        auto p2 = input->getPad2();
+
+        s.pad1Name = p1 ? SDL_GameControllerName(p1) : "None";
+        s.pad2Name = p2 ? SDL_GameControllerName(p2) : "None";
+    }
+    else
+    {
+        s.joy1Attached = false;
+        s.joy2Attached = false;
+        s.pad1Name = "None";
+        s.pad2Name = "None";
+    }
+
+    s.paused = uiPaused.load();
+    s.pal    = (videoMode_ == VideoMode::PAL);
+
+    return s;
+}
+
+void Computer::processUICommands()
+{
+    for (const auto& cmd : ui->consumeCommands())
+    {
+        switch (cmd.type)
+        {
+            case UiCommand::Type::AttachDisk:
+                diskPath = cmd.path;
+                attachD64Image();
+                break;
+
+            case UiCommand::Type::AttachPRG:
+                prgPath = cmd.path;
+                attachPRGImage();
+                break;
+
+            case UiCommand::Type::AttachCRT:
+                cartridgePath = cmd.path;
+                attachCRTImage();
+                break;
+
+            case UiCommand::Type::AttachT64:
+                tapePath = cmd.path;
+                attachT64Image();
+                break;
+
+            case UiCommand::Type::AttachTAP:
+                tapePath = cmd.path;
+                attachTAPImage();
+                break;
+
+            case UiCommand::Type::WarmReset:
+                warmReset();
+                break;
+
+            case UiCommand::Type::ColdReset:
+                coldReset();
+                break;
+
+            case UiCommand::Type::SetPAL:
+                setVideoMode("PAL");
+                break;
+
+            case UiCommand::Type::SetNTSC:
+                setVideoMode("NTSC");
+                break;
+
+            case UiCommand::Type::TogglePause:
+                uiPaused = !uiPaused.load();
+                break;
+
+            case UiCommand::Type::ToggleJoy1:
+                if (input) input->setJoystickAttached(1, !input->isJoy1Attached());
+                break;
+
+            case UiCommand::Type::ToggleJoy2:
+                if (input) input->setJoystickAttached(2, !input->isJoy2Attached());
+                break;
+
+            case UiCommand::Type::AssignPad1ToPort1:
+                if (input && input->getPad1()) input->assignPadToPort(input->getPad1(), 1);
+                break;
+
+            case UiCommand::Type::AssignPad1ToPort2:
+                if (input && input->getPad1()) input->assignPadToPort(input->getPad1(), 2);
+                break;
+
+            case UiCommand::Type::AssignPad2ToPort1:
+                if (input && input->getPad2()) input->assignPadToPort(input->getPad2(), 1);
+                break;
+
+            case UiCommand::Type::AssignPad2ToPort2:
+                if (input && input->getPad2()) input->assignPadToPort(input->getPad2(), 2);
+                break;
+
+            case UiCommand::Type::ClearPort1Pad:
+                if (input) input->clearPortPad(1);
+                break;
+
+            case UiCommand::Type::ClearPort2Pad:
+                if (input) input->clearPortPad(2);
+                break;
+
+            case UiCommand::Type::SwapPortPads:
+                if (input) input->swapPortPads();
+                break;
+
+            case UiCommand::Type::CassPlay:
+                if (cass) cass->play();
+                break;
+
+            case UiCommand::Type::CassStop:
+                if (cass) cass->stop();
+                break;
+
+            case UiCommand::Type::CassRewind:
+                if (cass) cass->rewind();
+                break;
+
+            case UiCommand::Type::CassEject:
+                if (cass) cass->eject();
+                break;
+
+            case UiCommand::Type::EnterMonitor:
+                enterMonitor();
+                break;
+
+            case UiCommand::Type::Quit:
+                running = false;
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 void Computer::wireUp()

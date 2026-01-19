@@ -10,7 +10,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -29,6 +28,7 @@
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
+#include "EmulatorUI.h"
 #include "IECBUS.h"
 #include "IO.h"
 #include "InputManager.h"
@@ -124,6 +124,7 @@ class Computer
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
         std::unique_ptr<D1541> drive8;
+        std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<InputManager> input;
         std::unique_ptr<IRQLine> IRQ;
@@ -160,7 +161,7 @@ class Computer
         bool tapeAttached;
         std::string tapePath;
 
-        // Program file
+        // PRG file loading
         bool prgAttached;
         bool prgLoaded;
         std::string prgPath;
@@ -171,17 +172,14 @@ class Computer
         // Disk image
         bool diskAttached;
         std::string diskPath;
-        std::mutex mediaMut;
-        std::string pendingDiskPath;
 
-        // Game controls
-        enum class JoyInputMode : uint8_t { Auto, Keyboard, Gamepad };
-        JoyInputMode joyMode[3] = { JoyInputMode::Auto, JoyInputMode::Auto, JoyInputMode::Auto };
-        SDL_JoystickID portPadId[3] = { -1, -1, -1 };
+        // Hotkeys
+        mutable std::mutex      hotkeyMut_;
+        std::vector<UiCommand>  hotkeyCmds_;
+        void pushHotkeyCommand(const UiCommand& c);
+        std::vector<UiCommand> consumeHotkeyCommands();
 
         // Graphics loop threading
-        std::mutex              frameMut;
-        std::condition_variable frameCond;
         std::atomic<bool>       running;
 
         // Filenames and path of the ROMS to boot the system and Drive ROMS
@@ -192,23 +190,8 @@ class Computer
         std::string D1541HiROM;
         std::string D1571ROM;
 
-        // Build the ImGui Menu
-        enum class CassCmd : uint8_t { None, Play, Stop, Rewind, Eject };
-        std::atomic<int> uiVideoModeReq; // -1 = none, 0 = ntsc, 1 = pal
-        std::atomic<bool> uiAttachD64;
-        std::atomic<bool> uiAttachPRG;
-        std::atomic<bool> uiAttachCRT;
-        std::atomic<bool> uiAttachT64;
-        std::atomic<bool> uiAttachTAP;
-        std::atomic<bool> uiToggleJoy1Req;
-        std::atomic<bool> uiToggleJoy2Req;
         std::atomic<bool> uiQuit;
-        std::atomic<bool> uiWarmReset;
-        std::atomic<bool> uiColdReset;
         std::atomic<bool> uiPaused;
-        std::atomic<bool> uiEnterMonitor;
-        std::atomic<CassCmd> uiCass{CassCmd::None};
-        void installMenu();
 
         // Menu helpers
         void attachD64Image();
@@ -216,27 +199,13 @@ class Computer
         void attachCRTImage();
         void attachT64Image();
         void attachTAPImage();
-        void drawFileDialog();
-        void startFileDialog(const std::string& title, std::vector<std::string> exts, std::function<void(const std::string&)> onAccept);
-
-        struct FileDialogState
-        {
-            bool open;
-
-            std::filesystem::path currentDir;
-            std::string selectedEntry;
-            std::string error;
-
-            // Configuration for the current use
-            std::string title;
-            std::vector<std::string> allowedExtensions;
-            std::function<void(const std::string&)> onAccept;
-        };
-
-        FileDialogState fileDlg;
 
         // Cartridge helper for attaching new cartridge over top of existing one
         void recreateCartridge();
+
+        // Menu integration
+        EmulatorUI::MediaViewState buildUIState() const;
+        void processUICommands();
 
         // Wire all the components together
         void wireUp();
