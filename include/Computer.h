@@ -17,7 +17,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 #include "Cartridge.h"
 #include "cassette.h"
@@ -75,9 +74,6 @@ class Computer
         // Reset methods
         void warmReset();
         void coldReset();
-
-        // Helper for screen printing
-        void printWithChrout(const std::string& text);
 
         // Attachments
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
@@ -178,6 +174,7 @@ class Computer
         std::vector<UiCommand>  hotkeyCmds_;
         void pushHotkeyCommand(const UiCommand& c);
         std::vector<UiCommand> consumeHotkeyCommands();
+        bool handleHotkeys(const SDL_Event& e);
 
         // Graphics loop threading
         std::atomic<bool>       running;

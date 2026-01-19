@@ -349,6 +349,10 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
+            // Handle hot keys first
+            if (handleHotkeys(e))
+                continue;
+
             // F12 toggles the separate SDL monitor window (always)
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12 && !e.key.repeat)
             {
@@ -622,6 +626,58 @@ std::vector<UiCommand> Computer::consumeHotkeyCommands()
     auto out = std::move(hotkeyCmds_);
     hotkeyCmds_.clear();
     return out;
+}
+
+bool Computer::handleHotkeys(const SDL_Event& e)
+{
+    if (e.type != SDL_KEYDOWN || e.key.repeat)
+        return false;
+
+    const SDL_Scancode sc = e.key.keysym.scancode;
+    const SDL_Keymod mods = static_cast<SDL_Keymod>(e.key.keysym.mod);
+
+    // F12 = toggle monitor window
+    if (sc == SDL_SCANCODE_F12)
+    {
+        if (monitorCtl) monitorCtl->toggle();
+        return true;
+    }
+
+    // ALT + cassette controls
+    if (mods & KMOD_ALT)
+    {
+        switch (sc)
+        {
+            case SDL_SCANCODE_P: if (cass) cass->play();   return true;
+            case SDL_SCANCODE_S: if (cass) cass->stop();   return true;
+            case SDL_SCANCODE_R: if (cass) cass->rewind(); return true;
+            case SDL_SCANCODE_E: if (cass) cass->eject();  return true;
+            default: break;
+        }
+    }
+
+    // SPACE = pause / resume
+    if (sc == SDL_SCANCODE_SPACE)
+    {
+        uiPaused = !uiPaused.load();
+        return true;
+    }
+
+    // CTRL+W = warm reset
+    if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_W)
+    {
+        warmReset();
+        return true;
+    }
+
+    // CTRL+SHIFT+R = cold reset
+    if ((mods & KMOD_CTRL) && (mods & KMOD_SHIFT) && sc == SDL_SCANCODE_R)
+    {
+        coldReset();
+        return true;
+    }
+
+    return false;
 }
 
 void Computer::attachD64Image()
