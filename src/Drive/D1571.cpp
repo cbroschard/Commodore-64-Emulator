@@ -187,6 +187,13 @@ void D1571::setSRQAsserted(bool state)
     srqAsserted = state;
 }
 
+void D1571::forceSyncIEC()
+{
+    // Push current line states into VIA even if nothing changed
+    auto& via1 = d1571mem.getVIA1();
+    via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+}
+
 void D1571::setDensityCode(uint8_t code)
 {
     uint8_t oldCode = densityCode;
