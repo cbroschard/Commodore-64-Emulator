@@ -42,7 +42,9 @@ Computer::Computer() :
     diskPath(""),
     running(true),
     uiQuit(false),
-    uiPaused(false)
+    uiPaused(false),
+    pendingBusPrime(false),
+    busPrimedAfterBoot(false)
 {
     // Wire components
     wireUp();
@@ -397,6 +399,14 @@ bool Computer::boot()
         if (monitorCtl) monitorCtl->tick();
         if (input) input->tick();
 
+        if (pendingBusPrime)
+        {
+            // Ok to reset the IEC Bus
+            bus->reset();
+            pendingBusPrime     = false;
+            busPrimedAfterBoot  = true;
+        }
+
         int frameCycles = 0;
 
         // Main frame loop
@@ -458,7 +468,12 @@ bool Computer::boot()
             // VIC-II raster updates always occur
             vicII->tick(elapsedCycles);
 
-            if (drive8) drive8->tick(elapsedCycles);
+            for (int dev = 8; dev <= 11; ++dev)
+            {
+                if (drives[dev]) drives[dev]->tick(elapsedCycles);
+            }
+
+            bus->tick(elapsedCycles);
 
             if (vicII->isFrameDone())
             {
@@ -608,6 +623,77 @@ void Computer::loadPrgIntoMem()
             mem->writeDirect(0x0277 + i, runKeys[i]);
         }
     }
+}
+
+std::string Computer::lowerExt(const std::string& path)
+{
+    auto dot = path.find_last_of('.');
+    std::string ext = (dot == std::string::npos) ? "" : path.substr(dot);
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c){ return (char)std::tolower(c); });
+    return ext;
+}
+
+bool Computer::isExtCompatible(UiCommand::DriveType driveType, const std::string& ext)
+{
+    switch (driveType)
+    {
+        case UiCommand::DriveType::D1541: return ext == ".d64";
+        case UiCommand::DriveType::D1571: return (ext == ".d64" || ext == ".d71");
+        case UiCommand::DriveType::D1581: return ext == ".d81";
+    }
+    return false;
+}
+
+void Computer::attachDiskImage(int deviceNum, UiCommand::DriveType driveType, const std::string& path)
+{
+    if (path.empty()) return;
+    if (deviceNum < 8 || deviceNum > 11) return;
+
+    const std::string ext = lowerExt(path);
+    if (!isExtCompatible(driveType, ext))
+    {
+        std::cout << "Incompatible disk image for selected drive type.\n";
+        std::cout << "Drive " << deviceNum << " type=" << (int)driveType
+                  << " path=" << path << "\n";
+        return;
+    }
+
+    if (!drives[deviceNum])
+    {
+        switch (driveType)
+        {
+            case UiCommand::DriveType::D1541:
+                drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM, D1541HiROM);
+                break;
+
+            case UiCommand::DriveType::D1571:
+                drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM);
+                break;
+
+            case UiCommand::DriveType::D1581:
+                //drives[deviceNum] = std::make_unique<D1581>(deviceNum);
+                break;
+        }
+
+        bus->registerDevice(deviceNum, drives[deviceNum].get());
+        // Sync all existing devices so nobody has stale cached bus state
+        for (int dev = 8; dev <= 11; ++dev)
+        {
+            if (drives[dev]) drives[dev]->forceSyncIEC();
+        }
+        if (!busPrimedAfterBoot)
+            pendingBusPrime = true;
+    }
+
+    if (!drives[deviceNum]->insert(path))
+    {
+        std::cout << "Disk insert failed: " << path << "\n";
+        return;
+    }
+
+    diskAttached = true;
+    diskPath = "Drive " + std::to_string(deviceNum) + ": " + path;
 }
 
 void Computer::attachD64Image()
@@ -798,8 +884,7 @@ void Computer::processUICommands()
         switch (cmd.type)
         {
             case UiCommand::Type::AttachDisk:
-                diskPath = cmd.path;
-                attachD64Image();
+                attachDiskImage(cmd.deviceNum, cmd.driveType, cmd.path);
                 break;
 
             case UiCommand::Type::AttachPRG:

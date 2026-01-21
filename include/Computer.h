@@ -8,6 +8,7 @@
 #ifndef COMPUTER_H
 #define COMPUTER_H
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -27,6 +28,7 @@
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
+#include "Drive/Drive.h"
 #include "EmulatorUI.h"
 #include "IECBUS.h"
 #include "IO.h"
@@ -35,6 +37,7 @@
 #include "Joystick.h"
 #include "keyboard.h"
 #include "Logging.h"
+#include "MediaManager.h"
 #include "Memory.h"
 #include "MonitorController.h"
 #include "PLA.h"
@@ -120,12 +123,14 @@ class Computer
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
         std::unique_ptr<D1541> drive8;
+        std::array<std::unique_ptr<Drive>, 16> drives;
         std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<InputManager> input;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Keyboard> keyb;
         std::unique_ptr<Logging> logger;
+        std::unique_ptr<MediaManager> media;
         std::unique_ptr<Memory> mem;
         std::unique_ptr<MLMonitor> monitor;
         std::unique_ptr<MLMonitorBackend> monbackend;
@@ -183,7 +188,14 @@ class Computer
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiPaused;
 
-        // Menu helpers
+        // Bus priming
+        bool pendingBusPrime;
+        bool busPrimedAfterBoot;
+
+        // helpers
+        std::string lowerExt(const std::string& path);
+        bool isExtCompatible(UiCommand::DriveType driveType, const std::string& ext);
+        void attachDiskImage(int deviceNum, UiCommand::DriveType driveType, const std::string& path);
         void attachD64Image();
         void attachPRGImage();
         void attachCRTImage();
