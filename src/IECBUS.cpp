@@ -206,7 +206,7 @@ void IECBUS::listen(int deviceNumber)
     dev->onListen();
 }
 
-void IECBUS::unListen(int /*deviceNumber*/)
+void IECBUS::unListen(int deviceNumber)
 {
     // UNLISTEN is global ($3F)
     currentState = State::UNLISTEN;
@@ -232,7 +232,7 @@ void IECBUS::talk(int deviceNumber)
     currentTalker->onTalk();
 }
 
-void IECBUS::unTalk(int /*deviceNumber*/)
+void IECBUS::unTalk(int deviceNumber)
 {
     // UNTALK is global ($5F)
     currentState = State::UNTALK;
