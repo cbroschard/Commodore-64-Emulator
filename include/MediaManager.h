@@ -30,63 +30,95 @@ enum class VideoMode;
 
 class MediaManager
 {
-    public:
-        MediaManager(const std::string& d1541LoROM,
-                           const std::string& d1541HiROM,
-                           std::function<void()> coldResetCallback);
-        virtual ~MediaManager();
+public:
+    struct State
+    {
+        // Disk
+        bool        diskAttached = false;
+        std::string diskPath;
 
-        struct State
-        {
-            // Disk
-            bool        diskAttached = false;
-            std::string diskPath;
+        // Cartridge
+        bool        cartAttached = false;
+        std::string cartPath;
 
-            // Cartridge
-            bool        cartAttached = false;
-            std::string cartPath;
+        // Tape
+        bool        tapeAttached = false;
+        std::string tapePath;
 
-            // Tape
-            bool        tapeAttached = false;
-            std::string tapePath;
+        // PRG
+        bool        prgAttached = false;
+        bool        prgLoaded   = false;
+        int         prgDelay    = 140;
+        std::string prgPath;
+    };
 
-            // PRG
-            bool        prgAttached = false;
-            bool        prgLoaded   = false;
-            int         prgDelay    = 0;
-            std::string prgPath;
-        };
+public:
+    MediaManager(std::unique_ptr<Cartridge>& cartSlot,
+                 std::unique_ptr<D1541>& drive8Slot,
+                 IECBUS& bus,
+                 Memory& mem,
+                 PLA& pla,
+                 CPU& cpu,
+                 Vic& vic,
+                 TraceManager& traceMgr,
+                 Cassette& cass,
+                 Logging& logger,
+                 std::string d1541LoROM,
+                 std::string d1541HiROM,
+                 std::function<void()> coldResetCallback);
 
-        // state
-        const State& getState() const { return state_; }
-        void setVideoMode(VideoMode mode) { videoMode_ = mode; }
+    ~MediaManager() = default;
 
-        // attach operations
-        void attachDisk(const std::string& path);
-        void attachPRG(const std::string& path);
-        void attachCRT(const std::string& path);
-        void attachT64(const std::string& path);
-        void attachTAP(const std::string& path);
+    const State& getState() const { return state_; }
 
-        void tick();
+    void setVideoMode(VideoMode mode) { videoMode_ = mode; }
 
-    protected:
+    // Optional setters if you want UI to set paths separately:
+    void setDiskPath(const std::string& p) { state_.diskPath = p; }
+    void setPrgPath(const std::string& p)  { state_.prgPath  = p; }
+    void setCartPath(const std::string& p) { state_.cartPath = p; }
+    void setTapePath(const std::string& p) { state_.tapePath = p; }
 
-    private:
+    // Attach operations (these mirror your Computer methods)
+    void attachD64Image();
+    void attachPRGImage();
+    void attachCRTImage();
+    void attachT64Image();
+    void attachTAPImage();
 
-        const std::string& d1541LoROM_;
-        const std::string& d1541HiROM_;
+    // Call once per frame
+    void tick();
 
-        VideoMode videoMode_;
+private:
+    bool loadPrgImage();
+    void loadPrgIntoMem();
+    void recreateCartridge();
 
-        State state_;
-        std::vector<uint8_t> prgImage_;
+private:
+    // Slots we need to (re)create
+    std::unique_ptr<Cartridge>& cart_;
+    std::unique_ptr<D1541>&     drive8_;
 
-        bool loadPrgImage();
-        void loadPrgIntoMem();
-        void recreateCartridge();
+    // System references
+    IECBUS&       bus_;
+    Memory&       mem_;
+    PLA&          pla_;
+    CPU&          cpu_;
+    Vic&          vic_;
+    TraceManager& traceMgr_;
+    Cassette&     cass_;
+    Logging&      logger_;
 
-        std::function<void()> coldReset_;
+    // Own ROM paths (copy = safe)
+    std::string d1541LoROM_;
+    std::string d1541HiROM_;
+
+    VideoMode videoMode_{}; // you will set this from Computer
+
+    State state_;
+    std::vector<uint8_t> prgImage_;
+
+    std::function<void()> coldReset_;
 };
 
 #endif // MEDIAMANAGER_H
