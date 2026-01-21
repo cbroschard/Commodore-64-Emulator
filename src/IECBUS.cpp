@@ -206,16 +206,15 @@ void IECBUS::listen(int deviceNumber)
     dev->onListen();
 }
 
-void IECBUS::unListen(int deviceNumber)
+void IECBUS::unListen(int /*deviceNumber*/)
 {
-    auto it = devices.find(deviceNumber);
-    if (it == devices.end()) return;
-
-    Peripheral* dev = it->second;
-    currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), dev), currentListeners.end());
-
+    // UNLISTEN is global ($3F)
     currentState = State::UNLISTEN;
-    dev->onUnListen();
+
+    for (auto const& [num, dev] : devices)
+        if (dev) dev->onUnListen();
+
+    currentListeners.clear();
 }
 
 void IECBUS::talk(int deviceNumber)
@@ -233,16 +232,15 @@ void IECBUS::talk(int deviceNumber)
     currentTalker->onTalk();
 }
 
-void IECBUS::unTalk(int deviceNumber)
+void IECBUS::unTalk(int /*deviceNumber*/)
 {
-    auto it = devices.find(deviceNumber);
-    if (it == devices.end()) return;
+    // UNTALK is global ($5F)
+    currentState = State::UNTALK;
 
-    if (currentTalker)
-        currentTalker->onUnTalk();
+    for (auto const& [num, dev] : devices)
+        if (dev) dev->onUnTalk();
 
     currentTalker = nullptr;
-    currentState  = State::UNTALK;
 
     peripheralDrivesClkLow  = false;
     peripheralDrivesDataLow = false;
