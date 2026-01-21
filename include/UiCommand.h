@@ -49,6 +49,16 @@ struct UiCommand
         Quit
     };
 
+    enum class DriveType
+    {
+        D1541,
+        D1571,
+        D1581
+    };
+
+    int deviceNum = 8;
+    DriveType driveType = DriveType::D1541;
+
     Type type;
     std::string path;
 };
