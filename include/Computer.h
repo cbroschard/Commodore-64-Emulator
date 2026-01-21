@@ -85,8 +85,6 @@ class Computer
         inline void setTapePath(const std::string& path) { tapePath = path; }
         inline void setPrgAttached(bool flag) { prgAttached = flag; }
         inline void setPrgPath(const std::string& path) { prgPath = path; }
-        inline void setDiskAttached(bool flag) { diskAttached = flag; }
-        inline void setDiskPath(const std::string& path) { diskPath = path; }
 
         // Getters
         inline bool getCartridgeAttached() { return cartridgeAttached; }
@@ -122,7 +120,6 @@ class Computer
         std::unique_ptr<CIA1> cia1object;
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
-        std::unique_ptr<D1541> drive8;
         std::array<std::unique_ptr<Drive>, 16> drives;
         std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;

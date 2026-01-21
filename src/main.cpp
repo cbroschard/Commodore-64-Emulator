@@ -15,7 +15,6 @@ po::options_description get_options()
         ("cartridge", po::value<std::string>(), "Path and filename for cartridge to load on boot")
         ("tape", po::value<std::string>(), "Path and filename for TAP or T64 tape image to load")
         ("program", po::value<std::string>(), "Path and filename for PRG or P00 image to load")
-        ("disk", po::value<std::string>(), "Path and filename for Disk image file to load (D64, D81, etc.")
         ("version", "Print version and exit.");
     return desc;
 }
@@ -149,11 +148,6 @@ int main(int argc, char *argv[])
     {
         c64.setPrgAttached(true);
         c64.setPrgPath(vmCmdLine["program"].as<std::string>());
-    }
-    if (vmCmdLine.count("disk"))
-    {
-        c64.setDiskAttached(true);
-        c64.setDiskPath(vmCmdLine["disk"].as<std::string>());
     }
     if (vmCmdLine.count("version"))
     {

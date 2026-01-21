@@ -341,11 +341,6 @@ bool Computer::boot()
             std::cout << "Successfully loaded the file: " << prgPath << "\n";
         }
     }
-    else if (diskAttached)
-    {
-        attachD64Image();
-    }
-
     // **Start Audio Playback**
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
@@ -694,28 +689,6 @@ void Computer::attachDiskImage(int deviceNum, UiCommand::DriveType driveType, co
 
     diskAttached = true;
     diskPath = "Drive " + std::to_string(deviceNum) + ": " + path;
-}
-
-void Computer::attachD64Image()
-{
-    if (diskPath.empty())
-    {
-        std::cout << "No disk image selected.\n";
-        return;
-    }
-
-    // Lazily create and register drive #8 if it does not exist yet
-    if (!drive8)
-    {
-        drive8 = std::make_unique<D1541>(8, D1541LoROM, D1541HiROM);
-        bus->registerDevice(8, drive8.get());
-        drive8->forceSyncIEC();
-        bus->reset();
-    }
-
-    if (drive8) drive8->loadDisk(diskPath);
-
-    diskAttached = true;
 }
 
 void Computer::attachPRGImage()
