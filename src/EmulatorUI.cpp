@@ -7,7 +7,9 @@
 // strictly prohibited without the prior written consent of the author.
 #include "EmulatorUI.h"
 
-EmulatorUI::EmulatorUI()
+EmulatorUI::EmulatorUI() :
+    pendingDevice_(8),
+    pendingDriveType_(UiCommand::DriveType::D1541)
 {
     fileDlg.open = false;
     fileDlg.currentDir = std::filesystem::current_path();
@@ -40,10 +42,15 @@ void EmulatorUI::setMediaViewState(const MediaViewState & s)
     view_ = s;
 }
 
-void EmulatorUI::push(UiCommand::Type t, std::string path)
+void EmulatorUI::push(UiCommand::Type t, std::string path, int deviceNum, UiCommand::DriveType driveType)
 {
     std::lock_guard<std::mutex> lock(outMutex_);
-    out_.push_back(UiCommand{ t, std::move(path) });
+    UiCommand c;
+    c.type = t;
+    c.path = std::move(path);
+    c.deviceNum = deviceNum;
+    c.driveType = driveType;
+    out_.push_back(std::move(c));
 }
 
 void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type)
@@ -112,7 +119,10 @@ void EmulatorUI::drawFileDialog()
                 }
                 else
                 {
-                    push(pendingType_, path.string());
+                    if (pendingType_ == UiCommand::Type::AttachDisk)
+                        push(pendingType_, path.string(), pendingDevice_, pendingDriveType_);
+                    else
+                        push(pendingType_, path.string());
                     fileDlg.open = false;
                     fileDlg.selectedEntry.clear();
                 }
@@ -304,6 +314,29 @@ void EmulatorUI::drawFileDialog()
     ImGui::End();
 }
 
+void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType)
+{
+    pendingType_      = UiCommand::Type::AttachDisk;
+    pendingDevice_    = deviceNum;
+    pendingDriveType_ = driveType;
+
+    // Filter by drive type
+    switch (driveType)
+    {
+        case UiCommand::DriveType::D1541:
+            startFileDialog("Select D64 Image (1541)", { ".d64" }, UiCommand::Type::AttachDisk);
+            break;
+
+        case UiCommand::DriveType::D1571:
+            startFileDialog("Select D64/D71 Image (1571)", { ".d64", ".d71" }, UiCommand::Type::AttachDisk);
+            break;
+
+        case UiCommand::DriveType::D1581:
+            startFileDialog("Select D81 Image (1581)", { ".d81" }, UiCommand::Type::AttachDisk);
+            break;
+    }
+}
+
 void EmulatorUI::installMenu(const MediaViewState& v)
 {
     static bool aboutRequested = false;
@@ -312,8 +345,29 @@ void EmulatorUI::installMenu(const MediaViewState& v)
     {
         if (ImGui::BeginMenu("File"))
         {
-            if (ImGui::MenuItem("Attach D64/D71 image...", "Ctrl+D"))
-                startFileDialog("Select D64/D71 Image", { ".d64", ".d71" }, UiCommand::Type::AttachDisk);
+            if (ImGui::BeginMenu("Attach Disk Image..."))
+            {
+                for (int dev = 8; dev <= 11; ++dev)
+                {
+                    char label[32];
+                    std::snprintf(label, sizeof(label), "Drive %d", dev);
+
+                    if (ImGui::BeginMenu(label))
+                    {
+                        if (ImGui::MenuItem("1541 (D64)"))
+                            startDiskFileDialog(dev, UiCommand::DriveType::D1541);
+
+                        if (ImGui::MenuItem("1571 (D64/D71)"))
+                            startDiskFileDialog(dev, UiCommand::DriveType::D1571);
+
+                        if (ImGui::MenuItem("1581 (D81)"))
+                            startDiskFileDialog(dev, UiCommand::DriveType::D1581);
+
+                        ImGui::EndMenu();
+                    }
+                }
+                ImGui::EndMenu();
+            }
 
             if (ImGui::MenuItem("Attach PRG/P00 image...", "Ctrl+P"))
                 startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRG);

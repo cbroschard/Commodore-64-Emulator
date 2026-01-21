@@ -55,6 +55,9 @@ class EmulatorUI
         std::string pendingPath_;
         UiCommand::Type pendingType_;
 
+        int pendingDevice_;
+        UiCommand::DriveType pendingDriveType_;
+
         bool joy1Attached;
         bool joy2Attached;
         std::string pad1Name;
@@ -80,8 +83,12 @@ class EmulatorUI
         void installMenu(const MediaViewState& v);
         void startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type);
         void drawFileDialog();
+        void startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType);
 
-        void push(UiCommand::Type t, std::string path = {});
+        void push(UiCommand::Type t,
+          std::string path = {},
+          int deviceNum = 8,
+          UiCommand::DriveType driveType = UiCommand::DriveType::D1541);
 };
 
 #endif // EMULATORUI_H
