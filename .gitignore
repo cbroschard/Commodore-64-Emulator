@@ -9,6 +9,7 @@ tape/
 !src/tape/
 PRG/
 cart/
+imgui.ini
 *.bin
 *.cbp
 chargen
