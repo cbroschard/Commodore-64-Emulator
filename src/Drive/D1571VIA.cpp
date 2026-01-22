@@ -39,11 +39,11 @@ void D1571VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole vi
 
 void D1571VIA::reset()
 {
-    portAPins = 0xFF;
-    portBPins = 0xFF;
+    portAPins = 0x00;
+    portBPins = 0x00;
 
     // Initialize registers
-    registers.orbIRB = 0xFF;
+    registers.orbIRB = 0x00;
     registers.oraIRA = 0x00;
     registers.ddrB = 0x00;
     registers.ddrA = 0x00;
@@ -253,9 +253,9 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                     std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
                     #endif
                     mechBytePending  = false;
-                    clearIFR(IFR_CA1);
                 }
             }
+            clearIFR(IFR_CA1);
             return value;
         }
         case 0x02: return registers.ddrB;
@@ -633,8 +633,8 @@ void D1571VIA::updateIECOutputsFromPortB()
     if (atnAsserted && atnAckAuto)
         dataLow = true; // force DATA low as the acknowledge
 
-    d1571->driveControlDataLine(dataLow);
-    d1571->driveControlClkLine(clkLow);
+    d1571->peripheralAssertData(dataLow);
+    d1571->peripheralAssertClk(clkLow);
 }
 
 bool D1571VIA::checkIRQActive() const
