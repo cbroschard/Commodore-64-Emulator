@@ -106,6 +106,7 @@ class Computer
         inline void set1541LoROM(const std::string& loROM) { D1541LoROM = loROM; }
         inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
         inline void set1571ROM(const std::string& rom) { D1571ROM = rom; }
+        inline void set1581ROM(const std::string& rom) { D1581ROM = rom; }
 
         // ML Monitor
         void enterMonitor();
@@ -181,6 +182,7 @@ class Computer
         std::string D1541LoROM;
         std::string D1541HiROM;
         std::string D1571ROM;
+        std::string D1581ROM;
 
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiPaused;

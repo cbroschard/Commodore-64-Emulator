@@ -667,7 +667,7 @@ void Computer::attachDiskImage(int deviceNum, UiCommand::DriveType driveType, co
                 break;
 
             case UiCommand::DriveType::D1581:
-                //drives[deviceNum] = std::make_unique<D1581>(deviceNum);
+                drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM);
                 break;
         }
 
