@@ -653,6 +653,8 @@ void D1571::onUnListen()
     expectingDataByte = false;
 
     peripheralAssertData(false);
+    peripheralAssertClk(false);
+    peripheralAssertSrq(false);
 
     #ifdef Debug
     std::cout << "[D1571] onUnListen() device=" << int(deviceNumber) << "\n";
@@ -694,6 +696,10 @@ void D1571::onUnTalk()
 
     expectingSecAddr  = false;
     expectingDataByte = false;
+
+    peripheralAssertData(false);
+    peripheralAssertClk(false);
+    peripheralAssertSrq(false);
 
     #ifdef Debug
     std::cout << "[D1571] onUnTalk() device=" << int(deviceNumber) << "\n";
