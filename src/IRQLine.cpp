@@ -31,7 +31,7 @@ uint8_t IRQLine::getHighestPrioritySource()
     if (IRQSources & VICII)         return VICII;
     if (IRQSources & CIA1)          return CIA1;
     if (IRQSources & D1541_IRQ)     return D1541_IRQ;
-    if (IRQSources & D1571_IRQ)     return D1541_IRQ;
+    if (IRQSources & D1571_IRQ)     return D1571_IRQ;
     if (IRQSources & D1581_IRQ)     return D1581_IRQ;
     return NONE;
 }

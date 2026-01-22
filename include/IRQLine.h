@@ -18,12 +18,12 @@ class IRQLine
 
         enum Source
         {
-            NONE,
-            CIA1,
-            D1541_IRQ,
-            D1571_IRQ,
-            D1581_IRQ,
-            VICII
+            NONE        = 0x00,
+            CIA1        = 0x01,
+            D1541_IRQ   = 0x02,
+            D1571_IRQ   = 0x04,
+            D1581_IRQ   = 0x08,
+            VICII       = 0x10
         };
 
         void raiseIRQ(Source source);
