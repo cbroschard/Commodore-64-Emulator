@@ -112,6 +112,12 @@ public:
     void attachT64Image();
     void attachTAPImage();
 
+    // Cassette control
+    void tapePlay();
+    void tapeStop();
+    void tapeRewind();
+    void tapeEject();
+
     // Command line autostart
     void applyBootAttachments();
 

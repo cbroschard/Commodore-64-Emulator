@@ -161,10 +161,10 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
         // ALT cassette controls
         if (mods & KMOD_ALT)
         {
-            if (sc == SDL_SCANCODE_P) { if (cass) cass->play();   return true; }
-            if (sc == SDL_SCANCODE_S) { if (cass) cass->stop();   return true; }
-            if (sc == SDL_SCANCODE_R) { if (cass) cass->rewind(); return true; }
-            if (sc == SDL_SCANCODE_E) { if (cass) cass->eject();  return true; }
+            if (sc == SDL_SCANCODE_P) { if (media) media->tapePlay();   return true; }
+            if (sc == SDL_SCANCODE_S) { if (media) media->tapeStop();   return true; }
+            if (sc == SDL_SCANCODE_R) { if (media) media->tapeRewind(); return true; }
+            if (sc == SDL_SCANCODE_E) { if (media) media->tapeEject();  return true; }
         }
     }
 
@@ -626,19 +626,19 @@ void Computer::processUICommands()
                 break;
 
             case UiCommand::Type::CassPlay:
-                if (cass) cass->play();
+                if (media) media->tapePlay();
                 break;
 
             case UiCommand::Type::CassStop:
-                if (cass) cass->stop();
+                if (media) media->tapeStop();
                 break;
 
             case UiCommand::Type::CassRewind:
-                if (cass) cass->rewind();
+                if (media) media->tapeRewind();
                 break;
 
             case UiCommand::Type::CassEject:
-                if (cass) cass->eject();
+                if (media) media->tapeEject();
                 break;
 
             case UiCommand::Type::EnterMonitor:

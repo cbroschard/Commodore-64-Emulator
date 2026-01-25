@@ -238,6 +238,29 @@ void MediaManager::attachTAPImage()
     }
 }
 
+void MediaManager::tapePlay()
+{
+    cass_.play();
+}
+
+void MediaManager::tapeStop()
+{
+    cass_.stop();
+}
+
+void MediaManager::tapeRewind()
+{
+    cass_.rewind();
+}
+
+void MediaManager::tapeEject()
+{
+    cass_.stop();
+    cass_.eject();
+    state_.tapeAttached = false;
+    state_.tapePath.clear();
+}
+
 void MediaManager::applyBootAttachments()
 {
     if (state_.cartAttached && !state_.cartPath.empty())
