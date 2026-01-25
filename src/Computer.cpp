@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Debug/MLMonitor.h"
 #include "computer.h"
+#include "ResetController.h"
 
 Computer::Computer() :
     cart(std::make_unique<Cartridge>()),
@@ -68,26 +69,6 @@ Computer::~Computer() noexcept
 void Computer::setJoystickAttached(int port, bool flag)
 {
     if (input) input->setJoystickAttached(port, flag);
-}
-
-void Computer::setVideoMode(const std::string& mode)
-{
-    if (mode == "PAL" || mode == "pal")
-    {
-        videoMode_ = VideoMode::PAL;
-        cpuCfg_ = &PAL_CPU;
-    } else
-    {
-        videoMode_ = VideoMode::NTSC;
-        cpuCfg_ = &NTSC_CPU;
-    }
-    // inform the CPU< VIC, SID, and CIA1 of the same mode
-    processor->setMode(videoMode_);
-    vicII->setMode(videoMode_);
-    sidchip->setMode(videoMode_);
-    cia1object->setMode(videoMode_);
-    cia2object->setMode(videoMode_);
-    if (media) media->setVideoMode(videoMode_);
 }
 
 void Computer::set1541LoROM(const std::string& loROM)
@@ -177,76 +158,6 @@ void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
 {
     if (!input) return;
     input->setJoystickConfig(port, cfg);
-}
-
-void Computer::warmReset()
-{
-    #ifdef Debug
-    std::cout << "Performing warm reset...\n";
-    #endif
-    const bool cartAttachedNow = (media && media->getState().cartAttached);
-    if (!cartAttachedNow && cart)
-    {
-        cart->setGameLine(true);
-        cart->setExROMLine(true);
-    }
-
-    // Reset memory control register to default
-    pla->updateMemoryControlRegister(0x37);
-
-    // Reset major chips
-    bus->reset();
-    vicII->reset();
-    cia1object->reset();
-    cia2object->reset();
-    sidchip->reset();
-
-    // Reset CPU (reloads PC from $FFFC/$FFFD)
-    processor->reset();
-}
-
-void Computer::coldReset()
-{
-    #ifdef Debug
-        std::cout << "Performing cold reset.\n";
-    #endif
-
-    // If no cart attached, force default lines (KERNAL boot)
-    const bool cartAttachedNow = (media && media->getState().cartAttached);
-    if (!cartAttachedNow && cart)
-    {
-        cart->setGameLine(true);
-        cart->setExROMLine(true);
-    }
-
-    // Power-cycle RAM/ROM init
-    if (!mem->Initialize(BASIC_ROM, KERNAL_ROM, CHAR_ROM))
-        throw std::runtime_error("Error: Problem encountered initializing memory!");
-
-    // Reset PLA FIRST (because it likely clears "cart attached" bookkeeping)
-    pla->reset();
-
-    // Re-assert cartridge presence AFTER Initialize + PLA reset, BEFORE CPU reset
-    if (cartAttachedNow)
-    {
-        mem->setCartridgeAttached(true);
-        pla->setCartridgeAttached(true);
-    }
-    else
-    {
-        mem->setCartridgeAttached(false);
-        pla->setCartridgeAttached(false);
-    }
-
-    // Reset major chips
-    bus->reset();
-    vicII->reset();
-    cia1object->reset();
-    cia2object->reset();
-    sidchip->reset();
-
-    // Reset CPU LAST so it fetches vectors under correct mapping
-    processor->reset();
 }
 
 bool Computer::boot()
@@ -476,6 +387,21 @@ bool Computer::boot()
     }
 
     return true;
+}
+
+void Computer::warmReset()
+{
+     if (resetCtl) resetCtl->warmReset();
+}
+
+void Computer::coldReset()
+{
+     if (resetCtl) resetCtl->coldReset();
+}
+
+void Computer::setVideoMode(const std::string& mode)
+{
+    if (resetCtl) resetCtl->setVideoMode(mode);
 }
 
 EmulatorUI::MediaViewState Computer::buildUIState() const
@@ -740,5 +666,9 @@ void Computer::wireUp()
                                             D1541LoROM, D1541HiROM, D1571ROM, D1581ROM,
                                             [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; },
                                             [this]() { this->coldReset(); });
+
     if (media) media->setVideoMode(videoMode_);
+
+    resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
+                                *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
 }

@@ -24,6 +24,7 @@
 #include "CIA1.h"
 #include "CIA2.h"
 #include "CPU.h"
+#include "CPUTiming.h"
 #include "Debug/MLMonitorBackend.h"
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
@@ -48,6 +49,7 @@
 
 // Forward declarations
 class MLMonitor;
+class ResetController;
 
 class Computer
 {
@@ -55,28 +57,15 @@ class Computer
         Computer();
         virtual ~Computer();
 
-        // CPU timing for NTSC vs PAL
-        struct CPUConfig
-        {
-            double clockSpeedHz;   // master clock
-            double frameRate;      // frames/sec
-
-            // compute on-the-fly so it can never get out of sync
-            constexpr int cyclesPerFrame() const
-            {
-                return int(clockSpeedHz / frameRate + 0.5);
-            }
-        };
-
-        static constexpr CPUConfig NTSC_CPU = {1'022'727.0, 59.826};
-        static constexpr CPUConfig PAL_CPU  = {985'248.0, 50.125};
-
         // Main emulation loop
         bool boot();
 
         // Reset methods
         void warmReset();
         void coldReset();
+
+        // Setter for video mode
+        void setVideoMode(const std::string& mode);
 
         // Attachments
         inline void setCartridgeAttached(bool flag) { if (media) media->setCartAttached(flag); }
@@ -93,9 +82,6 @@ class Computer
 
         // Game controls
         void setJoystickConfig(int port, JoystickMapping& cfg);
-
-        // Setter for Video Mode
-        void setVideoMode(const std::string& mode);
 
         // Setters for C64 ROM locations
         inline void setKernalROM(const std::string& kernal) { KERNAL_ROM = kernal; }
@@ -134,6 +120,7 @@ class Computer
         std::unique_ptr<MLMonitorBackend> monbackend;
         std::unique_ptr<MonitorController> monitorCtl;
         std::unique_ptr<PLA> pla;
+        std::unique_ptr<ResetController> resetCtl;
         std::unique_ptr<SID> sidchip;
         std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<TraceManager> traceMgr;
