@@ -11,69 +11,132 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-
-// Real includes (adjust paths to match your project)
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CPU.h"
 #include "Drive/D1541.h"
+#include "Drive/D1571.h"
+#include "Drive/D1581.h"
+#include "Drive/Drive.h"
 #include "IECBUS.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "Debug/MLMonitorBackend.h"
 #include "PLA.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
 
 MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
-                           std::unique_ptr<D1541>& drive8Slot,
+                           std::array<std::unique_ptr<Drive>, 16>& driveSlots,
                            IECBUS& bus,
                            Memory& mem,
                            PLA& pla,
                            CPU& cpu,
                            Vic& vic,
+                           MLMonitorBackend& monbackend,
                            TraceManager& traceMgr,
                            Cassette& cass,
                            Logging& logger,
-                           std::string d1541LoROM,
-                           std::string d1541HiROM,
+                           std::string D1541LoROM,
+                           std::string D1541HiROM,
+                           std::string D1571ROM,
+                           std::string D1581ROM,
+                           std::function<void()> requestBusPrimeCallback,
                            std::function<void()> coldResetCallback)
     : cart_(cartSlot),
-      drive8_(drive8Slot),
+      drives_(driveSlots),
       bus_(bus),
       mem_(mem),
       pla_(pla),
       cpu_(cpu),
       vic_(vic),
+      monbackend_(monbackend),
       traceMgr_(traceMgr),
       cass_(cass),
       logger_(logger),
-      d1541LoROM_(std::move(d1541LoROM)),
-      d1541HiROM_(std::move(d1541HiROM)),
+      D1541LoROM_(std::move(D1541LoROM)),
+      D1541HiROM_(std::move(D1541HiROM)),
+      D1571ROM_(std::move(D1571ROM)),
+      D1581ROM_(std::move(D1581ROM)),
+      requestBusPrime_(std::move(requestBusPrimeCallback)),
       coldReset_(std::move(coldResetCallback))
 {
-    // Keep your default behavior
     state_.prgDelay = 140;
 }
 
-void MediaManager::attachD64Image()
+std::string MediaManager::lowerExt(const std::string& path)
 {
-    if (state_.diskPath.empty())
+    auto dot = path.find_last_of('.');
+    if (dot == std::string::npos) return {};
+    std::string ext = path.substr(dot);
+    for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
+    return ext;
+}
+
+bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
+{
+    switch (model)
     {
-        std::cout << "No disk image selected.\n";
+        case DriveModel::D1541:
+            return (ext == ".d64" || ext == ".g64");
+        case DriveModel::D1571:
+            return (ext == ".d64" || ext == ".g64" || ext == ".d71");
+        case DriveModel::D1581:
+            return (ext == ".d81");
+    }
+    return false;
+}
+
+void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::string& path)
+{
+    if (path.empty()) return;
+    if (deviceNum < 8 || deviceNum > 11) return;
+
+    const std::string ext = lowerExt(path);
+    if (!isExtCompatible(model, ext))
+    {
+        std::cout << "Incompatible disk image for selected drive type.\n";
+        std::cout << "Drive " << deviceNum << " model=" << (int)model
+                  << " path=" << path << "\n";
         return;
     }
 
-    if (!drive8_)
+    if (!drives_[deviceNum])
     {
-        drive8_ = std::make_unique<D1541>(8, d1541LoROM_, d1541HiROM_);
-        bus_.registerDevice(8, drive8_.get());
-        drive8_->forceSyncIEC();
-        bus_.reset();
+        switch (model)
+        {
+            case DriveModel::D1541:
+                drives_[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
+                break;
+            case DriveModel::D1571:
+                drives_[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
+                break;
+            case DriveModel::D1581:
+                drives_[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
+                break;
+        }
+
+        bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+
+        // Sync all existing devices so nobody has stale cached bus state
+        for (int dev = 8; dev <= 11; ++dev)
+        {
+            if (drives_[dev]) drives_[dev]->forceSyncIEC();
+        }
+
+        // Defer bus priming to the emulator (safe point)
+        if (requestBusPrime_) requestBusPrime_();
     }
 
-    if (drive8_) drive8_->loadDisk(state_.diskPath);
+    if (!drives_[deviceNum]->insert(path))
+    {
+        std::cout << "Disk insert failed: " << path << "\n";
+        return;
+    }
 
+    // Keep UI simple: reflect “last attached disk”
     state_.diskAttached = true;
+    state_.diskPath     =  "Drive " + std::to_string(deviceNum) + ": " + path;
 }
 
 void MediaManager::attachPRGImage()
@@ -126,7 +189,10 @@ void MediaManager::attachT64Image()
 
     if (!cass_.loadCassette(state_.tapePath, videoMode_))
     {
+        #ifdef Debug
         std::cout << "Unable to load tape: " << state_.tapePath << "\n";
+        #endif
+        state_.tapeAttached = false;
         return;
     }
 
@@ -164,7 +230,35 @@ void MediaManager::attachTAPImage()
     state_.tapeAttached = true;
 
     if (!cass_.loadCassette(state_.tapePath, videoMode_))
+    {
+        #ifdef Debug
         std::cout << "Unable to load tape: " << state_.tapePath << "\n";
+        #endif
+        state_.tapeAttached = false;
+    }
+}
+
+void MediaManager::applyBootAttachments()
+{
+    if (state_.cartAttached && !state_.cartPath.empty())
+    {
+        attachCRTImage();
+        return;
+    }
+
+    if (state_.tapeAttached && !state_.tapePath.empty())
+    {
+        const std::string ext = lowerExt(state_.tapePath);
+        if (ext == ".t64") attachT64Image();
+        else               attachTAPImage();
+        return;
+    }
+
+    if (state_.prgAttached && !state_.prgPath.empty())
+    {
+        attachPRGImage();
+        return;
+    }
 }
 
 void MediaManager::tick()
@@ -259,4 +353,6 @@ void MediaManager::recreateCartridge()
     mem_.attachCartridgeInstance(cart_.get());
     pla_.attachCartridgeInstance(cart_.get());
     traceMgr_.attachCartInstance(cart_.get());
+
+    monbackend_.attachCartridgeInstance(cart_.get());
 }

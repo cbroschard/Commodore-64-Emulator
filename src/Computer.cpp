@@ -28,18 +28,8 @@ Computer::Computer() :
     IO_adapter(std::make_unique<IO>()),
     traceMgr(std::make_unique<TraceManager>()),
     vicII(std::make_unique<Vic>()),
-    prgDelay(140),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
-    cartridgeAttached(false),
-    cartridgePath(""),
-    tapeAttached(false),
-    tapePath(""),
-    prgAttached(false),
-    prgLoaded(false),
-    prgPath(""),
-    diskAttached(false),
-    diskPath(""),
     running(true),
     uiQuit(false),
     uiPaused(false),
@@ -97,6 +87,31 @@ void Computer::setVideoMode(const std::string& mode)
     sidchip->setMode(videoMode_);
     cia1object->setMode(videoMode_);
     cia2object->setMode(videoMode_);
+    if (media) media->setVideoMode(videoMode_);
+}
+
+void Computer::set1541LoROM(const std::string& loROM)
+{
+    D1541LoROM = loROM;
+    if (media) media->setD1541LoROM(loROM);
+}
+
+void Computer::set1541HiROM(const std::string& hiROM)
+{
+    D1541HiROM = hiROM;
+    if (media) media->setD1541HiROM(hiROM);
+}
+
+void Computer::set1571ROM(const std::string& rom)
+{
+    D1571ROM = rom;
+    if (media) media->setD1571ROM(rom);
+}
+
+void Computer::set1581ROM(const std::string& rom)
+{
+    D1581ROM = rom;
+    if (media) media->setD1581ROM(rom);
 }
 
 void Computer::enterMonitor()
@@ -169,7 +184,8 @@ void Computer::warmReset()
     #ifdef Debug
     std::cout << "Performing warm reset...\n";
     #endif
-    if (!cartridgeAttached && cart)
+    const bool cartAttachedNow = (media && media->getState().cartAttached);
+    if (!cartAttachedNow && cart)
     {
         cart->setGameLine(true);
         cart->setExROMLine(true);
@@ -196,7 +212,8 @@ void Computer::coldReset()
     #endif
 
     // If no cart attached, force default lines (KERNAL boot)
-    if (!cartridgeAttached && cart)
+    const bool cartAttachedNow = (media && media->getState().cartAttached);
+    if (!cartAttachedNow && cart)
     {
         cart->setGameLine(true);
         cart->setExROMLine(true);
@@ -210,7 +227,7 @@ void Computer::coldReset()
     pla->reset();
 
     // Re-assert cartridge presence AFTER Initialize + PLA reset, BEFORE CPU reset
-    if (cartridgeAttached)
+    if (cartAttachedNow)
     {
         mem->setCartridgeAttached(true);
         pla->setCartridgeAttached(true);
@@ -280,67 +297,9 @@ bool Computer::boot()
     // Attach the trace manager to the trace command now that we're all wired up
     monitor->attachTraceManagerInstance(traceMgr.get());
 
-    // Check for a cartridge to be loaded, takes precedence over disk or tape
-    if (cartridgeAttached)
-    {
-        // Update memory and PLA for bank switching
-        mem->setCartridgeAttached(true);
-        pla->setCartridgeAttached(true);
+    // If any command line attachments were passed in, process them
+    if (media) media->applyBootAttachments();
 
-
-        if (!cart->loadROM(cartridgePath))
-        {
-            std::cout << "Unable to load cartridge: " << cartridgePath << "\n";
-            // Load failed, exit completely
-            return false;
-        }
-    }
-    else if (tapeAttached)
-    {
-        if (!cass->loadCassette(tapePath, videoMode_))
-        {
-            std::cout << "Unable to load tape: " << tapePath << "\n";
-        }
-        if (cass->isT64())
-        {
-            T64LoadResult result = cass->t64LoadPrgIntoMemory();
-            if (result.success)
-            {
-                // Scan for end of BASIC
-                uint16_t scan = 0x0801;
-                uint16_t nextLine;
-                do
-                {
-                    nextLine = mem->read(scan) | (mem->read(scan + 1) << 8);
-                    if (nextLine == 0) break;
-                    scan = nextLine;
-                } while (true);
-                uint16_t basicEnd = scan + 2;
-
-                // Update Pointers
-                mem->writeDirect(0x2B, 0x01); mem->writeDirect(0x2C, 0x08);
-                mem->writeDirect(0x2D, basicEnd & 0xFF); mem->writeDirect(0x2E, basicEnd >> 8);
-                mem->writeDirect(0x2F, basicEnd & 0xFF); mem->writeDirect(0x30, basicEnd >> 8);
-                mem->writeDirect(0x31, basicEnd & 0xFF); mem->writeDirect(0x32, basicEnd >> 8);
-
-                // Inject RUN
-                const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-                mem->writeDirect(0xC6, 4);
-                for (int i = 0; i < 4; ++i) mem->writeDirect(0x0277 + i, runKeys[i]);
-            }
-        }
-    }
-    else if (prgAttached)
-    {
-        if (!loadPrgImage())
-        {
-            std::cout << "Unable to load program: " << prgPath << "\n";
-        }
-        else
-        {
-            std::cout << "Successfully loaded the file: " << prgPath << "\n";
-        }
-    }
     // **Start Audio Playback**
     IO_adapter->playAudio();
     sidchip->setSampleRate(IO_adapter->getSampleRate());
@@ -492,18 +451,6 @@ bool Computer::boot()
             ui->setMediaViewState(buildUIState());
         }
 
-        // Handle loading a PRG
-        if (prgAttached && !prgLoaded && prgDelay <= 0)
-        {
-            // Load the program into memory
-            loadPrgIntoMem();
-            prgLoaded = true;
-        }
-        if (prgAttached && !prgLoaded && prgDelay > 0)
-        {
-            --prgDelay;
-        }
-
         // Enforce 60Hz frame timing by sleeping until the next frame target time.
         auto now = std::chrono::steady_clock::now();
         if (now < nextFrameTime)
@@ -516,6 +463,7 @@ bool Computer::boot()
             nextFrameTime = now + frameDuration; // Added to test
         }
         processUICommands();
+        if (media) media->tick();
         if (!running) break;
     }
 
@@ -530,300 +478,22 @@ bool Computer::boot()
     return true;
 }
 
-bool Computer::loadPrgImage()
-{
-    std::ifstream prgFile(prgPath, std::ios::binary | std::ios::ate);
-    if (!prgFile){
-        return false;
-    }
-
-    std::streamsize size = prgFile.tellg();
-    if (size < 3)
-    {
-        // Need at least 3 for load address (2) and data
-        return false;
-    }
-    prgFile.seekg(0);
-    prgImage.resize(size);
-    prgFile.read(reinterpret_cast<char*>(prgImage.data()), size);
-    return true;
-}
-
-void Computer::loadPrgIntoMem()
-{
-    // Skip the .P00 header if it is present
-    size_t pos = 0;
-    if (prgImage.size() >= 26 && std::memcmp(prgImage.data(), "C64File", 7) == 0)
-    {
-        pos = 26;  //  Skip wrapper
-    }
-
-    // First two bytes = load address
-    if (pos + 2 > prgImage.size())
-    {
-        throw std::runtime_error("PRG/P00 image is too small.");
-    }
-
-    const uint16_t loadAddr = prgImage[pos] | (prgImage[pos + 1] << 8);
-    pos += 2;
-
-    const size_t programData = prgImage.size() - pos;
-    uint32_t endProgramData = loadAddr + programData;
-
-    if (endProgramData > 0x10000)
-    {
-        throw std::runtime_error("Error: Program is too large for 64k RAM!");
-    }
-
-    // Copy payload to C64 RAM
-    for (size_t i = 0; i < programData; ++i)
-    {
-        mem->writeDirect(loadAddr + static_cast<uint16_t>(i), prgImage[pos + i]);
-    }
-
-    // BASIC program?  Fix pointers **only up to the 00 00 terminator**
-    if (loadAddr == BASIC_PRG_START)
-    {
-        // Walk the BASIC line link chain until we find the terminator ($0000)
-        uint16_t scan = loadAddr;
-        uint16_t nextLine;
-        do
-        {
-            nextLine = mem->read(scan) | (mem->read(scan + 1) << 8);
-            if (nextLine == 0)
-            {
-                break;
-            }
-            scan = nextLine;
-        }
-        while (true);
-
-        const uint16_t basicEnd = scan + 2;   // byte AFTER the 00 00 sentinel
-
-        // Set pointers as KERNAL's LOAD does, using 8-bit direct writes
-        mem->writeDirect(TXTAB, loadAddr & 0xFF);         // Low byte
-        mem->writeDirect(TXTAB + 1, (loadAddr >> 8));     // High byte
-        mem->writeDirect(VARTAB, basicEnd & 0xFF);
-        mem->writeDirect(VARTAB + 1, (basicEnd >> 8));
-        mem->writeDirect(ARYTAB, basicEnd & 0xFF);
-        mem->writeDirect(ARYTAB + 1, (basicEnd >> 8));
-        mem->writeDirect(STREND, basicEnd & 0xFF);
-        mem->writeDirect(STREND + 1, (basicEnd >> 8));
-
-        // Stuff “RUN<RETURN>” into the keyboard buffer
-        const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-        mem->writeDirect(0xC6, 4);
-        for (int i = 0; i < 4; ++i)
-        {
-            mem->writeDirect(0x0277 + i, runKeys[i]);
-        }
-    }
-}
-
-std::string Computer::lowerExt(const std::string& path)
-{
-    auto dot = path.find_last_of('.');
-    std::string ext = (dot == std::string::npos) ? "" : path.substr(dot);
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-                   [](unsigned char c){ return (char)std::tolower(c); });
-    return ext;
-}
-
-bool Computer::isExtCompatible(UiCommand::DriveType driveType, const std::string& ext)
-{
-    switch (driveType)
-    {
-        case UiCommand::DriveType::D1541: return ext == ".d64";
-        case UiCommand::DriveType::D1571: return (ext == ".d64" || ext == ".d71");
-        case UiCommand::DriveType::D1581: return ext == ".d81";
-    }
-    return false;
-}
-
-void Computer::attachDiskImage(int deviceNum, UiCommand::DriveType driveType, const std::string& path)
-{
-    if (path.empty()) return;
-    if (deviceNum < 8 || deviceNum > 11) return;
-
-    const std::string ext = lowerExt(path);
-    if (!isExtCompatible(driveType, ext))
-    {
-        std::cout << "Incompatible disk image for selected drive type.\n";
-        std::cout << "Drive " << deviceNum << " type=" << (int)driveType
-                  << " path=" << path << "\n";
-        return;
-    }
-
-    if (!drives[deviceNum])
-    {
-        switch (driveType)
-        {
-            case UiCommand::DriveType::D1541:
-                drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM, D1541HiROM);
-                break;
-
-            case UiCommand::DriveType::D1571:
-                drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM);
-                break;
-
-            case UiCommand::DriveType::D1581:
-                drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM);
-                break;
-        }
-
-        bus->registerDevice(deviceNum, drives[deviceNum].get());
-        // Sync all existing devices so nobody has stale cached bus state
-        for (int dev = 8; dev <= 11; ++dev)
-        {
-            if (drives[dev]) drives[dev]->forceSyncIEC();
-        }
-        if (!busPrimedAfterBoot)
-            pendingBusPrime = true;
-    }
-
-    if (!drives[deviceNum]->insert(path))
-    {
-        std::cout << "Disk insert failed: " << path << "\n";
-        return;
-    }
-
-    diskAttached = true;
-    diskPath = "Drive " + std::to_string(deviceNum) + ": " + path;
-}
-
-void Computer::attachPRGImage()
-{
-    if (prgPath.empty()) return;
-
-    prgAttached = true;
-    prgLoaded   = false;
-    prgDelay    = 140;
-
-    if (!loadPrgImage())
-    {
-        std::cout << "Unable to load program: " << prgPath << "\n";
-        prgAttached = false;
-    }
-    else
-    {
-        std::cout << "Queued program: " << prgPath << "\n";
-    }
-}
-
-void Computer::attachCRTImage()
-{
-    if (cartridgePath.empty()) return;
-
-    // Fully drop old cart state so we can't "reuse" its mapper/banks
-    recreateCartridge();
-
-    cartridgeAttached = true;
-
-    if (!cart->loadROM(cartridgePath))
-    {
-        std::cout << "Unable to load cartridge: " << cartridgePath << "\n";
-        cartridgeAttached = false;
-        return;
-    }
-
-    if (mem) mem->setCartridgeAttached(true);
-    if (pla) pla->setCartridgeAttached(true);
-
-    coldReset();
-    std::cout << "Cartridge attached: " << cartridgePath << "\n";
-}
-
-void Computer::attachT64Image()
-{
-    if (tapePath.empty()) return;
-
-    tapeAttached = true;
-
-    if (cass && !cass->loadCassette(tapePath, videoMode_))
-    {
-        #ifdef Debug
-        std::cout << "Unable to load tape: " << tapePath << "\n";
-        #endif
-    }
-    else
-    {
-        // T64 Auto-Load Logic
-        if (cass && cass->isT64())
-        {
-            T64LoadResult result = cass->t64LoadPrgIntoMemory();
-            if (result.success)
-            {
-                // 1. Calculate end of BASIC area (Assuming start at $0801)
-                // We scan memory to find the end of the BASIC chain
-                uint16_t scan = 0x0801;
-                uint16_t nextLine;
-                do {
-                    nextLine = mem->read(scan) | (mem->read(scan + 1) << 8);
-                    if (nextLine == 0) break;
-                    scan = nextLine;
-                } while (true);
-
-                uint16_t basicEnd = scan + 2;
-
-                // 2. Update BASIC Pointers so the C64 knows a program is loaded
-                mem->writeDirect(0x2B, 0x01); mem->writeDirect(0x2C, 0x08); // TXTAB ($0801)
-                mem->writeDirect(0x2D, basicEnd & 0xFF); mem->writeDirect(0x2E, basicEnd >> 8); // VARTAB
-                mem->writeDirect(0x2F, basicEnd & 0xFF); mem->writeDirect(0x30, basicEnd >> 8); // ARYTAB
-                mem->writeDirect(0x31, basicEnd & 0xFF); mem->writeDirect(0x32, basicEnd >> 8); // STREND
-
-                // 3. Inject "RUN" + Return into keyboard buffer
-                const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-                mem->writeDirect(0xC6, 4); // Buffer size
-                for (int i = 0; i < 4; ++i) mem->writeDirect(0x0277 + i, runKeys[i]);
-
-                #ifdef Debug
-                std::cout << "T64 attached and auto-loaded successfully.\n";
-                #endif
-            }
-        }
-    }
-}
-
-void Computer::attachTAPImage()
-{
-    if (tapePath.empty()) return;
-
-    tapeAttached = true;
-    if (cass && !cass->loadCassette(tapePath, videoMode_)) std::cout << "Unable to load tape: " << tapePath << "\n";
-}
-
-void Computer::recreateCartridge()
-{
-    cart = std::make_unique<Cartridge>();
-
-    cart->attachCPUInstance(processor.get());
-    cart->attachMemoryInstance(mem.get());
-    cart->attachLogInstance(logger.get());
-    cart->attachTraceManagerInstance(traceMgr.get());
-    cart->attachVicInstance(vicII.get());
-
-    // Make sure Memory/PLA/monitor backends now point at the new cart instance
-    mem->attachCartridgeInstance(cart.get());
-    pla->attachCartridgeInstance(cart.get());
-    monbackend->attachCartridgeInstance(cart.get());
-    traceMgr->attachCartInstance(cart.get());
-}
-
 EmulatorUI::MediaViewState Computer::buildUIState() const
 {
     EmulatorUI::MediaViewState s;
 
-    s.diskAttached = diskAttached;
-    s.diskPath     = diskPath;
-
-    s.cartAttached = cartridgeAttached;
-    s.cartPath     = cartridgePath;
-
-    s.tapeAttached = tapeAttached;
-    s.tapePath     = tapePath;
-
-    s.prgAttached  = prgAttached;
-    s.prgPath      = prgPath;
+    if (media)
+    {
+        const auto& m = media->getState();
+        s.diskAttached = m.diskAttached;
+        s.diskPath     = m.diskPath;
+        s.cartAttached = m.cartAttached;
+        s.cartPath     = m.cartPath;
+        s.tapeAttached = m.tapeAttached;
+        s.tapePath     = m.tapePath;
+        s.prgAttached  = m.prgAttached;
+        s.prgPath      = m.prgPath;
+    }
 
     if (input)
     {
@@ -857,27 +527,46 @@ void Computer::processUICommands()
         switch (cmd.type)
         {
             case UiCommand::Type::AttachDisk:
-                attachDiskImage(cmd.deviceNum, cmd.driveType, cmd.path);
-                break;
+            if (media)
+            {
+                MediaManager::DriveModel model =
+                    (cmd.driveType == UiCommand::DriveType::D1571) ? MediaManager::DriveModel::D1571 :
+                    (cmd.driveType == UiCommand::DriveType::D1581) ? MediaManager::DriveModel::D1581 :
+                                                                     MediaManager::DriveModel::D1541;
+                media->attachDiskImage(cmd.deviceNum, model, cmd.path);
+            }
+            break;
 
             case UiCommand::Type::AttachPRG:
-                prgPath = cmd.path;
-                attachPRGImage();
+                if (media)
+                {
+                    media->setPrgPath(cmd.path);
+                    media->attachPRGImage();
+                }
                 break;
 
             case UiCommand::Type::AttachCRT:
-                cartridgePath = cmd.path;
-                attachCRTImage();
+                if (media)
+                {
+                    media->setCartPath(cmd.path);
+                    media->attachCRTImage();
+                }
                 break;
 
             case UiCommand::Type::AttachT64:
-                tapePath = cmd.path;
-                attachT64Image();
+                if (media)
+                {
+                    media->setTapePath(cmd.path);
+                    media->attachT64Image();
+                }
                 break;
 
             case UiCommand::Type::AttachTAP:
-                tapePath = cmd.path;
-                attachTAPImage();
+                if (media)
+                {
+                    media->setTapePath(cmd.path);
+                    media->attachTAPImage();
+                }
                 break;
 
             case UiCommand::Type::WarmReset:
@@ -1046,4 +735,10 @@ void Computer::wireUp()
     vicII->attachIRQLineInstance(IRQ.get());
     vicII->attachLogInstance(logger.get());
     vicII->attachTraceManagerInstance(traceMgr.get());
+
+    media = std::make_unique<MediaManager>(cart, drives, *bus, *mem, *pla, *processor, *vicII, *monbackend, *traceMgr, *cass, *logger,
+                                            D1541LoROM, D1541HiROM, D1571ROM, D1581ROM,
+                                            [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; },
+                                            [this]() { this->coldReset(); });
+    if (media) media->setVideoMode(videoMode_);
 }

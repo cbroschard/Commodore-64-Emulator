@@ -8,6 +8,7 @@
 #ifndef MEDIAMANAGER_H
 #define MEDIAMANAGER_H
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -19,9 +20,13 @@ class Cartridge;
 class Cassette;
 class CPU;
 class D1541;
+class D1571;
+class D1581;
+class Drive;
 class IECBUS;
 class Logging;
 class Memory;
+class MLMonitorBackend;
 class PLA;
 class TraceManager;
 class Vic;
@@ -31,6 +36,26 @@ enum class VideoMode;
 class MediaManager
 {
 public:
+    MediaManager(std::unique_ptr<Cartridge>& cartSlot,
+                 std::array<std::unique_ptr<Drive>, 16>& driveSlots,
+                 IECBUS& bus,
+                 Memory& mem,
+                 PLA& pla,
+                 CPU& cpu,
+                 Vic& vic,
+                 MLMonitorBackend& monbackend,
+                 TraceManager& traceMgr,
+                 Cassette& cass,
+                 Logging& logger,
+                 std::string D1541LoROM,
+                 std::string D1541HiROM,
+                 std::string D1571ROM,
+                 std::string D1581ROM,
+                 std::function<void()> requestBusPrimeCallback,
+                 std::function<void()> coldResetCallback);
+
+    ~MediaManager() = default;
+
     struct State
     {
         // Disk
@@ -52,73 +77,79 @@ public:
         std::string prgPath;
     };
 
-public:
-    MediaManager(std::unique_ptr<Cartridge>& cartSlot,
-                 std::unique_ptr<D1541>& drive8Slot,
-                 IECBUS& bus,
-                 Memory& mem,
-                 PLA& pla,
-                 CPU& cpu,
-                 Vic& vic,
-                 TraceManager& traceMgr,
-                 Cassette& cass,
-                 Logging& logger,
-                 std::string d1541LoROM,
-                 std::string d1541HiROM,
-                 std::function<void()> coldResetCallback);
-
-    ~MediaManager() = default;
+    enum class DriveModel
+    {
+        D1541,
+        D1571,
+        D1581
+    };
 
     const State& getState() const { return state_; }
 
     void setVideoMode(VideoMode mode) { videoMode_ = mode; }
 
-    // Optional setters if you want UI to set paths separately:
+    // Helpers
+    std::string lowerExt(const std::string& path);
+    bool isExtCompatible(DriveModel model, const std::string& ext);
+
+    // Setters
+    void setCartAttached(bool b) { state_.cartAttached = b; }
+    void setTapeAttached(bool b) { state_.tapeAttached = b; }
+    void setPrgAttached(bool b)  { state_.prgAttached  = b; }
+    void setD1541LoROM(const std::string& p) { D1541LoROM_ = p; }
+    void setD1541HiROM(const std::string& p) { D1541HiROM_ = p; }
+    void setD1571ROM(const std::string& p) { D1571ROM_ = p; }
+    void setD1581ROM(const std::string& p) { D1581ROM_ = p; }
     void setDiskPath(const std::string& p) { state_.diskPath = p; }
     void setPrgPath(const std::string& p)  { state_.prgPath  = p; }
     void setCartPath(const std::string& p) { state_.cartPath = p; }
     void setTapePath(const std::string& p) { state_.tapePath = p; }
 
-    // Attach operations (these mirror your Computer methods)
-    void attachD64Image();
+    // Attachments
+    void attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
     void attachPRGImage();
     void attachCRTImage();
     void attachT64Image();
     void attachTAPImage();
 
+    // Command line autostart
+    void applyBootAttachments();
+
     // Call once per frame
     void tick();
 
 private:
-    bool loadPrgImage();
-    void loadPrgIntoMem();
-    void recreateCartridge();
 
-private:
-    // Slots we need to (re)create
     std::unique_ptr<Cartridge>& cart_;
-    std::unique_ptr<D1541>&     drive8_;
+    std::array<std::unique_ptr<Drive>, 16>& drives_;
 
     // System references
-    IECBUS&       bus_;
-    Memory&       mem_;
-    PLA&          pla_;
-    CPU&          cpu_;
-    Vic&          vic_;
-    TraceManager& traceMgr_;
-    Cassette&     cass_;
-    Logging&      logger_;
+    IECBUS&             bus_;
+    Memory&             mem_;
+    PLA&                pla_;
+    CPU&                cpu_;
+    Vic&                vic_;
+    MLMonitorBackend&   monbackend_;
+    TraceManager&       traceMgr_;
+    Cassette&           cass_;
+    Logging&            logger_;
 
-    // Own ROM paths (copy = safe)
-    std::string d1541LoROM_;
-    std::string d1541HiROM_;
+    std::string D1541LoROM_;
+    std::string D1541HiROM_;
+    std::string D1571ROM_;
+    std::string D1581ROM_;
 
-    VideoMode videoMode_{}; // you will set this from Computer
+    VideoMode videoMode_{};
 
     State state_;
     std::vector<uint8_t> prgImage_;
 
+    std::function<void()> requestBusPrime_;
     std::function<void()> coldReset_;
+
+    bool loadPrgImage();
+    void loadPrgIntoMem();
+    void recreateCartridge();
 };
 
 #endif // MEDIAMANAGER_H

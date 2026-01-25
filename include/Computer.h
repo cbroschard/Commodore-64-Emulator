@@ -79,15 +79,15 @@ class Computer
         void coldReset();
 
         // Attachments
-        inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
-        inline void setCartridgePath(const std::string& path) { cartridgePath = path; }
-        inline void setTapeAttached(bool flag) { tapeAttached = flag; }
-        inline void setTapePath(const std::string& path) { tapePath = path; }
-        inline void setPrgAttached(bool flag) { prgAttached = flag; }
-        inline void setPrgPath(const std::string& path) { prgPath = path; }
+        inline void setCartridgeAttached(bool flag) { if (media) media->setCartAttached(flag); }
+        inline void setCartridgePath(const std::string& path) { if (media) media->setCartPath(path); }
+        inline void setTapeAttached(bool flag) { if (media) media->setTapeAttached(flag); }
+        inline void setTapePath(const std::string& path) { if (media) media->setTapePath(path); }
+        inline void setPrgAttached(bool flag) { if (media) media->setPrgAttached(flag); }
+        inline void setPrgPath(const std::string& path) { if (media) media->setPrgPath(path); }
 
         // Getters
-        inline bool getCartridgeAttached() { return cartridgeAttached; }
+        inline bool getCartridgeAttached() { return media ? media->getState().cartAttached : false; }
         inline Joystick* getJoy1() { return input ? input->getJoy1() : nullptr; }
         inline Joystick* getJoy2() { return input ? input->getJoy2() : nullptr; }
 
@@ -103,10 +103,10 @@ class Computer
         inline void setCHAR_ROM(const std::string& character) { CHAR_ROM = character; }
 
         // Setters for Drive model ROM locations
-        inline void set1541LoROM(const std::string& loROM) { D1541LoROM = loROM; }
-        inline void set1541HiROM(const std::string& hiROM) { D1541HiROM = hiROM; }
-        inline void set1571ROM(const std::string& rom) { D1571ROM = rom; }
-        inline void set1581ROM(const std::string& rom) { D1581ROM = rom; }
+        void set1541LoROM(const std::string& loROM);
+        void set1541HiROM(const std::string& hiROM);
+        void set1571ROM(const std::string& rom);
+        void set1581ROM(const std::string& rom);
 
         // ML Monitor
         void enterMonitor();
@@ -139,9 +139,6 @@ class Computer
         std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<Vic> vicII;
 
-        // Program loading delay counter
-        int prgDelay;
-
         // Event handling
         bool handleInputEvent(const SDL_Event& ev);
 
@@ -151,26 +148,6 @@ class Computer
         // Video/CPU mode setup
         VideoMode videoMode_ = VideoMode::NTSC;
         const CPUConfig* cpuCfg_ = &NTSC_CPU;
-
-        // Cartridge detection
-        bool cartridgeAttached;
-        std::string cartridgePath;
-
-        // Tape image
-        bool tapeAttached;
-        std::string tapePath;
-
-        // PRG file loading
-        bool prgAttached;
-        bool prgLoaded;
-        std::string prgPath;
-        bool loadPrgImage();
-        void loadPrgIntoMem();
-        std::vector<uint8_t> prgImage;
-
-        // Disk image
-        bool diskAttached;
-        std::string diskPath;
 
         // Graphics loop threading
         std::atomic<bool>       running;
@@ -190,19 +167,6 @@ class Computer
         // Bus priming
         bool pendingBusPrime;
         bool busPrimedAfterBoot;
-
-        // helpers
-        std::string lowerExt(const std::string& path);
-        bool isExtCompatible(UiCommand::DriveType driveType, const std::string& ext);
-        void attachDiskImage(int deviceNum, UiCommand::DriveType driveType, const std::string& path);
-        void attachD64Image();
-        void attachPRGImage();
-        void attachCRTImage();
-        void attachT64Image();
-        void attachTAPImage();
-
-        // Cartridge helper for attaching new cartridge over top of existing one
-        void recreateCartridge();
 
         // Menu integration
         EmulatorUI::MediaViewState buildUIState() const;
