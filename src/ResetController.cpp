@@ -1,5 +1,10 @@
-#include "ResetController.h"
-
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "CIA1.h"
 #include "CIA2.h"
@@ -8,6 +13,7 @@
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
+#include "ResetController.h"
 #include "SID/SID.h"
 #include "Vic.h"
 
