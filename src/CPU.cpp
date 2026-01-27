@@ -2055,7 +2055,6 @@ void CPU::SBC(uint8_t opcode)
 {
     uint8_t value = 0;
 
-    // --- your addressing code unchanged ---
     switch (opcode)
     {
         case 0xE1: value = readIndirectX(); break;
@@ -2072,11 +2071,9 @@ void CPU::SBC(uint8_t opcode)
     const uint8_t a0  = A;
     const uint8_t cIn = getFlag(C) ? 1 : 0;
 
-    // 1) Binary subtraction first (always)
     uint16_t diff   = uint16_t(a0) - uint16_t(value) - (1 - cIn);
     uint8_t  resBin = uint8_t(diff);
 
-    // 2) Overflow from the binary operation (works in both modes)
     setFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
 
     if (getFlag(D)) {
@@ -2096,10 +2093,8 @@ void CPU::SBC(uint8_t opcode)
         A = resBin;
     }
 
-    // 3) Carry = "no borrow" from the binary subtract
     setFlag(C, diff < 0x100);
 
-    // 4) Z/N from the final (possibly BCD-adjusted) result
     setFlag(Z, A == 0);
     setFlag(N, A & 0x80);
 }
