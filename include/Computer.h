@@ -50,6 +50,7 @@
 // Forward declarations
 class MLMonitor;
 class ResetController;
+class UIBridge;
 
 class Computer
 {
@@ -124,6 +125,7 @@ class Computer
         std::unique_ptr<SID> sidchip;
         std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<TraceManager> traceMgr;
+        std::unique_ptr<UIBridge> uiBridge;
         std::unique_ptr<Vic> vicII;
 
         // Event handling
@@ -154,10 +156,6 @@ class Computer
         // Bus priming
         bool pendingBusPrime;
         bool busPrimedAfterBoot;
-
-        // Menu integration
-        EmulatorUI::MediaViewState buildUIState() const;
-        void processUICommands();
 
         // Wire all the components together
         void wireUp();

@@ -8,6 +8,7 @@
 #include "Debug/MLMonitor.h"
 #include "computer.h"
 #include "ResetController.h"
+#include "UIBridge.h"
 
 Computer::Computer() :
     cart(std::make_unique<Cartridge>()),
@@ -357,10 +358,7 @@ bool Computer::boot()
             break;
         }
 
-        if (ui)
-        {
-            ui->setMediaViewState(buildUIState());
-        }
+        if (ui && uiBridge) ui->setMediaViewState(uiBridge->buildMediaViewState());
 
         // Enforce 60Hz frame timing by sleeping until the next frame target time.
         auto now = std::chrono::steady_clock::now();
@@ -373,7 +371,7 @@ bool Computer::boot()
         {
             nextFrameTime = now + frameDuration; // Added to test
         }
-        processUICommands();
+        if (uiBridge) uiBridge->processCommands();
         if (media) media->tick();
         if (!running) break;
     }
@@ -402,183 +400,6 @@ void Computer::coldReset()
 void Computer::setVideoMode(const std::string& mode)
 {
     if (resetCtl) resetCtl->setVideoMode(mode);
-}
-
-EmulatorUI::MediaViewState Computer::buildUIState() const
-{
-    EmulatorUI::MediaViewState s;
-
-    if (media)
-    {
-        const auto& m = media->getState();
-        s.diskAttached = m.diskAttached;
-        s.diskPath     = m.diskPath;
-        s.cartAttached = m.cartAttached;
-        s.cartPath     = m.cartPath;
-        s.tapeAttached = m.tapeAttached;
-        s.tapePath     = m.tapePath;
-        s.prgAttached  = m.prgAttached;
-        s.prgPath      = m.prgPath;
-    }
-
-    if (input)
-    {
-        s.joy1Attached = input->isJoy1Attached();
-        s.joy2Attached = input->isJoy2Attached();
-
-        auto p1 = input->getPad1();
-        auto p2 = input->getPad2();
-
-        s.pad1Name = p1 ? SDL_GameControllerName(p1) : "None";
-        s.pad2Name = p2 ? SDL_GameControllerName(p2) : "None";
-    }
-    else
-    {
-        s.joy1Attached = false;
-        s.joy2Attached = false;
-        s.pad1Name = "None";
-        s.pad2Name = "None";
-    }
-
-    s.paused = uiPaused.load();
-    s.pal    = (videoMode_ == VideoMode::PAL);
-
-    return s;
-}
-
-void Computer::processUICommands()
-{
-    for (const auto& cmd : ui->consumeCommands())
-    {
-        switch (cmd.type)
-        {
-            case UiCommand::Type::AttachDisk:
-            if (media)
-            {
-                MediaManager::DriveModel model =
-                    (cmd.driveType == UiCommand::DriveType::D1571) ? MediaManager::DriveModel::D1571 :
-                    (cmd.driveType == UiCommand::DriveType::D1581) ? MediaManager::DriveModel::D1581 :
-                                                                     MediaManager::DriveModel::D1541;
-                media->attachDiskImage(cmd.deviceNum, model, cmd.path);
-            }
-            break;
-
-            case UiCommand::Type::AttachPRG:
-                if (media)
-                {
-                    media->setPrgPath(cmd.path);
-                    media->attachPRGImage();
-                }
-                break;
-
-            case UiCommand::Type::AttachCRT:
-                if (media)
-                {
-                    media->setCartPath(cmd.path);
-                    media->attachCRTImage();
-                }
-                break;
-
-            case UiCommand::Type::AttachT64:
-                if (media)
-                {
-                    media->setTapePath(cmd.path);
-                    media->attachT64Image();
-                }
-                break;
-
-            case UiCommand::Type::AttachTAP:
-                if (media)
-                {
-                    media->setTapePath(cmd.path);
-                    media->attachTAPImage();
-                }
-                break;
-
-            case UiCommand::Type::WarmReset:
-                warmReset();
-                break;
-
-            case UiCommand::Type::ColdReset:
-                coldReset();
-                break;
-
-            case UiCommand::Type::SetPAL:
-                setVideoMode("PAL");
-                break;
-
-            case UiCommand::Type::SetNTSC:
-                setVideoMode("NTSC");
-                break;
-
-            case UiCommand::Type::TogglePause:
-                uiPaused = !uiPaused.load();
-                break;
-
-            case UiCommand::Type::ToggleJoy1:
-                if (input) input->setJoystickAttached(1, !input->isJoy1Attached());
-                break;
-
-            case UiCommand::Type::ToggleJoy2:
-                if (input) input->setJoystickAttached(2, !input->isJoy2Attached());
-                break;
-
-            case UiCommand::Type::AssignPad1ToPort1:
-                if (input && input->getPad1()) input->assignPadToPort(input->getPad1(), 1);
-                break;
-
-            case UiCommand::Type::AssignPad1ToPort2:
-                if (input && input->getPad1()) input->assignPadToPort(input->getPad1(), 2);
-                break;
-
-            case UiCommand::Type::AssignPad2ToPort1:
-                if (input && input->getPad2()) input->assignPadToPort(input->getPad2(), 1);
-                break;
-
-            case UiCommand::Type::AssignPad2ToPort2:
-                if (input && input->getPad2()) input->assignPadToPort(input->getPad2(), 2);
-                break;
-
-            case UiCommand::Type::ClearPort1Pad:
-                if (input) input->clearPortPad(1);
-                break;
-
-            case UiCommand::Type::ClearPort2Pad:
-                if (input) input->clearPortPad(2);
-                break;
-
-            case UiCommand::Type::SwapPortPads:
-                if (input) input->swapPortPads();
-                break;
-
-            case UiCommand::Type::CassPlay:
-                if (media) media->tapePlay();
-                break;
-
-            case UiCommand::Type::CassStop:
-                if (media) media->tapeStop();
-                break;
-
-            case UiCommand::Type::CassRewind:
-                if (media) media->tapeRewind();
-                break;
-
-            case UiCommand::Type::CassEject:
-                if (media) media->tapeEject();
-                break;
-
-            case UiCommand::Type::EnterMonitor:
-                enterMonitor();
-                break;
-
-            case UiCommand::Type::Quit:
-                running = false;
-                break;
-
-            default:
-                break;
-        }
-    }
 }
 
 void Computer::wireUp()
@@ -671,4 +492,8 @@ void Computer::wireUp()
 
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
                                 *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
+
+    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), input.get(), uiPaused, running, [this]() { warmReset(); },
+    [this]() { coldReset(); }, [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); },
+    [this]() { return videoMode_ == VideoMode::PAL; });
 }
