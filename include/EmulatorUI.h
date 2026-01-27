@@ -16,6 +16,7 @@
 #include <vector>
 #include "imgui/imgui.h"
 #include "UiCommand.h"
+#include "Version.h"
 
 class EmulatorUI
 {

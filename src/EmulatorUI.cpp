@@ -452,7 +452,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
     {
         ImGui::Text("C64 Emulator - ImGui Menu Overlay");
         ImGui::Separator();
-        ImGui::Text("F12 opens ML Monitor.\nAlt+J, 1/2 attach joysticks.");
+        ImGui::Text("F12 opens ML Monitor.\nName: %s\nVersion: %s" , VersionInfo::NAME, VersionInfo::VERSION);
         if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
