@@ -5,8 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Debug/MLMonitor.h"
-#include "computer.h"
+#include "DebugManager.h"
+#include "Computer.h"
 #include "ResetController.h"
 #include "UIBridge.h"
 
@@ -23,12 +23,9 @@ Computer::Computer() :
     keyb(std::make_unique<Keyboard>()),
     logger(std::make_unique<Logging>("debug.txt")),
     mem(std::make_unique<Memory>()),
-    monitor(std::make_unique<MLMonitor>()),
-    monbackend(std::make_unique<MLMonitorBackend>()),
     pla(std::make_unique<PLA>()),
     sidchip(std::make_unique<SID>(44100)),
     IO_adapter(std::make_unique<IO>()),
-    traceMgr(std::make_unique<TraceManager>()),
     vicII(std::make_unique<Vic>()),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
@@ -49,7 +46,7 @@ Computer::~Computer() noexcept
         if (IO_adapter)
         {
             // Ensure the render thread is down
-            if (monitorCtl) monitorCtl->close();
+            if (debug) debug->closeMonitor();
             running = false;
             IO_adapter->stopRenderThread(running);
             IO_adapter->setGuiCallback({});
@@ -98,61 +95,7 @@ void Computer::set1581ROM(const std::string& rom)
 
 void Computer::enterMonitor()
 {
-    if (monitorCtl) monitorCtl->open();
-}
-
-bool Computer::handleInputEvent(const SDL_Event& ev)
-{
-    // F12 global monitor toggle (do this BEFORE monitorCtl->handleEvent)
-    if (ev.type == SDL_KEYDOWN && !ev.key.repeat &&
-        ev.key.keysym.scancode == SDL_SCANCODE_F12)
-    {
-        if (monitorCtl) monitorCtl->toggle();
-        return true;
-    }
-
-    // Let monitor consume events next
-    if (monitorCtl && monitorCtl->handleEvent(ev)) return true;
-
-    if (ev.type == SDL_KEYDOWN && !ev.key.repeat)
-    {
-        const SDL_Scancode sc = ev.key.keysym.scancode;
-        const SDL_Keymod mods = static_cast<SDL_Keymod>(ev.key.keysym.mod);
-
-        // SPACE pause
-        if (sc == SDL_SCANCODE_SPACE)
-        {
-            uiPaused = !uiPaused.load();
-            return true;
-        }
-
-        // CTRL+W warm reset
-        if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_W)
-        {
-            warmReset();
-            return true;
-        }
-
-        // CTRL+SHIFT+R cold reset
-        if ((mods & KMOD_CTRL) && (mods & KMOD_SHIFT) && sc == SDL_SCANCODE_R)
-        {
-            coldReset();
-            return true;
-        }
-
-        // ALT cassette controls
-        if (mods & KMOD_ALT)
-        {
-            if (sc == SDL_SCANCODE_P) { if (media) media->tapePlay();   return true; }
-            if (sc == SDL_SCANCODE_S) { if (media) media->tapeStop();   return true; }
-            if (sc == SDL_SCANCODE_R) { if (media) media->tapeRewind(); return true; }
-            if (sc == SDL_SCANCODE_E) { if (media) media->tapeEject();  return true; }
-        }
-    }
-
-    // Feed InputManager (keyboard/joystick mapping)
-    if (inputMgr) return inputMgr->handleEvent(ev);
-    return false;
+    if (debug) debug->openMonitor();
 }
 
 void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
@@ -176,38 +119,6 @@ bool Computer::boot()
     cia1object->reset();
     cia2object->reset();
     sidchip->reset();
-
-    // Attach backend pointer to MLMonitor
-    monitor->attachMLMonitorBackendInstance(monbackend.get());
-
-    // Attach all devices to monitor back end
-    monbackend->attachCartridgeInstance(cart.get());
-    monbackend->attachCassetteInstance(cass.get());
-    monbackend->attachCIA1Instance(cia1object.get());
-    monbackend->attachCIA2Instance(cia2object.get());
-    monbackend->attachComputerInstance(this);
-    monbackend->attachProcessorInstance(processor.get());
-    monbackend->attachIECBusInstance(bus.get());
-    monbackend->attachIOInstance(IO_adapter.get());
-    monbackend->attachKeyboardInstance(keyb.get());
-    monbackend->attachLogInstance(logger.get());
-    monbackend->attachMemoryInstance(mem.get());
-    monbackend->attachPLAInstance(pla.get());
-    monbackend->attachSIDInstance(sidchip.get());
-    monbackend->attachVICInstance(vicII.get());
-
-    // Wire up the trace manager back end as well
-    traceMgr->attachCartInstance(cart.get());
-    traceMgr->attachCIA1Instance(cia1object.get());
-    traceMgr->attachCIA2Instance(cia2object.get());
-    traceMgr->attachCPUInstance(processor.get());
-    traceMgr->attachMemoryInstance(mem.get());
-    traceMgr->attachPLAInstance(pla.get());
-    traceMgr->attachSIDInstance(sidchip.get());
-    traceMgr->attachVicInstance(vicII.get());
-
-    // Attach the trace manager to the trace command now that we're all wired up
-    monitor->attachTraceManagerInstance(traceMgr.get());
 
     // If any command line attachments were passed in, process them
     if (media) media->applyBootAttachments();
@@ -249,7 +160,7 @@ bool Computer::boot()
             }
         }
 
-        if (monitorCtl) monitorCtl->tick();
+        if (debug) debug->tick();
         if (inputMgr) inputMgr->tick();
 
         if (pendingBusPrime)
@@ -274,20 +185,10 @@ bool Computer::boot()
                 {
                     // Check for breakpoint
                     uint16_t pc = processor->getPC();
-                    if (monitor && monitor->hasBreakpoint(pc))
+                    if (debug && debug->hasBreakpoint(pc))
                     {
-                        // Pause the emulator so state is stable while you're in the monitor
                         uiPaused = true;
-
-                        // Push the notification into the monitor window (same mechanism as watchpoints)
-                        char msg[64];
-                        std::snprintf(msg, sizeof(msg), ">>> Breakpoint hit at $%04X", pc);
-                        monitor->queueAsyncLine(msg);
-
-                        // Bring up the monitor window (or focus it if already open)
-                        if (monitorCtl) monitorCtl->open();
-
-                        // Stop executing immediately
+                        debug->onBreakpoint(pc);
                         break;
                     }
 
@@ -392,13 +293,20 @@ void Computer::setVideoMode(const std::string& mode)
 void Computer::wireUp()
 {
     // Attach components to each other
+    debug = std::make_unique<DebugManager>(uiPaused);
+
+    debug->wireBackend(this, cart.get(), cass.get(), cia1object.get(), cia2object.get(), processor.get(), bus.get(), IO_adapter.get(), keyb.get(),
+                        logger.get(), mem.get(), pla.get(), sidchip.get(), vicII.get());
+
+    debug->wireTrace(cart.get(), cia1object.get(), cia2object.get(), processor.get(), mem.get(), pla.get(), sidchip.get(), vicII.get());
+
     bus->attachCIA2Instance(cia2object.get());
     bus->attachLogInstance(logger.get());
 
     cart->attachCPUInstance(processor.get());
     cart->attachMemoryInstance(mem.get());
     cart->attachLogInstance(logger.get());
-    cart->attachTraceManagerInstance(traceMgr.get());
+    cart->attachTraceManagerInstance(&debug->trace());
     cart->attachVicInstance(vicII.get());
 
     cass->attachMemoryInstance(mem.get());
@@ -410,13 +318,13 @@ void Computer::wireUp()
     cia1object->attachKeyboardInstance(keyb.get());
     cia1object->attachLogInstance(logger.get());
     cia1object->attachMemoryInstance(mem.get());
-    cia1object->attachTraceManagerInstance(traceMgr.get());
+    cia1object->attachTraceManagerInstance(&debug->trace());
     cia1object->attachVicInstance(vicII.get());
 
     cia2object->attachCPUInstance(processor.get());
     cia2object->attachIECBusInstance(bus.get());
     cia2object->attachLogInstance(logger.get());
-    cia2object->attachTraceManagerInstance(traceMgr.get());
+    cia2object->attachTraceManagerInstance(&debug->trace());
     cia2object->attachVicInstance(vicII.get());
 
     IO_adapter->attachVICInstance(vicII.get());
@@ -433,21 +341,18 @@ void Computer::wireUp()
     mem->attachCartridgeInstance(cart.get());
     mem->attachCassetteInstance(cass.get());
     mem->attachPLAInstance(pla.get());
-    mem->attachMonitorInstance(monitor.get());;
+    mem->attachMonitorInstance(&debug->monitor());;
     mem->attachLogInstance(logger.get());
-    mem->attachTraceManagerInstance(traceMgr.get());
-
-    monitorCtl = std::make_unique<MonitorController>(uiPaused);
-    monitorCtl->attachMonitorInstance(monitor.get());
+    mem->attachTraceManagerInstance(&debug->trace());
 
     inputMgr->attachCIA1Instance(cia1object.get());
     inputMgr->attachKeyboardInstance(keyb.get());
-    inputMgr->attachMonitorControllerInstance(monitorCtl.get());
+    inputMgr->attachMonitorControllerInstance(&debug->monitorController());
 
     pla->attachCartridgeInstance(cart.get());
     pla->attachCPUInstance(processor.get());
     pla->attachLogInstance(logger.get());
-    pla->attachTraceManagerInstance(traceMgr.get());
+    pla->attachTraceManagerInstance(&debug->trace());
     pla->attachVICInstance(vicII.get());
 
     processor->attachMemoryInstance(mem.get());
@@ -455,11 +360,11 @@ void Computer::wireUp()
     processor->attachVICInstance(vicII.get());
     processor->attachIRQLineInstance(IRQ.get());
     processor->attachLogInstance(logger.get());
-    processor->attachTraceManagerInstance(traceMgr.get());
+    processor->attachTraceManagerInstance(&debug->trace());
 
     sidchip->attachCPUInstance(processor.get());;
     sidchip->attachLogInstance(logger.get());
-    sidchip->attachTraceManagerInstance(traceMgr.get());
+    sidchip->attachTraceManagerInstance(&debug->trace());
     sidchip->attachVicInstance(vicII.get());
 
     vicII->attachIOInstance(IO_adapter.get());
@@ -468,20 +373,18 @@ void Computer::wireUp()
     vicII->attachCIA2Instance(cia2object.get());
     vicII->attachIRQLineInstance(IRQ.get());
     vicII->attachLogInstance(logger.get());
-    vicII->attachTraceManagerInstance(traceMgr.get());
+    vicII->attachTraceManagerInstance(&debug->trace());
 
-    media = std::make_unique<MediaManager>(cart, drives, *bus, *mem, *pla, *processor, *vicII, *monbackend, *traceMgr, *cass, *logger,
-                                            D1541LoROM, D1541HiROM, D1571ROM, D1581ROM,
-                                            [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; },
-                                            [this]() { this->coldReset(); });
+    media = std::make_unique<MediaManager>(cart, drives, *bus, *mem, *pla, *processor, *vicII, debug->backend(), debug->trace(), *cass, *logger,
+    D1541LoROM, D1541HiROM, D1571ROM, D1581ROM, [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [this]() { this->coldReset(); });
 
     if (media) media->setVideoMode(videoMode_);
 
-    inputRouter = std::make_unique<InputRouter>(uiPaused, monitorCtl.get(), inputMgr.get(), media.get(), [this]() { warmReset(); },
-                                   [this]() { coldReset(); });
+    inputRouter = std::make_unique<InputRouter>(uiPaused, &debug->monitorController(), inputMgr.get(), media.get(), [this]() { warmReset(); },
+    [this]() { coldReset(); });
 
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
-                                *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
+    *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
 
     uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this]() { warmReset(); },
     [this]() { coldReset(); }, [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); },

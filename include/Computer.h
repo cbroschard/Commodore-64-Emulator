@@ -25,7 +25,6 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "CPUTiming.h"
-#include "Debug/MLMonitorBackend.h"
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
@@ -41,14 +40,13 @@
 #include "Logging.h"
 #include "MediaManager.h"
 #include "Memory.h"
-#include "MonitorController.h"
 #include "PLA.h"
 #include "SID/SID.h"
 #include "Tape/TapeImageFactory.h"
-#include "Debug/TraceManager.h"
 #include "Vic.h"
 
 // Forward declarations
+class DebugManager;
 class MLMonitor;
 class ResetController;
 class UIBridge;
@@ -109,6 +107,7 @@ class Computer
         std::unique_ptr<CIA1> cia1object;
         std::unique_ptr<CIA2> cia2object;
         std::unique_ptr<CPU> processor;
+        std::unique_ptr<DebugManager> debug;
         std::array<std::unique_ptr<Drive>, 16> drives;
         std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;
@@ -119,19 +118,12 @@ class Computer
         std::unique_ptr<Logging> logger;
         std::unique_ptr<MediaManager> media;
         std::unique_ptr<Memory> mem;
-        std::unique_ptr<MLMonitor> monitor;
-        std::unique_ptr<MLMonitorBackend> monbackend;
-        std::unique_ptr<MonitorController> monitorCtl;
         std::unique_ptr<PLA> pla;
         std::unique_ptr<ResetController> resetCtl;
         std::unique_ptr<SID> sidchip;
         std::unique_ptr<IO> IO_adapter;
-        std::unique_ptr<TraceManager> traceMgr;
         std::unique_ptr<UIBridge> uiBridge;
         std::unique_ptr<Vic> vicII;
-
-        // Event handling
-        bool handleInputEvent(const SDL_Event& ev);
 
         // Joystick
         void setJoystickAttached(int port, bool flag);
