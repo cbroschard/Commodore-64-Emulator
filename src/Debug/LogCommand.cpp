@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/LogCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 struct LogCommand::Logged
 {

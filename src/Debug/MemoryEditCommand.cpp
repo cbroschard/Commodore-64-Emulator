@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/MemoryEditCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 MemoryEditCommand::MemoryEditCommand() = default;
 

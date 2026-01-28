@@ -8,6 +8,7 @@
 #include "GoCommand.h"
 #include "Computer.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 GoCommand::GoCommand() :
     trapAddress(0xFFF)

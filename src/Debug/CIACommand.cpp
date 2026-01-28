@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/CIACommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 CIACommand::CIACommand() = default;
 

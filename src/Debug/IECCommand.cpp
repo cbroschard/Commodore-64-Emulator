@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/IECCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 IECCommand::IECCommand() = default;
 

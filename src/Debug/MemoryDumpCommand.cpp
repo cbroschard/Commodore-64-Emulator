@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/MemoryDumpCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 MemoryDumpCommand::MemoryDumpCommand() = default;
 

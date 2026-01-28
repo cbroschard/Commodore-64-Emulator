@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/DisassembleCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 DisassembleCommand::DisassembleCommand() :
     hasLastPC(false)

@@ -1,6 +1,7 @@
 #include "Computer.h"
 #include "Debug/MemoryEditDirectCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 MemoryEditDirectCommand::MemoryEditDirectCommand() = default;
 

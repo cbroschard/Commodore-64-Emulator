@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Computer.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 #include "Debug/RegisterDumpCommand.h"
 
 RegisterDumpCommand::RegisterDumpCommand() = default;

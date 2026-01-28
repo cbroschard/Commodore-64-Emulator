@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/JamCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 JamCommand::JamCommand() = default;
 

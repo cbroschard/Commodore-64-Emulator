@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/AssembleCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 AssembleCommand::AssembleCommand() = default;
 

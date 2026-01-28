@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 ExportDisassemblyCommand::ExportDisassemblyCommand() = default;
 

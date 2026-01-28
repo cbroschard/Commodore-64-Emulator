@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/CartridgeCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 CartridgeCommand::CartridgeCommand() = default;
 

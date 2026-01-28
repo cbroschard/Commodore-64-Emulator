@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/NextCommand.h"
+#include "Debug/MLMonitorBackend.h"
 
 NextCommand::NextCommand() = default;
 

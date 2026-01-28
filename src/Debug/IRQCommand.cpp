@@ -8,6 +8,7 @@
 #include "Computer.h"
 #include "Debug/IRQCommand.h"
 #include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 IRQCommand::IRQCommand() = default;
 
