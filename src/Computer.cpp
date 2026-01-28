@@ -18,7 +18,7 @@ Computer::Computer() :
     processor(std::make_unique<CPU>()),
     ui(std::make_unique<EmulatorUI>()),
     bus(std::make_unique<IECBUS>()),
-    input(std::make_unique<InputManager>()),
+    inputMgr(std::make_unique<InputManager>()),
     IRQ(std::make_unique<IRQLine>()),
     keyb(std::make_unique<Keyboard>()),
     logger(std::make_unique<Logging>("debug.txt")),
@@ -69,7 +69,7 @@ Computer::~Computer() noexcept
 
 void Computer::setJoystickAttached(int port, bool flag)
 {
-    if (input) input->setJoystickAttached(port, flag);
+    if (inputMgr) inputMgr->setJoystickAttached(port, flag);
 }
 
 void Computer::set1541LoROM(const std::string& loROM)
@@ -151,14 +151,14 @@ bool Computer::handleInputEvent(const SDL_Event& ev)
     }
 
     // Feed InputManager (keyboard/joystick mapping)
-    if (input) return input->handleEvent(ev);
+    if (inputMgr) return inputMgr->handleEvent(ev);
     return false;
 }
 
 void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
 {
-    if (!input) return;
-    input->setJoystickConfig(port, cfg);
+    if (!inputMgr) return;
+    inputMgr->setJoystickConfig(port, cfg);
 }
 
 bool Computer::boot()
@@ -241,13 +241,13 @@ bool Computer::boot()
             // Controller add/remove
             if (e.type == SDL_CONTROLLERDEVICEADDED)
             {
-                if (input) input->handleControllerDeviceAdded(e.cdevice.which);
+                if (inputMgr) inputMgr->handleControllerDeviceAdded(e.cdevice.which);
                 continue;
             }
 
             if (e.type == SDL_CONTROLLERDEVICEREMOVED)
             {
-                if (input) input->handleControllerDeviceRemoved((SDL_JoystickID)e.cdevice.which);
+                if (inputMgr) inputMgr->handleControllerDeviceRemoved((SDL_JoystickID)e.cdevice.which);
                 continue;
             }
 
@@ -263,7 +263,7 @@ bool Computer::boot()
         }
 
         if (monitorCtl) monitorCtl->tick();
-        if (input) input->tick();
+        if (inputMgr) inputMgr->tick();
 
         if (pendingBusPrime)
         {
@@ -453,9 +453,9 @@ void Computer::wireUp()
     monitorCtl = std::make_unique<MonitorController>(uiPaused);
     monitorCtl->attachMonitorInstance(monitor.get());
 
-    input->attachCIA1Instance(cia1object.get());
-    input->attachKeyboardInstance(keyb.get());
-    input->attachMonitorControllerInstance(monitorCtl.get());
+    inputMgr->attachCIA1Instance(cia1object.get());
+    inputMgr->attachKeyboardInstance(keyb.get());
+    inputMgr->attachMonitorControllerInstance(monitorCtl.get());
 
     pla->attachCartridgeInstance(cart.get());
     pla->attachCPUInstance(processor.get());
@@ -493,7 +493,7 @@ void Computer::wireUp()
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
                                 *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
 
-    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), input.get(), uiPaused, running, [this]() { warmReset(); },
+    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this]() { warmReset(); },
     [this]() { coldReset(); }, [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); },
     [this]() { return videoMode_ == VideoMode::PAL; });
 }

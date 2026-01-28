@@ -78,8 +78,8 @@ class Computer
 
         // Getters
         inline bool getCartridgeAttached() { return media ? media->getState().cartAttached : false; }
-        inline Joystick* getJoy1() { return input ? input->getJoy1() : nullptr; }
-        inline Joystick* getJoy2() { return input ? input->getJoy2() : nullptr; }
+        inline Joystick* getJoy1() { return inputMgr ? inputMgr->getJoy1() : nullptr; }
+        inline Joystick* getJoy2() { return inputMgr ? inputMgr->getJoy2() : nullptr; }
 
         // Game controls
         void setJoystickConfig(int port, JoystickMapping& cfg);
@@ -111,7 +111,7 @@ class Computer
         std::array<std::unique_ptr<Drive>, 16> drives;
         std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;
-        std::unique_ptr<InputManager> input;
+        std::unique_ptr<InputManager> inputMgr;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Keyboard> keyb;
         std::unique_ptr<Logging> logger;
