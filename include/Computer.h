@@ -34,6 +34,7 @@
 #include "IECBUS.h"
 #include "IO.h"
 #include "InputManager.h"
+#include "InputRouter.h"
 #include "IRQLine.h"
 #include "Joystick.h"
 #include "keyboard.h"
@@ -112,6 +113,7 @@ class Computer
         std::unique_ptr<EmulatorUI> ui;
         std::unique_ptr<IECBUS> bus;
         std::unique_ptr<InputManager> inputMgr;
+        std::unique_ptr<InputRouter> inputRouter;
         std::unique_ptr<IRQLine> IRQ;
         std::unique_ptr<Keyboard> keyb;
         std::unique_ptr<Logging> logger;

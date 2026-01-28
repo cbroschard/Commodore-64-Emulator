@@ -234,22 +234,9 @@ bool Computer::boot()
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
-            // handle hotkeys / monitor / input mapping first
-            if (handleInputEvent(e))
+            // InputRouter handles hotkeys + monitor + controller hotplug + input mapping
+            if (inputRouter && inputRouter->handleEvent(e))
                 continue;
-
-            // Controller add/remove
-            if (e.type == SDL_CONTROLLERDEVICEADDED)
-            {
-                if (inputMgr) inputMgr->handleControllerDeviceAdded(e.cdevice.which);
-                continue;
-            }
-
-            if (e.type == SDL_CONTROLLERDEVICEREMOVED)
-            {
-                if (inputMgr) inputMgr->handleControllerDeviceRemoved((SDL_JoystickID)e.cdevice.which);
-                continue;
-            }
 
             // Forward the event to ImGui/render thread
             IO_adapter->enqueueEvent(e);
@@ -489,6 +476,9 @@ void Computer::wireUp()
                                             [this]() { this->coldReset(); });
 
     if (media) media->setVideoMode(videoMode_);
+
+    inputRouter = std::make_unique<InputRouter>(uiPaused, monitorCtl.get(), inputMgr.get(), media.get(), [this]() { warmReset(); },
+                                   [this]() { coldReset(); });
 
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
                                 *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
