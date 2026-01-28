@@ -63,7 +63,6 @@ Run the emulator and use the UI/menu to load images (Cartridge, Disk, Tape, Prog
   --cartridge arg       Path and filename for cartridge to load on boot
   --tape arg            Path and filename for TAP or T64 tape image to load
   --program arg         Path and filename for PRG or P00 image to load
-  --disk arg            Path and filename for disk image to load (D64, D71, D81, etc.)
   --version             Print version and exit
 ```
 
