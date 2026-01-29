@@ -185,7 +185,7 @@ bool Computer::boot()
                 {
                     // Check for breakpoint
                     uint16_t pc = processor->getPC();
-                    if (debug && debug->hasBreakpoint(pc))
+                    if (!uiPaused.load() && debug && debug->hasBreakpoint(pc))
                     {
                         uiPaused = true;
                         debug->onBreakpoint(pc);
