@@ -194,7 +194,9 @@ bool TAP::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
         return false;
     }
 
+    #ifdef Debug
     std::cout << "Loaded TAPE file: " << path << " (" << size << " bytes)" << std::endl;
+    #endif // Debug
     return true;
 }
 
