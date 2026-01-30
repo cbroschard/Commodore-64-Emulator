@@ -10,8 +10,6 @@
 
 // forward declarations
 class CIA2;
-class Vic;
-class PLA;
 
 #include <stdexcept>
 #include <sstream>
