@@ -12,7 +12,8 @@
 #include "sdl2/SDL.h"
 
 // Struct to hold text and its specific color
-struct ConsoleLine {
+struct ConsoleLine
+{
     std::string text;
     SDL_Color color;
 };

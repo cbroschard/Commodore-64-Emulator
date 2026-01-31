@@ -218,8 +218,8 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec)
     // Enables SDL_TEXTINPUT events for typing
     SDL_StartTextInput();
 
-    appendLine("ML Monitor (SDL) - type 'help' and press Enter", COL_HEADER);
-    appendLine("------------------------------------------------", COL_HEADER);
+    appendLine("ML Monitor - type 'help' and press Enter", COL_HEADER);
+    appendLine("------------------------------------------", COL_HEADER);
 
     return true;
 }
