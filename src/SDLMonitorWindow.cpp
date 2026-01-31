@@ -124,7 +124,15 @@ SDLMonitorWindow::SDLMonitorWindow() :
     charHeight(8),
     opened(false),
     historyIndex(0),
-    scrollOffset(0)
+    scrollOffset(0),
+    autoScroll(true),
+    maxScrollOffset(0),
+    selecting(false),
+    selAnchor(-1),
+    selStart(-1),
+    selEnd(-1),
+    draggingThumb(false),
+    thumbDragGrabY(0)
 {
 
 }
@@ -240,8 +248,13 @@ void SDLMonitorWindow::appendLine(const std::string& s)
 void SDLMonitorWindow::appendLine(const std::string& s, SDL_Color color)
 {
     lines.push_back({s, color});
-    // clamp scroll to bottom (reset offset)
-    scrollOffset = 0;
+
+    // If we're pinned to bottom, stay pinned. If user scrolled up, do not yank them down.
+    if (scrollOffset == 0)
+        autoScroll = true;
+
+    if (autoScroll)
+        scrollOffset = 0;
 }
 
 void SDLMonitorWindow::addChar(char c)
@@ -315,45 +328,110 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 {
     if (!opened) return;
 
-    // Handle window close logic
+    // Handle window close / resize logic
     if (e.type == SDL_WINDOWEVENT)
     {
         if (e.window.windowID == SDL_GetWindowID(win))
         {
             if (e.window.event == SDL_WINDOWEVENT_CLOSE)
+            {
                 close();
+            }
             else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
             {
-                width = e.window.data1;
+                width  = e.window.data1;
                 height = e.window.data2;
+
+                // After resize, make sure scrollOffset is still valid.
+                scrollOffset = clampScrollOffset(scrollOffset);
+                autoScroll   = (scrollOffset == 0);
             }
         }
         return;
     }
 
-    // Filter events for this window
+    // Filter events for THIS window only
     const Uint32 myId = SDL_GetWindowID(win);
+
     if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID != myId) return;
     if (e.type == SDL_TEXTINPUT && e.text.windowID != myId) return;
     if (e.type == SDL_MOUSEWHEEL && e.wheel.windowID != myId) return;
 
+    // IMPORTANT: mouse events must also be filtered or selection/drag will break
+    if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && e.button.windowID != myId) return;
+    if (e.type == SDL_MOUSEMOTION && e.motion.windowID != myId) return;
+
+    // Text input (typing)
     if (e.type == SDL_TEXTINPUT)
     {
         for (const char* p = e.text.text; *p; ++p)
             addChar(*p);
+
+        return;
     }
-    else if (e.type == SDL_KEYDOWN)
+
+    // Key down
+    if (e.type == SDL_KEYDOWN)
     {
+        SDL_Keymod mods = SDL_GetModState();
+        bool ctrl = (mods & KMOD_CTRL) != 0;
+
+        // Ctrl+V Paste
+        if (ctrl && e.key.keysym.sym == SDLK_v)
+        {
+            char* clip = SDL_GetClipboardText();
+            if (clip)
+            {
+                input += clip;
+                SDL_free(clip);
+            }
+            return;
+        }
+
+        // Ctrl+C Copy (selection if exists, otherwise input fallback)
+        if (ctrl && e.key.keysym.sym == SDLK_c)
+        {
+            if (hasSelection())
+            {
+                std::string txt = getSelectedText();
+                SDL_SetClipboardText(txt.c_str());
+            }
+            else
+            {
+                SDL_SetClipboardText(input.c_str());
+            }
+            return;
+        }
+
         switch (e.key.keysym.sym)
         {
-            case SDLK_BACKSPACE: backspace(); break;
-            case SDLK_RETURN:
-            case SDLK_KP_ENTER:  submitCommand(); break;
-            case SDLK_ESCAPE:    close(); break;
-            case SDLK_PAGEUP:    scrollOffset += 10; break;
-            case SDLK_PAGEDOWN:  scrollOffset = std::max(scrollOffset - 10, 0); break;
+            case SDLK_BACKSPACE:
+                backspace();
+                break;
 
-            // History Navigation
+            case SDLK_RETURN:
+            case SDLK_KP_ENTER:
+                submitCommand();
+                clearSelection(); // optional; feels nicer
+                break;
+
+            case SDLK_ESCAPE:
+                close();
+                break;
+
+            case SDLK_PAGEUP:
+                scrollOffset += 10;
+                scrollOffset = clampScrollOffset(scrollOffset);
+                autoScroll   = (scrollOffset == 0);
+                break;
+
+            case SDLK_PAGEDOWN:
+                scrollOffset -= 10;
+                scrollOffset = clampScrollOffset(scrollOffset);
+                autoScroll   = (scrollOffset == 0);
+                break;
+
+            // Command history navigation (Up/Down)
             case SDLK_UP:
                 if (historyIndex > 0)
                 {
@@ -361,33 +439,112 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                     input = history[historyIndex];
                 }
                 break;
+
             case SDLK_DOWN:
                 if (historyIndex < (int)history.size())
                 {
                     historyIndex++;
                     if (historyIndex == (int)history.size())
-                    {
-                        input.clear(); // Past the last history item = blank line
-                    }
+                        input.clear();
                     else
-                    {
                         input = history[historyIndex];
-                    }
                 }
                 break;
 
-            default: break;
+            default:
+                break;
         }
 
-        // Clamp scroll
-        if (scrollOffset > (int)lines.size()) scrollOffset = (int)lines.size();
+        return;
     }
-    else if (e.type == SDL_MOUSEWHEEL)
-    {
-        if (e.wheel.y > 0) scrollOffset++;
-        if (e.wheel.y < 0) scrollOffset = std::max(scrollOffset - 1, 0);
 
-        if (scrollOffset > (int)lines.size()) scrollOffset = (int)lines.size();
+    // Mouse wheel scrolling
+    if (e.type == SDL_MOUSEWHEEL)
+    {
+        if (e.wheel.y > 0) scrollOffset += 3;
+        if (e.wheel.y < 0) scrollOffset -= 3;
+
+        scrollOffset = clampScrollOffset(scrollOffset);
+        autoScroll   = (scrollOffset == 0);
+
+        return;
+    }
+
+    // Mouse button down (selection or scrollbar interactions)
+    if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+    {
+        SDL_Point p{ e.button.x, e.button.y };
+
+        // If clicked thumb => drag scrollbar
+        SDL_Rect thumb = getScrollbarThumbRect();
+        if (SDL_PointInRect(&p, &thumb))
+        {
+            draggingThumb = true;
+            thumbDragGrabY = e.button.y - thumb.y;
+            return;
+        }
+
+        // If clicked track (but not thumb) => jump and begin thumb drag
+        SDL_Rect track = getScrollbarTrackRect();
+        if (SDL_PointInRect(&p, &track))
+        {
+            setScrollFromThumbCenterY(e.button.y);
+
+            draggingThumb = true;
+            SDL_Rect thumb2 = getScrollbarThumbRect();
+            thumbDragGrabY = thumb2.h / 2; // grab center for smooth drag
+            return;
+        }
+
+        // Start selecting lines
+        int idx = lineIndexFromMouseY(e.button.y);
+        if (idx >= 0)
+        {
+            selecting = true;
+            selAnchor = idx;
+            selStart  = idx;
+            selEnd    = idx;
+        }
+        else
+        {
+            clearSelection();
+        }
+
+        return;
+    }
+
+    // Mouse motion (drag thumb or update selection)
+    if (e.type == SDL_MOUSEMOTION)
+    {
+        if (draggingThumb)
+        {
+            SDL_Rect thumb = getScrollbarThumbRect();
+            int newThumbY = e.motion.y - thumbDragGrabY;
+            int thumbCenterY = newThumbY + thumb.h / 2;
+
+            setScrollFromThumbCenterY(thumbCenterY);
+            return;
+        }
+
+        if (selecting)
+        {
+            int idx = lineIndexFromMouseY(e.motion.y);
+            if (idx >= 0 && selAnchor >= 0)
+            {
+                selStart = std::min(selAnchor, idx);
+                selEnd   = std::max(selAnchor, idx);
+            }
+        }
+
+        return;
+    }
+
+    // Mouse button up (stop drag/selection)
+    if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+    {
+        selecting = false;
+        draggingThumb = false;
+        return;
     }
 }
 
@@ -453,18 +610,158 @@ void SDLMonitorWindow::render()
     {
         if (currentY < 0) break; // Off top of screen
 
+        bool selected = hasSelection() && (i >= selStart && i <= selEnd);
+        if (selected)
+        {
+            SDL_Rect bg{ padding - 2, currentY - 1, width - padding - 14, lineHeight };
+            SDL_SetRenderDrawColor(ren, 60, 60, 110, 255);
+            SDL_RenderFillRect(ren, &bg);
+        }
+
         // Now passing the stored color for each line
         drawString(padding, currentY, lines[i].text, lines[i].color);
         currentY -= lineHeight;
     }
 
     // Scrollbar indicator (simple)
-    if (scrollOffset > 0)
+    int vis = visibleHistoryLines();
+    int total = (int)lines.size();
+    if (total > vis)
     {
-        SDL_Rect scrollRect = { width - 5, 0, 5, 5 };
-        SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
-        SDL_RenderFillRect(ren, &scrollRect);
+        SDL_Rect track = getScrollbarTrackRect();
+        SDL_Rect thumb = getScrollbarThumbRect();
+
+        SDL_SetRenderDrawColor(ren, 40, 40, 40, 255);
+        SDL_RenderFillRect(ren, &track);
+
+        SDL_SetRenderDrawColor(ren, 120, 120, 120, 255);
+        SDL_RenderFillRect(ren, &thumb);
     }
 
-    SDL_RenderPresent(ren);
+        SDL_RenderPresent(ren);
+}
+
+int SDLMonitorWindow::visibleHistoryLines() const
+{
+    const int padding = 5;
+    const int lineHeight = 10;
+
+    int inputY = height - padding - lineHeight;
+    int historyBottomY = inputY - lineHeight;
+
+    // number of full lines that can fit from y=0..historyBottomY
+    int count = (historyBottomY / lineHeight) + 1;
+    return std::max(0, count);
+}
+
+int SDLMonitorWindow::clampScrollOffset(int off) const
+{
+    int vis = visibleHistoryLines();
+    int maxOff = std::max(0, (int)lines.size() - vis);
+    if (off < 0) off = 0;
+    if (off > maxOff) off = maxOff;
+    return off;
+}
+
+void SDLMonitorWindow::clearSelection()
+{
+    selAnchor = selStart = selEnd = -1;
+}
+
+bool SDLMonitorWindow::hasSelection() const
+{
+    return (selStart >= 0 && selEnd >= 0 && selStart <= selEnd && selEnd < (int)lines.size());
+}
+
+std::string SDLMonitorWindow::getSelectedText() const
+{
+    if (!hasSelection()) return "";
+
+    std::string out;
+    for (int i = selStart; i <= selEnd; ++i)
+    {
+        out += lines[i].text;
+        out += "\n";
+    }
+    return out;
+}
+
+int SDLMonitorWindow::lineIndexFromMouseY(int mouseY) const
+{
+    const int padding = 5;
+    const int lineHeight = 10;
+
+    int inputY = height - padding - lineHeight;
+    int historyBottomY = inputY - lineHeight;
+
+    if (mouseY < 0 || mouseY > historyBottomY) return -1;
+
+    int rowFromBottom = (historyBottomY - mouseY) / lineHeight;
+
+    // Which line is shown at bottom?
+    int historyCount = (int)lines.size();
+    int startIdx = historyCount - 1 - scrollOffset;
+
+    int idx = startIdx - rowFromBottom;
+    if (idx < 0 || idx >= historyCount) return -1;
+    return idx;
+}
+
+SDL_Rect SDLMonitorWindow::getScrollbarTrackRect() const
+{
+    const int padding = 5;
+    const int lineHeight = 10;
+    int inputY = height - padding - lineHeight;
+    int historyBottomY = inputY - lineHeight;
+
+    SDL_Rect r;
+    r.w = 10;
+    r.x = width - r.w - 2;
+    r.y = 2;
+    r.h = std::max(0, historyBottomY - 2);
+    return r;
+}
+
+SDL_Rect SDLMonitorWindow::getScrollbarThumbRect() const
+{
+    SDL_Rect track = getScrollbarTrackRect();
+
+    int vis = visibleHistoryLines();
+    int total = (int)lines.size();
+    if (total <= vis || track.h <= 0)
+        return SDL_Rect{track.x, track.y, track.w, track.h};
+
+    float fracVisible = (float)vis / (float)total;
+    int thumbH = std::max(16, (int)(track.h * fracVisible));
+
+    int maxOff = std::max(1, total - vis);
+    float fracScroll = (float)scrollOffset / (float)maxOff; // 0..1
+
+    int travel = track.h - thumbH;
+    int thumbY = track.y + (int)(fracScroll * travel);
+
+    return SDL_Rect{track.x, thumbY, track.w, thumbH};
+}
+
+void SDLMonitorWindow::setScrollFromThumbCenterY(int thumbCenterY)
+{
+    SDL_Rect track = getScrollbarTrackRect();
+    int vis = visibleHistoryLines();
+    int total = (int)lines.size();
+    if (total <= vis || track.h <= 0) return;
+
+    int maxOff = std::max(1, total - vis);
+    SDL_Rect thumb = getScrollbarThumbRect();
+    int thumbH = thumb.h;
+
+    int travel = track.h - thumbH;
+    if (travel <= 0) return;
+
+    int desiredThumbY = thumbCenterY - (thumbH / 2);
+    desiredThumbY = std::clamp(desiredThumbY, track.y, track.y + travel);
+
+    float frac = (float)(desiredThumbY - track.y) / (float)travel;
+    scrollOffset = clampScrollOffset((int)(frac * maxOff + 0.5f));
+
+    autoScroll = (scrollOffset == 0);
 }

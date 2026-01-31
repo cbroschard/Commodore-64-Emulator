@@ -29,10 +29,8 @@ class SDLMonitorWindow
         bool open(const char* title, int w, int h, ExecFn exec);
         void close();
 
-        // Call from your existing event pump (drainEvents consumer)
         void handleEvent(const SDL_Event& e);
 
-        // Call once per frame from render loop
         void render();
 
         // Allow external push (optional) - Overloaded to support colors
@@ -69,6 +67,16 @@ class SDLMonitorWindow
         int historyIndex; // Points to current history item (or history.size() for new line)
 
         int scrollOffset;
+        bool autoScroll;       // stay pinned to bottom when true
+        int  maxScrollOffset;     // computed from visible lines
+
+        bool selecting;
+        int  selAnchor;          // line index at mouse-down
+        int  selStart;           // inclusive line index
+        int  selEnd;             // inclusive line index
+
+        bool draggingThumb;
+        int  thumbDragGrabY;
 
         void submitCommand();
         void backspace();
@@ -76,4 +84,15 @@ class SDLMonitorWindow
 
         void createFontTexture();
         void drawString(int x, int y, const std::string& str, const SDL_Color& color);
+
+        int  visibleHistoryLines() const;
+        int  clampScrollOffset(int off) const;
+        int  lineIndexFromMouseY(int mouseY) const;
+        void clearSelection();
+        bool hasSelection() const;
+        std::string getSelectedText() const;
+
+        SDL_Rect getScrollbarTrackRect() const;
+        SDL_Rect getScrollbarThumbRect() const;
+        void setScrollFromThumbCenterY(int thumbCenterY);
 };
