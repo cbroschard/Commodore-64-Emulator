@@ -8,7 +8,7 @@
 #ifndef D81_H
 #define D81_H
 
-#include "CBMIMage.h"
+#include "CBMImage.h"
 
 class D81 : public CBMImage
 {
@@ -27,9 +27,9 @@ class D81 : public CBMImage
 
     private:
 
-        static constexpr size_t D81_HEADER_SIZE        = 0x90; // 144-byte header
-        static constexpr int    D81_TRACK_COUNT        = 80;
-        static constexpr int    D81_SECTORS_PER_TRACK  = 40;
+        static constexpr size_t D81_HEADER_SIZE        = 0; // no header
+        static constexpr int    D81_TRACK_COUNT        = 160; // 80 cylinders * 2 sides
+        static constexpr int    D81_SECTORS_PER_TRACK  = 10;
 
         // Helpers for disk access
         uint16_t getSectorsForTrack(uint8_t track) override;
