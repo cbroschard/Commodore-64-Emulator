@@ -11,7 +11,7 @@
 struct VersionInfo
 {
     static constexpr const char* NAME = "Commodore 64 Emulator by Christopher Broschard";
-    static constexpr const char* VERSION = "v0.6.2-alpha";
+    static constexpr const char* VERSION = "v0.6.3-alpha";
     static constexpr const char* BUILD_DATE = __DATE__;
     static constexpr const char* BUILD_TIME = __TIME__;
 };
