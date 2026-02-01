@@ -13,6 +13,8 @@ DriveCIA::DriveCIA() :
     portBPins(0xFF),
     cntLevel(true),
     lastCntLevel(true),
+    flagLine(true),
+    lastFlagLine(true),
     todAlarmSetMode(0),
     todAlarmTriggered(false),
     interruptStatus(0x00)
@@ -48,6 +50,9 @@ void DriveCIA::reset()
 
     cntLevel                    = true;
     lastCntLevel                = true;
+
+    flagLine                    = true;
+    lastFlagLine                = true;
 
     // IRQ reset
     interruptStatus = 0x00;
@@ -329,6 +334,17 @@ void DriveCIA::triggerInterrupt(InterruptBit bit)
 {
     interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
     interruptStatus |= 0x80; // master IRQ flag
+}
+
+void DriveCIA::setFlagLine(bool level)
+{
+    flagLine = level;
+
+    // Falling edge triggers FLAG interrupt (common convention)
+    if (lastFlagLine && !flagLine)
+        triggerInterrupt(INTERRUPT_FLAG_LINE);
+
+    lastFlagLine = flagLine;
 }
 
 void DriveCIA::updatePinsFromBus()

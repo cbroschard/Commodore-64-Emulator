@@ -36,17 +36,43 @@ class D1581 : public Drive, public FloppyControllerHost
         inline uint8_t getCurrentSide() const { return currentSide; }
         inline void setCurrentSide(uint8_t side) { currentSide = side; }
 
+        // status
+        inline DriveStatus getDriveStatus() const override { return currentDriveStatus; }
+
+        // Chip getters
+        inline CPU* getDriveCPU() override { return &driveCPU; }
+        inline DriveMemoryBase* getMemory() override { return &d1581mem; }
+        inline const DriveVIABase* getVIA1() const override { return nullptr; }
+        inline const DriveVIABase* getVIA2() const override { return nullptr; }
+
         // FDC Sync
         void syncTrackFromFDC();
+
+        void unloadDisk() override;
+        void forceSyncIEC() override;
+
+        void atnChanged(bool atnLow) override;
+        void clkChanged(bool clkLow)  override;
+        void dataChanged(bool dataLow) override;
+
+        inline bool isSRQAsserted() const override { return srqAsserted; }
+        inline void setSRQAsserted(bool srq) override { srqAsserted = srq; }
+
+        // IEC Commands
+        void onListen() override;
+        void onUnListen() override;
+        void onTalk() override;
+        void onUnTalk() override;
+        void onSecondaryAddress(uint8_t sa) override;
 
         // IRQ handling
         void updateIRQ();
 
         // IEC getters
-        inline bool getAtnLineLow() const { return bus ? !bus->readAtnLine() : atnLineLow; }
-        inline bool getClkLineLow() const { return bus ? !bus->readClkLine() : clkLineLow; }
-        inline bool getDataLineLow() const { return bus ? !bus->readDataLine() :dataLineLow; }
-        inline bool getSRQAsserted() const { return srqAsserted; }
+        inline bool getAtnLineLow() const override { return bus ? !bus->readAtnLine() : atnLineLow; }
+        inline bool getClkLineLow() const override { return bus ? !bus->readClkLine() : clkLineLow; }
+        inline bool getDataLineLow() const override  { return bus ? !bus->readDataLine() :dataLineLow; }
+        inline bool getSRQAsserted() const override { return srqAsserted; }
 
         // Drive Mechanics
         inline void startMotor() override { motorOn = true; }
@@ -97,6 +123,18 @@ class D1581 : public Drive, public FloppyControllerHost
         bool clkLineLow;
         bool dataLineLow;
         bool srqAsserted;
+        bool iecLinesPrimed;
+        bool iecListening;
+        bool iecRxActive;
+        bool iecTalking;
+        bool presenceAckDone;
+        bool expectingSecAddr;
+        bool expectingDataByte;
+        uint8_t currentListenSA;
+        uint8_t currentTalkSA;
+
+        int iecRxBitCount;
+        uint8_t iecRxByte;
 
         // Floppy Image
         std::string loadedDiskName;

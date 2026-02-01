@@ -15,8 +15,21 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     clkLineLow(false),
     dataLineLow(false),
     srqAsserted(false),
+    iecLinesPrimed(false),
+    iecListening(false),
+    iecRxActive(false),
+    iecTalking(false),
+    presenceAckDone(false),
+    expectingSecAddr(false),
+    expectingDataByte(false),
+    currentListenSA(0),
+    currentTalkSA(0),
+    iecRxBitCount(0),
+    iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
+    lastError(DriveError::NONE),
+    status(DriveStatus::IDLE),
     currentTrack(17),
     currentSector(0)
 {
@@ -37,7 +50,7 @@ D1581::~D1581() = default;
 
 void D1581::reset()
 {
-    motorOn = false;
+    motorOn             = false;
 
     // Status
     lastError           = DriveError::NONE;
@@ -46,10 +59,27 @@ void D1581::reset()
     currentSector       = 0;
 
     // IEC BUS reset
-    atnLineLow         = false;
-    clkLineLow         = false;
-    dataLineLow        = false;
-    srqAsserted        = false;
+    atnLineLow          = false;
+    clkLineLow          = false;
+    dataLineLow         = false;
+    srqAsserted         = false;
+
+    // IEC Communication
+    iecLinesPrimed      = false;
+    iecTalking          = false;
+    iecListening        = false;
+    iecRxActive         = false;
+    presenceAckDone     = false;
+    expectingSecAddr    = false;
+    expectingDataByte   = false;
+    currentListenSA     = 0;
+    currentTalkSA       = 0;
+    iecRxBitCount       = 0;
+    iecRxByte           = 0;
+
+    // Drive status
+    lastError           = DriveError::NONE;
+    status              = DriveStatus::IDLE;
 
     // Reset actual line states
     peripheralAssertClk(false);  // Release Clock
@@ -86,6 +116,134 @@ void D1581::syncTrackFromFDC()
     if (!fdc) return;
 
     currentTrack = fdc->getCurrentTrack();
+}
+
+void D1581::unloadDisk()
+{
+    diskImage.reset();
+    diskLoaded = false;
+    loadedDiskName.clear();
+
+    currentDriveError  = DriveError::NO_DISK;
+    currentDriveStatus = DriveStatus::IDLE;
+}
+
+void D1581::forceSyncIEC()
+{
+    if (!bus)
+        return;
+
+    atnLineLow  = !bus->readAtnLine();
+    clkLineLow  = !bus->readClkLine();
+    dataLineLow = !bus->readDataLine();
+
+    // Push those levels into the base drive/peripheral logic
+    Drive::atnChanged(atnLineLow);
+    Drive::driveControlClkLine(clkLineLow);
+    Drive::driveControlDataLine(dataLineLow);
+}
+
+void D1581::atnChanged(bool atnLow)
+{
+    if (atnLow == atnLineLow) return; // ignore no change
+
+    atnLineLow = atnLow;
+
+    // Force clk to release when Atn is asserted by the C64
+    if (atnLineLow) peripheralAssertClk(false);
+
+    // Check for falling edge
+    d1581mem.getCIA().setFlagLine(!atnLow ? true : false);
+}
+
+void D1581::clkChanged(bool clkLow)
+{
+    if (clkLow == clkLineLow) return; // ignore no change
+
+    clkLineLow = clkLow;
+}
+
+void D1581::dataChanged(bool dataLow)
+{
+    if (dataLow == dataLineLow) return; // ignore no change
+
+    dataLineLow = dataLow;
+}
+
+void D1581::onListen()
+{
+    // IEC bus has selected this drive as a listener
+    iecListening = true;
+    iecTalking   = false;
+
+    listening = true;
+    talking   = false;
+}
+
+void D1581::onUnListen()
+{
+    peripheralAssertData(false);
+    peripheralAssertClk(false);
+    peripheralAssertSrq(false);
+}
+
+void D1581::onTalk()
+{
+    iecTalking   = true;
+    iecListening = false;
+
+    talking   = true;
+    listening = false;
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
+
+    // After TALK, the next byte from the C64 is a secondary address
+    expectingSecAddr  = true;
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;
+
+    peripheralAssertClk(false);
+
+    #ifdef Debug
+    std::cout << "[D1581] onTalk() device=" << int(deviceNumber)
+              << " talking=1 listening=0\n";
+    #endif
+}
+
+void D1581::onUnTalk()
+{
+    iecTalking = false;
+    talking    = false;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
+    peripheralAssertData(false);
+    peripheralAssertClk(false);
+    peripheralAssertSrq(false);
+}
+
+void D1581::onSecondaryAddress(uint8_t sa)
+{
+    currentSecondaryAddress = sa;
+
+    // We’ve now consumed the secondary address; next bytes are data/commands
+    expectingSecAddr  = false;
+    expectingDataByte = true;
+
+    #ifdef Debug
+    const char* meaning = "";
+    if (sa == 0)
+        meaning = " (LOAD channel)";
+    else if (sa == 1)
+        meaning = " (SAVE channel)";
+    else if (sa == 15)
+        meaning = " (COMMAND channel)";
+
+    std::cout << "[D1581] onSecondaryAddress() device=" << int(deviceNumber)
+              << " sa=" << int(sa) << meaning << "\n";
+    #endif
 }
 
 void D1581::updateIRQ()

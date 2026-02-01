@@ -64,6 +64,7 @@ class DriveCIA : public DriveCIABase
         // API access
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
+        void setFlagLine(bool level);
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
 
@@ -163,6 +164,10 @@ class DriveCIA : public DriveCIABase
 
         bool cntLevel;
         bool lastCntLevel;
+
+        // Flag line
+        bool flagLine;
+        bool lastFlagLine;
 
         // Timers
         uint16_t timerACounter;
