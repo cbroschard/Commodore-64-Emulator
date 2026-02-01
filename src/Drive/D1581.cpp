@@ -142,10 +142,7 @@ void D1581::forceSyncIEC()
     clkLineLow  = !bus->readClkLine();
     dataLineLow = !bus->readDataLine();
 
-    // Push those levels into the base drive/peripheral logic
     Drive::atnChanged(atnLineLow);
-    Drive::driveControlClkLine(clkLineLow);
-    Drive::driveControlDataLine(dataLineLow);
 }
 
 void D1581::atnChanged(bool atnLow)
@@ -159,7 +156,7 @@ void D1581::atnChanged(bool atnLow)
     if (atnLineLow) peripheralAssertClk(false);
 
     // Check for falling edge
-    d1581mem.getCIA().setFlagLine(!atnLow ? true : false);
+    d1581mem.getCIA().setFlagLine(!atnLow);
 }
 
 void D1581::clkChanged(bool clkLow)
@@ -167,7 +164,6 @@ void D1581::clkChanged(bool clkLow)
     if (clkLow == clkLineLow) return; // ignore no change
 
     clkLineLow = clkLow;
-    Drive::driveControlClkLine(clkLineLow);
 }
 
 void D1581::dataChanged(bool dataLow)
@@ -175,7 +171,6 @@ void D1581::dataChanged(bool dataLow)
     if (dataLow == dataLineLow) return; // ignore no change
 
     dataLineLow = dataLow;
-    Drive::driveControlDataLine(dataLineLow);
 }
 
 void D1581::onListen()
