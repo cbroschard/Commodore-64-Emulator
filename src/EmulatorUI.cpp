@@ -369,16 +369,16 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
-            if (ImGui::MenuItem("Attach PRG/P00 image...", "Ctrl+P"))
+            if (ImGui::MenuItem("Attach PRG/P00 image..."))
                 startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRG);
 
-            if (ImGui::MenuItem("Attach Cartridge image...", "Ctrl+C"))
+            if (ImGui::MenuItem("Attach Cartridge image..."))
                 startFileDialog("Select CRT Image", { ".crt" }, UiCommand::Type::AttachCRT);
 
-            if (ImGui::MenuItem("Attach T64 image...", "Ctrl+T"))
+            if (ImGui::MenuItem("Attach T64 image..."))
                 startFileDialog("Select T64 image", { ".t64" }, UiCommand::Type::AttachT64);
 
-            if (ImGui::MenuItem("Attach TAP image...", "Ctrl+U"))
+            if (ImGui::MenuItem("Attach TAP image..."))
                 startFileDialog("Select TAP image", { ".tap" }, UiCommand::Type::AttachTAP);
 
             ImGui::Separator();
