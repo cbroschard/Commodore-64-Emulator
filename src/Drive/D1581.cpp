@@ -77,10 +77,6 @@ void D1581::reset()
     iecRxBitCount       = 0;
     iecRxByte           = 0;
 
-    // Drive status
-    lastError           = DriveError::NONE;
-    status              = DriveStatus::IDLE;
-
     // Reset actual line states
     peripheralAssertClk(false);  // Release Clock
     peripheralAssertData(false); // Release Data
@@ -98,6 +94,12 @@ void D1581::reset()
 
 void D1581::tick(uint32_t cycles)
 {
+    if (!iecLinesPrimed)
+    {
+        forceSyncIEC();
+        iecLinesPrimed = true;
+    }
+
     while(cycles > 0)
     {
         driveCPU.tick();
@@ -148,6 +150,7 @@ void D1581::atnChanged(bool atnLow)
     if (atnLow == atnLineLow) return; // ignore no change
 
     atnLineLow = atnLow;
+    Drive::atnChanged(atnLineLow);
 
     // Force clk to release when Atn is asserted by the C64
     if (atnLineLow) peripheralAssertClk(false);
@@ -161,6 +164,7 @@ void D1581::clkChanged(bool clkLow)
     if (clkLow == clkLineLow) return; // ignore no change
 
     clkLineLow = clkLow;
+    Drive::driveControlClkLine(clkLineLow);
 }
 
 void D1581::dataChanged(bool dataLow)
@@ -168,6 +172,7 @@ void D1581::dataChanged(bool dataLow)
     if (dataLow == dataLineLow) return; // ignore no change
 
     dataLineLow = dataLow;
+    Drive::driveControlDataLine(dataLineLow);
 }
 
 void D1581::onListen()
