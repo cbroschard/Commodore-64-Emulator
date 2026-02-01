@@ -88,6 +88,9 @@ void D1581::reset()
         bus->unListen(deviceNumber);
     }
 
+    // Set correct sector size for d81
+    d1581mem.getFDC().setSectorSize(512);
+
     d1581mem.reset();
     driveCPU.reset();
 }
