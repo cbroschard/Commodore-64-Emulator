@@ -8,6 +8,9 @@ tape/
 !include/tape/
 !src/tape/
 PRG/
+d64/
+d71/
+d81/
 cart/
 imgui.ini
 *.bin
@@ -21,4 +24,6 @@ basic
 *.cfg
 *.txt
 *.d64
+*.d71
+*.d81
 *.ini
