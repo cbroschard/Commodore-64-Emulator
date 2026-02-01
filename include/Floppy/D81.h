@@ -25,6 +25,8 @@ class D81 : public CBMImage
 
     protected:
 
+        size_t sectorSize() const override { return 512; }
+
     private:
 
         static constexpr size_t D81_HEADER_SIZE        = 0; // no header

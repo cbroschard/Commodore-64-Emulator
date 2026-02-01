@@ -26,7 +26,7 @@ bool D81::loadDisk(const std::string& filePath)
         for (int i = 0; i < D81_TRACK_COUNT; ++i)
         {
             geom.trackOffsets[i] = offset;
-            offset += size_t(D81_SECTORS_PER_TRACK) * SECTOR_SIZE;
+            offset += size_t(D81_SECTORS_PER_TRACK) * sectorSize();
         }
     }
     if (!loadDiskImage(filePath)) return false;
@@ -69,7 +69,7 @@ uint16_t D81::getSectorsForTrack(uint8_t track)
 
 bool D81::validateDiskImage()
 {
-    size_t expected = D81_HEADER_SIZE + size_t(D81_TRACK_COUNT) * D81_SECTORS_PER_TRACK * SECTOR_SIZE;
+    size_t expected = D81_HEADER_SIZE + size_t(D81_TRACK_COUNT) * D81_SECTORS_PER_TRACK * sectorSize();
     if (fileImageBuffer.size() != expected)
     {
         std::cerr << "D81: unexpected image size (" << fileImageBuffer.size() << " vs " << expected << ")\n";

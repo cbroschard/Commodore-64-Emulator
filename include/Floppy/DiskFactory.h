@@ -35,8 +35,8 @@ class DiskFactory
                   return std::make_unique<D64>();
               case DiskFormat::D71:
                   return std::make_unique<D71>();
-              //case DiskFormat::D81:
-                  //return std::make_unique<D81>();
+              case DiskFormat::D81:
+                  return std::make_unique<D81>();
               default:
                   return nullptr;
             }

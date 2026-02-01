@@ -36,7 +36,9 @@ bool Disk::loadDiskImage(const std::string& imagePath)
         return false;
     }
 
+    #ifdef Debug
     std::cout << "Loaded file: " << imagePath << " (" << size << " bytes)" << std::endl;
+    #endif // Debug
     return true;
 }
 
@@ -44,26 +46,38 @@ size_t Disk::computeOffset(uint8_t track, uint8_t sector)
 {
     auto sectorsInThisTrack = geom.sectorsPerTrack.at(track -1);
     if (sector >= sectorsInThisTrack)
-    {
         throw std::out_of_range("Sector number out of range");
-    }
-    size_t offset = geom.trackOffsets[track -1] + static_cast<size_t>(sector) * SECTOR_SIZE
-        + (geom.hasPerSectorCRC ? static_cast<size_t>(sector) * 2: 0);
-    return offset;
 
+    const size_t sz = sectorSize();
+
+    size_t offset = geom.trackOffsets[track -1]
+        + static_cast<size_t>(sector) * sz
+        + (geom.hasPerSectorCRC ? static_cast<size_t>(sector) * 2 : 0);
+
+    return offset;
 }
 
 std::vector<uint8_t> Disk::readSector(uint8_t track, uint8_t sector)
 {
+    const size_t sz = sectorSize();
     auto offset = computeOffset(track, sector);
     auto itBegin = fileImageBuffer.begin() + offset;
-    auto itEnd   = itBegin + SECTOR_SIZE;
+    auto itEnd   = itBegin + sz;
     return std::vector<uint8_t>(itBegin, itEnd);
 }
 
 bool Disk::writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t>& buf)
 {
+    const size_t sz = sectorSize();
     auto offset = computeOffset(track, sector);
-    std::copy (buf.begin(), buf.end(), fileImageBuffer.begin() + offset);
+
+    // Safety: don’t assume buf is the right size
+    const size_t n = std::min(sz, buf.size());
+    std::copy(buf.begin(), buf.begin() + n, fileImageBuffer.begin() + offset);
+
+    // Optional: if buf smaller than sector, zero-fill remainder
+    if (n < sz)
+        std::fill(fileImageBuffer.begin() + offset + n, fileImageBuffer.begin() + offset + sz, 0x00);
+
     return true;
 }

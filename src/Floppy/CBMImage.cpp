@@ -219,7 +219,7 @@ bool CBMImage::writeFile(const std::string& fileName, const std::vector<uint8_t>
     for (size_t i = 0; i < chain.size(); ++i)
     {
         auto [t, s] = chain[i];
-        std::vector<uint8_t> sectorBuf(SECTOR_SIZE, 0x00);
+        std::vector<uint8_t> sectorBuf(sectorSize(), 0x00);
 
         // Pointer bytes
         if (i + 1 < chain.size())
@@ -535,7 +535,7 @@ bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volu
     }
 
     // Resize and clear the image
-    fileImageBuffer.assign(totalSectors * SECTOR_SIZE, 0x00);
+    fileImageBuffer.assign(totalSectors * sectorSize(), 0x00);
 
     // Build each BAM sector
     size_t numBAMS = bamLocations.size();
@@ -544,7 +544,7 @@ bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volu
     for (size_t side = 0; side < numBAMS; ++side)
     {
         auto [bamTrack, bamSector] = bamLocations[side];
-        std::vector<uint8_t> bam(SECTOR_SIZE, 0x00);
+        std::vector<uint8_t> bam(sectorSize(), 0x00);
 
         // Next directory track
         bam[0] = directoryStart.track;
@@ -591,7 +591,7 @@ bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volu
     }
 
     // Write out a blank directory start sector so LOAD"$",8 will return 0 files
-    std::vector<uint8_t> directoryBuffer(SECTOR_SIZE, 0x00);
+    std::vector<uint8_t> directoryBuffer(sectorSize(), 0x00);
     directoryBuffer[0] = 0;
     directoryBuffer[1] = 0xFF;
     if (!writeSector(directoryStart.track, directoryStart.sector, directoryBuffer))
@@ -707,7 +707,7 @@ bool CBMImage::validateDirectoryChain()
 
         // Bounds for the *current* directory sector
         size_t offset = computeOffset(track, sector);
-        if (offset + SECTOR_SIZE > fileImageBuffer.size())
+        if (offset + sectorSize() > fileImageBuffer.size())
         {
             return false;
         }

@@ -58,6 +58,7 @@ class Disk
         Geometry geom;
         std::vector<uint8_t> fileImageBuffer; // Vector to hold file image data
         static constexpr size_t SECTOR_SIZE = 256;
+        virtual size_t sectorSize() const { return SECTOR_SIZE; }
         size_t computeOffset(uint8_t track, uint8_t sector);
 
         // Disk image management
