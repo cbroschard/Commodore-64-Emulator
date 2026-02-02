@@ -624,10 +624,10 @@ void MLMonitorBackend::dumpDriveIECState(int id)
               << "SRQ="  << HL(s.srqLow)  << "\n";
 
     std::cout << "  Drive drives(low?):  "
-              << "ATN="  << yn(s.drvAssertAtn)  << "  "
-              << "CLK="  << yn(s.drvAssertClk)  << "  "
-              << "DATA=" << yn(s.drvAssertData) << "  "
-              << "SRQ="  << yn(s.drvAssertSrq)  << "\n";
+              << "ATN="  << HL(s.drvAssertAtn)  << "  "
+              << "CLK="  << HL(s.drvAssertClk)  << "  "
+              << "DATA=" << HL(s.drvAssertData) << "  "
+              << "SRQ="  << HL(s.drvAssertSrq)  << "\n";
 
     std::cout << "  Mode: " << busStateToStr(s.busState)
               << "   listen=" << yn(s.listening)
