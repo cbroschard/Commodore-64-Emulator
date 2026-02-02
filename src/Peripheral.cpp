@@ -13,6 +13,8 @@ Peripheral::Peripheral() :
     deviceNumber(-1),
     assertClk(false),
     assertData(false),
+    assertAtn(false),
+    assertSrq(false),
     listening(false),
     talking(false),
     shiftReg(0),
