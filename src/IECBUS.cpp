@@ -109,7 +109,12 @@ void IECBUS::setSrqLine(bool state)
 void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
 {
     if (!device) return;
-    if (devices.find(device->getDeviceNumber()) == devices.end()) return;
+    bool registered = false;
+    for (auto const& [num, dev] : devices)
+    {
+        if (dev == device) { registered = true; break; }
+    }
+    if (!registered) return;
 
     devDrivesClkLow[device] = clkLow;
     recalcAndNotify();
@@ -118,7 +123,12 @@ void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
 void IECBUS::peripheralControlData(Peripheral* device, bool dataLow)
 {
     if (!device) return;
-    if (devices.find(device->getDeviceNumber()) == devices.end()) return;
+    bool registered = false;
+    for (auto const& [num, dev] : devices)
+    {
+        if (dev == device) { registered = true; break; }
+    }
+    if (!registered) return;
 
     devDrivesDataLow[device] = dataLow;
     recalcAndNotify();
@@ -127,7 +137,12 @@ void IECBUS::peripheralControlData(Peripheral* device, bool dataLow)
 void IECBUS::peripheralControlAtn(Peripheral* device, bool atnLow)
 {
     if (!device) return;
-    if (devices.find(device->getDeviceNumber()) == devices.end()) return;
+    bool registered = false;
+    for (auto const& [num, dev] : devices)
+    {
+        if (dev == device) { registered = true; break; }
+    }
+    if (!registered) return;
 
     devDrivesAtnLow[device] = atnLow;
     recalcAndNotify();
@@ -138,7 +153,12 @@ void IECBUS::peripheralControlSrq(Peripheral* device, bool state)
     if (device == nullptr) return;
 
     // Check that the device is registered.
-    if (devices.find(device->getDeviceNumber()) == devices.end()) return;
+    bool registered = false;
+    for (auto const& [num, dev] : devices)
+    {
+        if (dev == device) { registered = true; break; }
+    }
+    if (!registered) return;
 
     // If no talker is active, assign this device as the current talker.
     if (currentTalker == nullptr) currentTalker = device;
@@ -158,13 +178,14 @@ void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
     if (!device) return;
     if (devices.find(deviceNumber) != devices.end()) return;
 
+    // FORCE consistency
+    device->setDeviceNumber(deviceNumber);
+
     devices[deviceNumber] = device;
     device->attachBusInstance(this);
 
-    // Bring busLines up to date and notify any changes to existing devices
     recalcAndNotify();
 
-    // Sync the new device to current levels (no edge required)
     device->atnChanged(!busLines.atn);
     device->clkChanged(!busLines.clk);
     device->dataChanged(!busLines.data);
