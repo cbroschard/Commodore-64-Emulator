@@ -96,4 +96,5 @@ class SDLMonitorWindow
         SDL_Rect getScrollbarTrackRect() const;
         SDL_Rect getScrollbarThumbRect() const;
         void setScrollFromThumbCenterY(int thumbCenterY);
+        void visibleLineRange(int& first, int& last) const;
 };

@@ -382,7 +382,24 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
             char* clip = SDL_GetClipboardText();
             if (clip)
             {
-                input += clip;
+                // Normalize CRLF -> LF by ignoring '\r'
+                for (const char* p = clip; *p; ++p)
+                {
+                    char c = *p;
+                    if (c == '\r') continue;
+
+                    if (c == '\n')
+                    {
+                        // treat newline as Enter (submit current line)
+                        submitCommand();
+                        clearSelection(); // optional
+                    }
+                    else
+                    {
+                        addChar(c); // respects printable filter
+                    }
+                }
+
                 SDL_free(clip);
             }
             return;
@@ -411,10 +428,18 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 
             case SDLK_RETURN:
             case SDLK_KP_ENTER:
-                submitCommand();
-                clearSelection(); // optional; feels nicer
+                if (hasSelection())
+                {
+                    std::string txt = getSelectedText();
+                    SDL_SetClipboardText(txt.c_str());
+                    clearSelection();
+                }
+                else
+                {
+                    submitCommand();
+                    clearSelection();
+                }
                 break;
-
             case SDLK_ESCAPE:
                 close();
                 break;
@@ -529,14 +554,42 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
         if (selecting)
         {
             int idx = lineIndexFromMouseY(e.motion.y);
+
+            if (idx < 0 && selAnchor >= 0 && !lines.empty())
+            {
+                const int padding = 5;
+                const int lineHeight = 10;
+                const int inputY = height - padding - lineHeight;
+
+                // top of bottom history line:
+                const int historyBottomY = inputY - lineHeight;
+
+                // last pixel above the input line:
+                const int historyAreaBottom = inputY - 1;
+
+                int first, last;
+                visibleLineRange(first, last);
+
+                if (e.motion.y < 0)                         idx = first;
+                else if (e.motion.y > historyAreaBottom)    idx = last;
+                else
+                {
+                    // inside history area but lineIndexFromMouseY returned -1 (rare)
+                    idx = (e.motion.y < historyBottomY / 2) ? first : last;
+                }
+            }
+
             if (idx >= 0 && selAnchor >= 0)
             {
                 selStart = std::min(selAnchor, idx);
                 selEnd   = std::max(selAnchor, idx);
             }
+
+            return;
         }
 
-        return;
+        return; // ignore other motion
+
     }
 
     // Mouse button up (stop drag/selection)
@@ -691,19 +744,29 @@ int SDLMonitorWindow::lineIndexFromMouseY(int mouseY) const
     const int padding = 5;
     const int lineHeight = 10;
 
-    int inputY = height - padding - lineHeight;
-    int historyBottomY = inputY - lineHeight;
+    const int inputY = height - padding - lineHeight;
 
-    if (mouseY < 0 || mouseY > historyBottomY) return -1;
+    // History occupies y = 0 .. inputY-1 (everything above the input line)
+    const int historyAreaBottom = inputY - 1;
 
-    int rowFromBottom = (historyBottomY - mouseY) / lineHeight;
+    // This is the y where the LAST visible history line starts (top of that line)
+    const int historyBottomY = inputY - lineHeight;
 
-    // Which line is shown at bottom?
-    int historyCount = (int)lines.size();
-    int startIdx = historyCount - 1 - scrollOffset;
+    if (mouseY < 0 || mouseY > historyAreaBottom)
+        return -1;
 
-    int idx = startIdx - rowFromBottom;
-    if (idx < 0 || idx >= historyCount) return -1;
+    if (mouseY > historyBottomY)
+        mouseY = historyBottomY;
+
+    const int rowFromBottom = (historyBottomY - mouseY) / lineHeight;
+
+    const int historyCount = (int)lines.size();
+    const int startIdx = historyCount - 1 - scrollOffset;
+
+    const int idx = startIdx - rowFromBottom;
+    if (idx < 0 || idx >= historyCount)
+        return -1;
+
     return idx;
 }
 
@@ -764,4 +827,19 @@ void SDLMonitorWindow::setScrollFromThumbCenterY(int thumbCenterY)
     scrollOffset = clampScrollOffset((int)(frac * maxOff + 0.5f));
 
     autoScroll = (scrollOffset == 0);
+}
+
+void SDLMonitorWindow::visibleLineRange(int& first, int& last) const
+{
+    const int historyCount = (int)lines.size();
+    if (historyCount <= 0) { first = last = -1; return; }
+
+    const int vis = visibleHistoryLines();
+
+    // bottom-most visible line index (the one drawn at historyBottomY)
+    last = historyCount - 1 - scrollOffset;
+    last = std::clamp(last, 0, historyCount - 1);
+
+    // top-most visible line index
+    first = std::max(0, last - (vis - 1));
 }
