@@ -59,11 +59,15 @@ void Peripheral::peripheralAssertData(bool state)
 
 void Peripheral::peripheralAssertAtn(bool state)
 {
+    if (assertAtn == state) return;
+    assertAtn = state;
     if (bus) bus->peripheralControlAtn(this, state);
 }
 
 void Peripheral::peripheralAssertSrq(bool state)
 {
+    if (assertSrq == state) return;
+    assertSrq = state;
     if (bus) bus->peripheralControlSrq(this, state);
 }
 
