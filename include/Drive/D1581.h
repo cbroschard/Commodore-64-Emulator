@@ -25,6 +25,8 @@ class D1581 : public Drive, public FloppyControllerHost
         D1581(int deviceNumber, const std::string& romNAME);
         virtual ~D1581();
 
+        inline uint32_t clockMultiplier() const override { return 2; }
+
         // Reset the drive
         void reset() override;
 

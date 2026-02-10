@@ -25,6 +25,9 @@ class Drive : public Peripheral
         Drive();
         virtual ~Drive();
 
+        // Clock multiplier
+        virtual uint32_t clockMultiplier() const { return 1; }
+
         // Pointers
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
 

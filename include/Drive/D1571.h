@@ -28,6 +28,8 @@ class D1571 : public Drive, public FloppyControllerHost
         D1571(int deviceNumber, const std::string& romName);
         virtual ~D1571();
 
+        inline uint32_t clockMultiplier() const override { return 2; }
+
         void reset() override;
 
         // Advance drive via tick method
