@@ -68,9 +68,16 @@ namespace
         outPinsB = 0xFF;
 
         const auto s = drive.snapshotIEC();
-        if (s.dataLow) outPinsB &= ~DriveCIA::PRB_DATAIN;
-        if (s.clkLow)  outPinsB &= ~DriveCIA::PRB_CLKIN;
-        if (s.atnLow)  outPinsB &= ~DriveCIA::PRB_ATNIN;
+
+        // Inputs are inverted by 74LS14: bus LOW => CIA pin reads '1'
+        if (s.dataLow) outPinsB |=  DriveCIA::PRB_DATAIN;
+        else           outPinsB &= ~DriveCIA::PRB_DATAIN;
+
+        if (s.clkLow)  outPinsB |=  DriveCIA::PRB_CLKIN;
+        else           outPinsB &= ~DriveCIA::PRB_CLKIN;
+
+        if (s.atnLow)  outPinsB |=  DriveCIA::PRB_ATNIN;
+        else           outPinsB &= ~DriveCIA::PRB_ATNIN;
 
         if (auto* host = dynamic_cast<FloppyControllerHost*>(&drive))
         {

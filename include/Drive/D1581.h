@@ -127,7 +127,6 @@ class D1581 : public Drive, public FloppyControllerHost
         bool iecListening;
         bool iecRxActive;
         bool iecTalking;
-        bool presenceAckDone;
         bool expectingSecAddr;
         bool expectingDataByte;
         uint8_t currentListenSA;

@@ -58,6 +58,9 @@ class DriveCIA : public DriveCIABase
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
+        inline void enableAutoAtnAck(bool enabled) { autoAtnAckEnabled = enabled; }
+        void notifyAtnInput(bool atnLow);
+
         void reset();
         void tick(uint32_t cycles);
 
@@ -65,6 +68,7 @@ class DriveCIA : public DriveCIABase
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
         void setFlagLine(bool level);
+        inline void linesChanged() { updatePinsFromBus(); }
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
 
@@ -97,6 +101,9 @@ class DriveCIA : public DriveCIABase
                     timerBLatch
                 };
         }
+
+        void setIECInputs(bool atnLow, bool clkLow, bool dataLow);
+        void primeAtnLevel(bool atnLow);
 
     protected:
 
@@ -188,6 +195,26 @@ class DriveCIA : public DriveCIABase
         // Interrupt
         uint8_t interruptStatus;
         void triggerInterrupt(InterruptBit bit);
+
+        // Handshake
+        static constexpr uint16_t MIN_ACK_HOLD = 300; // cycles
+        bool lastAtnLow;
+        bool extDataLow;
+        bool autoAtnAckEnabled;
+        bool ackArmed;
+        bool lastClkInLowForAck;
+        uint16_t atnAckHoldCycles;
+        bool atnAckArmedWhileClkLow;
+        bool atnAckSawClkHigh;
+        bool atnAckSawClkLow;
+
+        // IEC input levels as seen from the host bus (C64 side)
+        bool iecAtnInLow;
+        bool iecClkInLow;
+        bool iecDataInLow;
+
+        // Forces PRB input bits to match the stored IEC inputs
+        void applyIECInputsToPortBPins();
 
         // Port updates
         void updatePinsFromBus();

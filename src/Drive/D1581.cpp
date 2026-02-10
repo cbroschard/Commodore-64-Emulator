@@ -19,7 +19,6 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     iecListening(false),
     iecRxActive(false),
     iecTalking(false),
-    presenceAckDone(false),
     expectingSecAddr(false),
     expectingDataByte(false),
     currentListenSA(0),
@@ -69,7 +68,6 @@ void D1581::reset()
     iecTalking          = false;
     iecListening        = false;
     iecRxActive         = false;
-    presenceAckDone     = false;
     expectingSecAddr    = false;
     expectingDataByte   = false;
     currentListenSA     = 0;
@@ -93,24 +91,39 @@ void D1581::reset()
 
     d1581mem.reset();
     driveCPU.reset();
+
+    d1581mem.getCIA().enableAutoAtnAck(true);
+
+    forceSyncIEC();
 }
 
 void D1581::tick(uint32_t cycles)
 {
     if (!iecLinesPrimed)
     {
-        forceSyncIEC();
+        d1581mem.getCIA().primeAtnLevel(atnLineLow);
         iecLinesPrimed = true;
     }
 
-    while(cycles > 0)
+    while (cycles > 0)
     {
+        if (bus)
+        {
+            const bool newAtnLow  = !bus->readAtnLine();
+            const bool newClkLow  = !bus->readClkLine();
+            const bool newDataLow = !bus->readDataLine();
+
+            if (newAtnLow  != atnLineLow)  atnChanged(newAtnLow);
+            if (newClkLow  != clkLineLow)  clkChanged(newClkLow);
+            if (newDataLow != dataLineLow) dataChanged(newDataLow);
+        }
+
         driveCPU.tick();
         uint32_t dc = driveCPU.getElapsedCycles();
-        if(dc == 0) dc = 1;
+        if (dc == 0) dc = 1;
 
-        Drive::tick(dc);
         d1581mem.tick(dc);
+
         cycles -= dc;
     }
 }
@@ -135,28 +148,32 @@ void D1581::unloadDisk()
 
 void D1581::forceSyncIEC()
 {
-    if (!bus)
-        return;
+    if (!bus) return;
 
-    atnLineLow  = !bus->readAtnLine();
-    clkLineLow  = !bus->readClkLine();
-    dataLineLow = !bus->readDataLine();
+    const bool newAtnLow  = !bus->readAtnLine();
+    const bool newClkLow  = !bus->readClkLine();
+    const bool newDataLow = !bus->readDataLine();
 
-    Drive::atnChanged(atnLineLow);
+    atnLineLow  = newAtnLow;
+    clkLineLow  = newClkLow;
+    dataLineLow = newDataLow;
+
+    // Update the CIA
+    d1581mem.getCIA().setIECInputs(newAtnLow, newClkLow, newDataLow);
+    d1581mem.getCIA().setFlagLine(!newAtnLow);
+    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow) return; // ignore no change
+    if (atnLow == atnLineLow) return;
 
     atnLineLow = atnLow;
-    Drive::atnChanged(atnLineLow);
 
-    // Force clk to release when Atn is asserted by the C64
-    if (atnLineLow) peripheralAssertClk(false);
-
-    // Check for falling edge
+    // Keep CIA informed
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
     d1581mem.getCIA().setFlagLine(!atnLow);
+    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::clkChanged(bool clkLow)
@@ -164,6 +181,9 @@ void D1581::clkChanged(bool clkLow)
     if (clkLow == clkLineLow) return; // ignore no change
 
     clkLineLow = clkLow;
+
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::dataChanged(bool dataLow)
@@ -171,20 +191,37 @@ void D1581::dataChanged(bool dataLow)
     if (dataLow == dataLineLow) return; // ignore no change
 
     dataLineLow = dataLow;
+
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::onListen()
 {
-    // IEC bus has selected this drive as a listener
     iecListening = true;
     iecTalking   = false;
 
     listening = true;
     talking   = false;
+
+    // After LISTEN, next byte is also a secondary address
+    expectingSecAddr  = true;
+    expectingDataByte = false;
+    currentSecondaryAddress = 0xFF;
+
+    iecRxActive = false;
+    iecRxBitCount = 0;
+    iecRxByte = 0;
 }
 
 void D1581::onUnListen()
 {
+    iecListening = false;
+    listening    = false;
+
+    expectingSecAddr  = false;
+    expectingDataByte = false;
+
     peripheralAssertData(false);
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
