@@ -84,8 +84,8 @@ bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
         return true;
     }
 
-    // SPACE pause
-    if (sc == SDL_SCANCODE_SPACE)
+    // CTRL-SPACE pause
+    if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_SPACE)
     {
         uiPaused_ = !uiPaused_.load();
         return true;

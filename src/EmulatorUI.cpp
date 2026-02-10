@@ -432,7 +432,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::Separator();
 
             bool paused = v.paused;
-            if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Space")) push(UiCommand::Type::TogglePause);
+            if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Ctrl+Space")) push(UiCommand::Type::TogglePause);
 
             ImGui::EndMenu();
         }
