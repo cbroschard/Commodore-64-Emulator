@@ -271,6 +271,25 @@ void IECBUS::unTalk(int deviceNumber)
 
 void IECBUS::tick(uint64_t cyclesPassed)
 {
+    // Make sure SRQ + resolved lines are up to date before devices run
+    updateSrqLine();
+    recalcAndNotify();
+
+    // Tick all registered drives (device map is already populated via registerDevice()
+    // from MediaManager::attachDiskImage)
+    for (auto const& [num, dev] : devices)
+    {
+        auto* drive = dynamic_cast<Drive*>(dev);
+        if (!drive) continue;
+
+        const uint64_t mul = static_cast<uint64_t>(drive->clockMultiplier());
+        const uint64_t driveCycles64 = cyclesPassed * mul;
+
+        // Drive::tick takes uint32_t; your cyclesPassed is tiny (per-instruction), so this is safe.
+        drive->tick(static_cast<uint32_t>(driveCycles64));
+    }
+
+    // Drives may have changed bus pull-downs during their tick, so resolve + notify again
     updateSrqLine();
     recalcAndNotify();
 }

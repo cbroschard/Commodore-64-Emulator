@@ -222,11 +222,6 @@ bool Computer::boot()
             // VIC-II raster updates always occur
             vicII->tick(elapsedCycles);
 
-            for (int dev = 8; dev <= 11; ++dev)
-            {
-                if (drives[dev]) drives[dev]->tick(elapsedCycles);
-            }
-
             bus->tick(elapsedCycles);
 
             if (vicII->isFrameDone())
