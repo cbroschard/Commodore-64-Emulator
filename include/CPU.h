@@ -10,6 +10,8 @@
 
 // forward declarations
 class CIA2;
+class StateReader;
+class StateWriter;
 
 #include <stdexcept>
 #include <sstream>
@@ -20,8 +22,8 @@ class CIA2;
 #include "CPUBus.h"
 #include "IRQLine.h"
 #include "Logging.h"
-#include "Debug/TraceManager.h"
 #include "Vic.h"
+#include "Debug/TraceManager.h"
 
 class CPU
 {
@@ -46,17 +48,23 @@ class CPU
             uint8_t Y;
             uint8_t SP;
             uint8_t SR;
+
+            void save(StateWriter& wrtr) const;
+            bool load(StateReader& rdr);
         };
 
+        void saveState(StateWriter& wrtr);
+        bool loadState(StateReader& rdr, uint32_t stateVersion);
+
         // Jam handling
-        enum class JamMode
+        enum class JamMode : uint8_t
         {
             Halt, // Stop CPU completely, strict mode
             FreezePC, // PC stays on JAM
             NopCompat // Treat as Noop
         };
         void setJamMode(JamMode mode);
-        JamMode getJamMode();
+        JamMode getJamMode() const;
 
         // Reset processor to defaults
         void reset();
@@ -69,8 +77,8 @@ class CPU
         uint32_t getElapsedCycles();
 
         // Cycles by opcode
-        const int CYCLE_COUNTS[256] =
-        {
+        inline static constexpr std::array<uint8_t, 256> CYCLE_COUNTS =
+        {{
             // 0x00 - 0x0F
             7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
             // 0x10 - 0x1F
@@ -103,10 +111,10 @@ class CPU
             2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
             // 0xF0 - 0xFF
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7
-        };
+        }};
 
         //CPU Flags
-        enum flags
+        enum flags : uint8_t
         {
             N = (1<<7), // Negative
             V = (1<<6), // Overflow
@@ -119,7 +127,7 @@ class CPU
         };
 
         // Flag operatons
-        inline bool getFlag(flags flag) { return (SR & flag) != 0; }
+        inline bool getFlag(flags flag) const { return (SR & flag) != 0; }
         void setFlag(flags flag, bool sc);
 
         // Access for IRQ handling
@@ -155,7 +163,7 @@ class CPU
 
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
-        inline uint16_t getTotalCycles() { return totalCycles; }
+        inline uint32_t getTotalCycles() const { return totalCycles; }
 
     protected:
 

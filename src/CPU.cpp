@@ -5,8 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "CIA2.h"
 #include "CPU.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 CPU::CPU() :
     // Initialize
@@ -37,6 +38,113 @@ CPU::CPU() :
 }
 
 CPU::~CPU() = default;
+
+void CPU::CPUState::save(StateWriter& wrtr) const
+{
+    wrtr.writeU16(PC);
+    wrtr.writeU8(A);
+    wrtr.writeU8(X);
+    wrtr.writeU8(Y);
+    wrtr.writeU8(SP);
+    wrtr.writeU8(SR);
+}
+
+bool CPU::CPUState::load(StateReader& rdr)
+{
+    if (!rdr.readU16(PC)) return false;
+    if (!rdr.readU8(A))   return false;
+    if (!rdr.readU8(X))   return false;
+    if (!rdr.readU8(Y))   return false;
+    if (!rdr.readU8(SP))  return false;
+    if (!rdr.readU8(SR))  return false;
+
+    SR |= 0x20; // force U bit
+    return true;
+}
+
+void CPU::saveState(StateWriter& wrtr)
+{
+    // CPU0 = registers (stable baseline)
+    wrtr.beginChunk("CPU0");
+    CPUState state = getState();
+    state.save(wrtr);
+    wrtr.endChunk();
+
+    // CPUX = runtime/internal bits that affect behavior after load
+    wrtr.beginChunk("CPUX");
+    wrtr.writeU8(static_cast<uint8_t>(jamMode));
+    wrtr.writeBool(halted);
+
+    wrtr.writeBool(nmiPending);
+    wrtr.writeBool(nmiLine);
+    wrtr.writeBool(irqSuppressOne);
+
+    wrtr.writeU32(totalCycles);
+    wrtr.writeU32(cycles);
+    wrtr.writeU32(lastCycleCount);
+
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
+    wrtr.writeBool(soLevel);
+    wrtr.writeBool(baHold);
+    wrtr.endChunk();
+}
+
+bool CPU::loadState(StateReader& rdr, uint32_t stateVersion)
+{
+    bool sawCPU0 = false;
+
+    StateReader::Chunk chunk;
+    while (rdr.nextChunk(chunk))
+    {
+        if (std::memcmp(chunk.tag, "CPU0", 4) == 0)
+        {
+            rdr.enterChunkPayload(chunk);
+            CPUState state;
+            if (!state.load(rdr)) return false;
+
+            // apply registers
+            PC = state.PC; A = state.A; X = state.X; Y = state.Y; SP = state.SP; SR = (state.SR | 0x20);
+
+            sawCPU0 = true;
+            rdr.skipChunk(chunk);
+        }
+        else if (std::memcmp(chunk.tag, "CPUX", 4) == 0)
+        {
+            rdr.enterChunkPayload(chunk);
+
+            uint8_t jm = 0;
+            if (!rdr.readU8(jm)) return false;
+            jamMode = static_cast<JamMode>(jm);
+
+            if (!rdr.readBool(halted)) return false;
+            if (!rdr.readBool(nmiPending)) return false;
+            if (!rdr.readBool(nmiLine)) return false;
+            if (!rdr.readBool(irqSuppressOne)) return false;
+
+            if (!rdr.readU32(totalCycles)) return false;
+            if (!rdr.readU32(cycles)) return false;
+            if (!rdr.readU32(lastCycleCount)) return false;
+
+            uint8_t vm = 0;
+            if (!rdr.readU8(vm)) return false;
+            mode_ = static_cast<VideoMode>(vm);
+            setMode(mode_); // recompute CYCLES_PER_FRAME safely
+
+            if (!rdr.readBool(soLevel)) return false;
+            if (!rdr.readBool(baHold)) return false;
+
+            rdr.skipChunk(chunk);
+        }
+        else
+        {
+            // Not ours; caller may be scanning whole file.
+            rdr.skipChunk(chunk);
+        }
+    }
+
+    // Sanity: must have registers
+    return sawCPU0;
+}
 
 void CPU::reset()
 {
@@ -83,7 +191,7 @@ void CPU::setMode(VideoMode mode)
     }
 }
 
-CPU::JamMode CPU::getJamMode()
+CPU::JamMode CPU::getJamMode() const
 {
     return jamMode;
 }
