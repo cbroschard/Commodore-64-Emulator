@@ -130,15 +130,24 @@ void DriveCIA::notifyAtnInput(bool atnLow)
     if (falling)
     {
         ackArmed = true;
-        extDataLow = true;          // assert immediately
 
+        // IMPORTANT: if CLK is already low at the moment ATN falls,
+        // we must treat that as "saw CLK low" immediately.
+        atnAckSawClkLow  = iecClkInLow;
+        atnAckSawClkHigh = false;
+
+        lastClkInLowForAck = iecClkInLow;
         atnAckHoldCycles = 0;
 
-        atnAckSawClkLow = iecClkInLow;   // we have NOT seen CLK low yet
-        atnAckSawClkHigh = false;   // we have NOT seen it return high yet
+        // If CLK already low, assert ACK now (otherwise tick() will assert when CLK drops)
+        extDataLow = atnAckSawClkLow;
 
-        lastClkInLowForAck = iecClkInLow;  // baseline for edge tracking
         applyIECOutputs();
+
+        #ifdef Debug
+        std::cout << "[CIA] ATN FALL: clkAlreadyLow=" << (iecClkInLow ? 1 : 0)
+                  << " -> extDataLow=" << (extDataLow ? 1 : 0) << "\n";
+        #endif
     }
     else if (rising)
     {
@@ -164,20 +173,19 @@ void DriveCIA::tick(uint32_t cycles)
             (registers.ddrB & PRB_ATNACK) && ((registers.portB & PRB_ATNACK) != 0);
         const bool autoAckEnabled = autoAtnAckEnabled || hwAutoAtnRespEnable;
 
-        if (autoAckEnabled && ackArmed && extDataLow)
+        if (autoAckEnabled && ackArmed)
         {
-            // Remember: on 1581 inputs are inverted through 74LS14:
-            // IEC LOW => CIA bit = 1
-            const bool atnInLow = ((portBPins & PRB_ATNIN) != 0);  // true when ATN line is LOW
-            const bool clkInLow = ((portBPins & PRB_CLKIN) != 0);  // true when CLK line is LOW
+            const bool atnInLow = ((portBPins & PRB_ATNIN) != 0); // true when physical ATN is LOW
+            const bool clkInLow = ((portBPins & PRB_CLKIN) != 0); // true when physical CLK is LOW
 
-            ++atnAckHoldCycles;
-
-            // Safety: ATN released -> stop holding DATA immediately
+            // ATN released -> cancel immediately
             if (!atnInLow)
             {
                 ackArmed = false;
                 extDataLow = false;
+                atnAckHoldCycles = 0;
+                atnAckSawClkLow = false;
+                atnAckSawClkHigh = false;
                 applyIECOutputs();
             }
             else
@@ -191,15 +199,36 @@ void DriveCIA::tick(uint32_t cycles)
 
                 // Low -> High transition: controller released CLK high
                 if (prevClkLow && !clkInLow)
-                    atnAckSawClkHigh = true;
+                {
+                    // Only count "saw high" once we've seen low at least once
+                    if (atnAckSawClkLow)
+                        atnAckSawClkHigh = true;
+                }
 
                 lastClkInLowForAck = clkInLow;
 
-                if (atnAckHoldCycles >= MIN_ACK_HOLD && atnAckSawClkLow)
+                // RELEASE ONLY AFTER: held long enough + saw low + then saw high
+                if (atnAckHoldCycles >= MIN_ACK_HOLD && atnAckSawClkLow && atnAckSawClkHigh)
                 {
                     ackArmed = false;
                     extDataLow = false;
                     applyIECOutputs();
+                }
+
+                // If ACK is asserted, count hold cycles
+                if (extDataLow)
+                {
+                    ++atnAckHoldCycles;
+
+                    // Release only after:
+                    //  - minimum hold time
+                    //  - saw CLK low and then saw CLK return high (full phase)
+                    if (atnAckHoldCycles >= MIN_ACK_HOLD && atnAckSawClkLow && atnAckSawClkHigh)
+                    {
+                        ackArmed = false;
+                        extDataLow = false;
+                        applyIECOutputs();
+                    }
                 }
             }
         }
