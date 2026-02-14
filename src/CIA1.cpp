@@ -63,6 +63,200 @@ void CIA1::setMode(VideoMode mode)
     todIncrementThreshold = (mode_ == VideoMode::NTSC) ? 102273 : 98525;
 }
 
+void CIA1::saveState(StateWriter& wrtr) const
+{
+    // CIA1 = "Core" and Registers
+    wrtr.beginChunk("CIA1");
+
+    // Dump ports
+    wrtr.writeU8(portA);
+    wrtr.writeU8(portB);
+    wrtr.writeU8(dataDirectionPortA);
+    wrtr.writeU8(dataDirectionPortB);
+
+    // Dump timers
+    wrtr.writeU8(timerALowByte);
+    wrtr.writeU8(timerAHighByte);
+    wrtr.writeU8(timerBLowByte);
+    wrtr.writeU8(timerBHighByte);
+
+    // Dump Control registers
+    wrtr.writeU8(timerAControl);
+    wrtr.writeU8(timerBControl);
+
+    // Dump Interrupt control
+    wrtr.writeU8(interruptStatus);
+    wrtr.writeU8(interruptEnable);
+
+    // Dump Serial data register
+    wrtr.writeU8(serialDataRegister);
+
+    // Dump TOD clock
+    wrtr.writeU8(todClock[0]); // 10ths
+    wrtr.writeU8(todClock[1]); // Seoonds
+    wrtr.writeU8(todClock[2]); // Minutes
+    wrtr.writeU8(todClock[3]); // Hours
+
+    // Dump TOD Alarms
+    wrtr.writeU8(todAlarm[0]); // 10ths
+    wrtr.writeU8(todAlarm[1]); // Seconds
+    wrtr.writeU8(todAlarm[2]); // Minutes
+    wrtr.writeU8(todAlarm[3]); // Hours
+
+    // End the chunk for CIA1
+    wrtr.endChunk();
+
+    // Write CI1X chunk for runtime statue
+    wrtr.beginChunk("CI1X");
+
+    // Dump Video mode
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
+
+    // Dump Timers
+    wrtr.writeU16(timerA);
+    wrtr.writeU16(timerASnap);
+    wrtr.writeBool(timerALatched);
+    wrtr.writeU16(timerB);
+    wrtr.writeU16(timerBSnap);
+    wrtr.writeBool(timerBLatched);
+
+    // Dump TOD state
+    wrtr.writeU8(todLatch[0]); // 10ths
+    wrtr.writeU8(todLatch[1]); // Seoonds
+    wrtr.writeU8(todLatch[2]); // Minutes
+    wrtr.writeU8(todLatch[3]); // Hours
+    wrtr.writeBool(todLatched);
+    wrtr.writeU32(todTicks);
+
+    // Dump TOD Alarm Mode/Triggered
+    wrtr.writeBool(todAlarmSetMode);
+    wrtr.writeBool(todAlarmTriggered);
+
+    // Dump current cassette state
+    wrtr.writeBool(prevReadLevel);
+    wrtr.writeBool(cassetteReadLineLevel);
+    wrtr.writeBool(gateWasOpenPrev);
+
+    // Dump CNT
+    wrtr.writeBool(cntLevel);
+    wrtr.writeBool(lastCNT);
+    wrtr.writeU8(inputMode);
+
+    // Dump shift register
+    wrtr.writeU8(shiftReg);
+    wrtr.writeU8(shiftCount);
+
+    // End the chunk
+    wrtr.endChunk();
+}
+
+bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "CIA1", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Load ports
+        if (!rdr.readU8(portA))                 return false;
+        if (!rdr.readU8(portB))                 return false;
+        if (!rdr.readU8(dataDirectionPortA))    return false;
+        if (!rdr.readU8(dataDirectionPortB))    return false;
+
+        // Load timers
+        if (!rdr.readU8(timerALowByte))         return false;
+        if (!rdr.readU8(timerAHighByte))        return false;
+        if (!rdr.readU8(timerBLowByte))         return false;
+        if (!rdr.readU8(timerBHighByte))        return false;
+        if (!rdr.readU8(timerAControl))         return false;
+        if (!rdr.readU8(timerBControl))         return false;
+
+        // Normalize
+        timerAControl &= 0xEF;
+        timerBControl &= 0xEF;
+
+        // Load Interrupt Control
+        if (!rdr.readU8(interruptStatus))        return false;
+        if (!rdr.readU8(interruptEnable))        return false;
+
+        // Normalize
+        interruptStatus &= 0x1F;
+        interruptEnable &= 0x1F;
+        refreshMasterBit();
+        updateIRQLine();
+
+        // Load Serial data register
+        if (!rdr.readU8(serialDataRegister))      return false;
+
+        // Load TOD clock
+        if (!rdr.readU8(todClock[0]))             return false;
+        if (!rdr.readU8(todClock[1]))             return false;
+        if (!rdr.readU8(todClock[2]))             return false;
+        if (!rdr.readU8(todClock[3]))             return false;
+
+        // Load TOD Alarm
+        if (!rdr.readU8(todAlarm[0]))             return false;
+        if (!rdr.readU8(todAlarm[1]))             return false;
+        if (!rdr.readU8(todAlarm[2]))             return false;
+        if (!rdr.readU8(todAlarm[3]))             return false;
+        if (!rdr.readBool(todLatched))            return false;
+        if (!rdr.readU32(todTicks))               return false;
+
+        // End chunk
+        rdr.skipChunk(chunk);
+        return true;
+    }
+
+    if (std::memcmp(chunk.tag, "CI1X", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Load and activate the video mode
+        uint8_t vm = 0;
+        if (!rdr.readU8(vm))                  return false;
+        mode_ = static_cast<VideoMode>(vm);
+        setMode(mode_);
+
+        // Load Timers
+        if (!rdr.readU16(timerA))             return false;
+        if (!rdr.readU16(timerASnap))         return false;
+        if (!rdr.readBool(timerALatched))     return false;
+        if (!rdr.readU16(timerB))             return false;
+        if (!rdr.readU16(timerBSnap))         return false;
+        if (!rdr.readBool(timerBLatched))     return false;
+
+        // Load TOD
+        if (!rdr.readU8(todLatch[0]))         return false;
+        if (!rdr.readU8(todLatch[1]))         return false;
+        if (!rdr.readU8(todLatch[2]))         return false;
+        if (!rdr.readU8(todLatch[3]))         return false;
+
+        // Load TOD Alarm/Trigged
+        if (!rdr.readBool(todAlarmSetMode))   return false;
+        if (!rdr.readBool(todAlarmTriggered)) return false;
+
+        // Load current cassette state
+        if (!rdr.readBool(prevReadLevel))         return false;
+        if (!rdr.readBool(cassetteReadLineLevel)) return false;
+        if (!rdr.readBool(gateWasOpenPrev))       return false;
+
+        // Load CNT
+        if (!rdr.readBool(cntLevel))             return false;
+        if (!rdr.readBool(lastCNT))              return false;
+
+        uint8_t im = 0;
+        if (!rdr.readU8(im))                     return false;
+        inputMode = static_cast<InputMode>(im);
+
+        // Load shift register
+        if (!rdr.readU8(shiftReg))               return false;
+        if (!rdr.readU8(shiftCount))             return false;
+
+        // End chunk
+        rdr.skipChunk(chunk);
+    }
+    return true;
+}
+
 void CIA1::reset() {
     // Ports & DDRs
     portAValue = 0;
@@ -78,7 +272,6 @@ void CIA1::reset() {
     timerA = timerB = 0;
     timerALowByte = timerAHighByte = 0;
     timerBLowByte = timerBHighByte = 0;
-    timerACycleCount = timerBCycleCount = 0;
     timerAControl = timerBControl = 0;
 
     // Timer Lathes

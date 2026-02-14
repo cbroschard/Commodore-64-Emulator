@@ -25,6 +25,9 @@ class Vic;
 #include "Keyboard.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "StateReader.h"
+#include "StateWriter.h"
+
 
 class CIA1
 {
@@ -39,7 +42,7 @@ class CIA1
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
-        inline void attachTraceManagerInstance(TraceManager* tracemgr) { this->traceMgr = traceMgr; }
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
         void attachJoystickInstance(Joystick* joy);
 
@@ -48,6 +51,10 @@ class CIA1
 
         // Setter for NTSC/PAL
         void setMode(VideoMode mode);
+
+        // STate management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Reset everything to default
         void reset();
@@ -131,8 +138,6 @@ class CIA1
         uint8_t timerBLowByte;
         uint8_t timerBHighByte;
         uint32_t todTicks;
-        uint32_t timerACycleCount;
-        uint32_t timerBCycleCount;
 
         // Cassette tape state
         bool prevReadLevel;
@@ -194,7 +199,7 @@ class CIA1
         void refreshMasterBit();
 
         // Mode
-        enum InputMode
+        enum InputMode : uint8_t
         {
             modeProcessor, // Direct processor polling
             modeCNT, // CNT signal-driven
