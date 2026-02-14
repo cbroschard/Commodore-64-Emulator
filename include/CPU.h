@@ -10,7 +10,6 @@
 
 // forward declarations
 class CIA2;
-class StateReader;
 class StateWriter;
 
 #include <stdexcept>
@@ -22,6 +21,7 @@ class StateWriter;
 #include "CPUBus.h"
 #include "IRQLine.h"
 #include "Logging.h"
+#include "StateReader.h"
 #include "Vic.h"
 #include "Debug/TraceManager.h"
 
@@ -54,7 +54,7 @@ class CPU
         };
 
         void saveState(StateWriter& wrtr);
-        bool loadState(StateReader& rdr, uint32_t stateVersion);
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Jam handling
         enum class JamMode : uint8_t

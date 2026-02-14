@@ -6,7 +6,6 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CPU.h"
-#include "StateReader.h"
 #include "StateWriter.h"
 
 CPU::CPU() :
@@ -89,61 +88,59 @@ void CPU::saveState(StateWriter& wrtr)
     wrtr.endChunk();
 }
 
-bool CPU::loadState(StateReader& rdr, uint32_t stateVersion)
+bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    bool sawCPU0 = false;
-
-    StateReader::Chunk chunk;
-    while (rdr.nextChunk(chunk))
+    if (std::memcmp(chunk.tag, "CPU0", 4) == 0)
     {
-        if (std::memcmp(chunk.tag, "CPU0", 4) == 0)
-        {
-            rdr.enterChunkPayload(chunk);
-            CPUState state;
-            if (!state.load(rdr)) return false;
+        rdr.enterChunkPayload(chunk);
 
-            // apply registers
-            PC = state.PC; A = state.A; X = state.X; Y = state.Y; SP = state.SP; SR = (state.SR | 0x20);
+        CPUState state;
+        if (!state.load(rdr)) return false;
 
-            sawCPU0 = true;
-            rdr.skipChunk(chunk);
-        }
-        else if (std::memcmp(chunk.tag, "CPUX", 4) == 0)
-        {
-            rdr.enterChunkPayload(chunk);
+        PC = state.PC;
+        A  = state.A;
+        X  = state.X;
+        Y  = state.Y;
+        SP = state.SP;
+        SR = (state.SR | 0x20);
 
-            uint8_t jm = 0;
-            if (!rdr.readU8(jm)) return false;
-            jamMode = static_cast<JamMode>(jm);
-
-            if (!rdr.readBool(halted)) return false;
-            if (!rdr.readBool(nmiPending)) return false;
-            if (!rdr.readBool(nmiLine)) return false;
-            if (!rdr.readBool(irqSuppressOne)) return false;
-
-            if (!rdr.readU32(totalCycles)) return false;
-            if (!rdr.readU32(cycles)) return false;
-            if (!rdr.readU32(lastCycleCount)) return false;
-
-            uint8_t vm = 0;
-            if (!rdr.readU8(vm)) return false;
-            mode_ = static_cast<VideoMode>(vm);
-            setMode(mode_); // recompute CYCLES_PER_FRAME safely
-
-            if (!rdr.readBool(soLevel)) return false;
-            if (!rdr.readBool(baHold)) return false;
-
-            rdr.skipChunk(chunk);
-        }
-        else
-        {
-            // Not ours; caller may be scanning whole file.
-            rdr.skipChunk(chunk);
-        }
+        rdr.skipChunk(chunk);
+        return true;
     }
 
-    // Sanity: must have registers
-    return sawCPU0;
+    if (std::memcmp(chunk.tag, "CPUX", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint8_t jm = 0;
+        if (!rdr.readU8(jm)) return false;
+        jamMode = static_cast<JamMode>(jm);
+
+        if (!rdr.readBool(halted)) return false;
+        if (!rdr.readBool(nmiPending)) return false;
+        if (!rdr.readBool(nmiLine)) return false;
+        if (!rdr.readBool(irqSuppressOne)) return false;
+
+        if (!rdr.readU32(totalCycles)) return false;
+        if (!rdr.readU32(cycles)) return false;
+        if (!rdr.readU32(lastCycleCount)) return false;
+
+        uint8_t vm = 0;
+        if (!rdr.readU8(vm)) return false;
+        mode_ = static_cast<VideoMode>(vm);
+        setMode(mode_);
+
+        // Optional / forward-compatible fields:
+        const size_t end = chunk.payloadOffset + chunk.length;
+        if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
+        if (rdr.cursor() < end) { if (!rdr.readBool(baHold)) return false; }
+
+        rdr.skipChunk(chunk);
+        return true;
+    }
+
+    // Not a CPU chunk
+    return false;
 }
 
 void CPU::reset()
