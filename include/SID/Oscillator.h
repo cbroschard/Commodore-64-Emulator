@@ -19,20 +19,21 @@ class Oscillator
         virtual ~Oscillator();
 
         // Getters
-        double getPhase() const;
-        bool didOverflow() const;
-        uint8_t getControl() const;
-        double getFrequency() const;
+        inline uint32_t getNoiseLFSR() const { return noiseLFSR; }
+        inline double getPhase() const { return phase; }
+        inline bool didOverflow() const { return phaseOverflow; }
+        inline uint8_t getControl() const { return control; }
+        inline double getFrequency() const { return frequency; }
 
         // Setters
-        void setSampleRate(double sample);
-        void setSIDClockFrequency(double frequency);
-        void setFrequency(uint16_t freqRegValue);
-        void setPulseWidth(double width);
+        inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF;}
+        inline void setSampleRate(double sample) { sampleRate = sample; }
+        inline void setSIDClockFrequency(double frequency) { sidClockFrequency = frequency; }
+        inline void setFrequency(uint16_t freqRegValue) { frequency = (static_cast<double>(freqRegValue) * sidClockFrequency) / 16777216.0; }
+        inline void setPulseWidth(double width) { pulseWidth = width; }
+        void setSyncSource(Oscillator* source) { syncSource  = source; }
+        void setRingSource(Oscillator* source) { ringSource = source; }
         void setControl(uint8_t controlValue);
-        void setSyncSource(Oscillator* source);
-        void setRingSource(Oscillator* source);
-
 
         // Generate the sample for output
         double generateMixedSample();
@@ -41,7 +42,7 @@ class Oscillator
         void reset();
 
         // Reset the phase
-        void resetPhase();
+        inline void resetPhase() { phase = 0.0; }
 
         // Update the phase accumulator for the next cycle
         void updatePhase();

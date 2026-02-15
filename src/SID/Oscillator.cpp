@@ -44,41 +44,6 @@ inline double Oscillator::convertToFloat(uint16_t sampleBits)
     return (static_cast<double>(sampleBits) / 2047.5) - 1.0;
 }
 
-bool Oscillator::didOverflow() const
-{
-    return phaseOverflow;
-}
-
-uint8_t Oscillator::getControl() const
-{
-    return control;
-}
-
-double Oscillator::getFrequency() const
-{
-    return frequency;
-}
-
-void Oscillator::setSampleRate(double sample)
-{
-    sampleRate = sample;
-}
-
-void Oscillator::setSIDClockFrequency(double frequency)
-{
-    sidClockFrequency = frequency;
-}
-
-void Oscillator::setFrequency(uint16_t freqRegValue)
-{
-    frequency = (static_cast<double>(freqRegValue) * sidClockFrequency) / 16777216.0;
-}
-
-void Oscillator::setPulseWidth(double width)
-{
-    pulseWidth = width;
-}
-
 void Oscillator::setControl(uint8_t controlValue)
 {
     if ((controlValue & 0x08) && !(control & 0x08))
@@ -234,24 +199,4 @@ void Oscillator::updatePhase()
     phase += frequency / sampleRate;
     phaseOverflow = (phase >= 1.0);
     phase -= floor(phase);
-}
-
-double Oscillator::getPhase() const
-{
-    return phase;
-}
-
-void Oscillator::resetPhase()
-{
-    phase = 0.0;
-}
-
-void Oscillator::setSyncSource(Oscillator* source)
-{
-    syncSource = source;
-}
-
-void Oscillator::setRingSource(Oscillator* source)
-{
-    ringSource = source;
 }
