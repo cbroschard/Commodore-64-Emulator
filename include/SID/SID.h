@@ -26,6 +26,8 @@ class Vic;
 #include "SID/Mixer.h"
 #include "SID/RingBuffer.h"
 #include "SID/Voice.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class SID
 {
@@ -37,6 +39,10 @@ class SID
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Getter for main emulation loop processing
         double getSidCyclesPerAudioSample() const;

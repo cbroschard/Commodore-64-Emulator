@@ -32,6 +32,217 @@ SID::SID(double sampleRate) :
 
 SID::~SID() = default;
 
+void SID::saveState(StateWriter& wrtr) const
+{
+    // SID0 = "core" and registers
+    wrtr.beginChunk("SID0");
+
+    // Dump Registers
+    wrtr.writeU8(sidRegisters.voice1.frequencyLow);
+    wrtr.writeU8(sidRegisters.voice1.frequencyHigh);
+    wrtr.writeU8(sidRegisters.voice1.pulseWidthLow);
+    wrtr.writeU8(sidRegisters.voice1.pulseWidthHigh);
+    wrtr.writeU8(sidRegisters.voice1.control);
+    wrtr.writeU8(sidRegisters.voice1.attackDecay);
+    wrtr.writeU8(sidRegisters.voice1.sustainRelease);
+    wrtr.writeU8(sidRegisters.voice2.frequencyLow);
+    wrtr.writeU8(sidRegisters.voice2.frequencyHigh);
+    wrtr.writeU8(sidRegisters.voice2.pulseWidthLow);
+    wrtr.writeU8(sidRegisters.voice2.pulseWidthHigh);
+    wrtr.writeU8(sidRegisters.voice2.control);
+    wrtr.writeU8(sidRegisters.voice2.attackDecay);
+    wrtr.writeU8(sidRegisters.voice2.sustainRelease);
+    wrtr.writeU8(sidRegisters.voice3.frequencyLow);
+    wrtr.writeU8(sidRegisters.voice3.frequencyHigh);
+    wrtr.writeU8(sidRegisters.voice3.pulseWidthLow);
+    wrtr.writeU8(sidRegisters.voice3.pulseWidthHigh);
+    wrtr.writeU8(sidRegisters.voice3.control);
+    wrtr.writeU8(sidRegisters.voice3.attackDecay);
+    wrtr.writeU8(sidRegisters.voice3.sustainRelease);
+    wrtr.writeU8(sidRegisters.filter.cutoffLow);
+    wrtr.writeU8(sidRegisters.filter.cutoffHigh);
+    wrtr.writeU8(sidRegisters.filter.resonanceControl);
+    wrtr.writeU8(sidRegisters.filter.volume);
+
+    // End the chunk
+    wrtr.endChunk();
+
+    // SIDX = Runtime state
+    wrtr.beginChunk("SIDX");
+
+    // Dump current video mode
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
+
+    // Dump fractional accumulator
+    wrtr.writeF64(sidCycleCounter);
+
+    // Dump High pass filter history
+    wrtr.writeF64(hpPrevIn);
+    wrtr.writeF64(hpPrevOut);
+
+    // Dump Voice1 runtime state
+    wrtr.writeF64(voice1.getOscillator().getPhase());
+    wrtr.writeBool(voice1.getOscillator().didOverflow());
+    wrtr.writeU32(voice1.getOscillator().getNoiseLFSR());
+    wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
+    wrtr.writeF64(voice1.getEnvelope().getLevel());
+
+    // Dump Voice2 runtime status
+    wrtr.writeF64(voice2.getOscillator().getPhase());
+    wrtr.writeBool(voice2.getOscillator().didOverflow());
+    wrtr.writeU32(voice2.getOscillator().getNoiseLFSR());
+    wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
+    wrtr.writeF64(voice2.getEnvelope().getLevel());
+
+    // Dump Voice3 runtime state
+    wrtr.writeF64(voice3.getOscillator().getPhase());
+    wrtr.writeBool(voice3.getOscillator().didOverflow());
+    wrtr.writeU32(voice3.getOscillator().getNoiseLFSR());
+    wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
+    wrtr.writeF64(voice3.getEnvelope().getLevel());
+
+    // Dump Filter runtime state
+    wrtr.writeF64(filterobj.getLowPassOut());
+    wrtr.writeF64(filterobj.getBandPassOut());
+    wrtr.writeF64(filterobj.getHighPassOut());
+    wrtr.writeF64(filterobj.getDcBlock());
+
+    // End the chunk
+    wrtr.endChunk();
+}
+
+bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    rdr.enterChunkPayload(chunk);
+
+    auto tagIs = [&](const char* t) {
+        return chunk.tag[0]==t[0] && chunk.tag[1]==t[1] && chunk.tag[2]==t[2] && chunk.tag[3]==t[3];
+    };
+
+    if (tagIs("SID0"))
+    {
+        // Read registers in the exact order we wrote them.
+        if (!rdr.readU8(sidRegisters.voice1.frequencyLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.frequencyHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.pulseWidthLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.pulseWidthHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.control)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.attackDecay)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.sustainRelease)) return false;
+
+        if (!rdr.readU8(sidRegisters.voice2.frequencyLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.frequencyHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.pulseWidthLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.pulseWidthHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.control)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.attackDecay)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.sustainRelease)) return false;
+
+        if (!rdr.readU8(sidRegisters.voice3.frequencyLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.frequencyHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.pulseWidthLow)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.pulseWidthHigh)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.control)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.attackDecay)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.sustainRelease)) return false;
+
+        if (!rdr.readU8(sidRegisters.filter.cutoffLow)) return false;
+        if (!rdr.readU8(sidRegisters.filter.cutoffHigh)) return false;
+        if (!rdr.readU8(sidRegisters.filter.resonanceControl)) return false;
+        if (!rdr.readU8(sidRegisters.filter.volume)) return false;
+
+        // Re-apply derived state WITHOUT triggering envelopes like writeRegister() would.
+        {
+            // Frequencies
+            uint16_t f1 = combineBytes(sidRegisters.voice1.frequencyHigh, sidRegisters.voice1.frequencyLow);
+            uint16_t f2 = combineBytes(sidRegisters.voice2.frequencyHigh, sidRegisters.voice2.frequencyLow);
+            uint16_t f3 = combineBytes(sidRegisters.voice3.frequencyHigh, sidRegisters.voice3.frequencyLow);
+            voice1.setFrequency(f1);
+            voice2.setFrequency(f2);
+            voice3.setFrequency(f3);
+
+            // Pulse width (only high nibble used)
+            uint16_t pw1 = combineBytes(sidRegisters.voice1.pulseWidthHigh & 0x0F, sidRegisters.voice1.pulseWidthLow);
+            uint16_t pw2 = combineBytes(sidRegisters.voice2.pulseWidthHigh & 0x0F, sidRegisters.voice2.pulseWidthLow);
+            uint16_t pw3 = combineBytes(sidRegisters.voice3.pulseWidthHigh & 0x0F, sidRegisters.voice3.pulseWidthLow);
+            voice1.setPulseWidth(pw1);
+            voice2.setPulseWidth(pw2);
+            voice3.setPulseWidth(pw3);
+
+            voice1.setControl(sidRegisters.voice1.control);
+            voice2.setControl(sidRegisters.voice2.control);
+            voice3.setControl(sidRegisters.voice3.control);
+
+            // Envelope parameters derived from ADSR regs
+            updateEnvelopeParameters(voice1, sidRegisters.voice1);
+            updateEnvelopeParameters(voice2, sidRegisters.voice2);
+            updateEnvelopeParameters(voice3, sidRegisters.voice3);
+
+            // Filter derived from regs
+            updateCutoffFromRegisters();
+            filterobj.setMode(sidRegisters.filter.resonanceControl & 0x07);
+            filterobj.setResonance(sidRegisters.filter.resonanceControl);
+        }
+
+        return true;
+    }
+
+    if (tagIs("SIDX"))
+    {
+        uint8_t modeU8 = 0;
+        if (!rdr.readU8(modeU8)) return false;
+        mode_ = static_cast<VideoMode>(modeU8);
+        setMode(mode_); // restores sidClockFrequency & sidCyclesPerAudioSample coherently
+
+        if (!rdr.readF64(sidCycleCounter)) return false;
+
+        if (!rdr.readF64(hpPrevIn)) return false;
+        if (!rdr.readF64(hpPrevOut)) return false;
+
+        auto loadVoiceRuntime = [&](Voice& v) -> bool {
+            double phase = 0.0;
+            bool overflow = false;
+            uint32_t lfsr = 0;
+            uint8_t envStateU8 = 0;
+            double envLevel = 0.0;
+
+            if (!rdr.readF64(phase)) return false;
+            if (!rdr.readBool(overflow)) return false;
+            if (!rdr.readU32(lfsr)) return false;
+            if (!rdr.readU8(envStateU8)) return false;
+            if (!rdr.readF64(envLevel)) return false;
+
+            v.getOscillator().setPhase(phase);
+            v.getOscillator().setDIDOverflow(overflow);
+            v.getOscillator().setNoiseLFSR(lfsr);
+
+            v.getEnvelope().setState(static_cast<Envelope::State>(envStateU8));
+            v.getEnvelope().setLevel(envLevel);
+            return true;
+        };
+
+        if (!loadVoiceRuntime(voice1)) return false;
+        if (!loadVoiceRuntime(voice2)) return false;
+        if (!loadVoiceRuntime(voice3)) return false;
+
+        double lp=0.0, bp=0.0, hp=0.0, dc=0.0;
+        if (!rdr.readF64(lp)) return false;
+        if (!rdr.readF64(bp)) return false;
+        if (!rdr.readF64(hp)) return false;
+        if (!rdr.readF64(dc)) return false;
+
+        filterobj.setLowPassOut(lp);
+        filterobj.setBandPassOut(bp);
+        filterobj.setHighPassOut(hp);
+        filterobj.setDcBlock(dc);
+
+        return true;
+    }
+
+    // Unknown chunk tag for SID
+    return false;
+}
+
 double SID::getSidCyclesPerAudioSample() const
 {
     return sidCyclesPerAudioSample;
@@ -80,126 +291,35 @@ uint8_t SID::readRegister(uint16_t address)
 {
     switch(address)
     {
-        case 0xD400:
-        {
-            return sidRegisters.voice1.frequencyLow;
-        }
-        case 0xD401:
-        {
-            return sidRegisters.voice1.frequencyHigh;
-        }
-        case 0xD402:
-        {
-            return sidRegisters.voice1.pulseWidthLow;
-        }
-        case 0xD403:
-        {
-            return sidRegisters.voice1.pulseWidthHigh;
-        }
-        case 0xD404:
-        {
-            return sidRegisters.voice1.control;
-        }
-        case 0xD405:
-        {
-            return sidRegisters.voice1.attackDecay;
-        }
-        case 0xD406:
-        {
-            return sidRegisters.voice1.sustainRelease;
-        }
-        case 0xD407:
-        {
-            return sidRegisters.voice2.frequencyLow;
-        }
-        case 0xD408:
-        {
-            return sidRegisters.voice2.frequencyHigh;
-        }
-        case 0xD409:
-        {
-            return sidRegisters.voice2.pulseWidthLow;
-        }
-        case 0xD40A:
-        {
-            return sidRegisters.voice2.pulseWidthHigh;
-        }
-        case 0xD40B:
-        {
-            return sidRegisters.voice2.control;
-        }
-        case 0xD40C:
-        {
-            return sidRegisters.voice2.attackDecay;
-        }
-        case 0xD40D:
-        {
-            return sidRegisters.voice2.sustainRelease;
-        }
-        case 0xD40E:
-        {
-            return sidRegisters.voice3.frequencyLow;
-        }
-        case 0xD40F:
-        {
-            return sidRegisters.voice3.frequencyHigh;
-        }
-        case 0xD410:
-        {
-            return sidRegisters.voice3.pulseWidthLow;
-        }
-        case 0xD411:
-        {
-            return sidRegisters.voice3.pulseWidthHigh;
-        }
-        case 0xD412:
-        {
-            return sidRegisters.voice3.control;
-        }
-        case 0xD413:
-        {
-            return sidRegisters.voice3.attackDecay;
-        }
-        case 0xD414:
-        {
-            return sidRegisters.voice3.sustainRelease;
-        }
-        case 0xD415:
-        {
-            return sidRegisters.filter.cutoffLow;
-        }
-        case 0xD416:
-        {
-            return sidRegisters.filter.cutoffHigh;
-        }
-        case 0xD417:
-        {
-            return sidRegisters.filter.resonanceControl;
-        }
-        case 0xD418:
-        {
-            return sidRegisters.filter.volume;
-        }
-        case 0xD419:
-        {
-            // read only register should return joy1 value; using random instead
-            return rand() & 0xFF;
-        }
-        case 0xD41A:
-        {
-            // read only register should return joy2 value; using random instead
-            return rand() & 0xFF;
-        }
-        case 0xD41B:
-        {
-            // read only register returns osc voice 3 value
-            return rand() & 0xFF;
-        }
-        case 0xD41C:
-        {
-            // read only register returns env voice  3
-            return rand() & 0xFF;
-        }
+        case 0xD400: return sidRegisters.voice1.frequencyLow;
+        case 0xD401: return sidRegisters.voice1.frequencyHigh;
+        case 0xD402: return sidRegisters.voice1.pulseWidthLow;
+        case 0xD403: return sidRegisters.voice1.pulseWidthHigh;
+        case 0xD404: return sidRegisters.voice1.control;
+        case 0xD405: return sidRegisters.voice1.attackDecay;
+        case 0xD406: return sidRegisters.voice1.sustainRelease;
+        case 0xD407: return sidRegisters.voice2.frequencyLow;
+        case 0xD408: return sidRegisters.voice2.frequencyHigh;
+        case 0xD409: return sidRegisters.voice2.pulseWidthLow;
+        case 0xD40A: return sidRegisters.voice2.pulseWidthHigh;
+        case 0xD40B: return sidRegisters.voice2.control;
+        case 0xD40C: return sidRegisters.voice2.attackDecay;
+        case 0xD40D: return sidRegisters.voice2.sustainRelease;
+        case 0xD40E: return sidRegisters.voice3.frequencyLow;
+        case 0xD40F: return sidRegisters.voice3.frequencyHigh;
+        case 0xD410: return sidRegisters.voice3.pulseWidthLow;
+        case 0xD411: return sidRegisters.voice3.pulseWidthHigh;
+        case 0xD412: return sidRegisters.voice3.control;
+        case 0xD413: return sidRegisters.voice3.attackDecay;
+        case 0xD414: return sidRegisters.voice3.sustainRelease;
+        case 0xD415: return sidRegisters.filter.cutoffLow;
+        case 0xD416: return sidRegisters.filter.cutoffHigh;
+        case 0xD417: return sidRegisters.filter.resonanceControl;
+        case 0xD418: return sidRegisters.filter.volume;
+        case 0xD419: return rand() & 0xFF; // read only register should return joy1 value; using random instead
+        case 0xD41A: return rand() & 0xFF; // read only register should return joy2 value; using random instead
+        case 0xD41B: return rand() & 0xFF; // read only register returns osc voice 3 value
+        case 0xD41C: return rand() & 0xFF; // read only register returns env voice  3
     }
     // Default value
     return 0xFF;
@@ -643,14 +763,14 @@ std::string SID::decodeControlRegister(uint8_t ctrl) const
 {
     std::stringstream out;
     out << "  CTRL=$" << std::hex << std::setw(2) << static_cast<int>(ctrl) << " (";
-    if (ctrl & 0x80) out << "GATE ";
-    if (ctrl & 0x40) out << "SYNC ";
-    if (ctrl & 0x20) out << "RING ";
-    if (ctrl & 0x10) out << "TEST ";
-    if (ctrl & 0x08) out << "TRI ";
-    if (ctrl & 0x04) out << "SAW ";
-    if (ctrl & 0x02) out << "PULSE ";
-    if (ctrl & 0x01) out << "NOISE ";
+    if (ctrl & 0x80) out << "NOISE ";
+    if (ctrl & 0x40) out << "PULSE ";
+    if (ctrl & 0x20) out << "SAW ";
+    if (ctrl & 0x10) out << "TRI ";
+    if (ctrl & 0x08) out << "TEST ";
+    if (ctrl & 0x04) out << "RING ";
+    if (ctrl & 0x02) out << "SYNC ";
+    if (ctrl & 0x01) out << "GATE ";
     out << ")\n";
     return out.str();
 }
