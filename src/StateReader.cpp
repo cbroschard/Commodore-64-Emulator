@@ -98,6 +98,17 @@ bool StateReader::readI32(int32_t& out)
     return true;
 }
 
+bool StateReader::readVectorU8(std::vector<uint8_t>& out)
+{
+    uint32_t size = 0;
+    if (!readU32(size)) return false;
+
+    out.resize(static_cast<size_t>(size));
+    if (size == 0) return true;
+
+    return readBytes(out.data(), static_cast<size_t>(size));
+}
+
 bool StateReader::readBool(bool& out)
 {
     uint8_t b = 0;

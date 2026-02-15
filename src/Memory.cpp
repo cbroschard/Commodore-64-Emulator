@@ -39,6 +39,51 @@ Memory::Memory() :
 
 Memory::~Memory() = default;
 
+void Memory::saveState(StateWriter& wrtr) const
+{
+    // MEM0 = "Core"
+    wrtr.beginChunk("MEM0");
+
+    // Dump main memory
+    wrtr.writeVectorU8(mem);
+
+    // Dump Color RAM
+    wrtr.writeVectorU8(colorRAM);
+
+    // Dump CPU port $00/$01 mapping controls
+    wrtr.writeU8(dataDirectionRegister);
+    wrtr.writeU8(port1OutputLatch);
+
+    // Dump Misc
+    wrtr.writeU8(lastBus);
+    wrtr.writeBool(cartridgeAttached);
+
+    // Dump Cartridge Lo/Hi
+    wrtr.writeVectorU8(cart_lo);
+    wrtr.writeVectorU8(cart_hi);
+
+    // End the chunk for CIA1
+    wrtr.endChunk();
+}
+
+bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Load Main memory
+        if (!rdr.readVectorU8(mem))      return false;
+
+        // Load Color RAM
+        if (!rdr.readVectorU8(colorRAM)) return false;
+
+        rdr.skipChunk(chunk);
+        return true;
+    }
+    return true;
+}
+
 uint8_t Memory::read(uint16_t address)
 {
     // Wrap every return so read-watches can trigger exactly once per CPU read.

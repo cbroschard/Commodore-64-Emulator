@@ -32,6 +32,8 @@ class CIA1;
 #include "Mlmonitor.h"
 #include "PLA.h"
 #include "SID/SID.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "Vic.h"
 
 class Memory : public CPUBus
@@ -53,6 +55,10 @@ class Memory : public CPUBus
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Public access to memory
         uint8_t read(uint16_t address); // CPU access
