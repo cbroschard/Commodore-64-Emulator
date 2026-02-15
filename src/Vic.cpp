@@ -311,7 +311,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         return true;
     }
 
-    return true; // not our chunk
+    return false; // not our chunk
 }
 
 uint8_t Vic::readRegister(uint16_t address)

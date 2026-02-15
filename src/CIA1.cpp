@@ -254,7 +254,9 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // End chunk
         rdr.skipChunk(chunk);
     }
-    return true;
+
+    // Unknown chunk
+    return false;
 }
 
 void CIA1::reset() {
