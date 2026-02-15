@@ -137,7 +137,6 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (dataDirectionPortB & DTR_MASK) rs232dev->setDTR((portB & DTR_MASK) != 0);
             if (dataDirectionPortB & RTS_MASK) rs232dev->setRTS((portB & RTS_MASK) != 0);
 
-            // Optional, depending on how you model these pins:
             if (dataDirectionPortB & DSR_MASK) rs232dev->setDSR((portB & DSR_MASK) != 0);
             if (dataDirectionPortB & CTS_MASK) rs232dev->setCTS((portB & CTS_MASK) != 0);
         }
