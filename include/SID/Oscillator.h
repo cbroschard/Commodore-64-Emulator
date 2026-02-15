@@ -21,13 +21,13 @@ class Oscillator
         // Getters
         inline uint32_t getNoiseLFSR() const { return noiseLFSR; }
         inline double getPhase() const { return phase; }
-        inline bool didOverflow() const { return phaseOverflow; }
+        inline bool getPhaseOverflow() const { return phaseOverflow; }
         inline uint8_t getControl() const { return control; }
         inline double getFrequency() const { return frequency; }
 
         // Setters
         inline void setPhase(double value) { phase = value; }
-        inline void setDIDOverflow(bool value) { phaseOverflow = value; }
+        inline void setPhaseOverflow(bool value) { phaseOverflow = value; }
         inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF; }
         inline void setSampleRate(double sample) { sampleRate = sample; }
         inline void setSIDClockFrequency(double frequency) { sidClockFrequency = frequency; }
