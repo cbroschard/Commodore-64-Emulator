@@ -157,26 +157,26 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         // Load ports
-        if (!rdr.readU8(portA))                 return false;
-        if (!rdr.readU8(portB))                 return false;
-        if (!rdr.readU8(dataDirectionPortA))    return false;
-        if (!rdr.readU8(dataDirectionPortB))    return false;
+        if (!rdr.readU8(portA))                     return false;
+        if (!rdr.readU8(portB))                     return false;
+        if (!rdr.readU8(dataDirectionPortA))        return false;
+        if (!rdr.readU8(dataDirectionPortB))        return false;
 
         // Load timers
-        if (!rdr.readU8(timerALowByte))         return false;
-        if (!rdr.readU8(timerAHighByte))        return false;
-        if (!rdr.readU8(timerBLowByte))         return false;
-        if (!rdr.readU8(timerBHighByte))        return false;
-        if (!rdr.readU8(timerAControl))         return false;
-        if (!rdr.readU8(timerBControl))         return false;
+        if (!rdr.readU8(timerALowByte))             return false;
+        if (!rdr.readU8(timerAHighByte))            return false;
+        if (!rdr.readU8(timerBLowByte))             return false;
+        if (!rdr.readU8(timerBHighByte))            return false;
+        if (!rdr.readU8(timerAControl))             return false;
+        if (!rdr.readU8(timerBControl))             return false;
 
         // Normalize
         timerAControl &= 0xEF;
         timerBControl &= 0xEF;
 
         // Load Interrupt Control
-        if (!rdr.readU8(interruptStatus))        return false;
-        if (!rdr.readU8(interruptEnable))        return false;
+        if (!rdr.readU8(interruptStatus))           return false;
+        if (!rdr.readU8(interruptEnable))           return false;
 
         // Normalize
         interruptStatus &= 0x1F;
@@ -185,21 +185,19 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         updateIRQLine();
 
         // Load Serial data register
-        if (!rdr.readU8(serialDataRegister))      return false;
+        if (!rdr.readU8(serialDataRegister))        return false;
 
         // Load TOD clock
-        if (!rdr.readU8(todClock[0]))             return false;
-        if (!rdr.readU8(todClock[1]))             return false;
-        if (!rdr.readU8(todClock[2]))             return false;
-        if (!rdr.readU8(todClock[3]))             return false;
+        if (!rdr.readU8(todClock[0]))               return false;
+        if (!rdr.readU8(todClock[1]))               return false;
+        if (!rdr.readU8(todClock[2]))               return false;
+        if (!rdr.readU8(todClock[3]))               return false;
 
         // Load TOD Alarm
-        if (!rdr.readU8(todAlarm[0]))             return false;
-        if (!rdr.readU8(todAlarm[1]))             return false;
-        if (!rdr.readU8(todAlarm[2]))             return false;
-        if (!rdr.readU8(todAlarm[3]))             return false;
-        if (!rdr.readBool(todLatched))            return false;
-        if (!rdr.readU32(todTicks))               return false;
+        if (!rdr.readU8(todAlarm[0]))               return false;
+        if (!rdr.readU8(todAlarm[1]))               return false;
+        if (!rdr.readU8(todAlarm[2]))               return false;
+        if (!rdr.readU8(todAlarm[3]))               return false;
 
         // End chunk
         rdr.skipChunk(chunk);
@@ -212,32 +210,34 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         // Load and activate the video mode
         uint8_t vm = 0;
-        if (!rdr.readU8(vm))                  return false;
+        if (!rdr.readU8(vm))                        return false;
         mode_ = static_cast<VideoMode>(vm);
         setMode(mode_);
 
         // Load Timers
-        if (!rdr.readU16(timerA))             return false;
-        if (!rdr.readU16(timerASnap))         return false;
-        if (!rdr.readBool(timerALatched))     return false;
-        if (!rdr.readU16(timerB))             return false;
-        if (!rdr.readU16(timerBSnap))         return false;
-        if (!rdr.readBool(timerBLatched))     return false;
+        if (!rdr.readU16(timerA))                   return false;
+        if (!rdr.readU16(timerASnap))               return false;
+        if (!rdr.readBool(timerALatched))           return false;
+        if (!rdr.readU16(timerB))                   return false;
+        if (!rdr.readU16(timerBSnap))               return false;
+        if (!rdr.readBool(timerBLatched))           return false;
 
         // Load TOD
-        if (!rdr.readU8(todLatch[0]))         return false;
-        if (!rdr.readU8(todLatch[1]))         return false;
-        if (!rdr.readU8(todLatch[2]))         return false;
-        if (!rdr.readU8(todLatch[3]))         return false;
+        if (!rdr.readU8(todLatch[0]))               return false;
+        if (!rdr.readU8(todLatch[1]))               return false;
+        if (!rdr.readU8(todLatch[2]))               return false;
+        if (!rdr.readU8(todLatch[3]))               return false;
+        if (!rdr.readBool(todLatched))              return false;
+        if (!rdr.readU32(todTicks))                 return false;
 
         // Load TOD Alarm/Trigged
-        if (!rdr.readBool(todAlarmSetMode))   return false;
-        if (!rdr.readBool(todAlarmTriggered)) return false;
+        if (!rdr.readBool(todAlarmSetMode))         return false;
+        if (!rdr.readBool(todAlarmTriggered))       return false;
 
         // Load current cassette state
-        if (!rdr.readBool(prevReadLevel))         return false;
-        if (!rdr.readBool(cassetteReadLineLevel)) return false;
-        if (!rdr.readBool(gateWasOpenPrev))       return false;
+        if (!rdr.readBool(prevReadLevel))           return false;
+        if (!rdr.readBool(cassetteReadLineLevel))   return false;
+        if (!rdr.readBool(gateWasOpenPrev))         return false;
 
         // Load CNT
         if (!rdr.readBool(cntLevel))             return false;
