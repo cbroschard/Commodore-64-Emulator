@@ -81,11 +81,6 @@ void Filter::setResonance(uint8_t res)
     calculateCoefficients();
 }
 
-void Filter::setMode(uint8_t m)
-{
-    mode = m & 0x07;
-}
-
 void Filter::calculateCoefficients()
 {
     double fc = std::clamp(cutoff, 30.0, sampleRate * 0.45);

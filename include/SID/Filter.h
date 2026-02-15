@@ -26,12 +26,22 @@ class Filter
         // Reset function
         void reset();
 
+        // Getters
+        inline double getLowPassOut()  const { return lowPassOut; }
+        inline double getBandPassOut() const { return bandPassOut; }
+        inline double getHighPassOut() const { return highPassOut; }
+        inline double getDcBlock()     const { return dcBlock; }
+
         // Setters
+        inline void setLowPassOut(double value)  { lowPassOut = value; }
+        inline void setBandPassOut(double value) { bandPassOut = value; }
+        inline void setHighPassOut(double value) { highPassOut = value; }
+        inline void setDcBlock(double value)     { dcBlock = value; }
+        inline void setMode(uint8_t m)           { mode = m & 0x07; }
         void setSampleRate(double sample);
         void setSIDClockFrequency(double frequency);
         void setCutoffFreq(double frequency);
         void setResonance(uint8_t res);
-        void setMode(uint8_t m);
 
     protected:
 
