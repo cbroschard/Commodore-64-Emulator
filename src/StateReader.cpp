@@ -98,6 +98,23 @@ bool StateReader::readI32(int32_t& out)
     return true;
 }
 
+bool StateReader::readF64(double& out)
+{
+    static_assert(sizeof(double) == 8, "Double must be 8 bytes");
+
+    uint32_t lo = 0;
+    uint32_t hi = 0;
+
+    if (!readU32(lo)) return false;
+    if (!readU32(hi)) return false;
+
+    uint64_t bits = static_cast<uint64_t>(lo)
+                  | (static_cast<uint64_t>(hi) << 32);
+
+    std::memcpy(&out, &bits, sizeof(out));
+    return true;
+}
+
 bool StateReader::readVectorU8(std::vector<uint8_t>& out)
 {
     uint32_t size = 0;

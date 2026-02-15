@@ -57,6 +57,18 @@ void StateWriter::writeI32(int32_t value)
     writeU32(static_cast<uint32_t>(value));
 }
 
+void StateWriter::writeF64(double value)
+{
+    static_assert(sizeof(double) == 8, "Double must be 8 bytes");
+
+    uint64_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+
+    // Write little-endian
+    writeU32(static_cast<uint32_t>(bits & 0xFFFFFFFF));
+    writeU32(static_cast<uint32_t>((bits >> 32) & 0xFFFFFFFF));
+}
+
 void StateWriter::writeBool(bool value)
 {
     writeU8(value ? 1 : 0);
