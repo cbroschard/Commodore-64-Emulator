@@ -109,7 +109,7 @@ void CIA2::saveState(StateWriter& wrtr) const
     wrtr.writeBool(lastSrqLevel);
     wrtr.writeBool(lastDataLevel);
     wrtr.writeU8(iecCmdShiftReg);
-    wrtr.writeU8(iecCmdBitCount);
+    wrtr.writeI32(iecCmdBitCount);
 
     // Dump Pending TB ticks
     wrtr.writeU32(pendingTBCNTTicks);
@@ -121,6 +121,131 @@ void CIA2::saveState(StateWriter& wrtr) const
 
 bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
+    if (std::memcmp(chunk.tag, "CIA2", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Load ports
+        if (!rdr.readU8(portA))                     return false;
+        if (!rdr.readU8(portB))                     return false;
+        if (!rdr.readU8(dataDirectionPortA))        return false;
+        if (!rdr.readU8(dataDirectionPortB))        return false;
+
+        // Normalize
+        if (rs232dev)
+        {
+            if (dataDirectionPortB & DTR_MASK) rs232dev->setDTR((portB & DTR_MASK) != 0);
+            if (dataDirectionPortB & RTS_MASK) rs232dev->setRTS((portB & RTS_MASK) != 0);
+
+            // Optional, depending on how you model these pins:
+            if (dataDirectionPortB & DSR_MASK) rs232dev->setDSR((portB & DSR_MASK) != 0);
+            if (dataDirectionPortB & CTS_MASK) rs232dev->setCTS((portB & CTS_MASK) != 0);
+        }
+        recomputeIEC();
+
+        // Load timers
+        if (!rdr.readU8(timerALowByte))             return false;
+        if (!rdr.readU8(timerAHighByte))            return false;
+        if (!rdr.readU8(timerBLowByte))             return false;
+        if (!rdr.readU8(timerBHighByte))            return false;
+        if (!rdr.readU8(timerAControl))             return false;
+        if (!rdr.readU8(timerBControl))             return false;
+
+        // Normalize
+        timerAControl &= 0xEF;
+        timerBControl &= 0xEF;
+
+        // Load Interrupt Control
+        if (!rdr.readU8(interruptStatus))           return false;
+        if (!rdr.readU8(interruptEnable))           return false;
+
+        // Normalize
+        interruptStatus &= 0x1F;
+        interruptEnable &= 0x1F;
+        refreshNMI();
+
+        // Load Serial data register
+        if (!rdr.readU8(serialDataRegister))        return false;
+
+        // Load TOD clock
+        if (!rdr.readU8(todClock[0]))               return false;
+        if (!rdr.readU8(todClock[1]))               return false;
+        if (!rdr.readU8(todClock[2]))               return false;
+        if (!rdr.readU8(todClock[3]))               return false;
+
+        // Load TOD Alarm
+        if (!rdr.readU8(todAlarm[0]))               return false;
+        if (!rdr.readU8(todAlarm[1]))               return false;
+        if (!rdr.readU8(todAlarm[2]))               return false;
+        if (!rdr.readU8(todAlarm[3]))               return false;
+
+        // End chunk
+        rdr.skipChunk(chunk);
+        return true;
+    }
+
+    if (std::memcmp(chunk.tag, "CI2X", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Load and activate the video mode
+        uint8_t vm = 0;
+        if (!rdr.readU8(vm))                        return false;
+        mode_ = static_cast<VideoMode>(vm);
+        setMode(mode_);
+
+        // Load Timers
+        if (!rdr.readU16(timerA))                   return false;
+        if (!rdr.readU16(timerASnap))               return false;
+        if (!rdr.readBool(timerALatched))           return false;
+        if (!rdr.readU16(timerB))                   return false;
+        if (!rdr.readU16(timerBSnap))               return false;
+        if (!rdr.readBool(timerBLatched))           return false;
+
+        // Load TOD
+        if (!rdr.readU8(todLatch[0]))               return false;
+        if (!rdr.readU8(todLatch[1]))               return false;
+        if (!rdr.readU8(todLatch[2]))               return false;
+        if (!rdr.readU8(todLatch[3]))               return false;
+        if (!rdr.readBool(todLatched))              return false;
+        if (!rdr.readU32(todTicks))                 return false;
+
+        // Load TOD Alarm/Trigged
+        if (!rdr.readBool(todAlarmSetMode))         return false;
+        if (!rdr.readBool(todAlarmTriggered))       return false;
+
+        // Load CNT
+        if (!rdr.readBool(cntLevel))                return false;
+        if (!rdr.readBool(lastCNT))                 return false;
+
+        // oad IEC
+        if (!rdr.readBool(iecProtocolEnabled))      return false;
+        if (!rdr.readU8(deviceNumber))              return false;
+        if (!rdr.readBool(listening))               return false;
+        if (!rdr.readBool(talking))                 return false;
+        if (!rdr.readU8(currentSecondaryAddress))   return false;
+        if (!rdr.readBool(atnLine))                 return false;
+        if (!rdr.readBool(atnHandshakePending))     return false;
+        if (!rdr.readBool(atnHandshakeJustCleared)) return false;
+        if (!rdr.readBool(lastAtnLevel))            return false;
+        if (!rdr.readBool(lastClk))                 return false;
+        if (!rdr.readBool(lastSrqLevel))            return false;
+        if (!rdr.readBool(lastDataLevel))           return false;
+        if (!rdr.readU8(iecCmdShiftReg))            return false;
+        if (!rdr.readI32(iecCmdBitCount))           return false;
+
+        // Normalize
+        if (iecCmdBitCount < 0) iecCmdBitCount = 0;
+        if (iecCmdBitCount > 8) iecCmdBitCount = 8;
+        recomputeIEC();
+
+        // Load Pending TB ticks
+        if (!rdr.readU32(pendingTBCNTTicks))        return false;
+        if (!rdr.readU32(pendingTBCASTicks))        return false;
+
+        rdr.skipChunk(chunk);
+        return true;
+    }
     return true;
 }
 
