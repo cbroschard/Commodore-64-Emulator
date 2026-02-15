@@ -118,6 +118,202 @@ void Vic::setMode(VideoMode mode)
     IO_adapter->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
 }
 
+void Vic::saveState(StateWriter& wrtr) const
+{
+    // VIC0 = "Core" and Registers
+    wrtr.beginChunk("VIC0");
+
+    // Dump Sprite Registers
+    for (int i = 0; i < 8; ++i)
+    {
+        wrtr.writeU8(registers.spriteX[i]);
+        wrtr.writeU8(registers.spriteY[i]);
+    }
+
+    wrtr.writeU8(registers.spriteX_MSB);
+    wrtr.writeU8(registers.spriteEnabled);
+    wrtr.writeU8(registers.spriteYExpansion);
+    wrtr.writeU8(registers.spritePriority);
+    wrtr.writeU8(registers.spriteMultiColor);
+    wrtr.writeU8(registers.spriteXExpansion);
+
+    // Dump Control registers
+    wrtr.writeU8(registers.control);
+    wrtr.writeU8(registers.control2);
+
+    // Dump Memory Pointer
+    wrtr.writeU8(registers.memory_pointer);
+
+    // Dump Background/Border color registers
+    wrtr.writeU8(registers.borderColor);
+    wrtr.writeU8(registers.backgroundColor0);
+    for (int i = 0; i < 3; ++i)
+    {
+        wrtr.writeU8(registers.backgroundColor[i]);
+    }
+
+    // Dump Sprite Color Registers
+    wrtr.writeU8(registers.spriteMultiColor1);
+    wrtr.writeU8(registers.spriteMultiColor2);
+    for (int i = 0; i < 8; ++i)
+    {
+        wrtr.writeU8(registers.spriteColors[i]);
+    }
+
+    // Dump Raster
+    wrtr.writeU16(registers.raster);
+
+    // Dump Interrupt Control
+    wrtr.writeU8(registers.interruptStatus);
+    wrtr.writeU8(registers.interruptEnable);
+    wrtr.writeU16(registers.rasterInterruptLine);
+
+    // Dump Lightpen
+    wrtr.writeU8(registers.light_pen_X);
+    wrtr.writeU8(registers.light_pen_Y);
+
+    // Dump Collision Latches
+    wrtr.writeU8(registers.spriteCollision);
+    wrtr.writeU8(registers.spriteDataCollision);
+
+    // End the chunk
+    wrtr.endChunk();
+
+    // VICX = Runtime
+    wrtr.beginChunk("VICX");
+
+    // Dump current cycle
+    wrtr.writeI32(currentCycle);
+
+    // Dump Sprite/FIFO
+    for (int i=0;i<8;++i)  wrtr.writeU16(sprPtrBase[i]);
+    for (int i=0;i<40;++i) wrtr.writeU8(charPtrFIFO[i]);
+    for (int i=0;i<40;++i) wrtr.writeU8(colorPtrFIFO[i]);
+
+    // Dump Misc
+    wrtr.writeBool(denSeenOn30);
+    wrtr.writeI32(firstBadlineY);
+    wrtr.writeI32(currentScreenRow);
+    wrtr.writeU8(rowCounter);
+
+    // Dump AEC
+    wrtr.writeBool(AEC);
+
+    // Dump Latches
+    wrtr.writeVectorU8(d011_per_raster);
+    wrtr.writeVectorU8(d016_per_raster);
+    wrtr.writeVectorU8(d018_per_raster);
+    wrtr.writeVectorU16(dd00_per_raster);
+
+    // Dump frameDone
+    wrtr.writeBool(frameDone);
+
+    // End the chunk
+    wrtr.endChunk();
+}
+
+bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "VIC0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        for (int i = 0; i < 8; ++i) {
+            if (!rdr.readU8(registers.spriteX[i])) return false;
+            if (!rdr.readU8(registers.spriteY[i])) return false;
+        }
+
+        if (!rdr.readU8(registers.spriteX_MSB)) return false;
+        if (!rdr.readU8(registers.spriteEnabled)) return false;
+        if (!rdr.readU8(registers.spriteYExpansion)) return false;
+        if (!rdr.readU8(registers.spritePriority)) return false;
+        if (!rdr.readU8(registers.spriteMultiColor)) return false;
+        if (!rdr.readU8(registers.spriteXExpansion)) return false;
+
+        if (!rdr.readU8(registers.control)) return false;
+        if (!rdr.readU8(registers.control2)) return false;
+
+        if (!rdr.readU8(registers.memory_pointer)) return false;
+
+        if (!rdr.readU8(registers.borderColor)) return false;
+        if (!rdr.readU8(registers.backgroundColor0)) return false;
+        for (int i = 0; i < 3; ++i)
+            if (!rdr.readU8(registers.backgroundColor[i])) return false;
+
+        if (!rdr.readU8(registers.spriteMultiColor1)) return false;
+        if (!rdr.readU8(registers.spriteMultiColor2)) return false;
+        for (int i = 0; i < 8; ++i)
+            if (!rdr.readU8(registers.spriteColors[i])) return false;
+
+        if (!rdr.readU16(registers.raster)) return false;
+
+        if (!rdr.readU8(registers.interruptStatus)) return false;
+        if (!rdr.readU8(registers.interruptEnable)) return false;
+        if (!rdr.readU16(registers.rasterInterruptLine)) return false;
+
+        if (!rdr.readU8(registers.light_pen_X)) return false;
+        if (!rdr.readU8(registers.light_pen_Y)) return false;
+
+        if (!rdr.readU8(registers.spriteCollision)) return false;
+        if (!rdr.readU8(registers.spriteDataCollision)) return false;
+
+        // Mask colors to 4-bit (safer on corrupt/old states)
+        registers.borderColor &= 0x0F;
+        registers.backgroundColor0 &= 0x0F;
+        for (int i = 0; i < 3; ++i) registers.backgroundColor[i] &= 0x0F;
+        registers.spriteMultiColor1 &= 0x0F;
+        registers.spriteMultiColor2 &= 0x0F;
+        for (int i = 0; i < 8; ++i) registers.spriteColors[i] &= 0x0F;
+
+        // Re-sync anything derived from registers
+        updateIRQLine();
+        updateMonitorCaches(registers.raster);
+
+        rdr.skipChunk(chunk);
+        return true;
+    }
+
+    if (std::memcmp(chunk.tag, "VICX", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        if (!rdr.readI32(currentCycle)) return false;
+
+        for (int i = 0; i < 8; ++i)
+            if (!rdr.readU16(sprPtrBase[i])) return false;
+        for (int i = 0; i < 40; ++i)
+            if (!rdr.readU8(charPtrFIFO[i])) return false;
+        for (int i = 0; i < 40; ++i)
+            if (!rdr.readU8(colorPtrFIFO[i])) return false;
+
+        if (!rdr.readBool(denSeenOn30)) return false;
+        if (!rdr.readI32(firstBadlineY)) return false;
+        if (!rdr.readI32(currentScreenRow)) return false;
+        if (!rdr.readU8(rowCounter)) return false;
+
+        if (!rdr.readBool(AEC)) return false;
+
+        if (!rdr.readVectorU8(d011_per_raster)) return false;
+        if (!rdr.readVectorU8(d016_per_raster)) return false;
+        if (!rdr.readVectorU8(d018_per_raster)) return false;
+        if (!rdr.readVectorU16(dd00_per_raster)) return false;
+
+        if (!rdr.readBool(frameDone)) return false;
+
+        // Recompute mode/caches from restored latches
+        updateGraphicsMode(registers.raster);
+        updateMonitorCaches(registers.raster);
+
+        // Make sure CPU BA hold matches restored AEC right now
+        updateAEC();
+
+        rdr.skipChunk(chunk);
+        return true;
+    }
+
+    return true; // not our chunk
+}
+
 uint8_t Vic::readRegister(uint16_t address)
 {
     // Handle all SpriteX and SpriteY registers with helper

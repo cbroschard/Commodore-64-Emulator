@@ -8,9 +8,6 @@
 #ifndef VIC_H
 #define VIC_H
 
-// Forward declarations
-class Vic;
-
 #include <algorithm>
 #include <cstdint>
 #include "common.h"
@@ -20,6 +17,8 @@ class Vic;
 #include "IRQLine.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 struct ModeConfig
 {
@@ -86,6 +85,10 @@ class Vic
 
         // Setter for video mode
         void setMode(VideoMode mode);
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Register read/write
         void writeRegister(uint16_t address, uint8_t value);
