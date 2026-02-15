@@ -192,7 +192,7 @@ uint16_t Oscillator::getNoiseBits()
 
 void Oscillator::updatePhase()
 {
-    if ((control & 0x02) && syncSource && syncSource->didOverflow())
+    if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
     {
         resetPhase();
     }

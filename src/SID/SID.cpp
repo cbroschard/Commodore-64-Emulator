@@ -82,21 +82,21 @@ void SID::saveState(StateWriter& wrtr) const
 
     // Dump Voice1 runtime state
     wrtr.writeF64(voice1.getOscillator().getPhase());
-    wrtr.writeBool(voice1.getOscillator().didOverflow());
+    wrtr.writeBool(voice1.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice1.getOscillator().getNoiseLFSR());
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
     wrtr.writeF64(voice1.getEnvelope().getLevel());
 
     // Dump Voice2 runtime status
     wrtr.writeF64(voice2.getOscillator().getPhase());
-    wrtr.writeBool(voice2.getOscillator().didOverflow());
+    wrtr.writeBool(voice2.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice2.getOscillator().getNoiseLFSR());
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
     wrtr.writeF64(voice2.getEnvelope().getLevel());
 
     // Dump Voice3 runtime state
     wrtr.writeF64(voice3.getOscillator().getPhase());
-    wrtr.writeBool(voice3.getOscillator().didOverflow());
+    wrtr.writeBool(voice3.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice3.getOscillator().getNoiseLFSR());
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
     wrtr.writeF64(voice3.getEnvelope().getLevel());
@@ -113,14 +113,10 @@ void SID::saveState(StateWriter& wrtr) const
 
 bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    rdr.enterChunkPayload(chunk);
-
-    auto tagIs = [&](const char* t) {
-        return chunk.tag[0]==t[0] && chunk.tag[1]==t[1] && chunk.tag[2]==t[2] && chunk.tag[3]==t[3];
-    };
-
-    if (tagIs("SID0"))
+    if (std::memcmp(chunk.tag, "SID0", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         // Read registers in the exact order we wrote them.
         if (!rdr.readU8(sidRegisters.voice1.frequencyLow)) return false;
         if (!rdr.readU8(sidRegisters.voice1.frequencyHigh)) return false;
@@ -187,8 +183,10 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         return true;
     }
 
-    if (tagIs("SIDX"))
+    if (std::memcmp(chunk.tag, "SIDX", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         uint8_t modeU8 = 0;
         if (!rdr.readU8(modeU8)) return false;
         mode_ = static_cast<VideoMode>(modeU8);
@@ -213,7 +211,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readF64(envLevel)) return false;
 
             v.getOscillator().setPhase(phase);
-            v.getOscillator().setDIDOverflow(overflow);
+            v.getOscillator().setPhaseOverflow(overflow);
             v.getOscillator().setNoiseLFSR(lfsr);
 
             v.getEnvelope().setState(static_cast<Envelope::State>(envStateU8));
@@ -610,11 +608,11 @@ void SID::writeRegister(uint16_t address, uint8_t value)
 
 double SID::generateAudioSample()
 {
-    if (voice1.getOscillator().didOverflow() && (sidRegisters.voice2.control & 0x02))
+    if (voice1.getOscillator().getPhaseOverflow() && (sidRegisters.voice2.control & 0x02))
     {
         voice2.getOscillator().resetPhase();
     }
-    if (voice2.getOscillator().didOverflow() && (sidRegisters.voice3.control & 0x02))
+    if (voice2.getOscillator().getPhaseOverflow() && (sidRegisters.voice3.control & 0x02))
     {
         voice3.getOscillator().resetPhase();
     }
