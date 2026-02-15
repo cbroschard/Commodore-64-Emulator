@@ -26,6 +26,8 @@ class Oscillator
         inline double getFrequency() const { return frequency; }
 
         // Setters
+        inline void setPhase(double value) { phase = value; }
+        inline void setDIDOverflow(bool value) { phaseOverflow = value; }
         inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF; }
         inline void setSampleRate(double sample) { sampleRate = sample; }
         inline void setSIDClockFrequency(double frequency) { sidClockFrequency = frequency; }

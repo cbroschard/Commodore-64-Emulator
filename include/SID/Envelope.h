@@ -33,13 +33,16 @@ class Envelope
         double processSample();
         bool isIdle() const;
 
-        // Setters
-        void setSampleRate(double sample);
-        void setParameters(double attack, double decay, double sustain, double release);
-
         // Getters
         inline double getLevel() const { return level; }
         inline State getState() const { return state; }
+
+
+        // Setters
+        inline void setLevel(double value) { level = value; }
+        inline void setState(Envelope::State value) { state = value; }
+        void setSampleRate(double sample);
+        void setParameters(double attack, double decay, double sustain, double release);
 
         // Helpers
         static std::string stateToString(State s);
