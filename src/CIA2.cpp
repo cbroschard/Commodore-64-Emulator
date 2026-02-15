@@ -65,7 +65,7 @@ void CIA2::saveState(StateWriter& wrtr) const
     // End the chunk for CIA1
     wrtr.endChunk();
 
-    // Write CI2X chunk for runtime statue
+    // Write CI2X chunk for runtime status
     wrtr.beginChunk("CI2X");
 
     // Dump Video mode
