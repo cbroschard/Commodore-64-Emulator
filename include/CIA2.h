@@ -40,7 +40,7 @@ class CIA2
         // Setter for NTSC/PAL
         void setMode(VideoMode mode);
 
-        // STate management
+        // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
