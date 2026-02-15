@@ -22,6 +22,108 @@ CIA2::CIA2() :
 
 CIA2::~CIA2() = default;
 
+void CIA2::saveState(StateWriter& wrtr) const
+{
+    // CIA2 = "Core" and Registers
+    wrtr.beginChunk("CIA2");
+
+    // Dump ports
+    wrtr.writeU8(portA);
+    wrtr.writeU8(portB);
+    wrtr.writeU8(dataDirectionPortA);
+    wrtr.writeU8(dataDirectionPortB);
+
+    // Dump timers
+    wrtr.writeU8(timerALowByte);
+    wrtr.writeU8(timerAHighByte);
+    wrtr.writeU8(timerBLowByte);
+    wrtr.writeU8(timerBHighByte);
+
+    // Dump Control registers
+    wrtr.writeU8(timerAControl);
+    wrtr.writeU8(timerBControl);
+
+    // Dump Interrupt control
+    wrtr.writeU8(interruptStatus);
+    wrtr.writeU8(interruptEnable);
+
+    // Dump Serial data register
+    wrtr.writeU8(serialDataRegister);
+
+    // Dump TOD clock
+    wrtr.writeU8(todClock[0]); // 10ths
+    wrtr.writeU8(todClock[1]); // Seoonds
+    wrtr.writeU8(todClock[2]); // Minutes
+    wrtr.writeU8(todClock[3]); // Hours
+
+    // Dump TOD Alarms
+    wrtr.writeU8(todAlarm[0]); // 10ths
+    wrtr.writeU8(todAlarm[1]); // Seconds
+    wrtr.writeU8(todAlarm[2]); // Minutes
+    wrtr.writeU8(todAlarm[3]); // Hours
+
+    // End the chunk for CIA1
+    wrtr.endChunk();
+
+    // Write CI2X chunk for runtime statue
+    wrtr.beginChunk("CI2X");
+
+    // Dump Video mode
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
+
+    // Dump Timers
+    wrtr.writeU16(timerA);
+    wrtr.writeU16(timerASnap);
+    wrtr.writeBool(timerALatched);
+    wrtr.writeU16(timerB);
+    wrtr.writeU16(timerBSnap);
+    wrtr.writeBool(timerBLatched);
+
+    // Dump TOD state
+    wrtr.writeU8(todLatch[0]); // 10ths
+    wrtr.writeU8(todLatch[1]); // Seoonds
+    wrtr.writeU8(todLatch[2]); // Minutes
+    wrtr.writeU8(todLatch[3]); // Hours
+    wrtr.writeBool(todLatched);
+    wrtr.writeU32(todTicks);
+
+    // Dump TOD Alarm Mode/Triggered
+    wrtr.writeBool(todAlarmSetMode);
+    wrtr.writeBool(todAlarmTriggered);
+
+    // Dump CNT
+    wrtr.writeBool(cntLevel);
+    wrtr.writeBool(lastCNT);
+
+    // Dump IEC
+    wrtr.writeBool(iecProtocolEnabled);
+    wrtr.writeU8(deviceNumber);
+    wrtr.writeBool(listening);
+    wrtr.writeBool(talking);
+    wrtr.writeU8(currentSecondaryAddress);
+    wrtr.writeBool(atnLine);
+    wrtr.writeBool(atnHandshakePending);
+    wrtr.writeBool(atnHandshakeJustCleared);
+    wrtr.writeBool(lastAtnLevel);
+    wrtr.writeBool(lastClk);
+    wrtr.writeBool(lastSrqLevel);
+    wrtr.writeBool(lastDataLevel);
+    wrtr.writeU8(iecCmdShiftReg);
+    wrtr.writeU8(iecCmdBitCount);
+
+    // Dump Pending TB ticks
+    wrtr.writeU32(pendingTBCNTTicks);
+    wrtr.writeU32(pendingTBCASTicks);
+
+    // End the chunk
+    wrtr.endChunk();
+}
+
+bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    return true;
+}
+
 void CIA2::reset() {
     // Ports & DDRs
     portA                       = 0x07;
@@ -36,10 +138,6 @@ void CIA2::reset() {
     timerBHighByte              = 0x00;
     timerA                      = 0;
     timerB                      = 0;
-    ticksA                      = 0;
-    ticksB                      = 0;
-    clkSelA                     = 0;
-    clkSelB                     = 0;
     timerASnap                  = 0;
     timerBSnap                  = 0;
     timerALatched               = false;
@@ -54,28 +152,20 @@ void CIA2::reset() {
     // Timer control
     timerAControl               = 0;
     timerBControl               = 0;
-    timerAPulseFlag             = false;
 
     // Interrupt / NMI
     interruptEnable             = 0;
     interruptStatus             = 0;
-    status                      = 0;
     nmiAsserted                 = false;
 
     // Serial
     serialDataRegister          = 0xFF;
-    outBit                      = 7;
-
-    // Cycle accumulators
-    accumulatedCyclesA          = 0;
-    accumulatedCyclesB          = 0;
 
     // IEC
     deviceNumber                = 0xFF;
     listening                   = false;
     talking                     = false;
     currentSecondaryAddress     = 0xFF;
-    expectedSecondaryAddress    = 0xFF;
     atnLine                     = false;
     atnHandshakePending         = false;
     atnHandshakeJustCleared     = false;
@@ -83,11 +173,8 @@ void CIA2::reset() {
     lastClk                     = false;
     lastSrqLevel                = false;
     lastDataLevel               = true;
-    shiftReg                    = 0;
-    bitCount                    = 0;
     iecCmdShiftReg              = 0;
     iecCmdBitCount              = 0;
-    lastClkOutHigh              = true;
 
     // CNT
     cntLevel                    = true;
@@ -364,7 +451,6 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if ((value & 0x01) && !(oldValue & 0x01))
                 {
                     timerA = (timerAHighByte << 8) | timerALowByte;
-                    accumulatedCyclesA = 0;
                 }
 
                 // Bit 4 always reads back zero
@@ -391,7 +477,6 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if ((value & 0x01) && !(oldValue & 0x01))
                 {
                     timerB = (timerBHighByte << 8) | timerBLowByte;
-                    accumulatedCyclesB = 0;
                 }
                 // Store without load bit
                 timerBControl &= ~0x10;
@@ -654,9 +739,6 @@ void CIA2::atnChanged(bool assertedLow)
         currentSecondaryAddress  = 0xFF;
         listening                = false;
         talking                  = false;
-        shiftReg                 = 0;
-        bitCount                 = 0;
-        outBit                   = 7;
 
         atnHandshakePending      = true;
         atnHandshakeJustCleared  = false;
@@ -703,7 +785,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             talking      = true;    // C64 will talk, device listens
 
             currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
 
             if (bus)
                 bus->listen(deviceNumber);
@@ -718,7 +799,6 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             listening    = true;    // C64 will listen, device talks
 
             currentSecondaryAddress  = 0xFF;
-            expectedSecondaryAddress = 0xFF;
 
             if (bus)
                 bus->talk(deviceNumber);
@@ -882,7 +962,6 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     {
         out << "\nSerial Register\n\n";
         out << "Serial Data Register = $" << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
-        out << "Output Bit = " << outBit << "\n";
     }
 
     // VIC Bank
@@ -899,9 +978,9 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         out << "Device Number = " << static_cast<int>(deviceNumber) << "\n";
 
         // These flags are *C64 perspective*
-        std::cout << "C64 acting as talker   = " << (talking   ? "Yes" : "No") << "\n";
-        std::cout << "C64 acting as listener = " << (listening ? "Yes" : "No") << "\n";
-        std::cout << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n";
+        out << "C64 acting as talker   = " << (talking   ? "Yes" : "No") << "\n";
+        out << "C64 acting as listener = " << (listening ? "Yes" : "No") << "\n";
+        out << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n";
     }
 
     return out.str();
@@ -929,7 +1008,7 @@ void CIA2::handleTimerBUnderflow()
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
             vicII ? vicII->getRasterDot() : 0);
-        traceMgr->recordCiaTimer(2, 'B', timerA, true, stamp);
+        traceMgr->recordCiaTimer(2, 'B', timerB, true, stamp);
         traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, stamp);
     }
 

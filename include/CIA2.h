@@ -21,6 +21,8 @@ class Vic;
 #include "IECBUS.h"
 #include "Logging.h"
 #include "RS232Device.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class CIA2
 {
@@ -38,6 +40,10 @@ class CIA2
         // Setter for NTSC/PAL
         void setMode(VideoMode mode);
 
+        // STate management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
         // Reset all to defaults
         void reset();
 
@@ -46,9 +52,6 @@ class CIA2
 
         // Getter to find current VIC bank
         uint16_t getCurrentVICBank() const;
-
-        // For interrupt control
-        uint8_t status;
 
         // Main function to update the timers
         void updateTimers(uint32_t cyclesElapsed);
@@ -123,7 +126,6 @@ class CIA2
         // IECBUS
         uint8_t deviceNumber;
         uint8_t currentSecondaryAddress;
-        uint8_t expectedSecondaryAddress;
         bool listening;
         bool talking;
         bool lastClk; // Remember previous clock level
@@ -133,11 +135,8 @@ class CIA2
         bool lastSrqLevel;
         bool lastDataLevel;
         bool lastAtnLevel;
-        uint8_t shiftReg; // IECBUS accumulated bits
-        int bitCount;
         uint8_t iecCmdShiftReg;
         int iecCmdBitCount;
-        bool lastClkOutHigh;
         void decodeIECCommand(uint8_t cmd);
 
         // Data ports
@@ -155,10 +154,6 @@ class CIA2
         uint8_t timerBHighByte;
         uint16_t timerA;
         uint16_t timerB;
-        uint32_t ticksA;
-        uint32_t ticksB;
-        uint8_t clkSelA;
-        uint8_t clkSelB;
 
         // TOD registers
         uint8_t todAlarm[4];
@@ -180,7 +175,6 @@ class CIA2
         // Timer control
         uint8_t timerAControl;
         uint8_t timerBControl;
-        bool timerAPulseFlag;
         uint16_t timerASnap;
         uint16_t timerBSnap;
         bool timerALatched;
@@ -197,15 +191,10 @@ class CIA2
 
         // Serial
         uint8_t serialDataRegister;
-        int outBit;
 
         // CNT
         bool cntLevel;
         bool lastCNT;
-
-        // Cycles
-        uint32_t accumulatedCyclesA;
-        uint32_t accumulatedCyclesB;
 
         // IEC Debugging flag
         bool iecProtocolEnabled;
