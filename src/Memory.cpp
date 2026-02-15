@@ -73,10 +73,24 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         // Load Main memory
-        if (!rdr.readVectorU8(mem))      return false;
+        if (!rdr.readVectorU8(mem))             return false;
 
         // Load Color RAM
-        if (!rdr.readVectorU8(colorRAM)) return false;
+        if (!rdr.readVectorU8(colorRAM))        return false;
+
+        // Load CPU port $00/$01 mapping controls
+        if (!rdr.readU8(dataDirectionRegister)) return false;
+        if (!rdr.readU8(port1OutputLatch))      return false;
+
+        if (!rdr.readU8(lastBus))               return false;
+        if (!rdr.readBool(cartridgeAttached))   return false;
+
+        // Load cart vectors
+        if (!rdr.readVectorU8(cart_lo))         return false;
+        if (!rdr.readVectorU8(cart_hi))         return false;
+
+        // Re-apply port $01 side effects (PLA mapping + cassette motor)
+        applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 
         rdr.skipChunk(chunk);
         return true;
