@@ -76,6 +76,13 @@ void StateWriter::writeVectorU8(const std::vector<uint8_t>& value)
         writeBytes(value.data(), value.size());
 }
 
+void StateWriter::writeVectorU16(const std::vector<uint16_t>& value)
+{
+    writeU32(static_cast<uint32_t>(value.size()));
+    for (uint16_t v : value)
+        writeU16(v);
+}
+
 void StateWriter::writeFourCC(const char tag[4])
 {
     writeBytes(tag, 4);

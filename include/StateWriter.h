@@ -34,6 +34,7 @@ class StateWriter
 
         void writeBytes(const void* ptr, size_t len);
         void writeVectorU8(const std::vector<uint8_t>& v);
+        void writeVectorU16(const std::vector<uint16_t>& v);
 
         // Chunk writing
         void beginChunk(const char tag[4]); // writes tag + placeholder length
