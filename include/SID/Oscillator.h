@@ -26,7 +26,7 @@ class Oscillator
         inline double getFrequency() const { return frequency; }
 
         // Setters
-        inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF;}
+        inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF; }
         inline void setSampleRate(double sample) { sampleRate = sample; }
         inline void setSIDClockFrequency(double frequency) { sidClockFrequency = frequency; }
         inline void setFrequency(uint16_t freqRegValue) { frequency = (static_cast<double>(freqRegValue) * sidClockFrequency) / 16777216.0; }
