@@ -115,6 +115,19 @@ bool StateReader::readF64(double& out)
     return true;
 }
 
+bool StateReader::readString(std::string& out)
+{
+    uint32_t n = 0;
+    if (!readU32(n)) return false;
+    if (!ensure(n)) return false;
+
+    out.clear();
+    out.resize(static_cast<size_t>(n));
+    if (n == 0) return true;
+
+    return readBytes(out.data(), static_cast<size_t>(n));
+}
+
 bool StateReader::readVectorU8(std::vector<uint8_t>& out)
 {
     uint32_t size = 0;

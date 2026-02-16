@@ -69,6 +69,15 @@ void StateWriter::writeF64(double value)
     writeU32(static_cast<uint32_t>((bits >> 32) & 0xFFFFFFFF));
 }
 
+void StateWriter::writeString(const std::string& s)
+{
+    // Store as bytes (UTF-8)
+    const auto* data = reinterpret_cast<const uint8_t*>(s.data());
+    writeU32(static_cast<uint32_t>(s.size()));
+    if (!s.empty())
+        writeBytes(data, s.size());
+}
+
 void StateWriter::writeBool(bool value)
 {
     writeU8(value ? 1 : 0);
