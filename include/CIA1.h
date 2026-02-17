@@ -18,7 +18,7 @@ class Vic;
 #include <cstdint>
 #include <iostream>
 #include "Cassette.h"
-#include "common.h"
+#include "Common/HexFormat.h"
 #include "cpu.h"
 #include "IRQLine.h"
 #include "Joystick.h"

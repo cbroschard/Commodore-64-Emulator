@@ -30,21 +30,6 @@ static inline uint32_t swap32(uint32_t val)
         ((val << 24) & 0xFF000000);
 }
 
-// Hex helpers
-inline std::string toHex(uint16_t value, int width = 4)
-{
-    std::stringstream ss;
-    ss << std::uppercase << std::hex << std::setfill('0') << std::setw(width) << static_cast<int>(value);
-    return ss.str();
-}
-
-inline std::string toHex(uint8_t value, int width = 2)
-{
-    std::stringstream ss;
-    ss << std::uppercase << std::hex << std::setfill('0') << std::setw(width) << static_cast<int>(value);
-    return ss.str();
-}
-
 // BCD helpers for TOD clocks in CIA1 and CIA2
 static inline uint8_t bcdToBinary(uint8_t bcd)
 {
