@@ -98,17 +98,6 @@ static inline void dumpDirBlock(const std::vector<uint8_t>& sec)
     }
 }
 
-
-// Struct to hold the joystick 1 and 2 mappings from configuration file
-struct JoystickMapping
-{
-    SDL_Scancode up;
-    SDL_Scancode down;
-    SDL_Scancode left;
-    SDL_Scancode right;
-    SDL_Scancode fire;
-};
-
 // Endian helpers
 static inline uint16_t swap16(uint16_t val)
 {

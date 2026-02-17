@@ -17,6 +17,7 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include "Common/JoystickMapping.h"
 #include "Computer.h"
 #include "Version.h"
 

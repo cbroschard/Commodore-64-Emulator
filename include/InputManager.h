@@ -16,6 +16,7 @@
 #include <sdl2/sdl.h>
 #include <unordered_map>
 #include "CIA1.h"
+#include "Common/JoystickMapping.h"
 #include "Joystick.h"
 #include "Keyboard.h"
 #include "MonitorController.h"
