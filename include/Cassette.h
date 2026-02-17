@@ -12,7 +12,7 @@
 class Memory;
 
 #include <iostream>
-#include "common.h"
+#include "Common/TapeTypes.h"
 #include "Logging.h"
 #include "Memory.h"
 #include "Tape/TapeImageFactory.h"

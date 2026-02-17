@@ -109,14 +109,6 @@ struct JoystickMapping
     SDL_Scancode fire;
 };
 
-// Cassette helper struct
-struct T64LoadResult
-{
-    bool success = false;
-    uint16_t prgStart = 0;
-    uint16_t prgEnd = 0;
-};
-
 // Endian helpers
 static inline uint16_t swap16(uint16_t val)
 {

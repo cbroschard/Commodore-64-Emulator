@@ -1,0 +1,21 @@
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
+#ifndef TAPETYPES_H_INCLUDED
+#define TAPETYPES_H_INCLUDED
+
+#include <cstdint>
+
+// Cassette helper struct
+struct T64LoadResult
+{
+    bool success = false;
+    uint16_t prgStart = 0;
+    uint16_t prgEnd = 0;
+};
+
+#endif // TAPETYPES_H_INCLUDED
