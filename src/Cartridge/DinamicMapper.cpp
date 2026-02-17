@@ -15,6 +15,30 @@ DinamicMapper::DinamicMapper() :
 
 DinamicMapper::~DinamicMapper() = default;
 
+void DinamicMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("DIN0");
+
+    wrtr.writeU8(dinamicBank);
+
+    wrtr.endChunk();
+}
+
+bool DinamicMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "DIN0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        if (!rdr.readU8(dinamicBank)) return false;
+
+        return true;
+    }
+
+    // Not our chunk
+    return false;
+}
+
 uint8_t DinamicMapper::read(uint16_t address)
 {
     // ROM reads are already handled by mem, so nothing special

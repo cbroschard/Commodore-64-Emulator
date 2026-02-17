@@ -16,6 +16,10 @@ class DinamicMapper : public CartridgeMapper
         DinamicMapper();
         virtual ~DinamicMapper();
 
+        // State management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
