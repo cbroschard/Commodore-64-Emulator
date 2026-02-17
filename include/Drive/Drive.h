@@ -13,7 +13,7 @@ class FDC177x;
 
 #include <queue>
 #include <memory>
-#include "common.h"
+#include "Common/DriveTypes.h"
 #include "cpu.h"
 #include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
