@@ -8,9 +8,37 @@
 #include "Cartridge.h"
 #include "Cartridge/C64GameSystemMapper.h"
 
-C64GameSystemMapper::C64GameSystemMapper() = default;
+C64GameSystemMapper::C64GameSystemMapper() :
+    selectedBank(0)
+{
+
+}
 
 C64GameSystemMapper::~C64GameSystemMapper() = default;
+
+void C64GameSystemMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("CGS0");
+
+    wrtr.writeU8(selectedBank);
+
+    wrtr.endChunk();
+}
+
+bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "CGS0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        if (!rdr.readU8(selectedBank)) return false;
+
+        return true;
+    }
+
+    // Not our chunk
+    return false;
+}
 
 uint8_t C64GameSystemMapper::read(uint16_t address)
 {
@@ -30,7 +58,8 @@ void C64GameSystemMapper::write(uint16_t address, uint8_t value)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        loadIntoMemory(address - 0xDE00);
+        selectedBank = static_cast<uint8_t>(address - 0xDE00);
+        loadIntoMemory(selectedBank);
     }
 }
 
@@ -38,22 +67,30 @@ bool C64GameSystemMapper::loadIntoMemory(uint8_t bank)
 {
     if (!mem || !cart) return false;
 
-    // clear lo and hi
+    selectedBank = bank;
+
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
 
     const auto& sections = cart->getChipSections();
-    if (bank >= sections.size())
-        return false;
 
-    const auto& sec = sections[bank];
-    size_t size = std::min(sec.data.size(), static_cast<size_t>(0x4000)); // 16K
+    // Find chip section whose bankNumber == bank
+    const Cartridge::chipSection* sec = nullptr;
+    for (const auto& s : sections)
+    {
+        if (s.bankNumber == bank)
+        {
+            sec = &s;
+            break;
+        }
+    }
+    if (!sec) return false;
+
+    size_t size = std::min(sec->data.size(), static_cast<size_t>(0x4000)); // 16K
     for (size_t i = 0; i < size; ++i)
     {
-        if (i < 0x2000)
-            mem->writeCartridge(i, sec.data[i], cartLocation::LO);
-        else
-            mem->writeCartridge(i - 0x2000, sec.data[i], cartLocation::HI);
+        if (i < 0x2000) mem->writeCartridge(i, sec->data[i], cartLocation::LO);
+        else           mem->writeCartridge(i - 0x2000, sec->data[i], cartLocation::HI);
     }
 
     return true;

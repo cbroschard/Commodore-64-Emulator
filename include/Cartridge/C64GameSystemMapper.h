@@ -16,6 +16,10 @@ class C64GameSystemMapper : public CartridgeMapper
         C64GameSystemMapper();
         virtual ~C64GameSystemMapper();
 
+        // State management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
@@ -24,6 +28,8 @@ class C64GameSystemMapper : public CartridgeMapper
     protected:
 
     private:
+
+        uint8_t selectedBank;
 };
 
 #endif // C64GAMESYSTEMMAPPER_H
