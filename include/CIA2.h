@@ -17,7 +17,7 @@ class TraceManager;
 class Vic;
 
 #include <cstdint>
-#include "common.h"
+#include "Common/VideoMode.h"
 #include "IECBUS.h"
 #include "Logging.h"
 #include "RS232Device.h"

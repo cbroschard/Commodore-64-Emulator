@@ -19,9 +19,6 @@
 // Cartridge memory location
 enum cartLocation { LO, HI };
 
-// Video mode
-enum class VideoMode { NTSC, PAL};
-
 // Program loading Constants
 static const uint16_t BASIC_PRG_START = 0x0801;
 static const uint16_t TXTAB = 0x002B;

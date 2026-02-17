@@ -19,7 +19,7 @@ class Vic;
 #include <iostream>
 #include <queue>
 #include <vector>
-#include "common.h"
+#include "Common/VideoMode.h"
 #include "Logging.h"
 #include "Debug/TraceManager.h"
 #include "SID/Filter.h"

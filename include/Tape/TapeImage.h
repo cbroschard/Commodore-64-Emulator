@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "common.h"
+#include "Common/VideoMode.h"
 #include "Logging.h"
 
 class TapeImage
