@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <optional>
+#include "Common/LoggingTypes.h"
 #include "Debug/MonitorCommand.h"
 
 class LogCommand : public MonitorCommand

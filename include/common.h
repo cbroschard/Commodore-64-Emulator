@@ -16,9 +16,6 @@
 #include <thread>
 #include <vector>
 
-// Logging
-enum class LogSet { Cartridge, Cassette, CIA1, CIA2, CPU, IO, Joystick, Keyboard, Memory, PLA, VIC };
-
 // Convert ASCII text to PETSCII
 inline uint8_t asciiToPetscii(char c)
 {
