@@ -51,28 +51,4 @@ static inline std::string petsciiToAscii(const uint8_t* s, int n)
     return out;
 }
 
-static inline void dumpDirBlock(const std::vector<uint8_t>& sec)
-{
-    std::cout << "[DIR] link=" << int(sec[0]) << "/" << int(sec[1]) << "\n";
-
-    for (int i = 0; i < 8; i++)
-    {
-        int off = 0x02 + i * 0x20;
-        uint8_t type = sec[off + 0];
-        uint8_t t    = sec[off + 1];
-        uint8_t s    = sec[off + 2];
-
-        if (type == 0x00) continue; // unused -> end-ish
-
-        std::string name = petsciiToAscii(&sec[off + 3], 16);
-        uint16_t blocks  = uint16_t(sec[off + 0x1E]) | (uint16_t(sec[off + 0x1F]) << 8);
-
-        std::cout << "[DIR] #" << i
-                  << " type=$" << std::hex << int(type) << std::dec
-                  << " start=" << int(t) << "/" << int(s)
-                  << " blocks=" << blocks
-                  << " name=\"" << name << "\"\n";
-    }
-}
-
 #endif // PETSCII_H_INCLUDED
