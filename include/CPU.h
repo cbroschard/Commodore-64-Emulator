@@ -17,7 +17,7 @@ class StateWriter;
 #include <array>
 #include <functional>
 #include <stdint.h>
-#include "common.h"
+#include "Common/BCD.h"
 #include "CPUBus.h"
 #include "IRQLine.h"
 #include "Logging.h"
