@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <cstdint>
-#include "common.h"
+#include "Common/VideoMode.h"
 #include "CIA2.h"
 #include "CPU.h"
 #include "IO.h"

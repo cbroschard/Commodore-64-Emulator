@@ -13,7 +13,6 @@ class IECBUS;
 
 #include <algorithm>
 #include <cstring>
-#include "common.h"
 #include "CPU.h"
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
