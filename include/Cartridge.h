@@ -21,6 +21,7 @@ class Vic;
 #include <vector>
 #include "Cartridge/CartridgeMapper.h"
 #include "Common/CartridgeTypes.h"
+#include "Common/Endian.h"
 #include "cpu.h"
 #include "Memory.h"
 #include "Logging.h"
