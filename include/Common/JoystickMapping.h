@@ -8,6 +8,8 @@
 #ifndef JOYSTICKMAPPING_H_INCLUDED
 #define JOYSTICKMAPPING_H_INCLUDED
 
+#include <SDL2/SDL.h>
+
 // Struct to hold the joystick 1 and 2 mappings from configuration file
 struct JoystickMapping
 {

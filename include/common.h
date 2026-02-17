@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
-#include <sdl2/sdl.h>
 #include <sstream>
 #include <thread>
 #include <vector>
