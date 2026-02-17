@@ -63,6 +63,140 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
     state_.prgDelay = 140;
 }
 
+void MediaManager::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("MED0");
+
+    // chunk version
+    wrtr.writeU32(1);
+
+    // ---- Cartridge ----
+    wrtr.writeBool(state_.cartAttached);
+    wrtr.writeString(state_.cartPath);
+
+    // Dump PRG
+    wrtr.writeBool(state_.prgAttached);
+    wrtr.writeString(state_.prgPath);
+    wrtr.writeU32(static_cast<uint32_t>(state_.prgDelay));
+    wrtr.writeBool(state_.prgLoaded);
+
+    const bool hasPrgImage = !prgImage_.empty();
+    wrtr.writeBool(hasPrgImage);
+    if (hasPrgImage)
+        wrtr.writeVectorU8(prgImage_);
+
+    // Dump Tape
+    wrtr.writeBool(state_.tapeAttached);
+    wrtr.writeString(state_.tapePath);
+
+    // Dump Drive mount table (8..11)
+    constexpr uint8_t kFirstDev = 8;
+    constexpr uint8_t kLastDev  = 11;
+
+    wrtr.writeU8(kFirstDev);
+    wrtr.writeU8(kLastDev);
+
+    for (uint8_t dev = kFirstDev; dev <= kLastDev; ++dev)
+    {
+        const bool present = (drives_[dev] != nullptr);
+        wrtr.writeBool(present);
+
+        uint8_t modelId = 0;
+        bool hasDisk = false;
+        std::string diskPath;
+
+        if (present)
+        {
+            modelId = static_cast<uint8_t>(drives_[dev]->getDriveModel());
+            hasDisk = drives_[dev]->isDiskLoaded();
+            diskPath = hasDisk ? drives_[dev]->getCurrentDiskPath() : std::string{};
+        }
+
+        wrtr.writeU8(modelId);
+        wrtr.writeBool(hasDisk);
+        wrtr.writeString(diskPath);
+    }
+
+    wrtr.endChunk();
+}
+
+bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "MED0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // Cartridge
+    if (!rdr.readBool(state_.cartAttached)) return false;
+    if (!rdr.readString(state_.cartPath)) return false;
+
+    // PRG
+    if (!rdr.readBool(state_.prgAttached)) return false;
+    if (!rdr.readString(state_.prgPath)) return false;
+
+    uint32_t delayU32 = 0;
+    if (!rdr.readU32(delayU32)) return false;
+    state_.prgDelay = static_cast<int>(delayU32);
+
+    if (!rdr.readBool(state_.prgLoaded)) return false;
+
+    bool hasPrgImage = false;
+    if (!rdr.readBool(hasPrgImage)) return false;
+
+    prgImage_.clear();
+    if (hasPrgImage)
+    {
+        if (!rdr.readVectorU8(prgImage_)) return false;
+    }
+
+    // Tape
+    if (!rdr.readBool(state_.tapeAttached)) return false;
+    if (!rdr.readString(state_.tapePath)) return false;
+
+    // Drive mount table (8..11)
+    uint8_t firstDev = 0, lastDev = 0;
+    if (!rdr.readU8(firstDev)) return false;
+    if (!rdr.readU8(lastDev)) return false;
+
+    // We only expect 8..11 from your saver, but tolerate other ranges safely.
+    for (uint8_t dev = firstDev; dev <= lastDev; ++dev)
+    {
+        bool present = false;
+        if (!rdr.readBool(present)) return false;
+
+        uint8_t modelId = 0;
+        bool hasDisk = false;
+        std::string diskPath;
+
+        if (!rdr.readU8(modelId)) return false;
+        if (!rdr.readBool(hasDisk)) return false;
+        if (!rdr.readString(diskPath)) return false;
+
+        if (!present) continue;
+
+        if (dev < 8 || dev > 11) continue;
+
+        // Validate modelId to avoid corrupted-file crashes
+        if (!isValidDriveModelId(modelId)) continue;
+
+        const DriveModel model = static_cast<DriveModel>(modelId);
+        if (model == DriveModel::None) continue;
+
+        if (hasDisk && !diskPath.empty())
+        {
+            // This will create the drive if missing and register it
+            attachDiskImage(static_cast<int>(dev), model, diskPath);
+        }
+    }
+
+    return true;
+}
+
 std::string MediaManager::lowerExt(const std::string& path)
 {
     auto dot = path.find_last_of('.');
@@ -76,6 +210,8 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
 {
     switch (model)
     {
+        case DriveModel::None:
+            return false;
         case DriveModel::D1541:
             return (ext == ".d64" || ext == ".g64");
         case DriveModel::D1571:
@@ -104,6 +240,8 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
     {
         switch (model)
         {
+            case DriveModel::None:
+                return;
             case DriveModel::D1541:
                 drives_[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
                 break;
@@ -113,8 +251,11 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
             case DriveModel::D1581:
                 drives_[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
                 break;
+            default:
+                return;
         }
 
+        if (!drives_[deviceNum]) return;
         bus_.registerDevice(deviceNum, drives_[deviceNum].get());
 
         // Sync all existing devices so nobody has stale cached bus state

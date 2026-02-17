@@ -14,6 +14,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 // Forward declarations
 class Cartridge;
@@ -77,12 +80,9 @@ public:
         std::string prgPath;
     };
 
-    enum class DriveModel
-    {
-        D1541,
-        D1571,
-        D1581
-    };
+    // State management
+    void saveState(StateWriter& wrtr) const;
+    bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
     const State& getState() const { return state_; }
 
