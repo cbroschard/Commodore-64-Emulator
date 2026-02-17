@@ -20,10 +20,10 @@ class Vic;
 #include <string>
 #include <vector>
 #include "Cartridge/CartridgeMapper.h"
-#include "Memory.h"
+#include "Common/CartridgeTypes.h"
 #include "cpu.h"
+#include "Memory.h"
 #include "Logging.h"
-#include "common.h"
 
 class Cartridge
 {

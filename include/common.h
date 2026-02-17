@@ -16,9 +16,6 @@
 #include <thread>
 #include <vector>
 
-// Cartridge memory location
-enum cartLocation { LO, HI };
-
 // Program loading Constants
 static const uint16_t BASIC_PRG_START = 0x0801;
 static const uint16_t TXTAB = 0x002B;

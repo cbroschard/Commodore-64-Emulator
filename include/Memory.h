@@ -25,7 +25,7 @@ class CIA1;
 #include "Cassette.h"
 #include "CIA1.h"
 #include "CIA2.h"
-#include "common.h"
+#include "Common/CartridgeTypes.h"
 #include "CPU.h"
 #include "CPUBus.h"
 #include "Logging.h"
