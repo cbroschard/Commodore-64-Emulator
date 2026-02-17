@@ -26,6 +26,9 @@ class D1541 : public Drive
         // Advance drive via tick method
         void tick(uint32_t cycles) override;
 
+        // Get disk path
+        std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
+
         // Compatibility check
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }
 
@@ -63,6 +66,7 @@ class D1541 : public Drive
         void dataChanged(bool dataLow) override;
 
         // Getters
+        inline DriveModel getDriveModel() const override { return DriveModel::D1541; }
         inline bool getAtnLineLow() const override { return atnLineLow; }
         inline bool getClkLineLow() const override { return clkLineLow; }
         inline bool getDataLineLow() const override { return dataLineLow; }

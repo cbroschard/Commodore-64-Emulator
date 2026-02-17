@@ -33,6 +33,12 @@ class D1571 : public Drive, public FloppyControllerHost
         // Advance drive via tick method
         void tick(uint32_t cycles) override;
 
+        // Drive Model
+        inline DriveModel getDriveModel() const override { return DriveModel::D1571; }
+
+        // Get disk path
+        std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
+
         // Compatibility check
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::D71; }
 

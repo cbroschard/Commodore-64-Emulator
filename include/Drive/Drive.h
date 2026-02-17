@@ -13,6 +13,7 @@ class FDC177x;
 
 #include <queue>
 #include <memory>
+#include "common.h"
 #include "cpu.h"
 #include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
@@ -52,6 +53,8 @@ class Drive : public Peripheral
         // Getters
         virtual uint8_t getCurrentTrack() const = 0;
         virtual uint8_t getCurrentSector() const = 0;
+        virtual DriveModel getDriveModel() const = 0;
+        virtual std::string getCurrentDiskPath() const = 0;
 
         // IEC Bus
         virtual bool getAtnLineLow() const = 0;
