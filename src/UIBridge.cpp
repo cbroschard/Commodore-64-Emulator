@@ -80,10 +80,10 @@ void UIBridge::processCommands()
             case UiCommand::Type::AttachDisk:
                 if (media_)
                 {
-                    MediaManager::DriveModel model =
-                        (cmd.driveType == UiCommand::DriveType::D1571) ? MediaManager::DriveModel::D1571 :
-                        (cmd.driveType == UiCommand::DriveType::D1581) ? MediaManager::DriveModel::D1581 :
-                                                                         MediaManager::DriveModel::D1541;
+                    DriveModel model =
+                        (cmd.driveType == UiCommand::DriveType::D1571) ? DriveModel::D1571 :
+                        (cmd.driveType == UiCommand::DriveType::D1581) ? DriveModel::D1581 :
+                                                                         DriveModel::D1541;
                     media_->attachDiskImage(cmd.deviceNum, model, cmd.path);
                 }
                 break;
