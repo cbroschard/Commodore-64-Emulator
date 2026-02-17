@@ -12,6 +12,7 @@
 class Memory;
 
 #include <iostream>
+#include "Common/C64MemoryMap.h"
 #include "Common/TapeTypes.h"
 #include "Logging.h"
 #include "Memory.h"

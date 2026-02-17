@@ -16,13 +16,6 @@
 #include <thread>
 #include <vector>
 
-// Program loading Constants
-static const uint16_t BASIC_PRG_START = 0x0801;
-static const uint16_t TXTAB = 0x002B;
-static const uint16_t VARTAB = 0x002D;
-static const uint16_t ARYTAB = 0x002F;
-static const uint16_t STREND = 0x0031;
-
 // Logging
 enum class LogSet { Cartridge, Cassette, CIA1, CIA2, CPU, IO, Joystick, Keyboard, Memory, PLA, VIC };
 
