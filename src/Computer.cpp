@@ -64,6 +64,83 @@ Computer::~Computer() noexcept
     }
 }
 
+bool Computer::saveStateToFile(const std::string& path)
+{
+    // Initialize writer
+    StateWriter wrtr(kStateVersion);
+    wrtr.beginFile();
+
+    // -------------------------
+    // SYS0 = Core system config
+    // -------------------------
+    wrtr.beginChunk("SYS0");
+
+    // Dump SYS0 schema version
+    wrtr.writeU8(1);
+
+    // Dump Video mode
+    wrtr.writeU8(static_cast<uint8_t>(videoMode_));
+
+    // Dump CPU timing ID
+    const uint8_t cpuTimingId = (videoMode_ == VideoMode::NTSC) ? 0 : 1;
+    wrtr.writeU8(cpuTimingId);
+
+    // Dump UI pause state
+    wrtr.writeBool(uiPaused.load());
+
+    // Dump Bus priming flags
+    wrtr.writeBool(pendingBusPrime);
+    wrtr.writeBool(busPrimedAfterBoot);
+
+    // Dump Drive config
+    wrtr.writeU8(16);
+    for (int i = 0; i < 16; ++i)
+    {
+        const bool present = (drives[i] != nullptr);
+        wrtr.writeBool(present);
+
+        if (present)
+        {
+            wrtr.writeU8(static_cast<uint8_t>(drives[i]->getDriveModel()));
+            wrtr.writeU8(static_cast<uint8_t>(drives[i]->getDeviceNumber()));
+        }
+    }
+
+    wrtr.endChunk(); // end SYS0
+
+    // -------------------------
+    // Device chunks (next)
+    // -------------------------
+    if (processor)  processor->saveState(wrtr);
+    if (cia1object) cia1object->saveState(wrtr);
+    if (cia2object) cia2object->saveState(wrtr);
+    if (vicII)      vicII->saveState(wrtr);
+    if (sidchip)    sidchip->saveState(wrtr);
+    if (pla)        pla->saveState(wrtr);
+    if (mem)        mem->saveState(wrtr);
+    if (bus)        bus->saveState(wrtr);
+
+    // Save joystick state
+    if (inputMgr)   inputMgr->saveState(wrtr);
+
+    // Save media state
+    if (media)      media->saveState(wrtr);
+
+    // Save cartridge state if attached
+    if (media && cart && media->getState().cartAttached) cart->saveState(wrtr);
+
+    // Save Cassette and tape state if attached
+    if (media && cass && media->getState().tapeAttached) cass->saveState(wrtr);
+
+    // Write file
+    return wrtr.writeToFile(path);
+}
+
+bool Computer::loadStateFromFile(const std::string& path)
+{
+    return false;
+}
+
 void Computer::setJoystickAttached(int port, bool flag)
 {
     if (inputMgr) inputMgr->setJoystickAttached(port, flag);
