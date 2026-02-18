@@ -20,7 +20,11 @@ class TAP : public TapeImage
         void simulateLoading() override;
         bool currentBit() const override;
 
-        void attachLoggingInstance(Logging* logger);
+        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
         // Monitor helpers
         inline uint8_t debugTapeVersion() const override { return header.tapeVersion; }

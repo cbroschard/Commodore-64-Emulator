@@ -40,16 +40,50 @@ void Cassette::saveState(StateWriter& wrtr) const
     wrtr.writeBool(motorStatus);
     wrtr.writeU8(data);
 
-    if (tapeImage)
-        tapeImage->saveState(wrtr);
-
     // End
     wrtr.endChunk();
+
+    if (tapeImage)
+        tapeImage->saveState(wrtr);
 }
 
 bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    // Not our chunk
+    // Load state
+    if (std::memcmp(chunk.tag, "CASS", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        bool loaded = false, play = false, motor = false;
+        uint8_t outData = 1;
+
+        if (!rdr.readBool(loaded)) return false;
+        if (!rdr.readBool(play))   return false;
+        if (!rdr.readBool(motor))  return false;
+        if (!rdr.readU8(outData))  return false;
+
+        cassetteLoaded = loaded;
+        playPressed    = play;
+        motorStatus    = motor;
+        data           = outData;
+
+        // Re-assert sense line to match restored state
+        if (mem)
+            mem->setCassetteSenseLow(cassetteLoaded && playPressed);
+
+        // Only keep if outer loop does NOT always skip:
+        rdr.skipChunk(chunk);
+
+        return true;
+    }
+
+    // Forward tape chunks to the tape image (e.g., TAP0)
+    if (tapeImage)
+    {
+        if (tapeImage->loadState(chunk, rdr))
+            return true;
+    }
+
     return false;
 }
 

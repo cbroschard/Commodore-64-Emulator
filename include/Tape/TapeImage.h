@@ -38,8 +38,9 @@ class TapeImage
         virtual uint32_t debugNextPulse(size_t offset = 0) const { return 0; }
         virtual uint32_t debugPulseRemaining() const { return 0; }
 
-        virtual void saveState(StateWriter& wrtr) const = 0;
-        virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
+        // Savestate hooks (default no-op)
+        virtual void saveState(StateWriter&) const {}
+        virtual bool loadState(const StateReader::Chunk&, StateReader&) { return false; }
 
     protected:
 

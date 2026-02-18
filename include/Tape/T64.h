@@ -15,12 +15,13 @@ class T64 : public TapeImage
     public:
         T64();
         virtual ~T64();
+
+        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
+
         bool loadTape(const std::string& filePath, VideoMode mode) override;
         void rewind() override;
         void simulateLoading() override;
         bool currentBit() const override;
-
-        void attachLoggingInstance(Logging* logger);
 
         // Interface for cassette to load into memory
         bool hasLoadedFile() const;

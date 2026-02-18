@@ -19,9 +19,61 @@ TAP::TAP() :
 
 TAP::~TAP() = default;
 
-void TAP::attachLoggingInstance(Logging* logger)
+void TAP::saveState(StateWriter& wrtr) const
 {
-    this->logger = logger;
+    wrtr.beginChunk("TAP0");
+    wrtr.writeU32(static_cast<uint32_t>(pulseIndex));
+    wrtr.writeU32(pulseRemaining);
+    wrtr.writeU8(blipCountdown);
+    wrtr.writeBool(currentLevel);
+    wrtr.writeU8(blipWidth);
+    wrtr.endChunk();
+}
+
+bool TAP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "TAP0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint32_t idx = 0;
+        uint32_t rem = 0;
+        uint8_t  blip = 0;
+        bool     level = true;
+        uint8_t  width = 1;
+
+        if (!rdr.readU32(idx))    return false;
+        if (!rdr.readU32(rem))    return false;
+        if (!rdr.readU8(blip))    return false;
+        if (!rdr.readBool(level)) return false;
+        if (!rdr.readU8(width))   return false;
+
+        if (width == 0) width = 1;
+
+        if (pulses.empty())
+            return false;
+
+        if (static_cast<size_t>(idx) >= pulses.size())
+        {
+            idx = static_cast<uint32_t>(pulses.size() - 1);
+            rem = 0;
+            blip = 0;
+            level = true;
+        }
+
+        pulseIndex = static_cast<size_t>(idx);
+        pulseRemaining = rem;
+        blipCountdown = blip;
+        currentLevel = level;
+        blipWidth = width;
+
+        rdr.skipChunk(chunk);
+
+        return true;
+    }
+
+    // Not our chunk
+    return false;
 }
 
 bool TAP::loadTape(const std::string& filePath, VideoMode mode)
