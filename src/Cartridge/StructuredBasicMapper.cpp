@@ -86,7 +86,12 @@ bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
 {
     if (!mem || !cart) return false;
 
-    selectedBank = bank;
+    // Track status
+    bool mapped = false;
+
+    // Clamp the bank
+    selectedBank = (bank & 0x01);
+    bank = selectedBank;
 
     // Clear lo
     cart->clearCartridge(cartLocation::LO);
@@ -98,9 +103,10 @@ bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
         {
             for (size_t i = 0; i < sec.data.size(); ++i)
                 mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+            mapped = true;
         }
     }
 
-    return true;
+    return mapped;
 }
 
