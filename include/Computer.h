@@ -42,6 +42,8 @@
 #include "Memory.h"
 #include "PLA.h"
 #include "SID/SID.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "Tape/TapeImageFactory.h"
 #include "Vic.h"
 
@@ -56,6 +58,10 @@ class Computer
     public:
         Computer();
         virtual ~Computer();
+
+        // State Management
+        bool saveStateToFile(const std::string& path);
+        bool loadStateFromFile(const std::string& path);
 
         // Main emulation loop
         bool boot();
@@ -124,6 +130,8 @@ class Computer
         std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<UIBridge> uiBridge;
         std::unique_ptr<Vic> vicII;
+
+        static constexpr uint32_t kStateVersion = 1; // Save State file version
 
         // Joystick
         void setJoystickAttached(int port, bool flag);
