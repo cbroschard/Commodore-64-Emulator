@@ -39,6 +39,91 @@ Cartridge::Cartridge() :
 
 Cartridge::~Cartridge() = default;
 
+void Cartridge::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("CART");
+
+    // Dump Active bank
+    wrtr.writeU8(currentBank);
+
+    // Dump Wiring
+    wrtr.writeU8(static_cast<uint8_t>(wiringMode));
+
+    // Dump GAME / EXROM
+    wrtr.writeBool(header.gameLine);
+    wrtr.writeBool(header.exROMLine);
+
+    // Dump If cartridge has RAM
+    wrtr.writeBool(hasRAM);
+    if (hasRAM)
+        wrtr.writeVectorU8(ramData);
+
+    // Dump mapper by calling actual mapper's save state method
+    if (mapper)
+        mapper->saveState(wrtr);
+
+    wrtr.endChunk();
+}
+
+bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "CART", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    if (!rdr.readU8(currentBank)) return false;
+
+    uint8_t wiringU8 = 0;
+    if (!rdr.readU8(wiringU8)) return false;
+    wiringMode = static_cast<WiringMode>(wiringU8);
+
+    // read bools into temporaries, then store as 0/1 in uint8_t
+    bool game = false;
+    bool exrom = false;
+    if (!rdr.readBool(game)) return false;
+    if (!rdr.readBool(exrom)) return false;
+    header.gameLine  = game ? 1 : 0;
+    header.exROMLine = exrom ? 1 : 0;
+
+    if (!rdr.readBool(hasRAM)) return false;
+    if (hasRAM)
+    {
+        if (!rdr.readVectorU8(ramData)) return false;
+    }
+    else
+    {
+        ramData.clear();
+    }
+
+    // Mapper subchunks
+    StateReader::Chunk sub{};
+    while (rdr.nextChunk(sub))
+    {
+        if (mapper)
+            (void)mapper->loadState(sub, rdr);
+
+        rdr.skipChunk(sub);
+    }
+
+    // Re-apply mapping
+    if (mapper)
+    {
+        if (!mapper->applyMappingAfterLoad())
+            return false;
+    }
+    else
+    {
+        if (!chipSections.empty())
+        {
+            if (!setCurrentBank(currentBank))
+                return false;
+        }
+    }
+
+    return true;
+}
+
 bool Cartridge::loadROM(const std::string& path)
 {
     if (!(loadFile(path, romData)))
