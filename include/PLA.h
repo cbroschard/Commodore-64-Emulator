@@ -17,6 +17,8 @@ class TraceManager;
 #include <iostream>
 #include "Cartridge.h"
 #include "Logging.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "Vic.h"
 
 class PLA
