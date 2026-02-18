@@ -15,6 +15,40 @@ OceanMapper::OceanMapper() :
 
 }
 
+OceanMapper::~OceanMapper() = default;
+
+void OceanMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("OCN0");
+    wrtr.writeU8(sel);   // 0..63
+    wrtr.endChunk();
+}
+
+bool OceanMapper::applyMappingAfterLoad()
+{
+    // ensure lists exist, then map current selection
+    builtLists = false;          // buildBankLists() will do nothing if already built
+    return mapPair(static_cast<size_t>(sel));
+}
+
+bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "OCN0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    if (!rdr.readU8(sel)) return false;
+    sel &= 0x3F;
+
+    // Force rebuild of derived lists
+    builtLists = false;
+    loBanks.clear();
+    hiBanks.clear();
+
+    return true;
+}
+
 void OceanMapper::buildBankLists()
 {
     if (builtLists) return;
@@ -85,8 +119,6 @@ bool OceanMapper::mapPair(size_t index)
 
     return wroteLo || wroteHi;
 }
-
-OceanMapper::~OceanMapper() = default;
 
 uint8_t OceanMapper::read(uint16_t address)
 {
