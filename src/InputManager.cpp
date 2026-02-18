@@ -16,30 +16,30 @@ InputManager::InputManager() :
 
 InputManager::~InputManager() = default;
 
-void InputManager::saveState(StateWriter& wr) const
+void InputManager::saveState(StateWriter& wrtr) const
 {
-    wr.beginChunk("INPT");
+    wrtr.beginChunk("INPT");
 
-    wr.writeU8(joystick1Attached ? 1 : 0);
-    wr.writeU8(joystick2Attached ? 1 : 0);
+    wrtr.writeU8(joystick1Attached ? 1 : 0);
+    wrtr.writeU8(joystick2Attached ? 1 : 0);
 
-    wr.writeS32(portPadId[1]);
-    wr.writeS32(portPadId[2]);
+    wrtr.writeS32(portPadId[1]);
+    wrtr.writeS32(portPadId[2]);
 
     // Save joystick config scancodes
-    wr.writeS32(joy1Config.up);
-    wr.writeS32(joy1Config.down);
-    wr.writeS32(joy1Config.left);
-    wr.writeS32(joy1Config.right);
-    wr.writeS32(joy1Config.fire);
+    wrtr.writeS32(joy1Config.up);
+    wrtr.writeS32(joy1Config.down);
+    wrtr.writeS32(joy1Config.left);
+    wrtr.writeS32(joy1Config.right);
+    wrtr.writeS32(joy1Config.fire);
 
-    wr.writeS32(joy2Config.up);
-    wr.writeS32(joy2Config.down);
-    wr.writeS32(joy2Config.left);
-    wr.writeS32(joy2Config.right);
-    wr.writeS32(joy2Config.fire);
+    wrtr.writeS32(joy2Config.up);
+    wrtr.writeS32(joy2Config.down);
+    wrtr.writeS32(joy2Config.left);
+    wrtr.writeS32(joy2Config.right);
+    wrtr.writeS32(joy2Config.fire);
 
-    wr.endChunk();
+    wrtr.endChunk();
 }
 
 bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
