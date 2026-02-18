@@ -8,9 +8,31 @@
 #include "Cartridge.h"
 #include "Cartridge/FunPlayMapper.h"
 
-FunPlayMapper::FunPlayMapper() = default;
+FunPlayMapper::FunPlayMapper() :
+    selectedBank(0)
+{
+
+}
 
 FunPlayMapper::~FunPlayMapper() = default;
+
+void FunPlayMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("FUN0");
+    wrtr.writeU8(selectedBank);
+    wrtr.endChunk();
+}
+
+bool FunPlayMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "FUN0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+    if (!rdr.readU8(selectedBank)) return false;
+
+    return true;
+}
 
 uint8_t FunPlayMapper::read(uint16_t address)
 {
@@ -20,60 +42,17 @@ uint8_t FunPlayMapper::read(uint16_t address)
 
 void FunPlayMapper::write(uint16_t address, uint8_t value)
 {
-    if (address == 0xDE00)
-        switch(value)
-        {
-            case 0x00:
-                loadIntoMemory(0);
-                break;
-            case 0x08:
-                loadIntoMemory(1);
-                break;
-            case 0x10:
-                loadIntoMemory(2);
-                break;
-            case 0x18:
-                loadIntoMemory(3);
-                break;
-            case 0x20:
-                loadIntoMemory(4);
-                break;
-            case 0x28:
-                loadIntoMemory(5);
-                break;
-            case 0x30:
-                loadIntoMemory(6);
-                break;
-            case 0x38:
-                loadIntoMemory(7);
-                break;
-            case 0x01:
-                loadIntoMemory(8);
-                break;
-            case 0x09:
-                loadIntoMemory(9);
-                break;
-            case 0x11:
-                loadIntoMemory(10);
-                break;
-            case 0x19:
-                loadIntoMemory(11);
-                break;
-            case 0x21:
-                loadIntoMemory(12);
-                break;
-            case 0x29:
-                loadIntoMemory(13);
-                break;
-            case 0x31:
-                loadIntoMemory(14);
-                break;
-            case 0x39:
-                loadIntoMemory(15);
-                break;
-            default:
-                break;
-        }
+    if (address != 0xDE00)
+        return;
+
+    // decode the bank
+    selectedBank = static_cast<uint8_t>(((value & 0x38) >> 3) | ((value & 0x01) << 3));
+
+    // Optional safety (your switch only supports 0..15)
+    if (selectedBank > 15)
+        return;
+
+    loadIntoMemory(selectedBank);
 }
 
 bool FunPlayMapper::loadIntoMemory(uint8_t bank)
