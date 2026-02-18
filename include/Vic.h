@@ -20,54 +20,6 @@
 #include "StateReader.h"
 #include "StateWriter.h"
 
-struct ModeConfig
-{
-    uint16_t maxRasterLines;
-    uint8_t  cyclesPerLine;
-    uint8_t  frameRate;
-    uint16_t vblankStartLine;
-    uint16_t vblankEndLine;
-    int      visibleLines;
-    int      badLineCycles;
-    int      firstVisibleLine;
-    int      lastVisibleLine;
-    int      DMAStartCycle;
-    int      DMAEndCycle;
-    int      hardware_X;
-};
-
-static constexpr ModeConfig NTSC_CONFIG =
-{
-    262,   // maxRasterLines
-    65,   // cyclesPerLine
-    60,   // frameRate
-    251,   // vblankStartLine
-    21,   // vblankEndLine
-    200,   // visibleLines
-    40,   // badLineCycles
-    51,   // firstVisibleLine
-    250,   // lastVisibleLine
-    15,    // DMAStartCycle
-    54,     // DMAEndCycle
-    24     // hardwareX
-};
-
-static constexpr ModeConfig PAL_CONFIG =
-{
-    312,   // maxRasterLines
-    63,   // cyclesPerLine
-    50,   // frameRate
-    251,   // vblankStartLine
-    50,   // vblankEndLine
-    200,   // visibleLines
-    40,   // badLineCycles
-    51,   // firstVisibleLine
-    250,   // lastVisibleLine
-    14,    // DMAStartCycle
-    53,     // DMAEndCycle
-    31      // hardwareX
-};
-
 class Vic
 {
     public:
