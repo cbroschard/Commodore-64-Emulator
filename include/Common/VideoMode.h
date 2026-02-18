@@ -8,6 +8,8 @@
 #ifndef VIDEOMODE_H_INCLUDED
 #define VIDEOMODE_H_INCLUDED
 
+#include <cstdint>
+
 // Video mode
 enum class VideoMode { NTSC, PAL};
 
@@ -27,7 +29,7 @@ struct ModeConfig
     int      hardware_X;
 };
 
-static constexpr ModeConfig NTSC_CONFIG =
+inline constexpr ModeConfig NTSC_CONFIG =
 {
     262,   // maxRasterLines
     65,   // cyclesPerLine
@@ -43,7 +45,7 @@ static constexpr ModeConfig NTSC_CONFIG =
     24     // hardwareX
 };
 
-static constexpr ModeConfig PAL_CONFIG =
+inline constexpr ModeConfig PAL_CONFIG =
 {
     312,   // maxRasterLines
     63,   // cyclesPerLine
