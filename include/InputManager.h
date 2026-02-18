@@ -38,6 +38,9 @@ class InputManager
         inline void handleControllerDeviceAdded(int deviceIndex) { onControllerAdded(deviceIndex); }
         inline void handleControllerDeviceRemoved(SDL_JoystickID instanceId) {  onControllerRemoved(instanceId); }
 
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
         bool handleEvent(const SDL_Event& ev);
         void tick();
 

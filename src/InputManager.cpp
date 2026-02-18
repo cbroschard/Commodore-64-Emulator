@@ -16,6 +16,99 @@ InputManager::InputManager() :
 
 InputManager::~InputManager() = default;
 
+void InputManager::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("INPT");
+
+    wrtr.writeU8(joystick1Attached ? 1 : 0);
+    wrtr.writeU8(joystick2Attached ? 1 : 0);
+
+    wrtr.writeI32(static_cast<int32_t>(portPadId[1]));
+    wrtr.writeI32(static_cast<int32_t>(portPadId[2]));
+
+    // Port 1 mapping (SDL_Scancode is an enum -> store as i32)
+    wrtr.writeI32(static_cast<int32_t>(joy1Config.up));
+    wrtr.writeI32(static_cast<int32_t>(joy1Config.down));
+    wrtr.writeI32(static_cast<int32_t>(joy1Config.left));
+    wrtr.writeI32(static_cast<int32_t>(joy1Config.right));
+    wrtr.writeI32(static_cast<int32_t>(joy1Config.fire));
+
+    // Port 2 mapping
+    wrtr.writeI32(static_cast<int32_t>(joy2Config.up));
+    wrtr.writeI32(static_cast<int32_t>(joy2Config.down));
+    wrtr.writeI32(static_cast<int32_t>(joy2Config.left));
+    wrtr.writeI32(static_cast<int32_t>(joy2Config.right));
+    wrtr.writeI32(static_cast<int32_t>(joy2Config.fire));
+
+    wrtr.endChunk();
+}
+
+bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "INPT", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint8_t j1 = 0, j2 = 0;
+    if (!rdr.readU8(j1)) return false;
+    if (!rdr.readU8(j2)) return false;
+
+    int32_t p1 = -1, p2 = -1;
+    if (!rdr.readI32(p1)) return false;
+    if (!rdr.readI32(p2)) return false;
+
+    portPadId[1] = static_cast<SDL_JoystickID>(p1);
+    portPadId[2] = static_cast<SDL_JoystickID>(p2);
+
+    int32_t tmp = 0;
+
+    // joy1
+    if (!rdr.readI32(tmp)) return false;
+    joy1Config.up = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy1Config.down = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy1Config.left = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy1Config.right = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy1Config.fire = static_cast<SDL_Scancode>(tmp);
+
+    // joy2
+    if (!rdr.readI32(tmp)) return false;
+    joy2Config.up = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy2Config.down = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy2Config.left = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy2Config.right = static_cast<SDL_Scancode>(tmp);
+
+    if (!rdr.readI32(tmp)) return false;
+    joy2Config.fire = static_cast<SDL_Scancode>(tmp);
+
+    // Rebuild joyMap tables from configs
+    setJoystickConfig(1, joy1Config);
+    setJoystickConfig(2, joy2Config);
+
+    // IMPORTANT: attach/detach via normal path (reconnects to CIA1)
+    setJoystickAttached(1, j1 != 0);
+    setJoystickAttached(2, j2 != 0);
+
+    // Optional safety: advance position to end of chunk payload so the caller can continue scanning chunks
+    rdr.skipChunk(chunk);
+
+    return true;
+}
+
 bool InputManager::handleEvent(const SDL_Event& ev)
 {
     if (monitorCtl && monitorCtl->handleEvent(ev)) return true;
