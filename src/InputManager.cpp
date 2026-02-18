@@ -16,6 +16,67 @@ InputManager::InputManager() :
 
 InputManager::~InputManager() = default;
 
+void InputManager::saveState(StateWriter& wr) const
+{
+    wr.beginChunk("INPT");
+
+    wr.writeU8(joystick1Attached ? 1 : 0);
+    wr.writeU8(joystick2Attached ? 1 : 0);
+
+    wr.writeS32(portPadId[1]);
+    wr.writeS32(portPadId[2]);
+
+    // Save joystick config scancodes
+    wr.writeS32(joy1Config.up);
+    wr.writeS32(joy1Config.down);
+    wr.writeS32(joy1Config.left);
+    wr.writeS32(joy1Config.right);
+    wr.writeS32(joy1Config.fire);
+
+    wr.writeS32(joy2Config.up);
+    wr.writeS32(joy2Config.down);
+    wr.writeS32(joy2Config.left);
+    wr.writeS32(joy2Config.right);
+    wr.writeS32(joy2Config.fire);
+
+    wr.endChunk();
+}
+
+bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "INPT", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint8_t j1, j2;
+    rdr.readU8(j1);
+    rdr.readU8(j2);
+
+    rdr.readS32(portPadId[1]);
+    rdr.readS32(portPadId[2]);
+
+    rdr.readS32(joy1Config.up);
+    rdr.readS32(joy1Config.down);
+    rdr.readS32(joy1Config.left);
+    rdr.readS32(joy1Config.right);
+    rdr.readS32(joy1Config.fire);
+
+    rdr.readS32(joy2Config.up);
+    rdr.readS32(joy2Config.down);
+    rdr.readS32(joy2Config.left);
+    rdr.readS32(joy2Config.right);
+    rdr.readS32(joy2Config.fire);
+
+    rdr.exitChunk();
+
+    // IMPORTANT: Re-attach via normal logic
+    setJoystickAttached(1, j1 != 0);
+    setJoystickAttached(2, j2 != 0);
+
+    return true;
+}
+
 bool InputManager::handleEvent(const SDL_Event& ev)
 {
     if (monitorCtl && monitorCtl->handleEvent(ev)) return true;
