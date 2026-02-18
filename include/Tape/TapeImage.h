@@ -16,6 +16,8 @@
 #include <vector>
 #include "Common/VideoMode.h"
 #include "Logging.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class TapeImage
 {
@@ -35,6 +37,9 @@ class TapeImage
         virtual size_t debugPulseCount() const { return 0; }
         virtual uint32_t debugNextPulse(size_t offset = 0) const { return 0; }
         virtual uint32_t debugPulseRemaining() const { return 0; }
+
+        virtual void saveState(StateWriter& wrtr) const = 0;
+        virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
 
     protected:
 
