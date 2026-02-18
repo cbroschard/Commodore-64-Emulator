@@ -16,6 +16,8 @@ class Memory;
 #include "Common/TapeTypes.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "Tape/TapeImageFactory.h"
 
 class Cassette
@@ -27,6 +29,10 @@ class Cassette
         // Pointers
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Motor control
         inline bool motorOn() const { return motorStatus; }

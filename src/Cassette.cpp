@@ -30,6 +30,29 @@ Cassette::~Cassette() noexcept
     catch(...){}
 }
 
+void Cassette::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("CASS");
+
+    // Dump state
+    wrtr.writeBool(cassetteLoaded);
+    wrtr.writeBool(playPressed);
+    wrtr.writeBool(motorStatus);
+    wrtr.writeU8(data);
+
+    if (tapeImage)
+        tapeImage->saveState(wrtr);
+
+    // End
+    wrtr.endChunk();
+}
+
+bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    // Not our chunk
+    return false;
+}
+
 void Cassette::startMotor()
 {
     if (motorStatus) return;
