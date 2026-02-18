@@ -8,9 +8,39 @@
 #include "Cartridge.h"
 #include "Cartridge/EasyFlashMapper.h"
 
-EasyFlashMapper::EasyFlashMapper() = default;
+EasyFlashMapper::EasyFlashMapper() :
+    selectedBank(0)
+{
+
+}
 
 EasyFlashMapper::~EasyFlashMapper() = default;
+
+void EasyFlashMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("EF00");
+    wrtr.writeU8(selectedBank);
+    wrtr.endChunk();
+}
+
+bool EasyFlashMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "EF00", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+    if (!rdr.readU8(selectedBank)) return false;
+
+    selectedBank &= 0x7F; // safety
+    return true;
+}
+
+bool EasyFlashMapper::applyMappingAfterLoad()
+{
+    // Cartridge has already restored GAME/EXROM in its own loadState.
+    // Now rebuild the LO window for the saved bank:
+    return loadIntoMemory(selectedBank);
+}
 
 uint8_t EasyFlashMapper::read(uint16_t address)
 {
@@ -37,6 +67,7 @@ void EasyFlashMapper::write(uint16_t address, uint8_t value)
 {
     if (address == 0xDE00)
     {
+        selectedBank = static_cast<uint8_t>(value & 0x7F);
         loadIntoMemory(value & 0x7F);
     }
     if (address == 0xDE02)
@@ -52,13 +83,13 @@ bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
 {
     if (!mem || !cart) return false;
 
-    // Clear lo
+    selectedBank = static_cast<uint8_t>(bank & 0x7F);
+
     cart->clearCartridge(cartLocation::LO);
 
-    const auto& sections = cart->getChipSections();
-    for (const auto& sec : sections)
+    for (const auto& sec : cart->getChipSections())
     {
-        if (sec.bankNumber == bank && sec.loadAddress == CART_LO_START)
+        if (sec.bankNumber == selectedBank && sec.loadAddress == CART_LO_START)
         {
             size_t size = std::min(sec.data.size(), size_t(0x2000));
             for (size_t i = 0; i < size; ++i)
