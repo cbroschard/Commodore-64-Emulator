@@ -16,6 +16,14 @@ StateReader::StateReader() :
 
 StateReader::~StateReader() = default;
 
+void StateReader::reset()
+{
+    buffer.clear();
+    limitStack.clear();
+    pos         = 0;
+    fileVersion = 0;
+}
+
 bool StateReader::loadFromFile(const std::string& path)
 {
     std::ifstream f(path, std::ios::binary);
@@ -42,7 +50,13 @@ bool StateReader::loadFromMemory(std::vector<uint8_t> bytes)
 
 bool StateReader::ensure(size_t bytes) const
 {
-    return (pos + bytes) <= buffer.size();
+    const size_t end = pos + bytes;
+    if (end > buffer.size()) return false;
+
+    if (!limitStack.empty() && end > limitStack.back())
+        return false;
+
+    return true;
 }
 
 bool StateReader::readFileHeader()
@@ -195,9 +209,20 @@ bool StateReader::nextChunk(Chunk& out)
 void StateReader::enterChunkPayload(const Chunk& c)
 {
     pos = c.payloadOffset;
+    limitStack.push_back(static_cast<size_t>(c.payloadOffset) + c.length);
+}
+
+void StateReader::exitChunkPayload(const Chunk& c)
+{
+    const size_t end = static_cast<size_t>(c.payloadOffset) + c.length;
+    pos = (end <= buffer.size()) ? end : buffer.size();
+
+    if (!limitStack.empty())
+        limitStack.pop_back();
 }
 
 void StateReader::skipChunk(const Chunk& c)
 {
-    pos = c.payloadOffset + c.length;
+    const size_t end = static_cast<size_t>(c.payloadOffset) + c.length;
+    pos = (end <= buffer.size()) ? end : buffer.size();
 }

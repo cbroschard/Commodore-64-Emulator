@@ -20,6 +20,8 @@ class StateWriter
         explicit StateWriter(uint32_t version = 1);
         virtual ~StateWriter();
 
+        void reset();
+
         // Header + finalize
         void beginFile();                  // writes "C64S" + version
         const std::vector<uint8_t>& data() const { return buffer; }

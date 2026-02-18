@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <fstream>
 #include <cstring>
+#include <string>
 #include <vector>
 
 class StateReader
@@ -18,6 +19,8 @@ class StateReader
     public:
         StateReader();
         virtual ~StateReader();
+
+        void reset();
 
         bool loadFromFile(const std::string& path);
         bool loadFromMemory(std::vector<uint8_t> bytes);
@@ -48,6 +51,7 @@ class StateReader
 
         bool nextChunk(Chunk& out);         // reads next chunk header, positions at payload start
         void enterChunkPayload(const Chunk& c); // sets cursor to payload start
+        void exitChunkPayload(const Chunk& c); // moves to the end of the payload
         void skipChunk(const Chunk& c);     // jumps cursor to end of this chunk
 
         size_t cursor() const { return pos; }
@@ -61,6 +65,8 @@ class StateReader
         uint32_t fileVersion;
 
         bool ensure(size_t bytes) const;
+
+        std::vector<size_t> limitStack;
 };
 
 #endif // STATEREADER_H

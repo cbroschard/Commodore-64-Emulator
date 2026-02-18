@@ -15,8 +15,17 @@ StateWriter::StateWriter(uint32_t version) :
 
 StateWriter::~StateWriter() = default;
 
+void StateWriter::reset()
+{
+    buffer.clear();
+    chunkStack.clear();
+}
+
 void StateWriter::beginFile()
 {
+    // Reset first
+    reset();
+
     // Magic
     const char magic[4] = { 'C','6','4','S' };
     writeBytes(magic, 4);
@@ -111,7 +120,9 @@ void StateWriter::writeFourCC(const char tag[4])
 
 void StateWriter::patchU32(size_t offset, uint32_t value)
 {
-    // Patch little-endian u32 at offset
+    if (offset + 4 > buffer.size())
+        return;
+
     buffer[offset + 0] = static_cast<uint8_t>(value & 0xFF);
     buffer[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
     buffer[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
