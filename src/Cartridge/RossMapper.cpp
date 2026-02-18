@@ -8,9 +8,50 @@
 #include "Cartridge.h"
 #include "Cartridge/RossMapper.h"
 
-RossMapper::RossMapper() = default;
+RossMapper::RossMapper() :
+    selectedBank(0),
+    disabled(false)
+{
+
+}
 
 RossMapper::~RossMapper() = default;
+
+void RossMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("ROS0");
+    wrtr.writeBool(disabled);
+    wrtr.writeU8(selectedBank);
+    wrtr.endChunk();
+}
+
+bool RossMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "ROS0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    if (!rdr.readBool(disabled))   return false;
+    if (!rdr.readU8(selectedBank)) return false;
+
+    return true;
+}
+
+bool RossMapper::applyMappingAfterLoad()
+{
+    if (disabled)
+    {
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
+        cart->clearCartridge(cartLocation::LO);
+        cart->clearCartridge(cartLocation::HI);
+        return true;
+    }
+
+    // If not disabled, restore mapped state.
+    return loadIntoMemory(selectedBank);
+}
 
 uint8_t RossMapper::read(uint16_t address)
 {
@@ -20,12 +61,18 @@ uint8_t RossMapper::read(uint16_t address)
 
 void RossMapper::write(uint16_t address, uint8_t value)
 {
+    (void)value;
+
     if (cart->getCartridgeSize() == 32768 && address == 0xDE00)
     {
-        loadIntoMemory(1);
+        disabled = false;
+        selectedBank = 1;
+        loadIntoMemory(selectedBank);
     }
     else if (address == 0xDF00)
     {
+        disabled = true;
+
         cart->setExROMLine(true);
         cart->setGameLine(true);
         cart->clearCartridge(cartLocation::LO);
@@ -36,6 +83,9 @@ void RossMapper::write(uint16_t address, uint8_t value)
 bool RossMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart || !mem) return false;
+
+    disabled = false;
+    selectedBank = bank;
 
     // Clear LO + HI banks first (fill with 0xFF)
     cart->clearCartridge(cartLocation::LO);
