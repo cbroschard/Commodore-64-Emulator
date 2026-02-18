@@ -12,10 +12,27 @@ GenericMapper::GenericMapper() = default;
 
 GenericMapper::~GenericMapper() = default;
 
+void GenericMapper::saveState(StateWriter& wrtr) const
+{
+    // No-op
+}
+
+bool GenericMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    // No-op
+    return true;
+}
+
 uint8_t GenericMapper::read(uint16_t address)
 {
     // Return default
     return 0xFF;
+}
+
+bool GenericMapper::applyMappingAfterLoad()
+{
+    // bank doesn’t matter for generic
+    return loadIntoMemory(0);
 }
 
 void GenericMapper::write(uint16_t address, uint8_t value)
