@@ -29,6 +29,148 @@ IECBUS::IECBUS() :
 
 IECBUS::~IECBUS() = default;
 
+static int deviceNumberOf(const Peripheral* p, const std::map<int, Peripheral*>& devices)
+{
+    for (const auto& [num, dev] : devices)
+        if (dev == p) return num;
+    return -1;
+}
+
+void IECBUS::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("IEC0");
+
+    wrtr.writeU8(static_cast<uint8_t>(currentState));
+
+    wrtr.writeBool(c64DrivesAtnLow);
+    wrtr.writeBool(c64DrivesClkLow);
+    wrtr.writeBool(c64DrivesDataLow);
+
+    wrtr.writeBool(lastClk);
+
+    // Talker id (device number)
+    int32_t talkerId = -1;
+    if (currentTalker)
+        talkerId = static_cast<int32_t>(deviceNumberOf(currentTalker, devices));
+    wrtr.writeI32(talkerId);
+
+    // Listeners
+    wrtr.writeU8(static_cast<uint8_t>(currentListeners.size()));
+    for (Peripheral* p : currentListeners)
+    {
+        int32_t id = static_cast<int32_t>(deviceNumberOf(p, devices));
+        wrtr.writeI32(id);
+    }
+
+    // Per-device pull-down contributions (store only registered devices)
+    wrtr.writeU8(static_cast<uint8_t>(devices.size()));
+    for (const auto& [num, dev] : devices)
+    {
+        wrtr.writeI32(static_cast<int32_t>(num));
+
+        // If no explicit entry exists, treat as false
+        const bool clkLow  = (devDrivesClkLow.count(dev)  ? devDrivesClkLow.at(dev)  : false);
+        const bool dataLow = (devDrivesDataLow.count(dev) ? devDrivesDataLow.at(dev) : false);
+        const bool atnLow  = (devDrivesAtnLow.count(dev)  ? devDrivesAtnLow.at(dev)  : false);
+
+        wrtr.writeBool(clkLow);
+        wrtr.writeBool(dataLow);
+        wrtr.writeBool(atnLow);
+    }
+
+    wrtr.endChunk();
+}
+
+bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "IEC0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint8_t st = 0;
+    if (!rdr.readU8(st)) return false;
+    currentState = static_cast<State>(st);
+
+    if (!rdr.readBool(c64DrivesAtnLow))  return false;
+    if (!rdr.readBool(c64DrivesClkLow))  return false;
+    if (!rdr.readBool(c64DrivesDataLow)) return false;
+
+    if (!rdr.readBool(lastClk)) return false;
+
+    int32_t talkerId = -1;
+    if (!rdr.readI32(talkerId)) return false;
+
+    // listeners
+    uint8_t listenerCount = 0;
+    if (!rdr.readU8(listenerCount)) return false;
+
+    std::vector<int32_t> listenerIds;
+    listenerIds.reserve(listenerCount);
+    for (uint8_t i = 0; i < listenerCount; ++i)
+    {
+        int32_t id = -1;
+        if (!rdr.readI32(id)) return false;
+        listenerIds.push_back(id);
+    }
+
+    // device contribution table
+    uint8_t devCount = 0;
+    if (!rdr.readU8(devCount)) return false;
+
+    // Clear current contribution maps (IMPORTANT)
+    devDrivesClkLow.clear();
+    devDrivesDataLow.clear();
+    devDrivesAtnLow.clear();
+
+    for (uint8_t i = 0; i < devCount; ++i)
+    {
+        int32_t id = -1;
+        bool clkLow=false, dataLow=false, atnLow=false;
+
+        if (!rdr.readI32(id))      return false;
+        if (!rdr.readBool(clkLow)) return false;
+        if (!rdr.readBool(dataLow))return false;
+        if (!rdr.readBool(atnLow)) return false;
+
+        auto it = devices.find(static_cast<int>(id));
+        if (it != devices.end() && it->second)
+        {
+            Peripheral* dev = it->second;
+            devDrivesClkLow[dev]  = clkLow;
+            devDrivesDataLow[dev] = dataLow;
+            devDrivesAtnLow[dev]  = atnLow;
+        }
+        // If the device isn't registered yet, we silently drop it.
+        // (Best practice: ensure devices are registered before IEC0 is loaded.)
+    }
+
+    // Restore talker/listeners pointers from IDs
+    currentTalker = nullptr;
+    if (talkerId >= 0)
+    {
+        auto it = devices.find(static_cast<int>(talkerId));
+        if (it != devices.end()) currentTalker = it->second;
+    }
+
+    currentListeners.clear();
+    for (int32_t id : listenerIds)
+    {
+        auto it = devices.find(static_cast<int>(id));
+        if (it != devices.end() && it->second)
+            currentListeners.push_back(it->second);
+    }
+
+    // Re-resolve and notify everyone
+    updateSrqLine();
+    recalcAndNotify();
+
+    // Only keep this if your outer loop does NOT always skip:
+    rdr.skipChunk(chunk);
+
+    return true;
+}
+
 void IECBUS::reset()
 {
     // Reset bus-level state machine

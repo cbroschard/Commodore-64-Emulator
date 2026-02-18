@@ -17,6 +17,8 @@ class CIA2;
 #include "IECTypes.h"
 #include "Logging.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class IECBUS
 {
@@ -30,6 +32,10 @@ class IECBUS
         // Pointers
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Reset
         void reset();
