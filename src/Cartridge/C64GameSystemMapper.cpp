@@ -40,6 +40,11 @@ bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader
     return false;
 }
 
+bool C64GameSystemMapper::applyMappingAfterLoad()
+{
+    loadIntoMemory(selectedBank);
+}
+
 uint8_t C64GameSystemMapper::read(uint16_t address)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)

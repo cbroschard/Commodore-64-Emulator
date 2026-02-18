@@ -22,6 +22,7 @@ class C64GameSystemMapper : public CartridgeMapper
 
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
+        bool applyMappingAfterLoad() override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
