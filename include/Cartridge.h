@@ -25,6 +25,8 @@ class Vic;
 #include "cpu.h"
 #include "Memory.h"
 #include "Logging.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class Cartridge
 {
@@ -37,6 +39,10 @@ class Cartridge
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         bool loadROM(const std::string& path);  // load the Cartridge
 
