@@ -42,7 +42,7 @@ bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 bool C64GameSystemMapper::applyMappingAfterLoad()
 {
-    loadIntoMemory(selectedBank);
+    return loadIntoMemory(selectedBank);
 }
 
 uint8_t C64GameSystemMapper::read(uint16_t address)
