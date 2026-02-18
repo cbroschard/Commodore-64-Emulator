@@ -41,7 +41,7 @@ bool DinamicMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 bool DinamicMapper::applyMappingAfterLoad()
 {
-    loadIntoMemory(dinamicBank);
+    return loadIntoMemory(dinamicBank);
 }
 
 uint8_t DinamicMapper::read(uint16_t address)
