@@ -34,6 +34,13 @@ bool FunPlayMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return true;
 }
 
+bool FunPlayMapper::applyMappingAfterLoad()
+{
+    // clamp for safety
+    selectedBank &= 0x0F;
+    return loadIntoMemory(selectedBank);
+}
+
 uint8_t FunPlayMapper::read(uint16_t address)
 {
     // Open Bus
@@ -59,17 +66,18 @@ bool FunPlayMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart || !mem) return false;
 
-    // Clear LO
+    selectedBank = (bank & 0x0F);
+    bank = selectedBank;
+
     cart->clearCartridge(cartLocation::LO);
 
-        // Load the selected 8K bank into $8000
     for (const auto& section : cart->getChipSections())
     {
         if (section.bankNumber == bank)
         {
             size_t size = std::min(section.data.size(), static_cast<size_t>(0x2000));
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(i, section.data[i], cartLocation::LO);
+                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
             return true;
         }
     }
