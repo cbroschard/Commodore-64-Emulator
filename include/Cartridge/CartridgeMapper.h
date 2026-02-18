@@ -9,7 +9,8 @@
 #define CARTRIDGEMAPPER_H
 
 #include <cstdint>
-
+#include "StateReader.h"
+#include "StateWriter.h"
 
 //Forward declarations
 class Cartridge;
@@ -20,6 +21,11 @@ class CartridgeMapper
     public:
         CartridgeMapper();
         virtual ~CartridgeMapper();
+
+        // State management
+        virtual void saveState(StateWriter& wrtr) const = 0;
+        virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
+        virtual bool applyMappingAfterLoad() = 0;
 
         // Cartridge I/O
         virtual uint8_t read(uint16_t address) = 0;
