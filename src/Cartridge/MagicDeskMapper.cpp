@@ -9,12 +9,54 @@
 #include "Cartridge/MagicDeskMapper.h"
 
 MagicDeskMapper::MagicDeskMapper() :
-    magicDeskBank(0)
+    magicDeskBank(0),
+    disabled(false)
 {
 
 }
 
 MagicDeskMapper::~MagicDeskMapper() = default;
+
+void MagicDeskMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("MDK0");
+    wrtr.writeU8(magicDeskBank);
+    wrtr.writeBool(disabled);
+    wrtr.endChunk();
+}
+
+bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "MDK0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    if (!rdr.readU8(magicDeskBank)) return false;
+    if (!rdr.readBool(disabled))    return false;
+
+    magicDeskBank &= 0x7F; // safety
+    return true;
+}
+
+bool MagicDeskMapper::applyMappingAfterLoad()
+{
+    // Cartridge already restored GAME/EXROM in its own CART chunk.
+    // But we’ll also enforce consistent behavior with 'disabled'.
+
+    if (disabled)
+    {
+        cart->setGameLine(true);
+        cart->setExROMLine(true);
+        cart->clearCartridge(cartLocation::LO);
+        return true;
+    }
+
+    cart->setGameLine(true);
+    cart->setExROMLine(false);
+
+    return loadIntoMemory(magicDeskBank);
+}
 
 uint8_t MagicDeskMapper::read(uint16_t address)
 {
@@ -29,28 +71,29 @@ uint8_t MagicDeskMapper::read(uint16_t address)
 
 void MagicDeskMapper::write(uint16_t address, uint8_t value)
 {
-    if (address == 0xDE00)
+    if (address != 0xDE00)
+        return;
+
+    uint8_t newBank = (value & 0x7F);
+    disabled = (value & 0x80) != 0;
+
+    if (disabled)
     {
-        uint8_t newBank = (value & 0x7F);
+        cart->setGameLine(true);
+        cart->setExROMLine(true);
+        cart->clearCartridge(cartLocation::LO);
+    }
+    else
+    {
+        cart->setGameLine(true);
+        cart->setExROMLine(false);
+    }
 
-        bool disable = (value & 0x80) != 0;
-        if(disable)
-        {
-            cart->setGameLine(true);
-            cart->setExROMLine(true);
-            cart->clearCartridge(cartLocation::LO);
-        }
-        else
-        {
-            cart->setGameLine(true);
-            cart->setExROMLine(false);
-        }
+    if (magicDeskBank != newBank)
+    {
+        magicDeskBank = newBank;
 
-        if (magicDeskBank != newBank)
-        {
-            magicDeskBank = newBank;
-            cart->setCurrentBank(magicDeskBank);
-        }
+        cart->setCurrentBank(magicDeskBank);
     }
 }
 
