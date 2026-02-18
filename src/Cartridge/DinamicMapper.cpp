@@ -39,6 +39,11 @@ bool DinamicMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return false;
 }
 
+bool DinamicMapper::applyMappingAfterLoad()
+{
+    loadIntoMemory(dinamicBank);
+}
+
 uint8_t DinamicMapper::read(uint16_t address)
 {
     // ROM reads are already handled by mem, so nothing special
