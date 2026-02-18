@@ -16,6 +16,29 @@ SuperZaxxonMapper::SuperZaxxonMapper() :
 
 SuperZaxxonMapper::~SuperZaxxonMapper() = default;
 
+void SuperZaxxonMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("SZX0");
+    wrtr.writeU8(currentBank);
+    wrtr.endChunk();
+}
+
+bool SuperZaxxonMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "SZX0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+    if (!rdr.readU8(currentBank)) return false;
+
+    return true;
+}
+
+bool SuperZaxxonMapper::applyMappingAfterLoad()
+{
+    return loadIntoMemory(currentBank);
+}
+
 uint8_t SuperZaxxonMapper::read(uint16_t address)
 {
     if (address >= 0x8000 && address <= 0x8FFF)
