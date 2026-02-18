@@ -16,6 +16,30 @@ SimonsBasicMapper::SimonsBasicMapper() :
 
 SimonsBasicMapper::~SimonsBasicMapper() = default;
 
+void SimonsBasicMapper::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("SBS0");
+    wrtr.writeBool(highROMEnabled);
+    wrtr.endChunk();
+}
+
+bool SimonsBasicMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "SBS0", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+    if (!rdr.readBool(highROMEnabled)) return false;
+
+    return true;
+}
+
+bool SimonsBasicMapper::applyMappingAfterLoad()
+{
+    // Rebuild memory windows according to restored highROMEnabled
+    return loadIntoMemory(0);
+}
+
 uint8_t SimonsBasicMapper::read(uint16_t address)
 {
     if (!cart) return 0xFF;
