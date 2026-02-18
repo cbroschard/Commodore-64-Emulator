@@ -49,6 +49,9 @@ class PLA
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
 
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
         // Standard reset routine
         void reset();
 

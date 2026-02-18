@@ -26,6 +26,37 @@ PLA::PLA() :
 
 PLA::~PLA() = default;
 
+void PLA::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("PLA0");
+    wrtr.writeU8(memoryControlRegister);
+    wrtr.endChunk();
+}
+
+bool PLA::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint8_t mcr = 0;
+
+        if (!rdr.readU8(mcr)) return false;
+
+        updateMemoryControlRegister(mcr);
+
+        // reset trace deltas so you don't get a burst of "mode changed" noise
+        lastModeIndex = 0xFF;
+
+        rdr.skipChunk(chunk);
+
+        return true;
+    }
+
+    // Not our chunk
+    return false;
+}
+
 void PLA::reset()
 {
     // Default memory control register state on power on
