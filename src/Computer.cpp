@@ -138,6 +138,94 @@ bool Computer::saveStateToFile(const std::string& path)
 
 bool Computer::loadStateFromFile(const std::string& path)
 {
+    StateReader rdr;
+
+    // Try to read given file
+    bool loaded = rdr.loadFromFile(path);
+    bool validate = rdr.readFileHeader();
+
+    // Fail if we can't load or validate the file
+    if (!loaded || !validate) return false;
+
+    // Process the first chunk
+    StateReader::Chunk chunk;
+    if (!rdr.nextChunk(chunk)) return false;
+
+    if (std::memcmp(chunk.tag, "SYS0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        // Restore SYS0
+
+
+        // End the chunk
+        rdr.exitChunkPayload(chunk);
+
+        // Loop through the rest of the chunks
+        while (rdr.nextChunk(chunk))
+        {
+            if (std::memcmp(chunk.tag, "CPU0", 4 ) == 0)
+            {
+                // Restore the components
+                bool processorLoad = processor ? processor->loadState(chunk, rdr) : 0;
+                if (!processorLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "MEM0", 4 ) == 0)
+            {
+                bool memoryLoad = mem ? mem->loadState(chunk, rdr) : 0;
+                if (!memoryLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "CIA1", 4) == 0)
+            {
+               bool cia1Load = cia1object ? cia1object->loadState(chunk, rdr) : 0;
+               if (!cia1Load) return false;
+            }
+            else if (std::memcmp(chunk.tag, "CIA2", 4) == 0)
+            {
+                bool cia2Load = cia2object ? cia2object->loadState(chunk, rdr) : 0;
+                if (!cia2Load) return false;
+            }
+            else if (std::memcmp(chunk.tag, "VIC0", 4) == 0)
+            {
+                bool vicLoad = vicII ? vicII->loadState(chunk, rdr) : 0;
+                if (!vicLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "SID0", 4) == 0)
+            {
+                bool sidLoad = sidchip ? sidchip->loadState(chunk, rdr) : 0;
+                if (!sidLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
+            {
+                bool plaLoad = pla ? pla->loadState(chunk, rdr) : 0;
+                if (!plaLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "MED0", 4) == 0)
+            {
+                bool mediaLoad = media ? media->loadState(chunk, rdr) : 0;
+                if (!mediaLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "CART", 4) == 0)
+            {
+                bool cartLoad = cart ? cart->loadState(chunk, rdr) : 0;
+                if (!cartLoad) return false;
+            }
+            else if (std::memcmp(chunk.tag, "CASS", 4) == 0)
+            {
+                bool cassLoad = cass ? cass->loadState(chunk, rdr) : 0;
+                if (!cassLoad) return false;
+            }
+            else
+            {
+                continue; // Unknown tag hit, skip
+            }
+        }
+
+        // Success
+        return true;
+    }
+
+    // Failure
     return false;
 }
 
