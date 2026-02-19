@@ -155,8 +155,28 @@ bool Computer::loadStateFromFile(const std::string& path)
     {
         rdr.enterChunkPayload(chunk);
 
-        // Restore SYS0
+        uint32_t sysVer = 0;
+        if (!rdr.readU32(sysVer)) return false;
+        if (sysVer != 1) return false;
 
+        // Restore Video Mode
+        uint8_t mode = 0;
+        if (!rdr.readU8(mode)) return false;
+        videoMode_ = static_cast<VideoMode>(mode);
+
+        // Restore CPU timing
+        uint8_t cpuTimingID = 0;
+        if (!rdr.readU8(cpuTimingID)) return false;
+        cpuCfg_ = cpuTimingID ? &PAL_CPU : &NTSC_CPU;
+
+        // Restore uiPaused
+        bool tmpPaused = false;
+        if (!rdr.readBool(tmpPaused)) return false;
+        uiPaused = tmpPaused;
+
+        // Restore bus pending status
+        if (!rdr.readBool(pendingBusPrime)) return false;
+        if (!rdr.readBool(busPrimedAfterBoot)) return false;
 
         // End the chunk
         rdr.exitChunkPayload(chunk);
@@ -217,6 +237,7 @@ bool Computer::loadStateFromFile(const std::string& path)
             }
             else
             {
+                rdr.skipChunk(chunk);
                 continue; // Unknown tag hit, skip
             }
         }
