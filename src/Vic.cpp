@@ -307,7 +307,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Make sure CPU BA hold matches restored AEC right now
         updateAEC();
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 

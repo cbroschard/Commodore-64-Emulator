@@ -48,7 +48,7 @@ bool PLA::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // reset trace deltas so you don't get a burst of "mode changed" noise
         lastModeIndex = 0xFF;
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
 
         return true;
     }

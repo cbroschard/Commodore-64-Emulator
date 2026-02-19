@@ -92,7 +92,7 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Re-apply port $01 side effects (PLA mapping + cassette motor)
         applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
     return true;
