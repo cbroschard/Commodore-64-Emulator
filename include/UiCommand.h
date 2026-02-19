@@ -14,6 +14,8 @@ struct UiCommand
 {
     enum class Type
     {
+        SaveState,
+        LoadState,
         WarmReset,
         ColdReset,
         SetPAL,
