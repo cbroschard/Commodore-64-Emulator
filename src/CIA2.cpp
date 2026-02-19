@@ -242,7 +242,7 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(pendingTBCNTTicks))        return false;
         if (!rdr.readU32(pendingTBCASTicks))        return false;
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 

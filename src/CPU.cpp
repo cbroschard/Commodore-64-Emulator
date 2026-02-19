@@ -135,7 +135,7 @@ bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
         if (rdr.cursor() < end) { if (!rdr.readBool(baHold)) return false; }
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 

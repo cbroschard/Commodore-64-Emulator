@@ -251,8 +251,7 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(shiftReg))               return false;
         if (!rdr.readU8(shiftCount))             return false;
 
-        // End chunk
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
     }
 
     // Unknown chunk

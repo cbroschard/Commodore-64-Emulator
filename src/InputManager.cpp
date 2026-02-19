@@ -103,8 +103,7 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     setJoystickAttached(1, j1 != 0);
     setJoystickAttached(2, j2 != 0);
 
-    // Optional safety: advance position to end of chunk payload so the caller can continue scanning chunks
-    rdr.skipChunk(chunk);
+    rdr.exitChunkPayload(chunk);
 
     return true;
 }

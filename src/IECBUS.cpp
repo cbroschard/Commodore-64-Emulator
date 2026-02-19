@@ -142,7 +142,6 @@ bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             devDrivesAtnLow[dev]  = atnLow;
         }
         // If the device isn't registered yet, we silently drop it.
-        // (Best practice: ensure devices are registered before IEC0 is loaded.)
     }
 
     // Restore talker/listeners pointers from IDs
@@ -165,8 +164,7 @@ bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     updateSrqLine();
     recalcAndNotify();
 
-    // Only keep this if your outer loop does NOT always skip:
-    rdr.skipChunk(chunk);
+    rdr.exitChunkPayload(chunk);
 
     return true;
 }
