@@ -76,7 +76,7 @@ bool Computer::saveStateToFile(const std::string& path)
     wrtr.beginChunk("SYS0");
 
     // Dump SYS0 schema version
-    wrtr.writeU8(1);
+    wrtr.writeU32(1);
 
     // Dump Video mode
     wrtr.writeU8(static_cast<uint8_t>(videoMode_));
@@ -172,7 +172,7 @@ bool Computer::loadStateFromFile(const std::string& path)
         // Restore uiPaused
         bool tmpPaused = false;
         if (!rdr.readBool(tmpPaused)) return false;
-        uiPaused = tmpPaused;
+        uiPaused.store(tmpPaused);
 
         // Restore bus pending status
         if (!rdr.readBool(pendingBusPrime)) return false;
