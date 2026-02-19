@@ -122,79 +122,83 @@ void MediaManager::saveState(StateWriter& wrtr) const
 
 bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "MED0", 4) != 0)
-        return false;
-
-    rdr.enterChunkPayload(chunk);
-
-    uint32_t ver = 0;
-    if (!rdr.readU32(ver)) return false;
-    if (ver != 1) return false;
-
-    // Cartridge
-    if (!rdr.readBool(state_.cartAttached)) return false;
-    if (!rdr.readString(state_.cartPath)) return false;
-
-    // PRG
-    if (!rdr.readBool(state_.prgAttached)) return false;
-    if (!rdr.readString(state_.prgPath)) return false;
-
-    uint32_t delayU32 = 0;
-    if (!rdr.readU32(delayU32)) return false;
-    state_.prgDelay = static_cast<int>(delayU32);
-
-    if (!rdr.readBool(state_.prgLoaded)) return false;
-
-    bool hasPrgImage = false;
-    if (!rdr.readBool(hasPrgImage)) return false;
-
-    prgImage_.clear();
-    if (hasPrgImage)
+    if (std::memcmp(chunk.tag, "MED0", 4) == 0)
     {
-        if (!rdr.readVectorU8(prgImage_)) return false;
-    }
+        rdr.enterChunkPayload(chunk);
 
-    // Tape
-    if (!rdr.readBool(state_.tapeAttached)) return false;
-    if (!rdr.readString(state_.tapePath)) return false;
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver)) return false;
+        if (ver != 1) return false;
 
-    // Drive mount table (8..11)
-    uint8_t firstDev = 0, lastDev = 0;
-    if (!rdr.readU8(firstDev)) return false;
-    if (!rdr.readU8(lastDev)) return false;
+        // Cartridge
+        if (!rdr.readBool(state_.cartAttached)) return false;
+        if (!rdr.readString(state_.cartPath)) return false;
 
-    // We only expect 8..11 from your saver, but tolerate other ranges safely.
-    for (uint8_t dev = firstDev; dev <= lastDev; ++dev)
-    {
-        bool present = false;
-        if (!rdr.readBool(present)) return false;
+        // PRG
+        if (!rdr.readBool(state_.prgAttached)) return false;
+        if (!rdr.readString(state_.prgPath)) return false;
 
-        uint8_t modelId = 0;
-        bool hasDisk = false;
-        std::string diskPath;
+        uint32_t delayU32 = 0;
+        if (!rdr.readU32(delayU32)) return false;
+        state_.prgDelay = static_cast<int>(delayU32);
 
-        if (!rdr.readU8(modelId)) return false;
-        if (!rdr.readBool(hasDisk)) return false;
-        if (!rdr.readString(diskPath)) return false;
+        if (!rdr.readBool(state_.prgLoaded)) return false;
 
-        if (!present) continue;
+        bool hasPrgImage = false;
+        if (!rdr.readBool(hasPrgImage)) return false;
 
-        if (dev < 8 || dev > 11) continue;
-
-        // Validate modelId to avoid corrupted-file crashes
-        if (!isValidDriveModelId(modelId)) continue;
-
-        const DriveModel model = static_cast<DriveModel>(modelId);
-        if (model == DriveModel::None) continue;
-
-        if (hasDisk && !diskPath.empty())
+        prgImage_.clear();
+        if (hasPrgImage)
         {
-            // This will create the drive if missing and register it
-            attachDiskImage(static_cast<int>(dev), model, diskPath);
+            if (!rdr.readVectorU8(prgImage_)) return false;
         }
+
+        // Tape
+        if (!rdr.readBool(state_.tapeAttached)) return false;
+        if (!rdr.readString(state_.tapePath)) return false;
+
+        // Drive mount table (8..11)
+        uint8_t firstDev = 0, lastDev = 0;
+        if (!rdr.readU8(firstDev)) return false;
+        if (!rdr.readU8(lastDev)) return false;
+
+        // We only expect 8..11 from your saver, but tolerate other ranges safely.
+        for (uint8_t dev = firstDev; dev <= lastDev; ++dev)
+        {
+            bool present = false;
+            if (!rdr.readBool(present)) return false;
+
+            uint8_t modelId = 0;
+            bool hasDisk = false;
+            std::string diskPath;
+
+            if (!rdr.readU8(modelId)) return false;
+            if (!rdr.readBool(hasDisk)) return false;
+            if (!rdr.readString(diskPath)) return false;
+
+            if (!present) continue;
+
+            if (dev < 8 || dev > 11) continue;
+
+            // Validate modelId to avoid corrupted-file crashes
+            if (!isValidDriveModelId(modelId)) continue;
+
+            const DriveModel model = static_cast<DriveModel>(modelId);
+            if (model == DriveModel::None) continue;
+
+            if (hasDisk && !diskPath.empty())
+            {
+                // This will create the drive if missing and register it
+                attachDiskImage(static_cast<int>(dev), model, diskPath);
+            }
+        }
+
+        rdr.exitChunkPayload(chunk);
+        return true;
     }
 
-    return true;
+    // Not our chunk
+    return false;
 }
 
 std::string MediaManager::lowerExt(const std::string& path)
