@@ -71,8 +71,7 @@ bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (mem)
             mem->setCassetteSenseLow(cassetteLoaded && playPressed);
 
-        // Only keep if outer loop does NOT always skip:
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
 
         return true;
     }
