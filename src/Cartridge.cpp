@@ -106,6 +106,8 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.skipChunk(sub);
     }
 
+    rdr.exitChunkPayload(chunk);
+
     // Re-apply mapping
     if (mapper)
     {
