@@ -179,7 +179,7 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(todAlarm[3]))               return false;
 
         // End chunk
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 

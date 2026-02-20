@@ -269,7 +269,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         updateIRQLine();
         updateMonitorCaches(registers.raster);
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 
