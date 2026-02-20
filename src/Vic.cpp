@@ -300,12 +300,42 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(frameDone)) return false;
 
+        // --- sanitize restored values ---
+        if (registers.raster >= cfg_->maxRasterLines)
+            registers.raster %= cfg_->maxRasterLines;
+
+        if (currentCycle < 0) currentCycle = 0;
+        if (currentCycle >= cfg_->cyclesPerLine)
+            currentCycle %= cfg_->cyclesPerLine;
+
+        auto fixSizeU8  = [&](std::vector<uint8_t>& v, uint8_t fill){
+            if (v.size() != (size_t)cfg_->maxRasterLines) v.assign(cfg_->maxRasterLines, fill);
+        };
+        auto fixSizeU16 = [&](std::vector<uint16_t>& v, uint16_t fill){
+            if (v.size() != (size_t)cfg_->maxRasterLines) v.assign(cfg_->maxRasterLines, fill);
+        };
+
+        fixSizeU8(d011_per_raster, 0x1B);
+        fixSizeU8(d016_per_raster, 0x08);
+        fixSizeU8(d018_per_raster, 0x14);
+
+        uint16_t defBank = cia2object ? cia2object->getCurrentVICBank() : 0;
+        fixSizeU16(dd00_per_raster, defBank);
+
         // Recompute mode/caches from restored latches
         updateGraphicsMode(registers.raster);
+
+        // Prefer CIA2's current bank for *current raster* (optional but helps)
+        if (cia2object)
+            dd00_per_raster[registers.raster] = cia2object->getCurrentVICBank();
+
         updateMonitorCaches(registers.raster);
 
-        // Make sure CPU BA hold matches restored AEC right now
+        // Make sure CPU BA hold matches current DMA now
         updateAEC();
+
+        // IRQ line consistent with restored IER/ISR
+        updateIRQLine();
 
         rdr.exitChunkPayload(chunk);
         return true;
