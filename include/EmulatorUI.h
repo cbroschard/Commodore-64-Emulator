@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include "imgui/imgui.h"
+#include "imgui/misc/cpp/imgui_stdlib.h"
 #include "UiCommand.h"
 #include "Version.h"
 
@@ -66,11 +67,19 @@ class EmulatorUI
 
         struct FileDialog
         {
+            enum class Mode { OpenExisting, SaveAs };
+
             bool open = false;
+            Mode mode = Mode::OpenExisting;
+
             std::string title;
             std::filesystem::path currentDir;
             std::vector<std::string> allowedExtensions;
-            std::string selectedEntry;
+
+            std::string selectedEntry; // list selection (dirs/files)
+            std::string fileName;      // typed name for SaveAs (or populated from selection)
+
+            bool allowOverwrite = false; // SaveAs only
             std::string error;
         };
         FileDialog fileDlg;
@@ -83,13 +92,14 @@ class EmulatorUI
 
         void installMenu(const MediaViewState& v);
         void startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type);
-        void drawFileDialog();
+        void startSaveFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type, bool allowOverwrite = false);
         void startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType);
+        void drawFileDialog();
 
-        void push(UiCommand::Type t,
-          std::string path = {},
-          int deviceNum = 8,
-          UiCommand::DriveType driveType = UiCommand::DriveType::D1541);
+        void push(UiCommand::Type t, std::string path = {}, int deviceNum = 8, UiCommand::DriveType driveType = UiCommand::DriveType::D1541);
+
+        bool isAllowedByExtension(const std::filesystem::path& path) const;
+        void emitChosenPath(const std::filesystem::path& path);
 };
 
 #endif // EMULATORUI_H
