@@ -179,7 +179,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             filterobj.setMode(sidRegisters.filter.resonanceControl & 0x07);
             filterobj.setResonance(sidRegisters.filter.resonanceControl);
         }
-
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 
@@ -234,6 +234,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         filterobj.setHighPassOut(hp);
         filterobj.setDcBlock(dc);
 
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 
