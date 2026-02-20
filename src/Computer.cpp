@@ -201,46 +201,81 @@ bool Computer::loadStateFromFile(const std::string& path)
 
             const bool isSID = (std::memcmp(chunk.tag, "SID0", 4) == 0) ||
                                (std::memcmp(chunk.tag, "SIDX", 4) == 0);
+            #ifdef Debug
+            std::cout << "CHUNK: "
+                      << char(chunk.tag[0]) << char(chunk.tag[1]) << char(chunk.tag[2]) << char(chunk.tag[3])
+                      << "\n";
+            #endif
 
             if (isCPU)
             {
                 if (!(processor && processor->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded processor\n";
+                #endif
             }
             else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
             {
                 if (!(mem && mem->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded memory\n";
+                #endif
             }
             else if (isCIA1)
             {
                 if (!(cia1object && cia1object->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded CIA1\n";
+                #endif
             }
             else if (isCIA2)
             {
                 if (!(cia2object && cia2object->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded CIA2\n";
+                #endif
             }
             else if (isVIC)
             {
                 if (!(vicII && vicII->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded VIC\n";
+                #endif
             }
             else if (isSID)
             {
                 if (!(sidchip && sidchip->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded SID\n";
+                #endif
             }
             else if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
             {
                 if (!(pla && pla->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded PLA\n";
+                #endif
             }
             else if (std::memcmp(chunk.tag, "MED0", 4) == 0)
             {
                 if (!(media && media->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded Media Manager\n";
+                #endif
             }
             else if (std::memcmp(chunk.tag, "CART", 4) == 0)
             {
                 if (!(cart && cart->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded Cartridge\n";
+                #endif
             }
             else if (std::memcmp(chunk.tag, "CASS", 4) == 0)
             {
                 if (!(cass && cass->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded Cassette\n";
+                #endif
             }
             else
             {
