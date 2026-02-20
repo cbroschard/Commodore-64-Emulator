@@ -125,13 +125,23 @@ void UIBridge::processCommands()
                 break;
 
             case UiCommand::Type::SaveState:
-                if (saveState_) saveState_(cmd.path);
-                break;
+                {
+                    uiPaused_ = true;
 
+                    if (saveState_) saveState_(cmd.path);
+
+                    uiPaused_ = false;
+                    break;
+                }
             case UiCommand::Type::LoadState:
-                if (loadState_) loadState_(cmd.path);
-                break;
+                {
+                    uiPaused_ = true;
 
+                    if (loadState_) loadState_(cmd.path);
+
+                    uiPaused_ = false;
+                    break;
+                }
             case UiCommand::Type::WarmReset:
                 if (warmReset_) warmReset_();
                 break;
