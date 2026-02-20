@@ -252,6 +252,7 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(shiftCount))             return false;
 
         rdr.exitChunkPayload(chunk);
+        return true;
     }
 
     // Unknown chunk
