@@ -185,64 +185,66 @@ bool Computer::loadStateFromFile(const std::string& path)
         // End the chunk
         rdr.exitChunkPayload(chunk);
 
-        // Loop through the rest of the chunks
         while (rdr.nextChunk(chunk))
         {
-            if (std::memcmp(chunk.tag, "CPU0", 4 ) == 0)
+            const bool isCPU = (std::memcmp(chunk.tag, "CPU0", 4) == 0) ||
+                               (std::memcmp(chunk.tag, "CPUX", 4) == 0);
+
+            const bool isCIA1 = (std::memcmp(chunk.tag, "CIA1", 4) == 0) ||
+                                (std::memcmp(chunk.tag, "CI1X", 4) == 0);
+
+            const bool isCIA2 = (std::memcmp(chunk.tag, "CIA2", 4) == 0) ||
+                                (std::memcmp(chunk.tag, "CI2X", 4) == 0);
+
+            const bool isVIC = (std::memcmp(chunk.tag, "VIC0", 4) == 0) ||
+                               (std::memcmp(chunk.tag, "VICX", 4) == 0);
+
+            const bool isSID = (std::memcmp(chunk.tag, "SID0", 4) == 0) ||
+                               (std::memcmp(chunk.tag, "SIDX", 4) == 0);
+
+            if (isCPU)
             {
-                // Restore the components
-                bool processorLoad = processor ? processor->loadState(chunk, rdr) : 0;
-                if (!processorLoad) return false;
+                if (!(processor && processor->loadState(chunk, rdr))) return false;
             }
-            else if (std::memcmp(chunk.tag, "MEM0", 4 ) == 0)
+            else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
             {
-                bool memoryLoad = mem ? mem->loadState(chunk, rdr) : 0;
-                if (!memoryLoad) return false;
+                if (!(mem && mem->loadState(chunk, rdr))) return false;
             }
-            else if (std::memcmp(chunk.tag, "CIA1", 4) == 0)
+            else if (isCIA1)
             {
-               bool cia1Load = cia1object ? cia1object->loadState(chunk, rdr) : 0;
-               if (!cia1Load) return false;
+                if (!(cia1object && cia1object->loadState(chunk, rdr))) return false;
             }
-            else if (std::memcmp(chunk.tag, "CIA2", 4) == 0)
+            else if (isCIA2)
             {
-                bool cia2Load = cia2object ? cia2object->loadState(chunk, rdr) : 0;
-                if (!cia2Load) return false;
+                if (!(cia2object && cia2object->loadState(chunk, rdr))) return false;
             }
-            else if (std::memcmp(chunk.tag, "VIC0", 4) == 0)
+            else if (isVIC)
             {
-                bool vicLoad = vicII ? vicII->loadState(chunk, rdr) : 0;
-                if (!vicLoad) return false;
+                if (!(vicII && vicII->loadState(chunk, rdr))) return false;
             }
-            else if (std::memcmp(chunk.tag, "SID0", 4) == 0)
+            else if (isSID)
             {
-                bool sidLoad = sidchip ? sidchip->loadState(chunk, rdr) : 0;
-                if (!sidLoad) return false;
+                if (!(sidchip && sidchip->loadState(chunk, rdr))) return false;
             }
             else if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
             {
-                bool plaLoad = pla ? pla->loadState(chunk, rdr) : 0;
-                if (!plaLoad) return false;
+                if (!(pla && pla->loadState(chunk, rdr))) return false;
             }
             else if (std::memcmp(chunk.tag, "MED0", 4) == 0)
             {
-                bool mediaLoad = media ? media->loadState(chunk, rdr) : 0;
-                if (!mediaLoad) return false;
+                if (!(media && media->loadState(chunk, rdr))) return false;
             }
             else if (std::memcmp(chunk.tag, "CART", 4) == 0)
             {
-                bool cartLoad = cart ? cart->loadState(chunk, rdr) : 0;
-                if (!cartLoad) return false;
+                if (!(cart && cart->loadState(chunk, rdr))) return false;
             }
             else if (std::memcmp(chunk.tag, "CASS", 4) == 0)
             {
-                bool cassLoad = cass ? cass->loadState(chunk, rdr) : 0;
-                if (!cassLoad) return false;
+                if (!(cass && cass->loadState(chunk, rdr))) return false;
             }
             else
             {
                 rdr.skipChunk(chunk);
-                continue; // Unknown tag hit, skip
             }
         }
 
