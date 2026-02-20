@@ -95,7 +95,9 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.exitChunkPayload(chunk);
         return true;
     }
-    return true;
+
+    // Not our chunk
+    return false;
 }
 
 uint8_t Memory::read(uint16_t address)
