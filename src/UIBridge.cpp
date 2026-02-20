@@ -8,9 +8,11 @@ UIBridge::UIBridge(EmulatorUI& ui,
             InputManager* input,
             std::atomic<bool>& uiPaused,
             std::atomic<bool>& running,
+            UIBridge::StringFn saveState,
+            UIBridge::StringFn loadState,
             UIBridge::VoidFn warmReset,
             UIBridge::VoidFn coldReset,
-            UIBridge::SetVideoModeFn setVideoMode,
+            UIBridge::StringFn setVideoMode,
             UIBridge::VoidFn enterMonitor,
             UIBridge::BoolFn isPal)
                 : ui_(ui),
@@ -18,6 +20,8 @@ UIBridge::UIBridge(EmulatorUI& ui,
                   input_(input),
                   uiPaused_(uiPaused),
                   running_(running),
+                  saveState_(std::move(saveState)),
+                  loadState_(std::move(loadState)),
                   warmReset_(std::move(warmReset)),
                   coldReset_(std::move(coldReset)),
                   setVideoMode_(std::move(setVideoMode)),
@@ -118,6 +122,14 @@ void UIBridge::processCommands()
                     media_->setTapePath(cmd.path);
                     media_->attachTAPImage();
                 }
+                break;
+
+            case UiCommand::Type::SaveState:
+                if (saveState_) saveState_(cmd.path);
+                break;
+
+            case UiCommand::Type::LoadState:
+                if (loadState_) loadState_(cmd.path);
                 break;
 
             case UiCommand::Type::WarmReset:

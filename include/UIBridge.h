@@ -13,7 +13,7 @@ class UIBridge
 {
     public:
         using VoidFn            = std::function<void()>;
-        using SetVideoModeFn    = std::function<void(const std::string&)>;
+        using StringFn          = std::function<void(const std::string&)>;
         using BoolFn            = std::function<bool()>;
 
         UIBridge(EmulatorUI& ui,
@@ -21,9 +21,11 @@ class UIBridge
              InputManager* input,
              std::atomic<bool>& uiPaused,
              std::atomic<bool>& running,
+             StringFn saveState,
+             StringFn loadState,
              VoidFn warmReset,
              VoidFn coldReset,
-             SetVideoModeFn setVideoMode,
+             StringFn setVideoMode,
              VoidFn enterMonitor,
              BoolFn isPal);
         virtual ~UIBridge();
@@ -44,9 +46,11 @@ class UIBridge
         std::atomic<bool>& uiPaused_;
         std::atomic<bool>& running_;
 
+        StringFn saveState_;
+        StringFn loadState_;
         VoidFn warmReset_;
         VoidFn coldReset_;
-        SetVideoModeFn setVideoMode_;
+        StringFn setVideoMode_;
         VoidFn enterMonitor_;
         BoolFn isPal_;
 };
