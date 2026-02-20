@@ -70,9 +70,7 @@ bool Computer::saveStateToFile(const std::string& path)
     StateWriter wrtr(kStateVersion);
     wrtr.beginFile();
 
-    // -------------------------
     // SYS0 = Core system config
-    // -------------------------
     wrtr.beginChunk("SYS0");
 
     // Dump SYS0 schema version
@@ -567,7 +565,7 @@ void Computer::wireUp()
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
     *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
 
-    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this]() { warmReset(); },
-    [this]() { coldReset(); }, [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); },
-    [this]() { return videoMode_ == VideoMode::PAL; });
+    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this](const std::string& path) { saveStateToFile(path); },
+    [this](const std::string& path) { loadStateFromFile(path); }, [this]() { warmReset(); }, [this]() { coldReset(); },
+    [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); }, [this]() { return videoMode_ == VideoMode::PAL; });
 }
