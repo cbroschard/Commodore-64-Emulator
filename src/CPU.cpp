@@ -104,7 +104,7 @@ bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         SP = state.SP;
         SR = (state.SR | 0x20);
 
-        rdr.skipChunk(chunk);
+        rdr.exitChunkPayload(chunk);
         return true;
     }
 
