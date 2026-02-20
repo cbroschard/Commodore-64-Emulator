@@ -414,16 +414,24 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             if (ImGui::MenuItem("Assign Pad2 -> Port 1")) push(UiCommand::Type::AssignPad2ToPort1);
             if (ImGui::MenuItem("Assign Pad2 -> Port 2")) push(UiCommand::Type::AssignPad2ToPort2);
 
-            if (ImGui::MenuItem("Clear Port 1 Pad")) push(UiCommand::Type::ClearPort1Pad);
-            if (ImGui::MenuItem("Clear Port 2 Pad")) push(UiCommand::Type::ClearPort2Pad);
-            if (ImGui::MenuItem("Swap Port 1/2 Pads")) push(UiCommand::Type::SwapPortPads);
+            if (ImGui::MenuItem("Clear Port 1 Pad"))    push(UiCommand::Type::ClearPort1Pad);
+            if (ImGui::MenuItem("Clear Port 2 Pad"))    push(UiCommand::Type::ClearPort2Pad);
+            if (ImGui::MenuItem("Swap Port 1/2 Pads"))  push(UiCommand::Type::SwapPortPads);
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("System"))
         {
+            if (ImGui::MenuItem("Save Emulator State to File...", "Ctrl+S"))   push(UiCommand::Type::SaveState);
+            if (ImGui::MenuItem("Load Emulator State from file...", "Ctrl+L"))
+                startFileDialog("Select SAV image to load", { ".sav" }, UiCommand::Type::LoadState);
+
+            ImGui::Separator();
+
             if (ImGui::MenuItem("Warm Reset", "Ctrl+W"))       push(UiCommand::Type::WarmReset);
             if (ImGui::MenuItem("Cold Reset", "Ctrl+Shift+R")) push(UiCommand::Type::ColdReset);
+
+            ImGui::Separator();
 
             bool isPAL = v.pal;
             if (ImGui::MenuItem("NTSC", nullptr, !isPAL)) push(UiCommand::Type::SetNTSC);

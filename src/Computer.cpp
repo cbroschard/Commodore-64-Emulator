@@ -143,7 +143,13 @@ bool Computer::loadStateFromFile(const std::string& path)
     bool validate = rdr.readFileHeader();
 
     // Fail if we can't load or validate the file
-    if (!loaded || !validate) return false;
+    if (!loaded || !validate)
+    {
+        #ifdef Debug
+        std::cout << "Unable to load .sav file!\n";
+        #endif // Debug
+        return false;
+    }
 
     // Process the first chunk
     StateReader::Chunk chunk;
