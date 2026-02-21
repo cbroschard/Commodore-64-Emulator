@@ -109,7 +109,6 @@ public:
     void attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
     void attachPRGImage();
     void attachCRTImage();
-    void attachTapeImage(); // Determines if TAP or T64 before loading for load state
     void attachT64Image();
     void attachTAPImage();
 
@@ -117,6 +116,7 @@ public:
     inline bool isCartridgeAttached() const { return state_.cartAttached; }
     inline bool isTapeAttached() const { return state_.tapeAttached; }
     void restoreCartridgeFromState();
+    void restoreTapeMountOnlyFromState();
 
     // Cassette control
     void tapePlay();

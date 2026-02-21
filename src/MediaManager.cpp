@@ -345,13 +345,6 @@ void MediaManager::attachCRTImage()
     #endif
 }
 
-void MediaManager::attachTapeImage()
-{
-    const std::string ext = lowerExt(state_.tapePath);
-    if (ext == ".tap") attachTAPImage();
-    else               attachT64Image();
-}
-
 void MediaManager::attachT64Image()
 {
     if (state_.tapePath.empty()) return;
@@ -434,6 +427,24 @@ void MediaManager::restoreCartridgeFromState()
 
     mem_.setCartridgeAttached(true);
     pla_.setCartridgeAttached(true);
+}
+
+void MediaManager::restoreTapeMountOnlyFromState()
+{
+    // Clear first
+    if (!state_.tapeAttached || state_.tapePath.empty())
+        return;
+
+    // Just mount tape image; DO NOT load PRG into RAM; DO NOT inject RUN
+    cass_.stop();
+    cass_.eject();
+
+    if (!cass_.loadCassette(state_.tapePath, videoMode_))
+    {
+        state_.tapeAttached = false;
+        state_.tapePath.clear();
+        return;
+    }
 }
 
 void MediaManager::tapePlay()
