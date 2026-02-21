@@ -112,6 +112,10 @@ public:
     void attachT64Image();
     void attachTAPImage();
 
+    // Load state effects
+    inline bool isCartridgeAttached() const { return state_.cartAttached; };
+    void restoreCartridgeFromState();
+
     // Cassette control
     void tapePlay();
     void tapeStop();

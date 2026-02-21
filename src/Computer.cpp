@@ -265,6 +265,8 @@ bool Computer::loadStateFromFile(const std::string& path)
             }
             else if (std::memcmp(chunk.tag, "CART", 4) == 0)
             {
+                if (media && media->isCartridgeAttached())
+                    media->restoreCartridgeFromState();
                 if (!(cart && cart->loadState(chunk, rdr))) return false;
                 #ifdef Debug
                 std::cout << "Loaded Cartridge\n";

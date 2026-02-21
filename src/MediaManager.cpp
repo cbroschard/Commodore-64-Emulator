@@ -394,6 +394,31 @@ void MediaManager::attachTAPImage()
     }
 }
 
+void MediaManager::restoreCartridgeFromState()
+{
+    // First, make sure "no cart" is the baseline
+    mem_.setCartridgeAttached(false);
+    pla_.setCartridgeAttached(false);
+
+    if (!state_.cartAttached || state_.cartPath.empty())
+        return;
+
+    recreateCartridge();
+
+    if (!cart_->loadROM(state_.cartPath))
+    {
+        #ifdef Debug
+        std::cout << "Restore cartridge failed: " << state_.cartPath << "\n";
+        #endif
+        state_.cartAttached = false;
+        state_.cartPath.clear();
+        return;
+    }
+
+    mem_.setCartridgeAttached(true);
+    pla_.setCartridgeAttached(true);
+}
+
 void MediaManager::tapePlay()
 {
     cass_.play();
