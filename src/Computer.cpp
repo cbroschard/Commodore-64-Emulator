@@ -214,13 +214,6 @@ bool Computer::loadStateFromFile(const std::string& path)
                 std::cout << "Loaded processor\n";
                 #endif
             }
-            else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
-            {
-                if (!(mem && mem->loadState(chunk, rdr))) return false;
-                #ifdef Debug
-                std::cout << "Loaded memory\n";
-                #endif
-            }
             else if (isCIA1)
             {
                 if (!(cia1object && cia1object->loadState(chunk, rdr))) return false;
@@ -254,6 +247,27 @@ bool Computer::loadStateFromFile(const std::string& path)
                 if (!(pla && pla->loadState(chunk, rdr))) return false;
                 #ifdef Debug
                 std::cout << "Loaded PLA\n";
+                #endif
+            }
+            else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
+            {
+                if (!(mem && mem->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded memory\n";
+                #endif
+            }
+            else if (std::memcmp(chunk.tag, "BUS0", 4) == 0)
+            {
+                if (!(bus && bus->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded IECBUS\n";
+                #endif // Debug
+            }
+            else if (std::memcmp(chunk.tag, "INPT", 4) == 0)
+            {
+                if (!(inputMgr && inputMgr->loadState(chunk, rdr))) return false;
+                #ifdef Debug
+                std::cout << "Loaded Input\n";
                 #endif
             }
             else if (std::memcmp(chunk.tag, "MED0", 4) == 0)
