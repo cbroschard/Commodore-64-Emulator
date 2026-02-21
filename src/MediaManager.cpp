@@ -70,9 +70,13 @@ void MediaManager::saveState(StateWriter& wrtr) const
     // chunk version
     wrtr.writeU32(1);
 
-    // ---- Cartridge ----
+    // Dump Cartridge
     wrtr.writeBool(state_.cartAttached);
     wrtr.writeString(state_.cartPath);
+
+    // Dump TAP
+    wrtr.writeBool(state_.tapeAttached);
+    wrtr.writeString(state_.tapePath);
 
     // Dump PRG
     wrtr.writeBool(state_.prgAttached);
@@ -133,6 +137,10 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Cartridge
         if (!rdr.readBool(state_.cartAttached)) return false;
         if (!rdr.readString(state_.cartPath)) return false;
+
+        // Tape
+        if (!rdr.readBool(state_.tapeAttached)) return false;
+        if (!rdr.readString(state_.tapePath)) return false;;
 
         // PRG
         if (!rdr.readBool(state_.prgAttached)) return false;
@@ -337,6 +345,13 @@ void MediaManager::attachCRTImage()
     #endif
 }
 
+void MediaManager::attachTapeImage()
+{
+    const std::string ext = lowerExt(state_.tapePath);
+    if (ext == ".tap") attachTAPImage();
+    else               attachT64Image();
+}
+
 void MediaManager::attachT64Image()
 {
     if (state_.tapePath.empty()) return;
@@ -359,11 +374,13 @@ void MediaManager::attachT64Image()
         {
             uint16_t scan = 0x0801;
             uint16_t nextLine;
-            do {
+            do
+            {
                 nextLine = mem_.read(scan) | (mem_.read(scan + 1) << 8);
                 if (nextLine == 0) break;
                 scan = nextLine;
-            } while (true);
+            }
+            while (true);
 
             uint16_t basicEnd = scan + 2;
 

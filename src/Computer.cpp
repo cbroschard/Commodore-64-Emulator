@@ -274,6 +274,8 @@ bool Computer::loadStateFromFile(const std::string& path)
             }
             else if (std::memcmp(chunk.tag, "CASS", 4) == 0)
             {
+                if (media && media->isTapeAttached())
+                    media->attachTapeImage();
                 if (!(cass && cass->loadState(chunk, rdr))) return false;
                 #ifdef Debug
                 std::cout << "Loaded Cassette\n";
