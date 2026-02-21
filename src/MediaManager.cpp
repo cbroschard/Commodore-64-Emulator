@@ -234,9 +234,11 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
     const std::string ext = lowerExt(path);
     if (!isExtCompatible(model, ext))
     {
+        #ifdef Debug
         std::cout << "Incompatible disk image for selected drive type.\n";
         std::cout << "Drive " << deviceNum << " model=" << (int)model
                   << " path=" << path << "\n";
+        #endif
         return;
     }
 
@@ -274,7 +276,9 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
 
     if (!drives_[deviceNum]->insert(path))
     {
+        #ifdef Debug
         std::cout << "Disk insert failed: " << path << "\n";
+        #endif
         return;
     }
 
@@ -293,12 +297,16 @@ void MediaManager::attachPRGImage()
 
     if (!loadPrgImage())
     {
+        #ifdef Debug
         std::cout << "Unable to load program: " << state_.prgPath << "\n";
+        #endif
         state_.prgAttached = false;
     }
     else
     {
+        #ifdef Debug
         std::cout << "Queued program: " << state_.prgPath << "\n";
+        #endif
     }
 }
 
@@ -312,7 +320,9 @@ void MediaManager::attachCRTImage()
 
     if (!cart_->loadROM(state_.cartPath))
     {
+        #ifdef Debug
         std::cout << "Unable to load cartridge: " << state_.cartPath << "\n";
+        #endif
         state_.cartAttached = false;
         return;
     }
@@ -322,7 +332,9 @@ void MediaManager::attachCRTImage()
 
     if (coldReset_) coldReset_();
 
+    #ifdef Debug
     std::cout << "Cartridge attached: " << state_.cartPath << "\n";
+    #endif
 }
 
 void MediaManager::attachT64Image()
