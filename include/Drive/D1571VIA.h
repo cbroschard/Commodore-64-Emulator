@@ -14,6 +14,8 @@ class D1571;
 #include <cstdint>
 #include "Drive/DriveChips.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1571VIA : public DriveVIABase
 {
@@ -30,6 +32,10 @@ class D1571VIA : public DriveVIABase
         };
 
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole);
+
+        // State Management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         void reset();
         void tick(uint32_t cycles);
