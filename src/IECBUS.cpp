@@ -39,6 +39,7 @@ static int deviceNumberOf(const Peripheral* p, const std::map<int, Peripheral*>&
 void IECBUS::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("IEC0");
+    wrtr.writeU32(1); //version
 
     wrtr.writeU8(static_cast<uint8_t>(currentState));
 
@@ -88,35 +89,39 @@ bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+
     uint8_t st = 0;
-    if (!rdr.readU8(st)) return false;
+    if (!rdr.readU8(st))                                            { rdr.exitChunkPayload(chunk); return false; }
     currentState = static_cast<State>(st);
 
-    if (!rdr.readBool(c64DrivesAtnLow))  return false;
-    if (!rdr.readBool(c64DrivesClkLow))  return false;
-    if (!rdr.readBool(c64DrivesDataLow)) return false;
+    if (!rdr.readBool(c64DrivesAtnLow))                             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(c64DrivesClkLow))                             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(c64DrivesDataLow))                            { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(lastClk)) return false;
+    if (!rdr.readBool(lastClk))                                     { rdr.exitChunkPayload(chunk); return false; }
 
     int32_t talkerId = -1;
-    if (!rdr.readI32(talkerId)) return false;
+    if (!rdr.readI32(talkerId))                                     { rdr.exitChunkPayload(chunk); return false; }
 
     // listeners
     uint8_t listenerCount = 0;
-    if (!rdr.readU8(listenerCount)) return false;
+    if (!rdr.readU8(listenerCount))                                 { rdr.exitChunkPayload(chunk); return false; }
 
     std::vector<int32_t> listenerIds;
     listenerIds.reserve(listenerCount);
     for (uint8_t i = 0; i < listenerCount; ++i)
     {
         int32_t id = -1;
-        if (!rdr.readI32(id)) return false;
+        if (!rdr.readI32(id))                                       { rdr.exitChunkPayload(chunk); return false; }
         listenerIds.push_back(id);
     }
 
     // device contribution table
     uint8_t devCount = 0;
-    if (!rdr.readU8(devCount)) return false;
+    if (!rdr.readU8(devCount))                                      { rdr.exitChunkPayload(chunk); return false; }
 
     // Clear current contribution maps (IMPORTANT)
     devDrivesClkLow.clear();
@@ -128,10 +133,10 @@ bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         int32_t id = -1;
         bool clkLow=false, dataLow=false, atnLow=false;
 
-        if (!rdr.readI32(id))      return false;
-        if (!rdr.readBool(clkLow)) return false;
-        if (!rdr.readBool(dataLow))return false;
-        if (!rdr.readBool(atnLow)) return false;
+        if (!rdr.readI32(id))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(clkLow))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dataLow))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(atnLow))                                  { rdr.exitChunkPayload(chunk); return false; }
 
         auto it = devices.find(static_cast<int>(id));
         if (it != devices.end() && it->second)
