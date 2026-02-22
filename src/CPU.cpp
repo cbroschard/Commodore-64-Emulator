@@ -61,7 +61,7 @@ bool CPU::CPUState::load(StateReader& rdr)
     return true;
 }
 
-void CPU::saveState(StateWriter& wrtr)
+void CPU::saveState(StateWriter& wrtr) const
 {
     // CPU0 = registers (stable baseline)
     wrtr.beginChunk("CPU0");

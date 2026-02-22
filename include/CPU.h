@@ -53,7 +53,7 @@ class CPU
             bool load(StateReader& rdr);
         };
 
-        void saveState(StateWriter& wrtr);
+        void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Jam handling
