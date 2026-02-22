@@ -66,9 +66,7 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
 void MediaManager::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("MED0");
-
-    // chunk version
-    wrtr.writeU32(1);
+    wrtr.writeU32(1); // version
 
     // Dump Cartridge
     wrtr.writeBool(state_.cartAttached);
@@ -131,58 +129,58 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver)) return false;
-        if (ver != 1) return false;
+        if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
 
         // Cartridge
-        if (!rdr.readBool(state_.cartAttached)) return false;
-        if (!rdr.readString(state_.cartPath)) return false;
+        if (!rdr.readBool(state_.cartAttached))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(state_.cartPath))                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Tape
-        if (!rdr.readBool(state_.tapeAttached)) return false;
-        if (!rdr.readString(state_.tapePath)) return false;;
+        if (!rdr.readBool(state_.tapeAttached))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(state_.tapePath))                   { rdr.exitChunkPayload(chunk); return false; }
 
         // PRG
-        if (!rdr.readBool(state_.prgAttached)) return false;
-        if (!rdr.readString(state_.prgPath)) return false;
+        if (!rdr.readBool(state_.prgAttached))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(state_.prgPath))                    { rdr.exitChunkPayload(chunk); return false; }
 
         uint32_t delayU32 = 0;
-        if (!rdr.readU32(delayU32)) return false;
+        if (!rdr.readU32(delayU32))                             { rdr.exitChunkPayload(chunk); return false; }
         state_.prgDelay = static_cast<int>(delayU32);
 
-        if (!rdr.readBool(state_.prgLoaded)) return false;
+        if (!rdr.readBool(state_.prgLoaded))                    { rdr.exitChunkPayload(chunk); return false; }
 
         bool hasPrgImage = false;
-        if (!rdr.readBool(hasPrgImage)) return false;
+        if (!rdr.readBool(hasPrgImage))                         { rdr.exitChunkPayload(chunk); return false; }
 
         prgImage_.clear();
         if (hasPrgImage)
         {
-            if (!rdr.readVectorU8(prgImage_)) return false;
+            if (!rdr.readVectorU8(prgImage_))                   { rdr.exitChunkPayload(chunk); return false; }
         }
 
         // Tape
-        if (!rdr.readBool(state_.tapeAttached)) return false;
-        if (!rdr.readString(state_.tapePath)) return false;
+        if (!rdr.readBool(state_.tapeAttached))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(state_.tapePath))                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Drive mount table (8..11)
         uint8_t firstDev = 0, lastDev = 0;
-        if (!rdr.readU8(firstDev)) return false;
-        if (!rdr.readU8(lastDev)) return false;
+        if (!rdr.readU8(firstDev))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(lastDev))                               { rdr.exitChunkPayload(chunk); return false; }
 
         // We only expect 8..11 from your saver, but tolerate other ranges safely.
         for (uint8_t dev = firstDev; dev <= lastDev; ++dev)
         {
             bool present = false;
-            if (!rdr.readBool(present)) return false;
+            if (!rdr.readBool(present))                         { rdr.exitChunkPayload(chunk); return false; }
 
             uint8_t modelId = 0;
             bool hasDisk = false;
             std::string diskPath;
 
-            if (!rdr.readU8(modelId)) return false;
-            if (!rdr.readBool(hasDisk)) return false;
-            if (!rdr.readString(diskPath)) return false;
+            if (!rdr.readU8(modelId))                           { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(hasDisk))                         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readString(diskPath))                      { rdr.exitChunkPayload(chunk); return false; }
 
             if (!present) continue;
 

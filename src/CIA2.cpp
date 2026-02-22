@@ -128,8 +128,8 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
 
         // Load ports
         if (!rdr.readU8(portA))                                             { rdr.exitChunkPayload(chunk); return false; }
