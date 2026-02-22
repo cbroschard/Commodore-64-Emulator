@@ -20,12 +20,18 @@ class IECBUS;
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IECBUS.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1571 : public Drive, public FloppyControllerHost
 {
     public:
         D1571(int deviceNumber, const std::string& romName);
         virtual ~D1571();
+
+        // State Management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
         void reset() override;
 

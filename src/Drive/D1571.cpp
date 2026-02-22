@@ -52,6 +52,197 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
 
 D1571::~D1571() = default;
 
+void D1571::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("D157");
+    wrtr.writeU32(1);
+    wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+    wrtr.writeU8(static_cast<uint8_t>(mediaPath));
+
+    // Dump the CPU state
+    driveCPU.saveStatePayload(wrtr);
+    driveCPU.saveStateExtendedPayload(wrtr);
+
+    // Mechanics / runtime state
+    wrtr.writeBool(motorOn);
+    wrtr.writeBool(diskLoaded);
+    wrtr.writeBool(diskWriteProtected);
+
+    wrtr.writeU8(static_cast<uint8_t>(lastError));
+    wrtr.writeU8(static_cast<uint8_t>(status));
+
+    wrtr.writeU8(currentTrack);
+    wrtr.writeU8(currentSector);
+    wrtr.writeU8(densityCode);
+
+    wrtr.writeBool(currentSide);
+    wrtr.writeU16(static_cast<uint16_t>(halfTrackPos));
+
+    // Disk attachment info
+    wrtr.writeString(loadedDiskName);
+
+    // Protocol state
+    wrtr.writeBool(iecListening);
+    wrtr.writeBool(iecTalking);
+
+    wrtr.writeBool(presenceAckDone);
+    wrtr.writeBool(expectingSecAddr);
+    wrtr.writeBool(expectingDataByte);
+
+    wrtr.writeU8(currentListenSA);
+    wrtr.writeU8(currentTalkSA);
+
+    wrtr.writeI32(currentSecondaryAddress);
+
+    // Receive shifter
+    wrtr.writeBool(iecRxActive);
+    wrtr.writeI32(iecRxBitCount);
+    wrtr.writeU8(iecRxByte);
+
+    // 1571 runtime flags
+    wrtr.writeBool(busDriversEnabled);
+    wrtr.writeBool(twoMHzMode);
+
+    // IEC Bus line levels
+    wrtr.writeBool(atnLineLow);
+    wrtr.writeBool(clkLineLow);
+    wrtr.writeBool(dataLineLow);
+    wrtr.writeBool(srqAsserted);
+
+    // GCR resume state (bit-exact)
+    wrtr.writeU32(static_cast<uint32_t>(gcrBitCounter));
+    wrtr.writeU32(static_cast<uint32_t>(gcrPos));
+    wrtr.writeBool(gcrDirty);
+
+    // Dump RAM
+    d1571mem.saveState(wrtr);
+
+    // Dump VIA1
+    d1571mem.getVIA1().saveState(wrtr);
+
+    // Dump VIA2
+    d1571mem.getVIA2().saveState(wrtr);
+
+    wrtr.endChunk();
+}
+
+bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    // Not our chunk
+    if (std::memcmp(chunk.tag, "D157", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    // Header / identity
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    uint8_t devU8 = 0;
+    if (!rdr.readU8(devU8)) return false;
+    setDeviceNumber(static_cast<int>(devU8));
+
+    uint8_t mediaU8 = 0;
+    if (!rdr.readU8(mediaU8)) return false;
+    mediaPath = static_cast<MediaPath>(mediaU8);
+
+    // CPU state (must match save order)
+    if (!driveCPU.loadStatePayload(rdr)) return false;
+    if (!driveCPU.loadStateExtendedPayload(chunk, rdr)) return false;
+
+    // Mechanics / runtime state
+    if (!rdr.readBool(motorOn)) return false;
+    if (!rdr.readBool(diskLoaded)) return false;
+    if (!rdr.readBool(diskWriteProtected)) return false;
+
+    uint8_t u8 = 0;
+
+    if (!rdr.readU8(u8)) return false;
+    lastError = static_cast<DriveError>(u8);
+
+    if (!rdr.readU8(u8)) return false;
+    status = static_cast<DriveStatus>(u8);
+
+    if (!rdr.readU8(currentTrack)) return false;
+    if (!rdr.readU8(currentSector)) return false;
+    if (!rdr.readU8(densityCode)) return false;
+
+    if (!rdr.readBool(currentSide)) return false;
+
+    uint16_t ht = 0;
+    if (!rdr.readU16(ht)) return false;
+    halfTrackPos = static_cast<int>(ht);
+
+    // Disk attachment info
+    if (!rdr.readString(loadedDiskName)) return false;
+
+    // IEC protocol state (D1571-local)
+    if (!rdr.readBool(iecListening)) return false;
+    if (!rdr.readBool(iecTalking)) return false;
+
+    if (!rdr.readBool(presenceAckDone)) return false;
+    if (!rdr.readBool(expectingSecAddr)) return false;
+    if (!rdr.readBool(expectingDataByte)) return false;
+
+    if (!rdr.readU8(currentListenSA)) return false;
+    if (!rdr.readU8(currentTalkSA)) return false;
+
+    if (!rdr.readI32(currentSecondaryAddress)) return false;
+
+    // Receive shifter
+    if (!rdr.readBool(iecRxActive)) return false;
+    if (!rdr.readI32(iecRxBitCount)) return false;
+    if (!rdr.readU8(iecRxByte)) return false;
+
+    // Runtime flags
+    if (!rdr.readBool(busDriversEnabled)) return false;
+    if (!rdr.readBool(twoMHzMode)) return false;
+
+    // IEC bus line levels
+    if (!rdr.readBool(atnLineLow)) return false;
+    if (!rdr.readBool(clkLineLow)) return false;
+    if (!rdr.readBool(dataLineLow)) return false;
+    if (!rdr.readBool(srqAsserted)) return false;
+
+    // GCR resume state
+    uint32_t tmp32 = 0;
+
+    if (!rdr.readU32(tmp32)) return false;
+    gcrBitCounter = static_cast<int>(tmp32);
+
+    if (!rdr.readU32(tmp32)) return false;
+    gcrPos = static_cast<size_t>(tmp32);
+
+    if (!rdr.readBool(gcrDirty)) return false;
+
+    // Memory + VIAs (match save order)
+    if (!d1571mem.loadState(rdr)) return false;
+    if (!d1571mem.getVIA1().loadState(rdr)) return false;
+    if (!d1571mem.getVIA2().loadState(rdr)) return false;
+
+    // Post-restore fixups (IMPORTANT for deterministic resume)
+
+    // We do NOT serialize gcrTrackStream/gcrSync (huge). Rebuild lazily.
+    gcrTrackStream.clear();
+    gcrSync.clear();
+
+    // If a disk is expected, ensure rebuild will happen next gcrTick().
+    if (diskLoaded)
+        gcrDirty = true;
+
+    // Sync VIA1 input pins to the bus line levels we restored
+    forceSyncIEC();
+
+    // Bring SRQ output in sync with restored state
+    peripheralAssertSrq(srqAsserted);
+
+    // IRQ line derived from VIA/CIA/FDC state
+    updateIRQ();
+
+    return true;
+}
+
 void D1571::tick(uint32_t cycles)
 {
     while (cycles > 0)
