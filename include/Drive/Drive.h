@@ -26,6 +26,10 @@ class Drive : public Peripheral
         Drive();
         virtual ~Drive();
 
+        // State Management
+        virtual void saveState(StateWriter& wrtr) const = 0;
+        virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
+
         // Clock multiplier
         virtual uint32_t clockMultiplier() const { return 1; }
 
