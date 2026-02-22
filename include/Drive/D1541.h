@@ -20,6 +20,10 @@ class D1541 : public Drive
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         virtual ~D1541();
 
+        // State Management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
         // Reset function
         void reset() override;
 

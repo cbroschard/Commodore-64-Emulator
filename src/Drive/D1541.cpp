@@ -44,6 +44,131 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
 
 D1541::~D1541() = default;
 
+void D1541::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("D541");
+    wrtr.writeU32(1);                  // version
+    wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+
+    // Dump the CPU state
+    driveCPU.saveStatePayload(wrtr);
+    driveCPU.saveStateExtendedPayload(wrtr);
+
+    // 1541 mechanics + IEC + GCR position
+    wrtr.writeBool(motorOn);
+    wrtr.writeBool(diskLoaded);
+    wrtr.writeBool(diskWriteProtected);
+    wrtr.writeU8(currentTrack);
+    wrtr.writeU8(currentSector);
+    wrtr.writeU8(densityCode);
+    wrtr.writeU16(halfTrackPos);
+    wrtr.writeI32(gcrBitCounter);
+    wrtr.writeU32(static_cast<uint32_t>(gcrPos));
+    wrtr.writeBool(gcrDirty);
+
+    wrtr.writeBool(atnLineLow);
+    wrtr.writeBool(clkLineLow);
+    wrtr.writeBool(dataLineLow);
+    wrtr.writeBool(srqAsserted);
+    wrtr.writeBool(iecLinesPrimed);
+    wrtr.writeBool(iecListening);
+    wrtr.writeBool(iecTalking);
+    wrtr.writeBool(presenceAckDone);
+    wrtr.writeBool(expectingSecAddr);
+    wrtr.writeBool(expectingDataByte);
+    wrtr.writeU8(currentListenSA);
+    wrtr.writeU8(currentTalkSA);
+    wrtr.writeBool(iecRxActive);
+    wrtr.writeI32(iecRxBitCount);
+    wrtr.writeU8(iecRxByte);
+
+    // Dump memory
+    d1541mem.saveState(wrtr);
+
+    // Dump VIA1
+    d1541mem.getVIA1().saveState(wrtr);
+
+    // Dump VIA2
+    d1541mem.getVIA2().saveState(wrtr);
+
+    wrtr.endChunk();
+}
+
+bool D1541::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "D541", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    // Header
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)          { rdr.exitChunkPayload(chunk); return false; }
+
+    uint8_t dev = 0;
+    if (!rdr.readU8(dev))  { rdr.exitChunkPayload(chunk); return false; }
+    deviceNumber = static_cast<int>(dev); // adjust type if needed
+
+    // CPU (payload-only)
+    if (!driveCPU.loadStatePayload(rdr)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!driveCPU.loadStateExtendedPayload(chunk, rdr)) { rdr.exitChunkPayload(chunk); return false; }
+
+    // Mechanics / GCR
+    if (!rdr.readBool(motorOn))            { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskLoaded))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskWriteProtected)) { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(currentTrack))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentSector))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(densityCode))          { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readI32(halfTrackPos))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(gcrBitCounter))       { rdr.exitChunkPayload(chunk); return false; }
+
+    uint32_t gp = 0;
+    if (!rdr.readU32(gp))                  { rdr.exitChunkPayload(chunk); return false; }
+    gcrPos = static_cast<size_t>(gp);
+
+    if (!rdr.readBool(gcrDirty))           { rdr.exitChunkPayload(chunk); return false; }
+
+    // IEC protocol state
+    if (!rdr.readBool(atnLineLow))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(clkLineLow))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(dataLineLow))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(srqAsserted))        { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(iecLinesPrimed))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecListening))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecTalking))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(presenceAckDone))    { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(expectingSecAddr))   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(expectingDataByte))  { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(currentListenSA))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentTalkSA))        { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(iecRxActive))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(iecRxBitCount))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(iecRxByte))            { rdr.exitChunkPayload(chunk); return false; }
+
+    // Memory (payload-only)
+    if (!d1541mem.loadState(rdr))          { rdr.exitChunkPayload(chunk); return false; }
+
+    // VIA1 / VIA2 (payload-only)
+    if (!d1541mem.getVIA1().loadState(rdr)){ rdr.exitChunkPayload(chunk); return false; }
+    if (!d1541mem.getVIA2().loadState(rdr)){ rdr.exitChunkPayload(chunk); return false; }
+
+    // Done reading payload
+    rdr.exitChunkPayload(chunk);
+
+    // Post-load resync
+    forceSyncIEC();
+
+    return true;
+}
+
 void D1541::reset()
 {
     // Mechanics

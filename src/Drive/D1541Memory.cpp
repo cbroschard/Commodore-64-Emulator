@@ -18,11 +18,6 @@ D1541Memory::D1541Memory()
 
 D1541Memory::~D1541Memory() = default;
 
-void D1541Memory::attachLoggingInstance(Logging* logger)
-{
-    this->logger = logger;
-}
-
 void D1541Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 {
     // Attach the drive first
@@ -31,6 +26,29 @@ void D1541Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     // Attach the chips to the drive
     via1.attachPeripheralInstance(parentPeripheral, D1541VIA::VIARole::VIA1_IECBus);
     via2.attachPeripheralInstance(parentPeripheral, D1541VIA::VIARole::VIA2_Mechanics);
+}
+
+void D1541Memory::saveState(StateWriter& wrtr) const
+{
+    // Header
+    wrtr.writeU32(1);
+
+    // Dump 2K RAM
+    wrtr.writeVectorU8(D1541RAM);
+}
+
+bool D1541Memory::loadState(StateReader& rdr)
+{
+    // Header
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // Load 2k RAM
+    if (!rdr.readVectorU8(D1541RAM)) return false;
+
+    // Success
+    return true;
 }
 
 void D1541Memory::tick(uint32_t cycles)

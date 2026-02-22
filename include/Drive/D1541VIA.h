@@ -17,6 +17,8 @@ class IECBUS;
 #include "Drive/DriveChips.h"
 #include "Drive/GCRCodec.h"
 #include "Logging.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1541VIA : public DriveVIABase
 {
@@ -34,6 +36,10 @@ class D1541VIA : public DriveVIABase
 
         // Pointers
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
+
+        // State Management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         // Advance VIA via tick
         void tick(uint32_t cycles);

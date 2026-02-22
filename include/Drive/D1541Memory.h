@@ -18,6 +18,8 @@
 #include "IRQLine.h"
 #include "Logging.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1541Memory : public DriveMemoryBase
 {
@@ -26,11 +28,15 @@ class D1541Memory : public DriveMemoryBase
         virtual ~D1541Memory();
 
         // Pointers
-        void attachLoggingInstance(Logging* logger);
+        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         // Tick to advance the VIA chips
         void tick(uint32_t cycles);
+
+        // State Management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         // reset function
         void reset();
