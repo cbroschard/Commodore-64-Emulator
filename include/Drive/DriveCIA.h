@@ -11,6 +11,8 @@
 #include <cstdint>
 #include "Drive/Drive.h"
 #include "Drive/DriveChips.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 // Forward declaration for struct
 class DriveCIA;
@@ -57,6 +59,9 @@ class DriveCIA : public DriveCIABase
         };
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         inline void enableAutoAtnAck(bool enabled) { autoAtnAckEnabled = enabled; }
         void notifyAtnInput(bool atnLow);

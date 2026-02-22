@@ -36,6 +36,162 @@ DriveCIA::DriveCIA() :
 
 DriveCIA::~DriveCIA() = default;
 
+void DriveCIA::saveState(StateWriter& wrtr) const
+{
+    // Header / version
+    wrtr.writeU32(1);
+
+    wrtr.writeU8(registers.portA);
+    wrtr.writeU8(registers.portB);
+    wrtr.writeU8(registers.ddrA);
+    wrtr.writeU8(registers.ddrB);
+
+    wrtr.writeU8(registers.timerALowByte);
+    wrtr.writeU8(registers.timerAHighByte);
+    wrtr.writeU8(registers.timerBLowByte);
+    wrtr.writeU8(registers.timerBHighByte);
+
+    wrtr.writeU8(registers.tod10th);
+    wrtr.writeU8(registers.todSeconds);
+    wrtr.writeU8(registers.todMinutes);
+    wrtr.writeU8(registers.todHours);
+
+    wrtr.writeU8(registers.serialData);
+    wrtr.writeU8(registers.interruptEnable);
+    wrtr.writeU8(registers.controlRegisterA);
+    wrtr.writeU8(registers.controlRegisterB);
+
+    wrtr.writeU8(portAPins);
+    wrtr.writeU8(portBPins);
+
+    wrtr.writeBool(cntLevel);
+    wrtr.writeBool(lastCntLevel);
+    wrtr.writeBool(flagLine);
+    wrtr.writeBool(lastFlagLine);
+
+    wrtr.writeU16(timerACounter);
+    wrtr.writeU16(timerALatch);
+    wrtr.writeU16(timerBCounter);
+    wrtr.writeU16(timerBLatch);
+    wrtr.writeBool(timerARunning);
+    wrtr.writeBool(timerBRunning);
+
+    wrtr.writeU8(todAlarm10th);
+    wrtr.writeU8(todAlarmSeconds);
+    wrtr.writeU8(todAlarmMinutes);
+    wrtr.writeU8(todAlarmHours);
+    wrtr.writeU8(todAlarmSetMode);
+    wrtr.writeBool(todAlarmTriggered);
+
+    wrtr.writeU8(interruptStatus);
+
+    wrtr.writeBool(lastAtnLow);
+    wrtr.writeBool(extDataLow);
+    wrtr.writeBool(autoAtnAckEnabled);
+    wrtr.writeBool(ackArmed);
+    wrtr.writeBool(lastClkInLowForAck);
+    wrtr.writeU16(atnAckHoldCycles);
+    wrtr.writeBool(atnAckArmedWhileClkLow);
+    wrtr.writeBool(atnAckSawClkHigh);
+    wrtr.writeBool(atnAckSawClkLow);
+
+    wrtr.writeBool(iecAtnInLow);
+    wrtr.writeBool(iecClkInLow);
+    wrtr.writeBool(iecDataInLow);
+}
+
+bool DriveCIA::loadState(StateReader& rdr)
+{
+    // Header / version
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // Registers
+    if (!rdr.readU8(registers.portA)) return false;
+    if (!rdr.readU8(registers.portB)) return false;
+    if (!rdr.readU8(registers.ddrA)) return false;
+    if (!rdr.readU8(registers.ddrB)) return false;
+
+    if (!rdr.readU8(registers.timerALowByte)) return false;
+    if (!rdr.readU8(registers.timerAHighByte)) return false;
+    if (!rdr.readU8(registers.timerBLowByte)) return false;
+    if (!rdr.readU8(registers.timerBHighByte)) return false;
+
+    if (!rdr.readU8(registers.tod10th)) return false;
+    if (!rdr.readU8(registers.todSeconds)) return false;
+    if (!rdr.readU8(registers.todMinutes)) return false;
+    if (!rdr.readU8(registers.todHours)) return false;
+
+    if (!rdr.readU8(registers.serialData)) return false;
+    if (!rdr.readU8(registers.interruptEnable)) return false;
+    if (!rdr.readU8(registers.controlRegisterA)) return false;
+    if (!rdr.readU8(registers.controlRegisterB)) return false;
+
+    // Pins
+    if (!rdr.readU8(portAPins)) return false;
+    if (!rdr.readU8(portBPins)) return false;
+
+    // CNT + FLAG
+    if (!rdr.readBool(cntLevel)) return false;
+    if (!rdr.readBool(lastCntLevel)) return false;
+    if (!rdr.readBool(flagLine)) return false;
+    if (!rdr.readBool(lastFlagLine)) return false;
+
+    // Timers
+    if (!rdr.readU16(timerACounter)) return false;
+    if (!rdr.readU16(timerALatch)) return false;
+    if (!rdr.readU16(timerBCounter)) return false;
+    if (!rdr.readU16(timerBLatch)) return false;
+    if (!rdr.readBool(timerARunning)) return false;
+    if (!rdr.readBool(timerBRunning)) return false;
+
+    // TOD Alarm
+    if (!rdr.readU8(todAlarm10th)) return false;
+    if (!rdr.readU8(todAlarmSeconds)) return false;
+    if (!rdr.readU8(todAlarmMinutes)) return false;
+    if (!rdr.readU8(todAlarmHours)) return false;
+    if (!rdr.readU8(todAlarmSetMode)) return false;
+    if (!rdr.readBool(todAlarmTriggered)) return false;
+
+    // Interrupt latch
+    if (!rdr.readU8(interruptStatus)) return false;
+
+    // ATN auto-ack handshake
+    if (!rdr.readBool(lastAtnLow)) return false;
+    if (!rdr.readBool(extDataLow)) return false;
+    if (!rdr.readBool(autoAtnAckEnabled)) return false;
+    if (!rdr.readBool(ackArmed)) return false;
+    if (!rdr.readBool(lastClkInLowForAck)) return false;
+    if (!rdr.readU16(atnAckHoldCycles)) return false;
+    if (!rdr.readBool(atnAckArmedWhileClkLow)) return false;
+    if (!rdr.readBool(atnAckSawClkHigh)) return false;
+    if (!rdr.readBool(atnAckSawClkLow)) return false;
+
+    // IEC inputs
+    if (!rdr.readBool(iecAtnInLow)) return false;
+    if (!rdr.readBool(iecClkInLow)) return false;
+    if (!rdr.readBool(iecDataInLow)) return false;
+
+    // Post-restore fixups
+
+    // Ensure the master IRQ flag bit matches whether any source bits are set
+    if ((interruptStatus & 0x1F) == 0)
+        interruptStatus &= 0x7F;
+    else
+        interruptStatus |= 0x80;
+
+    // Overlay IEC inputs onto portBPins (so ROM sees correct ATN/CLK/DATA inputs)
+    applyIECInputsToPortBPins();
+
+    // Re-apply outputs based on restored registers/DDRs (safe even if no bus attached)
+    applyPortOutputs();
+
+    applyIECOutputs();
+
+    return true;
+}
+
 void DriveCIA::reset()
 {
     // Initialize all registers
