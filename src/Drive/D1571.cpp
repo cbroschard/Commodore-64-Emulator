@@ -123,6 +123,9 @@ void D1571::saveState(StateWriter& wrtr) const
     // Dump VIA2
     d1571mem.getVIA2().saveState(wrtr);
 
+    // Dump FDC
+    d1571mem.getFDC().saveState(wrtr);
+
     wrtr.endChunk();
 }
 
