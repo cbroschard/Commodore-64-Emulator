@@ -22,6 +22,8 @@ class D1571;
 #include "Drive/D1571VIA.h"
 #include "Drive/DriveChips.h"
 #include "Drive/FDC177x.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1571Memory : public DriveMemoryBase
 {
@@ -31,6 +33,10 @@ class D1571Memory : public DriveMemoryBase
 
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         void attachPeripheralInstance(Peripheral* parentPeripheral);
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         void setLog(bool enable) { setLogging = enable; }
 
