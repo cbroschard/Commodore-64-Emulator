@@ -26,6 +26,7 @@ void CIA2::saveState(StateWriter& wrtr) const
 {
     // CIA2 = "Core" and Registers
     wrtr.beginChunk("CIA2");
+    wrtr.writeU32(1); // version
 
     // Dump ports
     wrtr.writeU8(portA);
@@ -67,6 +68,7 @@ void CIA2::saveState(StateWriter& wrtr) const
 
     // Write CI2X chunk for runtime status
     wrtr.beginChunk("CI2X");
+    wrtr.writeU32(1); // version
 
     // Dump Video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -125,11 +127,15 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+
         // Load ports
-        if (!rdr.readU8(portA))                     return false;
-        if (!rdr.readU8(portB))                     return false;
-        if (!rdr.readU8(dataDirectionPortA))        return false;
-        if (!rdr.readU8(dataDirectionPortB))        return false;
+        if (!rdr.readU8(portA))                                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(portB))                                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(dataDirectionPortA))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(dataDirectionPortB))                                { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
         if (rs232dev)
@@ -143,20 +149,20 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         recomputeIEC();
 
         // Load timers
-        if (!rdr.readU8(timerALowByte))             return false;
-        if (!rdr.readU8(timerAHighByte))            return false;
-        if (!rdr.readU8(timerBLowByte))             return false;
-        if (!rdr.readU8(timerBHighByte))            return false;
-        if (!rdr.readU8(timerAControl))             return false;
-        if (!rdr.readU8(timerBControl))             return false;
+        if (!rdr.readU8(timerALowByte))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(timerAHighByte))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(timerBLowByte))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(timerBHighByte))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(timerAControl))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(timerBControl))                                     { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
         timerAControl &= 0xEF;
         timerBControl &= 0xEF;
 
         // Load Interrupt Control
-        if (!rdr.readU8(interruptStatus))           return false;
-        if (!rdr.readU8(interruptEnable))           return false;
+        if (!rdr.readU8(interruptStatus))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(interruptEnable))                                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
         interruptStatus &= 0x1F;
@@ -164,19 +170,19 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         refreshNMI();
 
         // Load Serial data register
-        if (!rdr.readU8(serialDataRegister))        return false;
+        if (!rdr.readU8(serialDataRegister))                                { rdr.exitChunkPayload(chunk); return false; }
 
         // Load TOD clock
-        if (!rdr.readU8(todClock[0]))               return false;
-        if (!rdr.readU8(todClock[1]))               return false;
-        if (!rdr.readU8(todClock[2]))               return false;
-        if (!rdr.readU8(todClock[3]))               return false;
+        if (!rdr.readU8(todClock[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todClock[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todClock[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todClock[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
 
         // Load TOD Alarm
-        if (!rdr.readU8(todAlarm[0]))               return false;
-        if (!rdr.readU8(todAlarm[1]))               return false;
-        if (!rdr.readU8(todAlarm[2]))               return false;
-        if (!rdr.readU8(todAlarm[3]))               return false;
+        if (!rdr.readU8(todAlarm[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todAlarm[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todAlarm[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todAlarm[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
 
         // End chunk
         rdr.exitChunkPayload(chunk);
@@ -187,51 +193,55 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
+
         // Load and activate the video mode
         uint8_t vm = 0;
-        if (!rdr.readU8(vm))                        return false;
+        if (!rdr.readU8(vm))                                                { rdr.exitChunkPayload(chunk); return false; }
         mode_ = static_cast<VideoMode>(vm);
         setMode(mode_);
 
         // Load Timers
-        if (!rdr.readU16(timerA))                   return false;
-        if (!rdr.readU16(timerASnap))               return false;
-        if (!rdr.readBool(timerALatched))           return false;
-        if (!rdr.readU16(timerB))                   return false;
-        if (!rdr.readU16(timerBSnap))               return false;
-        if (!rdr.readBool(timerBLatched))           return false;
+        if (!rdr.readU16(timerA))                                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(timerASnap))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(timerALatched))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(timerB))                                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(timerBSnap))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(timerBLatched))                                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Load TOD
-        if (!rdr.readU8(todLatch[0]))               return false;
-        if (!rdr.readU8(todLatch[1]))               return false;
-        if (!rdr.readU8(todLatch[2]))               return false;
-        if (!rdr.readU8(todLatch[3]))               return false;
-        if (!rdr.readBool(todLatched))              return false;
-        if (!rdr.readU32(todTicks))                 return false;
+        if (!rdr.readU8(todLatch[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todLatch[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todLatch[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(todLatch[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(todLatched))                                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(todTicks))                                         { rdr.exitChunkPayload(chunk); return false; }
 
         // Load TOD Alarm/Trigged
-        if (!rdr.readBool(todAlarmSetMode))         return false;
-        if (!rdr.readBool(todAlarmTriggered))       return false;
+        if (!rdr.readBool(todAlarmSetMode))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(todAlarmTriggered))                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Load CNT
-        if (!rdr.readBool(cntLevel))                return false;
-        if (!rdr.readBool(lastCNT))                 return false;
+        if (!rdr.readBool(cntLevel))                                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastCNT))                                         { rdr.exitChunkPayload(chunk); return false; }
 
         // oad IEC
-        if (!rdr.readBool(iecProtocolEnabled))      return false;
-        if (!rdr.readU8(deviceNumber))              return false;
-        if (!rdr.readBool(listening))               return false;
-        if (!rdr.readBool(talking))                 return false;
-        if (!rdr.readU8(currentSecondaryAddress))   return false;
-        if (!rdr.readBool(atnLine))                 return false;
-        if (!rdr.readBool(atnHandshakePending))     return false;
-        if (!rdr.readBool(atnHandshakeJustCleared)) return false;
-        if (!rdr.readBool(lastAtnLevel))            return false;
-        if (!rdr.readBool(lastClk))                 return false;
-        if (!rdr.readBool(lastSrqLevel))            return false;
-        if (!rdr.readBool(lastDataLevel))           return false;
-        if (!rdr.readU8(iecCmdShiftReg))            return false;
-        if (!rdr.readI32(iecCmdBitCount))           return false;
+        if (!rdr.readBool(iecProtocolEnabled))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(deviceNumber))                                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(listening))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(talking))                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(currentSecondaryAddress))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(atnLine))                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(atnHandshakePending))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(atnHandshakeJustCleared))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastAtnLevel))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastClk))                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastSrqLevel))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastDataLevel))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(iecCmdShiftReg))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(iecCmdBitCount))                                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
         if (iecCmdBitCount < 0) iecCmdBitCount = 0;
@@ -239,8 +249,8 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         recomputeIEC();
 
         // Load Pending TB ticks
-        if (!rdr.readU32(pendingTBCNTTicks))        return false;
-        if (!rdr.readU32(pendingTBCASTicks))        return false;
+        if (!rdr.readU32(pendingTBCNTTicks))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(pendingTBCASTicks))                                { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
         return true;
