@@ -33,6 +33,7 @@ Cassette::~Cassette() noexcept
 void Cassette::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("CASS");
+    wrtr.writeU32(1); // version
 
     // Dump state
     wrtr.writeBool(cassetteLoaded);
@@ -54,13 +55,17 @@ bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+
         bool loaded = false, play = false, motor = false;
         uint8_t outData = 1;
 
-        if (!rdr.readBool(loaded)) return false;
-        if (!rdr.readBool(play))   return false;
-        if (!rdr.readBool(motor))  return false;
-        if (!rdr.readU8(outData))  return false;
+        if (!rdr.readBool(loaded))                                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(play))                                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(motor))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(outData))                                       { rdr.exitChunkPayload(chunk); return false; }
 
         cassetteLoaded = loaded;
         playPressed    = play;

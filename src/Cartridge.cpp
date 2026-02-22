@@ -42,6 +42,7 @@ Cartridge::~Cartridge() = default;
 void Cartridge::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("CART");
+    wrtr.writeU32(1); // version
 
     // Dump Active bank
     wrtr.writeU8(currentBank);
@@ -72,24 +73,28 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readU8(currentBank)) return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(currentBank))                                   { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t wiringU8 = 0;
-    if (!rdr.readU8(wiringU8)) return false;
+    if (!rdr.readU8(wiringU8))                                      { rdr.exitChunkPayload(chunk); return false; }
     wiringMode = static_cast<WiringMode>(wiringU8);
 
     // read bools into temporaries, then store as 0/1 in uint8_t
     bool game = false;
     bool exrom = false;
-    if (!rdr.readBool(game)) return false;
-    if (!rdr.readBool(exrom)) return false;
+    if (!rdr.readBool(game))                                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(exrom))                                       { rdr.exitChunkPayload(chunk); return false; }
     header.gameLine  = game ? 1 : 0;
     header.exROMLine = exrom ? 1 : 0;
 
-    if (!rdr.readBool(hasRAM)) return false;
+    if (!rdr.readBool(hasRAM))                                      { rdr.exitChunkPayload(chunk); return false; }
     if (hasRAM)
     {
-        if (!rdr.readVectorU8(ramData)) return false;
+        if (!rdr.readVectorU8(ramData))                             { rdr.exitChunkPayload(chunk); return false; }
     }
     else
     {
