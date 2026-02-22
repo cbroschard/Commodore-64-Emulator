@@ -12,6 +12,8 @@
 #include "Peripheral.h"
 #include "Drive/DriveChips.h"
 #include "Drive/FloppyControllerHost.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class FDC177x : public DriveFDCBase
 {
@@ -21,6 +23,9 @@ class FDC177x : public DriveFDCBase
 
         inline void attachFloppyeControllerHostInstance(FloppyControllerHost* host) { this->host = host; }
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
 
         void reset();
         void tick(uint32_t cycles);

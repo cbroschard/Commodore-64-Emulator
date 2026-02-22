@@ -5,6 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <vector>
+#include <algorithm>
+#include <cstring>
 #include "Drive/FDC177x.h"
 
 FDC177x::FDC177x() :
@@ -22,6 +25,98 @@ FDC177x::FDC177x() :
 }
 
 FDC177x::~FDC177x() = default;
+
+void FDC177x::saveState(StateWriter& wrtr) const
+{
+    // Version
+    wrtr.writeU32(1);
+
+    // Registers
+    wrtr.writeU8(registers.status);
+    wrtr.writeU8(registers.command);
+    wrtr.writeU8(registers.track);
+    wrtr.writeU8(registers.sector);
+    wrtr.writeU8(registers.data);
+
+    // Core runtime state
+    wrtr.writeU8(static_cast<uint8_t>(currentType));
+    wrtr.writeU16(currentSectorSize);
+    wrtr.writeU8(dataIndex);
+
+    wrtr.writeBool(readSectorInProgress);
+    wrtr.writeBool(writeSectorInProgress);
+
+    wrtr.writeBool(drq);
+    wrtr.writeBool(intrq);
+
+    wrtr.writeU32(static_cast<uint32_t>(cyclesUntilEvent));
+
+    const uint32_t bufLen = std::min<uint32_t>(currentSectorSize, static_cast<uint16_t>(MaxSectorSize));
+    wrtr.writeU32(bufLen);
+
+    std::vector<uint8_t> tmp;
+    tmp.assign(sectorBuffer, sectorBuffer + bufLen);
+    wrtr.writeVectorU8(tmp);
+}
+
+bool FDC177x::loadState(StateReader& rdr)
+{
+    // Version
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // Registers
+    if (!rdr.readU8(registers.status)) return false;
+    if (!rdr.readU8(registers.command)) return false;
+    if (!rdr.readU8(registers.track)) return false;
+    if (!rdr.readU8(registers.sector)) return false;
+    if (!rdr.readU8(registers.data)) return false;
+
+    // Core runtime state
+    uint8_t typeU8 = 0;
+    if (!rdr.readU8(typeU8)) return false;
+    currentType = static_cast<CommandType>(typeU8);
+
+    if (!rdr.readU16(currentSectorSize)) return false;
+    if (currentSectorSize == 0 || currentSectorSize > MaxSectorSize) return false;
+
+    if (!rdr.readU8(dataIndex)) return false;
+
+    if (!rdr.readBool(readSectorInProgress)) return false;
+    if (!rdr.readBool(writeSectorInProgress)) return false;
+
+    if (!rdr.readBool(drq)) return false;
+    if (!rdr.readBool(intrq)) return false;
+
+    uint32_t ce = 0;
+    if (!rdr.readU32(ce)) return false;
+    cyclesUntilEvent = static_cast<int32_t>(ce);
+
+    // Sector buffer snapshot
+    uint32_t bufLen = 0;
+    if (!rdr.readU32(bufLen)) return false;
+    if (bufLen > MaxSectorSize) return false;
+
+    std::vector<uint8_t> tmp;
+    if (!rdr.readVectorU8(tmp)) return false;
+    if (tmp.size() != bufLen) return false;
+
+    // Clear entire buffer for determinism, then copy what was saved
+    std::memset(sectorBuffer, 0x00, MaxSectorSize);
+    if (bufLen > 0)
+        std::memcpy(sectorBuffer, tmp.data(), bufLen);
+
+    // Post-restore fixups
+    if (drq) registers.status |= dataRequest;
+    else     registers.status &= static_cast<uint8_t>(~dataRequest);
+
+    // Clamp dataIndex so a bad save doesn't explode later
+    if (dataIndex > currentSectorSize)
+        dataIndex = static_cast<uint8_t>(currentSectorSize);
+
+    return true;
+}
 
 void FDC177x::reset()
 {
