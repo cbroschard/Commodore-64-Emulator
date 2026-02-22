@@ -53,8 +53,13 @@ class CPU
             bool load(StateReader& rdr);
         };
 
+        // State Management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+        void saveStatePayload(StateWriter& wrtr) const;
+        bool loadStatePayload(StateReader& rdr);
+        void saveStateExtendedPayload(StateWriter& wrtr) const;
+        bool loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateReader& rdr);
 
         // Jam handling
         enum class JamMode : uint8_t

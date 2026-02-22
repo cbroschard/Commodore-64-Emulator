@@ -63,14 +63,59 @@ bool CPU::CPUState::load(StateReader& rdr)
 
 void CPU::saveState(StateWriter& wrtr) const
 {
-    // CPU0 = registers (stable baseline)
     wrtr.beginChunk("CPU0");
-    CPUState state = getState();
-    state.save(wrtr);
+    saveStatePayload(wrtr);
     wrtr.endChunk();
 
-    // CPUX = runtime/internal bits that affect behavior after load
     wrtr.beginChunk("CPUX");
+    saveStateExtendedPayload(wrtr);
+    wrtr.endChunk();
+}
+
+bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "CPU0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+        const bool ok = loadStatePayload(rdr);
+        rdr.exitChunkPayload(chunk);
+        return ok;
+    }
+
+    if (std::memcmp(chunk.tag, "CPUX", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+        const bool ok = loadStateExtendedPayload(chunk, rdr);
+        rdr.exitChunkPayload(chunk);
+        return ok;
+    }
+
+    return false;
+}
+
+void CPU::saveStatePayload(StateWriter& wrtr) const
+{
+    CPUState state = getState();
+    state.save(wrtr);
+}
+
+bool CPU::loadStatePayload(StateReader& rdr)
+{
+    CPUState state;
+    if (!state.load(rdr)) return false;
+
+    PC = state.PC;
+    A  = state.A;
+    X  = state.X;
+    Y  = state.Y;
+    SP = state.SP;
+    SR = (state.SR | 0x20); // force U bit
+
+    return true;
+}
+
+void CPU::saveStateExtendedPayload(StateWriter& wrtr) const
+{
     wrtr.writeU8(static_cast<uint8_t>(jamMode));
     wrtr.writeBool(halted);
 
@@ -85,62 +130,33 @@ void CPU::saveState(StateWriter& wrtr) const
     wrtr.writeU8(static_cast<uint8_t>(mode_));
     wrtr.writeBool(soLevel);
     wrtr.writeBool(baHold);
-    wrtr.endChunk();
 }
 
-bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+bool CPU::loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "CPU0", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    uint8_t jm = 0;
+    if (!rdr.readU8(jm)) return false;
+    jamMode = static_cast<JamMode>(jm);
 
-        CPUState state;
-        if (!state.load(rdr)) return false;
+    if (!rdr.readBool(halted)) return false;
+    if (!rdr.readBool(nmiPending)) return false;
+    if (!rdr.readBool(nmiLine)) return false;
+    if (!rdr.readBool(irqSuppressOne)) return false;
 
-        PC = state.PC;
-        A  = state.A;
-        X  = state.X;
-        Y  = state.Y;
-        SP = state.SP;
-        SR = (state.SR | 0x20);
+    if (!rdr.readU32(totalCycles)) return false;
+    if (!rdr.readU32(cycles)) return false;
+    if (!rdr.readU32(lastCycleCount)) return false;
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
+    uint8_t vm = 0;
+    if (!rdr.readU8(vm)) return false;
+    mode_ = static_cast<VideoMode>(vm);
+    setMode(mode_);
 
-    if (std::memcmp(chunk.tag, "CPUX", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    const size_t end = parentChunk.payloadOffset + parentChunk.length;
+    if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
+    if (rdr.cursor() < end) { if (!rdr.readBool(baHold)) return false; }
 
-        uint8_t jm = 0;
-        if (!rdr.readU8(jm)) return false;
-        jamMode = static_cast<JamMode>(jm);
-
-        if (!rdr.readBool(halted)) return false;
-        if (!rdr.readBool(nmiPending)) return false;
-        if (!rdr.readBool(nmiLine)) return false;
-        if (!rdr.readBool(irqSuppressOne)) return false;
-
-        if (!rdr.readU32(totalCycles)) return false;
-        if (!rdr.readU32(cycles)) return false;
-        if (!rdr.readU32(lastCycleCount)) return false;
-
-        uint8_t vm = 0;
-        if (!rdr.readU8(vm)) return false;
-        mode_ = static_cast<VideoMode>(vm);
-        setMode(mode_);
-
-        // Optional / forward-compatible fields:
-        const size_t end = chunk.payloadOffset + chunk.length;
-        if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
-        if (rdr.cursor() < end) { if (!rdr.readBool(baHold)) return false; }
-
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    // Not a CPU chunk
-    return false;
+    return true;
 }
 
 void CPU::reset()
