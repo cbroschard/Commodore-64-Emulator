@@ -30,24 +30,22 @@ void D1541Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 
 void D1541Memory::saveState(StateWriter& wrtr) const
 {
-    // Header
     wrtr.writeU32(1);
-
-    // Dump 2K RAM
+    wrtr.writeU32(static_cast<uint32_t>(D1541RAM.size()));
     wrtr.writeVectorU8(D1541RAM);
 }
 
 bool D1541Memory::loadState(StateReader& rdr)
 {
-    // Header
     uint32_t ver = 0;
     if (!rdr.readU32(ver)) return false;
     if (ver != 1) return false;
 
-    // Load 2k RAM
-    if (!rdr.readVectorU8(D1541RAM)) return false;
+    uint32_t ramSize = 0;
+    if (!rdr.readU32(ramSize)) return false;
+    if (ramSize != D1541RAM.size()) return false;
 
-    // Success
+    if (!rdr.readVectorU8(D1541RAM)) return false;
     return true;
 }
 
