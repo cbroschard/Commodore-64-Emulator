@@ -115,13 +115,15 @@ void Vic::setMode(VideoMode mode)
     updateMonitorCaches(registers.raster);
 
     // Notify IO of mode
-    IO_adapter->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
+    if (IO_adapter)
+        IO_adapter->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
 }
 
 void Vic::saveState(StateWriter& wrtr) const
 {
     // VIC0 = "Core" and Registers
     wrtr.beginChunk("VIC0");
+    wrtr.writeU32(1); // version
 
     // Dump Sprite Registers
     for (int i = 0; i < 8; ++i)
@@ -181,6 +183,10 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
+    wrtr.writeU32(1); // version
+
+    // Dump video mode
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
 
     // Dump current cycle
     wrtr.writeI32(currentCycle);
@@ -218,44 +224,55 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+
         for (int i = 0; i < 8; ++i) {
-            if (!rdr.readU8(registers.spriteX[i])) return false;
-            if (!rdr.readU8(registers.spriteY[i])) return false;
+            if (!rdr.readU8(registers.spriteX[i]))              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(registers.spriteY[i]))              { rdr.exitChunkPayload(chunk); return false; }
         }
 
-        if (!rdr.readU8(registers.spriteX_MSB)) return false;
-        if (!rdr.readU8(registers.spriteEnabled)) return false;
-        if (!rdr.readU8(registers.spriteYExpansion)) return false;
-        if (!rdr.readU8(registers.spritePriority)) return false;
-        if (!rdr.readU8(registers.spriteMultiColor)) return false;
-        if (!rdr.readU8(registers.spriteXExpansion)) return false;
+        if (!rdr.readU8(registers.spriteX_MSB))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteEnabled))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteYExpansion))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spritePriority))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteMultiColor))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteXExpansion))            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.control)) return false;
-        if (!rdr.readU8(registers.control2)) return false;
+        if (!rdr.readU8(registers.control))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.control2))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.memory_pointer)) return false;
+        if (!rdr.readU8(registers.memory_pointer))              { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.borderColor)) return false;
-        if (!rdr.readU8(registers.backgroundColor0)) return false;
+        if (!rdr.readU8(registers.borderColor))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.backgroundColor0))            { rdr.exitChunkPayload(chunk); return false; }
         for (int i = 0; i < 3; ++i)
-            if (!rdr.readU8(registers.backgroundColor[i])) return false;
+            if (!rdr.readU8(registers.backgroundColor[i]))      { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.spriteMultiColor1)) return false;
-        if (!rdr.readU8(registers.spriteMultiColor2)) return false;
+        if (!rdr.readU8(registers.spriteMultiColor1))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteMultiColor2))           { rdr.exitChunkPayload(chunk); return false; }
         for (int i = 0; i < 8; ++i)
-            if (!rdr.readU8(registers.spriteColors[i])) return false;
+            if (!rdr.readU8(registers.spriteColors[i]))         { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU16(registers.raster)) return false;
+        if (!rdr.readU16(registers.raster))                     { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.interruptStatus)) return false;
-        if (!rdr.readU8(registers.interruptEnable)) return false;
-        if (!rdr.readU16(registers.rasterInterruptLine)) return false;
+        if (!rdr.readU8(registers.interruptStatus))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.interruptEnable))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(registers.rasterInterruptLine))        { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.light_pen_X)) return false;
-        if (!rdr.readU8(registers.light_pen_Y)) return false;
+        if (!rdr.readU8(registers.light_pen_X))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.light_pen_Y))                 { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(registers.spriteCollision)) return false;
-        if (!rdr.readU8(registers.spriteDataCollision)) return false;
+        if (!rdr.readU8(registers.spriteCollision))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(registers.spriteDataCollision))         { rdr.exitChunkPayload(chunk); return false; }
+
+        const uint16_t disabled = uint16_t(cfg_->maxRasterLines + 1);
+        if (registers.rasterInterruptLine != disabled)
+        {
+            if (registers.rasterInterruptLine >= cfg_->maxRasterLines)
+                registers.rasterInterruptLine %= cfg_->maxRasterLines;
+        }
 
         // Mask colors to 4-bit (safer on corrupt/old states)
         registers.borderColor &= 0x0F;
@@ -266,6 +283,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         for (int i = 0; i < 8; ++i) registers.spriteColors[i] &= 0x0F;
 
         // Re-sync anything derived from registers
+        updateGraphicsMode(registers.raster);
         updateIRQLine();
         updateMonitorCaches(registers.raster);
 
@@ -277,28 +295,36 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readI32(currentCycle)) return false;
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+
+        uint8_t m = 0;
+        if (!rdr.readU8(m))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (m != static_cast<uint8_t>(mode_))                   { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readI32(currentCycle))                         { rdr.exitChunkPayload(chunk); return false; }
 
         for (int i = 0; i < 8; ++i)
-            if (!rdr.readU16(sprPtrBase[i])) return false;
+            if (!rdr.readU16(sprPtrBase[i]))                    { rdr.exitChunkPayload(chunk); return false; }
         for (int i = 0; i < 40; ++i)
-            if (!rdr.readU8(charPtrFIFO[i])) return false;
+            if (!rdr.readU8(charPtrFIFO[i]))                    { rdr.exitChunkPayload(chunk); return false; }
         for (int i = 0; i < 40; ++i)
-            if (!rdr.readU8(colorPtrFIFO[i])) return false;
+            if (!rdr.readU8(colorPtrFIFO[i]))                   { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(denSeenOn30)) return false;
-        if (!rdr.readI32(firstBadlineY)) return false;
-        if (!rdr.readI32(currentScreenRow)) return false;
-        if (!rdr.readU8(rowCounter)) return false;
+        if (!rdr.readBool(denSeenOn30))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(firstBadlineY))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(currentScreenRow))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rowCounter))                            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(AEC)) return false;
+        if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readVectorU8(d011_per_raster)) return false;
-        if (!rdr.readVectorU8(d016_per_raster)) return false;
-        if (!rdr.readVectorU8(d018_per_raster)) return false;
-        if (!rdr.readVectorU16(dd00_per_raster)) return false;
+        if (!rdr.readVectorU8(d011_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(d016_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(d018_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU16(dd00_per_raster))                { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(frameDone)) return false;
+        if (!rdr.readBool(frameDone))                           { rdr.exitChunkPayload(chunk); return false; }
 
         // --- sanitize restored values ---
         if (registers.raster >= cfg_->maxRasterLines)
@@ -584,15 +610,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             break;
         }
         case 0xD01E:
-        {
-            registers.spriteCollision &= ~value;
-            break;
-        }
         case 0xD01F:
-        {
-            registers.spriteDataCollision &= ~value;
             break;
-        }
         case 0xD020:
         {
             registers.borderColor = value & 0x0F;
@@ -730,11 +749,14 @@ void Vic::tick(int cycles)
             if (curRaster == cfg_->maxRasterLines - 1)
             {
                 frameDone = true;
-                const int lastFBY = fbY(curRaster);
-                const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
-                for (int y = lastFBY + 1; y < fbH; ++y)
+                if (IO_adapter)
                 {
-                    IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
+                    const int lastFBY = fbY(curRaster);
+                    const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
+                    for (int y = lastFBY + 1; y < fbH; ++y)
+                    {
+                        IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
+                    }
                 }
             }
 
@@ -817,6 +839,8 @@ bool Vic::isBadLine(int raster)
 
 void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
 {
+    if (!IO_adapter || !mem) return;
+
     int spriteX = spriteScreenXFor(sprIndex, raster);
 
     bool expandX = registers.spriteXExpansion & (1 << sprIndex);
@@ -909,12 +933,17 @@ void Vic::renderSprites(int pass, int raster)
 
 void Vic::renderLine(int raster)
 {
+    if (!IO_adapter || !mem) return;
+
     updateGraphicsMode(raster);
 
     // Clear bgOpaque for the *framebuffer Y* line
     int screenY = fbY(raster);
     if (screenY >= 0 && screenY < (int)bgOpaque.size())
-    for (int x = 0; x < 512; ++x) bgOpaque[screenY][x] = 0;
+    {
+        for (int x = 0; x < 512; ++x)
+            bgOpaque[screenY][x] = 0;
+    }
 
     int x0, x1;
     innerWindowForRaster(raster, x0, x1);
