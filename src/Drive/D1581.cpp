@@ -47,6 +47,155 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
 
 D1581::~D1581() = default;
 
+void D1581::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("D158");
+
+    // Version
+    wrtr.writeU32(1);
+
+    // Identity / basic config
+    wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+    wrtr.writeU8(currentSide);
+
+    // CPU state (nested chunks/payload)
+    driveCPU.saveStatePayload(wrtr);
+    driveCPU.saveStateExtendedPayload(wrtr);
+
+    // Mechanics / runtime state
+    wrtr.writeBool(motorOn);
+
+    // Disk attachment flags
+    wrtr.writeBool(diskLoaded);
+    wrtr.writeBool(diskWriteProtected);
+    wrtr.writeString(loadedDiskName);
+
+    // Status
+    wrtr.writeU8(static_cast<uint8_t>(lastError));
+    wrtr.writeU8(static_cast<uint8_t>(status));
+    wrtr.writeU8(currentTrack);
+    wrtr.writeU8(currentSector);
+
+    // IEC protocol + line levels
+    wrtr.writeBool(atnLineLow);
+    wrtr.writeBool(clkLineLow);
+    wrtr.writeBool(dataLineLow);
+    wrtr.writeBool(srqAsserted);
+
+    wrtr.writeBool(iecLinesPrimed);
+    wrtr.writeBool(iecListening);
+    wrtr.writeBool(iecTalking);
+
+    wrtr.writeBool(expectingSecAddr);
+    wrtr.writeBool(expectingDataByte);
+
+    wrtr.writeU8(currentListenSA);
+    wrtr.writeU8(currentTalkSA);
+
+    // RX shifter
+    wrtr.writeBool(iecRxActive);
+    wrtr.writeU32(static_cast<uint32_t>(iecRxBitCount));
+    wrtr.writeU8(iecRxByte);
+
+    // Memory + chips in memory map
+    d1581mem.saveState(wrtr);
+
+    d1581mem.getCIA().saveState(wrtr);
+    d1581mem.getFDC().saveState(wrtr);
+
+    wrtr.endChunk();
+}
+
+bool D1581::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "D158", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    // Version
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // Identity / basic config
+    uint8_t devU8 = 0;
+    if (!rdr.readU8(devU8)) return false;
+    setDeviceNumber(static_cast<int>(devU8));
+
+    if (!rdr.readU8(currentSide)) return false;
+
+    // CPU state (nested chunks)
+    StateReader::Chunk sub{};
+
+    if (!rdr.nextChunk(sub)) return false;
+    if (!driveCPU.loadStatePayload(rdr)) return false;
+
+    if (!rdr.nextChunk(sub)) return false;
+    if (!driveCPU.loadStateExtendedPayload(sub, rdr)) return false;
+
+    // Mechanics / runtime state
+    if (!rdr.readBool(motorOn)) return false;
+
+    if (!rdr.readBool(diskLoaded)) return false;
+    if (!rdr.readBool(diskWriteProtected)) return false;
+    if (!rdr.readString(loadedDiskName)) return false;
+
+    uint8_t tmp8 = 0;
+
+    if (!rdr.readU8(tmp8)) return false;
+    lastError = static_cast<DriveError>(tmp8);
+
+    if (!rdr.readU8(tmp8)) return false;
+    status = static_cast<DriveStatus>(tmp8);
+
+    if (!rdr.readU8(currentTrack)) return false;
+    if (!rdr.readU8(currentSector)) return false;
+
+    // IEC protocol + line levels
+    if (!rdr.readBool(atnLineLow)) return false;
+    if (!rdr.readBool(clkLineLow)) return false;
+    if (!rdr.readBool(dataLineLow)) return false;
+    if (!rdr.readBool(srqAsserted)) return false;
+
+    if (!rdr.readBool(iecLinesPrimed)) return false;
+    if (!rdr.readBool(iecListening)) return false;
+    if (!rdr.readBool(iecTalking)) return false;
+
+    if (!rdr.readBool(expectingSecAddr)) return false;
+    if (!rdr.readBool(expectingDataByte)) return false;
+
+    if (!rdr.readU8(currentListenSA)) return false;
+    if (!rdr.readU8(currentTalkSA)) return false;
+
+    if (!rdr.readBool(iecRxActive)) return false;
+
+    uint32_t tmp32 = 0;
+    if (!rdr.readU32(tmp32)) return false;
+    iecRxBitCount = static_cast<int>(tmp32);
+
+    if (!rdr.readU8(iecRxByte)) return false;
+
+    // Memory + chips
+    if (!d1581mem.loadState(rdr)) return false;
+
+    if (!d1581mem.getCIA().loadState(rdr)) return false;
+    if (!d1581mem.getFDC().loadState(rdr)) return false;
+
+    // Post-restore fixups
+
+    // Ensure VIA/CIA sees current bus input levels immediately
+    forceSyncIEC();
+
+    // SRQ line output state
+    peripheralAssertSrq(srqAsserted);
+
+    // IRQ derived from chip IRQ sources
+    updateIRQ();
+
+    return true;
+}
+
 void D1581::reset()
 {
     motorOn             = false;

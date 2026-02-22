@@ -18,6 +18,8 @@ class IECBUS;
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IRQLine.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class D1581 : public Drive, public FloppyControllerHost
 {
@@ -26,6 +28,10 @@ class D1581 : public Drive, public FloppyControllerHost
         virtual ~D1581();
 
         inline uint32_t clockMultiplier() const override { return 2; }
+
+        // State Management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
         // Reset the drive
         void reset() override;
