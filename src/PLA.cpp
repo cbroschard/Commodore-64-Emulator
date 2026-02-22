@@ -29,6 +29,7 @@ PLA::~PLA() = default;
 void PLA::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("PLA0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(memoryControlRegister);
     wrtr.endChunk();
 }
@@ -39,9 +40,13 @@ bool PLA::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+
         uint8_t mcr = 0;
 
-        if (!rdr.readU8(mcr)) return false;
+        if (!rdr.readU8(mcr))                   { rdr.exitChunkPayload(chunk); return false; }
 
         updateMemoryControlRegister(mcr);
 
