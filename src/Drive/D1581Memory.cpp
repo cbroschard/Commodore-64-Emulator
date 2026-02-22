@@ -110,6 +110,42 @@ void D1581Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     fdc.attachFloppyeControllerHostInstance(host);
 }
 
+void D1581Memory::saveState(StateWriter& wrtr) const
+{
+    wrtr.writeU32(1);
+
+    // Dump RAM
+    wrtr.writeU32(static_cast<uint32_t>(D1581RAM.size()));
+    wrtr.writeVectorU8(D1581RAM);
+
+    // Dump last bus
+    wrtr.writeU8(lastBus);
+}
+
+bool D1581Memory::loadState(StateReader& rdr)
+{
+    // Version
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver)) return false;
+    if (ver != 1) return false;
+
+    // RAM size validation
+    uint32_t ramSize = 0;
+    if (!rdr.readU32(ramSize)) return false;
+
+    // Ensure save file matches expected RAM size
+    if (ramSize != D1581RAM.size())
+        return false;
+
+    // RAM contents
+    if (!rdr.readVectorU8(D1581RAM)) return false;
+
+    // Last bus value
+    if (!rdr.readU8(lastBus)) return false;
+
+    return true;
+}
+
 void D1581Memory::reset()
 {
     // Clear RAM
