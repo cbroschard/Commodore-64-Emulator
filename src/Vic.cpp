@@ -355,13 +355,13 @@ uint8_t Vic::readRegister(uint16_t address)
     // Handle multicolor registers with helper
     else if (address >= 0xD022 && address <= 0xD024)
     {
-        return getBackgroundColor(address - 0xD022);
+        return 0xF0 | (getBackgroundColor(address - 0xD022) & 0x0F);
     }
     // Handle SpriteColor registers with helper
     else if (address >= 0xD027 && address <= 0xD02E)
     {
         int index = getSpriteColorIndex(address);
-        return registers.spriteColors[index];
+        return 0xF0 | (registers.spriteColors[index] & 0x0F);
     }
 
     switch(address)
@@ -442,23 +442,23 @@ uint8_t Vic::readRegister(uint16_t address)
         }
         case 0xD020:
         {
-            return registers.borderColor;
+            return 0xF0 | (registers.borderColor & 0x0F);
         }
         case 0xD021:
         {
-            return registers.backgroundColor0;
+            return 0xF0 | (registers.backgroundColor0 & 0x0F);
         }
         case 0xD025:
         {
-            return registers.spriteMultiColor1;
+            return 0xF0 | (registers.spriteMultiColor1 & 0x0F);
         }
         case 0xD026:
         {
-            return registers.spriteMultiColor2;
+            return 0xF0 | (registers.spriteMultiColor2 & 0x0F);
         }
         case 0xD02F:
         {
-            return registers.undefined;
+            return 0xFF; // Open Bus
         }
         case 0xD030:
         {
@@ -1037,45 +1037,49 @@ void Vic::renderBitmapLine(int raster, int xScroll)
     int firstVis = cfg_->firstVisibleLine;
 
     int charRow = currentScreenRow;
-    if (charRow >= rows) return;
+    if (charRow < 0 || charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
-    if (bitmapY < 0 || bitmapY >= (getRSEL(raster) ? 25 : 24) * 8) return;
+    if (bitmapY < 0 || bitmapY >= rows * 8) return;
+
     const uint16_t bitmapBase = getBitmapBase(raster);
 
-    int fine = xScroll & 7;
-    int fetchCols = cols + (fine ? 1 : 0);
-    int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    int x1 = x0 + cols * 8;
-    int xStart = x0 - fine;
-    int py = fbY(raster);
+    const int fine = xScroll & 7;
 
-    if (charRow < 0) return;
+    const int fetchCols = cols;
+
+    const int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int x1 = x0 + cols * 8;
+    const int xStart = x0 - fine;
+
+    const int py = fbY(raster);
 
     for (int col = 0; col < fetchCols; ++col)
     {
-        uint16_t byteOffset = (bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320);
-        uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
+        const uint16_t byteOffset =
+            (uint16_t)((bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320));
 
-        uint8_t scr = fetchScreenByte(charRow, col, raster);
-        uint8_t fgColor = (scr >> 4) & 0x0F;
-        uint8_t bgColor = scr & 0x0F;
+        const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        int cellLeft = xStart + col * 8;
+        const uint8_t scr = fetchScreenByte(charRow, col, raster);
+        const uint8_t fgColor = (scr >> 4) & 0x0F;
+        const uint8_t bgColor = scr & 0x0F;
+
+        const int cellLeft = xStart + col * 8;
         if (cellLeft >= x1) break;
         if (cellLeft + 8 <= x0) continue;
 
         for (int bit = 0; bit < 8; ++bit)
         {
-            bool pixelOn = (byte >> (7 - bit)) & 0x01;
-            uint8_t color = pixelOn ? fgColor : bgColor;
+            const bool pixelOn = ((byte >> (7 - bit)) & 0x01) != 0;
+            const uint8_t color = pixelOn ? fgColor : bgColor;
 
-            int pxRaw = cellLeft + bit;
+            const int pxRaw = cellLeft + bit;
             if (pxRaw < x0 || pxRaw >= x1) continue;
 
             IO_adapter->setPixel(pxRaw, py, color);
 
-            if (pixelOn) markBGOpaque(fbY(raster), pxRaw);
+            if (pixelOn) markBGOpaque(py, pxRaw);
         }
     }
 }
@@ -1087,52 +1091,61 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     int firstVis = cfg_->firstVisibleLine;
 
     int charRow = currentScreenRow;
-    if (charRow >= rows) return;
+    if (charRow < 0 || charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
-    if (bitmapY < 0 || bitmapY >= (getRSEL(raster) ? 25 : 24) * 8) return;
+    if (bitmapY < 0 || bitmapY >= rows * 8) return;
+
     const uint16_t bitmapBase = getBitmapBase(raster);
 
-    int fine = xScroll & 7;
-    int fetchCols = cols + (fine ? 1 : 0);
-    int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    int x1 = x0 + cols * 8;
-    int xStart = x0 - fine;
-    int py = fbY(raster);
+    const int fine = xScroll & 7;
 
-    if (charRow < 0) return;
+    const int fetchCols = cols;
+
+    const int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int x1 = x0 + cols * 8;
+    const int xStart = x0 - fine;
+
+    const int py = fbY(raster);
 
     for (int col = 0; col < fetchCols; ++col)
     {
-        uint16_t byteOffset = (bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320);
-        uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
+        const uint16_t byteOffset =
+            (uint16_t)((bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320));
 
-        uint8_t scr = fetchScreenByte(charRow, col, raster);
-        uint8_t colNib = fetchColorByte(charRow, col, raster) & 0x0F;
-        uint8_t bg0 = registers.backgroundColor0;
+        const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        int cellLeft = xStart + col * 8;
+        const uint8_t scr = fetchScreenByte(charRow, col, raster);
+        const uint8_t colNib = fetchColorByte(charRow, col, raster) & 0x0F;
+        const uint8_t bg0 = registers.backgroundColor0 & 0x0F;
+
+        const int cellLeft = xStart + col * 8;
         if (cellLeft >= x1) break;
         if (cellLeft + 8 <= x0) continue;
 
         for (int pair = 0; pair < 4; ++pair)
         {
-            uint8_t bits = (byte >> (6 - pair * 2)) & 0x03;
-            uint8_t color = (bits == 0) ? bg0 : (bits == 1) ? ((scr >> 4) & 0x0F) : (bits == 2) ? (scr & 0x0F) : colNib;
+            const uint8_t bits = (byte >> (6 - pair * 2)) & 0x03;
 
-            int pxRaw = cellLeft + pair * 2;
+            const uint8_t color =
+                (bits == 0) ? bg0 :
+                (bits == 1) ? ((scr >> 4) & 0x0F) :
+                (bits == 2) ? (scr & 0x0F) :
+                              colNib;
+
+            const int pxRaw = cellLeft + pair * 2;
             if (pxRaw < x0 || pxRaw + 1 >= x1) continue;
 
-            IO_adapter->setPixel(pxRaw, py, color);
+            IO_adapter->setPixel(pxRaw,     py, color);
             IO_adapter->setPixel(pxRaw + 1, py, color);
 
             if (bits != 0)
             {
-                    markBGOpaque(fbY(raster), pxRaw);
-                    markBGOpaque(fbY(raster), pxRaw + 1);
-                }
+                markBGOpaque(py, pxRaw);
+                markBGOpaque(py, pxRaw + 1);
             }
         }
+    }
 }
 
 void Vic::renderECMLine(int raster, int xScroll)
