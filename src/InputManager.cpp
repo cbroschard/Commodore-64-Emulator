@@ -19,6 +19,7 @@ InputManager::~InputManager() = default;
 void InputManager::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("INPT");
+    wrtr.writeU32(1); //version
 
     wrtr.writeU8(joystick1Attached ? 1 : 0);
     wrtr.writeU8(joystick2Attached ? 1 : 0);
@@ -50,13 +51,18 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+
+
     uint8_t j1 = 0, j2 = 0;
-    if (!rdr.readU8(j1)) return false;
-    if (!rdr.readU8(j2)) return false;
+    if (!rdr.readU8(j1))                                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(j2))                                    { rdr.exitChunkPayload(chunk); return false; }
 
     int32_t p1 = -1, p2 = -1;
-    if (!rdr.readI32(p1)) return false;
-    if (!rdr.readI32(p2)) return false;
+    if (!rdr.readI32(p1))                                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(p2))                                   { rdr.exitChunkPayload(chunk); return false; }
 
     portPadId[1] = static_cast<SDL_JoystickID>(p1);
     portPadId[2] = static_cast<SDL_JoystickID>(p2);
@@ -64,42 +70,41 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     int32_t tmp = 0;
 
     // joy1
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.up = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.down = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.left = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.right = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.fire = static_cast<SDL_Scancode>(tmp);
 
     // joy2
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.up = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.down = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.left = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.right = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp)) return false;
+    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.fire = static_cast<SDL_Scancode>(tmp);
 
     // Rebuild joyMap tables from configs
     setJoystickConfig(1, joy1Config);
     setJoystickConfig(2, joy2Config);
 
-    // IMPORTANT: attach/detach via normal path (reconnects to CIA1)
     setJoystickAttached(1, j1 != 0);
     setJoystickAttached(2, j2 != 0);
 
