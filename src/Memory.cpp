@@ -43,6 +43,7 @@ void Memory::saveState(StateWriter& wrtr) const
 {
     // MEM0 = "Core"
     wrtr.beginChunk("MEM0");
+    wrtr.writeU32(1); //version
 
     // Dump main memory
     wrtr.writeVectorU8(mem);
@@ -72,22 +73,26 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
+
         // Load Main memory
-        if (!rdr.readVectorU8(mem))             return false;
+        if (!rdr.readVectorU8(mem))                                         { rdr.exitChunkPayload(chunk); return false; }
 
         // Load Color RAM
-        if (!rdr.readVectorU8(colorRAM))        return false;
+        if (!rdr.readVectorU8(colorRAM))                                    { rdr.exitChunkPayload(chunk); return false; }
 
         // Load CPU port $00/$01 mapping controls
-        if (!rdr.readU8(dataDirectionRegister)) return false;
-        if (!rdr.readU8(port1OutputLatch))      return false;
+        if (!rdr.readU8(dataDirectionRegister))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(port1OutputLatch))                                  { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(lastBus))               return false;
-        if (!rdr.readBool(cartridgeAttached))   return false;
+        if (!rdr.readU8(lastBus))                                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(cartridgeAttached))                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Load cart vectors
-        if (!rdr.readVectorU8(cart_lo))         return false;
-        if (!rdr.readVectorU8(cart_hi))         return false;
+        if (!rdr.readVectorU8(cart_lo))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(cart_hi))                                     { rdr.exitChunkPayload(chunk); return false; }
 
         // Re-apply port $01 side effects (PLA mapping + cassette motor)
         applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
