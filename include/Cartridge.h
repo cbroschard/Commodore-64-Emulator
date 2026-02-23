@@ -57,7 +57,13 @@ class Cartridge
 
         // Public read/write access to cartridge memory
         uint8_t read(uint16_t address);
+        uint8_t readRAM(size_t offset);
         void write(uint16_t address, uint8_t value);
+        void writeRAM(size_t offset, uint8_t value);
+
+        inline size_t ramSize() const { return ramData.size(); }
+        inline bool hasCartridgeRAM() const { return hasRAM && !ramData.empty(); }
+
 
         struct chipSection
         {

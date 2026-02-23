@@ -72,8 +72,10 @@ class Memory : public CPUBus
         // Allow the cartridge to be loaded into memory
         void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
 
-        // Setter for cartridge
+        // Setters for cartridge
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
+        inline void setROMLOverlayIsRAM(bool flag) { romLOverlayIsRAM = flag; }
+        inline void setROMHOverlayIsRAM(bool flag) { romHOverLayIsRAM = flag; }
 
         // Getter/Setter for cassette
         inline bool getCassetteSenseLow() { return cassetteSenseLow; }
@@ -137,8 +139,10 @@ class Memory : public CPUBus
         static const uint16_t IO_CIA2_START = 0xDD00;
         static const uint16_t IO_CIA2_END = 0xDDFF;
 
-        // Cartridge
+        // Media
         bool cartridgeAttached;
+        bool romLOverlayIsRAM;
+        bool romHOverLayIsRAM;
         bool cassetteSenseLow;
 
         // MCR

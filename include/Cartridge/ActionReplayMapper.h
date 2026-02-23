@@ -1,0 +1,53 @@
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
+#ifndef ACTIONREPLAYMAPPER_H
+#define ACTIONREPLAYMAPPER_H
+
+#include "Cartridge/CartridgeMapper.h"
+
+class ActionReplayMapper : public CartridgeMapper
+{
+    public:
+        ActionReplayMapper();
+        virtual ~ActionReplayMapper();
+
+         // State management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
+        uint8_t read(uint16_t address) override;
+        void write(uint16_t address, uint8_t value) override;
+        bool applyMappingAfterLoad() override;
+
+        bool loadIntoMemory(uint8_t bank) override;
+
+    protected:
+
+    private:
+        uint8_t selectedBank;
+
+        bool io1Enabled;
+        bool io2RoutesToRam;
+
+        struct ARControl
+        {
+            uint8_t raw = 0;
+
+            // Derived
+            bool cartDisabled = false;   // bit 2
+            bool ramAtROML    = false;   // bit 5
+            bool freezeReset  = false;   // bit 6 (edge/level depends on your model)
+            uint8_t bank      = 0;       // from bits 3..4 (+ optional bit 7)
+            bool exromHigh    = false;   // bit 1 means /EXROM high
+            bool gameLow      = false;   // bit 0 means /GAME low
+        } ctrl;
+
+        void applyMappingFromControl();
+};
+
+#endif // ACTIONREPLAYMAPPER_H

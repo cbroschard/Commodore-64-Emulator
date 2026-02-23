@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
+#include "Cartridge/ActionReplayMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
@@ -195,6 +196,14 @@ bool Cartridge::loadROM(const std::string& path)
 
     switch(mapperType)
     {
+        case CartridgeType::ACTION_REPLAY:
+        {
+            mapper = std::make_unique<ActionReplayMapper>();
+            mapper->attachCartridgeInstance(this);
+            mapper->attachMemoryInstance(mem);
+            mapper->loadIntoMemory(0);
+            break;
+        }
         case CartridgeType::C64_GAME_SYSTEM:
         {
             mapper = std::make_unique<C64GameSystemMapper>();
@@ -367,12 +376,13 @@ uint8_t Cartridge::read(uint16_t address)
         }
     }
 
-    // Cartridge has RAM so return it
-    if (hasRAM && address < ramData.size())
-    {
-        return ramData[address];
-    }
     return 0xFF; // Open bus
+}
+
+uint8_t Cartridge::readRAM(size_t offset)
+{
+    if (!hasRAM || offset >= ramData.size()) return 0xFF;
+    return ramData[offset];
 }
 
 void Cartridge::write(uint16_t address, uint8_t value)
@@ -404,11 +414,12 @@ void Cartridge::write(uint16_t address, uint8_t value)
         default:
             break;
     }
-    if (hasRAM && address < ramData.size())
-    {
-        ramData[address] = value;
-        return;
-    }
+}
+
+void Cartridge::writeRAM(size_t offset, uint8_t value)
+{
+    if (!hasRAM || offset >= ramData.size()) return;
+    ramData[offset] = value;
 }
 
 bool Cartridge::setCurrentBank(uint8_t bank)

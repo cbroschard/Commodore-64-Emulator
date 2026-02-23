@@ -20,6 +20,8 @@ Memory::Memory() :
     traceMgr(nullptr),
     vicII(nullptr),
     cartridgeAttached(false),
+    romLOverlayIsRAM(false),
+    romHOverLayIsRAM(false),
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
     port1OutputLatch(0x37),
@@ -186,14 +188,27 @@ uint8_t Memory::read(uint16_t address)
         }
         case PLA::CARTRIDGE_LO:
         {
+            // If the cartridge has RAM and it's active
+            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
             if (accessInfo.offset >= cart_lo.size())
             {
                 throw std::runtime_error("Error: Attempt to read past end of cartridge lo RAM");
             }
+
             return RET(cart_lo[accessInfo.offset]);
         }
         case PLA::CARTRIDGE_HI:
         {
+            // If the cartridge has RAM and it's active
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
             if (accessInfo.offset >= cart_hi.size())
             {
                 throw std::runtime_error("Error: Attempt to read past end of cartridge hi RAM");
@@ -395,11 +410,19 @@ void Memory::write(uint16_t address, uint8_t value)
             break;
         }
         case PLA::CARTRIDGE_LO:
+        {
+            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+            break;
+        }
         case PLA::CARTRIDGE_HI:
         {
-            // Write the value to the requested RAM address and also the cartridge
-            if (cart) cart->write(address, value);
-            mem[address] = value;
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
             break;
         }
         case PLA::UNMAPPED:
