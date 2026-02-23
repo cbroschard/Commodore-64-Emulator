@@ -19,6 +19,7 @@ C64GameSystemMapper::~C64GameSystemMapper() = default;
 void C64GameSystemMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("CGS0");
+    wrtr.writeU32(1); // version
 
     wrtr.writeU8(selectedBank);
 
@@ -31,7 +32,13 @@ bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader
     {
         rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readU8(selectedBank)) return false;
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+
+        rdr.exitChunkPayload(chunk);
 
         return true;
     }
@@ -42,6 +49,11 @@ bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 bool C64GameSystemMapper::applyMappingAfterLoad()
 {
+    if (!mem || !cart) return false;
+
+    cart->setExROMLine(true);
+    cart->setGameLine(true);
+
     return loadIntoMemory(selectedBank);
 }
 
