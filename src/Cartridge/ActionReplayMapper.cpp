@@ -18,14 +18,67 @@ ActionReplayMapper::ActionReplayMapper() :
 
 ActionReplayMapper::~ActionReplayMapper() = default;
 
+void ActionReplayMapper::ARControl::save(StateWriter& wrtr) const
+{
+    wrtr.writeU8(raw);
+    wrtr.writeBool(cartDisabled);
+    wrtr.writeBool(ramAtROML);
+    wrtr.writeBool(freezeReset);
+    wrtr.writeU8(bank);
+    wrtr.writeBool(exromHigh);
+    wrtr.writeBool(gameLow);
+}
+
+bool ActionReplayMapper::ARControl::load(StateReader& rdr)
+{
+    if (!rdr.readU8(raw))               return false;
+    if (!rdr.readBool(cartDisabled))    return false;
+    if (!rdr.readBool(ramAtROML))       return false;
+    if (!rdr.readBool(freezeReset))     return false;
+    if (!rdr.readU8(bank))              return false;
+    if (!rdr.readBool(exromHigh))       return false;
+    if (!rdr.readBool(gameLow))         return false;
+    return true;
+}
+
 void ActionReplayMapper::saveState(StateWriter& wrtr) const
 {
+    wrtr.beginChunk("ARPY");
+    wrtr.writeU32(1); // version
 
+    ctrl.save(wrtr);
+    wrtr.writeU8(selectedBank);
+    wrtr.writeBool(io1Enabled);
+    wrtr.writeBool(io2RoutesToRam);
+
+    wrtr.endChunk();
 }
 
 bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    return true;
+    if (std::memcmp(chunk.tag, "ARPY", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(io1Enabled))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(io2RoutesToRam))      { rdr.exitChunkPayload(chunk); return false; }
+
+
+        // Apply side effects
+        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
+
+        rdr.exitChunkPayload(chunk);
+        return true;
+    }
+
+    // Not our chunk
+    return false;
 }
 
 uint8_t ActionReplayMapper::read(uint16_t address)
@@ -34,7 +87,6 @@ uint8_t ActionReplayMapper::read(uint16_t address)
     if (ctrl.cartDisabled && address >= 0xDE00 && address <= 0xDEFF)
         return 0xFF;
 
-    // IO1 reads are typically open bus / status; simplest is open bus
     if (address >= 0xDE00 && address <= 0xDEFF)
         return 0xFF;
 
@@ -92,6 +144,12 @@ void ActionReplayMapper::write(uint16_t address, uint8_t value)
 
 bool ActionReplayMapper::applyMappingAfterLoad()
 {
+    if (!mem || !cart) return false;
+
+    if (!loadIntoMemory(ctrl.bank))
+        return false;
+
+    applyMappingFromControl();
     return true;
 }
 
@@ -184,7 +242,7 @@ void ActionReplayMapper::applyMappingFromControl()
 
     io2RoutesToRam = ctrl.ramAtROML;
 
-    // Bit6: reset FREEZE-mode (if you have a latch, clear it here)
+    // Bit6: reset FREEZE-mode
     if (ctrl.freezeReset)
     {
         // clearFreezeMode();

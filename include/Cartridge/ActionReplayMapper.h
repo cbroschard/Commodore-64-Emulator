@@ -22,7 +22,6 @@ class ActionReplayMapper : public CartridgeMapper
 
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
-        bool applyMappingAfterLoad() override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
@@ -45,8 +44,12 @@ class ActionReplayMapper : public CartridgeMapper
             uint8_t bank      = 0;       // from bits 3..4 (+ optional bit 7)
             bool exromHigh    = false;   // bit 1 means /EXROM high
             bool gameLow      = false;   // bit 0 means /GAME low
+
+            void save(StateWriter& wrtr) const;
+            bool load(StateReader& rdr);
         } ctrl;
 
+        bool applyMappingAfterLoad() override;
         void applyMappingFromControl();
 };
 
