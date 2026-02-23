@@ -21,6 +21,7 @@ SuperGamesMapper::~SuperGamesMapper() = default;
 void SuperGamesMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("SGM0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(selectedBank);
     wrtr.writeBool(disabled);
     wrtr.writeBool(writeProtected);
@@ -34,11 +35,16 @@ bool SuperGamesMapper::loadState(const StateReader::Chunk& chunk, StateReader& r
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readU8(selectedBank)) return false;
-    if (!rdr.readBool(disabled)) return false;
-    if (!rdr.readBool(writeProtected)) return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(disabled))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(writeProtected))  { rdr.exitChunkPayload(chunk); return false; }
 
     selectedBank &= 0x03; // safety
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

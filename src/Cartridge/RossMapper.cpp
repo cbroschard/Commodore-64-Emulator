@@ -20,6 +20,7 @@ RossMapper::~RossMapper() = default;
 void RossMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("ROS0");
+    wrtr.writeU32(1); // version
     wrtr.writeBool(disabled);
     wrtr.writeU8(selectedBank);
     wrtr.endChunk();
@@ -32,9 +33,14 @@ bool RossMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readBool(disabled))   return false;
-    if (!rdr.readU8(selectedBank)) return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
+    if (!rdr.readBool(disabled))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

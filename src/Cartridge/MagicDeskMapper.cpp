@@ -20,9 +20,11 @@ MagicDeskMapper::~MagicDeskMapper() = default;
 void MagicDeskMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("MDK0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(magicDeskBank);
     wrtr.writeBool(disabled);
     wrtr.endChunk();
+
 }
 
 bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
@@ -32,10 +34,16 @@ bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readU8(magicDeskBank)) return false;
-    if (!rdr.readBool(disabled))    return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(magicDeskBank)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(disabled))    { rdr.exitChunkPayload(chunk); return false; }
 
     magicDeskBank &= 0x7F; // safety
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

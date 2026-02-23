@@ -19,6 +19,7 @@ SuperZaxxonMapper::~SuperZaxxonMapper() = default;
 void SuperZaxxonMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("SZX0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(currentBank);
     wrtr.endChunk();
 }
@@ -29,8 +30,13 @@ bool SuperZaxxonMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
         return false;
 
     rdr.enterChunkPayload(chunk);
-    if (!rdr.readU8(currentBank)) return false;
 
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentBank))   { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

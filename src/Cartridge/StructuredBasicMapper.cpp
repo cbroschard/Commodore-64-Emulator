@@ -19,6 +19,7 @@ StructuredBasicMapper::~StructuredBasicMapper() = default;
 void StructuredBasicMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("STB0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(selectedBank);
     wrtr.endChunk();
 }
@@ -30,9 +31,13 @@ bool StructuredBasicMapper::loadState(const StateReader::Chunk& chunk, StateRead
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readU8(selectedBank)) return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
     selectedBank &= 0x01; // only 0/1 valid
 
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

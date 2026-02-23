@@ -19,6 +19,7 @@ EasyFlashMapper::~EasyFlashMapper() = default;
 void EasyFlashMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("EF00");
+    wrtr.writeU32(1); //version
     wrtr.writeU8(selectedBank);
     wrtr.endChunk();
 }
@@ -29,9 +30,15 @@ bool EasyFlashMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
         return false;
 
     rdr.enterChunkPayload(chunk);
-    if (!rdr.readU8(selectedBank)) return false;
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
 
     selectedBank &= 0x7F; // safety
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 

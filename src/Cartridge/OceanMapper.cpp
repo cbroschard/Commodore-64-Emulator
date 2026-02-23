@@ -20,15 +20,9 @@ OceanMapper::~OceanMapper() = default;
 void OceanMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("OCN0");
+    wrtr.writeU32(1); // version
     wrtr.writeU8(sel);   // 0..63
     wrtr.endChunk();
-}
-
-bool OceanMapper::applyMappingAfterLoad()
-{
-    // ensure lists exist, then map current selection
-    builtLists = false;          // buildBankLists() will do nothing if already built
-    return mapPair(static_cast<size_t>(sel));
 }
 
 bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
@@ -38,7 +32,11 @@ bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
-    if (!rdr.readU8(sel)) return false;
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(sel))           { rdr.exitChunkPayload(chunk); return false; }
     sel &= 0x3F;
 
     // Force rebuild of derived lists
@@ -46,7 +44,15 @@ bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     loBanks.clear();
     hiBanks.clear();
 
+    rdr.exitChunkPayload(chunk);
     return true;
+}
+
+bool OceanMapper::applyMappingAfterLoad()
+{
+    // ensure lists exist, then map current selection
+    builtLists = false;          // buildBankLists() will do nothing if already built
+    return mapPair(static_cast<size_t>(sel));
 }
 
 void OceanMapper::buildBankLists()
