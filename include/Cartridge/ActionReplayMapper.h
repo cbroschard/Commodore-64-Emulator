@@ -58,7 +58,7 @@ class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable
             bool load(StateReader& rdr);
         } ctrl;
 
-        // NEW: freeze bookkeeping
+        // freeze bookkeeping
         bool freezeActive;
         ARControl preFreezeCtrl{};
         uint8_t preFreezeSelectedBank;
