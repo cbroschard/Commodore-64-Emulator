@@ -55,6 +55,7 @@ void ActionReplayMapper::saveState(StateWriter& wrtr) const
     wrtr.writeBool(io1Enabled);
     wrtr.writeBool(io2RoutesToRam);
     wrtr.writeBool(freezeActive);
+    preFreezeCtrl.save(wrtr);
     wrtr.writeU8(preFreezeSelectedBank);
 
     wrtr.endChunk();
@@ -75,6 +76,7 @@ bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader&
         if (!rdr.readBool(io1Enabled))          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(io2RoutesToRam))      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
+        if (!preFreezeCtrl.load(rdr))           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(preFreezeSelectedBank)) { rdr.exitChunkPayload(chunk); return false; }
 
         // Apply side effects
