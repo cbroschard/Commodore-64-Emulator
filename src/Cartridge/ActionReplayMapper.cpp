@@ -7,11 +7,15 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge/ActionReplayMapper.h"
 #include "Cartridge.h"
+#include "CPU.h"
 
 ActionReplayMapper::ActionReplayMapper() :
+    processor(nullptr),
     selectedBank(0),
     io1Enabled(false),
-    io2RoutesToRam(false)
+    io2RoutesToRam(false),
+    freezeActive(false),
+    preFreezeSelectedBank(0)
 {
 
 }
@@ -88,7 +92,10 @@ uint8_t ActionReplayMapper::read(uint16_t address)
         return 0xFF;
 
     if (address >= 0xDE00 && address <= 0xDEFF)
-        return 0xFF;
+    {
+        if (ctrl.cartDisabled || !io1Enabled) return 0xFF;
+        return ctrl.raw; // simple readback
+    }
 
     // IO2 RAM window when bit5 set:
     // $DF00-$DFFF mirrors $9F00-$9FFF (top 256 bytes of ROML RAM window)
@@ -217,7 +224,14 @@ void ActionReplayMapper::applyMappingFromControl()
         return;
     }
 
-    // IO1 enabled unless disabled by bit2
+    // Bit6: reset FREEZE-mode
+    if (ctrl.freezeReset)
+    {
+        ctrl.freezeReset = false; // consume strobe
+        clearFreezeMode();
+        return;
+    }
+
     io1Enabled = !ctrl.cartDisabled;
 
     // Apply cartridge lines:
@@ -241,10 +255,45 @@ void ActionReplayMapper::applyMappingFromControl()
         mem->setROMLOverlayIsRAM(ctrl.ramAtROML);
 
     io2RoutesToRam = ctrl.ramAtROML;
+}
 
-    // Bit6: reset FREEZE-mode
-    if (ctrl.freezeReset)
+void ActionReplayMapper::pressFreeze()
+{
+    if (!cart || !mem || !processor)
+        return;
+
+    // Snapshot current mapping so we can return later
+    if (!freezeActive)
     {
-        // clearFreezeMode();
+        preFreezeCtrl = ctrl;
+        preFreezeSelectedBank = selectedBank;
     }
+    freezeActive = true;
+
+    // Freeze entry mapping
+    ctrl.cartDisabled = false;
+    ctrl.bank = 0;
+    ctrl.exromHigh = false; // /EXROM low
+    ctrl.gameLow   = false; // /GAME high
+    ctrl.ramAtROML = false;
+
+    (void)loadIntoMemory(ctrl.bank);
+    applyMappingFromControl();
+
+    processor->pulseNMI();
+}
+
+void ActionReplayMapper::clearFreezeMode()
+{
+    if (!freezeActive)
+        return;
+
+    freezeActive = false;
+
+    ctrl = preFreezeCtrl;
+    ctrl.freezeReset = false;
+    selectedBank = preFreezeSelectedBank;
+
+    (void)loadIntoMemory(selectedBank);
+    applyMappingFromControl();
 }

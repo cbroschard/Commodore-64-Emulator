@@ -9,14 +9,17 @@
 #define ACTIONREPLAYMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
+#include "Cartridge/ICPUAttachable.h"
 
-class ActionReplayMapper : public CartridgeMapper
+class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable
 {
     public:
         ActionReplayMapper();
         virtual ~ActionReplayMapper();
 
-         // State management
+        inline void attachCPUInstance(CPU* processor) override { this->processor = processor; }
+
+        // State management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
@@ -25,9 +28,15 @@ class ActionReplayMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        // Called from UI
+        void pressFreeze();
+
     protected:
 
     private:
+        // Non-owning pointers
+        CPU* processor;
+
         uint8_t selectedBank;
 
         bool io1Enabled;
@@ -49,8 +58,15 @@ class ActionReplayMapper : public CartridgeMapper
             bool load(StateReader& rdr);
         } ctrl;
 
+        // NEW: freeze bookkeeping
+        bool freezeActive;
+        ARControl preFreezeCtrl{};
+        uint8_t preFreezeSelectedBank;
+
         bool applyMappingAfterLoad() override;
         void applyMappingFromControl();
+
+        void clearFreezeMode();
 };
 
 #endif // ACTIONREPLAYMAPPER_H
