@@ -140,6 +140,7 @@ class CPU
         void setNMILine(bool asserted);
         void handleIRQ();
         void handleNMI();
+        void pulseNMI();
 
         // 1541/1571 SO
         void setSO(bool level);

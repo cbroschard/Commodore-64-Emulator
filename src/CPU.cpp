@@ -247,6 +247,12 @@ void CPU::handleNMI()
     executeNMI();
 }
 
+void CPU::pulseNMI()
+{
+    setNMILine(true);
+    setNMILine(false);
+}
+
 void CPU::setSO(bool level)
 {
     if (soLevel && !level)
