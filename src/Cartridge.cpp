@@ -247,104 +247,32 @@ bool Cartridge::loadROM(const std::string& path)
     // Detect type of cartridge
     mapperType = detectType(swap16(header.CartridgeHardwareType));
 
-    switch(mapperType)
-    {
-        case CartridgeType::ACTION_REPLAY:
-        {
-            mapper = std::make_unique<ActionReplayMapper>();
-            break;
-        }
-        case CartridgeType::C64_GAME_SYSTEM:
-        {
-            mapper = std::make_unique<C64GameSystemMapper>();
-            break;
-        }
-        case CartridgeType::DINAMIC:
-        {
-            mapper = std::make_unique<DinamicMapper>();
-            break;
-        }
-        case CartridgeType::EASYFLASH:
-        {
-            mapper = std::make_unique<EasyFlashMapper>();
-            break;
-        }
-        case CartridgeType::KCS_POWER:
-        case CartridgeType::WESTERMANN:
-        case CartridgeType::GENERIC:
-        {
-            mapper = std::make_unique<GenericMapper>();
-            break;
-        }
-        case CartridgeType::OCEAN:
-        {
-            mapper = std::make_unique<OceanMapper>();
-            break;
-        }
-        case CartridgeType::EPYX_FASTLOAD:
-        {
-            mapper = std::make_unique<EpyxFastloadMapper>();
-            break;
-        }
-        case CartridgeType::ROSS:
-        {
-            mapper = std::make_unique<RossMapper>();
-            break;
-        }
-        case CartridgeType::STRUCTURED_BASIC:
-        {
-            mapper = std::make_unique<StructuredBasicMapper>();
-            break;
-        }
-        case CartridgeType::SUPER_GAMES:
-        {
-            mapper = std::make_unique<SuperGamesMapper>();
-            break;
-        }
-        case CartridgeType::SUPER_ZAXXON:
-        {
-            mapper = std::make_unique<SuperZaxxonMapper>();
-            break;
-        }
-        case CartridgeType::SIMONS_BASIC:
-        {
-            mapper = std::make_unique<SimonsBasicMapper>();
-            break;
-        }
-        case CartridgeType::MAGICDESK:
-        {
-            mapper = std::make_unique<MagicDeskMapper>();
-            break;
-        }
-        case CartridgeType::FUN_PLAY:
-        {
-            mapper = std::make_unique<FunPlayMapper>();
-            break;
-        }
-        default:
-        {
-            currentBank = selectInitialBank(chipSections);
-
-            determineWiringMode();
-
-            if (!loadIntoMemory()) return false;
-            return true;
-        }
-    }
-
-    mapper->attachCartridgeInstance(this);
-    mapper->attachMemoryInstance(mem);
+    // Create mapper (or nullptr for UNKNOWN => “no mapper”)
+    mapper = createMapper(mapperType);
 
     // Choose a sane initial bank (bank 0 if present, else lowest bank)
     currentBank = selectInitialBank(chipSections);
 
-    // Now decide GAME/EXROM wiring using header + chip layout
+    // Decide GAME/EXROM wiring using header + chip layout
     determineWiringMode();
 
-    // Finally load the selected bank
-    mapper->loadIntoMemory(currentBank);
+    if (mapper)
+    {
+        mapper->attachCartridgeInstance(this);
+        mapper->attachMemoryInstance(mem);
 
-    return true;
+        // Check if cartridge type requires the CPU
+        if (auto* cpuCap = dynamic_cast<ICPUAttachable*>(mapper.get()))
+        {
+            cpuCap->attachCPUInstance(processor);
+        }
+
+        // Load the selected bank through mapper logic
+        return mapper->loadIntoMemory(currentBank);
+    }
+
+    // No mapper => use chipSections-based mapping
+    return loadIntoMemory();
 }
 
 Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
