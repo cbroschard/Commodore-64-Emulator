@@ -88,6 +88,7 @@ class Cartridge
             GENERIC,
             ACTION_REPLAY,
             KCS_POWER,
+            EPYX_FASTLOAD,
             FINAL_CARTRIDGE_III,
             SIMONS_BASIC,
             OCEAN,
@@ -205,6 +206,10 @@ class Cartridge
 
         // Tracing helper
         void traceActiveWindows(const char* why);
+
+        static uint8_t selectInitialBank(const std::vector<Cartridge::chipSection>& sections);
+        bool mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode wiringMode, cartLocation& outLoc, uint16_t& outOffset);
+        std::unique_ptr<CartridgeMapper> createMapper(CartridgeType t);
 };
 
 #endif // CARTRIDGE_H

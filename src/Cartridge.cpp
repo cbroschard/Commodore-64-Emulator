@@ -10,6 +10,7 @@
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
+#include "Cartridge/EpyxFastloadMapper.h"
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
@@ -43,13 +44,19 @@ Cartridge::~Cartridge() = default;
 void Cartridge::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("CART");
-    wrtr.writeU32(1); // version
+    wrtr.writeU32(2); // version
 
     // Dump Active bank
     wrtr.writeU8(currentBank);
 
     // Dump Wiring
     wrtr.writeU8(static_cast<uint8_t>(wiringMode));
+
+    // Dump mapper type (so we can recreate it on load)
+    wrtr.writeU16(static_cast<uint16_t>(mapperType));
+
+    // Dump full CRT contents so we can rebuild chipSections/mapper on load
+    wrtr.writeVectorU8(romData);
 
     // Dump GAME / EXROM
     wrtr.writeBool(header.gameLine);
@@ -75,46 +82,82 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 2)          { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU8(currentBank))                                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentBank)) { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t wiringU8 = 0;
-    if (!rdr.readU8(wiringU8))                                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(wiringU8)) { rdr.exitChunkPayload(chunk); return false; }
     wiringMode = static_cast<WiringMode>(wiringU8);
 
-    // read bools into temporaries, then store as 0/1 in uint8_t
-    bool game = false;
-    bool exrom = false;
-    if (!rdr.readBool(game))                                        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(exrom))                                       { rdr.exitChunkPayload(chunk); return false; }
+    // mapperType + romData
+    uint16_t mapperU16 = 0;
+    if (!rdr.readU16(mapperU16)) { rdr.exitChunkPayload(chunk); return false; }
+    mapperType = static_cast<CartridgeType>(mapperU16);
+
+    if (!rdr.readVectorU8(romData)) { rdr.exitChunkPayload(chunk); return false; }
+
+    // Rebuild header + chipSections from romData
+    chipSections.clear();
+    hasRAM = false;
+    cartSize = 0;
+
+    if (romData.size() >= sizeof(header))
+    {
+        std::memcpy(&header, romData.data(), sizeof(header));
+        if (!processChipSections()) { rdr.exitChunkPayload(chunk); return false; }
+    }
+    else
+    {
+        rdr.exitChunkPayload(chunk);
+        return false;
+    }
+
+    // Read GAME/EXROM saved values (keeps exact wiring you had at save time)
+    bool game = false, exrom = false;
+    if (!rdr.readBool(game))  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(exrom)) { rdr.exitChunkPayload(chunk); return false; }
+
+    // Drive the actual PLA lines
+    setGameLine(game);
+    setExROMLine(exrom);
+
     header.gameLine  = game ? 1 : 0;
     header.exROMLine = exrom ? 1 : 0;
 
-    if (!rdr.readBool(hasRAM))                                      { rdr.exitChunkPayload(chunk); return false; }
+    // RAM snapshot
+    if (!rdr.readBool(hasRAM)) { rdr.exitChunkPayload(chunk); return false; }
     if (hasRAM)
     {
-        if (!rdr.readVectorU8(ramData))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(ramData)) { rdr.exitChunkPayload(chunk); return false; }
     }
     else
     {
         ramData.clear();
     }
 
-    // Mapper subchunks
+    // recreate mapper NOW (before consuming subchunks)
+    mapper.reset();
+    mapper = createMapper(mapperType);
+    if (mapper)
+    {
+        mapper->attachCartridgeInstance(this);
+        mapper->attachMemoryInstance(mem);
+    }
+
+    // Mapper subchunks (now it can actually load them)
     StateReader::Chunk sub{};
     while (rdr.nextChunk(sub))
     {
-        if (mapper)
-            (void)mapper->loadState(sub, rdr);
-
-        rdr.skipChunk(sub);
+        bool handled = false;
+        if (mapper) handled = mapper->loadState(sub, rdr);
+        if (!handled) rdr.skipChunk(sub);
     }
 
     rdr.exitChunkPayload(chunk);
 
-    // Re-apply mapping
+    // Apply mapping after load
     if (mapper)
     {
         if (!mapper->applyMappingAfterLoad())
@@ -122,6 +165,7 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     }
     else
     {
+        // Generic/no-mapper case
         if (!chipSections.empty())
         {
             if (!setCurrentBank(currentBank))
@@ -134,10 +178,22 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 bool Cartridge::loadROM(const std::string& path)
 {
+    // Clear everything first
+    mapper.reset();
+    chipSections.clear();
+    romData.clear();
+    ramData.clear();
+    hasRAM = false;
+    cartSize = 0;
+    currentBank = 0;
+    wiringMode = WiringMode::NONE;
+    mapperType = CartridgeType::GENERIC;
+    header.exROMLine = true;
+    header.gameLine = true;
+
     if (!(loadFile(path, romData)))
     {
         throw std::runtime_error("Error: Unable to load the ROM file!");
-        return false;
     }
 
     if (romData.size() < sizeof(header))
@@ -191,41 +247,26 @@ bool Cartridge::loadROM(const std::string& path)
     // Detect type of cartridge
     mapperType = detectType(swap16(header.CartridgeHardwareType));
 
-    // Set lines based on cart type
-    determineWiringMode();
-
     switch(mapperType)
     {
         case CartridgeType::ACTION_REPLAY:
         {
             mapper = std::make_unique<ActionReplayMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::C64_GAME_SYSTEM:
         {
             mapper = std::make_unique<C64GameSystemMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::DINAMIC:
         {
             mapper = std::make_unique<DinamicMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::EASYFLASH:
         {
             mapper = std::make_unique<EasyFlashMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::KCS_POWER:
@@ -233,81 +274,76 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::GENERIC:
         {
             mapper = std::make_unique<GenericMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::OCEAN:
         {
             mapper = std::make_unique<OceanMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
+            break;
+        }
+        case CartridgeType::EPYX_FASTLOAD:
+        {
+            mapper = std::make_unique<EpyxFastloadMapper>();
             break;
         }
         case CartridgeType::ROSS:
         {
             mapper = std::make_unique<RossMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::STRUCTURED_BASIC:
         {
             mapper = std::make_unique<StructuredBasicMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::SUPER_GAMES:
         {
             mapper = std::make_unique<SuperGamesMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::SUPER_ZAXXON:
         {
             mapper = std::make_unique<SuperZaxxonMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::SIMONS_BASIC:
         {
             mapper = std::make_unique<SimonsBasicMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::MAGICDESK:
         {
             mapper = std::make_unique<MagicDeskMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         case CartridgeType::FUN_PLAY:
         {
             mapper = std::make_unique<FunPlayMapper>();
-            mapper->attachCartridgeInstance(this);
-            mapper->attachMemoryInstance(mem);
-            mapper->loadIntoMemory(0);
             break;
         }
         default:
         {
-            setCurrentBank(chipSections[0].bankNumber);
-            break;
+            currentBank = selectInitialBank(chipSections);
+
+            determineWiringMode();
+
+            if (!loadIntoMemory()) return false;
+            return true;
         }
     }
+
+    mapper->attachCartridgeInstance(this);
+    mapper->attachMemoryInstance(mem);
+
+    // Choose a sane initial bank (bank 0 if present, else lowest bank)
+    currentBank = selectInitialBank(chipSections);
+
+    // Now decide GAME/EXROM wiring using header + chip layout
+    determineWiringMode();
+
+    // Finally load the selected bank
+    mapper->loadIntoMemory(currentBank);
+
     return true;
 }
 
@@ -321,6 +357,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x03: return CartridgeType::FINAL_CARTRIDGE_III;
         case 0x04: return CartridgeType::SIMONS_BASIC;
         case 0x05: return CartridgeType::OCEAN;
+        case 0x06: return CartridgeType::EPYX_FASTLOAD;
         case 0x07: return CartridgeType::FUN_PLAY;
         case 0x08: return CartridgeType::SUPER_GAMES;
         case 0x0B: return CartridgeType::WESTERMANN;
@@ -345,6 +382,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FINAL_CARTRIDGE_III:  return "Final Cartridge III";
         case CartridgeType::SIMONS_BASIC:         return "Simon's BASIC";
         case CartridgeType::OCEAN:                return "Ocean";
+        case CartridgeType::EPYX_FASTLOAD:        return "Epyx FastLoad";
         case CartridgeType::FUN_PLAY:             return "Fun Play";
         case CartridgeType::SUPER_GAMES:          return "Super Games";
         case CartridgeType::WESTERMANN:           return "Westermann Learning";
@@ -390,7 +428,7 @@ void Cartridge::write(uint16_t address, uint8_t value)
     if (mapper)
     {
         mapper->write(address, value);
-        if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
         {
             std::ostringstream oss;
             oss << "CPU write to address: $"
@@ -456,7 +494,7 @@ bool Cartridge::setCurrentBank(uint8_t bank)
         }
         return false;
     }
-    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
     {
         traceActiveWindows("Bank Switch");
     }
@@ -512,7 +550,10 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
         return false;
     }
 
+    #ifdef Debug
     std::cout << "Loaded ROM file: " << path << " (" << size << " bytes)" << std::endl;
+    #endif // Debug
+
     return true;
 }
 
@@ -543,7 +584,11 @@ bool Cartridge::loadIntoMemory()
                 uint16_t loBase = CART_LO_START;
                 // Calculate an optional offset if loadAddress isn't exactly CART_LO_START.
                 uint16_t loOffset = (section.loadAddress >= loBase) ? section.loadAddress - loBase : 0;
+
+                #ifdef Debug
                 std::cout << "Loading 16K section: LO bank at address 0x" << std::hex << (loBase + loOffset) << std::endl;
+                #endif // Debug
+
                 for (size_t i = 0; i < 8192; ++i)
                 {
                     mem->writeCartridge(loOffset + i, section.data[i], location);
@@ -554,7 +599,11 @@ bool Cartridge::loadIntoMemory()
                 cartLocation location = cartLocation::HI;
                 // Determine HI base based on header flags.
                 uint16_t hiBase = (header.exROMLine && !header.gameLine) ? CART_HI_START1 : CART_HI_START;
+
+                #ifdef Debug
                 std::cout << "Loading 16K section: HI bank at base address 0x" << std::hex << hiBase << std::endl;
+                #endif // Debug
+
                 // For HI, we write starting at offset 0.
                 for (size_t i = 8192; i < section.data.size(); ++i)
                 {
@@ -583,8 +632,12 @@ bool Cartridge::loadIntoMemory()
                 location = cartLocation::LO;
                 baseAddress = CART_LO_START;
             }
+
+            #ifdef Debug
             std::cout << "Loading 8K section into " << ((location == cartLocation::LO) ? "LO" : "HI")
                       << " bank, starting at base 0x" << std::hex << baseAddress << std::endl;
+            #endif // Debug
+
             for (size_t i = 0; i < section.data.size(); i++)
             {
                 uint16_t offset = (section.loadAddress - baseAddress) + i;
@@ -593,12 +646,25 @@ bool Cartridge::loadIntoMemory()
         }
         else
         {
-            // For any non-standard size, use a safe fallback.
+            #ifdef Debug
             std::cout << "Loading non-standard section of size " << section.data.size()
-                      << " into default LO bank at address 0x" << std::hex << section.loadAddress << std::endl;
+                      << " at CPU address 0x" << std::hex << section.loadAddress << std::endl;
+            #endif // Debug
+
             for (size_t i = 0; i < section.data.size(); ++i)
             {
-                mem->writeCartridge(section.loadAddress + i, section.data[i], cartLocation::LO);
+                const uint16_t cpuAddr = static_cast<uint16_t>(section.loadAddress + i);
+
+                cartLocation loc{};
+                uint16_t cartOff = 0;
+
+                if (!mapCpuAddrToCartOffset(cpuAddr, wiringMode, loc, cartOff))
+                    continue; // outside cart windows
+
+                if (cartOff >= 8192)
+                    continue;
+
+                mem->writeCartridge(cartOff, section.data[i], loc);
             }
         }
     }
@@ -677,7 +743,7 @@ bool Cartridge::processChipSections()
         }
 
         // Validate size is not past romData size
-        if (sizeof(crtChipHeader) + chipHdr.romSize > romData.size())
+        if (offset + chipHdr.romSize > romData.size())
         {
             if (logger && setLogging)
             {
@@ -734,8 +800,8 @@ void Cartridge::determineWiringMode()
 {
     // Default to no cartridge mapped
     wiringMode = WiringMode::NONE;
-    setExROMLine(true);
-    setGameLine(true);
+    setExROMLine(exrom);
+    setGameLine(game);
 
     bool any8000 = false, anyA000 = false, anyE000 = false, any16K = false;
 
@@ -794,7 +860,7 @@ void Cartridge::determineWiringMode()
 
 void Cartridge::traceActiveWindows(const char* why)
 {
-    if (!traceMgr->isEnabled() || !traceMgr->catOn(TraceManager::TraceCat::CART)) return;
+    if (!traceMgr || !traceMgr->isEnabled() || !traceMgr->catOn(TraceManager::TraceCat::CART)) return;
     auto stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
                 vicII ? vicII->getRasterDot() : 0);
 
@@ -813,5 +879,81 @@ void Cartridge::traceActiveWindows(const char* why)
         default:
             traceMgr->recordCustomEvent(std::string("CART map change (") + why + "): " + getMapperName());
             break;
+    }
+}
+
+uint8_t Cartridge::selectInitialBank(const std::vector<Cartridge::chipSection>& sections)
+{
+    if (sections.empty()) return 0;
+
+    bool has0 = false;
+    uint16_t minBank = 0xFFFF;
+
+    for (const auto& s : sections)
+    {
+        if (s.bankNumber == 0) has0 = true;
+        if (s.bankNumber < minBank) minBank = s.bankNumber;
+    }
+
+    return has0 ? 0 : static_cast<uint8_t>(minBank);
+}
+
+bool Cartridge::mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode wiringMode, cartLocation& outLoc, uint16_t& outOffset)
+{
+    // $8000-$9FFF always maps to cart LO when a cart is active
+    if (cpuAddr >= 0x8000 && cpuAddr <= 0x9FFF)
+    {
+        outLoc = cartLocation::LO;
+        outOffset = static_cast<uint16_t>(cpuAddr - 0x8000);
+        return true;
+    }
+
+    // $A000-$BFFF only maps to cart HI in 16K mode
+    if (wiringMode == Cartridge::WiringMode::CART_16K)
+    {
+        if (cpuAddr >= 0xA000 && cpuAddr <= 0xBFFF)
+        {
+            outLoc = cartLocation::HI;
+            outOffset = static_cast<uint16_t>(cpuAddr - 0xA000);
+            return true;
+        }
+    }
+
+    // Ultimax high ROM at $E000-$FFFF maps into your HI buffer
+    if (wiringMode == Cartridge::WiringMode::CART_ULTIMAX && cpuAddr >= 0xE000)
+    {
+        outLoc = cartLocation::HI;
+        outOffset = static_cast<uint16_t>(cpuAddr - 0xE000);
+        return true;
+    }
+
+    return false;
+}
+
+std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
+{
+    switch (t)
+    {
+        case CartridgeType::ACTION_REPLAY:   return std::make_unique<ActionReplayMapper>();
+        case CartridgeType::C64_GAME_SYSTEM: return std::make_unique<C64GameSystemMapper>();
+        case CartridgeType::DINAMIC:         return std::make_unique<DinamicMapper>();
+        case CartridgeType::EASYFLASH:       return std::make_unique<EasyFlashMapper>();
+        case CartridgeType::OCEAN:           return std::make_unique<OceanMapper>();
+        case CartridgeType::EPYX_FASTLOAD:   return std::make_unique<EpyxFastloadMapper>();
+        case CartridgeType::ROSS:            return std::make_unique<RossMapper>();
+        case CartridgeType::STRUCTURED_BASIC:return std::make_unique<StructuredBasicMapper>();
+        case CartridgeType::SUPER_GAMES:     return std::make_unique<SuperGamesMapper>();
+        case CartridgeType::SUPER_ZAXXON:    return std::make_unique<SuperZaxxonMapper>();
+        case CartridgeType::SIMONS_BASIC:    return std::make_unique<SimonsBasicMapper>();
+        case CartridgeType::MAGICDESK:       return std::make_unique<MagicDeskMapper>();
+        case CartridgeType::FUN_PLAY:        return std::make_unique<FunPlayMapper>();
+
+        case CartridgeType::KCS_POWER:
+        case CartridgeType::WESTERMANN:
+        case CartridgeType::GENERIC:
+            return std::make_unique<GenericMapper>();
+
+        default:
+            return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping
     }
 }
