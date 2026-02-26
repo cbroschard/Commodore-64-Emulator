@@ -800,8 +800,8 @@ void Cartridge::determineWiringMode()
 {
     // Default to no cartridge mapped
     wiringMode = WiringMode::NONE;
-    setExROMLine(exrom);
-    setGameLine(game);
+    setExROMLine(true);
+    setGameLine(true);
 
     bool any8000 = false, anyA000 = false, anyE000 = false, any16K = false;
 
