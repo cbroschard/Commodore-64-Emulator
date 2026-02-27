@@ -52,51 +52,38 @@ bool DinamicMapper::applyMappingAfterLoad()
 
 uint8_t DinamicMapper::read(uint16_t address)
 {
-    // ROM reads are already handled by mem, so nothing special
+    if (address >= 0xDE00 && address <= 0xDEFF)
+    {
+        uint8_t bank = static_cast<uint8_t>(address & 0x0F);
+
+        dinamicBank = bank;
+        loadIntoMemory(dinamicBank);
+
+        return 0xFF;
+    }
     return 0xFF;
 }
 
 void DinamicMapper::write(uint16_t address, uint8_t value)
 {
-    if (address == 0xDE00)
-    {
-        dinamicBank = value;
-        loadIntoMemory(dinamicBank);
-    }
+    (void)address;
+    (void)value;
 }
 
 bool DinamicMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart || !mem) return false;
 
-    // Clear LO + HI
     cart->clearCartridge(cartLocation::LO);
-    cart->clearCartridge(cartLocation::HI);
 
-    bool loMapped = false;
-    bool hiMapped = false;
-
-    // --- LO: first 8K of bank ---
     for (const auto& section : cart->getChipSections())
     {
         if (section.bankNumber == bank && section.loadAddress == CART_LO_START)
         {
             for (size_t i = 0; i < section.data.size(); ++i)
                 mem->writeCartridge(i, section.data[i], cartLocation::LO);
-            loMapped = true;
+            return true;
         }
     }
-
-    // --- HI: second 8K of bank ---
-    for (const auto& section : cart->getChipSections())
-    {
-        if (section.bankNumber == bank && section.loadAddress == CART_HI_START)
-        {
-            for (size_t i = 0; i < section.data.size(); ++i)
-                mem->writeCartridge(i, section.data[i], cartLocation::HI);
-            hiMapped = true;
-        }
-    }
-
-    return loMapped || hiMapped;
+    return false;
 }
