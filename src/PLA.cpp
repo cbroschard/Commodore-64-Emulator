@@ -164,6 +164,17 @@ std::string PLA::describeAddress(uint16_t addr)
 
 std::string PLA::describeMode()
 {
+    if (cart && cartridgeAttached)
+    {
+        exROMLine = cart->getExROMLine();
+        gameLine  = cart->getGameLine();
+    }
+    else
+    {
+        exROMLine = true;
+        gameLine  = true;
+    }
+
     std::ostringstream out;
     out << "PLA State:\n";
     out << "  GAME="  << (gameLine ? "1 (inactive)" : "0 (asserted)") << "\n";
@@ -173,7 +184,7 @@ std::string PLA::describeMode()
     out << "  CHAREN="<< (charen ? "1" : "0") << "\n";
 
     // Show effective wiring mode if a cart is attached
-    if (cartridgeAttached && cart)
+    if (cart && cartridgeAttached)
     {
         switch (cart->getWiringMode())
         {
