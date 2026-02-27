@@ -107,6 +107,8 @@ class Cartridge
 
         // Type getters
         CartridgeType getType() const;
+        inline CartridgeMapper* getMapper() { return mapper.get(); }
+        inline const CartridgeMapper* getMapper() const { return mapper.get(); }
         std::string getMapperName() const;
 
         // Helpers
