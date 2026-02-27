@@ -88,11 +88,16 @@ void PLA::updateMemoryControlRegister(uint8_t value)
 
 PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 {
-    if (cartridgeAttached)
+    if (cart && cartridgeAttached)
     {
         // Get current exROMLine and gameLine from the cartridge
         exROMLine = cart->getExROMLine();
         gameLine = cart->getGameLine();
+    }
+    else
+    {
+        exROMLine = true;
+        gameLine = true;
     }
 
     // Compute the mode index by combining control bits:
