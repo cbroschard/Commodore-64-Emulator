@@ -48,9 +48,12 @@ class Cartridge
 
         bool setCurrentBank(uint8_t bank);      // Update the current bank for loading
 
-        // Getters to help determine how to set memory control register
-        inline bool getExROMLine() const { return header.exROMLine; }
-        inline bool getGameLine() const { return header.gameLine; }
+        // Live cartridge pin *levels* (1=inactive/high, 0=asserted/low)
+        inline bool getExROMLine() const { return exROMLine; }
+        inline bool getGameLine()  const { return gameLine; }
+
+        inline void setExROMLine(bool level) { exROMLine = level; }
+        inline void setGameLine(bool level)  { gameLine = level; }
 
         // Getter for game name
         inline std::string getGameName() const { return std::string(header.gameName); }
@@ -119,10 +122,8 @@ class Cartridge
         // Clear cartridge memory
         void clearCartridge(cartLocation location);
 
-        // Getters/Setters for Cartridge Mappers
+        // Cartridge Mapper access
         inline const std::vector<chipSection>& getChipSections() const { return chipSections; }
-        inline void setExROMLine(bool exROMLine) { header.exROMLine = exROMLine; }
-        inline void setGameLine(bool gameLine) { header.gameLine = gameLine; }
         inline WiringMode getWiringMode() { return wiringMode; }
         inline size_t getCartridgeSize() const { return cartSize / 1024; }
         inline std::vector<chipSection>& getChipSections() { return chipSections; }
@@ -160,6 +161,10 @@ class Cartridge
 
         // Keep track of cartridge size
         size_t cartSize;
+
+        // Line levels
+        bool exROMLine;
+        bool gameLine;
 
         // Cartridge mapping
         CartridgeType mapperType;

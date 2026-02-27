@@ -31,6 +31,8 @@ Cartridge::Cartridge() :
     vicII(nullptr),
     wiringMode(WiringMode::NONE),
     cartSize(0),
+    exROMLine(true),
+    gameLine(true),
     mapperType(CartridgeType::GENERIC),
     setLogging(false)
 {
@@ -59,8 +61,8 @@ void Cartridge::saveState(StateWriter& wrtr) const
     wrtr.writeVectorU8(romData);
 
     // Dump GAME / EXROM
-    wrtr.writeBool(header.gameLine);
-    wrtr.writeBool(header.exROMLine);
+    wrtr.writeBool(gameLine);
+    wrtr.writeBool(exROMLine);
 
     // Dump If cartridge has RAM
     wrtr.writeBool(hasRAM);
@@ -122,9 +124,6 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     // Drive the actual PLA lines
     setGameLine(game);
     setExROMLine(exrom);
-
-    header.gameLine  = game ? 1 : 0;
-    header.exROMLine = exrom ? 1 : 0;
 
     // RAM snapshot
     if (!rdr.readBool(hasRAM)) { rdr.exitChunkPayload(chunk); return false; }
@@ -190,6 +189,8 @@ bool Cartridge::loadROM(const std::string& path)
     mapperType = CartridgeType::GENERIC;
     header.exROMLine = true;
     header.gameLine = true;
+    exROMLine = true;
+    gameLine = true;
 
     if (!(loadFile(path, romData)))
     {
@@ -209,6 +210,10 @@ bool Cartridge::loadROM(const std::string& path)
 
     // Parse the header info
     std::memcpy(&header, romData.data(), sizeof(header));
+
+    // Initialize live pin levels from the CRT header (as a starting point)
+    exROMLine = header.exROMLine ? true : false;
+    gameLine  = header.gameLine  ? true : false;
 
     if (std::strncmp(header.magic, "C64 CARTRIDGE   ", sizeof(header.magic)) != 0)
     {
@@ -526,7 +531,7 @@ bool Cartridge::loadIntoMemory()
             {
                 cartLocation location = cartLocation::HI;
                 // Determine HI base based on header flags.
-                uint16_t hiBase = (header.exROMLine && !header.gameLine) ? CART_HI_START1 : CART_HI_START;
+                uint16_t hiBase = (exROMLine && !gameLine) ? CART_HI_START1 : CART_HI_START;
 
                 #ifdef Debug
                 std::cout << "Loading 16K section: HI bank at base address 0x" << std::hex << hiBase << std::endl;
@@ -551,8 +556,13 @@ bool Cartridge::loadIntoMemory()
             }
             else if (section.loadAddress == CART_HI_START || section.loadAddress == CART_HI_START1)
             {
+                // Always map ROMH content to the HI buffer, starting at 0.
                 location = cartLocation::HI;
-                baseAddress = (header.exROMLine && !header.gameLine) ? CART_HI_START1 : CART_HI_START;
+
+                for (size_t i = 0; i < section.data.size(); ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+
+                continue;
             }
             else
             {
@@ -753,11 +763,11 @@ void Cartridge::determineWiringMode()
 
     if (mapperType == CartridgeType::OCEAN) {
         if (anyA000 || any16K) {
-            wiringMode = WiringMode::CART_16K;   // GAME=0, EXROM=0
+            wiringMode = WiringMode::CART_16K;
             setExROMLine(false);
             setGameLine(false);
         } else if (any8000) {
-            wiringMode = WiringMode::CART_8K;    // GAME=1, EXROM=0
+            wiringMode = WiringMode::CART_8K;
             setExROMLine(false);
             setGameLine(true);
         }
