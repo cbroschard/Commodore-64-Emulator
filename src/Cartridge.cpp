@@ -736,7 +736,7 @@ bool Cartridge::processChipSections()
 
 void Cartridge::determineWiringMode()
 {
-    // Default to no cartridge mapped
+    // Default
     wiringMode = WiringMode::NONE;
     setExROMLine(true);
     setGameLine(true);
@@ -749,24 +749,47 @@ void Cartridge::determineWiringMode()
         const uint32_t end   = s.loadAddress + static_cast<uint32_t>(s.data.size()); // exclusive
 
         if (s.loadAddress == 0x8000 && s.data.size() >= 16384) any16K = true;
-        if (start <= 0x9FFF && end > 0x8000)  any8000 = true;  // overlaps $8000-$9FFF
-        if (start <= 0xBFFF && end > 0xA000)  anyA000 = true;  // overlaps $A000-$BFFF
-        if (start <= 0xFFFF && end > 0xE000)  anyE000 = true;  // overlaps $E000-$FFFF
+        if (start <= 0x9FFF && end > 0x8000)  any8000 = true;
+        if (start <= 0xBFFF && end > 0xA000)  anyA000 = true;
+        if (start <= 0xFFFF && end > 0xE000)  anyE000 = true;
     }
 
-    if (anyE000) {
+    // 1) Prefer the CRT header wiring first (most authoritative)
+    // header.exROMLine / header.gameLine are file-provided line levels (0/1).
+    if (header.exROMLine && !header.gameLine)
+    {
         wiringMode = WiringMode::CART_ULTIMAX;
         setExROMLine(true);
         setGameLine(false);
         return;
     }
+    if (!header.exROMLine && !header.gameLine)
+    {
+        wiringMode = WiringMode::CART_16K;
+        setExROMLine(false);
+        setGameLine(false);
+        return;
+    }
+    if (!header.exROMLine && header.gameLine)
+    {
+        wiringMode = WiringMode::CART_8K;
+        setExROMLine(false);
+        setGameLine(true);
+        return;
+    }
 
-    if (mapperType == CartridgeType::OCEAN) {
-        if (anyA000 || any16K) {
+    // 2) If header was inconclusive (NONE), then infer from chip windows.
+    //    IMPORTANT: do NOT treat anyE000 as Ultimax by itself.
+    if (mapperType == CartridgeType::OCEAN)
+    {
+        if (anyA000 || any16K)
+        {
             wiringMode = WiringMode::CART_16K;
             setExROMLine(false);
             setGameLine(false);
-        } else if (any8000) {
+        }
+        else if (any8000)
+        {
             wiringMode = WiringMode::CART_8K;
             setExROMLine(false);
             setGameLine(true);
@@ -774,25 +797,24 @@ void Cartridge::determineWiringMode()
         return;
     }
 
-    if (!header.exROMLine && !header.gameLine) {
+    // Generic inference (no Ultimax inference from E000)
+    if (anyA000 || any16K)
+    {
         wiringMode = WiringMode::CART_16K;
-        setExROMLine(false); setGameLine(false);
-    } else if (!header.exROMLine && header.gameLine) {
-        wiringMode = WiringMode::CART_8K;
-        setExROMLine(false); setGameLine(true);
-    } else if (header.exROMLine && !header.gameLine) {
-        wiringMode = WiringMode::CART_ULTIMAX;
-        setExROMLine(true); setGameLine(false);
+        setExROMLine(false);
+        setGameLine(false);
     }
-
-    if (wiringMode == WiringMode::NONE) {
-        if (anyA000 || any16K) {
-            wiringMode = WiringMode::CART_16K;
-            setExROMLine(false); setGameLine(false);
-        } else if (any8000) {
-            wiringMode = WiringMode::CART_8K;
-            setExROMLine(false); setGameLine(true);
-        }
+    else if (any8000)
+    {
+        wiringMode = WiringMode::CART_8K;
+        setExROMLine(false);
+        setGameLine(true);
+    }
+    else
+    {
+        wiringMode = WiringMode::NONE;
+        setExROMLine(true);
+        setGameLine(true);
     }
 }
 
