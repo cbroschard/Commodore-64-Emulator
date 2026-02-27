@@ -488,6 +488,19 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Cartridge"))
+        {
+            // Freeze (enabled only if available)
+            if (!v.canFreeze) ImGui::BeginDisabled();
+
+            if (ImGui::MenuItem("Freeze", "F9"))
+                push(UiCommand::Type::Freeze);
+
+            if (!v.canFreeze) ImGui::EndDisabled();
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Help"))
         {
             if (ImGui::MenuItem("About")) aboutRequested = true;

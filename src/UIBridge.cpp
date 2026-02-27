@@ -1,4 +1,5 @@
 #include <SDL2/sdl.h>
+#include "Cartridge/IFreezable.h"
 #include "InputManager.h"
 #include "MediaManager.h"
 #include "UIBridge.h"
@@ -71,6 +72,17 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 
     s.paused = uiPaused_.load();
     s.pal    = isPal_ ? isPal_() : false;
+
+    s.canFreeze = false;
+
+    if (media_ && s.cartAttached)
+    {
+        if (auto* cart = media_->getCartridge())
+        {
+            const CartridgeMapper* mapper = cart->getMapper();
+            s.canFreeze = (dynamic_cast<const IFreezable*>(mapper) != nullptr);
+        }
+    }
 
     return s;
 }
@@ -184,6 +196,10 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::AssignPad2ToPort2:
                 if (input_ && input_->getPad2()) input_->assignPadToPort(input_->getPad2(), 2);
+                break;
+
+            case UiCommand::Type::Freeze:
+                if (media_) media_->pressFreeze();
                 break;
 
             case UiCommand::Type::ClearPort1Pad:

@@ -32,6 +32,8 @@ struct UiCommand
         EjectCRT,
         EjectTape,
 
+        Freeze,
+
         CassPlay,
         CassStop,
         CassRewind,

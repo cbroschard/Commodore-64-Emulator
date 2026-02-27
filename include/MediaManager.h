@@ -113,8 +113,11 @@ public:
     void attachTAPImage();
 
     // Load state effects
+    inline const Cartridge* getCartridge() const { return cart_.get(); }
     inline bool isCartridgeAttached() const { return state_.cartAttached; }
     inline bool isTapeAttached() const { return state_.tapeAttached; }
+    bool canFreeze() const;
+    void pressFreeze();
     void restoreCartridgeFromState();
     void restoreTapeMountOnlyFromState();
 

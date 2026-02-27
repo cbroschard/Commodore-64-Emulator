@@ -45,6 +45,8 @@ class EmulatorUI
 
             bool paused          = false;
             bool pal             = true;
+
+            bool canFreeze       = false;
         };
 
         void setMediaViewState(const MediaViewState& s);

@@ -11,6 +11,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "Cartridge.h"
+#include "Cartridge/IFreezable.h"
 #include "cassette.h"
 #include "CPU.h"
 #include "Drive/D1541.h"
@@ -399,6 +400,31 @@ void MediaManager::attachTAPImage()
         std::cout << "Unable to load tape: " << state_.tapePath << "\n";
         #endif
         state_.tapeAttached = false;
+    }
+}
+
+bool MediaManager::canFreeze() const
+{
+    if (!state_.cartAttached) return false;
+
+    bool canFreeze = false;
+    if (cart_)
+    {
+        auto* mapper = cart_->getMapper();
+        canFreeze = (dynamic_cast<IFreezable*>(mapper) != nullptr);
+    }
+
+    return canFreeze;
+}
+
+void MediaManager::pressFreeze()
+{
+    if (!cart_) return;
+
+    auto* mapper = cart_->getMapper();
+    if (auto* f = dynamic_cast<IFreezable*>(mapper))
+    {
+        f->pressFreeze();
     }
 }
 
