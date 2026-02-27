@@ -10,8 +10,9 @@
 
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/ICPUAttachable.h"
+#include "Cartridge/IFreezable.h"
 
-class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable
+class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable, public IFreezable
 {
     public:
         ActionReplayMapper();
@@ -29,7 +30,7 @@ class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable
         bool loadIntoMemory(uint8_t bank) override;
 
         // Called from UI
-        void pressFreeze();
+        void pressFreeze() override;
 
     protected:
 
