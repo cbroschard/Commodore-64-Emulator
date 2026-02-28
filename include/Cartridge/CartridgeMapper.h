@@ -36,6 +36,8 @@ class CartridgeMapper
 
         virtual bool loadIntoMemory(uint8_t bank) = 0;
 
+        virtual void reset() {}
+
     protected:
         Cartridge* cart = nullptr;
         Memory* mem = nullptr;
