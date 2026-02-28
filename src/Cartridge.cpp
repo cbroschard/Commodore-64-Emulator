@@ -272,6 +272,11 @@ bool Cartridge::loadROM(const std::string& path)
             cpuCap->attachCPUInstance(processor);
         }
 
+        if (mapperType == Cartridge::CartridgeType::MAGICDESK)
+        {
+            mapper->reset();
+        }
+
         // Load the selected bank through mapper logic
         return mapper->loadIntoMemory(currentBank);
     }
@@ -373,17 +378,6 @@ void Cartridge::write(uint16_t address, uint8_t value)
             traceActiveWindows(out.c_str());
         }
         return;
-    }
-
-    switch (mapperType)
-    {
-        case CartridgeType::ACTION_REPLAY:
-        {
-            // TODO: add logic
-            break;
-        }
-        default:
-            break;
     }
 }
 
