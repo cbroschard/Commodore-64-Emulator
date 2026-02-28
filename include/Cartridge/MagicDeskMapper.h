@@ -26,6 +26,9 @@ class MagicDeskMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        // Reset function
+        void reset() override;
+
     protected:
 
     private:
