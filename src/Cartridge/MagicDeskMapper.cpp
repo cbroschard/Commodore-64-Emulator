@@ -41,7 +41,7 @@ bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
     if (!rdr.readU8(magicDeskBank)) { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(disabled))    { rdr.exitChunkPayload(chunk); return false; }
 
-    magicDeskBank &= 0x7F; // safety
+    magicDeskBank &= 0x3F; // safety
 
     rdr.exitChunkPayload(chunk);
     return true;
@@ -68,41 +68,42 @@ bool MagicDeskMapper::applyMappingAfterLoad()
 
 uint8_t MagicDeskMapper::read(uint16_t address)
 {
-    if (address == 0xDE00)
+    if (!disabled && ((address & 0xFF00) == 0xDE00))
     {
-        return magicDeskBank;
+        // typical behavior: bank number in low bits, bit7 shows enable/disable
+        return uint8_t((magicDeskBank & 0x3F) | (disabled ? 0x80 : 0));
     }
-
-    // Default open Bus
     return 0xFF;
 }
 
+static inline bool isIO1(uint16_t a) { return (a & 0xFF00) == 0xDE00; }
+
 void MagicDeskMapper::write(uint16_t address, uint8_t value)
 {
-    if (address != 0xDE00)
+    if (!isIO1(address))
         return;
 
-    uint8_t newBank = (value & 0x7F);
-    disabled = (value & 0x80) != 0;
+    const bool newDisabled = (value & 0x80) != 0;
+    const uint8_t newBank  = (value & 0x3F);
+
+    disabled = newDisabled;
 
     if (disabled)
     {
         cart->setGameLine(true);
         cart->setExROMLine(true);
+
         cart->clearCartridge(cartLocation::LO);
-    }
-    else
-    {
-        cart->setGameLine(true);
-        cart->setExROMLine(false);
+        return;
     }
 
-    if (magicDeskBank != newBank)
-    {
-        magicDeskBank = newBank;
+    cart->setGameLine(true);
+    cart->setExROMLine(false);
 
-        cart->setCurrentBank(magicDeskBank);
-    }
+    magicDeskBank = newBank;
+    cart->setCurrentBank(magicDeskBank);
+
+    loadIntoMemory(magicDeskBank);
 }
 
 bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
@@ -112,7 +113,8 @@ bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
 
     const auto& sections = cart->getChipSections();
     for (const auto& sec : sections) {
-        if (sec.bankNumber == bank && sec.loadAddress == CART_LO_START) {
+        if (sec.bankNumber == bank && (sec.loadAddress == CART_LO_START || sec.loadAddress == 0x8000 || sec.loadAddress == 0x0000))
+        {
             size_t size = std::min(sec.data.size(), size_t(0x2000));
             for (size_t i = 0; i < size; ++i)
                 mem->writeCartridge(i, sec.data[i], cartLocation::LO);
