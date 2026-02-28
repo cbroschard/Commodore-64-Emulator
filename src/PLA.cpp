@@ -20,7 +20,7 @@ PLA::PLA() :
     lastexROMLine(false),
     lastgameLine(false)
 {
-
+    reset();
 }
 
 PLA::~PLA() = default;
@@ -150,8 +150,6 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
     }
 
     return info;
-    info.bank = UNMAPPED;
-    return info;
 }
 
 std::string PLA::describeAddress(uint16_t addr)
@@ -252,60 +250,61 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     else                               cfg = CartCfg::Ultimax;
 
     // ---------- Ultimax ----------
+    // Ultimax completely bypasses normal memory mapping rules
     if (cfg == CartCfg::Ultimax)
     {
-        if (addr <= 0x0FFF)
-            return RAM;
-
-        if (addr >= 0x8000 && addr <= 0x9FFF)
-            return CARTRIDGE_LO;
-
-        if (addr >= 0xD000 && addr <= 0xDFFF)
-            return IO;
-
-        if (addr >= 0xE000)
-            return CARTRIDGE_HI;
-
+        if (addr <= 0x0FFF) return RAM;
+        if (addr >= 0x8000 && addr <= 0x9FFF) return CARTRIDGE_LO;
+        if (addr >= 0xD000 && addr <= 0xDFFF) return IO;
+        if (addr >= 0xE000) return CARTRIDGE_HI;
         return UNMAPPED;
     }
 
-    // ---------- ROML ($8000-$9FFF) ----------
-    if (!(exROMLine && gameLine) &&
-        addr >= 0x8000 && addr <= 0x9FFF)
+    // ---------- $8000-$9FFF (ROML) ----------
+    if (addr >= 0x8000 && addr <= 0x9FFF)
     {
-        return CARTRIDGE_LO;
+        if (cfg == CartCfg::Cart8K || cfg == CartCfg::Cart16K)
+            return CARTRIDGE_LO;
+
+        return RAM;
     }
 
-    // ---------- $A000-$BFFF ----------
+    // ---------- $A000-$BFFF (ROMH / BASIC) ----------
     if (addr >= 0xA000 && addr <= 0xBFFF)
     {
+        // 16K cart maps ROMH here regardless of LORAM/HIRAM
         if (cfg == CartCfg::Cart16K)
             return CARTRIDGE_HI;
 
-        if (loram && hiram)
+        // No cart: BASIC depends on LORAM+HIRAM
+        if (cfg == CartCfg::None && loram && hiram)
             return BASIC_ROM;
 
         return RAM;
     }
 
-    // ---------- $E000-$FFFF ----------
-    if (addr >= 0xE000)
-    {
-        if (hiram)
-            return KERNAL_ROM;
-
-        return RAM;
-    }
-
-    // ---------- $D000-$DFFF ----------
+    // ---------- $D000-$DFFF (I/O / CHAR_ROM) ----------
     if (addr >= 0xD000 && addr <= 0xDFFF)
     {
+        // 64K RAM mode completely exposes the RAM under I/O
         if (!hiram && !loram)
             return RAM;
 
         return charen ? IO : CHARACTER_ROM;
     }
 
+    // ---------- $E000-$FFFF (KERNAL) ----------
+    if (addr >= 0xE000)
+    {
+        // KERNAL ROM relies solely on HIRAM for None, 8K, and 16K modes
+        if (hiram)
+            return KERNAL_ROM;
+
+        return RAM;
+    }
+
+    // ---------- Everything Else ----------
+    // $0000-$7FFF and $C000-$CFFF are always RAM in normal modes
     return RAM;
 }
 
