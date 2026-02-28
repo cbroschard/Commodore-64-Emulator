@@ -127,6 +127,7 @@ class PLA
         bool lastexROMLine;
         bool lastgameLine;
 
+        memoryBank resolveBank(uint16_t address) const;
         const char* bankToString(PLA::memoryBank bank);
 };
 

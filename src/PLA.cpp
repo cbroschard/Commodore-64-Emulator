@@ -6,7 +6,6 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "PLA.h"
-#include "PLAMapper.h"
 
 PLA::PLA() :
     cart(nullptr),
@@ -128,25 +127,29 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
         lastgameLine = gameLine;
     }
 
-    // Retrieve the appropriate mapping configuration.
-    const PLAMapper::modeMapping* mappingTable = PLAMapper::getMappings();
-    const PLAMapper::modeMapping& currentMode = mappingTable[modeIndex];
-
     memoryAccessInfo info;
-    info.bank = RAM;   // default
-    info.offset = address;
 
-    // Find the region covering the requested address.
-    for (const auto & region : currentMode.regions)
+    info.bank = resolveBank(address);
+
+    switch (info.bank)
     {
-        if (address >= region.start && address <= region.end)
-        {
-            info.bank = region.bank;
-            info.offset = address - region.offsetBase;
+        case BASIC_ROM:     info.offset = address - 0xA000; break;
+        case KERNAL_ROM:    info.offset = address - 0xE000; break;
+        case CHARACTER_ROM: info.offset = address - 0xD000; break;
+        case CARTRIDGE_LO:  info.offset = address - 0x8000; break;
 
-            return info;
-        }
+        case CARTRIDGE_HI:
+            info.offset = (address >= 0xE000)
+                            ? address - 0xE000
+                            : address - 0xA000;
+            break;
+
+        default:
+            info.offset = address;
+            break;
     }
+
+    return info;
     info.bank = UNMAPPED;
     return info;
 }
@@ -234,6 +237,76 @@ std::string PLA::describeMode()
     regionReport(0xE000, 0xFFFF);
 
     return out.str();
+}
+
+PLA::memoryBank PLA::resolveBank(uint16_t addr) const
+{
+    // Cartridge configuration derived from GAME/EXROM
+    enum class CartCfg { None, Cart8K, Cart16K, Ultimax };
+
+    CartCfg cfg;
+
+    if ( exROMLine &&  gameLine) cfg = CartCfg::None;
+    else if (!exROMLine &&  gameLine) cfg = CartCfg::Cart8K;
+    else if (!exROMLine && !gameLine) cfg = CartCfg::Cart16K;
+    else                               cfg = CartCfg::Ultimax;
+
+    // ---------- Ultimax ----------
+    if (cfg == CartCfg::Ultimax)
+    {
+        if (addr <= 0x0FFF)
+            return RAM;
+
+        if (addr >= 0x8000 && addr <= 0x9FFF)
+            return CARTRIDGE_LO;
+
+        if (addr >= 0xD000 && addr <= 0xDFFF)
+            return IO;
+
+        if (addr >= 0xE000)
+            return CARTRIDGE_HI;
+
+        return UNMAPPED;
+    }
+
+    // ---------- ROML ($8000-$9FFF) ----------
+    if (!(exROMLine && gameLine) &&
+        addr >= 0x8000 && addr <= 0x9FFF)
+    {
+        return CARTRIDGE_LO;
+    }
+
+    // ---------- $A000-$BFFF ----------
+    if (addr >= 0xA000 && addr <= 0xBFFF)
+    {
+        if (cfg == CartCfg::Cart16K)
+            return CARTRIDGE_HI;
+
+        if (loram && hiram)
+            return BASIC_ROM;
+
+        return RAM;
+    }
+
+    // ---------- $E000-$FFFF ----------
+    if (addr >= 0xE000)
+    {
+        if (hiram)
+            return KERNAL_ROM;
+
+        return RAM;
+    }
+
+    // ---------- $D000-$DFFF ----------
+    if (addr >= 0xD000 && addr <= 0xDFFF)
+    {
+        if (!hiram && !loram)
+            return RAM;
+
+        return charen ? IO : CHARACTER_ROM;
+    }
+
+    return RAM;
 }
 
 const char* PLA::bankToString(PLA::memoryBank bank)
