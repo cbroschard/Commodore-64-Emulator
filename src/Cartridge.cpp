@@ -741,7 +741,7 @@ void Cartridge::determineWiringMode()
     setExROMLine(true);
     setGameLine(true);
 
-    bool any8000 = false, anyA000 = false, anyE000 = false, any16K = false;
+    bool any8000 = false, anyA000 = false, any16K = false;
 
     for (const auto& s : chipSections)
     {
@@ -751,7 +751,6 @@ void Cartridge::determineWiringMode()
         if (s.loadAddress == 0x8000 && s.data.size() >= 16384) any16K = true;
         if (start <= 0x9FFF && end > 0x8000)  any8000 = true;
         if (start <= 0xBFFF && end > 0xA000)  anyA000 = true;
-        if (start <= 0xFFFF && end > 0xE000)  anyE000 = true;
     }
 
     // 1) Prefer the CRT header wiring first (most authoritative)
