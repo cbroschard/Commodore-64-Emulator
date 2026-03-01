@@ -16,6 +16,7 @@
 #include "Cartridge/FinalCartridgePlusMapper.h"
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
+#include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/RossMapper.h"
@@ -23,6 +24,7 @@
 #include "Cartridge/StructuredBasicMapper.h"
 #include "Cartridge/SuperGamesMapper.h"
 #include "Cartridge/SuperZaxxonMapper.h"
+#include "Cartridge/WestermannMapper.h"
 
 Cartridge::Cartridge() :
     hasRAM(false),
@@ -895,12 +897,14 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
     switch (t)
     {
         case CartridgeType::ACTION_REPLAY:          return std::make_unique<ActionReplayMapper>();
+        case CartridgeType::KCS_POWER:              return std::make_unique<KCSPowerMapper>();
         case CartridgeType::FINAL_CARTRIDGE_III:    return std::make_unique<FinalCartridgeIIIMapper>();
         case CartridgeType::C64_GAME_SYSTEM:        return std::make_unique<C64GameSystemMapper>();
         case CartridgeType::DINAMIC:                return std::make_unique<DinamicMapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
         case CartridgeType::OCEAN:                  return std::make_unique<OceanMapper>();
         case CartridgeType::EPYX_FASTLOAD:          return std::make_unique<EpyxFastloadMapper>();
+        case CartridgeType::WESTERMANN:             return std::make_unique<WestermannMapper>();
         case CartridgeType::FINAL_CARTRIDGE:        return std::make_unique<FinalCartridgeMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
@@ -910,11 +914,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::MAGICDESK:              return std::make_unique<MagicDeskMapper>();
         case CartridgeType::FUN_PLAY:               return std::make_unique<FunPlayMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
-
-        case CartridgeType::KCS_POWER:
-        case CartridgeType::WESTERMANN:
-        case CartridgeType::GENERIC:
-            return std::make_unique<GenericMapper>();
+        case CartridgeType::GENERIC:                return std::make_unique<GenericMapper>();
 
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping
