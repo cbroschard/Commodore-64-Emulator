@@ -410,19 +410,15 @@ void Memory::write(uint16_t address, uint8_t value)
             break;
         }
         case PLA::CARTRIDGE_LO:
-        {
-            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-            {
-                cart->writeRAM(accessInfo.offset, value);
-            }
-            break;
-        }
         case PLA::CARTRIDGE_HI:
         {
+            mem[address] = value;
+
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
             {
                 cart->writeRAM(accessInfo.offset, value);
             }
+
             break;
         }
         case PLA::UNMAPPED:
