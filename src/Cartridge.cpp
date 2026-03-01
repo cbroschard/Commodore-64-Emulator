@@ -11,6 +11,9 @@
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
+#include "Cartridge/FinalCartridgeMapper.h"
+#include "Cartridge/FinalCartridgeIIIMapper.h"
+#include "Cartridge/FinalCartridgePlusMapper.h"
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
@@ -299,12 +302,14 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x07: return CartridgeType::FUN_PLAY;
         case 0x08: return CartridgeType::SUPER_GAMES;
         case 0x0B: return CartridgeType::WESTERMANN;
+        case 0x0D: return CartridgeType::FINAL_CARTRIDGE;
         case 0x0E: return CartridgeType::C64_GAME_SYSTEM;
         case 0x11: return CartridgeType::DINAMIC;
         case 0x12: return CartridgeType::SUPER_ZAXXON;
         case 0x13: return CartridgeType::MAGICDESK;
         case 0x16: return CartridgeType::STRUCTURED_BASIC;
         case 0x17: return CartridgeType::ROSS;
+        case 0x1D: return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x20: return CartridgeType::EASYFLASH;
         default:   return CartridgeType::UNKNOWN;
     }
@@ -324,12 +329,14 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FUN_PLAY:             return "Fun Play";
         case CartridgeType::SUPER_GAMES:          return "Super Games";
         case CartridgeType::WESTERMANN:           return "Westermann Learning";
+        case CartridgeType::FINAL_CARTRIDGE:      return "Final Cartridge";
         case CartridgeType::C64_GAME_SYSTEM:      return "C64 Game System, System 3";
         case CartridgeType::DINAMIC:              return "DINAMIC";
         case CartridgeType::SUPER_ZAXXON:         return "Zaxxon, Super Zaxxon";
         case CartridgeType::MAGICDESK:            return "Magic Desk";
         case CartridgeType::STRUCTURED_BASIC:     return "Structured BASIC";
         case CartridgeType::ROSS:                 return "ROSS";
+        case CartridgeType::FINAL_CARTRIDGE_PLUS: return "Final Cartridge Plus";
         case CartridgeType::EASYFLASH:            return "EasyFlash";
         case CartridgeType::UNKNOWN:              return "Unknown cartridge format";
     }
@@ -887,19 +894,22 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
 {
     switch (t)
     {
-        case CartridgeType::ACTION_REPLAY:   return std::make_unique<ActionReplayMapper>();
-        case CartridgeType::C64_GAME_SYSTEM: return std::make_unique<C64GameSystemMapper>();
-        case CartridgeType::DINAMIC:         return std::make_unique<DinamicMapper>();
-        case CartridgeType::EASYFLASH:       return std::make_unique<EasyFlashMapper>();
-        case CartridgeType::OCEAN:           return std::make_unique<OceanMapper>();
-        case CartridgeType::EPYX_FASTLOAD:   return std::make_unique<EpyxFastloadMapper>();
-        case CartridgeType::ROSS:            return std::make_unique<RossMapper>();
-        case CartridgeType::STRUCTURED_BASIC:return std::make_unique<StructuredBasicMapper>();
-        case CartridgeType::SUPER_GAMES:     return std::make_unique<SuperGamesMapper>();
-        case CartridgeType::SUPER_ZAXXON:    return std::make_unique<SuperZaxxonMapper>();
-        case CartridgeType::SIMONS_BASIC:    return std::make_unique<SimonsBasicMapper>();
-        case CartridgeType::MAGICDESK:       return std::make_unique<MagicDeskMapper>();
-        case CartridgeType::FUN_PLAY:        return std::make_unique<FunPlayMapper>();
+        case CartridgeType::ACTION_REPLAY:          return std::make_unique<ActionReplayMapper>();
+        case CartridgeType::FINAL_CARTRIDGE_III:    return std::make_unique<FinalCartridgeIIIMapper>();
+        case CartridgeType::C64_GAME_SYSTEM:        return std::make_unique<C64GameSystemMapper>();
+        case CartridgeType::DINAMIC:                return std::make_unique<DinamicMapper>();
+        case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
+        case CartridgeType::OCEAN:                  return std::make_unique<OceanMapper>();
+        case CartridgeType::EPYX_FASTLOAD:          return std::make_unique<EpyxFastloadMapper>();
+        case CartridgeType::FINAL_CARTRIDGE:        return std::make_unique<FinalCartridgeMapper>();
+        case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
+        case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
+        case CartridgeType::SUPER_GAMES:            return std::make_unique<SuperGamesMapper>();
+        case CartridgeType::SUPER_ZAXXON:           return std::make_unique<SuperZaxxonMapper>();
+        case CartridgeType::SIMONS_BASIC:           return std::make_unique<SimonsBasicMapper>();
+        case CartridgeType::MAGICDESK:              return std::make_unique<MagicDeskMapper>();
+        case CartridgeType::FUN_PLAY:               return std::make_unique<FunPlayMapper>();
+        case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
 
         case CartridgeType::KCS_POWER:
         case CartridgeType::WESTERMANN:
