@@ -263,7 +263,7 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     // ---------- $8000-$9FFF (ROML) ----------
     if (addr >= 0x8000 && addr <= 0x9FFF)
     {
-        if (cfg == CartCfg::Cart8K || cfg == CartCfg::Cart16K)
+        if ((cfg == CartCfg::Cart8K || cfg == CartCfg::Cart16K) && (loram || hiram))
             return CARTRIDGE_LO;
 
         return RAM;
@@ -273,11 +273,11 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     if (addr >= 0xA000 && addr <= 0xBFFF)
     {
         // 16K cart maps ROMH here regardless of LORAM/HIRAM
-        if (cfg == CartCfg::Cart16K)
+        if (cfg == CartCfg::Cart16K && hiram)
             return CARTRIDGE_HI;
 
         // No cart: BASIC depends on LORAM+HIRAM
-        if (cfg == CartCfg::None && loram && hiram)
+        if ((cfg == CartCfg::None || cfg == CartCfg::Cart8K) && loram && hiram)
             return BASIC_ROM;
 
         return RAM;
