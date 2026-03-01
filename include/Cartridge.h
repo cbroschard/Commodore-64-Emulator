@@ -91,8 +91,8 @@ class Cartridge
             GENERIC,
             ACTION_REPLAY,
             KCS_POWER,
-            EPYX_FASTLOAD,
             FINAL_CARTRIDGE_III,
+            EPYX_FASTLOAD,
             SIMONS_BASIC,
             OCEAN,
             C64_GAME_SYSTEM,
@@ -101,10 +101,12 @@ class Cartridge
             MAGICDESK,
             EASYFLASH,
             WESTERMANN,
+            FINAL_CARTRIDGE,
             FUN_PLAY,
             SUPER_GAMES,
             STRUCTURED_BASIC,
             ROSS,
+            FINAL_CARTRIDGE_PLUS,
             UNKNOWN
         };
 
