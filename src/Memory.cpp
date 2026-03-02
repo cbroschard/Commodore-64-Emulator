@@ -385,9 +385,8 @@ void Memory::write(uint16_t address, uint8_t value)
         case PLA::RAM:
         {
             if (accessInfo.offset >= mem.size())
-            {
                 throw std::runtime_error("Error: Attempt to write past end of memory!");
-            }
+
             mem[accessInfo.offset] = value;
             break;
         }
@@ -410,6 +409,16 @@ void Memory::write(uint16_t address, uint8_t value)
             break;
         }
         case PLA::CARTRIDGE_LO:
+        {
+            mem[address] = value;
+
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+
+            break;
+        }
         case PLA::CARTRIDGE_HI:
         {
             mem[address] = value;
@@ -468,6 +477,25 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t Memory::readCartridge(uint16_t offset, cartLocation location) const
+{
+    switch (location)
+    {
+        case cartLocation::LO:
+            if (offset >= cart_lo.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge lo");
+            return cart_lo[offset];
+
+        case cartLocation::HI:
+            if (offset >= cart_hi.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi");
+            return cart_hi[offset];
+
+        default:
+            return 0xFF;
+    }
+}
+
 void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation location)
 {
     switch(location)
@@ -475,33 +503,23 @@ void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation locati
         case cartLocation::LO:
         {
             if (address < cart_lo.size())
-            {
                 cart_lo[address] = value;
-            }
             else
-            {
                 throw std::runtime_error("Error: Attempt to write past end of cartridge lo size");
-            }
             break;
         }
         case cartLocation::HI:
         {
             if (address < cart_hi.size())
-            {
                 cart_hi[address] = value;
-            }
             else
-            {
                 throw std::runtime_error("Error: Attempt to write past end of cartridge hi size");
-            }
             break;
         }
         default:
         {
             if (logger && setLogging)
-            {
                 logger->WriteLog("Attempt to write to unknown cartridge vector");
-            }
             break;
         }
     }

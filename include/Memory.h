@@ -69,8 +69,12 @@ class Memory : public CPUBus
         void write16(uint16_t address, uint16_t value);
         void writeDirect(uint16_t address, uint8_t value);
 
-        // Allow the cartridge to be loaded into memory
+        // Cartridge API
+        uint8_t readCartridge(uint16_t address, cartLocation location) const;
         void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
+
+        // Expose lastBus
+        inline uint8_t getLastBus() const { return lastBus; }
 
         // Setters for cartridge
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
