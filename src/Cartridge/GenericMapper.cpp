@@ -83,7 +83,7 @@ bool GenericMapper::loadIntoMemory(uint8_t bank)
         }
         else if (section.loadAddress == 0xE000)  // Ultimax HI block
         {
-            for (size_t i = 0; i < 8192; ++i) mem->writeCartridge(i, section.data[i], cartLocation::HI);
+            for (size_t i = 0; i < 8192; ++i) mem->writeCartridge(i, section.data[i], cartLocation::HI_E000);
             mapped = true;
         }
     }
