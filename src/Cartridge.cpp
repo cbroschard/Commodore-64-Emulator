@@ -576,6 +576,17 @@ bool Cartridge::loadIntoMemory()
 
                 continue;
             }
+            else if (section.loadAddress == 0xE000)
+            {
+                location = cartLocation::HI_E000;   // <-- IMPORTANT
+                baseAddress = 0xE000;
+
+                // Write starting at offset 0
+                for (size_t i = 0; i < section.data.size(); ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+
+                continue;
+            }
             else
             {
                 // Default to LO if load address is unrecognized.
@@ -593,6 +604,7 @@ bool Cartridge::loadIntoMemory()
                 uint16_t offset = (section.loadAddress - baseAddress) + i;
                 mem->writeCartridge(offset, section.data[i], location);
             }
+
         }
         else
         {
@@ -890,10 +902,10 @@ bool Cartridge::mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode w
         }
     }
 
-    // Ultimax high ROM at $E000-$FFFF maps into your HI buffer
+    // Ultimax high ROM at $E000-$FFFF maps into the dedicated E000 buffer
     if (wiringMode == Cartridge::WiringMode::CART_ULTIMAX && cpuAddr >= 0xE000)
     {
-        outLoc = cartLocation::HI;
+        outLoc = cartLocation::HI_E000;   // <-- IMPORTANT
         outOffset = static_cast<uint16_t>(cpuAddr - 0xE000);
         return true;
     }
