@@ -5,8 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Cartridge/ActionReplayMapper.h"
 #include "Cartridge.h"
+#include "Cartridge/ActionReplayMapper.h"
 #include "CPU.h"
 
 ActionReplayMapper::ActionReplayMapper() :
@@ -173,6 +173,7 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
 
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
+    cart->clearCartridge(cartLocation::HI_E000);
 
     const auto& sections = cart->getChipSections();
 
@@ -197,8 +198,9 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
         {
             const uint16_t la = s.loadAddress;
             const cartLocation loc =
-                (la == 0x8000) ? cartLocation::LO :
-                (la == 0xA000 || la == 0xE000) ? cartLocation::HI :
+                (la == 0x8000)  ? cartLocation::LO :
+                (la == 0xA000)  ? cartLocation::HI :
+                (la == 0xE000)  ? cartLocation::HI_E000 :
                 cartLocation::LO; // fallback
 
             for (size_t i = 0; i < 0x2000; ++i)
@@ -278,8 +280,8 @@ void ActionReplayMapper::pressFreeze()
     // Freeze entry mapping
     ctrl.cartDisabled = false;
     ctrl.bank = 0;
-    ctrl.exromHigh = false; // /EXROM low
-    ctrl.gameLow   = false; // /GAME high
+    ctrl.exromHigh = true;
+    ctrl.gameLow   = true;
     ctrl.ramAtROML = false;
 
     (void)loadIntoMemory(ctrl.bank);
