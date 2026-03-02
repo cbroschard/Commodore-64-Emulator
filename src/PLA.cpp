@@ -133,16 +133,12 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 
     switch (info.bank)
     {
-        case BASIC_ROM:     info.offset = address - 0xA000; break;
-        case KERNAL_ROM:    info.offset = address - 0xE000; break;
-        case CHARACTER_ROM: info.offset = address - 0xD000; break;
-        case CARTRIDGE_LO:  info.offset = address - 0x8000; break;
-
-        case CARTRIDGE_HI:
-            info.offset = (address >= 0xE000)
-                            ? address - 0xE000
-                            : address - 0xA000;
-            break;
+        case BASIC_ROM:         info.offset = address - 0xA000; break;
+        case KERNAL_ROM:        info.offset = address - 0xE000; break;
+        case CHARACTER_ROM:     info.offset = address - 0xD000; break;
+        case CARTRIDGE_LO:      info.offset = address - 0x8000; break;
+        case CARTRIDGE_HI:      info.offset = address - 0xA000; break;
+        case CARTRIDGE_HI_E000: info.offset = address - 0xE000; break;
 
         default:
             info.offset = address;
@@ -254,9 +250,20 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     if (cfg == CartCfg::Ultimax)
     {
         if (addr <= 0x0FFF) return RAM;
-        if (addr >= 0x8000 && addr <= 0x9FFF) return CARTRIDGE_LO;
-        if (addr >= 0xD000 && addr <= 0xDFFF) return IO;
-        if (addr >= 0xE000) return CARTRIDGE_HI;
+        if (addr >= 0x8000 && addr <= 0x9FFF)   return CARTRIDGE_LO;
+        if (addr >= 0xD000 && addr <= 0xDFFF)   return IO;
+        if (addr >= 0xE000)
+        {
+            // If a cart is attached and it says it provides E000 overlay, use it
+            if (cart && cartridgeAttached && cart->getMapper()->isRegionEnabled(CartridgeMapper::CartRegion::ROM_E000_FFFF))
+                return CARTRIDGE_HI_E000;
+
+            if (hiram)
+                return KERNAL_ROM;
+
+            return RAM;
+        }
+
         return UNMAPPED;
     }
 
@@ -312,14 +319,15 @@ const char* PLA::bankToString(PLA::memoryBank bank)
 {
     switch (bank)
     {
-        case PLA::RAM:           return "RAM";
-        case PLA::BASIC_ROM:     return "BASIC ROM";
-        case PLA::KERNAL_ROM:    return "KERNAL ROM";
-        case PLA::CHARACTER_ROM: return "Char ROM";
-        case PLA::IO:            return "I/O";
-        case PLA::CARTRIDGE_LO:  return "Cartridge LO";
-        case PLA::CARTRIDGE_HI:  return "Cartridge HI";
-        case PLA::UNMAPPED:      return "Unmapped";
-        default:                 return "Unmapped";
+        case PLA::RAM:                  return "RAM";
+        case PLA::BASIC_ROM:            return "BASIC ROM";
+        case PLA::KERNAL_ROM:           return "KERNAL ROM";
+        case PLA::CHARACTER_ROM:        return "Char ROM";
+        case PLA::IO:                   return "I/O";
+        case PLA::CARTRIDGE_LO:         return "Cartridge LO";
+        case PLA::CARTRIDGE_HI:         return "Cartridge HI";
+        case PLA::CARTRIDGE_HI_E000:    return "Cartridge HI ($E000)";
+        case PLA::UNMAPPED:             return "Unmapped";
+        default:                        return "Unmapped";
     }
 }

@@ -35,6 +35,7 @@ class PLA
             CHARACTER_ROM,
             CARTRIDGE_LO,
             CARTRIDGE_HI,
+            CARTRIDGE_HI_E000,
             IO,
             UNMAPPED
         };
