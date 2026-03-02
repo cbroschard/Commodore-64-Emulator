@@ -57,6 +57,7 @@ class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable, public
 
             void save(StateWriter& wrtr) const;
             bool load(StateReader& rdr);
+            void decode();
         } ctrl;
 
         // freeze bookkeeping

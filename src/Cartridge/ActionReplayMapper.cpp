@@ -45,6 +45,19 @@ bool ActionReplayMapper::ARControl::load(StateReader& rdr)
     return true;
 }
 
+void ActionReplayMapper::ARControl::decode()
+{
+    gameLow      = (raw & (1 << 0)) != 0;
+    exromHigh    = (raw & (1 << 1)) != 0;
+    cartDisabled = (raw & (1 << 2)) != 0;
+    ramAtROML    = (raw & (1 << 5)) != 0;
+    freezeReset  = (raw & (1 << 6)) != 0;
+
+    const uint8_t a13 = (raw >> 3) & 1;
+    const uint8_t a14 = (raw >> 4) & 1;
+    bank = (a14 << 1) | a13;
+}
+
 void ActionReplayMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("ARPY");
@@ -72,11 +85,16 @@ bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader&
         if (ver != 2)                           { rdr.exitChunkPayload(chunk); return false; }
 
         if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+        ctrl.decode();
+
         if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(io1Enabled))          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(io2RoutesToRam))      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
+
         if (!preFreezeCtrl.load(rdr))           { rdr.exitChunkPayload(chunk); return false; }
+        preFreezeCtrl.decode();
+
         if (!rdr.readU8(preFreezeSelectedBank)) { rdr.exitChunkPayload(chunk); return false; }
 
         // Apply side effects
@@ -127,18 +145,7 @@ void ActionReplayMapper::write(uint16_t address, uint8_t value)
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
         ctrl.raw = value;
-
-        ctrl.gameLow      = (value & (1 << 0)) != 0;   // 1=/GAME low (active)
-        ctrl.exromHigh    = (value & (1 << 1)) != 0;   // 1=/EXROM high (inactive)
-        ctrl.cartDisabled = (value & (1 << 2)) != 0;   // 1=disable $DE00
-        ctrl.freezeReset  = (value & (1 << 6)) != 0;   // 1=reset FREEZE-mode
-        ctrl.ramAtROML    = (value & (1 << 5)) != 0;   // 1=RAM at ROML + IO2 window
-
-        // Bank select: bit3=A13 (LSB), bit4=A14 (MSB). Bit7 is unused.
-        const uint8_t a13 = (value >> 3) & 1;
-        const uint8_t a14 = (value >> 4) & 1;
-        ctrl.bank = (a14 << 1) | a13;
-
+        ctrl.decode();
         applyMappingFromControl();
         return;
     }
@@ -220,21 +227,25 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
 
 void ActionReplayMapper::applyMappingFromControl()
 {
+    if (!mem || !cart)
+        return;
+
     if (ctrl.cartDisabled)
     {
         io1Enabled = false;
         io2RoutesToRam = false;
 
-        if (mem)
-            mem->setROMLOverlayIsRAM(false);
-
+        mem->setROMLOverlayIsRAM(false);
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
         return;
     }
 
-    // Bit6: reset FREEZE-mode
+    // Bit6: reset FREEZE-mode (strobe)
     if (ctrl.freezeReset)
     {
-        ctrl.freezeReset = false; // consume strobe
+        ctrl.raw &= ~(1 << 6);  // clear bit6 in the raw control byte
+        ctrl.decode();          // re-sync derived fields
         clearFreezeMode();
         return;
     }
@@ -253,8 +264,7 @@ void ActionReplayMapper::applyMappingFromControl()
     // Bank ROM if needed
     if (selectedBank != ctrl.bank)
     {
-        selectedBank = ctrl.bank;
-        (void)loadIntoMemory(selectedBank);
+        (void)loadIntoMemory(ctrl.bank);
     }
 
     // Bit5: RAM at ROML ($8000-$9FFF) + IO2 window enabled
@@ -269,7 +279,6 @@ void ActionReplayMapper::pressFreeze()
     if (!cart || !mem || !processor)
         return;
 
-    // Snapshot current mapping so we can return later
     if (!freezeActive)
     {
         preFreezeCtrl = ctrl;
@@ -277,13 +286,11 @@ void ActionReplayMapper::pressFreeze()
     }
     freezeActive = true;
 
-    // Freeze entry mapping
-    ctrl.cartDisabled = false;
-    ctrl.bank = 0;
-    ctrl.exromHigh = true;
-    ctrl.gameLow   = true;
-    ctrl.ramAtROML = false;
+    // Ultimax entry: GAME low (bit0=1), EXROM low (bit1=0), bank0, enabled, no RAM, no strobe
+    ctrl.raw = 0x01;
+    ctrl.decode();
 
+    selectedBank = ctrl.bank;     // should be 0
     (void)loadIntoMemory(ctrl.bank);
     applyMappingFromControl();
 
@@ -298,7 +305,11 @@ void ActionReplayMapper::clearFreezeMode()
     freezeActive = false;
 
     ctrl = preFreezeCtrl;
-    ctrl.freezeReset = false;
+
+    // Ensure freezeReset isn't stuck in raw
+    ctrl.raw &= ~(1 << 6);
+    ctrl.decode();
+
     selectedBank = preFreezeSelectedBank;
 
     (void)loadIntoMemory(selectedBank);
