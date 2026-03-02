@@ -219,6 +219,10 @@ class Cartridge
         static uint8_t selectInitialBank(const std::vector<Cartridge::chipSection>& sections);
         bool mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode wiringMode, cartLocation& outLoc, uint16_t& outOffset);
         std::unique_ptr<CartridgeMapper> createMapper(CartridgeType t);
+
+        // Cart RAM helpers
+        void configureRAM(size_t bytes);
+        void clearRAM();
 };
 
 #endif // CARTRIDGE_H

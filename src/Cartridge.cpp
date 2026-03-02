@@ -257,6 +257,15 @@ bool Cartridge::loadROM(const std::string& path)
     // Detect type of cartridge
     mapperType = detectType(swap16(header.CartridgeHardwareType));
 
+    switch(mapperType)
+    {
+        case CartridgeType::KCS_POWER: // KCS Power has 128 bytes
+            configureRAM(128);
+            break;
+        default:
+            break;
+    }
+
     // Create mapper (or nullptr for UNKNOWN => “no mapper”)
     mapper = createMapper(mapperType);
 
@@ -919,4 +928,16 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping
     }
+}
+
+void Cartridge::configureRAM(size_t sizeBytes)
+{
+    hasRAM = (sizeBytes > 0);
+    ramData.assign(sizeBytes, 0x00);
+}
+
+void Cartridge::clearRAM()
+{
+    hasRAM = false;
+    ramData.clear();
 }
