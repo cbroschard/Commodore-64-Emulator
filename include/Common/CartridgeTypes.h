@@ -9,6 +9,6 @@
 #define CARTRIDGETYPES_H_INCLUDED
 
 // Cartridge memory location
-enum cartLocation { LO, HI };
+enum cartLocation { LO, HI, HI_E000 };
 
 #endif // CARTRIDGETYPES_H_INCLUDED
