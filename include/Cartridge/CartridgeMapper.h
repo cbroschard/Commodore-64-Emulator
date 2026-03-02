@@ -22,6 +22,17 @@ class CartridgeMapper
         CartridgeMapper();
         virtual ~CartridgeMapper();
 
+        enum class CartRegion
+        {
+            ROM_8000_9FFF,
+            ROM_A000_BFFF,
+            ROM_E000_FFFF,
+            IO1,
+            IO2
+        };
+
+        virtual bool isRegionEnabled(CartridgeMapper::CartRegion region) const { return true; }
+
         // State management
         virtual void saveState(StateWriter& wrtr) const = 0;
         virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
