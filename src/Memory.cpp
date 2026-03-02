@@ -35,6 +35,7 @@ Memory::Memory() :
     colorRAM.resize(COLOR_RAM_SIZE,0);
     cart_lo.resize(CART_LO_SIZE,0);
     cart_hi.resize(CART_HI_SIZE,0);
+    cart_hi_e000.resize(CART_HI_E000_SIZE,0);
 
     applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 }
@@ -64,6 +65,7 @@ void Memory::saveState(StateWriter& wrtr) const
     // Dump Cartridge Lo/Hi
     wrtr.writeVectorU8(cart_lo);
     wrtr.writeVectorU8(cart_hi);
+    wrtr.writeVectorU8(cart_hi_e000);
 
     // End the chunk for CIA1
     wrtr.endChunk();
@@ -95,6 +97,7 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Load cart vectors
         if (!rdr.readVectorU8(cart_lo))                                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(cart_hi))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(cart_hi_e000))                                { rdr.exitChunkPayload(chunk); return false; }
 
         // Re-apply port $01 side effects (PLA mapping + cassette motor)
         applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
@@ -214,6 +217,21 @@ uint8_t Memory::read(uint16_t address)
                 throw std::runtime_error("Error: Attempt to read past end of cartridge hi RAM");
             }
             return RET(cart_hi[accessInfo.offset]);
+        }
+        case PLA::CARTRIDGE_HI_E000:
+        {
+            // If the cartridge has RAM and it's active
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
+            if (accessInfo.offset >= cart_hi_e000.size())
+            {
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000 ROM");
+            }
+
+            return RET(cart_hi_e000[accessInfo.offset]);
         }
         case PLA::IO:
         {
@@ -412,7 +430,7 @@ void Memory::write(uint16_t address, uint8_t value)
         {
             mem[address] = value;
 
-            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
             {
                 cart->writeRAM(accessInfo.offset, value);
             }
@@ -423,6 +441,18 @@ void Memory::write(uint16_t address, uint8_t value)
         {
             mem[address] = value;
 
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+
+            break;
+        }
+        case PLA::CARTRIDGE_HI_E000:
+        {
+            mem[address] = value;
+
+            // If you ever support RAM overlay in this region:
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
             {
                 cart->writeRAM(accessInfo.offset, value);
@@ -491,6 +521,11 @@ uint8_t Memory::readCartridge(uint16_t offset, cartLocation location) const
                 throw std::runtime_error("Error: Attempt to read past end of cartridge hi");
             return cart_hi[offset];
 
+        case cartLocation::HI_E000:
+            if (offset >= cart_hi_e000.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000");
+            return cart_hi_e000[offset];
+
         default:
             return 0xFF;
     }
@@ -514,6 +549,14 @@ void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation locati
                 cart_hi[address] = value;
             else
                 throw std::runtime_error("Error: Attempt to write past end of cartridge hi size");
+            break;
+        }
+        case cartLocation::HI_E000:
+        {
+            if (address < cart_hi_e000.size())
+                cart_hi_e000[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge hi e000 size");
             break;
         }
         default:

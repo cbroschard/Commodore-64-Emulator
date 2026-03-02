@@ -121,27 +121,29 @@ class Memory : public CPUBus
         std::vector<uint8_t> colorRAM;
         std::vector<uint8_t> cart_lo;
         std::vector<uint8_t> cart_hi;
+        std::vector<uint8_t> cart_hi_e000;
 
         // Rom constants
-        static constexpr size_t BASIC_ROM_SIZE = 0x2000;
-        static constexpr size_t KERNAL_ROM_SIZE = 0x2000;
-        static constexpr size_t CHAR_ROM_SIZE = 0x1000;
-        static constexpr size_t CART_LO_SIZE = 0x2000;
-        static constexpr size_t CART_HI_SIZE = 0x2000;
-        static constexpr size_t MAX_MEMORY = 0x10000;
-        static constexpr size_t COLOR_RAM_SIZE = 0x400;
-        static const uint16_t COLOR_MEMORY_START = 0xD800;
-        static const uint16_t COLOR_MEMORY_END =  0xDBFF;
+        static constexpr size_t BASIC_ROM_SIZE      = 0x2000;
+        static constexpr size_t KERNAL_ROM_SIZE     = 0x2000;
+        static constexpr size_t CHAR_ROM_SIZE       = 0x1000;
+        static constexpr size_t CART_LO_SIZE        = 0x2000;
+        static constexpr size_t CART_HI_SIZE        = 0x2000;
+        static constexpr size_t CART_HI_E000_SIZE   = 0x2000;
+        static constexpr size_t MAX_MEMORY          = 0x10000;
+        static constexpr size_t COLOR_RAM_SIZE      = 0x400;
+        static const uint16_t COLOR_MEMORY_START    = 0xD800;
+        static const uint16_t COLOR_MEMORY_END      =  0xDBFF;
 
         // I/O Constants
-        static const uint16_t IO_VIC_START = 0xD000;
-        static const uint16_t IO_VIC_END = 0xD3FF;
-        static const uint16_t IO_SID_START = 0xD400;
-        static const uint16_t IO_SID_END = 0xD7FF;
-        static const uint16_t IO_CIA1_START = 0xDC00;
-        static const uint16_t IO_CIA1_END = 0xDCFF;
-        static const uint16_t IO_CIA2_START = 0xDD00;
-        static const uint16_t IO_CIA2_END = 0xDDFF;
+        static const uint16_t IO_VIC_START          = 0xD000;
+        static const uint16_t IO_VIC_END            = 0xD3FF;
+        static const uint16_t IO_SID_START          = 0xD400;
+        static const uint16_t IO_SID_END            = 0xD7FF;
+        static const uint16_t IO_CIA1_START         = 0xDC00;
+        static const uint16_t IO_CIA1_END           = 0xDCFF;
+        static const uint16_t IO_CIA2_START         = 0xDD00;
+        static const uint16_t IO_CIA2_END           = 0xDDFF;
 
         // Media
         bool cartridgeAttached;
