@@ -18,6 +18,7 @@
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
+#include "Cartridge/MagicFormelMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RossMapper.h"
@@ -324,7 +325,8 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x0B: return CartridgeType::WESTERMANN;
         case 0x0C: return CartridgeType::REX_UTILITY;
         case 0x0D: return CartridgeType::FINAL_CARTRIDGE;
-        case 0x0E: return CartridgeType::C64_GAME_SYSTEM;
+        case 0x0E: return CartridgeType::MAGIC_FORMEL;
+        case 0x0F: return CartridgeType::C64_GAME_SYSTEM;
         case 0x11: return CartridgeType::DINAMIC;
         case 0x12: return CartridgeType::SUPER_ZAXXON;
         case 0x13: return CartridgeType::MAGICDESK;
@@ -354,6 +356,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::WESTERMANN:             return "Westermann Learning";
         case CartridgeType::REX_UTILITY:            return "Rex Utility";
         case CartridgeType::FINAL_CARTRIDGE:        return "Final Cartridge";
+        case CartridgeType::MAGIC_FORMEL:           return "Magic Formel";
         case CartridgeType::C64_GAME_SYSTEM:        return "C64 Game System, System 3";
         case CartridgeType::DINAMIC:                return "DINAMIC";
         case CartridgeType::SUPER_ZAXXON:           return "Zaxxon, Super Zaxxon";
@@ -943,6 +946,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::WESTERMANN:             return std::make_unique<WestermannMapper>();
         case CartridgeType::REX_UTILITY:            return std::make_unique<RexUtilityMapper>();
         case CartridgeType::FINAL_CARTRIDGE:        return std::make_unique<FinalCartridgeMapper>();
+        case CartridgeType::MAGIC_FORMEL:           return std::make_unique<MagicFormelMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
         case CartridgeType::SUPER_GAMES:            return std::make_unique<SuperGamesMapper>();

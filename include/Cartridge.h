@@ -105,6 +105,7 @@ class Cartridge
             WESTERMANN,
             REX_UTILITY,
             FINAL_CARTRIDGE,
+            MAGIC_FORMEL,
             FUN_PLAY,
             SUPER_GAMES,
             STRUCTURED_BASIC,
