@@ -103,6 +103,7 @@ class Cartridge
             EASYFLASH,
             SUPER_SNAPSHOT_V4,
             WESTERMANN,
+            REX_UTILITY,
             FINAL_CARTRIDGE,
             FUN_PLAY,
             SUPER_GAMES,

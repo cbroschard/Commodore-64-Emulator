@@ -19,6 +19,7 @@
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/OceanMapper.h"
+#include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RossMapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
@@ -321,6 +322,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x07: return CartridgeType::FUN_PLAY;
         case 0x08: return CartridgeType::SUPER_GAMES;
         case 0x0B: return CartridgeType::WESTERMANN;
+        case 0x0C: return CartridgeType::REX_UTILITY;
         case 0x0D: return CartridgeType::FINAL_CARTRIDGE;
         case 0x0E: return CartridgeType::C64_GAME_SYSTEM;
         case 0x11: return CartridgeType::DINAMIC;
@@ -350,6 +352,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FUN_PLAY:               return "Fun Play";
         case CartridgeType::SUPER_GAMES:            return "Super Games";
         case CartridgeType::WESTERMANN:             return "Westermann Learning";
+        case CartridgeType::REX_UTILITY:            return "Rex Utility";
         case CartridgeType::FINAL_CARTRIDGE:        return "Final Cartridge";
         case CartridgeType::C64_GAME_SYSTEM:        return "C64 Game System, System 3";
         case CartridgeType::DINAMIC:                return "DINAMIC";
@@ -938,6 +941,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::OCEAN:                  return std::make_unique<OceanMapper>();
         case CartridgeType::EPYX_FASTLOAD:          return std::make_unique<EpyxFastloadMapper>();
         case CartridgeType::WESTERMANN:             return std::make_unique<WestermannMapper>();
+        case CartridgeType::REX_UTILITY:            return std::make_unique<RexUtilityMapper>();
         case CartridgeType::FINAL_CARTRIDGE:        return std::make_unique<FinalCartridgeMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
