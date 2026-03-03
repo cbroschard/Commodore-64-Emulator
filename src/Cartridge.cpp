@@ -263,6 +263,9 @@ bool Cartridge::loadROM(const std::string& path)
 
     switch(mapperType)
     {
+        case CartridgeType::ACTION_REPLAY: // Action Replay has KK RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::KCS_POWER: // KCS Power has 128 bytes
             configureRAM(128);
             break;
