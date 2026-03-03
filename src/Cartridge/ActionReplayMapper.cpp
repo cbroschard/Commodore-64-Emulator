@@ -124,12 +124,14 @@ uint8_t ActionReplayMapper::read(uint16_t address)
     // $DF00-$DFFF mirrors $9F00-$9FFF (top 256 bytes of ROML RAM window)
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
+        const size_t off = 0x1F00u + static_cast<size_t>((address - 0xDF00) & 0x00FF);
+
         if (io2RoutesToRam && cart && cart->hasCartridgeRAM())
-        {
-            const size_t off = 0x1F00u + static_cast<size_t>((address - 0xDF00) & 0x00FF);
             return cart->readRAM(off);
-        }
-        return 0xFF;
+
+        // Return Cartridge ROM if RAM disabled
+        if (mem)
+            return mem->readCartridge(static_cast<uint16_t>(off), cartLocation::LO);
     }
 
     return 0xFF;
@@ -193,10 +195,18 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
         // If a section is 16K, split it LO/HI like you already do
         if (s.data.size() == 0x4000)
         {
+            // $8000-$9FFF
             for (size_t i = 0; i < 0x2000; ++i)
                 mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+            // $A000-$BFFF
             for (size_t i = 0x2000; i < 0x4000; ++i)
                 mem->writeCartridge(static_cast<uint16_t>(i - 0x2000), s.data[i], cartLocation::HI);
+
+            // Action Replay Ultimax/freeze needs ROM at $E000-$FFFF for vectors.
+            for (size_t i = 0; i < 0x2000; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+
             continue;
         }
 
@@ -204,22 +214,58 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
         if (s.data.size() == 0x2000)
         {
             const uint16_t la = s.loadAddress;
-            const cartLocation loc =
-                (la == 0x8000)  ? cartLocation::LO :
-                (la == 0xA000)  ? cartLocation::HI :
-                (la == 0xE000)  ? cartLocation::HI_E000 :
-                cartLocation::LO; // fallback
 
-            for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], loc);
+            if (la == 0x8000)
+            {
+                // ROML ($8000-$9FFF)
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
-            continue;
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+
+                continue;
+            }
+            else if (la == 0xA000)
+            {
+                // ROMH ($A000-$BFFF) in 16K mode
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+
+                continue;
+            }
+            else if (la == 0xE000)
+            {
+                // Explicit ROM at $E000-$FFFF
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+
+                continue;
+            }
+            else
+            {
+                // Fallback: treat as ROML
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+                // Mirror to $E000 as well, so Ultimax won't explode
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+
+                continue;
+            }
         }
 
-        // Fallback: clamp and load as LO
-        const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
-        for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+        // Fallback: clamp and load as LO (and mirror to HI_E000 for safety)
+        {
+            const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
+
+            for (size_t i = 0; i < size; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+            for (size_t i = 0; i < size; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+        }
     }
 
     return any;
