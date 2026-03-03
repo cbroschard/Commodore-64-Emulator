@@ -23,6 +23,8 @@
 #include "Cartridge/SimonsBasicMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
 #include "Cartridge/SuperGamesMapper.h"
+#include "Cartridge/SuperSnapshotV4Mapper.h"
+#include "Cartridge/SuperSnapshotV5Mapper.h"
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/WestermannMapper.h"
 
@@ -262,6 +264,12 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::KCS_POWER: // KCS Power has 128 bytes
             configureRAM(128);
             break;
+        case CartridgeType::SUPER_SNAPSHOT_V5: // Super Snapshot V5 has 32K RAM
+            configureRAM(32768);
+            break;
+        case CartridgeType::SUPER_SNAPSHOT_V4: // Super Snapshot V4 has 8K RAM
+            configureRAM(8192);
+            break;
         default:
             break;
     }
@@ -318,10 +326,12 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x11: return CartridgeType::DINAMIC;
         case 0x12: return CartridgeType::SUPER_ZAXXON;
         case 0x13: return CartridgeType::MAGICDESK;
+        case 0x14: return CartridgeType::SUPER_SNAPSHOT_V5;
         case 0x16: return CartridgeType::STRUCTURED_BASIC;
         case 0x17: return CartridgeType::ROSS;
         case 0x1D: return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x20: return CartridgeType::EASYFLASH;
+        case 0x28: return CartridgeType::SUPER_SNAPSHOT_V4;
         default:   return CartridgeType::UNKNOWN;
     }
 }
@@ -330,26 +340,28 @@ std::string Cartridge::getMapperName() const
 {
     switch (mapperType)
     {
-        case CartridgeType::GENERIC:              return "Generic 8K/16K";
-        case CartridgeType::ACTION_REPLAY:        return "Action Replay";
-        case CartridgeType::KCS_POWER:            return "KCS Power Cartridge";
-        case CartridgeType::FINAL_CARTRIDGE_III:  return "Final Cartridge III";
-        case CartridgeType::SIMONS_BASIC:         return "Simon's BASIC";
-        case CartridgeType::OCEAN:                return "Ocean";
-        case CartridgeType::EPYX_FASTLOAD:        return "Epyx FastLoad";
-        case CartridgeType::FUN_PLAY:             return "Fun Play";
-        case CartridgeType::SUPER_GAMES:          return "Super Games";
-        case CartridgeType::WESTERMANN:           return "Westermann Learning";
-        case CartridgeType::FINAL_CARTRIDGE:      return "Final Cartridge";
-        case CartridgeType::C64_GAME_SYSTEM:      return "C64 Game System, System 3";
-        case CartridgeType::DINAMIC:              return "DINAMIC";
-        case CartridgeType::SUPER_ZAXXON:         return "Zaxxon, Super Zaxxon";
-        case CartridgeType::MAGICDESK:            return "Magic Desk";
-        case CartridgeType::STRUCTURED_BASIC:     return "Structured BASIC";
-        case CartridgeType::ROSS:                 return "ROSS";
-        case CartridgeType::FINAL_CARTRIDGE_PLUS: return "Final Cartridge Plus";
-        case CartridgeType::EASYFLASH:            return "EasyFlash";
-        case CartridgeType::UNKNOWN:              return "Unknown cartridge format";
+        case CartridgeType::GENERIC:                return "Generic 8K/16K";
+        case CartridgeType::ACTION_REPLAY:          return "Action Replay";
+        case CartridgeType::KCS_POWER:              return "KCS Power Cartridge";
+        case CartridgeType::FINAL_CARTRIDGE_III:    return "Final Cartridge III";
+        case CartridgeType::SIMONS_BASIC:           return "Simon's BASIC";
+        case CartridgeType::OCEAN:                  return "Ocean";
+        case CartridgeType::EPYX_FASTLOAD:          return "Epyx FastLoad";
+        case CartridgeType::FUN_PLAY:               return "Fun Play";
+        case CartridgeType::SUPER_GAMES:            return "Super Games";
+        case CartridgeType::WESTERMANN:             return "Westermann Learning";
+        case CartridgeType::FINAL_CARTRIDGE:        return "Final Cartridge";
+        case CartridgeType::C64_GAME_SYSTEM:        return "C64 Game System, System 3";
+        case CartridgeType::DINAMIC:                return "DINAMIC";
+        case CartridgeType::SUPER_ZAXXON:           return "Zaxxon, Super Zaxxon";
+        case CartridgeType::MAGICDESK:              return "Magic Desk";
+        case CartridgeType::SUPER_SNAPSHOT_V5:      return "Super SnapShot V5";
+        case CartridgeType::STRUCTURED_BASIC:       return "Structured BASIC";
+        case CartridgeType::ROSS:                   return "ROSS";
+        case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
+        case CartridgeType::EASYFLASH:              return "EasyFlash";
+        case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
+        case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
     return "Unknown";
@@ -933,8 +945,10 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::SUPER_ZAXXON:           return std::make_unique<SuperZaxxonMapper>();
         case CartridgeType::SIMONS_BASIC:           return std::make_unique<SimonsBasicMapper>();
         case CartridgeType::MAGICDESK:              return std::make_unique<MagicDeskMapper>();
+        case CartridgeType::SUPER_SNAPSHOT_V5:      return std::make_unique<SuperSnapshotV5Mapper>();
         case CartridgeType::FUN_PLAY:               return std::make_unique<FunPlayMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
+        case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
         case CartridgeType::GENERIC:                return std::make_unique<GenericMapper>();
 
         default:
