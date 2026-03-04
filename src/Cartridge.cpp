@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
+#include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
@@ -269,6 +270,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::KCS_POWER: // KCS Power has 128 bytes
             configureRAM(128);
             break;
+        case CartridgeType::ATOMIC_POWER: // Atomic Power has 8K RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::SUPER_SNAPSHOT_V5: // Super Snapshot V5 has 32K RAM
             configureRAM(32768);
             break;
@@ -326,6 +330,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x07: return CartridgeType::FUN_PLAY;
         case 0x08: return CartridgeType::SUPER_GAMES;
         case 0x0B: return CartridgeType::WESTERMANN;
+        case 0x09: return CartridgeType::ATOMIC_POWER;
         case 0x0C: return CartridgeType::REX_UTILITY;
         case 0x0D: return CartridgeType::FINAL_CARTRIDGE;
         case 0x0E: return CartridgeType::MAGIC_FORMEL;
@@ -357,6 +362,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FUN_PLAY:               return "Fun Play";
         case CartridgeType::SUPER_GAMES:            return "Super Games";
         case CartridgeType::WESTERMANN:             return "Westermann Learning";
+        case CartridgeType::ATOMIC_POWER:           return "Atomic Power";
         case CartridgeType::REX_UTILITY:            return "Rex Utility";
         case CartridgeType::FINAL_CARTRIDGE:        return "Final Cartridge";
         case CartridgeType::MAGIC_FORMEL:           return "Magic Formel";
@@ -947,6 +953,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::OCEAN:                  return std::make_unique<OceanMapper>();
         case CartridgeType::EPYX_FASTLOAD:          return std::make_unique<EpyxFastloadMapper>();
         case CartridgeType::WESTERMANN:             return std::make_unique<WestermannMapper>();
+        case CartridgeType::ATOMIC_POWER:           return std::make_unique<AtomicPowerMapper>();
         case CartridgeType::REX_UTILITY:            return std::make_unique<RexUtilityMapper>();
         case CartridgeType::FINAL_CARTRIDGE:        return std::make_unique<FinalCartridgeMapper>();
         case CartridgeType::MAGIC_FORMEL:           return std::make_unique<MagicFormelMapper>();
