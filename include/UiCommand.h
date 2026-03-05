@@ -33,6 +33,7 @@ struct UiCommand
         EjectTape,
 
         Freeze,
+        SetCartSwitch,
 
         CassPlay,
         CassStop,
@@ -65,6 +66,9 @@ struct UiCommand
 
     Type type;
     std::string path;
+
+    uint32_t switchIndex = 0;
+    uint32_t switchPos   = 0;
 };
 
 

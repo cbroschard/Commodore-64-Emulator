@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include "Cartridge.h"
 #include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasSwitch.h"
 #include "cassette.h"
 #include "CPU.h"
 #include "Drive/D1541.h"
@@ -425,6 +426,22 @@ void MediaManager::pressFreeze()
     if (auto* f = dynamic_cast<IFreezable*>(mapper))
     {
         f->pressFreeze();
+    }
+}
+
+void MediaManager::setCartSwitch(uint32_t switchIndex, uint32_t switchPos)
+{
+    if (!state_.cartAttached) return;
+
+    Cartridge* cart = getCartridge();   // uses the new non-const getter
+    if (!cart) return;
+
+    CartridgeMapper* mapper = cart->getMapper(); // assumes you also have non-const getMapper()
+    if (!mapper) return;
+
+    if (auto* hs = dynamic_cast<IHasSwitch*>(mapper))
+    {
+        hs->setSwitchPosition(switchIndex, switchPos);
     }
 }
 

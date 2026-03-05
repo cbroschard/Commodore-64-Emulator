@@ -54,6 +54,16 @@ void EmulatorUI::push(UiCommand::Type t, std::string path, int deviceNum, UiComm
     out_.push_back(std::move(c));
 }
 
+void EmulatorUI::pushSetCartSwitch(uint32_t switchIndex, uint32_t switchPos)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::SetCartSwitch;
+    c.switchIndex = switchIndex;
+    c.switchPos = switchPos;
+    out_.push_back(std::move(c));
+}
+
 void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type)
 {
     fileDlg.title = title ? title : "";
@@ -497,6 +507,30 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 push(UiCommand::Type::Freeze);
 
             if (!v.canFreeze) ImGui::EndDisabled();
+
+            // Cartridge switches (dynamic)
+            if (!v.cartSwitches.empty())
+            {
+                ImGui::Separator();
+
+                for (uint32_t si = 0; si < static_cast<uint32_t>(v.cartSwitches.size()); si++)
+                {
+                    const auto& sw = v.cartSwitches[si];
+
+                    if (ImGui::BeginMenu(sw.name.c_str()))
+                    {
+                        for (uint32_t p = 0; p < static_cast<uint32_t>(sw.positions.size()); p++)
+                        {
+                            bool selected = (sw.currentPos == p);
+                            if (ImGui::MenuItem(sw.positions[p].c_str(), nullptr, selected))
+                            {
+                                pushSetCartSwitch(si, p);
+                            }
+                        }
+                        ImGui::EndMenu();
+                    }
+                }
+            }
 
             ImGui::EndMenu();
         }

@@ -1,5 +1,6 @@
 #include <SDL2/sdl.h>
 #include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasSwitch.h"
 #include "InputManager.h"
 #include "MediaManager.h"
 #include "UIBridge.h"
@@ -74,13 +75,39 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.pal    = isPal_ ? isPal_() : false;
 
     s.canFreeze = false;
+    s.cartSwitches.clear();
 
     if (media_ && s.cartAttached)
     {
         if (auto* cart = media_->getCartridge())
         {
             const CartridgeMapper* mapper = cart->getMapper();
+
+            // Freeze capability
             s.canFreeze = (dynamic_cast<const IFreezable*>(mapper) != nullptr);
+
+            // Switch capability
+            if (auto* hs = dynamic_cast<const IHasSwitch*>(mapper))
+            {
+                const uint32_t sc = hs->getSwitchCount();
+                s.cartSwitches.reserve(sc);
+
+                for (uint32_t si = 0; si < sc; ++si)
+                {
+                    EmulatorUI::CartSwitchView sw{};
+                    sw.name = hs->getSwitchName(si);
+
+                    const uint32_t pc = hs->getSwitchPositionCount(si);
+                    sw.positions.reserve(pc);
+
+                    for (uint32_t p = 0; p < pc; ++p)
+                        sw.positions.emplace_back(hs->getSwitchPositionLabel(si, p));
+
+                    sw.currentPos = hs->getSwitchPosition(si);
+
+                    s.cartSwitches.push_back(std::move(sw));
+                }
+            }
         }
     }
 
@@ -200,6 +227,10 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::Freeze:
                 if (media_) media_->pressFreeze();
+                break;
+
+            case UiCommand::Type::SetCartSwitch:
+                if (media_) media_->setCartSwitch(cmd.switchIndex, cmd.switchPos);
                 break;
 
             case UiCommand::Type::ClearPort1Pad:
