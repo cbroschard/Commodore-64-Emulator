@@ -475,6 +475,13 @@ bool Computer::boot()
                 IO_adapter->finishFrameAndSignal();   // hand frame to render thread
             }
 
+            // If there's a cartridge attached, tick it (not all need this but some use it)
+            if (cart)
+            {
+                if (auto* mapper = cart->getMapper())
+                    mapper->tick(elapsedCycles);
+            }
+
             // Add elapsed cycles to the frame count
             frameCycles += elapsedCycles;
         }
