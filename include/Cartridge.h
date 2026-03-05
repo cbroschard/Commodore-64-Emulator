@@ -109,6 +109,7 @@ class Cartridge
             SUPER_ZAXXON,
             MAGICDESK,
             SUPER_SNAPSHOT_V5,
+            COMAL_80,
             STRUCTURED_BASIC,
             ROSS,
             FINAL_CARTRIDGE_PLUS,

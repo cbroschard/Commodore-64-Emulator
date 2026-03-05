@@ -9,6 +9,7 @@
 #include "Cartridge/ActionReplayMapper.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
+#include "Cartridge/Comal80Mapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
@@ -346,6 +347,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x12:  return CartridgeType::SUPER_ZAXXON;
         case 0x13:  return CartridgeType::MAGICDESK;
         case 0x14:  return CartridgeType::SUPER_SNAPSHOT_V5;
+        case 0x15:  return CartridgeType::COMAL_80;
         case 0x16:  return CartridgeType::STRUCTURED_BASIC;
         case 0x17:  return CartridgeType::ROSS;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
@@ -380,6 +382,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::SUPER_ZAXXON:           return "Zaxxon, Super Zaxxon";
         case CartridgeType::MAGICDESK:              return "Magic Desk";
         case CartridgeType::SUPER_SNAPSHOT_V5:      return "Super SnapShot V5";
+        case CartridgeType::COMAL_80:               return "Comal 80";
         case CartridgeType::STRUCTURED_BASIC:       return "Structured BASIC";
         case CartridgeType::ROSS:                   return "ROSS";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
@@ -974,6 +977,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::SUPER_ZAXXON:           return std::make_unique<SuperZaxxonMapper>();
         case CartridgeType::MAGICDESK:              return std::make_unique<MagicDeskMapper>();
         case CartridgeType::SUPER_SNAPSHOT_V5:      return std::make_unique<SuperSnapshotV5Mapper>();
+        case CartridgeType::COMAL_80:               return std::make_unique<Comal80Mapper>();
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
