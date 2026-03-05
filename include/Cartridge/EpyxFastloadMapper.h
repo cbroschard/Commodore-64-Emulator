@@ -28,6 +28,13 @@ class EpyxFastloadMapper : public CartridgeMapper
     protected:
 
     private:
+        // Capacitor timing
+        bool romEnabled;
+        uint16_t capacitorCounter;
+        bool loaded;
+
+        void tick(uint32_t elapsedCycles) override;
+
         bool applyMappingAfterLoad() override;
 };
 
