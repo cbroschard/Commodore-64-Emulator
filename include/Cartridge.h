@@ -103,6 +103,7 @@ class Cartridge
             FINAL_CARTRIDGE,
             MAGIC_FORMEL,
             C64_GAME_SYSTEM,
+            WARP_SPEED,
             DINAMIC,
             SUPER_ZAXXON,
             MAGICDESK,
