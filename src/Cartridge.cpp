@@ -12,6 +12,7 @@
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
+#include "Cartridge/ExpertMapper.h"
 #include "Cartridge/FinalCartridgeMapper.h"
 #include "Cartridge/FinalCartridgeIIIMapper.h"
 #include "Cartridge/FinalCartridgePlusMapper.h"
@@ -274,6 +275,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::ATOMIC_POWER: // Atomic Power has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::EXPERT: // Expert has 8K RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::SUPER_SNAPSHOT_V5: // Super Snapshot V5 has 32K RAM
             configureRAM(32768);
             break;
@@ -327,6 +331,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x03:  return CartridgeType::FINAL_CARTRIDGE_III;
         case 0x04:  return CartridgeType::SIMONS_BASIC;
         case 0x05:  return CartridgeType::OCEAN;
+        case 0x06:  return CartridgeType::EXPERT;
         case 0x07:  return CartridgeType::FUN_PLAY;
         case 0x08:  return CartridgeType::SUPER_GAMES;
         case 0x09:  return CartridgeType::ATOMIC_POWER;
@@ -360,6 +365,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FINAL_CARTRIDGE_III:    return "Final Cartridge III";
         case CartridgeType::SIMONS_BASIC:           return "Simon's BASIC";
         case CartridgeType::OCEAN:                  return "Ocean";
+        case CartridgeType::EXPERT:                 return "Expert";
         case CartridgeType::FUN_PLAY:               return "Fun Play";
         case CartridgeType::SUPER_GAMES:            return "Super Games";
         case CartridgeType::ATOMIC_POWER:           return "Atomic Power";
@@ -953,6 +959,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FINAL_CARTRIDGE_III:    return std::make_unique<FinalCartridgeIIIMapper>();
         case CartridgeType::SIMONS_BASIC:           return std::make_unique<SimonsBasicMapper>();
         case CartridgeType::OCEAN:                  return std::make_unique<OceanMapper>();
+        case CartridgeType::EXPERT:                 return std::make_unique<ExpertMapper>();
         case CartridgeType::FUN_PLAY:               return std::make_unique<FunPlayMapper>();
         case CartridgeType::SUPER_GAMES:            return std::make_unique<SuperGamesMapper>();
         case CartridgeType::ATOMIC_POWER:           return std::make_unique<AtomicPowerMapper>();

@@ -94,6 +94,7 @@ class Cartridge
             FINAL_CARTRIDGE_III,
             SIMONS_BASIC,
             OCEAN,
+            EXPERT,
             FUN_PLAY,
             SUPER_GAMES,
             ATOMIC_POWER,
