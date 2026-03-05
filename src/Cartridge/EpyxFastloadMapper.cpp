@@ -10,7 +10,7 @@
 
 EpyxFastloadMapper::EpyxFastloadMapper() :
     romEnabled(false),
-    capacitorCounter(512),
+    capacitorCounter(0),
     loaded(false)
 {
 
@@ -118,7 +118,7 @@ bool EpyxFastloadMapper::loadIntoMemory(uint8_t bank)
             mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
         loaded = true;
-        return true;
+        return applyMappingAfterLoad();
     }
 
     loaded = false;
@@ -129,12 +129,6 @@ bool EpyxFastloadMapper::applyMappingAfterLoad()
 {
     if (!cart || !mem)
         return false;
-
-    if (!loaded)
-    {
-        // Ensure the ROM is present in memory buffers even if disabled.
-        (void)loadIntoMemory(0);
-    }
 
     if (romEnabled)
     {
