@@ -15,20 +15,14 @@ class IHasSwitch
     public:
         virtual ~IHasSwitch() = default;
 
-        // How many positions does the switch have? (2 for ON/OFF, 3 for OFF/ON/PRG, etc.)
-        virtual uint32_t getSwitchPositionCount() const = 0;
+        virtual uint32_t getSwitchCount() const = 0;
+        virtual const char* getSwitchName(uint32_t switchIndex) const = 0;
 
-        // Current position as an index [0..count-1]
-        virtual uint32_t getSwitchPosition() const = 0;
+        virtual uint32_t getSwitchPositionCount(uint32_t switchIndex) const = 0;
+        virtual uint32_t getSwitchPosition(uint32_t switchIndex) const = 0;
+        virtual const char* getSwitchPositionLabel(uint32_t switchIndex, uint32_t pos) const = 0;
 
-        // Set position (UI calls this)
-        virtual void setSwitchPosition(uint32_t pos) = 0;
-
-        // nice UI label per position
-        virtual const char* getSwitchPositionLabel(uint32_t pos) const = 0;
-
-        // name shown in UI (“Mode”, “Switch”, “Expert Switch”, etc.)
-        virtual const char* getSwitchName() const = 0;
+        virtual void setSwitchPosition(uint32_t switchIndex, uint32_t pos) = 0;
 };
 
 #endif // IHASSWITCH_H_INCLUDED
