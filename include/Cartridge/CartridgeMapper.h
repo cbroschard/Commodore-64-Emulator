@@ -49,6 +49,8 @@ class CartridgeMapper
 
         virtual void reset() {}
 
+        virtual void tick(uint32_t elapsedCycles) { (void)elapsedCycles; }
+
     protected:
         Cartridge* cart = nullptr;
         Memory* mem = nullptr;
