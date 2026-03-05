@@ -705,6 +705,7 @@ bool Cartridge::processChipSections()
             }
             return false;
         }
+
         // Read from the current offset
         crtChipHeader chipHdr;
         std::memcpy(&chipHdr, romData.data() + offset, sizeof(chipHdr));
@@ -727,29 +728,51 @@ bool Cartridge::processChipSections()
             return false;
         }
 
+        // Move past the CHIP header
         offset += sizeof(chipHdr);
 
-        // Validate packet length
-        uint32_t expectedPacketLength = sizeof(crtChipHeader) + chipHdr.romSize;
+        // Decide payload length:
+        // Prefer romSize, but if packetLength looks sane and fits the file, trust it.
+        uint32_t payloadLen = chipHdr.romSize;
+
+        if (chipHdr.packetLength >= sizeof(crtChipHeader))
+        {
+            const uint32_t pktPayload = chipHdr.packetLength - static_cast<uint32_t>(sizeof(crtChipHeader));
+
+            // Trust pktPayload only if it fits within the remaining file and is non-zero.
+            // (Some CRTs lie about packetLength; don't fail just because of mismatch.)
+            if (pktPayload > 0 && (offset + pktPayload) <= romData.size())
+            {
+                payloadLen = pktPayload;
+            }
+        }
+
+        // Warn (do not fail) on packet length mismatch
+        const uint32_t expectedPacketLength =
+            static_cast<uint32_t>(sizeof(crtChipHeader)) + static_cast<uint32_t>(chipHdr.romSize);
+
         if (expectedPacketLength != chipHdr.packetLength)
         {
             if (logger && setLogging)
             {
                 std::stringstream out;
-                out <<  "Error: Mismatch in expected packet length! Expected " << expectedPacketLength << " and got "
-                        << chipHdr.packetLength << std::endl;
+                out << "Warning: CHIP packetLength mismatch. Expected "
+                    << expectedPacketLength << " got " << chipHdr.packetLength
+                    << " (romSize=" << chipHdr.romSize
+                    << ", usingPayloadLen=" << payloadLen << ")"
+                    << std::endl;
                 logger->WriteLog(out.str());
             }
-            return false;
         }
 
-        // Validate size is not past romData size
-        if (offset + chipHdr.romSize > romData.size())
+        // Validate payload fits in file
+        if (offset + payloadLen > romData.size())
         {
             if (logger && setLogging)
             {
                 std::stringstream out;
-                out << "Error: Unable to load ROM CHIP as it's larger than ROM data size!" << std::endl;
+                out << "Error: Unable to load ROM CHIP as it's larger than ROM data size! "
+                    << "payloadLen=" << payloadLen << std::endl;
                 logger->WriteLog(out.str());
             }
             return false;
@@ -757,43 +780,36 @@ bool Cartridge::processChipSections()
 
         // Store the current bank of chip data
         chipSection section;
-        section.chipType = chipHdr.chipType;
-        section.bankNumber = chipHdr.bankNumber;
+        section.chipType    = chipHdr.chipType;
+        section.bankNumber  = chipHdr.bankNumber;
         section.loadAddress = chipHdr.loadAddress;
-        section.data.resize(chipHdr.romSize);
+        section.data.resize(payloadLen);
 
-        std::memcpy(section.data.data(), romData.data() + offset, chipHdr.romSize);
+        std::memcpy(section.data.data(), romData.data() + offset, payloadLen);
 
         switch (chipHdr.chipType)
         {
             case 0: // ROM CHIP
-                {
-                    chipSections.push_back(section);
-                    cartSize += chipHdr.romSize;   // accumulate total ROM size
-                    break;
-                }
-            case 1: // RAM CHIP
-                {
-                    // Update RamData to size of CHIP and copy data in
-                    hasRAM = true;
-                    ramData = section.data;
-                    break;
-                }
             default:
             {
-                if (logger && setLogging)
-                {
-                    std::stringstream out;
-                    out << "Unsupported chip type: " << static_cast<int>(chipHdr.chipType) << std::endl;
-                    logger->WriteLog(out.str());
-                }
-                return false;
+                chipSections.push_back(section);
+                cartSize += payloadLen;   // accumulate total ROM size
+                break;
+            }
+
+            case 1: // RAM CHIP
+            {
+                // Update RamData to size of CHIP and copy data in
+                hasRAM = true;
+                ramData = section.data;
+                break;
             }
         }
 
         // Update the offset to the next CHIP section
-        offset += chipHdr.romSize;
+        offset += payloadLen;
     }
+
     return true;
 }
 
