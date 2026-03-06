@@ -114,6 +114,7 @@ class Cartridge
             ROSS,
             FINAL_CARTRIDGE_PLUS,
             EASYFLASH,
+            RETRO_REPLAY,
             SUPER_SNAPSHOT_V4,
             UNKNOWN
         };
