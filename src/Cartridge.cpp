@@ -23,6 +23,7 @@
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/MagicFormelMapper.h"
 #include "Cartridge/OceanMapper.h"
+#include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RossMapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
@@ -285,6 +286,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::SUPER_SNAPSHOT_V4: // Super Snapshot V4 has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
+            configureRAM(32768);
+            break;
         default:
             break;
     }
@@ -352,6 +356,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x17:  return CartridgeType::ROSS;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x20:  return CartridgeType::EASYFLASH;
+        case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -387,6 +392,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ROSS:                   return "ROSS";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
+        case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
@@ -998,6 +1004,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
+        case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
 
         default:
