@@ -333,7 +333,7 @@ void ActionReplayMapper::pressFreeze()
     freezeActive = true;
 
     // Ultimax entry: GAME low (bit0=1), EXROM low (bit1=0), bank0, enabled, no RAM, no strobe
-    ctrl.raw = 0x01;
+    ctrl.raw = 0x03;
     ctrl.decode();
 
     selectedBank = ctrl.bank;     // should be 0
@@ -350,13 +350,12 @@ void ActionReplayMapper::clearFreezeMode()
 
     freezeActive = false;
 
-    ctrl = preFreezeCtrl;
-
     // Ensure freezeReset isn't stuck in raw
     ctrl.raw &= ~(1 << 6);
     ctrl.decode();
 
-    selectedBank = preFreezeSelectedBank;
+    // Use the bank the software just requested
+    selectedBank = ctrl.bank;
 
     (void)loadIntoMemory(selectedBank);
     applyMappingFromControl();
