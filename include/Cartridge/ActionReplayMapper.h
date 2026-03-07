@@ -9,16 +9,14 @@
 #define ACTIONREPLAYMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
-#include "Cartridge/ICPUAttachable.h"
+#include "Cartridge/IHasButton.h"
 #include "Cartridge/IFreezable.h"
 
-class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable, public IFreezable
+class ActionReplayMapper : public CartridgeMapper, public IHasButton
 {
     public:
         ActionReplayMapper();
         virtual ~ActionReplayMapper();
-
-        inline void attachCPUInstance(CPU* processor) override { this->processor = processor; }
 
         // State management
         void saveState(StateWriter& wrtr) const override;
@@ -30,7 +28,12 @@ class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable, public
         bool loadIntoMemory(uint8_t bank) override;
 
         // Called from UI
-        void pressFreeze() override;
+        void pressFreeze();
+
+        // Called from UI
+        inline uint32_t getButtonCount() const override { return 2; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t buttonIndex) override;
 
     protected:
 
@@ -69,6 +72,8 @@ class ActionReplayMapper : public CartridgeMapper, public ICPUAttachable, public
         void applyMappingFromControl();
 
         void clearFreezeMode();
+
+        void pressReset();
 };
 
 #endif // ACTIONREPLAYMAPPER_H

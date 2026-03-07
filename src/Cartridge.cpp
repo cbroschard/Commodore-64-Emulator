@@ -39,6 +39,7 @@ Cartridge::Cartridge() :
     hasRAM(false),
     currentBank(0),
     processor(nullptr),
+    host(nullptr),
     logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
@@ -187,6 +188,24 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     }
 
     return true;
+}
+
+void Cartridge::requestWarmReset()
+{
+    if (host)
+        host->requestWarmReset();
+}
+
+void Cartridge::requestColdReset()
+{
+    if (host)
+        host->requestColdReset();
+}
+
+void Cartridge::requestCartridgeNMI()
+{
+    if (host)
+        host->requestCartridgeNMI();
 }
 
 bool Cartridge::loadROM(const std::string& path)
