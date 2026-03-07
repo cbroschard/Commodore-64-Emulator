@@ -20,6 +20,7 @@
 #include <thread>
 #include <vector>
 #include "Cartridge.h"
+#include "Cartridge/ICartridgeHost.h"
 #include "cassette.h"
 #include "CIA1.h"
 #include "CIA2.h"
@@ -53,7 +54,7 @@ class MLMonitor;
 class ResetController;
 class UIBridge;
 
-class Computer
+class Computer : public ICartridgeHost
 {
     public:
         Computer();
@@ -62,6 +63,11 @@ class Computer
         // State Management
         bool saveStateToFile(const std::string& path);
         bool loadStateFromFile(const std::string& path);
+
+        // Cartridge Host Interface
+        void requestWarmReset() override;
+        void requestColdReset() override;
+        void requestCartridgeNMI() override;
 
         // Main emulation loop
         bool boot();

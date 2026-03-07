@@ -309,6 +309,24 @@ bool Computer::loadStateFromFile(const std::string& path)
     return false;
 }
 
+void Computer::requestColdReset()
+{
+    if (resetCtl)
+        resetCtl->coldReset();
+}
+
+void Computer::requestWarmReset()
+{
+    if (resetCtl)
+        resetCtl->warmReset();
+}
+
+void Computer::requestCartridgeNMI()
+{
+    if (processor)
+        processor->pulseNMI();
+}
+
 void Computer::setJoystickAttached(int port, bool flag)
 {
     if (inputMgr) inputMgr->setJoystickAttached(port, flag);
@@ -551,6 +569,7 @@ void Computer::wireUp()
     bus->attachLogInstance(logger.get());
 
     cart->attachCPUInstance(processor.get());
+    cart->attachHostInstance(this);
     cart->attachMemoryInstance(mem.get());
     cart->attachLogInstance(logger.get());
     cart->attachTraceManagerInstance(&debug->trace());
@@ -622,7 +641,7 @@ void Computer::wireUp()
     vicII->attachLogInstance(logger.get());
     vicII->attachTraceManagerInstance(&debug->trace());
 
-    media = std::make_unique<MediaManager>(cart, drives, *bus, *mem, *pla, *processor, *vicII, debug->backend(), debug->trace(), *cass, *logger,
+    media = std::make_unique<MediaManager>(cart, drives, this, *bus, *mem, *pla, *processor, *vicII, debug->backend(), debug->trace(), *cass, *logger,
     D1541LoROM, D1541HiROM, D1571ROM, D1581ROM, [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [this]() { this->coldReset(); });
 
     if (media) media->setVideoMode(videoMode_);
