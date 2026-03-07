@@ -20,6 +20,7 @@ class Vic;
 #include <string>
 #include <vector>
 #include "Cartridge/CartridgeMapper.h"
+#include "Cartridge/ICartridgeHost.h"
 #include "Common/CartridgeTypes.h"
 #include "Common/Endian.h"
 #include "cpu.h"
@@ -35,6 +36,7 @@ class Cartridge
         virtual ~Cartridge();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
@@ -43,6 +45,11 @@ class Cartridge
         // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
+        // Host interface
+        void requestWarmReset();
+        void requestColdReset();
+        void requestCartridgeNMI();
 
         bool loadROM(const std::string& path);  // load the Cartridge
 
@@ -159,6 +166,7 @@ class Cartridge
 
         // Non-owning pointers
         CPU* processor;
+        ICartridgeHost* host;
         Logging* logger;
         Memory* mem;
         TraceManager* traceMgr;
