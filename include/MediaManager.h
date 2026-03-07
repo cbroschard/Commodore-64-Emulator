@@ -26,6 +26,7 @@ class D1541;
 class D1571;
 class D1581;
 class Drive;
+class ICartridgeHost;
 class IECBUS;
 class Logging;
 class Memory;
@@ -41,6 +42,7 @@ class MediaManager
 public:
     MediaManager(std::unique_ptr<Cartridge>& cartSlot,
                  std::array<std::unique_ptr<Drive>, 16>& driveSlots,
+                 ICartridgeHost* host,
                  IECBUS& bus,
                  Memory& mem,
                  PLA& pla,
@@ -119,6 +121,7 @@ public:
     inline bool isTapeAttached() const { return state_.tapeAttached; }
     bool canFreeze() const;
     void pressFreeze();
+    void pressButton(uint32_t index);
     void setCartSwitch(uint32_t switchIndex, uint32_t switchPos);
     void restoreCartridgeFromState();
     void restoreTapeMountOnlyFromState();
@@ -141,6 +144,7 @@ private:
     std::array<std::unique_ptr<Drive>, 16>& drives_;
 
     // System references
+    ICartridgeHost*     host_;
     IECBUS&             bus_;
     Memory&             mem_;
     PLA&                pla_;

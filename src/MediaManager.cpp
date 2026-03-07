@@ -11,7 +11,9 @@
 #include <iostream>
 #include <stdexcept>
 #include "Cartridge.h"
+#include "Cartridge/ICartridgeHost.h"
 #include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasSwitch.h"
 #include "cassette.h"
 #include "CPU.h"
@@ -29,6 +31,7 @@
 
 MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
                            std::array<std::unique_ptr<Drive>, 16>& driveSlots,
+                           ICartridgeHost* host,
                            IECBUS& bus,
                            Memory& mem,
                            PLA& pla,
@@ -46,6 +49,7 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
                            std::function<void()> coldResetCallback)
     : cart_(cartSlot),
       drives_(driveSlots),
+      host_(host),
       bus_(bus),
       mem_(mem),
       pla_(pla),
@@ -429,6 +433,17 @@ void MediaManager::pressFreeze()
     }
 }
 
+void MediaManager::pressButton(uint32_t index)
+{
+    if (!cart_) return;
+
+    auto* mapper = cart_->getMapper();
+    if (auto* hb = dynamic_cast<IHasButton*>(mapper))
+    {
+        hb->pressButton(index);
+    }
+}
+
 void MediaManager::setCartSwitch(uint32_t switchIndex, uint32_t switchPos)
 {
     if (!state_.cartAttached) return;
@@ -616,7 +631,8 @@ void MediaManager::loadPrgIntoMem()
 void MediaManager::recreateCartridge()
 {
     cart_ = std::make_unique<Cartridge>();
-
+    if (host_)
+        cart_->attachHostInstance(host_);
     cart_->attachCPUInstance(&cpu_);
     cart_->attachMemoryInstance(&mem_);
     cart_->attachLogInstance(&logger_);

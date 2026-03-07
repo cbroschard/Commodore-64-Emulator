@@ -1,5 +1,6 @@
 #include <SDL2/sdl.h>
 #include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasSwitch.h"
 #include "InputManager.h"
 #include "MediaManager.h"
@@ -106,6 +107,21 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
                     sw.currentPos = hs->getSwitchPosition(si);
 
                     s.cartSwitches.push_back(std::move(sw));
+                }
+            }
+            if (auto* hb = dynamic_cast<const IHasButton*>(mapper))
+            {
+                const uint32_t bc = hb->getButtonCount();
+                s.cartButtons.reserve(bc);
+
+                for (uint32_t bi = 0; bi < bc; ++bi)
+                {
+                    EmulatorUI::CartButtonView bu{};
+                    bu.index = bi;
+                    bu.name = hb->getButtonName(bi);
+                    bu.enabled = true;
+
+                    s.cartButtons.push_back(std::move(bu));
                 }
             }
         }
@@ -231,6 +247,10 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::SetCartSwitch:
                 if (media_) media_->setCartSwitch(cmd.switchIndex, cmd.switchPos);
+                break;
+
+            case UiCommand::Type::PressButton:
+                if (media_) media_->pressButton(cmd.buttonIndex);
                 break;
 
             case UiCommand::Type::ClearPort1Pad:
