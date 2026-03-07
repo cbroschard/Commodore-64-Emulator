@@ -377,10 +377,6 @@ void ActionReplayMapper::pressReset()
     io2RoutesToRam          = false;
 
     ctrl.raw                = 0;
-    ctrl.cartDisabled       = false;
-    ctrl.ramAtROML          = false;
-    ctrl.freezeReset        = false;
-    ctrl.bank               = 0;
 
     // Re-decode / re-assert cartridge lines from control state.
     ctrl.decode();
