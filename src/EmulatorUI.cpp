@@ -64,6 +64,15 @@ void EmulatorUI::pushSetCartSwitch(uint32_t switchIndex, uint32_t switchPos)
     out_.push_back(std::move(c));
 }
 
+void EmulatorUI::pushCartButton(uint32_t buttonIndex)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::PressButton;
+    c.buttonIndex = buttonIndex;
+    out_.push_back(std::move(c));
+}
+
 void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type)
 {
     fileDlg.title = title ? title : "";
@@ -529,6 +538,25 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                         }
                         ImGui::EndMenu();
                     }
+                }
+            }
+
+            if (!v.cartButtons.empty())
+            {
+                ImGui::Separator();
+
+                for (uint32_t bi = 0; bi < static_cast<uint32_t>(v.cartButtons.size()); ++bi)
+                {
+                    const auto& bu = v.cartButtons[bi];
+
+                    if (!bu.enabled)
+                        ImGui::BeginDisabled();
+
+                    if (ImGui::MenuItem(bu.name.c_str()))
+                        pushCartButton(static_cast<uint32_t>(bu.index));
+
+                    if (!bu.enabled)
+                        ImGui::EndDisabled();
                 }
             }
 

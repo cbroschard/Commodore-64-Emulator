@@ -30,12 +30,19 @@ class EmulatorUI
         // Computer pulls and clears commands each frame
         std::vector<UiCommand> consumeCommands();
 
-        // Handle cartridges that have physical switches
+        // Handle cartridges that have physical switches and buttons
         struct CartSwitchView
         {
             std::string name;
             std::vector<std::string> positions;
             uint32_t currentPos = 0;
+        };
+
+        struct CartButtonView
+        {
+            uint32_t index = 0;
+            std::string name;
+            bool enabled = true;
         };
 
         struct MediaViewState
@@ -57,6 +64,7 @@ class EmulatorUI
             bool canFreeze       = false;
 
             std::vector<CartSwitchView> cartSwitches;
+            std::vector<CartButtonView> cartButtons;
         };
 
         void setMediaViewState(const MediaViewState& s);
@@ -111,6 +119,7 @@ class EmulatorUI
         void push(UiCommand::Type t, std::string path = {}, int deviceNum = 8, UiCommand::DriveType driveType = UiCommand::DriveType::D1541);
 
         void pushSetCartSwitch(uint32_t switchIndex, uint32_t switchPos);
+        void pushCartButton(uint32_t buttonIndex);
 
         bool isAllowedByExtension(const std::filesystem::path& path) const;
         void emitChosenPath(const std::filesystem::path& path);
