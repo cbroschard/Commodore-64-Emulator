@@ -10,7 +10,6 @@
 #include "CPU.h"
 
 ActionReplayMapper::ActionReplayMapper() :
-    processor(nullptr),
     selectedBank(0),
     io1Enabled(false),
     io2RoutesToRam(false),
@@ -25,23 +24,11 @@ ActionReplayMapper::~ActionReplayMapper() = default;
 void ActionReplayMapper::ARControl::save(StateWriter& wrtr) const
 {
     wrtr.writeU8(raw);
-    wrtr.writeBool(cartDisabled);
-    wrtr.writeBool(ramAtROML);
-    wrtr.writeBool(freezeReset);
-    wrtr.writeU8(bank);
-    wrtr.writeBool(exromHigh);
-    wrtr.writeBool(gameLow);
 }
 
 bool ActionReplayMapper::ARControl::load(StateReader& rdr)
 {
     if (!rdr.readU8(raw))               return false;
-    if (!rdr.readBool(cartDisabled))    return false;
-    if (!rdr.readBool(ramAtROML))       return false;
-    if (!rdr.readBool(freezeReset))     return false;
-    if (!rdr.readU8(bank))              return false;
-    if (!rdr.readBool(exromHigh))       return false;
-    if (!rdr.readBool(gameLow))         return false;
     return true;
 }
 
@@ -64,9 +51,6 @@ void ActionReplayMapper::saveState(StateWriter& wrtr) const
     wrtr.writeU32(2); // version
 
     ctrl.save(wrtr);
-    wrtr.writeU8(selectedBank);
-    wrtr.writeBool(io1Enabled);
-    wrtr.writeBool(io2RoutesToRam);
     wrtr.writeBool(freezeActive);
     preFreezeCtrl.save(wrtr);
     wrtr.writeU8(preFreezeSelectedBank);
@@ -87,9 +71,6 @@ bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader&
         if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
         ctrl.decode();
 
-        if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(io1Enabled))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(io2RoutesToRam))      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
 
         if (!preFreezeCtrl.load(rdr))           { rdr.exitChunkPayload(chunk); return false; }
@@ -404,6 +385,11 @@ void ActionReplayMapper::pressReset()
     // Re-decode / re-assert cartridge lines from control state.
     ctrl.decode();
     selectedBank            = ctrl.bank;
+    preFreezeCtrl.raw       = 0;
+    preFreezeCtrl.decode();
+
+    loadIntoMemory(ctrl.bank);
+    applyMappingFromControl();
 
     // Warm Reset
     if (cart)

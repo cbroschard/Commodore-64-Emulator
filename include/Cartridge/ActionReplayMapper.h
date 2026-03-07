@@ -27,10 +27,6 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        // Called from UI
-        void pressFreeze();
-
-        // Called from UI
         inline uint32_t getButtonCount() const override { return 2; }
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
@@ -38,9 +34,6 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
     protected:
 
     private:
-        // Non-owning pointers
-        CPU* processor;
-
         uint8_t selectedBank;
 
         bool io1Enabled;
@@ -73,6 +66,8 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
 
         void clearFreezeMode();
 
+        // Called from UI
+        void pressFreeze();
         void pressReset();
 };
 
