@@ -65,7 +65,7 @@ void RetroReplayMapper::RRControl::decode(bool flashMode)
 
 void RetroReplayMapper::saveState(StateWriter& wrtr) const
 {
-    wrtr.beginChunk("RRPLY");
+    wrtr.beginChunk("RRPY");
     wrtr.writeU32(1); // version
 
     ctrl.save(wrtr);
@@ -80,7 +80,7 @@ void RetroReplayMapper::saveState(StateWriter& wrtr) const
 
 bool RetroReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "RRPLY", 4) == 0)
+    if (std::memcmp(chunk.tag, "RRPY", 4) == 0)
     {
         rdr.enterChunkPayload(chunk);
 
@@ -108,12 +108,31 @@ bool RetroReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
 
 uint8_t RetroReplayMapper::read(uint16_t address)
 {
+    // If the cartridge has been disabled, it should disappear from the bus.
+    if (ctrl.cartDisabled)
+        return 0xFF;
+
+    // IO1 registers
+    if (address == 0xDE00)
+        return ctrl.de00;
+    else if (address == 0xDE01)
+        return ctrl.de01;
+
     return 0xFF;
 }
 
 void RetroReplayMapper::write(uint16_t address, uint8_t value)
 {
-
+    if (address == 0xDE00)
+    {
+        ctrl.de00 = value;
+        applyMappingAfterLoad();
+    }
+    else if (address == 0xDE01)
+    {
+        ctrl.de01 = value;
+        applyMappingAfterLoad();
+    }
 }
 
 void RetroReplayMapper::pressFreeze()

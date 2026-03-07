@@ -322,7 +322,7 @@ void ActionReplayMapper::applyMappingFromControl()
 
 void ActionReplayMapper::pressFreeze()
 {
-    if (!cart || !mem || !processor)
+    if (!cart || !mem)
         return;
 
     if (!freezeActive)
@@ -332,7 +332,6 @@ void ActionReplayMapper::pressFreeze()
     }
     freezeActive = true;
 
-    // Ultimax entry: GAME low (bit0=1), EXROM low (bit1=0), bank0, enabled, no RAM, no strobe
     ctrl.raw = 0x03;
     ctrl.decode();
 
@@ -340,7 +339,34 @@ void ActionReplayMapper::pressFreeze()
     (void)loadIntoMemory(ctrl.bank);
     applyMappingFromControl();
 
-    processor->pulseNMI();
+    cart->requestCartridgeNMI();
+}
+
+const char* ActionReplayMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void ActionReplayMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
 }
 
 void ActionReplayMapper::clearFreezeMode()
@@ -359,4 +385,27 @@ void ActionReplayMapper::clearFreezeMode()
 
     (void)loadIntoMemory(selectedBank);
     applyMappingFromControl();
+}
+
+void ActionReplayMapper::pressReset()
+{
+    freezeActive            = false;
+    preFreezeSelectedBank   = 0;
+    selectedBank            = 0;
+    io1Enabled              = false;
+    io2RoutesToRam          = false;
+
+    ctrl.raw                = 0;
+    ctrl.cartDisabled       = false;
+    ctrl.ramAtROML          = false;
+    ctrl.freezeReset        = false;
+    ctrl.bank               = 0;
+
+    // Re-decode / re-assert cartridge lines from control state.
+    ctrl.decode();
+    selectedBank            = ctrl.bank;
+
+    // Warm Reset
+    if (cart)
+        cart->requestWarmReset();
 }
