@@ -9,7 +9,6 @@
 #include "Cartridge/FinalCartridgePlusMapper.h"
 
 FinalCartridgePlusMapper::FinalCartridgePlusMapper() :
-    processor(nullptr),
     bit7Latch(0),
     cartDisabled(false),
     rom8000BfffDisabled(false),
@@ -55,6 +54,33 @@ bool FinalCartridgePlusMapper::loadState(const StateReader::Chunk& chunk, StateR
     return false;
 }
 
+const char* FinalCartridgePlusMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void FinalCartridgePlusMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
 uint8_t FinalCartridgePlusMapper::read(uint16_t address)
 {
     // IO2: $DF00-$DFFF
@@ -80,7 +106,7 @@ void FinalCartridgePlusMapper::write(uint16_t address, uint8_t value)
         bit7Latch               = (value & 0x80);
 
         // Take effect immediately
-        applyMappingAfterLoad();
+        (void)applyMappingAfterLoad();
     }
 }
 
@@ -154,17 +180,6 @@ bool FinalCartridgePlusMapper::loadIntoMemory(uint8_t /*bank*/)
     return false;
 }
 
-void FinalCartridgePlusMapper::pressFreeze()
-{
-    // Set Ultimax mode
-    cart->setExROMLine(false);
-    cart->setGameLine(true);
-
-    // NMI
-    if (processor)
-        processor->pulseNMI();
-}
-
 bool FinalCartridgePlusMapper::isRegionEnabled(CartRegion region) const
 {
     if (cartDisabled) return false;
@@ -173,7 +188,7 @@ bool FinalCartridgePlusMapper::isRegionEnabled(CartRegion region) const
     {
         case CartRegion::ROM_8000_9FFF:
         case CartRegion::ROM_A000_BFFF:
-            return !rom8000BfffDisabled;      // (rename this to rom8000BfffDisabled ideally)
+            return !rom8000BfffDisabled;
         case CartRegion::ROM_E000_FFFF:
             return !e000Disabled;
         case CartRegion::IO2:
@@ -185,21 +200,42 @@ bool FinalCartridgePlusMapper::isRegionEnabled(CartRegion region) const
 
 bool FinalCartridgePlusMapper::applyMappingAfterLoad()
 {
-    if (!cart)
+    if (!cart || !mem)
         return false;
 
-    // When the cart is disabled, it must effectively disappear:
-    // both GAME and EXROM inactive (high).
+    if (!loadIntoMemory(0))
+        return false;
+
     if (cartDisabled)
     {
-        cart->setGameLine(true);   // inactive/high
-        cart->setExROMLine(true);  // inactive/high
+        cart->setGameLine(true);
+        cart->setExROMLine(true);
         return true;
     }
 
-    // Normal FC+ wiring mode: EXROM inactive (high), GAME active (low)
-    cart->setExROMLine(true);   // high
-    cart->setGameLine(false);   // low
-
+    cart->setExROMLine(true);
+    cart->setGameLine(false);
     return true;
+}
+
+void FinalCartridgePlusMapper::pressFreeze()
+{
+    if (!cart || !mem) return;
+
+    // Temporary freeze entry: force Ultimax-like takeover
+    cart->setExROMLine(false);
+    cart->setGameLine(true);
+
+    cart->requestCartridgeNMI();
+
+    // Restore normal FC+ mapping after the freeze pulse
+    (void)applyMappingAfterLoad();
+}
+
+void FinalCartridgePlusMapper::pressReset()
+{
+    if (!cart || !mem) return;
+
+    (void)applyMappingAfterLoad();
+    cart->requestWarmReset();
 }
