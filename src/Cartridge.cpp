@@ -326,12 +326,6 @@ bool Cartridge::loadROM(const std::string& path)
         mapper->attachCartridgeInstance(this);
         mapper->attachMemoryInstance(mem);
 
-        // Check if cartridge type requires the CPU
-        if (auto* cpuCap = dynamic_cast<ICPUAttachable*>(mapper.get()))
-        {
-            cpuCap->attachCPUInstance(processor);
-        }
-
         if (mapperType == Cartridge::CartridgeType::MAGICDESK)
         {
             mapper->reset();
