@@ -9,7 +9,6 @@
 #include "Cartridge/SuperSnapshotV5Mapper.h"
 
 SuperSnapshotV5Mapper::SuperSnapshotV5Mapper() :
-    processor(nullptr),
     selectedBank(0xFF)
 {
 
@@ -82,6 +81,33 @@ bool SuperSnapshotV5Mapper::loadState(const StateReader::Chunk& chunk, StateRead
     return false;
 }
 
+const char* SuperSnapshotV5Mapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void SuperSnapshotV5Mapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
 uint8_t SuperSnapshotV5Mapper::read(uint16_t address)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)
@@ -99,7 +125,7 @@ void SuperSnapshotV5Mapper::write(uint16_t address, uint8_t value)
     {
         ctrl.raw = value;
         ctrl.decode();
-        applyMappingAfterLoad();
+        (void)applyMappingAfterLoad();
     }
 }
 
@@ -208,7 +234,6 @@ bool SuperSnapshotV5Mapper::applyMappingAfterLoad()
     {
         if (!loadIntoMemory(newBank))
             return false;
-        selectedBank = newBank;
     }
 
     cart->setGameLine(!ctrl.gameLow);
@@ -220,17 +245,25 @@ bool SuperSnapshotV5Mapper::applyMappingAfterLoad()
 
 void SuperSnapshotV5Mapper::pressFreeze()
 {
-    if (!cart || !mem || !processor)
+    if (!cart || !mem)
         return;
 
     ctrl.raw = 0x00;   // enabled, GAME low, EXROM high, bank 0
     ctrl.decode();
 
     (void)loadIntoMemory(0);
-    selectedBank = 0;
 
     cart->setExROMLine(true); // Ultimax
     cart->setGameLine(false);
 
-    processor->pulseNMI();
+    cart->requestCartridgeNMI();
+}
+
+void SuperSnapshotV5Mapper::pressReset()
+{
+    if (!cart || !mem)
+        return;
+
+    (void)applyMappingAfterLoad();
+    cart->requestWarmReset();
 }
