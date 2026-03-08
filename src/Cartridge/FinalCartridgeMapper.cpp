@@ -10,7 +10,6 @@
 #include "Memory.h"
 
 FinalCartridgeMapper::FinalCartridgeMapper() :
-    processor(nullptr),
     cartEnabled(true)
 {
 
@@ -45,18 +44,50 @@ bool FinalCartridgeMapper::loadState(const StateReader::Chunk& chunk, StateReade
     cartEnabled = enabled;
 
     // Re-apply mapping immediately
-    applyMappingAfterLoad();
+    if (!applyMappingAfterLoad()) return false;
 
     return true;
 }
 
+const char* FinalCartridgeMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void FinalCartridgeMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
 uint8_t FinalCartridgeMapper::read(uint16_t address)
 {
+    if (!cart || !mem)
+        return 0xFF;
+
     auto mirror_io_rom = [&](uint16_t addr) -> uint8_t
     {
         // Mirror $9F00-$9FFF from ROML (offset 0x1F00)
         uint16_t offset = 0x1F00 + (addr & 0x00FF);
         return mem->readCartridge(offset, cartLocation::LO);
+
+        return 0xFF;
     };
 
     if (address >= 0xDE00 && address <= 0xDEFF)
@@ -92,6 +123,10 @@ uint8_t FinalCartridgeMapper::read(uint16_t address)
 
 void FinalCartridgeMapper::write(uint16_t address, uint8_t value)
 {
+    if (!cart) return;
+
+    (void)value;
+
     if (address >= 0xDE00 && address <= 0xDEFF && cartEnabled)
     {
         // Disable cartridge
@@ -110,26 +145,72 @@ void FinalCartridgeMapper::write(uint16_t address, uint8_t value)
 
 bool FinalCartridgeMapper::loadIntoMemory(uint8_t bank)
 {
-    return true;
-}
+    (void)bank;
 
-void FinalCartridgeMapper::pressFreeze()
-{
-    // Set Ultimax mode
-    cart->setExROMLine(false);
-    cart->setGameLine(true);
+    if (!cart || !mem)
+        return false;
 
-    // NMI
-    if (processor)
-        processor->pulseNMI();
+    cart->clearCartridge(cartLocation::LO);
+    cart->clearCartridge(cartLocation::HI);
+    cart->clearCartridge(cartLocation::HI_E000);
 
-    // Restore mapping latch state (don't keep forcing Ultimax forever)
-    applyMappingAfterLoad();
+    const auto& sections = cart->getChipSections();
+    bool any = false;
+
+    for (const auto& s : sections)
+    {
+        // Common case: one 16K image starting at $8000
+        if (s.loadAddress == 0x8000 && s.data.size() == 0x4000)
+        {
+            any = true;
+
+            // $8000-$9FFF -> LO
+            for (size_t i = 0; i < 0x2000; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+            // $A000-$BFFF -> HI
+            for (size_t i = 0; i < 0x2000; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[0x2000 + i], cartLocation::HI);
+
+            // Optional safety mirror for freezer/Ultimax cases
+            for (size_t i = 0; i < 0x2000; ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+
+            break;
+        }
+
+        // Split 8K chips
+        if (s.data.size() == 0x2000)
+        {
+            if (s.loadAddress == 0x8000)
+            {
+                any = true;
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+            }
+            else if (s.loadAddress == 0xA000)
+            {
+                any = true;
+                for (size_t i = 0; i < 0x2000; ++i)
+                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+            }
+        }
+    }
+
+    return any;
 }
 
 bool FinalCartridgeMapper::applyMappingAfterLoad()
 {
-    // Re-apply mapping immediately
+    if (!cart || !mem)
+        return false;
+
+    if (!loadIntoMemory(0))
+        return false;
+
     if (cartEnabled)
     {
         cart->setExROMLine(false);
@@ -142,4 +223,27 @@ bool FinalCartridgeMapper::applyMappingAfterLoad()
     }
 
     return true;
+}
+
+void FinalCartridgeMapper::pressFreeze()
+{
+    if (!cart || !mem) return;
+
+    // Set Ultimax mode
+    cart->setExROMLine(false);
+    cart->setGameLine(true);
+
+    // NMI
+    cart->requestCartridgeNMI();
+
+    // Restore mapping latch state (don't keep forcing Ultimax forever)
+    (void)applyMappingAfterLoad();
+}
+
+void FinalCartridgeMapper::pressReset()
+{
+    if (!cart || !mem) return;
+
+    (void)applyMappingAfterLoad();
+    cart->requestWarmReset();
 }
