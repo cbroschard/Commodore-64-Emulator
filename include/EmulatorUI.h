@@ -61,8 +61,6 @@ class EmulatorUI
             bool paused          = false;
             bool pal             = true;
 
-            bool canFreeze       = false;
-
             std::vector<CartSwitchView> cartSwitches;
             std::vector<CartButtonView> cartButtons;
         };

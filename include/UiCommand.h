@@ -32,7 +32,6 @@ struct UiCommand
         EjectCRT,
         EjectTape,
 
-        Freeze,
         PressButton,
         SetCartSwitch,
 

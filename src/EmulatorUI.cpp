@@ -507,60 +507,55 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Cartridge"))
+        if (!v.cartSwitches.empty() || !v.cartButtons.empty())
         {
-            // Freeze (enabled only if available)
-            if (!v.canFreeze) ImGui::BeginDisabled();
-
-            if (ImGui::MenuItem("Freeze", "F9"))
-                push(UiCommand::Type::Freeze);
-
-            if (!v.canFreeze) ImGui::EndDisabled();
-
-            // Cartridge switches (dynamic)
-            if (!v.cartSwitches.empty())
+            if (ImGui::BeginMenu("Cartridge"))
             {
-                ImGui::Separator();
-
-                for (uint32_t si = 0; si < static_cast<uint32_t>(v.cartSwitches.size()); si++)
+                // Cartridge switches (dynamic)
+                if (!v.cartSwitches.empty())
                 {
-                    const auto& sw = v.cartSwitches[si];
+                    ImGui::Separator();
 
-                    if (ImGui::BeginMenu(sw.name.c_str()))
+                    for (uint32_t si = 0; si < static_cast<uint32_t>(v.cartSwitches.size()); si++)
                     {
-                        for (uint32_t p = 0; p < static_cast<uint32_t>(sw.positions.size()); p++)
+                        const auto& sw = v.cartSwitches[si];
+
+                        if (ImGui::BeginMenu(sw.name.c_str()))
                         {
-                            bool selected = (sw.currentPos == p);
-                            if (ImGui::MenuItem(sw.positions[p].c_str(), nullptr, selected))
+                            for (uint32_t p = 0; p < static_cast<uint32_t>(sw.positions.size()); p++)
                             {
-                                pushSetCartSwitch(si, p);
+                                bool selected = (sw.currentPos == p);
+                                if (ImGui::MenuItem(sw.positions[p].c_str(), nullptr, selected))
+                                {
+                                    pushSetCartSwitch(si, p);
+                                }
                             }
+                            ImGui::EndMenu();
                         }
-                        ImGui::EndMenu();
                     }
                 }
-            }
 
-            if (!v.cartButtons.empty())
-            {
-                ImGui::Separator();
-
-                for (uint32_t bi = 0; bi < static_cast<uint32_t>(v.cartButtons.size()); ++bi)
+                if (!v.cartButtons.empty())
                 {
-                    const auto& bu = v.cartButtons[bi];
+                    ImGui::Separator();
 
-                    if (!bu.enabled)
-                        ImGui::BeginDisabled();
+                    for (uint32_t bi = 0; bi < static_cast<uint32_t>(v.cartButtons.size()); ++bi)
+                    {
+                        const auto& bu = v.cartButtons[bi];
 
-                    if (ImGui::MenuItem(bu.name.c_str()))
-                        pushCartButton(static_cast<uint32_t>(bu.index));
+                        if (!bu.enabled)
+                            ImGui::BeginDisabled();
 
-                    if (!bu.enabled)
-                        ImGui::EndDisabled();
+                        if (ImGui::MenuItem(bu.name.c_str()))
+                            pushCartButton(static_cast<uint32_t>(bu.index));
+
+                        if (!bu.enabled)
+                            ImGui::EndDisabled();
+                    }
                 }
-            }
 
-            ImGui::EndMenu();
+                ImGui::EndMenu();
+            }
         }
 
         if (ImGui::BeginMenu("Help"))

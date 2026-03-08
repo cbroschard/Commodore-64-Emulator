@@ -1,5 +1,4 @@
 #include <SDL2/sdl.h>
-#include "Cartridge/IFreezable.h"
 #include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasSwitch.h"
 #include "InputManager.h"
@@ -75,7 +74,6 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.paused = uiPaused_.load();
     s.pal    = isPal_ ? isPal_() : false;
 
-    s.canFreeze = false;
     s.cartSwitches.clear();
 
     if (media_ && s.cartAttached)
@@ -83,9 +81,6 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         if (auto* cart = media_->getCartridge())
         {
             const CartridgeMapper* mapper = cart->getMapper();
-
-            // Freeze capability
-            s.canFreeze = (dynamic_cast<const IFreezable*>(mapper) != nullptr);
 
             // Switch capability
             if (auto* hs = dynamic_cast<const IHasSwitch*>(mapper))
@@ -239,10 +234,6 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::AssignPad2ToPort2:
                 if (input_ && input_->getPad2()) input_->assignPadToPort(input_->getPad2(), 2);
-                break;
-
-            case UiCommand::Type::Freeze:
-                if (media_) media_->pressFreeze();
                 break;
 
             case UiCommand::Type::SetCartSwitch:

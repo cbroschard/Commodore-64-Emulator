@@ -119,8 +119,6 @@ public:
     inline Cartridge* getCartridge() { return cart_.get(); }
     inline bool isCartridgeAttached() const { return state_.cartAttached; }
     inline bool isTapeAttached() const { return state_.tapeAttached; }
-    bool canFreeze() const;
-    void pressFreeze();
     void pressButton(uint32_t index);
     void setCartSwitch(uint32_t switchIndex, uint32_t switchPos);
     void restoreCartridgeFromState();
