@@ -9,10 +9,9 @@
 #define RETROREPLAYMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
-#include "Cartridge/ICPUAttachable.h"
-#include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasbutton.h"
 
-class RetroReplayMapper : public CartridgeMapper, public ICPUAttachable, public IFreezable
+class RetroReplayMapper : public CartridgeMapper, public IHasButton
 {
     public:
         RetroReplayMapper();
@@ -43,33 +42,36 @@ class RetroReplayMapper : public CartridgeMapper, public ICPUAttachable, public 
             void decode(bool flashMode);
         } ctrl;
 
-        inline void attachCPUInstance(CPU* processor) override { this->processor = processor; }
-
         // State management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
+        inline uint32_t getButtonCount() const override { return 2; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t buttonIndex) override;
 
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        // Called from UI
-        void pressFreeze() override;
+        void tick(uint32_t elapsedCycles) override;
 
     protected:
 
     private:
-        // Non-owning pointers
-        CPU* processor;
-
         bool freezePending;
         bool freezeActive;
         bool registersLocked;
         bool de01Locked;
         bool flashMode;
+        uint32_t freezeDelayCycles;
 
         bool applyMappingAfterLoad() override;
+
+        // Called from UI
+        void pressFreeze();
+        void pressReset();
 };
 
 #endif // RETROREPLAYMAPPER_H
