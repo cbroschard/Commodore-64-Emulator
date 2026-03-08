@@ -9,7 +9,6 @@
 #include "Cartridge/AtomicPowerMapper.h"
 
 AtomicPowerMapper::AtomicPowerMapper() :
-    processor(nullptr),
     freezeActive(false),
     preFreezeRaw(0),
     preFreezeBank(0),
@@ -70,34 +69,51 @@ bool AtomicPowerMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver))
-    {
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
+    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
 
-    if (ver >= 1)
-    {
-        if (!ctrl.load(rdr))
-        {
-            rdr.exitChunkPayload(chunk);
-            return true;
-        }
-        ctrl.decode();
+    if (!ctrl.load(rdr))                { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.readU8(selectedBank);
-        rdr.readBool(ramEnabled);
+    if (!rdr.readU8(selectedBank))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ramEnabled))      { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.readBool(freezeActive);
-        rdr.readU8(preFreezeRaw);
-        rdr.readU8(preFreezeBank);
-    }
+    if (!rdr.readBool(freezeActive))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(preFreezeRaw))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(preFreezeBank))     { rdr.exitChunkPayload(chunk); return false; }
 
     rdr.exitChunkPayload(chunk);
 
+    ctrl.decode();
     loadedBank = 0xFF; // force a reload
-    applyMappingAfterLoad();
+    if (!applyMappingAfterLoad()) return false;
     return true;
+}
+
+const char* AtomicPowerMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void AtomicPowerMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
 }
 
 uint8_t AtomicPowerMapper::read(uint16_t address)
@@ -231,53 +247,25 @@ bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
     return any;
 }
 
-void AtomicPowerMapper::pressFreeze()
-{
-    if (!processor || !cart) return;
-
-    if (!freezeActive)
-    {
-        freezeActive  = true;
-        preFreezeRaw  = ctrl.raw;
-        preFreezeBank = selectedBank;
-    }
-
-    // Force freeze mapping (bank 0, cart enabled, RAM off, normal 8K mapping)
-    ctrl.raw = 0x00;
-    ctrl.decode();
-
-    ctrl.cartDisable = false;
-    ctrl.bank        = 0;
-    ctrl.ramEnable   = false;
-    ctrl.exromHigh   = false; // EXROM low/active
-    ctrl.gameLow     = false; // GAME high/inactive
-
-    applyMappingAfterLoad();
-    processor->pulseNMI();
-}
-
 bool AtomicPowerMapper::applyMappingAfterLoad()
 {
     if (!cart || !mem) return false;
 
-    // Cartridge disable: detach completely
     if (ctrl.cartDisable)
     {
+        ramEnabled = false;
         cart->setExROMLine(true);
         cart->setGameLine(true);
         mem->setROMLOverlayIsRAM(false);
         return true;
     }
 
-    // Update RAM overlay at ROML (Atomic Power bit 5)
     ramEnabled = ctrl.ramEnable;
     mem->setROMLOverlayIsRAM(ramEnabled);
 
-    // Drive EXROM/GAME from ctrl bits
     cart->setExROMLine(ctrl.exromHigh);
     cart->setGameLine(!ctrl.gameLow);
 
-    // Bank load into ROML image (only when changed)
     const uint8_t wantBank = (ctrl.bank & 0x03);
     if (loadedBank != wantBank)
     {
@@ -287,8 +275,33 @@ bool AtomicPowerMapper::applyMappingAfterLoad()
         loadedBank = wantBank;
     }
 
-    // Keep "selectedBank" consistent with what we want/loaded
     selectedBank = wantBank;
-
     return true;
+}
+
+void AtomicPowerMapper::pressFreeze()
+{
+    if (!cart) return;
+
+    if (!freezeActive)
+    {
+        freezeActive  = true;
+        preFreezeRaw  = ctrl.raw;
+        preFreezeBank = selectedBank;
+    }
+
+    ctrl.raw = 0x00;
+    ctrl.decode();
+
+    applyMappingAfterLoad();
+    cart->requestCartridgeNMI();
+}
+
+void AtomicPowerMapper::pressReset()
+{
+    freezeActive = false;
+    applyMappingAfterLoad();
+
+    if (cart)
+        cart->requestWarmReset();
 }
