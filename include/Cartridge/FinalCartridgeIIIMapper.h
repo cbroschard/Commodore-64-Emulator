@@ -9,10 +9,9 @@
 #define FINALCARTRIDGEIIIMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
-#include "Cartridge/ICPUAttachable.h"
-#include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasButton.h"
 
-class FinalCartridgeIIIMapper : public CartridgeMapper, public ICPUAttachable, public IFreezable
+class FinalCartridgeIIIMapper : public CartridgeMapper, public IHasButton
 {
     public:
         FinalCartridgeIIIMapper();
@@ -42,25 +41,22 @@ class FinalCartridgeIIIMapper : public CartridgeMapper, public ICPUAttachable, p
             bool load(StateReader& rdr);
         };
 
-        inline void attachCPUInstance(CPU* processor) override { this->processor = processor; }
-
         // State management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
+        inline uint32_t getButtonCount() const override { return 2; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t buttonIndex) override;
 
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        void pressFreeze() override;
-
     protected:
 
     private:
-        // Non-owning pointers
-        CPU* processor;
-
         // Live mapper state
         FCIIIControl ctrl{};
         FCIIIControl preFreezeCtrl{};
@@ -70,6 +66,8 @@ class FinalCartridgeIIIMapper : public CartridgeMapper, public ICPUAttachable, p
 
         bool applyMappingAfterLoad() override;
 
+        void pressFreeze();
+        void pressReset();
 };
 
 #endif // FINALCARTRIDGEIIIMAPPER_H

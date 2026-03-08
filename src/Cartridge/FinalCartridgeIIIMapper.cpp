@@ -9,7 +9,6 @@
 #include "Cartridge/FinalCartridgeIIIMapper.h"
 
 FinalCartridgeIIIMapper::FinalCartridgeIIIMapper() :
-    processor(nullptr),
     freezeBank(0),
     freezeActive(false)
 {
@@ -91,6 +90,33 @@ bool FinalCartridgeIIIMapper::loadState(const StateReader::Chunk& chunk, StateRe
     return false;
 }
 
+const char* FinalCartridgeIIIMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void FinalCartridgeIIIMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
 uint8_t FinalCartridgeIIIMapper::read(uint16_t address)
 {
     if (!cart) return 0xFF;
@@ -119,19 +145,18 @@ uint8_t FinalCartridgeIIIMapper::read(uint16_t address)
 
 void FinalCartridgeIIIMapper::write(uint16_t address, uint8_t value)
 {
-    if (address >= 0xDE00 && address <= 0xDFFF)
+    if (address != 0xDFFF)
+        return;
+
+    ctrl.raw = value;
+    ctrl.decode();
+
+    (void)applyMappingAfterLoad();
+
+    if ((value & 0x40) == 0)
     {
-        ctrl.raw = value;
-        ctrl.decode();
-
-        // Always apply; freezeActive path will override mapping anyway.
-        applyMappingAfterLoad();
-
-        if ((value & 0x40) == 0)
-        {
-            if (processor)
-                processor->pulseNMI();
-        }
+        if (cart)
+            cart->requestCartridgeNMI();
     }
 }
 
@@ -212,29 +237,9 @@ bool FinalCartridgeIIIMapper::loadIntoMemory(uint8_t bank)
     return any;
 }
 
-void FinalCartridgeIIIMapper::pressFreeze()
-{
-    if (!freezeActive)
-    {
-        freezeActive = true;
-        preFreezeCtrl = ctrl;
-
-        freezeBank = 0;
-        loadIntoMemory(freezeBank);
-    }
-
-    // Set Ultimax mode
-    cart->setExROMLine(true);
-    cart->setGameLine(false);
-
-    // NMI
-    if (processor)
-        processor->pulseNMI();
-}
-
 bool FinalCartridgeIIIMapper::applyMappingAfterLoad()
 {
-    if (!cart)
+    if (!cart || !mem)
         return false;
 
     if (freezeActive)
@@ -253,10 +258,37 @@ bool FinalCartridgeIIIMapper::applyMappingAfterLoad()
 
     switch (ctrl.mode)
     {
-      case CartMode::cart8K:   cart->setExROMLine(false); cart->setGameLine(true);  break;
-      case CartMode::cart16K:  cart->setExROMLine(false); cart->setGameLine(false); break;
-      case CartMode::Ultimax:  cart->setExROMLine(true);  cart->setGameLine(false); break;
+        case CartMode::cart8K:   cart->setExROMLine(false); cart->setGameLine(true);  break;
+        case CartMode::cart16K:  cart->setExROMLine(false); cart->setGameLine(false); break;
+        case CartMode::Ultimax:  cart->setExROMLine(true);  cart->setGameLine(false); break;
     }
 
     return loadIntoMemory(ctrl.bank);
+}
+
+void FinalCartridgeIIIMapper::pressFreeze()
+{
+    if (!cart)
+        return;
+
+    if (!freezeActive)
+    {
+        freezeActive = true;
+        preFreezeCtrl = ctrl;
+        freezeBank = 0;
+        (void)loadIntoMemory(freezeBank);
+    }
+
+    cart->setExROMLine(true);
+    cart->setGameLine(false);
+    cart->requestCartridgeNMI();
+}
+
+void FinalCartridgeIIIMapper::pressReset()
+{
+    freezeActive = false;
+    (void)applyMappingAfterLoad();
+
+    if (cart)
+        cart->requestWarmReset();
 }
