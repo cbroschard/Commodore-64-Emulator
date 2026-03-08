@@ -9,8 +9,7 @@
 #include "Cartridge/KCSPowerMapper.h"
 #include "Memory.h"
 
-KCSPowerMapper::KCSPowerMapper() :
-    processor(nullptr)
+KCSPowerMapper::KCSPowerMapper()
 {
 
 }
@@ -20,12 +19,41 @@ KCSPowerMapper::~KCSPowerMapper() = default;
 void KCSPowerMapper::saveState(StateWriter& wrtr) const
 {
     // No-op - cartridge saves RAMData and line states
+    (void)wrtr;
 }
 
 bool KCSPowerMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    // No-op
-    return true;
+    (void)chunk;
+    (void)rdr;
+    return false;
+}
+
+const char* KCSPowerMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void KCSPowerMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
 }
 
 uint8_t KCSPowerMapper::read(uint16_t address)
@@ -36,19 +64,25 @@ uint8_t KCSPowerMapper::read(uint16_t address)
         const bool a1 = (address & 0x02) != 0;
         if (!a1)
         {
-            // Set 8K mode
-            cart->setGameLine(true);
-            cart->setExROMLine(false);
+            if (cart)
+            {
+                // Set 8K mode
+                cart->setGameLine(true);
+                cart->setExROMLine(false);
+            }
         }
         else
         {
-            // "RAM config - Disable cartridge
-            cart->setGameLine(true);
-            cart->setExROMLine(true);
+            if (cart)
+            {
+                // "RAM config - Disable cartridge
+                cart->setGameLine(true);
+                cart->setExROMLine(true);
+            }
         }
 
         uint16_t offset = 0x1E00 + (address & 0x00FF);
-        return mem->readCartridge(offset, cartLocation::LO);
+        return mem ? mem->readCartridge(offset, cartLocation::LO) : 0xFF;
     }
 
     // IO2: $DF00-$DFFF
@@ -66,8 +100,8 @@ uint8_t KCSPowerMapper::read(uint16_t address)
         // bit7 = EXROM line level, bit6 = GAME line level, lower 6 bits = open bus.
         uint8_t open = mem ? (mem->getLastBus() & 0x3F) : 0x3F;
 
-        const bool exromHigh = cart->getExROMLine();
-        const bool gameHigh  = cart->getGameLine();
+        const bool exromHigh = cart ? cart->getExROMLine() : true;
+        const bool gameHigh  = cart ? cart->getGameLine()  : true;
 
         uint8_t value = open;
         if (exromHigh) value |= 0x80;
@@ -81,32 +115,23 @@ void KCSPowerMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    // IO1: $DE00-$DEFF (mode changes depend on A1 and WRITE)
+    // IO1: $DE00-$DEFF
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
+        if (!cart)
+            return;
+
         const bool a1 = (address & 0x02) != 0;
 
-        if (!a1)
-        {
-            // IO1 WRITE, A1=0 -> 16K GAME
-            // EXROM asserted (0/low), GAME asserted (0/low)
-            cart->setExROMLine(false);
-            cart->setGameLine(false);
-        }
-        else
-        {
-            // IO1 WRITE, A1=1 -> ULTIMAX
-            // EXROM asserted (0/low), GAME inactive (1/high)
-            cart->setExROMLine(false);
-            cart->setGameLine(true);
-        }
+        // A1 sets EXROM, write cycle sets GAME low
+        cart->setExROMLine(a1);   // A1=0 -> low/asserted, A1=1 -> high/inactive
+        cart->setGameLine(false); // write => GAME low/asserted
         return;
     }
 
     // IO2: $DF00-$DFFF
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        // $DF00-$DF7F = writable cartridge RAM
         if ((address & 0x80) == 0)
         {
             if (cart && cart->hasCartridgeRAM())
@@ -114,13 +139,20 @@ void KCSPowerMapper::write(uint16_t address, uint8_t value)
             return;
         }
 
-        // $DF80-$DFFF = open area; writes do nothing
         return;
     }
 }
 
 bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
 {
+    (void)bank;
+
+    if (!cart || !mem)
+        return false;
+
+    cart->clearCartridge(cartLocation::LO);
+    cart->clearCartridge(cartLocation::HI);
+
     bool mapped = false;
 
     for (const auto& section : cart->getChipSections())
@@ -145,21 +177,35 @@ bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
     return mapped;
 }
 
+bool KCSPowerMapper::applyMappingAfterLoad()
+{
+    if (!cart || !mem)
+        return false;
+
+    if (!loadIntoMemory(0))
+        return false;
+
+    cart->setExROMLine(false);
+    cart->setGameLine(false);
+    return true;
+}
+
 void KCSPowerMapper::pressFreeze()
 {
+    if (!cart) return;
+
     // Set Ultimax mode
     cart->setExROMLine(false);
     cart->setGameLine(true);
 
     // NMI
-    if (processor)
-        processor->pulseNMI();
+    cart->requestCartridgeNMI();
 }
 
-bool KCSPowerMapper::applyMappingAfterLoad()
+void KCSPowerMapper::pressReset()
 {
-    // Default: 16K game
-    cart->setExROMLine(false); // asserted
-    cart->setGameLine(false);  // asserted
-    return true;
+    if (!cart) return;
+
+    applyMappingAfterLoad();
+    cart->requestWarmReset();
 }
