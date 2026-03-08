@@ -9,17 +9,14 @@
 #define EXPERTMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
-#include "Cartridge/ICPUAttachable.h"
-#include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasSwitch.h"
 
-class ExpertMapper : public CartridgeMapper, public ICPUAttachable, public IFreezable, public IHasSwitch
+class ExpertMapper : public CartridgeMapper, public IHasButton, public IHasSwitch
 {
     public:
         ExpertMapper();
         virtual ~ExpertMapper();
-
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
 
         enum class SwitchPos : uint8_t
         {
@@ -40,26 +37,29 @@ class ExpertMapper : public CartridgeMapper, public ICPUAttachable, public IFree
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
+        inline uint32_t getButtonCount() const override { return 2; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t buttonIndex) override;
+
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        void pressFreeze() override;
         void tick(uint32_t elapsedCycles) override;
 
     protected:
 
     private:
-        // Non-owning pointers
-        CPU* processor;
-
         SwitchPos sw;
 
         int32_t freezeCycles;
         bool freezeActive;
 
         bool applyMappingAfterLoad() override;
+
+        void pressFreeze();
+        void pressReset();
 };
 
 #endif // EXPERTMAPPER_H

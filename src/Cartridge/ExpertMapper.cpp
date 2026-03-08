@@ -9,7 +9,6 @@
 #include "Cartridge/ExpertMapper.h"
 
 ExpertMapper::ExpertMapper() :
-    processor(nullptr),
     sw(SwitchPos::OFF),
     freezeCycles(10),
     freezeActive(false)
@@ -39,7 +38,7 @@ void ExpertMapper::setSwitchPosition(uint32_t switchIndex, uint32_t pos)
     sw = static_cast<SwitchPos>(pos);
 
     // Immediately apply mapping when user flips switch in UI
-    applyMappingAfterLoad();
+    (void)applyMappingAfterLoad();
 }
 
 const char* ExpertMapper::getSwitchPositionLabel(uint32_t switchIndex, uint32_t pos) const
@@ -97,6 +96,33 @@ bool ExpertMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
    return false;
 }
 
+const char* ExpertMapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void ExpertMapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
 uint8_t ExpertMapper::read(uint16_t address)
 {
     return 0xFF;
@@ -104,33 +130,26 @@ uint8_t ExpertMapper::read(uint16_t address)
 
 void ExpertMapper::write(uint16_t address, uint8_t value)
 {
-
-}
-
-void ExpertMapper::pressFreeze()
-{
-    if (!cart || !processor) return;
-
-    freezeActive = true;
-    freezeCycles = 10;
-
-    // Turn on Ultimax mode for NMI
-    cart->setExROMLine(true);
-    cart->setGameLine(false);
-
-    // NMI
-    processor->pulseNMI();
+    (void)address;
+    (void)value;
 }
 
 void ExpertMapper::tick(uint32_t elapsedCycles)
 {
     if (!freezeActive) return;
 
-    // Guard: if elapsedCycles is huge, just clamp to 0
-    if (elapsedCycles >= static_cast<uint32_t>(freezeCycles))
+    if (freezeCycles <= 0)
+    {
         freezeCycles = 0;
+    }
+    else if (elapsedCycles >= static_cast<uint32_t>(freezeCycles))
+    {
+        freezeCycles = 0;
+    }
     else
+    {
         freezeCycles -= static_cast<int32_t>(elapsedCycles);
+    }
 
     if (freezeCycles <= 0)
     {
@@ -189,4 +208,25 @@ bool ExpertMapper::applyMappingAfterLoad()
     }
 
     return true;
+}
+
+void ExpertMapper::pressFreeze()
+{
+    if (!cart || !mem) return;
+
+    freezeActive = true;
+    freezeCycles = 10;
+
+    (void)applyMappingAfterLoad();
+    cart->requestCartridgeNMI();
+}
+
+void ExpertMapper::pressReset()
+{
+    if (!cart || !mem) return;
+
+    freezeActive = false;
+    (void)applyMappingAfterLoad();
+
+    cart->requestWarmReset();
 }
