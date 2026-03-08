@@ -9,7 +9,6 @@
 #include "Cartridge/SuperSnapshotV4Mapper.h"
 
 SuperSnapshotV4Mapper::SuperSnapshotV4Mapper() :
-    processor(nullptr),
     freezeActive(false),
     selectedBank(0xFF)
 {
@@ -106,6 +105,33 @@ void SuperSnapshotV4Mapper::SS4Control::applyDF01Write(uint8_t newVal)
     df01Last = newVal;
 }
 
+void SuperSnapshotV4Mapper::SS4Control::rebuildFromSavedState()
+{
+    decodeFromDF00();
+
+    // suppress any synthetic load-time strobe
+    releaseFreeze = false;
+
+    // Reconstruct DF01-derived mode state from saved df01/df01Last relation.
+    const uint8_t old = df01Last;
+
+    if (static_cast<uint8_t>(old - 1) == df01)
+    {
+        ultimax   = true;
+        ramAtROML = true;
+        map16k = map8k = false;
+    }
+    else if (static_cast<uint8_t>(old + 1) == df01)
+    {
+        ultimax   = false;
+        ramAtROML = false;
+
+        const bool b0 = (df00 & 0x01) != 0;
+        map16k = !b0;
+        map8k  =  b0;
+    }
+}
+
 void SuperSnapshotV4Mapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("SSS4");
@@ -129,8 +155,11 @@ bool SuperSnapshotV4Mapper::loadState(const StateReader::Chunk& chunk, StateRead
         if (!preFreezeCtrl.load(rdr))   { rdr.exitChunkPayload(chunk); return false; }
 
         // Apply immediately
-        ctrl.decodeFromDF00();
+        ctrl.rebuildFromSavedState();
+        preFreezeCtrl.rebuildFromSavedState();
+
         selectedBank = 0xFF;
+
         if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
@@ -138,6 +167,33 @@ bool SuperSnapshotV4Mapper::loadState(const StateReader::Chunk& chunk, StateRead
     }
     // Not our chunk
     return false;
+}
+
+const char* SuperSnapshotV4Mapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Freeze";
+        case 1: return "Reset";
+        default: return "";
+    }
+}
+
+void SuperSnapshotV4Mapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressFreeze();
+            break;
+
+        case 1:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
 }
 
 uint8_t SuperSnapshotV4Mapper::read(uint16_t address)
@@ -207,14 +263,14 @@ void SuperSnapshotV4Mapper::write(uint16_t address, uint8_t value)
         {
             ctrl.df00 = value;
             ctrl.decodeFromDF00();
-            applyMappingAfterLoad();
+            (void)applyMappingAfterLoad();
             return;
         }
 
         if (reg == 0x01)
         {
             ctrl.applyDF01Write(value);
-            applyMappingAfterLoad();
+            (void)applyMappingAfterLoad();
             return;
         }
 
@@ -304,7 +360,8 @@ bool SuperSnapshotV4Mapper::applyMappingAfterLoad()
         freezeActive = false;
         ctrl.releaseFreeze = false;
         ctrl = preFreezeCtrl;
-        ctrl.decodeFromDF00();
+        ctrl.rebuildFromSavedState();
+        ctrl.releaseFreeze = false;
     }
 
     // If disabled, detach cart completely
@@ -365,15 +422,22 @@ void SuperSnapshotV4Mapper::pressFreeze()
     }
 
     // Force bank 0 in freeze mode
-    selectedBank = 0xFF;
     (void)loadIntoMemory(0);
-    selectedBank = 0;
 
     // Force Ultimax mapping while frozen
     cart->setExROMLine(true);
     cart->setGameLine(false);
     mem->setROMLOverlayIsRAM(true);
 
-    if (processor)
-        processor->pulseNMI();
+    cart->requestCartridgeNMI();
+}
+
+void SuperSnapshotV4Mapper::pressReset()
+{
+    freezeActive = false;
+    (void)applyMappingAfterLoad();
+
+    if (!cart) return;
+
+    cart->requestWarmReset();
 }

@@ -9,18 +9,15 @@
 #define SUPERSNAPSHOTV4MAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
-#include "Cartridge/ICPUAttachable.h"
-#include "Cartridge/IFreezable.h"
+#include "Cartridge/IHasButton.h"
 
-class SuperSnapshotV4Mapper : public CartridgeMapper, public ICPUAttachable, public IFreezable
+class SuperSnapshotV4Mapper : public CartridgeMapper, public IHasButton
 {
     public:
         SuperSnapshotV4Mapper();
         virtual ~SuperSnapshotV4Mapper();
 
-        inline void attachCPUInstance(CPU* processor) override { this->processor = processor; }
-
-       struct SS4Control
+        struct SS4Control
         {
             // --- Raw regs ---
             uint8_t df00 = 0x00;        // ROM config (write-only in hw, but store it)
@@ -49,31 +46,35 @@ class SuperSnapshotV4Mapper : public CartridgeMapper, public ICPUAttachable, pub
             // Call this after df00 changes (writes to $DF00)
             void decodeFromDF00();
             void applyDF01Write(uint8_t newVal);
+
+            // Used when loading state
+            void rebuildFromSavedState();
         } ctrl;
 
         // State management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
+        inline uint32_t getButtonCount() const override { return 2; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t buttonIndex) override;
+
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        void pressFreeze() override;
-
     protected:
 
     private:
-        // Non-owning pointers
-        CPU* processor;
-
         SS4Control preFreezeCtrl{};
 
         bool freezeActive;
         uint8_t selectedBank;
 
         bool applyMappingAfterLoad() override;
+        void pressFreeze();
+        void pressReset();
 };
 
 #endif // SUPERSNAPSHOTV4MAPPER_H
