@@ -10,7 +10,6 @@
 
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/IHasButton.h"
-#include "Cartridge/IFreezable.h"
 
 class ActionReplayMapper : public CartridgeMapper, public IHasButton
 {
