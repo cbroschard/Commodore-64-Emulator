@@ -266,6 +266,8 @@ class Vic
 
         // Bad line detection
         bool isBadLine(int raster);
+        void beginBadLineFetch();
+        void fetchBadLineMatrixByte(int fetchIndex, int raster);
 
         // Address enable control
         void updateBusArbitration();
@@ -339,6 +341,18 @@ class Vic
         void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);
         uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
+
+        int currentDisplayRowBase() const;
+        uint8_t fetchDisplayScreenByte(int col, int raster) const;
+        uint8_t fetchDisplayColorByte(int col, int raster) const;
+
+        void handleBadLineState(int raster);
+        void advanceVideoCountersEndOfLine(int raster);
+        int currentCharacterRow() const;
+
+        void updateVerticalBorderState(int raster);
+        void updateHorizontalBorderState(int raster);
+        bool borderActiveAtPixel(int raster, int px) const;
 
         // Screen helper
         inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }

@@ -799,9 +799,17 @@ void Vic::tick(int cycles)
         if (currentCycle == 0 && registers.raster == 0)
         {
             firstBadlineY = -1;
+            denSeenOn30 = false;
+
+            // Reset VIC-style display counters at frame start
+            vicState.vcBase = 0;
+            vicState.vc = 0;
+            vicState.rc = 0;
+            vicState.badLine = false;
+
+            // Compatibility mirrors
             rowCounter = 0;
             currentScreenRow = 0;
-            denSeenOn30 = false;
         }
 
         if ((registers.raster == 0x30) && (registers.control & 0x10)) denSeenOn30 = true;
@@ -846,19 +854,36 @@ void Vic::tick(int cycles)
             if (firstBadlineY < 0)
             {
                 firstBadlineY = registers.raster;
+
+                // First visible character row starts at VCBASE = 0.
+                vicState.vcBase = 0;
+                vicState.vc = 0;
+                vicState.rc = 0;
+
                 currentScreenRow = 0;
-            }
-            currentScreenRow = (firstBadlineY >= 0) ? ((registers.raster - firstBadlineY) >> 3) : 0;
-            int fetchIndex = currentCycle - cfg_->DMAStartCycle;
-            if (fetchIndex >= 0 && fetchIndex < 40)
-            {
-                charPtrFIFO[fetchIndex]  = fetchScreenByte(currentScreenRow, fetchIndex, registers.raster);
-                colorPtrFIFO[fetchIndex] = fetchColorByte (currentScreenRow, fetchIndex, registers.raster) & 0x0F;
-            }
-            if (currentCycle == cfg_->DMAStartCycle)
-            {
                 rowCounter = 0;
             }
+
+            if (currentCycle == cfg_->DMAStartCycle)
+            {
+                beginBadLineFetch();
+            }
+
+            const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
+            if (fetchIndex >= 0 && fetchIndex < 40)
+            {
+                fetchBadLineMatrixByte(fetchIndex, registers.raster);
+            }
+
+            // After the 40 matrix fetches, VC has advanced by one row.
+            if (currentCycle == cfg_->DMAEndCycle)
+            {
+                vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
+            }
+        }
+        else
+        {
+            vicState.badLine = false;
         }
 
         ++currentCycle;
@@ -885,6 +910,11 @@ void Vic::tick(int cycles)
 
             finishSpriteRasterOutput(curRaster);
 
+            // Update border state for this raster
+            updateVerticalBorderState(curRaster);
+            updateHorizontalBorderState(curRaster);
+            vicState.mainBorder = vicState.verticalBorder || vicState.horizontalBorder;
+
             // Render and collisions for this line
             renderLine(curRaster);
             detectSpriteToSpriteCollision(curRaster);
@@ -893,17 +923,8 @@ void Vic::tick(int cycles)
             // Advance/finish sprite DMA state
             updateSpriteDMAEndOfLine(curRaster);
 
-            // Row counter update
-            const bool DEN = (d011_per_raster[curRaster] & 0x10) != 0;
-            const bool badNextLine = isBadLine((curRaster + 1) % cfg_->maxRasterLines);
-            if (DEN)
-            {
-                if (!badNextLine)
-                {
-                    rowCounter = (rowCounter + 1) & 0x07;
-                    if (rowCounter == 0) currentScreenRow++;
-                }
-            }
+            // Advance VIC-style display counters
+            advanceVideoCountersEndOfLine(curRaster);
 
             // End-of-frame check must use the pre-increment raster (curRaster)
             if (curRaster == cfg_->maxRasterLines - 1)
@@ -1471,6 +1492,27 @@ bool Vic::isBadLine(int raster)
     return true;
 }
 
+void Vic::beginBadLineFetch()
+{
+    vicState.badLine = true;
+    vicState.rc = 0;
+    vicState.vc = vicState.vcBase;
+
+    // Compatibility mirrors
+    rowCounter = vicState.rc;
+    currentScreenRow = currentCharacterRow();
+}
+
+void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
+{
+    const uint16_t vc = static_cast<uint16_t>(vicState.vc + fetchIndex);
+    const int row = static_cast<int>(vc / 40);
+    const int col = static_cast<int>(vc % 40);
+
+    charPtrFIFO[fetchIndex]  = fetchScreenByte(row, col, raster);
+    colorPtrFIFO[fetchIndex] = fetchColorByte(row, col, raster) & 0x0F;
+}
+
 void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
 {
     if (!IO_adapter)
@@ -1516,50 +1558,40 @@ void Vic::renderLine(int raster)
 
     updateGraphicsMode(raster);
 
-    // Clear bgOpaque for the *framebuffer Y* line
-    int screenY = fbY(raster);
+    const int screenY = fbY(raster);
     if (screenY >= 0 && screenY < (int)bgOpaque.size())
     {
         for (int x = 0; x < 512; ++x)
             bgOpaque[screenY][x] = 0;
     }
 
-    int x0, x1;
-    innerWindowForRaster(raster, x0, x1);
-
-    IO_adapter->renderBorderLine(screenY, registers.borderColor, x0, x1);
-
-    const int  y0  = BORDER_SIZE;
-    const int  y1  = y0 + cfg_->visibleLines;
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
-    const int  rows = getRSEL(raster) ? 25 : 24;
 
-    // Allow inner drawing when the vertical window is *actually* open from the first badline,even if still in top border
-    const bool vOpenBand = denSeenOn30 && DEN && firstBadlineY >= 0 && raster >= firstBadlineY && raster <  firstBadlineY + rows * 8;
-    if ((screenY < y0 || screenY >= y1) && !vOpenBand)
-    {
-        renderSprites(0, raster);
-        renderSprites(1, raster);
-        return;
-    }
+    // First fill the whole line as border.
+    IO_adapter->renderBorderLine(screenY, registers.borderColor, 0, 0);
 
+    // If display is globally off, only sprites can appear over border.
     if (!DEN)
     {
-        IO_adapter->renderBackgroundLine(screenY, registers.borderColor, x0, x1);
         renderSprites(0, raster);
         renderSprites(1, raster);
         return;
     }
 
-    if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
-    {
-        // Inner window background: border color when DEN=0, otherwise BG color
-        IO_adapter->renderBackgroundLine(screenY, registers.backgroundColor0, x0, x1);
-    }
+    const int cols = getCSEL(raster) ? 40 : 38;
+    const int lineXScroll = fineXScroll(raster);
 
-    if (DEN)
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int rightInner = leftInner + cols * 8;
+
+    // Only render interior graphics when vertical border is open.
+    if (!vicState.verticalBorder)
     {
-        const int lineXScroll = fineXScroll(raster);
+        if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
+        {
+            IO_adapter->renderBackgroundLine(screenY, registers.backgroundColor0, leftInner, rightInner);
+        }
+
         switch (currentMode)
         {
             case graphicsMode::standard:
@@ -1580,9 +1612,7 @@ void Vic::renderLine(int raster)
         }
     }
 
-    // Sprites are visible regardless of DEN
     renderSprites(0, raster);
-
     renderSprites(1, raster);
 }
 
@@ -1591,10 +1621,10 @@ void Vic::renderTextLine(int raster, int xScroll)
     int rows = getRSEL(raster) ? 25 : 24;
     int cols = getCSEL(raster) ? 40 : 38;
 
-    int charRow = currentScreenRow;
-    if (charRow >= rows) return;
+    int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows) return;
 
-    int yInChar = rowCounter;
+    int yInChar = static_cast<int>(vicState.rc & 0x07);
     int fine    = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
 
@@ -1604,7 +1634,6 @@ void Vic::renderTextLine(int raster, int xScroll)
     int xStart = x0 - fine;
 
     int py = fbY(raster);
-    if (charRow < 0) return;
 
     for (int col = 0; col < fetchCols; ++col)
     {
@@ -1620,8 +1649,8 @@ void Vic::renderTextLine(int raster, int xScroll)
         }
         else if (col == 40)
         {
-            scrByte  = fetchScreenByte(charRow, 39, raster);
-            colorByte = fetchColorByte(charRow, 39, raster) & 0x0F;
+            scrByte  = fetchDisplayScreenByte(39, raster);
+            colorByte = fetchDisplayColorByte(39, raster);
         }
         else break;
 
@@ -1644,7 +1673,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
     int cols = getCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = currentScreenRow;
+    int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
@@ -1669,7 +1698,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        const uint8_t scr = fetchScreenByte(charRow, col, raster);
+        const uint8_t scr = fetchDisplayScreenByte(col, raster);
         const uint8_t fgColor = (scr >> 4) & 0x0F;
         const uint8_t bgColor = scr & 0x0F;
 
@@ -1698,7 +1727,7 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     int cols = getCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
-    int charRow = currentScreenRow;
+    int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows) return;
 
     int bitmapY = raster - firstVis;
@@ -1723,8 +1752,8 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        const uint8_t scr = fetchScreenByte(charRow, col, raster);
-        const uint8_t colNib = fetchColorByte(charRow, col, raster) & 0x0F;
+        const uint8_t scr = fetchDisplayScreenByte(col, raster);
+        const uint8_t colNib = fetchDisplayColorByte(col, raster);
         const uint8_t bg0 = registers.backgroundColor0 & 0x0F;
 
         const int cellLeft = xStart + col * 8;
@@ -1761,18 +1790,16 @@ void Vic::renderECMLine(int raster, int xScroll)
     int rows = getRSEL(raster) ? 25 : 24;
     int cols = getCSEL(raster) ? 40 : 38;
 
-    int charRow = currentScreenRow;
-    if (charRow >= rows) return;
+    int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows) return;
 
-    int yInChar = rowCounter;
+    int yInChar = static_cast<int>(vicState.rc & 0x07);
     int fine = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
     int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
     int x1 = x0 + cols * 8;
     int xStart = x0 - fine;
     int py = fbY(raster);
-
-    if (charRow < 0) return;
 
     for (int col = 0; col < fetchCols; ++col)
     {
@@ -1784,8 +1811,8 @@ void Vic::renderECMLine(int raster, int xScroll)
         }
         else if (col == 40)
         {
-            scrByte  = fetchScreenByte(charRow, 39, raster);
-            colorByte = fetchColorByte(charRow, 39, raster) & 0x0F;
+            scrByte  = fetchDisplayScreenByte(39, raster);
+            colorByte = fetchDisplayColorByte(39, raster);
         }
         else break;
 
@@ -2119,6 +2146,118 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 {
     const uint16_t address = COLOR_MEMORY_START + row * 40 + col;
     return mem->vicReadColor(address);
+}
+
+int Vic::currentDisplayRowBase() const
+{
+    return static_cast<int>(vicState.vcBase);
+}
+
+uint8_t Vic::fetchDisplayScreenByte(int col, int raster) const
+{
+    const int vc = currentDisplayRowBase() + col;
+    const int row = vc / 40;
+    const int c   = vc % 40;
+    return fetchScreenByte(row, c, raster);
+}
+
+uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
+{
+    const int vc = currentDisplayRowBase() + col;
+    const int row = vc / 40;
+    const int c   = vc % 40;
+    return fetchColorByte(row, c, raster) & 0x0F;
+}
+
+void Vic::handleBadLineState(int raster)
+{
+    const bool bad = isBadLine(raster);
+    vicState.badLine = bad;
+
+    if (!bad)
+        return;
+
+    beginBadLineFetch();
+}
+
+void Vic::advanceVideoCountersEndOfLine(int raster)
+{
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const int rows = getRSEL(raster) ? 25 : 24;
+
+    if (!DEN || firstBadlineY < 0)
+        return;
+
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return;
+
+    // Advance RC every displayed raster line.
+    // When it wraps, advance VCBASE to the next character row.
+    vicState.rc = (vicState.rc + 1) & 0x07;
+
+    if (vicState.rc == 0)
+    {
+        vicState.vcBase += 40;
+    }
+
+    rowCounter = vicState.rc;
+    currentScreenRow = currentCharacterRow();
+}
+
+int Vic::currentCharacterRow() const
+{
+    return static_cast<int>(vicState.vcBase / 40);
+}
+
+void Vic::updateVerticalBorderState(int raster)
+{
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+
+    if (!DEN || !denSeenOn30 || firstBadlineY < 0)
+    {
+        vicState.verticalBorder = true;
+        return;
+    }
+
+    if (raster < firstBadlineY)
+    {
+        vicState.verticalBorder = true;
+        return;
+    }
+
+    vicState.verticalBorder = false;
+}
+
+void Vic::updateHorizontalBorderState(int raster)
+{
+    (void)raster;
+
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    if (!DEN || vicState.verticalBorder)
+    {
+        vicState.horizontalBorder = true;
+        return;
+    }
+
+    vicState.horizontalBorder = false;
+}
+
+bool Vic::borderActiveAtPixel(int raster, int px) const
+{
+    const bool csel = getCSEL(raster);
+    const int cols = csel ? 40 : 38;
+
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int rightInner = leftInner + cols * 8;
+
+    if (vicState.verticalBorder)
+        return true;
+
+    if (px < leftInner || px >= rightInner)
+        return true;
+
+    return vicState.horizontalBorder;
 }
 
 void Vic::markBGOpaque(int screenY, int px)
