@@ -125,6 +125,11 @@ void Vic::reset()
     std::fill(std::begin(d016_per_raster), std::end(d016_per_raster), 0x08);
     std::fill(std::begin(d018_per_raster), std::end(d018_per_raster), 0x14);
 
+    bgColorLine.fill(0);
+    bgOpaqueLine.fill(0);
+
+    finalColorLine.fill(0);
+
     // Fill in DD00
     uint16_t currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
     std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
@@ -1565,55 +1570,18 @@ void Vic::renderLine(int raster)
             bgOpaque[screenY][x] = 0;
     }
 
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    // Generate the buffered background/display line first.
+    generateBackgroundLine(raster);
 
-    // First fill the whole line as border.
-    IO_adapter->renderBorderLine(screenY, registers.borderColor, 0, 0);
+    // Compose the final visible raster line from:
+    // border/background + sprite layers.
+    composeFinalRasterLine(raster);
 
-    // If display is globally off, only sprites can appear over border.
-    if (!DEN)
+    // Emit the final composed line.
+    for (int px = 0; px < 512; ++px)
     {
-        renderSprites(0, raster);
-        renderSprites(1, raster);
-        return;
+        IO_adapter->setPixel(px, screenY, finalColorLine[px] & 0x0F);
     }
-
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int lineXScroll = fineXScroll(raster);
-
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int rightInner = leftInner + cols * 8;
-
-    // Only render interior graphics when vertical border is open.
-    if (!vicState.verticalBorder)
-    {
-        if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
-        {
-            IO_adapter->renderBackgroundLine(screenY, registers.backgroundColor0, leftInner, rightInner);
-        }
-
-        switch (currentMode)
-        {
-            case graphicsMode::standard:
-            case graphicsMode::multiColor:
-                renderTextLine(raster, lineXScroll);
-                break;
-            case graphicsMode::bitmap:
-                renderBitmapLine(raster, lineXScroll);
-                break;
-            case graphicsMode::multiColorBitmap:
-                renderBitmapMulticolorLine(raster, lineXScroll);
-                break;
-            case graphicsMode::extendedColorText:
-                renderECMLine(raster, lineXScroll);
-                break;
-            default:
-                break;
-        }
-    }
-
-    renderSprites(0, raster);
-    renderSprites(1, raster);
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
@@ -1641,18 +1609,11 @@ void Vic::renderTextLine(int raster, int xScroll)
         if (px >= x1) break;
         if (px + 8 <= x0) continue;
 
-        uint8_t scrByte, colorByte;
-        if (col < 40)
-        {
-            scrByte  = charPtrFIFO[col];
-            colorByte = colorPtrFIFO[col] & 0x0F;
-        }
-        else if (col == 40)
-        {
-            scrByte  = fetchDisplayScreenByte(39, raster);
-            colorByte = fetchDisplayColorByte(39, raster);
-        }
-        else break;
+        if (col > 40) break;
+
+        const int displayCol = (col < 40) ? col : 39;
+        const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
+        const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
 
         uint8_t bgColor = registers.backgroundColor0;
 
@@ -1698,7 +1659,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        const uint8_t scr = fetchDisplayScreenByte(col, raster);
+        const uint8_t scr = resolveDisplayScreenByte(col, raster);
         const uint8_t fgColor = (scr >> 4) & 0x0F;
         const uint8_t bgColor = scr & 0x0F;
 
@@ -1714,7 +1675,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
             const int pxRaw = cellLeft + bit;
             if (pxRaw < x0 || pxRaw >= x1) continue;
 
-            IO_adapter->setPixel(pxRaw, py, color);
+            bgColorLine[pxRaw] = color & 0x0F;
 
             if (pixelOn) markBGOpaque(py, pxRaw);
         }
@@ -1752,8 +1713,8 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
-        const uint8_t scr = fetchDisplayScreenByte(col, raster);
-        const uint8_t colNib = fetchDisplayColorByte(col, raster);
+        const uint8_t scr = resolveDisplayScreenByte(col, raster);
+        const uint8_t colNib = resolveDisplayColorByte(col, raster);
         const uint8_t bg0 = registers.backgroundColor0 & 0x0F;
 
         const int cellLeft = xStart + col * 8;
@@ -1773,8 +1734,8 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
             const int pxRaw = cellLeft + pair * 2;
             if (pxRaw < x0 || pxRaw + 1 >= x1) continue;
 
-            IO_adapter->setPixel(pxRaw,     py, color);
-            IO_adapter->setPixel(pxRaw + 1, py, color);
+            bgColorLine[pxRaw] = color & 0x0F;
+            bgColorLine[pxRaw + 1] = color & 0x0F;
 
             if (bits != 0)
             {
@@ -1803,18 +1764,11 @@ void Vic::renderECMLine(int raster, int xScroll)
 
     for (int col = 0; col < fetchCols; ++col)
     {
-        uint8_t scrByte, colorByte;
-        if (col < 40)
-        {
-            scrByte  = charPtrFIFO[col];
-            colorByte = colorPtrFIFO[col];
-        }
-        else if (col == 40)
-        {
-            scrByte  = fetchDisplayScreenByte(39, raster);
-            colorByte = fetchDisplayColorByte(39, raster);
-        }
-        else break;
+        if (col > 40) break;
+
+        const int displayCol = (col < 40) ? col : 39;
+        const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
+        const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
 
         uint8_t charIndex = scrByte & 0x3F;
         uint8_t bgSel = (scrByte >> 6) & 0x03;
@@ -1841,9 +1795,121 @@ void Vic::renderECMLine(int raster, int xScroll)
             int pxRaw = pxCell + bit;
             if (pxRaw < x0 || pxRaw >= x1) continue;
 
-            IO_adapter->setPixel(pxRaw, py, color);
+            bgColorLine[pxRaw] = color & 0x0F;
 
-            if (pixelOn) markBGOpaque(fbY(raster), pxRaw);
+            if (pixelOn)
+                markBGOpaque(py, pxRaw);
+        }
+    }
+}
+
+void Vic::clearBackgroundLineBuffers()
+{
+    bgColorLine.fill(registers.borderColor & 0x0F);
+    bgOpaqueLine.fill(0);
+}
+
+void Vic::generateBackgroundLine(int raster)
+{
+    clearBackgroundLineBuffers();
+
+    const int screenY = fbY(raster);
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+
+    const int cols = getCSEL(raster) ? 40 : 38;
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int rightInner = leftInner + cols * 8;
+
+    // If display is effectively closed, leave border-filled line buffer.
+    if (!DEN || vicState.verticalBorder)
+    {
+        return;
+    }
+
+    // Fill the interior with background color first for non-bitmap modes.
+    if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
+    {
+        const uint8_t bg = registers.backgroundColor0 & 0x0F;
+        for (int px = leftInner; px < rightInner && px < 512; ++px)
+            bgColorLine[px] = bg;
+    }
+
+    const int lineXScroll = fineXScroll(raster);
+
+    switch (currentMode)
+    {
+        case graphicsMode::standard:
+        case graphicsMode::multiColor:
+            renderTextLine(raster, lineXScroll);
+            break;
+        case graphicsMode::bitmap:
+            renderBitmapLine(raster, lineXScroll);
+            break;
+        case graphicsMode::multiColorBitmap:
+            renderBitmapMulticolorLine(raster, lineXScroll);
+            break;
+        case graphicsMode::extendedColorText:
+            renderECMLine(raster, lineXScroll);
+            break;
+        default:
+            break;
+    }
+
+    // Mirror the generated opacity into the frame-sized background opacity map.
+    if (screenY >= 0 && screenY < (int)bgOpaque.size())
+    {
+        for (int px = 0; px < 512; ++px)
+            bgOpaque[screenY][px] = bgOpaqueLine[px];
+    }
+}
+
+void Vic::composeFinalRasterLine(int raster)
+{
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const int cols = getCSEL(raster) ? 40 : 38;
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int rightInner = leftInner + cols * 8;
+    const uint8_t border = registers.borderColor & 0x0F;
+
+    // Start from border everywhere.
+    finalColorLine.fill(border);
+
+    // If display is open, copy in the generated background/display line.
+    if (DEN && !vicState.verticalBorder)
+    {
+        for (int px = leftInner; px < rightInner && px < 512; ++px)
+            finalColorLine[px] = bgColorLine[px] & 0x0F;
+    }
+
+    // Composite sprites behind background first:
+    // they only show through where background is not opaque.
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const bool behind = (registers.spritePriority & (1 << spr)) != 0;
+        if (!behind)
+            continue;
+
+        for (int px = 0; px < 512; ++px)
+        {
+            if (!spriteOpaqueLine[spr][px])
+                continue;
+
+            if (!bgOpaqueLine[px])
+                finalColorLine[px] = spriteColorLine[spr][px] & 0x0F;
+        }
+    }
+
+    // Composite sprites in front of background.
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const bool behind = (registers.spritePriority & (1 << spr)) != 0;
+        if (behind)
+            continue;
+
+        for (int px = 0; px < 512; ++px)
+        {
+            if (spriteOpaqueLine[spr][px])
+                finalColorLine[px] = spriteColorLine[spr][px] & 0x0F;
         }
     }
 }
@@ -2093,10 +2159,10 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
         bool bit = (row >> (7 - col)) & 0x01;
         uint8_t color = bit ? (fg & 0x0F) : (bg & 0x0F);
 
-        // Draw to framebuffer
-        IO_adapter->setPixel(pxRaw, y, color);
+        bgColorLine[pxRaw] = color & 0x0F;
 
-        if (bit) markBGOpaque(fbY(raster), pxRaw);
+        if (bit)
+            markBGOpaque(y, pxRaw);
     }
 }
 
@@ -2125,12 +2191,14 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
         if (p1 <  x0) continue;
 
         // Per-pixel clipping + marking
-        if (p0 >= x0 && p0 < x1) {
-            IO_adapter->setPixel(p0, y, col);
+        if (p0 >= x0 && p0 < x1)
+        {
+            bgColorLine[p0] = col & 0x0F;
             if (bits != 0) markBGOpaque(y, p0);
         }
-        if (p1 >= x0 && p1 < x1) {
-            IO_adapter->setPixel(p1, y, col);
+        if (p1 >= x0 && p1 < x1)
+        {
+            bgColorLine[p1] = col & 0x0F;
             if (bits != 0) markBGOpaque(y, p1);
         }
     }
@@ -2169,6 +2237,22 @@ uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
     return fetchColorByte(row, c, raster) & 0x0F;
 }
 
+uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster) const
+{
+    if (displayCol >= 0 && displayCol < 40)
+        return charPtrFIFO[displayCol];
+
+    return fetchDisplayScreenByte(displayCol, raster);
+}
+
+uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
+{
+    if (displayCol >= 0 && displayCol < 40)
+        return colorPtrFIFO[displayCol] & 0x0F;
+
+    return fetchDisplayColorByte(displayCol, raster);
+}
+
 void Vic::handleBadLineState(int raster)
 {
     const bool bad = isBadLine(raster);
@@ -2192,8 +2276,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     if (charRow < 0 || charRow >= rows)
         return;
 
-    // Advance RC every displayed raster line.
-    // When it wraps, advance VCBASE to the next character row.
     vicState.rc = (vicState.rc + 1) & 0x07;
 
     if (vicState.rc == 0)
@@ -2213,6 +2295,7 @@ int Vic::currentCharacterRow() const
 void Vic::updateVerticalBorderState(int raster)
 {
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const int rows = getRSEL(raster) ? 25 : 24;
 
     if (!DEN || !denSeenOn30 || firstBadlineY < 0)
     {
@@ -2221,6 +2304,16 @@ void Vic::updateVerticalBorderState(int raster)
     }
 
     if (raster < firstBadlineY)
+    {
+        vicState.verticalBorder = true;
+        return;
+    }
+
+    const int charRow = currentCharacterRow();
+
+    // Once we've advanced past the last visible character row,
+    // close the vertical display again.
+    if (charRow < 0 || charRow >= rows)
     {
         vicState.verticalBorder = true;
         return;
@@ -2262,9 +2355,11 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
 
 void Vic::markBGOpaque(int screenY, int px)
 {
-    if (screenY >= 0 && screenY < (int)bgOpaque.size() && px >= 0 && px < 512)
+    (void)screenY;
+
+    if (px >= 0 && px < 512)
     {
-        bgOpaque[screenY][px] = 1;
+        bgOpaqueLine[px] = 1;
     }
 }
 

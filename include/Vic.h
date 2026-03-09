@@ -227,11 +227,16 @@ class Vic
         std::array<std::array<uint8_t, 512>, 8> spriteOpaqueLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteColorLine{};
 
+        std::array<uint8_t, 512> bgColorLine{};
+        std::array<uint8_t, 512> bgOpaqueLine{};
+
         // Per raster register latches
         std::vector<uint8_t> d011_per_raster;
         std::vector<uint8_t> d016_per_raster;
         std::vector<uint8_t> d018_per_raster;
         std::vector<uint16_t> dd00_per_raster;
+
+        std::array<uint8_t, 512> finalColorLine{};
 
         // Caches for ML Monitor
         uint16_t charBaseCache;
@@ -335,6 +340,11 @@ class Vic
         void renderECMLine(int raster, int xScroll);
 
         // Helpers
+        void clearBackgroundLineBuffers();
+        void generateBackgroundLine(int raster);
+
+        void composeFinalRasterLine(int raster);
+
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         void renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1);
@@ -345,6 +355,8 @@ class Vic
         int currentDisplayRowBase() const;
         uint8_t fetchDisplayScreenByte(int col, int raster) const;
         uint8_t fetchDisplayColorByte(int col, int raster) const;
+        uint8_t resolveDisplayScreenByte(int displayCol, int raster) const;
+        uint8_t resolveDisplayColorByte(int displayCol, int raster) const;
 
         void handleBadLineState(int raster);
         void advanceVideoCountersEndOfLine(int raster);
