@@ -224,6 +224,9 @@ class Vic
 
         std::array<SpriteUnit, 8> spriteUnits;
 
+        std::array<std::array<uint8_t, 512>, 8> spriteOpaqueLine{};
+        std::array<std::array<uint8_t, 512>, 8> spriteColorLine{};
+
         // Per raster register latches
         std::vector<uint8_t> d011_per_raster;
         std::vector<uint8_t> d016_per_raster;
@@ -304,6 +307,13 @@ class Vic
         void advanceSpriteOutputState(int sprIndex);
         bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const;
         void sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 512>& opaqueMask, std::array<uint8_t, 512>& colorLine);
+
+        void clearSpriteLineBuffers();
+        void runSpriteSequencersForRaster(int raster);
+
+        void beginSpriteRasterOutput(int raster);
+        void stepSpriteSequencersAtX(int raster, int px);
+        void finishSpriteRasterOutput(int raster);
 
         void loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite);
         uint32_t getLatchedSpriteBits(int sprite) const;

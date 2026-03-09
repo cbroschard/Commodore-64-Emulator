@@ -105,6 +105,8 @@ void Vic::reset()
     }
 
     std::fill(std::begin(sprPtrBase), std::end(sprPtrBase), 0);
+    for (auto& line : spriteOpaqueLine) line.fill(0);
+    for (auto& line : spriteColorLine)  line.fill(0);
 
     // Default character mode
     currentMode = graphicsMode::standard;
@@ -871,6 +873,18 @@ void Vic::tick(int cycles)
             // Prepare sprite row/output state for this raster
             prepareSpriteOutputForRaster(curRaster);
 
+            // Raster-progressive sprite output into line buffers
+            beginSpriteRasterOutput(curRaster);
+
+            int sx0, sx1;
+            spriteVisibleXRange(sx0, sx1);
+            for (int px = sx0; px < sx1; ++px)
+            {
+                stepSpriteSequencersAtX(curRaster, px);
+            }
+
+            finishSpriteRasterOutput(curRaster);
+
             // Render and collisions for this line
             renderLine(curRaster);
             detectSpriteToSpriteCollision(curRaster);
@@ -1232,6 +1246,113 @@ void Vic::sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 5
     }
 }
 
+void Vic::clearSpriteLineBuffers()
+{
+    for (auto& line : spriteOpaqueLine) line.fill(0);
+    for (auto& line : spriteColorLine)  line.fill(0);
+}
+
+void Vic::runSpriteSequencersForRaster(int raster)
+{
+    clearSpriteLineBuffers();
+
+    int x0, x1;
+    spriteVisibleXRange(x0, x1);
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        int rowInSprite = 0;
+        int fbLine = 0;
+        if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
+            continue;
+
+        if (!spriteUnits[spr].rowPrepared)
+            continue;
+
+        resetSpriteLineSequencer(spr, raster);
+
+        const int startX = spriteUnits[spr].outputXStart;
+        const int endX   = startX + spriteUnits[spr].outputWidth;
+
+        for (int px = startX; px < endX; ++px)
+        {
+            uint8_t color = 0;
+            bool opaque = false;
+
+            if (px >= x0 && px < x1)
+            {
+                if (currentSpriteSequencerPixel(spr, color, opaque) && opaque)
+                {
+                    spriteOpaqueLine[spr][px] = 1;
+                    spriteColorLine[spr][px]  = color;
+                }
+            }
+
+            advanceSpriteOutputState(spr);
+        }
+    }
+}
+
+void Vic::beginSpriteRasterOutput(int raster)
+{
+    clearSpriteLineBuffers();
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        int rowInSprite = 0;
+        int fbLine = 0;
+        if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
+        {
+            spriteUnits[spr].rowPrepared = false;
+            continue;
+        }
+
+        if (!spriteUnits[spr].rowPrepared)
+            continue;
+
+        resetSpriteLineSequencer(spr, raster);
+    }
+}
+
+void Vic::stepSpriteSequencersAtX(int raster, int px)
+{
+    (void)raster;
+
+    int x0, x1;
+    spriteVisibleXRange(x0, x1);
+
+    if (px < x0 || px >= x1)
+        return;
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        if (!spriteUnits[spr].rowPrepared)
+            continue;
+
+        const int startX = spriteUnits[spr].outputXStart;
+        const int endX   = startX + spriteUnits[spr].outputWidth;
+
+        if (px < startX || px >= endX)
+            continue;
+
+        uint8_t color = 0;
+        bool opaque = false;
+
+        if (currentSpriteSequencerPixel(spr, color, opaque) && opaque)
+        {
+            spriteOpaqueLine[spr][px] = 1;
+            spriteColorLine[spr][px]  = color;
+        }
+
+        advanceSpriteOutputState(spr);
+    }
+}
+
+void Vic::finishSpriteRasterOutput(int raster)
+{
+    (void)raster;
+}
+
 void Vic::updateSpriteDMAEndOfLine(int raster)
 {
     (void)raster;
@@ -1352,15 +1473,10 @@ bool Vic::isBadLine(int raster)
 
 void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
 {
-    if (!IO_adapter || !mem)
+    if (!IO_adapter)
         return;
 
     (void)rowInSprite;
-
-    std::array<uint8_t, 512> opaqueMask{};
-    std::array<uint8_t, 512> colorLine{};
-
-    sampleSpriteLinePixels(sprIndex, raster, opaqueMask, colorLine);
 
     const int screenY = fbY(raster);
 
@@ -1369,8 +1485,8 @@ void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
 
     for (int px = x0; px < x1; ++px)
     {
-        if (opaqueMask[px])
-            IO_adapter->setPixel(px, screenY, colorLine[px]);
+        if (spriteOpaqueLine[sprIndex][px])
+            IO_adapter->setPixel(px, screenY, spriteColorLine[sprIndex][px]);
     }
 }
 
@@ -1750,20 +1866,12 @@ bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
     if (!spriteDisplayCoversRaster(A, raster, ra, fbLine)) return false;
     if (!spriteDisplayCoversRaster(B, raster, rb, fbLine)) return false;
 
-    std::array<uint8_t, 512> maskA{};
-    std::array<uint8_t, 512> colorA{};
-    std::array<uint8_t, 512> maskB{};
-    std::array<uint8_t, 512> colorB{};
-
-    sampleSpriteLinePixels(A, raster, maskA, colorA);
-    sampleSpriteLinePixels(B, raster, maskB, colorB);
-
     int x0, x1;
     spriteVisibleXRange(x0, x1);
 
     for (int px = x0; px < x1; ++px)
     {
-        if (maskA[px] && maskB[px])
+        if (spriteOpaqueLine[A][px] && spriteOpaqueLine[B][px])
             return true;
     }
 
@@ -1793,11 +1901,6 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
     if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
         return false;
 
-    std::array<uint8_t, 512> opaqueMask{};
-    std::array<uint8_t, 512> colorLine{};
-
-    sampleSpriteLinePixels(spriteIndex, raster, opaqueMask, colorLine);
-
     const int cols = getCSEL(raster) ? 40 : 38;
     const int fine = d016_per_raster[raster] & 0x07;
     const int x0   = BORDER_SIZE + (cols == 38 ? 4 : 0);
@@ -1806,8 +1909,12 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
 
     for (int px = leftPaintX; px < rightPaintX; ++px)
     {
-        if (px >= 0 && px < 512 && opaqueMask[px] && isBackgroundPixelOpaque(px, fbLine))
+        if (px >= 0 && px < 512 &&
+            spriteOpaqueLine[spriteIndex][px] &&
+            isBackgroundPixelOpaque(px, fbLine))
+        {
             return true;
+        }
     }
 
     return false;
