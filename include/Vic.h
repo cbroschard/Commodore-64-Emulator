@@ -9,6 +9,7 @@
 #define VIC_H
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include "Common/VideoMode.h"
 #include "CIA2.h"
@@ -169,6 +170,57 @@ class Vic
             uint16_t rasterInterruptLine;       // Raster Interrupt Line
         } registers;
 
+        struct InternalState
+        {
+            // Character matrix / raster engine
+            uint16_t vc = 0;         // current video counter
+            uint16_t vcBase = 0;     // base video counter
+            uint8_t rc = 0;          // row counter 0-7
+
+            // Bad-line / display state
+            bool displayEnabled = false;
+            bool badLine = false;
+
+            // Border flip-flops
+            bool mainBorder = true;
+            bool verticalBorder = true;
+            bool horizontalBorder = true;
+
+            // Bus arbitration
+            bool ba = true;
+            bool aec = true;
+
+            // Open bus
+            uint8_t openBus = 0xFF;
+        } vicState;
+
+        struct SpriteUnit
+        {
+            bool dmaActive = false;
+            bool displayActive = false;
+            bool yExpandLatch = false;
+
+            uint8_t mc = 0;
+            uint8_t mcBase = 0;
+
+            uint8_t pointerByte = 0;
+            uint16_t dataBase = 0;
+
+            uint8_t shift0 = 0;
+            uint8_t shift1 = 0;
+            uint8_t shift2 = 0;
+
+            int currentRow = 0;
+
+            int startY = 0;
+
+            int outputBit = 0;
+            int outputRepeat = 0;
+            bool rowPrepared = false;
+        };
+
+        std::array<SpriteUnit, 8> spriteUnits;
+
         // Per raster register latches
         std::vector<uint8_t> d011_per_raster;
         std::vector<uint8_t> d016_per_raster;
@@ -210,7 +262,7 @@ class Vic
         bool isBadLine(int raster);
 
         // Address enable control
-        void updateAEC();
+        void updateBusArbitration();
         bool AEC;
         int currentCycle;
 
@@ -226,6 +278,26 @@ class Vic
         bool checkSpriteSpriteOverlapOnLine(int A, int B, int raster);
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
+        bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
+        uint32_t fetchSpriteRowBits(int sprite, int raster, int rowInSprite) const;
+
+        bool spritePixelAtX(int sprIndex, int raster, int px, uint8_t& outColor, bool& opaque) const;
+        bool spritePixelOpaqueAtX(int sprIndex, int raster, int px) const;
+
+        void updateSpriteDMAStartForCurrentLine();
+        void updateSpriteDMAEndOfLine(int raster);
+        void fetchSpritePointer(int sprite, int raster);
+        bool isSpriteDMAFetchCycle(int sprite, int cycle) const;
+        int spriteFetchSlotStart(int sprite) const;
+        void syncSpriteCompatAddress(int sprite);
+
+        void prepareSpriteOutputForRaster(int raster);
+        bool decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor, bool& opaque) const;
+
+        void loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite);
+        uint32_t getLatchedSpriteBits(int sprite) const;
+        void prepareSpriteShiftersForRaster(int raster);
+
         bool isBackgroundPixelOpaque(int x, int y);
         inline uint16_t getSpriteDataAddress(int sprIndex) const { return sprPtrBase[sprIndex]; }
 
@@ -240,6 +312,7 @@ class Vic
         void renderECMLine(int raster, int xScroll);
 
         // Helpers
+        inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         void renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1);
         void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);

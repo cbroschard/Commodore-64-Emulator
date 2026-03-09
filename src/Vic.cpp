@@ -64,6 +64,45 @@ void Vic::reset()
     currentCycle = 0;
     AEC = true;
 
+    // Internal VIC state
+    vicState.vc = 0;
+    vicState.vcBase = 0;
+    vicState.rc = 0;
+
+    vicState.displayEnabled = false;
+    vicState.badLine = false;
+
+    vicState.mainBorder = true;
+    vicState.verticalBorder = true;
+    vicState.horizontalBorder = true;
+
+    vicState.ba = true;
+    vicState.aec = true;
+    vicState.openBus = 0xFF;
+
+    for (auto& s : spriteUnits)
+    {
+        s.dmaActive = false;
+        s.displayActive = false;
+        s.yExpandLatch = false;
+
+        s.mc = 0;
+        s.mcBase = 0;
+
+        s.pointerByte = 0;
+        s.dataBase = 0;
+
+        s.shift0 = 0;
+        s.shift1 = 0;
+        s.shift2 = 0;
+
+        s.currentRow = 0;
+
+        s.startY = 0;
+    }
+
+    std::fill(std::begin(sprPtrBase), std::end(sprPtrBase), 0);
+
     // Default character mode
     currentMode = graphicsMode::standard;
 
@@ -205,6 +244,47 @@ void Vic::saveState(StateWriter& wrtr) const
     // Dump AEC
     wrtr.writeBool(AEC);
 
+    // Dump State
+    wrtr.writeU16(vicState.vc);
+    wrtr.writeU16(vicState.vcBase);
+    wrtr.writeU8(vicState.rc);
+
+    wrtr.writeBool(vicState.displayEnabled);
+    wrtr.writeBool(vicState.badLine);
+
+    wrtr.writeBool(vicState.mainBorder);
+    wrtr.writeBool(vicState.verticalBorder);
+    wrtr.writeBool(vicState.horizontalBorder);
+
+    wrtr.writeBool(vicState.ba);
+    wrtr.writeBool(vicState.aec);
+    wrtr.writeU8(vicState.openBus);
+
+    for (const auto& s : spriteUnits)
+    {
+        wrtr.writeBool(s.dmaActive);
+        wrtr.writeBool(s.displayActive);
+        wrtr.writeBool(s.yExpandLatch);
+
+        wrtr.writeU8(s.mc);
+        wrtr.writeU8(s.mcBase);
+
+        wrtr.writeU8(s.pointerByte);
+        wrtr.writeU16(s.dataBase);
+
+        wrtr.writeU8(s.shift0);
+        wrtr.writeU8(s.shift1);
+        wrtr.writeU8(s.shift2);
+
+        wrtr.writeI32(s.currentRow);
+
+        wrtr.writeI32(s.startY);
+
+        wrtr.writeI32(s.outputBit);
+        wrtr.writeI32(s.outputRepeat);
+        wrtr.writeBool(s.rowPrepared);
+    }
+
     // Dump Latches
     wrtr.writeVectorU8(d011_per_raster);
     wrtr.writeVectorU8(d016_per_raster);
@@ -319,6 +399,45 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!rdr.readU16(vicState.vc))                          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(vicState.mainBorder))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.horizontalBorder))           { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(vicState.openBus))                      { rdr.exitChunkPayload(chunk); return false; }
+
+        for (auto& s : spriteUnits)
+        {
+            if (!rdr.readBool(s.dmaActive))                     { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.displayActive))                 { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.yExpandLatch))                  { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readU8(s.mc))                              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.mcBase))                          { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readU8(s.pointerByte))                     { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU16(s.dataBase))                       { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readU8(s.shift0))                          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.shift1))                          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.shift2))                          { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(s.currentRow))                     { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(s.startY))                         { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(s.outputBit))                      { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputRepeat))                   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.rowPrepared))                   { rdr.exitChunkPayload(chunk); return false; }
+        }
+
         if (!rdr.readVectorU8(d011_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d016_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d018_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
@@ -333,6 +452,16 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (currentCycle < 0) currentCycle = 0;
         if (currentCycle >= cfg_->cyclesPerLine)
             currentCycle %= cfg_->cyclesPerLine;
+
+        vicState.rc &= 0x07;
+        vicState.openBus = static_cast<uint8_t>(vicState.openBus);
+
+        for (auto& s : spriteUnits)
+        {
+            s.mc &= 0x3F;
+            s.mcBase &= 0x3F;
+            s.pointerByte &= 0xFF;
+        }
 
         auto fixSizeU8  = [&](std::vector<uint8_t>& v, uint8_t fill){
             if (v.size() != (size_t)cfg_->maxRasterLines) v.assign(cfg_->maxRasterLines, fill);
@@ -358,7 +487,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         updateMonitorCaches(registers.raster);
 
         // Make sure CPU BA hold matches current DMA now
-        updateAEC();
+        updateBusArbitration();
 
         // IRQ line consistent with restored IER/ISR
         updateIRQLine();
@@ -687,14 +816,16 @@ void Vic::tick(int cycles)
             dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
             updateMonitorCaches(nextRaster);
 
-            for (int i = 0; i < 8; ++i)
+            // Sprite DMA becomes state-driven.
+            updateSpriteDMAStartForCurrentLine();
+        }
+
+        // Fetch sprite pointers in each sprite's pointer slot
+        for (int i = 0; i < 8; ++i)
+        {
+            if (spriteUnits[i].dmaActive && currentCycle == spriteFetchSlotStart(i))
             {
-                int rowInSprite, fbLine;
-                if (spriteCoversRaster(i, registers.raster, rowInSprite, fbLine) && rowInSprite == 0)
-                {
-                    uint16_t ptrLoc = getScreenBase(registers.raster) + 0x03F8 + i;
-                    sprPtrBase[i] = (uint16_t(mem->vicRead(ptrLoc, registers.raster)) << 6);
-                }
+                fetchSpritePointer(i, registers.raster);
             }
         }
 
@@ -728,10 +859,16 @@ void Vic::tick(int cycles)
 
             const int curRaster = registers.raster;
 
+            // Prepare sprite row/output state for this raster
+            prepareSpriteOutputForRaster(curRaster);
+
             // Render and collisions for this line
             renderLine(curRaster);
             detectSpriteToSpriteCollision(curRaster);
             detectSpriteToBackgroundCollision(curRaster);
+
+            // Advance/finish sprite DMA state
+            updateSpriteDMAEndOfLine(curRaster);
 
             // Row counter update
             const bool DEN = (d011_per_raster[curRaster] & 0x10) != 0;
@@ -774,38 +911,277 @@ void Vic::tick(int cycles)
         }
 
         // Per-cycle bus arbitration
-        updateAEC();
+        updateBusArbitration();
     }
 }
 
-void Vic::updateAEC()
+int Vic::spriteFetchSlotStart(int sprite) const
 {
-    const int DMA_START = cfg_->DMAStartCycle;
-    const int DMA_END   = cfg_->DMAEndCycle;
-    const int LINE_CYCLES = cfg_->cyclesPerLine;
-
-    const bool inCharDMA = isBadLine(registers.raster) && currentCycle >= DMA_START && currentCycle <= DMA_END;
-
-    bool inSpriteDMA = false;
-
-    // First sprite DMA slot starts right after char DMA.
     const int firstSlot = cfg_->DMAEndCycle + 1;
+    return (firstSlot + sprite * 3) % cfg_->cyclesPerLine;
+}
+
+bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
+{
+    const int slotStart = spriteFetchSlotStart(sprite);
+    const int lineCycles = cfg_->cyclesPerLine;
+
+    return cycle == slotStart ||
+           cycle == ((slotStart + 1) % lineCycles) ||
+           cycle == ((slotStart + 2) % lineCycles);
+}
+
+void Vic::syncSpriteCompatAddress(int sprite)
+{
+    sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
+}
+
+void Vic::loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite)
+{
+    if (!mem)
+        return;
+
+    if (rowInSprite < 0 || rowInSprite >= 21)
+    {
+        spriteUnits[sprite].shift0 = 0;
+        spriteUnits[sprite].shift1 = 0;
+        spriteUnits[sprite].shift2 = 0;
+        return;
+    }
+
+    const uint16_t dataAddr = spriteUnits[sprite].dataBase + rowInSprite * 3;
+
+    spriteUnits[sprite].shift0 = mem->vicRead(dataAddr + 0, raster);
+    spriteUnits[sprite].shift1 = mem->vicRead(dataAddr + 1, raster);
+    spriteUnits[sprite].shift2 = mem->vicRead(dataAddr + 2, raster);
+}
+
+uint32_t Vic::getLatchedSpriteBits(int sprite) const
+{
+    return  (uint32_t(spriteUnits[sprite].shift0) << 16)
+          | (uint32_t(spriteUnits[sprite].shift1) << 8)
+          |  uint32_t(spriteUnits[sprite].shift2);
+}
+
+void Vic::prepareSpriteShiftersForRaster(int raster)
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        if (!(registers.spriteEnabled & (1 << i)))
+        {
+            spriteUnits[i].shift0 = 0;
+            spriteUnits[i].shift1 = 0;
+            spriteUnits[i].shift2 = 0;
+            continue;
+        }
+
+        if (!spriteUnits[i].displayActive)
+        {
+            spriteUnits[i].shift0 = 0;
+            spriteUnits[i].shift1 = 0;
+            spriteUnits[i].shift2 = 0;
+            continue;
+        }
+
+        int rowInSprite = spriteUnits[i].currentRow;
+        if (spriteUnits[i].yExpandLatch)
+            rowInSprite /= 2;
+
+        loadSpriteShiftRegisters(i, raster, rowInSprite);
+    }
+}
+
+void Vic::fetchSpritePointer(int sprite, int raster)
+{
+    if (!mem)
+        return;
+
+    const uint16_t ptrLoc = getScreenBase(raster) + 0x03F8 + sprite;
+    const uint8_t ptr = mem->vicRead(ptrLoc, raster);
+
+    spriteUnits[sprite].pointerByte = ptr;
+    spriteUnits[sprite].dataBase = static_cast<uint16_t>(ptr) << 6;
+
+    syncSpriteCompatAddress(sprite);
+}
+
+void Vic::prepareSpriteOutputForRaster(int raster)
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        spriteUnits[i].rowPrepared = false;
+        spriteUnits[i].outputBit = 0;
+        spriteUnits[i].outputRepeat = 0;
+
+        if (!(registers.spriteEnabled & (1 << i)))
+        {
+            spriteUnits[i].shift0 = 0;
+            spriteUnits[i].shift1 = 0;
+            spriteUnits[i].shift2 = 0;
+            continue;
+        }
+
+        if (!spriteUnits[i].displayActive)
+        {
+            spriteUnits[i].shift0 = 0;
+            spriteUnits[i].shift1 = 0;
+            spriteUnits[i].shift2 = 0;
+            continue;
+        }
+
+        int rowInSprite = spriteUnits[i].currentRow;
+        if (spriteUnits[i].yExpandLatch)
+            rowInSprite /= 2;
+
+        loadSpriteShiftRegisters(i, raster, rowInSprite);
+
+        spriteUnits[i].rowPrepared = true;
+        spriteUnits[i].outputBit = 0;
+        spriteUnits[i].outputRepeat = 0;
+    }
+}
+
+bool Vic::decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor, bool& opaque) const
+{
+    outColor = 0;
+    opaque = false;
+
+    if (!spriteUnits[sprIndex].rowPrepared)
+        return false;
+
+    if (localX < 0)
+        return false;
+
+    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
+    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
+
+    const uint32_t rowBits = getLatchedSpriteBits(sprIndex);
+
+    if (!multClr)
+    {
+        const int xDup = expandX ? 2 : 1;
+        const int srcBit = localX / xDup;
+
+        if (srcBit < 0 || srcBit >= 24)
+            return false;
+
+        const bool bitOn = ((rowBits >> (23 - srcBit)) & 0x01) != 0;
+        if (!bitOn)
+            return false;
+
+        outColor = registers.spriteColors[sprIndex] & 0x0F;
+        opaque = true;
+        return true;
+    }
+    else
+    {
+        const int xDup = (expandX ? 2 : 1) * 2;
+        const int srcPair = localX / xDup;
+
+        if (srcPair < 0 || srcPair >= 12)
+            return false;
+
+        const uint8_t bits = (rowBits >> (22 - srcPair * 2)) & 0x03;
+        if (bits == 0)
+            return false;
+
+        const uint8_t mc1 = registers.spriteMultiColor1 & 0x0F;
+        const uint8_t mc2 = registers.spriteMultiColor2 & 0x0F;
+        const uint8_t col = registers.spriteColors[sprIndex] & 0x0F;
+
+        outColor =
+            (bits == 1) ? mc1 :
+            (bits == 2) ? col :
+                          mc2;
+
+        opaque = true;
+        return true;
+    }
+}
+
+void Vic::updateSpriteDMAEndOfLine(int raster)
+{
+    (void)raster;
 
     for (int s = 0; s < 8; ++s)
     {
-        if (!(registers.spriteEnabled & (1 << s))) continue;
+        if (!spriteUnits[s].dmaActive)
+            continue;
 
-        const int startY = registers.spriteY[s];
-        const bool yExp  = (registers.spriteYExpansion & (1 << s)) != 0; // $D017 bit per sprite
-        const int span   = yExp ? 42 : 21; // lines the sprite occupies
-        int dy = int(registers.raster) - int(startY);
-        if (dy < 0 || dy >= span) continue; // not on a line covered by the sprite
+        const bool yExp = spriteUnits[s].yExpandLatch;
+        const int maxRows = yExp ? 42 : 21;
 
-        const int slotStart = (firstSlot + s * 3) % LINE_CYCLES;
+        spriteUnits[s].currentRow++;
 
-        if ( currentCycle == slotStart ||
-             currentCycle == (slotStart + 1) % LINE_CYCLES ||
-             currentCycle == (slotStart + 2) % LINE_CYCLES ) {
+        if (spriteUnits[s].currentRow >= maxRows)
+        {
+            spriteUnits[s].dmaActive = false;
+            spriteUnits[s].displayActive = false;
+            spriteUnits[s].currentRow = 0;
+            spriteUnits[s].rowPrepared = false;
+            spriteUnits[s].outputBit = 0;
+            spriteUnits[s].outputRepeat = 0;
+        }
+    }
+}
+
+void Vic::updateSpriteDMAStartForCurrentLine()
+{
+    for (int s = 0; s < 8; ++s)
+    {
+        const bool enabled = (registers.spriteEnabled & (1 << s)) != 0;
+        if (!enabled)
+        {
+            spriteUnits[s].dmaActive = false;
+            spriteUnits[s].displayActive = false;
+            spriteUnits[s].currentRow = 0;
+            spriteUnits[s].rowPrepared = false;
+            spriteUnits[s].outputBit = 0;
+            spriteUnits[s].outputRepeat = 0;
+            continue;
+        }
+
+        const bool yExp = (registers.spriteYExpansion & (1 << s)) != 0;
+
+        if (registers.raster == registers.spriteY[s])
+        {
+            spriteUnits[s].dmaActive = true;
+            spriteUnits[s].displayActive = true;
+            spriteUnits[s].yExpandLatch = yExp;
+            spriteUnits[s].currentRow = 0;
+            spriteUnits[s].mc = 0;
+            spriteUnits[s].mcBase = 0;
+            spriteUnits[s].startY = registers.spriteY[s];
+
+            spriteUnits[s].outputBit = 0;
+            spriteUnits[s].outputRepeat = 0;
+            spriteUnits[s].rowPrepared = false;
+        }
+    }
+}
+
+void Vic::updateBusArbitration()
+{
+    const int DMA_START = cfg_->DMAStartCycle;
+    const int DMA_END   = cfg_->DMAEndCycle;
+
+    const bool badLineNow =
+        isBadLine(registers.raster);
+
+    const bool inCharDMA =
+        badLineNow &&
+        currentCycle >= DMA_START &&
+        currentCycle <= DMA_END;
+
+    bool inSpriteDMA = false;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!spriteUnits[s].dmaActive)
+            continue;
+
+        if (isSpriteDMAFetchCycle(s, currentCycle))
+        {
             inSpriteDMA = true;
             break;
         }
@@ -813,13 +1189,15 @@ void Vic::updateAEC()
 
     const bool vicSteals = inCharDMA || inSpriteDMA;
 
-    AEC = !vicSteals;
+    vicState.badLine = badLineNow;
+    vicState.aec     = !vicSteals;
+    vicState.ba      = !vicSteals;
 
-    // check for BA
-    const bool ba = !vicSteals;
+    AEC = vicState.aec;
+
     if (processor)
     {
-        processor->setBAHold(!ba);
+        processor->setBAHold(!vicState.ba);
     }
 }
 
@@ -839,62 +1217,24 @@ bool Vic::isBadLine(int raster)
 
 void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
 {
-    if (!IO_adapter || !mem) return;
+    if (!IO_adapter || !mem)
+        return;
 
-    int spriteX = spriteScreenXFor(sprIndex, raster);
-
-    bool expandX = registers.spriteXExpansion & (1 << sprIndex);
-    bool multClr = registers.spriteMultiColor & (1 << sprIndex);
-
-    uint16_t dataAddr = getSpriteDataAddress(sprIndex);
-    uint8_t col = registers.spriteColors[sprIndex] & 0x0F;
-    uint8_t mc1 = registers.spriteMultiColor1 & 0x0F;
-    uint8_t mc2 = registers.spriteMultiColor2 & 0x0F;
-
-    uint32_t rowBits = (uint32_t)mem->vicRead(dataAddr + rowInSprite*3, raster) << 16 |
-                       (uint32_t)mem->vicRead(dataAddr + rowInSprite*3 + 1, raster) <<  8 |
-                       (uint32_t)mem->vicRead(dataAddr + rowInSprite*3 + 2, raster);
+    (void)rowInSprite; // row source is now internal sprite state
 
     int x0, x1;
-    innerWindowForRaster(raster, x0, x1);
+    spriteVisibleXRange(x0, x1);
 
     const int screenY = fbY(raster);
 
-    auto insideX = [&](int x){ return x >= x0 && x < x1; };
+    for (int px = x0; px < x1; ++px)
+    {
+        uint8_t color = 0;
+        bool opaque = false;
 
-    if (!multClr)
-    {
-        int xDup = expandX ? 2 : 1;
-        for (int colBit = 0; colBit < 24; ++colBit)
+        if (spritePixelAtX(sprIndex, raster, px, color, opaque) && opaque)
         {
-            if (!(rowBits & (1 << (23 - colBit)))) continue;
-            int drawX = spriteX + colBit * xDup;
-            if (drawX >= x1) break;
-            if (drawX + (xDup - 1) < x0) continue;
-            for (int xx = 0; xx < xDup; ++xx)
-            {
-                int px = drawX + xx;
-                if (insideX(px)) IO_adapter->setPixel(px, screenY, col);
-            }
-        }
-    }
-    else
-    {
-        const int baseW = 2;
-        int xDup = (expandX ? 2 : 1) * baseW;
-        for (int pair = 0; pair < 12; ++pair)
-        {
-            uint8_t bits = (rowBits >> (22 - pair*2)) & 0x03;
-            if (!bits) continue;
-            int drawX = spriteX + pair * xDup;
-            if (drawX >= x1) break;
-            if (drawX + xDup - 1 < x0) continue;
-            uint8_t pixCol = (bits == 1) ? mc1 : (bits == 2) ? col : mc2;
-            for (int xx = 0; xx < xDup; ++xx)
-            {
-                int px = drawX + xx;
-                if (insideX(px)) IO_adapter->setPixel(px, screenY, pixCol);
-            }
+            IO_adapter->setPixel(px, screenY, color);
         }
     }
 }
@@ -904,26 +1244,14 @@ void Vic::renderSprites(int pass, int raster)
     for (int i = 0; i < 8; ++i)
     {
         if (!(registers.spriteEnabled & (1 << i)))
-        {
-            continue; // Sprite disabled
-        }
-
-        int spriteY = registers.spriteY[i];
-
-        // Check for expanded sprite
-        int spriteHeight = (registers.spriteYExpansion & (1 << i)) ? 42 : 21;
-
-        if (raster < spriteY || raster >= spriteY + spriteHeight)
-        {
             continue;
-        }
 
-        int rowInSprite = raster - spriteY;
-        if (spriteHeight == 42)
-        {
-            rowInSprite /= 2;
-        }
-        bool behind = registers.spritePriority & (1 << i);
+        int rowInSprite = 0;
+        int fbLine = 0;
+        if (!spriteDisplayCoversRaster(i, raster, rowInSprite, fbLine))
+            continue;
+
+        const bool behind = (registers.spritePriority & (1 << i)) != 0;
         if ((pass == 0 && behind) || (pass == 1 && !behind))
         {
             drawSprite(raster, rowInSprite, i);
@@ -1284,87 +1612,22 @@ void Vic::detectSpriteToSpriteCollision(int raster)
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
 {
     int ra, rb, fbLine;
-    if (!spriteCoversRaster(A, raster, ra, fbLine)) return false;
-    if (!spriteCoversRaster(B, raster, rb, fbLine)) return false;
-
-    // On-screen X exactly like drawSprite()
-    int xA = spriteScreenXFor(A, raster);
-    int xB = spriteScreenXFor(B, raster);
-
-    bool expA = (registers.spriteXExpansion & (1 << A)) != 0;
-    bool expB = (registers.spriteXExpansion & (1 << B)) != 0;
-    bool mcA  = (registers.spriteMultiColor  & (1 << A)) != 0;
-    bool mcB  = (registers.spriteMultiColor  & (1 << B)) != 0;
-
-    auto rowBitsFor = [&](int i, int row)
-    {
-        uint16_t addr = getSpriteDataAddress(i);
-        return  (uint32_t)mem->vicRead(addr + row*3, raster)     << 16
-              | (uint32_t)mem->vicRead(addr + row*3 + 1, raster) <<  8
-              | (uint32_t)mem->vicRead(addr + row*3 + 2, raster);
-    };
-
-    uint32_t bitsA = rowBitsFor(A, ra);
-    uint32_t bitsB = rowBitsFor(B, rb);
+    if (!spriteDisplayCoversRaster(A, raster, ra, fbLine)) return false;
+    if (!spriteDisplayCoversRaster(B, raster, rb, fbLine)) return false;
 
     int x0, x1;
-    innerWindowForRaster(raster, x0, x1);
+    spriteVisibleXRange(x0, x1);
 
-    auto insideX = [&](int x){ return x >= x0 && x < x1; };
-
-    // Walk solid host pixels for one sprite row
-    auto forEachSolidPixelX = [&](uint32_t bits, bool mult, bool exp, int baseX, auto &&emit)
+    for (int px = x0; px < x1; ++px)
     {
-        if (!mult)
+        if (spritePixelOpaqueAtX(A, raster, px) &&
+            spritePixelOpaqueAtX(B, raster, px))
         {
-            int xDup = exp ? 2 : 1;
-            for (int b = 0; b < 24; ++b)
-            {
-                if ((bits & (1u << (23 - b))) == 0) continue;
-                int drawX = baseX + b * xDup;
-                if (drawX >= x1) break;
-                for (int xx = 0; xx < xDup; ++xx)
-                {
-                    int px = drawX + xx;
-                    if (insideX(px)) emit(px);
-                }
-            }
+            return true;
         }
-        else
-        {
-            const int baseW = 2;
-            int xDup = (exp ? 2 : 1) * baseW;
-            for (int p = 0; p < 12; ++p)
-            {
-                uint8_t pair = (bits >> (22 - p*2)) & 0x03;
-                if (!pair) continue;
-                int drawX = baseX + p * xDup;
-                if (drawX >= x1) break;
-                for (int xx = 0; xx < xDup; ++xx)
-                {
-                    int px = drawX + xx;
-                    if (insideX(px)) emit(px);
-                }
-            }
-        }
-    };
+    }
 
-    // Bitmask of covered BG pixels for sprite A
-    static uint8_t cover[512];
-    std::memset(cover, 0, sizeof cover);
-
-    forEachSolidPixelX(bitsA, mcA, expA, xA, [&](int px)
-    {
-        if (px >= 0 && px < (int)sizeof(cover)) cover[px] = 1;
-    });
-
-    bool hit = false;
-    forEachSolidPixelX(bitsB, mcB, expB, xB, [&](int px)
-    {
-        if (px >= 0 && px < (int)sizeof(cover) && cover[px]) hit = true;
-    });
-
-    return hit;
+    return false;
 }
 
 void Vic::detectSpriteToBackgroundCollision(int raster)
@@ -1387,71 +1650,21 @@ void Vic::detectSpriteToBackgroundCollision(int raster)
 bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
 {
     int rowInSprite, fbLine;
-    if (!spriteCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
+    if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
         return false;
 
-    const int spriteX = spriteScreenXFor(spriteIndex, raster);
-
-    const bool expandX = (registers.spriteXExpansion & (1 << spriteIndex)) != 0;
-    const bool multClr = (registers.spriteMultiColor  & (1 << spriteIndex)) != 0;
-
-    // Fetch sprite row bits
-    const uint16_t dataAddr = getSpriteDataAddress(spriteIndex);
-    const uint32_t rowBits =
-        (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3, raster) << 16 |
-        (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 1, raster) <<  8 |
-        (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 2, raster);
-
-    // Paint window for this raster (fine-scroll aware)
     const int cols = getCSEL(raster) ? 40 : 38;
     const int fine = d016_per_raster[raster] & 0x07;
     const int x0   = BORDER_SIZE + (cols == 38 ? 4 : 0);
     const int leftPaintX  = x0 - fine;
     const int rightPaintX = x0 + cols * 8; // exclusive
 
-    auto hitsBG = [&](int px) -> bool {
-        // Only consider pixels where we actually painted/marked background this raster
-        if (px < leftPaintX || px >= rightPaintX) return false;
-        return isBackgroundPixelOpaque(px, fbLine);
-    };
-
-    if (!multClr)
+    for (int px = leftPaintX; px < rightPaintX; ++px)
     {
-        const int xDup = expandX ? 2 : 1;
-        for (int b = 0; b < 24; ++b)
+        if (spritePixelOpaqueAtX(spriteIndex, raster, px) &&
+            isBackgroundPixelOpaque(px, fbLine))
         {
-            if ((rowBits & (1u << (23 - b))) == 0) continue;
-
-            const int drawX = spriteX + b * xDup;
-            if (drawX >= rightPaintX + 8) break;     // safety
-            if (drawX + (xDup - 1) < leftPaintX - 8) continue;
-
-            for (int xx = 0; xx < xDup; ++xx)
-            {
-                const int px = drawX + xx;
-                if (hitsBG(px)) return true;
-            }
-        }
-    }
-    else
-    {
-        const int baseW = 2;
-        const int xDup  = (expandX ? 2 : 1) * baseW;
-
-        for (int p = 0; p < 12; ++p)
-        {
-            const uint8_t bits = (rowBits >> (22 - p * 2)) & 0x03;
-            if (!bits) continue;
-
-            const int drawX = spriteX + p * xDup;
-            if (drawX >= rightPaintX + xDup) break;
-            if (drawX + (xDup - 1) < leftPaintX - xDup) continue;
-
-            for (int xx = 0; xx < xDup; ++xx)
-            {
-                const int px = drawX + xx;
-                if (hitsBG(px)) return true;
-            }
+            return true;
         }
     }
 
@@ -1481,6 +1694,61 @@ bool Vic::spriteCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fb
     fbLine = fbY(raster);
 
     return true;
+}
+
+bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
+{
+    fbLine = fbY(raster);
+
+    if (!(registers.spriteEnabled & (1 << sprIndex)))
+        return false;
+
+    if (!spriteUnits[sprIndex].displayActive)
+        return false;
+
+    const bool yExp = spriteUnits[sprIndex].yExpandLatch;
+
+    // currentRow is line-progress state from the sprite unit.
+    rowInSprite = spriteUnits[sprIndex].currentRow;
+    if (yExp)
+        rowInSprite /= 2;
+
+    return rowInSprite >= 0 && rowInSprite < 21;
+}
+
+bool Vic::spritePixelAtX(int sprIndex, int raster, int px, uint8_t& outColor, bool& opaque) const
+{
+    outColor = 0;
+    opaque = false;
+
+    int rowInSprite = 0;
+    int fbLine = 0;
+    if (!spriteDisplayCoversRaster(sprIndex, raster, rowInSprite, fbLine))
+        return false;
+
+    const int spriteX = spriteScreenXFor(sprIndex, raster);
+    const int localX = px - spriteX;
+
+    return decodeSpritePixelAtLocalX(sprIndex, localX, outColor, opaque);
+}
+
+bool Vic::spritePixelOpaqueAtX(int sprIndex, int raster, int px) const
+{
+    uint8_t color = 0;
+    bool opaque = false;
+    return spritePixelAtX(sprIndex, raster, px, color, opaque) && opaque;
+}
+
+uint32_t Vic::fetchSpriteRowBits(int sprite, int raster, int rowInSprite) const
+{
+    if (!mem)
+        return 0;
+
+    const uint16_t dataAddr = spriteUnits[sprite].dataBase;
+
+    return  (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3,     raster) << 16
+          | (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 1, raster) <<  8
+          | (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 2, raster);
 }
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
