@@ -99,6 +99,9 @@ void Vic::reset()
         s.currentRow = 0;
 
         s.startY = 0;
+
+        s.outputXStart = 0;
+        s.outputWidth = 0;
     }
 
     std::fill(std::begin(sprPtrBase), std::end(sprPtrBase), 0);
@@ -283,6 +286,9 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeI32(s.outputBit);
         wrtr.writeI32(s.outputRepeat);
         wrtr.writeBool(s.rowPrepared);
+
+        wrtr.writeI32(s.outputXStart);
+        wrtr.writeI32(s.outputWidth);
     }
 
     // Dump Latches
@@ -436,6 +442,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readI32(s.outputBit))                      { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(s.outputRepeat))                   { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readBool(s.rowPrepared))                   { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(s.outputXStart))                   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputWidth))                    { rdr.exitChunkPayload(chunk); return false; }
         }
 
         if (!rdr.readVectorU8(d011_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
@@ -1012,6 +1021,8 @@ void Vic::prepareSpriteOutputForRaster(int raster)
         spriteUnits[i].rowPrepared = false;
         spriteUnits[i].outputBit = 0;
         spriteUnits[i].outputRepeat = 0;
+        spriteUnits[i].outputXStart = 0;
+        spriteUnits[i].outputWidth = 0;
 
         if (!(registers.spriteEnabled & (1 << i)))
         {
@@ -1034,10 +1045,7 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             rowInSprite /= 2;
 
         loadSpriteShiftRegisters(i, raster, rowInSprite);
-
-        spriteUnits[i].rowPrepared = true;
-        spriteUnits[i].outputBit = 0;
-        spriteUnits[i].outputRepeat = 0;
+        beginSpriteLineOutput(i, raster);
     }
 }
 
@@ -1049,7 +1057,7 @@ bool Vic::decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor,
     if (!spriteUnits[sprIndex].rowPrepared)
         return false;
 
-    if (localX < 0)
+    if (localX < 0 || localX >= spriteUnits[sprIndex].outputWidth)
         return false;
 
     const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
@@ -1065,8 +1073,7 @@ bool Vic::decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor,
         if (srcBit < 0 || srcBit >= 24)
             return false;
 
-        const bool bitOn = ((rowBits >> (23 - srcBit)) & 0x01) != 0;
-        if (!bitOn)
+        if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
             return false;
 
         outColor = registers.spriteColors[sprIndex] & 0x0F;
@@ -1099,6 +1106,132 @@ bool Vic::decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor,
     }
 }
 
+int Vic::spritePreparedOutputWidth(int sprIndex) const
+{
+    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
+    return expandX ? 48 : 24;
+}
+
+void Vic::beginSpriteLineOutput(int sprIndex, int raster)
+{
+    resetSpriteLineSequencer(sprIndex, raster);
+}
+
+void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
+{
+    spriteUnits[sprIndex].outputBit = 0;
+    spriteUnits[sprIndex].outputRepeat = 0;
+    spriteUnits[sprIndex].rowPrepared = true;
+    spriteUnits[sprIndex].outputXStart = spriteScreenXFor(sprIndex, raster);
+    spriteUnits[sprIndex].outputWidth = spritePreparedOutputWidth(sprIndex);
+}
+
+void Vic::advanceSpriteOutputState(int sprIndex)
+{
+    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
+    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
+
+    const int repeatsPerSourceUnit =
+        multClr ? (expandX ? 4 : 2)
+                : (expandX ? 2 : 1);
+
+    spriteUnits[sprIndex].outputRepeat++;
+
+    if (spriteUnits[sprIndex].outputRepeat >= repeatsPerSourceUnit)
+    {
+        spriteUnits[sprIndex].outputRepeat = 0;
+        spriteUnits[sprIndex].outputBit++;
+    }
+}
+
+bool Vic::currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const
+{
+    outColor = 0;
+    opaque = false;
+
+    if (!spriteUnits[sprIndex].rowPrepared)
+        return false;
+
+    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
+    const uint32_t rowBits = getLatchedSpriteBits(sprIndex);
+
+    if (!multClr)
+    {
+        const int srcBit = spriteUnits[sprIndex].outputBit;
+        if (srcBit < 0 || srcBit >= 24)
+            return false;
+
+        if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
+            return false;
+
+        outColor = registers.spriteColors[sprIndex] & 0x0F;
+        opaque = true;
+        return true;
+    }
+    else
+    {
+        const int srcPair = spriteUnits[sprIndex].outputBit;
+        if (srcPair < 0 || srcPair >= 12)
+            return false;
+
+        const uint8_t bits = (rowBits >> (22 - srcPair * 2)) & 0x03;
+        if (bits == 0)
+            return false;
+
+        const uint8_t mc1 = registers.spriteMultiColor1 & 0x0F;
+        const uint8_t mc2 = registers.spriteMultiColor2 & 0x0F;
+        const uint8_t col = registers.spriteColors[sprIndex] & 0x0F;
+
+        outColor =
+            (bits == 1) ? mc1 :
+            (bits == 2) ? col :
+                          mc2;
+
+        opaque = true;
+        return true;
+    }
+}
+
+void Vic::sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 512>& opaqueMask, std::array<uint8_t, 512>& colorLine)
+{
+    opaqueMask.fill(0);
+    colorLine.fill(0);
+
+    int rowInSprite = 0;
+    int fbLine = 0;
+    if (!spriteDisplayCoversRaster(sprIndex, raster, rowInSprite, fbLine))
+        return;
+
+    if (!spriteUnits[sprIndex].rowPrepared)
+        return;
+
+    resetSpriteLineSequencer(sprIndex, raster);
+
+    const int startX = spriteUnits[sprIndex].outputXStart;
+    const int width = spriteUnits[sprIndex].outputWidth;
+    const int endX = startX + width;
+
+    int x0, x1;
+    spriteVisibleXRange(x0, x1);
+
+    for (int px = startX; px < endX; ++px)
+    {
+        uint8_t color = 0;
+        bool opaque = false;
+
+        if (px >= x0 && px < x1)
+        {
+            if (currentSpriteSequencerPixel(sprIndex, color, opaque) && opaque)
+            {
+                opaqueMask[px] = 1;
+                colorLine[px] = color;
+            }
+        }
+
+        advanceSpriteOutputState(sprIndex);
+    }
+}
+
 void Vic::updateSpriteDMAEndOfLine(int raster)
 {
     (void)raster;
@@ -1121,6 +1254,8 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
             spriteUnits[s].rowPrepared = false;
             spriteUnits[s].outputBit = 0;
             spriteUnits[s].outputRepeat = 0;
+            spriteUnits[s].outputXStart = 0;
+            spriteUnits[s].outputWidth = 0;
         }
     }
 }
@@ -1220,22 +1355,22 @@ void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
     if (!IO_adapter || !mem)
         return;
 
-    (void)rowInSprite; // row source is now internal sprite state
+    (void)rowInSprite;
+
+    std::array<uint8_t, 512> opaqueMask{};
+    std::array<uint8_t, 512> colorLine{};
+
+    sampleSpriteLinePixels(sprIndex, raster, opaqueMask, colorLine);
+
+    const int screenY = fbY(raster);
 
     int x0, x1;
     spriteVisibleXRange(x0, x1);
 
-    const int screenY = fbY(raster);
-
     for (int px = x0; px < x1; ++px)
     {
-        uint8_t color = 0;
-        bool opaque = false;
-
-        if (spritePixelAtX(sprIndex, raster, px, color, opaque) && opaque)
-        {
-            IO_adapter->setPixel(px, screenY, color);
-        }
+        if (opaqueMask[px])
+            IO_adapter->setPixel(px, screenY, colorLine[px]);
     }
 }
 
@@ -1615,16 +1750,21 @@ bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
     if (!spriteDisplayCoversRaster(A, raster, ra, fbLine)) return false;
     if (!spriteDisplayCoversRaster(B, raster, rb, fbLine)) return false;
 
+    std::array<uint8_t, 512> maskA{};
+    std::array<uint8_t, 512> colorA{};
+    std::array<uint8_t, 512> maskB{};
+    std::array<uint8_t, 512> colorB{};
+
+    sampleSpriteLinePixels(A, raster, maskA, colorA);
+    sampleSpriteLinePixels(B, raster, maskB, colorB);
+
     int x0, x1;
     spriteVisibleXRange(x0, x1);
 
     for (int px = x0; px < x1; ++px)
     {
-        if (spritePixelOpaqueAtX(A, raster, px) &&
-            spritePixelOpaqueAtX(B, raster, px))
-        {
+        if (maskA[px] && maskB[px])
             return true;
-        }
     }
 
     return false;
@@ -1653,6 +1793,11 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
     if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
         return false;
 
+    std::array<uint8_t, 512> opaqueMask{};
+    std::array<uint8_t, 512> colorLine{};
+
+    sampleSpriteLinePixels(spriteIndex, raster, opaqueMask, colorLine);
+
     const int cols = getCSEL(raster) ? 40 : 38;
     const int fine = d016_per_raster[raster] & 0x07;
     const int x0   = BORDER_SIZE + (cols == 38 ? 4 : 0);
@@ -1661,11 +1806,8 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
 
     for (int px = leftPaintX; px < rightPaintX; ++px)
     {
-        if (spritePixelOpaqueAtX(spriteIndex, raster, px) &&
-            isBackgroundPixelOpaque(px, fbLine))
-        {
+        if (px >= 0 && px < 512 && opaqueMask[px] && isBackgroundPixelOpaque(px, fbLine))
             return true;
-        }
     }
 
     return false;
@@ -1726,9 +1868,16 @@ bool Vic::spritePixelAtX(int sprIndex, int raster, int px, uint8_t& outColor, bo
     if (!spriteDisplayCoversRaster(sprIndex, raster, rowInSprite, fbLine))
         return false;
 
-    const int spriteX = spriteScreenXFor(sprIndex, raster);
-    const int localX = px - spriteX;
+    if (!spriteUnits[sprIndex].rowPrepared)
+        return false;
 
+    const int startX = spriteUnits[sprIndex].outputXStart;
+    const int width  = spriteUnits[sprIndex].outputWidth;
+
+    if (px < startX || px >= startX + width)
+        return false;
+
+    const int localX = px - startX;
     return decodeSpritePixelAtLocalX(sprIndex, localX, outColor, opaque);
 }
 

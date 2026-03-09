@@ -217,6 +217,9 @@ class Vic
             int outputBit = 0;
             int outputRepeat = 0;
             bool rowPrepared = false;
+
+            int outputXStart = 0;
+            int outputWidth = 0;
         };
 
         std::array<SpriteUnit, 8> spriteUnits;
@@ -293,6 +296,14 @@ class Vic
 
         void prepareSpriteOutputForRaster(int raster);
         bool decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor, bool& opaque) const;
+
+        int spritePreparedOutputWidth(int sprIndex) const;
+        void beginSpriteLineOutput(int sprIndex, int raster);
+
+        void resetSpriteLineSequencer(int sprIndex, int raster);
+        void advanceSpriteOutputState(int sprIndex);
+        bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const;
+        void sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 512>& opaqueMask, std::array<uint8_t, 512>& colorLine);
 
         void loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite);
         uint32_t getLatchedSpriteBits(int sprite) const;
