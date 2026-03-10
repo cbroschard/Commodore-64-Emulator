@@ -53,6 +53,11 @@ class UIBridge
         StringFn setVideoMode_;
         VoidFn enterMonitor_;
         BoolFn isPal_;
+
+        bool manualPaused_;
+        bool dialogPaused_;
+
+        void refreshPauseState();
 };
 
 #endif // UIBRIDGE_H

@@ -28,12 +28,20 @@ UIBridge::UIBridge(EmulatorUI& ui,
                   coldReset_(std::move(coldReset)),
                   setVideoMode_(std::move(setVideoMode)),
                   enterMonitor_(std::move(enterMonitor)),
-                  isPal_(std::move(isPal))
+                  isPal_(std::move(isPal)),
+                  manualPaused_(false),
+                  dialogPaused_(false)
 {
 
 }
 
 UIBridge::~UIBridge() = default;
+
+void UIBridge::refreshPauseState()
+{
+    dialogPaused_ = ui_.isFileDialogOpen();
+    uiPaused_ = (manualPaused_ || dialogPaused_);
+}
 
 EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 {
@@ -127,6 +135,8 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 
 void UIBridge::processCommands()
 {
+    refreshPauseState();
+
     for (const auto& cmd : ui_.consumeCommands())
     {
         switch (cmd.type)
@@ -284,4 +294,6 @@ void UIBridge::processCommands()
                 break;
         }
     }
+
+    refreshPauseState();
 }

@@ -67,6 +67,8 @@ class EmulatorUI
 
         void setMediaViewState(const MediaViewState& s);
 
+        inline bool isFileDialogOpen() const { return fileDlg.open; }
+
     protected:
 
     private:
