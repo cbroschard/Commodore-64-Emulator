@@ -1233,91 +1233,10 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opa
     }
 }
 
-void Vic::sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 512>& opaqueMask, std::array<uint8_t, 512>& colorLine)
-{
-    opaqueMask.fill(0);
-    colorLine.fill(0);
-
-    int rowInSprite = 0;
-    int fbLine = 0;
-    if (!spriteDisplayCoversRaster(sprIndex, raster, rowInSprite, fbLine))
-        return;
-
-    if (!spriteUnits[sprIndex].rowPrepared)
-        return;
-
-    resetSpriteLineSequencer(sprIndex, raster);
-
-    const int startX = spriteUnits[sprIndex].outputXStart;
-    const int width = spriteUnits[sprIndex].outputWidth;
-    const int endX = startX + width;
-
-    int x0, x1;
-    spriteVisibleXRange(x0, x1);
-
-    for (int px = startX; px < endX; ++px)
-    {
-        uint8_t color = 0;
-        bool opaque = false;
-
-        if (px >= x0 && px < x1)
-        {
-            if (currentSpriteSequencerPixel(sprIndex, color, opaque) && opaque)
-            {
-                opaqueMask[px] = 1;
-                colorLine[px] = color;
-            }
-        }
-
-        advanceSpriteOutputState(sprIndex);
-    }
-}
-
 void Vic::clearSpriteLineBuffers()
 {
     for (auto& line : spriteOpaqueLine) line.fill(0);
     for (auto& line : spriteColorLine)  line.fill(0);
-}
-
-void Vic::runSpriteSequencersForRaster(int raster)
-{
-    clearSpriteLineBuffers();
-
-    int x0, x1;
-    spriteVisibleXRange(x0, x1);
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        int rowInSprite = 0;
-        int fbLine = 0;
-        if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
-            continue;
-
-        if (!spriteUnits[spr].rowPrepared)
-            continue;
-
-        resetSpriteLineSequencer(spr, raster);
-
-        const int startX = spriteUnits[spr].outputXStart;
-        const int endX   = startX + spriteUnits[spr].outputWidth;
-
-        for (int px = startX; px < endX; ++px)
-        {
-            uint8_t color = 0;
-            bool opaque = false;
-
-            if (px >= x0 && px < x1)
-            {
-                if (currentSpriteSequencerPixel(spr, color, opaque) && opaque)
-                {
-                    spriteOpaqueLine[spr][px] = 1;
-                    spriteColorLine[spr][px]  = color;
-                }
-            }
-
-            advanceSpriteOutputState(spr);
-        }
-    }
 }
 
 void Vic::beginSpriteRasterOutput(int raster)
@@ -1517,45 +1436,6 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     charPtrFIFO[fetchIndex]  = fetchScreenByte(row, col, raster);
     colorPtrFIFO[fetchIndex] = fetchColorByte(row, col, raster) & 0x0F;
-}
-
-void Vic::drawSprite(int raster, int rowInSprite, int sprIndex)
-{
-    if (!IO_adapter)
-        return;
-
-    (void)rowInSprite;
-
-    const int screenY = fbY(raster);
-
-    int x0, x1;
-    spriteVisibleXRange(x0, x1);
-
-    for (int px = x0; px < x1; ++px)
-    {
-        if (spriteOpaqueLine[sprIndex][px])
-            IO_adapter->setPixel(px, screenY, spriteColorLine[sprIndex][px]);
-    }
-}
-
-void Vic::renderSprites(int pass, int raster)
-{
-    for (int i = 0; i < 8; ++i)
-    {
-        if (!(registers.spriteEnabled & (1 << i)))
-            continue;
-
-        int rowInSprite = 0;
-        int fbLine = 0;
-        if (!spriteDisplayCoversRaster(i, raster, rowInSprite, fbLine))
-            continue;
-
-        const bool behind = (registers.spritePriority & (1 << i)) != 0;
-        if ((pass == 0 && behind) || (pass == 1 && !behind))
-        {
-            drawSprite(raster, rowInSprite, i);
-        }
-    }
 }
 
 void Vic::renderLine(int raster)
@@ -2081,21 +1961,6 @@ int Vic::spriteScreenXFor(int sprIndex, int raster) const
     return (x - cfg_->hardware_X) + BORDER_SIZE;
 }
 
-bool Vic::spriteCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
-{
-    int y = registers.spriteY[sprIndex];
-    int h = (registers.spriteYExpansion & (1 << sprIndex)) ? 42 : 21;
-
-    if (raster < y || raster >= y + h) return false;
-
-    rowInSprite = raster - y;
-    if (h == 42) rowInSprite /= 2;
-
-    fbLine = fbY(raster);
-
-    return true;
-}
-
 bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
 {
     fbLine = fbY(raster);
@@ -2114,48 +1979,6 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
         rowInSprite /= 2;
 
     return rowInSprite >= 0 && rowInSprite < 21;
-}
-
-bool Vic::spritePixelAtX(int sprIndex, int raster, int px, uint8_t& outColor, bool& opaque) const
-{
-    outColor = 0;
-    opaque = false;
-
-    int rowInSprite = 0;
-    int fbLine = 0;
-    if (!spriteDisplayCoversRaster(sprIndex, raster, rowInSprite, fbLine))
-        return false;
-
-    if (!spriteUnits[sprIndex].rowPrepared)
-        return false;
-
-    const int startX = spriteUnits[sprIndex].outputXStart;
-    const int width  = spriteUnits[sprIndex].outputWidth;
-
-    if (px < startX || px >= startX + width)
-        return false;
-
-    const int localX = px - startX;
-    return decodeSpritePixelAtLocalX(sprIndex, localX, outColor, opaque);
-}
-
-bool Vic::spritePixelOpaqueAtX(int sprIndex, int raster, int px) const
-{
-    uint8_t color = 0;
-    bool opaque = false;
-    return spritePixelAtX(sprIndex, raster, px, color, opaque) && opaque;
-}
-
-uint32_t Vic::fetchSpriteRowBits(int sprite, int raster, int rowInSprite) const
-{
-    if (!mem)
-        return 0;
-
-    const uint16_t dataAddr = spriteUnits[sprite].dataBase;
-
-    return  (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3,     raster) << 16
-          | (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 1, raster) <<  8
-          | (uint32_t)mem->vicRead(dataAddr + rowInSprite * 3 + 2, raster);
 }
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
@@ -2309,17 +2132,6 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
         return colorPtrFIFO[displayCol] & 0x0F;
 
     return fetchDisplayColorByte(displayCol, raster);
-}
-
-void Vic::handleBadLineState(int raster)
-{
-    const bool bad = isBadLine(raster);
-    vicState.badLine = bad;
-
-    if (!bad)
-        return;
-
-    beginBadLineFetch();
 }
 
 void Vic::advanceVideoCountersEndOfLine(int raster)

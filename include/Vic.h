@@ -267,10 +267,6 @@ class Vic
         inline bool isSpriteX(uint16_t address) const { return ((address - 0xD000) % 2) == 0; }
         void markBGOpaque(int screenY, int px);
 
-        // Render sprites
-        void renderSprites(int pass, int raster);
-        void drawSprite(int raster, int rowInSprite, int sprIndex);
-
         // Bad line detection
         bool isBadLine(int raster);
         void beginBadLineFetch();
@@ -292,12 +288,7 @@ class Vic
         bool checkSpriteBackgroundOverlap(int spriteIndex, int raster);
         bool checkSpriteSpriteOverlapOnLine(int A, int B, int raster);
         int spriteScreenXFor(int sprIndex, int raster) const;
-        bool spriteCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
-        uint32_t fetchSpriteRowBits(int sprite, int raster, int rowInSprite) const;
-
-        bool spritePixelAtX(int sprIndex, int raster, int px, uint8_t& outColor, bool& opaque) const;
-        bool spritePixelOpaqueAtX(int sprIndex, int raster, int px) const;
 
         void updateSpriteDMAStartForCurrentLine();
         void updateSpriteDMAEndOfLine(int raster);
@@ -315,10 +306,8 @@ class Vic
         void resetSpriteLineSequencer(int sprIndex, int raster);
         void advanceSpriteOutputState(int sprIndex);
         bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const;
-        void sampleSpriteLinePixels(int sprIndex, int raster, std::array<uint8_t, 512>& opaqueMask, std::array<uint8_t, 512>& colorLine);
 
         void clearSpriteLineBuffers();
-        void runSpriteSequencersForRaster(int raster);
 
         void beginSpriteRasterOutput(int raster);
         void stepSpriteSequencersAtX(int raster, int px);
@@ -372,7 +361,6 @@ class Vic
         uint8_t resolveDisplayScreenByte(int displayCol, int raster) const;
         uint8_t resolveDisplayColorByte(int displayCol, int raster) const;
 
-        void handleBadLineState(int raster);
         void advanceVideoCountersEndOfLine(int raster);
         int currentCharacterRow() const;
 
