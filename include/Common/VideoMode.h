@@ -27,6 +27,10 @@ struct ModeConfig
     int      DMAStartCycle;
     int      DMAEndCycle;
     int      hardware_X;
+    int      bgFetchStartCycle;
+    int      bgFetchEndCycle;
+    int      refreshStartCycle;
+    int      spriteFetchSlots[8];
 };
 
 inline constexpr ModeConfig NTSC_CONFIG =
@@ -42,7 +46,9 @@ inline constexpr ModeConfig NTSC_CONFIG =
     250,   // lastVisibleLine
     15,    // DMAStartCycle
     54,     // DMAEndCycle
-    24     // hardwareX
+    24,     // hardwareX
+    15,    // bgFetchStartCycle
+    54     // bgFetchEndCycle
 };
 
 inline constexpr ModeConfig PAL_CONFIG =
@@ -58,7 +64,9 @@ inline constexpr ModeConfig PAL_CONFIG =
     250,   // lastVisibleLine
     14,    // DMAStartCycle
     53,     // DMAEndCycle
-    31      // hardwareX
+    31,      // hardwareX
+    15,    // bgFetchStartCycle
+    54     // bgFetchEndCycle
 };
 
 #endif // VIDEOMODE_H_INCLUDED
