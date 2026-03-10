@@ -48,7 +48,9 @@ inline constexpr ModeConfig NTSC_CONFIG =
     54,     // DMAEndCycle
     24,     // hardwareX
     15,    // bgFetchStartCycle
-    54     // bgFetchEndCycle
+    54,     // bgFetchEndCycle
+    55,     // refreshStartCycle
+    {55,58,61,64,2,5,8,11} // spriteFetchCycle
 };
 
 inline constexpr ModeConfig PAL_CONFIG =
@@ -66,7 +68,9 @@ inline constexpr ModeConfig PAL_CONFIG =
     53,     // DMAEndCycle
     31,      // hardwareX
     15,    // bgFetchStartCycle
-    54     // bgFetchEndCycle
+    54,     // bgFetchEndCycle
+    54,     // refreshStartCycle
+    {54,57,60,0,3,6,9,12} // spriteFetchCycle
 };
 
 #endif // VIDEOMODE_H_INCLUDED

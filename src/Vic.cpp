@@ -967,8 +967,7 @@ void Vic::tick(int cycles)
 
 int Vic::spriteFetchSlotStart(int sprite) const
 {
-    const int firstSlot = cfg_->DMAEndCycle + 1;
-    return (firstSlot + sprite * 3) % cfg_->cyclesPerLine;
+    return cfg_->spriteFetchSlots[sprite];
 }
 
 bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
