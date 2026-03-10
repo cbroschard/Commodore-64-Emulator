@@ -140,6 +140,8 @@ class Vic
         // Keep track of frame completion
         bool frameDone;
 
+        int currentRasterX;
+
         struct Registers
         {
             uint8_t spriteX[8];                 // SPRITE_X0 to SPRITE_X7 (0xD000, 0xD002, ...)
@@ -343,7 +345,19 @@ class Vic
         void clearBackgroundLineBuffers();
         void generateBackgroundLine(int raster);
 
+        void emitRasterLineInOrder(int raster);
+        void emitRasterPixel(int raster, int px);
+
+        int rasterVisibleStartX(int raster) const;
+        int rasterVisibleEndX(int raster) const;
+
+        bool isLeftBorderPixel(int raster, int px) const;
+        bool isInnerDisplayPixel(int raster, int px) const;
+        bool isRightBorderPixel(int raster, int px) const;
+
         void composeFinalRasterLine(int raster);
+        uint8_t compositePixelAtX(int raster, int px) const;
+        uint8_t produceRasterPixel(int raster, int px) const;
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         void innerWindowForRaster(int raster, int& x0, int& x1) const;

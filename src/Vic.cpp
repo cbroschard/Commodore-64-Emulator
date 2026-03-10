@@ -63,6 +63,7 @@ void Vic::reset()
     // AEC
     currentCycle = 0;
     AEC = true;
+    currentRasterX = 0;
 
     // Internal VIC state
     vicState.vc = 0;
@@ -1570,18 +1571,9 @@ void Vic::renderLine(int raster)
             bgOpaque[screenY][x] = 0;
     }
 
-    // Generate the buffered background/display line first.
     generateBackgroundLine(raster);
-
-    // Compose the final visible raster line from:
-    // border/background + sprite layers.
     composeFinalRasterLine(raster);
-
-    // Emit the final composed line.
-    for (int px = 0; px < 512; ++px)
-    {
-        IO_adapter->setPixel(px, screenY, finalColorLine[px] & 0x0F);
-    }
+    emitRasterLineInOrder(raster);
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
@@ -1863,55 +1855,121 @@ void Vic::generateBackgroundLine(int raster)
     }
 }
 
-void Vic::composeFinalRasterLine(int raster)
+void Vic::emitRasterLineInOrder(int raster)
 {
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    currentRasterX = xStart;
+
+    while (currentRasterX < xEnd)
+    {
+        emitRasterPixel(raster, currentRasterX);
+        ++currentRasterX;
+    }
+}
+
+void Vic::emitRasterPixel(int raster, int px)
+{
+    if (!IO_adapter)
+        return;
+
+    const int screenY = fbY(raster);
+    IO_adapter->setPixel(px, screenY, produceRasterPixel(raster, px));
+}
+
+int Vic::rasterVisibleStartX(int raster) const
+{
+    (void)raster;
+    return 0;
+}
+
+int Vic::rasterVisibleEndX(int raster) const
+{
+    (void)raster;
+    return 512;
+}
+
+bool Vic::isLeftBorderPixel(int raster, int px) const
+{
+    const int cols = getCSEL(raster) ? 40 : 38;
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    return px >= 0 && px < leftInner;
+}
+
+bool Vic::isInnerDisplayPixel(int raster, int px) const
+{
     const int cols = getCSEL(raster) ? 40 : 38;
     const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
     const int rightInner = leftInner + cols * 8;
+    return px >= leftInner && px < rightInner;
+}
+
+bool Vic::isRightBorderPixel(int raster, int px) const
+{
+    const int cols = getCSEL(raster) ? 40 : 38;
+    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
+    const int rightInner = leftInner + cols * 8;
+    return px >= rightInner && px < 512;
+}
+
+void Vic::composeFinalRasterLine(int raster)
+{
+    for (int px = 0; px < 512; ++px)
+        finalColorLine[px] = compositePixelAtX(raster, px);
+}
+
+uint8_t Vic::compositePixelAtX(int raster, int px) const
+{
     const uint8_t border = registers.borderColor & 0x0F;
+    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
 
-    // Start from border everywhere.
-    finalColorLine.fill(border);
+    uint8_t color = border;
 
-    // If display is open, copy in the generated background/display line.
-    if (DEN && !vicState.verticalBorder)
+    const bool displayPixel =
+        DEN &&
+        !vicState.verticalBorder &&
+        isInnerDisplayPixel(raster, px) &&
+        !vicState.horizontalBorder;
+
+    if (displayPixel)
     {
-        for (int px = leftInner; px < rightInner && px < 512; ++px)
-            finalColorLine[px] = bgColorLine[px] & 0x0F;
+        color = bgColorLine[px] & 0x0F;
     }
 
-    // Composite sprites behind background first:
-    // they only show through where background is not opaque.
+    // Sprites behind background:
+    // only visible if background is not opaque at this pixel.
     for (int spr = 0; spr < 8; ++spr)
     {
         const bool behind = (registers.spritePriority & (1 << spr)) != 0;
         if (!behind)
             continue;
 
-        for (int px = 0; px < 512; ++px)
-        {
-            if (!spriteOpaqueLine[spr][px])
-                continue;
+        if (!spriteOpaqueLine[spr][px])
+            continue;
 
-            if (!bgOpaqueLine[px])
-                finalColorLine[px] = spriteColorLine[spr][px] & 0x0F;
-        }
+        if (!bgOpaqueLine[px])
+            color = spriteColorLine[spr][px] & 0x0F;
     }
 
-    // Composite sprites in front of background.
+    // Sprites in front of background.
     for (int spr = 0; spr < 8; ++spr)
     {
         const bool behind = (registers.spritePriority & (1 << spr)) != 0;
         if (behind)
             continue;
 
-        for (int px = 0; px < 512; ++px)
-        {
-            if (spriteOpaqueLine[spr][px])
-                finalColorLine[px] = spriteColorLine[spr][px] & 0x0F;
-        }
+        if (spriteOpaqueLine[spr][px])
+            color = spriteColorLine[spr][px] & 0x0F;
     }
+
+    return color & 0x0F;
+}
+
+uint8_t Vic::produceRasterPixel(int raster, int px) const
+{
+    (void)raster;
+    return finalColorLine[px] & 0x0F;
 }
 
 void Vic::updateIRQLine()
@@ -2338,16 +2396,13 @@ void Vic::updateHorizontalBorderState(int raster)
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
 {
-    const bool csel = getCSEL(raster);
-    const int cols = csel ? 40 : 38;
-
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int rightInner = leftInner + cols * 8;
-
     if (vicState.verticalBorder)
         return true;
 
-    if (px < leftInner || px >= rightInner)
+    if (isLeftBorderPixel(raster, px))
+        return true;
+
+    if (isRightBorderPixel(raster, px))
         return true;
 
     return vicState.horizontalBorder;
