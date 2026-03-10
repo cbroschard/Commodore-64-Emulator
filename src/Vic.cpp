@@ -1263,12 +1263,6 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 {
     (void)raster;
 
-    int x0, x1;
-    spriteVisibleXRange(x0, x1);
-
-    if (px < x0 || px >= x1)
-        return;
-
     for (int spr = 0; spr < 8; ++spr)
     {
         if (!spriteUnits[spr].rowPrepared)
@@ -1442,13 +1436,6 @@ void Vic::renderLine(int raster)
     if (!IO_adapter || !mem) return;
 
     updateGraphicsMode(raster);
-
-    const int screenY = fbY(raster);
-    if (screenY >= 0 && screenY < (int)bgOpaque.size())
-    {
-        for (int x = 0; x < 512; ++x)
-            bgOpaque[screenY][x] = 0;
-    }
 
     generateBackgroundLine(raster);
     composeFinalRasterLine(raster);
@@ -1896,13 +1883,28 @@ bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
     if (!spriteDisplayCoversRaster(A, raster, ra, fbLine)) return false;
     if (!spriteDisplayCoversRaster(B, raster, rb, fbLine)) return false;
 
-    int x0, x1;
-    spriteVisibleXRange(x0, x1);
+    if (!spriteUnits[A].rowPrepared || !spriteUnits[B].rowPrepared)
+        return false;
 
-    for (int px = x0; px < x1; ++px)
+    const int a0 = spriteUnits[A].outputXStart;
+    const int a1 = a0 + spriteUnits[A].outputWidth;
+    const int b0 = spriteUnits[B].outputXStart;
+    const int b1 = b0 + spriteUnits[B].outputWidth;
+
+    const int startX = std::max(a0, b0);
+    const int endX   = std::min(a1, b1);
+
+    if (startX >= endX)
+        return false;
+
+    for (int px = startX; px < endX; ++px)
     {
-        if (spriteOpaqueLine[A][px] && spriteOpaqueLine[B][px])
+        if (px >= 0 && px < 512 &&
+            spriteOpaqueLine[A][px] &&
+            spriteOpaqueLine[B][px])
+        {
             return true;
+        }
     }
 
     return false;
@@ -1931,13 +1933,13 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
     if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
         return false;
 
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int fine = d016_per_raster[raster] & 0x07;
-    const int x0   = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int leftPaintX  = x0 - fine;
-    const int rightPaintX = x0 + cols * 8; // exclusive
+    if (!spriteUnits[spriteIndex].rowPrepared)
+        return false;
 
-    for (int px = leftPaintX; px < rightPaintX; ++px)
+    const int startX = spriteUnits[spriteIndex].outputXStart;
+    const int endX   = startX + spriteUnits[spriteIndex].outputWidth;
+
+    for (int px = startX; px < endX; ++px)
     {
         if (px >= 0 && px < 512 &&
             spriteOpaqueLine[spriteIndex][px] &&
