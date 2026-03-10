@@ -49,7 +49,7 @@ inline constexpr ModeConfig NTSC_CONFIG =
     24,     // hardwareX
     15,    // bgFetchStartCycle
     54,     // bgFetchEndCycle
-    55,     // refreshStartCycle
+    55,     // refreshStartSlots
     {55,58,61,64,2,5,8,11} // spriteFetchCycle
 };
 
@@ -69,7 +69,7 @@ inline constexpr ModeConfig PAL_CONFIG =
     31,      // hardwareX
     15,    // bgFetchStartCycle
     54,     // bgFetchEndCycle
-    54,     // refreshStartCycle
+    54,     // refreshStartSlots
     {54,57,60,0,3,6,9,12} // spriteFetchCycle
 };
 
