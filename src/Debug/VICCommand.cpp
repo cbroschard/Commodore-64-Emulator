@@ -86,22 +86,21 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
         else
         {
-            const std::string& group = args[2]; // third word
+            const std::string& group = args[2];
             static const std::set<std::string> validGroups = {
                 "all", "raster", "irq", "sprites", "collisions", "colors", "pos"
             };
 
-            if (validGroups.count(group))
-                if (group == "all")
-                {
-                    printPaged(mon.mlmonitorbackend()->vicDumpRegs(group));
-                }
-                else
-                {
-                    std::cout << mon.mlmonitorbackend()->vicDumpRegs(group) << std::endl;
-                }
-            else
+            if (!validGroups.count(group))
+            {
                 std::cout << regsUsage();
+                return;
+            }
+
+            const std::string output = mon.mlmonitorbackend()->vicDumpRegs(group);
+            std::cout << output;
+            if (!output.empty() && output.back() != '\n')
+                std::cout << '\n';
         }
     }
     else

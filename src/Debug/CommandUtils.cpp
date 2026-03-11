@@ -99,22 +99,3 @@ std::pair<uint16_t,uint16_t> parseRangePair(std::string input)
     if (a > b) std::swap(a, b);
     return {a, b};
 }
-
-void printPaged(const std::string& text, int pageSize)
-{
-    std::istringstream iss(text);
-    std::string line;
-    int lineCount = 0;
-
-    while (std::getline(iss, line))
-    {
-        std::cout << line << "\n";
-        if (++lineCount % pageSize == 0)
-        {
-            std::cout << "--more-- (q to quit) ";
-            char c;
-            std::cin.get(c);
-            if (c == 'q' || c == 'Q') break;
-        }
-    }
-}
