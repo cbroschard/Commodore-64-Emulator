@@ -80,7 +80,11 @@ bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
     // F12 global monitor toggle
     if (sc == SDL_SCANCODE_F12)
     {
-        if (monitorCtl_) monitorCtl_->toggle();
+        if (monitorCtl_)
+        {
+            monitorCtl_->toggle();
+            uiPaused_ = monitorCtl_->isOpen();
+        }
         return true;
     }
 
