@@ -445,13 +445,13 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                 break;
 
             case SDLK_PAGEUP:
-                scrollOffset += 10;
+                scrollOffset -= 10;
                 scrollOffset = clampScrollOffset(scrollOffset);
                 autoScroll   = (scrollOffset == 0);
                 break;
 
             case SDLK_PAGEDOWN:
-                scrollOffset -= 10;
+                scrollOffset += 10;
                 scrollOffset = clampScrollOffset(scrollOffset);
                 autoScroll   = (scrollOffset == 0);
                 break;
@@ -486,8 +486,17 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
     // Mouse wheel scrolling
     if (e.type == SDL_MOUSEWHEEL)
     {
-        if (e.wheel.y > 0) scrollOffset += 3;
-        if (e.wheel.y < 0) scrollOffset -= 3;
+        // Internal meaning:
+        //   scrollOffset == 0 => bottom/newest
+        //   larger offset      => farther up into older lines
+        //
+        // User wants:
+        //   wheel up   => content moves up
+        //   wheel down => content moves down
+        //
+        // So invert from the current behavior.
+        if (e.wheel.y > 0) scrollOffset -= 3;  // wheel up
+        if (e.wheel.y < 0) scrollOffset += 3;  // wheel down
 
         scrollOffset = clampScrollOffset(scrollOffset);
         autoScroll   = (scrollOffset == 0);
@@ -798,7 +807,17 @@ SDL_Rect SDLMonitorWindow::getScrollbarThumbRect() const
     int thumbH = std::max(16, (int)(track.h * fracVisible));
 
     int maxOff = std::max(1, total - vis);
-    float fracScroll = (float)scrollOffset / (float)maxOff; // 0..1
+
+    // Internal scrollOffset:
+    //   0      = bottom/newest
+    //   maxOff = top/oldest
+    //
+    // UI scrollbar:
+    //   bottom of track = bottom/newest
+    //   top of track    = top/oldest
+    //
+    // So invert the fraction.
+    float fracScroll = 1.0f - ((float)scrollOffset / (float)maxOff);
 
     int travel = track.h - thumbH;
     int thumbY = track.y + (int)(fracScroll * travel);
@@ -823,8 +842,13 @@ void SDLMonitorWindow::setScrollFromThumbCenterY(int thumbCenterY)
     int desiredThumbY = thumbCenterY - (thumbH / 2);
     desiredThumbY = std::clamp(desiredThumbY, track.y, track.y + travel);
 
+    // UI:
+    //   top of track    => oldest => maxOff
+    //   bottom of track => newest => 0
+    //
+    // So invert the mapping.
     float frac = (float)(desiredThumbY - track.y) / (float)travel;
-    scrollOffset = clampScrollOffset((int)(frac * maxOff + 0.5f));
+    scrollOffset = clampScrollOffset((int)((1.0f - frac) * maxOff + 0.5f));
 
     autoScroll = (scrollOffset == 0);
 }
