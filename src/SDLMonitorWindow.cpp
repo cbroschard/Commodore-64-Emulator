@@ -126,7 +126,6 @@ SDLMonitorWindow::SDLMonitorWindow() :
     historyIndex(0),
     scrollOffset(0),
     autoScroll(true),
-    maxScrollOffset(0),
     selecting(false),
     selAnchor(-1),
     selStart(-1),

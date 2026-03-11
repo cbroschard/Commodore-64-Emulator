@@ -69,7 +69,6 @@ class SDLMonitorWindow
 
         int scrollOffset;
         bool autoScroll;       // stay pinned to bottom when true
-        int  maxScrollOffset;     // computed from visible lines
 
         bool selecting;
         int  selAnchor;          // line index at mouse-down
