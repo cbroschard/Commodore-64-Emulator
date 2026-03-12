@@ -51,8 +51,11 @@ class SDLMonitorWindow
         int height;
 
         // Font constants
-        const int charWidth;
-        const int charHeight;
+        int charWidth;
+        int charHeight;
+
+        int lineHeight;
+        int padding;
 
         bool opened;
         ExecFn execFn;
@@ -96,4 +99,6 @@ class SDLMonitorWindow
         SDL_Rect getScrollbarThumbRect() const;
         void setScrollFromThumbCenterY(int thumbCenterY);
         void visibleLineRange(int& first, int& last) const;
+
+        void updateLayoutMetrics();
 };

@@ -20,7 +20,7 @@ static const uint8_t font8x8_basic[96][8] = {
     {0x18,0x3C,0x3C,0x18,0x18,0x00,0x18,0x00}, // !
     {0x66,0x66,0x22,0x00,0x00,0x00,0x00,0x00}, // "
     {0x36,0x36,0x7F,0x36,0x7F,0x36,0x36,0x00}, // #
-    {0x0C,0x3E,0x03,0x1E,0x30,0x1F,0x0C,0x00}, // $
+    {0x08,0x1E,0x28,0x1C,0x0A,0x3C,0x08,0x00}, // $
     {0x00,0x63,0x33,0x18,0x0C,0x66,0x63,0x00}, // %
     {0x1C,0x36,0x1C,0x3B,0x33,0x36,0x1C,0x00}, // &
     {0x06,0x06,0x03,0x00,0x00,0x00,0x00,0x00}, // '
@@ -122,6 +122,8 @@ SDLMonitorWindow::SDLMonitorWindow() :
     height(550),
     charWidth(8),
     charHeight(8),
+    lineHeight(10),
+    padding(5),
     opened(false),
     historyIndex(0),
     scrollOffset(0),
@@ -202,6 +204,7 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec)
     }
 
     createFontTexture();
+    updateLayoutMetrics();
 
     opened = true;
     lines.clear();
@@ -336,12 +339,12 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
             {
                 close();
             }
-            else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+            else if (e.window.event == SDL_WINDOWEVENT_RESIZED || e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+                 e.window.event == SDL_WINDOWEVENT_MAXIMIZED)
             {
-                width  = e.window.data1;
-                height = e.window.data2;
+                SDL_GetWindowSize(win, &width, &height);
+                updateLayoutMetrics();
 
-                // After resize, make sure scrollOffset is still valid.
                 scrollOffset = clampScrollOffset(scrollOffset);
                 autoScroll   = (scrollOffset == 0);
             }
@@ -565,8 +568,6 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 
             if (idx < 0 && selAnchor >= 0 && !lines.empty())
             {
-                const int padding = 5;
-                const int lineHeight = 10;
                 const int inputY = height - padding - lineHeight;
 
                 // top of bottom history line:
@@ -615,19 +616,18 @@ void SDLMonitorWindow::drawString(int x, int y, const std::string& str, const SD
 
     SDL_SetTextureColorMod(fontTex, color.r, color.g, color.b);
 
-    SDL_Rect src{0, 0, 8, 8}; // 8x8 char
-    SDL_Rect dst{x, y, 8, 8};
+    SDL_Rect src{0, 0, 8, 8};
+    SDL_Rect dst{x, y, charWidth, charHeight};
 
     for (char c : str)
     {
-        // Calculate index in our flat font strip (ASCII 32 to 127)
         int index = (unsigned char)c - 32;
-        if (index < 0 || index >= 96) index = 95; // default to block for unknown
+        if (index < 0 || index >= 96) index = 95;
 
         src.x = index * 8;
 
         SDL_RenderCopy(ren, fontTex, &src, &dst);
-        dst.x += 8;
+        dst.x += charWidth;
     }
 }
 
@@ -639,22 +639,18 @@ void SDLMonitorWindow::render()
     SDL_SetRenderDrawColor(ren, 20, 20, 20, 255);
     SDL_RenderClear(ren);
 
-    // Padding settings
-    const int padding = 5;
-    const int lineHeight = 10; // 8px char + 2px spacing
-
     // 1. Render Input Line at bottom
     int inputY = height - padding - lineHeight;
 
     std::string prompt = "> ";
     drawString(padding, inputY, prompt, COL_PROMPT);
-    drawString(padding + (prompt.length() * 8), inputY, input, COL_TEXT);
+    drawString(padding + (int(prompt.length()) * charWidth), inputY, input, COL_TEXT);
 
     // Blinking cursor
     if ((SDL_GetTicks() / 500) % 2 == 0)
     {
-        int cursorX = padding + (prompt.length() + input.length()) * 8;
-        SDL_Rect cursorRect = { cursorX, inputY, 8, 8 };
+        int cursorX = padding + (int(prompt.length() + input.length()) * charWidth);
+        SDL_Rect cursorRect = { cursorX, inputY, charWidth, charHeight };
         SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
         SDL_RenderFillRect(ren, &cursorRect);
     }
@@ -674,7 +670,7 @@ void SDLMonitorWindow::render()
         bool selected = hasSelection() && (i >= selStart && i <= selEnd);
         if (selected)
         {
-            SDL_Rect bg{ padding - 2, currentY - 1, width - padding - 14, lineHeight };
+            SDL_Rect bg{ padding - 2, currentY - 1, width - (padding * 2) - 12, lineHeight };
             SDL_SetRenderDrawColor(ren, 60, 60, 110, 255);
             SDL_RenderFillRect(ren, &bg);
         }
@@ -704,13 +700,9 @@ void SDLMonitorWindow::render()
 
 int SDLMonitorWindow::visibleHistoryLines() const
 {
-    const int padding = 5;
-    const int lineHeight = 10;
-
     int inputY = height - padding - lineHeight;
     int historyBottomY = inputY - lineHeight;
 
-    // number of full lines that can fit from y=0..historyBottomY
     int count = (historyBottomY / lineHeight) + 1;
     return std::max(0, count);
 }
@@ -749,9 +741,6 @@ std::string SDLMonitorWindow::getSelectedText() const
 
 int SDLMonitorWindow::lineIndexFromMouseY(int mouseY) const
 {
-    const int padding = 5;
-    const int lineHeight = 10;
-
     const int inputY = height - padding - lineHeight;
 
     // History occupies y = 0 .. inputY-1 (everything above the input line)
@@ -780,8 +769,6 @@ int SDLMonitorWindow::lineIndexFromMouseY(int mouseY) const
 
 SDL_Rect SDLMonitorWindow::getScrollbarTrackRect() const
 {
-    const int padding = 5;
-    const int lineHeight = 10;
     int inputY = height - padding - lineHeight;
     int historyBottomY = inputY - lineHeight;
 
@@ -865,4 +852,29 @@ void SDLMonitorWindow::visibleLineRange(int& first, int& last) const
 
     // top-most visible line index
     first = std::max(0, last - (vis - 1));
+}
+
+void SDLMonitorWindow::updateLayoutMetrics()
+{
+    // Base monitor design target
+    const int targetCols = 80;
+    const int targetRows = 32;
+
+    // Compute integer scale factors so bitmap font stays sharp
+    int scaleX = std::max(1, width / (targetCols * 8));
+    int scaleY = std::max(1, height / (targetRows * 10));
+
+    // Use the smaller scale to preserve aspect ratio
+    int scale = std::max(1, std::min(scaleX, scaleY));
+
+    scale = std::min(scale, 6);
+
+    charWidth  = 8 * scale;
+    charHeight = 8 * scale;
+
+    // Extra spacing between lines
+    lineHeight = charHeight + std::max(2, scale * 2);
+
+    // Scale padding a little too
+    padding = std::max(5, scale * 3);
 }
