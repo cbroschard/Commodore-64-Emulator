@@ -6,31 +6,33 @@
 #include "UIBridge.h"
 
 UIBridge::UIBridge(EmulatorUI& ui,
-            MediaManager* media,
-            InputManager* input,
-            std::atomic<bool>& uiPaused,
-            std::atomic<bool>& running,
-            UIBridge::StringFn saveState,
-            UIBridge::StringFn loadState,
-            UIBridge::VoidFn warmReset,
-            UIBridge::VoidFn coldReset,
-            UIBridge::StringFn setVideoMode,
-            UIBridge::VoidFn enterMonitor,
-            UIBridge::BoolFn isPal)
-                : ui_(ui),
-                  media_(media),
-                  input_(input),
-                  uiPaused_(uiPaused),
-                  running_(running),
-                  saveState_(std::move(saveState)),
-                  loadState_(std::move(loadState)),
-                  warmReset_(std::move(warmReset)),
-                  coldReset_(std::move(coldReset)),
-                  setVideoMode_(std::move(setVideoMode)),
-                  enterMonitor_(std::move(enterMonitor)),
-                  isPal_(std::move(isPal)),
-                  manualPaused_(false),
-                  dialogPaused_(false)
+                   MediaManager* media,
+                   InputManager* input,
+                   std::atomic<bool>& uiPaused,
+                   std::atomic<bool>& running,
+                   UIBridge::StringFn saveState,
+                   UIBridge::StringFn loadState,
+                   UIBridge::VoidFn warmReset,
+                   UIBridge::VoidFn coldReset,
+                   UIBridge::StringFn setVideoMode,
+                   UIBridge::VoidFn enterMonitor,
+                   UIBridge::BoolFn isPal,
+                   UIBridge::BoolFn isMonitorOpen)
+    : ui_(ui),
+      media_(media),
+      input_(input),
+      uiPaused_(uiPaused),
+      running_(running),
+      saveState_(std::move(saveState)),
+      loadState_(std::move(loadState)),
+      warmReset_(std::move(warmReset)),
+      coldReset_(std::move(coldReset)),
+      setVideoMode_(std::move(setVideoMode)),
+      enterMonitor_(std::move(enterMonitor)),
+      isPal_(std::move(isPal)),
+      isMonitorOpen_(std::move(isMonitorOpen)),
+      manualPaused_(false),
+      dialogPaused_(false)
 {
 
 }
@@ -40,7 +42,8 @@ UIBridge::~UIBridge() = default;
 void UIBridge::refreshPauseState()
 {
     dialogPaused_ = ui_.isFileDialogOpen();
-    uiPaused_ = (manualPaused_ || dialogPaused_);
+    const bool monitorOpen = isMonitorOpen_ ? isMonitorOpen_() : false;
+    uiPaused_ = (manualPaused_ || dialogPaused_ || monitorOpen);
 }
 
 EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
@@ -219,10 +222,11 @@ void UIBridge::processCommands()
                 break;
 
             case UiCommand::Type::TogglePause:
-                uiPaused_ = !uiPaused_.load();
+                manualPaused_ = !manualPaused_;
+                refreshPauseState();
                 break;
 
-            case UiCommand::Type::ToggleJoy1:
+           case UiCommand::Type::ToggleJoy1:
                 if (input_) input_->setJoystickAttached(1, !input_->isJoy1Attached());
                 break;
 
@@ -297,3 +301,16 @@ void UIBridge::processCommands()
 
     refreshPauseState();
 }
+
+void UIBridge::toggleManualPause()
+{
+    manualPaused_ = !manualPaused_;
+    refreshPauseState();
+}
+
+void UIBridge::setManualPause(bool paused)
+{
+    manualPaused_ = paused;
+    refreshPauseState();
+}
+

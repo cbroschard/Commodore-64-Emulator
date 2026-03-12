@@ -27,7 +27,8 @@ class InputRouter
                     InputManager* input,
                     MediaManager* media,
                     VoidFn warmReset,
-                    VoidFn coldReset);
+                    VoidFn coldReset,
+                    VoidFn togglePause);
 
         virtual ~InputRouter();
 
@@ -44,6 +45,7 @@ class InputRouter
 
         VoidFn warmReset_;
         VoidFn coldReset_;
+        VoidFn togglePause_;
 
         bool handleGlobalHotkeys_(const SDL_Event& ev);
         bool handleControllerHotplug_(const SDL_Event& ev);

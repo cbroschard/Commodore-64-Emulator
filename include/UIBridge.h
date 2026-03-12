@@ -17,17 +17,19 @@ class UIBridge
         using BoolFn            = std::function<bool()>;
 
         UIBridge(EmulatorUI& ui,
-             MediaManager* media,
-             InputManager* input,
-             std::atomic<bool>& uiPaused,
-             std::atomic<bool>& running,
-             StringFn saveState,
-             StringFn loadState,
-             VoidFn warmReset,
-             VoidFn coldReset,
-             StringFn setVideoMode,
-             VoidFn enterMonitor,
-             BoolFn isPal);
+         MediaManager* media,
+         InputManager* input,
+         std::atomic<bool>& uiPaused,
+         std::atomic<bool>& running,
+         StringFn saveState,
+         StringFn loadState,
+         VoidFn warmReset,
+         VoidFn coldReset,
+         StringFn setVideoMode,
+         VoidFn enterMonitor,
+         BoolFn isPal,
+         BoolFn isMonitorOpen);
+
         virtual ~UIBridge();
 
         EmulatorUI::MediaViewState buildMediaViewState() const;
@@ -35,6 +37,10 @@ class UIBridge
 
         void setMedia(MediaManager* m) { media_ = m; }
         void setInput(InputManager* i) { input_ = i; }
+
+        void toggleManualPause();
+        void setManualPause(bool paused);
+        bool isManuallyPaused() const { return manualPaused_; }
 
     protected:
 
@@ -56,6 +62,7 @@ class UIBridge
 
         bool manualPaused_;
         bool dialogPaused_;
+        BoolFn isMonitorOpen_;
 
         void refreshPauseState();
 };

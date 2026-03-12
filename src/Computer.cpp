@@ -647,12 +647,13 @@ void Computer::wireUp()
     if (media) media->setVideoMode(videoMode_);
 
     inputRouter = std::make_unique<InputRouter>(uiPaused, &debug->monitorController(), inputMgr.get(), media.get(), [this]() { warmReset(); },
-    [this]() { coldReset(); });
+    [this]() { coldReset(); }, [this]() { if (uiBridge) uiBridge->toggleManualPause(); });
 
     resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
     *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
 
-    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this](const std::string& path) { saveStateToFile(path); },
-    [this](const std::string& path) { loadStateFromFile(path); }, [this]() { warmReset(); }, [this]() { coldReset(); },
-    [this](const std::string& mode) { setVideoMode(mode); }, [this]() { enterMonitor(); }, [this]() { return videoMode_ == VideoMode::PAL; });
+    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this](const std::string& p) { this->saveStateToFile(p); },
+    [this](const std::string& p) { this->loadStateFromFile(p); }, [this]() { this->warmReset(); }, [this]() { this->coldReset(); },
+    [this](const std::string& mode) { this->setVideoMode(mode); }, [this]() { this->enterMonitor(); },
+    [this]() -> bool { return this->videoMode_ == VideoMode::PAL; }, [this]() -> bool { return this->debug && this->debug->monitorController().isOpen(); });
 }

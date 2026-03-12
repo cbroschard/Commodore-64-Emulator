@@ -15,13 +15,15 @@ InputRouter::InputRouter(std::atomic<bool>& uiPaused,
                          InputManager* input,
                          MediaManager* media,
                          VoidFn warmReset,
-                         VoidFn coldReset)
+                         VoidFn coldReset,
+                         VoidFn togglePause)
     : uiPaused_(uiPaused),
       monitorCtl_(monitorCtl),
       input_(input),
       media_(media),
       warmReset_(std::move(warmReset)),
-      coldReset_(std::move(coldReset))
+      coldReset_(std::move(coldReset)),
+      togglePause_(std::move(togglePause))
 {
 
 }
@@ -81,17 +83,14 @@ bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
     if (sc == SDL_SCANCODE_F12)
     {
         if (monitorCtl_)
-        {
             monitorCtl_->toggle();
-            uiPaused_ = monitorCtl_->isOpen();
-        }
         return true;
     }
 
     // CTRL-SPACE pause
     if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_SPACE)
     {
-        uiPaused_ = !uiPaused_.load();
+        if (togglePause_) togglePause_();
         return true;
     }
 
