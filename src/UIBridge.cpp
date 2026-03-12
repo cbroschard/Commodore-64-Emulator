@@ -30,9 +30,9 @@ UIBridge::UIBridge(EmulatorUI& ui,
       setVideoMode_(std::move(setVideoMode)),
       enterMonitor_(std::move(enterMonitor)),
       isPal_(std::move(isPal)),
-      isMonitorOpen_(std::move(isMonitorOpen)),
       manualPaused_(false),
-      dialogPaused_(false)
+      dialogPaused_(false),
+      isMonitorOpen_(std::move(isMonitorOpen))
 {
 
 }
