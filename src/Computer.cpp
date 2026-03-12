@@ -396,26 +396,30 @@ bool Computer::boot()
         if (ui) ui->draw();
     });
 
-    // Graphics rendering thread
-    IO_adapter->startRenderThread(running);
+    // Prime the first frame; rendering is now done on the main thread
     IO_adapter->finishFrameAndSignal();
+    IO_adapter->renderFrame(running);
 
     const auto frameDuration = std::chrono::duration<double, std::milli>(1000.0 / cpuCfg_->frameRate);
     auto nextFrameTime = std::chrono::steady_clock::now() + frameDuration;
 
     while (true)
     {
+        if (debug && debug->monitorController().isOpen())
+            SDL_StartTextInput();
+        else
+            SDL_StopTextInput();
+
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
-            // InputRouter handles hotkeys + monitor + controller hotplug + input mapping
+            // Let IO handle monitor text input, ImGui, and quit on the main thread
+            IO_adapter->handleEvent(e, running);
+
+            // Then let InputRouter handle hotkeys, monitor toggle, controller hotplug, etc.
             if (inputRouter && inputRouter->handleEvent(e))
                 continue;
 
-            // Forward the event to ImGui/render thread
-            IO_adapter->enqueueEvent(e);
-
-            // Quit
             if (e.type == SDL_QUIT)
             {
                 running = false;
@@ -526,6 +530,9 @@ bool Computer::boot()
         }
         if (uiBridge) uiBridge->processCommands();
         if (media) media->tick();
+
+        IO_adapter->renderFrame(running);
+
         if (!running) break;
     }
 
@@ -596,6 +603,8 @@ void Computer::wireUp()
     IO_adapter->attachVICInstance(vicII.get());
     IO_adapter->attachSIDInstance(sidchip.get());
     IO_adapter->attachLogInstance(logger.get());
+
+    IO_adapter->setMonitorOpenCallback([this]() -> bool { return this->debug && this->debug->monitorController().isOpen();});
 
     keyb->attachLogInstance(logger.get());
 

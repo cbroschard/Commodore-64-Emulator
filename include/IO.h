@@ -10,12 +10,10 @@
 
 #define SDL_MAIN_HANDLED
 
-// Forward declaration
 class Vic;
 
-#include <condition_variable>
+#include <atomic>
 #include <cstdint>
-#include <deque>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -60,55 +58,50 @@ class IO
         inline int getSampleRate() const { return obtainedSpec.freq; }
         void fillAudioBuffer(Uint8* stream, int len);
 
-        // called once from Computer::boot() to launch the render thread
         void startRenderThread(std::atomic<bool>& runningFlag);
-
-        // called at shutdown
         void stopRenderThread(std::atomic<bool>& runningFlag);
 
-        // Event queue APIs
-        void enqueueEvent(const SDL_Event& e);
-        void drainEvents(std::function<void(const SDL_Event&)> consumer);
+        // Called when VIC finishes a frame
+        void finishFrameAndSignal();
 
-        // Swap Buffers back to front and notify thread
-        void swapBuffer();
+        // Main-thread SDL / ImGui handling
+        void handleEvent(const SDL_Event& e, std::atomic<bool>& runningFlag);
+        void renderFrame(std::atomic<bool>& runningFlag);
 
         // Setter for screen geometry
         void setScreenDimensions(int visibleW, int visibleH, int border);
 
-        void finishFrameAndSignal();
-
-        // imgui event handling
-        inline void processSDLEvent(const SDL_Event& e) { ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e)); }
+        // imgui / UI wiring
         inline void setGuiCallback(std::function<void()> fn) { guiCallback = std::move(fn); }
         inline void setInputCallback(std::function<void(const SDL_Event&)> cb) { inputCallback = std::move(cb); }
 
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
 
-    protected:
+        inline void setMonitorOpenCallback(std::function<bool()> fn) { monitorOpenCallback = std::move(fn); }
 
     private:
-
         // Non-owning pointers
         Logging* logger;
         SID* sidchip;
         Vic* vicII;
 
-        SDLMonitorWindow sdlMon; // For monitor debugger
+        SDLMonitorWindow sdlMon;
 
         std::function<void()> guiCallback;
+        std::function<void(const SDL_Event&)> inputCallback;
+        std::function<bool()> monitorOpenCallback;
 
         // Audio constants
         static const int SAMPLE_RATE = 44100;
         static const int CHANNELS = 2;
         static const int BUFFER_SIZE = 2048;
+        static const int SCALE = 2;
 
         // SDL setup
-        static const int SCALE = 2; // Scale window size by a factor of 2
-        SDL_Window *window;
-        SDL_Renderer *renderer;
-        SDL_Texture *screenTexture;
+        SDL_Window* window;
+        SDL_Renderer* renderer;
+        SDL_Texture* screenTexture;
 
         // Audio processing
         SDL_AudioSpec desired{};
@@ -121,24 +114,13 @@ class IO
         uint32_t textureFormat = 0;
         uint32_t palette32[16];
 
-        std::mutex qMut;
         std::mutex renderMut;
-        std::condition_variable qCond;
-        std::thread rThread;
-
-        // ImGui
-        std::function<void(const SDL_Event&)> inputCallback;
 
         bool setLogging;
 
-        // Thread safe event queue
-        std::mutex evMut;
-        std::deque<SDL_Event> evQueue;
-
         // Color helpers
         SDL_Color getColor(uint8_t colorCode);
-
-        // Render thread
-        void renderLoop(std::atomic<bool>& runningFlag);
+        SDL_Rect computeDestinationRect(int outputW, int outputH) const;
 };
+
 #endif // IO_H

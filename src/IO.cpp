@@ -8,6 +8,18 @@
 #include "IO.h"
 #include "Vic.h"
 
+#include <algorithm>
+#include <stdexcept>
+
+namespace
+{
+    void audioCallback(void* userdata, Uint8* stream, int len)
+    {
+        IO* io = static_cast<IO*>(userdata);
+        io->fillAudioBuffer(stream, len);
+    }
+}
+
 IO::IO() :
     visibleScreenWidth(320),
     visibleScreenHeight(200),
@@ -17,11 +29,13 @@ IO::IO() :
     logger(nullptr),
     sidchip(nullptr),
     vicII(nullptr),
+    window(nullptr),
+    renderer(nullptr),
+    screenTexture(nullptr),
     dev(0),
     readyBuffer(nullptr),
     setLogging(false)
 {
-    //Video and sound initialization
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
     {
         throw std::runtime_error(std::string("SDL Video/Sound Init Failed: ") + SDL_GetError());
@@ -29,18 +43,34 @@ IO::IO() :
 
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != 0)
     {
-        throw std::runtime_error(std::string("SDL game controller subsystem failed to initialize!") + SDL_GetError());
+        throw std::runtime_error(std::string("SDL game controller subsystem failed to initialize: ") + SDL_GetError());
     }
 
-    window = SDL_CreateWindow("Commodore 64 Emulator",SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidthWithBorder * SCALE,
-            screenHeightWithBorder * SCALE, SDL_WINDOW_SHOWN);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+
+    const Uint32 windowFlags =
+        SDL_WINDOW_SHOWN |
+        SDL_WINDOW_RESIZABLE |
+        SDL_WINDOW_ALLOW_HIGHDPI;
+
+    window = SDL_CreateWindow(
+        "Commodore 64 Emulator",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        screenWidthWithBorder * SCALE,
+        screenHeightWithBorder * SCALE,
+        windowFlags
+    );
+
     if (window == nullptr)
     {
         SDL_Quit();
         throw std::runtime_error(std::string("Unable to create SDL Window: ") + SDL_GetError());
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
+
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == nullptr)
     {
         SDL_DestroyWindow(window);
@@ -50,30 +80,42 @@ IO::IO() :
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
     ImGui::StyleColorsLight();
 
-    // Platform + renderer backends for SDL2 + SDL_Renderer
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
     frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
     backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
 
-    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder, screenHeightWithBorder);
+    screenTexture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        screenWidthWithBorder,
+        screenHeightWithBorder
+    );
+
     if (screenTexture == nullptr)
     {
         throw std::runtime_error(std::string("Couldn't create texture: ") + SDL_GetError());
     }
+
+#if SDL_VERSION_ATLEAST(2,0,12)
+    SDL_SetTextureScaleMode(screenTexture, SDL_ScaleModeNearest);
+#endif
 
     SDL_QueryTexture(screenTexture, &textureFormat, nullptr, nullptr, nullptr);
     SDL_PixelFormat* fmt = SDL_AllocFormat(textureFormat);
 
     for (int i = 0; i < 16; ++i)
     {
-        SDL_Color c = getColor(i);
+        SDL_Color c = getColor(static_cast<uint8_t>(i));
         palette32[i] = SDL_MapRGBA(fmt, c.r, c.g, c.b, 0xFF);
     }
+
     SDL_FreeFormat(fmt);
 }
 
@@ -81,16 +123,25 @@ IO::~IO()
 {
     stopAudio();
 
-    // ImGui shutdown
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 
-    // SDL rendering shutdown
     if (screenTexture) SDL_DestroyTexture(screenTexture);
     if (renderer) SDL_DestroyRenderer(renderer);
     if (window) SDL_DestroyWindow(window);
+
     SDL_Quit();
+}
+
+void IO::startRenderThread(std::atomic<bool>&)
+{
+    // no-op: rendering now happens on the main thread
+}
+
+void IO::stopRenderThread(std::atomic<bool>&)
+{
+    // no-op: rendering now happens on the main thread
 }
 
 void IO::fillAudioBuffer(Uint8* stream, int len)
@@ -102,49 +153,16 @@ void IO::fillAudioBuffer(Uint8* stream, int len)
     {
         double s = 0.0;
         if (sidchip)
-        {
             s = sidchip->popSample();
-        }
 
-        // Clamp and convert
-        if (s > 1.0)
-        {
-            s = 1.0;
-        }
-        else if (s < -1.0)
-        {
-            s = -1.0;
-        }
-        auto sample16 = static_cast<Sint16>(s * 32767.0);
+        if (s > 1.0) s = 1.0;
+        else if (s < -1.0) s = -1.0;
 
-        // Write to stereo channels.
-        buffer[i * CHANNELS + 0] = sample16; // Left channel
-        buffer[i * CHANNELS + 1] = sample16; // Right channel
+        const auto sample16 = static_cast<Sint16>(s * 32767.0);
+
+        buffer[i * CHANNELS + 0] = sample16;
+        buffer[i * CHANNELS + 1] = sample16;
     }
-}
-
-void IO::startRenderThread(std::atomic<bool>& running)
-{
-    rThread = std::thread(&IO::renderLoop, this, std::ref(running));
-}
-
-void IO::stopRenderThread(std::atomic<bool>& runningFlag)
-{
-    {
-        std::lock_guard lk(qMut);
-        runningFlag = false; // tell the loop to bail
-        qCond.notify_one(); // wake it if it’s sleeping
-    }
-    if (rThread.joinable())
-    {
-        rThread.join();
-    }
-}
-
-void audioCallback(void* userdata, Uint8* stream, int len)
-{
-    IO* io = static_cast<IO*>(userdata);
-    io->fillAudioBuffer(stream, len);
 }
 
 bool IO::playAudio()
@@ -160,50 +178,49 @@ bool IO::playAudio()
 
     if (!dev)
     {
-      SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Couldn't open audio: %s", SDL_GetError());
-      return false;
+        SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Couldn't open audio: %s", SDL_GetError());
+        return false;
     }
 
-    SDL_PauseAudioDevice(dev, 0); // Start playback. Pass 0 to unpause.
+    SDL_PauseAudioDevice(dev, 0);
     return true;
 }
 
 void IO::stopAudio()
 {
-        // Stop playback
-        if (dev != 0)
-        {
-            SDL_PauseAudioDevice(dev, 1);
+    if (dev != 0)
+    {
+        SDL_PauseAudioDevice(dev, 1);
+        SDL_CloseAudioDevice(dev);
+        dev = 0;
+    }
 
-            // Close device: SDL guarantees no more callbacks after this returns
-            SDL_CloseAudioDevice(dev);
-            dev = 0;
-        }
-        sidchip = nullptr;
+    sidchip = nullptr;
 }
 
 void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 {
     const int W  = screenWidthWithBorder;
     const int y0 = borderSize;
-    const int y1 = y0 + visibleScreenHeight; // always 200
+    const int y1 = y0 + visibleScreenHeight;
+
     if (row < y0 || row >= y1) return;
 
-    uint32_t pix = palette32[color];
+    uint32_t pix = palette32[color & 0x0F];
     uint32_t* dst = backBuffer.data() + row * W;
     std::fill(dst + x0, dst + x1, pix);
 }
 
 void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 {
-    const int W  = screenWidthWithBorder;
+    const int W = screenWidthWithBorder;
     if (row < 0 || row >= screenHeightWithBorder) return;
 
     const int y0 = borderSize;
     const int y1 = y0 + visibleScreenHeight;
 
     uint32_t* dst = backBuffer.data() + row * W;
-    uint32_t pix  = palette32[color];
+    uint32_t pix = palette32[color & 0x0F];
 
     if (row < y0 || row >= y1)
     {
@@ -219,149 +236,151 @@ void IO::renderBorderLine(int row, uint8_t color, int x0, int x1)
 void IO::setPixel(int x, int y, uint8_t colorIndex)
 {
     if (x < 0 || x >= screenWidthWithBorder || y < 0 || y >= screenHeightWithBorder)
-    {
         return;
-    }
+
     backBuffer[y * screenWidthWithBorder + x] = palette32[colorIndex & 0x0F];
 }
 
 void IO::setPixel(int x, int y, uint8_t colorIndex, int hardwareX)
 {
-    // apply hardware shift once
     int shiftedX = x - hardwareX;
+
     if (shiftedX < 0 || shiftedX >= screenWidthWithBorder ||
         y < 0 || y >= screenHeightWithBorder)
     {
         return;
     }
 
-    backBuffer[y * screenWidthWithBorder + shiftedX] =
-        palette32[colorIndex & 0x0F];
+    backBuffer[y * screenWidthWithBorder + shiftedX] = palette32[colorIndex & 0x0F];
 }
 
 SDL_Color IO::getColor(uint8_t colorCode)
 {
     static const SDL_Color colors[16] =
     {
-        {0, 0, 0},        // 0: Black
-        {255, 255, 255},  // 1: White
-        {171, 49, 38},      // 2: Red
-        {102, 218, 255},  // 3: Cyan
-        {187, 63, 184},   // 4: Purple
-        {85, 206, 88},     // 5: Green
-        {0, 0, 170},      // 6: Blue
-        {234, 245, 124},  // 7: Yellow
-        {221, 136, 85},   // 8: Orange
-        {102, 68, 0},     // 9: Brown
-        {255, 119, 119},  // 10: Light Red
-        {51, 51, 51},     // 11: Dark Gray
-        {119, 119, 119},  // 12: Gray
-        {170, 255, 102},  // 13: Light Green
-        {0, 136, 255},    // 14: Light Blue
-        {187, 187, 187}   // 15: Light Gray
+        {0, 0, 0},
+        {255, 255, 255},
+        {171, 49, 38},
+        {102, 218, 255},
+        {187, 63, 184},
+        {85, 206, 88},
+        {0, 0, 170},
+        {234, 245, 124},
+        {221, 136, 85},
+        {102, 68, 0},
+        {255, 119, 119},
+        {51, 51, 51},
+        {119, 119, 119},
+        {170, 255, 102},
+        {0, 136, 255},
+        {187, 187, 187}
     };
 
-    // Ensure colorCode is within valid range
     if (colorCode > 15)
-    {
-        return colors[0]; // Default to black for invalid color codes
-    }
+        return colors[0];
+
     return colors[colorCode];
-}
-
-void IO::swapBuffer()
-{
-    uint32_t* drawData = backBuffer.data();
-    backBuffer.swap(frontBuffer);
-    readyBuffer.store(drawData, std::memory_order_release);
-    std::lock_guard lk(qMut);
-    qCond.notify_one();
-}
-
-void IO::renderLoop(std::atomic<bool>& running)
-{
-    uint32_t* lastBuf = nullptr;
-
-    while (running.load())
-    {
-        drainEvents([&](const SDL_Event& e)
-        {
-            // Always give the monitor first shot.
-            sdlMon.handleEvent(e);
-
-            // If monitor is open, swallow typing/keys so they don't go to ImGui/emulator.
-            if (sdlMon.isOpen())
-            {
-                if (e.type == SDL_TEXTINPUT ||
-                    e.type == SDL_TEXTEDITING ||
-                    e.type == SDL_KEYDOWN ||
-                    e.type == SDL_KEYUP)
-                {
-                    // Still let QUIT through
-                    if (e.type == SDL_QUIT) running = false;
-                    return;
-                }
-            }
-
-            // Feed Dear ImGui
-            ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e));
-
-            ImGuiIO& io = ImGui::GetIO();
-            if (inputCallback)
-            {
-                const bool kb_ok = !io.WantCaptureKeyboard || (e.type != SDL_KEYDOWN && e.type != SDL_KEYUP);
-                const bool ms_ok = !io.WantCaptureMouse    || (e.type < SDL_MOUSEMOTION || e.type > SDL_MOUSEWHEEL);
-                if (kb_ok && ms_ok) inputCallback(e);
-            }
-
-            if (e.type == SDL_QUIT) { running = false; }
-        });
-
-        if (auto buf = readyBuffer.exchange(nullptr, std::memory_order_acquire))
-            lastBuf = buf;
-
-        {
-            std::lock_guard<std::mutex> lk(renderMut);
-
-            ImGui_ImplSDLRenderer2_NewFrame();
-            ImGui_ImplSDL2_NewFrame();
-            if (sdlMon.isOpen()) SDL_StartTextInput();
-            ImGui::NewFrame();
-            if (guiCallback) guiCallback();
-            ImGui::Render();
-
-            if (lastBuf && screenTexture)
-            {
-                const int pitch = screenWidthWithBorder * sizeof(uint32_t);
-                SDL_Rect dstRect =
-                {
-                    0, 0,
-                    screenWidthWithBorder * SCALE,
-                    screenHeightWithBorder * SCALE
-                };
-
-                SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch);
-                SDL_RenderClear(renderer);
-                SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
-                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
-                SDL_RenderPresent(renderer);
-            }
-            if (sdlMon.isOpen()) sdlMon.render();
-        }
-
-        SDL_Delay(1);
-    }
 }
 
 void IO::finishFrameAndSignal()
 {
+    std::lock_guard<std::mutex> lk(renderMut);
+    backBuffer.swap(frontBuffer);
+    readyBuffer.store(frontBuffer.data(), std::memory_order_release);
+}
+
+SDL_Rect IO::computeDestinationRect(int outputW, int outputH) const
+{
+    const float srcW = static_cast<float>(screenWidthWithBorder);
+    const float srcH = static_cast<float>(screenHeightWithBorder);
+
+    const float scaleX = static_cast<float>(outputW) / srcW;
+    const float scaleY = static_cast<float>(outputH) / srcH;
+    const float scale  = std::min(scaleX, scaleY);
+
+    const int drawW = std::max(1, static_cast<int>(srcW * scale));
+    const int drawH = std::max(1, static_cast<int>(srcH * scale));
+
+    SDL_Rect dst;
+    dst.w = drawW;
+    dst.h = drawH;
+    dst.x = (outputW - drawW) / 2;
+    dst.y = (outputH - drawH) / 2;
+    return dst;
+}
+
+void IO::handleEvent(const SDL_Event& e, std::atomic<bool>& runningFlag)
+{
+    sdlMon.handleEvent(e);
+
+    const bool monitorOpen =
+        monitorOpenCallback ? monitorOpenCallback() : sdlMon.isOpen();
+
+    if (monitorOpen)
     {
-        std::lock_guard<std::mutex> lk(renderMut);
-        backBuffer.swap(frontBuffer);
-        readyBuffer.store(frontBuffer.data(), std::memory_order_release);
+        if (e.type == SDL_TEXTINPUT ||
+            e.type == SDL_TEXTEDITING ||
+            e.type == SDL_KEYDOWN ||
+            e.type == SDL_KEYUP)
+        {
+            if (e.type == SDL_QUIT)
+                runningFlag = false;
+            return;
+        }
     }
-    std::lock_guard lk(qMut);
-    qCond.notify_one();
+
+    ImGui_ImplSDL2_ProcessEvent(const_cast<SDL_Event*>(&e));
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (inputCallback)
+    {
+        const bool kb_ok = !io.WantCaptureKeyboard || (e.type != SDL_KEYDOWN && e.type != SDL_KEYUP);
+        const bool ms_ok = !io.WantCaptureMouse || (e.type < SDL_MOUSEMOTION || e.type > SDL_MOUSEWHEEL);
+        if (kb_ok && ms_ok)
+            inputCallback(e);
+    }
+
+    if (e.type == SDL_QUIT)
+        runningFlag = false;
+}
+
+void IO::renderFrame(std::atomic<bool>& runningFlag)
+{
+    (void)runningFlag;
+
+    uint32_t* lastBuf = readyBuffer.exchange(nullptr, std::memory_order_acquire);
+    if (!lastBuf)
+        lastBuf = frontBuffer.data();
+
+    std::lock_guard<std::mutex> lk(renderMut);
+
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+
+    const bool monitorOpen = monitorOpenCallback ? monitorOpenCallback() : sdlMon.isOpen();
+
+    if (monitorOpen) SDL_StartTextInput();
+    else SDL_StopTextInput();
+
+    ImGui::NewFrame();
+    if (guiCallback) guiCallback();
+    ImGui::Render();
+
+    int outputW = 0;
+    int outputH = 0;
+    SDL_GetRendererOutputSize(renderer, &outputW, &outputH);
+
+    SDL_Rect dstRect = computeDestinationRect(outputW, outputH);
+    const int pitch = screenWidthWithBorder * static_cast<int>(sizeof(uint32_t));
+
+    SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, screenTexture, nullptr, &dstRect);
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+    SDL_RenderPresent(renderer);
+
+    if (sdlMon.isOpen())
+        sdlMon.render();
 }
 
 void IO::setScreenDimensions(int visibleW, int visibleH, int border)
@@ -374,9 +393,8 @@ void IO::setScreenDimensions(int visibleW, int visibleH, int border)
     screenWidthWithBorder = visibleW + 2 * borderSize;
     screenHeightWithBorder = visibleH + 2 * borderSize;
 
-    // Resize based on new Video Mode
-    frontBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
-    backBuffer.resize(screenWidthWithBorder * screenHeightWithBorder);
+    frontBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
+    backBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
 
     if (screenTexture)
     {
@@ -391,20 +409,15 @@ void IO::setScreenDimensions(int visibleW, int visibleH, int border)
         screenWidthWithBorder,
         screenHeightWithBorder
     );
-}
 
-void IO::enqueueEvent(const SDL_Event& e)
-{
-    std::lock_guard<std::mutex> lk(evMut);
-    evQueue.push_back(e);
-}
-
-void IO::drainEvents(std::function<void(const SDL_Event&)> consumer)
-{
-    std::deque<SDL_Event> local;
+    if (!screenTexture)
     {
-        std::lock_guard<std::mutex> lk(evMut);
-        local.swap(evQueue);
+        throw std::runtime_error(std::string("Couldn't recreate texture: ") + SDL_GetError());
     }
-    for (const SDL_Event& e : local) consumer(e);
+
+#if SDL_VERSION_ATLEAST(2,0,12)
+    SDL_SetTextureScaleMode(screenTexture, SDL_ScaleModeNearest);
+#endif
+
+    SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
 }
