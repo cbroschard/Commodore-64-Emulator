@@ -17,18 +17,26 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
         RetroReplayMapper();
         virtual ~RetroReplayMapper();
 
+        enum class RRMapMode
+        {
+            Disabled,
+            Normal8K,
+            Normal16K,
+            Ultimax,
+            Ram8K,
+            Ram16K
+        };
+
         struct RRControl
         {
             uint8_t de00 = 0;
             uint8_t de01 = 0;
 
+            RRMapMode mapMode = RRMapMode::Disabled;
+
             // decoded from de00/de01
-            bool gameAsserted = false;
-            bool exromAsserted = false;
-            bool cartDisabled = false;
             bool ramSelected = false;
             bool leaveFreeze = false;
-
             bool accessoryEnable = false;
             bool allowBank = false;
             bool noFreeze = false;
@@ -56,6 +64,8 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
         bool loadIntoMemory(uint8_t bank) override;
 
         void tick(uint32_t elapsedCycles) override;
+
+        void reset();
 
     protected:
 
