@@ -10,15 +10,9 @@
 
 #include <array>
 #include <atomic>
-#include <chrono>
 #include <cstdint>
-#include <filesystem>
-#include <functional>
 #include <memory>
-#include <mutex>
 #include <string>
-#include <thread>
-#include <vector>
 #include "Cartridge.h"
 #include "Cartridge/ICartridgeHost.h"
 #include "cassette.h"
@@ -26,10 +20,6 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "CPUTiming.h"
-#include "Drive/D1541.h"
-#include "Drive/D1571.h"
-#include "Drive/D1581.h"
-#include "Drive/Drive.h"
 #include "EmulatorUI.h"
 #include "IECBUS.h"
 #include "IO.h"
@@ -43,22 +33,20 @@
 #include "Memory.h"
 #include "PLA.h"
 #include "SID/SID.h"
-#include "StateReader.h"
-#include "StateWriter.h"
-#include "Tape/TapeImageFactory.h"
 #include "Vic.h"
 
 // Forward declarations
 class DebugManager;
 class MLMonitor;
 class ResetController;
+class StateManager;
 class UIBridge;
 
 class Computer : public ICartridgeHost
 {
     public:
         Computer();
-        virtual ~Computer();
+        ~Computer() noexcept;
 
         // State Management
         bool saveStateToFile(const std::string& path);
@@ -133,11 +121,10 @@ class Computer : public ICartridgeHost
         std::unique_ptr<PLA> pla;
         std::unique_ptr<ResetController> resetCtl;
         std::unique_ptr<SID> sidchip;
+        std::unique_ptr<StateManager> stateMgr;
         std::unique_ptr<IO> IO_adapter;
         std::unique_ptr<UIBridge> uiBridge;
         std::unique_ptr<Vic> vicII;
-
-        static constexpr uint32_t kStateVersion = 1; // Save State file version
 
         // Joystick
         void setJoystickAttached(int port, bool flag);
