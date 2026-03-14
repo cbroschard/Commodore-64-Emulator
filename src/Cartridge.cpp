@@ -331,6 +331,11 @@ bool Cartridge::loadROM(const std::string& path)
             mapper->reset();
         }
 
+        if (mapperType == Cartridge::CartridgeType::RETRO_REPLAY)
+        {
+            mapper->reset();
+        }
+
         // Load the selected bank through mapper logic
         return mapper->loadIntoMemory(currentBank);
     }
