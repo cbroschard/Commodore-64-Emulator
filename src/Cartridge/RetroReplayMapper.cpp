@@ -9,8 +9,10 @@
 #include "Cartridge/RetroReplayMapper.h"
 
 RetroReplayMapper::RetroReplayMapper() :
+    freezeButtonPressed(false),
     freezePending(false),
     freezeActive(false),
+    cartActive(true),
     registersLocked(false),
     de01Locked(false),
     flashMode(false),
@@ -60,13 +62,6 @@ void RetroReplayMapper::RRControl::decode(bool flashMode)
 
     const bool gameBit   = (de00 & 0x01) != 0;
     const bool exromBit  = (de00 & 0x02) != 0;
-    const bool disabled  = (de00 & 0x04) != 0;
-
-    if (disabled)
-    {
-        mapMode = RRMapMode::Disabled;
-        return;
-    }
 
     if (ramSelected)
     {
@@ -94,8 +89,10 @@ void RetroReplayMapper::saveState(StateWriter& wrtr) const
     wrtr.writeU32(1); // version
 
     ctrl.save(wrtr);
+    wrtr.writeBool(freezeButtonPressed);
     wrtr.writeBool(freezePending);
     wrtr.writeBool(freezeActive);
+    wrtr.writeBool(cartActive);
     wrtr.writeBool(registersLocked);
     wrtr.writeBool(de01Locked);
     wrtr.writeBool(flashMode);
@@ -111,23 +108,25 @@ bool RetroReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!ctrl.load(rdr))                { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(freezePending))   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(freezeActive))    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(registersLocked)) { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(de01Locked))      { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(flashMode))       { rdr.exitChunkPayload(chunk); return false; }
+        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(freezeButtonPressed)) { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(freezePending))       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(cartActive))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(registersLocked))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(de01Locked))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(flashMode))           { rdr.exitChunkPayload(chunk); return false; }
 
         uint32_t fdc = 0;
-        if (!rdr.readU32(fdc))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(fdc))                  { rdr.exitChunkPayload(chunk); return false; }
         freezeDelayCycles = fdc;
 
         ctrl.decode(flashMode);
 
-        if (!applyMappingAfterLoad())       { rdr.exitChunkPayload(chunk); return false; }
+        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
         return true;
@@ -165,17 +164,38 @@ void RetroReplayMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t RetroReplayMapper::read(uint16_t address)
 {
-    // If the cartridge has been disabled, it should disappear from the bus.
-    if (ctrl.mapMode == RRMapMode::Disabled)
+    if (address != 0xDE00 && address != 0xDE01)
         return 0xFF;
 
-    // IO1 registers
-    if (address == 0xDE00)
-        return ctrl.de00;
-    else if (address == 0xDE01)
-        return ctrl.de01;
+    ctrl.decode(flashMode);
 
-    return 0xFF;
+    uint8_t v = 0x00;
+
+    // bit 0 = flash mode active
+    if (flashMode)
+        v |= 0x01;
+
+    // bit 1 = AllowBank feedback
+    if (ctrl.allowBank)
+        v |= 0x02;
+
+    // bit 2 = Freeze button pressed
+    if (freezeButtonPressed)
+        v |= 0x04;
+
+    // bits 3,4,7 = bank 13,14,15 feedback from rr_bank
+    v |= (ctrl.romBank & 0x03) << 3;   // bits 0-1 -> 3-4
+    v |= (ctrl.romBank & 0x04) << 5;   // bit 2 -> 7
+
+    // bit 5 = bank 16 feedback in flash mode
+    if (flashMode && (ctrl.romBank & 0x08))
+        v |= 0x20;
+
+    // bit 6 = REU mapping feedback
+    if (ctrl.reuCompat)
+        v |= 0x40;
+
+    return v;
 }
 
 void RetroReplayMapper::write(uint16_t address, uint8_t value)
@@ -187,11 +207,26 @@ void RetroReplayMapper::write(uint16_t address, uint8_t value)
 
         ctrl.de00 = value;
 
-        if (freezeActive && (value & 0x40))
+        // Once frozen, GAME/EXROM bits should not really take effect until bit 6 acknowledges release.
+        if (freezeActive)
         {
-            freezeActive = false;
-            freezePending = false;
-            freezeDelayCycles = 0;
+            if (value & 0x40)
+            {
+                freezeActive = false;
+                freezePending = false;
+                freezeDelayCycles = 0;
+            }
+            else
+            {
+                // keep frozen mapping until release
+                ctrl.de00 = static_cast<uint8_t>((ctrl.de00 & ~0x03) | 0x01);
+            }
+        }
+
+        if (value & 0x04)
+        {
+            registersLocked = true;
+            cartActive      = false;
         }
 
         (void)applyMappingAfterLoad();
@@ -200,10 +235,35 @@ void RetroReplayMapper::write(uint16_t address, uint8_t value)
 
     if (address == 0xDE01)
     {
-        if (registersLocked || de01Locked)
+        if (registersLocked)
             return;
 
-        ctrl.de01 = value;
+        if (flashMode)
+        {
+            // In flash mode, allowBank/noFreeze may still change,
+            // REU mapping must remain clear.
+            ctrl.de01 = value & static_cast<uint8_t>(~0x40);
+        }
+        else
+        {
+            if (!de01Locked)
+            {
+                // First write: all bits accepted except bit 5, which VICE keeps 0 outside flash mode.
+                ctrl.de01 = value & static_cast<uint8_t>(~0x20);
+                de01Locked = true;
+            }
+            else
+            {
+                // Later writes:
+                // preserve write-once bits 1,2,6
+                // update only bits 0,3,4,7
+                const uint8_t preserved = ctrl.de01 & 0x46;   // bits 1,2,6
+                const uint8_t writable  = value     & 0x99;   // bits 0,3,4,7
+                ctrl.de01 = preserved | writable;
+            }
+        }
+
+        ctrl.de00 = static_cast<uint8_t>((ctrl.de00 & ~0x98) | (ctrl.de01 &  0x98));
 
         (void)applyMappingAfterLoad();
         return;
@@ -327,9 +387,10 @@ void RetroReplayMapper::tick(uint32_t elapsedCycles)
         return;
     }
 
-    freezeDelayCycles = 0;
-    freezePending = false;
-    freezeActive  = true;
+    freezeButtonPressed = false;
+    freezeDelayCycles   = 0;
+    freezePending       = false;
+    freezeActive        = true;
 
     (void)applyMappingAfterLoad();
 }
@@ -339,12 +400,22 @@ bool RetroReplayMapper::applyMappingAfterLoad()
     if (!cart || !mem)
         return false;
 
+    if (!cartActive)
+    {
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
+        cart->clearCartridge(cartLocation::LO);
+        cart->clearCartridge(cartLocation::HI);
+        cart->clearCartridge(cartLocation::HI_E000);
+        return true;
+    }
+
     ctrl.decode(flashMode);
 
     mem->setROMLOverlayIsRAM(false);
     mem->setROMHOverlayIsRAM(false);
 
-    if (freezePending || freezeActive)
+    if (freezeActive)
     {
         cart->setExROMLine(false);
         cart->setGameLine(true);
@@ -353,14 +424,6 @@ bool RetroReplayMapper::applyMappingAfterLoad()
 
     switch (ctrl.mapMode)
     {
-        case RRMapMode::Disabled:
-            cart->setExROMLine(true);
-            cart->setGameLine(true);
-            cart->clearCartridge(cartLocation::LO);
-            cart->clearCartridge(cartLocation::HI);
-            cart->clearCartridge(cartLocation::HI_E000);
-            return true;
-
         case RRMapMode::Normal8K:
             cart->setExROMLine(true);
             cart->setGameLine(false);
@@ -407,10 +470,9 @@ void RetroReplayMapper::pressFreeze()
     if (freezePending || freezeActive)
         return;
 
-    freezePending = true;
-    freezeDelayCycles = 3;
-
-    (void)applyMappingAfterLoad();
+    freezeButtonPressed     = true;
+    freezePending           = true;
+    freezeDelayCycles       = 3;
     cart->requestCartridgeNMI();
 }
 
@@ -418,12 +480,15 @@ void RetroReplayMapper::pressReset()
 {
     if (!cart || !mem) return;
 
-    freezePending    = false;
-    freezeActive     = false;
-    registersLocked  = false;
-    de01Locked       = false;
-    flashMode        = false;
-    freezeDelayCycles = 0;
+    freezeButtonPressed = false;
+    freezePending       = false;
+    freezeActive        = false;
+    cartActive          = true;
+    registersLocked     = false;
+    de01Locked          = false;
+    freezeDelayCycles   = 0;
+
+    ctrl.de00 &= static_cast<uint8_t>(~0x04);
 
     (void)applyMappingAfterLoad();
 
@@ -432,15 +497,17 @@ void RetroReplayMapper::pressReset()
 
 void RetroReplayMapper::reset()
 {
-    freezePending = false;
-    freezeActive = false;
-    registersLocked = false;
-    de01Locked = false;
-    flashMode = false;
-    freezeDelayCycles = 0;
+    freezeButtonPressed = false;
+    freezePending       = false;
+    freezeActive        = false;
+    registersLocked     = false;
+    cartActive          = true;
+    de01Locked          = false;
+    freezeDelayCycles   = 0;
 
-    ctrl.de00 = 0x00;
-    ctrl.de01 = 0x00;
+    ctrl.de00           = 0x00;
+    ctrl.de01           = 0x00;
+
     ctrl.decode(flashMode);
 
     if (mem)

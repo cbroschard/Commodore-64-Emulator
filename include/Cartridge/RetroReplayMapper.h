@@ -32,11 +32,9 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
             uint8_t de00 = 0;
             uint8_t de01 = 0;
 
-            RRMapMode mapMode = RRMapMode::Disabled;
-
-            // decoded from de00/de01
             bool ramSelected = false;
             bool leaveFreeze = false;
+
             bool accessoryEnable = false;
             bool allowBank = false;
             bool noFreeze = false;
@@ -44,6 +42,8 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
 
             uint8_t romBank = 0;
             uint8_t ramBank = 0;
+
+            RRMapMode mapMode = RRMapMode::Normal8K;
 
             void save(StateWriter& wrtr) const;
             bool load(StateReader& rdr);
@@ -70,8 +70,10 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
     protected:
 
     private:
+        bool freezeButtonPressed;
         bool freezePending;
         bool freezeActive;
+        bool cartActive;
         bool registersLocked;
         bool de01Locked;
         bool flashMode;
