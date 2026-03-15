@@ -956,3 +956,18 @@ std::string MLMonitorBackend::decodeDriveStatus(Drive::DriveStatus status)
 
      return "IDLE";
 }
+
+std::string MLMonitorBackend::vicDumpCurrentCycleDebug() const
+{
+    return vicII ? vicII->dumpCurrentCycleDebug() : "VIC not available";
+}
+
+std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
+{
+    return vicII ? vicII->dumpCycleDebugFor(raster, cycle) : "VIC not available";
+}
+
+std::string MLMonitorBackend::vicDumpRasterFetchMap(int raster) const
+{
+    return vicII ? vicII->dumpRasterFetchMap(raster) : "VIC not available";
+}

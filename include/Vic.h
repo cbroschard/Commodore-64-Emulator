@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include "Common/VideoMode.h"
 #include "CIA2.h"
 #include "CPU.h"
@@ -88,6 +90,19 @@ class Vic
         inline uint16_t getBitmapBase(int raster) const { return ((d018_per_raster[raster] >> 3) & 0x01) * 0x2000; }
 
         // ML Monitor
+        enum class FetchKind
+        {
+            None,
+
+            CharMatrix,
+
+            SpritePtr0, SpritePtr1, SpritePtr2, SpritePtr3,
+            SpritePtr4, SpritePtr5, SpritePtr6, SpritePtr7,
+
+            SpriteData0, SpriteData1, SpriteData2, SpriteData3,
+            SpriteData4, SpriteData5, SpriteData6, SpriteData7
+        };
+
         struct VICIRQSnapshot { uint8_t ier = 0; };
         std::string decodeModeName() const;
         std::string getVICBanks() const;
@@ -104,6 +119,9 @@ class Vic
         void clearPendingIRQs();
         inline uint16_t getRasterDot() const { return currentCycle * 8; } // Used for formatting trace
         inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
+        std::string dumpCurrentCycleDebug() const;
+        std::string dumpCycleDebugFor(int raster, int cycle) const;
+        std::string dumpRasterFetchMap(int raster) const;
 
     protected:
 
@@ -268,7 +286,7 @@ class Vic
         void markBGOpaque(int screenY, int px);
 
         // Bad line detection
-        bool isBadLine(int raster);
+        bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
 
@@ -373,5 +391,8 @@ class Vic
 
         // ML Mnnitor Cache updater
         void updateMonitorCaches(int raster);
+
+        FetchKind getFetchKindForCycle(int raster, int cycle) const;
+        const char* fetchKindName(FetchKind kind) const;
 };
 #endif // VIC_H
