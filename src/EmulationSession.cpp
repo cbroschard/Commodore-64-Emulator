@@ -262,12 +262,12 @@ bool EmulationSession::finalizeFrame()
     if (now < nextFrameTime_)
     {
         std::this_thread::sleep_until(nextFrameTime_);
+    }
+    do
+    {
         nextFrameTime_ += frameStep;
     }
-    else
-    {
-        nextFrameTime_ = now + frameStep;
-    }
+    while (nextFrameTime_ <= now);
 
     uiBridge_.processCommands();
     media_.tick();
