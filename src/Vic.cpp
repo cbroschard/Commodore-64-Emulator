@@ -1398,6 +1398,9 @@ void Vic::updateBusArbitration()
 
 bool Vic::isBadLine(int raster) const
 {
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
     if (!denSeenOn30) return false;
     if (!(d011_per_raster[raster] & 0x10)) return false; // DEN
 
@@ -2452,7 +2455,11 @@ void Vic::clearPendingIRQs()
 
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
 {
-    (void)raster;
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return FetchKind::None;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return FetchKind::None;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
@@ -2535,6 +2542,18 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
 {
     std::ostringstream out;
 
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    {
+        out << "Invalid raster: " << raster << "\n";
+        return out.str();
+    }
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+    {
+        out << "Invalid cycle: " << cycle << "\n";
+        return out.str();
+    }
+
     const bool badLine = isBadLine(raster);
     const FetchKind fk = getFetchKindForCycle(raster, cycle);
 
@@ -2586,7 +2605,16 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
 
 std::string Vic::dumpCurrentCycleDebug() const
 {
-    return dumpCycleDebugFor(registers.raster, currentCycle);
+    const int raster = registers.raster;
+    const int cycle  = currentCycle;
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return "Invalid current raster\n";
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return "Invalid current cycle\n";
+
+    return dumpCycleDebugFor(raster, cycle);
 }
 
 std::string Vic::dumpRasterFetchMap(int raster) const
