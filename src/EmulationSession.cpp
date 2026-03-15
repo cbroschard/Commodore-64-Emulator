@@ -150,7 +150,9 @@ bool EmulationSession::initializeMachine()
 
 void EmulationSession::processEvents()
 {
-    if (debug_.monitorController().isOpen())
+    const bool wantTextInput = debug_.monitorController().isOpen() || ui_.isFileDialogOpen();
+
+    if (wantTextInput)
         SDL_StartTextInput();
     else
         SDL_StopTextInput();
