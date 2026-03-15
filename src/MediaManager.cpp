@@ -604,18 +604,25 @@ void MediaManager::loadPrgIntoMem()
 
 void MediaManager::recreateCartridge()
 {
-    cart_ = std::make_unique<Cartridge>();
-    if (host_)
-        cart_->attachHostInstance(host_);
+    if (!cart_)
+        return;
+
+    // Reuse the existing Cartridge object.
+    // Do NOT replace the unique_ptr here, because other systems
+    // (like StateManager) may still hold references to this object.
+    cart_->reset();
+
+    // Reattach all host/system pointers in case reset/load expects them.
+    cart_->attachHostInstance(host_);
     cart_->attachCPUInstance(&cpu_);
     cart_->attachMemoryInstance(&mem_);
     cart_->attachLogInstance(&logger_);
     cart_->attachTraceManagerInstance(&traceMgr_);
     cart_->attachVicInstance(&vic_);
 
+    // Reattach the same cartridge object everywhere else.
     mem_.attachCartridgeInstance(cart_.get());
     pla_.attachCartridgeInstance(cart_.get());
     traceMgr_.attachCartInstance(cart_.get());
-
     monbackend_.attachCartridgeInstance(cart_.get());
 }

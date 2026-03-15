@@ -190,6 +190,29 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return true;
 }
 
+void Cartridge::reset()
+{
+    mapper.reset();
+    chipSections.clear();
+    romData.clear();
+    ramData.clear();
+
+    hasRAM = false;
+    currentBank = 0;
+    wiringMode = WiringMode::NONE;
+    cartSize = 0;
+
+    exROMLine = true;
+    gameLine = true;
+
+    mapperType = CartridgeType::GENERIC;
+    setLogging = false;
+
+    std::memset(&header, 0, sizeof(header));
+    header.exROMLine = true;
+    header.gameLine = true;
+}
+
 void Cartridge::requestWarmReset()
 {
     if (host)

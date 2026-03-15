@@ -328,8 +328,8 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "CART", 4) == 0)
         {
-            if (media_.isCartridgeAttached())
-                media_.restoreCartridgeFromState();
+            mem_.setCartridgeAttached(true);
+            pla_.setCartridgeAttached(true);
 
             if (!cart_.loadState(chunk, rdr)) return false;
 
