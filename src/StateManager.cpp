@@ -305,7 +305,7 @@ bool StateManager::load(const std::string& path)
             std::cout << "Loaded memory\n";
             #endif
         }
-        else if (std::memcmp(chunk.tag, "BUS0", 4) == 0)
+        else if (std::memcmp(chunk.tag, "IEC0", 4) == 0)
         {
             if (!bus_.loadState(chunk, rdr)) return false;
             #ifdef Debug
