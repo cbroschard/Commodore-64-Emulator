@@ -33,12 +33,10 @@ std::string VICCommand::help() const
 {
     return
         "vic <subcommand>:\n"
-        "    mode                 Show current VIC-II graphics mode\n"
-        "    banks                Show current screen/charset/bitmap base addresses\n"
-        "    regs <group>         Dump VIC-II registers\n"
-        "    cycle                Show debug info for current raster/cycle\n"
-        "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
-        "    map <r>              Show fetch map for one raster line\n";
+        "    mode          Show current VIC-II graphics mode\n"
+        "    banks         Show current screen/charset/bitmap base addresses \n"
+        "    regs          Dump VIC-II registers\n";
+
 }
 
 std::string VICCommand::regsUsage() const
@@ -55,21 +53,6 @@ std::string VICCommand::regsUsage() const
         "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
 }
 
-std::string VICCommand::cycleUsage() const
-{
-    return
-        "Usage:\n"
-        "  vic cycle\n"
-        "  vic cycle <raster> <cycle>\n";
-}
-
-std::string VICCommand::mapUsage() const
-{
-    return
-        "Usage:\n"
-        "  vic map <raster>\n";
-}
-
 void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
     if (args.size() < 2)
@@ -78,7 +61,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    const std::string& sub = args[1];
+    const std::string& sub = args[1];  // real subcommand
 
     if (isHelp(sub))
     {
@@ -118,63 +101,6 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << output;
             if (!output.empty() && output.back() != '\n')
                 std::cout << '\n';
-        }
-    }
-    else if (sub == "cycle")
-    {
-        if (args.size() == 2)
-        {
-            const std::string output = mon.mlmonitorbackend()->vicDumpCurrentCycleDebug();
-            std::cout << output;
-            if (!output.empty() && output.back() != '\n')
-                std::cout << '\n';
-        }
-        else if (args.size() == 4)
-        {
-            try
-            {
-                const int raster = std::stoi(args[2]);
-                const int cycle  = std::stoi(args[3]);
-
-                const std::string output =
-                    mon.mlmonitorbackend()->vicDumpCycleDebugFor(raster, cycle);
-
-                std::cout << output;
-                if (!output.empty() && output.back() != '\n')
-                    std::cout << '\n';
-            }
-            catch (const std::exception&)
-            {
-                std::cout << cycleUsage();
-            }
-        }
-        else
-        {
-            std::cout << cycleUsage();
-        }
-    }
-    else if (sub == "map")
-    {
-        if (args.size() != 3)
-        {
-            std::cout << mapUsage();
-            return;
-        }
-
-        try
-        {
-            const int raster = std::stoi(args[2]);
-
-            const std::string output =
-                mon.mlmonitorbackend()->vicDumpRasterFetchMap(raster);
-
-            std::cout << output;
-            if (!output.empty() && output.back() != '\n')
-                std::cout << '\n';
-        }
-        catch (const std::exception&)
-        {
-            std::cout << mapUsage();
         }
     }
     else

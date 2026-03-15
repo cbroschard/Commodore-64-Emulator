@@ -149,9 +149,7 @@ class MLMonitorBackend
         inline std::string vicDumpRegs(const std::string& group) { return vicII ? vicII->dumpRegisters(group) : " VIC not attached\n"; }
         inline uint8_t getCurrentRaster() { return vicII->getCurrentRaster(); }
         void vicFFRaster(uint8_t targetRaster);
-        std::string vicDumpCurrentCycleDebug() const;
-        std::string vicDumpCycleDebugFor(int raster, int cycle) const;
-        std::string vicDumpRasterFetchMap(int raster) const;
+
 
     protected:
 
