@@ -115,6 +115,9 @@ void ActionReplay4Mapper::write(uint16_t address, uint8_t value)
 
     ctrl.raw = value;
     ctrl.decode();
+
+    freezeActive = false;
+
     applyMappingFromControl();
 }
 
