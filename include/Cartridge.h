@@ -122,6 +122,7 @@ class Cartridge
             STRUCTURED_BASIC,
             ROSS,
             FINAL_CARTRIDGE_PLUS,
+            ACTION_REPLAY_4,
             EASYFLASH,
             RETRO_REPLAY,
             SUPER_SNAPSHOT_V4,
