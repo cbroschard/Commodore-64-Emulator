@@ -48,7 +48,7 @@ void ActionReplayMapper::ARControl::decode()
 void ActionReplayMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("ARPY");
-    wrtr.writeU32(2); // version
+    wrtr.writeU32(1); // version
 
     ctrl.save(wrtr);
     wrtr.writeBool(freezeActive);
@@ -66,7 +66,7 @@ bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader&
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 2)                           { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
         if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
         ctrl.decode();
