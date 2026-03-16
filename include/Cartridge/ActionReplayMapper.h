@@ -57,7 +57,7 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
 
         // freeze bookkeeping
         bool freezeActive;
-        ARControl preFreezeCtrl{};
+        ARControl preFreezeCtrl;
         uint8_t preFreezeSelectedBank;
 
         bool applyMappingAfterLoad() override;
