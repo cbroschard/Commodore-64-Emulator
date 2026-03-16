@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
+#include "Cartridge/ActionReplay4Mapper.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/Comal80Mapper.h"
@@ -328,6 +329,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::SUPER_SNAPSHOT_V4: // Super Snapshot V4 has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::ACTION_REPLAY_4: // Action Replay 4 has 8K RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
             configureRAM(32768);
             break;
@@ -396,6 +400,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x16:  return CartridgeType::STRUCTURED_BASIC;
         case 0x17:  return CartridgeType::ROSS;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
+        case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
         case 0x20:  return CartridgeType::EASYFLASH;
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
@@ -432,6 +437,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::STRUCTURED_BASIC:       return "Structured BASIC";
         case CartridgeType::ROSS:                   return "ROSS";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
+        case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
@@ -1044,6 +1050,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
+        case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
