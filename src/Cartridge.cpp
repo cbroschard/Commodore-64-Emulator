@@ -7,6 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
+#include "Cartridge/ActionReplay2Mapper.h"
+#include "Cartridge/ActionReplay3Mapper.h"
 #include "Cartridge/ActionReplay4Mapper.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
@@ -332,6 +334,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::ACTION_REPLAY_4: // Action Replay 4 has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::ACTION_REPLAY_3: // Action Replay 3 has 8K RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
             configureRAM(32768);
             break;
@@ -402,8 +407,10 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
         case 0x20:  return CartridgeType::EASYFLASH;
+        case 0x23:  return CartridgeType::ACTION_REPLAY_3;
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
+        case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         default:    return CartridgeType::UNKNOWN;
     }
 }
@@ -439,8 +446,10 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
+        case CartridgeType::ACTION_REPLAY_3:        return "Action Replay 3";
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
+        case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1052,8 +1061,10 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
+        case CartridgeType::ACTION_REPLAY_3:        return std::make_unique<ActionReplay3Mapper>();
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
+        case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
 
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping

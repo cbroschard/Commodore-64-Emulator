@@ -124,8 +124,10 @@ class Cartridge
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,
             EASYFLASH,
+            ACTION_REPLAY_3,
             RETRO_REPLAY,
             SUPER_SNAPSHOT_V4,
+            ACTION_REPLAY_2,
             UNKNOWN
         };
 
