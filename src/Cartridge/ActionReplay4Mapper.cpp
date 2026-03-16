@@ -89,6 +89,19 @@ bool ActionReplay4Mapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 uint8_t ActionReplay4Mapper::read(uint16_t address)
 {
+    if (!mem || !cart)
+        return 0xFF;
+
+    // If the cart is disabled, IO reads should behave like no cart there.
+    if (ctrl.cartDisabled)
+        return 0xFF;
+
+    // IO2 ($DF00-$DFFF): first page of the currently banked ROM block.
+    if ((address & 0xFF00) == 0xDF00)
+    {
+        return mem->readCartridge(static_cast<uint16_t>(address & 0x00FF), cartLocation::LO);
+    }
+
     return 0xFF;
 }
 
