@@ -334,9 +334,6 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::ACTION_REPLAY_4: // Action Replay 4 has 8K RAM
             configureRAM(8192);
             break;
-        case CartridgeType::ACTION_REPLAY_3: // Action Replay 3 has 8K RAM
-            configureRAM(8192);
-            break;
         case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
             configureRAM(32768);
             break;
