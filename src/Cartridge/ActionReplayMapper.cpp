@@ -125,7 +125,7 @@ void ActionReplayMapper::write(uint16_t address, uint8_t value)
     if (ctrl.cartDisabled && address >= 0xDE00 && address <= 0xDEFF)
         return;
 
-    if (address >= 0xDE00 && address <= 0xDEFF)
+    if ((address & 0xFF00) == 0xDE00)
     {
         ctrl.raw = value;
         ctrl.decode();

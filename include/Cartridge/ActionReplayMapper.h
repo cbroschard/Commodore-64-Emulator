@@ -15,7 +15,7 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
 {
     public:
         ActionReplayMapper();
-        virtual ~ActionReplayMapper();
+        ~ActionReplayMapper();
 
         // State management
         void saveState(StateWriter& wrtr) const override;
