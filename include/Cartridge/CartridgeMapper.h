@@ -9,6 +9,7 @@
 #define CARTRIDGEMAPPER_H
 
 #include <cstdint>
+#include <string>
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -50,6 +51,11 @@ class CartridgeMapper
         virtual void reset() {}
 
         virtual void tick(uint32_t elapsedCycles) { (void)elapsedCycles; }
+
+        // EEPROM support
+        virtual bool hasPersistence() const { return false; }
+        virtual bool savePersistence(const std::string& path) const { return false; }
+        virtual bool loadPersistence(const std::string& path) { return false; }
 
     protected:
         Cartridge* cart = nullptr;
