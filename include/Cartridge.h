@@ -128,6 +128,7 @@ class Cartridge
             RETRO_REPLAY,
             SUPER_SNAPSHOT_V4,
             ACTION_REPLAY_2,
+            GMOD2,
             UNKNOWN
         };
 
