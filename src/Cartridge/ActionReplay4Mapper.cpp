@@ -222,8 +222,8 @@ const char* ActionReplay4Mapper::getButtonName(uint32_t buttonIndex) const
 {
     switch(buttonIndex)
     {
-        case 0:  return "freeze";
-        case 1:  return "reset";
+        case 0:  return "Freeze";
+        case 1:  return "Reset";
         default: return "";
     }
 }
