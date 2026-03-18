@@ -43,7 +43,7 @@ class SerialEEPROM93C86 : public IEEPROMDevice
 
         // protocol state
         uint32_t shiftReg;
-        int bitCount;
+        uint32_t bitCount;
         bool prevClk;
 };
 

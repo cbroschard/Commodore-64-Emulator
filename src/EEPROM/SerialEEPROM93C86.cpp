@@ -51,7 +51,7 @@ void SerialEEPROM93C86::saveState(StateWriter& wrtr) const
     wrtr.writeBool(dout);
 
     wrtr.writeU32(shiftReg);
-    wrtr.writeI32(bitCount);
+    wrtr.writeU32(bitCount);
     wrtr.writeBool(prevClk);
 
     wrtr.endChunk();
@@ -82,7 +82,7 @@ bool SerialEEPROM93C86::loadState(const StateReader::Chunk& chunk, StateReader& 
         if (!rdr.readBool(dout))        { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU32(shiftReg))     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(bitCount))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(bitCount))     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(prevClk))     { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
@@ -94,12 +94,28 @@ bool SerialEEPROM93C86::loadState(const StateReader::Chunk& chunk, StateReader& 
 
 bool SerialEEPROM93C86::savePersistence(const std::string& path) const
 {
-    return true;
-}
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out.is_open())
+        return false;
 
+    out.write(reinterpret_cast<const char*>(data.data()),
+              static_cast<std::streamsize>(data.size()));
+
+    return out.good();
+}
 
 bool SerialEEPROM93C86::loadPersistence(const std::string& path)
 {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open())
+        return false;
+
+    in.read(reinterpret_cast<char*>(data.data()),
+            static_cast<std::streamsize>(data.size()));
+
+    if (!in.good() && !in.eof())
+        return false;
+
     return true;
 }
 

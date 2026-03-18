@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <fstream>
 #include "Cartridge.h"
 #include "Cartridge/GMod2Mapper.h"
 
