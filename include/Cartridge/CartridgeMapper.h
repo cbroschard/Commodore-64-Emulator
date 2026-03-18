@@ -52,10 +52,12 @@ class CartridgeMapper
 
         virtual void tick(uint32_t elapsedCycles) { (void)elapsedCycles; }
 
-        // EEPROM support
+        // EEPROM API
         virtual bool hasPersistence() const { return false; }
         virtual bool savePersistence(const std::string& path) const { return false; }
         virtual bool loadPersistence(const std::string& path) { return false; }
+        virtual bool romWriteEnabled(uint16_t address) const { return false; }
+        virtual bool romReadHandledByMapper(uint16_t address) const { return false; }
 
     protected:
         Cartridge* cart = nullptr;

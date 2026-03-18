@@ -152,6 +152,10 @@ class Cartridge
         inline size_t getCartridgeSize() const { return cartSize / 1024; }
         inline std::vector<chipSection>& getChipSections() { return chipSections; }
 
+        // EEPROM API
+        inline bool romWriteEnabled(uint16_t address) const { return mapper ? mapper->romWriteEnabled(address) : false; }
+        inline bool romReadHandledByMapper(uint16_t address) const { return mapper ? mapper->romReadHandledByMapper(address) : false; }
+
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
 
