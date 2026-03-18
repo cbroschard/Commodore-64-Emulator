@@ -435,6 +435,11 @@ void Memory::write(uint16_t address, uint8_t value)
                 cart->writeRAM(accessInfo.offset, value);
             }
 
+            if (cart && cartridgeAttached && cart->romWriteEnabled(address))
+            {
+                cart->write(address, value);
+            }
+
             break;
         }
         case PLA::CARTRIDGE_HI:
@@ -444,6 +449,11 @@ void Memory::write(uint16_t address, uint8_t value)
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
             {
                 cart->writeRAM(accessInfo.offset, value);
+            }
+
+            if (cart && cartridgeAttached && cart->romWriteEnabled(address))
+            {
+                cart->write(address, value);
             }
 
             break;
