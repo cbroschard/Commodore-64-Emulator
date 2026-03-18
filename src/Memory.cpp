@@ -197,6 +197,11 @@ uint8_t Memory::read(uint16_t address)
                 return RET(cart->readRAM(accessInfo.offset));
             }
 
+            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
+            {
+                return RET(cart->read(address));
+            }
+
             if (accessInfo.offset >= cart_lo.size())
             {
                 throw std::runtime_error("Error: Attempt to read past end of cartridge lo RAM");
@@ -210,6 +215,11 @@ uint8_t Memory::read(uint16_t address)
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
             {
                 return RET(cart->readRAM(accessInfo.offset));
+            }
+
+            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
+            {
+                return RET(cart->read(address));
             }
 
             if (accessInfo.offset >= cart_hi.size())
