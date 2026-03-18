@@ -19,9 +19,9 @@ class SerialEEPROM93C86 : public IEEPROMDevice
 
         void reset() override;
 
-        inline void setCS(bool level) override { cs = level; }
-        inline void setCLK(bool level) override { clk = level; }
-        inline void setDI(bool level) override { di = level; }
+        void setCS(bool level) override;
+        void setCLK(bool level) override;
+        void setDI(bool level) override;
 
         bool getDO() const override { return dout; }
 
@@ -36,6 +36,25 @@ class SerialEEPROM93C86 : public IEEPROMDevice
     private:
         std::array<uint8_t, 2048> data{};
 
+        enum class Command
+        {
+            None,
+            Read,
+            Write,
+            Erase,
+            Ewen,
+            Ewds,
+            Eral,
+            Wral
+        };
+
+        Command currentCmd;
+        uint16_t currentAddress;
+        uint16_t outShiftReg;
+        uint32_t outBitCount;
+        bool writeEnableLatch;
+        bool commandLatched;
+
         bool cs;
         bool clk;
         bool di;
@@ -45,6 +64,13 @@ class SerialEEPROM93C86 : public IEEPROMDevice
         uint32_t shiftReg;
         uint32_t bitCount;
         bool prevClk;
+
+        // Helpers
+        void resetTransaction();
+        void handleRisingEdge();
+        void decodeCommandIfReady();
+        void prepareReadData();
+        void commitWriteByte(uint8_t value);
 };
 
 #endif // SERIALEEPROM93C86_H
