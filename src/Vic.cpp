@@ -1756,7 +1756,7 @@ int Vic::rasterVisibleStartX(int raster) const
 int Vic::rasterVisibleEndX(int raster) const
 {
     (void)raster;
-    return 512;
+    return VISIBLE_WIDTH;
 }
 
 bool Vic::isLeftBorderPixel(int raster, int px) const
@@ -1779,12 +1779,15 @@ bool Vic::isRightBorderPixel(int raster, int px) const
     const int cols = getCSEL(raster) ? 40 : 38;
     const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
     const int rightInner = leftInner + cols * 8;
-    return px >= rightInner && px < 512;
+    return px >= rightInner && px < VISIBLE_WIDTH;
 }
 
 void Vic::composeFinalRasterLine(int raster)
 {
-    for (int px = 0; px < 512; ++px)
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (int px = xStart; px < xEnd; ++px)
         finalColorLine[px] = compositePixelAtX(raster, px);
 }
 

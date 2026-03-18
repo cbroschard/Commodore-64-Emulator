@@ -140,6 +140,8 @@ class Vic
 
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
+        static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
+        static constexpr int LINE_BUFFER_WIDTH = 512;
 
         // Video Mode configuration at runtime (NTSC or PAL)
         VideoMode mode_;
