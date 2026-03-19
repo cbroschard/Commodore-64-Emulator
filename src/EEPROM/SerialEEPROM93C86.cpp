@@ -337,6 +337,6 @@ void SerialEEPROM93C86::commitWriteByte(uint8_t value)
     if (!writeEnableLatch)
         return;
 
-    if (currentAddress < data.size())
+    if (currentAddress < data.size() && data[currentAddress] != value)
         data[currentAddress] = value;
 }
