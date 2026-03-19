@@ -15,7 +15,7 @@ GMod2Mapper::GMod2Mapper() :
     flashInitialized(false),
     selectedBank(0)
 {
-
+    eeprom.reset();
 }
 
 GMod2Mapper::~GMod2Mapper() = default;
@@ -56,6 +56,8 @@ void GMod2Mapper::saveState(StateWriter& wrtr) const
 
     ctrl.save(wrtr);
 
+    eeprom.saveState(wrtr);
+
     wrtr.writeU8(selectedBank);
 
     wrtr.endChunk();
@@ -66,14 +68,16 @@ bool GMod2Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (std::memcmp(chunk.tag, "GMD2", 4) == 0)
     {
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!ctrl.load(rdr))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+        if (!eeprom.loadState(chunk, rdr))      { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
         return true;
