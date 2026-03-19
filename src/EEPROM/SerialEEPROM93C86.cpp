@@ -52,11 +52,8 @@ void SerialEEPROM93C86::reset()
 }
 
 
-void SerialEEPROM93C86::saveState(StateWriter& wrtr) const
+void SerialEEPROM93C86::save(StateWriter& wrtr) const
 {
-    wrtr.beginChunk("EE93");
-    wrtr.writeU32(1); // version
-
     for (uint8_t b : data)
         wrtr.writeU8(b);
 
@@ -77,75 +74,51 @@ void SerialEEPROM93C86::saveState(StateWriter& wrtr) const
     wrtr.writeBool(commandLatched);
 
     wrtr.writeBool(readDummyPending);
-
-    wrtr.endChunk();
 }
 
-bool SerialEEPROM93C86::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+bool SerialEEPROM93C86::load(StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "EE93", 4) == 0)
+    for (auto& b : data)
     {
-        rdr.enterChunkPayload(chunk);
-
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)          { rdr.exitChunkPayload(chunk); return false; }
-
-        for (auto& b : data)
+        if (!rdr.readU8(b))
         {
-            if (!rdr.readU8(b))
-            {
-                rdr.exitChunkPayload(chunk);
-                return false;
-            }
+            return false;
         }
-
-        if (!rdr.readBool(cs))               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(clk))              { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(di))               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(dout))             { rdr.exitChunkPayload(chunk); return false; }
-
-        if (!rdr.readU32(shiftReg))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU32(bitCount))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(prevClk))          { rdr.exitChunkPayload(chunk); return false; }
-
-        uint32_t cmd = 0;
-        if (!rdr.readU32(cmd))               { rdr.exitChunkPayload(chunk); return false; }
-        currentCmd = static_cast<Command>(cmd);
-
-        if (!rdr.readU16(currentAddress))    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(outShiftReg))       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU32(outBitCount))       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(writeEnableLatch)) { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(commandLatched))   { rdr.exitChunkPayload(chunk); return false; }
-
-        if (!rdr.readBool(readDummyPending)) { rdr.exitChunkPayload(chunk); return false; }
-
-        rdr.exitChunkPayload(chunk);
-        return true;
     }
 
-    return false;
+    if (!rdr.readBool(cs))                  return false;
+    if (!rdr.readBool(clk))                 return false;
+    if (!rdr.readBool(di))                  return false;
+    if (!rdr.readBool(dout))                return false;
+
+    if (!rdr.readU32(shiftReg))             return false;
+    if (!rdr.readU32(bitCount))             return false;
+    if (!rdr.readBool(prevClk))             return false;
+
+    uint32_t cmd = 0;
+    if (!rdr.readU32(cmd))                  return false;
+    currentCmd = static_cast<Command>(cmd);
+
+    if (!rdr.readU16(currentAddress))       return false;
+    if (!rdr.readU16(outShiftReg))          return false;
+    if (!rdr.readU32(outBitCount))          return false;
+    if (!rdr.readBool(writeEnableLatch))    return false;
+    if (!rdr.readBool(commandLatched))      return false;
+
+    if (!rdr.readBool(readDummyPending))    return false;
+
+    return true;
 }
 
-bool SerialEEPROM93C86::savePersistence(const std::string& path) const
+bool SerialEEPROM93C86::saveRaw(std::ostream& out) const
 {
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    if (!out.is_open())
-        return false;
-
     out.write(reinterpret_cast<const char*>(data.data()),
               static_cast<std::streamsize>(data.size()));
-
     return out.good();
 }
 
-bool SerialEEPROM93C86::loadPersistence(const std::string& path)
+bool SerialEEPROM93C86::loadRaw(std::istream& in)
 {
-    std::ifstream in(path, std::ios::binary);
-    if (!in.is_open())
-        return false;
-
     std::fill(data.begin(), data.end(), 0xFF);
 
     in.read(reinterpret_cast<char*>(data.data()),

@@ -25,11 +25,11 @@ class SerialEEPROM93C86 : public IEEPROMDevice
 
         bool getDO() const override { return dout; }
 
-        void saveState(StateWriter& wrtr) const override;
-        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+        void save(StateWriter& wrtr) const override;
+        bool load(StateReader& rdr) override;
 
-        bool savePersistence(const std::string& path) const override;
-        bool loadPersistence(const std::string& path) override;
+        bool saveRaw(std::ostream& out) const override;
+        bool loadRaw(std::istream& in) override;
 
     protected:
 

@@ -29,8 +29,8 @@ class GMod2Mapper : public CartridgeMapper
 
         // EEPROM support
         inline bool hasPersistence() const override { return true; }
-        inline bool savePersistence(const std::string& path) const override { return eeprom.savePersistence(path); }
-        inline bool loadPersistence(const std::string& path) override { return eeprom.loadPersistence(path); }
+        bool savePersistence(const std::string& path) const override;
+        bool loadPersistence(const std::string& path) override;
         bool romWriteEnabled(uint16_t address) const override;
 
     protected:
@@ -43,13 +43,13 @@ class GMod2Mapper : public CartridgeMapper
         static constexpr size_t FLASH_SIZE = BANK_SIZE * BANK_COUNT;
         static constexpr size_t SECTOR_SIZE = 0x10000; // 64KB sectors for 512KB total / 8 sectors
 
-        enum class FlashReadMode
+        enum class FlashReadMode : uint8_t
         {
             ReadArray,
             AutoSelect
         };
 
-        enum class FlashCmdState
+        enum class FlashCmdState : uint8_t
         {
             Idle,
             Unlock1Seen,

@@ -26,8 +26,8 @@ class IEEPROMDevice
 
         virtual bool getDO() const = 0;
 
-        virtual void saveState(StateWriter& wrtr) const = 0;
-        virtual bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) = 0;
+        virtual void save(StateWriter& wrtr) const = 0;
+        virtual bool load(StateReader& rdr) = 0;
 
         virtual void setLines(bool cs, bool clk, bool di)
         {
@@ -36,8 +36,8 @@ class IEEPROMDevice
             setDI(di);
         }
 
-        virtual bool savePersistence(const std::string& path) const = 0;
-        virtual bool loadPersistence(const std::string& path) = 0;
+        virtual bool saveRaw(std::ostream& out) const = 0;
+        virtual bool loadRaw(std::istream& in) = 0;
 
     protected:
 

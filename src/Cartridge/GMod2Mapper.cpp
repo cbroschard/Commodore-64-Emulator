@@ -54,11 +54,19 @@ void GMod2Mapper::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("GMD2");
     wrtr.writeU32(1); // version
 
+    eeprom.save(wrtr);
+
     ctrl.save(wrtr);
 
-    eeprom.saveState(wrtr);
-
     wrtr.writeU8(selectedBank);
+
+
+    // Save flash state and data
+    wrtr.writeBool(flashDirty);
+    wrtr.writeBool(flashInitialized);
+    wrtr.writeU8(static_cast<uint8_t>(flashReadMode));
+    wrtr.writeU8(static_cast<uint8_t>(flashCmdState));
+    wrtr.writeVectorU8(flashData);
 
     wrtr.endChunk();
 }
@@ -67,15 +75,31 @@ bool GMod2Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
     if (std::memcmp(chunk.tag, "GMD2", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!eeprom.load(rdr))                  { rdr.exitChunkPayload(chunk); return false; }
+
         if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!eeprom.loadState(chunk, rdr))      { rdr.exitChunkPayload(chunk); return false; }
-
         if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
+
+        // Load flash state
+        if (!rdr.readBool(flashDirty))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(flashInitialized))    { rdr.exitChunkPayload(chunk); return false; }
+
+        uint8_t rm = 0;
+        if (!rdr.readU8(rm))                    { rdr.exitChunkPayload(chunk); return false; }
+        flashReadMode = static_cast<FlashReadMode>(rm);
+
+        uint8_t cm = 0;
+        if (!rdr.readU8(cm))                    { rdr.exitChunkPayload(chunk); return false; }
+        flashCmdState = static_cast<FlashCmdState>(cm);
+
+        if (!rdr.readVectorU8(flashData))       { rdr.exitChunkPayload(chunk); return false; }
 
         if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
 
@@ -148,6 +172,75 @@ bool GMod2Mapper::loadIntoMemory(uint8_t bank)
 
     for (size_t i = 0; i < BANK_SIZE; ++i)
         mem->writeCartridge(static_cast<uint16_t>(i), flashData[base + i], cartLocation::LO);
+
+    return true;
+}
+
+bool GMod2Mapper::savePersistence(const std::string& path) const
+{
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out.is_open())
+        return false;
+
+    const char magic[4] = { 'G', 'M', '2', 'P' };
+    const uint32_t version = 1;
+    const uint32_t eepromSize = 2048;
+    const uint32_t flashSize = static_cast<uint32_t>(flashData.size());
+
+    out.write(magic, 4);
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    out.write(reinterpret_cast<const char*>(&eepromSize), sizeof(eepromSize));
+
+    // write EEPROM bytes
+    if (!eeprom.saveRaw(out))
+        return false;
+
+    out.write(reinterpret_cast<const char*>(&flashSize), sizeof(flashSize));
+    out.write(reinterpret_cast<const char*>(flashData.data()),
+              static_cast<std::streamsize>(flashData.size()));
+
+    return out.good();
+}
+
+bool GMod2Mapper::loadPersistence(const std::string& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open())
+        return false;
+
+    char magic[4] = {};
+    uint32_t version = 0;
+    uint32_t eepromSize = 0;
+    uint32_t flashSize = 0;
+
+    in.read(magic, 4);
+    in.read(reinterpret_cast<char*>(&version), sizeof(version));
+    if (std::memcmp(magic, "GM2P", 4) != 0 || version != 1)
+        return false;
+
+    in.read(reinterpret_cast<char*>(&eepromSize), sizeof(eepromSize));
+    if (eepromSize != 2048)
+        return false;
+
+    if (!eeprom.loadRaw(in))
+        return false;
+
+    in.read(reinterpret_cast<char*>(&flashSize), sizeof(flashSize));
+    if (flashSize != FLASH_SIZE)
+        return false;
+
+    flashData.assign(FLASH_SIZE, 0xFF);
+    in.read(reinterpret_cast<char*>(flashData.data()),
+            static_cast<std::streamsize>(flashData.size()));
+
+    if (!in.good() && !in.eof())
+        return false;
+
+    flashInitialized = true;
+    flashDirty = false;
+
+    if (mem && cart)
+        (void)loadIntoMemory(selectedBank);
 
     return true;
 }
