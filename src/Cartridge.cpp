@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <filesystem>
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
 #include "Cartridge/ActionReplay2Mapper.h"
@@ -60,7 +61,10 @@ Cartridge::Cartridge() :
     header.gameLine = true;
 }
 
-Cartridge::~Cartridge() = default;
+Cartridge::~Cartridge()
+{
+    saveCurrentPersistence();
+}
 
 void Cartridge::saveState(StateWriter& wrtr) const
 {
@@ -237,6 +241,10 @@ void Cartridge::requestCartridgeNMI()
 
 bool Cartridge::loadROM(const std::string& path)
 {
+    // Save and clear persistence
+    saveCurrentPersistence();
+    persistencePath.clear();
+
     // Clear everything first
     mapper.reset();
     chipSections.clear();
@@ -364,6 +372,12 @@ bool Cartridge::loadROM(const std::string& path)
         if (mapperType == Cartridge::CartridgeType::RETRO_REPLAY)
         {
             mapper->reset();
+        }
+
+        if (mapper && mapper->hasPersistence())
+        {
+            persistencePath = makePersistencePath(path);
+            mapper->loadPersistence(persistencePath);
         }
 
         // Load the selected bank through mapper logic
@@ -1082,4 +1096,17 @@ void Cartridge::clearRAM()
 {
     hasRAM = false;
     ramData.clear();
+}
+
+std::string Cartridge::makePersistencePath(const std::string& romPath) const
+{
+    std::filesystem::path p(romPath);
+    p.replace_extension(".gmod2.eeprom");
+    return p.string();
+}
+
+void Cartridge::saveCurrentPersistence()
+{
+    if (mapper && mapper->hasPersistence() && !persistencePath.empty())
+        mapper->savePersistence(persistencePath);
 }

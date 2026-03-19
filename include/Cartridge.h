@@ -202,6 +202,9 @@ class Cartridge
         // ML Monitor logging
         bool setLogging;
 
+        // EEPROM persistence
+        std::string persistencePath;
+
         // Loaders
         bool loadFile(const std::string& path, std::vector<uint8_t>& buffer);
         bool loadIntoMemory();
@@ -250,6 +253,10 @@ class Cartridge
         // Cart RAM helpers
         void configureRAM(size_t bytes);
         void clearRAM();
+
+        // EEPROM helpers
+        std::string makePersistencePath(const std::string& romPath) const;
+        void saveCurrentPersistence();
 };
 
 #endif // CARTRIDGE_H
