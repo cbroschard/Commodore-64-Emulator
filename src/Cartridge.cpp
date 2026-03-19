@@ -1101,7 +1101,7 @@ void Cartridge::clearRAM()
 std::string Cartridge::makePersistencePath(const std::string& romPath) const
 {
     std::filesystem::path p(romPath);
-    p.replace_extension(".gmod2.eeprom");
+    p.replace_extension(".cartpersist");
     return p.string();
 }
 
