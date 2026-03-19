@@ -14,6 +14,7 @@ SerialEEPROM93C86::SerialEEPROM93C86() :
     outBitCount(0),
     writeEnableLatch(false),
     commandLatched(false),
+    readDummyPending(false),
     cs(false),
     clk(false),
     di(false),
@@ -47,6 +48,7 @@ void SerialEEPROM93C86::reset()
     writeEnableLatch    = false;
     commandLatched      = false;
     prevClk             = false;
+    readDummyPending    = false;
 }
 
 
@@ -73,6 +75,8 @@ void SerialEEPROM93C86::saveState(StateWriter& wrtr) const
     wrtr.writeU32(outBitCount);
     wrtr.writeBool(writeEnableLatch);
     wrtr.writeBool(commandLatched);
+
+    wrtr.writeBool(readDummyPending);
 
     wrtr.endChunk();
 }
@@ -115,6 +119,8 @@ bool SerialEEPROM93C86::loadState(const StateReader::Chunk& chunk, StateReader& 
         if (!rdr.readBool(writeEnableLatch)) { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(commandLatched))   { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!rdr.readBool(readDummyPending)) { rdr.exitChunkPayload(chunk); return false; }
+
         rdr.exitChunkPayload(chunk);
         return true;
     }
@@ -139,6 +145,8 @@ bool SerialEEPROM93C86::loadPersistence(const std::string& path)
     std::ifstream in(path, std::ios::binary);
     if (!in.is_open())
         return false;
+
+    std::fill(data.begin(), data.end(), 0xFF);
 
     in.read(reinterpret_cast<char*>(data.data()),
             static_cast<std::streamsize>(data.size()));
@@ -171,6 +179,7 @@ void SerialEEPROM93C86::setCS(bool level)
         commandLatched = false;
         dout = false;
         prevClk = clk;
+        readDummyPending = false;
     }
 }
 
@@ -207,13 +216,31 @@ void SerialEEPROM93C86::resetTransaction()
     commandLatched = false;
 
     dout = false;
+
+    readDummyPending = false;
 }
 
 void SerialEEPROM93C86::handleRisingEdge()
 {
     // If we're currently shifting read data out, drive DO first
-    if (currentCmd == Command::Read && commandLatched && outBitCount > 0)
+    if (currentCmd == Command::Read && commandLatched)
     {
+        if (readDummyPending)
+        {
+            dout = false;
+            readDummyPending = false;
+            return;
+        }
+
+        if (outBitCount == 0)
+        {
+            currentAddress = static_cast<uint16_t>((currentAddress + 1) & 0x07FF);
+            prepareReadData();
+
+            // sequential read continues immediately with data bits
+            readDummyPending = false;
+        }
+
         dout = ((outShiftReg & 0x8000) != 0);
         outShiftReg <<= 1;
         --outBitCount;
@@ -237,14 +264,14 @@ void SerialEEPROM93C86::decodeCommandIfReady()
     if (commandLatched)
         return;
 
-    // [start:1][opcode:2][addr:8] = 11 bits
-    if (bitCount < 11)
+    // command length = 1 start + 2 opcode + 11 address = 14 bits
+    if (bitCount < 14)
         return;
 
-    const uint32_t frame = shiftReg & 0x7FF;
-    const uint8_t start  = static_cast<uint8_t>((frame >> 10) & 0x01);
-    const uint8_t opcode = static_cast<uint8_t>((frame >> 8) & 0x03);
-    const uint8_t addr   = static_cast<uint8_t>(frame & 0xFF);
+    const uint32_t frame  = shiftReg & 0x3FFF;
+    const uint8_t  start  = static_cast<uint8_t>((frame >> 13) & 0x01);
+    const uint8_t  opcode = static_cast<uint8_t>((frame >> 11) & 0x03);
+    const uint16_t addr   = static_cast<uint16_t>(frame & 0x07FF);
 
     if (start != 1)
     {
@@ -258,30 +285,34 @@ void SerialEEPROM93C86::decodeCommandIfReady()
     switch (opcode)
     {
         case 0b10: // READ
+        {
             currentCmd = Command::Read;
             commandLatched = true;
             prepareReadData();
             shiftReg = 0;
             bitCount = 0;
             break;
-
+        }
         case 0b01: // WRITE
+        {
             currentCmd = Command::Write;
             commandLatched = true;
             shiftReg = 0;
             bitCount = 0;
             break;
-
+        }
         case 0b00:
-            // Simple first-pass EWEN / EWDS
-            if ((addr & 0xC0) == 0xC0)
-                writeEnableLatch = true;
-            else if ((addr & 0xC0) == 0x00)
-                writeEnableLatch = false;
+        {
+            const uint16_t top2 = (addr >> 9) & 0x03;
+
+            if (top2 == 0x03)
+                writeEnableLatch = true;   // EWEN
+            else if (top2 == 0x00)
+                writeEnableLatch = false;  // EWDS
 
             resetTransaction();
             break;
-
+        }
         default:
             resetTransaction();
             break;
@@ -297,10 +328,8 @@ void SerialEEPROM93C86::prepareReadData()
 
     outShiftReg = static_cast<uint16_t>(value) << 8;
     outBitCount = 8;
-
-    dout = ((outShiftReg & 0x8000) != 0);
-    outShiftReg <<= 1;
-    --outBitCount;
+    readDummyPending = true;
+    dout = false;
 }
 
 void SerialEEPROM93C86::commitWriteByte(uint8_t value)

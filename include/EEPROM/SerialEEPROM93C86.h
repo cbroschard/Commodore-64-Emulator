@@ -55,6 +55,8 @@ class SerialEEPROM93C86 : public IEEPROMDevice
         bool writeEnableLatch;
         bool commandLatched;
 
+        bool readDummyPending;
+
         bool cs;
         bool clk;
         bool di;
