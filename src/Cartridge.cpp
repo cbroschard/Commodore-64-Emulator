@@ -24,6 +24,7 @@
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/GMod2Mapper.h"
+#include "Cartridge/IDE64Mapper.h"
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/MagicFormelMapper.h"
@@ -421,6 +422,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x20:  return CartridgeType::EASYFLASH;
         case 0x23:  return CartridgeType::ACTION_REPLAY_3;
         case 0x24:  return CartridgeType::RETRO_REPLAY;
+        case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x3C:  return CartridgeType::GMOD2;
@@ -461,6 +463,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::EASYFLASH:              return "EasyFlash";
         case CartridgeType::ACTION_REPLAY_3:        return "Action Replay 3";
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
+        case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::GMOD2:                  return "Gmod2";
@@ -1077,6 +1080,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
         case CartridgeType::ACTION_REPLAY_3:        return std::make_unique<ActionReplay3Mapper>();
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
+        case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();

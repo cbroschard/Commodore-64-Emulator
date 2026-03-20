@@ -126,6 +126,7 @@ class Cartridge
             EASYFLASH,
             ACTION_REPLAY_3,
             RETRO_REPLAY,
+            IDE64,
             SUPER_SNAPSHOT_V4,
             ACTION_REPLAY_2,
             GMOD2,
