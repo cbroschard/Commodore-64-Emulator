@@ -73,6 +73,9 @@ class SerialEEPROM93C86 : public IEEPROMDevice
         void decodeCommandIfReady();
         void prepareReadData();
         void commitWriteByte(uint8_t value);
+        void eraseByte();
+        void eraseAll();
+        void writeAll(uint8_t value);
 };
 
 #endif // SERIALEEPROM93C86_H

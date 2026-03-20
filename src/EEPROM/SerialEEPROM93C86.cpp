@@ -229,6 +229,14 @@ void SerialEEPROM93C86::handleRisingEdge()
     {
         commitWriteByte(static_cast<uint8_t>(shiftReg & 0xFF));
         resetTransaction();
+        return;
+    }
+
+    if (currentCmd == Command::Wral && commandLatched && bitCount >= 8)
+    {
+        writeAll(static_cast<uint8_t>(shiftReg & 0xFF));
+        resetTransaction();
+        return;
     }
 }
 
@@ -278,12 +286,52 @@ void SerialEEPROM93C86::decodeCommandIfReady()
         {
             const uint16_t top2 = (addr >> 9) & 0x03;
 
-            if (top2 == 0x03)
-                writeEnableLatch = true;   // EWEN
-            else if (top2 == 0x00)
-                writeEnableLatch = false;  // EWDS
+            switch (top2)
+            {
+                case 0x03: // EWEN
+                    writeEnableLatch = true;
+                    resetTransaction();
+                    break;
 
-            resetTransaction();
+                case 0x00: // EWDS
+                    writeEnableLatch = false;
+                    resetTransaction();
+                    break;
+
+                case 0x02: // ERAL
+                    eraseAll();
+                    resetTransaction();
+                    break;
+
+                case 0x01:
+                {
+                    // top2=01 is split between ERASE and WRAL in this simplified model.
+                    // Use one address bit as the selector:
+                    // addr bit 8 = 0 -> ERASE addressed byte
+                    // addr bit 8 = 1 -> WRAL
+                    const bool isWriteAll = ((addr & 0x0100) != 0);
+
+                    if (isWriteAll)
+                    {
+                        currentCmd = Command::Wral;
+                        commandLatched = true;
+                        shiftReg = 0;
+                        bitCount = 0;
+                    }
+                    else
+                    {
+                        currentCmd = Command::Erase;
+                        commandLatched = true;
+                        eraseByte();
+                        resetTransaction();
+                    }
+                    break;
+                }
+
+                default:
+                    resetTransaction();
+                    break;
+            }
             break;
         }
         default:
@@ -312,4 +360,29 @@ void SerialEEPROM93C86::commitWriteByte(uint8_t value)
 
     if (currentAddress < data.size() && data[currentAddress] != value)
         data[currentAddress] = value;
+}
+
+void SerialEEPROM93C86::eraseByte()
+{
+    if (!writeEnableLatch)
+        return;
+
+    if (currentAddress < data.size())
+        data[currentAddress] = 0xFF;
+}
+
+void SerialEEPROM93C86::eraseAll()
+{
+    if (!writeEnableLatch)
+        return;
+
+    std::fill(data.begin(), data.end(), 0xFF);
+}
+
+void SerialEEPROM93C86::writeAll(uint8_t value)
+{
+    if (!writeEnableLatch)
+        return;
+
+    std::fill(data.begin(), data.end(), value);
 }

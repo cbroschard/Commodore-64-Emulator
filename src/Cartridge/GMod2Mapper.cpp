@@ -329,11 +329,10 @@ uint8_t GMod2Mapper::readFlashByte(uint16_t address) const
 
     if (flashReadMode == FlashReadMode::AutoSelect)
     {
-        // Simple AMD-style autoselect values
         if (offset == 0x0000)
-            return 0x01; // AMD manufacturer
+            return 0x01; // AMD / Am29F040 manufacturer ID
         if (offset == 0x0001)
-            return 0xA4; // placeholder device ID for now
+            return 0xA4; // Am29F040 device ID
 
         return 0xFF;
     }
