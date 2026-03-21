@@ -19,15 +19,12 @@ InputManager::~InputManager() = default;
 void InputManager::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("INPT");
-    wrtr.writeU32(1); //version
+    wrtr.writeU32(1);
 
     wrtr.writeU8(joystick1Attached ? 1 : 0);
     wrtr.writeU8(joystick2Attached ? 1 : 0);
 
-    wrtr.writeI32(static_cast<int32_t>(portPadId[1]));
-    wrtr.writeI32(static_cast<int32_t>(portPadId[2]));
-
-    // Port 1 mapping (SDL_Scancode is an enum -> store as i32)
+    // Port 1 mapping
     wrtr.writeI32(static_cast<int32_t>(joy1Config.up));
     wrtr.writeI32(static_cast<int32_t>(joy1Config.down));
     wrtr.writeI32(static_cast<int32_t>(joy1Config.left));
@@ -52,64 +49,68 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
-
+    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1) { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t j1 = 0, j2 = 0;
-    if (!rdr.readU8(j1))                                    { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(j2))                                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(j1)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(j2)) { rdr.exitChunkPayload(chunk); return false; }
 
-    int32_t p1 = -1, p2 = -1;
-    if (!rdr.readI32(p1))                                   { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readI32(p2))                                   { rdr.exitChunkPayload(chunk); return false; }
-
-    portPadId[1] = static_cast<SDL_JoystickID>(p1);
-    portPadId[2] = static_cast<SDL_JoystickID>(p2);
+    int32_t oldP1 = -1, oldP2 = -1;
+    if (!rdr.readI32(oldP1)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(oldP2)) { rdr.exitChunkPayload(chunk); return false; }
 
     int32_t tmp = 0;
 
     // joy1
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.up = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.down = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.left = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.right = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy1Config.fire = static_cast<SDL_Scancode>(tmp);
 
     // joy2
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.up = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.down = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.left = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.right = static_cast<SDL_Scancode>(tmp);
 
-    if (!rdr.readI32(tmp))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(tmp)) { rdr.exitChunkPayload(chunk); return false; }
     joy2Config.fire = static_cast<SDL_Scancode>(tmp);
 
-    // Rebuild joyMap tables from configs
     setJoystickConfig(1, joy1Config);
     setJoystickConfig(2, joy2Config);
 
     setJoystickAttached(1, j1 != 0);
     setJoystickAttached(2, j2 != 0);
 
-    rdr.exitChunkPayload(chunk);
+    // Runtime-only controller assignment: rebuild from currently connected pads.
+    clearPortPad(1);
+    clearPortPad(2);
 
+    if (pad1 && joystick2Attached)
+        assignPadToPort(pad1, 2);
+
+    if (pad2 && joystick1Attached)
+        assignPadToPort(pad2, 1);
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 
