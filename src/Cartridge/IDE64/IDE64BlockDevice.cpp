@@ -7,12 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge/IDE64/IDE64BlockDevice.h"
 
-IDE64BlockDevice::IDE64BlockDevice()
-{
+IDE64BlockDevice::IDE64BlockDevice() = default;
 
-}
-
-IDE64BlockDevice::~IDE64BlockDevice()
-{
-
-}
+IDE64BlockDevice::~IDE64BlockDevice() = default;

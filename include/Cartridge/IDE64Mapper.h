@@ -39,6 +39,12 @@ class IDE64Mapper : public CartridgeMapper
         IDE64Controller controller;
         IDE64RTC rtc;
 
+        static const uint16_t IDE64_Controller_Start = 0xDE20;
+        static const uint16_t IDE64_Controller_End   = 0xDE31;
+        static const uint16_t RTC_Address            = 0xDE5F;
+        static const uint16_t IDE64_Ctrl_Cfg_Start   = 0xDEFB;
+        static const uint16_t IDE64_Ctrl_Cfg_End     = 0xDEFF;
+
         struct ControlState
         {
             uint8_t de32Raw  = 0x10;
@@ -68,7 +74,6 @@ class IDE64Mapper : public CartridgeMapper
         void writeControlRegister(uint16_t address, uint8_t value);
 
         bool applyMappingAfterLoad() override;
-        void applyMappingFromControl();
 };
 
 #endif // IDE64MAPPER_H

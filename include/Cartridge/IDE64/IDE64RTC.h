@@ -20,8 +20,8 @@ class IDE64RTC
 
         void reset();
 
-        uint8_t read() const;
-        void write(uint8_t value);
+        uint8_t readByte() const;
+        void writeByte(uint8_t value);
 
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
@@ -29,13 +29,23 @@ class IDE64RTC
     protected:
 
     private:
-
         struct RTCState
+        {
+            uint8_t seconds;
+            uint8_t minutes;
+            uint8_t hours;
+            uint8_t dayOfWeek;
+            uint8_t dayOfMonth;
+            uint8_t month;
+            uint16_t year;
+        } rtcState;
+
+        struct WireState
         {
             uint8_t latch = 0;
             bool clkSeen = false;
             bool dataIn = false;
-        } rtcState;
+        } wireState;
 };
 
 #endif // IDE64RTC_H
