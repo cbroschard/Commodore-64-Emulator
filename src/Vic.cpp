@@ -884,42 +884,66 @@ void Vic::performSpritePointerFetches()
 
 void Vic::performBadLineCycle()
 {
-    // Bad line DMA
-    if (isBadLine(registers.raster))
-    {
-        if (firstBadlineY < 0)
-        {
-            firstBadlineY = registers.raster;
+    const int raster = registers.raster;
+    const int cycle  = currentCycle;
 
-            // First visible character row starts at VCBASE = 0.
-            vicState.vcBase = 0;
-            vicState.vc = 0;
-            vicState.rc = 0;
-
-            currentScreenRow = 0;
-            rowCounter = 0;
-        }
-
-        if (currentCycle == cfg_->DMAStartCycle)
-        {
-            beginBadLineFetch();
-        }
-
-        const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
-        if (fetchIndex >= 0 && fetchIndex < 40)
-        {
-            fetchBadLineMatrixByte(fetchIndex, registers.raster);
-        }
-
-        // After the 40 matrix fetches, VC has advanced by one row.
-        if (currentCycle == cfg_->DMAEndCycle)
-        {
-            vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
-        }
-    }
-    else
+    if (!isBadLine(raster))
     {
         vicState.badLine = false;
+        return;
+    }
+
+    initializeFirstBadLineIfNeeded();
+    startBadLineIfNeeded(raster, cycle);
+    runBadLineFetchCycle(raster, cycle);
+    completeBadLineIfNeeded(raster, cycle);
+}
+
+void Vic::initializeFirstBadLineIfNeeded()
+{
+    if (firstBadlineY >= 0)
+        return;
+
+    firstBadlineY = registers.raster;
+
+    // First visible character row starts at VCBASE = 0.
+    vicState.vcBase = 0;
+    vicState.vc = 0;
+    vicState.rc = 0;
+
+    // Compatibility/debug mirrors for now
+    currentScreenRow = 0;
+    rowCounter = 0;
+}
+
+void Vic::startBadLineIfNeeded(int raster, int cycle)
+{
+    (void)raster;
+
+    if (cycle == cfg_->DMAStartCycle)
+    {
+        beginBadLineFetch();
+    }
+}
+
+void Vic::runBadLineFetchCycle(int raster, int cycle)
+{
+    const int fetchIndex = cycle - cfg_->DMAStartCycle;
+
+    if (fetchIndex >= 0 && fetchIndex < 40)
+    {
+        fetchBadLineMatrixByte(fetchIndex, raster);
+    }
+}
+
+void Vic::completeBadLineIfNeeded(int raster, int cycle)
+{
+    (void)raster;
+
+    // After the 40 matrix fetches, VC has advanced by one row.
+    if (cycle == cfg_->DMAEndCycle)
+    {
+        vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
     }
 }
 
@@ -1469,36 +1493,16 @@ void Vic::updateSpriteDMAStartForCurrentLine()
 
 void Vic::updateBusArbitration()
 {
-    const int DMA_START = cfg_->DMAStartCycle;
-    const int DMA_END   = cfg_->DMAEndCycle;
+    const int raster = registers.raster;
+    const int cycle  = currentCycle;
 
-    const bool badLineNow =
-        isBadLine(registers.raster);
-
-    const bool inCharDMA =
-        badLineNow &&
-        currentCycle >= DMA_START &&
-        currentCycle <= DMA_END;
-
-    bool inSpriteDMA = false;
-
-    for (int s = 0; s < 8; ++s)
-    {
-        if (!spriteUnits[s].dmaActive)
-            continue;
-
-        if (isSpriteDMAFetchCycle(s, currentCycle))
-        {
-            inSpriteDMA = true;
-            break;
-        }
-    }
-
-    const bool vicSteals = inCharDMA || inSpriteDMA;
+    const bool badLineNow = isBadLine(raster);
+    const bool baLow      = shouldBALow(raster, cycle);
+    const bool aecLow     = shouldAECLow(raster, cycle);
 
     vicState.badLine = badLineNow;
-    vicState.aec     = !vicSteals;
-    vicState.ba      = !vicSteals;
+    vicState.ba      = !baLow;
+    vicState.aec     = !aecLow;
 
     AEC = vicState.aec;
 
@@ -1506,6 +1510,73 @@ void Vic::updateBusArbitration()
     {
         processor->setBAHold(!vicState.ba);
     }
+}
+
+bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
+{
+    if (!isBadLine(raster))
+        return false;
+
+    const int warnStart = cfg_->DMAStartCycle - 3;
+    return cycle >= warnStart && cycle < cfg_->DMAStartCycle;
+}
+
+bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
+{
+    if (!isBadLine(raster))
+        return false;
+
+    return cycle >= cfg_->DMAStartCycle &&
+           cycle <= cfg_->DMAEndCycle;
+}
+
+bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
+{
+    (void)raster;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!spriteUnits[s].dmaActive)
+            continue;
+
+        const int slot = spriteFetchSlotStart(s);
+        const int warnStart = slot - 3;
+
+        if (cycle >= warnStart && cycle < slot)
+            return true;
+    }
+
+    return false;
+}
+
+bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
+{
+    (void)raster;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!spriteUnits[s].dmaActive)
+            continue;
+
+        if (isSpriteDMAFetchCycle(s, cycle))
+            return true;
+    }
+
+    return false;
+}
+
+bool Vic::shouldBALow(int raster, int cycle) const
+{
+    return isBadLineBusWarningCycle(raster, cycle) ||
+           isBadLineBusStealCycle(raster, cycle)   ||
+           isSpriteBusWarningCycle(raster, cycle)  ||
+           isSpriteBusStealCycle(raster, cycle);
+}
+
+bool Vic::shouldAECLow(int raster, int cycle) const
+{
+    return isBadLineBusStealCycle(raster, cycle) ||
+           isSpriteBusStealCycle(raster, cycle);
 }
 
 bool Vic::isBadLine(int raster) const

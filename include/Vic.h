@@ -277,7 +277,7 @@ class Vic
         // Multicolor helper for readRegister
         inline uint8_t getBackgroundColor(int value) const { return registers.backgroundColor[value]; }
 
-        // fine-scroll helpers ($D016 bits 0-2 , $D011 bits 0-2)
+        // fine-scroll Helpers ($D016 bits 0-2 , $D011 bits 0-2)
         inline uint8_t fineXScroll(int raster) const { return d016_per_raster[raster] & 0x07; }
         inline uint8_t fineYScroll(int raster) const { return d011_per_raster[raster]  & 0x07; }
 
@@ -287,7 +287,21 @@ class Vic
         inline bool isSpriteX(uint16_t address) const { return ((address - 0xD000) % 2) == 0; }
         void markBGOpaque(int screenY, int px);
 
-        // Bad line detection
+        // Bus Arbitration Helpers
+        bool isBadLineBusWarningCycle(int raster, int cycle) const;
+        bool isBadLineBusStealCycle(int raster, int cycle) const;
+
+        bool isSpriteBusWarningCycle(int raster, int cycle) const;
+        bool isSpriteBusStealCycle(int raster, int cycle) const;
+
+        bool shouldBALow(int raster, int cycle) const;
+        bool shouldAECLow(int raster, int cycle) const;
+
+        // Bad line Helpers
+        void initializeFirstBadLineIfNeeded();
+        void startBadLineIfNeeded(int raster, int cycle);
+        void runBadLineFetchCycle(int raster, int cycle);
+        void completeBadLineIfNeeded(int raster, int cycle);
         bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
@@ -318,13 +332,13 @@ class Vic
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
 
-        // Sprite DMA helpers
+        // Sprite DMA Helpers
         int spriteRowFromMCBase(int spr) const;
         bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
         bool isSpriteDMAComplete(int spr) const;
         void resetSpriteDMAState(int spr);
 
-        // Sprite collision helpers
+        // Sprite collision Helpers
         void detectSpriteToSpriteCollision(int raster);
         void detectSpriteToBackgroundCollision(int raster);
         bool checkSpriteBackgroundOverlap(int spriteIndex, int raster);
