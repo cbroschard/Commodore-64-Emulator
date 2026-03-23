@@ -1217,16 +1217,28 @@ int Vic::spritePreparedOutputWidth(int sprIndex) const
     return expandX ? 48 : 24;
 }
 
-void Vic::beginSpriteLineOutput(int sprIndex, int raster)
+void Vic::beginSpriteLineOutput(int spr, int raster)
 {
-    resetSpriteLineSequencer(sprIndex, raster);
+    int rowInSprite = 0;
+    int fbLine = 0;
+
+    spriteUnits[spr].rowPrepared = false;
+    spriteUnits[spr].outputBit = 0;
+    spriteUnits[spr].outputRepeat = 0;
+    spriteUnits[spr].outputXStart = 0;
+    spriteUnits[spr].outputWidth = 0;
+
+    if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
+        return;
+
+    spriteUnits[spr].rowPrepared = true;
+    resetSpriteLineSequencer(spr, raster);
 }
 
 void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 {
     spriteUnits[sprIndex].outputBit = 0;
     spriteUnits[sprIndex].outputRepeat = 0;
-    spriteUnits[sprIndex].rowPrepared = true;
     spriteUnits[sprIndex].outputXStart = spriteScreenXFor(sprIndex, raster);
     spriteUnits[sprIndex].outputWidth = spritePreparedOutputWidth(sprIndex);
 }
@@ -1309,14 +1321,6 @@ void Vic::beginSpriteRasterOutput(int raster)
 
     for (int spr = 0; spr < 8; ++spr)
     {
-        int rowInSprite = 0;
-        int fbLine = 0;
-        if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
-        {
-            spriteUnits[spr].rowPrepared = false;
-            continue;
-        }
-
         if (!spriteUnits[spr].rowPrepared)
             continue;
     }
@@ -2200,12 +2204,18 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     if (!spriteUnits[sprIndex].displayActive)
         return false;
 
-    const bool yExp = spriteUnits[sprIndex].yExpandLatch;
+    const int startY = spriteUnits[sprIndex].startY;
+    const bool yExp  = spriteUnits[sprIndex].yExpandLatch;
 
-    // currentRow is line-progress state from the sprite unit.
-    rowInSprite = spriteUnits[sprIndex].currentRow;
-    if (yExp)
-        rowInSprite /= 2;
+    int rasterDelta = raster - startY;
+    if (rasterDelta < 0)
+        rasterDelta += cfg_->maxRasterLines;
+
+    const int spriteHeight = yExp ? 42 : 21;
+    if (rasterDelta < 0 || rasterDelta >= spriteHeight)
+        return false;
+
+    rowInSprite = yExp ? (rasterDelta / 2) : rasterDelta;
 
     return rowInSprite >= 0 && rowInSprite < 21;
 }
