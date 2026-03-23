@@ -522,130 +522,109 @@ uint8_t Vic::readRegister(uint16_t address)
     if (address >= 0xD000 && address <= 0xD00F)
     {
         int index = getSpriteIndex(address);
-        return isSpriteX(address) ? registers.spriteX[index] : registers.spriteY[index];
+        return latchOpenBus(isSpriteX(address) ? registers.spriteX[index] : registers.spriteY[index]);
     }
     // Handle multicolor registers with helper
     else if (address >= 0xD022 && address <= 0xD024)
     {
-        return 0xF0 | (getBackgroundColor(address - 0xD022) & 0x0F);
+        return latchOpenBus(0xF0 | (getBackgroundColor(address - 0xD022) & 0x0F));
     }
     // Handle SpriteColor registers with helper
     else if (address >= 0xD027 && address <= 0xD02E)
     {
         int index = getSpriteColorIndex(address);
-        return 0xF0 | (registers.spriteColors[index] & 0x0F);
+        return latchOpenBus(0xF0 | (registers.spriteColors[index] & 0x0F));
     }
 
     switch(address)
     {
         case 0xD010:
-        {
-            return registers.spriteX_MSB;
-        }
+            return latchOpenBus(registers.spriteX_MSB);
+
         case 0xD011:
         {
-            // Bit 7 of $D011 reflects the high bit of the raster counter
             uint8_t highBit = (registers.raster >> 8) & 0x01;
+            return latchOpenBus((registers.control & 0x7F) | (highBit << 7));
+        }
 
-            // Combine the control register (bits 0-6) with the high bit of the raster counter
-            return (registers.control & 0x7F) | (highBit << 7);
-        }
         case 0xD012:
-        {
-            // Return the low byte of the current raster counter
-            return registers.raster & 0xFF;
-        }
+            return latchOpenBus(registers.raster & 0xFF);
+
         case 0xD013:
-        {
-            return registers.light_pen_X;
-        }
+            return latchOpenBus(registers.light_pen_X);
+
         case 0xD014:
-        {
-            return registers.light_pen_Y;
-        }
+            return latchOpenBus(registers.light_pen_Y);
+
         case 0xD015:
-        {
-            return registers.spriteEnabled;
-        }
+            return latchOpenBus(registers.spriteEnabled);
+
         case 0xD016:
-        {
-            return registers.control2;
-        }
+            return latchOpenBus(registers.control2);
+
         case 0xD017:
-        {
-            return registers.spriteYExpansion;
-        }
+            return latchOpenBus(registers.spriteYExpansion);
+
         case 0xD018:
-        {
-            return registers.memory_pointer;
-        }
+            return latchOpenBus(registers.memory_pointer);
+
         case 0xD019:
-        {
-            // Execute the function to keep monitor in sync with status
-            return d019Read();
-        }
+            return latchOpenBus(d019Read());
+
         case 0xD01A:
-        {
-            return (registers.interruptEnable & 0x0F) | 0xF0;
-        }
+            return latchOpenBus((registers.interruptEnable & 0x0F) | 0xF0);
+
         case 0xD01B:
-        {
-            return registers.spritePriority;
-        }
+            return latchOpenBus(registers.spritePriority);
+
         case 0xD01C:
-        {
-            return registers.spriteMultiColor;
-        }
+            return latchOpenBus(registers.spriteMultiColor);
+
         case 0xD01D:
-        {
-            return registers.spriteXExpansion;
-        }
+            return latchOpenBus(registers.spriteXExpansion);
+
         case 0xD01E:
         {
             uint8_t value = registers.spriteCollision;
             registers.spriteCollision = 0;
-            return value;
+            return latchOpenBus(value);
         }
+
         case 0xD01F:
         {
             uint8_t value = registers.spriteDataCollision;
             registers.spriteDataCollision = 0;
-            return value;
+            return latchOpenBus(value);
         }
+
         case 0xD020:
-        {
-            return 0xF0 | (registers.borderColor & 0x0F);
-        }
+            return latchOpenBus(0xF0 | (registers.borderColor & 0x0F));
+
         case 0xD021:
-        {
-            return 0xF0 | (registers.backgroundColor0 & 0x0F);
-        }
+            return latchOpenBus(0xF0 | (registers.backgroundColor0 & 0x0F));
+
         case 0xD025:
-        {
-            return 0xF0 | (registers.spriteMultiColor1 & 0x0F);
-        }
+            return latchOpenBus(0xF0 | (registers.spriteMultiColor1 & 0x0F));
+
         case 0xD026:
-        {
-            return 0xF0 | (registers.spriteMultiColor2 & 0x0F);
-        }
+            return latchOpenBus(0xF0 | (registers.spriteMultiColor2 & 0x0F));
+
         case 0xD02F:
-        {
-            return 0xFF; // Open Bus
-        }
+            return latchOpenBus(getOpenBus());
+
         case 0xD030:
-        {
-            return 0xFF; // handle for now as breadbin c64 only
-        }
+            return latchOpenBus(getOpenBus());
+
         default:
         {
             if (logger && setLogging)
             {
-                logger->WriteLog("Attempt to read to unhandled VIC address = " + std::to_string (static_cast<int>(address)));
-                return 0xFF;
+                logger->WriteLog("Attempt to read to unhandled VIC address = " +
+                                 std::to_string(static_cast<int>(address)));
             }
+            return latchOpenBus(getOpenBus());
         }
     }
-    return 0xFF;
 }
 
 void Vic::writeRegister(uint16_t address, uint8_t value)
@@ -2365,8 +2344,9 @@ bool Vic::innerDisplayOpenAtPixel(int raster, int px) const
         return false;
 
     // Transitional model:
-    // the inner area is open when horizontal border is not asserted.
-    return !vicState.horizontalBorder;
+    // if we are inside the inner display geometry and vertical border is open,
+    // allow display pixels here.
+    return true;
 }
 
 void Vic::updateVerticalBorderState(int raster)
@@ -2432,6 +2412,17 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
         return !innerDisplayOpenAtPixel(raster, px);
 
     return true;
+}
+
+uint8_t Vic::latchOpenBus(uint8_t value)
+{
+    vicState.openBus = value;
+    return value;
+}
+
+uint8_t Vic::getOpenBus() const
+{
+    return vicState.openBus;
 }
 
 void Vic::markBGOpaque(int screenY, int px)

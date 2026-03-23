@@ -425,6 +425,10 @@ class Vic
         void updateHorizontalBorderState(int raster);
         bool borderActiveAtPixel(int raster, int px) const;
 
+        // OpenBus Helpers
+        uint8_t latchOpenBus(uint8_t value);
+        uint8_t getOpenBus() const;
+
         // Screen helper
         inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }
 
