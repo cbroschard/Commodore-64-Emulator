@@ -1092,10 +1092,7 @@ void Vic::prepareSpriteShiftersForRaster(int raster)
             continue;
         }
 
-        int rowInSprite = spriteUnits[i].currentRow;
-        if (spriteUnits[i].yExpandLatch)
-            rowInSprite /= 2;
-
+        const int rowInSprite = spriteRowFromMCBase(i);
         loadSpriteShiftRegisters(i, raster, rowInSprite);
     }
 }
@@ -1140,10 +1137,7 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        int rowInSprite = spriteUnits[i].currentRow;
-        if (spriteUnits[i].yExpandLatch)
-            rowInSprite /= 2;
-
+        const int rowInSprite = spriteRowFromMCBase(i);
         loadSpriteShiftRegisters(i, raster, rowInSprite);
         beginSpriteLineOutput(i, raster);
     }
@@ -1361,23 +1355,69 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        const bool yExp = spriteUnits[s].yExpandLatch;
-        const int maxRows = yExp ? 42 : 21;
-
+        // Keep currentRow as a compatibility/debug mirror for now.
         spriteUnits[s].currentRow++;
 
-        if (spriteUnits[s].currentRow >= maxRows)
+        // Advance sprite data progression only when this line consumes a new
+        // logical sprite row.
+        if (shouldAdvanceSpriteMCBaseThisLine(s))
         {
-            spriteUnits[s].dmaActive = false;
-            spriteUnits[s].displayActive = false;
-            spriteUnits[s].currentRow = 0;
-            spriteUnits[s].rowPrepared = false;
-            spriteUnits[s].outputBit = 0;
-            spriteUnits[s].outputRepeat = 0;
-            spriteUnits[s].outputXStart = 0;
-            spriteUnits[s].outputWidth = 0;
+            spriteUnits[s].mcBase += 3;
+        }
+
+        // Mirror mc from mcBase for now.
+        spriteUnits[s].mc = spriteUnits[s].mcBase;
+
+        // Keep currentRow consistent with mcBase as we transition away from
+        // line-count-driven behavior.
+        if (spriteUnits[s].yExpandLatch)
+            spriteUnits[s].currentRow = spriteRowFromMCBase(s) * 2;
+        else
+            spriteUnits[s].currentRow = spriteRowFromMCBase(s);
+
+        if (isSpriteDMAComplete(s))
+        {
+            resetSpriteDMAState(s);
         }
     }
+}
+
+int Vic::spriteRowFromMCBase(int spr) const
+{
+    return spriteUnits[spr].mcBase / 3;
+}
+
+bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
+{
+    if (!spriteUnits[spr].yExpandLatch)
+        return true;
+
+    return (spriteUnits[spr].currentRow & 1) != 0;
+}
+
+bool Vic::isSpriteDMAComplete(int spr) const
+{
+    return spriteUnits[spr].mcBase >= 63;
+}
+
+void Vic::resetSpriteDMAState(int spr)
+{
+    spriteUnits[spr].dmaActive = false;
+    spriteUnits[spr].displayActive = false;
+
+    spriteUnits[spr].currentRow = 0;
+    spriteUnits[spr].mc = 0;
+    spriteUnits[spr].mcBase = 0;
+
+    spriteUnits[spr].rowPrepared = false;
+    spriteUnits[spr].outputBit = 0;
+    spriteUnits[spr].outputRepeat = 0;
+    spriteUnits[spr].outputXStart = 0;
+    spriteUnits[spr].outputWidth = 0;
+
+    spriteUnits[spr].shift0 = 0;
+    spriteUnits[spr].shift1 = 0;
+    spriteUnits[spr].shift2 = 0;
 }
 
 void Vic::updateSpriteDMAStartForCurrentLine()
@@ -1393,6 +1433,13 @@ void Vic::updateSpriteDMAStartForCurrentLine()
             spriteUnits[s].rowPrepared = false;
             spriteUnits[s].outputBit = 0;
             spriteUnits[s].outputRepeat = 0;
+            spriteUnits[s].mc = 0;
+            spriteUnits[s].mcBase = 0;
+            spriteUnits[s].outputXStart = 0;
+            spriteUnits[s].outputWidth = 0;
+            spriteUnits[s].shift0 = 0;
+            spriteUnits[s].shift1 = 0;
+            spriteUnits[s].shift2 = 0;
             continue;
         }
 
@@ -1411,6 +1458,11 @@ void Vic::updateSpriteDMAStartForCurrentLine()
             spriteUnits[s].outputBit = 0;
             spriteUnits[s].outputRepeat = 0;
             spriteUnits[s].rowPrepared = false;
+            spriteUnits[s].outputXStart = 0;
+            spriteUnits[s].outputWidth = 0;
+            spriteUnits[s].shift0 = 0;
+            spriteUnits[s].shift1 = 0;
+            spriteUnits[s].shift2 = 0;
         }
     }
 }

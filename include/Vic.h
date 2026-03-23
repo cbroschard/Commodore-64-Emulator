@@ -318,7 +318,13 @@ class Vic
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
 
-        // Sprite collision functions
+        // Sprite DMA helpers
+        int spriteRowFromMCBase(int spr) const;
+        bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
+        bool isSpriteDMAComplete(int spr) const;
+        void resetSpriteDMAState(int spr);
+
+        // Sprite collision helpers
         void detectSpriteToSpriteCollision(int raster);
         void detectSpriteToBackgroundCollision(int raster);
         bool checkSpriteBackgroundOverlap(int spriteIndex, int raster);
