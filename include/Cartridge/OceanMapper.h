@@ -31,12 +31,11 @@ class OceanMapper : public CartridgeMapper
     private:
 
         bool builtLists;
-        std::vector<uint16_t> loBanks; // CHIPs at $8000
-        std::vector<uint16_t> hiBanks; // CHIPs at $A000 (if any)
+        std::vector<uint16_t> banks;   // Valid Ocean bank numbers seen in CHIP sections
         uint8_t sel;
 
-        void buildBankLists();
-        bool mapPair(size_t index);
+        void buildBankList();
+        bool mapSelectedBank();
 };
 
 #endif // OCEANMAPPER_H

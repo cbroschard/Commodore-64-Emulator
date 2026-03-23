@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <set>
+#include <cstring>
 #include "Cartridge.h"
 #include "Cartridge/OceanMapper.h"
 
@@ -41,8 +43,7 @@ bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Force rebuild of derived lists
     builtLists = false;
-    loBanks.clear();
-    hiBanks.clear();
+    banks.clear();
 
     rdr.exitChunkPayload(chunk);
     return true;
@@ -50,76 +51,68 @@ bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 bool OceanMapper::applyMappingAfterLoad()
 {
-    // ensure lists exist, then map current selection
-    builtLists = false;          // buildBankLists() will do nothing if already built
-    return mapPair(static_cast<size_t>(sel));
+    builtLists = false;
+    banks.clear();
+    return mapSelectedBank();
 }
 
-void OceanMapper::buildBankLists()
+void OceanMapper::buildBankList()
 {
-    if (builtLists) return;
+    if (builtLists)
+        return;
 
-    std::set<uint16_t> loSet, hiSet;
+    std::set<uint16_t> bankSet;
+
     for (const auto& s : cart->getChipSections())
     {
-        if (s.chipType != 0) continue;
-        if (s.loadAddress == CART_LO_START) loSet.insert(s.bankNumber);
-        else if (s.loadAddress == CART_HI_START || s.loadAddress == CART_HI_START1) hiSet.insert(s.bankNumber);
+        if (s.chipType != 0)
+            continue;
+
+        if (s.loadAddress == CART_LO_START || s.loadAddress == CART_HI_START)
+            bankSet.insert(s.bankNumber);
     }
-    loBanks.assign(loSet.begin(), loSet.end());
-    hiBanks.assign(hiSet.begin(), hiSet.end());
+
+    banks.assign(bankSet.begin(), bankSet.end());
     builtLists = true;
 }
 
-bool OceanMapper::mapPair(size_t index)
+bool OceanMapper::mapSelectedBank()
 {
-    buildBankLists();
+    buildBankList();
 
     cart->clearCartridge(cartLocation::LO);
-    const bool hasHI = !hiBanks.empty();
-    if (hasHI) cart->clearCartridge(cartLocation::HI);
+    cart->clearCartridge(cartLocation::HI);
 
-    bool wroteLo = false, wroteHi = false;
+    bool wroteLo = false;
+    bool wroteHi = false;
 
-    if (!loBanks.empty()) {
-        const uint16_t bankLo = loBanks[ index % loBanks.size() ];
-        for (const auto& s : cart->getChipSections())
+    for (const auto& s : cart->getChipSections())
+    {
+        if (s.chipType != 0)
+            continue;
+
+        if (s.bankNumber != sel)
+            continue;
+
+        if (s.loadAddress == CART_LO_START)
         {
-            if (s.bankNumber == bankLo && s.loadAddress == CART_LO_START)
-            {
-                if (s.data.size() == 16384)
-                {
-                    // split 16K-at-$8000 if it ever appears
-                    for (size_t i = 0; i < 8192; ++i)
-                        mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
-                    wroteLo = true;
-                    if (hasHI)
-                    {
-                        for (size_t i = 0; i < 8192; ++i)
-                            mem->writeCartridge(static_cast<uint16_t>(i), s.data[8192 + i], cartLocation::HI);
-                        wroteHi = true;
-                    }
-                }
-                else
-                {
-                    for (size_t i = 0; i < s.data.size(); ++i)
-                        mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
-                    wroteLo = true;
-                }
-            }
+            if (s.data.size() != 8192)
+                continue;
+
+            for (size_t i = 0; i < s.data.size(); ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+
+            wroteLo = true;
         }
-    }
-
-    if (hasHI) {
-        const uint16_t bankHi = hiBanks[ index % hiBanks.size() ];
-        for (const auto& s : cart->getChipSections())
+        else if (s.loadAddress == CART_HI_START)
         {
-            if (s.bankNumber == bankHi && (s.loadAddress == CART_HI_START || s.loadAddress == CART_HI_START1))
-            {
-                for (size_t i = 0; i < s.data.size(); ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
-                wroteHi = true;
-            }
+            if (s.data.size() != 8192)
+                continue;
+
+            for (size_t i = 0; i < s.data.size(); ++i)
+                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+
+            wroteHi = true;
         }
     }
 
@@ -128,7 +121,7 @@ bool OceanMapper::mapPair(size_t index)
 
 uint8_t OceanMapper::read(uint16_t address)
 {
-    // Default
+    (void)address;
     return 0xFF;
 }
 
@@ -143,5 +136,5 @@ void OceanMapper::write(uint16_t address, uint8_t value)
 bool OceanMapper::loadIntoMemory(uint8_t bank)
 {
     sel = bank & 0x3F;
-    return mapPair(static_cast<size_t>(sel));
+    return mapSelectedBank();
 }
