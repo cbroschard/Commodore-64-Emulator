@@ -56,10 +56,6 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU8(j1)) { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(j2)) { rdr.exitChunkPayload(chunk); return false; }
 
-    int32_t oldP1 = -1, oldP2 = -1;
-    if (!rdr.readI32(oldP1)) { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readI32(oldP2)) { rdr.exitChunkPayload(chunk); return false; }
-
     int32_t tmp = 0;
 
     // joy1
@@ -100,7 +96,6 @@ bool InputManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     setJoystickAttached(1, j1 != 0);
     setJoystickAttached(2, j2 != 0);
 
-    // Runtime-only controller assignment: rebuild from currently connected pads.
     clearPortPad(1);
     clearPortPad(2);
 
