@@ -61,7 +61,7 @@ void IDE64Controller::saveState(StateWriter& wrtr) const
     wrtr.writeU16(bufferIndex);
     wrtr.writeU16(bufferSize);
     wrtr.writeU32(currentLBA);
-    wrtr.writeU8(sectorsRemaining);
+    wrtr.writeU16(sectorsRemaining);
     wrtr.writeU8(registers.dataLo);
     wrtr.writeU8(registers.dataHi);
     wrtr.writeU8(static_cast<uint8_t>(cmd));
@@ -83,7 +83,7 @@ bool IDE64Controller::loadState(StateReader& rdr)
     if (!rdr.readU16(bufferIndex))              return false;
     if (!rdr.readU16(bufferSize))               return false;
     if (!rdr.readU32(currentLBA))               return false;
-    if (!rdr.readU8(sectorsRemaining))          return false;
+    if (!rdr.readU16(sectorsRemaining))         return false;
     if (!rdr.readU8(registers.dataLo))          return false;
     if (!rdr.readU8(registers.dataHi))          return false;
 
@@ -100,6 +100,21 @@ bool IDE64Controller::loadState(StateReader& rdr)
 
     for (size_t i = 0; i < sectorBuffer.size(); i++)
         if (!rdr.readU8(sectorBuffer[i]))       return false;
+
+    // If the cmd is anything other than none, we need to ensure our device is active
+    if (cmd != CurrentCommand::NONE)
+    {
+        activeDevice = getSelectedDevice();
+
+        if (!activeDevice || !activeDevice->isPresent())
+        {
+            failCommand(0x04);
+        }
+    }
+    else
+    {
+        activeDevice = nullptr;
+    }
 
     return true;
 }
@@ -140,10 +155,8 @@ uint8_t IDE64Controller::readRegister(uint16_t address)
             bufferIndex += 2;
 
             if (bufferIndex >= bufferSize)
-            {
-                // End of read reset status
-                finishCommandSuccess();
-            }
+                handleReadBufferComplete();
+
             return value;
         }
 
@@ -158,36 +171,44 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
     if (address >= TASKFILE_BASE && address <= TASKFILE_END)
     {
         const uint8_t reg = regIndex(address);
-        registers.taskFile[reg] = value;
 
         switch (reg)
         {
             case REG_FEATURES:
+                registers.taskFile[REG_FEATURES] = value;
                 break;
 
             case REG_SECTOR_COUNT:
+                registers.taskFile[REG_SECTOR_COUNT] = value;
                 break;
 
             case REG_LBA0:
+                registers.taskFile[REG_LBA0] = value;
                 break;
 
             case REG_LBA1:
+                registers.taskFile[REG_LBA1] = value;
                 break;
 
             case REG_LBA2:
+                registers.taskFile[REG_LBA2] = value;
                 break;
 
             case REG_DEVICE_HEAD:
+                registers.taskFile[REG_DEVICE_HEAD] = value;
                 break;
 
             case REG_COMMAND:
+                registers.taskFile[REG_COMMAND] = value;
                 executeCommand(value);
                 break;
 
             case REG_DEVICE_CTRL:
+                registers.taskFile[REG_DEVICE_CTRL] = value;
                 break;
 
             case REG_DRIVE_ADDR:
+                registers.taskFile[REG_DRIVE_ADDR] = value;
                 break;
 
             default:
@@ -232,7 +253,34 @@ void IDE64Controller::executeCommand(uint8_t value)
             sectorsRemaining        = 0;
             break;
         }
-        case 0x20:  // Read sectors
+        case 0x20: // READ SECTORS
+        {
+            activeDevice = getSelectedDevice();
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            currentLBA = getCurrentLBA();
+            sectorsRemaining = getNormalizedSectorCount();
+
+            if (!activeDevice->readSector(currentLBA, sectorBuffer.data(), SECTOR_SIZE))
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            --sectorsRemaining;
+
+            cmd         = CurrentCommand::READ_SECTORS;
+            direction   = TransferDirection::TO_HOST;
+            bufferIndex = 0;
+            bufferSize  = SECTOR_SIZE;
+            error       = 0x00;
+            status      = 0x48;
+            return;
+        }
         case 0x30:  // Write ssctors
         default:
             break;
@@ -291,24 +339,71 @@ void IDE64Controller::setIdentifyString(uint8_t startIndex, uint8_t wordCount, c
 
 void IDE64Controller::finishCommandSuccess()
 {
-    activeDevice = nullptr;
-    cmd = CurrentCommand::NONE;
-    direction = TransferDirection::NONE;
-    bufferIndex = 0;
-    bufferSize = 0;
-    sectorsRemaining = 0;
-    error = 0x00;
-    status = 0x40;
+    activeDevice        = nullptr;
+    cmd                 = CurrentCommand::NONE;
+    currentLBA          = 0;
+    direction           = TransferDirection::NONE;
+    bufferIndex         = 0;
+    bufferSize          = 0;
+    sectorsRemaining    = 0;
+    error               = 0x00;
+    status              = 0x40;
 }
 
 void IDE64Controller::failCommand(uint8_t errorCode)
 {
-    activeDevice = nullptr;
-    cmd = CurrentCommand::NONE;
-    direction = TransferDirection::NONE;
-    bufferIndex = 0;
-    bufferSize = 0;
-    sectorsRemaining = 0;
-    error = errorCode;
-    status = 0x41;
+    activeDevice        = nullptr;
+    cmd                 = CurrentCommand::NONE;
+    currentLBA          = 0;
+    direction           = TransferDirection::NONE;
+    bufferIndex         = 0;
+    bufferSize          = 0;
+    sectorsRemaining    = 0;
+    error               = errorCode;
+    status              = 0x41;
+}
+
+uint32_t IDE64Controller::getCurrentLBA() const
+{
+    const uint8_t lba0 = registers.taskFile[REG_LBA0];
+    const uint8_t lba1 = registers.taskFile[REG_LBA1];
+    const uint8_t lba2 = registers.taskFile[REG_LBA2];
+    const uint8_t lba3 = registers.taskFile[REG_DEVICE_HEAD] & 0x0F;
+
+    return static_cast<uint32_t>(lba0) |
+           (static_cast<uint32_t>(lba1) << 8) |
+           (static_cast<uint32_t>(lba2) << 16) |
+           (static_cast<uint32_t>(lba3) << 24);
+}
+
+uint16_t IDE64Controller::getNormalizedSectorCount() const
+{
+    const uint8_t raw = registers.taskFile[REG_SECTOR_COUNT];
+
+    return (raw == 0) ? 1 : raw;
+}
+
+void IDE64Controller::handleReadBufferComplete()
+{
+    if (cmd == CurrentCommand::READ_SECTORS && sectorsRemaining > 0)
+    {
+        ++currentLBA;
+
+        if (!activeDevice ||
+            !activeDevice->isPresent() ||
+            !activeDevice->readSector(currentLBA, sectorBuffer.data(), SECTOR_SIZE))
+        {
+            failCommand(0x04);
+            return;
+        }
+
+        --sectorsRemaining;
+        bufferIndex = 0;
+        bufferSize = SECTOR_SIZE;
+        status = 0x48;
+        error = 0x00;
+        return;
+    }
+
+    finishCommandSuccess();
 }

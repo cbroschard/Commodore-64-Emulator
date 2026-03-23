@@ -111,7 +111,7 @@ class IDE64Controller
         uint16_t bufferSize;
 
         uint32_t currentLBA;
-        uint8_t  sectorsRemaining;
+        uint16_t  sectorsRemaining;
 
         // Helpers
         inline static constexpr uint8_t regIndex(uint16_t address) { return static_cast<uint8_t>(address - TASKFILE_BASE); }
@@ -128,6 +128,10 @@ class IDE64Controller
 
         void finishCommandSuccess();
         void failCommand(uint8_t errorCode);
+
+        uint32_t getCurrentLBA() const;
+        uint16_t getNormalizedSectorCount() const;
+        void handleReadBufferComplete();
 };
 
 #endif // IDE64CONTROLLER_H
