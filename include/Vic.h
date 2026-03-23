@@ -292,22 +292,6 @@ class Vic
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
 
-        // Tick() Helpers
-        void beginFrameIfNeeded();
-        void beginRasterIfNeeded();
-
-        void performRasterNMinus1Latch();
-        void performSpritePointerFetches();
-        void performBadLineCycle();
-
-        void advanceCycleAndFinalizeLineIfNeeded();
-        void finalizeCurrentRasterLine(int curRaster);
-        void finalizeFrameIfNeeded(int curRaster);
-        void advanceToNextRaster();
-        void traceRasterEnd();
-
-        void updatePerCycleState();
-
         // Address enable control
         void updateBusArbitration();
         bool AEC;
