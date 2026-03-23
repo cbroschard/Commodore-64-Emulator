@@ -242,6 +242,10 @@ class Vic
 
             int outputXStart = 0;
             int outputWidth = 0;
+
+            uint8_t fetched0 = 0;
+            uint8_t fetched1 = 0;
+            uint8_t fetched2 = 0;
         };
 
         std::array<SpriteUnit, 8> spriteUnits;
@@ -337,6 +341,9 @@ class Vic
         bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
         bool isSpriteDMAComplete(int spr) const;
         void resetSpriteDMAState(int spr);
+        void performSpriteDataFetches();
+        void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
+        void latchSpriteShiftersFromFetchedBytes(int sprite);
 
         // Sprite collision Helpers
         void detectSpriteToSpriteCollision(int raster);
@@ -428,6 +435,7 @@ class Vic
         // OpenBus Helpers
         uint8_t latchOpenBus(uint8_t value);
         uint8_t getOpenBus() const;
+        uint8_t latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask);
 
         // Screen helper
         inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }

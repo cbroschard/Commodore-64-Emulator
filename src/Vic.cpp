@@ -543,8 +543,9 @@ uint8_t Vic::readRegister(uint16_t address)
 
         case 0xD011:
         {
-            uint8_t highBit = (registers.raster >> 8) & 0x01;
-            return latchOpenBus((registers.control & 0x7F) | (highBit << 7));
+            const uint8_t highBit = (registers.raster >> 8) & 0x01;
+            const uint8_t value = (registers.control & 0x7F) | (highBit << 7);
+            return latchOpenBusMasked(value, 0xFF);
         }
 
         case 0xD012:
@@ -560,19 +561,25 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(registers.spriteEnabled);
 
         case 0xD016:
-            return latchOpenBus(registers.control2);
+            return latchOpenBusMasked(registers.control2, 0xFF);
 
         case 0xD017:
             return latchOpenBus(registers.spriteYExpansion);
 
         case 0xD018:
-            return latchOpenBus(registers.memory_pointer);
+            return latchOpenBusMasked(registers.memory_pointer, 0xFF);
 
         case 0xD019:
-            return latchOpenBus(d019Read());
+        {
+            const uint8_t value = d019Read();
+            return latchOpenBusMasked(value, 0x8F);
+        }
 
         case 0xD01A:
-            return latchOpenBus((registers.interruptEnable & 0x0F) | 0xF0);
+        {
+            const uint8_t value = (registers.interruptEnable & 0x0F);
+            return latchOpenBusMasked(value, 0x0F);
+        }
 
         case 0xD01B:
             return latchOpenBus(registers.spritePriority);
@@ -785,6 +792,7 @@ void Vic::tick(int cycles)
 
         performRasterNMinus1Latch();
         performSpritePointerFetches();
+        performSpriteDataFetches();
         performBadLineCycle();
 
         advanceCycleAndFinalizeLineIfNeeded();
@@ -1116,6 +1124,8 @@ void Vic::fetchSpritePointer(int sprite, int raster)
 
 void Vic::prepareSpriteOutputForRaster(int raster)
 {
+    (void)raster;
+
     for (int i = 0; i < 8; ++i)
     {
         spriteUnits[i].rowPrepared = false;
@@ -1140,8 +1150,6 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        const int rowInSprite = spriteRowFromMCBase(i);
-        loadSpriteShiftRegisters(i, raster, rowInSprite);
         beginSpriteLineOutput(i, raster);
     }
 }
@@ -1311,8 +1319,6 @@ void Vic::beginSpriteRasterOutput(int raster)
 
         if (!spriteUnits[spr].rowPrepared)
             continue;
-
-        resetSpriteLineSequencer(spr, raster);
     }
 }
 
@@ -1421,6 +1427,65 @@ void Vic::resetSpriteDMAState(int spr)
     spriteUnits[spr].shift0 = 0;
     spriteUnits[spr].shift1 = 0;
     spriteUnits[spr].shift2 = 0;
+}
+
+void Vic::performSpriteDataFetches()
+{
+    const int raster = registers.raster;
+    const int cycle  = currentCycle;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!spriteUnits[s].dmaActive)
+            continue;
+
+        if (!isSpriteDMAFetchCycle(s, cycle))
+            continue;
+
+        const int slotStart = spriteFetchSlotStart(s);
+        int byteIndex = cycle - slotStart;
+        if (byteIndex < 0)
+            byteIndex += cfg_->cyclesPerLine;
+
+        if (byteIndex >= 0 && byteIndex < 3)
+            fetchSpriteDataByte(s, byteIndex, raster);
+    }
+}
+
+void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
+{
+    if (!mem)
+        return;
+
+    const int rowInSprite = spriteRowFromMCBase(sprite);
+    if (rowInSprite < 0 || rowInSprite >= 21)
+        return;
+
+    const uint16_t addr = spriteUnits[sprite].dataBase + rowInSprite * 3 + byteIndex;
+    const uint8_t value = mem->vicRead(addr, raster);
+
+    if (byteIndex == 0)
+    {
+        spriteUnits[sprite].fetched0 = value;
+    }
+    else if (byteIndex == 1)
+    {
+        spriteUnits[sprite].fetched1 = value;
+    }
+    else if (byteIndex == 2)
+    {
+        spriteUnits[sprite].fetched2 = value;
+
+        // Sprite row data becomes live when the 3rd byte arrives.
+        latchSpriteShiftersFromFetchedBytes(sprite);
+    }
+}
+
+void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
+{
+    spriteUnits[sprite].shift0 = spriteUnits[sprite].fetched0;
+    spriteUnits[sprite].shift1 = spriteUnits[sprite].fetched1;
+    spriteUnits[sprite].shift2 = spriteUnits[sprite].fetched2;
 }
 
 void Vic::updateSpriteDMAStartForCurrentLine()
@@ -2423,6 +2488,16 @@ uint8_t Vic::latchOpenBus(uint8_t value)
 uint8_t Vic::getOpenBus() const
 {
     return vicState.openBus;
+}
+
+uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
+{
+    const uint8_t value =
+        (getOpenBus() & static_cast<uint8_t>(~definedMask)) |
+        (definedBits & definedMask);
+
+    vicState.openBus = value;
+    return value;
 }
 
 void Vic::markBGOpaque(int screenY, int px)
