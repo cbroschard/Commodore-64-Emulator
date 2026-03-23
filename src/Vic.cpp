@@ -801,168 +801,228 @@ void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
     {
-        // Clear DEN latch at frame start
-        if (currentCycle == 0 && registers.raster == 0)
-        {
-            firstBadlineY = -1;
-            denSeenOn30 = false;
+        beginFrameIfNeeded();
+        beginRasterIfNeeded();
 
-            // Reset VIC-style display counters at frame start
+        performRasterNMinus1Latch();
+        performSpritePointerFetches();
+        performBadLineCycle();
+
+        advanceCycleAndFinalizeLineIfNeeded();
+
+        updatePerCycleState();
+    }
+}
+
+void Vic::beginFrameIfNeeded()
+{
+    // Clear DEN latch at frame start
+    if (currentCycle == 0 && registers.raster == 0)
+    {
+        firstBadlineY = -1;
+        denSeenOn30 = false;
+
+        // Reset VIC-style display counters at frame start
+        vicState.vcBase = 0;
+        vicState.vc = 0;
+        vicState.rc = 0;
+        vicState.badLine = false;
+
+        // Compatibility mirrors
+        rowCounter = 0;
+        currentScreenRow = 0;
+    }
+
+    if ((registers.raster == 0x30) && (registers.control & 0x10))
+        denSeenOn30 = true;
+}
+
+void Vic::beginRasterIfNeeded()
+{
+    // Fire raster IRQ at start of the line
+    if (currentCycle == 0)
+    {
+        if (registers.raster == registers.rasterInterruptLine)
+        {
+            if (!(registers.interruptStatus & 0x01))
+                registers.interruptStatus |= 0x01;
+
+            updateIRQLine();
+        }
+    }
+}
+
+void Vic::performRasterNMinus1Latch()
+{
+    // N-1 latching
+    uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+    if (currentCycle == cfg_->DMAStartCycle)
+    {
+        d011_per_raster[nextRaster] = registers.control & 0x7F;
+        d016_per_raster[nextRaster] = registers.control2;
+        d018_per_raster[nextRaster] = registers.memory_pointer;
+        dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
+        updateMonitorCaches(nextRaster);
+
+        // Sprite DMA becomes state-driven.
+        updateSpriteDMAStartForCurrentLine();
+    }
+}
+
+void Vic::performSpritePointerFetches()
+{
+    // Fetch sprite pointers in each sprite's pointer slot
+    for (int i = 0; i < 8; ++i)
+    {
+        if (spriteUnits[i].dmaActive && currentCycle == spriteFetchSlotStart(i))
+        {
+            fetchSpritePointer(i, registers.raster);
+        }
+    }
+}
+
+void Vic::performBadLineCycle()
+{
+    // Bad line DMA
+    if (isBadLine(registers.raster))
+    {
+        if (firstBadlineY < 0)
+        {
+            firstBadlineY = registers.raster;
+
+            // First visible character row starts at VCBASE = 0.
             vicState.vcBase = 0;
             vicState.vc = 0;
             vicState.rc = 0;
-            vicState.badLine = false;
 
-            // Compatibility mirrors
-            rowCounter = 0;
             currentScreenRow = 0;
+            rowCounter = 0;
         }
-
-        if ((registers.raster == 0x30) && (registers.control & 0x10)) denSeenOn30 = true;
-
-        // Fire raster IRQ at start of the line
-        if (currentCycle == 0)
-        {
-            if (registers.raster == registers.rasterInterruptLine)
-            {
-                if (!(registers.interruptStatus & 0x01)) registers.interruptStatus |= 0x01;
-                updateIRQLine();
-            }
-        }
-
-        // N-1 latching
-        uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
         if (currentCycle == cfg_->DMAStartCycle)
         {
-            d011_per_raster[nextRaster] = registers.control & 0x7F;
-            d016_per_raster[nextRaster] = registers.control2;
-            d018_per_raster[nextRaster] = registers.memory_pointer;
-            dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
-            updateMonitorCaches(nextRaster);
-
-            // Sprite DMA becomes state-driven.
-            updateSpriteDMAStartForCurrentLine();
+            beginBadLineFetch();
         }
 
-        // Fetch sprite pointers in each sprite's pointer slot
-        for (int i = 0; i < 8; ++i)
+        const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
+        if (fetchIndex >= 0 && fetchIndex < 40)
         {
-            if (spriteUnits[i].dmaActive && currentCycle == spriteFetchSlotStart(i))
-            {
-                fetchSpritePointer(i, registers.raster);
-            }
+            fetchBadLineMatrixByte(fetchIndex, registers.raster);
         }
 
-        // Bad line DMA
-        if (isBadLine(registers.raster))
+        // After the 40 matrix fetches, VC has advanced by one row.
+        if (currentCycle == cfg_->DMAEndCycle)
         {
-            if (firstBadlineY < 0)
-            {
-                firstBadlineY = registers.raster;
-
-                // First visible character row starts at VCBASE = 0.
-                vicState.vcBase = 0;
-                vicState.vc = 0;
-                vicState.rc = 0;
-
-                currentScreenRow = 0;
-                rowCounter = 0;
-            }
-
-            if (currentCycle == cfg_->DMAStartCycle)
-            {
-                beginBadLineFetch();
-            }
-
-            const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
-            if (fetchIndex >= 0 && fetchIndex < 40)
-            {
-                fetchBadLineMatrixByte(fetchIndex, registers.raster);
-            }
-
-            // After the 40 matrix fetches, VC has advanced by one row.
-            if (currentCycle == cfg_->DMAEndCycle)
-            {
-                vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
-            }
+            vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
         }
-        else
-        {
-            vicState.badLine = false;
-        }
-
-        ++currentCycle;
-
-        // End of raster line
-        if (currentCycle >= cfg_->cyclesPerLine)
-        {
-            currentCycle = 0;
-
-            const int curRaster = registers.raster;
-
-            // Prepare sprite row/output state for this raster
-            prepareSpriteOutputForRaster(curRaster);
-
-            // Raster-progressive sprite output into line buffers
-            beginSpriteRasterOutput(curRaster);
-
-            int sx0, sx1;
-            spriteVisibleXRange(sx0, sx1);
-            for (int px = sx0; px < sx1; ++px)
-            {
-                stepSpriteSequencersAtX(curRaster, px);
-            }
-
-            finishSpriteRasterOutput(curRaster);
-
-            // Update border state for this raster
-            updateVerticalBorderState(curRaster);
-            updateHorizontalBorderState(curRaster);
-            vicState.mainBorder = vicState.verticalBorder || vicState.horizontalBorder;
-
-            // Render and collisions for this line
-            renderLine(curRaster);
-            detectSpriteToSpriteCollision(curRaster);
-            detectSpriteToBackgroundCollision(curRaster);
-
-            // Advance/finish sprite DMA state
-            updateSpriteDMAEndOfLine(curRaster);
-
-            // Advance VIC-style display counters
-            advanceVideoCountersEndOfLine(curRaster);
-
-            // End-of-frame check must use the pre-increment raster (curRaster)
-            if (curRaster == cfg_->maxRasterLines - 1)
-            {
-                frameDone = true;
-                if (IO_adapter)
-                {
-                    const int lastFBY = fbY(curRaster);
-                    const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
-                    for (int y = lastFBY + 1; y < fbH; ++y)
-                    {
-                        IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
-                    }
-                }
-            }
-
-            // Now advance raster to the next line
-            registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
-
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
-            {
-                TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
-
-                // Record raster state at end of line
-                traceMgr->recordVicRaster(registers.raster, currentCycle, (registers.interruptStatus & 0x01) != 0,
-                    registers.control, registers.rasterInterruptLine & 0xFF, stamp);
-            }
-        }
-
-        // Per-cycle bus arbitration
-        updateBusArbitration();
     }
+    else
+    {
+        vicState.badLine = false;
+    }
+}
+
+void Vic::advanceCycleAndFinalizeLineIfNeeded()
+{
+    ++currentCycle;
+
+    // End of raster line
+    if (currentCycle >= cfg_->cyclesPerLine)
+    {
+        currentCycle = 0;
+
+        const int curRaster = registers.raster;
+        finalizeCurrentRasterLine(curRaster);
+    }
+}
+
+void Vic::finalizeCurrentRasterLine(int curRaster)
+{
+    // Prepare sprite row/output state for this raster
+    prepareSpriteOutputForRaster(curRaster);
+
+    // Raster-progressive sprite output into line buffers
+    beginSpriteRasterOutput(curRaster);
+
+    int sx0, sx1;
+    spriteVisibleXRange(sx0, sx1);
+    for (int px = sx0; px < sx1; ++px)
+    {
+        stepSpriteSequencersAtX(curRaster, px);
+    }
+
+    finishSpriteRasterOutput(curRaster);
+
+    // Update border state for this raster
+    updateVerticalBorderState(curRaster);
+    updateHorizontalBorderState(curRaster);
+    vicState.mainBorder = vicState.verticalBorder || vicState.horizontalBorder;
+
+    // Render and collisions for this line
+    renderLine(curRaster);
+    detectSpriteToSpriteCollision(curRaster);
+    detectSpriteToBackgroundCollision(curRaster);
+
+    // Advance/finish sprite DMA state
+    updateSpriteDMAEndOfLine(curRaster);
+
+    // Advance VIC-style display counters
+    advanceVideoCountersEndOfLine(curRaster);
+
+    finalizeFrameIfNeeded(curRaster);
+    advanceToNextRaster();
+    traceRasterEnd();
+}
+
+void Vic::finalizeFrameIfNeeded(int curRaster)
+{
+    // End-of-frame check must use the pre-increment raster (curRaster)
+    if (curRaster == cfg_->maxRasterLines - 1)
+    {
+        frameDone = true;
+
+        if (IO_adapter)
+        {
+            const int lastFBY = fbY(curRaster);
+            const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
+
+            for (int y = lastFBY + 1; y < fbH; ++y)
+            {
+                IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
+            }
+        }
+    }
+}
+
+void Vic::advanceToNextRaster()
+{
+    // Now advance raster to the next line
+    registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+}
+
+void Vic::traceRasterEnd()
+{
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+    {
+        TraceManager::Stamp stamp =
+            traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                registers.raster,
+                                (currentCycle * 8));
+
+        // Record raster state at end of line
+        traceMgr->recordVicRaster(registers.raster, currentCycle,
+                                  (registers.interruptStatus & 0x01) != 0,
+                                  registers.control,
+                                  registers.rasterInterruptLine & 0xFF,
+                                  stamp);
+    }
+}
+
+void Vic::updatePerCycleState()
+{
+    // Per-cycle bus arbitration
+    updateBusArbitration();
 }
 
 int Vic::spriteFetchSlotStart(int sprite) const
