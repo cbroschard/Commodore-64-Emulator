@@ -1977,15 +1977,10 @@ void Vic::composeFinalRasterLine(int raster)
 uint8_t Vic::compositePixelAtX(int raster, int px) const
 {
     const uint8_t border = registers.borderColor & 0x0F;
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
 
     uint8_t color = border;
 
-    const bool displayPixel =
-        DEN &&
-        !vicState.verticalBorder &&
-        isInnerDisplayPixel(raster, px) &&
-        !vicState.horizontalBorder;
+    const bool displayPixel = innerDisplayOpenAtPixel(raster, px);
 
     if (displayPixel)
     {
@@ -2356,6 +2351,24 @@ int Vic::currentCharacterRow() const
     return static_cast<int>(vicState.vcBase / 40);
 }
 
+bool Vic::innerDisplayOpenAtPixel(int raster, int px) const
+{
+    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+
+    if (!den)
+        return false;
+
+    if (vicState.verticalBorder)
+        return false;
+
+    if (!isInnerDisplayPixel(raster, px))
+        return false;
+
+    // Transitional model:
+    // the inner area is open when horizontal border is not asserted.
+    return !vicState.horizontalBorder;
+}
+
 void Vic::updateVerticalBorderState(int raster)
 {
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
@@ -2388,15 +2401,19 @@ void Vic::updateVerticalBorderState(int raster)
 
 void Vic::updateHorizontalBorderState(int raster)
 {
-    (void)raster;
+    const bool den = (d011_per_raster[raster] & 0x10) != 0;
 
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
-    if (!DEN || vicState.verticalBorder)
+    // If display is disabled or vertical border is closed,
+    // the inner area cannot be open.
+    if (!den || vicState.verticalBorder)
     {
         vicState.horizontalBorder = true;
         return;
     }
 
+    // Transitional model:
+    // once vertical display is open and DEN is set,
+    // the inner display area is open for this raster.
     vicState.horizontalBorder = false;
 }
 
@@ -2411,7 +2428,10 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
     if (isRightBorderPixel(raster, px))
         return true;
 
-    return vicState.horizontalBorder;
+    if (isInnerDisplayPixel(raster, px))
+        return !innerDisplayOpenAtPixel(raster, px);
+
+    return true;
 }
 
 void Vic::markBGOpaque(int screenY, int px)
