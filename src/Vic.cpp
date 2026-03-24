@@ -883,7 +883,6 @@ void Vic::performBadLineCycle()
     initializeFirstBadLineIfNeeded();
     startBadLineIfNeeded(raster, cycle);
     runBadLineFetchCycle(raster, cycle);
-    completeBadLineIfNeeded(raster, cycle);
 }
 
 void Vic::initializeFirstBadLineIfNeeded()
@@ -920,17 +919,6 @@ void Vic::runBadLineFetchCycle(int raster, int cycle)
     if (fetchIndex >= 0 && fetchIndex < 40)
     {
         fetchBadLineMatrixByte(fetchIndex, raster);
-    }
-}
-
-void Vic::completeBadLineIfNeeded(int raster, int cycle)
-{
-    (void)raster;
-
-    // After the 40 matrix fetches, VC has advanced by one row.
-    if (cycle == cfg_->DMAEndCycle)
-    {
-        vicState.vc = static_cast<uint16_t>(vicState.vcBase + 40);
     }
 }
 
@@ -1044,9 +1032,9 @@ bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
     const int slotStart = spriteFetchSlotStart(sprite);
     const int lineCycles = cfg_->cyclesPerLine;
 
-    return cycle == slotStart ||
-           cycle == ((slotStart + 1) % lineCycles) ||
-           cycle == ((slotStart + 2) % lineCycles);
+    return cycle == ((slotStart + 1) % lineCycles) ||
+           cycle == ((slotStart + 2) % lineCycles) ||
+           cycle == ((slotStart + 3) % lineCycles);
 }
 
 void Vic::syncSpriteCompatAddress(int sprite)
@@ -1327,7 +1315,8 @@ void Vic::resetSpriteDMAState(int spr)
 void Vic::performSpriteDataFetches()
 {
     const int raster = registers.raster;
-    const int cycle  = currentCycle;
+    const int cycle = currentCycle;
+    const int lineCycles = cfg_->cyclesPerLine;
 
     for (int s = 0; s < 8; ++s)
     {
@@ -1338,9 +1327,11 @@ void Vic::performSpriteDataFetches()
             continue;
 
         const int slotStart = spriteFetchSlotStart(s);
-        int byteIndex = cycle - slotStart;
+        const int firstDataCycle = (slotStart + 1) % lineCycles;
+
+        int byteIndex = cycle - firstDataCycle;
         if (byteIndex < 0)
-            byteIndex += cfg_->cyclesPerLine;
+            byteIndex += lineCycles;
 
         if (byteIndex >= 0 && byteIndex < 3)
             fetchSpriteDataByte(s, byteIndex, raster);
@@ -1381,6 +1372,11 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     spriteUnits[sprite].shift0 = spriteUnits[sprite].fetched0;
     spriteUnits[sprite].shift1 = spriteUnits[sprite].fetched1;
     spriteUnits[sprite].shift2 = spriteUnits[sprite].fetched2;
+}
+
+bool Vic::isSpritePointerFetchCycle(int sprite, int cycle) const
+{
+    return cycle == spriteFetchSlotStart(sprite);
 }
 
 void Vic::updateSpriteDMAStartForCurrentLine()
@@ -1456,8 +1452,14 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
     if (!isBadLine(raster))
         return false;
 
-    const int warnStart = cfg_->DMAStartCycle - 3;
-    return cycle >= warnStart && cycle < cfg_->DMAStartCycle;
+    const int lineCycles = cfg_->cyclesPerLine;
+    const int slot = cfg_->DMAStartCycle;
+
+    const int warn0 = (slot - 3 + lineCycles) % lineCycles;
+    const int warn1 = (slot - 2 + lineCycles) % lineCycles;
+    const int warn2 = (slot - 1 + lineCycles) % lineCycles;
+
+    return cycle == warn0 || cycle == warn1 || cycle == warn2;
 }
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
@@ -1473,15 +1475,20 @@ bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
 {
     (void)raster;
 
+    const int lineCycles = cfg_->cyclesPerLine;
+
     for (int s = 0; s < 8; ++s)
     {
         if (!spriteUnits[s].dmaActive)
             continue;
 
         const int slot = spriteFetchSlotStart(s);
-        const int warnStart = slot - 3;
 
-        if (cycle >= warnStart && cycle < slot)
+        const int warn0 = (slot - 3 + lineCycles) % lineCycles;
+        const int warn1 = (slot - 2 + lineCycles) % lineCycles;
+        const int warn2 = (slot - 1 + lineCycles) % lineCycles;
+
+        if (cycle == warn0 || cycle == warn1 || cycle == warn2)
             return true;
     }
 
@@ -1496,6 +1503,9 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
     {
         if (!spriteUnits[s].dmaActive)
             continue;
+
+        if (isSpritePointerFetchCycle(s, cycle))
+            return true;
 
         if (isSpriteDMAFetchCycle(s, cycle))
             return true;
@@ -1539,7 +1549,6 @@ void Vic::beginBadLineFetch()
 {
     vicState.badLine = true;
     vicState.rc = 0;
-    vicState.vc = vicState.vcBase;
 
     // Compatibility mirrors
     rowCounter = vicState.rc;
@@ -1548,7 +1557,7 @@ void Vic::beginBadLineFetch()
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 {
-    const uint16_t vc = static_cast<uint16_t>(vicState.vc + fetchIndex);
+    const uint16_t vc = static_cast<uint16_t>(vicState.vcBase + fetchIndex);
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
 

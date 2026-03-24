@@ -107,7 +107,6 @@ class Vic
         std::string decodeModeName() const;
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
-        uint16_t getCurrentRaster() { return registers.raster; }
         inline void setLog(bool enable) { setLogging = enable; }
         uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
@@ -304,7 +303,6 @@ class Vic
         void initializeFirstBadLineIfNeeded();
         void startBadLineIfNeeded(int raster, int cycle);
         void runBadLineFetchCycle(int raster, int cycle);
-        void completeBadLineIfNeeded(int raster, int cycle);
         bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
@@ -343,6 +341,7 @@ class Vic
         void performSpriteDataFetches();
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
+        bool isSpritePointerFetchCycle(int sprite, int cycle) const;
 
         // Sprite collision Helpers
         void detectSpriteToSpriteCollision(int raster);
