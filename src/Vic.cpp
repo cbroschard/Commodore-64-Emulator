@@ -963,8 +963,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
         stepSpriteSequencersAtX(curRaster, px);
     }
 
-    finishSpriteRasterOutput(curRaster);
-
     // Update border state for this raster
     updateVerticalBorderState(curRaster);
     updateHorizontalBorderState(curRaster);
@@ -1056,56 +1054,11 @@ void Vic::syncSpriteCompatAddress(int sprite)
     sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
 }
 
-void Vic::loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite)
-{
-    if (!mem)
-        return;
-
-    if (rowInSprite < 0 || rowInSprite >= 21)
-    {
-        spriteUnits[sprite].shift0 = 0;
-        spriteUnits[sprite].shift1 = 0;
-        spriteUnits[sprite].shift2 = 0;
-        return;
-    }
-
-    const uint16_t dataAddr = spriteUnits[sprite].dataBase + rowInSprite * 3;
-
-    spriteUnits[sprite].shift0 = mem->vicRead(dataAddr + 0, raster);
-    spriteUnits[sprite].shift1 = mem->vicRead(dataAddr + 1, raster);
-    spriteUnits[sprite].shift2 = mem->vicRead(dataAddr + 2, raster);
-}
-
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
 {
     return  (uint32_t(spriteUnits[sprite].shift0) << 16)
           | (uint32_t(spriteUnits[sprite].shift1) << 8)
           |  uint32_t(spriteUnits[sprite].shift2);
-}
-
-void Vic::prepareSpriteShiftersForRaster(int raster)
-{
-    for (int i = 0; i < 8; ++i)
-    {
-        if (!(registers.spriteEnabled & (1 << i)))
-        {
-            spriteUnits[i].shift0 = 0;
-            spriteUnits[i].shift1 = 0;
-            spriteUnits[i].shift2 = 0;
-            continue;
-        }
-
-        if (!spriteUnits[i].displayActive)
-        {
-            spriteUnits[i].shift0 = 0;
-            spriteUnits[i].shift1 = 0;
-            spriteUnits[i].shift2 = 0;
-            continue;
-        }
-
-        const int rowInSprite = spriteRowFromMCBase(i);
-        loadSpriteShiftRegisters(i, raster, rowInSprite);
-    }
 }
 
 void Vic::fetchSpritePointer(int sprite, int raster)
@@ -1151,63 +1104,6 @@ void Vic::prepareSpriteOutputForRaster(int raster)
         }
 
         beginSpriteLineOutput(i, raster);
-    }
-}
-
-bool Vic::decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor, bool& opaque) const
-{
-    outColor = 0;
-    opaque = false;
-
-    if (!spriteUnits[sprIndex].rowPrepared)
-        return false;
-
-    if (localX < 0 || localX >= spriteUnits[sprIndex].outputWidth)
-        return false;
-
-    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
-    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
-
-    const uint32_t rowBits = getLatchedSpriteBits(sprIndex);
-
-    if (!multClr)
-    {
-        const int xDup = expandX ? 2 : 1;
-        const int srcBit = localX / xDup;
-
-        if (srcBit < 0 || srcBit >= 24)
-            return false;
-
-        if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
-            return false;
-
-        outColor = registers.spriteColors[sprIndex] & 0x0F;
-        opaque = true;
-        return true;
-    }
-    else
-    {
-        const int xDup = (expandX ? 2 : 1) * 2;
-        const int srcPair = localX / xDup;
-
-        if (srcPair < 0 || srcPair >= 12)
-            return false;
-
-        const uint8_t bits = (rowBits >> (22 - srcPair * 2)) & 0x03;
-        if (bits == 0)
-            return false;
-
-        const uint8_t mc1 = registers.spriteMultiColor1 & 0x0F;
-        const uint8_t mc2 = registers.spriteMultiColor2 & 0x0F;
-        const uint8_t col = registers.spriteColors[sprIndex] & 0x0F;
-
-        outColor =
-            (bits == 1) ? mc1 :
-            (bits == 2) ? col :
-                          mc2;
-
-        opaque = true;
-        return true;
     }
 }
 
@@ -1352,11 +1248,6 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         advanceSpriteOutputState(spr);
     }
-}
-
-void Vic::finishSpriteRasterOutput(int raster)
-{
-    (void)raster;
 }
 
 void Vic::updateSpriteDMAEndOfLine(int raster)
@@ -1990,27 +1881,12 @@ int Vic::rasterVisibleEndX(int raster) const
     return VISIBLE_WIDTH;
 }
 
-bool Vic::isLeftBorderPixel(int raster, int px) const
-{
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    return px >= 0 && px < leftInner;
-}
-
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
     const int cols = getCSEL(raster) ? 40 : 38;
     const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
     const int rightInner = leftInner + cols * 8;
     return px >= leftInner && px < rightInner;
-}
-
-bool Vic::isRightBorderPixel(int raster, int px) const
-{
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int rightInner = leftInner + cols * 8;
-    return px >= rightInner && px < VISIBLE_WIDTH;
 }
 
 void Vic::composeFinalRasterLine(int raster)
@@ -2266,14 +2142,6 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
     x1 = x0 + cols * 8;
 }
 
-bool Vic::horizontalDisplayOpenAtPixel(int raster, int px) const
-{
-    int x0, x1;
-    innerWindowForRaster(raster, x0, x1);
-
-    return px >= x0 && px < x1;
-}
-
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
     uint16_t address = getCHARBase(raster) + c * 8;
@@ -2411,20 +2279,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
 int Vic::currentCharacterRow() const
 {
     return static_cast<int>(vicState.vcBase / 40);
-}
-
-bool Vic::innerDisplayOpenAtPixel(int raster, int px) const
-{
-    if (!isInnerDisplayPixel(raster, px))
-        return false;
-
-    if (!verticalDisplayOpenForRaster(raster))
-        return false;
-
-    if (horizontalBorderLatchedAtPixel(raster, px))
-        return false;
-
-    return true;
 }
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const
@@ -2761,9 +2615,6 @@ void Vic::clearPendingIRQs()
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
 {
     if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return FetchKind::None;
-
-    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)

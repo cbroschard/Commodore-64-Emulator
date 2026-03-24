@@ -141,7 +141,6 @@ class Vic
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
         static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
-        static constexpr int LINE_BUFFER_WIDTH = 512;
 
         // Video Mode configuration at runtime (NTSC or PAL)
         VideoMode mode_;
@@ -361,7 +360,6 @@ class Vic
         void syncSpriteCompatAddress(int sprite);
 
         void prepareSpriteOutputForRaster(int raster);
-        bool decodeSpritePixelAtLocalX(int sprIndex, int localX, uint8_t& outColor, bool& opaque) const;
 
         int spritePreparedOutputWidth(int sprIndex) const;
         void beginSpriteLineOutput(int sprIndex, int raster);
@@ -374,14 +372,10 @@ class Vic
 
         void beginSpriteRasterOutput(int raster);
         void stepSpriteSequencersAtX(int raster, int px);
-        void finishSpriteRasterOutput(int raster);
 
-        void loadSpriteShiftRegisters(int sprite, int raster, int rowInSprite);
         uint32_t getLatchedSpriteBits(int sprite) const;
-        void prepareSpriteShiftersForRaster(int raster);
 
         bool isBackgroundPixelOpaque(int x, int y);
-        inline uint16_t getSpriteDataAddress(int sprIndex) const { return sprPtrBase[sprIndex]; }
 
         // Ensure graphics mode updates
         graphicsMode currentMode;
@@ -403,16 +397,13 @@ class Vic
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;
 
-        bool isLeftBorderPixel(int raster, int px) const;
         bool isInnerDisplayPixel(int raster, int px) const;
-        bool isRightBorderPixel(int raster, int px) const;
 
         void composeFinalRasterLine(int raster);
         uint8_t compositePixelAtX(int raster, int px) const;
         uint8_t produceRasterPixel(int raster, int px) const;
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
-        bool horizontalDisplayOpenAtPixel(int raster, int px) const;
         bool verticalDisplayOpenForRaster(int raster) const;
         bool horizontalBorderLatchedAtPixel(int raster, int px) const;
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
@@ -430,7 +421,6 @@ class Vic
         void advanceVideoCountersEndOfLine(int raster);
         int currentCharacterRow() const;
 
-        bool innerDisplayOpenAtPixel(int raster, int px) const;
         void updateVerticalBorderState(int raster);
         void updateHorizontalBorderState(int raster);
         bool borderActiveAtPixel(int raster, int px) const;
