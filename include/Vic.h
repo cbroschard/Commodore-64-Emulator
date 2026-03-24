@@ -412,6 +412,9 @@ class Vic
         uint8_t produceRasterPixel(int raster, int px) const;
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
+        bool horizontalDisplayOpenAtPixel(int raster, int px) const;
+        bool verticalDisplayOpenForRaster(int raster) const;
+        bool horizontalBorderLatchedAtPixel(int raster, int px) const;
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         void renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1);
         void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);

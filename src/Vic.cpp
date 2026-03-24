@@ -2028,9 +2028,9 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
 
     uint8_t color = border;
 
-    const bool displayPixel = innerDisplayOpenAtPixel(raster, px);
+    const bool borderPixel = borderActiveAtPixel(raster, px);
 
-    if (displayPixel)
+    if (!borderPixel)
     {
         color = bgColorLine[px] & 0x0F;
     }
@@ -2266,6 +2266,14 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
     x1 = x0 + cols * 8;
 }
 
+bool Vic::horizontalDisplayOpenAtPixel(int raster, int px) const
+{
+    int x0, x1;
+    innerWindowForRaster(raster, x0, x1);
+
+    return px >= x0 && px < x1;
+}
+
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
     uint16_t address = getCHARBase(raster) + c * 8;
@@ -2407,29 +2415,63 @@ int Vic::currentCharacterRow() const
 
 bool Vic::innerDisplayOpenAtPixel(int raster, int px) const
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
-
-    if (!den)
-        return false;
-
-    if (vicState.verticalBorder)
-        return false;
-
     if (!isInnerDisplayPixel(raster, px))
         return false;
 
-    // Transitional model:
-    // if we are inside the inner display geometry and vertical border is open,
-    // allow display pixels here.
+    if (!verticalDisplayOpenForRaster(raster))
+        return false;
+
+    if (horizontalBorderLatchedAtPixel(raster, px))
+        return false;
+
     return true;
+}
+
+bool Vic::verticalDisplayOpenForRaster(int raster) const
+{
+    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    if (!den)
+        return false;
+
+    if (!denSeenOn30 || firstBadlineY < 0)
+        return false;
+
+    if (raster < firstBadlineY)
+        return false;
+
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
+    const int charRow = currentCharacterRow();
+
+    return charRow >= 0 && charRow < visibleRows;
+}
+
+bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
+{
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return true;
+
+    int x0, x1;
+    innerWindowForRaster(raster, x0, x1);
+
+    // Start each raster in border state, then "open" once the left inner edge
+    // is reached, and "close" again at the right inner edge.
+    bool borderLatched = true;
+
+    if (px >= x0)
+        borderLatched = false;
+
+    if (px >= x1)
+        borderLatched = true;
+
+    return borderLatched;
 }
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
-    const int rows = getRSEL(raster) ? 25 : 24;
+    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
 
-    if (!DEN || !denSeenOn30 || firstBadlineY < 0)
+    if (!den || !denSeenOn30 || firstBadlineY < 0)
     {
         vicState.verticalBorder = true;
         return;
@@ -2443,50 +2485,27 @@ void Vic::updateVerticalBorderState(int raster)
 
     const int charRow = currentCharacterRow();
 
-    // Once we've advanced past the last visible character row,
-    // close the vertical display again.
-    if (charRow < 0 || charRow >= rows)
-    {
-        vicState.verticalBorder = true;
-        return;
-    }
-
-    vicState.verticalBorder = false;
+    // Open only while the current VIC display row is inside the active
+    // 24/25-row text window.
+    vicState.verticalBorder = !(charRow >= 0 && charRow < visibleRows);
 }
 
 void Vic::updateHorizontalBorderState(int raster)
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    (void)raster;
 
-    // If display is disabled or vertical border is closed,
-    // the inner area cannot be open.
-    if (!den || vicState.verticalBorder)
-    {
-        vicState.horizontalBorder = true;
-        return;
-    }
-
-    // Transitional model:
-    // once vertical display is open and DEN is set,
-    // the inner display area is open for this raster.
-    vicState.horizontalBorder = false;
+    vicState.horizontalBorder = vicState.verticalBorder;
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
 {
-    if (vicState.verticalBorder)
+    if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    if (isLeftBorderPixel(raster, px))
+    if (horizontalBorderLatchedAtPixel(raster, px))
         return true;
 
-    if (isRightBorderPixel(raster, px))
-        return true;
-
-    if (isInnerDisplayPixel(raster, px))
-        return !innerDisplayOpenAtPixel(raster, px);
-
-    return true;
+    return !verticalDisplayOpenForRaster(raster);
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
