@@ -222,22 +222,10 @@ void CPU::setNMILine(bool asserted)
 
 void CPU::handleIRQ()
 {
-    if (IRQ)
-    {
-        activeSource = IRQ->getHighestPrioritySource();
-        switch (activeSource)
-        {
-            case IRQLine::VICII:
-            case IRQLine::CIA1:
-            case IRQLine::D1541_IRQ:
-            case IRQLine::D1571_IRQ:
-            case IRQLine::D1581_IRQ:
-            {
-                executeIRQ();
-                break;
-            }
-        }
-    }
+    if (!IRQ || !IRQ->isIRQActive())
+        return;
+
+    executeIRQ();
 }
 
 void CPU::handleNMI()
