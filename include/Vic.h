@@ -197,9 +197,7 @@ class Vic
             bool badLine = false;
 
             // Border flip-flops
-            bool mainBorder = true;
             bool verticalBorder = true;
-            bool horizontalBorder = true;
 
             // Bus arbitration
             bool ba = true;
@@ -324,6 +322,7 @@ class Vic
         int currentCycle;
 
         void updateIRQLine();
+        void checkRasterIRQCompare();
 
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
@@ -401,6 +400,7 @@ class Vic
         bool verticalDisplayOpenForRaster(int raster) const;
         bool horizontalBorderLatchedAtPixel(int raster, int px) const;
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
+        void getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const;
         void renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1);
         void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);
         uint8_t fetchScreenByte(int row,int col, int raster) const;
@@ -416,7 +416,6 @@ class Vic
         int currentCharacterRow() const;
 
         void updateVerticalBorderState(int raster);
-        void updateHorizontalBorderState(int raster);
         bool borderActiveAtPixel(int raster, int px) const;
 
         // OpenBus Helpers

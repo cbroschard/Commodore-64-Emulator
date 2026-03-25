@@ -70,9 +70,7 @@ void Vic::reset()
     vicState.displayEnabled = false;
     vicState.badLine = false;
 
-    vicState.mainBorder = true;
     vicState.verticalBorder = true;
-    vicState.horizontalBorder = true;
 
     vicState.ba = true;
     vicState.aec = true;
@@ -255,9 +253,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.badLine);
 
-    wrtr.writeBool(vicState.mainBorder);
     wrtr.writeBool(vicState.verticalBorder);
-    wrtr.writeBool(vicState.horizontalBorder);
 
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
@@ -408,9 +404,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(vicState.mainBorder))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.horizontalBorder))           { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
@@ -664,12 +658,14 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
             registers.control = value & 0x7F;
+            checkRasterIRQCompare();
             break;
         }
         case 0xD012:
         {
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
+            checkRasterIRQCompare();
             break;
         }
         case 0xD013:
@@ -932,8 +928,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
 
     // Update border state for this raster
     updateVerticalBorderState(curRaster);
-    updateHorizontalBorderState(curRaster);
-    vicState.mainBorder = vicState.verticalBorder || vicState.horizontalBorder;
 
     // Render and collisions for this line
     renderLine(curRaster);
@@ -1563,8 +1557,8 @@ void Vic::renderTextLine(int raster, int xScroll)
     int fine    = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
 
-    int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    int x1 = x0 + cols * 8;
+    int x0, x1;
+    getInnerDisplayBounds(raster, x0, x1);
 
     int xStart = x0 - fine;
 
@@ -1613,9 +1607,9 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
     const int fetchCols = cols;
 
-    const int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int x1 = x0 + cols * 8;
-    const int xStart = x0 - fine;
+    int x0, x1;
+    getInnerDisplayBounds(raster, x0, x1);
+    int xStart = x0 - fine;
 
     const int py = fbY(raster);
 
@@ -1667,9 +1661,9 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
     const int fetchCols = cols;
 
-    const int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int x1 = x0 + cols * 8;
-    const int xStart = x0 - fine;
+    int x0, x1;
+    getInnerDisplayBounds(raster, x0, x1);
+    int xStart = x0 - fine;
 
     const int py = fbY(raster);
 
@@ -1724,8 +1718,8 @@ void Vic::renderECMLine(int raster, int xScroll)
     int yInChar = static_cast<int>(vicState.rc & 0x07);
     int fine = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
-    int x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    int x1 = x0 + cols * 8;
+    int x0, x1;
+    getInnerDisplayBounds(raster, x0, x1);
     int xStart = x0 - fine;
     int py = fbY(raster);
 
@@ -1783,12 +1777,11 @@ void Vic::generateBackgroundLine(int raster)
     const int screenY = fbY(raster);
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
 
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int rightInner = leftInner + cols * 8;
+    int leftInner, rightInner;
+    getInnerDisplayBounds(raster, leftInner, rightInner);
 
     // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || vicState.verticalBorder)
+    if (!DEN || !verticalDisplayOpenForRaster(raster))
     {
         return;
     }
@@ -1867,9 +1860,8 @@ int Vic::rasterVisibleEndX(int raster) const
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
-    const int cols = getCSEL(raster) ? 40 : 38;
-    const int leftInner = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    const int rightInner = leftInner + cols * 8;
+    int leftInner, rightInner;
+    getInnerDisplayBounds(raster, leftInner, rightInner);
     return px >= leftInner && px < rightInner;
 }
 
@@ -1944,6 +1936,17 @@ void Vic::updateIRQLine()
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
         traceMgr->recordVicIrq(any, stamp);
+    }
+}
+
+void Vic::checkRasterIRQCompare()
+{
+    if (registers.raster == registers.rasterInterruptLine)
+    {
+        if ((registers.interruptStatus & 0x01) == 0)
+            registers.interruptStatus |= 0x01;
+
+        updateIRQLine();
     }
 }
 
@@ -2122,8 +2125,20 @@ void Vic::updateGraphicsMode(int raster)
 void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 {
     const int cols = getCSEL(raster) ? 40 : 38;
-    x0 = BORDER_SIZE + (cols == 38 ? 4 : 0);
-    x1 = x0 + cols * 8;
+
+    // Center the active text window: 40 cols = 320 px, 38 cols = 304 px.
+    // The 38-column mode should shrink by 8 px on each side, not 4 on one side.
+    const int innerWidth = cols * 8;
+    const int fullWidth  = 40 * 8;
+    const int inset      = (fullWidth - innerWidth) / 2;
+
+    x0 = BORDER_SIZE + inset;
+    x1 = x0 + innerWidth;
+}
+
+void Vic::getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const
+{
+    innerWindowForRaster(raster, leftInner, rightInner);
 }
 
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
@@ -2303,33 +2318,7 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-
-    if (!den || !denSeenOn30 || firstBadlineY < 0)
-    {
-        vicState.verticalBorder = true;
-        return;
-    }
-
-    if (raster < firstBadlineY)
-    {
-        vicState.verticalBorder = true;
-        return;
-    }
-
-    const int charRow = currentCharacterRow();
-
-    // Open only while the current VIC display row is inside the active
-    // 24/25-row text window.
-    vicState.verticalBorder = !(charRow >= 0 && charRow < visibleRows);
-}
-
-void Vic::updateHorizontalBorderState(int raster)
-{
-    (void)raster;
-
-    vicState.horizontalBorder = vicState.verticalBorder;
+    vicState.verticalBorder = !verticalDisplayOpenForRaster(raster);
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
@@ -2376,9 +2365,11 @@ void Vic::markBGOpaque(int screenY, int px)
 
 uint8_t Vic::d019Read() const
 {
-    const uint8_t srcs = registers.interruptStatus & 0x0F;
-    uint8_t line = ((srcs & registers.interruptEnable) ? 0x80 : 0x00); // mirror IRQ line
-    return srcs | line | 0x70; // bits 4-6 read as '1'
+    const uint8_t pending = registers.interruptStatus & 0x0F;
+    const uint8_t enabled = registers.interruptEnable & 0x0F;
+    const uint8_t irqBit7 = ((pending & enabled) != 0) ? 0x80 : 0x00;
+
+    return static_cast<uint8_t>(pending | irqBit7 | 0x70);
 }
 
 std::string Vic::decodeModeName() const
