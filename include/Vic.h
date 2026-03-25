@@ -321,8 +321,10 @@ class Vic
         bool AEC;
         int currentCycle;
 
+        // IRQ Helpers
         void updateIRQLine();
-        void checkRasterIRQCompare();
+        void triggerRasterIRQIfMatched();
+        void raiseVicIRQSource(uint8_t sourceBitMask);
 
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;

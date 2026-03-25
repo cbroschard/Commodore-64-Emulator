@@ -658,14 +658,14 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             // Update the high bit of the raster interrupt line (bit 8)
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
             registers.control = value & 0x7F;
-            checkRasterIRQCompare();
+            triggerRasterIRQIfMatched();
             break;
         }
         case 0xD012:
         {
             // Update the low byte of the raster interrupt line
             registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
-            checkRasterIRQCompare();
+            triggerRasterIRQIfMatched();
             break;
         }
         case 0xD013:
@@ -808,15 +808,7 @@ void Vic::beginRasterIfNeeded()
 {
     // Fire raster IRQ at start of the line
     if (currentCycle == 0)
-    {
-        if (registers.raster == registers.rasterInterruptLine)
-        {
-            if (!(registers.interruptStatus & 0x01))
-                registers.interruptStatus |= 0x01;
-
-            updateIRQLine();
-        }
-    }
+        triggerRasterIRQIfMatched();
 }
 
 void Vic::performRasterNMinus1Latch()
@@ -1939,15 +1931,23 @@ void Vic::updateIRQLine()
     }
 }
 
-void Vic::checkRasterIRQCompare()
+void Vic::triggerRasterIRQIfMatched()
 {
-    if (registers.raster == registers.rasterInterruptLine)
-    {
-        if ((registers.interruptStatus & 0x01) == 0)
-            registers.interruptStatus |= 0x01;
+    if (registers.raster != registers.rasterInterruptLine)
+        return;
 
-        updateIRQLine();
-    }
+    if ((registers.interruptStatus & 0x01) == 0)
+        raiseVicIRQSource(0x01);
+}
+
+void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
+{
+    const uint8_t masked = sourceBitMask & 0x0F;
+    if (masked == 0)
+        return;
+
+    registers.interruptStatus |= masked;
+    updateIRQLine();
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -1966,10 +1966,7 @@ void Vic::detectSpriteToSpriteCollision(int raster)
     }
 
     if (registers.spriteCollision & ~old) //&& (registers.interruptEnable & 0x02) && IRQ)
-    {
-        registers.interruptStatus |= 0x02;
-        updateIRQLine();
-    }
+        raiseVicIRQSource(0x02);
 }
 
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
@@ -2016,10 +2013,7 @@ void Vic::detectSpriteToBackgroundCollision(int raster)
     }
 
     if (registers.spriteDataCollision & ~old) //&& (registers.interruptEnable & 0x04) && IRQ)
-    {
-        registers.interruptStatus |= 0x04;
-        updateIRQLine();
-    }
+        raiseVicIRQSource(0x04);
 }
 
 bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
