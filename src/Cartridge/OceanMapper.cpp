@@ -23,7 +23,7 @@ void OceanMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("OCN0");
     wrtr.writeU32(1); // version
-    wrtr.writeU8(sel);   // 0..63
+    wrtr.writeU8(sel);   // logical Ocean bank
     wrtr.endChunk();
 }
 
@@ -39,7 +39,7 @@ bool OceanMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readU8(sel))           { rdr.exitChunkPayload(chunk); return false; }
-    sel &= 0x3F;
+    sel &= 0x0F;
 
     // Force rebuild of derived lists
     builtLists = false;
@@ -68,7 +68,7 @@ void OceanMapper::buildBankList()
         if (s.chipType != 0)
             continue;
 
-        if (s.loadAddress == CART_LO_START || s.loadAddress == CART_HI_START)
+        if (s.loadAddress == CART_LO_START)
             bankSet.insert(s.bankNumber);
     }
 
@@ -83,6 +83,10 @@ bool OceanMapper::mapSelectedBank()
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
 
+    const uint8_t logicalBank = static_cast<uint8_t>(sel & 0x0F);
+    const uint16_t loBank = logicalBank;
+    const uint16_t hiBank = static_cast<uint16_t>(logicalBank + 16);
+
     bool wroteLo = false;
     bool wroteHi = false;
 
@@ -91,11 +95,11 @@ bool OceanMapper::mapSelectedBank()
         if (s.chipType != 0)
             continue;
 
-        if (s.bankNumber != sel)
-            continue;
-
         if (s.loadAddress == CART_LO_START)
         {
+            if (s.bankNumber != loBank)
+                continue;
+
             if (s.data.size() != 8192)
                 continue;
 
@@ -106,6 +110,9 @@ bool OceanMapper::mapSelectedBank()
         }
         else if (s.loadAddress == CART_HI_START)
         {
+            if (s.bankNumber != hiBank)
+                continue;
+
             if (s.data.size() != 8192)
                 continue;
 
@@ -129,12 +136,12 @@ void OceanMapper::write(uint16_t address, uint8_t value)
 {
     if (address == 0xDE00)
     {
-        cart->setCurrentBank(value & 0x3F);
+        cart->setCurrentBank(value & 0x0F);
     }
 }
 
 bool OceanMapper::loadIntoMemory(uint8_t bank)
 {
-    sel = bank & 0x3F;
+    sel = bank & 0x0F;
     return mapSelectedBank();
 }
