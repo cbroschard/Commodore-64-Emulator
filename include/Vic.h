@@ -148,8 +148,6 @@ class Vic
         // tick 40-byte character/color fetch during badline
         uint8_t charPtrFIFO[40];
         uint8_t colorPtrFIFO[40];
-        uint8_t rowCounter;
-        int currentScreenRow;
 
         // bad line
         int firstBadlineY;
@@ -157,8 +155,6 @@ class Vic
 
         // Keep track of frame completion
         bool frameDone;
-
-        int currentRasterX;
 
         struct Registers
         {
@@ -193,7 +189,6 @@ class Vic
         struct InternalState
         {
             // Character matrix / raster engine
-            uint16_t vc = 0;         // current video counter
             uint16_t vcBase = 0;     // base video counter
             uint8_t rc = 0;          // row counter 0-7
 

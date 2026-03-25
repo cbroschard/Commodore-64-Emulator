@@ -17,8 +17,7 @@ Vic::Vic(VideoMode mode) :
     mem(nullptr),
     traceMgr(nullptr),
     mode_(mode),
-    cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG),
-    rowCounter(0)
+    cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG)
 {
     d011_per_raster.resize(cfg_->maxRasterLines);
     d016_per_raster.resize(cfg_->maxRasterLines);
@@ -63,10 +62,8 @@ void Vic::reset()
     // AEC
     currentCycle = 0;
     AEC = true;
-    currentRasterX = 0;
 
     // Internal VIC state
-    vicState.vc = 0;
     vicState.vcBase = 0;
     vicState.rc = 0;
 
@@ -113,8 +110,6 @@ void Vic::reset()
     currentMode = graphicsMode::standard;
 
     // Bad line vars reset
-    currentScreenRow = 0;
-    rowCounter = 0;
     firstBadlineY = -1;
     denSeenOn30 = false;
 
@@ -249,14 +244,11 @@ void Vic::saveState(StateWriter& wrtr) const
     // Dump Misc
     wrtr.writeBool(denSeenOn30);
     wrtr.writeI32(firstBadlineY);
-    wrtr.writeI32(currentScreenRow);
-    wrtr.writeU8(rowCounter);
 
     // Dump AEC
     wrtr.writeBool(AEC);
 
     // Dump State
-    wrtr.writeU16(vicState.vc);
     wrtr.writeU16(vicState.vcBase);
     wrtr.writeU8(vicState.rc);
 
@@ -408,12 +400,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(denSeenOn30))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readI32(firstBadlineY))                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(currentScreenRow))                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(rowCounter))                            { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU16(vicState.vc))                          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
@@ -811,13 +800,8 @@ void Vic::beginFrameIfNeeded()
 
         // Reset VIC-style display counters at frame start
         vicState.vcBase = 0;
-        vicState.vc = 0;
         vicState.rc = 0;
         vicState.badLine = false;
-
-        // Compatibility mirrors
-        rowCounter = 0;
-        currentScreenRow = 0;
     }
 
     if ((registers.raster == 0x30) && (registers.control & 0x10))
@@ -894,12 +878,7 @@ void Vic::initializeFirstBadLineIfNeeded()
 
     // First visible character row starts at VCBASE = 0.
     vicState.vcBase = 0;
-    vicState.vc = 0;
     vicState.rc = 0;
-
-    // Compatibility/debug mirrors for now
-    currentScreenRow = 0;
-    rowCounter = 0;
 }
 
 void Vic::startBadLineIfNeeded(int raster, int cycle)
@@ -1549,10 +1528,6 @@ void Vic::beginBadLineFetch()
 {
     vicState.badLine = true;
     vicState.rc = 0;
-
-    // Compatibility mirrors
-    rowCounter = vicState.rc;
-    currentScreenRow = currentCharacterRow();
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
@@ -1860,7 +1835,7 @@ void Vic::emitRasterLineInOrder(int raster)
     const int xStart = rasterVisibleStartX(raster);
     const int xEnd   = rasterVisibleEndX(raster);
 
-    currentRasterX = xStart;
+    int currentRasterX = xStart;
 
     while (currentRasterX < xEnd)
     {
@@ -2280,9 +2255,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
     }
 
-    // Compatibility/debug mirrors only.
-    rowCounter = vicState.rc;
-    currentScreenRow = screenRow;
 }
 
 int Vic::currentCharacterRow() const
@@ -2727,7 +2699,6 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
     out << "Cycle : " << cycle << "\n";
     out << "Fetch : " << fetchKindName(fk) << "\n";
     out << "Badline: " << (badLine ? "Yes" : "No") << "\n";
-    out << "VC    : " << vicState.vc << "\n";
     out << "VCBASE: " << vicState.vcBase << "\n";
     out << "RC    : " << int(vicState.rc) << "\n";
     out << "BA    : " << (vicState.ba ? "High" : "Low") << "\n";
