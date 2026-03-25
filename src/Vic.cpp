@@ -655,17 +655,23 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD011:
         {
-            // Update the high bit of the raster interrupt line (bit 8)
-            registers.rasterInterruptLine = (registers.rasterInterruptLine & 0x00FF) | ((value & 0x80) << 1);
+            const uint16_t oldLine = registers.rasterInterruptLine;
+            const uint16_t newLine = (oldLine & 0x00FF) | ((value & 0x80) << 1);
+
+            registers.rasterInterruptLine = newLine;
             registers.control = value & 0x7F;
-            triggerRasterIRQIfMatched();
+
+            checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
         case 0xD012:
         {
-            // Update the low byte of the raster interrupt line
-            registers.rasterInterruptLine = (registers.rasterInterruptLine & 0xFF00) | value;
-            triggerRasterIRQIfMatched();
+            const uint16_t oldLine = registers.rasterInterruptLine;
+            const uint16_t newLine = (oldLine & 0xFF00) | value;
+
+            registers.rasterInterruptLine = newLine;
+
+            checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
         case 0xD013:
@@ -800,8 +806,11 @@ void Vic::beginFrameIfNeeded()
         vicState.badLine = false;
     }
 
-    if ((registers.raster == 0x30) && (registers.control & 0x10))
-        denSeenOn30 = true;
+    if (registers.raster == 0x30)
+    {
+        if (d011_per_raster[0x30] & 0x10)
+            denSeenOn30 = true;
+    }
 }
 
 void Vic::beginRasterIfNeeded()
@@ -867,6 +876,7 @@ void Vic::initializeFirstBadLineIfNeeded()
     // First visible character row starts at VCBASE = 0.
     vicState.vcBase = 0;
     vicState.rc = 0;
+    vicState.displayEnabled = true;
 }
 
 void Vic::startBadLineIfNeeded(int raster, int cycle)
@@ -1948,6 +1958,21 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 
     registers.interruptStatus |= masked;
     updateIRQLine();
+}
+
+void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
+{
+    const uint16_t cur = registers.raster;
+
+    const bool oldMatch = (cur == oldLine);
+    const bool newMatch = (cur == newLine);
+
+    // Only trigger when the write causes the compare to transition
+    // from "not matching current raster" to "matching current raster".
+    if (!oldMatch && newMatch)
+    {
+        triggerRasterIRQIfMatched();
+    }
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)

@@ -325,6 +325,7 @@ class Vic
         void updateIRQLine();
         void triggerRasterIRQIfMatched();
         void raiseVicIRQSource(uint8_t sourceBitMask);
+        void checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine);
 
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
