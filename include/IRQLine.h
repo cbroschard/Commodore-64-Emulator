@@ -30,7 +30,6 @@ class IRQLine
         void clearIRQ(Source source);
         inline bool isIRQActive() { return IRQActive; }
         inline uint8_t getActiveSources() { return IRQSources; }
-        uint8_t getHighestPrioritySource();
 
     protected:
 
