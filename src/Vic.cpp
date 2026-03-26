@@ -716,12 +716,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01A:
         {
-            const uint8_t mask = value & 0x0F;
-
-            if (value & 0x80)
-                registers.interruptEnable |= mask;   // set bits
-            else
-                registers.interruptEnable &= ~mask;  // clear bits
+            registers.interruptEnable = value & 0x0F;
 
             updateIRQLine();
             break;
@@ -2300,36 +2295,22 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     const bool den = (d011_per_raster[raster] & 0x10) != 0;
     const int visibleRows = getRSEL(raster) ? 25 : 24;
 
-    // No display progression until DEN has been seen and badline regime has started.
-    if (!den || firstBadlineY < 0)
-    {
-        vicState.displayEnabled = false;
-        return;
-    }
-
     const int screenRow = currentCharacterRow();
-    if (screenRow < 0 || screenRow >= visibleRows)
-    {
+
+    // Display-open state is separate from counter progression.
+    if (!den || screenRow < 0 || screenRow >= visibleRows)
         vicState.displayEnabled = false;
-        return;
-    }
+    else
+        vicState.displayEnabled = true;
 
-    vicState.displayEnabled = true;
-
-    // VIC-style row counter is authoritative.
+    // Do not freeze everything just because firstBadlineY has not been found yet.
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
-    // When RC wraps, advance to the next 40-column character row.
     if (vicState.rc == 0)
-    {
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-    }
 
-    // If we just advanced past the last visible character row, close display.
     if (currentCharacterRow() >= visibleRows)
-    {
         vicState.displayEnabled = false;
-    }
 }
 
 int Vic::currentCharacterRow() const
