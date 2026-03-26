@@ -81,7 +81,7 @@ class Vic
         inline bool isFrameDone() const { return frameDone; }
         inline void clearFrameFlag() { frameDone = false; }
 
-        inline bool getRSEL(int raster) const { return (d011_per_raster[raster] & 0x08) != 0; }
+        inline bool getRSEL(int raster) const { return (effectiveD011ForRaster(raster) & 0x08) != 0; }
         inline bool getCSEL(int raster) const { return (d016_per_raster[raster] & 0x08) != 0; }
 
         // Getters for current memory locations
@@ -279,7 +279,8 @@ class Vic
 
         // fine-scroll Helpers ($D016 bits 0-2 , $D011 bits 0-2)
         inline uint8_t fineXScroll(int raster) const { return d016_per_raster[raster] & 0x07; }
-        inline uint8_t fineYScroll(int raster) const { return d011_per_raster[raster]  & 0x07; }
+        inline uint8_t fineYScroll(int raster) const { return effectiveD011ForRaster(raster) & 0x07; }
+        uint8_t effectiveD011ForRaster(int raster) const;
 
         // Read/Write register Helpers
         inline int getSpriteIndex(uint16_t address) const { return (address - 0xD000) / 2; }

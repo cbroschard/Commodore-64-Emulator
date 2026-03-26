@@ -817,7 +817,7 @@ void Vic::beginFrameIfNeeded()
 
     if (registers.raster == 0x30)
     {
-        if (d011_per_raster[0x30] & 0x10)
+        if (effectiveD011ForRaster(0x30) & 0x10)
             denSeenOn30 = true;
     }
 }
@@ -1519,8 +1519,10 @@ bool Vic::isBadLine(int raster) const
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
+    const uint8_t d011 = effectiveD011ForRaster(raster);
+
     if (!denSeenOn30) return false;
-    if (!(d011_per_raster[raster] & 0x10)) return false; // DEN
+    if (!(d011 & 0x10)) return false; // DEN
 
     const bool rsel = getRSEL(raster);                   // $D011 bit 3
     const int last = rsel ? 0xF7 : 0xEF;                 // 25 rows vs 24 rows
@@ -2624,6 +2626,13 @@ void Vic::clearPendingIRQs()
     if (pending) writeRegister(0xD019, pending);
     (void)readRegister(0xD01E);
     (void)readRegister(0xD01F);
+}
+
+inline uint8_t Vic::effectiveD011ForRaster(int raster) const
+{
+    if (raster == registers.raster)
+        return registers.control & 0x7F;   // live current-raster value
+    return d011_per_raster[raster] & 0x7F; // latched for other rasters
 }
 
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
