@@ -813,11 +813,12 @@ void Vic::beginFrameIfNeeded()
         vicState.vcBase = 0;
         vicState.rc = 0;
         vicState.badLine = false;
+        vicState.displayEnabled = false;
     }
 
     if (registers.raster == 0x30)
     {
-        if (effectiveD011ForRaster(0x30) & 0x10)
+        if (d011_per_raster[0x30] & 0x10)
             denSeenOn30 = true;
     }
 }
@@ -2301,11 +2302,19 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
 
     // No display progression until DEN has been seen and badline regime has started.
     if (!den || firstBadlineY < 0)
+    {
+        vicState.displayEnabled = false;
         return;
+    }
 
     const int screenRow = currentCharacterRow();
     if (screenRow < 0 || screenRow >= visibleRows)
+    {
+        vicState.displayEnabled = false;
         return;
+    }
+
+    vicState.displayEnabled = true;
 
     // VIC-style row counter is authoritative.
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
@@ -2316,6 +2325,11 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
     }
 
+    // If we just advanced past the last visible character row, close display.
+    if (currentCharacterRow() >= visibleRows)
+    {
+        vicState.displayEnabled = false;
+    }
 }
 
 int Vic::currentCharacterRow() const
@@ -2332,13 +2346,7 @@ bool Vic::verticalDisplayOpenForRaster(int raster) const
     if (!denSeenOn30 || firstBadlineY < 0)
         return false;
 
-    if (raster < firstBadlineY)
-        return false;
-
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-    const int charRow = currentCharacterRow();
-
-    return charRow >= 0 && charRow < visibleRows;
+    return vicState.displayEnabled;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
