@@ -63,6 +63,9 @@ void Vic::reset()
     currentCycle = 0;
     AEC = true;
 
+    // Raster IRQ
+    rasterIrqSampledThisLine = false;
+
     // Internal VIC state
     vicState.vcBase = 0;
     vicState.rc = 0;
@@ -713,7 +716,13 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01A:
         {
-            registers.interruptEnable = value & 0x0F; // Only bits 0-3 are valid
+            const uint8_t mask = value & 0x0F;
+
+            if (value & 0x80)
+                registers.interruptEnable |= mask;   // set bits
+            else
+                registers.interruptEnable &= ~mask;  // clear bits
+
             updateIRQLine();
             break;
         }
@@ -815,9 +824,11 @@ void Vic::beginFrameIfNeeded()
 
 void Vic::beginRasterIfNeeded()
 {
-    // Fire raster IRQ at start of the line
-    if (currentCycle == 0)
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
+    {
+        rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
+    }
 }
 
 void Vic::performRasterNMinus1Latch()
@@ -969,8 +980,8 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 
 void Vic::advanceToNextRaster()
 {
-    // Now advance raster to the next line
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+    rasterIrqSampledThisLine = false;
 }
 
 void Vic::traceRasterEnd()
@@ -1943,7 +1954,7 @@ void Vic::updateIRQLine()
 
 void Vic::triggerRasterIRQIfMatched()
 {
-    if (registers.raster != registers.rasterInterruptLine)
+    if (!rasterCompareMatchesNow())
         return;
 
     if ((registers.interruptStatus & 0x01) == 0)
@@ -1962,17 +1973,31 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 {
+    if (oldLine == newLine)
+        return;
+
     const uint16_t cur = registers.raster;
 
     const bool oldMatch = (cur == oldLine);
     const bool newMatch = (cur == newLine);
 
-    // Only trigger when the write causes the compare to transition
-    // from "not matching current raster" to "matching current raster".
-    if (!oldMatch && newMatch)
-    {
-        triggerRasterIRQIfMatched();
-    }
+    if (oldMatch || !newMatch)
+        return;
+
+    // Too late: this line's compare point has already passed.
+    if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
+        return;
+
+    // If we're exactly on the compare cycle and have already sampled it,
+    // do not generate it again from the register write path.
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
+        return;
+
+    // Source already latched.
+    if ((registers.interruptStatus & 0x01) != 0)
+        return;
+
+    raiseVicIRQSource(0x01);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -2384,11 +2409,9 @@ void Vic::markBGOpaque(int screenY, int px)
 
 uint8_t Vic::d019Read() const
 {
-    const uint8_t pending = registers.interruptStatus & 0x0F;
-    const uint8_t enabled = registers.interruptEnable & 0x0F;
-    const uint8_t irqBit7 = ((pending & enabled) != 0) ? 0x80 : 0x00;
-
-    return static_cast<uint8_t>(pending | irqBit7 | 0x70);
+    const uint8_t src = registers.interruptStatus & 0x0F;
+    const uint8_t irq = ((src & registers.interruptEnable & 0x0F) != 0) ? 0x80 : 0x00;
+    return irq | src;
 }
 
 std::string Vic::decodeModeName() const
@@ -2591,7 +2614,7 @@ void Vic::updateMonitorCaches(int raster)
 
 void Vic::setIERExact(uint8_t mask)
 {
-    registers.interruptEnable = mask & 0x0F; // mirror what $D01A write does
+    registers.interruptEnable = mask & 0x0F;
     updateIRQLine();
 }
 

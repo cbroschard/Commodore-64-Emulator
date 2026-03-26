@@ -137,6 +137,8 @@ class Vic
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
 
+        static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
+
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
         static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
@@ -155,6 +157,9 @@ class Vic
 
         // Keep track of frame completion
         bool frameDone;
+
+        // IRQ
+        bool rasterIrqSampledThisLine;
 
         struct Registers
         {
@@ -322,6 +327,7 @@ class Vic
         int currentCycle;
 
         // IRQ Helpers
+        inline bool rasterCompareMatchesNow() const { return registers.raster == registers.rasterInterruptLine; }
         void updateIRQLine();
         void triggerRasterIRQIfMatched();
         void raiseVicIRQSource(uint8_t sourceBitMask);
