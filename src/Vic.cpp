@@ -1974,24 +1974,21 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (oldLine == newLine)
         return;
 
-    const uint16_t cur = registers.raster;
-
-    const bool oldMatch = (cur == oldLine);
-    const bool newMatch = (cur == newLine);
-
-    if (oldMatch || !newMatch)
+    // Only care if the newly programmed compare line matches the raster
+    // we are currently on.
+    if (registers.raster != newLine)
         return;
 
-    // Too late: this line's compare point has already passed.
+    // Too late: this line's compare sample point has already passed.
     if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // If we're exactly on the compare cycle and have already sampled it,
-    // do not generate it again from the register write path.
+    // If the regular per-line compare sample already ran at this cycle,
+    // do not generate it again from the write path.
     if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
         return;
 
-    // Source already latched.
+    // Already pending.
     if ((registers.interruptStatus & 0x01) != 0)
         return;
 
