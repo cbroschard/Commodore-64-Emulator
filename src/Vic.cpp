@@ -2026,6 +2026,7 @@ void Vic::updateIRQLine()
 void Vic::triggerRasterIRQIfMatched()
 {
     const bool matched = rasterCompareMatchesNow();
+
     traceVicRasterIrqEvent("trigger",
                            registers.rasterInterruptLine,
                            registers.rasterInterruptLine,
@@ -2033,6 +2034,11 @@ void Vic::triggerRasterIRQIfMatched()
 
     if (!matched)
         return;
+
+    if (rasterIrqSampledThisLine)
+        return;
+
+    rasterIrqSampledThisLine = true;
 
     if ((registers.interruptStatus & 0x01) == 0)
         raiseVicIRQSource(0x01);
