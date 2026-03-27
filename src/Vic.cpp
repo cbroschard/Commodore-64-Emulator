@@ -2072,19 +2072,27 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (oldLine == newLine)
         return;
 
+    // The write only matters if it makes the compare equal to the current raster.
     if (registers.raster != newLine)
         return;
 
+    // Too late for this line.
     if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
+    // Before the compare point, do NOT fire immediately.
+    // Let triggerRasterIRQIfMatched() handle it at the normal compare cycle.
+    if (currentCycle < RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    if ((registers.interruptStatus & 0x01) != 0)
+    // Exactly on the compare cycle: only fire if this line hasn't already sampled.
+    if (rasterIrqSampledThisLine)
         return;
 
-    raiseVicIRQSource(0x01);
+    rasterIrqSampledThisLine = true;
+
+    if ((registers.interruptStatus & 0x01) == 0)
+        raiseVicIRQSource(0x01);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
