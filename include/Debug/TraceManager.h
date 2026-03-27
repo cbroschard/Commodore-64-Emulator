@@ -141,6 +141,9 @@ class TraceManager
 
         // PLA
         void recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
+        void recordPlaPortWrite(uint8_t oldValue, uint8_t newValue, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
+        void recordPlaResolve(uint16_t address, const char* bankName, uint16_t offset, uint8_t mcr, uint8_t mode,
+            bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
 
         // SID
         void recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp);

@@ -77,12 +77,23 @@ void PLA::reset()
 
 void PLA::updateMemoryControlRegister(uint8_t value)
 {
+    const uint8_t oldValue = memoryControlRegister;
     memoryControlRegister = value;
 
-    // Update all lines
-    loram = (value & 0x01);
-    hiram = (value & 0x02);
-    charen = (value & 0x04);
+    loram  = (value & 0x01) != 0;
+    hiram  = (value & 0x02) != 0;
+    charen = (value & 0x04) != 0;
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    {
+        TraceManager::Stamp stamp = traceMgr->makeStamp(
+            processor ? processor->getTotalCycles() : 0,
+            vicII ? vicII->getCurrentRaster() : 0xFFFF,
+            vicII ? vicII->getRasterDot() : 0xFFFF);
+
+        traceMgr->recordPlaPortWrite(oldValue, memoryControlRegister,
+                                     gameLine, exROMLine, charen, hiram, loram, stamp);
+    }
 }
 
 PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
@@ -107,7 +118,7 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
                         ((hiram      ? 1 : 0) << 1) |
                         (loram      ? 1 : 0);
 
-    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
     {
         const bool changed = (modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram || charen != lastcharen
             || exROMLine != lastexROMLine || gameLine != lastgameLine);
@@ -143,6 +154,25 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
         default:
             info.offset = address;
             break;
+    }
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    {
+        const bool interesting =
+            address <= 0x0007 ||
+            (address >= 0x8000 && address <= 0xFFFF);
+
+        if (interesting)
+        {
+            TraceManager::Stamp stamp = traceMgr->makeStamp(
+                processor ? processor->getTotalCycles() : 0,
+                vicII ? vicII->getCurrentRaster() : 0xFFFF,
+                vicII ? vicII->getRasterDot() : 0xFFFF);
+
+            traceMgr->recordPlaResolve(address, bankToString(info.bank), info.offset,
+                                       memoryControlRegister, modeIndex,
+                                       gameLine, exROMLine, charen, hiram, loram, stamp);
+        }
     }
 
     return info;

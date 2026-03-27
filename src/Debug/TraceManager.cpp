@@ -362,6 +362,48 @@ void TraceManager::recordPlaMode(uint8_t mode, bool game, bool exrom, bool chare
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
+void TraceManager::recordPlaPortWrite(uint8_t oldValue, uint8_t newValue,
+                                      bool game, bool exrom, bool charen, bool hiram, bool loram,
+                                      Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::PLA)) return;
+
+    std::stringstream out;
+    out << makeStamp(stamp)
+        << "[PLA] $0001 write old=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(oldValue)
+        << " new=$" << std::setw(2) << int(newValue)
+        << " GAME=" << (game ? "1" : "0")
+        << " EXROM=" << (exrom ? "1" : "0")
+        << " CHAREN=" << (charen ? "1" : "0")
+        << " HIRAM=" << (hiram ? "1" : "0")
+        << " LORAM=" << (loram ? "1" : "0");
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordPlaResolve(uint16_t address, const char* bankName, uint16_t offset, uint8_t mcr, uint8_t mode,
+    bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::PLA)) return;
+
+    std::stringstream out;
+    out << makeStamp(stamp)
+        << "[PLA] resolve addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << address
+        << " -> " << bankName
+        << " offset=$" << std::setw(4) << offset
+        << " MCR=$" << std::setw(2) << int(mcr)
+        << " mode=" << std::dec << int(mode)
+        << " GAME=" << (game ? "1" : "0")
+        << " EXROM=" << (exrom ? "1" : "0")
+        << " CHAREN=" << (charen ? "1" : "0")
+        << " HIRAM=" << (hiram ? "1" : "0")
+        << " LORAM=" << (loram ? "1" : "0");
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
 void TraceManager::recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp)
 {
     if (!tracing || !catOn(TraceCat::SID)) return;
