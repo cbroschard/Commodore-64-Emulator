@@ -441,5 +441,24 @@ class Vic
 
         FetchKind getFetchKindForCycle(int raster, int cycle) const;
         const char* fetchKindName(FetchKind kind) const;
+
+        // Trace helpers
+        inline bool vicTraceOn() const { return traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC); }
+        TraceManager::Stamp makeVicStamp() const;
+        void traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
+        void traceVicLatch(uint16_t nextRaster) const;
+        void traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const;
+        void traceVicBadLineStart(int raster, int cycle) const;
+        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col,
+        uint8_t screenByte, uint8_t colorByte) const;
+        void traceVicBusArb(bool oldBA, bool oldAEC,
+        bool newBA, bool newAEC,
+        bool badLineNow, bool baLow, bool aecLow) const;
+        void traceVicSpriteDmaStart(int sprite) const;
+        void traceVicSpritePtrFetch(int sprite, int raster,
+        uint16_t ptrLoc, uint8_t ptr) const;
+        void traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const;
+        void traceVicSpriteAdvance(int sprite, int raster) const;
+        void traceVicDisplayGate(int raster, bool den, bool verticalOpen, int charRow) const;
 };
 #endif // VIC_H
