@@ -208,6 +208,8 @@ class CIA1
         };
 
         InputMode inputMode;
+
+        TraceManager::Stamp makeCIAStamp() const;
 };
 
 #endif // CIA1_H
