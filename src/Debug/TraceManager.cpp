@@ -17,9 +17,11 @@ TraceManager::TraceManager() :
     pla(nullptr),
     sidchip(nullptr),
     vicII(nullptr),
-    tracing(false)
+    tracing(false),
+    chipCats(0u),
+    detailCats(0ull)
 {
-    cats = static_cast<uint32_t>(0u);
+
 }
 
 TraceManager::~TraceManager()
@@ -39,10 +41,10 @@ const char* TraceManager::sidRegNames[32] =
 
 void TraceManager::enableAllCategories(bool enable)
 {
-    for (int i = 0; i < static_cast<int>(TraceCat::COUNT); ++i)
+    for (auto [cat, name] : catNames)
     {
-        if (enable) enableCategory(static_cast<TraceCat>(i));
-        else disableCategory(static_cast<TraceCat>(i));
+        if (enable) enableCategory(cat);
+        else disableCategory(cat);
     }
 }
 
@@ -72,6 +74,16 @@ void TraceManager::clearBuffer()
     buffer.clear();
 }
 
+bool TraceManager::cpuDetailOn(TraceDetail d) const
+{
+    return isEnabled() && catOn(TraceCat::CPU) && detailEnabled(d);
+}
+
+bool TraceManager::vicDetailOn(TraceDetail d) const
+{
+    return isEnabled() && catOn(TraceCat::VIC) && detailEnabled(d);
+}
+
 std::string TraceManager::listCategoryStatus()
 {
     std::ostringstream out;
@@ -86,6 +98,36 @@ std::string TraceManager::listCategoryStatus()
         first = false;
         out << name << "=" << (catOn(cat) ? "on" : "off");
     }
+    return out.str();
+}
+
+std::string TraceManager::listDetailStatus() const
+{
+    std::ostringstream out;
+
+    out << "Details mask=0x"
+        << std::hex << std::uppercase << std::setw(16)
+        << std::setfill('0') << detailCats << std::dec << "\n";
+
+    out << "CPU: "
+        << "exec="   << (detailEnabled(TraceDetail::CPU_EXEC)   ? "on" : "off") << ", "
+        << "irq="    << (detailEnabled(TraceDetail::CPU_IRQ)    ? "on" : "off") << ", "
+        << "nmi="    << (detailEnabled(TraceDetail::CPU_NMI)    ? "on" : "off") << ", "
+        << "stack="  << (detailEnabled(TraceDetail::CPU_STACK)  ? "on" : "off") << ", "
+        << "branch=" << (detailEnabled(TraceDetail::CPU_BRANCH) ? "on" : "off") << ", "
+        << "flags="  << (detailEnabled(TraceDetail::CPU_FLAGS)  ? "on" : "off") << ", "
+        << "ba="     << (detailEnabled(TraceDetail::CPU_BA)     ? "on" : "off") << ", "
+        << "jam="    << (detailEnabled(TraceDetail::CPU_JAM)    ? "on" : "off") << "\n";
+
+    out << "VIC: "
+        << "raster="  << (detailEnabled(TraceDetail::VIC_RASTER)  ? "on" : "off") << ", "
+        << "irq="     << (detailEnabled(TraceDetail::VIC_IRQ)     ? "on" : "off") << ", "
+        << "reg="     << (detailEnabled(TraceDetail::VIC_REG)     ? "on" : "off") << ", "
+        << "badline=" << (detailEnabled(TraceDetail::VIC_BADLINE) ? "on" : "off") << ", "
+        << "sprite="  << (detailEnabled(TraceDetail::VIC_SPRITE)  ? "on" : "off") << ", "
+        << "bus="     << (detailEnabled(TraceDetail::VIC_BUS)     ? "on" : "off") << ", "
+        << "event="   << (detailEnabled(TraceDetail::VIC_EVENT)   ? "on" : "off");
+
     return out.str();
 }
 
@@ -111,6 +153,53 @@ std::string TraceManager::listMemRange() const
         first = false;
     }
     return out.str();
+}
+
+void TraceManager::enableCPUDetails(bool enable)
+{
+    const TraceDetail cpuDetails[] =
+    {
+        TraceDetail::CPU_EXEC,
+        TraceDetail::CPU_IRQ,
+        TraceDetail::CPU_NMI,
+        TraceDetail::CPU_STACK,
+        TraceDetail::CPU_BRANCH,
+        TraceDetail::CPU_FLAGS,
+        TraceDetail::CPU_BA,
+        TraceDetail::CPU_JAM
+    };
+
+    for (auto d : cpuDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
+}
+
+void TraceManager::enableVICDetails(bool enable)
+{
+    const TraceDetail vicDetails[] =
+    {
+        TraceDetail::VIC_RASTER,
+        TraceDetail::VIC_IRQ,
+        TraceDetail::VIC_REG,
+        TraceDetail::VIC_BADLINE,
+        TraceDetail::VIC_SPRITE,
+        TraceDetail::VIC_BUS,
+        TraceDetail::VIC_EVENT
+    };
+
+    for (auto d : vicDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
+}
+
+void TraceManager::enableAllDetails(bool enable)
+{
+    enableCPUDetails(enable);
+    enableVICDetails(enable);
 }
 
 void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp)
@@ -152,9 +241,9 @@ void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stam
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
-void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
+void TraceManager::recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp)
 {
-    if (!tracing || !processor || !catOn(TraceCat::CPU)) return;
+    if (!processor || !cpuDetailOn(TraceDetail::CPU_EXEC)) return;
 
     std::stringstream out;
 
@@ -170,6 +259,61 @@ void TraceManager::recordCPUTrace(uint16_t pcExec, uint8_t opcode, Stamp stamp)
         << "  Y=$" << std::setw(2) << int(st.Y)
         << "  SP=$"<< std::setw(2) << int(st.SP)
         << "  P="  << std::bitset<8>(st.SR);
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCPUIRQ(const std::string& text, Stamp stamp)
+{
+    if (!cpuDetailOn(TraceDetail::CPU_IRQ)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[CPU:IRQ] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCPUNMI(const std::string& text, Stamp stamp)
+{
+    if (!cpuDetailOn(TraceDetail::CPU_NMI)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[CPU:NMI] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCPUStack(const std::string& text, Stamp stamp)
+{
+    if (!cpuDetailOn(TraceDetail::CPU_STACK)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[CPU:STACK] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCPUBA(const std::string& text, Stamp stamp)
+{
+    if (!cpuDetailOn(TraceDetail::CPU_BA)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[CPU:BA] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCPUJam(const std::string& text, Stamp stamp)
+{
+    if (!cpuDetailOn(TraceDetail::CPU_JAM)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[CPU:JAM] " << text;
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
@@ -235,7 +379,7 @@ void TraceManager::recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp)
 
 void TraceManager::recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::VIC)) return;
+    if (!vicDetailOn(TraceDetail::VIC_RASTER)) return;
 
     std::stringstream out;
 
@@ -252,7 +396,7 @@ void TraceManager::recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_
 
 void TraceManager::recordVicIrq(bool level, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::VIC)) return;
+    if (!vicDetailOn(TraceDetail::VIC_IRQ)) return;
 
     std::stringstream out;
 
@@ -264,10 +408,54 @@ void TraceManager::recordVicIrq(bool level, Stamp stamp)
 
 void TraceManager::recordVicEvent(const std::string& text, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::VIC)) return;
+    if (!vicDetailOn(TraceDetail::VIC_EVENT)) return;
 
     std::stringstream out;
     out << makeStamp(stamp) << "[VIC] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordVicRegister(const std::string& text, Stamp stamp)
+{
+    if (!vicDetailOn(TraceDetail::VIC_REG)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[VIC:REG] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordVicBadline(const std::string& text, Stamp stamp)
+{
+    if (!vicDetailOn(TraceDetail::VIC_BADLINE)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[VIC:BADLINE] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordVicSprite(const std::string& text, Stamp stamp)
+{
+    if (!vicDetailOn(TraceDetail::VIC_SPRITE)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[VIC:SPRITE] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordVicBus(const std::string& text, Stamp stamp)
+{
+    if (!vicDetailOn(TraceDetail::VIC_BUS)) return;
+
+    std::ostringstream out;
+    out << makeStamp(stamp) << "[VIC:BUS] " << text;
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
@@ -290,22 +478,4 @@ std::string TraceManager::makeStamp(const Stamp& stamp) const
         << stamp.rasterLine << "." << std::dec << std::setw(3) << std::setfill('0') << stamp.rasterDot <<  "]";
 
     return out.str();
-}
-
-uint32_t TraceManager::catToMask(TraceCat cat)
-{
-    switch (cat)
-    {
-        case TraceCat::CPU:  return 1u<<0;
-        case TraceCat::VIC:  return 1u<<1;
-        case TraceCat::CIA1: return 1u<<2;
-        case TraceCat::CIA2: return 1u<<3;
-        case TraceCat::PLA:  return 1u<<4;
-        case TraceCat::SID:  return 1u<<5;
-        case TraceCat::CART: return 1u<<6;
-        case TraceCat::MEM:  return 1u<<7;
-        case TraceCat::COUNT: return 1u<<0;
-    }
-    // Default
-    return 1u<<0;
 }

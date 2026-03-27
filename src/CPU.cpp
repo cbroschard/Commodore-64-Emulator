@@ -216,7 +216,14 @@ void CPU::setJamMode(JamMode mode)
 
 void CPU::setNMILine(bool asserted)
 {
-    if (asserted && !nmiLine) nmiPending = true;
+    if (asserted && !nmiLine)
+    {
+        nmiPending = true;
+
+        if (traceMgr)
+            traceMgr->recordCPUNMI("NMI rising edge -> pending set", makeCpuStamp());
+    }
+
     nmiLine = asserted;
 }
 
@@ -225,18 +232,29 @@ void CPU::handleIRQ()
     if (!IRQ || !IRQ->isIRQActive())
         return;
 
+    if (traceMgr)
+        traceMgr->recordCPUIRQ("IRQ line active", makeCpuStamp());
+
     executeIRQ();
 }
 
 void CPU::handleNMI()
 {
-    if (!nmiPending) return;
+    if (!nmiPending)
+        return;
+
+    if (traceMgr)
+        traceMgr->recordCPUNMI("NMI pending consumed", makeCpuStamp());
+
     nmiPending = false;
     executeNMI();
 }
 
 void CPU::pulseNMI()
 {
+    if (traceMgr)
+        traceMgr->recordCPUNMI("pulseNMI()", makeCpuStamp());
+
     setNMILine(true);
     setNMILine(false);
 }
@@ -279,29 +297,57 @@ void CPU::executeIRQ()
     uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = irqVector;
 
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "IRQ vector -> PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << irqVector;
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
+
     cycles += 7;
 }
 
 void CPU::executeNMI()
 {
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "NMI accepted at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << PC;
+        traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
+    }
+
     // Dummy read for accuracy
     mem->read(PC);
 
-    //Save CPU state
-    push((PC >> 8) & 0xFF); // high byte of PC
-    push(PC & 0xFF); // low byte of PC
+    // Save CPU state
+    push((PC >> 8) & 0xFF);
+    push(PC & 0xFF);
 
-      // Push SR with B=0, bit 5=1
+    // Push SR with B=0, bit 5=1
     uint8_t status = SR;
-    status &= ~0x10; // clear B
-    status |= 0x20;  // set unused bit 5
+    status &= ~0x10;
+    status |= 0x20;
     push(status);
 
     // Disable interrupt flag
     setFlag(I, true);
 
-    uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
+    const uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
     PC = nmiVector;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "NMI vector -> PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << nmiVector;
+        traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
+    }
+
     cycles += 7;
 }
 
@@ -796,6 +842,9 @@ void CPU::tick()
 {
     if (halted) // Jam Halt
     {
+        if (traceMgr)
+            traceMgr->recordCPUJam("CPU halted/jammed", makeCpuStamp());
+
         cycles = 1; // always force 1 cycle pending
         cycles--;   // consume it
         totalCycles++;
@@ -809,7 +858,14 @@ void CPU::tick()
 
         if (cycles <= 0)
         {
-            if (baHold) { totalCycles++; return; }
+            if (baHold)
+            {
+                if (traceMgr)
+                    traceMgr->recordCPUBA("CPU stalled by BA hold", makeCpuStamp());
+
+                totalCycles++;
+                return;
+            }
 
             const uint16_t pcExec = PC;   // PC of the instruction to execute
             uint8_t opcode = fetch();
@@ -826,9 +882,10 @@ void CPU::tick()
             decodeAndExecute(opcode);
 
             // If tracing is on capture it
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU))
+            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU)
+                && traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
             {
-                traceMgr->recordCPUTrace(pcExec, opcode, traceMgr->makeStamp(totalCycles,
+                traceMgr->recordCPUExec(pcExec, opcode, traceMgr->makeStamp(totalCycles,
                     vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0));
             }
 
@@ -879,14 +936,35 @@ void CPU::setFlag(flags flag, bool sc)
 
 void CPU::push(uint8_t value)
 {
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "PUSH addr=$"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (0x100 + SP)
+            << " value=$" << std::setw(2) << int(value)
+            << " SP=$" << std::setw(2) << int(SP);
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
+
     mem->write(0x100 + SP, value);
     SP = (SP - 1) & 0xFF;
 }
 
 uint8_t CPU::pop()
 {
-    SP = (SP +1) & 0xFF;
+    SP = (SP + 1) & 0xFF;
     uint8_t value = mem->read(0x100 + SP);
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "POP addr=$"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (0x100 + SP)
+            << " value=$" << std::setw(2) << int(value)
+            << " SP=$" << std::setw(2) << int(SP);
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
+
     return value;
 }
 
@@ -2450,4 +2528,16 @@ uint8_t CPU::debugRead(uint16_t address) const
 {
     if (!mem) return 0xFF;
     return mem->read(address);
+}
+
+TraceManager::Stamp CPU::makeCpuStamp() const
+{
+    if (!traceMgr)
+        return { totalCycles, 0, 0 };
+
+    return traceMgr->makeStamp(
+        totalCycles,
+        vicII ? vicII->getCurrentRaster() : 0,
+        vicII ? vicII->getRasterDot() : 0
+    );
 }

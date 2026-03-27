@@ -443,7 +443,7 @@ class Vic
         const char* fetchKindName(FetchKind kind) const;
 
         // Trace helpers
-        inline bool vicTraceOn() const { return traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC); }
+        inline bool vicTraceOn(TraceManager::TraceDetail d) const { return traceMgr && traceMgr->vicDetailOn(d); }
         TraceManager::Stamp makeVicStamp() const;
         void traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void traceVicLatch(uint16_t nextRaster) const;

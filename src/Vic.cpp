@@ -1025,7 +1025,7 @@ void Vic::advanceToNextRaster()
 
 void Vic::traceRasterEnd()
 {
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+    if (traceMgr && traceMgr->vicDetailOn(TraceManager::TraceDetail::VIC_RASTER))
     {
         TraceManager::Stamp stamp =
             traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
@@ -1992,19 +1992,35 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
 
 void Vic::updateIRQLine()
 {
-    // Low 4 bits only
-    const uint8_t pending = (registers.interruptStatus & registers.interruptEnable) & 0x0F;
-    const bool any = pending != 0;
+    const uint8_t rawStatus = registers.interruptStatus;
+    const uint8_t rawEnable = registers.interruptEnable & 0x0F;
+    const uint8_t pending   = (rawStatus & rawEnable) & 0x0F;
+    const bool any = (pending != 0);
 
-    if (!IRQ) return;
-    if (any)  IRQ->raiseIRQ(IRQLine::VICII);
-    else      IRQ->clearIRQ(IRQLine::VICII);
-
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+    if (vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
     {
-        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
-        traceMgr->recordVicIrq(any, stamp);
+        std::ostringstream oss;
+        oss << "IRQ UPDATE"
+            << " raster=" << std::dec << registers.raster
+            << " cycle=" << currentCycle
+            << " rawStatus=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(rawStatus)
+            << " rawEnable=$" << std::setw(2) << int(rawEnable)
+            << " pending=$" << std::setw(2) << int(pending)
+            << " any=" << (any ? "1" : "0")
+            << " irqPtr=" << (IRQ ? "set" : "null");
+        traceMgr->recordVicEvent(oss.str(), makeVicStamp());
     }
+
+    if (!IRQ)
+        return;
+
+    if (any)
+        IRQ->raiseIRQ(IRQLine::VICII);
+    else
+        IRQ->clearIRQ(IRQLine::VICII);
+
+    if (vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+        traceMgr->recordVicIrq(any, makeVicStamp());
 }
 
 void Vic::triggerRasterIRQIfMatched()
@@ -2883,7 +2899,8 @@ TraceManager::Stamp Vic:: makeVicStamp() const
 
 void Vic::traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_REG)) return;
+
 
     std::ostringstream oss;
     oss << "REG WRITE addr=$"
@@ -2893,12 +2910,12 @@ void Vic::traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
         << " raster=" << std::dec << registers.raster
         << " cycle=" << currentCycle;
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicRegister(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicLatch(uint16_t nextRaster) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT)) return;
 
     std::ostringstream oss;
     oss << "LATCH nextRaster=" << std::dec << nextRaster
@@ -2912,7 +2929,7 @@ void Vic::traceVicLatch(uint16_t nextRaster) const
 
 void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_IRQ)) return;
 
     std::ostringstream oss;
     oss << "IRQ " << phase
@@ -2930,7 +2947,7 @@ void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t n
 
 void Vic::traceVicBadLineStart(int raster, int cycle) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE)) return;
 
     std::ostringstream oss;
     oss << "BADLINE START raster=" << std::dec << raster
@@ -2939,12 +2956,12 @@ void Vic::traceVicBadLineStart(int raster, int cycle) const
         << " rc=" << int(vicState.rc)
         << " DEN=" << (((d011_per_raster[raster] & 0x10) != 0) ? "1" : "0");
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicBadline(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE)) return;
 
     std::ostringstream oss;
     oss << "BADLINE FETCH raster=" << std::dec << raster
@@ -2956,12 +2973,12 @@ void Vic::traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t v
         << " scr=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(screenByte)
         << " colr=$" << std::setw(2) << int(colorByte);
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicBadline(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS)) return;
 
     std::ostringstream oss;
     oss << "BUS raster=" << std::dec << registers.raster
@@ -2972,12 +2989,12 @@ void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool 
         << " BA " << (oldBA ? "H" : "L") << "->" << (newBA ? "H" : "L")
         << " AEC " << (oldAEC ? "H" : "L") << "->" << (newAEC ? "H" : "L");
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicBus(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteDmaStart(int sprite) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
 
     std::ostringstream oss;
     oss << "SPR DMA START spr=" << sprite
@@ -2987,12 +3004,12 @@ void Vic::traceVicSpriteDmaStart(int sprite) const
         << " startY=" << int(spriteUnits[sprite].startY)
         << " yExp=" << (((registers.spriteYExpansion & (1 << sprite)) != 0) ? "1" : "0");
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
 
     std::ostringstream oss;
     oss << "SPR PTR FETCH spr=" << sprite
@@ -3002,12 +3019,12 @@ void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_
         << " ptr=$" << std::setw(2) << int(ptr)
         << " dataBase=$" << std::setw(4) << int(spriteUnits[sprite].dataBase);
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
 
     std::ostringstream oss;
     oss << "SPR DATA FETCH spr=" << sprite
@@ -3018,12 +3035,12 @@ void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_
         << " val=$" << std::setw(2) << int(value)
         << " mcBase=" << std::dec << int(spriteUnits[sprite].mcBase);
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteAdvance(int sprite, int raster) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
 
     std::ostringstream oss;
     oss << "SPR ADV spr=" << sprite
@@ -3035,12 +3052,12 @@ void Vic::traceVicSpriteAdvance(int sprite, int raster) const
         << " display=" << (spriteUnits[sprite].displayActive ? "1" : "0")
         << " dma=" << (spriteUnits[sprite].dmaActive ? "1" : "0");
 
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
 }
 
 void Vic::traceVicDisplayGate(int raster, bool den, bool verticalOpen, int charRow) const
 {
-    if (!vicTraceOn()) return;
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT)) return;
 
     std::ostringstream oss;
     oss << "DISPLAY GATE raster=" << std::dec << raster

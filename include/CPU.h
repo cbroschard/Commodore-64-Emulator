@@ -381,6 +381,9 @@ class CPU
         void BRK();
         void JAM();
         void NOP(uint8_t opcode);
+
+        // Tracing
+        TraceManager::Stamp makeCpuStamp() const;
 };
 
 #endif // CPU_H
