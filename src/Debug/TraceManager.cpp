@@ -262,6 +262,17 @@ void TraceManager::recordVicIrq(bool level, Stamp stamp)
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
+void TraceManager::recordVicEvent(const std::string& text, Stamp stamp)
+{
+    if (!tracing || !catOn(TraceCat::VIC)) return;
+
+    std::stringstream out;
+    out << makeStamp(stamp) << "[VIC] " << text;
+
+    buffer.push_back(out.str());
+    if (file.is_open()) file << buffer.back() << "\n";
+}
+
 void TraceManager::recordCustomEvent(const std::string& text)
 {
     if (tracing)

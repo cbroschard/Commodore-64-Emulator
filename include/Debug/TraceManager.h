@@ -97,6 +97,7 @@ class TraceManager
         void recordSidWrite(uint16_t reg, uint8_t val, Stamp stamp);
         void recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp);
         void recordVicIrq(bool level, Stamp stamp);
+        void recordVicEvent(const std::string& text, Stamp stamp);
         void recordCustomEvent(const std::string& text);
 
     protected:
