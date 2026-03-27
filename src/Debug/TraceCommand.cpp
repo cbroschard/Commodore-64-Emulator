@@ -46,7 +46,7 @@ std::string TraceCommand::help() const
         "  trace                            Show global trace status (ON/OFF)\n"
         "  trace on|off                     Enable or disable tracing globally\n"
         "  trace cats|categories            List all top-level chip categories and their status\n"
-        "  trace details                    List all CPU/VIC detail categories and their status\n"
+        "  trace details                    List all CPU/VIC/CIA detail categories and their status\n"
         "  trace dump                       Dump the current trace buffer to console\n"
         "  trace clear                      Clear stored trace data\n"
         "  trace file <path>                Write trace output to a file\n"
@@ -58,10 +58,19 @@ std::string TraceCommand::help() const
         "  trace cart disable               Disable Cartridge tracing\n"
         "\n"
         "CIA tracing:\n"
-        "  trace cia1 enable                Enable CIA1 tracing\n"
-        "  trace cia1 disable               Disable CIA1 tracing\n"
-        "  trace cia2 enable                Enable CIA2 tracing\n"
-        "  trace cia2 disable               Disable CIA2 tracing\n"
+        "  trace cia1 enable                 Enable CIA1 top-level tracing\n"
+        "  trace cia1 disable                Disable CIA1 top-level tracing\n"
+        "  trace cia1 all enable|disable     Enable or disable CIA1 detail tracing\n"
+        "  trace cia1 timer enable|disable   CIA1 timer tracing\n"
+        "  trace cia1 irq enable|disable     CIA1 interrupt tracing\n"
+        "  trace cia1 cnt enable|disable     CIA1 CNT-edge tracing\n"
+        "  trace cia2 enable                 Enable CIA2 top-level tracing\n"
+        "  trace cia2 disable                Disable CIA2 top-level tracing\n"
+        "  trace cia2 all enable|disable     Enable or disable CIA2 detail tracing\n"
+        "  trace cia2 timer enable|disable   CIA2 timer tracing\n"
+        "  trace cia2 irq enable|disable     CIA2 interrupt tracing\n"
+        "  trace cia2 cnt enable|disable     CIA2 CNT-edge tracing\n"
+        "  trace cia2 iec enable|disable     CIA2 IEC bus tracing\n"
         "\n"
         "CPU tracing:\n"
         "  trace cpu enable                 Enable CPU top-level tracing\n"
@@ -168,6 +177,27 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             traceMgr->disableCategory(cat);
             std::cout << "Disabled " << label << " tracing.\n";
+            disableGlobalReminder();
+            return true;
+        }
+        return false;
+    };
+
+    auto setCiaDetail = [&](TraceManager::TraceCat cat, TraceManager::TraceDetail detail, const char* chipLabel,
+            const char* detailLabel, const std::string& action) -> bool
+    {
+        if (isEnableWord(action))
+        {
+            traceMgr->enableCategory(cat);
+            traceMgr->enableDetail(detail);
+            std::cout << "Enabled " << chipLabel << " " << detailLabel << " tracing.\n";
+            tracingOnReminder();
+            return true;
+        }
+        if (isDisableWord(action))
+        {
+            traceMgr->disableDetail(detail);
+            std::cout << "Disabled " << chipLabel << " " << detailLabel << " tracing.\n";
             disableGlobalReminder();
             return true;
         }
@@ -327,7 +357,48 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::CIA1, "CIA1", args[2]))
             return;
 
-        std::cout << "Usage: trace cia1 enable|disable\n";
+        if (args.size() >= 4 && args[2] == "all")
+        {
+            if (isEnableWord(args[3]))
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::CIA1);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_TIMER);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_IRQ);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_CNT);
+                std::cout << "Enabled all CIA1 trace details.\n";
+                tracingOnReminder();
+                return;
+            }
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_TIMER);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_IRQ);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_CNT);
+                std::cout << "Disabled all CIA1 trace details.\n";
+                disableGlobalReminder();
+                return;
+            }
+
+            std::cout << "Usage: trace cia1 all enable|disable\n";
+            return;
+        }
+
+        if (args.size() >= 4)
+        {
+            const std::string& detail = args[2];
+            const std::string& action = args[3];
+
+            if (detail == "timer" && setCiaDetail(TraceManager::TraceCat::CIA1, TraceManager::TraceDetail::CIA_TIMER, "CIA1", "timer", action)) return;
+            if (detail == "irq"   && setCiaDetail(TraceManager::TraceCat::CIA1, TraceManager::TraceDetail::CIA_IRQ,   "CIA1", "irq",   action)) return;
+            if (detail == "cnt"   && setCiaDetail(TraceManager::TraceCat::CIA1, TraceManager::TraceDetail::CIA_CNT,   "CIA1", "cnt",   action)) return;
+
+            std::cout << "Usage: trace cia1 <timer|irq|cnt> enable|disable\n";
+            return;
+        }
+
+        std::cout << "Usage: trace cia1 enable|disable\n"
+                     "       trace cia1 all enable|disable\n"
+                     "       trace cia1 <timer|irq|cnt> enable|disable\n";
         return;
     }
 
@@ -336,7 +407,51 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::CIA2, "CIA2", args[2]))
             return;
 
-        std::cout << "Usage: trace cia2 enable|disable\n";
+        if (args.size() >= 4 && args[2] == "all")
+        {
+            if (isEnableWord(args[3]))
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::CIA2);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_TIMER);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_IRQ);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_CNT);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CIA_IEC);
+                std::cout << "Enabled all CIA2 trace details.\n";
+                tracingOnReminder();
+                return;
+            }
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_TIMER);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_IRQ);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_CNT);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CIA_IEC);
+                std::cout << "Disabled all CIA2 trace details.\n";
+                disableGlobalReminder();
+                return;
+            }
+
+            std::cout << "Usage: trace cia2 all enable|disable\n";
+            return;
+        }
+
+        if (args.size() >= 4)
+        {
+            const std::string& detail = args[2];
+            const std::string& action = args[3];
+
+            if (detail == "timer" && setCiaDetail(TraceManager::TraceCat::CIA2, TraceManager::TraceDetail::CIA_TIMER, "CIA2", "timer", action)) return;
+            if (detail == "irq"   && setCiaDetail(TraceManager::TraceCat::CIA2, TraceManager::TraceDetail::CIA_IRQ,   "CIA2", "irq",   action)) return;
+            if (detail == "cnt"   && setCiaDetail(TraceManager::TraceCat::CIA2, TraceManager::TraceDetail::CIA_CNT,   "CIA2", "cnt",   action)) return;
+            if (detail == "iec"   && setCiaDetail(TraceManager::TraceCat::CIA2, TraceManager::TraceDetail::CIA_IEC,   "CIA2", "iec",   action)) return;
+
+            std::cout << "Usage: trace cia2 <timer|irq|cnt|iec> enable|disable\n";
+            return;
+        }
+
+        std::cout << "Usage: trace cia2 enable|disable\n"
+                     "       trace cia2 all enable|disable\n"
+                     "       trace cia2 <timer|irq|cnt|iec> enable|disable\n";
         return;
     }
 

@@ -128,6 +128,12 @@ std::string TraceManager::listDetailStatus() const
         << "bus="     << (detailEnabled(TraceDetail::VIC_BUS)     ? "on" : "off") << ", "
         << "event="   << (detailEnabled(TraceDetail::VIC_EVENT)   ? "on" : "off");
 
+     out << "CIA: "
+        << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
+        << "irq="     << (detailEnabled(TraceDetail::CIA_IRQ)   ? "on" : "off") << ", "
+        << "cnt="     << (detailEnabled(TraceDetail::CIA_CNT)   ? "on" : "off") << ", "
+        << "iec="     << (detailEnabled(TraceDetail::CIA_IEC)   ? "on" : "off");
+
     return out.str();
 }
 
@@ -153,6 +159,33 @@ std::string TraceManager::listMemRange() const
         first = false;
     }
     return out.str();
+}
+
+bool TraceManager::ciaDetailOn(int cia, TraceDetail d) const
+{
+    if (!isEnabled() || !detailEnabled(d))
+        return false;
+
+    if (cia == 1) return catOn(TraceCat::CIA1);
+    if (cia == 2) return catOn(TraceCat::CIA2);
+    return false;
+}
+
+void TraceManager::enableCIADetails(bool enable)
+{
+    const TraceDetail ciaDetails[] =
+    {
+        TraceDetail::CIA_TIMER,
+        TraceDetail::CIA_IRQ,
+        TraceDetail::CIA_CNT,
+        TraceDetail::CIA_IEC
+    };
+
+    for (auto d : ciaDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
 }
 
 void TraceManager::enableCPUDetails(bool enable)
@@ -200,6 +233,7 @@ void TraceManager::enableAllDetails(bool enable)
 {
     enableCPUDetails(enable);
     enableVICDetails(enable);
+    enableCIADetails(enable);
 }
 
 void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp)
@@ -215,32 +249,30 @@ void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uin
 
 void TraceManager::recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp)
 {
-    if (!tracing) return;
-
-    // Check to ensure the correct CIA tracing is on
-    if ((cia == 1 && !catOn(TraceCat::CIA1)) || (cia == 2 && !catOn(TraceCat::CIA2))) return;
+    if (!ciaDetailOn(cia, TraceDetail::CIA_TIMER)) return;
 
     std::stringstream out;
+    out << makeStamp(stamp) << "[CIA" << cia << ":TIMER] "
+        << "Timer=" << timerName
+        << " Value=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << value
+        << " Underflow=" << (underflow ? "Yes" : "No");
 
-    out << makeStamp(stamp) << "[CIA" << cia << "] Timer: " << timerName << " = " << value << " Underflow: " << (underflow ? "Yes" : "No");
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
 void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp)
 {
-    if (!tracing) return;
-
-    // Check to ensure the correct CIA tracing is on
-    if ((cia == 1 && !catOn(TraceCat::CIA1)) || (cia == 2 && !catOn(TraceCat::CIA2))) return;
+    if (!ciaDetailOn(cia, TraceDetail::CIA_IRQ)) return;
 
     std::stringstream out;
+    out << makeStamp(stamp) << "[CIA" << cia << ":IRQ] "
+        << "ICR=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(icr)
+        << " Raised=" << (irqRaised ? "True" : "False");
 
-    out << makeStamp(stamp) << "[CIA" << cia << "] ICR value: " << std::hex << int(icr) << " IRQ Raised: " << (irqRaised ? "True" : "False");
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
-
 void TraceManager::recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp)
 {
     if (!processor || !cpuDetailOn(TraceDetail::CPU_EXEC)) return;
@@ -510,6 +542,15 @@ void TraceManager::recordCustomEvent(const std::string& text)
         buffer.push_back(text);
         if (file.is_open()) file << text << "\n";
     }
+}
+
+void TraceManager::recordCustomEvent(const std::string& text, Stamp stamp)
+{
+    if (!tracing) return;
+
+    std::string line = makeStamp(stamp) + text;
+    buffer.push_back(line);
+    if (file.is_open()) file << line << "\n";
 }
 
 std::string TraceManager::makeStamp(const Stamp& stamp) const

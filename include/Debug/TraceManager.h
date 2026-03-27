@@ -75,6 +75,12 @@ class TraceManager
             VIC_SPRITE  = 1ull << 12,
             VIC_BUS     = 1ull << 13,
             VIC_EVENT   = 1ull << 14,
+
+            // CIA
+            CIA_TIMER   = 1ull << 15,
+            CIA_IRQ     = 1ull << 16,
+            CIA_CNT     = 1ull << 17,
+            CIA_IEC     = 1ull << 18,
         };
 
         // Getters
@@ -82,10 +88,14 @@ class TraceManager
         inline bool catOn(TraceCat c) const { return chipOn(c); }
         inline bool memRangesIsEmpty() const { return memRanges.empty(); }
         inline bool detailEnabled(TraceDetail d) const { return detailOn(d); }
+
         bool cpuDetailOn(TraceDetail d) const;
+        bool ciaDetailOn(int cia, TraceDetail d) const;
         bool vicDetailOn(TraceDetail d) const;
+
         std::string listDetailStatus() const;
         std::string listCategoryStatus();
+
         bool memRangeContains(uint16_t address) const;
         std::string listMemRange() const;
 
@@ -96,13 +106,13 @@ class TraceManager
         inline void enableDetail(TraceDetail d) { detailCats |= detailToMask(d); }
         inline void disableDetail(TraceDetail d) { detailCats &= ~detailToMask(d); }
 
+        void enableAllCategories(bool enable);
         void enableAllDetails(bool enable);
+        void enableCIADetails(bool enable);
         void enableCPUDetails(bool enable);
         void enableVICDetails(bool enable);
-        void enableAllCategories(bool enable);
         void enable(bool on);
         void setFileOutput(const std::string& path);
-
 
         // Helpers
         inline void clearMemRanges() { memRanges.clear(); }
@@ -159,6 +169,7 @@ class TraceManager
 
         // Other/Custom
         void recordCustomEvent(const std::string& text);
+        void recordCustomEvent(const std::string& text, Stamp stamp);
 
     protected:
 
