@@ -125,7 +125,6 @@ class Vic
     protected:
 
     private:
-
         // Non-owning pointers
         CIA2* cia2object;
         CPU* processor;
@@ -137,7 +136,7 @@ class Vic
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
 
-        static constexpr int RASTER_IRQ_COMPARE_CYCLE = 1;
+        static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
 
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
