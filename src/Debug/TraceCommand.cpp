@@ -46,7 +46,7 @@ std::string TraceCommand::help() const
         "  trace                            Show global trace status (ON/OFF)\n"
         "  trace on|off                     Enable or disable tracing globally\n"
         "  trace cats|categories            List all top-level chip categories and their status\n"
-        "  trace details                    List all CPU/VIC/CIA detail categories and their status\n"
+        "  trace details                    List all CPU/VIC/CIA/PLA detail categories and their status\n"
         "  trace dump                       Dump the current trace buffer to console\n"
         "  trace clear                      Clear stored trace data\n"
         "  trace file <path>                Write trace output to a file\n"
@@ -93,8 +93,12 @@ std::string TraceCommand::help() const
         "  trace mem clear                  Clear all traced memory ranges\n"
         "\n"
         "PLA tracing:\n"
-        "  trace pla enable                 Enable PLA tracing\n"
-        "  trace pla disable                Disable PLA tracing\n"
+        "  trace pla enable                 Enable PLA top-level tracing\n"
+        "  trace pla disable                Disable PLA top-level tracing\n"
+        "  trace pla all enable|disable     Enable or disable all PLA detail tracing\n"
+        "  trace pla mode enable|disable    PLA mode/line-change tracing\n"
+        "  trace pla port enable|disable    PLA $0001 port-write tracing\n"
+        "  trace pla resolve enable|disable PLA address-resolution tracing\n"
         "\n"
         "SID tracing:\n"
         "  trace sid enable                 Enable SID tracing\n"
@@ -218,6 +222,26 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             traceMgr->disableDetail(detail);
             std::cout << "Disabled CPU " << label << " tracing.\n";
+            disableGlobalReminder();
+            return true;
+        }
+        return false;
+    };
+
+    auto setPlaDetail = [&](TraceManager::TraceDetail detail, const char* label, const std::string& action) -> bool
+    {
+        if (isEnableWord(action))
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::PLA);
+            traceMgr->enableDetail(detail);
+            std::cout << "Enabled PLA " << label << " tracing.\n";
+            tracingOnReminder();
+            return true;
+        }
+        if (isDisableWord(action))
+        {
+            traceMgr->disableDetail(detail);
+            std::cout << "Disabled PLA " << label << " tracing.\n";
             disableGlobalReminder();
             return true;
         }
@@ -585,7 +609,48 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::PLA, "PLA", args[2]))
             return;
 
-        std::cout << "Usage: trace pla enable|disable\n";
+        if (args.size() >= 4 && args[2] == "all")
+        {
+            if (isEnableWord(args[3]))
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::PLA);
+                traceMgr->enableDetail(TraceManager::TraceDetail::PLA_MODE);
+                traceMgr->enableDetail(TraceManager::TraceDetail::PLA_PORT);
+                traceMgr->enableDetail(TraceManager::TraceDetail::PLA_RESOLVE);
+                std::cout << "Enabled all PLA trace details.\n";
+                tracingOnReminder();
+                return;
+            }
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->disableDetail(TraceManager::TraceDetail::PLA_MODE);
+                traceMgr->disableDetail(TraceManager::TraceDetail::PLA_PORT);
+                traceMgr->disableDetail(TraceManager::TraceDetail::PLA_RESOLVE);
+                std::cout << "Disabled all PLA trace details.\n";
+                disableGlobalReminder();
+                return;
+            }
+
+            std::cout << "Usage: trace pla all enable|disable\n";
+            return;
+        }
+
+        if (args.size() >= 4)
+        {
+            const std::string& detail = args[2];
+            const std::string& action = args[3];
+
+            if (detail == "mode"    && setPlaDetail(TraceManager::TraceDetail::PLA_MODE,    "mode",    action)) return;
+            if (detail == "port"    && setPlaDetail(TraceManager::TraceDetail::PLA_PORT,    "port",    action)) return;
+            if (detail == "resolve" && setPlaDetail(TraceManager::TraceDetail::PLA_RESOLVE, "resolve", action)) return;
+
+            std::cout << "Usage: trace pla <mode|port|resolve> enable|disable\n";
+            return;
+        }
+
+        std::cout << "Usage: trace pla enable|disable\n"
+                     "       trace pla all enable|disable\n"
+                     "       trace pla <mode|port|resolve> enable|disable\n";
         return;
     }
 

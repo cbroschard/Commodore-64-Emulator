@@ -79,6 +79,11 @@ bool TraceManager::cpuDetailOn(TraceDetail d) const
     return isEnabled() && catOn(TraceCat::CPU) && detailEnabled(d);
 }
 
+bool TraceManager::plaDetailOn(TraceDetail d) const
+{
+    return isEnabled() && catOn(TraceCat::PLA) && detailEnabled(d);
+}
+
 bool TraceManager::vicDetailOn(TraceDetail d) const
 {
     return isEnabled() && catOn(TraceCat::VIC) && detailEnabled(d);
@@ -108,6 +113,11 @@ std::string TraceManager::listDetailStatus() const
     out << "Details mask=0x"
         << std::hex << std::uppercase << std::setw(16)
         << std::setfill('0') << detailCats << std::dec << "\n";
+    out << "CIA: "
+        << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
+        << "irq="     << (detailEnabled(TraceDetail::CIA_IRQ)   ? "on" : "off") << ", "
+        << "cnt="     << (detailEnabled(TraceDetail::CIA_CNT)   ? "on" : "off") << ", "
+        << "iec="     << (detailEnabled(TraceDetail::CIA_IEC)   ? "on" : "off");
 
     out << "CPU: "
         << "exec="   << (detailEnabled(TraceDetail::CPU_EXEC)   ? "on" : "off") << ", "
@@ -119,6 +129,11 @@ std::string TraceManager::listDetailStatus() const
         << "ba="     << (detailEnabled(TraceDetail::CPU_BA)     ? "on" : "off") << ", "
         << "jam="    << (detailEnabled(TraceDetail::CPU_JAM)    ? "on" : "off") << "\n";
 
+    out << "\nPLA: "
+        << "mode="    << (detailEnabled(TraceDetail::PLA_MODE)    ? "on" : "off") << ", "
+        << "port="    << (detailEnabled(TraceDetail::PLA_PORT)    ? "on" : "off") << ", "
+        << "resolve=" << (detailEnabled(TraceDetail::PLA_RESOLVE) ? "on" : "off");
+
     out << "VIC: "
         << "raster="  << (detailEnabled(TraceDetail::VIC_RASTER)  ? "on" : "off") << ", "
         << "irq="     << (detailEnabled(TraceDetail::VIC_IRQ)     ? "on" : "off") << ", "
@@ -127,12 +142,6 @@ std::string TraceManager::listDetailStatus() const
         << "sprite="  << (detailEnabled(TraceDetail::VIC_SPRITE)  ? "on" : "off") << ", "
         << "bus="     << (detailEnabled(TraceDetail::VIC_BUS)     ? "on" : "off") << ", "
         << "event="   << (detailEnabled(TraceDetail::VIC_EVENT)   ? "on" : "off");
-
-     out << "CIA: "
-        << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
-        << "irq="     << (detailEnabled(TraceDetail::CIA_IRQ)   ? "on" : "off") << ", "
-        << "cnt="     << (detailEnabled(TraceDetail::CIA_CNT)   ? "on" : "off") << ", "
-        << "iec="     << (detailEnabled(TraceDetail::CIA_IEC)   ? "on" : "off");
 
     return out.str();
 }
@@ -209,6 +218,22 @@ void TraceManager::enableCPUDetails(bool enable)
     }
 }
 
+void TraceManager::enablePLADetails(bool enable)
+{
+    const TraceDetail plaDetails[] =
+    {
+        TraceDetail::PLA_MODE,
+        TraceDetail::PLA_PORT,
+        TraceDetail::PLA_RESOLVE
+    };
+
+    for (auto d : plaDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
+}
+
 void TraceManager::enableVICDetails(bool enable)
 {
     const TraceDetail vicDetails[] =
@@ -234,6 +259,7 @@ void TraceManager::enableAllDetails(bool enable)
     enableCPUDetails(enable);
     enableVICDetails(enable);
     enableCIADetails(enable);
+    enablePLADetails(enable);
 }
 
 void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp)
@@ -383,7 +409,7 @@ void TraceManager::recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, 
 
 void TraceManager::recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::PLA)) return;
+    if (!plaDetailOn(TraceDetail::PLA_MODE)) return;
 
     std::stringstream out;
 
@@ -398,7 +424,7 @@ void TraceManager::recordPlaPortWrite(uint8_t oldValue, uint8_t newValue,
                                       bool game, bool exrom, bool charen, bool hiram, bool loram,
                                       Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::PLA)) return;
+    if (!plaDetailOn(TraceDetail::PLA_PORT)) return;
 
     std::stringstream out;
     out << makeStamp(stamp)
@@ -417,7 +443,7 @@ void TraceManager::recordPlaPortWrite(uint8_t oldValue, uint8_t newValue,
 void TraceManager::recordPlaResolve(uint16_t address, const char* bankName, uint16_t offset, uint8_t mcr, uint8_t mode,
     bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::PLA)) return;
+    if (!plaDetailOn(TraceDetail::PLA_RESOLVE)) return;
 
     std::stringstream out;
     out << makeStamp(stamp)

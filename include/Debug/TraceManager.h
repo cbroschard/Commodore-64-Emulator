@@ -81,6 +81,11 @@ class TraceManager
             CIA_IRQ     = 1ull << 16,
             CIA_CNT     = 1ull << 17,
             CIA_IEC     = 1ull << 18,
+
+            // PLA
+            PLA_MODE    = 1ull << 19,
+            PLA_PORT    = 1ull << 20,
+            PLA_RESOLVE = 1ull << 21,
         };
 
         // Getters
@@ -91,6 +96,7 @@ class TraceManager
 
         bool cpuDetailOn(TraceDetail d) const;
         bool ciaDetailOn(int cia, TraceDetail d) const;
+        bool plaDetailOn(TraceDetail d) const;
         bool vicDetailOn(TraceDetail d) const;
 
         std::string listDetailStatus() const;
@@ -110,6 +116,7 @@ class TraceManager
         void enableAllDetails(bool enable);
         void enableCIADetails(bool enable);
         void enableCPUDetails(bool enable);
+        void enablePLADetails(bool enable);
         void enableVICDetails(bool enable);
         void enable(bool on);
         void setFileOutput(const std::string& path);
