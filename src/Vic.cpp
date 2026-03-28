@@ -622,12 +622,6 @@ uint8_t Vic::readRegister(uint16_t address)
 
 void Vic::writeRegister(uint16_t address, uint8_t value)
 {
-    uint8_t oldValue = 0x00;
-    const bool traceThisWrite = (address >= 0xD000 && address <= 0xD02F);
-
-    if (traceThisWrite)
-        oldValue = readRegister(address);
-
     // Handle SpriteX and SpriteY registers with helper
     if (address >= 0xD000 && address <= 0xD00F)
     {
@@ -640,16 +634,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             registers.spriteY[index] = value;
         }
-
-        traceVicRegWrite(address, oldValue, value);
         return;
     }
     // Handle multicolor registers with helper
     else if (address >= 0xD022 && address <= 0xD024)
     {
         registers.backgroundColor[address - 0xD022] = value & 0x0F;
-        const uint8_t masked = value & 0x0F;
-        traceVicRegWrite(address, oldValue, masked);
         return;
     }
     // Handle Sprite Color registers with helper
@@ -657,8 +647,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
     {
         int index = getSpriteColorIndex(address);
         registers.spriteColors[index] = value & 0x0F; // Mask to 4 bits
-        const uint8_t masked = value & 0x0F;
-        traceVicRegWrite(address, oldValue, masked);
         return;
     }
     switch(address)
@@ -666,7 +654,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD010:
         {
             registers.spriteX_MSB = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD011:
@@ -676,8 +663,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             registers.rasterInterruptLine = newLine;
             registers.control = value & 0x7F;
-            const uint8_t masked = value & 0x7F;
-            traceVicRegWrite(address, oldValue, masked);
+
             checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
@@ -688,79 +674,71 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             registers.rasterInterruptLine = newLine;
 
-            traceVicRegWrite(address, oldValue, value);
             checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
         case 0xD013:
         {
             registers.light_pen_X = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD014:
         {
             registers.light_pen_Y = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD015:
         {
             registers.spriteEnabled = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD016:
         {
             registers.control2 = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD017:
         {
             registers.spriteYExpansion = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD018:
         {
             registers.memory_pointer = value & 0xFE;
-            const uint8_t masked = value & 0xFE;
-            traceVicRegWrite(address, oldValue, masked);
             break;
         }
         case 0xD019:
         {
             value &= 0x0F;
             registers.interruptStatus &= ~value;
-            traceVicRegWrite(address, oldValue, value);
             updateIRQLine();
             break;
         }
         case 0xD01A:
         {
-            registers.interruptEnable = value & 0x0F;
-            const uint8_t masked = value & 0x0F;
-            traceVicRegWrite(address, oldValue, masked);
+            const uint8_t mask = value & 0x0F;
+
+            if (value & 0x80)
+                registers.interruptEnable |= mask;   // set bits
+            else
+                registers.interruptEnable &= ~mask;  // clear bits
+
             updateIRQLine();
             break;
         }
         case 0xD01B:
         {
             registers.spritePriority = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD01C:
         {
             registers.spriteMultiColor = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD01D:
         {
             registers.spriteXExpansion = value;
-            traceVicRegWrite(address, oldValue, value);
             break;
         }
         case 0xD01E:
@@ -769,29 +747,21 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD020:
         {
             registers.borderColor = value & 0x0F;
-            const uint8_t masked = value & 0x0F;
-            traceVicRegWrite(address, oldValue, masked);
             break;
         }
         case 0xD021:
         {
             registers.backgroundColor0 = value & 0x0F;
-            const uint8_t masked = value & 0x0F;
-            traceVicRegWrite(address, oldValue, masked);
             break;
         }
         case 0xD025:
         {
             registers.spriteMultiColor1 = value & 0x0F;
-            const uint8_t masked = value & 0x0F;
-            traceVicRegWrite(address, oldValue, masked);
             break;
         }
         case 0xD026:
         {
             registers.spriteMultiColor2 = value & 0x0F;
-            const uint8_t masked = value & 0x0F;
-            traceVicRegWrite(address, oldValue, masked);
             break;
         }
         case 0xD02F:
@@ -809,7 +779,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
                 logger->WriteLog("Attempt to write to unhandled vic area address = " + std::to_string (static_cast<int>(address)));
                 break;
             }
-            break;
         }
     }
 }
@@ -858,12 +827,6 @@ void Vic::beginRasterIfNeeded()
 {
     if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
     {
-        const bool matched = rasterCompareMatchesNow();
-        traceVicRasterIrqEvent("sample",
-                               registers.rasterInterruptLine,
-                               registers.rasterInterruptLine,
-                               matched);
-
         rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
     }
@@ -871,6 +834,7 @@ void Vic::beginRasterIfNeeded()
 
 void Vic::performRasterNMinus1Latch()
 {
+    // N-1 latching
     uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
 
     if (currentCycle == cfg_->DMAStartCycle)
@@ -881,8 +845,7 @@ void Vic::performRasterNMinus1Latch()
         dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
         updateMonitorCaches(nextRaster);
 
-        traceVicLatch(nextRaster);
-
+        // Sprite DMA becomes state-driven.
         updateSpriteDMAStartForCurrentLine();
     }
 }
@@ -934,7 +897,6 @@ void Vic::startBadLineIfNeeded(int raster, int cycle)
 
     if (cycle == cfg_->DMAStartCycle)
     {
-        traceVicBadLineStart(raster, cycle);
         beginBadLineFetch();
     }
 }
@@ -1025,7 +987,7 @@ void Vic::advanceToNextRaster()
 
 void Vic::traceRasterEnd()
 {
-    if (traceMgr && traceMgr->vicDetailOn(TraceManager::TraceDetail::VIC_RASTER))
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
     {
         TraceManager::Stamp stamp =
             traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
@@ -1086,7 +1048,6 @@ void Vic::fetchSpritePointer(int sprite, int raster)
     spriteUnits[sprite].dataBase = static_cast<uint16_t>(ptr) << 6;
 
     syncSpriteCompatAddress(sprite);
-    traceVicSpritePtrFetch(sprite, raster, ptrLoc, ptr);
 }
 
 void Vic::prepareSpriteOutputForRaster(int raster)
@@ -1273,21 +1234,25 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
         if (!spriteUnits[s].dmaActive)
             continue;
 
+        // Keep currentRow as a compatibility/debug mirror for now.
         spriteUnits[s].currentRow++;
 
+        // Advance sprite data progression only when this line consumes a new
+        // logical sprite row.
         if (shouldAdvanceSpriteMCBaseThisLine(s))
         {
             spriteUnits[s].mcBase += 3;
         }
 
+        // Mirror mc from mcBase for now.
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
+        // Keep currentRow consistent with mcBase as we transition away from
+        // line-count-driven behavior.
         if (spriteUnits[s].yExpandLatch)
             spriteUnits[s].currentRow = spriteRowFromMCBase(s) * 2;
         else
             spriteUnits[s].currentRow = spriteRowFromMCBase(s);
-
-        traceVicSpriteAdvance(s, raster);
 
         if (isSpriteDMAComplete(s))
         {
@@ -1383,10 +1348,10 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
     else if (byteIndex == 2)
     {
         spriteUnits[sprite].fetched2 = value;
+
+        // Sprite row data becomes live when the 3rd byte arrives.
         latchSpriteShiftersFromFetchedBytes(sprite);
     }
-
-    traceVicSpriteDataFetch(sprite, raster, byteIndex, addr, value);
 }
 
 void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
@@ -1444,7 +1409,6 @@ void Vic::updateSpriteDMAStartForCurrentLine()
             spriteUnits[s].shift0 = 0;
             spriteUnits[s].shift1 = 0;
             spriteUnits[s].shift2 = 0;
-            traceVicSpriteDmaStart(s);
         }
     }
 }
@@ -1454,9 +1418,6 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const bool oldBA  = vicState.ba;
-    const bool oldAEC = vicState.aec;
-
     const bool badLineNow = isBadLine(raster);
     const bool baLow      = shouldBALow(raster, cycle);
     const bool aecLow     = shouldAECLow(raster, cycle);
@@ -1464,13 +1425,6 @@ void Vic::updateBusArbitration()
     vicState.badLine = badLineNow;
     vicState.ba      = !baLow;
     vicState.aec     = !aecLow;
-
-    if (oldBA != vicState.ba || oldAEC != vicState.aec)
-    {
-        traceVicBusArb(oldBA, oldAEC,
-                       vicState.ba, vicState.aec,
-                       badLineNow, baLow, aecLow);
-    }
 
     AEC = vicState.aec;
 
@@ -1594,11 +1548,6 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     charPtrFIFO[fetchIndex]  = fetchScreenByte(row, col, raster);
     colorPtrFIFO[fetchIndex] = fetchColorByte(row, col, raster) & 0x0F;
-
-    traceVicBadLineFetch(raster, currentCycle, fetchIndex,
-                         vc, row, col,
-                         charPtrFIFO[fetchIndex],
-                         colorPtrFIFO[fetchIndex]);
 }
 
 void Vic::renderLine(int raster)
@@ -1847,15 +1796,13 @@ void Vic::generateBackgroundLine(int raster)
     int leftInner, rightInner;
     getInnerDisplayBounds(raster, leftInner, rightInner);
 
-    const bool verticalOpen = verticalDisplayOpenForRaster(raster);
-    const int charRow = currentCharacterRow();
-
-    if (!DEN || !verticalOpen)
+    // If display is effectively closed, leave border-filled line buffer.
+    if (!DEN || !verticalDisplayOpenForRaster(raster))
     {
-        traceVicDisplayGate(raster, DEN, verticalOpen, charRow);
         return;
     }
 
+    // Fill the interior with background color first for non-bitmap modes.
     if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
     {
         const uint8_t bg = registers.backgroundColor0 & 0x0F;
@@ -1884,6 +1831,7 @@ void Vic::generateBackgroundLine(int raster)
             break;
     }
 
+    // Mirror the generated opacity into the frame-sized background opacity map.
     if (screenY >= 0 && screenY < (int)bgOpaque.size())
     {
         for (int px = 0; px < 512; ++px)
@@ -1992,53 +1940,25 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
 
 void Vic::updateIRQLine()
 {
-    const uint8_t rawStatus = registers.interruptStatus;
-    const uint8_t rawEnable = registers.interruptEnable & 0x0F;
-    const uint8_t pending   = (rawStatus & rawEnable) & 0x0F;
-    const bool any = (pending != 0);
+    // Low 4 bits only
+    const uint8_t pending = (registers.interruptStatus & registers.interruptEnable) & 0x0F;
+    const bool any = pending != 0;
 
-    if (vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+    if (!IRQ) return;
+    if (any)  IRQ->raiseIRQ(IRQLine::VICII);
+    else      IRQ->clearIRQ(IRQLine::VICII);
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
     {
-        std::ostringstream oss;
-        oss << "IRQ UPDATE"
-            << " raster=" << std::dec << registers.raster
-            << " cycle=" << currentCycle
-            << " rawStatus=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(rawStatus)
-            << " rawEnable=$" << std::setw(2) << int(rawEnable)
-            << " pending=$" << std::setw(2) << int(pending)
-            << " any=" << (any ? "1" : "0")
-            << " irqPtr=" << (IRQ ? "set" : "null");
-        traceMgr->recordVicEvent(oss.str(), makeVicStamp());
+        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
+        traceMgr->recordVicIrq(any, stamp);
     }
-
-    if (!IRQ)
-        return;
-
-    if (any)
-        IRQ->raiseIRQ(IRQLine::VICII);
-    else
-        IRQ->clearIRQ(IRQLine::VICII);
-
-    if (vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
-        traceMgr->recordVicIrq(any, makeVicStamp());
 }
 
 void Vic::triggerRasterIRQIfMatched()
 {
-    const bool matched = rasterCompareMatchesNow();
-
-    traceVicRasterIrqEvent("trigger",
-                           registers.rasterInterruptLine,
-                           registers.rasterInterruptLine,
-                           matched);
-
-    if (!matched)
+    if (!rasterCompareMatchesNow())
         return;
-
-    if (rasterIrqSampledThisLine)
-        return;
-
-    rasterIrqSampledThisLine = true;
 
     if ((registers.interruptStatus & 0x01) == 0)
         raiseVicIRQSource(0x01);
@@ -2051,48 +1971,36 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
         return;
 
     registers.interruptStatus |= masked;
-
-    if (masked & 0x01)
-    {
-        traceVicRasterIrqEvent("raise-source",
-                               registers.rasterInterruptLine,
-                               registers.rasterInterruptLine,
-                               true);
-    }
-
     updateIRQLine();
 }
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 {
-    traceVicRasterIrqEvent("write-transition",
-                           oldLine, newLine,
-                           (registers.raster == newLine));
-
     if (oldLine == newLine)
         return;
 
-    // The write only matters if it makes the compare equal to the current raster.
-    if (registers.raster != newLine)
+    const uint16_t cur = registers.raster;
+
+    const bool oldMatch = (cur == oldLine);
+    const bool newMatch = (cur == newLine);
+
+    if (oldMatch || !newMatch)
         return;
 
-    // Too late for this line.
+    // Too late: this line's compare point has already passed.
     if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // Before the compare point, do NOT fire immediately.
-    // Let triggerRasterIRQIfMatched() handle it at the normal compare cycle.
-    if (currentCycle < RASTER_IRQ_COMPARE_CYCLE)
+    // If we're exactly on the compare cycle and have already sampled it,
+    // do not generate it again from the register write path.
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
         return;
 
-    // Exactly on the compare cycle: only fire if this line hasn't already sampled.
-    if (rasterIrqSampledThisLine)
+    // Source already latched.
+    if ((registers.interruptStatus & 0x01) != 0)
         return;
 
-    rasterIrqSampledThisLine = true;
-
-    if ((registers.interruptStatus & 0x01) == 0)
-        raiseVicIRQSource(0x01);
+    raiseVicIRQSource(0x01);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -2392,22 +2300,36 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     const bool den = (d011_per_raster[raster] & 0x10) != 0;
     const int visibleRows = getRSEL(raster) ? 25 : 24;
 
-    const int screenRow = currentCharacterRow();
-
-    // Display-open state is separate from counter progression.
-    if (!den || screenRow < 0 || screenRow >= visibleRows)
+    // No display progression until DEN has been seen and badline regime has started.
+    if (!den || firstBadlineY < 0)
+    {
         vicState.displayEnabled = false;
-    else
-        vicState.displayEnabled = true;
+        return;
+    }
 
-    // Do not freeze everything just because firstBadlineY has not been found yet.
+    const int screenRow = currentCharacterRow();
+    if (screenRow < 0 || screenRow >= visibleRows)
+    {
+        vicState.displayEnabled = false;
+        return;
+    }
+
+    vicState.displayEnabled = true;
+
+    // VIC-style row counter is authoritative.
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
+    // When RC wraps, advance to the next 40-column character row.
     if (vicState.rc == 0)
+    {
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+    }
 
+    // If we just advanced past the last visible character row, close display.
     if (currentCharacterRow() >= visibleRows)
+    {
         vicState.displayEnabled = false;
+    }
 }
 
 int Vic::currentCharacterRow() const
@@ -2903,184 +2825,4 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     }
 
     return out.str();
-}
-
-TraceManager::Stamp Vic::makeVicStamp() const
-{
-     return traceMgr->makeStamp( processor ? processor->getTotalCycles() : 0,
-            registers.raster, static_cast<uint16_t>(currentCycle * 8));
-}
-
-void Vic::traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_REG)) return;
-
-
-    std::ostringstream oss;
-    oss << "REG WRITE addr=$"
-        << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << address
-        << " old=$" << std::setw(2) << int(oldValue)
-        << " new=$" << std::setw(2) << int(newValue)
-        << " raster=" << std::dec << registers.raster
-        << " cycle=" << currentCycle;
-
-    traceMgr->recordVicRegister(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicLatch(uint16_t nextRaster) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT)) return;
-
-    std::ostringstream oss;
-    oss << "LATCH nextRaster=" << std::dec << nextRaster
-        << " D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(d011_per_raster[nextRaster])
-        << " D016=$" << std::setw(2) << int(d016_per_raster[nextRaster])
-        << " D018=$" << std::setw(2) << int(d018_per_raster[nextRaster])
-        << " DD00=$" << std::setw(4) << int(dd00_per_raster[nextRaster]);
-
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_IRQ)) return;
-
-    std::ostringstream oss;
-    oss << "IRQ " << phase
-        << " raster=" << std::dec << registers.raster
-        << " cycle=" << currentCycle
-        << " oldLine=" << oldLine
-        << " newLine=" << newLine
-        << " compare=" << registers.rasterInterruptLine
-        << " matched=" << (matched ? "Y" : "N")
-        << " ISR=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(registers.interruptStatus)
-        << " IER=$" << std::setw(2) << int(registers.interruptEnable);
-
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicBadLineStart(int raster, int cycle) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE)) return;
-
-    std::ostringstream oss;
-    oss << "BADLINE START raster=" << std::dec << raster
-        << " cycle=" << cycle
-        << " vcBase=" << vicState.vcBase
-        << " rc=" << int(vicState.rc)
-        << " DEN=" << (((d011_per_raster[raster] & 0x10) != 0) ? "1" : "0");
-
-    traceMgr->recordVicBadline(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE)) return;
-
-    std::ostringstream oss;
-    oss << "BADLINE FETCH raster=" << std::dec << raster
-        << " cycle=" << cycle
-        << " idx=" << fetchIndex
-        << " vc=" << vc
-        << " row=" << row
-        << " col=" << col
-        << " scr=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(screenByte)
-        << " colr=$" << std::setw(2) << int(colorByte);
-
-    traceMgr->recordVicBadline(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS)) return;
-
-    std::ostringstream oss;
-    oss << "BUS raster=" << std::dec << registers.raster
-        << " cycle=" << currentCycle
-        << " badLineNow=" << (badLineNow ? "1" : "0")
-        << " baLow=" << (baLow ? "1" : "0")
-        << " aecLow=" << (aecLow ? "1" : "0")
-        << " BA " << (oldBA ? "H" : "L") << "->" << (newBA ? "H" : "L")
-        << " AEC " << (oldAEC ? "H" : "L") << "->" << (newAEC ? "H" : "L");
-
-    traceMgr->recordVicBus(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicSpriteDmaStart(int sprite) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
-
-    std::ostringstream oss;
-    oss << "SPR DMA START spr=" << sprite
-        << " raster=" << std::dec << registers.raster
-        << " cycle=" << currentCycle
-        << " y=" << int(registers.spriteY[sprite])
-        << " startY=" << int(spriteUnits[sprite].startY)
-        << " yExp=" << (((registers.spriteYExpansion & (1 << sprite)) != 0) ? "1" : "0");
-
-    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
-
-    std::ostringstream oss;
-    oss << "SPR PTR FETCH spr=" << sprite
-        << " raster=" << std::dec << raster
-        << " cycle=" << currentCycle
-        << " ptrLoc=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << ptrLoc
-        << " ptr=$" << std::setw(2) << int(ptr)
-        << " dataBase=$" << std::setw(4) << int(spriteUnits[sprite].dataBase);
-
-    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
-
-    std::ostringstream oss;
-    oss << "SPR DATA FETCH spr=" << sprite
-        << " raster=" << std::dec << raster
-        << " cycle=" << currentCycle
-        << " byte=" << byteIndex
-        << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << addr
-        << " val=$" << std::setw(2) << int(value)
-        << " mcBase=" << std::dec << int(spriteUnits[sprite].mcBase);
-
-    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicSpriteAdvance(int sprite, int raster) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE)) return;
-
-    std::ostringstream oss;
-    oss << "SPR ADV spr=" << sprite
-        << " raster=" << std::dec << raster
-        << " cycle=" << currentCycle
-        << " currentRow=" << int(spriteUnits[sprite].currentRow)
-        << " mc=" << int(spriteUnits[sprite].mc)
-        << " mcBase=" << int(spriteUnits[sprite].mcBase)
-        << " display=" << (spriteUnits[sprite].displayActive ? "1" : "0")
-        << " dma=" << (spriteUnits[sprite].dmaActive ? "1" : "0");
-
-    traceMgr->recordVicSprite(oss.str(), makeVicStamp());
-}
-
-void Vic::traceVicDisplayGate(int raster, bool den, bool verticalOpen, int charRow) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT)) return;
-
-    std::ostringstream oss;
-    oss << "DISPLAY GATE raster=" << std::dec << raster
-        << " cycle=" << currentCycle
-        << " DEN=" << (den ? "1" : "0")
-        << " vOpen=" << (verticalOpen ? "1" : "0")
-        << " row=" << charRow
-        << " rc=" << int(vicState.rc)
-        << " mode=" << int(currentMode);
-
-    traceMgr->recordVicEvent(oss.str(), makeVicStamp());
 }
