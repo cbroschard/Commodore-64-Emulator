@@ -579,49 +579,173 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             break;
         }
         case 0xDD08: // TOD clock 1/10 seconds
+        {
             if (todAlarmSetMode)
             {
-                todAlarm[0] = bcdToBinary(value & 0x0F); // Update TOD alarm
+                todAlarm[0] = bcdToBinary(value & 0x0F);
                 todAlarmTriggered = false;
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] alarm 1/10 write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " alarm="
+                        << std::dec << int(todAlarm[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
+                        << std::setw(2) << int(todAlarm[1]) << "."
+                        << int(todAlarm[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             else
             {
-                todClock[0] = bcdToBinary(value & 0x0F); // Update TOD clock
+                todClock[0] = bcdToBinary(value & 0x0F);
+
+                if (todLatched)
+                    todLatch[0] = todClock[0];
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] clock 1/10 write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " clock="
+                        << std::dec << int(todClock[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
+                        << std::setw(2) << int(todClock[1]) << "."
+                        << int(todClock[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             break;
+        }
         case 0xDD09: // TOD clock seconds
+        {
             if (todAlarmSetMode)
             {
-                todAlarm[1] = bcdToBinary(value & 0x7F); // Update TOD alarm
+                todAlarm[1] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] alarm seconds write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " alarm="
+                        << std::dec << int(todAlarm[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
+                        << std::setw(2) << int(todAlarm[1]) << "."
+                        << int(todAlarm[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             else
             {
-                todClock[1] = bcdToBinary(value & 0x7F); // Update TOD clock
+                todClock[1] = bcdToBinary(value & 0x7F);
+
+                if (todLatched)
+                    todLatch[1] = todClock[1];
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] clock seconds write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " clock="
+                        << std::dec << int(todClock[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
+                        << std::setw(2) << int(todClock[1]) << "."
+                        << int(todClock[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             break;
+        }
         case 0xDD0A: // TOD clock minutes
+        {
             if (todAlarmSetMode)
             {
-                todAlarm[2] = bcdToBinary(value & 0x7F); // Update TOD alarm
+                todAlarm[2] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] alarm minutes write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " alarm="
+                        << std::dec << int(todAlarm[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
+                        << std::setw(2) << int(todAlarm[1]) << "."
+                        << int(todAlarm[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             else
             {
-                todClock[2] = bcdToBinary(value & 0x7F); // Update TOD clock
+                todClock[2] = bcdToBinary(value & 0x7F);
+
+                if (todLatched)
+                    todLatch[2] = todClock[2];
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] clock minutes write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " clock="
+                        << std::dec << int(todClock[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
+                        << std::setw(2) << int(todClock[1]) << "."
+                        << int(todClock[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             break;
+        }
         case 0xDD0B: // TOD clock hours and alarm clock
+        {
             if (todAlarmSetMode)
             {
-                todAlarm[3] = bcdToBinary(value & 0x3F); // Update TOD alarm
+                todAlarm[3] = bcdToBinary(value & 0x3F);
                 todAlarmTriggered = false;
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] alarm hours write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " alarm="
+                        << std::dec << int(todAlarm[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
+                        << std::setw(2) << int(todAlarm[1]) << "."
+                        << int(todAlarm[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             else
             {
-                todClock[3] = bcdToBinary(value & 0x3F); // Update TOD clock
+                todClock[3] = bcdToBinary(value & 0x3F);
+
+                if (todLatched)
+                    todLatch[3] = todClock[3];
+
+                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+                {
+                    std::ostringstream out;
+                    out << "[CIA2:TOD] clock hours write raw=$"
+                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                        << " clock="
+                        << std::dec << int(todClock[3]) << ":"
+                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
+                        << std::setw(2) << int(todClock[1]) << "."
+                        << int(todClock[0]);
+                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+                }
             }
             break;
+        }
         case 0xDD0C: // Serial data register
             serialDataRegister = value;
             break;
@@ -732,6 +856,17 @@ void CIA2::latchTODClock()
     todLatch[2] = todClock[2];
     todLatch[3] = todClock[3];
     todLatched = true;
+
+    if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+    {
+        std::ostringstream out;
+        out << "[CIA2:TOD] latch clock="
+            << std::dec << int(todLatch[3]) << ":"
+            << std::setw(2) << std::setfill('0') << int(todLatch[2]) << ":"
+            << std::setw(2) << int(todLatch[1]) << "."
+            << int(todLatch[0]);
+        traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+    }
 }
 
 void CIA2::updateTimers(uint32_t cyclesElapsed)
@@ -870,6 +1005,17 @@ void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
             todAlarmTriggered = true;
             interruptStatus |= INTERRUPT_TOD_ALARM;
             refreshNMI();
+
+            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+            {
+                std::ostringstream out;
+                out << "[CIA2:TOD] alarm hit clock="
+                    << std::dec << int(todClock[3]) << ":"
+                    << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
+                    << std::setw(2) << int(todClock[1]) << "."
+                    << int(todClock[0]);
+                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+            }
 
             if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
             {
