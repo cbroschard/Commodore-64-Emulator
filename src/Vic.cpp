@@ -2905,7 +2905,7 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     return out.str();
 }
 
-TraceManager::Stamp Vic:: makeVicStamp() const
+TraceManager::Stamp Vic::makeVicStamp() const
 {
      return traceMgr->makeStamp( processor ? processor->getTotalCycles() : 0,
             registers.raster, static_cast<uint16_t>(currentCycle * 8));
