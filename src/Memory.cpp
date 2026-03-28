@@ -118,11 +118,14 @@ uint8_t Memory::read(uint16_t address)
         lastBus = v; // Update Open Bus value
 
         // Check for trace enabled
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM) && traceMgr->memRangeContains(address))
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) && traceMgr->memRangeContains(address))
         {
             uint16_t PC = processor ? processor->getPC() : 0;
-            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
-                            vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0);
+            TraceManager::Stamp stamp = traceMgr->makeStamp(
+                processor ? processor->getTotalCycles() : 0,
+                vicII ? vicII->getCurrentRaster() : 0,
+                vicII ? vicII->getRasterDot() : 0);
+
             traceMgr->recordMemRead(address, v, PC, stamp);
         }
 
@@ -136,6 +139,18 @@ uint8_t Memory::read(uint16_t address)
 
     if (address == 0x0000)
     {
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        {
+            std::ostringstream out;
+            out << "[MEM:PORT] read $0000 DDR=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << int(dataDirectionRegister);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         return RET(dataDirectionRegister);
     }
     else if (address == 0x0001)
@@ -149,6 +164,21 @@ uint8_t Memory::read(uint16_t address)
         inputs |= 0xC0;
 
         uint8_t valueToReturn = static_cast<uint8_t>(outputs | inputs);
+
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        {
+            std::ostringstream out;
+            out << "[MEM:PORT] read $0001 value=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(valueToReturn)
+                << " DDR=$"   << std::setw(2) << int(dataDirectionRegister)
+                << " latch=$" << std::setw(2) << int(port1OutputLatch)
+                << " sense="  << (cassetteSenseLow ? "L" : "H");
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         return RET(valueToReturn);
     }
 
@@ -311,6 +341,18 @@ uint8_t Memory::readIO(uint16_t address)
     {
         // Handle VIC address mirroring
         uint16_t mirroredAddress = (address & 0x003F) + 0xD000; // Mask out everything except the lower 6 bits
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] read VIC $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address;
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (vicII)
         {
             return vicII->readRegister(mirroredAddress);
@@ -320,6 +362,18 @@ uint8_t Memory::readIO(uint16_t address)
     {
         // Handle SID address mirroring
         uint16_t mirroredAddress = (address & 0x001F) + 0xD400;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] read SID $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address;
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (sidchip)
         {
             return sidchip->readRegister(mirroredAddress);
@@ -329,6 +383,18 @@ uint8_t Memory::readIO(uint16_t address)
     {
         // Handle CIA1 address mirroring
         uint16_t mirroredAddress = (address & 0x000F) + 0xDC00;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] read CIA1 $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address;
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (cia1object)
         {
             return cia1object->readRegister(mirroredAddress);
@@ -338,6 +404,18 @@ uint8_t Memory::readIO(uint16_t address)
     {
         // Handle CIA2 address mirroring
         uint16_t mirroredAddress = (address & 0x000F) + 0xDD00;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] read CIA2 $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address;
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (cia2object)
         {
             return cia2object->readRegister(mirroredAddress);
@@ -371,23 +449,41 @@ void Memory::write(uint16_t address, uint8_t value)
     lastBus = value;
 
     // Check for trace enabled and write if so
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::MEM) && traceMgr->memRangeContains(address))
-        {
-            uint16_t PC = processor ? processor->getPC() : 0;
-            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
-                            vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0);
-            traceMgr->recordMemWrite(address, value, PC, stamp);
+    if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) && traceMgr->memRangeContains(address))
+    {
+        uint16_t PC = processor ? processor->getPC() : 0;
+        TraceManager::Stamp stamp = traceMgr->makeStamp(
+            processor ? processor->getTotalCycles() : 0,
+            vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
+
+        traceMgr->recordMemWrite(address, value, PC, stamp);
     }
 
     if (address == 0x0000)
     {
         dataDirectionRegister = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
+
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        {
+            std::ostringstream out;
+            out << "[MEM:PORT] write $0000 DDR=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
+                << " effective=$" << std::setw(2) << int(effective);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         applyPort1SideEffects(effective);
+
         if (logger && setLogging)
         {
             std::stringstream out;
-            out << "Updated DDR to value: " << static_cast<int>(value) << " computed effective: " << static_cast<int>(effective);
+            out << "Updated DDR to value: " << static_cast<int>(value)
+                << " computed effective: " << static_cast<int>(effective);
             logger->WriteLog(out.str());
         }
         return;
@@ -396,11 +492,26 @@ void Memory::write(uint16_t address, uint8_t value)
     {
         port1OutputLatch = value & 0x3F;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
+
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        {
+            std::ostringstream out;
+            out << "[MEM:PORT] write $0001 latch=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(port1OutputLatch)
+                << " effective=$" << std::setw(2) << int(effective);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         applyPort1SideEffects(effective);
+
         if (logger && setLogging)
         {
             std::stringstream out;
-            out << "Updated MCR to value: " << static_cast<int>(value) << " computed effective: " << static_cast<int>(effective);
+            out << "Updated MCR to value: " << static_cast<int>(value)
+                << " computed effective: " << static_cast<int>(effective);
             logger->WriteLog(out.str());
         }
         return;
@@ -593,6 +704,19 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     if (address >= 0xD000 && address <= 0xD3FF)
     {
         uint16_t mirroredAddress = (address & 0x003F) + 0xD000;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] write VIC $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address
+                << " value=$" << std::setw(2) << int(value);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (vicII)
         {
             vicII->writeRegister(mirroredAddress,value);
@@ -602,6 +726,19 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xD400 && address <= 0xD7FF)
     {
         uint16_t mirroredAddress = (address & 0x001F) + 0xD400;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] write SID $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address
+                << " value=$" << std::setw(2) << int(value);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (sidchip)
         {
             sidchip->writeRegister(mirroredAddress,value);
@@ -611,6 +748,19 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xDC00 && address <= 0xDCFF)
     {
         uint16_t mirroredAddress = (address & 0x000F) + 0xDC00;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] write CIA1 $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address
+                << " value=$" << std::setw(2) << int(value);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (cia1object)
         {
             cia1object->writeRegister(mirroredAddress,value);
@@ -621,6 +771,19 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xDD00 && address <= 0xDDFF)
     {
         uint16_t mirroredAddress = (address & 0x000F) + 0xDD00;
+        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        {
+            std::ostringstream out;
+            out << "[MEM:IO] write CIA2 $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
+                << " via $" << std::setw(4) << address
+                << " value=$" << std::setw(2) << int(value);
+            traceMgr->recordCustomEvent(out.str(),
+                traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                    vicII ? vicII->getCurrentRaster() : 0,
+                                    vicII ? vicII->getRasterDot() : 0));
+        }
+
         if (cia2object)
         {
             cia2object->writeRegister(mirroredAddress,value);
@@ -708,6 +871,20 @@ void Memory::applyPort1SideEffects(uint8_t effective)
 {
     // Bit 5 low => motor ON (active low)
     bool motorOn = (effective & 0x20) == 0;
+
+    if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+    {
+        std::ostringstream out;
+        out << "[MEM:PORT] sidefx effective=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(effective)
+            << " motor=" << (motorOn ? "ON" : "OFF")
+            << " pla=$"  << std::setw(2) << int(effective & 0x07);
+        traceMgr->recordCustomEvent(out.str(),
+            traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                                vicII ? vicII->getCurrentRaster() : 0,
+                                vicII ? vicII->getRasterDot() : 0));
+    }
+
     if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
 
     // Update PLA MCR with the latch bits (0..2 matter)
