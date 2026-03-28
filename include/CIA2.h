@@ -13,7 +13,6 @@
 class Cassette;
 class CPU;
 class IECBUS;
-class TraceManager;
 class Vic;
 
 #include <cstdint>
@@ -24,6 +23,7 @@ class Vic;
 #include "RS232Device.h"
 #include "StateReader.h"
 #include "StateWriter.h"
+#include "Debug/TraceManager.h"
 
 class CIA2
 {
@@ -215,6 +215,8 @@ class CIA2
 
         // IEC helper
         void recomputeIEC();
+
+        TraceManager::Stamp makeCIAStamp() const;
 };
 
 #endif // CIA2_H
