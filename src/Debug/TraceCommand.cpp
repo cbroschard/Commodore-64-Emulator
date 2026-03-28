@@ -46,7 +46,7 @@ std::string TraceCommand::help() const
         "  trace                            Show global trace status (ON/OFF)\n"
         "  trace on|off                     Enable or disable tracing globally\n"
         "  trace cats|categories            List all top-level chip categories and their status\n"
-        "  trace details                    List all CPU/VIC/CIA/PLA/Memory detail categories and their status\n"
+        "  trace details                    List all CART/CIA/CPU/VIC/PLA/Memory detail categories and their status\n"
         "  trace dump                       Dump the current trace buffer to console\n"
         "  trace clear                      Clear stored trace data\n"
         "  trace file <path>                Write trace output to a file\n"
@@ -54,8 +54,13 @@ std::string TraceCommand::help() const
         "  trace all enable|disable         Enable or disable all trace categories and details\n"
         "\n"
         "Cartridge tracing:\n"
-        "  trace cart enable                Enable Cartridge tracing\n"
-        "  trace cart disable               Disable Cartridge tracing\n"
+        "  trace cart enable               Enable Cartridge top-level tracing\n"
+        "  trace cart disable              Disable Cartridge top-level tracing\n"
+        "  trace cart all enable|disable   Enable or disable all Cartridge detail tracing\n"
+        "  trace cart bank enable|disable  Cartridge bank/window tracing\n"
+        "  trace cart ctrl enable|disable  Cartridge control-write tracing\n"
+        "  trace cart line enable|disable  Cartridge GAME/EXROM/wiring tracing\n"
+        "  trace cart mem enable|disable   Cartridge RAM/memory tracing\n"
         "\n"
         "CIA tracing:\n"
         "  trace cia1 enable                 Enable CIA1 top-level tracing\n"
@@ -224,6 +229,26 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             traceMgr->disableCategory(cat);
             std::cout << "Disabled " << label << " tracing.\n";
+            disableGlobalReminder();
+            return true;
+        }
+        return false;
+    };
+
+    auto setCartDetail = [&](TraceManager::TraceDetail detail, const char* label, const std::string& action) -> bool
+    {
+        if (isEnableWord(action))
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::CART);
+            traceMgr->enableDetail(detail);
+            std::cout << "Enabled Cartridge " << label << " tracing.\n";
+            tracingOnReminder();
+            return true;
+        }
+        if (isDisableWord(action))
+        {
+            traceMgr->disableDetail(detail);
+            std::cout << "Disabled Cartridge " << label << " tracing.\n";
             disableGlobalReminder();
             return true;
         }
@@ -435,7 +460,51 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::CART, "Cartridge", args[2]))
             return;
 
-        std::cout << "Usage: trace cart enable|disable\n";
+        if (args.size() >= 4 && args[2] == "all")
+        {
+            if (isEnableWord(args[3]))
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::CART);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CART_BANK);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CART_CTRL);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CART_LINE);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CART_MEM);
+                std::cout << "Enabled all Cartridge trace details.\n";
+                tracingOnReminder();
+                return;
+            }
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->disableDetail(TraceManager::TraceDetail::CART_BANK);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CART_CTRL);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CART_LINE);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CART_MEM);
+                std::cout << "Disabled all Cartridge trace details.\n";
+                disableGlobalReminder();
+                return;
+            }
+
+            std::cout << "Usage: trace cart all enable|disable\n";
+            return;
+        }
+
+        if (args.size() >= 4)
+        {
+            const std::string& detail = args[2];
+            const std::string& action = args[3];
+
+            if (detail == "bank" && setCartDetail(TraceManager::TraceDetail::CART_BANK, "bank", action)) return;
+            if (detail == "ctrl" && setCartDetail(TraceManager::TraceDetail::CART_CTRL, "ctrl", action)) return;
+            if (detail == "line" && setCartDetail(TraceManager::TraceDetail::CART_LINE, "line", action)) return;
+            if (detail == "mem"  && setCartDetail(TraceManager::TraceDetail::CART_MEM,  "mem",  action)) return;
+
+            std::cout << "Usage: trace cart <bank|ctrl|line|mem> enable|disable\n";
+            return;
+        }
+
+        std::cout << "Usage: trace cart enable|disable\n"
+                     "       trace cart all enable|disable\n"
+                     "       trace cart <bank|ctrl|line|mem> enable|disable\n";
         return;
     }
 

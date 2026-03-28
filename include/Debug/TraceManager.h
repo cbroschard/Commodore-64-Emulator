@@ -92,6 +92,12 @@ class TraceManager
             MEM_IO      = 1ull << 23,
             MEM_CART    = 1ull << 24,
             MEM_PORT    = 1ull << 25,
+
+            // Cartridge
+            CART_BANK   = 1ull << 26,
+            CART_CTRL   = 1ull << 27,
+            CART_LINE   = 1ull << 28,
+            CART_MEM    = 1ull << 29,
         };
 
         // Getters
@@ -100,6 +106,7 @@ class TraceManager
         inline bool memRangesIsEmpty() const { return memRanges.empty(); }
         inline bool detailEnabled(TraceDetail d) const { return detailOn(d); }
 
+        bool cartDetailOn(TraceDetail d) const;
         bool cpuDetailOn(TraceDetail d) const;
         bool ciaDetailOn(int cia, TraceDetail d) const;
         bool memDetailOn(TraceDetail d) const;
@@ -121,6 +128,7 @@ class TraceManager
 
         void enableAllCategories(bool enable);
         void enableAllDetails(bool enable);
+        void enableCARTDetails(bool enable);
         void enableCIADetails(bool enable);
         void enableCPUDetails(bool enable);
         void enableMEMDetails(bool enable);
@@ -147,6 +155,9 @@ class TraceManager
 
         // Cartridge
         void recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp);
+        void recordCartControl(const std::string& text, Stamp stamp);
+        void recordCartLine(const std::string& text, Stamp stamp);
+        void recordCartMem(const std::string& text, Stamp stamp);
 
         // CPU
         void recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp);

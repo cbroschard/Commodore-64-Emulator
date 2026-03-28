@@ -74,6 +74,11 @@ void TraceManager::clearBuffer()
     buffer.clear();
 }
 
+bool TraceManager::cartDetailOn(TraceDetail d) const
+{
+    return isEnabled() && catOn(TraceCat::CART) && detailEnabled(d);
+}
+
 bool TraceManager::cpuDetailOn(TraceDetail d) const
 {
     return isEnabled() && catOn(TraceCat::CPU) && detailEnabled(d);
@@ -118,6 +123,13 @@ std::string TraceManager::listDetailStatus() const
     out << "Details mask=0x"
         << std::hex << std::uppercase << std::setw(16)
         << std::setfill('0') << detailCats << std::dec << "\n";
+
+    out << "\nCartridge: "
+        << "bank=" << (detailEnabled(TraceDetail::CART_BANK) ? "on" : "off") << ", "
+        << "ctrl=" << (detailEnabled(TraceDetail::CART_CTRL) ? "on" : "off") << ", "
+        << "line=" << (detailEnabled(TraceDetail::CART_LINE) ? "on" : "off") << ", "
+        << "mem="  << (detailEnabled(TraceDetail::CART_MEM)  ? "on" : "off");
+
     out << "\nCIA: "
         << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
         << "irq="     << (detailEnabled(TraceDetail::CIA_IRQ)   ? "on" : "off") << ", "
@@ -208,6 +220,23 @@ void TraceManager::enableCIADetails(bool enable)
     }
 }
 
+void TraceManager::enableCARTDetails(bool enable)
+{
+    const TraceDetail cartDetails[] =
+    {
+        TraceDetail::CART_BANK,
+        TraceDetail::CART_CTRL,
+        TraceDetail::CART_LINE,
+        TraceDetail::CART_MEM
+    };
+
+    for (auto d : cartDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
+}
+
 void TraceManager::enableCPUDetails(bool enable)
 {
     const TraceDetail cpuDetails[] =
@@ -284,6 +313,7 @@ void TraceManager::enableVICDetails(bool enable)
 
 void TraceManager::enableAllDetails(bool enable)
 {
+    enableCARTDetails(enable);
     enableCPUDetails(enable);
     enableVICDetails(enable);
     enableCIADetails(enable);
@@ -293,13 +323,40 @@ void TraceManager::enableAllDetails(bool enable)
 
 void TraceManager::recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::CART)) return;
+    if (!cartDetailOn(TraceDetail::CART_BANK)) return;
 
     std::stringstream out;
 
     out << makeStamp(stamp) << "[CART] Mapper: " << mapper << " Bank: " << bank << " CART_LO: " << std::hex << std::setw(4) << lo << " CART_HI: " << hi;
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::recordCartControl(const std::string& text, Stamp stamp)
+{
+    if (!cartDetailOn(TraceDetail::CART_CTRL)) return;
+
+    std::string line = makeStamp(stamp) + text;
+    buffer.push_back(line);
+    if (file.is_open()) file << line << "\n";
+}
+
+void TraceManager::recordCartLine(const std::string& text, Stamp stamp)
+{
+    if (!cartDetailOn(TraceDetail::CART_LINE)) return;
+
+    std::string line = makeStamp(stamp) + text;
+    buffer.push_back(line);
+    if (file.is_open()) file << line << "\n";
+}
+
+void TraceManager::recordCartMem(const std::string& text, Stamp stamp)
+{
+    if (!cartDetailOn(TraceDetail::CART_MEM)) return;
+
+    std::string line = makeStamp(stamp) + text;
+    buffer.push_back(line);
+    if (file.is_open()) file << line << "\n";
 }
 
 void TraceManager::recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp)
