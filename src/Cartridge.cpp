@@ -281,8 +281,8 @@ bool Cartridge::loadROM(const std::string& path)
     std::memcpy(&header, romData.data(), sizeof(header));
 
     // Initialize live pin levels from the CRT header (as a starting point)
-    exROMLine = header.exROMLine ? true : false;
-    gameLine  = header.gameLine  ? true : false;
+    setExROMLine(header.exROMLine ? true : false);
+    setGameLine(header.gameLine ? true : false);
 
     if (std::strncmp(header.magic, "C64 CARTRIDGE   ", sizeof(header.magic)) != 0)
     {
@@ -477,6 +477,15 @@ uint8_t Cartridge::read(uint16_t address)
 {
     if (mapper)
     {
+        if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
+        {
+            std::ostringstream out;
+            out << "[CART:MEM] mapper read $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(address)
+                << " mapper=" << getMapperName();
+            traceMgr->recordCartMem(out.str(), makeCartStamp());
+        }
+
         return mapper->read(address);
     }
 
@@ -493,26 +502,48 @@ uint8_t Cartridge::read(uint16_t address)
 
 uint8_t Cartridge::readRAM(size_t offset)
 {
-    if (!hasRAM || offset >= ramData.size()) return 0xFF;
-    return ramData[offset];
+    if (!hasRAM || offset >= ramData.size())
+        return 0xFF;
+
+    const uint8_t v = ramData[offset];
+
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
+    {
+        std::ostringstream out;
+        out << "[CART:MEM] RAM read offset=$"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(offset)
+            << " value=$" << std::setw(2) << int(v);
+        traceMgr->recordCartMem(out.str(), makeCartStamp());
+    }
+
+    return v;
 }
 
 void Cartridge::write(uint16_t address, uint8_t value)
 {
     if (mapper)
     {
-        mapper->write(address, value);
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
+        if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_CTRL))
         {
-            std::ostringstream oss;
-            oss << "CPU write to address: $"
+            std::ostringstream out;
+            out << "[CART:CTRL] write $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(address)
-                << " with value: $"
-                << std::setw(2) << int(value);
-
-            const std::string out = oss.str();
-            traceActiveWindows(out.c_str());
+                << " value=$" << std::setw(2) << int(value)
+                << " mapper=" << getMapperName();
+            traceMgr->recordCartControl(out.str(), makeCartStamp());
         }
+
+        mapper->write(address, value);
+
+        std::ostringstream oss;
+        oss << "CPU write to address: $"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(address)
+            << " with value: $"
+            << std::setw(2) << int(value);
+
+        const std::string out = oss.str();
+        traceActiveWindows(out.c_str());
+
         return;
     }
 }
@@ -520,6 +551,16 @@ void Cartridge::write(uint16_t address, uint8_t value)
 void Cartridge::writeRAM(size_t offset, uint8_t value)
 {
     if (!hasRAM || offset >= ramData.size()) return;
+
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
+    {
+        std::ostringstream out;
+        out << "[CART:MEM] RAM write offset=$"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(offset)
+            << " value=$" << std::setw(2) << int(value);
+        traceMgr->recordCartMem(out.str(), makeCartStamp());
+    }
+
     ramData[offset] = value;
 }
 
@@ -557,10 +598,9 @@ bool Cartridge::setCurrentBank(uint8_t bank)
         }
         return false;
     }
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CART))
-    {
-        traceActiveWindows("Bank Switch");
-    }
+
+    traceActiveWindows("Bank Switch");
+
     return true;
 }
 
@@ -977,7 +1017,9 @@ void Cartridge::determineWiringMode()
 
 void Cartridge::traceActiveWindows(const char* why)
 {
-    if (!traceMgr || !traceMgr->isEnabled() || !traceMgr->catOn(TraceManager::TraceCat::CART)) return;
+    if (!traceMgr || !traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_BANK))
+        return;
+
     auto stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
                 vicII ? vicII->getRasterDot() : 0);
 
@@ -1113,4 +1155,57 @@ void Cartridge::saveCurrentPersistence()
 {
     if (mapper && mapper->hasPersistence() && !persistencePath.empty())
         mapper->savePersistence(persistencePath);
+}
+
+void Cartridge::setExROMLine(bool level)
+{
+    if (exROMLine == level)
+        return;
+
+    exROMLine = level;
+
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_LINE))
+    {
+        auto stamp = traceMgr->makeStamp(
+            processor ? processor->getTotalCycles() : 0,
+            vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
+
+        std::ostringstream out;
+        out << "[CART:LINE] EXROM=" << (exROMLine ? "1" : "0")
+            << " mapper=" << getMapperName();
+        traceMgr->recordCartLine(out.str(), stamp);
+    }
+}
+
+void Cartridge::setGameLine(bool level)
+{
+    if (gameLine == level)
+        return;
+
+    gameLine = level;
+
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_LINE))
+    {
+        auto stamp = traceMgr->makeStamp(
+            processor ? processor->getTotalCycles() : 0,
+            vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
+
+        std::ostringstream out;
+        out << "[CART:LINE] GAME=" << (gameLine ? "1" : "0")
+            << " mapper=" << getMapperName();
+        traceMgr->recordCartLine(out.str(), stamp);
+    }
+}
+
+TraceManager::Stamp Cartridge::makeCartStamp() const
+{
+     if (!traceMgr)
+        return { 0, 0, 0 };
+
+    return traceMgr->makeStamp(
+        processor ? processor->getTotalCycles() : 0,
+        vicII ? vicII->getCurrentRaster() : 0,
+        vicII ? vicII->getRasterDot() : 0);
 }

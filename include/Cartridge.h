@@ -61,8 +61,8 @@ class Cartridge
         inline bool getExROMLine() const { return exROMLine; }
         inline bool getGameLine()  const { return gameLine; }
 
-        inline void setExROMLine(bool level) { exROMLine = level; }
-        inline void setGameLine(bool level)  { gameLine = level; }
+        void setExROMLine(bool level);
+        void setGameLine(bool level);
 
         // Getter for game name
         inline std::string getGameName() const { return std::string(header.gameName); }
@@ -258,6 +258,8 @@ class Cartridge
         // EEPROM helpers
         std::string makePersistencePath(const std::string& romPath) const;
         void saveCurrentPersistence();
+
+        TraceManager::Stamp makeCartStamp() const;
 };
 
 #endif // CARTRIDGE_H
