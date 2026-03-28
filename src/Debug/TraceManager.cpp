@@ -79,6 +79,11 @@ bool TraceManager::cpuDetailOn(TraceDetail d) const
     return isEnabled() && catOn(TraceCat::CPU) && detailEnabled(d);
 }
 
+bool TraceManager::memDetailOn(TraceDetail d) const
+{
+    return isEnabled() && catOn(TraceCat::MEM) && detailEnabled(d);
+}
+
 bool TraceManager::plaDetailOn(TraceDetail d) const
 {
     return isEnabled() && catOn(TraceCat::PLA) && detailEnabled(d);
@@ -113,13 +118,13 @@ std::string TraceManager::listDetailStatus() const
     out << "Details mask=0x"
         << std::hex << std::uppercase << std::setw(16)
         << std::setfill('0') << detailCats << std::dec << "\n";
-    out << "CIA: "
+    out << "\nCIA: "
         << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
         << "irq="     << (detailEnabled(TraceDetail::CIA_IRQ)   ? "on" : "off") << ", "
         << "cnt="     << (detailEnabled(TraceDetail::CIA_CNT)   ? "on" : "off") << ", "
         << "iec="     << (detailEnabled(TraceDetail::CIA_IEC)   ? "on" : "off");
 
-    out << "CPU: "
+    out << "\nCPU: "
         << "exec="   << (detailEnabled(TraceDetail::CPU_EXEC)   ? "on" : "off") << ", "
         << "irq="    << (detailEnabled(TraceDetail::CPU_IRQ)    ? "on" : "off") << ", "
         << "nmi="    << (detailEnabled(TraceDetail::CPU_NMI)    ? "on" : "off") << ", "
@@ -129,12 +134,18 @@ std::string TraceManager::listDetailStatus() const
         << "ba="     << (detailEnabled(TraceDetail::CPU_BA)     ? "on" : "off") << ", "
         << "jam="    << (detailEnabled(TraceDetail::CPU_JAM)    ? "on" : "off") << "\n";
 
+    out << "\nMemory: "
+        << " cpu="   << (detailEnabled(TraceDetail::MEM_CPU)    ? "on" : "off") << ", "
+        << " io="    << (detailEnabled(TraceDetail::MEM_IO)     ? "on" : "off") << ", "
+        << " cart="  << (detailEnabled(TraceDetail::MEM_CART)   ? "on" : "off") << ", "
+        << " port="  << (detailEnabled(TraceDetail::MEM_PORT)   ? "on" : "off") << "\n";
+
     out << "\nPLA: "
         << "mode="    << (detailEnabled(TraceDetail::PLA_MODE)    ? "on" : "off") << ", "
         << "port="    << (detailEnabled(TraceDetail::PLA_PORT)    ? "on" : "off") << ", "
         << "resolve=" << (detailEnabled(TraceDetail::PLA_RESOLVE) ? "on" : "off");
 
-    out << "VIC: "
+    out << "\nVIC: "
         << "raster="  << (detailEnabled(TraceDetail::VIC_RASTER)  ? "on" : "off") << ", "
         << "irq="     << (detailEnabled(TraceDetail::VIC_IRQ)     ? "on" : "off") << ", "
         << "reg="     << (detailEnabled(TraceDetail::VIC_REG)     ? "on" : "off") << ", "
@@ -218,6 +229,23 @@ void TraceManager::enableCPUDetails(bool enable)
     }
 }
 
+void TraceManager::enableMEMDetails(bool enable)
+{
+    const TraceDetail memDetails[] =
+    {
+        TraceDetail::MEM_CPU,
+        TraceDetail::MEM_IO,
+        TraceDetail::MEM_CART,
+        TraceDetail::MEM_PORT
+    };
+
+    for (auto d : memDetails)
+    {
+        if (enable) enableDetail(d);
+        else disableDetail(d);
+    }
+}
+
 void TraceManager::enablePLADetails(bool enable)
 {
     const TraceDetail plaDetails[] =
@@ -259,6 +287,7 @@ void TraceManager::enableAllDetails(bool enable)
     enableCPUDetails(enable);
     enableVICDetails(enable);
     enableCIADetails(enable);
+    enableMEMDetails(enable);
     enablePLADetails(enable);
 }
 

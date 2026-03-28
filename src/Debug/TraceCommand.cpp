@@ -46,7 +46,7 @@ std::string TraceCommand::help() const
         "  trace                            Show global trace status (ON/OFF)\n"
         "  trace on|off                     Enable or disable tracing globally\n"
         "  trace cats|categories            List all top-level chip categories and their status\n"
-        "  trace details                    List all CPU/VIC/CIA/PLA detail categories and their status\n"
+        "  trace details                    List all CPU/VIC/CIA/PLA/Memory detail categories and their status\n"
         "  trace dump                       Dump the current trace buffer to console\n"
         "  trace clear                      Clear stored trace data\n"
         "  trace file <path>                Write trace output to a file\n"
@@ -85,9 +85,14 @@ std::string TraceCommand::help() const
         "  trace cpu ba enable|disable      CPU BA hold tracing\n"
         "  trace cpu jam enable|disable     CPU JAM/halt tracing\n"
         "\n"
-        "Memory range tracing:\n"
-        "  trace mem enable                 Enable memory tracing (requires ranges)\n"
-        "  trace mem disable                Disable memory tracing\n"
+        "Memory tracing:\n"
+        "  trace mem enable                 Enable Memory top-level tracing\n"
+        "  trace mem disable                Disable Memory top-level tracing\n"
+        "  trace mem all enable|disable     Enable or disable all Memory detail tracing\n"
+        "  trace mem cpu enable|disable     CPU read/write memory tracing\n"
+        "  trace mem io enable|disable      I/O dispatch tracing\n"
+        "  trace mem cart enable|disable    Cartridge/overlay memory tracing\n"
+        "  trace mem port enable|disable    $0000/$0001 and port-side-effect tracing\n"
         "  trace mem add <lo>-<hi>          Add a traced address range (hex, inclusive)\n"
         "  trace mem list                   List currently traced memory ranges\n"
         "  trace mem clear                  Clear all traced memory ranges\n"
@@ -145,6 +150,44 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Trace manager not available.\n";
         return;
     }
+
+    auto parseHexRange = [&](const std::string& s, uint16_t& lo, uint16_t& hi) -> bool
+    {
+        const size_t dash = s.find('-');
+        if (dash == std::string::npos)
+            return false;
+
+        auto parseOne = [](std::string part, uint16_t& out) -> bool
+        {
+            if (!part.empty() && part[0] == '$')
+                part.erase(part.begin());
+
+            if (part.size() < 1 || part.size() > 4)
+                return false;
+
+            unsigned value = 0;
+            std::istringstream iss(part);
+            iss >> std::hex >> value;
+
+            if (iss.fail() || !iss.eof() || value > 0xFFFF)
+                return false;
+
+            out = static_cast<uint16_t>(value);
+            return true;
+        };
+
+        uint16_t a = 0, b = 0;
+        if (!parseOne(s.substr(0, dash), a))
+            return false;
+        if (!parseOne(s.substr(dash + 1), b))
+            return false;
+        if (a > b)
+            return false;
+
+        lo = a;
+        hi = b;
+        return true;
+    };
 
     auto tracingOnReminder = [&]()
     {
@@ -222,6 +265,26 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             traceMgr->disableDetail(detail);
             std::cout << "Disabled CPU " << label << " tracing.\n";
+            disableGlobalReminder();
+            return true;
+        }
+        return false;
+    };
+
+    auto setMemDetail = [&](TraceManager::TraceDetail detail, const char* label, const std::string& action) -> bool
+    {
+        if (isEnableWord(action))
+        {
+            traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+            traceMgr->enableDetail(detail);
+            std::cout << "Enabled Memory " << label << " tracing.\n";
+            tracingOnReminder();
+            return true;
+        }
+        if (isDisableWord(action))
+        {
+            traceMgr->disableDetail(detail);
+            std::cout << "Disabled Memory " << label << " tracing.\n";
             disableGlobalReminder();
             return true;
         }
@@ -532,72 +595,89 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "mem")
     {
-        if (args.size() >= 3 && isEnableWord(args[2]))
+        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::MEM, "Memory", args[2]))
+            return;
+
+        if (args.size() >= 4 && args[2] == "all")
         {
-            if (traceMgr->listMemRange().empty())
+            if (isEnableWord(args[3]))
             {
-                std::cout << "Error: No ranges are added. MEM tracing disabled.\n";
+                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_CPU);
+                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_IO);
+                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_CART);
+                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_PORT);
+                std::cout << "Enabled all Memory trace details.\n";
+                tracingOnReminder();
+                return;
+            }
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_CPU);
+                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_IO);
+                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_CART);
+                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_PORT);
+                std::cout << "Disabled all Memory trace details.\n";
+                disableGlobalReminder();
                 return;
             }
 
-            traceMgr->enableCategory(TraceManager::TraceCat::MEM);
-            std::cout << "Enabled Memory tracing.\n";
-            tracingOnReminder();
+            std::cout << "Usage: trace mem all enable|disable\n";
             return;
         }
 
-        if (args.size() >= 3 && isDisableWord(args[2]))
+        if (args.size() >= 4)
         {
-            traceMgr->disableCategory(TraceManager::TraceCat::MEM);
-            std::cout << "Disabled Memory tracing.\n";
-            disableGlobalReminder();
-            return;
+            const std::string& detail = args[2];
+            const std::string& action = args[3];
+
+            if (detail == "cpu"  && setMemDetail(TraceManager::TraceDetail::MEM_CPU,  "cpu",  action)) return;
+            if (detail == "io"   && setMemDetail(TraceManager::TraceDetail::MEM_IO,   "io",   action)) return;
+            if (detail == "cart" && setMemDetail(TraceManager::TraceDetail::MEM_CART, "cart", action)) return;
+            if (detail == "port" && setMemDetail(TraceManager::TraceDetail::MEM_PORT, "port", action)) return;
         }
 
-        if (args.size() >= 4 && args[2] == "add")
+        if (args.size() >= 3 && args[2] == "add")
         {
-            try
+            if (args.size() < 4)
             {
-                const std::string rangeStr = joinArgs(args, 3);
-                auto [lo, hi] = parseRangePair(rangeStr);
-
-                traceMgr->addMemRange(lo, hi);
-
-                std::cout << "Watching $"
-                          << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << lo
-                          << "-$" << std::setw(4) << hi << std::dec << "\n";
+                std::cout << "Usage: trace mem add <lo>-<hi>\n";
+                return;
             }
-            catch (const std::exception& e)
+
+            uint16_t lo = 0, hi = 0;
+            if (!parseHexRange(args[3], lo, hi))
             {
-                std::cout << "Error: " << e.what() << "\n";
+                std::cout << "Invalid range. Use $HHHH-$HHHH\n";
+                return;
             }
+
+            traceMgr->addMemRange(lo, hi);
+            std::cout << "Added memory trace range $" << toHex(lo, 4)
+                      << "-$" << toHex(hi, 4) << "\n";
             return;
         }
 
         if (args.size() >= 3 && args[2] == "list")
         {
-            const auto ranges = traceMgr->listMemRange();
+            std::string ranges = traceMgr->listMemRange();
             if (ranges.empty())
-            {
-                std::cout << "No memory ranges currently being traced.\n";
-            }
+                std::cout << "No memory trace ranges.\n";
             else
-            {
-                std::cout << "Memory range: " << ranges << "\n";
-                tracingOnReminder();
-            }
+                std::cout << ranges << "\n";
             return;
         }
 
         if (args.size() >= 3 && args[2] == "clear")
         {
             traceMgr->clearMemRanges();
-            std::cout << "Cleared traced memory ranges.\n";
-            disableGlobalReminder();
+            std::cout << "Cleared memory trace ranges.\n";
             return;
         }
 
         std::cout << "Usage: trace mem enable|disable\n"
+                     "       trace mem all enable|disable\n"
+                     "       trace mem <cpu|io|cart|port> enable|disable\n"
                      "       trace mem add <lo>-<hi>\n"
                      "       trace mem list\n"
                      "       trace mem clear\n";

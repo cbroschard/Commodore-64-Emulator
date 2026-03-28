@@ -86,6 +86,12 @@ class TraceManager
             PLA_MODE    = 1ull << 19,
             PLA_PORT    = 1ull << 20,
             PLA_RESOLVE = 1ull << 21,
+
+            // Memory
+            MEM_CPU     = 1ull << 22,
+            MEM_IO      = 1ull << 23,
+            MEM_CART    = 1ull << 24,
+            MEM_PORT    = 1ull << 25,
         };
 
         // Getters
@@ -96,6 +102,7 @@ class TraceManager
 
         bool cpuDetailOn(TraceDetail d) const;
         bool ciaDetailOn(int cia, TraceDetail d) const;
+        bool memDetailOn(TraceDetail d) const;
         bool plaDetailOn(TraceDetail d) const;
         bool vicDetailOn(TraceDetail d) const;
 
@@ -116,6 +123,7 @@ class TraceManager
         void enableAllDetails(bool enable);
         void enableCIADetails(bool enable);
         void enableCPUDetails(bool enable);
+        void enableMEMDetails(bool enable);
         void enablePLADetails(bool enable);
         void enableVICDetails(bool enable);
         void enable(bool on);
