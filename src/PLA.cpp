@@ -84,7 +84,7 @@ void PLA::updateMemoryControlRegister(uint8_t value)
     hiram  = (value & 0x02) != 0;
     charen = (value & 0x04) != 0;
 
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    if (traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_PORT))
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(
             processor ? processor->getTotalCycles() : 0,
@@ -118,25 +118,25 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
                         ((hiram      ? 1 : 0) << 1) |
                         (loram      ? 1 : 0);
 
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    const bool changed = (modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram ||
+    charen != lastcharen || exROMLine != lastexROMLine || gameLine != lastgameLine);
+
+    if (changed && traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_MODE))
     {
-        const bool changed = (modeIndex != lastModeIndex || loram != lastloram || hiram != lasthiram || charen != lastcharen
-            || exROMLine != lastexROMLine || gameLine != lastgameLine);
+        TraceManager::Stamp stamp = traceMgr->makeStamp(
+            processor ? processor->getTotalCycles() : 0,
+            vicII ? vicII->getCurrentRaster() : 0,
+            vicII ? vicII->getRasterDot() : 0);
 
-        if (changed)
-        {
-            TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
-                vicII ? vicII->getRasterDot() : 0);
-            traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
-        }
-
-        lastModeIndex = modeIndex;
-        lastloram = loram;
-        lasthiram = hiram;
-        lastcharen = charen;
-        lastexROMLine = exROMLine;
-        lastgameLine = gameLine;
+        traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
     }
+
+    lastModeIndex = modeIndex;
+    lastloram = loram;
+    lasthiram = hiram;
+    lastcharen = charen;
+    lastexROMLine = exROMLine;
+    lastgameLine = gameLine;
 
     memoryAccessInfo info;
 
@@ -156,7 +156,7 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
             break;
     }
 
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::PLA))
+    if (traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_RESOLVE))
     {
         const bool interesting =
             address <= 0x0007 ||
