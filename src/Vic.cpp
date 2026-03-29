@@ -782,12 +782,12 @@ void Vic::tick(int cycles)
     while (cycles-- > 0)
     {
         beginFrameIfNeeded();
-        beginRasterIfNeeded();
 
-        performRasterNMinus1Latch();
-        performSpritePointerFetches();
-        performSpriteDataFetches();
-        performBadLineCycle();
+        // One authoritative phase for this line's timing-sensitive decisions.
+        runLineDecisionPhase();
+
+        // Execute the fetch owner for this cycle.
+        runFetchPhase();
 
         advanceCycleAndFinalizeLineIfNeeded();
 
@@ -817,59 +817,103 @@ void Vic::beginFrameIfNeeded()
     }
 }
 
-void Vic::beginRasterIfNeeded()
+void Vic::runLineDecisionPhase()
 {
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
+    // Use one cycle as the authoritative phase for:
+    // - raster IRQ compare sampling
+    // - N->N+1 raster latching
+    // - bad-line begin decision
+    // - sprite DMA start eligibility
+    if (currentCycle != cfg_->DMAStartCycle)
+        return;
+
+    const int raster = registers.raster;
+    const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
+
+    if (!rasterIrqSampledThisLine)
     {
         rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
     }
-}
 
-void Vic::performRasterNMinus1Latch()
-{
-    // N-1 latching
-    uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
+    d011_per_raster[nextRaster] = registers.control & 0x7F;
+    d016_per_raster[nextRaster] = registers.control2;
+    d018_per_raster[nextRaster] = registers.memory_pointer;
+    dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
+    updateMonitorCaches(nextRaster);
 
-    if (currentCycle == cfg_->DMAStartCycle)
+    updateSpriteDMAStartForCurrentLine();
+
+    vicState.badLine = isBadLine(raster);
+
+    if (vicState.badLine)
     {
-        d011_per_raster[nextRaster] = registers.control & 0x7F;
-        d016_per_raster[nextRaster] = registers.control2;
-        d018_per_raster[nextRaster] = registers.memory_pointer;
-        dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
-        updateMonitorCaches(nextRaster);
-
-        // Sprite DMA becomes state-driven.
-        updateSpriteDMAStartForCurrentLine();
+        initializeFirstBadLineIfNeeded();
+        beginBadLineFetch();
     }
 }
 
-void Vic::performSpritePointerFetches()
-{
-    // Fetch sprite pointers in each sprite's pointer slot
-    for (int i = 0; i < 8; ++i)
-    {
-        if (spriteUnits[i].dmaActive && currentCycle == spriteFetchSlotStart(i))
-        {
-            fetchSpritePointer(i, registers.raster);
-        }
-    }
-}
-
-void Vic::performBadLineCycle()
+void Vic::runFetchPhase()
 {
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    if (!isBadLine(raster))
+    switch (getFetchKindForCycle(raster, cycle))
     {
-        vicState.badLine = false;
-        return;
-    }
+        case FetchKind::CharMatrix:
+            performBadLineFetchesForCurrentCycle();
+            break;
 
-    initializeFirstBadLineIfNeeded();
-    startBadLineIfNeeded(raster, cycle);
-    runBadLineFetchCycle(raster, cycle);
+        case FetchKind::SpritePtr0: fetchSpritePointer(0, raster); break;
+        case FetchKind::SpritePtr1: fetchSpritePointer(1, raster); break;
+        case FetchKind::SpritePtr2: fetchSpritePointer(2, raster); break;
+        case FetchKind::SpritePtr3: fetchSpritePointer(3, raster); break;
+        case FetchKind::SpritePtr4: fetchSpritePointer(4, raster); break;
+        case FetchKind::SpritePtr5: fetchSpritePointer(5, raster); break;
+        case FetchKind::SpritePtr6: fetchSpritePointer(6, raster); break;
+        case FetchKind::SpritePtr7: fetchSpritePointer(7, raster); break;
+
+        case FetchKind::SpriteData0:
+            fetchSpriteDataByte(0, cycle - spriteFetchSlotStart(0) - 1, raster);
+            break;
+        case FetchKind::SpriteData1:
+            fetchSpriteDataByte(1, cycle - spriteFetchSlotStart(1) - 1, raster);
+            break;
+        case FetchKind::SpriteData2:
+            fetchSpriteDataByte(2, cycle - spriteFetchSlotStart(2) - 1, raster);
+            break;
+        case FetchKind::SpriteData3:
+            fetchSpriteDataByte(3, cycle - spriteFetchSlotStart(3) - 1, raster);
+            break;
+        case FetchKind::SpriteData4:
+            fetchSpriteDataByte(4, cycle - spriteFetchSlotStart(4) - 1, raster);
+            break;
+        case FetchKind::SpriteData5:
+            fetchSpriteDataByte(5, cycle - spriteFetchSlotStart(5) - 1, raster);
+            break;
+        case FetchKind::SpriteData6:
+            fetchSpriteDataByte(6, cycle - spriteFetchSlotStart(6) - 1, raster);
+            break;
+        case FetchKind::SpriteData7:
+            fetchSpriteDataByte(7, cycle - spriteFetchSlotStart(7) - 1, raster);
+            break;
+
+        case FetchKind::None:
+        default:
+            break;
+    }
+}
+
+void Vic::performBadLineFetchesForCurrentCycle()
+{
+    if (!vicState.badLine)
+        return;
+
+    const int raster = registers.raster;
+    const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
+
+    if (fetchIndex >= 0 && fetchIndex < 40)
+        fetchBadLineMatrixByte(fetchIndex, raster);
 }
 
 void Vic::initializeFirstBadLineIfNeeded()
@@ -1984,13 +2028,13 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (oldMatch || !newMatch)
         return;
 
-    // Too late: this line's compare point has already passed.
-    if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
+    // Too late: this line's decision point has already passed.
+    if (currentCycle > cfg_->DMAStartCycle)
         return;
 
-    // If we're exactly on the compare cycle and have already sampled it,
+    // If we're exactly on the decision cycle and have already sampled it,
     // do not generate it again from the register write path.
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
+    if (currentCycle == cfg_->DMAStartCycle && rasterIrqSampledThisLine)
         return;
 
     // Source already latched.

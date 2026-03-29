@@ -304,14 +304,12 @@ class Vic
         bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
+        void performBadLineFetchesForCurrentCycle();
 
         // Tick() Helpers
         void beginFrameIfNeeded();
-        void beginRasterIfNeeded();
-
-        void performRasterNMinus1Latch();
-        void performSpritePointerFetches();
-        void performBadLineCycle();
+        void runLineDecisionPhase();
+        void runFetchPhase();
 
         void advanceCycleAndFinalizeLineIfNeeded();
         void finalizeCurrentRasterLine(int curRaster);
