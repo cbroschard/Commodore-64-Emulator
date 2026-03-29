@@ -22,6 +22,7 @@
 #include "Cartridge/FinalCartridgeIIIMapper.h"
 #include "Cartridge/FinalCartridgePlusMapper.h"
 #include "Cartridge/FreezeFrameMapper.h"
+#include "Cartridge/FreezeFrameMK2Mapper.h"
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/GMod2Mapper.h"
@@ -430,6 +431,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x3C:  return CartridgeType::GMOD2;
+        case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         default:    return CartridgeType::UNKNOWN;
     }
 }
@@ -473,6 +475,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::GMOD2:                  return "Gmod2";
+        case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1134,6 +1137,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
+        case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
 
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping

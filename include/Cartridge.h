@@ -132,6 +132,7 @@ class Cartridge
             FREEZE_FRAME,
             ACTION_REPLAY_2,
             GMOD2,
+            FREEZE_FRAME_MK2,
             UNKNOWN
         };
 
