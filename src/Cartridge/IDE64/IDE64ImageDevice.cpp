@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <cstring>
 #include "Cartridge/IDE64/IDE64ImageDevice.h"
 
 IDE64ImageDevice::IDE64ImageDevice() :
@@ -40,11 +41,43 @@ bool IDE64ImageDevice::isPresent() const
 
 bool IDE64ImageDevice::readSector(uint32_t lba, uint8_t* buffer, size_t size)
 {
+    if (!buffer)
+        return false;
+
+    if (size != sectorSize_)
+        return false;
+
+    if (!isPresent())
+        return false;
+
+    if (lba >= sectorCount_)
+        return false;
+
+    const size_t offset = static_cast<size_t>(lba) * sectorSize_;
+    std::memcpy(buffer, imageData.data() + offset, size);
     return true;
 }
 
 bool IDE64ImageDevice::writeSector(uint32_t lba, const uint8_t* buffer, size_t size)
 {
+    if (!buffer)
+        return false;
+
+    if (readOnly_)
+        return false;
+
+    if (size != sectorSize_)
+        return false;
+
+    if (!isPresent())
+        return false;
+
+    if (lba >= sectorCount_)
+        return false;
+
+    const size_t offset = static_cast<size_t>(lba) * sectorSize_;
+    std::memcpy(imageData.data() + offset, buffer, size);
+    dirty_ = true;
     return true;
 }
 
