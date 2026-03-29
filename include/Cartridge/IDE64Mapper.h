@@ -9,10 +9,11 @@
 #define IDE64MAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
+#include "Cartridge/IHasButton.h"
 #include "Cartridge/IDE64/IDE64Controller.h"
 #include "Cartridge/IDE64/IDE64RTC.h"
 
-class IDE64Mapper : public CartridgeMapper
+class IDE64Mapper : public CartridgeMapper, public IHasButton
 {
     public:
         IDE64Mapper();
@@ -32,6 +33,13 @@ class IDE64Mapper : public CartridgeMapper
         bool hasPersistence() const override { return true; }
         bool savePersistence(const std::string& path) const override;
         bool loadPersistence(const std::string& path) override;
+
+        // Reset button
+        inline uint32_t getButtonCount() const override { return 1; }
+        const char* getButtonName(uint32_t buttonIndex) const override;
+        void pressButton(uint32_t index) override;
+
+        void pressReset();
 
     protected:
 

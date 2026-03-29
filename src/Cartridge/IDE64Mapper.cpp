@@ -282,6 +282,49 @@ bool IDE64Mapper::loadPersistence(const std::string& path)
     return true;
 }
 
+const char* IDE64Mapper::getButtonName(uint32_t buttonIndex) const
+{
+    switch (buttonIndex)
+    {
+        case 0: return "Reset";
+        default: return "";
+    }
+}
+
+void IDE64Mapper::pressButton(uint32_t buttonIndex)
+{
+    switch (buttonIndex)
+    {
+        case 0:
+            pressReset();
+            break;
+
+        default:
+            break;
+    }
+}
+
+void IDE64Mapper::pressReset()
+{
+    controller.reset();
+
+    // Reset only the RTC interface/wire state, not battery-backed time.
+    rtc.reset();
+
+    ctrl.killed = false;
+    ctrl.de32Raw = 0x13;
+    ctrl.decodeDE32();
+    ctrl.romBankRegs[0] = ctrl.de32Raw;
+
+    for (int i = 1; i < 4; ++i)
+        ctrl.romBankRegs[i] = 0x00;
+
+    for (int i = 0; i < 4; ++i)
+        ctrl.memCfg[i] = 0x00;
+
+    applyMappingAfterLoad();
+}
+
 bool IDE64Mapper::applyMappingAfterLoad()
 {
     return loadIntoMemory(0);
