@@ -1964,7 +1964,11 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
     if (masked == 0)
         return;
 
-    registers.interruptStatus |= masked;
+    const uint8_t newlySet = masked & ~registers.interruptStatus;
+    if (newlySet == 0)
+        return;
+
+    registers.interruptStatus |= newlySet;
     updateIRQLine();
 }
 
