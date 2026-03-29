@@ -1413,8 +1413,9 @@ void Vic::updateBusArbitration()
     const int cycle  = currentCycle;
 
     const bool badLineNow = isBadLine(raster);
-    const bool baLow      = shouldBALow(raster, cycle);
-    const bool aecLow     = shouldAECLow(raster, cycle);
+
+    const bool baLow  = shouldBALow(raster, cycle);
+    const bool aecLow = shouldAECLow(raster, cycle);
 
     vicState.badLine = badLineNow;
     vicState.ba      = !baLow;
@@ -1423,9 +1424,7 @@ void Vic::updateBusArbitration()
     AEC = vicState.aec;
 
     if (processor)
-    {
         processor->setBAHold(!vicState.ba);
-    }
 }
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
