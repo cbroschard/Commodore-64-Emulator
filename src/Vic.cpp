@@ -716,13 +716,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD01A:
         {
-            const uint8_t mask = value & 0x0F;
-
-            if (value & 0x80)
-                registers.interruptEnable |= mask;   // set bits
-            else
-                registers.interruptEnable &= ~mask;  // clear bits
-
+            registers.interruptEnable = value & 0x0F;
             updateIRQLine();
             break;
         }
