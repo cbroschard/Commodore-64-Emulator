@@ -248,11 +248,14 @@ void EmulatorUI::drawFileDialog()
     // Parent folder
     if (ImGui::Selectable("..", false, ImGuiSelectableFlags_AllowDoubleClick))
     {
-        auto parent = fileDlg.currentDir.parent_path();
-        if (!parent.empty())
+        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
-            fileDlg.currentDir = parent;
-            fileDlg.selectedEntry.clear();
+            auto parent = fileDlg.currentDir.parent_path();
+            if (!parent.empty())
+            {
+                fileDlg.currentDir = parent;
+                fileDlg.selectedEntry.clear();
+            }
         }
     }
 
