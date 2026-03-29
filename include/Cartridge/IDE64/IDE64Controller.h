@@ -131,7 +131,9 @@ class IDE64Controller
 
         uint32_t getCurrentLBA() const;
         uint16_t getNormalizedSectorCount() const;
+
         void handleReadBufferComplete();
+        void handleWriteBufferComplete();
 };
 
 #endif // IDE64CONTROLLER_H

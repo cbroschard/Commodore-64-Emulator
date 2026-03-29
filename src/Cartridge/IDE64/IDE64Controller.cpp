@@ -218,11 +218,33 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
     }
     else if (address == DATA_LO_ADDR)
     {
+        registers.dataLo = value;
 
+        if (direction == TransferDirection::FROM_HOST &&
+            cmd == CurrentCommand::WRITE_SECTORS &&
+            bufferIndex < bufferSize)
+        {
+            sectorBuffer[bufferIndex] = value;
+        }
+
+        return;
     }
     else if (address == DATA_HI_ADDR)
     {
+        registers.dataHi = value;
 
+        if (direction == TransferDirection::FROM_HOST &&
+            cmd == CurrentCommand::WRITE_SECTORS &&
+            (bufferIndex + 1) < bufferSize)
+        {
+            sectorBuffer[bufferIndex + 1] = value;
+            bufferIndex += 2;
+
+            if (bufferIndex >= bufferSize)
+                handleWriteBufferComplete();
+        }
+
+        return;
     }
 }
 
@@ -232,27 +254,27 @@ void IDE64Controller::executeCommand(uint8_t value)
     {
         case 0xEC:  // Identify Device
         {
-            activeDevice            = getSelectedDevice();
+            activeDevice = getSelectedDevice();
             if (!activeDevice || !activeDevice->isPresent())
             {
                 failCommand(0x04);
                 return;
             }
 
-            cmd                     = CurrentCommand::IDENTIFY_DEVICE;
-            direction               = TransferDirection::TO_HOST;
-            error                   = 0x00;
+            cmd = CurrentCommand::IDENTIFY_DEVICE;
+            direction = TransferDirection::TO_HOST;
+            error = 0x00;
 
-            // Get the selected devices info and pass over for identify
             IDE64BlockDevice::DeviceInfo info = activeDevice->getDeviceInfo();
             prepareIdentifyData(info);
 
-            status                  = 0x48;
-            bufferIndex             = 0;
-            bufferSize              = 512;
-            sectorsRemaining        = 0;
-            break;
+            status = 0x48;
+            bufferIndex = 0;
+            bufferSize = 512;
+            sectorsRemaining = 0;
+            return;
         }
+
         case 0x20: // READ SECTORS
         {
             activeDevice = getSelectedDevice();
@@ -273,17 +295,47 @@ void IDE64Controller::executeCommand(uint8_t value)
 
             --sectorsRemaining;
 
-            cmd         = CurrentCommand::READ_SECTORS;
-            direction   = TransferDirection::TO_HOST;
+            cmd = CurrentCommand::READ_SECTORS;
+            direction = TransferDirection::TO_HOST;
             bufferIndex = 0;
-            bufferSize  = SECTOR_SIZE;
-            error       = 0x00;
-            status      = 0x48;
+            bufferSize = SECTOR_SIZE;
+            error = 0x00;
+            status = 0x48;
             return;
         }
-        case 0x30:  // Write ssctors
+
+        case 0x30: // WRITE SECTORS
+        {
+            activeDevice = getSelectedDevice();
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            if (activeDevice->isReadOnly())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            currentLBA = getCurrentLBA();
+            sectorsRemaining = getNormalizedSectorCount();
+
+            cmd = CurrentCommand::WRITE_SECTORS;
+            direction = TransferDirection::FROM_HOST;
+            bufferIndex = 0;
+            bufferSize = SECTOR_SIZE;
+            error = 0x00;
+            status = 0x48;
+
+            std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
+            return;
+        }
+
         default:
-            break;
+            failCommand(0x04);
+            return;
     }
 }
 
@@ -402,6 +454,40 @@ void IDE64Controller::handleReadBufferComplete()
         bufferSize = SECTOR_SIZE;
         status = 0x48;
         error = 0x00;
+        return;
+    }
+
+    finishCommandSuccess();
+}
+
+void IDE64Controller::handleWriteBufferComplete()
+{
+    if (cmd != CurrentCommand::WRITE_SECTORS)
+    {
+        finishCommandSuccess();
+        return;
+    }
+
+    if (!activeDevice ||
+        !activeDevice->isPresent() ||
+        activeDevice->isReadOnly() ||
+        !activeDevice->writeSector(currentLBA, sectorBuffer.data(), SECTOR_SIZE))
+    {
+        failCommand(0x04);
+        return;
+    }
+
+    if (sectorsRemaining > 0)
+        --sectorsRemaining;
+
+    if (sectorsRemaining > 0)
+    {
+        ++currentLBA;
+        bufferIndex = 0;
+        bufferSize = SECTOR_SIZE;
+        status = 0x48;
+        error = 0x00;
+        std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
         return;
     }
 
