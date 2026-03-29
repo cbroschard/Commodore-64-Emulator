@@ -121,6 +121,7 @@ class Cartridge
             COMAL_80,
             STRUCTURED_BASIC,
             ROSS,
+            MIKRO_ASSEMBLER,
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,
             EASYFLASH,

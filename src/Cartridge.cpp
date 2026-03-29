@@ -28,6 +28,7 @@
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/MagicFormelMapper.h"
+#include "Cartridge/MikroAssemblerMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexUtilityMapper.h"
@@ -417,6 +418,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x15:  return CartridgeType::COMAL_80;
         case 0x16:  return CartridgeType::STRUCTURED_BASIC;
         case 0x17:  return CartridgeType::ROSS;
+        case 0x1C:  return CartridgeType::MIKRO_ASSEMBLER;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
         case 0x20:  return CartridgeType::EASYFLASH;
@@ -458,6 +460,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::COMAL_80:               return "Comal 80";
         case CartridgeType::STRUCTURED_BASIC:       return "Structured BASIC";
         case CartridgeType::ROSS:                   return "ROSS";
+        case CartridgeType::MIKRO_ASSEMBLER:        return "Mikro Assembler";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
@@ -1117,6 +1120,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::COMAL_80:               return std::make_unique<Comal80Mapper>();
         case CartridgeType::STRUCTURED_BASIC:       return std::make_unique<StructuredBasicMapper>();
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
+        case CartridgeType::MIKRO_ASSEMBLER:        return std::make_unique<MikroAssemblerMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
