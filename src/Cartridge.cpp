@@ -21,6 +21,7 @@
 #include "Cartridge/FinalCartridgeMapper.h"
 #include "Cartridge/FinalCartridgeIIIMapper.h"
 #include "Cartridge/FinalCartridgePlusMapper.h"
+#include "Cartridge/FreezeFrameMapper.h"
 #include "Cartridge/FunPlayMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/GMod2Mapper.h"
@@ -426,6 +427,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
+        case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x3C:  return CartridgeType::GMOD2;
         default:    return CartridgeType::UNKNOWN;
@@ -469,6 +471,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
+        case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
@@ -1128,6 +1131,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
+        case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
 
