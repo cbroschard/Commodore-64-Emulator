@@ -2443,20 +2443,7 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    int x0, x1;
-    innerWindowForRaster(raster, x0, x1);
-
-    // Start each raster in border state, then "open" once the left inner edge
-    // is reached, and "close" again at the right inner edge.
-    bool borderLatched = true;
-
-    if (px >= x0)
-        borderLatched = false;
-
-    if (px >= x1)
-        borderLatched = true;
-
-    return borderLatched;
+    return !isInnerDisplayPixel(raster, px);
 }
 
 void Vic::updateVerticalBorderState(int raster)
@@ -2466,13 +2453,15 @@ void Vic::updateVerticalBorderState(int raster)
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
 {
+    (void)raster;
+
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
     if (horizontalBorderLatchedAtPixel(raster, px))
         return true;
 
-    return !verticalDisplayOpenForRaster(raster);
+    return vicState.verticalBorder;
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
