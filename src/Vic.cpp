@@ -1629,7 +1629,6 @@ bool Vic::isBadLine(int raster) const
 
 void Vic::beginBadLineFetch()
 {
-    vicState.badLine = true;
     vicState.rc = 0;
 }
 
