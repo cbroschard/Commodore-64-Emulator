@@ -909,6 +909,10 @@ void Vic::runCycleDecisionPhase()
             handleCycle1Decisions();
             break;
 
+        case 14:
+            handleCycle14Decisions();
+            break;
+
         case 58:
             handleCycle58Decisions();
             break;
@@ -934,6 +938,22 @@ void Vic::handleCycle1Decisions()
     {
         rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
+    }
+}
+
+void Vic::handleCycle14Decisions()
+{
+    const int raster = registers.raster;
+    const bool badNow = isBadLine(raster);
+
+    // Bad-line condition becomes authoritative here.
+    vicState.badLine = badNow;
+
+    traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
+
+    if (badNow)
+    {
+        vicState.rc = 0;
     }
 }
 

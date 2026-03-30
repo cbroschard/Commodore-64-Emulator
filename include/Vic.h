@@ -304,11 +304,12 @@ class Vic
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
         void performBadLineFetchesForCurrentCycle();
 
-                // Tick() Helpers
+        // Tick() Helpers
         void beginFrameIfNeeded();
         void runCycleDecisionPhase();
         void handleCycle0Decisions();
         void handleCycle1Decisions();
+        void handleCycle14Decisions();
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
         void runFetchPhase();
