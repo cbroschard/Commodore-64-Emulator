@@ -465,6 +465,9 @@ class Vic
         void traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const;
         void traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int cycle, int byteIndex = -1) const;
         void traceVicSpriteEolState(int sprite, int raster) const;
+        void traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance) const;
+        void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
+            bool rasterMatch, bool willStart) const;
 
         // Bus helpers
         void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC,

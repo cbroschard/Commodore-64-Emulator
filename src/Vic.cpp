@@ -1317,7 +1317,10 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
 
-        if (shouldAdvanceSpriteMCBaseThisLine(s))
+        const bool willAdvance = shouldAdvanceSpriteMCBaseThisLine(s);
+        traceVicSpriteAdvanceDecision(s, raster, willAdvance);
+
+        if (willAdvance)
             spriteUnits[s].mcBase = static_cast<uint8_t>(spriteUnits[s].mcBase + 3);
 
         spriteUnits[s].mc = spriteUnits[s].mcBase;
@@ -1450,49 +1453,43 @@ void Vic::updateSpriteDMAStartForCurrentLine()
 {
     for (int s = 0; s < 8; ++s)
     {
-        const bool enabled = (registers.spriteEnabled & (1 << s)) != 0;
-        if (!enabled)
-        {
-            spriteUnits[s].dmaActive = false;
-            spriteUnits[s].displayActive = false;
-            spriteUnits[s].currentRow = 0;
-            spriteUnits[s].rowPrepared = false;
-            spriteUnits[s].outputBit = 0;
-            spriteUnits[s].outputRepeat = 0;
-            spriteUnits[s].mc = 0;
-            spriteUnits[s].mcBase = 0;
-            spriteUnits[s].outputXStart = 0;
-            spriteUnits[s].outputWidth = 0;
-            spriteUnits[s].shift0 = 0;
-            spriteUnits[s].shift1 = 0;
-            spriteUnits[s].shift2 = 0;
+        const bool enabled = ((registers.spriteEnabled >> s) & 0x01) != 0;
+        const bool yExp = ((registers.spriteYExpansion >> s) & 0x01) != 0;
+        const bool rasterMatch = (registers.raster == registers.spriteY[s]);
+
+        // Keep this aligned with your real start condition.
+        const bool willStart = enabled && rasterMatch;
+
+        traceVicSpriteStartCheck(s,
+                                 registers.raster,
+                                 registers.spriteY[s],
+                                 enabled,
+                                 yExp,
+                                 rasterMatch,
+                                 willStart);
+
+        if (!willStart)
             continue;
-        }
 
-        const bool yExp = (registers.spriteYExpansion & (1 << s)) != 0;
+        spriteUnits[s].dmaActive = true;
+        spriteUnits[s].displayActive = true;
+        spriteUnits[s].yExpandLatch = yExp;
+        spriteUnits[s].currentRow = 0;
+        spriteUnits[s].mc = 0;
+        spriteUnits[s].mcBase = 0;
+        spriteUnits[s].startY = registers.spriteY[s];
 
-        if (registers.raster == registers.spriteY[s])
-        {
-            spriteUnits[s].dmaActive = true;
-            spriteUnits[s].displayActive = true;
-            spriteUnits[s].yExpandLatch = yExp;
-            spriteUnits[s].currentRow = 0;
-            spriteUnits[s].mc = 0;
-            spriteUnits[s].mcBase = 0;
-            spriteUnits[s].startY = registers.spriteY[s];
+        spriteUnits[s].outputBit = 0;
+        spriteUnits[s].outputRepeat = 0;
+        spriteUnits[s].rowPrepared = false;
+        spriteUnits[s].outputXStart = 0;
+        spriteUnits[s].outputWidth = 0;
+        spriteUnits[s].shift0 = 0;
+        spriteUnits[s].shift1 = 0;
+        spriteUnits[s].shift2 = 0;
 
-            spriteUnits[s].outputBit = 0;
-            spriteUnits[s].outputRepeat = 0;
-            spriteUnits[s].rowPrepared = false;
-            spriteUnits[s].outputXStart = 0;
-            spriteUnits[s].outputWidth = 0;
-            spriteUnits[s].shift0 = 0;
-            spriteUnits[s].shift1 = 0;
-            spriteUnits[s].shift2 = 0;
-
-            traceVicSpriteDmaStart(s);
-            traceVicSpriteSlotEvent(s, "dma-start", registers.raster, currentCycle);
-        }
+        traceVicSpriteDmaStart(s);
+        traceVicSpriteSlotEvent(s, "dma-start", registers.raster, currentCycle);
     }
 }
 
@@ -3124,12 +3121,59 @@ void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int
         << " f1=$" << std::setw(2) << int(su.fetched1)
         << " f2=$" << std::setw(2) << int(su.fetched2);
 
-    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteEolState(int sprite, int raster) const
 {
     traceVicSpriteSlotEvent(sprite, "eol", raster, currentCycle, -1);
+}
+
+void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPR] "
+        << "s=" << sprite
+        << " phase=advance-check"
+        << " ras=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << raster
+        << " cyc=$" << std::setw(2) << currentCycle
+        << " dot=" << std::dec << (currentCycle * 8)
+        << " willAdvance=" << (willAdvance ? 1 : 0)
+        << " dma=" << (spriteUnits[sprite].dmaActive ? 1 : 0)
+        << " disp=" << (spriteUnits[sprite].displayActive ? 1 : 0)
+        << " yexp=" << (spriteUnits[sprite].yExpandLatch ? 1 : 0)
+        << " mc=" << int(spriteUnits[sprite].mc)
+        << " mcbase=" << int(spriteUnits[sprite].mcBase)
+        << " row=" << spriteUnits[sprite].currentRow;
+
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded, bool rasterMatch,
+    bool willStart) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPR] "
+        << "s=" << sprite
+        << " phase=start-check"
+        << " ras=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << raster
+        << " cyc=$" << std::setw(2) << currentCycle
+        << " dot=" << std::dec << (currentCycle * 8)
+        << " sprY=$" << std::hex << std::uppercase << std::setw(2) << int(spriteY)
+        << " en=" << std::dec << (enabled ? 1 : 0)
+        << " yexp=" << (yExpanded ? 1 : 0)
+        << " match=" << (rasterMatch ? 1 : 0)
+        << " start=" << (willStart ? 1 : 0)
+        << " dma=" << (spriteUnits[sprite].dmaActive ? 1 : 0)
+        << " disp=" << (spriteUnits[sprite].displayActive ? 1 : 0);
+
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
