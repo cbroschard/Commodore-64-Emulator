@@ -992,26 +992,6 @@ void Vic::initializeFirstBadLineIfNeeded()
     vicState.rc = 0;
 }
 
-void Vic::startBadLineIfNeeded(int raster, int cycle)
-{
-    (void)raster;
-
-    if (cycle == cfg_->DMAStartCycle)
-    {
-        beginBadLineFetch();
-    }
-}
-
-void Vic::runBadLineFetchCycle(int raster, int cycle)
-{
-    const int fetchIndex = cycle - cfg_->DMAStartCycle;
-
-    if (fetchIndex >= 0 && fetchIndex < 40)
-    {
-        fetchBadLineMatrixByte(fetchIndex, raster);
-    }
-}
-
 void Vic::advanceCycleAndFinalizeLineIfNeeded()
 {
     ++currentCycle;

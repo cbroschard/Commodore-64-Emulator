@@ -299,8 +299,6 @@ class Vic
 
         // Bad line Helpers
         void initializeFirstBadLineIfNeeded();
-        void startBadLineIfNeeded(int raster, int cycle);
-        void runBadLineFetchCycle(int raster, int cycle);
         bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
