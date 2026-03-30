@@ -2377,17 +2377,17 @@ int Vic::currentDisplayRowBase() const
 
 uint8_t Vic::fetchDisplayScreenByte(int col, int raster) const
 {
-    const int vc = currentDisplayRowBase() + col;
-    const int row = vc / 40;
-    const int c   = vc % 40;
+    int row = 0;
+    int c = 0;
+    currentDisplayRowCol(col, row, c);
     return fetchScreenByte(row, c, raster);
 }
 
 uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
 {
-    const int vc = currentDisplayRowBase() + col;
-    const int row = vc / 40;
-    const int c   = vc % 40;
+    int row = 0;
+    int c = 0;
+    currentDisplayRowCol(col, row, c);
     return fetchColorByte(row, c, raster) & 0x0F;
 }
 
@@ -2418,8 +2418,8 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         return;
     }
 
-    const int screenRow = currentCharacterRow();
-    if (screenRow < 0 || screenRow >= visibleRows)
+    const int screenRowBefore = currentCharacterRow();
+    if (screenRowBefore < 0 || screenRowBefore >= visibleRows)
     {
         vicState.displayEnabled = false;
         return;
@@ -2432,15 +2432,28 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     if (vicState.rc == 0)
     {
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+    }
 
-        if (currentCharacterRow() >= visibleRows)
-            vicState.displayEnabled = false;
+    const int screenRowAfter = currentCharacterRow();
+    if (screenRowAfter < 0 || screenRowAfter >= visibleRows)
+    {
+        vicState.displayEnabled = false;
     }
 }
 
 int Vic::currentCharacterRow() const
 {
-    return static_cast<int>(vicState.vcBase / 40);
+    int row = 0;
+    int col = 0;
+    currentDisplayRowCol(0, row, col);
+    return row;
+}
+
+void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
+{
+    const int vc = currentDisplayRowBase() + displayCol;
+    row = vc / 40;
+    col = vc % 40;
 }
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const

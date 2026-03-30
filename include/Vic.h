@@ -419,6 +419,7 @@ class Vic
 
         void advanceVideoCountersEndOfLine(int raster);
         int currentCharacterRow() const;
+        void currentDisplayRowCol(int displayCol, int& row, int& col) const;
 
         void updateVerticalBorderState(int raster);
         bool borderActiveAtPixel(int raster, int px) const;
