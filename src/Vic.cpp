@@ -863,10 +863,10 @@ void Vic::tick(int cycles)
     {
         beginFrameIfNeeded();
 
-        // One authoritative phase for this line's timing-sensitive decisions.
-        runLineDecisionPhase();
+        // Per-cycle timing-sensitive decisions happen at their own checkpoints.
+        runCycleDecisionPhase();
 
-        // Execute the fetch owner for this cycle.
+        // Existing fetch ownership stays unchanged for now.
         runFetchPhase();
 
         advanceCycleAndFinalizeLineIfNeeded();
@@ -897,41 +897,76 @@ void Vic::beginFrameIfNeeded()
     }
 }
 
-void Vic::runLineDecisionPhase()
+void Vic::runCycleDecisionPhase()
 {
-    // Use one cycle as the authoritative phase for:
-    // - raster IRQ compare sampling
-    // - N->N+1 raster latching
-    // - bad-line begin decision
-    // - sprite DMA start eligibility
-    if (currentCycle != cfg_->DMAStartCycle)
-        return;
+    switch (currentCycle)
+    {
+        case 0:
+            handleCycle0Decisions();
+            break;
 
-    const int raster = registers.raster;
-    const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
+        case 1:
+            handleCycle1Decisions();
+            break;
 
+        case 58:
+            handleCycle58Decisions();
+            break;
+
+        default:
+            break;
+    }
+
+    if (currentCycle == cfg_->DMAStartCycle)
+        handleDmaStartCycleDecisions();
+}
+
+void Vic::handleCycle0Decisions()
+{
+    // Placeholder for true line-start timing work.
+}
+
+void Vic::handleCycle1Decisions()
+{
+    // Raster IRQ compare sampling belongs at its own checkpoint,
+    // not in the shared DMA-start decision phase.
     if (!rasterIrqSampledThisLine)
     {
         rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
     }
+}
 
+void Vic::handleDmaStartCycleDecisions()
+{
+    const int raster = registers.raster;
+    const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
+
+    // Keep current latch timing behavior for now.
     d011_per_raster[nextRaster] = registers.control & 0x7F;
     d016_per_raster[nextRaster] = registers.control2;
     d018_per_raster[nextRaster] = registers.memory_pointer;
     dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
     updateMonitorCaches(nextRaster);
 
+    // Keep current sprite-DMA start timing behavior for now.
     updateSpriteDMAStartForCurrentLine();
 
+    // Keep current bad-line begin timing behavior for now.
     vicState.badLine = isBadLine(raster);
 
     if (vicState.badLine)
     {
         initializeFirstBadLineIfNeeded();
-        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, (registers.control & 0x10) != 0);
+        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
+                             (registers.control & 0x10) != 0);
         beginBadLineFetch();
     }
+}
+
+void Vic::handleCycle58Decisions()
+{
+    // Placeholder for later VC/RC/display-state timing work.
 }
 
 void Vic::runFetchPhase()
