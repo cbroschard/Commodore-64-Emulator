@@ -464,6 +464,9 @@ class Vic
         void traceVicBadLineFetch(int raster, int cycle, int fetchIndex,
             uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
 
+        // Cycle helpers
+        void traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const;
+
         // Sprite helpers
         void traceVicSpriteDmaStart(int sprite) const;
         void traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const;

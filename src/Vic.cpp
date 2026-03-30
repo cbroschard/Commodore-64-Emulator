@@ -928,8 +928,8 @@ void Vic::handleCycle0Decisions()
 
 void Vic::handleCycle1Decisions()
 {
-    // Raster IRQ compare sampling belongs at its own checkpoint,
-    // not in the shared DMA-start decision phase.
+    traceVicCycleCheckpoint("cycle-1", registers.raster, currentCycle);
+
     if (!rasterIrqSampledThisLine)
     {
         rasterIrqSampledThisLine = true;
@@ -966,6 +966,8 @@ void Vic::handleDmaStartCycleDecisions()
 
 void Vic::handleCycle58Decisions()
 {
+    traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
+
     // Placeholder for later VC/RC/display-state timing work.
 }
 
@@ -3000,6 +3002,31 @@ void Vic::traceVicRegEvent(const std::string& text) const
         return;
 
     traceMgr->recordVicRegister(text, makeVicStamp());
+}
+
+void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE) &&
+        !vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+        return;
+
+    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
+    const int row = currentCharacterRow();
+
+    std::ostringstream out;
+    out << "[VIC:CYCLE] "
+        << phase
+        << " raster=" << std::dec << raster
+        << " cycle=" << cycle
+        << " vcBase=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+        << vicState.vcBase
+        << " rc=" << std::dec << int(vicState.rc)
+        << " bad=" << (vicState.badLine ? 1 : 0)
+        << " disp=" << (vicState.displayEnabled ? 1 : 0)
+        << " DEN=" << (den ? 1 : 0)
+        << " row=" << row;
+
+    traceMgr->recordVicBadline(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicBadlineEvent(const std::string& text) const
