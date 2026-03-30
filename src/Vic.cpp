@@ -913,6 +913,10 @@ void Vic::runCycleDecisionPhase()
             handleCycle14Decisions();
             break;
 
+        case 15:
+            handleCycle15Decisions();
+            break;
+
         case 58:
             handleCycle58Decisions();
             break;
@@ -957,6 +961,19 @@ void Vic::handleCycle14Decisions()
     }
 }
 
+void Vic::handleCycle15Decisions()
+{
+    const int raster = registers.raster;
+
+    if (vicState.badLine)
+    {
+        initializeFirstBadLineIfNeeded();
+        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
+                             (registers.control & 0x10) != 0);
+        beginBadLineFetch();
+    }
+}
+
 void Vic::handleDmaStartCycleDecisions()
 {
     const int raster = registers.raster;
@@ -971,17 +988,6 @@ void Vic::handleDmaStartCycleDecisions()
 
     // Keep current sprite-DMA start timing behavior for now.
     updateSpriteDMAStartForCurrentLine();
-
-    // Keep current bad-line begin timing behavior for now.
-    vicState.badLine = isBadLine(raster);
-
-    if (vicState.badLine)
-    {
-        initializeFirstBadLineIfNeeded();
-        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
-                             (registers.control & 0x10) != 0);
-        beginBadLineFetch();
-    }
 }
 
 void Vic::handleCycle58Decisions()
@@ -1047,11 +1053,12 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (!vicState.badLine)
         return;
 
-    const int raster = registers.raster;
-    const int fetchIndex = currentCycle - cfg_->DMAStartCycle;
+    if (currentCycle < 15 || currentCycle > 54)
+        return;
 
-    if (fetchIndex >= 0 && fetchIndex < 40)
-        fetchBadLineMatrixByte(fetchIndex, raster);
+    const int raster = registers.raster;
+    const int fetchIndex = currentCycle - 15;
+    fetchBadLineMatrixByte(fetchIndex, raster);
 }
 
 void Vic::initializeFirstBadLineIfNeeded()

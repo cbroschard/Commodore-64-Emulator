@@ -310,6 +310,7 @@ class Vic
         void handleCycle0Decisions();
         void handleCycle1Decisions();
         void handleCycle14Decisions();
+        void handleCycle15Decisions();
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
         void runFetchPhase();
