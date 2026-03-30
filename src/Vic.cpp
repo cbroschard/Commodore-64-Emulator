@@ -915,6 +915,7 @@ void Vic::runCycleDecisionPhase()
 
         case 15:
             handleCycle15Decisions();
+            handleSpriteDmaStartDecisions();
             break;
 
         case 58:
@@ -974,6 +975,11 @@ void Vic::handleCycle15Decisions()
     }
 }
 
+void Vic::handleSpriteDmaStartDecisions()
+{
+    updateSpriteDMAStartForCurrentLine();
+}
+
 void Vic::handleDmaStartCycleDecisions()
 {
     const int raster = registers.raster;
@@ -985,9 +991,6 @@ void Vic::handleDmaStartCycleDecisions()
     d018_per_raster[nextRaster] = registers.memory_pointer;
     dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
     updateMonitorCaches(nextRaster);
-
-    // Keep current sprite-DMA start timing behavior for now.
-    updateSpriteDMAStartForCurrentLine();
 }
 
 void Vic::handleCycle58Decisions()
@@ -1541,13 +1544,7 @@ void Vic::updateSpriteDMAStartForCurrentLine()
         // Keep this aligned with your real start condition.
         const bool willStart = enabled && rasterMatch;
 
-        traceVicSpriteStartCheck(s,
-                                 registers.raster,
-                                 registers.spriteY[s],
-                                 enabled,
-                                 yExp,
-                                 rasterMatch,
-                                 willStart);
+        traceVicSpriteStartCheck(s, registers.raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
 
         if (!willStart)
             continue;
