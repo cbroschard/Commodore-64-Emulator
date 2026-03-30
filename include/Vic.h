@@ -440,22 +440,34 @@ class Vic
         const char* fetchKindName(FetchKind kind) const;
 
         // Trace helpers
-        inline bool vicTraceOn(TraceManager::TraceDetail d) const { return traceMgr && traceMgr->vicDetailOn(d); }
+        bool vicTraceOn(TraceManager::TraceDetail d) const;
         TraceManager::Stamp makeVicStamp() const;
-        void traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
-        void traceVicLatch(uint16_t nextRaster) const;
+
+        // Generic category helpers
+        void traceVicEvent(const std::string& text) const;
+        void traceVicRegEvent(const std::string& text) const;
+        void traceVicBadlineEvent(const std::string& text) const;
+        void traceVicSpriteEvent(const std::string& text) const;
+        void traceVicBusEvent(const std::string& text) const;
+
+        // IRQ / raster helpers
         void traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const;
-        void traceVicBadLineStart(int raster, int cycle) const;
-        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col,
-        uint8_t screenByte, uint8_t colorByte) const;
-        void traceVicBusArb(bool oldBA, bool oldAEC,
-        bool newBA, bool newAEC,
-        bool badLineNow, bool baLow, bool aecLow) const;
+
+        // Register helpers
+        void traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue) const;
+
+        // Badline helpers
+        void traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t rc, bool den) const;
+        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex,
+            uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
+
+        // Sprite helpers
         void traceVicSpriteDmaStart(int sprite) const;
-        void traceVicSpritePtrFetch(int sprite, int raster,
-        uint16_t ptrLoc, uint8_t ptr) const;
+        void traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const;
         void traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const;
-        void traceVicSpriteAdvance(int sprite, int raster) const;
-        void traceVicDisplayGate(int raster, bool den, bool verticalOpen, int charRow) const;
+
+        // Bus helpers
+        void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC,
+            bool badLineNow, bool baLow, bool aecLow) const;
 };
 #endif // VIC_H

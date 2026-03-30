@@ -626,153 +626,216 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
     if (address >= 0xD000 && address <= 0xD00F)
     {
         int index = getSpriteIndex(address);
+
         if (isSpriteX(address))
         {
+            const uint8_t oldValue = registers.spriteX[index];
             registers.spriteX[index] = value;
+            traceVicRegWrite(address, oldValue, registers.spriteX[index]);
         }
         else
         {
+            const uint8_t oldValue = registers.spriteY[index];
             registers.spriteY[index] = value;
+            traceVicRegWrite(address, oldValue, registers.spriteY[index]);
         }
         return;
     }
     // Handle multicolor registers with helper
     else if (address >= 0xD022 && address <= 0xD024)
     {
-        registers.backgroundColor[address - 0xD022] = value & 0x0F;
+        const int index = address - 0xD022;
+        const uint8_t oldValue = registers.backgroundColor[index];
+        registers.backgroundColor[index] = value & 0x0F;
+        traceVicRegWrite(address, oldValue, registers.backgroundColor[index]);
         return;
     }
     // Handle Sprite Color registers with helper
     else if (address >= 0xD027 && address <= 0xD02E)
     {
         int index = getSpriteColorIndex(address);
+        const uint8_t oldValue = registers.spriteColors[index];
         registers.spriteColors[index] = value & 0x0F; // Mask to 4 bits
+        traceVicRegWrite(address, oldValue, registers.spriteColors[index]);
         return;
     }
-    switch(address)
+
+    switch (address)
     {
         case 0xD010:
         {
+            const uint8_t oldValue = registers.spriteX_MSB;
             registers.spriteX_MSB = value;
+            traceVicRegWrite(address, oldValue, registers.spriteX_MSB);
             break;
         }
+
         case 0xD011:
         {
+            const uint8_t oldValue = registers.control;
             const uint16_t oldLine = registers.rasterInterruptLine;
             const uint16_t newLine = (oldLine & 0x00FF) | ((value & 0x80) << 1);
 
             registers.rasterInterruptLine = newLine;
             registers.control = value & 0x7F;
 
+            traceVicRegWrite(address, oldValue, registers.control);
             checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
+
         case 0xD012:
         {
+            const uint8_t oldValue = static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
             const uint16_t oldLine = registers.rasterInterruptLine;
             const uint16_t newLine = (oldLine & 0xFF00) | value;
 
             registers.rasterInterruptLine = newLine;
 
+            traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF));
             checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
+
         case 0xD013:
         {
+            const uint8_t oldValue = registers.light_pen_X;
             registers.light_pen_X = value;
+            traceVicRegWrite(address, oldValue, registers.light_pen_X);
             break;
         }
+
         case 0xD014:
         {
+            const uint8_t oldValue = registers.light_pen_Y;
             registers.light_pen_Y = value;
+            traceVicRegWrite(address, oldValue, registers.light_pen_Y);
             break;
         }
+
         case 0xD015:
         {
+            const uint8_t oldValue = registers.spriteEnabled;
             registers.spriteEnabled = value;
+            traceVicRegWrite(address, oldValue, registers.spriteEnabled);
             break;
         }
+
         case 0xD016:
         {
+            const uint8_t oldValue = registers.control2;
             registers.control2 = value;
+            traceVicRegWrite(address, oldValue, registers.control2);
             break;
         }
+
         case 0xD017:
         {
+            const uint8_t oldValue = registers.spriteYExpansion;
             registers.spriteYExpansion = value;
+            traceVicRegWrite(address, oldValue, registers.spriteYExpansion);
             break;
         }
+
         case 0xD018:
         {
+            const uint8_t oldValue = registers.memory_pointer;
             registers.memory_pointer = value & 0xFE;
+            traceVicRegWrite(address, oldValue, registers.memory_pointer);
             break;
         }
+
         case 0xD019:
         {
+            const uint8_t oldValue = registers.interruptStatus & 0x0F;
             value &= 0x0F;
             registers.interruptStatus &= ~value;
+            traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.interruptStatus & 0x0F));
             updateIRQLine();
             break;
         }
+
         case 0xD01A:
         {
+            const uint8_t oldValue = registers.interruptEnable & 0x0F;
             registers.interruptEnable = value & 0x0F;
+            traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.interruptEnable & 0x0F));
             updateIRQLine();
             break;
         }
+
         case 0xD01B:
         {
+            const uint8_t oldValue = registers.spritePriority;
             registers.spritePriority = value;
+            traceVicRegWrite(address, oldValue, registers.spritePriority);
             break;
         }
+
         case 0xD01C:
         {
+            const uint8_t oldValue = registers.spriteMultiColor;
             registers.spriteMultiColor = value;
+            traceVicRegWrite(address, oldValue, registers.spriteMultiColor);
             break;
         }
+
         case 0xD01D:
         {
+            const uint8_t oldValue = registers.spriteXExpansion;
             registers.spriteXExpansion = value;
+            traceVicRegWrite(address, oldValue, registers.spriteXExpansion);
             break;
         }
+
         case 0xD01E:
         case 0xD01F:
             break;
+
         case 0xD020:
         {
+            const uint8_t oldValue = registers.borderColor;
             registers.borderColor = value & 0x0F;
+            traceVicRegWrite(address, oldValue, registers.borderColor);
             break;
         }
+
         case 0xD021:
         {
+            const uint8_t oldValue = registers.backgroundColor0;
             registers.backgroundColor0 = value & 0x0F;
+            traceVicRegWrite(address, oldValue, registers.backgroundColor0);
             break;
         }
+
         case 0xD025:
         {
+            const uint8_t oldValue = registers.spriteMultiColor1;
             registers.spriteMultiColor1 = value & 0x0F;
+            traceVicRegWrite(address, oldValue, registers.spriteMultiColor1);
             break;
         }
+
         case 0xD026:
         {
+            const uint8_t oldValue = registers.spriteMultiColor2;
             registers.spriteMultiColor2 = value & 0x0F;
+            traceVicRegWrite(address, oldValue, registers.spriteMultiColor2);
             break;
         }
+
         case 0xD02F:
-        {
-            break;
-        }
         case 0xD030:
-        {
             break;
-        }
+
         default:
         {
             if (logger && setLogging)
             {
-                logger->WriteLog("Attempt to write to unhandled vic area address = " + std::to_string (static_cast<int>(address)));
-                break;
+                logger->WriteLog("Attempt to write to unhandled vic area address = " +
+                                 std::to_string(static_cast<int>(address)));
             }
+            break;
         }
     }
 }
@@ -849,6 +912,7 @@ void Vic::runLineDecisionPhase()
     if (vicState.badLine)
     {
         initializeFirstBadLineIfNeeded();
+        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, (registers.control & 0x10) != 0);
         beginBadLineFetch();
     }
 }
@@ -1024,20 +1088,19 @@ void Vic::advanceToNextRaster()
 
 void Vic::traceRasterEnd()
 {
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
-    {
-        TraceManager::Stamp stamp =
-            traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
-                                registers.raster,
-                                (currentCycle * 8));
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_RASTER))
+        return;
 
-        // Record raster state at end of line
-        traceMgr->recordVicRaster(registers.raster, currentCycle,
-                                  (registers.interruptStatus & 0x01) != 0,
-                                  registers.control,
-                                  registers.rasterInterruptLine & 0xFF,
-                                  stamp);
-    }
+    TraceManager::Stamp stamp =
+        traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+                            registers.raster,
+                            (currentCycle * 8));
+
+    traceMgr->recordVicRaster(registers.raster, currentCycle,
+                              (registers.interruptStatus & 0x01) != 0,
+                              registers.control,
+                              registers.rasterInterruptLine & 0xFF,
+                              stamp);
 }
 
 void Vic::updatePerCycleState()
@@ -1080,6 +1143,8 @@ void Vic::fetchSpritePointer(int sprite, int raster)
 
     const uint16_t ptrLoc = getScreenBase(raster) + 0x03F8 + sprite;
     const uint8_t ptr = mem->vicRead(ptrLoc, raster);
+
+    traceVicSpritePtrFetch(sprite, raster, ptrLoc, ptr);
 
     spriteUnits[sprite].pointerByte = ptr;
     spriteUnits[sprite].dataBase = static_cast<uint16_t>(ptr) << 6;
@@ -1374,6 +1439,8 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
     const uint16_t addr = spriteUnits[sprite].dataBase + rowInSprite * 3 + byteIndex;
     const uint8_t value = mem->vicRead(addr, raster);
 
+    traceVicSpriteDataFetch(sprite, raster, byteIndex, addr, value);
+
     if (byteIndex == 0)
     {
         spriteUnits[sprite].fetched0 = value;
@@ -1446,6 +1513,8 @@ void Vic::updateSpriteDMAStartForCurrentLine()
             spriteUnits[s].shift0 = 0;
             spriteUnits[s].shift1 = 0;
             spriteUnits[s].shift2 = 0;
+
+            traceVicSpriteDmaStart(s);
         }
     }
 }
@@ -1460,6 +1529,9 @@ void Vic::updateBusArbitration()
     const bool baLow  = shouldBALow(raster, cycle);
     const bool aecLow = shouldAECLow(raster, cycle);
 
+    const bool oldBA  = vicState.ba;
+    const bool oldAEC = vicState.aec;
+
     vicState.badLine = badLineNow;
     vicState.ba      = !baLow;
     vicState.aec     = !aecLow;
@@ -1468,6 +1540,11 @@ void Vic::updateBusArbitration()
 
     if (processor)
         processor->setBAHold(!vicState.ba);
+
+    if (oldBA != vicState.ba || oldAEC != vicState.aec)
+    {
+        traceVicBusArb(oldBA, oldAEC, vicState.ba, vicState.aec, badLineNow, baLow, aecLow);
+    }
 }
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
@@ -1582,8 +1659,13 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
 
-    charPtrFIFO[fetchIndex]  = fetchScreenByte(row, col, raster);
-    colorPtrFIFO[fetchIndex] = fetchColorByte(row, col, raster) & 0x0F;
+    const uint8_t screenByte = fetchScreenByte(row, col, raster);
+    const uint8_t colorByte  = fetchColorByte(row, col, raster) & 0x0F;
+
+    charPtrFIFO[fetchIndex]  = screenByte;
+    colorPtrFIFO[fetchIndex] = colorByte;
+
+    traceVicBadLineFetch(raster, currentCycle, fetchIndex, vc, row, col, screenByte, colorByte);
 }
 
 void Vic::renderLine(int raster)
@@ -2863,4 +2945,193 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     }
 
     return out.str();
+}
+
+bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
+{
+    return traceMgr && traceMgr->vicDetailOn(d);
+}
+
+TraceManager::Stamp Vic::makeVicStamp() const
+{
+    if (!traceMgr)
+        return TraceManager::Stamp{0, 0xFFFF, 0xFFFF};
+
+    return traceMgr->makeStamp(
+        processor ? processor->getTotalCycles() : 0,
+        registers.raster,
+        static_cast<uint16_t>(currentCycle * 8));
+}
+
+void Vic::traceVicEvent(const std::string& text) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT))
+        return;
+
+    traceMgr->recordVicEvent(text, makeVicStamp());
+}
+
+void Vic::traceVicRegEvent(const std::string& text) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_REG))
+        return;
+
+    traceMgr->recordVicRegister(text, makeVicStamp());
+}
+
+void Vic::traceVicBadlineEvent(const std::string& text) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
+        return;
+
+    traceMgr->recordVicBadline(text, makeVicStamp());
+}
+
+void Vic::traceVicSpriteEvent(const std::string& text) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    traceMgr->recordVicSprite(text, makeVicStamp());
+}
+
+void Vic::traceVicBusEvent(const std::string& text) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
+        return;
+
+    traceMgr->recordVicBus(text, makeVicStamp());
+}
+
+void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:IRQ] "
+        << phase
+        << " old=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << oldLine
+        << " new=$" << std::setw(3) << newLine
+        << " cur=$" << std::setw(3) << registers.raster
+        << " match=" << std::dec << (matched ? 1 : 0)
+        << " ISR=$" << std::hex << std::uppercase << std::setw(2) << int(registers.interruptStatus & 0x0F)
+        << " IER=$" << std::setw(2) << int(registers.interruptEnable & 0x0F);
+
+    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_REG))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:REG] $"
+        << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << address
+        << " old=$" << std::setw(2) << int(oldValue)
+        << " new=$" << std::setw(2) << int(newValue);
+
+    traceMgr->recordVicRegister(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t rc, bool den) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:BADLINE] start"
+        << " raster=" << std::dec << raster
+        << " cycle=" << cycle
+        << " vcBase=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << vcBase
+        << " rc=" << std::dec << int(rc)
+        << " DEN=" << (den ? 1 : 0);
+
+    traceMgr->recordVicBadline(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col,
+    uint8_t screenByte, uint8_t colorByte) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:BADLINE] fetch"
+        << " raster=" << std::dec << raster
+        << " cycle=" << cycle
+        << " idx=" << fetchIndex
+        << " vc=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << vc
+        << " row=" << std::dec << row
+        << " col=" << col
+        << " screen=$" << std::hex << std::uppercase << std::setw(2) << int(screenByte)
+        << " color=$" << std::setw(2) << int(colorByte);
+
+    traceMgr->recordVicBadline(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpriteDmaStart(int sprite) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPRITE] DMA start"
+        << " spr=" << sprite
+        << " raster=" << std::dec << registers.raster
+        << " y=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << int(registers.spriteY[sprite]);
+
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPRITE] ptr fetch"
+        << " spr=" << std::dec << sprite
+        << " raster=" << raster
+        << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << ptrLoc
+        << " ptr=$" << std::setw(2) << int(ptr)
+        << " dataBase=$" << std::setw(4) << (uint16_t(ptr) << 6);
+
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPRITE] data fetch"
+        << " spr=" << std::dec << sprite
+        << " raster=" << raster
+        << " byte=" << byteIndex
+        << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << addr
+        << " value=$" << std::setw(2) << int(value);
+
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:BUS] arb"
+        << " raster=" << std::dec << registers.raster
+        << " cycle=" << currentCycle
+        << " badline=" << (badLineNow ? 1 : 0)
+        << " BA:" << (oldBA ? '1' : '0') << "->" << (newBA ? '1' : '0')
+        << " AEC:" << (oldAEC ? '1' : '0') << "->" << (newAEC ? '1' : '0')
+        << " baLow=" << (baLow ? 1 : 0)
+        << " aecLow=" << (aecLow ? 1 : 0);
+
+    traceMgr->recordVicBus(out.str(), makeVicStamp());
 }
