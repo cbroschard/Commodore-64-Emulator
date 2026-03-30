@@ -926,7 +926,6 @@ void Vic::initializeFirstBadLineIfNeeded()
     // First visible character row starts at VCBASE = 0.
     vicState.vcBase = 0;
     vicState.rc = 0;
-    vicState.displayEnabled = true;
 }
 
 void Vic::startBadLineIfNeeded(int raster, int cycle)
@@ -2344,7 +2343,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     // No display progression until DEN has been seen and badline regime has started.
     if (!den || firstBadlineY < 0)
     {
-        vicState.displayEnabled = false;
         return;
     }
 
