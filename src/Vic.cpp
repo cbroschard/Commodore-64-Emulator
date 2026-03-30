@@ -1130,6 +1130,7 @@ void Vic::fetchSpritePointer(int sprite, int raster)
     spriteUnits[sprite].dataBase = static_cast<uint16_t>(ptr) << 6;
 
     syncSpriteCompatAddress(sprite);
+    traceVicSpriteSlotEvent(sprite, "ptr", raster, currentCycle);
 }
 
 void Vic::prepareSpriteOutputForRaster(int raster)
@@ -1309,35 +1310,28 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
 void Vic::updateSpriteDMAEndOfLine(int raster)
 {
-    (void)raster;
-
     for (int s = 0; s < 8; ++s)
     {
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        // Keep currentRow as a compatibility/debug mirror for now.
-        spriteUnits[s].currentRow++;
+        traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
 
-        // Advance sprite data progression only when this line consumes a new
-        // logical sprite row.
         if (shouldAdvanceSpriteMCBaseThisLine(s))
-        {
-            spriteUnits[s].mcBase += 3;
-        }
+            spriteUnits[s].mcBase = static_cast<uint8_t>(spriteUnits[s].mcBase + 3);
 
-        // Mirror mc from mcBase for now.
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
-        // Keep currentRow consistent with mcBase as we transition away from
-        // line-count-driven behavior.
         if (spriteUnits[s].yExpandLatch)
             spriteUnits[s].currentRow = spriteRowFromMCBase(s) * 2;
         else
             spriteUnits[s].currentRow = spriteRowFromMCBase(s);
 
+        traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
+
         if (isSpriteDMAComplete(s))
         {
+            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
             resetSpriteDMAState(s);
         }
     }
@@ -1436,6 +1430,8 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
         // Sprite row data becomes live when the 3rd byte arrives.
         latchSpriteShiftersFromFetchedBytes(sprite);
     }
+
+    traceVicSpriteSlotEvent(sprite, "data", raster, currentCycle, byteIndex);
 }
 
 void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
@@ -1495,6 +1491,7 @@ void Vic::updateSpriteDMAStartForCurrentLine()
             spriteUnits[s].shift2 = 0;
 
             traceVicSpriteDmaStart(s);
+            traceVicSpriteSlotEvent(s, "dma-start", registers.raster, currentCycle);
         }
     }
 }
@@ -3093,20 +3090,78 @@ void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_
     traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
+void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int cycle, int byteIndex) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    if (sprite < 0 || sprite >= 8)
+        return;
+
+    const SpriteUnit& su = spriteUnits[sprite];
+
+    std::ostringstream out;
+    out << "[VIC:SPR] "
+        << "s=" << sprite
+        << " phase=" << phase
+        << " ras=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << raster
+        << " cyc=$" << std::setw(2) << cycle
+        << " dot=" << std::dec << (cycle * 8)
+        << " slot=$" << std::hex << std::uppercase << std::setw(2) << spriteFetchSlotStart(sprite)
+        << " dma=" << std::dec << (su.dmaActive ? 1 : 0)
+        << " disp=" << (su.displayActive ? 1 : 0)
+        << " yexp=" << (su.yExpandLatch ? 1 : 0)
+        << " mc=" << int(su.mc)
+        << " mcbase=" << int(su.mcBase)
+        << " row=" << su.currentRow
+        << " ptr=$" << std::hex << std::uppercase << std::setw(2) << int(su.pointerByte)
+        << " base=$" << std::setw(4) << su.dataBase;
+
+    if (byteIndex >= 0)
+        out << " byte=" << std::dec << byteIndex;
+
+    out << " f0=$" << std::hex << std::uppercase << std::setw(2) << int(su.fetched0)
+        << " f1=$" << std::setw(2) << int(su.fetched1)
+        << " f2=$" << std::setw(2) << int(su.fetched2);
+
+    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpriteEolState(int sprite, int raster) const
+{
+    traceVicSpriteSlotEvent(sprite, "eol", raster, currentCycle, -1);
+}
+
 void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
 {
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
         return;
 
     std::ostringstream out;
-    out << "[VIC:BUS] arb"
-        << " raster=" << std::dec << registers.raster
-        << " cycle=" << currentCycle
-        << " badline=" << (badLineNow ? 1 : 0)
-        << " BA:" << (oldBA ? '1' : '0') << "->" << (newBA ? '1' : '0')
-        << " AEC:" << (oldAEC ? '1' : '0') << "->" << (newAEC ? '1' : '0')
-        << " baLow=" << (baLow ? 1 : 0)
-        << " aecLow=" << (aecLow ? 1 : 0);
+    out << "[VIC:BUS] "
+        << "reason=" << busArbReason(registers.raster, currentCycle)
+        << " bad=" << (badLineNow ? 1 : 0)
+        << " BA " << (oldBA ? 'H' : 'L') << "->" << (newBA ? 'H' : 'L')
+        << " AEC " << (oldAEC ? 'H' : 'L') << "->" << (newAEC ? 'H' : 'L')
+        << " balow=" << (baLow ? 1 : 0)
+        << " aeclow=" << (aecLow ? 1 : 0);
 
-    traceMgr->recordVicBus(out.str(), makeVicStamp());
+    traceVicBusEvent(out.str());
+}
+
+const char* Vic::busArbReason(int raster, int cycle) const
+{
+    if (isBadLineBusStealCycle(raster, cycle))
+        return "badline-steal";
+
+    if (isBadLineBusWarningCycle(raster, cycle))
+        return "badline-warn";
+
+    if (isSpriteBusStealCycle(raster, cycle))
+        return "sprite-steal";
+
+    if (isSpriteBusWarningCycle(raster, cycle))
+        return "sprite-warn";
+
+    return "none";
 }
