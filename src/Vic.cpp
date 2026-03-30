@@ -525,13 +525,22 @@ uint8_t Vic::readRegister(uint16_t address)
     switch(address)
     {
         case 0xD010:
-            return latchOpenBus(registers.spriteX_MSB);
+            return latchOpenBusMasked(registers.spriteX_MSB, 0xFF);
 
         case 0xD011:
         {
             const uint8_t highBit = (registers.raster >> 8) & 0x01;
+
+            // Bits:
+            // 7 = raster high bit (defined)
+            // 6 = ECM
+            // 5 = BMM
+            // 4 = DEN
+            // 3 = RSEL
+            // 2-0 = Y scroll
             const uint8_t value = (registers.control & 0x7F) | (highBit << 7);
-            return latchOpenBusMasked(value, 0xFF);
+
+            return latchOpenBusMasked(value, 0xFF); // keep for now (safe step)
         }
 
         case 0xD012:
@@ -544,16 +553,24 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(registers.light_pen_Y);
 
         case 0xD015:
-            return latchOpenBus(registers.spriteEnabled);
+            return latchOpenBusMasked(registers.spriteEnabled, 0xFF);
 
         case 0xD016:
-            return latchOpenBusMasked(registers.control2, 0xFF);
+        {
+            // Bits:
+            // 4 = MCM
+            // 3 = CSEL
+            // 2-0 = X scroll
+            const uint8_t value = registers.control2 & 0x1F;
+
+            return latchOpenBusMasked(value, 0x1F);
+        }
 
         case 0xD017:
-            return latchOpenBus(registers.spriteYExpansion);
+            return latchOpenBusMasked(registers.spriteYExpansion, 0xFF);
 
         case 0xD018:
-            return latchOpenBusMasked(registers.memory_pointer, 0xFF);
+             return latchOpenBusMasked(registers.spritePriority, 0xFF);
 
         case 0xD019:
         {
@@ -571,10 +588,10 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(registers.spritePriority);
 
         case 0xD01C:
-            return latchOpenBus(registers.spriteMultiColor);
+            return latchOpenBusMasked(registers.spriteMultiColor, 0xFF);
 
         case 0xD01D:
-            return latchOpenBus(registers.spriteXExpansion);
+            return latchOpenBusMasked(registers.spriteXExpansion, 0xFF);
 
         case 0xD01E:
         {
