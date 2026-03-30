@@ -2349,7 +2349,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     const int screenRow = currentCharacterRow();
     if (screenRow < 0 || screenRow >= visibleRows)
     {
-        vicState.displayEnabled = false;
         return;
     }
 
