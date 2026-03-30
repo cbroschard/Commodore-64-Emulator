@@ -2419,36 +2419,32 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
     const int visibleRows = getRSEL(raster) ? 25 : 24;
 
-    // No display progression until DEN has been seen and badline regime has started.
-    if (!den || firstBadlineY < 0)
+    if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
+        vicState.displayEnabled = false;
         return;
     }
 
     const int screenRow = currentCharacterRow();
     if (screenRow < 0 || screenRow >= visibleRows)
     {
+        vicState.displayEnabled = false;
         return;
     }
 
     vicState.displayEnabled = true;
 
-    // VIC-style row counter is authoritative.
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
-    // When RC wraps, advance to the next 40-column character row.
     if (vicState.rc == 0)
     {
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-    }
 
-    // If we just advanced past the last visible character row, close display.
-    if (currentCharacterRow() >= visibleRows)
-    {
-        vicState.displayEnabled = false;
+        if (currentCharacterRow() >= visibleRows)
+            vicState.displayEnabled = false;
     }
 }
 
