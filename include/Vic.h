@@ -457,6 +457,7 @@ class Vic
 
         // IRQ / raster helpers
         void traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t newLine, bool matched) const;
+        void traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16_t newLine, bool sampled,  bool matched) const;
 
         // Register helpers
         void traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue) const;

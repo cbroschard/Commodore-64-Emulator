@@ -901,7 +901,10 @@ void Vic::runCycleDecisionPhase()
 {
     if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
     {
+        const bool matched = rasterCompareMatchesNow();
         traceVicCycleCheckpoint("raster-irq-sample", registers.raster, currentCycle);
+        traceVicRasterRetargetTest("normal-sample", registers.rasterInterruptLine, registers.rasterInterruptLine, rasterIrqSampledThisLine, matched);
+
         rasterIrqSampledThisLine = true;
         triggerRasterIRQIfMatched();
     }
@@ -3081,6 +3084,27 @@ void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t n
         << " new=$" << std::setw(3) << newLine
         << " cur=$" << std::setw(3) << registers.raster
         << " match=" << std::dec << (matched ? 1 : 0)
+        << " ISR=$" << std::hex << std::uppercase << std::setw(2) << int(registers.interruptStatus & 0x0F)
+        << " IER=$" << std::setw(2) << int(registers.interruptEnable & 0x0F);
+
+    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+}
+
+
+void Vic::traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16_t newLine, bool sampled, bool matched) const
+{
+    if (!traceMgr || !vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:IRQTEST] "
+        << phase
+        << " curRaster=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << registers.raster
+        << " cycle=" << std::dec << currentCycle
+        << " old=$" << std::hex << std::uppercase << std::setw(3) << oldLine
+        << " new=$" << std::setw(3) << newLine
+        << " sampled=" << std::dec << (sampled ? 1 : 0)
+        << " matched=" << (matched ? 1 : 0)
         << " ISR=$" << std::hex << std::uppercase << std::setw(2) << int(registers.interruptStatus & 0x0F)
         << " IER=$" << std::setw(2) << int(registers.interruptEnable & 0x0F);
 
