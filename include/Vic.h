@@ -198,6 +198,7 @@ class Vic
 
             // Bad-line / display state
             bool displayEnabled = false;
+            bool displayEnabledNext = false;
             bool badLine = false;
 
             // Border flip-flops

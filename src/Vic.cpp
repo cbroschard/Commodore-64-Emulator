@@ -71,6 +71,7 @@ void Vic::reset()
     vicState.rc = 0;
 
     vicState.displayEnabled = false;
+    vicState.displayEnabledNext = false;
     vicState.badLine = false;
 
     vicState.verticalBorder = true;
@@ -992,7 +993,19 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    // Placeholder for later VC/RC/display-state timing work.
+    const int raster = registers.raster;
+    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
+
+    if (!denSeenOn30 || firstBadlineY < 0 || !den)
+    {
+        vicState.displayEnabledNext = false;
+        return;
+    }
+
+    const int screenRowBefore = currentCharacterRow();
+    vicState.displayEnabledNext =
+        (screenRowBefore >= 0 && screenRowBefore < visibleRows);
 }
 
 void Vic::runFetchPhase()
@@ -2465,36 +2478,21 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
 {
-    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
+    vicState.displayEnabled = vicState.displayEnabledNext;
 
-    if (!denSeenOn30 || firstBadlineY < 0 || !den)
-    {
-        vicState.displayEnabled = false;
+    if (!vicState.displayEnabled)
         return;
-    }
-
-    const int screenRowBefore = currentCharacterRow();
-    if (screenRowBefore < 0 || screenRowBefore >= visibleRows)
-    {
-        vicState.displayEnabled = false;
-        return;
-    }
-
-    vicState.displayEnabled = true;
 
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
     if (vicState.rc == 0)
-    {
         vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-    }
 
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
     const int screenRowAfter = currentCharacterRow();
+
     if (screenRowAfter < 0 || screenRowAfter >= visibleRows)
-    {
         vicState.displayEnabled = false;
-    }
 }
 
 int Vic::currentCharacterRow() const
