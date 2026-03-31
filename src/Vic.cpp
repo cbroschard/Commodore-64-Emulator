@@ -1576,7 +1576,7 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const bool badLineNow = isBadLine(raster);
+    const bool badLineNow = vicState.badLine;
 
     const bool baLow  = shouldBALow(raster, cycle);
     const bool aecLow = shouldAECLow(raster, cycle);
@@ -1601,7 +1601,7 @@ void Vic::updateBusArbitration()
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 {
-    if (!isBadLine(raster))
+    if (!vicState.badLine)
         return false;
 
     const int lineCycles = cfg_->cyclesPerLine;
@@ -1616,7 +1616,7 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
-    if (!isBadLine(raster))
+    if (!vicState.badLine)
         return false;
 
     return cycle >= cfg_->DMAStartCycle &&
