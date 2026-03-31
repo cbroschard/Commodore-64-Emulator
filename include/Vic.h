@@ -136,7 +136,7 @@ class Vic
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
 
-        static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
+        static constexpr int RASTER_IRQ_COMPARE_CYCLE = 1;
 
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
@@ -308,7 +308,6 @@ class Vic
         void beginFrameIfNeeded();
         void runCycleDecisionPhase();
         void handleCycle0Decisions();
-        void handleCycle1Decisions();
         void handleCycle14Decisions();
         void handleCycle15Decisions();
         void handleSpriteDmaStartDecisions();

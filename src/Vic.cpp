@@ -899,14 +899,17 @@ void Vic::beginFrameIfNeeded()
 
 void Vic::runCycleDecisionPhase()
 {
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
+    {
+        traceVicCycleCheckpoint("raster-irq-sample", registers.raster, currentCycle);
+        rasterIrqSampledThisLine = true;
+        triggerRasterIRQIfMatched();
+    }
+
     switch (currentCycle)
     {
         case 0:
             handleCycle0Decisions();
-            break;
-
-        case 1:
-            handleCycle1Decisions();
             break;
 
         case 14:
@@ -933,17 +936,6 @@ void Vic::runCycleDecisionPhase()
 void Vic::handleCycle0Decisions()
 {
     // Placeholder for true line-start timing work.
-}
-
-void Vic::handleCycle1Decisions()
-{
-    traceVicCycleCheckpoint("cycle-1", registers.raster, currentCycle);
-
-    if (!rasterIrqSampledThisLine)
-    {
-        rasterIrqSampledThisLine = true;
-        triggerRasterIRQIfMatched();
-    }
 }
 
 void Vic::handleCycle14Decisions()
@@ -2161,12 +2153,12 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
         return;
 
     // Too late: this line's decision point has already passed.
-    if (currentCycle > cfg_->DMAStartCycle)
+    if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
     // If we're exactly on the decision cycle and have already sampled it,
     // do not generate it again from the register write path.
-    if (currentCycle == cfg_->DMAStartCycle && rasterIrqSampledThisLine)
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
         return;
 
     // Source already latched.
