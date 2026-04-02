@@ -2127,17 +2127,24 @@ void Vic::buildBorderMaskLine(int raster)
     if (vicState.verticalBorder)
         return;
 
-    const int xStart = std::max(0, vicState.leftBorderOpenX);
-    const int xEnd   = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int openX  = std::max(0, vicState.leftBorderOpenX);
+    const int closeX = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
-    const int openStart = vicState.leftBorder  ? xEnd   : xStart;
-    const int openEnd   = vicState.rightBorder ? xStart : xEnd;
-
-    if (openStart >= openEnd)
+    if (openX >= closeX)
         return;
 
-    for (int px = openStart; px < openEnd; ++px)
-        borderMaskLine[px] = 0;
+    bool borderOn = true;
+
+    for (int px = 0; px < VISIBLE_WIDTH; ++px)
+    {
+        if (borderOn && px >= openX)
+            borderOn = false;
+
+        if (!borderOn && px >= closeX)
+            borderOn = true;
+
+        borderMaskLine[px] = borderOn ? 1 : 0;
+    }
 }
 
 void Vic::composeFinalRasterLine(int raster)
