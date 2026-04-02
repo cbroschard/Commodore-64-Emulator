@@ -194,12 +194,14 @@ class Vic
         {
             // Character matrix / raster engine
             uint16_t vcBase = 0;     // base video counter
+            uint16_t vmliBase = 0;   // bad-line matrix fetch base for current row
             uint8_t rc = 0;          // row counter 0-7
 
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;
             bool badLine = false;
+            bool badLineSampled = false;
 
             // Border flip-flops
             bool verticalBorder = true;
@@ -292,7 +294,7 @@ class Vic
         inline uint8_t getBackgroundColor(int value) const { return registers.backgroundColor[value]; }
 
         // fine-scroll Helpers ($D016 bits 0-2 , $D011 bits 0-2)
-        inline uint8_t fineXScroll(int raster) const { return d016_per_raster[raster] & 0x07; }
+        inline uint8_t fineXScroll(int raster) const { return effectiveD016ForRaster(raster) & 0x07; }
         inline uint8_t fineYScroll(int raster) const { return effectiveD011ForRaster(raster) & 0x07; }
         uint8_t effectiveD011ForRaster(int raster) const;
         uint8_t effectiveD016ForRaster(int raster) const;
@@ -413,6 +415,7 @@ class Vic
         void renderECMLine(int raster, int xScroll);
 
         // Helpers
+        void clearBadLineFifo();
         void clearBackgroundLineBuffers();
         void generateBackgroundLine(int raster);
 

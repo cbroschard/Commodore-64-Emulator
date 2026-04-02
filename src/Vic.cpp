@@ -72,11 +72,13 @@ void Vic::reset()
 
     // Internal VIC state
     vicState.vcBase = 0;
+    vicState.vmliBase = 0;   // bad-line matrix fetch base for current row
     vicState.rc = 0;
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
     vicState.badLine = false;
+    vicState.badLineSampled = false;
 
     vicState.verticalBorder = true;
     vicState.leftBorder = true;
@@ -158,6 +160,9 @@ void Vic::reset()
 
     // Initialize monitor caches
     updateMonitorCaches(registers.raster);
+
+    // Clear the bad line fifo
+    clearBadLineFifo();
 
     // ML Monitor logging default disable
     setLogging = false;
@@ -278,9 +283,11 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // Dump State
     wrtr.writeU16(vicState.vcBase);
+    wrtr.writeU16(vicState.vmliBase);
     wrtr.writeU8(vicState.rc);
 
     wrtr.writeBool(vicState.displayEnabled);
+    wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLine);
 
     wrtr.writeBool(vicState.verticalBorder);
@@ -438,8 +445,10 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
@@ -498,6 +507,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (currentCycle < 0) currentCycle = 0;
         if (currentCycle >= cfg_->cyclesPerLine)
             currentCycle %= cfg_->cyclesPerLine;
+
+        const int visibleRows = getRSEL(registers.raster) ? 25 : 24;
+        const uint16_t maxRowBase = static_cast<uint16_t>((visibleRows - 1) * 40);
+
+        vicState.vcBase   = static_cast<uint16_t>((vicState.vcBase   / 40) * 40);
+        vicState.vmliBase = static_cast<uint16_t>((vicState.vmliBase / 40) * 40);
+
+        if (vicState.vcBase > maxRowBase)
+            vicState.vcBase = maxRowBase;
+
+        if (vicState.vmliBase > maxRowBase)
+            vicState.vmliBase = vicState.vcBase;
 
         vicState.rc &= 0x07;
         vicState.openBus = static_cast<uint8_t>(vicState.openBus);
@@ -958,16 +979,22 @@ void Vic::beginFrameIfNeeded()
         firstBadlineY = -1;
         denSeenOn30 = false;
 
-        // Reset VIC-style display counters at frame start
         vicState.vcBase = 0;
         vicState.rc = 0;
         vicState.badLine = false;
+        vicState.badLineSampled = false;
         vicState.displayEnabled = false;
+        vicState.displayEnabledNext = false;
+
+        vicState.topBorderOpenRaster = 0;
+        vicState.bottomBorderCloseRaster = 0;
+
+        clearBadLineFifo();
     }
 
     if (registers.raster == 0x30)
     {
-        if (d011_per_raster[0x30] & 0x10)
+        if (effectiveD011ForRaster(0x30) & 0x10)
             denSeenOn30 = true;
     }
 }
@@ -1030,13 +1057,14 @@ void Vic::handleCycle14Decisions()
     const int raster = registers.raster;
     const bool badNow = isBadLine(raster);
 
-    // Bad-line condition becomes authoritative here.
+    vicState.badLineSampled = badNow;
     vicState.badLine = badNow;
 
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badNow)
     {
+        initializeFirstBadLineIfNeeded();
         vicState.rc = 0;
     }
 }
@@ -1045,11 +1073,10 @@ void Vic::handleCycle15Decisions()
 {
     const int raster = registers.raster;
 
-    if (vicState.badLine)
+    if (vicState.badLineSampled)
     {
-        initializeFirstBadLineIfNeeded();
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
-                             (registers.control & 0x10) != 0);
+                             (effectiveD011ForRaster(raster) & 0x10) != 0);
         beginBadLineFetch();
     }
 }
@@ -1076,19 +1103,10 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    const int raster = registers.raster;
-    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-
-    if (!denSeenOn30 || firstBadlineY < 0 || !den)
-    {
-        vicState.displayEnabledNext = false;
-        return;
-    }
-
-    const int screenRowBefore = currentCharacterRow();
+    // Keep the next line enabled only if we're already inside an active
+    // display row, or if the current line is itself a bad line that starts one.
     vicState.displayEnabledNext =
-        (screenRowBefore >= 0 && screenRowBefore < visibleRows);
+        vicState.displayEnabled || vicState.badLineSampled;
 }
 
 void Vic::runFetchPhase()
@@ -1183,7 +1201,7 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster) const
 
 void Vic::performBadLineFetchesForCurrentCycle()
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return;
 
     if (currentCycle < 15 || currentCycle > 54)
@@ -1201,9 +1219,13 @@ void Vic::initializeFirstBadLineIfNeeded()
 
     firstBadlineY = registers.raster;
 
-    // First visible character row starts at VCBASE = 0.
+    // First visible character row starts at row 0.
     vicState.vcBase = 0;
+    vicState.vmliBase = 0;
     vicState.rc = 0;
+
+    vicState.displayEnabled = true;
+    vicState.displayEnabledNext = true;
 }
 
 void Vic::advanceCycleAndFinalizeLineIfNeeded()
@@ -1274,6 +1296,8 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 void Vic::advanceToNextRaster()
 {
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+    vicState.badLineSampled = false;
     rasterIrqSampledThisLine = false;
 }
 
@@ -1710,7 +1734,7 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const bool badLineNow = vicState.badLine;
+    const bool badLineNow = vicState.badLineSampled;
 
     const bool baLow  = shouldBALow(raster, cycle);
     const bool aecLow = shouldAECLow(raster, cycle);
@@ -1735,7 +1759,7 @@ void Vic::updateBusArbitration()
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return false;
 
     const int lineCycles = cfg_->cyclesPerLine;
@@ -1750,7 +1774,7 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return false;
 
     return cycle >= cfg_->DMAStartCycle &&
@@ -1821,26 +1845,36 @@ bool Vic::isBadLine(int raster) const
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
 
-    if (!denSeenOn30) return false;
-    if (!(d011 & 0x10)) return false; // DEN
+    if (!denSeenOn30)
+        return false;
 
-    const bool rsel = getRSEL(raster);                   // $D011 bit 3
-    const int last = rsel ? 0xF7 : 0xEF;                 // 25 rows vs 24 rows
+    if ((d011 & 0x10) == 0)   // DEN
+        return false;
 
-    if (raster < 0x30 || raster > last) return false;
-    if ((raster & 0x07) != fineYScroll(raster)) return false;
+    const int yScroll = d011 & 0x07;
+    const bool rsel = (d011 & 0x08) != 0;
 
-    return true;
+    const int firstBad = 0x30 + yScroll;
+    const int lastBad  = (rsel ? 0xF7 : 0xEF) + yScroll;
+
+    if (raster < firstBad || raster > lastBad)
+        return false;
+
+    return (raster & 0x07) == yScroll;
 }
 
 void Vic::beginBadLineFetch()
 {
-    vicState.rc = 0;
+    vicState.displayEnabled = true;
+    vicState.displayEnabledNext = true;
+
+    // Latch which 40-byte row the VIC is fetching on this bad line.
+    vicState.vmliBase = vicState.vcBase;
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 {
-    const uint16_t vc = static_cast<uint16_t>(vicState.vcBase + fetchIndex);
+    const uint16_t vc = static_cast<uint16_t>(vicState.vmliBase + fetchIndex);
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
 
@@ -2086,6 +2120,15 @@ void Vic::renderECMLine(int raster, int xScroll)
             if (pixelOn)
                 markBGOpaque(py, pxRaw);
         }
+    }
+}
+
+void Vic::clearBadLineFifo()
+{
+    for (int i = 0; i < 40; ++i)
+    {
+        charPtrFIFO[i] = 0;
+        colorPtrFIFO[i] = 0;
     }
 }
 
@@ -2647,21 +2690,43 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
 {
-    vicState.displayEnabled = vicState.displayEnabledNext;
-
-    if (!vicState.displayEnabled)
+    if (!vicState.displayEnabledNext)
+    {
+        vicState.displayEnabled = false;
         return;
+    }
+
+    vicState.displayEnabled = true;
+
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
+    const int currentRowBefore = currentCharacterRow();
+
+    // If somehow already outside visible row range, stop immediately.
+    if (currentRowBefore < 0 || currentRowBefore >= visibleRows)
+    {
+        vicState.displayEnabled = false;
+        vicState.displayEnabledNext = false;
+        clearBadLineFifo();
+        return;
+    }
 
     vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
     if (vicState.rc == 0)
-        vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+    {
+        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+        const int nextRow = nextVcBase / 40;
 
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-    const int screenRowAfter = currentCharacterRow();
+        if (nextRow >= visibleRows)
+        {
+            vicState.displayEnabled = false;
+            vicState.displayEnabledNext = false;
+            clearBadLineFifo();
+            return;
+        }
 
-    if (screenRowAfter < 0 || screenRowAfter >= visibleRows)
-        vicState.displayEnabled = false;
+        vicState.vcBase = nextVcBase;
+    }
 }
 
 int Vic::currentCharacterRow() const
@@ -2698,24 +2763,23 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 void Vic::updateVerticalBorderState(int raster)
 {
     const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
-    if (!den || !denSeenOn30 || firstBadlineY < 0)
+
+    if (!den || !denSeenOn30)
     {
-        vicState.topBorderOpenRaster = 0;
-        vicState.bottomBorderCloseRaster = 0;
         vicState.verticalBorder = true;
         return;
     }
 
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-    const int topOpen = firstBadlineY;
-    const int bottomClose = topOpen + visibleRows * 8;
+    // Open the vertical display whenever the display row engine says
+    // the current raster is part of an active display row, or a bad line
+    // is starting one right now.
+    vicState.verticalBorder = !(vicState.displayEnabled || vicState.badLineSampled);
 
-    vicState.topBorderOpenRaster = topOpen;
-    vicState.bottomBorderCloseRaster = bottomClose;
+    if (!vicState.verticalBorder && vicState.topBorderOpenRaster == 0)
+        vicState.topBorderOpenRaster = raster;
 
-    vicState.verticalBorder =
-        !(raster >= vicState.topBorderOpenRaster &&
-          raster <  vicState.bottomBorderCloseRaster);
+    if (vicState.verticalBorder)
+        vicState.bottomBorderCloseRaster = raster;
 }
 
 void Vic::updateHorizontalBorderState(int raster)
@@ -3055,7 +3119,9 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    if (isBadLine(raster) &&
+    bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+
+    if (badLineForThisRaster &&
         cycle >= cfg_->DMAStartCycle &&
         cycle <= cfg_->DMAEndCycle)
     {
@@ -3145,7 +3211,7 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
         return out.str();
     }
 
-    const bool badLine = isBadLine(raster);
+    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
     const FetchKind fk = getFetchKindForCycle(raster, cycle);
 
     out << "VIC Cycle Debug\n\n";
@@ -3219,7 +3285,9 @@ std::string Vic::dumpRasterFetchMap(int raster) const
 
     out << "VIC Raster Fetch Map\n\n";
     out << "Raster: " << raster << "\n";
-    out << "Badline: " << (isBadLine(raster) ? "Yes" : "No") << "\n\n";
+    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+
+    out << "Badline: " << (badLine ? "Yes" : "No") << "\n\n";
 
     for (int c = 0; c < cfg_->cyclesPerLine; ++c)
     {
