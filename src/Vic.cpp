@@ -2109,17 +2109,18 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
 
 void Vic::buildBorderMaskLine(int raster)
 {
-    borderMaskLine.fill(1); // default to border everywhere
+    std::fill(borderMaskLine.begin(), borderMaskLine.begin() + VISIBLE_WIDTH, 1);
 
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return;
 
-    int leftInner, rightInner;
-    getInnerDisplayBounds(raster, leftInner, rightInner);
-
-    const bool displayOpen = verticalDisplayOpenForRaster(raster);
-    if (!displayOpen)
+    // If vertical border is latched closed, whole line stays border.
+    if (vicState.verticalBorder)
         return;
+
+    int leftInner = 0;
+    int rightInner = 0;
+    getInnerDisplayBounds(raster, leftInner, rightInner);
 
     const int xStart = std::max(0, leftInner);
     const int xEnd   = std::min(VISIBLE_WIDTH, rightInner);
