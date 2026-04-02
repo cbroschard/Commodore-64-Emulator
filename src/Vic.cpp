@@ -1211,6 +1211,9 @@ void Vic::initializeFirstBadLineIfNeeded()
     vicState.vcBase = 0;
     vicState.vmliBase = 0;
     vicState.rc = 0;
+
+    vicState.displayEnabled = true;
+    vicState.displayEnabledNext = true;
 }
 
 void Vic::advanceCycleAndFinalizeLineIfNeeded()
