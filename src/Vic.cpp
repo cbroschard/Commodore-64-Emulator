@@ -1073,11 +1073,10 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    const int raster = registers.raster;
-    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
-
+    // Keep the next line enabled only if we're already inside an active
+    // display row, or if the current line is itself a bad line that starts one.
     vicState.displayEnabledNext =
-        (denSeenOn30 && firstBadlineY >= 0 && den);
+        vicState.displayEnabled || vicState.badLine;
 }
 
 void Vic::runFetchPhase()
@@ -1824,7 +1823,8 @@ bool Vic::isBadLine(int raster) const
 
 void Vic::beginBadLineFetch()
 {
-    //
+    vicState.displayEnabled = true;
+    vicState.displayEnabledNext = true;
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
@@ -2653,7 +2653,10 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     const int screenRowAfter = currentCharacterRow();
 
     if (screenRowAfter < 0 || screenRowAfter >= visibleRows)
+    {
         vicState.displayEnabled = false;
+        vicState.displayEnabledNext = false;
+    }
 }
 
 int Vic::currentCharacterRow() const
