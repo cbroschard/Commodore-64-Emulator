@@ -267,6 +267,9 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.leftBorder);
     wrtr.writeBool(vicState.rightBorder);
 
+    wrtr.writeI32(vicState.leftBorderOpenX);
+    wrtr.writeI32(vicState.rightBorderCloseX);
+
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
     wrtr.writeU8(vicState.openBus);
@@ -420,6 +423,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.leftBorder))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.rightBorder))                { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!rdr.readI32(vicState.leftBorderOpenX))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.rightBorderCloseX))           { rdr.exitChunkPayload(chunk); return false; }
+
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.openBus))                      { rdr.exitChunkPayload(chunk); return false; }
@@ -469,6 +475,12 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         vicState.rc &= 0x07;
         vicState.openBus = static_cast<uint8_t>(vicState.openBus);
+
+        vicState.leftBorderOpenX = std::clamp(vicState.leftBorderOpenX, 0, VISIBLE_WIDTH);
+        vicState.rightBorderCloseX = std::clamp(vicState.rightBorderCloseX, 0, VISIBLE_WIDTH);
+
+        if (vicState.leftBorderOpenX > vicState.rightBorderCloseX)
+            std::swap(vicState.leftBorderOpenX, vicState.rightBorderCloseX);
 
         for (auto& s : spriteUnits)
         {
