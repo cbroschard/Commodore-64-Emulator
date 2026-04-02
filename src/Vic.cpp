@@ -1838,16 +1838,22 @@ bool Vic::isBadLine(int raster) const
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
 
-    if (!denSeenOn30) return false;
-    if (!(d011 & 0x10)) return false; // DEN
+    if (!denSeenOn30)
+        return false;
 
-    const bool rsel = getRSEL(raster);                   // $D011 bit 3
-    const int last = rsel ? 0xF7 : 0xEF;                 // 25 rows vs 24 rows
+    if ((d011 & 0x10) == 0)   // DEN
+        return false;
 
-    if (raster < 0x30 || raster > last) return false;
-    if ((raster & 0x07) != fineYScroll(raster)) return false;
+    const int yScroll = d011 & 0x07;
+    const bool rsel = (d011 & 0x08) != 0;
 
-    return true;
+    const int firstBad = 0x30 + yScroll;
+    const int lastBad  = (rsel ? 0xF7 : 0xEF) + yScroll;
+
+    if (raster < firstBad || raster > lastBad)
+        return false;
+
+    return (raster & 0x07) == yScroll;
 }
 
 void Vic::beginBadLineFetch()
