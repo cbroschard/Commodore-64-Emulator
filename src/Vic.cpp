@@ -1147,10 +1147,7 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
-    // Prepare sprite row/output state for this raster
     prepareSpriteOutputForRaster(curRaster);
-
-    // Raster-progressive sprite output into line buffers
     beginSpriteRasterOutput(curRaster);
 
     int sx0, sx1;
@@ -1160,20 +1157,13 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
         stepSpriteSequencersAtX(curRaster, px);
     }
 
-    // Render and collisions for this line
     renderLine(curRaster);
     detectSpriteToSpriteCollision(curRaster);
     detectSpriteToBackgroundCollision(curRaster);
 
-    // Advance/finish sprite DMA state
     updateSpriteDMAEndOfLine(curRaster);
-
-    // Advance VIC-style display counters
     advanceVideoCountersEndOfLine(curRaster);
-
     finalizeFrameIfNeeded(curRaster);
-    advanceToNextRaster();
-    traceRasterEnd();
 }
 
 void Vic::finalizeFrameIfNeeded(int curRaster)
