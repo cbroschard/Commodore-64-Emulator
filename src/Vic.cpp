@@ -72,6 +72,7 @@ void Vic::reset()
 
     // Internal VIC state
     vicState.vcBase = 0;
+    vicState.vmliBase = 0;   // bad-line matrix fetch base for current row
     vicState.rc = 0;
 
     vicState.displayEnabled = false;
@@ -278,6 +279,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // Dump State
     wrtr.writeU16(vicState.vcBase);
+    wrtr.writeU16(vicState.vmliBase);
     wrtr.writeU8(vicState.rc);
 
     wrtr.writeBool(vicState.displayEnabled);
@@ -438,6 +440,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
@@ -498,6 +501,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (currentCycle < 0) currentCycle = 0;
         if (currentCycle >= cfg_->cyclesPerLine)
             currentCycle %= cfg_->cyclesPerLine;
+
+        const int visibleRows = getRSEL(registers.raster) ? 25 : 24;
+        const uint16_t maxRowBase = static_cast<uint16_t>((visibleRows - 1) * 40);
+
+        vicState.vcBase   = static_cast<uint16_t>((vicState.vcBase   / 40) * 40);
+        vicState.vmliBase = static_cast<uint16_t>((vicState.vmliBase / 40) * 40);
+
+        if (vicState.vcBase > maxRowBase)
+            vicState.vcBase = maxRowBase;
+
+        if (vicState.vmliBase > maxRowBase)
+            vicState.vmliBase = vicState.vcBase;
 
         vicState.rc &= 0x07;
         vicState.openBus = static_cast<uint8_t>(vicState.openBus);
@@ -1192,8 +1207,9 @@ void Vic::initializeFirstBadLineIfNeeded()
 
     firstBadlineY = registers.raster;
 
-    // First visible character row starts at VCBASE = 0.
+    // First visible character row starts at row 0.
     vicState.vcBase = 0;
+    vicState.vmliBase = 0;
     vicState.rc = 0;
 }
 
@@ -1828,11 +1844,14 @@ void Vic::beginBadLineFetch()
 {
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
+
+    // Latch which 40-byte row the VIC is fetching on this bad line.
+    vicState.vmliBase = vicState.vcBase;
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 {
-    const uint16_t vc = static_cast<uint16_t>(vicState.vcBase + fetchIndex);
+    const uint16_t vc = static_cast<uint16_t>(vicState.vmliBase + fetchIndex);
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
 

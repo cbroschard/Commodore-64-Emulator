@@ -194,6 +194,7 @@ class Vic
         {
             // Character matrix / raster engine
             uint16_t vcBase = 0;     // base video counter
+            uint16_t vmliBase = 0;   // bad-line matrix fetch base for current row
             uint8_t rc = 0;          // row counter 0-7
 
             // Bad-line / display state
