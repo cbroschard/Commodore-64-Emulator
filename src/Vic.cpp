@@ -940,7 +940,11 @@ void Vic::runCycleDecisionPhase()
 
 void Vic::handleCycle0Decisions()
 {
-    // Placeholder for true line-start timing work.
+    const int raster = registers.raster;
+
+    updateVerticalBorderState(raster);
+
+    traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
 }
 
 void Vic::handleCycle14Decisions()
@@ -1152,9 +1156,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     {
         stepSpriteSequencersAtX(curRaster, px);
     }
-
-    // Update border state for this raster
-    updateVerticalBorderState(curRaster);
 
     // Render and collisions for this line
     renderLine(curRaster);
@@ -2611,10 +2612,7 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    if (horizontalBorderLatchedAtPixel(raster, px))
-        return true;
-
-    return vicState.verticalBorder;
+    return borderMaskLine[px] != 0;
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
