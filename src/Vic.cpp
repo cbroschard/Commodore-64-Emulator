@@ -78,6 +78,7 @@ void Vic::reset()
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
     vicState.badLine = false;
+    vicState.badLineSampled = false;
 
     vicState.verticalBorder = true;
     vicState.leftBorder = true;
@@ -976,6 +977,7 @@ void Vic::beginFrameIfNeeded()
         vicState.vcBase = 0;
         vicState.rc = 0;
         vicState.badLine = false;
+        vicState.badLineSampled = false;
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
 
@@ -1048,14 +1050,15 @@ void Vic::handleCycle14Decisions()
     const int raster = registers.raster;
     const bool badNow = isBadLine(raster);
 
+    vicState.badLineSampled = badNow;
     vicState.badLine = badNow;
 
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badNow)
     {
-        vicState.rc = 0;
         initializeFirstBadLineIfNeeded();
+        vicState.rc = 0;
     }
 }
 
@@ -1063,10 +1066,10 @@ void Vic::handleCycle15Decisions()
 {
     const int raster = registers.raster;
 
-    if (vicState.badLine)
+    if (vicState.badLineSampled)
     {
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
-                             (registers.control & 0x10) != 0);
+                             (effectiveD011ForRaster(raster) & 0x10) != 0);
         beginBadLineFetch();
     }
 }
@@ -1286,6 +1289,8 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 void Vic::advanceToNextRaster()
 {
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+    vicState.badLineSampled = false;
     rasterIrqSampledThisLine = false;
 }
 
@@ -3073,9 +3078,9 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    if (isBadLine(raster) &&
-        cycle >= cfg_->DMAStartCycle &&
-        cycle <= cfg_->DMAEndCycle)
+    if (vicState.badLineSampled &&
+    cycle >= cfg_->DMAStartCycle &&
+    cycle <= cfg_->DMAEndCycle)
     {
         return FetchKind::CharMatrix;
     }

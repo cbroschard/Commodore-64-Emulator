@@ -201,6 +201,7 @@ class Vic
             bool displayEnabled = false;
             bool displayEnabledNext = false;
             bool badLine = false;
+            bool badLineSampled = false;
 
             // Border flip-flops
             bool verticalBorder = true;
