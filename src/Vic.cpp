@@ -2793,15 +2793,18 @@ uint8_t Vic::d019Read() const
 
 std::string Vic::decodeModeName() const
 {
-    bool ecm = d011_per_raster[registers.raster] & 0x40;
-    bool bmm = d011_per_raster[registers.raster] & 0x20;
-    bool mcm = d016_per_raster[registers.raster] & 0x10;
+    const uint8_t d011 = effectiveD011ForRaster(registers.raster);
+    const uint8_t d016 = effectiveD016ForRaster(registers.raster);
+
+    const bool ecm = (d011 & 0x40) != 0;
+    const bool bmm = (d011 & 0x20) != 0;
+    const bool mcm = (d016 & 0x10) != 0;
 
     if (!bmm && !mcm && !ecm) return "Text";
-    if (ecm && !bmm && !mcm) return "ECM (Extended Color Mode)";
-    if (!bmm && mcm) return "Multicolor Text";
-    if (bmm && !mcm) return "Bitmap";
-    if (bmm && mcm)  return "Multicolor Bitmap";
+    if (ecm && !bmm && !mcm)  return "ECM (Extended Color Mode)";
+    if (!bmm && mcm)          return "Multicolor Text";
+    if (bmm && !mcm)          return "Bitmap";
+    if (bmm && mcm)           return "Multicolor Bitmap";
     return "Unknown";
 }
 
