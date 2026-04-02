@@ -75,6 +75,8 @@ void Vic::reset()
     vicState.badLine = false;
 
     vicState.verticalBorder = true;
+    vicState.leftBorder = true;
+    vicState.rightBorder = true;
 
     vicState.ba = true;
     vicState.aec = true;
@@ -943,6 +945,7 @@ void Vic::handleCycle0Decisions()
     const int raster = registers.raster;
 
     updateVerticalBorderState(raster);
+    updateHorizontalBorderState(raster);
 
     traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
 }
@@ -2114,13 +2117,15 @@ void Vic::buildBorderMaskLine(int raster)
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return;
 
-    // If vertical border is latched closed, whole line stays border.
     if (vicState.verticalBorder)
         return;
 
     int leftInner = 0;
     int rightInner = 0;
     getInnerDisplayBounds(raster, leftInner, rightInner);
+
+    if (leftInner >= rightInner)
+        return;
 
     const int xStart = std::max(0, leftInner);
     const int xEnd   = std::min(VISIBLE_WIDTH, rightInner);
@@ -2604,6 +2609,22 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 void Vic::updateVerticalBorderState(int raster)
 {
     vicState.verticalBorder = !verticalDisplayOpenForRaster(raster);
+}
+
+void Vic::updateHorizontalBorderState(int raster)
+{
+    int leftInner = 0;
+    int rightInner = 0;
+    getInnerDisplayBounds(raster, leftInner, rightInner);
+
+    vicState.leftBorder = true;
+    vicState.rightBorder = true;
+
+    if (leftInner < rightInner)
+    {
+        vicState.leftBorder = false;
+        vicState.rightBorder = false;
+    }
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const

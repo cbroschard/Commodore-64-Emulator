@@ -203,6 +203,8 @@ class Vic
 
             // Border flip-flops
             bool verticalBorder = true;
+            bool leftBorder = true;
+            bool rightBorder = true;
 
             // Bus arbitration
             bool ba = true;
@@ -435,6 +437,7 @@ class Vic
         void currentDisplayRowCol(int displayCol, int& row, int& col) const;
 
         void updateVerticalBorderState(int raster);
+        void updateHorizontalBorderState(int raster);
         bool borderActiveAtPixel(int raster, int px) const;
 
         // OpenBus Helpers
