@@ -3078,9 +3078,11 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    if (vicState.badLineSampled &&
-    cycle >= cfg_->DMAStartCycle &&
-    cycle <= cfg_->DMAEndCycle)
+    bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+
+    if (badLineForThisRaster &&
+        cycle >= cfg_->DMAStartCycle &&
+        cycle <= cfg_->DMAEndCycle)
     {
         return FetchKind::CharMatrix;
     }
@@ -3168,7 +3170,7 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
         return out.str();
     }
 
-    const bool badLine = isBadLine(raster);
+    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
     const FetchKind fk = getFetchKindForCycle(raster, cycle);
 
     out << "VIC Cycle Debug\n\n";
@@ -3242,7 +3244,9 @@ std::string Vic::dumpRasterFetchMap(int raster) const
 
     out << "VIC Raster Fetch Map\n\n";
     out << "Raster: " << raster << "\n";
-    out << "Badline: " << (isBadLine(raster) ? "Yes" : "No") << "\n\n";
+    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+
+    out << "Badline: " << (badLine ? "Yes" : "No") << "\n\n";
 
     for (int c = 0; c < cfg_->cyclesPerLine; ++c)
     {
