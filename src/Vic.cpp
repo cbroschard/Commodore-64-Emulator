@@ -78,6 +78,9 @@ void Vic::reset()
     vicState.leftBorder = true;
     vicState.rightBorder = true;
 
+    vicState.leftBorderOpenX = 0;
+    vicState.rightBorderCloseX = VISIBLE_WIDTH;
+
     vicState.ba = true;
     vicState.aec = true;
     vicState.openBus = 0xFF;
@@ -2030,7 +2033,7 @@ void Vic::generateBackgroundLine(int raster)
     getInnerDisplayBounds(raster, leftInner, rightInner);
 
     // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || !verticalDisplayOpenForRaster(raster))
+    if (!DEN || vicState.verticalBorder)
     {
         return;
     }
@@ -2124,15 +2127,8 @@ void Vic::buildBorderMaskLine(int raster)
     if (vicState.verticalBorder)
         return;
 
-    int leftInner = 0;
-    int rightInner = 0;
-    getInnerDisplayBounds(raster, leftInner, rightInner);
-
-    if (leftInner >= rightInner)
-        return;
-
-    const int xStart = std::max(0, leftInner);
-    const int xEnd   = std::min(VISIBLE_WIDTH, rightInner);
+    const int xStart = std::max(0, vicState.leftBorderOpenX);
+    const int xEnd   = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
     const int openStart = vicState.leftBorder  ? xEnd   : xStart;
     const int openEnd   = vicState.rightBorder ? xStart : xEnd;
@@ -2627,13 +2623,16 @@ void Vic::updateHorizontalBorderState(int raster)
     int rightInner = 0;
     getInnerDisplayBounds(raster, leftInner, rightInner);
 
-    vicState.leftBorder = false;
-    vicState.rightBorder = false;
+    vicState.leftBorderOpenX = leftInner;
+    vicState.rightBorderCloseX = rightInner;
 
-    if (leftInner >= rightInner)
+    vicState.leftBorder = true;
+    vicState.rightBorder = true;
+
+    if (leftInner < rightInner)
     {
-        vicState.leftBorder = true;
-        vicState.rightBorder = true;
+        vicState.leftBorder = false;
+        vicState.rightBorder = false;
     }
 }
 

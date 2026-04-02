@@ -206,6 +206,9 @@ class Vic
             bool leftBorder = true;
             bool rightBorder = true;
 
+            int leftBorderOpenX = 0;
+            int rightBorderCloseX = VISIBLE_WIDTH;
+
             // Bus arbitration
             bool ba = true;
             bool aec = true;
