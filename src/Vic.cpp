@@ -2479,7 +2479,7 @@ bool Vic::isBackgroundPixelOpaque(int x, int y)
 
 void Vic::updateGraphicsMode(int raster)
 {
-    bool MCM = (d016_per_raster[raster] & 0x10) != 0;
+    bool MCM = (effectiveD016ForRaster(raster) & 0x10) != 0;
     bool BMM = (d011_per_raster[raster] & 0x20) != 0;
     bool ECM = (d011_per_raster[raster] & 0x40) != 0;
 
@@ -3013,11 +3013,18 @@ void Vic::clearPendingIRQs()
     (void)readRegister(0xD01F);
 }
 
-inline uint8_t Vic::effectiveD011ForRaster(int raster) const
+uint8_t Vic::effectiveD011ForRaster(int raster) const
 {
     if (raster == registers.raster)
         return registers.control & 0x7F;   // live current-raster value
     return d011_per_raster[raster] & 0x7F; // latched for other rasters
+}
+
+uint8_t Vic::effectiveD016ForRaster(int raster) const
+{
+    if (raster == registers.raster)
+        return registers.control2 & 0x1F;   // live current-raster value
+    return d016_per_raster[raster] & 0x1F;  // latched for other rasters
 }
 
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
