@@ -2638,26 +2638,26 @@ void Vic::updateVerticalBorderState(int raster)
 
 void Vic::updateHorizontalBorderState(int raster)
 {
-    int leftInner = 0;
-    int rightInner = 0;
-    getInnerDisplayBounds(raster, leftInner, rightInner);
+    const bool csel40 = getCSEL(raster);
 
-    if (!getCSEL(raster))
+    if (csel40)
     {
-        leftInner  += 4;
-        rightInner -= 4;
+        vicState.leftBorderOpenX = 31;
+        vicState.rightBorderCloseX = 351;
+    }
+    else
+    {
+        vicState.leftBorderOpenX = 38;
+        vicState.rightBorderCloseX = 344;
     }
 
-    vicState.leftBorderOpenX = leftInner;
-    vicState.rightBorderCloseX = rightInner;
+    vicState.leftBorder  = false;
+    vicState.rightBorder = false;
 
-    vicState.leftBorder = true;
-    vicState.rightBorder = true;
-
-    if (leftInner < rightInner)
+    if (vicState.leftBorderOpenX >= vicState.rightBorderCloseX)
     {
-        vicState.leftBorder = false;
-        vicState.rightBorder = false;
+        vicState.leftBorder  = true;
+        vicState.rightBorder = true;
     }
 }
 
