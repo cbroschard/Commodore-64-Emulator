@@ -965,7 +965,7 @@ void Vic::beginFrameIfNeeded()
 
     if (registers.raster == 0x30)
     {
-        if (d011_per_raster[0x30] & 0x10)
+        if (effectiveD011ForRaster(0x30) & 0x10)
             denSeenOn30 = true;
     }
 }
