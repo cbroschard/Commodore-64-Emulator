@@ -1099,7 +1099,7 @@ void Vic::handleCycle58Decisions()
     // Keep the next line enabled only if we're already inside an active
     // display row, or if the current line is itself a bad line that starts one.
     vicState.displayEnabledNext =
-        vicState.displayEnabled || vicState.badLine;
+        vicState.displayEnabled || vicState.badLineSampled;
 }
 
 void Vic::runFetchPhase()
@@ -2735,7 +2735,7 @@ void Vic::updateVerticalBorderState(int raster)
     // Open the vertical display whenever the display row engine says
     // the current raster is part of an active display row, or a bad line
     // is starting one right now.
-    vicState.verticalBorder = !(vicState.displayEnabled || vicState.badLine);
+    vicState.verticalBorder = !(vicState.displayEnabled || vicState.badLineSampled);
 
     if (!vicState.verticalBorder && vicState.topBorderOpenRaster == 0)
         vicState.topBorderOpenRaster = raster;
