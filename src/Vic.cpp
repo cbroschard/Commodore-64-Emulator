@@ -1019,44 +1019,83 @@ void Vic::runFetchPhase()
             performBadLineFetchesForCurrentCycle();
             break;
 
-        case FetchKind::SpritePtr0: fetchSpritePointer(0, raster); break;
-        case FetchKind::SpritePtr1: fetchSpritePointer(1, raster); break;
-        case FetchKind::SpritePtr2: fetchSpritePointer(2, raster); break;
-        case FetchKind::SpritePtr3: fetchSpritePointer(3, raster); break;
-        case FetchKind::SpritePtr4: fetchSpritePointer(4, raster); break;
-        case FetchKind::SpritePtr5: fetchSpritePointer(5, raster); break;
-        case FetchKind::SpritePtr6: fetchSpritePointer(6, raster); break;
-        case FetchKind::SpritePtr7: fetchSpritePointer(7, raster); break;
+        case FetchKind::SpritePtr0:
+        case FetchKind::SpritePtr1:
+        case FetchKind::SpritePtr2:
+        case FetchKind::SpritePtr3:
+        case FetchKind::SpritePtr4:
+        case FetchKind::SpritePtr5:
+        case FetchKind::SpritePtr6:
+        case FetchKind::SpritePtr7:
+        {
+            const int sprite = spritePointerFetchSpriteForCycle(cycle);
+            if (sprite >= 0)
+                fetchSpritePointer(sprite, raster);
+            break;
+        }
 
         case FetchKind::SpriteData0:
-            fetchSpriteDataByte(0, cycle - spriteFetchSlotStart(0) - 1, raster);
-            break;
         case FetchKind::SpriteData1:
-            fetchSpriteDataByte(1, cycle - spriteFetchSlotStart(1) - 1, raster);
-            break;
         case FetchKind::SpriteData2:
-            fetchSpriteDataByte(2, cycle - spriteFetchSlotStart(2) - 1, raster);
-            break;
         case FetchKind::SpriteData3:
-            fetchSpriteDataByte(3, cycle - spriteFetchSlotStart(3) - 1, raster);
-            break;
         case FetchKind::SpriteData4:
-            fetchSpriteDataByte(4, cycle - spriteFetchSlotStart(4) - 1, raster);
-            break;
         case FetchKind::SpriteData5:
-            fetchSpriteDataByte(5, cycle - spriteFetchSlotStart(5) - 1, raster);
-            break;
         case FetchKind::SpriteData6:
-            fetchSpriteDataByte(6, cycle - spriteFetchSlotStart(6) - 1, raster);
-            break;
         case FetchKind::SpriteData7:
-            fetchSpriteDataByte(7, cycle - spriteFetchSlotStart(7) - 1, raster);
+        {
+            const int sprite = spriteDataFetchSpriteForCycle(cycle);
+            if (sprite >= 0)
+            {
+                const int byteIndex = spriteDataByteIndexForCycle(sprite, cycle);
+                if (byteIndex >= 0 && byteIndex < 3)
+                    fetchSpriteDataByte(sprite, byteIndex, raster);
+            }
             break;
+        }
 
         case FetchKind::None:
         default:
             break;
     }
+}
+
+int Vic::spritePointerFetchSpriteForCycle(int cycle) const
+{
+    for (int s = 0; s < 8; ++s)
+    {
+        if (isSpritePointerFetchCycle(s, cycle))
+            return s;
+    }
+    return -1;
+}
+
+
+int Vic::spriteDataFetchSpriteForCycle(int cycle) const
+{
+    for (int s = 0; s < 8; ++s)
+    {
+        if (spriteUnits[s].dmaActive && isSpriteDMAFetchCycle(s, cycle))
+            return s;
+    }
+    return -1;
+}
+
+int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
+{
+    const int lineCycles = cfg_->cyclesPerLine;
+    const int slotStart = spriteFetchSlotStart(sprite);
+    const int firstDataCycle = (slotStart + 1) % lineCycles;
+
+    int byteIndex = cycle - firstDataCycle;
+    if (byteIndex < 0)
+        byteIndex += lineCycles;
+
+    return byteIndex;
+}
+
+uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster) const
+{
+    return static_cast<uint16_t>(getScreenBase(raster) + 0x03F8 + sprite);
 }
 
 void Vic::performBadLineFetchesForCurrentCycle()
@@ -1213,7 +1252,7 @@ void Vic::fetchSpritePointer(int sprite, int raster)
     if (!mem)
         return;
 
-    const uint16_t ptrLoc = getScreenBase(raster) + 0x03F8 + sprite;
+    const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster);
     const uint8_t ptr = mem->vicRead(ptrLoc, raster);
 
     traceVicSpritePtrFetch(sprite, raster, ptrLoc, ptr);
@@ -1245,13 +1284,13 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        if (!spriteUnits[i].displayActive)
-        {
-            spriteUnits[i].shift0 = 0;
-            spriteUnits[i].shift1 = 0;
-            spriteUnits[i].shift2 = 0;
-            continue;
-        }
+        if (!spriteUnits[i].dmaActive)
+{
+    spriteUnits[i].shift0 = 0;
+    spriteUnits[i].shift1 = 0;
+    spriteUnits[i].shift2 = 0;
+    continue;
+}
 
         beginSpriteLineOutput(i, raster);
     }
@@ -1368,7 +1407,14 @@ void Vic::beginSpriteRasterOutput(int raster)
     for (int spr = 0; spr < 8; ++spr)
     {
         if (!spriteUnits[spr].rowPrepared)
+        {
+            spriteUnits[spr].displayActive = false;
             continue;
+        }
+
+        spriteUnits[spr].displayActive = true;
+        resetSpriteLineSequencer(spr, raster);
+        traceVicSpriteSlotEvent(spr, "display-begin", raster, currentCycle);
     }
 }
 
