@@ -126,6 +126,7 @@ void Vic::reset()
     bgColorLine.fill(0);
     bgOpaqueLine.fill(0);
 
+    borderMaskLine.fill(1);
     finalColorLine.fill(0);
 
     // Fill in DD00
@@ -1780,6 +1781,7 @@ void Vic::renderLine(int raster)
     updateGraphicsMode(raster);
 
     generateBackgroundLine(raster);
+    buildBorderMaskLine(raster);
     composeFinalRasterLine(raster);
     emitRasterLineInOrder(raster);
 }
@@ -2102,6 +2104,27 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
     int leftInner, rightInner;
     getInnerDisplayBounds(raster, leftInner, rightInner);
     return px >= leftInner && px < rightInner;
+}
+
+void Vic::buildBorderMaskLine(int raster)
+{
+    borderMaskLine.fill(1); // default to border everywhere
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return;
+
+    int leftInner, rightInner;
+    getInnerDisplayBounds(raster, leftInner, rightInner);
+
+    const bool displayOpen = verticalDisplayOpenForRaster(raster);
+    if (!displayOpen)
+        return;
+
+    const int xStart = std::max(0, leftInner);
+    const int xEnd   = std::min(VISIBLE_WIDTH, rightInner);
+
+    for (int px = xStart; px < xEnd; ++px)
+        borderMaskLine[px] = 0;
 }
 
 void Vic::composeFinalRasterLine(int raster)

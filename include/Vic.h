@@ -258,6 +258,7 @@ class Vic
         std::vector<uint8_t> d018_per_raster;
         std::vector<uint16_t> dd00_per_raster;
 
+        std::array<uint8_t, 512> borderMaskLine{};
         std::array<uint8_t, 512> finalColorLine{};
 
         // Caches for ML Monitor
@@ -408,6 +409,7 @@ class Vic
 
         bool isInnerDisplayPixel(int raster, int px) const;
 
+        void buildBorderMaskLine(int raster);
         void composeFinalRasterLine(int raster);
         uint8_t compositePixelAtX(int raster, int px) const;
         uint8_t produceRasterPixel(int raster, int px) const;
