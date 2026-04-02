@@ -85,9 +85,9 @@ class Vic
         inline bool getCSEL(int raster) const { return (effectiveD016ForRaster(raster) & 0x08) != 0; }
 
         // Getters for current memory locations
-        inline uint16_t getCHARBase(int raster) const { return ((d018_per_raster[raster] >> 1) & 0x07) * 0x0800; }
-        inline uint16_t getScreenBase(int raster) const { return ((d018_per_raster[raster] & 0xF0) << 6); }
-        inline uint16_t getBitmapBase(int raster) const { return ((d018_per_raster[raster] >> 3) & 0x01) * 0x2000; }
+        inline uint16_t getCHARBase(int raster) const { return ((effectiveD018ForRaster(raster) >> 1) & 0x07) * 0x0800; }
+        inline uint16_t getScreenBase(int raster) const { return ((effectiveD018ForRaster(raster) & 0xF0) << 6); }
+        inline uint16_t getBitmapBase(int raster) const { return ((effectiveD018ForRaster(raster) >> 3) & 0x01) * 0x2000; }
 
         // ML Monitor
         enum class FetchKind
@@ -296,6 +296,7 @@ class Vic
         inline uint8_t fineYScroll(int raster) const { return effectiveD011ForRaster(raster) & 0x07; }
         uint8_t effectiveD011ForRaster(int raster) const;
         uint8_t effectiveD016ForRaster(int raster) const;
+        uint8_t effectiveD018ForRaster(int raster) const;
 
         // Read/Write register Helpers
         inline int getSpriteIndex(uint16_t address) const { return (address - 0xD000) / 2; }

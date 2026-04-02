@@ -3027,6 +3027,13 @@ uint8_t Vic::effectiveD016ForRaster(int raster) const
     return d016_per_raster[raster] & 0x1F;  // latched for other rasters
 }
 
+uint8_t Vic::effectiveD018ForRaster(int raster) const
+{
+    if (raster == registers.raster)
+        return registers.memory_pointer & 0xFE;   // live current-raster value
+    return d018_per_raster[raster] & 0xFE;        // latched for other rasters
+}
+
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
 {
     if (raster < 0 || raster >= cfg_->maxRasterLines)
