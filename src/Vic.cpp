@@ -2168,9 +2168,9 @@ int Vic::rasterVisibleEndX(int raster) const
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
-    int leftInner, rightInner;
-    getInnerDisplayBounds(raster, leftInner, rightInner);
-    return px >= leftInner && px < rightInner;
+    (void)raster;
+    return px >= vicState.leftBorderOpenX &&
+           px <  vicState.rightBorderCloseX;
 }
 
 void Vic::buildBorderMaskLine(int raster)
@@ -2657,14 +2657,8 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
-    if (!den)
-        return false;
-
-    if (!denSeenOn30 || firstBadlineY < 0)
-        return false;
-
-    return vicState.displayEnabled;
+    return raster >= vicState.topBorderOpenRaster &&
+           raster <  vicState.bottomBorderCloseRaster;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
