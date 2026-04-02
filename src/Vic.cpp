@@ -1891,7 +1891,7 @@ void Vic::renderTextLine(int raster, int xScroll)
 
         uint8_t bgColor = registers.backgroundColor0;
 
-        const bool mcGlobal = (d016_per_raster[raster] & 0x10) != 0;
+        const bool mcGlobal = (effectiveD016ForRaster(raster) & 0x10) != 0;
         const bool mcCell   = (colorByte & 0x08) != 0;     // bit3
         const bool mcMode   = mcGlobal && mcCell;
 
@@ -2093,7 +2093,7 @@ void Vic::generateBackgroundLine(int raster)
     clearBackgroundLineBuffers();
 
     const int screenY = fbY(raster);
-    const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
+    const bool DEN = (effectiveD011ForRaster(raster) & 0x10) != 0;
 
     const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
     const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
@@ -2690,7 +2690,7 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
     if (!den || !denSeenOn30 || firstBadlineY < 0)
     {
         vicState.topBorderOpenRaster = 0;
