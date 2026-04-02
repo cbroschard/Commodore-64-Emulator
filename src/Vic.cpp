@@ -23,6 +23,10 @@ Vic::Vic(VideoMode mode) :
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
     dd00_per_raster.resize(cfg_->maxRasterLines);
+
+    borderVertical_per_raster.resize(cfg_->maxRasterLines);
+    borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
+    borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
 }
 
 Vic::~Vic() = default;
@@ -131,6 +135,10 @@ void Vic::reset()
     std::fill(std::begin(d016_per_raster), std::end(d016_per_raster), 0x08);
     std::fill(std::begin(d018_per_raster), std::end(d018_per_raster), 0x14);
 
+    std::fill(borderVertical_per_raster.begin(), borderVertical_per_raster.end(), 1);
+    std::fill(borderLeftOpenX_per_raster.begin(), borderLeftOpenX_per_raster.end(), 0);
+    std::fill(borderRightCloseX_per_raster.begin(), borderRightCloseX_per_raster.end(), VISIBLE_WIDTH);
+
     bgColorLine.fill(0);
     bgOpaqueLine.fill(0);
 
@@ -162,6 +170,10 @@ void Vic::setMode(VideoMode mode)
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
     dd00_per_raster.resize(cfg_->maxRasterLines);
+
+    borderVertical_per_raster.resize(cfg_->maxRasterLines);
+    borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
+    borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
 
     bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
@@ -980,6 +992,10 @@ void Vic::handleCycle0Decisions()
 
     updateVerticalBorderState(raster);
     updateHorizontalBorderState(raster);
+
+    borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
+    borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
+    borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
 
     traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
 }
@@ -2151,11 +2167,11 @@ void Vic::buildBorderMaskLine(int raster)
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return;
 
-    if (vicState.verticalBorder)
-        return;
+    if (borderVertical_per_raster[raster] != 0)
+    return;
 
-    const int openX  = std::max(0, vicState.leftBorderOpenX);
-    const int closeX = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
+    const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
 
     if (openX >= closeX)
         return;
