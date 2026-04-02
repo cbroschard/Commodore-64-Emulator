@@ -81,6 +81,9 @@ void Vic::reset()
     vicState.leftBorderOpenX = 0;
     vicState.rightBorderCloseX = VISIBLE_WIDTH;
 
+    vicState.topBorderOpenRaster = 0;
+    vicState.bottomBorderCloseRaster = 0;
+
     vicState.ba = true;
     vicState.aec = true;
     vicState.openBus = 0xFF;
@@ -270,6 +273,9 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeI32(vicState.leftBorderOpenX);
     wrtr.writeI32(vicState.rightBorderCloseX);
 
+    wrtr.writeI32(vicState.topBorderOpenRaster);
+    wrtr.writeI32(vicState.bottomBorderCloseRaster);
+
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
     wrtr.writeU8(vicState.openBus);
@@ -426,6 +432,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readI32(vicState.leftBorderOpenX))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readI32(vicState.rightBorderCloseX))           { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!rdr.readI32(vicState.topBorderOpenRaster))         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.bottomBorderCloseRaster))     { rdr.exitChunkPayload(chunk); return false; }
+
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.openBus))                      { rdr.exitChunkPayload(chunk); return false; }
@@ -481,6 +490,12 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (vicState.leftBorderOpenX > vicState.rightBorderCloseX)
             std::swap(vicState.leftBorderOpenX, vicState.rightBorderCloseX);
+
+        vicState.topBorderOpenRaster =  std::clamp(vicState.topBorderOpenRaster, 0, cfg_->maxRasterLines);
+        vicState.bottomBorderCloseRaster =  std::clamp(vicState.bottomBorderCloseRaster, 0, cfg_->maxRasterLines);
+
+        if (vicState.topBorderOpenRaster > vicState.bottomBorderCloseRaster)
+            std::swap(vicState.topBorderOpenRaster, vicState.bottomBorderCloseRaster);
 
         for (auto& s : spriteUnits)
         {
@@ -2633,7 +2648,25 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    vicState.verticalBorder = !verticalDisplayOpenForRaster(raster);
+    const bool den = (d011_per_raster[raster] & 0x10) != 0;
+    if (!den || !denSeenOn30 || firstBadlineY < 0)
+    {
+        vicState.topBorderOpenRaster = 0;
+        vicState.bottomBorderCloseRaster = 0;
+        vicState.verticalBorder = true;
+        return;
+    }
+
+    const int visibleRows = getRSEL(raster) ? 25 : 24;
+    const int topOpen = firstBadlineY;
+    const int bottomClose = topOpen + visibleRows * 8;
+
+    vicState.topBorderOpenRaster = topOpen;
+    vicState.bottomBorderCloseRaster = bottomClose;
+
+    vicState.verticalBorder =
+        !(raster >= vicState.topBorderOpenRaster &&
+          raster <  vicState.bottomBorderCloseRaster);
 }
 
 void Vic::updateHorizontalBorderState(int raster)

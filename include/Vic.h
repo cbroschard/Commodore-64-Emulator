@@ -209,6 +209,9 @@ class Vic
             int leftBorderOpenX = 0;
             int rightBorderCloseX = VISIBLE_WIDTH;
 
+            int topBorderOpenRaster = 0;
+            int bottomBorderCloseRaster = 0;
+
             // Bus arbitration
             bool ba = true;
             bool aec = true;
