@@ -2623,6 +2623,12 @@ void Vic::updateHorizontalBorderState(int raster)
     int rightInner = 0;
     getInnerDisplayBounds(raster, leftInner, rightInner);
 
+    if (!getCSEL(raster))
+    {
+        leftInner  += 4;
+        rightInner -= 4;
+    }
+
     vicState.leftBorderOpenX = leftInner;
     vicState.rightBorderCloseX = rightInner;
 
