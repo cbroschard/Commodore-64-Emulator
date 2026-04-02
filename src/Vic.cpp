@@ -283,6 +283,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU8(vicState.rc);
 
     wrtr.writeBool(vicState.displayEnabled);
+    wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLine);
 
     wrtr.writeBool(vicState.verticalBorder);
@@ -443,6 +444,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
