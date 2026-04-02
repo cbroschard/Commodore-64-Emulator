@@ -1860,8 +1860,8 @@ void Vic::renderTextLine(int raster, int xScroll)
     int fine    = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
 
-    int x0, x1;
-    getInnerDisplayBounds(raster, x0, x1);
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
     int xStart = x0 - fine;
 
@@ -1910,8 +1910,9 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
     const int fetchCols = cols;
 
-    int x0, x1;
-    getInnerDisplayBounds(raster, x0, x1);
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+
     int xStart = x0 - fine;
 
     const int py = fbY(raster);
@@ -1964,8 +1965,9 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
     const int fetchCols = cols;
 
-    int x0, x1;
-    getInnerDisplayBounds(raster, x0, x1);
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+
     int xStart = x0 - fine;
 
     const int py = fbY(raster);
@@ -2021,9 +2023,12 @@ void Vic::renderECMLine(int raster, int xScroll)
     int yInChar = static_cast<int>(vicState.rc & 0x07);
     int fine = xScroll & 7;
     int fetchCols = cols + (fine ? 1 : 0);
-    int x0, x1;
-    getInnerDisplayBounds(raster, x0, x1);
+
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+
     int xStart = x0 - fine;
+
     int py = fbY(raster);
 
     for (int col = 0; col < fetchCols; ++col)
