@@ -2671,8 +2671,10 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const
 {
-    return raster >= vicState.topBorderOpenRaster &&
-           raster <  vicState.bottomBorderCloseRaster;
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
+    return borderVertical_per_raster[raster] == 0;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
