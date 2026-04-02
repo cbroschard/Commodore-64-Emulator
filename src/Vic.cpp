@@ -2099,7 +2099,7 @@ void Vic::generateBackgroundLine(int raster)
     const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
 
     // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || vicState.verticalBorder)
+    if (!DEN || borderVertical_per_raster[raster] != 0)
     {
         return;
     }
@@ -2178,9 +2178,13 @@ int Vic::rasterVisibleEndX(int raster) const
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
-    (void)raster;
-    return px >= vicState.leftBorderOpenX &&
-           px <  vicState.rightBorderCloseX;
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
+    const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
+    const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+
+    return px >= openX && px < closeX;
 }
 
 void Vic::buildBorderMaskLine(int raster)
