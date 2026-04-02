@@ -1036,6 +1036,7 @@ void Vic::handleCycle14Decisions()
     if (badNow)
     {
         vicState.rc = 0;
+        initializeFirstBadLineIfNeeded();
     }
 }
 
@@ -1045,7 +1046,6 @@ void Vic::handleCycle15Decisions()
 
     if (vicState.badLine)
     {
-        initializeFirstBadLineIfNeeded();
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
                              (registers.control & 0x10) != 0);
         beginBadLineFetch();
