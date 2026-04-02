@@ -153,6 +153,9 @@ void Vic::reset()
     bgOpaque.resize(cfg_->visibleLines + 2*BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
 
+    // Rebuild Border Latches
+    rebuildBorderRasterLatches();
+
     // Initialize monitor caches
     updateMonitorCaches(registers.raster);
 
@@ -174,6 +177,8 @@ void Vic::setMode(VideoMode mode)
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
+
+    rebuildBorderRasterLatches();
 
     bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
     for (auto &row : bgOpaque) row.fill(0);
@@ -536,6 +541,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Prefer CIA2's current bank for *current raster* (optional but helps)
         if (cia2object)
             dd00_per_raster[registers.raster] = cia2object->getCurrentVICBank();
+
+        // Rebuild Border Latches
+        rebuildBorderRasterLatches();
 
         updateMonitorCaches(registers.raster);
 
@@ -2944,6 +2952,26 @@ std::string Vic::dumpRegisters(const std::string& group) const
     }
 
     return out.str();
+}
+
+void Vic::rebuildBorderRasterLatches()
+{
+    if ((int)borderVertical_per_raster.size() != cfg_->maxRasterLines)
+        borderVertical_per_raster.assign(cfg_->maxRasterLines, 1);
+    if ((int)borderLeftOpenX_per_raster.size() != cfg_->maxRasterLines)
+        borderLeftOpenX_per_raster.assign(cfg_->maxRasterLines, 0);
+    if ((int)borderRightCloseX_per_raster.size() != cfg_->maxRasterLines)
+        borderRightCloseX_per_raster.assign(cfg_->maxRasterLines, VISIBLE_WIDTH);
+
+    for (int r = 0; r < cfg_->maxRasterLines; ++r)
+    {
+        updateVerticalBorderState(r);
+        updateHorizontalBorderState(r);
+
+        borderVertical_per_raster[r] = vicState.verticalBorder ? 1 : 0;
+        borderLeftOpenX_per_raster[r] = static_cast<int16_t>(vicState.leftBorderOpenX);
+        borderRightCloseX_per_raster[r] = static_cast<int16_t>(vicState.rightBorderCloseX);
+    }
 }
 
 void Vic::updateMonitorCaches(int raster)

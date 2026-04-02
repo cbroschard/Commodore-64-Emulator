@@ -459,6 +459,9 @@ class Vic
         // Screen helper
         inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }
 
+        // Rebuild Border Latches
+        void rebuildBorderRasterLatches();
+
         // ML Mnnitor Cache updater
         void updateMonitorCaches(int raster);
 
