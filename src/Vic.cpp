@@ -2080,8 +2080,8 @@ void Vic::generateBackgroundLine(int raster)
     const int screenY = fbY(raster);
     const bool DEN = (d011_per_raster[raster] & 0x10) != 0;
 
-    int leftInner, rightInner;
-    getInnerDisplayBounds(raster, leftInner, rightInner);
+    const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
+    const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
 
     // If display is effectively closed, leave border-filled line buffer.
     if (!DEN || vicState.verticalBorder)
