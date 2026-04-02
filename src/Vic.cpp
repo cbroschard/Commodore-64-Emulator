@@ -1194,7 +1194,7 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster) const
 
 void Vic::performBadLineFetchesForCurrentCycle()
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return;
 
     if (currentCycle < 15 || currentCycle > 54)
@@ -1727,7 +1727,7 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const bool badLineNow = vicState.badLine;
+    const bool badLineNow = vicState.badLineSampled;
 
     const bool baLow  = shouldBALow(raster, cycle);
     const bool aecLow = shouldAECLow(raster, cycle);
@@ -1752,7 +1752,7 @@ void Vic::updateBusArbitration()
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return false;
 
     const int lineCycles = cfg_->cyclesPerLine;
@@ -1767,7 +1767,7 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
-    if (!vicState.badLine)
+    if (!vicState.badLineSampled)
         return false;
 
     return cycle >= cfg_->DMAStartCycle &&
