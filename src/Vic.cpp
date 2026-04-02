@@ -754,6 +754,10 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             registers.rasterInterruptLine = newLine;
             registers.control = value & 0x7F;
 
+            const int raster = registers.raster;
+            updateVerticalBorderState(raster);
+            borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
+
             traceVicRegWrite(address, oldValue, registers.control);
             checkRasterIRQCompareTransition(oldLine, newLine);
             break;
@@ -800,6 +804,12 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.control2;
             registers.control2 = value;
+
+            const int raster = registers.raster;
+            updateHorizontalBorderState(raster);
+            borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
+            borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
+
             traceVicRegWrite(address, oldValue, registers.control2);
             break;
         }
