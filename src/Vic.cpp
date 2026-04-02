@@ -956,11 +956,14 @@ void Vic::beginFrameIfNeeded()
         firstBadlineY = -1;
         denSeenOn30 = false;
 
-        // Reset VIC-style display counters at frame start
         vicState.vcBase = 0;
         vicState.rc = 0;
         vicState.badLine = false;
         vicState.displayEnabled = false;
+        vicState.displayEnabledNext = false;
+
+        vicState.topBorderOpenRaster = 0;
+        vicState.bottomBorderCloseRaster = 0;
     }
 
     if (registers.raster == 0x30)
@@ -2693,24 +2696,23 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 void Vic::updateVerticalBorderState(int raster)
 {
     const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
-    if (!den || !denSeenOn30 || firstBadlineY < 0)
+
+    if (!den || !denSeenOn30)
     {
-        vicState.topBorderOpenRaster = 0;
-        vicState.bottomBorderCloseRaster = 0;
         vicState.verticalBorder = true;
         return;
     }
 
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
-    const int topOpen = firstBadlineY;
-    const int bottomClose = topOpen + visibleRows * 8;
+    // Open the vertical display whenever the display row engine says
+    // the current raster is part of an active display row, or a bad line
+    // is starting one right now.
+    vicState.verticalBorder = !(vicState.displayEnabled || vicState.badLine);
 
-    vicState.topBorderOpenRaster = topOpen;
-    vicState.bottomBorderCloseRaster = bottomClose;
+    if (!vicState.verticalBorder && vicState.topBorderOpenRaster == 0)
+        vicState.topBorderOpenRaster = raster;
 
-    vicState.verticalBorder =
-        !(raster >= vicState.topBorderOpenRaster &&
-          raster <  vicState.bottomBorderCloseRaster);
+    if (vicState.verticalBorder)
+        vicState.bottomBorderCloseRaster = raster;
 }
 
 void Vic::updateHorizontalBorderState(int raster)
