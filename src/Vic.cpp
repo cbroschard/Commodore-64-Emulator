@@ -2479,9 +2479,12 @@ bool Vic::isBackgroundPixelOpaque(int x, int y)
 
 void Vic::updateGraphicsMode(int raster)
 {
-    bool MCM = (effectiveD016ForRaster(raster) & 0x10) != 0;
-    bool BMM = (d011_per_raster[raster] & 0x20) != 0;
-    bool ECM = (d011_per_raster[raster] & 0x40) != 0;
+    const uint8_t d011 = effectiveD011ForRaster(raster);
+    const uint8_t d016 = effectiveD016ForRaster(raster);
+
+    const bool MCM = (d016 & 0x10) != 0;
+    const bool BMM = (d011 & 0x20) != 0;
+    const bool ECM = (d011 & 0x40) != 0;
 
     if (!BMM && !MCM && !ECM)
     {
