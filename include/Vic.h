@@ -415,6 +415,7 @@ class Vic
         void renderECMLine(int raster, int xScroll);
 
         // Helpers
+        void clearBadLineFifo();
         void clearBackgroundLineBuffers();
         void generateBackgroundLine(int raster);
 

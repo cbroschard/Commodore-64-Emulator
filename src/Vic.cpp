@@ -161,6 +161,9 @@ void Vic::reset()
     // Initialize monitor caches
     updateMonitorCaches(registers.raster);
 
+    // Clear the bad line fifo
+    clearBadLineFifo();
+
     // ML Monitor logging default disable
     setLogging = false;
 }
@@ -983,6 +986,8 @@ void Vic::beginFrameIfNeeded()
 
         vicState.topBorderOpenRaster = 0;
         vicState.bottomBorderCloseRaster = 0;
+
+        clearBadLineFifo();
     }
 
     if (registers.raster == 0x30)
@@ -2116,6 +2121,15 @@ void Vic::renderECMLine(int raster, int xScroll)
     }
 }
 
+void Vic::clearBadLineFifo()
+{
+    for (int i = 0; i < 40; ++i)
+    {
+        charPtrFIFO[i] = 0;
+        colorPtrFIFO[i] = 0;
+    }
+}
+
 void Vic::clearBackgroundLineBuffers()
 {
     bgColorLine.fill(registers.borderColor & 0x0F);
@@ -2690,6 +2704,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        clearBadLineFifo();
         return;
     }
 
@@ -2704,6 +2719,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         {
             vicState.displayEnabled = false;
             vicState.displayEnabledNext = false;
+            clearBadLineFifo();
             return;
         }
 
