@@ -2682,18 +2682,32 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
 
     vicState.displayEnabled = true;
 
-    vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
-
-    if (vicState.rc == 0)
-        vicState.vcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-
     const int visibleRows = getRSEL(raster) ? 25 : 24;
-    const int screenRowAfter = currentCharacterRow();
+    const int currentRowBefore = currentCharacterRow();
 
-    if (screenRowAfter < 0 || screenRowAfter >= visibleRows)
+    // If somehow already outside visible row range, stop immediately.
+    if (currentRowBefore < 0 || currentRowBefore >= visibleRows)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        return;
+    }
+
+    vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
+
+    if (vicState.rc == 0)
+    {
+        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+        const int nextRow = nextVcBase / 40;
+
+        if (nextRow >= visibleRows)
+        {
+            vicState.displayEnabled = false;
+            vicState.displayEnabledNext = false;
+            return;
+        }
+
+        vicState.vcBase = nextVcBase;
     }
 }
 
