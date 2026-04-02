@@ -261,6 +261,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.badLine);
 
     wrtr.writeBool(vicState.verticalBorder);
+    wrtr.writeBool(vicState.leftBorder);
+    wrtr.writeBool(vicState.rightBorder);
 
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
@@ -412,6 +414,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.leftBorder))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.rightBorder))                { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
@@ -2130,7 +2134,13 @@ void Vic::buildBorderMaskLine(int raster)
     const int xStart = std::max(0, leftInner);
     const int xEnd   = std::min(VISIBLE_WIDTH, rightInner);
 
-    for (int px = xStart; px < xEnd; ++px)
+    const int openStart = vicState.leftBorder  ? xEnd   : xStart;
+    const int openEnd   = vicState.rightBorder ? xStart : xEnd;
+
+    if (openStart >= openEnd)
+        return;
+
+    for (int px = openStart; px < openEnd; ++px)
         borderMaskLine[px] = 0;
 }
 
@@ -2617,13 +2627,13 @@ void Vic::updateHorizontalBorderState(int raster)
     int rightInner = 0;
     getInnerDisplayBounds(raster, leftInner, rightInner);
 
-    vicState.leftBorder = true;
-    vicState.rightBorder = true;
+    vicState.leftBorder = false;
+    vicState.rightBorder = false;
 
-    if (leftInner < rightInner)
+    if (leftInner >= rightInner)
     {
-        vicState.leftBorder = false;
-        vicState.rightBorder = false;
+        vicState.leftBorder = true;
+        vicState.rightBorder = true;
     }
 }
 
