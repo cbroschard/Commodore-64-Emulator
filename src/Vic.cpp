@@ -491,8 +491,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (vicState.leftBorderOpenX > vicState.rightBorderCloseX)
             std::swap(vicState.leftBorderOpenX, vicState.rightBorderCloseX);
 
-        vicState.topBorderOpenRaster =  std::clamp(vicState.topBorderOpenRaster, 0, cfg_->maxRasterLines);
-        vicState.bottomBorderCloseRaster =  std::clamp(vicState.bottomBorderCloseRaster, 0, cfg_->maxRasterLines);
+        vicState.topBorderOpenRaster =  std::clamp(vicState.topBorderOpenRaster, 0, int(cfg_->maxRasterLines));
+        vicState.bottomBorderCloseRaster =  std::clamp(vicState.bottomBorderCloseRaster, 0, int(cfg_->maxRasterLines));
 
         if (vicState.topBorderOpenRaster > vicState.bottomBorderCloseRaster)
             std::swap(vicState.topBorderOpenRaster, vicState.bottomBorderCloseRaster);
