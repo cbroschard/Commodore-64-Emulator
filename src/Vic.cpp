@@ -756,6 +756,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             const int raster = registers.raster;
             d011_per_raster[raster] = registers.control;
+            updateGraphicsMode(raster);
 
             updateVerticalBorderState(raster);
             borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
@@ -812,6 +813,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
             borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
             d016_per_raster[raster] = registers.control2;
+            updateGraphicsMode(raster);
 
             traceVicRegWrite(address, oldValue, registers.control2);
             break;
