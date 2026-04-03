@@ -87,8 +87,8 @@ void Vic::reset()
     vicState.leftBorderOpenX = 0;
     vicState.rightBorderCloseX = VISIBLE_WIDTH;
 
-    vicState.topBorderOpenRaster = 0;
-    vicState.bottomBorderCloseRaster = 0;
+    vicState.topBorderOpenRaster = -1;
+    vicState.bottomBorderCloseRaster = -1;
 
     vicState.ba = true;
     vicState.aec = true;
@@ -2793,12 +2793,9 @@ void Vic::updateVerticalBorderState(int raster)
         return;
     }
 
-    // Open the vertical display whenever the display row engine says
-    // the current raster is part of an active display row, or a bad line
-    // is starting one right now.
-    vicState.verticalBorder = !(vicState.displayEnabled || vicState.badLineSampled);
+    vicState.verticalBorder = !rasterWithinVerticalDisplayWindow(raster);
 
-    if (!vicState.verticalBorder && vicState.topBorderOpenRaster == 0)
+    if (!vicState.verticalBorder && vicState.topBorderOpenRaster < 0)
         vicState.topBorderOpenRaster = raster;
 
     if (vicState.verticalBorder)
@@ -2828,6 +2825,21 @@ void Vic::updateHorizontalBorderState(int raster)
         vicState.leftBorder  = true;
         vicState.rightBorder = true;
     }
+}
+
+bool Vic::rasterWithinVerticalDisplayWindow(int raster) const
+{
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
+    const bool rsel25 = getRSEL(raster);
+
+    // 25-row mode opens one character row earlier and closes one later
+    // than 24-row mode.
+    const int topOpen    = rsel25 ? 51 : 55;
+    const int bottomClose = rsel25 ? 250 : 246;
+
+    return raster >= topOpen && raster <= bottomClose;
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
