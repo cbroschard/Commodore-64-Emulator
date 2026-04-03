@@ -116,6 +116,15 @@ void Vic::reset()
 
         s.outputXStart = 0;
         s.outputWidth = 0;
+
+        s.outputBit = 0;
+
+        s.outputRepeat = 0;
+        s.rowPrepared = false;
+
+        s.fetched0 = 0;
+        s.fetched1 = 0;
+        s.fetched2 = 0;
     }
 
     std::fill(std::begin(sprPtrBase), std::end(sprPtrBase), 0);
@@ -289,6 +298,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLine);
+    wrtr.writeBool(vicState.badLineSampled);
 
     wrtr.writeBool(vicState.verticalBorder);
     wrtr.writeBool(vicState.leftBorder);
@@ -303,6 +313,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
     wrtr.writeU8(vicState.openBus);
+
+    wrtr.writeBool(rasterIrqSampledThisLine);
 
     for (const auto& s : spriteUnits)
     {
@@ -330,6 +342,10 @@ void Vic::saveState(StateWriter& wrtr) const
 
         wrtr.writeI32(s.outputXStart);
         wrtr.writeI32(s.outputWidth);
+
+        wrtr.writeU8(s.fetched0);
+        wrtr.writeU8(s.fetched1);
+        wrtr.writeU8(s.fetched2);
     }
 
     // Dump Latches
@@ -450,6 +466,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.badLineSampled))             { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.verticalBorder))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.leftBorder))                 { rdr.exitChunkPayload(chunk); return false; }
@@ -464,6 +481,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.openBus))                      { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(rasterIrqSampledThisLine))            { rdr.exitChunkPayload(chunk); return false; }
 
         for (auto& s : spriteUnits)
         {
@@ -491,6 +510,10 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             if (!rdr.readI32(s.outputXStart))                   { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(s.outputWidth))                    { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readU8(s.fetched0))                        { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.fetched1))                        { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.fetched2))                        { rdr.exitChunkPayload(chunk); return false; }
         }
 
         if (!rdr.readVectorU8(d011_per_raster))                 { rdr.exitChunkPayload(chunk); return false; }
