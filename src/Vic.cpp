@@ -1734,7 +1734,7 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const bool badLineNow = vicState.badLineSampled;
+    const bool badLineNow = isBadLine(raster);
 
     const bool baLow  = shouldBALow(raster, cycle);
     const bool aecLow = shouldAECLow(raster, cycle);
