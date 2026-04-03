@@ -2268,25 +2268,23 @@ void Vic::buildBorderMaskLine(int raster)
         return;
 
     if (borderVertical_per_raster[raster] != 0)
-    return;
+        return;
 
     const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
     const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
 
-    if (openX >= closeX)
-        return;
-
-    bool borderOn = true;
+    bool leftBorderLatched = true;
+    bool rightBorderLatched = false;
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
-        if (borderOn && px >= openX)
-            borderOn = false;
+        if (leftBorderLatched && px >= openX)
+            leftBorderLatched = false;
 
-        if (!borderOn && px >= closeX)
-            borderOn = true;
+        if (!rightBorderLatched && px >= closeX)
+            rightBorderLatched = true;
 
-        borderMaskLine[px] = borderOn ? 1 : 0;
+        borderMaskLine[px] = (leftBorderLatched || rightBorderLatched) ? 1 : 0;
     }
 }
 
@@ -2777,10 +2775,12 @@ bool Vic::verticalDisplayOpenForRaster(int raster) const
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 {
+    (void)raster;
+
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    return !isInnerDisplayPixel(raster, px);
+    return borderMaskLine[px] != 0;
 }
 
 void Vic::updateVerticalBorderState(int raster)
