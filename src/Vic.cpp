@@ -1086,10 +1086,7 @@ void Vic::handleCycle14Decisions()
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badNow)
-    {
         initializeFirstBadLineIfNeeded();
-        vicState.rc = 0;
-    }
 }
 
 void Vic::handleCycle15Decisions()
@@ -1888,6 +1885,8 @@ bool Vic::isBadLine(int raster) const
 
 void Vic::beginBadLineFetch()
 {
+    vicState.rc = 0;
+
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
 
