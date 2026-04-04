@@ -2542,11 +2542,30 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
         rasterDelta += cfg_->maxRasterLines;
 
     const int spriteHeight = yExp ? 42 : 21;
-    if (rasterDelta < 0 || rasterDelta >= spriteHeight)
+    if (rasterDelta >= spriteHeight)
         return false;
 
     const int computedRow = yExp ? (rasterDelta / 2) : rasterDelta;
     rowInSprite = computedRow;
+
+    if (traceMgr && traceMgr->vicDetailOn(TraceManager::TraceDetail::VIC_SPRITE))
+    {
+        if (computedRow != spriteUnits[sprIndex].currentRow)
+        {
+            std::ostringstream out;
+            out << "[VIC:SPR] row-mismatch"
+                << " spr=" << sprIndex
+                << " raster=" << raster
+                << " startY=" << startY
+                << " yExp=" << int(yExp)
+                << " computed=" << computedRow
+                << " current=" << spriteUnits[sprIndex].currentRow
+                << " mcBase=" << int(spriteUnits[sprIndex].mcBase)
+                << " dma=" << int(spriteUnits[sprIndex].dmaActive)
+                << " disp=" << int(spriteUnits[sprIndex].displayActive);
+            traceMgr->recordVicEvent(out.str(), makeVicStamp());
+        }
+    }
 
     return computedRow >= 0 && computedRow < 21;
 }
