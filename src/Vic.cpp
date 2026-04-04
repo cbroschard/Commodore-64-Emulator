@@ -2549,37 +2549,25 @@ bool Vic::isBackgroundPixelOpaque(int x, int y)
 
 void Vic::updateGraphicsMode(int raster)
 {
-    const uint8_t d011 = effectiveD011ForRaster(raster);
-    const uint8_t d016 = effectiveD016ForRaster(raster);
+    const uint8_t d011 = latchedD011ForRaster(raster);
+    const uint8_t d016 = latchedD016ForRaster(raster);
 
     const bool MCM = (d016 & 0x10) != 0;
     const bool BMM = (d011 & 0x20) != 0;
     const bool ECM = (d011 & 0x40) != 0;
 
     if (!BMM && !MCM && !ECM)
-    {
         currentMode = graphicsMode::standard;
-    }
     else if (!BMM && MCM && !ECM)
-    {
         currentMode = graphicsMode::multiColor;
-    }
     else if (!BMM && !MCM && ECM)
-    {
         currentMode = graphicsMode::extendedColorText;
-    }
     else if (BMM && !MCM)
-    {
         currentMode = graphicsMode::bitmap;
-    }
     else if (BMM && MCM)
-    {
         currentMode = graphicsMode::multiColorBitmap;
-    }
     else
-    {
         currentMode = graphicsMode::invalid;
-    }
 }
 
 void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
