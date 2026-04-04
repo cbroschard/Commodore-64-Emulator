@@ -1216,7 +1216,7 @@ int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
 
 uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster) const
 {
-    return static_cast<uint16_t>(getScreenBase(raster) + 0x03F8 + sprite);
+    return static_cast<uint16_t>(getLatchedScreenBase(raster) + 0x03F8 + sprite);
 }
 
 void Vic::performBadLineFetchesForCurrentCycle()
@@ -3093,9 +3093,9 @@ void Vic::updateMonitorCaches(int raster)
     uint16_t currentVICBank = dd00_per_raster[raster];
 
     // Build the full address
-    charBaseCache = getCHARBase(raster) + currentVICBank;
-    screenBaseCache = getScreenBase(raster) + currentVICBank;
-    bitmapBaseCache = getBitmapBase(raster) + currentVICBank;
+    charBaseCache = getLatchedCHARBase(raster) + currentVICBank;
+    screenBaseCache = getLatchedScreenBase(raster) + currentVICBank;
+    bitmapBaseCache = getLatchedBitmapBase(raster) + currentVICBank;
 }
 
 void Vic::setIERExact(uint8_t mask)
