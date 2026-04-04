@@ -2708,7 +2708,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
 
     vicState.displayEnabled = true;
 
-    const int visibleRows = getRSEL(raster) ? 25 : 24;
+    const int visibleRows = getLatchedRSEL(raster) ? 25 : 24;
     const int currentRowBefore = currentCharacterRow();
 
     // If somehow already outside visible row range, stop immediately.
