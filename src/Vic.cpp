@@ -2742,6 +2742,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         }
 
         vicState.vcBase = nextVcBase;
+        vicState.vmliBase = nextVcBase;
     }
 }
 
