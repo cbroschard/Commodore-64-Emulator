@@ -2906,9 +2906,9 @@ std::string Vic::getVICBanks() const
         << " ($" << std::setw(4) << bankBase
         << "-$" << std::setw(4) << (bankBase + 0x3FFF) << ")\n\n";
 
-    uint16_t charOffset   = getCHARBase(registers.raster);
-    uint16_t screenOffset = getScreenBase(registers.raster);
-    uint16_t bitmapOffset = getBitmapBase(registers.raster);
+    uint16_t charOffset   = getLatchedCHARBase(registers.raster);
+    uint16_t screenOffset = getLatchedScreenBase(registers.raster);
+    uint16_t bitmapOffset = getLatchedBitmapBase(registers.raster);
 
     out << "CHAR Base   = offset $"   << std::setw(4) << charOffset
         << "  ->  address $" << std::setw(4) << (bankBase + charOffset) << "\n";
