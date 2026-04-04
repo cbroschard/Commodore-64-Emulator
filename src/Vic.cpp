@@ -2665,6 +2665,10 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 
 int Vic::currentDisplayRowBase() const
 {
+    // When display is active, use the row latched at bad-line start
+    if (vicState.displayEnabled)
+        return static_cast<int>(vicState.vmliBase);
+
     return static_cast<int>(vicState.vcBase);
 }
 
