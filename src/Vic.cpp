@@ -1923,8 +1923,8 @@ void Vic::renderLine(int raster)
 
 void Vic::renderTextLine(int raster, int xScroll)
 {
-    int rows = getRSEL(raster) ? 25 : 24;
-    int cols = getCSEL(raster) ? 40 : 38;
+    int rows = getLatchedRSEL(raster) ? 25 : 24;
+    int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows) return;
@@ -1967,8 +1967,8 @@ void Vic::renderTextLine(int raster, int xScroll)
 
 void Vic::renderBitmapLine(int raster, int xScroll)
 {
-    int rows = getRSEL(raster) ? 25 : 24;
-    int cols = getCSEL(raster) ? 40 : 38;
+    int rows = getLatchedRSEL(raster) ? 25 : 24;
+    int cols = getLatchedCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
     int charRow = currentCharacterRow();
@@ -2022,8 +2022,8 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 {
-    int rows = getRSEL(raster) ? 25 : 24;
-    int cols = getCSEL(raster) ? 40 : 38;
+    int rows = getLatchedRSEL(raster) ? 25 : 24;
+    int cols = getLatchedCSEL(raster) ? 40 : 38;
     int firstVis = cfg_->firstVisibleLine;
 
     int charRow = currentCharacterRow();
@@ -2087,8 +2087,8 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
 void Vic::renderECMLine(int raster, int xScroll)
 {
-    int rows = getRSEL(raster) ? 25 : 24;
-    int cols = getCSEL(raster) ? 40 : 38;
+    int rows = getLatchedRSEL(raster) ? 25 : 24;
+    int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows) return;
@@ -2572,7 +2572,7 @@ void Vic::updateGraphicsMode(int raster)
 
 void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 {
-    const int cols = getCSEL(raster) ? 40 : 38;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     // Center the active text window: 40 cols = 320 px, 38 cols = 304 px.
     // The 38-column mode should shrink by 8 px on each side, not 4 on one side.
@@ -2791,7 +2791,7 @@ void Vic::updateVerticalBorderState(int raster)
 
 void Vic::updateHorizontalBorderState(int raster)
 {
-    const bool csel40 = getCSEL(raster);
+    const bool csel40 = getLatchedCSEL(raster);
 
     if (csel40)
     {
@@ -2819,7 +2819,7 @@ bool Vic::rasterWithinVerticalDisplayWindow(int raster) const
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
-    const bool rsel25 = getRSEL(raster);
+    const bool rsel25 = getLatchedRSEL(raster);
 
     // 25-row mode opens one character row earlier and closes one later
     // than 24-row mode.

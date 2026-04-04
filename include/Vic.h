@@ -88,6 +88,8 @@ class Vic
         inline uint16_t getCHARBase(int raster) const { return ((effectiveD018ForRaster(raster) >> 1) & 0x07) * 0x0800; }
         inline uint16_t getScreenBase(int raster) const { return ((effectiveD018ForRaster(raster) & 0xF0) << 6); }
         inline uint16_t getBitmapBase(int raster) const { return ((effectiveD018ForRaster(raster) >> 3) & 0x01) * 0x2000; }
+        inline bool getLatchedRSEL(int raster) const { return (latchedD011ForRaster(raster) & 0x08) != 0; }
+        inline bool getLatchedCSEL(int raster) const { return (latchedD016ForRaster(raster) & 0x08) != 0; }
 
         // ML Monitor
         enum class FetchKind
