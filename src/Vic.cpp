@@ -2548,24 +2548,8 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     const int computedRow = yExp ? (rasterDelta / 2) : rasterDelta;
     rowInSprite = computedRow;
 
-    if (traceMgr && traceMgr->vicDetailOn(TraceManager::TraceDetail::VIC_SPRITE))
-    {
-        if (computedRow != spriteUnits[sprIndex].currentRow)
-        {
-            std::ostringstream out;
-            out << "[VIC:SPR] row-mismatch"
-                << " spr=" << sprIndex
-                << " raster=" << raster
-                << " startY=" << startY
-                << " yExp=" << int(yExp)
-                << " computed=" << computedRow
-                << " current=" << spriteUnits[sprIndex].currentRow
-                << " mcBase=" << int(spriteUnits[sprIndex].mcBase)
-                << " dma=" << int(spriteUnits[sprIndex].dmaActive)
-                << " disp=" << int(spriteUnits[sprIndex].displayActive);
-            traceMgr->recordVicEvent(out.str(), makeVicStamp());
-        }
-    }
+    if (computedRow != spriteUnits[sprIndex].currentRow)
+        traceVicSpriteRowMismatch(sprIndex, raster, computedRow);
 
     return computedRow >= 0 && computedRow < 21;
 }
@@ -3670,6 +3654,26 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
         << " disp=" << (spriteUnits[sprite].displayActive ? 1 : 0);
 
     traceMgr->recordVicSprite(out.str(), makeVicStamp());
+}
+
+void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITES))
+        return;
+
+    std::ostringstream out;
+    out << "[VIC:SPR] row-mismatch"
+        << " spr=" << sprite
+        << " raster=" << raster
+        << " computed=" << computedRow
+        << " current=" << spriteUnits[sprite].currentRow
+        << " mcBase=" << int(spriteUnits[sprite].mcBase)
+        << " dma=" << int(spriteUnits[sprite].dmaActive)
+        << " disp=" << int(spriteUnits[sprite].displayActive)
+        << " yExp=" << int(spriteUnits[sprite].yExpandLatch)
+        << " startY=" << spriteUnits[sprite].startY;
+
+    traceMgr->recordVicEvent(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const

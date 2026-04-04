@@ -521,6 +521,7 @@ class Vic
         void traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance) const;
         void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
             bool rasterMatch, bool willStart) const;
+        void traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const;
 
         // Bus helpers
         void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC,
