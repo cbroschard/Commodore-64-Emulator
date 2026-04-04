@@ -1595,10 +1595,11 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
+        const int newSpriteRow = spriteRowFromMCBase(s);
         if (spriteUnits[s].yExpandLatch)
-            spriteUnits[s].currentRow = spriteRowFromMCBase(s) * 2;
+            spriteUnits[s].currentRow = newSpriteRow * 2;
         else
-            spriteUnits[s].currentRow = spriteRowFromMCBase(s);
+            spriteUnits[s].currentRow = newSpriteRow;
 
         traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
 
@@ -1620,7 +1621,8 @@ bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
     if (!spriteUnits[spr].yExpandLatch)
         return true;
 
-    return (spriteUnits[spr].currentRow & 1) != 0;
+    const int currentRow = spriteUnits[spr].currentRow;
+    return (currentRow & 1) != 0;
 }
 
 bool Vic::isSpriteDMAComplete(int spr) const
