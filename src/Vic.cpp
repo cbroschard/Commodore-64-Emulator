@@ -2545,9 +2545,10 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     if (rasterDelta < 0 || rasterDelta >= spriteHeight)
         return false;
 
-    rowInSprite = yExp ? (rasterDelta / 2) : rasterDelta;
+    const int computedRow = yExp ? (rasterDelta / 2) : rasterDelta;
+    rowInSprite = computedRow;
 
-    return rowInSprite >= 0 && rowInSprite < 21;
+    return computedRow >= 0 && computedRow < 21;
 }
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
