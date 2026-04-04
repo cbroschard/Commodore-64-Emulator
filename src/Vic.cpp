@@ -1100,8 +1100,7 @@ void Vic::handleCycle15Decisions()
 
     if (vicState.badLineSampled)
     {
-        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
-                             true);
+        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, true);
         beginBadLineFetch();
     }
 }
