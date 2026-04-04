@@ -3658,7 +3658,7 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
 
 void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const
 {
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITES))
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
         return;
 
     std::ostringstream out;
