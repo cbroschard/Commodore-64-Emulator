@@ -2649,7 +2649,7 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 
 uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
 {
-    const uint16_t address = getScreenBase(raster) + row * 40 + col;
+    const uint16_t address = getLatchedScreenBase(raster) + row * 40 + col;
     return mem->vicRead(address, raster);
 }
 
