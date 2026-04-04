@@ -1065,6 +1065,8 @@ void Vic::handleCycle0Decisions()
 {
     const int raster = registers.raster;
 
+    latchNextRasterDD00();
+
     updateVerticalBorderState(raster);
     updateHorizontalBorderState(raster);
 
@@ -1115,7 +1117,6 @@ void Vic::handleDmaStartCycleDecisions()
     d016_per_raster[nextRaster] = registers.control2;
     d018_per_raster[nextRaster] = registers.memory_pointer;
 
-    latchNextRasterDD00();
     updateMonitorCaches(nextRaster);
 }
 
