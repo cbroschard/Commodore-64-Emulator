@@ -1192,7 +1192,6 @@ int Vic::spritePointerFetchSpriteForCycle(int cycle) const
     return -1;
 }
 
-
 int Vic::spriteDataFetchSpriteForCycle(int cycle) const
 {
     for (int s = 0; s < 8; ++s)
@@ -1729,8 +1728,8 @@ void Vic::updateSpriteDMAStartForCurrentLine()
         const bool yExp = ((registers.spriteYExpansion >> s) & 0x01) != 0;
         const bool rasterMatch = (registers.raster == registers.spriteY[s]);
 
-        // Keep this aligned with your real start condition.
-        const bool willStart = enabled && rasterMatch;
+        const bool alreadyActive = spriteUnits[s].dmaActive;
+        const bool willStart = enabled && rasterMatch && !alreadyActive;
 
         traceVicSpriteStartCheck(s, registers.raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
 
