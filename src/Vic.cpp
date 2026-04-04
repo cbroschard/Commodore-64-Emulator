@@ -1074,6 +1074,8 @@ void Vic::handleCycle0Decisions()
     borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
     borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
 
+    updateMonitorCaches(nextRaster);
+
     traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
 }
 
@@ -1116,8 +1118,6 @@ void Vic::handleDmaStartCycleDecisions()
     d011_per_raster[nextRaster] = registers.control & 0x7F;
     d016_per_raster[nextRaster] = registers.control2;
     d018_per_raster[nextRaster] = registers.memory_pointer;
-
-    updateMonitorCaches(nextRaster);
 }
 
 void Vic::handleCycle58Decisions()
