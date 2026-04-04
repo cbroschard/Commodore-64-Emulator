@@ -296,6 +296,9 @@ class Vic
         // fine-scroll Helpers ($D016 bits 0-2 , $D011 bits 0-2)
         inline uint8_t fineXScroll(int raster) const { return effectiveD016ForRaster(raster) & 0x07; }
         inline uint8_t fineYScroll(int raster) const { return effectiveD011ForRaster(raster) & 0x07; }
+        inline uint8_t latchedD011ForRaster(int raster) const { return d011_per_raster[raster] & 0x7F; }
+        inline uint8_t latchedD016ForRaster(int raster) const { return d016_per_raster[raster] & 0x1F; }
+        inline uint8_t latchedD018ForRaster(int raster) const { return d018_per_raster[raster] & 0xFE; }
         uint8_t effectiveD011ForRaster(int raster) const;
         uint8_t effectiveD016ForRaster(int raster) const;
         uint8_t effectiveD018ForRaster(int raster) const;
