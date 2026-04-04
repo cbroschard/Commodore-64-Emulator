@@ -1410,13 +1410,13 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        if (!spriteUnits[i].dmaActive)
-{
-    spriteUnits[i].shift0 = 0;
-    spriteUnits[i].shift1 = 0;
-    spriteUnits[i].shift2 = 0;
-    continue;
-}
+        if (!spriteUnits[i].dmaActive || !spriteUnits[i].displayActive)
+        {
+            spriteUnits[i].shift0 = 0;
+            spriteUnits[i].shift1 = 0;
+            spriteUnits[i].shift2 = 0;
+            continue;
+        }
 
         beginSpriteLineOutput(i, raster);
     }

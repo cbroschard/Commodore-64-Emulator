@@ -99,6 +99,7 @@ class Vic
         {
             None,
 
+
             CharMatrix,
 
             SpritePtr0, SpritePtr1, SpritePtr2, SpritePtr3,
