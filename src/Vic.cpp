@@ -2722,6 +2722,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        vicState.vmliBase = vicState.vcBase;
         clearBadLineFifo();
         return;
     }
@@ -2737,6 +2738,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         {
             vicState.displayEnabled = false;
             vicState.displayEnabledNext = false;
+            vicState.vmliBase = vicState.vcBase;
             clearBadLineFifo();
             return;
         }
