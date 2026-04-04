@@ -1101,7 +1101,7 @@ void Vic::handleCycle15Decisions()
     if (vicState.badLineSampled)
     {
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc,
-                             (effectiveD011ForRaster(raster) & 0x10) != 0);
+                             true);
         beginBadLineFetch();
     }
 }
