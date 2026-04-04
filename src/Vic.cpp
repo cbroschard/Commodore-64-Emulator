@@ -3635,7 +3635,7 @@ void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance
 void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
     bool rasterMatch, bool willStart) const
 {
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITES))
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
         return;
 
     std::ostringstream out;
