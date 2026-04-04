@@ -1074,6 +1074,7 @@ void Vic::handleCycle0Decisions()
     borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
     borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
 
+    const uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
     updateMonitorCaches(nextRaster);
 
     traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
