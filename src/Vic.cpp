@@ -1955,7 +1955,7 @@ void Vic::renderTextLine(int raster, int xScroll)
 
         uint8_t bgColor = registers.backgroundColor0;
 
-        const bool mcGlobal = (effectiveD016ForRaster(raster) & 0x10) != 0;
+        const bool mcGlobal = (latchedD016ForRaster(raster) & 0x10) != 0;
         const bool mcCell   = (colorByte & 0x08) != 0;     // bit3
         const bool mcMode   = mcGlobal && mcCell;
 
