@@ -1003,6 +1003,7 @@ void Vic::beginFrameIfNeeded()
         denSeenOn30 = false;
 
         vicState.vcBase = 0;
+        vicState.vmliBase = 0;
         vicState.rc = 0;
         vicState.badLine = false;
         vicState.badLineSampled = false;
