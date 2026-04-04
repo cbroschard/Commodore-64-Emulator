@@ -2127,7 +2127,7 @@ void Vic::renderECMLine(int raster, int xScroll)
         if (pxCell >= x1) break;
         if (pxCell + 8 <= x0) continue;
 
-        uint16_t addr = getCHARBase(raster) + charIndex * 8;
+        uint16_t addr = getLatchedCHARBase(raster) + charIndex * 8;
         uint8_t row = mem->vicRead(addr + yInChar, raster);
 
         for (int bit = 0; bit < 8; ++bit)
