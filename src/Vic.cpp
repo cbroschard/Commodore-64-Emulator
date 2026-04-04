@@ -1111,11 +1111,11 @@ void Vic::handleDmaStartCycleDecisions()
     const int raster = registers.raster;
     const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
-    // Keep current latch timing behavior for now.
     d011_per_raster[nextRaster] = registers.control & 0x7F;
     d016_per_raster[nextRaster] = registers.control2;
     d018_per_raster[nextRaster] = registers.memory_pointer;
-    dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
+
+    latchNextRasterDD00();
     updateMonitorCaches(nextRaster);
 }
 
@@ -2868,6 +2868,14 @@ void Vic::markBGOpaque(int screenY, int px)
     {
         bgOpaqueLine[px] = 1;
     }
+}
+
+void Vic::latchNextRasterDD00()
+{
+    const int raster = registers.raster;
+    const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
+
+    dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
 }
 
 uint8_t Vic::d019Read() const

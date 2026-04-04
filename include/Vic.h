@@ -314,6 +314,9 @@ class Vic
         inline bool isSpriteX(uint16_t address) const { return ((address - 0xD000) % 2) == 0; }
         void markBGOpaque(int screenY, int px);
 
+        // DD00 latch
+        void latchNextRasterDD00();
+
         // Bus Arbitration Helpers
         bool isBadLineBusWarningCycle(int raster, int cycle) const;
         bool isBadLineBusStealCycle(int raster, int cycle) const;
