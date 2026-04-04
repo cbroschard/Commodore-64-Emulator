@@ -3632,10 +3632,10 @@ void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance
     traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
-void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded, bool rasterMatch,
-    bool willStart) const
+void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
+    bool rasterMatch, bool willStart) const
 {
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITES))
         return;
 
     std::ostringstream out;
@@ -3646,14 +3646,19 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
         << " cyc=$" << std::setw(2) << currentCycle
         << " dot=" << std::dec << (currentCycle * 8)
         << " sprY=$" << std::hex << std::uppercase << std::setw(2) << int(spriteY)
-        << " en=" << std::dec << (enabled ? 1 : 0)
-        << " yexp=" << (yExpanded ? 1 : 0)
-        << " match=" << (rasterMatch ? 1 : 0)
-        << " start=" << (willStart ? 1 : 0)
-        << " dma=" << (spriteUnits[sprite].dmaActive ? 1 : 0)
-        << " disp=" << (spriteUnits[sprite].displayActive ? 1 : 0);
+        << std::dec
+        << " en=" << int(enabled)
+        << " yexp=" << int(yExpanded)
+        << " match=" << int(rasterMatch)
+        << " start=" << int(willStart)
+        << " dma=" << int(spriteUnits[sprite].dmaActive)
+        << " disp=" << int(spriteUnits[sprite].displayActive)
+        << " row=" << spriteUnits[sprite].currentRow
+        << " mc=" << int(spriteUnits[sprite].mc)
+        << " mcbase=" << int(spriteUnits[sprite].mcBase)
+        << " startY=" << spriteUnits[sprite].startY;
 
-    traceMgr->recordVicSprite(out.str(), makeVicStamp());
+    traceMgr->recordVicEvent(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const
