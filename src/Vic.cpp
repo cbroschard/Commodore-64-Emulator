@@ -1977,7 +1977,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
     int bitmapY = raster - firstVis;
     if (bitmapY < 0 || bitmapY >= rows * 8) return;
 
-    const uint16_t bitmapBase = getBitmapBase(raster);
+    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
 
     const int fine = xScroll & 7;
 
@@ -2032,7 +2032,7 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     int bitmapY = raster - firstVis;
     if (bitmapY < 0 || bitmapY >= rows * 8) return;
 
-    const uint16_t bitmapBase = getBitmapBase(raster);
+    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
 
     const int fine = xScroll & 7;
 
