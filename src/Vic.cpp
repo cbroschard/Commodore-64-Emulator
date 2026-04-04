@@ -1439,6 +1439,12 @@ void Vic::beginSpriteLineOutput(int spr, int raster)
     spriteUnits[spr].outputXStart = 0;
     spriteUnits[spr].outputWidth = 0;
 
+    if (!(registers.spriteEnabled & (1 << spr)))
+        return;
+
+    if (!spriteUnits[spr].displayActive)
+        return;
+
     if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
         return;
 
