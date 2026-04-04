@@ -2185,7 +2185,7 @@ void Vic::generateBackgroundLine(int raster)
             bgColorLine[px] = bg;
     }
 
-    const int lineXScroll = fineXScroll(raster);
+    const int lineXScroll = latchedD016ForRaster(raster) & 0x07;
 
     switch (currentMode)
     {
