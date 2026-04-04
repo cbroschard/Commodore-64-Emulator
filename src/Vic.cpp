@@ -1893,6 +1893,9 @@ void Vic::beginBadLineFetch()
 
     // Latch which 40-byte row the VIC is fetching on this bad line.
     vicState.vmliBase = vicState.vcBase;
+
+    // Keep the active display row base aligned with the row just latched.
+    vicState.vcBase = vicState.vmliBase;
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
