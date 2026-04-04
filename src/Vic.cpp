@@ -2166,7 +2166,7 @@ void Vic::generateBackgroundLine(int raster)
     clearBackgroundLineBuffers();
 
     const int screenY = fbY(raster);
-    const bool DEN = (effectiveD011ForRaster(raster) & 0x10) != 0;
+    const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
 
     const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
     const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
