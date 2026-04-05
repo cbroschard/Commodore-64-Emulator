@@ -1238,7 +1238,7 @@ void Vic::initializeFirstBadLineIfNeeded(int raster)
 
     // Seed the first visible character row only before display
     // progression has actually started.
-    if (!vicState.displayEnabled && !vicState.displayEnabledNext)
+    if (!vicState.displayEnabled)
     {
         vicState.vcBase = 0;
         vicState.vmliBase = 0;
