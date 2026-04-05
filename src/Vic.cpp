@@ -1878,12 +1878,10 @@ bool Vic::isBadLine(int raster) const
         return false;
 
     const int yScroll = d011 & 0x07;
-    const bool rsel = (d011 & 0x08) != 0;
 
-    const int firstBad = 0x30 + yScroll;
-    const int lastBad  = (rsel ? 0xF7 : 0xEF) + yScroll;
-
-    if (raster < firstBad || raster > lastBad)
+    // VIC-II bad lines are only possible in the fixed display window.
+    // The window itself does not move with YSCROLL or RSEL.
+    if (raster < 0x30 || raster > 0xF7)
         return false;
 
     return (raster & 0x07) == yScroll;
