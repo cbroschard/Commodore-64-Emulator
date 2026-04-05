@@ -985,12 +985,12 @@ void Vic::tick(int cycles)
         // Per-cycle timing-sensitive decisions happen at their own checkpoints.
         runCycleDecisionPhase();
 
+        updateBusArbitration();
+
         // Existing fetch ownership stays unchanged for now.
         runFetchPhase();
 
         advanceCycleAndFinalizeLineIfNeeded();
-
-        updatePerCycleState();
     }
 }
 
