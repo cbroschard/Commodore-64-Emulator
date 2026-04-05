@@ -329,7 +329,7 @@ class Vic
         bool shouldAECLow(int raster, int cycle) const;
 
         // Bad line Helpers
-        void initializeFirstBadLineIfNeeded();
+        void initializeFirstBadLineIfNeeded(int raster);
         bool isBadLine(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);

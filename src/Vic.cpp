@@ -1088,7 +1088,7 @@ void Vic::handleCycle14Decisions()
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badNow)
-        initializeFirstBadLineIfNeeded();
+        initializeFirstBadLineIfNeeded(raster);
 }
 
 void Vic::handleCycle15Decisions()
@@ -1229,12 +1229,12 @@ void Vic::performBadLineFetchesForCurrentCycle()
     fetchBadLineMatrixByte(fetchIndex, raster);
 }
 
-void Vic::initializeFirstBadLineIfNeeded()
+void Vic::initializeFirstBadLineIfNeeded(int raster)
 {
     if (firstBadlineY >= 0)
         return;
 
-    firstBadlineY = registers.raster;
+    firstBadlineY = raster;
 
     // Seed the first visible character row only before display
     // progression has actually started.
