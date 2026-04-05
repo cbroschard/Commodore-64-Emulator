@@ -483,7 +483,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xDD01: // Data port B
         {
-            portB = (value & dataDirectionPortB) | (portB & ~dataDirectionPortB);
+            portB = value;
             // For each output bit, capture and later drive the line
             if (dataDirectionPortB & DTR_MASK)
             {
