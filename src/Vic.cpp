@@ -1583,6 +1583,15 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
 
+        // If this line already used the terminal sprite row, stop DMA now
+        // instead of advancing into a synthetic next row first.
+        if (isSpriteDMAComplete(s))
+        {
+            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
+            resetSpriteDMAState(s);
+            continue;
+        }
+
         const bool willAdvance = shouldAdvanceSpriteMCBaseThisLine(s);
         traceVicSpriteAdvanceDecision(s, raster, willAdvance);
 
@@ -1598,12 +1607,6 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
             spriteUnits[s].currentRow = newSpriteRow;
 
         traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
-
-        if (isSpriteDMAComplete(s))
-        {
-            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
-            resetSpriteDMAState(s);
-        }
     }
 }
 
