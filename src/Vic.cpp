@@ -1621,7 +1621,7 @@ bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
         return true;
 
     const int currentRow = spriteUnits[spr].currentRow;
-    return (currentRow & 1) != 0;
+    return (currentRow & 1) == 0;
 }
 
 bool Vic::isSpriteDMAComplete(int spr) const
