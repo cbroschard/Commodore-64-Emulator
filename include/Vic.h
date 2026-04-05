@@ -393,7 +393,7 @@ class Vic
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
 
-        void updateSpriteDMAStartForCurrentLine();
+        void updateSpriteDMAStartForCurrentLine(int raster);
         void updateSpriteDMAEndOfLine(int raster);
         void fetchSpritePointer(int sprite, int raster);
         bool isSpriteDMAFetchCycle(int sprite, int cycle) const;

@@ -1104,7 +1104,7 @@ void Vic::handleCycle15Decisions()
 
 void Vic::handleSpriteDmaStartDecisions()
 {
-    updateSpriteDMAStartForCurrentLine();
+    updateSpriteDMAStartForCurrentLine(registers.raster);
 }
 
 void Vic::handleDmaStartCycleDecisions()
@@ -1725,18 +1725,18 @@ bool Vic::isSpritePointerFetchCycle(int sprite, int cycle) const
     return cycle == spriteFetchSlotStart(sprite);
 }
 
-void Vic::updateSpriteDMAStartForCurrentLine()
+void Vic::updateSpriteDMAStartForCurrentLine(int raster)
 {
     for (int s = 0; s < 8; ++s)
     {
         const bool enabled = ((registers.spriteEnabled >> s) & 0x01) != 0;
         const bool yExp = ((registers.spriteYExpansion >> s) & 0x01) != 0;
-        const bool rasterMatch = (registers.raster == registers.spriteY[s]);
+        const bool rasterMatch = (raster == registers.spriteY[s]);
 
         const bool alreadyActive = spriteUnits[s].dmaActive;
         const bool willStart = enabled && rasterMatch && !alreadyActive;
 
-        traceVicSpriteStartCheck(s, registers.raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
+        traceVicSpriteStartCheck(s, raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
 
         if (!willStart)
             continue;
@@ -1759,7 +1759,7 @@ void Vic::updateSpriteDMAStartForCurrentLine()
         spriteUnits[s].shift2 = 0;
 
         traceVicSpriteDmaStart(s);
-        traceVicSpriteSlotEvent(s, "dma-start", registers.raster, currentCycle);
+        traceVicSpriteSlotEvent(s, "dma-start", raster, currentCycle);
     }
 }
 
