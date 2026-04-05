@@ -1236,12 +1236,14 @@ void Vic::initializeFirstBadLineIfNeeded()
 
     firstBadlineY = registers.raster;
 
-    // First visible character row starts at row 0.
-    // Do not open display here; the actual bad-line start path
-    // does that at cycle 15 in beginBadLineFetch().
-    vicState.vcBase = 0;
-    vicState.vmliBase = 0;
-    vicState.rc = 0;
+    // Seed the first visible character row only before display
+    // progression has actually started.
+    if (!vicState.displayEnabled && !vicState.displayEnabledNext)
+    {
+        vicState.vcBase = 0;
+        vicState.vmliBase = 0;
+        vicState.rc = 0;
+    }
 }
 
 void Vic::advanceCycleAndFinalizeLineIfNeeded()
