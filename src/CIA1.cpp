@@ -369,7 +369,7 @@ uint8_t CIA1::readRegister(uint16_t address)
             if (senseLow) pin &= static_cast<uint8_t>(~0x10);
 
             // Merge with output latch via DDRA…
-            uint8_t v = static_cast<uint8_t>((portA & ddra) | (pin & ~ddra));
+            uint8_t v = static_cast<uint8_t>((portA | ~ddra) & pin);
 
             if ((v & 0x10) && !(pin & 0x10)) v &= static_cast<uint8_t>(~0x10);
 
@@ -405,7 +405,7 @@ uint8_t CIA1::readRegister(uint16_t address)
             }
 
             // Combine PortB and row state
-            return (portB & dataDirectionPortB) | (rowState & ~dataDirectionPortB);
+            return (portB | ~dataDirectionPortB) & rowState;
         }
         case 0xDC02: // Data direction register for Port A
             return dataDirectionPortA;
