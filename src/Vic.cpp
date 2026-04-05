@@ -1600,11 +1600,16 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
-        const int newSpriteRow = spriteRowFromMCBase(s);
         if (spriteUnits[s].yExpandLatch)
-            spriteUnits[s].currentRow = newSpriteRow * 2;
+        {
+            // Keep expanded sprites on a true per-raster-line row cadence
+            // instead of snapping back to baseRow*2 every line.
+            spriteUnits[s].currentRow += 1;
+        }
         else
-            spriteUnits[s].currentRow = newSpriteRow;
+        {
+            spriteUnits[s].currentRow = spriteRowFromMCBase(s);
+        }
 
         traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
     }
