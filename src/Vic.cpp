@@ -2735,7 +2735,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     const int visibleRows = getLatchedRSEL(raster) ? 25 : 24;
     const int currentRowBefore = currentCharacterRow();
 
-    // If somehow already outside visible row range, stop immediately.
     if (currentRowBefore < 0 || currentRowBefore >= visibleRows)
     {
         vicState.displayEnabled = false;
@@ -2763,6 +2762,16 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
 
         vicState.vcBase = nextVcBase;
         vicState.vmliBase = nextVcBase;
+    }
+
+    // Do not let display stay active once DEN prerequisites are gone.
+    const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
+    if (!denSeenOn30 || firstBadlineY < 0 || !den)
+    {
+        vicState.displayEnabled = false;
+        vicState.displayEnabledNext = false;
+        vicState.vmliBase = vicState.vcBase;
+        clearBadLineFifo();
     }
 }
 
