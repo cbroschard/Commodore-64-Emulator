@@ -2349,6 +2349,11 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
     return finalColorLine[px] & 0x0F;
 }
 
+uint16_t Vic::visibleRasterForIRQCompare() const
+{
+    return visibleRasterForRead();
+}
+
 uint16_t Vic::visibleRasterForRead() const
 {
     if (currentCycle == 0)
@@ -2402,7 +2407,7 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (oldLine == newLine)
         return;
 
-    const uint16_t cur = registers.raster;
+    const uint16_t cur = visibleRasterForIRQCompare();
 
     const bool oldMatch = (cur == oldLine);
     const bool newMatch = (cur == newLine);
