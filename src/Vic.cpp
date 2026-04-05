@@ -631,22 +631,18 @@ uint8_t Vic::readRegister(uint16_t address)
 
         case 0xD011:
         {
-            const uint8_t highBit = (registers.raster >> 8) & 0x01;
+            const uint16_t visibleRaster = visibleRasterForRead();
+            const uint8_t highBit = (visibleRaster >> 8) & 0x01;
 
-            // Bits:
-            // 7 = raster high bit (defined)
-            // 6 = ECM
-            // 5 = BMM
-            // 4 = DEN
-            // 3 = RSEL
-            // 2-0 = Y scroll
             const uint8_t value = (registers.control & 0x7F) | (highBit << 7);
-
-            return latchOpenBusMasked(value, 0xFF); // keep for now (safe step)
+            return latchOpenBusMasked(value, 0xFF);
         }
 
         case 0xD012:
-            return latchOpenBus(registers.raster & 0xFF);
+        {
+            const uint16_t visibleRaster = visibleRasterForRead();
+            return latchOpenBus(visibleRaster & 0xFF);
+        }
 
         case 0xD013:
             return latchOpenBus(registers.light_pen_X);
@@ -2351,6 +2347,14 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
 {
     (void)raster;
     return finalColorLine[px] & 0x0F;
+}
+
+uint16_t Vic::visibleRasterForRead() const
+{
+    if (currentCycle == 0)
+        return static_cast<uint16_t>((registers.raster + 1) % cfg_->maxRasterLines);
+
+    return registers.raster;
 }
 
 void Vic::updateIRQLine()

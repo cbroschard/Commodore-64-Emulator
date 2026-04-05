@@ -361,6 +361,7 @@ class Vic
 
         // IRQ Helpers
         inline bool rasterCompareMatchesNow() const { return registers.raster == registers.rasterInterruptLine; }
+        uint16_t visibleRasterForRead() const;
         void updateIRQLine();
         void triggerRasterIRQIfMatched();
         void raiseVicIRQSource(uint8_t sourceBitMask);
