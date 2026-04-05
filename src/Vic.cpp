@@ -1088,7 +1088,16 @@ void Vic::handleCycle14Decisions()
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badNow)
+    {
+        const bool firstBadlineThisFrame = (firstBadlineY < 0);
         initializeFirstBadLineIfNeeded(raster);
+
+        // First badline of the frame should immediately arm display
+        // progression for the following line, even before cycle 58
+        // later reaffirms it.
+        if (firstBadlineThisFrame)
+            vicState.displayEnabledNext = true;
+    }
 }
 
 void Vic::handleCycle15Decisions()
