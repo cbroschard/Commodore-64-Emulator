@@ -318,6 +318,9 @@ class Vic
         // DD00 latch
         void latchNextRasterDD00();
 
+        // OpenBus helper
+        inline void updateOpenBus(uint8_t value) { vicState.openBus = value; }
+
         // Bus Arbitration Helpers
         bool isBadLineBusWarningCycle(int raster, int cycle) const;
         bool isBadLineBusStealCycle(int raster, int cycle) const;

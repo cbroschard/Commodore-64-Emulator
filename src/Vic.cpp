@@ -737,6 +737,9 @@ uint8_t Vic::readRegister(uint16_t address)
 
 void Vic::writeRegister(uint16_t address, uint8_t value)
 {
+    // Latch Open Bus
+    updateOpenBus(value);
+
     // Handle SpriteX and SpriteY registers with helper
     if (address >= 0xD000 && address <= 0xD00F)
     {
@@ -1388,6 +1391,9 @@ void Vic::fetchSpritePointer(int sprite, int raster)
     const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster);
     const uint8_t ptr = mem->vicRead(ptrLoc, raster);
 
+    // Latch Open Bus
+    updateOpenBus(ptr);
+
     traceVicSpritePtrFetch(sprite, raster, ptrLoc, ptr);
 
     spriteUnits[sprite].pointerByte = ptr;
@@ -1702,6 +1708,9 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
 
     const uint16_t addr = spriteUnits[sprite].dataBase + rowInSprite * 3 + byteIndex;
     const uint8_t value = mem->vicRead(addr, raster);
+
+    // Latch Open Bus
+    updateOpenBus(value);
 
     traceVicSpriteDataFetch(sprite, raster, byteIndex, addr, value);
 
@@ -2020,6 +2029,9 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
 
+        // Latch Open Bus
+        updateOpenBus(byte);
+
         const uint8_t scr = resolveDisplayScreenByte(col, raster);
         const uint8_t fgColor = (scr >> 4) & 0x0F;
         const uint8_t bgColor = scr & 0x0F;
@@ -2074,6 +2086,9 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
             (uint16_t)((bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320));
 
         const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
+
+        // Latch Open Bus
+        updateOpenBus(byte);
 
         const uint8_t scr = resolveDisplayScreenByte(col, raster);
         const uint8_t colNib = resolveDisplayColorByte(col, raster);
@@ -2151,6 +2166,9 @@ void Vic::renderECMLine(int raster, int xScroll)
 
         uint16_t addr = getLatchedCHARBase(raster) + charIndex * 8;
         uint8_t row = mem->vicRead(addr + yInChar, raster);
+
+        // Latch Open Bus
+        updateOpenBus(row);
 
         for (int bit = 0; bit < 8; ++bit)
         {
@@ -2634,6 +2652,9 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t row = mem->vicRead(address + yInChar, raster);
 
+    // Latch Open Bus
+    updateOpenBus(row);
+
     for (int col = 0; col < 8; ++col)
     {
         int pxRaw = x + col;
@@ -2653,6 +2674,9 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 {
     uint16_t address = getCHARBase(raster) + c * 8;
     uint8_t  row  = mem->vicRead(address + yInChar, raster);
+
+    // Latch Open Bus
+    updateOpenBus(row);
 
     uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
     uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
