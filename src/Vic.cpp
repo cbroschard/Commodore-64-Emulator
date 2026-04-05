@@ -1725,7 +1725,7 @@ void Vic::updateSpriteDMAStartForCurrentLine()
         const bool yExp = ((registers.spriteYExpansion >> s) & 0x01) != 0;
         const bool rasterMatch = (registers.raster == registers.spriteY[s]);
 
-        const bool alreadyActive = spriteUnits[s].dmaActive || spriteUnits[s].displayActive;
+        const bool alreadyActive = spriteUnits[s].dmaActive;
         const bool willStart = enabled && rasterMatch && !alreadyActive;
 
         traceVicSpriteStartCheck(s, registers.raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
