@@ -992,7 +992,8 @@ void Vic::tick(int cycles)
 
 void Vic::beginFrameIfNeeded()
 {
-    // Clear DEN latch at frame start
+    // Clear frame-local badline/display qualifiers at the very start
+    // of the frame only.
     if (currentCycle == 0 && registers.raster == 0)
     {
         firstBadlineY = -1;
@@ -1012,10 +1013,11 @@ void Vic::beginFrameIfNeeded()
         clearBadLineFifo();
     }
 
-    if (registers.raster == 0x30)
+    // Latch the "DEN was seen on raster $30" qualifier exactly once,
+    // at the beginning of raster line $30, from the live D011 register.
+    if (currentCycle == 0 && registers.raster == 0x30)
     {
-        if (effectiveD011ForRaster(0x30) & 0x10)
-            denSeenOn30 = true;
+        denSeenOn30 = (registers.control & 0x10) != 0;
     }
 }
 
