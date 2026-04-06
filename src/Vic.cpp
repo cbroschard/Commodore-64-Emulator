@@ -792,33 +792,39 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.control;
             const uint16_t oldLine = registers.rasterInterruptLine;
-            const uint16_t newLine = (oldLine & 0x00FF) | ((value & 0x80) << 1);
+
+            registers.control = value & 0x7F;
+
+            const uint16_t newLine = (oldLine & 0x00FF) | (static_cast<uint16_t>(value & 0x80) << 1);
 
             registers.rasterInterruptLine = newLine;
-            registers.control = value & 0x7F;
 
             const int raster = registers.raster;
             d011_per_raster[raster] = registers.control;
-            updateGraphicsMode(raster);
 
+            checkRasterIRQCompareTransition(oldLine, newLine);
+
+            updateGraphicsMode(raster);
             updateVerticalBorderState(raster);
-            borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
+            updateMonitorCaches(raster);
 
             traceVicRegWrite(address, oldValue, registers.control);
-            checkRasterIRQCompareTransition(oldLine, newLine);
             break;
         }
 
         case 0xD012:
         {
-            const uint8_t oldValue = static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
             const uint16_t oldLine = registers.rasterInterruptLine;
-            const uint16_t newLine = (oldLine & 0xFF00) | value;
+
+            const uint16_t newLine =
+                (oldLine & 0x0100) |
+                static_cast<uint16_t>(value);
 
             registers.rasterInterruptLine = newLine;
 
-            traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF));
             checkRasterIRQCompareTransition(oldLine, newLine);
+
+            traceVicRegWrite(address, static_cast<uint8_t>(oldLine & 0x00FF), value);
             break;
         }
 
