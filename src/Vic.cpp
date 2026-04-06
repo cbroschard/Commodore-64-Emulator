@@ -2406,18 +2406,21 @@ uint16_t Vic::visibleRasterForRead() const
 
 void Vic::updateIRQLine()
 {
-    // Low 4 bits only
-    const uint8_t pending = (registers.interruptStatus & registers.interruptEnable) & 0x0F;
-    const bool any = pending != 0;
+    const uint8_t pending =
+        (registers.interruptStatus & registers.interruptEnable) & 0x0F;
+    const bool any = (pending != 0);
 
-    if (!IRQ) return;
-    if (any)  IRQ->raiseIRQ(IRQLine::VICII);
-    else      IRQ->clearIRQ(IRQLine::VICII);
+    if (any)
+        registers.interruptStatus |= 0x80;
+    else
+        registers.interruptStatus &= 0x7F;
 
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::VIC))
+    if (IRQ)
     {
-        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, registers.raster, (currentCycle * 8));
-        traceMgr->recordVicIrq(any, stamp);
+        if (any)
+            IRQ->raiseIRQ(IRQLine::VICII);
+        else
+            IRQ->clearIRQ(IRQLine::VICII);
     }
 }
 
