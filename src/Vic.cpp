@@ -2440,31 +2440,26 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 {
+    oldLine %= cfg_->maxRasterLines;
+    newLine %= cfg_->maxRasterLines;
+
     if (oldLine == newLine)
         return;
 
-    const uint16_t cur = visibleRasterForIRQCompare();
-
-    const bool oldMatch = (cur == oldLine);
-    const bool newMatch = (cur == newLine);
-
-    if (oldMatch || !newMatch)
+    // Too late for this raster once the compare point has already been sampled.
+    if (rasterIrqSampledThisLine || currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // Too late: this line's decision point has already passed.
-    if (currentCycle > RASTER_IRQ_COMPARE_CYCLE)
+    // Only care if the *new* target matches the current raster.
+    if (registers.raster != newLine)
         return;
 
-    // If we're exactly on the decision cycle and have already sampled it,
-    // do not generate it again from the register write path.
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && rasterIrqSampledThisLine)
-        return;
-
-    // Source already latched.
+    // Do not retrigger if raster IRQ source is already pending.
     if ((registers.interruptStatus & 0x01) != 0)
         return;
 
-    raiseVicIRQSource(0x01);
+    triggerRasterIRQIfMatched();
+    rasterIrqSampledThisLine = true;
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
