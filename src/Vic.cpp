@@ -2014,53 +2014,6 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     return true;
 }
 
-Vic::BackgroundPixel Vic::sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const
-{
-    BackgroundPixel out {};
-    out.color = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    out.opaque = false;
-
-    if (!cell.valid)
-        return out;
-
-    if (!mem)
-        return out;
-
-    if (cell.multicolor)
-        return out;
-
-    if (px < cell.px || px >= cell.px + 8)
-        return out;
-
-    const uint16_t addr =
-        static_cast<uint16_t>(getLatchedCHARBase(raster) +
-                              static_cast<uint16_t>(cell.screenByte) * 8);
-
-    const uint8_t rowBits =
-        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
-
-    const int bit = 7 - (px - cell.px);
-    const bool pixelOn = ((rowBits >> bit) & 0x01) != 0;
-
-    if (pixelOn)
-    {
-        out.color = static_cast<uint8_t>(cell.colorByte & 0x0F);
-        out.opaque = true;
-    }
-
-    return out;
-}
-
-void Vic::writeBackgroundPixel(int px, const BackgroundPixel& pixel)
-{
-    if (px < 0 || px >= 512)
-        return;
-
-    bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
-    if (pixel.opaque)
-        bgOpaqueLine[px] = 1;
-}
-
 void Vic::renderTextLine(int raster, int xScroll)
 {
     const int cols = getLatchedCSEL(raster) ? 40 : 38;
@@ -2078,14 +2031,16 @@ void Vic::renderTextLine(int raster, int xScroll)
 
         if (!cell.multicolor)
         {
-            const int startPx = std::max(cell.px, x0);
-            const int endPx = std::min(cell.px + 8, x1);
-
-            for (int px = startPx; px < endPx; ++px)
-            {
-                const BackgroundPixel pixel = sampleStandardTextPixel(cell, px, raster);
-                writeBackgroundPixel(px, pixel);
-            }
+            renderChar(
+                cell.screenByte,
+                cell.px,
+                cell.py,
+                cell.colorByte,
+                cell.bgColor,
+                cell.yInChar,
+                raster,
+                x0,
+                x1);
         }
         else
         {
