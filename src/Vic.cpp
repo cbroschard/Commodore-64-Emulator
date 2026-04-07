@@ -2014,6 +2014,34 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     return true;
 }
 
+void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1)
+{
+    renderChar(
+        cell.screenByte,
+        cell.px,
+        cell.py,
+        cell.colorByte,
+        cell.bgColor,
+        cell.yInChar,
+        raster,
+        x0,
+        x1);
+}
+
+void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
+{
+    renderCharMultiColor(
+        cell.screenByte,
+        cell.px,
+        cell.py,
+        cell.colorByte & 0x07,
+        cell.bgColor,
+        cell.yInChar,
+        raster,
+        x0,
+        x1);
+}
+
 void Vic::renderTextLine(int raster, int xScroll)
 {
     const int cols = getLatchedCSEL(raster) ? 40 : 38;
@@ -2030,31 +2058,9 @@ void Vic::renderTextLine(int raster, int xScroll)
             continue;
 
         if (!cell.multicolor)
-        {
-            renderChar(
-                cell.screenByte,
-                cell.px,
-                cell.py,
-                cell.colorByte,
-                cell.bgColor,
-                cell.yInChar,
-                raster,
-                x0,
-                x1);
-        }
+            drawStandardTextCell(cell, raster, x0, x1);
         else
-        {
-            renderCharMultiColor(
-                cell.screenByte,
-                cell.px,
-                cell.py,
-                cell.colorByte & 0x07,
-                cell.bgColor,
-                cell.yInChar,
-                raster,
-                x0,
-                x1);
-        }
+            drawMulticolorTextCell(cell, raster, x0, x1);
     }
 }
 

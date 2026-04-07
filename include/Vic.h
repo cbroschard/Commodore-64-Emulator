@@ -449,6 +449,8 @@ class Vic
         };
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
+        void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);
+        void drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers
         void clearBadLineFifo();
