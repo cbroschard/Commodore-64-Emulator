@@ -2247,30 +2247,48 @@ void Vic::renderTextLine(int raster, int xScroll)
     }
 }
 
-void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1)
+Vic::BackgroundPixel Vic::sampleBitmapPixel(const BitmapCellSample& cell, int px) const
 {
+    BackgroundPixel out {};
+    out.color = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    out.opaque = false;
+
     if (!cell.valid)
-        return;
+        return out;
+
+    if (px < cell.px || px >= cell.px + 8)
+        return out;
+
+    const int bit = px - cell.px;
+    const bool pixelOn = ((cell.bitmapByte >> (7 - bit)) & 0x01) != 0;
 
     const uint8_t fgColor = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
     const uint8_t bgColor = static_cast<uint8_t>(cell.screenByte & 0x0F);
 
-    // Match existing bitmap-mode behavior: one bitmap row byte per cell row.
+    out.color = pixelOn ? fgColor : bgColor;
+    out.opaque = pixelOn;
+    return out;
+}
+
+void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1)
+{
+    (void)raster;
+
+    if (!cell.valid)
+        return;
+
     updateOpenBus(cell.bitmapByte);
 
-    for (int bit = 0; bit < 8; ++bit)
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
     {
-        const bool pixelOn = ((cell.bitmapByte >> (7 - bit)) & 0x01) != 0;
-        const uint8_t color = pixelOn ? fgColor : bgColor;
+        const BackgroundPixel pixel = sampleBitmapPixel(cell, px);
 
-        const int pxRaw = cell.px + bit;
-        if (pxRaw < x0 || pxRaw >= x1)
-            continue;
-
-        bgColorLine[pxRaw] = color & 0x0F;
-
-        if (pixelOn)
-            markBGOpaque(cell.py, pxRaw);
+        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
+        if (pixel.opaque)
+            markBGOpaque(cell.py, px);
     }
 }
 

@@ -470,6 +470,7 @@ class Vic
         };
 
         bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
+        BackgroundPixel sampleBitmapPixel(const BitmapCellSample& cell, int px) const;
         void drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1);
 
         BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
