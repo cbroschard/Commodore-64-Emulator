@@ -431,6 +431,25 @@ class Vic
         void renderBitmapMulticolorLine(int raster, int xScroll);
         void renderECMLine(int raster, int xScroll);
 
+        struct TextCellSample
+        {
+            bool valid = false;
+
+            int px = 0;
+            int py = 0;
+
+            int displayCol = 0;
+            int yInChar = 0;
+
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+            uint8_t bgColor = 0;
+
+            bool multicolor = false;
+        };
+
+        bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
+
         // Helpers
         void clearBadLineFifo();
         void clearBackgroundLineBuffers();

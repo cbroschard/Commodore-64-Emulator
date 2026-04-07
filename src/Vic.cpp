@@ -1959,47 +1959,102 @@ void Vic::renderLine(int raster)
     emitRasterLineInOrder(raster);
 }
 
-void Vic::renderTextLine(int raster, int xScroll)
+bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const
 {
-    int rows = getLatchedRSEL(raster) ? 25 : 24;
-    int cols = getLatchedCSEL(raster) ? 40 : 38;
+    out = {};
 
-    int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows) return;
+    const int rows = getLatchedRSEL(raster) ? 25 : 24;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
-    int yInChar = static_cast<int>(vicState.rc & 0x07);
-    int fine    = xScroll & 7;
-    int fetchCols = cols + (fine ? 1 : 0);
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return false;
+
+    const int yInChar = static_cast<int>(vicState.rc & 0x07);
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
 
     const int x0 = std::max(0, vicState.leftBorderOpenX);
     const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
-    int xStart = x0 - fine;
+    if (col < 0 || col >= fetchCols)
+        return false;
 
-    int py = fbY(raster);
+    if (col > 40)
+        return false;
+
+    const int xStart = x0 - fine;
+    const int px = xStart + col * 8;
+
+    if (px >= x1)
+        return false;
+
+    if (px + 8 <= x0)
+        return false;
+
+    const int displayCol = (col < 40) ? col : 39;
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
+    const uint8_t bgColor = registers.backgroundColor0 & 0x0F;
+
+    const bool mcGlobal = (latchedD016ForRaster(raster) & 0x10) != 0;
+    const bool mcCell = (colorByte & 0x08) != 0;
+    const bool mcMode = mcGlobal && mcCell;
+
+    out.valid = true;
+    out.px = px;
+    out.py = fbY(raster);
+    out.displayCol = displayCol;
+    out.yInChar = yInChar;
+    out.screenByte = screenByte;
+    out.colorByte = colorByte;
+    out.bgColor = bgColor;
+    out.multicolor = mcMode;
+
+    return true;
+}
+
+void Vic::renderTextLine(int raster, int xScroll)
+{
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
+
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
     for (int col = 0; col < fetchCols; ++col)
     {
-        int px = xStart + col * 8;
-        if (px >= x1) break;
-        if (px + 8 <= x0) continue;
+        TextCellSample cell {};
+        if (!sampleTextCell(raster, xScroll, col, cell))
+            continue;
 
-        if (col > 40) break;
-
-        const int displayCol = (col < 40) ? col : 39;
-        const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
-        const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
-
-        uint8_t bgColor = registers.backgroundColor0;
-
-        const bool mcGlobal = (latchedD016ForRaster(raster) & 0x10) != 0;
-        const bool mcCell   = (colorByte & 0x08) != 0;     // bit3
-        const bool mcMode   = mcGlobal && mcCell;
-
-        if (!mcMode)
-            renderChar(scrByte, px, py, colorByte, bgColor, yInChar, raster, x0, x1);
+        if (!cell.multicolor)
+        {
+            renderChar(
+                cell.screenByte,
+                cell.px,
+                cell.py,
+                cell.colorByte,
+                cell.bgColor,
+                cell.yInChar,
+                raster,
+                x0,
+                x1);
+        }
         else
-            renderCharMultiColor(scrByte, px, py, colorByte & 0x07, bgColor, yInChar, raster, x0, x1);
+        {
+            renderCharMultiColor(
+                cell.screenByte,
+                cell.px,
+                cell.py,
+                cell.colorByte & 0x07,
+                cell.bgColor,
+                cell.yInChar,
+                raster,
+                x0,
+                x1);
+        }
     }
 }
 
