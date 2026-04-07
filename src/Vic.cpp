@@ -2095,6 +2095,64 @@ Vic::BackgroundPixel Vic::sampleMulticolorTextPixel(const TextCellSample& cell, 
     return out;
 }
 
+bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const
+{
+    out = {};
+
+    const int rows = getLatchedRSEL(raster) ? 25 : 24;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
+
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return false;
+
+    const int yInChar = static_cast<int>(vicState.rc & 0x07);
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
+
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+
+    if (col < 0 || col >= fetchCols)
+        return false;
+
+    if (col > 40)
+        return false;
+
+    const int xStart = x0 - fine;
+    const int px = xStart + col * 8;
+
+    if (px >= x1)
+        return false;
+
+    if (px + 8 <= x0)
+        return false;
+
+    const int displayCol = (col < 40) ? col : 39;
+
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
+
+    const uint16_t cellIndex =
+        static_cast<uint16_t>(charRow * 40 + displayCol);
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getBitmapBase(raster) + cellIndex * 8 + yInChar);
+
+    const uint8_t bitmapByte = mem->vicRead(addr, raster);
+
+    out.valid = true;
+    out.px = px;
+    out.py = fbY(raster);
+    out.displayCol = displayCol;
+    out.yInChar = yInChar;
+    out.bitmapByte = bitmapByte;
+    out.screenByte = screenByte;
+    out.colorByte = colorByte;
+
+    return true;
+}
+
 void Vic::writeBackgroundPixel(int px, const BackgroundPixel& pixel)
 {
     if (px < 0 || px >= 512)
@@ -2189,61 +2247,55 @@ void Vic::renderTextLine(int raster, int xScroll)
     }
 }
 
+void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1)
+{
+    if (!cell.valid)
+        return;
+
+    const uint8_t fgColor = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    const uint8_t bgColor = static_cast<uint8_t>(cell.screenByte & 0x0F);
+
+    // Match existing bitmap-mode behavior: one bitmap row byte per cell row.
+    updateOpenBus(cell.bitmapByte);
+
+    for (int bit = 0; bit < 8; ++bit)
+    {
+        const bool pixelOn = ((cell.bitmapByte >> (7 - bit)) & 0x01) != 0;
+        const uint8_t color = pixelOn ? fgColor : bgColor;
+
+        const int pxRaw = cell.px + bit;
+        if (pxRaw < x0 || pxRaw >= x1)
+            continue;
+
+        bgColorLine[pxRaw] = color & 0x0F;
+
+        if (pixelOn)
+            markBGOpaque(cell.py, pxRaw);
+    }
+}
+
 void Vic::renderBitmapLine(int raster, int xScroll)
 {
-    int rows = getLatchedRSEL(raster) ? 25 : 24;
-    int cols = getLatchedCSEL(raster) ? 40 : 38;
-    int firstVis = cfg_->firstVisibleLine;
+    const int rows = getLatchedRSEL(raster) ? 25 : 24;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
-    int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows) return;
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return;
 
-    int bitmapY = raster - firstVis;
-    if (bitmapY < 0 || bitmapY >= rows * 8) return;
-
-    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
-
-    const int fine = xScroll & 7;
-
-    const int fetchCols = cols;
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
 
     const int x0 = std::max(0, vicState.leftBorderOpenX);
     const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
-    int xStart = x0 - fine;
-
-    const int py = fbY(raster);
-
     for (int col = 0; col < fetchCols; ++col)
     {
-        const uint16_t byteOffset =
-            (uint16_t)((bitmapY & 7) + (col * 8) + ((bitmapY >> 3) * 320));
+        BitmapCellSample cell {};
+        if (!sampleBitmapCell(raster, xScroll, col, cell))
+            continue;
 
-        const uint8_t byte = mem->vicRead(bitmapBase + byteOffset, raster);
-
-        // Latch Open Bus
-        updateOpenBus(byte);
-
-        const uint8_t scr = resolveDisplayScreenByte(col, raster);
-        const uint8_t fgColor = (scr >> 4) & 0x0F;
-        const uint8_t bgColor = scr & 0x0F;
-
-        const int cellLeft = xStart + col * 8;
-        if (cellLeft >= x1) break;
-        if (cellLeft + 8 <= x0) continue;
-
-        for (int bit = 0; bit < 8; ++bit)
-        {
-            const bool pixelOn = ((byte >> (7 - bit)) & 0x01) != 0;
-            const uint8_t color = pixelOn ? fgColor : bgColor;
-
-            const int pxRaw = cellLeft + bit;
-            if (pxRaw < x0 || pxRaw >= x1) continue;
-
-            bgColorLine[pxRaw] = color & 0x0F;
-
-            if (pixelOn) markBGOpaque(py, pxRaw);
-        }
+        drawBitmapCell(cell, raster, x0, x1);
     }
 }
 

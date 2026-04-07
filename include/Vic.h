@@ -454,6 +454,24 @@ class Vic
             bool opaque = false;
         };
 
+        struct BitmapCellSample
+        {
+            bool valid = false;
+
+            int px = 0;
+            int py = 0;
+
+            int displayCol = 0;
+            int yInChar = 0;
+
+            uint8_t bitmapByte = 0;
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+        };
+
+        bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
+        void drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1);
+
         BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
         BackgroundPixel sampleMulticolorTextPixel(const TextCellSample& cell, int px, int raster) const;
         void writeBackgroundPixel(int px, const BackgroundPixel& pixel);
