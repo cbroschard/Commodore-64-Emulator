@@ -431,7 +431,7 @@ class Vic
         void renderBitmapMulticolorLine(int raster, int xScroll);
         void renderECMLine(int raster, int xScroll);
 
-        struct TextCellSample
+                struct TextCellSample
         {
             bool valid = false;
 
@@ -448,7 +448,15 @@ class Vic
             bool multicolor = false;
         };
 
+        struct BackgroundPixel
+        {
+            uint8_t color = 0;
+            bool opaque = false;
+        };
+
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
+        BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
+        void writeBackgroundPixel(int px, const BackgroundPixel& pixel);
 
         // Helpers
         void clearBadLineFifo();
