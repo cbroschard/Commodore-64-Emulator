@@ -2044,6 +2044,57 @@ Vic::BackgroundPixel Vic::sampleStandardTextPixel(const TextCellSample& cell, in
     return out;
 }
 
+Vic::BackgroundPixel Vic::sampleMulticolorTextPixel(const TextCellSample& cell, int px, int raster) const
+{
+    BackgroundPixel out {};
+    out.color = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    out.opaque = false;
+
+    if (!cell.valid || !mem || !cell.multicolor)
+        return out;
+
+    if (px < cell.px || px >= cell.px + 8)
+        return out;
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getCHARBase(raster) +
+                              static_cast<uint16_t>(cell.screenByte) * 8);
+
+    const uint8_t rowBits =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
+    // Multicolor text uses 4 double-width pixel groups across the 8-pixel cell.
+    const int localX = px - cell.px;
+    const int pairIndex = localX >> 1;
+    const int shift = 6 - (pairIndex * 2);
+    const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+    switch (bits)
+    {
+        case 0x00:
+            out.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+            out.opaque = false;
+            break;
+
+        case 0x01:
+            out.color = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+            out.opaque = true;
+            break;
+
+        case 0x02:
+            out.color = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+            out.opaque = true;
+            break;
+
+        case 0x03:
+            out.color = static_cast<uint8_t>(cell.colorByte & 0x07);
+            out.opaque = true;
+            break;
+    }
+
+    return out;
+}
+
 void Vic::writeBackgroundPixel(int px, const BackgroundPixel& pixel)
 {
     if (px < 0 || px >= 512)
@@ -2094,16 +2145,26 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
 
 void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
 {
-    renderCharMultiColor(
-        cell.screenByte,
-        cell.px,
-        cell.py,
-        cell.colorByte & 0x07,
-        cell.bgColor,
-        cell.yInChar,
-        raster,
-        x0,
-        x1);
+    if (!cell.valid || !mem || !cell.multicolor)
+        return;
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getCHARBase(raster) +
+                              static_cast<uint16_t>(cell.screenByte) * 8);
+
+    const uint8_t rowBits =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
+    updateOpenBus(rowBits);
+
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        BackgroundPixel pixel = sampleMulticolorTextPixel(cell, px, raster);
+        writeBackgroundPixel(px, pixel);
+    }
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
