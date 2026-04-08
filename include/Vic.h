@@ -515,7 +515,6 @@ class Vic
 
         BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
         BackgroundPixel sampleMulticolorTextPixel(const TextCellSample& cell, int px, int raster) const;
-        void writeBackgroundPixel(int px, const BackgroundPixel& pixel);
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);

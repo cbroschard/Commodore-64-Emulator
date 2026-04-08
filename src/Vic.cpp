@@ -2164,17 +2164,6 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     return true;
 }
 
-void Vic::writeBackgroundPixel(int px, const BackgroundPixel& pixel)
-{
-    if (px < 0 || px >= 512)
-        return;
-
-    bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
-
-    if (pixel.opaque)
-        bgOpaqueLine[px] = 1;
-}
-
 void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1)
 {
     if (!cell.valid || !mem || cell.multicolor)
