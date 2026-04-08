@@ -2213,8 +2213,35 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
 
     for (int px = startPx; px < endPx; ++px)
     {
-        const BackgroundPixel pixel = sampleMulticolorTextPixel(cell, px, raster);
-        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
+        const int localX = px - cell.px;
+        const int pairIndex = localX >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = static_cast<uint8_t>(cell.bgColor & 0x0F);
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = static_cast<uint8_t>(cell.bgColor & 0x0F);
+                opaque = false;
+                break;
+            case 0x01:
+                color = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+                opaque = true;
+                break;
+            case 0x02:
+                color = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+                opaque = true;
+                break;
+            case 0x03:
+                color = static_cast<uint8_t>(cell.colorByte & 0x07);
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, cell.py, color, opaque);
     }
 }
 
@@ -2566,8 +2593,14 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
 
     for (int px = startPx; px < endPx; ++px)
     {
-        const BackgroundPixel pixel = sampleECMPixel(cell, px, raster);
-        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
+        const int bit = px - cell.px;
+        const bool pixelOn = ((row >> (7 - bit)) & 0x01) != 0;
+
+        const uint8_t color = pixelOn
+            ? static_cast<uint8_t>(cell.fgColor & 0x0F)
+            : static_cast<uint8_t>(cell.bgColor & 0x0F);
+
+        stampBackgroundPixel(px, cell.py, color, pixelOn);
     }
 }
 
