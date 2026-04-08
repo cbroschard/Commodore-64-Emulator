@@ -2699,18 +2699,28 @@ void Vic::composeFinalRasterLine(int raster)
         finalColorLine[px] = compositePixelAtX(raster, px);
 }
 
+Vic::BackgroundPixel Vic::sampleBackgroundPixelAtX(int raster, int px) const
+{
+    BackgroundPixel out {};
+    out.color = registers.borderColor & 0x0F;
+    out.opaque = false;
+
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return out;
+
+    if (borderActiveAtPixel(raster, px))
+        return out;
+
+    out.color = bgColorLine[px] & 0x0F;
+    out.opaque = (bgOpaqueLine[px] != 0);
+    return out;
+}
+
 uint8_t Vic::compositePixelAtX(int raster, int px) const
 {
-    const uint8_t border = registers.borderColor & 0x0F;
+    const BackgroundPixel bg = sampleBackgroundPixelAtX(raster, px);
 
-    uint8_t color = border;
-
-    const bool borderPixel = borderActiveAtPixel(raster, px);
-
-    if (!borderPixel)
-    {
-        color = bgColorLine[px] & 0x0F;
-    }
+    uint8_t color = bg.color;
 
     // Sprites behind background:
     // only visible if background is not opaque at this pixel.
@@ -2723,7 +2733,7 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
         if (!spriteOpaqueLine[spr][px])
             continue;
 
-        if (!bgOpaqueLine[px])
+        if (!bg.opaque)
             color = spriteColorLine[spr][px] & 0x0F;
     }
 

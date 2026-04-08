@@ -533,6 +533,7 @@ class Vic
 
         void buildBorderMaskLine(int raster);
         void composeFinalRasterLine(int raster);
+        BackgroundPixel sampleBackgroundPixelAtX(int raster, int px) const;
         uint8_t compositePixelAtX(int raster, int px) const;
         uint8_t produceRasterPixel(int raster, int px) const;
 
