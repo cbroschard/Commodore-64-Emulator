@@ -1959,6 +1959,17 @@ void Vic::renderLine(int raster)
     emitRasterLineInOrder(raster);
 }
 
+void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
+{
+    if (px < 0 || px >= 512)
+        return;
+
+    bgColorLine[px] = static_cast<uint8_t>(color & 0x0F);
+
+    if (opaque)
+        markBGOpaque(py, px);
+}
+
 bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const
 {
     out = {};
@@ -2176,7 +2187,6 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
     const uint8_t rowBits =
         mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
 
-    // Match renderChar() open-bus behavior.
     updateOpenBus(rowBits);
 
     const int startPx = std::max(cell.px, x0);
@@ -2184,20 +2194,14 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
 
     for (int px = startPx; px < endPx; ++px)
     {
-        BackgroundPixel pixel {};
-        pixel.color = static_cast<uint8_t>(cell.bgColor & 0x0F);
-        pixel.opaque = false;
-
         const int col = px - cell.px;
         const bool pixelOn = ((rowBits >> (7 - col)) & 0x01) != 0;
 
-        if (pixelOn)
-        {
-            pixel.color = static_cast<uint8_t>(cell.colorByte & 0x0F);
-            pixel.opaque = true;
-        }
+        const uint8_t color = pixelOn
+            ? static_cast<uint8_t>(cell.colorByte & 0x0F)
+            : static_cast<uint8_t>(cell.bgColor & 0x0F);
 
-        writeBackgroundPixel(px, pixel);
+        stampBackgroundPixel(px, cell.py, color, pixelOn);
     }
 }
 
@@ -2220,8 +2224,8 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
 
     for (int px = startPx; px < endPx; ++px)
     {
-        BackgroundPixel pixel = sampleMulticolorTextPixel(cell, px, raster);
-        writeBackgroundPixel(px, pixel);
+        const BackgroundPixel pixel = sampleMulticolorTextPixel(cell, px, raster);
+        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
     }
 }
 
@@ -2285,10 +2289,7 @@ void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x
     for (int px = startPx; px < endPx; ++px)
     {
         const BackgroundPixel pixel = sampleBitmapPixel(cell, px);
-
-        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
-        if (pixel.opaque)
-            markBGOpaque(cell.py, px);
+        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
     }
 }
 
@@ -2438,10 +2439,7 @@ void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int r
     for (int px = startPx; px < endPx; ++px)
     {
         const BackgroundPixel pixel = sampleMultiColorBitmapPixel(cell, px);
-
-        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
-        if (pixel.opaque)
-            markBGOpaque(cell.py, px);
+        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
     }
 }
 
@@ -2580,10 +2578,7 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
     for (int px = startPx; px < endPx; ++px)
     {
         const BackgroundPixel pixel = sampleECMPixel(cell, px, raster);
-        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
-
-        if (pixel.opaque)
-            markBGOpaque(cell.py, px);
+        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
     }
 }
 

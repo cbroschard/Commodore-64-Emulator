@@ -499,6 +499,8 @@ class Vic
             uint8_t bgColor = 0;
         };
 
+        void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
+
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
         BackgroundPixel sampleECMPixel(const ECMCellSample& cell, int px, int raster) const;
         void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
