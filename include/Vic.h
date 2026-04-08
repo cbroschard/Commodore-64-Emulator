@@ -494,12 +494,13 @@ class Vic
             int displayCol = 0;
             int yInChar = 0;
 
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
+            uint8_t charIndex = 0;
+            uint8_t fgColor = 0;
             uint8_t bgColor = 0;
         };
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
+        BackgroundPixel sampleECMPixel(const ECMCellSample& cell, int px, int raster) const;
         void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;

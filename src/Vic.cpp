@@ -2530,6 +2530,36 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     return true;
 }
 
+Vic::BackgroundPixel Vic::sampleECMPixel(const ECMCellSample& cell, int px, int raster) const
+{
+    BackgroundPixel out {};
+    out.color = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    out.opaque = false;
+
+    if (!cell.valid || !mem)
+        return out;
+
+    if (px < cell.px || px >= cell.px + 8)
+        return out;
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getLatchedCHARBase(raster) +
+                              static_cast<uint16_t>(cell.charIndex) * 8);
+
+    const uint8_t row =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
+    const int bit = px - cell.px;
+    const bool pixelOn = ((row >> (7 - bit)) & 0x01) != 0;
+
+    out.color = pixelOn
+        ? static_cast<uint8_t>(cell.fgColor & 0x0F)
+        : static_cast<uint8_t>(cell.bgColor & 0x0F);
+
+    out.opaque = pixelOn;
+    return out;
+}
+
 void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
 {
     if (!cell.valid || !mem)
@@ -2544,19 +2574,16 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
 
     updateOpenBus(row);
 
-    for (int bit = 0; bit < 8; ++bit)
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
     {
-        const bool pixelOn = ((row >> (7 - bit)) & 0x01) != 0;
-        const uint8_t color = pixelOn ? cell.fgColor : cell.bgColor;
+        const BackgroundPixel pixel = sampleECMPixel(cell, px, raster);
+        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
 
-        const int pxRaw = cell.px + bit;
-        if (pxRaw < x0 || pxRaw >= x1)
-            continue;
-
-        bgColorLine[pxRaw] = color & 0x0F;
-
-        if (pixelOn)
-            markBGOpaque(cell.py, pxRaw);
+        if (pixel.opaque)
+            markBGOpaque(cell.py, px);
     }
 }
 
