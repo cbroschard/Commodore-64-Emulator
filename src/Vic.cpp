@@ -2470,66 +2470,118 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     }
 }
 
-void Vic::renderECMLine(int raster, int xScroll)
+bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const
 {
-    int rows = getLatchedRSEL(raster) ? 25 : 24;
-    int cols = getLatchedCSEL(raster) ? 40 : 38;
+    out = {};
 
-    int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows) return;
+    const int rows = getLatchedRSEL(raster) ? 25 : 24;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
-    int yInChar = static_cast<int>(vicState.rc & 0x07);
-    int fine = xScroll & 7;
-    int fetchCols = cols + (fine ? 1 : 0);
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return false;
+
+    const int yInChar = static_cast<int>(vicState.rc & 0x07);
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
 
     const int x0 = std::max(0, vicState.leftBorderOpenX);
     const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
-    int xStart = x0 - fine;
+    if (col < 0 || col >= fetchCols)
+        return false;
 
-    int py = fbY(raster);
+    if (col > 40)
+        return false;
+
+    const int xStart = x0 - fine;
+    const int px = xStart + col * 8;
+
+    if (px >= x1)
+        return false;
+
+    if (px + 8 <= x0)
+        return false;
+
+    const int displayCol = (col < 40) ? col : 39;
+    const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
+
+    const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
+    const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
+
+    const uint8_t bgColor =
+        (bgSel == 0) ? (registers.backgroundColor0 & 0x0F) :
+        (bgSel == 1) ? (getBackgroundColor(0) & 0x0F) :
+        (bgSel == 2) ? (getBackgroundColor(1) & 0x0F) :
+                       (getBackgroundColor(2) & 0x0F);
+
+    const uint8_t fgColor = static_cast<uint8_t>(colorByte & 0x0F);
+
+    out.valid = true;
+    out.px = px;
+    out.py = fbY(raster);
+    out.displayCol = displayCol;
+    out.yInChar = yInChar;
+    out.charIndex = charIndex;
+    out.fgColor = fgColor;
+    out.bgColor = bgColor;
+
+    return true;
+}
+
+void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
+{
+    if (!cell.valid || !mem)
+        return;
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getLatchedCHARBase(raster) +
+                              static_cast<uint16_t>(cell.charIndex) * 8);
+
+    const uint8_t row =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
+    updateOpenBus(row);
+
+    for (int bit = 0; bit < 8; ++bit)
+    {
+        const bool pixelOn = ((row >> (7 - bit)) & 0x01) != 0;
+        const uint8_t color = pixelOn ? cell.fgColor : cell.bgColor;
+
+        const int pxRaw = cell.px + bit;
+        if (pxRaw < x0 || pxRaw >= x1)
+            continue;
+
+        bgColorLine[pxRaw] = color & 0x0F;
+
+        if (pixelOn)
+            markBGOpaque(cell.py, pxRaw);
+    }
+}
+
+void Vic::renderECMLine(int raster, int xScroll)
+{
+    const int rows = getLatchedRSEL(raster) ? 25 : 24;
+    const int cols = getLatchedCSEL(raster) ? 40 : 38;
+
+    const int charRow = currentCharacterRow();
+    if (charRow < 0 || charRow >= rows)
+        return;
+
+    const int fine = xScroll & 0x07;
+    const int fetchCols = cols + (fine ? 1 : 0);
+
+    const int x0 = std::max(0, vicState.leftBorderOpenX);
+    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
 
     for (int col = 0; col < fetchCols; ++col)
     {
-        if (col > 40) break;
+        ECMCellSample cell {};
+        if (!sampleECMCell(raster, xScroll, col, cell))
+            continue;
 
-        const int displayCol = (col < 40) ? col : 39;
-        const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
-        const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
-
-        uint8_t charIndex = scrByte & 0x3F;
-        uint8_t bgSel = (scrByte >> 6) & 0x03;
-        uint8_t bgColor =
-            (bgSel == 0) ? registers.backgroundColor0 :
-            (bgSel == 1) ? getBackgroundColor(0) :
-            (bgSel == 2) ? getBackgroundColor(1) :
-                           getBackgroundColor(2);
-
-        uint8_t fgColor = colorByte & 0x0F;
-
-        int pxCell = xStart + col * 8;
-        if (pxCell >= x1) break;
-        if (pxCell + 8 <= x0) continue;
-
-        uint16_t addr = getLatchedCHARBase(raster) + charIndex * 8;
-        uint8_t row = mem->vicRead(addr + yInChar, raster);
-
-        // Latch Open Bus
-        updateOpenBus(row);
-
-        for (int bit = 0; bit < 8; ++bit)
-        {
-            bool pixelOn = (row >> (7 - bit)) & 0x01;
-            uint8_t color = pixelOn ? fgColor : bgColor;
-
-            int pxRaw = pxCell + bit;
-            if (pxRaw < x0 || pxRaw >= x1) continue;
-
-            bgColorLine[pxRaw] = color & 0x0F;
-
-            if (pixelOn)
-                markBGOpaque(py, pxRaw);
-        }
+        drawECMCell(cell, raster, x0, x1);
     }
 }
 

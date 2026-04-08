@@ -484,6 +484,24 @@ class Vic
             uint8_t colorByte = 0;
         };
 
+        struct ECMCellSample
+        {
+            bool valid = false;
+
+            int px = 0;
+            int py = 0;
+
+            int displayCol = 0;
+            int yInChar = 0;
+
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+            uint8_t bgColor = 0;
+        };
+
+        bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
+        void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
+
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
         BackgroundPixel sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const;
         void drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
