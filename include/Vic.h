@@ -485,6 +485,7 @@ class Vic
         };
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
+        BackgroundPixel sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const;
         void drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;

@@ -2375,6 +2375,54 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     return true;
 }
 
+Vic::BackgroundPixel Vic::sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const
+{
+    BackgroundPixel out {};
+    out.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    out.opaque = false;
+
+    if (!cell.valid)
+        return out;
+
+    if (px < cell.px || px >= cell.px + 8)
+        return out;
+
+    const int localX = px - cell.px;
+    const int pairIndex = localX >> 1;
+    const int shift = 6 - pairIndex * 2;
+    const uint8_t bits = static_cast<uint8_t>((cell.bitmapByte >> shift) & 0x03);
+
+    const uint8_t color00 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const uint8_t color01 = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    const uint8_t color10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    const uint8_t color11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
+
+    switch (bits)
+    {
+        case 0x00:
+            out.color = color00;
+            out.opaque = false;
+            break;
+
+        case 0x01:
+            out.color = color01;
+            out.opaque = true;
+            break;
+
+        case 0x02:
+            out.color = color10;
+            out.opaque = true;
+            break;
+
+        case 0x03:
+            out.color = color11;
+            out.opaque = true;
+            break;
+    }
+
+    return out;
+}
+
 void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)
 {
     (void)raster;
@@ -2384,55 +2432,16 @@ void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int r
 
     updateOpenBus(cell.bitmapByte);
 
-    const uint8_t color01 = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    const uint8_t color10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-    const uint8_t color11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
-    const uint8_t color00 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
 
-    for (int pair = 0; pair < 4; ++pair)
+    for (int px = startPx; px < endPx; ++px)
     {
-        const int shift = 6 - pair * 2;
-        const uint8_t bits = static_cast<uint8_t>((cell.bitmapByte >> shift) & 0x03);
+        const BackgroundPixel pixel = sampleMultiColorBitmapPixel(cell, px);
 
-        uint8_t color = color00;
-        bool opaque = false;
-
-        switch (bits)
-        {
-            case 0x00:
-                color = color00;
-                opaque = false;
-                break;
-            case 0x01:
-                color = color01;
-                opaque = true;
-                break;
-            case 0x02:
-                color = color10;
-                opaque = true;
-                break;
-            case 0x03:
-                color = color11;
-                opaque = true;
-                break;
-        }
-
-        const int px0 = cell.px + pair * 2;
-        const int px1 = px0 + 1;
-
-        if (px0 >= x0 && px0 < x1)
-        {
-            bgColorLine[px0] = color & 0x0F;
-            if (opaque)
-                markBGOpaque(cell.py, px0);
-        }
-
-        if (px1 >= x0 && px1 < x1)
-        {
-            bgColorLine[px1] = color & 0x0F;
-            if (opaque)
-                markBGOpaque(cell.py, px1);
-        }
+        bgColorLine[px] = static_cast<uint8_t>(pixel.color & 0x0F);
+        if (pixel.opaque)
+            markBGOpaque(cell.py, px);
     }
 }
 
