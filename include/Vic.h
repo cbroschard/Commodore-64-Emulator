@@ -501,7 +501,6 @@ class Vic
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
-        bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
         BackgroundPixel sampleECMPixel(const ECMCellSample& cell, int px, int raster) const;
         void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
 
@@ -514,7 +513,6 @@ class Vic
         void drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1);
 
         BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
-        BackgroundPixel sampleMulticolorTextPixel(const TextCellSample& cell, int px, int raster) const;
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);
