@@ -543,6 +543,7 @@ class Vic
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         uint8_t fetchBackgroundPipelineTextRowBits() const;
+        BackgroundPixel sampleBackgroundPipelinePixel() const;
 
         void resetBackgroundPipeline();
 

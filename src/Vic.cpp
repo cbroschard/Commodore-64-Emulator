@@ -2024,6 +2024,31 @@ uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
     return mem ? mem->vicRead(glyphAddr, raster) : 0;
 }
 
+Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
+{
+    BackgroundPixel out {};
+    out.color = bgPipeline.bgColor0 & 0x0F;
+    out.opaque = false;
+
+    if (!bgPipeline.valid)
+        return out;
+
+    // For now: standard text only.
+    if (bgPipeline.bitmap || bgPipeline.ecm || bgPipeline.multicolor)
+        return out;
+
+    const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+    const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
+
+    if (set)
+    {
+        out.color = bgPipeline.fgColor & 0x0F;
+        out.opaque = true;
+    }
+
+    return out;
+}
+
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;
