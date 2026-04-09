@@ -1959,6 +1959,27 @@ void Vic::renderLine(int raster)
     emitRasterLineInOrder(raster);
 }
 
+Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const
+{
+    BackgroundLineGeometry g {};
+
+    g.rows = getLatchedRSEL(raster) ? 25 : 24;
+    g.cols = getLatchedCSEL(raster) ? 40 : 38;
+    g.charRow = currentCharacterRow();
+
+    if (g.charRow < 0 || g.charRow >= g.rows)
+        return g;
+
+    g.fineX = xScroll & 0x07;
+    g.fetchCols = g.cols + (g.fineX ? 1 : 0);
+
+    g.x0 = std::max(0, vicState.leftBorderOpenX);
+    g.x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+
+    g.valid = true;
+    return g;
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -2196,23 +2217,20 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
 
 void Vic::renderTextLine(int raster, int xScroll)
 {
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
-    const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
+    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
+    if (!g.valid)
+        return;
 
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
-
-    for (int col = 0; col < fetchCols; ++col)
+    for (int col = 0; col < g.fetchCols; ++col)
     {
         TextCellSample cell {};
         if (!sampleTextCell(raster, xScroll, col, cell))
             continue;
 
         if (!cell.multicolor)
-            drawStandardTextCell(cell, raster, x0, x1);
+            drawStandardTextCell(cell, raster, g.x0, g.x1);
         else
-            drawMulticolorTextCell(cell, raster, x0, x1);
+            drawMulticolorTextCell(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -2260,26 +2278,17 @@ void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x
 
 void Vic::renderBitmapLine(int raster, int xScroll)
 {
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
+    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
+    if (!g.valid)
         return;
 
-    const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
-
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
-
-    for (int col = 0; col < fetchCols; ++col)
+    for (int col = 0; col < g.fetchCols; ++col)
     {
         BitmapCellSample cell {};
         if (!sampleBitmapCell(raster, xScroll, col, cell))
             continue;
 
-        drawBitmapCell(cell, raster, x0, x1);
+        drawBitmapCell(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -2410,26 +2419,17 @@ void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int r
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 {
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
+    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
+    if (!g.valid)
         return;
 
-    const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
-
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
-
-    for (int col = 0; col < fetchCols; ++col)
+    for (int col = 0; col < g.fetchCols; ++col)
     {
         MultiColorBitmapCellSample cell {};
         if (!sampleMultiColorBitmapCell(raster, xScroll, col, cell))
             continue;
 
-        drawMultiColorBitmapCell(cell, raster, x0, x1);
+        drawMultiColorBitmapCell(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -2525,26 +2525,17 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
 
 void Vic::renderECMLine(int raster, int xScroll)
 {
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
+    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
+    if (!g.valid)
         return;
 
-    const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
-
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
-
-    for (int col = 0; col < fetchCols; ++col)
+    for (int col = 0; col < g.fetchCols; ++col)
     {
         ECMCellSample cell {};
         if (!sampleECMCell(raster, xScroll, col, cell))
             continue;
 
-        drawECMCell(cell, raster, x0, x1);
+        drawECMCell(cell, raster, g.x0, g.x1);
     }
 }
 

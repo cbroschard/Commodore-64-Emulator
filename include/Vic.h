@@ -499,6 +499,23 @@ class Vic
             uint8_t bgColor = 0;
         };
 
+        struct BackgroundLineGeometry
+        {
+            bool valid = false;
+
+            int rows = 0;
+            int cols = 0;
+            int charRow = -1;
+
+            int fineX = 0;
+            int fetchCols = 0;
+
+            int x0 = 0;
+            int x1 = 0;
+        };
+
+        BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
+
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
