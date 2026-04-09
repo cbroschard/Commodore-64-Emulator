@@ -584,6 +584,7 @@ class Vic
         void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);
         void drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
         void drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1);
+        void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers
         void clearBadLineFifo();

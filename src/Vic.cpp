@@ -2587,9 +2587,65 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
     }
 }
 
+void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
+{
+    (void)raster;
+
+    if (!cell.valid || !cell.multicolor)
+        return;
+
+    const uint8_t rowBits = bgPipeline.rowBits;
+
+    const uint8_t bg0 = bgPipeline.bgColor0 & 0x0F;
+    const uint8_t bg1 = bgPipeline.bgColor1 & 0x0F;
+    const uint8_t bg2 = bgPipeline.bgColor2 & 0x0F;
+
+    // In multicolor text, the cell color is only 3 bits.
+    const uint8_t cellColor = static_cast<uint8_t>(bgPipeline.fgColor & 0x07);
+
+    updateOpenBus(rowBits);
+
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int localX = px - cell.px;
+        const int pairIndex = localX >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = bg0;
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = bg0;
+                opaque = false;
+                break;
+            case 0x01:
+                color = bg1;
+                opaque = true;
+                break;
+            case 0x02:
+                color = bg2;
+                opaque = true;
+                break;
+            case 0x03:
+                color = cellColor;
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, cell.py, color, opaque);
+    }
+}
+
 void Vic::renderTextLine(int raster, int xScroll)
 {
     static constexpr bool kUsePipelineForStandardText = true;
+    static constexpr bool kUsePipelineForMulticolorText = true;
 
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
@@ -2612,7 +2668,10 @@ void Vic::renderTextLine(int raster, int xScroll)
         }
         else
         {
-            drawMulticolorTextCell(cell, raster, g.x0, g.x1);
+            if (kUsePipelineForMulticolorText)
+                drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
+            else
+                drawMulticolorTextCell(cell, raster, g.x0, g.x1);
         }
     }
 }
