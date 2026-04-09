@@ -1991,13 +1991,13 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.col = col;
     bgPipeline.pixelPhase = 0;
 
-    bgPipeline.pattern = cell.pattern;
+    bgPipeline.pattern = cell.screenByte;
 
-    bgPipeline.fgColor = cell.fgColor & 0x0F;
-    bgPipeline.bgColor0 = registers.backgroundColor0 & 0x0F;
-    bgPipeline.bgColor1 = registers.backgroundColor[0] & 0x0F;
-    bgPipeline.bgColor2 = registers.backgroundColor[1] & 0x0F;
-    bgPipeline.bgColor3 = registers.backgroundColor[2] & 0x0F;
+    bgPipeline.fgColor  = static_cast<uint8_t>(cell.colorByte & 0x0F);
+    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    bgPipeline.bgColor1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+    bgPipeline.bgColor2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+    bgPipeline.bgColor3 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
 
     bgPipeline.multicolor = cell.multicolor;
     bgPipeline.bitmap = false;
