@@ -538,6 +538,8 @@ class Vic
         BackgroundPipelineState bgPipeline;
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
+        void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
+
         void resetBackgroundPipeline();
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);

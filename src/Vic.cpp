@@ -1983,6 +1983,27 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
     return g;
 }
 
+void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col)
+{
+    bgPipeline.valid = true;
+
+    bgPipeline.raster = raster;
+    bgPipeline.col = col;
+    bgPipeline.pixelPhase = 0;
+
+    bgPipeline.pattern = cell.pattern;
+
+    bgPipeline.fgColor = cell.fgColor & 0x0F;
+    bgPipeline.bgColor0 = registers.backgroundColor0 & 0x0F;
+    bgPipeline.bgColor1 = registers.backgroundColor[0] & 0x0F;
+    bgPipeline.bgColor2 = registers.backgroundColor[1] & 0x0F;
+    bgPipeline.bgColor3 = registers.backgroundColor[2] & 0x0F;
+
+    bgPipeline.multicolor = cell.multicolor;
+    bgPipeline.bitmap = false;
+    bgPipeline.ecm = false;
+}
+
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;
@@ -2246,6 +2267,8 @@ void Vic::renderTextLine(int raster, int xScroll)
         TextCellSample cell {};
         if (!sampleTextCell(raster, xScroll, col, cell))
             continue;
+
+        loadBackgroundPipelineFromTextCell(cell, raster, col);
 
         if (!cell.multicolor)
             drawStandardTextCell(cell, raster, g.x0, g.x1);
