@@ -2033,17 +2033,46 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
     if (!bgPipeline.valid)
         return out;
 
-    // For now: standard text only.
-    if (bgPipeline.bitmap || bgPipeline.ecm || bgPipeline.multicolor)
+    if (bgPipeline.bitmap || bgPipeline.ecm)
         return out;
 
-    const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
-    const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
-
-    if (set)
+    if (!bgPipeline.multicolor)
     {
-        out.color = bgPipeline.fgColor & 0x0F;
-        out.opaque = true;
+        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+        const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
+
+        if (set)
+        {
+            out.color = bgPipeline.fgColor & 0x0F;
+            out.opaque = true;
+        }
+
+        return out;
+    }
+
+    const int phase = bgPipeline.pixelPhase & 0x07;
+    const int pairIndex = phase / 2;
+    const int shift = 6 - (pairIndex * 2);
+    const uint8_t bits = static_cast<uint8_t>((bgPipeline.rowBits >> shift) & 0x03);
+
+    switch (bits)
+    {
+        case 0x00:
+            out.color = bgPipeline.bgColor0 & 0x0F;
+            out.opaque = false;
+            break;
+        case 0x01:
+            out.color = bgPipeline.bgColor1 & 0x0F;
+            out.opaque = true;
+            break;
+        case 0x02:
+            out.color = bgPipeline.bgColor2 & 0x0F;
+            out.opaque = true;
+            break;
+        case 0x03:
+            out.color = bgPipeline.fgColor & 0x0F;
+            out.opaque = true;
+            break;
     }
 
     return out;
