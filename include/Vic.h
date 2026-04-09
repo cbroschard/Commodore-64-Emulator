@@ -542,6 +542,9 @@ class Vic
             bool ecm = false;
         };
 
+        inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
+        inline bool backgroundPipelineIsBitmapLike() const { return bgPipeline.valid && bgPipeline.bitmap; }
+
         BackgroundPipelineState bgPipeline;
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
@@ -550,6 +553,9 @@ class Vic
         void loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col);
         uint8_t fetchBackgroundPipelineTextRowBits() const;
         BackgroundPixel sampleBackgroundPipelinePixel() const;
+        BackgroundPixel sampleTextPipelinePixel() const;
+        BackgroundPixel sampleBitmapPipelinePixel() const;
+        BackgroundPixel sampleECMPipelinePixel() const;
 
 
         void advanceBackgroundPipelinePixelPhase();

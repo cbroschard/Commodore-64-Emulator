@@ -2090,83 +2090,13 @@ uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
     return mem ? mem->vicRead(glyphAddr, raster) : 0;
 }
 
-Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
+Vic::BackgroundPixel Vic::sampleTextPipelinePixel() const
 {
     BackgroundPixel out {};
     out.color = bgPipeline.bgColor0 & 0x0F;
     out.opaque = false;
 
-    if (!bgPipeline.valid)
-        return out;
-
-    if (bgPipeline.bitmap && !bgPipeline.multicolor)
-    {
-        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
-        const bool set = ((bgPipeline.bitmapByte >> bitIndex) & 0x01) != 0;
-
-        out.color = set ? (bgPipeline.fgColor & 0x0F)
-                        : (bgPipeline.bgColor0 & 0x0F);
-        out.opaque = set;
-        return out;
-    }
-
-    if (bgPipeline.bitmap && bgPipeline.multicolor)
-    {
-        const int phase = bgPipeline.pixelPhase & 0x07;
-        const int pairIndex = phase / 2;
-        const int shift = 6 - (pairIndex * 2);
-        const uint8_t bits = static_cast<uint8_t>((bgPipeline.bitmapByte >> shift) & 0x03);
-
-        switch (bits)
-        {
-            case 0x00:
-                out.color = bgPipeline.bgColor0 & 0x0F;
-                out.opaque = false;
-                break;
-            case 0x01:
-                out.color = static_cast<uint8_t>((bgPipeline.screenByte >> 4) & 0x0F);
-                out.opaque = true;
-                break;
-            case 0x02:
-                out.color = static_cast<uint8_t>(bgPipeline.screenByte & 0x0F);
-                out.opaque = true;
-                break;
-            case 0x03:
-                out.color = bgPipeline.colorByte & 0x0F;
-                out.opaque = true;
-                break;
-        }
-
-        return out;
-    }
-
-    if (bgPipeline.ecm)
-    {
-        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
-        const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
-
-        if (set)
-        {
-            out.color = bgPipeline.fgColor & 0x0F;
-            out.opaque = true;
-        }
-        else
-        {
-            const uint8_t bgSel = static_cast<uint8_t>((bgPipeline.screenByte >> 6) & 0x03);
-            switch (bgSel)
-            {
-                case 0: out.color = bgPipeline.bgColor0 & 0x0F; break;
-                case 1: out.color = bgPipeline.bgColor1 & 0x0F; break;
-                case 2: out.color = bgPipeline.bgColor2 & 0x0F; break;
-                case 3: out.color = bgPipeline.bgColor3 & 0x0F; break;
-            }
-            out.opaque = false;
-        }
-
-        return out;
-    }
-
-    if (bgPipeline.bitmap || bgPipeline.ecm)
+    if (!bgPipeline.valid || bgPipeline.bitmap || bgPipeline.ecm)
         return out;
 
     if (!bgPipeline.multicolor)
@@ -2208,6 +2138,105 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
             break;
     }
 
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleBitmapPipelinePixel() const
+{
+    BackgroundPixel out {};
+    out.color = bgPipeline.bgColor0 & 0x0F;
+    out.opaque = false;
+
+    if (!bgPipeline.valid || !bgPipeline.bitmap || bgPipeline.ecm)
+        return out;
+
+    if (!bgPipeline.multicolor)
+    {
+        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+        const bool set = ((bgPipeline.bitmapByte >> bitIndex) & 0x01) != 0;
+
+        out.color = set ? (bgPipeline.fgColor & 0x0F)
+                        : (bgPipeline.bgColor0 & 0x0F);
+        out.opaque = set;
+        return out;
+    }
+
+    const int phase = bgPipeline.pixelPhase & 0x07;
+    const int pairIndex = phase / 2;
+    const int shift = 6 - (pairIndex * 2);
+    const uint8_t bits = static_cast<uint8_t>((bgPipeline.bitmapByte >> shift) & 0x03);
+
+    switch (bits)
+    {
+        case 0x00:
+            out.color = bgPipeline.bgColor0 & 0x0F;
+            out.opaque = false;
+            break;
+        case 0x01:
+            out.color = static_cast<uint8_t>((bgPipeline.screenByte >> 4) & 0x0F);
+            out.opaque = true;
+            break;
+        case 0x02:
+            out.color = static_cast<uint8_t>(bgPipeline.screenByte & 0x0F);
+            out.opaque = true;
+            break;
+        case 0x03:
+            out.color = bgPipeline.colorByte & 0x0F;
+            out.opaque = true;
+            break;
+    }
+
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleECMPipelinePixel() const
+{
+    BackgroundPixel out {};
+    out.color = bgPipeline.bgColor0 & 0x0F;
+    out.opaque = false;
+
+    if (!bgPipeline.valid || !bgPipeline.ecm)
+        return out;
+
+    const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+    const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
+
+    if (set)
+    {
+        out.color = bgPipeline.fgColor & 0x0F;
+        out.opaque = true;
+    }
+    else
+    {
+        out.color = bgPipeline.bgColor0 & 0x0F;
+        out.opaque = false;
+    }
+
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
+{
+    if (!bgPipeline.valid)
+    {
+        BackgroundPixel out {};
+        out.color = 0;
+        out.opaque = false;
+        return out;
+    }
+
+    if (bgPipeline.ecm)
+        return sampleECMPipelinePixel();
+
+    if (backgroundPipelineIsBitmapLike())
+        return sampleBitmapPipelinePixel();
+
+    if (backgroundPipelineIsTextLike())
+        return sampleTextPipelinePixel();
+
+    BackgroundPixel out {};
+    out.color = bgPipeline.bgColor0 & 0x0F;
+    out.opaque = false;
     return out;
 }
 
