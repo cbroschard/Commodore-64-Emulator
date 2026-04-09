@@ -542,6 +542,7 @@ class Vic
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
+        uint8_t fetchBackgroundPipelineTextRowBits() const;
 
         void resetBackgroundPipeline();
 

@@ -2005,6 +2005,23 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.multicolor = cell.multicolor;
     bgPipeline.bitmap = false;
     bgPipeline.ecm = false;
+
+    bgPipeline.rowBits = fetchBackgroundPipelineTextRowBits();
+}
+
+uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
+{
+    if (!bgPipeline.valid)
+        return 0;
+
+    const int raster = bgPipeline.raster;
+    const uint16_t charBase = getLatchedCHARBase(raster);
+
+    const uint16_t glyphAddr = static_cast<uint16_t>(
+        charBase + static_cast<uint16_t>(bgPipeline.charCode) * 8 + static_cast<uint16_t>(bgPipeline.yInChar & 0x07)
+    );
+
+    return mem ? mem->vicRead(glyphAddr, raster) : 0;
 }
 
 void Vic::resetBackgroundPipeline()
