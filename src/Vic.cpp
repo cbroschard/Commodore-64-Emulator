@@ -2037,6 +2037,44 @@ void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int
     bgPipeline.ecm = false;
 }
 
+void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col)
+{
+    bgPipeline.valid = true;
+
+    bgPipeline.raster = raster;
+    bgPipeline.col = col;
+    bgPipeline.displayCol = cell.displayCol;
+    bgPipeline.yInChar = cell.yInChar;
+    bgPipeline.pixelPhase = 0;
+
+    bgPipeline.charCode = cell.charIndex;
+    bgPipeline.rowBits = 0;
+
+    if (mem)
+    {
+        const uint16_t addr =
+            static_cast<uint16_t>(getLatchedCHARBase(raster) +
+                                  static_cast<uint16_t>(cell.charIndex) * 8);
+
+        bgPipeline.rowBits =
+            mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+    }
+
+    bgPipeline.bitmapByte = 0;
+    bgPipeline.screenByte = 0;
+    bgPipeline.colorByte = 0;
+
+    bgPipeline.fgColor  = static_cast<uint8_t>(cell.fgColor & 0x0F);
+    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    bgPipeline.bgColor1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+    bgPipeline.bgColor2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+    bgPipeline.bgColor3 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
+
+    bgPipeline.multicolor = false;
+    bgPipeline.bitmap = false;
+    bgPipeline.ecm = true;
+}
+
 uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
 {
     if (!bgPipeline.valid)
@@ -2097,6 +2135,32 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
                 out.color = bgPipeline.colorByte & 0x0F;
                 out.opaque = true;
                 break;
+        }
+
+        return out;
+    }
+
+    if (bgPipeline.ecm)
+    {
+        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+        const bool set = ((bgPipeline.rowBits >> bitIndex) & 0x01) != 0;
+
+        if (set)
+        {
+            out.color = bgPipeline.fgColor & 0x0F;
+            out.opaque = true;
+        }
+        else
+        {
+            const uint8_t bgSel = static_cast<uint8_t>((bgPipeline.screenByte >> 6) & 0x03);
+            switch (bgSel)
+            {
+                case 0: out.color = bgPipeline.bgColor0 & 0x0F; break;
+                case 1: out.color = bgPipeline.bgColor1 & 0x0F; break;
+                case 2: out.color = bgPipeline.bgColor2 & 0x0F; break;
+                case 3: out.color = bgPipeline.bgColor3 & 0x0F; break;
+            }
+            out.opaque = false;
         }
 
         return out;
@@ -2762,6 +2826,7 @@ void Vic::renderECMLine(int raster, int xScroll)
         if (!sampleECMCell(raster, xScroll, col, cell))
             continue;
 
+        loadBackgroundPipelineFromECMCell(cell, raster, col);
         drawECMCell(cell, raster, g.x0, g.x1);
     }
 }
