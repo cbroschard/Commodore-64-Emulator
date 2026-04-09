@@ -2718,8 +2718,35 @@ void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x
     }
 }
 
+void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1)
+{
+    (void)raster;
+
+    if (!cell.valid)
+        return;
+
+    const uint8_t rowBits = bgPipeline.bitmapByte;
+    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
+    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
+
+    updateOpenBus(rowBits);
+
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int bit = px - cell.px;
+        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
+
+        stampBackgroundPixel(px, cell.py, pixelOn ? fg : bg, pixelOn);
+    }
+}
+
 void Vic::renderBitmapLine(int raster, int xScroll)
 {
+    static constexpr bool kUsePipelineForStandardBitmap = true;
+
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -2731,7 +2758,11 @@ void Vic::renderBitmapLine(int raster, int xScroll)
             continue;
 
         loadBackgroundPipelineFromBitmapCell(cell, raster, col);
-        drawBitmapCell(cell, raster, g.x0, g.x1);
+
+        if (kUsePipelineForStandardBitmap)
+            drawBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
+        else
+            drawBitmapCell(cell, raster, g.x0, g.x1);
     }
 }
 
