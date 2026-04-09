@@ -2258,30 +2258,31 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
 
 void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1)
 {
-    (void)raster;
-
-    if (!cell.valid)
+    if (!cell.valid || !mem || cell.multicolor)
         return;
 
-    if (cell.multicolor)
-        return;
+    const uint16_t addr =
+        static_cast<uint16_t>(getCHARBase(raster) +
+                              static_cast<uint16_t>(cell.screenByte) * 8);
 
-    // Keep open-bus behavior tied to the row bits currently loaded into the pipeline.
-    updateOpenBus(bgPipeline.rowBits);
+    const uint8_t rowBits =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
 
-    rewindBackgroundPipelinePixelPhase();
+    updateOpenBus(rowBits);
 
     const int startPx = std::max(cell.px, x0);
     const int endPx   = std::min(cell.px + 8, x1);
 
-    for (int px = cell.px; px < cell.px + 8; ++px)
+    for (int px = startPx; px < endPx; ++px)
     {
-        const BackgroundPixel pixel = sampleBackgroundPipelinePixel();
+        const int col = px - cell.px;
+        const bool pixelOn = ((rowBits >> (7 - col)) & 0x01) != 0;
 
-        if (px >= startPx && px < endPx)
-            stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
+        const uint8_t color = pixelOn
+            ? static_cast<uint8_t>(cell.colorByte & 0x0F)
+            : static_cast<uint8_t>(cell.bgColor & 0x0F);
 
-        advanceBackgroundPipelinePixelPhase();
+        stampBackgroundPixel(px, cell.py, color, pixelOn);
     }
 }
 
