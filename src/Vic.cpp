@@ -2009,6 +2009,34 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.rowBits = fetchBackgroundPipelineTextRowBits();
 }
 
+void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col)
+{
+    bgPipeline.valid = true;
+
+    bgPipeline.raster = raster;
+    bgPipeline.col = col;
+    bgPipeline.displayCol = cell.displayCol;
+    bgPipeline.yInChar = cell.yInChar;
+    bgPipeline.pixelPhase = 0;
+
+    bgPipeline.charCode = 0;
+    bgPipeline.rowBits = 0;
+
+    bgPipeline.bitmapByte = cell.bitmapByte;
+    bgPipeline.screenByte = cell.screenByte;
+    bgPipeline.colorByte = cell.colorByte;
+
+    bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    bgPipeline.bgColor1 = 0;
+    bgPipeline.bgColor2 = 0;
+    bgPipeline.bgColor3 = 0;
+
+    bgPipeline.multicolor = false;
+    bgPipeline.bitmap = true;
+    bgPipeline.ecm = false;
+}
+
 uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
 {
     if (!bgPipeline.valid)
@@ -2032,6 +2060,17 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
 
     if (!bgPipeline.valid)
         return out;
+
+    if (bgPipeline.bitmap && !bgPipeline.multicolor)
+    {
+        const int bitIndex = 7 - (bgPipeline.pixelPhase & 0x07);
+        const bool set = ((bgPipeline.bitmapByte >> bitIndex) & 0x01) != 0;
+
+        out.color = set ? (bgPipeline.fgColor & 0x0F)
+                        : (bgPipeline.bgColor0 & 0x0F);
+        out.opaque = set;
+        return out;
+    }
 
     if (bgPipeline.bitmap || bgPipeline.ecm)
         return out;
@@ -2110,6 +2149,10 @@ std::array<Vic::BackgroundPixel, 8> Vic::sampleBackgroundPipelineTextRow() const
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;
+
+    bgPipeline.bitmapByte = 0;
+    bgPipeline.screenByte = 0;
+    bgPipeline.colorByte = 0;
 
     bgPipeline.raster = 0;
     bgPipeline.col = 0;

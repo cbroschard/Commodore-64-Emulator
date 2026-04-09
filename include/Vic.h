@@ -518,6 +518,10 @@ class Vic
         {
             bool valid = false;
 
+            uint8_t bitmapByte = 0;
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+
             int raster = 0;
             int col = 0;
             int displayCol = 0;
@@ -542,8 +546,10 @@ class Vic
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
+        void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
         uint8_t fetchBackgroundPipelineTextRowBits() const;
         BackgroundPixel sampleBackgroundPipelinePixel() const;
+
 
         void advanceBackgroundPipelinePixelPhase();
         void rewindBackgroundPipelinePixelPhase();
