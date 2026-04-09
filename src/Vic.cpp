@@ -2105,17 +2105,19 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
 
 uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
 {
-    if (!bgPipeline.valid)
+    if (!bgPipeline.valid || !mem)
         return 0;
 
     const int raster = bgPipeline.raster;
-    const uint16_t charBase = getLatchedCHARBase(raster);
+    const uint16_t charBase = getCHARBase(raster);
 
     const uint16_t glyphAddr = static_cast<uint16_t>(
-        charBase + static_cast<uint16_t>(bgPipeline.charCode) * 8 + static_cast<uint16_t>(bgPipeline.yInChar & 0x07)
+        charBase +
+        static_cast<uint16_t>(bgPipeline.charCode) * 8 +
+        static_cast<uint16_t>(bgPipeline.yInChar & 0x07)
     );
 
-    return mem ? mem->vicRead(glyphAddr, raster) : 0;
+    return mem->vicRead(glyphAddr, raster);
 }
 
 Vic::BackgroundPixel Vic::sampleTextPipelinePixel() const
