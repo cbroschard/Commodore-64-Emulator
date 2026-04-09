@@ -131,6 +131,9 @@ void Vic::reset()
     for (auto& line : spriteOpaqueLine) line.fill(0);
     for (auto& line : spriteColorLine)  line.fill(0);
 
+    // Background pipeline
+    resetBackgroundPipeline();
+
     // Default character mode
     currentMode = graphicsMode::standard;
 
@@ -1980,6 +1983,23 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
     return g;
 }
 
+void Vic::resetBackgroundPipeline()
+{
+    bgPipeline.valid = false;
+    bgPipeline.raster = 0;
+    bgPipeline.col = 0;
+    bgPipeline.pixelPhase = 0;
+    bgPipeline.pattern = 0;
+    bgPipeline.fgColor = 0;
+    bgPipeline.bgColor0 = 0;
+    bgPipeline.bgColor1 = 0;
+    bgPipeline.bgColor2 = 0;
+    bgPipeline.bgColor3 = 0;
+    bgPipeline.multicolor = false;
+    bgPipeline.bitmap = false;
+    bgPipeline.ecm = false;
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -2557,6 +2577,8 @@ void Vic::clearBackgroundLineBuffers()
 void Vic::generateBackgroundLine(int raster)
 {
     clearBackgroundLineBuffers();
+
+    resetBackgroundPipeline();
 
     const int screenY = fbY(raster);
     const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;

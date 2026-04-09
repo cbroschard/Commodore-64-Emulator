@@ -514,7 +514,31 @@ class Vic
             int x1 = 0;
         };
 
+        struct BackgroundPipelineState
+        {
+            bool valid = false;
+
+            int raster = 0;
+            int col = 0;
+            int pixelPhase = 0;
+
+            uint8_t pattern = 0;
+
+            uint8_t fgColor = 0;
+            uint8_t bgColor0 = 0;
+            uint8_t bgColor1 = 0;
+            uint8_t bgColor2 = 0;
+            uint8_t bgColor3 = 0;
+
+            bool multicolor = false;
+            bool bitmap = false;
+            bool ecm = false;
+        };
+
+        BackgroundPipelineState bgPipeline;
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
+
+        void resetBackgroundPipeline();
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
