@@ -2049,6 +2049,35 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
     return out;
 }
 
+void Vic::advanceBackgroundPipelinePixelPhase()
+{
+    bgPipeline.pixelPhase = (bgPipeline.pixelPhase + 1) & 0x07;
+}
+
+void Vic::rewindBackgroundPipelinePixelPhase()
+{
+    bgPipeline.pixelPhase = 0;
+}
+
+std::array<Vic::BackgroundPixel, 8> Vic::sampleBackgroundPipelineTextRow() const
+{
+    std::array<BackgroundPixel, 8> out {};
+
+    if (!bgPipeline.valid)
+        return out;
+
+    BackgroundPipelineState saved = bgPipeline;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        out[i] = sampleBackgroundPipelinePixel();
+        const_cast<Vic*>(this)->advanceBackgroundPipelinePixelPhase();
+    }
+
+    const_cast<Vic*>(this)->bgPipeline = saved;
+    return out;
+}
+
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;

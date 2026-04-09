@@ -545,6 +545,10 @@ class Vic
         uint8_t fetchBackgroundPipelineTextRowBits() const;
         BackgroundPixel sampleBackgroundPipelinePixel() const;
 
+        void advanceBackgroundPipelinePixelPhase();
+        void rewindBackgroundPipelinePixelPhase();
+        std::array<BackgroundPixel, 8> sampleBackgroundPipelineTextRow() const;
+
         void resetBackgroundPipeline();
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
