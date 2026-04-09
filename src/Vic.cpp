@@ -2509,6 +2509,32 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
     }
 }
 
+void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
+{
+    (void)raster;
+
+    if (!cell.valid || cell.multicolor)
+        return;
+
+    // Keep open-bus aligned with the row bits already loaded into the shadow pipeline.
+    updateOpenBus(bgPipeline.rowBits);
+
+    rewindBackgroundPipelinePixelPhase();
+
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = cell.px; px < cell.px + 8; ++px)
+    {
+        const BackgroundPixel pixel = sampleBackgroundPipelinePixel();
+
+        if (px >= startPx && px < endPx)
+            stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
+
+        advanceBackgroundPipelinePixelPhase();
+    }
+}
+
 void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
 {
     if (!cell.valid || !mem || !cell.multicolor)
