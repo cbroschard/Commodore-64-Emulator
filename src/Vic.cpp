@@ -2010,19 +2010,22 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;
+
     bgPipeline.raster = 0;
     bgPipeline.col = 0;
     bgPipeline.displayCol = 0;
     bgPipeline.yInChar = 0;
+    bgPipeline.pixelPhase = 0;
+
     bgPipeline.charCode = 0;
     bgPipeline.rowBits = 0;
-    bgPipeline.pixelPhase = 0;
-    bgPipeline.pattern = 0;
+
     bgPipeline.fgColor = 0;
     bgPipeline.bgColor0 = 0;
     bgPipeline.bgColor1 = 0;
     bgPipeline.bgColor2 = 0;
     bgPipeline.bgColor3 = 0;
+
     bgPipeline.multicolor = false;
     bgPipeline.bitmap = false;
     bgPipeline.ecm = false;
