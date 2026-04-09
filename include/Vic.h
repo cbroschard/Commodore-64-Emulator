@@ -520,9 +520,12 @@ class Vic
 
             int raster = 0;
             int col = 0;
+            int displayCol = 0;
+            int yInChar = 0;
             int pixelPhase = 0;
 
-            uint8_t pattern = 0;
+            uint8_t charCode = 0;
+            uint8_t rowBits = 0;
 
             uint8_t fgColor = 0;
             uint8_t bgColor0 = 0;

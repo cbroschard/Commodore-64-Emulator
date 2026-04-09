@@ -1989,9 +1989,12 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
 
     bgPipeline.raster = raster;
     bgPipeline.col = col;
+    bgPipeline.displayCol = cell.displayCol;
+    bgPipeline.yInChar = cell.yInChar;
     bgPipeline.pixelPhase = 0;
 
-    bgPipeline.pattern = cell.screenByte;
+    bgPipeline.charCode = cell.screenByte;
+    bgPipeline.rowBits = 0;
 
     bgPipeline.fgColor  = static_cast<uint8_t>(cell.colorByte & 0x0F);
     bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
@@ -2009,6 +2012,10 @@ void Vic::resetBackgroundPipeline()
     bgPipeline.valid = false;
     bgPipeline.raster = 0;
     bgPipeline.col = 0;
+    bgPipeline.displayCol = 0;
+    bgPipeline.yInChar = 0;
+    bgPipeline.charCode = 0;
+    bgPipeline.rowBits = 0;
     bgPipeline.pixelPhase = 0;
     bgPipeline.pattern = 0;
     bgPipeline.fgColor = 0;
