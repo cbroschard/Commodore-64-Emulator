@@ -2026,13 +2026,13 @@ void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int
     bgPipeline.screenByte = cell.screenByte;
     bgPipeline.colorByte = cell.colorByte;
 
+    bgPipeline.bgColor0 = registers.backgroundColor0 & 0x0F;
     bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-    bgPipeline.bgColor1 = 0;
-    bgPipeline.bgColor2 = 0;
+    bgPipeline.bgColor1 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    bgPipeline.bgColor2 = static_cast<uint8_t>(cell.colorByte & 0x0F);
     bgPipeline.bgColor3 = 0;
 
-    bgPipeline.multicolor = false;
+    bgPipeline.multicolor = (currentMode == graphicsMode::multiColorBitmap);
     bgPipeline.bitmap = true;
     bgPipeline.ecm = false;
 }
@@ -2069,6 +2069,36 @@ Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
         out.color = set ? (bgPipeline.fgColor & 0x0F)
                         : (bgPipeline.bgColor0 & 0x0F);
         out.opaque = set;
+        return out;
+    }
+
+    if (bgPipeline.bitmap && bgPipeline.multicolor)
+    {
+        const int phase = bgPipeline.pixelPhase & 0x07;
+        const int pairIndex = phase / 2;
+        const int shift = 6 - (pairIndex * 2);
+        const uint8_t bits = static_cast<uint8_t>((bgPipeline.bitmapByte >> shift) & 0x03);
+
+        switch (bits)
+        {
+            case 0x00:
+                out.color = bgPipeline.bgColor0 & 0x0F;
+                out.opaque = false;
+                break;
+            case 0x01:
+                out.color = static_cast<uint8_t>((bgPipeline.screenByte >> 4) & 0x0F);
+                out.opaque = true;
+                break;
+            case 0x02:
+                out.color = static_cast<uint8_t>(bgPipeline.screenByte & 0x0F);
+                out.opaque = true;
+                break;
+            case 0x03:
+                out.color = bgPipeline.colorByte & 0x0F;
+                out.opaque = true;
+                break;
+        }
+
         return out;
     }
 
