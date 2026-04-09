@@ -2516,22 +2516,21 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
     if (!cell.valid || cell.multicolor)
         return;
 
-    // Keep open-bus aligned with the row bits already loaded into the shadow pipeline.
-    updateOpenBus(bgPipeline.rowBits);
+    const uint8_t rowBits = bgPipeline.rowBits;
+    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
+    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
 
-    rewindBackgroundPipelinePixelPhase();
+    updateOpenBus(rowBits);
 
     const int startPx = std::max(cell.px, x0);
     const int endPx   = std::min(cell.px + 8, x1);
 
-    for (int px = cell.px; px < cell.px + 8; ++px)
+    for (int px = startPx; px < endPx; ++px)
     {
-        const BackgroundPixel pixel = sampleBackgroundPipelinePixel();
+        const int bit = px - cell.px;
+        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
 
-        if (px >= startPx && px < endPx)
-            stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
-
-        advanceBackgroundPipelinePixelPhase();
+        stampBackgroundPixel(px, cell.py, pixelOn ? fg : bg, pixelOn);
     }
 }
 
@@ -2588,6 +2587,8 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
 
 void Vic::renderTextLine(int raster, int xScroll)
 {
+    static constexpr bool kUsePipelineForStandardText = true;
+
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -2601,9 +2602,16 @@ void Vic::renderTextLine(int raster, int xScroll)
         loadBackgroundPipelineFromTextCell(cell, raster, col);
 
         if (!cell.multicolor)
-            drawStandardTextCell(cell, raster, g.x0, g.x1);
+        {
+            if (kUsePipelineForStandardText)
+                drawStandardTextCellViaPipeline(cell, raster, g.x0, g.x1);
+            else
+                drawStandardTextCell(cell, raster, g.x0, g.x1);
+        }
         else
+        {
             drawMulticolorTextCell(cell, raster, g.x0, g.x1);
+        }
     }
 }
 
