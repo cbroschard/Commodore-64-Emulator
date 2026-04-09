@@ -550,6 +550,7 @@ class Vic
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
+        void loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col);
         uint8_t fetchBackgroundPipelineTextRowBits() const;
         BackgroundPixel sampleBackgroundPipelinePixel() const;

@@ -2037,6 +2037,34 @@ void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int
     bgPipeline.ecm = false;
 }
 
+void Vic::loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col)
+{
+    bgPipeline.valid = true;
+
+    bgPipeline.raster = raster;
+    bgPipeline.col = col;
+    bgPipeline.displayCol = cell.displayCol;
+    bgPipeline.yInChar = cell.yInChar;
+    bgPipeline.pixelPhase = 0;
+
+    bgPipeline.charCode = 0;
+    bgPipeline.rowBits = 0;
+
+    bgPipeline.bitmapByte = cell.bitmapByte;
+    bgPipeline.screenByte = cell.screenByte;
+    bgPipeline.colorByte = cell.colorByte;
+
+    bgPipeline.bgColor0 = registers.backgroundColor0 & 0x0F;
+    bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    bgPipeline.bgColor1 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    bgPipeline.bgColor2 = static_cast<uint8_t>(cell.colorByte & 0x0F);
+    bgPipeline.bgColor3 = 0;
+
+    bgPipeline.multicolor = true;
+    bgPipeline.bitmap = true;
+    bgPipeline.ecm = false;
+}
+
 void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col)
 {
     bgPipeline.valid = true;
@@ -2749,6 +2777,7 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
         if (!sampleMultiColorBitmapCell(raster, xScroll, col, cell))
             continue;
 
+        loadBackgroundPipelineFromMultiColorBitmapCell(cell, raster, col);
         drawMultiColorBitmapCell(cell, raster, g.x0, g.x1);
     }
 }
