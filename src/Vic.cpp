@@ -3057,8 +3057,35 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
     }
 }
 
+void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1)
+{
+    (void)raster;
+
+    if (!cell.valid)
+        return;
+
+    const uint8_t rowBits = bgPipeline.rowBits;
+    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
+    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
+
+    updateOpenBus(rowBits);
+
+    const int startPx = std::max(cell.px, x0);
+    const int endPx   = std::min(cell.px + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int bit = px - cell.px;
+        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
+
+        stampBackgroundPixel(px, cell.py, pixelOn ? fg : bg, pixelOn);
+    }
+}
+
 void Vic::renderECMLine(int raster, int xScroll)
 {
+    static constexpr bool kUsePipelineForECM = true;
+
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -3070,7 +3097,11 @@ void Vic::renderECMLine(int raster, int xScroll)
             continue;
 
         loadBackgroundPipelineFromECMCell(cell, raster, col);
-        drawECMCell(cell, raster, g.x0, g.x1);
+
+        if (kUsePipelineForECM)
+            drawECMCellViaPipeline(cell, raster, g.x0, g.x1);
+        else
+            drawECMCell(cell, raster, g.x0, g.x1);
     }
 }
 

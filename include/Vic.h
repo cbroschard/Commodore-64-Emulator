@@ -569,6 +569,7 @@ class Vic
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
         void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
+        void drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1);
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
         BackgroundPixel sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const;
