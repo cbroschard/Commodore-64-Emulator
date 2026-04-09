@@ -2484,6 +2484,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
         if (!sampleBitmapCell(raster, xScroll, col, cell))
             continue;
 
+        loadBackgroundPipelineFromBitmapCell(cell, raster, col);
         drawBitmapCell(cell, raster, g.x0, g.x1);
     }
 }
