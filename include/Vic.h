@@ -597,6 +597,9 @@ class Vic
                                        int x0, int x1, int& phase, int pixelCount);
 
         void stampECMRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
+        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
+        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
+
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
