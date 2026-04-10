@@ -2858,8 +2858,8 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
 {
     bgPipeline.pixelPhase = 0;
 
-    drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 4);
-    drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 4);
+    for (int i = 0; i < 8; ++i)
+        drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 1);
 }
 
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
