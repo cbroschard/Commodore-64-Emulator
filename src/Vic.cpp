@@ -134,6 +134,12 @@ void Vic::reset()
     // Background pipeline
     resetBackgroundPipeline();
 
+    bgPipelineConfig.standardText = true;
+    bgPipelineConfig.multicolorText = true;
+    bgPipelineConfig.standardBitmap = true;
+    bgPipelineConfig.multicolorBitmap = true;
+    bgPipelineConfig.ecm = true;
+
     // Default character mode
     currentMode = graphicsMode::standard;
 
@@ -2644,9 +2650,6 @@ void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int rast
 
 void Vic::renderTextLine(int raster, int xScroll)
 {
-    static constexpr bool kUsePipelineForStandardText = true;
-    static constexpr bool kUsePipelineForMulticolorText = true;
-
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -2661,14 +2664,14 @@ void Vic::renderTextLine(int raster, int xScroll)
 
         if (!cell.multicolor)
         {
-            if (kUsePipelineForStandardText)
+            if (bgPipelineConfig.standardText)
                 drawStandardTextCellViaPipeline(cell, raster, g.x0, g.x1);
             else
                 drawStandardTextCell(cell, raster, g.x0, g.x1);
         }
         else
         {
-            if (kUsePipelineForMulticolorText)
+            if (bgPipelineConfig.multicolorText)
                 drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
             else
                 drawMulticolorTextCell(cell, raster, g.x0, g.x1);
@@ -2745,8 +2748,6 @@ void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, in
 
 void Vic::renderBitmapLine(int raster, int xScroll)
 {
-    static constexpr bool kUsePipelineForStandardBitmap = true;
-
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -2759,7 +2760,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
 
         loadBackgroundPipelineFromBitmapCell(cell, raster, col);
 
-        if (kUsePipelineForStandardBitmap)
+        if (bgPipelineConfig.standardBitmap)
             drawBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
         else
             drawBitmapCell(cell, raster, g.x0, g.x1);
@@ -2946,8 +2947,6 @@ void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& 
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 {
-    static constexpr bool kUsePipelineForMulticolorBitmap = true;
-
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -2960,7 +2959,7 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
 
         loadBackgroundPipelineFromMultiColorBitmapCell(cell, raster, col);
 
-        if (kUsePipelineForMulticolorBitmap)
+        if (bgPipelineConfig.multicolorBitmap)
             drawMultiColorBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
         else
             drawMultiColorBitmapCell(cell, raster, g.x0, g.x1);
@@ -3084,8 +3083,6 @@ void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, 
 
 void Vic::renderECMLine(int raster, int xScroll)
 {
-    static constexpr bool kUsePipelineForECM = true;
-
     const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
     if (!g.valid)
         return;
@@ -3098,7 +3095,7 @@ void Vic::renderECMLine(int raster, int xScroll)
 
         loadBackgroundPipelineFromECMCell(cell, raster, col);
 
-        if (kUsePipelineForECM)
+        if (bgPipelineConfig.ecm)
             drawECMCellViaPipeline(cell, raster, g.x0, g.x1);
         else
             drawECMCell(cell, raster, g.x0, g.x1);

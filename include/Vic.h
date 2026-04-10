@@ -542,10 +542,21 @@ class Vic
             bool ecm = false;
         };
 
+        struct BackgroundPipelineConfig
+        {
+            bool standardText = true;
+            bool multicolorText = true;
+            bool standardBitmap = true;
+            bool multicolorBitmap = true;
+            bool ecm = true;
+        };
+
         inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
         inline bool backgroundPipelineIsBitmapLike() const { return bgPipeline.valid && bgPipeline.bitmap; }
 
         BackgroundPipelineState bgPipeline;
+        BackgroundPipelineConfig bgPipelineConfig;
+
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
