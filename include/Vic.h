@@ -551,6 +551,21 @@ class Vic
             bool ecm = true;
         };
 
+        struct ActiveBackgroundPixelState
+        {
+            bool valid = false;
+
+            uint8_t rowBits = 0;
+            uint8_t fg = 0;
+            uint8_t bg0 = 0;
+
+            int pxBase = 0;
+            int py = 0;
+            int phase = 0;
+        };
+
+        ActiveBackgroundPixelState activeBgPixel;
+
         inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
         inline bool backgroundPipelineIsBitmapLike() const { return bgPipeline.valid && bgPipeline.bitmap; }
 
@@ -558,6 +573,10 @@ class Vic
         BackgroundPipelineConfig bgPipelineConfig;
 
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
+
+        void resetActiveBackgroundPixelState();
+        void loadActiveStandardTextPixelState(const TextCellSample& cell, int raster);
+        BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);

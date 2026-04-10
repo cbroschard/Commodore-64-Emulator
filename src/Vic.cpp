@@ -165,6 +165,8 @@ void Vic::reset()
     borderMaskLine.fill(1);
     finalColorLine.fill(0);
 
+    resetActiveBackgroundPixelState();
+
     // Fill in DD00
     uint16_t currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
     std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
@@ -1989,6 +1991,63 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
     return g;
 }
 
+void Vic::resetActiveBackgroundPixelState()
+{
+    activeBgPixel.valid = false;
+    activeBgPixel.rowBits = 0;
+    activeBgPixel.fg = 0;
+    activeBgPixel.bg0 = 0;
+    activeBgPixel.pxBase = 0;
+    activeBgPixel.py = 0;
+    activeBgPixel.phase = 0;
+}
+
+void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raster)
+{
+    activeBgPixel.valid = false;
+
+    if (!cell.valid || cell.multicolor || !mem)
+        return;
+
+    const uint16_t addr =
+        static_cast<uint16_t>(getCHARBase(raster) +
+                              static_cast<uint16_t>(cell.screenByte) * 8);
+
+    const uint8_t rowBits =
+        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
+    activeBgPixel.valid = true;
+    activeBgPixel.rowBits = rowBits;
+    activeBgPixel.fg = static_cast<uint8_t>(cell.colorByte & 0x0F);
+    activeBgPixel.bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    activeBgPixel.pxBase = cell.px;
+    activeBgPixel.py = cell.py;
+    activeBgPixel.phase = 0;
+}
+
+Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
+{
+    BackgroundPixel out {};
+    out.color = activeBgPixel.bg0 & 0x0F;
+    out.opaque = false;
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    const int phase = activeBgPixel.phase;
+    if (phase < 0 || phase >= 8)
+        return out;
+
+    const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
+
+    out.color = pixelOn ? (activeBgPixel.fg & 0x0F)
+                        : (activeBgPixel.bg0 & 0x0F);
+    out.opaque = pixelOn;
+
+    activeBgPixel.phase++;
+    return out;
+}
+
 void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col)
 {
     bgPipeline.valid = true;
@@ -3331,7 +3390,7 @@ void Vic::clearBackgroundLineBuffers()
 void Vic::generateBackgroundLine(int raster)
 {
     clearBackgroundLineBuffers();
-
+    resetActiveBackgroundPixelState();
     resetBackgroundPipeline();
 
     const int screenY = fbY(raster);
