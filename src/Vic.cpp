@@ -2495,6 +2495,38 @@ void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_
     }
 }
 
+void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase)
+{
+    const int begin = std::max(0, startPhase);
+    const int end   = std::min(8, endPhase);
+
+    if (begin >= end)
+        return;
+
+    for (int phase = begin; phase < end; ++phase)
+    {
+        const int px = pxBase + phase;
+        if (px < x0 || px >= x1)
+            continue;
+
+        const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
+        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+    }
+}
+
+void Vic::stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount)
+{
+    if (pixelCount <= 0)
+        return;
+
+    const int startPhase = std::clamp(phase, 0, 8);
+    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
+
+    stampStandardBitmapRowBitsFromPhase(pxBase, py, rowBits, fg, bg, x0, x1, startPhase, endPhase);
+
+    phase = endPhase;
+}
+
 void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
                                        uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
                                        int x0, int x1)
@@ -2867,7 +2899,8 @@ void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, in
 
     updateOpenBus(rowBits);
 
-    stampStandardBitmapRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
+    int phase = 0;
+    stampStandardBitmapPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, 8);
 }
 
 void Vic::renderBitmapLine(int raster, int xScroll)
