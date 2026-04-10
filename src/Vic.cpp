@@ -2921,6 +2921,28 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
         drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 1);
 }
 
+void Vic::drawStandardTextCellViaActivePixelState(const TextCellSample& cell, int raster, int x0, int x1)
+{
+    if (!cell.valid || cell.multicolor)
+        return;
+
+    loadActiveStandardTextPixelState(cell, raster);
+
+    if (!activeBgPixel.valid)
+        return;
+
+    updateOpenBus(activeBgPixel.rowBits);
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const int px = cell.px + i;
+        const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
+
+        if (px >= x0 && px < x1)
+            stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
+    }
+}
+
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
 {
     (void)raster;
@@ -2998,9 +3020,18 @@ void Vic::renderTextLine(int raster, int xScroll)
         if (!cell.multicolor)
         {
             if (bgPipelineConfig.standardText)
-                drawStandardTextCellViaPipeline(cell, raster, g.x0, g.x1);
+            {
+                static constexpr bool kUseActiveStandardTextPixelState = true;
+
+                if (kUseActiveStandardTextPixelState)
+                    drawStandardTextCellViaActivePixelState(cell, raster, g.x0, g.x1);
+                else
+                    drawStandardTextCellViaPipeline(cell, raster, g.x0, g.x1);
+            }
             else
+            {
                 drawStandardTextCell(cell, raster, g.x0, g.x1);
+            }
         }
         else
         {
