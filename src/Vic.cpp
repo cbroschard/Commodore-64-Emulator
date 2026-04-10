@@ -2568,6 +2568,71 @@ void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
     }
 }
 
+void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
+                                                uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                                int x0, int x1,
+                                                int startPhase, int endPhase)
+{
+    const int begin = std::max(0, startPhase);
+    const int end   = std::min(8, endPhase);
+
+    if (begin >= end)
+        return;
+
+    for (int phase = begin; phase < end; ++phase)
+    {
+        const int px = pxBase + phase;
+        if (px < x0 || px >= x1)
+            continue;
+
+        const int pairIndex = phase >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = c00 & 0x0F;
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = c00 & 0x0F;
+                opaque = false;
+                break;
+            case 0x01:
+                color = c01 & 0x0F;
+                opaque = true;
+                break;
+            case 0x02:
+                color = c10 & 0x0F;
+                opaque = true;
+                break;
+            case 0x03:
+                color = c11 & 0x0F;
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, py, color, opaque);
+    }
+}
+
+void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits,
+                                            uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                            int x0, int x1,
+                                            int& phase, int pixelCount)
+{
+    if (pixelCount <= 0)
+        return;
+
+    const int startPhase = std::clamp(phase, 0, 8);
+    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
+
+    stampMulticolorBitmapRowBitsFromPhase(pxBase, py, rowBits, c00, c01, c10, c11,
+                                          x0, x1, startPhase, endPhase);
+
+    phase = endPhase;
+}
+
 void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
                           uint8_t fg, uint8_t bg, int x0, int x1)
 {
@@ -3063,7 +3128,9 @@ void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& 
 
     updateOpenBus(rowBits);
 
-    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits, c00, c01, c10, c11, x0, x1);
+    int phase = 0;
+    stampMulticolorBitmapPipelineSpan(cell.px, cell.py, rowBits, c00, c01, c10, c11,
+                                      x0, x1, phase, 8);
 }
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)

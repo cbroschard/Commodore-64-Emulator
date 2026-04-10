@@ -591,6 +591,11 @@ class Vic
         void stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
 
         void stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11, int x0, int x1);
+        void stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                           int x0, int x1, int startPhase, int endPhase);
+        void stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                       int x0, int x1, int& phase, int pixelCount);
+
         void stampECMRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
