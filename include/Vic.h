@@ -572,7 +572,7 @@ class Vic
 
         void advanceBackgroundPipelinePixelPhase();
         void rewindBackgroundPipelinePixelPhase();
-        std::array<BackgroundPixel, 8> sampleBackgroundPipelineTextRow() const;
+        std::array<BackgroundPixel, 8> sampleBackgroundPipelineRow() const;
 
         void resetBackgroundPipeline();
 

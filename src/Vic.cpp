@@ -2286,7 +2286,7 @@ void Vic::rewindBackgroundPipelinePixelPhase()
     bgPipeline.pixelPhase = 0;
 }
 
-std::array<Vic::BackgroundPixel, 8> Vic::sampleBackgroundPipelineTextRow() const
+std::array<Vic::BackgroundPixel, 8> Vic::sampleBackgroundPipelineRow() const
 {
     std::array<BackgroundPixel, 8> out {};
 
