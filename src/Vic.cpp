@@ -2347,6 +2347,47 @@ void Vic::stampStandardTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t 
     }
 }
 
+void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
+                                     uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
+                                     int x0, int x1)
+{
+    const int startPx = std::max(pxBase, x0);
+    const int endPx   = std::min(pxBase + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int localX = px - pxBase;
+        const int pairIndex = localX >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = bg0 & 0x0F;
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = bg0 & 0x0F;
+                opaque = false;
+                break;
+            case 0x01:
+                color = bg1 & 0x0F;
+                opaque = true;
+                break;
+            case 0x02:
+                color = bg2 & 0x0F;
+                opaque = true;
+                break;
+            case 0x03:
+                color = cellColor & 0x0F;
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, py, color, opaque);
+    }
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -2551,41 +2592,12 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
 
     updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
+    const uint8_t bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    const uint8_t bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+    const uint8_t bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+    const uint8_t cellColor = static_cast<uint8_t>(cell.colorByte & 0x07);
 
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int localX = px - cell.px;
-        const int pairIndex = localX >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = static_cast<uint8_t>(cell.bgColor & 0x0F);
-        bool opaque = false;
-
-        switch (bits)
-        {
-            case 0x00:
-                color = static_cast<uint8_t>(cell.bgColor & 0x0F);
-                opaque = false;
-                break;
-            case 0x01:
-                color = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-                opaque = true;
-                break;
-            case 0x02:
-                color = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-                opaque = true;
-                break;
-            case 0x03:
-                color = static_cast<uint8_t>(cell.colorByte & 0x07);
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixel(px, cell.py, color, opaque);
-    }
+    stampMulticolorTextRowBits(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1);
 }
 
 void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
@@ -2596,51 +2608,14 @@ void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int rast
         return;
 
     const uint8_t rowBits = bgPipeline.rowBits;
-
     const uint8_t bg0 = bgPipeline.bgColor0 & 0x0F;
     const uint8_t bg1 = bgPipeline.bgColor1 & 0x0F;
     const uint8_t bg2 = bgPipeline.bgColor2 & 0x0F;
-
-    // In multicolor text, the cell color is only 3 bits.
     const uint8_t cellColor = static_cast<uint8_t>(bgPipeline.fgColor & 0x07);
 
     updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int localX = px - cell.px;
-        const int pairIndex = localX >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = bg0;
-        bool opaque = false;
-
-        switch (bits)
-        {
-            case 0x00:
-                color = bg0;
-                opaque = false;
-                break;
-            case 0x01:
-                color = bg1;
-                opaque = true;
-                break;
-            case 0x02:
-                color = bg2;
-                opaque = true;
-                break;
-            case 0x03:
-                color = cellColor;
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixel(px, cell.py, color, opaque);
-    }
+    stampMulticolorTextRowBits(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1);
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
