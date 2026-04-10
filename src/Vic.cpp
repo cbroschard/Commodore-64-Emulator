@@ -2420,8 +2420,68 @@ void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
     }
 }
 
-void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits,
-                                     uint8_t fg, uint8_t bg, int x0, int x1)
+void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
+                                              int x0, int x1, int startPhase, int endPhase)
+{
+    const int begin = std::max(0, startPhase);
+    const int end   = std::min(8, endPhase);
+
+    if (begin >= end)
+        return;
+
+    for (int phase = begin; phase < end; ++phase)
+    {
+        const int px = pxBase + phase;
+        if (px < x0 || px >= x1)
+            continue;
+
+        const int pairIndex = phase >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = bg0 & 0x0F;
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = bg0 & 0x0F;
+                opaque = false;
+                break;
+            case 0x01:
+                color = bg1 & 0x0F;
+                opaque = true;
+                break;
+            case 0x02:
+                color = bg2 & 0x0F;
+                opaque = true;
+                break;
+            case 0x03:
+                color = cellColor & 0x0F;
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, py, color, opaque);
+    }
+}
+
+void Vic::stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
+                                          int x0, int x1, int& phase, int pixelCount)
+{
+    if (pixelCount <= 0)
+        return;
+
+    const int startPhase = std::clamp(phase, 0, 8);
+    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
+
+    stampMulticolorTextRowBitsFromPhase(pxBase, py, rowBits, bg0, bg1, bg2, cellColor,
+                                        x0, x1, startPhase, endPhase);
+
+    phase = endPhase;
+}
+
+void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1)
 {
     const int startPx = std::max(pxBase, x0);
     const int endPx   = std::min(pxBase + 8, x1);
@@ -2719,7 +2779,9 @@ void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int rast
 
     updateOpenBus(rowBits);
 
-    stampMulticolorTextRowBits(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1);
+    int phase = 0;
+    stampMulticolorTextPipelineSpan(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor,
+                                    x0, x1, phase, 8);
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
