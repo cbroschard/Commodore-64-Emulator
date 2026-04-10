@@ -2403,6 +2403,47 @@ void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits,
     }
 }
 
+void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
+                                       uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                       int x0, int x1)
+{
+    const int startPx = std::max(pxBase, x0);
+    const int endPx   = std::min(pxBase + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int localX = px - pxBase;
+        const int pairIndex = localX >> 1;
+        const int shift = 6 - pairIndex * 2;
+        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
+
+        uint8_t color = c00 & 0x0F;
+        bool opaque = false;
+
+        switch (bits)
+        {
+            case 0x00:
+                color = c00 & 0x0F;
+                opaque = false;
+                break;
+            case 0x01:
+                color = c01 & 0x0F;
+                opaque = true;
+                break;
+            case 0x02:
+                color = c10 & 0x0F;
+                opaque = true;
+                break;
+            case 0x03:
+                color = c11 & 0x0F;
+                opaque = true;
+                break;
+        }
+
+        stampBackgroundPixel(px, py, color, opaque);
+    }
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -2853,16 +2894,15 @@ void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int r
     if (!cell.valid)
         return;
 
-    updateOpenBus(cell.bitmapByte);
+    const uint8_t rowBits = cell.bitmapByte;
+    const uint8_t c00 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const uint8_t c01 = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    const uint8_t c10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    const uint8_t c11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
+    updateOpenBus(rowBits);
 
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const BackgroundPixel pixel = sampleMultiColorBitmapPixel(cell, px);
-        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
-    }
+    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits, c00, c01, c10, c11, x0, x1);
 }
 
 void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)
@@ -2873,49 +2913,14 @@ void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& 
         return;
 
     const uint8_t rowBits = bgPipeline.bitmapByte;
-
-    const uint8_t bg0 = bgPipeline.bgColor0 & 0x0F;
+    const uint8_t c00 = bgPipeline.bgColor0 & 0x0F;
     const uint8_t c01 = static_cast<uint8_t>((bgPipeline.screenByte >> 4) & 0x0F);
     const uint8_t c10 = static_cast<uint8_t>(bgPipeline.screenByte & 0x0F);
     const uint8_t c11 = bgPipeline.colorByte & 0x0F;
 
     updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int localX = px - cell.px;
-        const int pairIndex = localX >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = bg0;
-        bool opaque = false;
-
-        switch (bits)
-        {
-            case 0x00:
-                color = bg0;
-                opaque = false;
-                break;
-            case 0x01:
-                color = c01;
-                opaque = true;
-                break;
-            case 0x02:
-                color = c10;
-                opaque = true;
-                break;
-            case 0x03:
-                color = c11;
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixel(px, cell.py, color, opaque);
-    }
+    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits, c00, c01, c10, c11, x0, x1);
 }
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)

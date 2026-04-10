@@ -579,6 +579,7 @@ class Vic
         void stampStandardTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
         void stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor, int x0, int x1);
         void stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
+        void stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11, int x0, int x1);
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
