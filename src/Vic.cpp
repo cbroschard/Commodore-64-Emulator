@@ -2923,10 +2923,8 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
 
 void Vic::drawStandardTextCellViaActivePixelState(const TextCellSample& cell, int raster, int x0, int x1)
 {
-    drawStandardTextCellViaActivePixelStateBudgeted(cell, raster, x0, x1, 1, true);
-
-    for (int i = 0; i < 7; ++i)
-        drawStandardTextCellViaActivePixelStateBudgeted(cell, raster, x0, x1, 1, false);
+    loadActiveStandardTextPixelState(cell, raster);
+    emitActiveStandardTextPixels(x0, x1, 8);
 }
 
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
@@ -3506,6 +3504,26 @@ void Vic::emitRasterPixel(int raster, int px)
 
     const int screenY = fbY(raster);
     IO_adapter->setPixel(px, screenY, produceRasterPixel(raster, px));
+}
+
+void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
+{
+    if (!activeBgPixel.valid || pixelBudget <= 0)
+        return;
+
+    updateOpenBus(activeBgPixel.rowBits);
+
+    for (int i = 0; i < pixelBudget; ++i)
+    {
+        if (activeBgPixel.phase >= 8)
+            break;
+
+        const int px = activeBgPixel.pxBase + activeBgPixel.phase;
+        const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
+
+        if (px >= x0 && px < x1)
+            stampBackgroundPixel(px, activeBgPixel.py, pixel.color, pixel.opaque);
+    }
 }
 
 int Vic::rasterVisibleStartX(int raster) const
