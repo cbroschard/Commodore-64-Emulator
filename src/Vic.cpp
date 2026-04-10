@@ -2856,9 +2856,14 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
 
 void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
 {
+    drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 8);
+}
+
+void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
+{
     (void)raster;
 
-    if (!cell.valid || cell.multicolor)
+    if (!cell.valid || cell.multicolor || pixelBudget <= 0)
         return;
 
     const uint8_t rowBits = bgPipeline.rowBits;
@@ -2868,7 +2873,7 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
     updateOpenBus(rowBits);
 
     int phase = 0;
-    stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, 8);
+    stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, pixelBudget);
 }
 
 void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
