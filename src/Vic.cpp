@@ -2856,6 +2856,7 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
 
 void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
 {
+    bgPipeline.pixelPhase = 0;
     drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 8);
 }
 
@@ -2872,8 +2873,9 @@ void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, in
 
     updateOpenBus(rowBits);
 
-    int phase = 0;
+    int phase = std::clamp(bgPipeline.pixelPhase, 0, 8);
     stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, pixelBudget);
+    bgPipeline.pixelPhase = phase;
 }
 
 void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
