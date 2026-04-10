@@ -642,6 +642,7 @@ class Vic
         void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);
         void drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
         void drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget);
+        void drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget, bool reloadState);
         void drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1);
         void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
