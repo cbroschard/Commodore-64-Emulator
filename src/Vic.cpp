@@ -2444,6 +2444,21 @@ void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
     }
 }
 
+void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
+                          uint8_t fg, uint8_t bg, int x0, int x1)
+{
+    const int startPx = std::max(pxBase, x0);
+    const int endPx   = std::min(pxBase + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int bit = px - pxBase;
+        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
+
+        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+    }
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -3013,25 +3028,15 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
         static_cast<uint16_t>(getLatchedCHARBase(raster) +
                               static_cast<uint16_t>(cell.charIndex) * 8);
 
-    const uint8_t row =
+    const uint8_t rowBits =
         mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
 
-    updateOpenBus(row);
+    updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
+    const uint8_t fg = static_cast<uint8_t>(cell.fgColor & 0x0F);
+    const uint8_t bg = static_cast<uint8_t>(cell.bgColor & 0x0F);
 
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - cell.px;
-        const bool pixelOn = ((row >> (7 - bit)) & 0x01) != 0;
-
-        const uint8_t color = pixelOn
-            ? static_cast<uint8_t>(cell.fgColor & 0x0F)
-            : static_cast<uint8_t>(cell.bgColor & 0x0F);
-
-        stampBackgroundPixel(px, cell.py, color, pixelOn);
-    }
+    stampECMRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
 void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1)
@@ -3047,16 +3052,7 @@ void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, 
 
     updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - cell.px;
-        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
-
-        stampBackgroundPixel(px, cell.py, pixelOn ? fg : bg, pixelOn);
-    }
+    stampECMRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
 void Vic::renderECMLine(int raster, int xScroll)
