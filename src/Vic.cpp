@@ -2388,6 +2388,21 @@ void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
     }
 }
 
+void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits,
+                                     uint8_t fg, uint8_t bg, int x0, int x1)
+{
+    const int startPx = std::max(pxBase, x0);
+    const int endPx   = std::min(pxBase + 8, x1);
+
+    for (int px = startPx; px < endPx; ++px)
+    {
+        const int bit = px - pxBase;
+        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
+
+        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+    }
+}
+
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
     if (px < 0 || px >= 512)
@@ -2679,16 +2694,13 @@ void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x
     if (!cell.valid)
         return;
 
-    updateOpenBus(cell.bitmapByte);
+    const uint8_t rowBits = cell.bitmapByte;
+    const uint8_t fg = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    const uint8_t bg = static_cast<uint8_t>(cell.screenByte & 0x0F);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
+    updateOpenBus(rowBits);
 
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const BackgroundPixel pixel = sampleBitmapPixel(cell, px);
-        stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
-    }
+    stampStandardBitmapRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
 void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1)
@@ -2704,16 +2716,7 @@ void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, in
 
     updateOpenBus(rowBits);
 
-    const int startPx = std::max(cell.px, x0);
-    const int endPx   = std::min(cell.px + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - cell.px;
-        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
-
-        stampBackgroundPixel(px, cell.py, pixelOn ? fg : bg, pixelOn);
-    }
+    stampStandardBitmapRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
 void Vic::renderBitmapLine(int raster, int xScroll)
