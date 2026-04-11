@@ -1152,10 +1152,12 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    // Keep the next line enabled only if we're already inside an active
-    // display row, or if the current line is itself a bad line that starts one.
+    const bool badLineCanCarry =
+        vicState.badLineSampled &&
+        rasterWithinVerticalDisplayWindow(registers.raster);
+
     vicState.displayEnabledNext =
-        vicState.displayEnabled || vicState.badLineSampled;
+        vicState.displayEnabled || badLineCanCarry;
 }
 
 void Vic::runFetchPhase()
