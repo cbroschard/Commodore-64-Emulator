@@ -2943,14 +2943,6 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
         drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 1);
 }
 
-void Vic::drawStandardTextCellViaActivePixelState(const TextCellSample& cell, int raster, int x0, int x1)
-{
-    loadActiveStandardTextPixelState(cell, raster);
-
-    while (!activeStandardTextPixelStateFinished())
-        emitStandardTextCyclePixelsBudgeted(x0, x1, 1);
-}
-
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
 {
     (void)raster;
