@@ -3055,12 +3055,10 @@ void Vic::renderTextLine(int raster, int xScroll)
         {
             if (bgPipelineConfig.standardText)
             {
-                static constexpr bool kUseActiveStandardTextPixelState = true;
+                loadActiveStandardTextPixelState(cell, raster);
 
-                if (kUseActiveStandardTextPixelState)
-                    drawStandardTextCellViaActivePixelState(cell, raster, g.x0, g.x1);
-                else
-                    drawStandardTextCellViaPipeline(cell, raster, g.x0, g.x1);
+                while (!activeStandardTextPixelStateFinished())
+                    emitStandardTextCyclePixelsBudgeted(g.x0, g.x1, 1);
             }
             else
             {
