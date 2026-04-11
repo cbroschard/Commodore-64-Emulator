@@ -4069,6 +4069,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     if (!vicState.displayEnabledNext)
     {
         vicState.displayEnabled = false;
+        clearBadLineFifo();
         return;
     }
 
@@ -4081,7 +4082,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
-        vicState.vmliBase = vicState.vcBase;
         clearBadLineFifo();
         return;
     }
@@ -4097,7 +4097,6 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         {
             vicState.displayEnabled = false;
             vicState.displayEnabledNext = false;
-            vicState.vmliBase = vicState.vcBase;
             clearBadLineFifo();
             return;
         }
@@ -4106,13 +4105,11 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
         vicState.vmliBase = nextVcBase;
     }
 
-    // Do not let display stay active once DEN prerequisites are gone.
     const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
     if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
-        vicState.vmliBase = vicState.vcBase;
         clearBadLineFifo();
     }
 }
