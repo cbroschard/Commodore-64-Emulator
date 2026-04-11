@@ -2921,6 +2921,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
         static_cast<uint16_t>(getBitmapBase(raster) + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
+    const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
 
     out.valid = true;
     out.px = px;
@@ -3120,8 +3121,6 @@ void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x
     const uint8_t fg = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
     const uint8_t bg = static_cast<uint8_t>(cell.screenByte & 0x0F);
 
-    updateOpenBus(rowBits);
-
     stampStandardBitmapRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
@@ -3208,6 +3207,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
         static_cast<uint16_t>(getBitmapBase(raster) + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
+    const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
 
     out.valid = true;
     out.px = px;
@@ -3282,9 +3282,8 @@ void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int r
     const uint8_t c10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
     const uint8_t c11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
 
-    updateOpenBus(rowBits);
-
-    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits, c00, c01, c10, c11, x0, x1);
+    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits,
+                                 c00, c01, c10, c11, x0, x1);
 }
 
 void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)
