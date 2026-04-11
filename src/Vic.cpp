@@ -2947,7 +2947,7 @@ void Vic::drawStandardTextCellViaActivePixelState(const TextCellSample& cell, in
 {
     loadActiveStandardTextPixelState(cell, raster);
 
-    while (activeBgPixel.valid && activeBgPixel.phase < 8)
+    while (!activeStandardTextPixelStateFinished())
         emitStandardTextCyclePixelsBudgeted(x0, x1, 1);
 }
 

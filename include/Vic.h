@@ -568,6 +568,7 @@ class Vic
 
         inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
         inline bool backgroundPipelineIsBitmapLike() const { return bgPipeline.valid && bgPipeline.bitmap; }
+        inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
 
         BackgroundPipelineState bgPipeline;
         BackgroundPipelineConfig bgPipelineConfig;
