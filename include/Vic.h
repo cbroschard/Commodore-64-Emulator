@@ -655,6 +655,7 @@ class Vic
         void emitRasterPixel(int raster, int px);
         void emitActiveStandardTextPixels(int x0, int x1, int pixelBudget);
         void emitStandardTextCyclePixels(int x0, int x1);
+        void emitStandardTextCyclePixelsBudgeted(int x0, int x1, int pixelBudget);
 
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;
