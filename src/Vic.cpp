@@ -2028,12 +2028,10 @@ void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raste
     if (!cell.valid || cell.multicolor || !mem)
         return;
 
-    const uint16_t addr =
-        static_cast<uint16_t>(getCHARBase(raster) +
-                              static_cast<uint16_t>(cell.screenByte) * 8);
+    const uint16_t addr = static_cast<uint16_t>(getCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
 
-    const uint8_t rowBits =
-        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+    const uint8_t rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+    updateOpenBus(rowBits);
 
     activeBgPixel.valid = true;
     activeBgPixel.rowBits = rowBits;
@@ -2186,12 +2184,10 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
 
     if (mem)
     {
-        const uint16_t addr =
-            static_cast<uint16_t>(getLatchedCHARBase(raster) +
-                                  static_cast<uint16_t>(cell.charIndex) * 8);
+        const uint16_t addr = static_cast<uint16_t>(getLatchedCHARBase(raster) + static_cast<uint16_t>(cell.charIndex) * 8);
 
-        bgPipeline.rowBits =
-            mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+        bgPipeline.rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+        updateOpenBus(bgPipeline.rowBits);
     }
 
     bgPipeline.bitmapByte = 0;
@@ -2974,8 +2970,6 @@ void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, in
     const uint8_t fg      = bgPipeline.fgColor & 0x0F;
     const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
 
-    updateOpenBus(rowBits);
-
     int phase = std::clamp(bgPipeline.pixelPhase, 0, 8);
     stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, pixelBudget);
     bgPipeline.pixelPhase = phase;
@@ -2991,8 +2985,6 @@ void Vic::drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& 
 
     if (!activeBgPixel.valid)
         return;
-
-    updateOpenBus(activeBgPixel.rowBits);
 
     for (int i = 0; i < pixelBudget; ++i)
     {
@@ -3041,8 +3033,6 @@ void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int rast
     const uint8_t bg1 = bgPipeline.bgColor1 & 0x0F;
     const uint8_t bg2 = bgPipeline.bgColor2 & 0x0F;
     const uint8_t cellColor = static_cast<uint8_t>(bgPipeline.fgColor & 0x07);
-
-    updateOpenBus(rowBits);
 
     int phase = 0;
     stampMulticolorTextPipelineSpan(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor,
@@ -3417,8 +3407,6 @@ void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, 
     const uint8_t rowBits = bgPipeline.rowBits;
     const uint8_t fg      = bgPipeline.fgColor & 0x0F;
     const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
-
-    updateOpenBus(rowBits);
 
     int phase = 0;
     stampECMPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, 8);
