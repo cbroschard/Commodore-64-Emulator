@@ -654,6 +654,7 @@ class Vic
         void emitRasterLineInOrder(int raster);
         void emitRasterPixel(int raster, int px);
         void emitActiveStandardTextPixels(int x0, int x1, int pixelBudget);
+        void emitStandardTextCyclePixels(int x0, int x1);
 
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;

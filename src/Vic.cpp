@@ -2946,9 +2946,7 @@ void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster
 void Vic::drawStandardTextCellViaActivePixelState(const TextCellSample& cell, int raster, int x0, int x1)
 {
     loadActiveStandardTextPixelState(cell, raster);
-
-    for (int i = 0; i < 8; ++i)
-        emitActiveStandardTextPixels(x0, x1, 1);
+    emitStandardTextCyclePixels(x0, x1);
 }
 
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
@@ -3548,6 +3546,11 @@ void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
         if (px >= x0 && px < x1)
             stampBackgroundPixel(px, activeBgPixel.py, pixel.color, pixel.opaque);
     }
+}
+
+void Vic::emitStandardTextCyclePixels(int x0, int x1)
+{
+    emitActiveStandardTextPixels(x0, x1, 8);
 }
 
 int Vic::rasterVisibleStartX(int raster) const
