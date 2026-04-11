@@ -1885,9 +1885,28 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
+        // Pointer fetches still participate in BA-low timing.
         if (isSpritePointerFetchCycle(s, cycle))
             return true;
 
+        // Sprite data fetches also participate in BA-low timing.
+        if (isSpriteDMAFetchCycle(s, cycle))
+            return true;
+    }
+
+    return false;
+}
+
+bool Vic::isSpriteBusAECStealCycle(int raster, int cycle) const
+{
+    (void)raster;
+
+    for (int s = 0; s < 8; ++s)
+    {
+        if (!spriteUnits[s].dmaActive)
+            continue;
+
+        // Only actual sprite data fetch cycles force AEC low.
         if (isSpriteDMAFetchCycle(s, cycle))
             return true;
     }
@@ -1906,7 +1925,7 @@ bool Vic::shouldBALow(int raster, int cycle) const
 bool Vic::shouldAECLow(int raster, int cycle) const
 {
     return isBadLineBusStealCycle(raster, cycle) ||
-           isSpriteBusStealCycle(raster, cycle);
+           isSpriteBusAECStealCycle(raster, cycle);
 }
 
 bool Vic::isBadLine(int raster) const
