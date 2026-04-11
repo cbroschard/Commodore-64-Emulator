@@ -1953,10 +1953,8 @@ bool Vic::isBadLine(int raster) const
 
 void Vic::beginBadLineFetch()
 {
+    // A bad line resets the row counter for the row being fetched now.
     vicState.rc = 0;
-
-    vicState.displayEnabled = true;
-    vicState.displayEnabledNext = true;
 
     // Latch/start the active 40-byte row for this bad line.
     vicState.vmliBase = vicState.vcBase;
