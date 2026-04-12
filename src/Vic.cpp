@@ -3548,8 +3548,6 @@ void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
     if (!activeBgPixel.valid || pixelBudget <= 0)
         return;
 
-    updateOpenBus(activeBgPixel.rowBits);
-
     for (int i = 0; i < pixelBudget; ++i)
     {
         if (activeBgPixel.phase >= 8)
