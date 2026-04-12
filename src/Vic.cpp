@@ -72,7 +72,8 @@ void Vic::reset()
 
     // Internal VIC state
     vicState.vcBase = 0;
-    vicState.vmliBase = 0;   // bad-line matrix fetch base for current row
+    vicState.vmliBase = 0;
+    vicState.vmliFetchIndex = 0;
     vicState.rc = 0;
 
     vicState.displayEnabled = false;
@@ -304,6 +305,7 @@ void Vic::saveState(StateWriter& wrtr) const
     // Dump State
     wrtr.writeU16(vicState.vcBase);
     wrtr.writeU16(vicState.vmliBase);
+    wrtr.writeU8(vicState.vmliFetchIndex);
     wrtr.writeU8(vicState.rc);
 
     wrtr.writeBool(vicState.displayEnabled);
@@ -473,6 +475,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(vicState.vmliFetchIndex))              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
@@ -1257,9 +1260,14 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (currentCycle < 15 || currentCycle > 54)
         return;
 
+    if (vicState.vmliFetchIndex >= 40)
+        return;
+
     const int raster = registers.raster;
-    const int fetchIndex = currentCycle - 15;
+    const int fetchIndex = vicState.vmliFetchIndex;
+
     fetchBadLineMatrixByte(fetchIndex, raster);
+    ++vicState.vmliFetchIndex;
 }
 
 void Vic::initializeFirstBadLineIfNeeded(int raster)
@@ -1955,11 +1963,14 @@ bool Vic::isBadLine(int raster) const
 
 void Vic::beginBadLineFetch()
 {
-    // A bad line resets the row counter for the row being fetched now.
     vicState.rc = 0;
+
+    vicState.displayEnabled = true;
+    vicState.displayEnabledNext = true;
 
     // Latch/start the active 40-byte row for this bad line.
     vicState.vmliBase = vicState.vcBase;
+    vicState.vmliFetchIndex = 0;
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
@@ -3435,6 +3446,8 @@ void Vic::renderECMLine(int raster, int xScroll)
 
 void Vic::clearBadLineFifo()
 {
+    vicState.vmliFetchIndex = 0;
+
     for (int i = 0; i < 40; ++i)
     {
         charPtrFIFO[i] = 0;
