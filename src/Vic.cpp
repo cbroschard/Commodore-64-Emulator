@@ -1980,6 +1980,8 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     const int col = static_cast<int>(vc % 40);
 
     const uint8_t screenByte = fetchScreenByte(row, col, raster);
+    updateOpenBus(screenByte);
+
     const uint8_t colorByte  = fetchColorByte(row, col, raster) & 0x0F;
 
     charPtrFIFO[fetchIndex]  = screenByte;
