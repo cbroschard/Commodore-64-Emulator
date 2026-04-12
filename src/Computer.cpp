@@ -114,25 +114,25 @@ void Computer::setJoystickAttached(int port, bool flag)
 
 void Computer::set1541LoROM(const std::string& loROM)
 {
-    D1541LoROM = loROM;
+    roms_.d1541LoRom = loROM;
     if (components_.media) components_.media->setD1541LoROM(loROM);
 }
 
 void Computer::set1541HiROM(const std::string& hiROM)
 {
-    D1541HiROM = hiROM;
+    roms_.d1541HiRom = hiROM;
     if (components_.media) components_.media->setD1541HiROM(hiROM);
 }
 
 void Computer::set1571ROM(const std::string& rom)
 {
-    D1571ROM = rom;
+    roms_.d1571Rom = rom;
     if (components_.media) components_.media->setD1571ROM(rom);
 }
 
 void Computer::set1581ROM(const std::string& rom)
 {
-    D1581ROM = rom;
+    roms_.d1581Rom = rom;
     if (components_.media) components_.media->setD1581ROM(rom);
 }
 
@@ -169,9 +169,9 @@ bool Computer::boot()
                              cpuCfg_,
                              pendingBusPrime,
                              busPrimedAfterBoot,
-                             BASIC_ROM,
-                             KERNAL_ROM,
-                             CHAR_ROM,
+                             roms_.basicRom,
+                             roms_.kernalRom,
+                             roms_.charRom,
                              running,
                              uiQuit,
                              uiPaused);
@@ -196,19 +196,18 @@ void Computer::setVideoMode(const std::string& mode)
 
 void Computer::wireUp()
 {
-    MachineBuilder::assemble(this,
-                               components_,
-                               uiPaused,
-                               running,
-                               videoMode_,
-                               cpuCfg_,
-                               BASIC_ROM,
-                               KERNAL_ROM,
-                               CHAR_ROM,
-                               D1541LoROM,
-                               D1541HiROM,
-                               D1571ROM,
-                               D1581ROM,
-                               pendingBusPrime,
-                               busPrimedAfterBoot);
+    auto runtime = makeRuntimeState();
+    MachineBuilder::assemble(this, components_, runtime, roms_);
+}
+
+MachineRuntimeState Computer::makeRuntimeState()
+{
+    return MachineRuntimeState{
+        running,
+        uiPaused,
+        videoMode_,
+        cpuCfg_,
+        pendingBusPrime,
+        busPrimedAfterBoot
+    };
 }

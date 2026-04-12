@@ -5,18 +5,21 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#ifndef MACHINEBUILDER_H
-#define MACHINEBUILDER_H
+#ifndef MACHINE_ROM_CONFIG_H
+#define MACHINE_ROM_CONFIG_H
 
-#include "Computer.h"
+#include <string>
 
-class MachineBuilder
+struct MachineRomConfig
 {
-    public:
-        MachineBuilder();
-        virtual ~MachineBuilder();
+    std::string kernalRom;
+    std::string basicRom;
+    std::string charRom;
 
-        static void assemble(Computer* host, MachineComponents& components_, MachineRuntimeState& runtime, MachineRomConfig& roms);
+    std::string d1541LoRom;
+    std::string d1541HiRom;
+    std::string d1571Rom;
+    std::string d1581Rom;
 };
 
-#endif // MACHINEBUILDER_H
+#endif // MACHINE_ROM_CONFIG_H

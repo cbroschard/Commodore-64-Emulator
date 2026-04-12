@@ -16,6 +16,8 @@
 #include "Cartridge/ICartridgeHost.h"
 #include "CPUTiming.h"
 #include "MachineComponents.h"
+#include "MachineRomConfig.h"
+#include "MachineRunTimeState.h"
 
 // Forward declarations
 class DebugManager;
@@ -66,9 +68,9 @@ class Computer : public ICartridgeHost
         void setJoystickConfig(int port, JoystickMapping& cfg);
 
         // Setters for C64 ROM locations
-        inline void setKernalROM(const std::string& kernal) { KERNAL_ROM = kernal; }
-        inline void setBASIC_ROM(const std::string& basic) { BASIC_ROM = basic; }
-        inline void setCHAR_ROM(const std::string& character) { CHAR_ROM = character; }
+        inline void setKernalROM(const std::string& kernal) { roms_.kernalRom = kernal; }
+        inline void setBASIC_ROM(const std::string& basic) { roms_.basicRom = basic; }
+        inline void setCHAR_ROM(const std::string& character) { roms_.charRom = character; }
 
         // Setters for Drive model ROM locations
         void set1541LoROM(const std::string& loROM);
@@ -97,13 +99,7 @@ class Computer : public ICartridgeHost
         std::atomic<bool>       running;
 
         // Filenames and path of the ROMS to boot the system and Drive ROMS
-        std::string KERNAL_ROM;
-        std::string BASIC_ROM;
-        std::string CHAR_ROM;
-        std::string D1541LoROM;
-        std::string D1541HiROM;
-        std::string D1571ROM;
-        std::string D1581ROM;
+        MachineRomConfig roms_;
 
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiPaused;
@@ -111,6 +107,8 @@ class Computer : public ICartridgeHost
         // Bus priming
         bool pendingBusPrime;
         bool busPrimedAfterBoot;
+
+        MachineRuntimeState makeRuntimeState();
 
         // Wire all the components together
         void wireUp();

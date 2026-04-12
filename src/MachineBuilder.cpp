@@ -7,6 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include "DebugManager.h"
 #include "MachineBuilder.h"
+#include "MachineRomConfig.h"
+#include "MachineRuntimeState.h"
 #include "ResetController.h"
 #include "StateManager.h"
 #include "UIBridge.h"
@@ -15,24 +17,10 @@ MachineBuilder::MachineBuilder() = default;
 
 MachineBuilder::~MachineBuilder() = default;
 
-void MachineBuilder::assemble(Computer* host,
-                         MachineComponents& components_,
-                         std::atomic<bool>& uiPaused,
-                         std::atomic<bool>& running,
-                         VideoMode& videoMode,
-                         const CPUConfig*& cpuCfg,
-                         std::string& basicRom,
-                         std::string& kernalRom,
-                         std::string& charRom,
-                         std::string& d1541LoRom,
-                         std::string& d1541HiRom,
-                         std::string& d1571Rom,
-                         std::string& d1581Rom,
-                         bool& pendingBusPrime,
-                         bool& busPrimedAfterBoot)
+void MachineBuilder::assemble(Computer* host, MachineComponents& components_, MachineRuntimeState& runtime, MachineRomConfig& roms)
 {
     // Attach components to each other
-    components_.debug = std::make_unique<DebugManager>(uiPaused);
+    components_.debug = std::make_unique<DebugManager>(runtime.uiPaused);
 
     components_.debug->wireBackend(host, components_.cart.get(), components_.cass.get(), components_.cia1.get(), components_.cia2.get(),
                                    components_.cpu.get(), components_.bus.get(), components_.io.get(), components_.keyb.get(),
@@ -120,28 +108,33 @@ void MachineBuilder::assemble(Computer* host,
 
     components_.media = std::make_unique<MediaManager>(components_.cart, components_.drives, host, *components_.bus, *components_.mem, *components_.pla,
                                                        *components_.cpu, *components_.vic, components_.debug->backend(), components_.debug->trace(),
-                                                       *components_.cass, *components_.logger, d1541LoRom, d1541HiRom, d1571Rom, d1581Rom,
-                                                       [&pendingBusPrime, &busPrimedAfterBoot]() { if (!busPrimedAfterBoot) pendingBusPrime = true; },
-                                                       [host]() { host->coldReset(); } );
-    if (components_.media) components_.media->setVideoMode(videoMode);
+                                                       *components_.cass, *components_.logger, roms.d1541LoRom, roms.d1541HiRom, roms.d1571Rom,
+                                                       roms.d1581Rom, [&runtime]() { if (!runtime.busPrimedAfterBoot) runtime.pendingBusPrime = true; },
+                                                       [host]() { host->coldReset(); });
 
-    components_.inputRouter = std::make_unique<InputRouter>(uiPaused, &components_.debug->monitorController(), components_.inputMgr.get(),
+    if (components_.media) components_.media->setVideoMode(runtime.videoMode);
+
+    if (components_.media) components_.media->setVideoMode(runtime.videoMode);
+
+    components_.inputRouter = std::make_unique<InputRouter>(runtime.uiPaused, &components_.debug->monitorController(), components_.inputMgr.get(),
                                                             components_.media.get(), [host]() { host->warmReset(); }, [host]() { host->coldReset(); },
                                                             [&components_]() { if (components_.uiBridge) components_.uiBridge->toggleManualPause(); });
 
     components_.resetCtl = std::make_unique<ResetController>(*components_.cpu, *components_.mem, *components_.pla, *components_.cia1, *components_.cia2,
                                                              *components_.vic, *components_.sid, *components_.bus, *components_.cart,
-                                                             components_.media.get(), basicRom, kernalRom, charRom, videoMode, cpuCfg);
+                                                             components_.media.get(), roms.basicRom, roms.kernalRom, roms.charRom, runtime.videoMode,
+                                                             runtime.cpuCfg);
 
-    components_.uiBridge = std::make_unique<UIBridge>(*components_.ui, components_.media.get(), components_.inputMgr.get(), uiPaused, running,
-                                                      [host](const std::string& p) { host->saveStateToFile(p); },
-    [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); }, [host]() { host->coldReset(); },
-    [host](const std::string& mode) { host->setVideoMode(mode); }, [host]() { host->enterMonitor(); },
-    [&videoMode]() -> bool { return videoMode == VideoMode::PAL; },
-    [&components_]() -> bool { return components_.debug && components_.debug->monitorController().isOpen();});
+    components_.uiBridge = std::make_unique<UIBridge>(*components_.ui, components_.media.get(), components_.inputMgr.get(), runtime.uiPaused,
+                                                      runtime.running, [host](const std::string& p) { host->saveStateToFile(p); },
+                                                      [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
+                                                      [host]() { host->coldReset(); }, [host](const std::string& mode) { host->setVideoMode(mode); },
+                                                      [host]() { host->enterMonitor(); }, [&runtime]() -> bool { return runtime.videoMode == VideoMode::PAL; },
+                                                      [&components_]() -> bool {return components_.debug && components_.debug->monitorController().isOpen();});
 
     components_.stateMgr = std::make_unique<StateManager>(*components_.cart, *components_.cass, *components_.cia1, *components_.cia2,
                                                           *components_.cpu, *components_.bus, *components_.inputMgr, *components_.logger,
                                                           *components_.media, *components_.mem, *components_.pla, *components_.sid, *components_.vic,
-                                                          uiPaused, videoMode, cpuCfg, pendingBusPrime, busPrimedAfterBoot, components_.drives);
+                                                          runtime.uiPaused, runtime.videoMode, runtime.cpuCfg, runtime.pendingBusPrime,
+                                                          runtime.busPrimedAfterBoot, components_.drives);
 }
