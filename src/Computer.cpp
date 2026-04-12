@@ -24,22 +24,6 @@
 #include "UIBridge.h"
 
 Computer::Computer() :
-    cart(std::make_unique<Cartridge>()),
-    cass(std::make_unique<Cassette>()),
-    cia1object(std::make_unique<CIA1>()),
-    cia2object(std::make_unique<CIA2>()),
-    processor(std::make_unique<CPU>()),
-    ui(std::make_unique<EmulatorUI>()),
-    bus(std::make_unique<IECBUS>()),
-    inputMgr(std::make_unique<InputManager>()),
-    IRQ(std::make_unique<IRQLine>()),
-    keyb(std::make_unique<Keyboard>()),
-    logger(std::make_unique<Logging>("debug.txt")),
-    mem(std::make_unique<Memory>()),
-    pla(std::make_unique<PLA>()),
-    sidchip(std::make_unique<SID>(44100)),
-    IO_adapter(std::make_unique<IO>()),
-    vicII(std::make_unique<Vic>()),
     videoMode_(VideoMode::NTSC),
     cpuCfg_(&NTSC_CPU),
     running(true),
@@ -48,6 +32,23 @@ Computer::Computer() :
     pendingBusPrime(false),
     busPrimedAfterBoot(false)
 {
+    components_.cart = std::make_unique<Cartridge>();
+    components_.cass = std::make_unique<Cassette>();
+    components_.cia1 = std::make_unique<CIA1>();
+    components_.cia2 = std::make_unique<CIA2>();
+    components_.cpu = std::make_unique<CPU>();
+    components_.ui = std::make_unique<EmulatorUI>();
+    components_.bus = std::make_unique<IECBUS>();
+    components_.inputMgr = std::make_unique<InputManager>();
+    components_.irq = std::make_unique<IRQLine>();
+    components_.keyb = std::make_unique<Keyboard>();
+    components_.logger = std::make_unique<Logging>("debug.txt");
+    components_.mem = std::make_unique<Memory>();
+    components_.pla = std::make_unique<PLA>();
+    components_.sid = std::make_unique<SID>(44100);
+    components_.io = std::make_unique<IO>();
+    components_.vic = std::make_unique<Vic>();
+
     // Wire components
     wireUp();
 }
@@ -56,20 +57,20 @@ Computer::~Computer() noexcept
 {
     try
     {
-        if (IO_adapter)
+        if (components_.io)
         {
             // Ensure the render thread is down
-            if (debug) debug->closeMonitor();
+            if (components_.debug) components_.debug->closeMonitor();
             running = false;
-            IO_adapter->stopRenderThread(running);
-            IO_adapter->setGuiCallback({});
-            IO_adapter->setInputCallback({});
+            components_.io->stopRenderThread(running);
+            components_.io->setGuiCallback({});
+            components_.io->setInputCallback({});
 
             // Audio shutdown
-            IO_adapter->stopAudio();
+            components_.io->stopAudio();
         }
 
-        if (logger) logger->flush();
+        if (components_.logger) components_.logger->flush();
     }
     catch(...)
     {
@@ -79,91 +80,91 @@ Computer::~Computer() noexcept
 
 bool Computer::saveStateToFile(const std::string& path)
 {
-    return stateMgr ? stateMgr->save(path) : false;
+    return components_.stateMgr ? components_.stateMgr->save(path) : false;
 }
 
 bool Computer::loadStateFromFile(const std::string& path)
 {
-    return stateMgr ? stateMgr->load(path) : false;
+    return components_.stateMgr ? components_.stateMgr->load(path) : false;
 }
 
 void Computer::requestColdReset()
 {
-    if (resetCtl)
-        resetCtl->coldReset();
+    if (components_.resetCtl)
+        components_.resetCtl->coldReset();
 }
 
 void Computer::requestWarmReset()
 {
-    if (resetCtl)
-        resetCtl->warmReset();
+    if (components_.resetCtl)
+        components_.resetCtl->warmReset();
 }
 
 void Computer::requestCartridgeNMI()
 {
-    if (processor)
-        processor->pulseNMI();
+    if (components_.cpu)
+        components_.cpu->pulseNMI();
 }
 
 void Computer::setJoystickAttached(int port, bool flag)
 {
-    if (inputMgr) inputMgr->setJoystickAttached(port, flag);
+    if (components_.inputMgr) components_.inputMgr->setJoystickAttached(port, flag);
 }
 
 void Computer::set1541LoROM(const std::string& loROM)
 {
     D1541LoROM = loROM;
-    if (media) media->setD1541LoROM(loROM);
+    if (components_.media) components_.media->setD1541LoROM(loROM);
 }
 
 void Computer::set1541HiROM(const std::string& hiROM)
 {
     D1541HiROM = hiROM;
-    if (media) media->setD1541HiROM(hiROM);
+    if (components_.media) components_.media->setD1541HiROM(hiROM);
 }
 
 void Computer::set1571ROM(const std::string& rom)
 {
     D1571ROM = rom;
-    if (media) media->setD1571ROM(rom);
+    if (components_.media) components_.media->setD1571ROM(rom);
 }
 
 void Computer::set1581ROM(const std::string& rom)
 {
     D1581ROM = rom;
-    if (media) media->setD1581ROM(rom);
+    if (components_.media) components_.media->setD1581ROM(rom);
 }
 
 void Computer::enterMonitor()
 {
-    if (debug) debug->openMonitor();
+    if (components_.debug) components_.debug->openMonitor();
 }
 
 void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
 {
-    if (!inputMgr) return;
-    inputMgr->setJoystickConfig(port, cfg);
+    if (!components_.inputMgr) return;
+    components_.inputMgr->setJoystickConfig(port, cfg);
 }
 
 bool Computer::boot()
 {
-    EmulationSession session(*cart,
-                             *cia1object,
-                             *cia2object,
-                             *processor,
-                             *debug,
-                             *ui,
-                             *bus,
-                             *inputMgr,
-                             *inputRouter,
-                             *IO_adapter,
-                             *logger,
-                             *media,
-                             *mem,
-                             *pla,
-                             *sidchip,
-                             *uiBridge,
-                             *vicII,
+    EmulationSession session(*components_.cart,
+                             *components_.cia1,
+                             *components_.cia2,
+                             *components_.cpu,
+                             *components_.debug,
+                             *components_.ui,
+                             *components_.bus,
+                             *components_.inputMgr,
+                             *components_.inputRouter,
+                             *components_.io,
+                             *components_.logger,
+                             *components_.media,
+                             *components_.mem,
+                             *components_.pla,
+                             *components_.sid,
+                             *components_.uiBridge,
+                             *components_.vic,
                              cpuCfg_,
                              pendingBusPrime,
                              busPrimedAfterBoot,
@@ -179,123 +180,133 @@ bool Computer::boot()
 
 void Computer::warmReset()
 {
-     if (resetCtl) resetCtl->warmReset();
+     if (components_.resetCtl) components_.resetCtl->warmReset();
 }
 
 void Computer::coldReset()
 {
-     if (resetCtl) resetCtl->coldReset();
+     if (components_.resetCtl) components_.resetCtl->coldReset();
 }
 
 void Computer::setVideoMode(const std::string& mode)
 {
-    if (resetCtl) resetCtl->setVideoMode(mode);
+    if (components_.resetCtl) components_.resetCtl->setVideoMode(mode);
 }
 
 void Computer::wireUp()
 {
     // Attach components to each other
-    debug = std::make_unique<DebugManager>(uiPaused);
+    components_.debug = std::make_unique<DebugManager>(uiPaused);
 
-    debug->wireBackend(this, cart.get(), cass.get(), cia1object.get(), cia2object.get(), processor.get(), bus.get(), IO_adapter.get(), keyb.get(),
-                        logger.get(), mem.get(), pla.get(), sidchip.get(), vicII.get());
+    components_.debug->wireBackend(this, components_.cart.get(), components_.cass.get(), components_.cia1.get(), components_.cia2.get(),
+                                   components_.cpu.get(), components_.bus.get(), components_.io.get(), components_.keyb.get(),
+                                   components_.logger.get(), components_.mem.get(), components_.pla.get(), components_.sid.get(), components_.vic.get());
 
-    debug->wireTrace(cart.get(), cia1object.get(), cia2object.get(), processor.get(), mem.get(), pla.get(), sidchip.get(), vicII.get());
+    components_.debug->wireTrace(components_.cart.get(), components_.cia1.get(), components_.cia2.get(), components_.cpu.get(),
+                                 components_.mem.get(), components_.pla.get(), components_.sid.get(), components_.vic.get());
 
-    bus->attachCIA2Instance(cia2object.get());
-    bus->attachLogInstance(logger.get());
+    components_.bus->attachCIA2Instance(components_.cia2.get());
+    components_.bus->attachLogInstance(components_.logger.get());
 
-    cart->attachCPUInstance(processor.get());
-    cart->attachHostInstance(this);
-    cart->attachMemoryInstance(mem.get());
-    cart->attachLogInstance(logger.get());
-    cart->attachTraceManagerInstance(&debug->trace());
-    cart->attachVicInstance(vicII.get());
+    components_.cart->attachCPUInstance(components_.cpu.get());
+    components_.cart->attachHostInstance(this);
+    components_.cart->attachMemoryInstance(components_.mem.get());
+    components_.cart->attachLogInstance(components_.logger.get());
+    components_.cart->attachTraceManagerInstance(&components_.debug->trace());
+    components_.cart->attachVicInstance(components_.vic.get());
 
-    cass->attachMemoryInstance(mem.get());
-    cass->attachLogInstance(logger.get());
+    components_.cass->attachMemoryInstance(components_.mem.get());
+    components_.cass->attachLogInstance(components_.logger.get());
 
-    cia1object->attachCassetteInstance(cass.get());
-    cia1object->attachCPUInstance(processor.get());
-    cia1object->attachIRQLineInstance(IRQ.get());
-    cia1object->attachKeyboardInstance(keyb.get());
-    cia1object->attachLogInstance(logger.get());
-    cia1object->attachMemoryInstance(mem.get());
-    cia1object->attachTraceManagerInstance(&debug->trace());
-    cia1object->attachVicInstance(vicII.get());
+    components_.cia1->attachCassetteInstance(components_.cass.get());
+    components_.cia1->attachCPUInstance(components_.cpu.get());
+    components_.cia1->attachIRQLineInstance(components_.irq.get());
+    components_.cia1->attachKeyboardInstance(components_.keyb.get());
+    components_.cia1->attachLogInstance(components_.logger.get());
+    components_.cia1->attachMemoryInstance(components_.mem.get());
+    components_.cia1->attachTraceManagerInstance(&components_.debug->trace());
+    components_.cia1->attachVicInstance(components_.vic.get());
 
-    cia2object->attachCPUInstance(processor.get());
-    cia2object->attachIECBusInstance(bus.get());
-    cia2object->attachLogInstance(logger.get());
-    cia2object->attachTraceManagerInstance(&debug->trace());
-    cia2object->attachVicInstance(vicII.get());
+    components_.cia2->attachCPUInstance(components_.cpu.get());
+    components_.cia2->attachIECBusInstance(components_.bus.get());
+    components_.cia2->attachLogInstance(components_.logger.get());
+    components_.cia2->attachTraceManagerInstance(&components_.debug->trace());
+    components_.cia2->attachVicInstance(components_.vic.get());
 
-    IO_adapter->attachVICInstance(vicII.get());
-    IO_adapter->attachSIDInstance(sidchip.get());
-    IO_adapter->attachLogInstance(logger.get());
+    components_.io->attachVICInstance(components_.vic.get());
+    components_.io->attachSIDInstance(components_.sid.get());
+    components_.io->attachLogInstance(components_.logger.get());
+    components_.io->setMonitorOpenCallback([this]() -> bool { return this->components_.debug && this->components_.debug->monitorController().isOpen();});
 
-    IO_adapter->setMonitorOpenCallback([this]() -> bool { return this->debug && this->debug->monitorController().isOpen();});
+    components_.keyb->attachLogInstance(components_.logger.get());
 
-    keyb->attachLogInstance(logger.get());
+    components_.mem->attachCPUInstance(components_.cpu.get());
+    components_.mem->attachVICInstance(components_.vic.get());
+    components_.mem->attachCIA1Instance(components_.cia1.get());
+    components_.mem->attachCIA2Instance(components_.cia2.get());
+    components_.mem->attachSIDInstance(components_.sid.get());
+    components_.mem->attachCartridgeInstance(components_.cart.get());
+    components_.mem->attachCassetteInstance(components_.cass.get());
+    components_.mem->attachPLAInstance(components_.pla.get());
+    components_.mem->attachMonitorInstance(&components_.debug->monitor());
+    components_.mem->attachLogInstance(components_.logger.get());
+    components_.mem->attachTraceManagerInstance(&components_.debug->trace());
 
-    mem->attachProcessorInstance(processor.get());
-    mem->attachVICInstance(vicII.get());
-    mem->attachCIA1Instance(cia1object.get());
-    mem->attachCIA2Instance(cia2object.get());
-    mem->attachSIDInstance(sidchip.get());
-    mem->attachCartridgeInstance(cart.get());
-    mem->attachCassetteInstance(cass.get());
-    mem->attachPLAInstance(pla.get());
-    mem->attachMonitorInstance(&debug->monitor());;
-    mem->attachLogInstance(logger.get());
-    mem->attachTraceManagerInstance(&debug->trace());
+    components_.inputMgr->attachCIA1Instance(components_.cia1.get());
+    components_.inputMgr->attachKeyboardInstance(components_.keyb.get());
+    components_.inputMgr->attachMonitorControllerInstance(&components_.debug->monitorController());
 
-    inputMgr->attachCIA1Instance(cia1object.get());
-    inputMgr->attachKeyboardInstance(keyb.get());
-    inputMgr->attachMonitorControllerInstance(&debug->monitorController());
+    components_.pla->attachCartridgeInstance(components_.cart.get());
+    components_.pla->attachCPUInstance(components_.cpu.get());
+    components_.pla->attachLogInstance(components_.logger.get());
+    components_.pla->attachTraceManagerInstance(&components_.debug->trace());
+    components_.pla->attachVICInstance(components_.vic.get());
 
-    pla->attachCartridgeInstance(cart.get());
-    pla->attachCPUInstance(processor.get());
-    pla->attachLogInstance(logger.get());
-    pla->attachTraceManagerInstance(&debug->trace());
-    pla->attachVICInstance(vicII.get());
+    components_.cpu->attachMemoryInstance(components_.mem.get());
+    components_.cpu->attachCIA2Instance(components_.cia2.get());
+    components_.cpu->attachVICInstance(components_.vic.get());
+    components_.cpu->attachIRQLineInstance(components_.irq.get());
+    components_.cpu->attachLogInstance(components_.logger.get());
+    components_.cpu->attachTraceManagerInstance(&components_.debug->trace());
 
-    processor->attachMemoryInstance(mem.get());
-    processor->attachCIA2Instance(cia2object.get());
-    processor->attachVICInstance(vicII.get());
-    processor->attachIRQLineInstance(IRQ.get());
-    processor->attachLogInstance(logger.get());
-    processor->attachTraceManagerInstance(&debug->trace());
+    components_.sid->attachCPUInstance(components_.cpu.get());
+    components_.sid->attachLogInstance(components_.logger.get());
+    components_.sid->attachTraceManagerInstance(&components_.debug->trace());
+    components_.sid->attachVicInstance(components_.vic.get());
 
-    sidchip->attachCPUInstance(processor.get());;
-    sidchip->attachLogInstance(logger.get());
-    sidchip->attachTraceManagerInstance(&debug->trace());
-    sidchip->attachVicInstance(vicII.get());
+    components_.vic->attachIOInstance(components_.io.get());
+    components_.vic->attachCPUInstance(components_.cpu.get());
+    components_.vic->attachMemoryInstance(components_.mem.get());
+    components_.vic->attachCIA2Instance(components_.cia2.get());
+    components_.vic->attachIRQLineInstance(components_.irq.get());
+    components_.vic->attachLogInstance(components_.logger.get());
+    components_.vic->attachTraceManagerInstance(&components_.debug->trace());
 
-    vicII->attachIOInstance(IO_adapter.get());
-    vicII->attachCPUInstance(processor.get());
-    vicII->attachMemoryInstance(mem.get());
-    vicII->attachCIA2Instance(cia2object.get());
-    vicII->attachIRQLineInstance(IRQ.get());
-    vicII->attachLogInstance(logger.get());
-    vicII->attachTraceManagerInstance(&debug->trace());
+    components_.media = std::make_unique<MediaManager>(components_.cart, components_.drives, this, *components_.bus, *components_.mem, *components_.pla,
+                                                       *components_.cpu, *components_.vic, components_.debug->backend(), components_.debug->trace(),
+                                                       *components_.cass, *components_.logger, D1541LoROM, D1541HiROM, D1571ROM, D1581ROM,
+                                                       [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [this]() { this->coldReset(); });
 
-    media = std::make_unique<MediaManager>(cart, drives, this, *bus, *mem, *pla, *processor, *vicII, debug->backend(), debug->trace(), *cass, *logger,
-    D1541LoROM, D1541HiROM, D1571ROM, D1581ROM, [this]() { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [this]() { this->coldReset(); });
+    if (components_.media) components_.media->setVideoMode(videoMode_);
 
-    if (media) media->setVideoMode(videoMode_);
+    components_.inputRouter = std::make_unique<InputRouter>(uiPaused, &components_.debug->monitorController(), components_.inputMgr.get(),
+                                                           components_.media.get(), [this]() { warmReset(); }, [this]() { coldReset(); },
+                                                           [this]() { if (components_.uiBridge) components_.uiBridge->toggleManualPause(); });
 
-    inputRouter = std::make_unique<InputRouter>(uiPaused, &debug->monitorController(), inputMgr.get(), media.get(), [this]() { warmReset(); },
-    [this]() { coldReset(); }, [this]() { if (uiBridge) uiBridge->toggleManualPause(); });
+    components_.resetCtl = std::make_unique<ResetController>(*components_.cpu, *components_.mem, *components_.pla, *components_.cia1,
+                                                             *components_.cia2, *components_.vic, *components_.sid, *components_.bus,
+                                                             *components_.cart, components_.media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_,
+                                                             cpuCfg_);
 
-    resetCtl = std::make_unique<ResetController>(*processor, *mem, *pla, *cia1object, *cia2object, *vicII, *sidchip, *bus,
-    *cart, media.get(), BASIC_ROM, KERNAL_ROM, CHAR_ROM, videoMode_, cpuCfg_);
-
-    uiBridge = std::make_unique<UIBridge>(*ui, media.get(), inputMgr.get(), uiPaused, running, [this](const std::string& p) { this->saveStateToFile(p); },
+    components_.uiBridge = std::make_unique<UIBridge>(*components_.ui, components_.media.get(), components_.inputMgr.get(), uiPaused, running,
+                                                      [this](const std::string& p) { this->saveStateToFile(p); },
     [this](const std::string& p) { this->loadStateFromFile(p); }, [this]() { this->warmReset(); }, [this]() { this->coldReset(); },
     [this](const std::string& mode) { this->setVideoMode(mode); }, [this]() { this->enterMonitor(); },
-    [this]() -> bool { return this->videoMode_ == VideoMode::PAL; }, [this]() -> bool { return this->debug && this->debug->monitorController().isOpen(); });
+    [this]() -> bool { return this->videoMode_ == VideoMode::PAL; },
+    [this]() -> bool { return this->components_.debug && this->components_.debug->monitorController().isOpen(); });
 
-    stateMgr = std::make_unique<StateManager>(*cart, *cass, *cia1object, *cia2object, *processor, *bus, *inputMgr, *logger, *media, *mem, *pla, *sidchip,
-    *vicII, uiPaused, videoMode_, cpuCfg_, pendingBusPrime, busPrimedAfterBoot, drives);
+    components_.stateMgr = std::make_unique<StateManager>(*components_.cart, *components_.cass, *components_.cia1, *components_.cia2,
+                                                          *components_.cpu, *components_.bus, *components_.inputMgr, *components_.logger,
+                                                          *components_.media, *components_.mem, *components_.pla, *components_.sid, *components_.vic,
+                                                          uiPaused, videoMode_, cpuCfg_, pendingBusPrime, busPrimedAfterBoot, components_.drives);
 }

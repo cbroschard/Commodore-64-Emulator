@@ -44,7 +44,7 @@ class Memory : public CPUBus
         virtual ~Memory();
 
         // Pointers
-        inline void attachProcessorInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
