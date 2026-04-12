@@ -855,10 +855,10 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
-                out << "[CIA1:TIMER] CRA write=$"
+                out << "[CIA1:TIMER] CRB write=$"
                     << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latched=$" << std::setw(2) << int(timerAControl)
-                    << " timerA=$" << std::setw(4) << timerA;
+                    << " latched=$" << std::setw(2) << int(timerBControl)
+                    << " timerB=$" << std::setw(4) << timerB;
                 traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
             }
             break;
