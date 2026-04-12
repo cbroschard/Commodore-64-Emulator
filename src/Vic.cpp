@@ -557,6 +557,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (vicState.vmliBase > maxRowBase)
             vicState.vmliBase = vicState.vcBase;
 
+        if (vicState.vmliFetchIndex > 40)
+            vicState.vmliFetchIndex = 40;
+
         vicState.rc &= 0x07;
         vicState.openBus = static_cast<uint8_t>(vicState.openBus);
 
@@ -1024,6 +1027,7 @@ void Vic::beginFrameIfNeeded()
 
         vicState.vcBase = 0;
         vicState.vmliBase = 0;
+        vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
         vicState.badLine = false;
         vicState.badLineSampled = false;
