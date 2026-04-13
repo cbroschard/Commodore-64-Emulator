@@ -2043,7 +2043,7 @@ void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raste
     if (!cell.valid || cell.multicolor || !mem)
         return;
 
-    const uint16_t addr = static_cast<uint16_t>(getLatchedCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
+    const uint16_t addr = static_cast<uint16_t>(getCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
     updateOpenBus(rowBits);
