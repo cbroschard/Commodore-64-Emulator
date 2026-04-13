@@ -109,10 +109,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components_, Ma
     components_.media = std::make_unique<MediaManager>(components_.cart, components_.drives, host, *components_.bus, *components_.mem, *components_.pla,
                                                        *components_.cpu, *components_.vic, components_.debug->backend(), components_.debug->trace(),
                                                        *components_.cass, *components_.logger, roms.d1541LoRom, roms.d1541HiRom, roms.d1571Rom,
-                                                       roms.d1581Rom, [&runtime]() { if (!runtime.busPrimedAfterBoot) runtime.pendingBusPrime = true; },
-                                                       [host]() { host->coldReset(); });
-
-    if (components_.media) components_.media->setVideoMode(runtime.videoMode);
+                                                       roms.d1581Rom, [&pendingBusPrime = runtime.pendingBusPrime,
+                                                       &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
+                                                       { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [host]() { host->coldReset(); });
 
     if (components_.media) components_.media->setVideoMode(runtime.videoMode);
 
@@ -129,7 +128,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components_, Ma
                                                       runtime.running, [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
                                                       [host]() { host->coldReset(); }, [host](const std::string& mode) { host->setVideoMode(mode); },
-                                                      [host]() { host->enterMonitor(); }, [&runtime]() -> bool { return runtime.videoMode == VideoMode::PAL; },
+                                                      [host]() { host->enterMonitor(); },
+                                                      [&videoMode = runtime.videoMode]() -> bool { return videoMode == VideoMode::PAL; },
                                                       [&components_]() -> bool {return components_.debug && components_.debug->monitorController().isOpen();});
 
     components_.stateMgr = std::make_unique<StateManager>(*components_.cart, *components_.cass, *components_.cia1, *components_.cia2,
