@@ -9,6 +9,7 @@
 #define EMULATORUI_H
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <initializer_list>
 #include <mutex>
@@ -87,20 +88,27 @@ class EmulatorUI
 
         struct FileDialog
         {
-            enum class Mode { OpenExisting, SaveAs };
+            enum class Mode
+            {
+                OpenExisting,
+                SaveAs
+            };
 
             bool open = false;
+            bool allowOverwrite = false;
             Mode mode = Mode::OpenExisting;
 
             std::string title;
             std::filesystem::path currentDir;
             std::vector<std::string> allowedExtensions;
 
-            std::string selectedEntry; // list selection (dirs/files)
-            std::string fileName;      // typed name for SaveAs (or populated from selection)
-
-            bool allowOverwrite = false; // SaveAs only
+            std::string selectedEntry;
+            std::string fileName;
             std::string error;
+
+            // Manual double-click tracking
+            std::string lastClickedEntry;
+            std::chrono::steady_clock::time_point lastClickTime{};
         };
         FileDialog fileDlg;
 
