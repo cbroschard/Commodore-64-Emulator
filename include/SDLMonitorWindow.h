@@ -81,9 +81,16 @@ class SDLMonitorWindow
         bool draggingThumb;
         int  thumbDragGrabY;
 
+        int cursorPos;
+
         void submitCommand();
         void backspace();
         void addChar(char c);
+        void deleteChar();
+        void moveCursorLeft();
+        void moveCursorRight();
+        void moveCursorHome();
+        void moveCursorEnd();
 
         void createFontTexture();
         void drawString(int x, int y, const std::string& str, const SDL_Color& color);

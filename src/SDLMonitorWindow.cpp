@@ -133,7 +133,8 @@ SDLMonitorWindow::SDLMonitorWindow() :
     selStart(-1),
     selEnd(-1),
     draggingThumb(false),
-    thumbDragGrabY(0)
+    thumbDragGrabY(0),
+    cursorPos(0)
 {
 
 }
@@ -209,6 +210,7 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec)
     opened = true;
     lines.clear();
     input.clear();
+    cursorPos = 0;
 
     // Clear history or leave it for persistence?
     // Usually convenient to keep history, but for simplicity we can clear or keep.
@@ -261,15 +263,55 @@ void SDLMonitorWindow::appendLine(const std::string& s, SDL_Color color)
 
 void SDLMonitorWindow::addChar(char c)
 {
-    // Filter non-printable
-    if (c >= 32 && c <= 126)
-        input.push_back(c);
+    if (c < 32 || c > 126)
+        return;
+
+    if (cursorPos < 0)
+        cursorPos = 0;
+    if (cursorPos > (int)input.size())
+        cursorPos = (int)input.size();
+
+    input.insert(input.begin() + cursorPos, c);
+    cursorPos++;
 }
 
 void SDLMonitorWindow::backspace()
 {
-    if (!input.empty())
-        input.pop_back();
+    if (cursorPos <= 0 || input.empty())
+        return;
+
+    input.erase(input.begin() + (cursorPos - 1));
+    cursorPos--;
+}
+
+void SDLMonitorWindow::deleteChar()
+{
+    if (cursorPos < 0 || cursorPos >= (int)input.size())
+        return;
+
+    input.erase(input.begin() + cursorPos);
+}
+
+void SDLMonitorWindow::moveCursorLeft()
+{
+    if (cursorPos > 0)
+        cursorPos--;
+}
+
+void SDLMonitorWindow::moveCursorRight()
+{
+    if (cursorPos < (int)input.size())
+        cursorPos++;
+}
+
+void SDLMonitorWindow::moveCursorHome()
+{
+    cursorPos = 0;
+}
+
+void SDLMonitorWindow::moveCursorEnd()
+{
+    cursorPos = (int)input.size();
 }
 
 void SDLMonitorWindow::submitCommand()
@@ -285,8 +327,9 @@ void SDLMonitorWindow::submitCommand()
         {
             history.push_back(input);
         }
-        historyIndex = history.size(); // point to new blank line at end
     }
+
+    historyIndex = history.size(); // point to new blank line at end
 
     std::string out;
     if (execFn && !input.empty())
@@ -324,6 +367,7 @@ void SDLMonitorWindow::submitCommand()
 
     input.clear();
     scrollOffset = 0;
+    cursorPos = 0;
 }
 
 void SDLMonitorWindow::handleEvent(const SDL_Event& e)
@@ -428,6 +472,26 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                 backspace();
                 break;
 
+            case SDLK_LEFT:
+                moveCursorLeft();
+                break;
+
+            case SDLK_RIGHT:
+                moveCursorRight();
+                break;
+
+            case SDLK_HOME:
+                moveCursorHome();
+                break;
+
+            case SDLK_END:
+                moveCursorEnd();
+                break;
+
+            case SDLK_DELETE:
+                deleteChar();
+                break;
+
             case SDLK_RETURN:
             case SDLK_KP_ENTER:
                 if (hasSelection())
@@ -464,6 +528,7 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                 {
                     historyIndex--;
                     input = history[historyIndex];
+                    cursorPos = (int)input.size();
                 }
                 break;
 
@@ -475,6 +540,8 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                         input.clear();
                     else
                         input = history[historyIndex];
+
+                    cursorPos = (int)input.size();
                 }
                 break;
 
@@ -649,7 +716,7 @@ void SDLMonitorWindow::render()
     // Blinking cursor
     if ((SDL_GetTicks() / 500) % 2 == 0)
     {
-        int cursorX = padding + (int(prompt.length() + input.length()) * charWidth);
+        int cursorX = padding + (int(prompt.length() + cursorPos) * charWidth);
         SDL_Rect cursorRect = { cursorX, inputY, charWidth, charHeight };
         SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
         SDL_RenderFillRect(ren, &cursorRect);
