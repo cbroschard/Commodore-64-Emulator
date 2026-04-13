@@ -5,9 +5,11 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Computer.h"
 #include "DebugManager.h"
 #include "MachineBuilder.h"
 #include "MachineRomConfig.h"
+#include "MachineComponents.h"
 #include "MachineRuntimeState.h"
 #include "ResetController.h"
 #include "StateManager.h"

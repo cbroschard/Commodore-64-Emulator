@@ -8,7 +8,10 @@
 #ifndef MACHINEBUILDER_H
 #define MACHINEBUILDER_H
 
-#include "Computer.h"
+class Computer;
+struct MachineComponents;
+struct MachineRuntimeState;
+struct MachineRomConfig;
 
 class MachineBuilder
 {
