@@ -19,7 +19,7 @@ class MachineBuilder
         MachineBuilder();
         virtual ~MachineBuilder();
 
-        static void assemble(Computer* host, MachineComponents& components_, MachineRuntimeState& runtime, MachineRomConfig& roms);
+        static void assemble(Computer* host, MachineComponents& components, MachineRuntimeState& runtime, MachineRomConfig& roms);
 };
 
 #endif // MACHINEBUILDER_H
