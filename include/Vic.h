@@ -686,6 +686,9 @@ class Vic
         uint8_t resolveDisplayScreenByte(int displayCol, int raster) const;
         uint8_t resolveDisplayColorByte(int displayCol, int raster) const;
 
+        bool shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const;
+        bool fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& screenByte, uint8_t& colorByte) const;
+
         void advanceVideoCountersEndOfLine(int raster);
         int currentCharacterRow() const;
         void currentDisplayRowCol(int displayCol, int& row, int& col) const;

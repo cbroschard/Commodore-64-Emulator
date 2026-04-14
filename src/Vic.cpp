@@ -2836,13 +2836,20 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
         return false;
 
     const int displayCol = (col < 40) ? col : 39;
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
-    const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
-    const uint8_t bgColor = registers.backgroundColor0 & 0x0F;
 
-    const bool mcGlobal = (latchedD016ForRaster(raster) & 0x10) != 0;
-    const bool mcCell = (colorByte & 0x08) != 0;
-    const bool mcMode = mcGlobal && mcCell;
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
+
+    if (!fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
+    {
+        screenByte = fetchDisplayScreenByte(displayCol, raster);
+        colorByte  = static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
+    }
+
+    const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const bool multicolor =
+        ((registers.control2 & 0x10) != 0) &&
+        ((colorByte & 0x08) != 0);
 
     out.valid = true;
     out.px = px;
@@ -2850,9 +2857,9 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     out.displayCol = displayCol;
     out.yInChar = yInChar;
     out.screenByte = screenByte;
-    out.colorByte = colorByte;
+    out.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
     out.bgColor = bgColor;
-    out.multicolor = mcMode;
+    out.multicolor = multicolor;
 
     return true;
 }
@@ -4027,7 +4034,7 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 
 int Vic::currentDisplayRowBase() const
 {
-    // When display is active, use the row latched at bad-line start
+    // When display is active, use the row latched at bad-line start.
     if (vicState.displayEnabled)
         return static_cast<int>(vicState.vmliBase);
 
@@ -4050,20 +4057,64 @@ uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
     return fetchColorByte(row, c, raster) & 0x0F;
 }
 
+bool Vic::shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const
+{
+    if (displayCol < 0 || displayCol >= 40)
+        return false;
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
+    // Only trust the matrix FIFO while display progression is active
+    // and the raster is inside the vertical display window.
+    if (!vicState.displayEnabled)
+        return false;
+
+    if (!rasterWithinVerticalDisplayWindow(raster))
+        return false;
+
+    // The FIFO is only meaningful once the current row has actually
+    // been fetched on a bad line for this display row.
+    if (!denSeenOn30 || firstBadlineY < 0)
+        return false;
+
+    return true;
+}
+
+bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster,
+                                          uint8_t& screenByte,
+                                          uint8_t& colorByte) const
+{
+    (void)raster;
+
+    if (!shouldUseFetchedMatrixForDisplayCol(displayCol, raster))
+        return false;
+
+    screenByte = charPtrFIFO[displayCol];
+    colorByte  = static_cast<uint8_t>(colorPtrFIFO[displayCol] & 0x0F);
+    return true;
+}
+
 uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster) const
 {
-    if (displayCol >= 0 && displayCol < 40)
-        return charPtrFIFO[displayCol];
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
+
+    if (fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
+        return screenByte;
 
     return fetchDisplayScreenByte(displayCol, raster);
 }
 
 uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 {
-    if (displayCol >= 0 && displayCol < 40)
-        return colorPtrFIFO[displayCol] & 0x0F;
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
 
-    return fetchDisplayColorByte(displayCol, raster);
+    if (fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
+        return static_cast<uint8_t>(colorByte & 0x0F);
+
+    return static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
 }
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
