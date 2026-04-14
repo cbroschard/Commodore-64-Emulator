@@ -252,6 +252,7 @@ class Vic
             int outputBit = 0;
             int outputRepeat = 0;
             bool rowPrepared = false;
+            bool rowDataLatched = false;
 
             int outputXStart = 0;
             int outputWidth = 0;
@@ -389,6 +390,8 @@ class Vic
         int spriteDataFetchSpriteForCycle(int cycle) const;
         int spriteDataByteIndexForCycle(int sprite, int cycle) const;
         uint16_t spritePointerAddressForRaster(int sprite, int raster) const;
+        bool spriteHasFetchedDisplayRow(int sprite) const;
+        void clearSpriteFetchedRowState(int sprite);
 
         // Sprite collision Helpers
         void detectSpriteToSpriteCollision(int raster);

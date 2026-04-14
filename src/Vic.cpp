@@ -122,6 +122,7 @@ void Vic::reset()
 
         s.outputRepeat = 0;
         s.rowPrepared = false;
+        s.rowDataLatched = false;
 
         s.fetched0 = 0;
         s.fetched1 = 0;
@@ -352,6 +353,7 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeI32(s.outputBit);
         wrtr.writeI32(s.outputRepeat);
         wrtr.writeBool(s.rowPrepared);
+        wrtr.writeBool(s.rowDataLatched);
 
         wrtr.writeI32(s.outputXStart);
         wrtr.writeI32(s.outputWidth);
@@ -521,6 +523,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readI32(s.outputBit))                      { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(s.outputRepeat))                   { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readBool(s.rowPrepared))                   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.rowDataLatched))                { rdr.exitChunkPayload(chunk); return false; }
 
             if (!rdr.readI32(s.outputXStart))                   { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(s.outputWidth))                    { rdr.exitChunkPayload(chunk); return false; }
@@ -1407,6 +1410,24 @@ void Vic::syncSpriteCompatAddress(int sprite)
     sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
 }
 
+bool Vic::spriteHasFetchedDisplayRow(int sprite) const
+{
+    return spriteUnits[sprite].rowDataLatched;
+}
+
+void Vic::clearSpriteFetchedRowState(int sprite)
+{
+    spriteUnits[sprite].rowDataLatched = false;
+
+    spriteUnits[sprite].fetched0 = 0;
+    spriteUnits[sprite].fetched1 = 0;
+    spriteUnits[sprite].fetched2 = 0;
+
+    spriteUnits[sprite].shift0 = 0;
+    spriteUnits[sprite].shift1 = 0;
+    spriteUnits[sprite].shift2 = 0;
+}
+
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
 {
     return  (uint32_t(spriteUnits[sprite].shift0) << 16)
@@ -1448,19 +1469,24 @@ void Vic::prepareSpriteOutputForRaster(int raster)
 
         if (!(registers.spriteEnabled & (1 << i)))
         {
-            spriteUnits[i].shift0 = 0;
-            spriteUnits[i].shift1 = 0;
-            spriteUnits[i].shift2 = 0;
+            clearSpriteFetchedRowState(i);
             continue;
         }
 
-        if (!spriteUnits[i].dmaActive || !spriteUnits[i].displayActive)
+        // DMA activity is the long-lived ownership signal here.
+        // Do not require displayActive; that field is also touched by
+        // line-output staging and is too transient to use as the gate.
+        if (!spriteUnits[i].dmaActive)
         {
-            spriteUnits[i].shift0 = 0;
-            spriteUnits[i].shift1 = 0;
-            spriteUnits[i].shift2 = 0;
+            clearSpriteFetchedRowState(i);
             continue;
         }
+
+        // A sprite may still be logically active across raster lines even if
+        // the current fetched row is blank. We only need a fetched row to
+        // enter the visible output stage for this raster.
+        if (!spriteHasFetchedDisplayRow(i))
+            continue;
 
         beginSpriteLineOutput(i, raster);
     }
@@ -1486,7 +1512,11 @@ void Vic::beginSpriteLineOutput(int spr, int raster)
     if (!(registers.spriteEnabled & (1 << spr)))
         return;
 
-    if (!spriteUnits[spr].displayActive)
+    // Use DMA as the durable activity gate.
+    if (!spriteUnits[spr].dmaActive)
+        return;
+
+    if (!spriteHasFetchedDisplayRow(spr))
         return;
 
     if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
@@ -1582,13 +1612,12 @@ void Vic::beginSpriteRasterOutput(int raster)
 
     for (int spr = 0; spr < 8; ++spr)
     {
-        if (!spriteUnits[spr].rowPrepared)
-        {
-            spriteUnits[spr].displayActive = false;
+        // Do not mutate displayActive here based on line-local prep state.
+        // This function should only start the raster output stage for rows
+        // that are already prepared.
+        if (!spriteUnits[spr].rowPrepared || !spriteHasFetchedDisplayRow(spr))
             continue;
-        }
 
-        spriteUnits[spr].displayActive = true;
         resetSpriteLineSequencer(spr, raster);
         traceVicSpriteSlotEvent(spr, "display-begin", raster, currentCycle);
     }
@@ -1631,11 +1660,10 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
 
-        // If this line already used the terminal sprite row, stop DMA now
-        // instead of advancing into a synthetic next row first.
         if (isSpriteDMAComplete(s))
         {
             traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
+            clearSpriteFetchedRowState(s);
             resetSpriteDMAState(s);
             continue;
         }
@@ -1692,6 +1720,7 @@ void Vic::resetSpriteDMAState(int spr)
     spriteUnits[spr].mcBase = 0;
 
     spriteUnits[spr].rowPrepared = false;
+    clearSpriteFetchedRowState(spr);
     spriteUnits[spr].outputBit = 0;
     spriteUnits[spr].outputRepeat = 0;
     spriteUnits[spr].outputXStart = 0;
@@ -1769,6 +1798,7 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     spriteUnits[sprite].shift0 = spriteUnits[sprite].fetched0;
     spriteUnits[sprite].shift1 = spriteUnits[sprite].fetched1;
     spriteUnits[sprite].shift2 = spriteUnits[sprite].fetched2;
+    spriteUnits[sprite].rowDataLatched = true;
 }
 
 bool Vic::isSpritePointerFetchCycle(int sprite, int cycle) const
@@ -1803,8 +1833,12 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
         spriteUnits[s].outputBit = 0;
         spriteUnits[s].outputRepeat = 0;
         spriteUnits[s].rowPrepared = false;
+        spriteUnits[s].rowDataLatched = false;
         spriteUnits[s].outputXStart = 0;
         spriteUnits[s].outputWidth = 0;
+        spriteUnits[s].fetched0 = 0;
+        spriteUnits[s].fetched1 = 0;
+        spriteUnits[s].fetched2 = 0;
         spriteUnits[s].shift0 = 0;
         spriteUnits[s].shift1 = 0;
         spriteUnits[s].shift2 = 0;
