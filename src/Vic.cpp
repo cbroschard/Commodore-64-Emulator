@@ -2090,9 +2090,15 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.yInChar = cell.yInChar;
     bgPipeline.pixelPhase = 0;
 
-    bgPipeline.charCode = cell.screenByte;
-    bgPipeline.rowBits = 0;
+    bgPipeline.charCode   = cell.screenByte;
+    bgPipeline.screenByte = cell.screenByte;
+    bgPipeline.colorByte  = static_cast<uint8_t>(cell.colorByte & 0x0F);
+    bgPipeline.bitmapByte = 0;
+    bgPipeline.rowBits    = 0;
 
+    // For text modes:
+    // - fgColor is the direct cell color for standard text
+    // - fgColor low 3 bits are the direct cell color for multicolor text
     bgPipeline.fgColor  = static_cast<uint8_t>(cell.colorByte & 0x0F);
     bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
     bgPipeline.bgColor1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
