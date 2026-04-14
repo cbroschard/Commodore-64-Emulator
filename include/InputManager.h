@@ -45,7 +45,7 @@ class InputManager
         void tick();
 
         void setJoystickAttached(int port, bool flag);
-        void setJoystickConfig(int port, JoystickMapping& cfg);
+        void setJoystickConfig(int port, const JoystickMapping& cfg);
 
         void assignPadToPort(SDL_GameController* pad, int port);
         void unassignPadFromPorts(SDL_JoystickID id);

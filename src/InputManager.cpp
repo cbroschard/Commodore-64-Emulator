@@ -258,7 +258,7 @@ void InputManager::setJoystickAttached(int port, bool flag)
     }
 }
 
-void InputManager::setJoystickConfig(int port, JoystickMapping& cfg)
+void InputManager::setJoystickConfig(int port, const JoystickMapping& cfg)
 {
     if (port != 1 && port != 2) return;
 

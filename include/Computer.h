@@ -65,7 +65,7 @@ class Computer : public ICartridgeHost
         inline Joystick* getJoy2() { return components_.inputMgr ? components_.inputMgr->getJoy2() : nullptr; }
 
         // Game controls
-        void setJoystickConfig(int port, JoystickMapping& cfg);
+        void setJoystickConfig(int port, const JoystickMapping& cfg);
 
         // Setters for C64 ROM locations
         inline void setKernalROM(const std::string& kernal) { roms_.kernalRom = kernal; }

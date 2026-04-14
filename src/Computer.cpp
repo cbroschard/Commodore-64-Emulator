@@ -150,7 +150,7 @@ void Computer::enterMonitor()
     if (components_.debug) components_.debug->openMonitor();
 }
 
-void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
+void Computer::setJoystickConfig(int port, const JoystickMapping& cfg)
 {
     if (!components_.inputMgr) return;
     components_.inputMgr->setJoystickConfig(port, cfg);
