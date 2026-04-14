@@ -17,7 +17,7 @@
 #include "CPUTiming.h"
 #include "MachineComponents.h"
 #include "MachineRomConfig.h"
-#include "MachineRunTimeState.h"
+#include "MachineRuntimeState.h"
 
 // Forward declarations
 class DebugManager;
@@ -60,7 +60,7 @@ class Computer : public ICartridgeHost
         inline void setPrgPath(const std::string& path) { if (components_.media) components_.media->setPrgPath(path); }
 
         // Getters
-        inline bool getCartridgeAttached() { return components_.media ? components_.media->getState().cartAttached : false; }
+        inline bool getCartridgeAttached() const { return components_.media ? components_.media->getState().cartAttached : false; }
         inline Joystick* getJoy1() { return components_.inputMgr ? components_.inputMgr->getJoy1() : nullptr; }
         inline Joystick* getJoy2() { return components_.inputMgr ? components_.inputMgr->getJoy2() : nullptr; }
 
@@ -84,22 +84,12 @@ class Computer : public ICartridgeHost
     protected:
 
     private:
-
-        // Machine components
-        MachineComponents components_;
-
-        // Joystick
-        void setJoystickAttached(int port, bool flag);
-
         // Video/CPU mode setup
         VideoMode videoMode_ = VideoMode::NTSC;
         const CPUConfig* cpuCfg_ = &NTSC_CPU;
 
         // Graphics loop threading
-        std::atomic<bool>       running;
-
-        // Filenames and path of the ROMS to boot the system and Drive ROMS
-        MachineRomConfig roms_;
+        std::atomic<bool> running;
 
         std::atomic<bool> uiQuit;
         std::atomic<bool> uiPaused;
@@ -108,7 +98,13 @@ class Computer : public ICartridgeHost
         bool pendingBusPrime;
         bool busPrimedAfterBoot;
 
-        MachineRuntimeState makeRuntimeState();
+        // Machine components
+        MachineComponents components_;
+        MachineRomConfig roms_;
+        MachineRuntimeState runtime_;
+
+        // Joystick
+        void setJoystickAttached(int port, bool flag);
 
         // Wire all the components together
         void wireUp();

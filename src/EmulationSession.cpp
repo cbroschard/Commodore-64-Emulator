@@ -5,80 +5,21 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Cartridge.h"
-#include "CIA1.h"
-#include "CIA2.h"
-#include "CPU.h"
 #include "CPUTiming.h"
 #include "DebugManager.h"
 #include "EmulationSession.h"
-#include "EmulatorUI.h"
-#include "IECBUS.h"
-#include "InputManager.h"
-#include "InputRouter.h"
-#include "IO.h"
-#include "Logging.h"
-#include "MediaManager.h"
-#include "Memory.h"
-#include "PLA.h"
-#include "SID/SID.h"
+#include "MachineRomConfig.h"
+#include "MachineComponents.h"
+#include "MachineRuntimeState.h"
 #include "UIBridge.h"
-#include "Vic.h"
 
-EmulationSession::EmulationSession(Cartridge& cart,
-                                   CIA1& cia1object,
-                                   CIA2& cia2object,
-                                   CPU& processor,
-                                   DebugManager& debug,
-                                   EmulatorUI& ui,
-                                   IECBUS& bus,
-                                   InputManager& inputMgr,
-                                   InputRouter& inputRouter,
-                                   IO& ioAdapter,
-                                   Logging& logger,
-                                   MediaManager& media,
-                                   Memory& mem,
-                                   PLA& pla,
-                                   SID& sidchip,
-                                   UIBridge& uiBridge,
-                                   Vic& vicII,
-                                   const CPUConfig*& cpuCfg,
-                                   bool& pendingBusPrime,
-                                   bool& busPrimedAfterBoot,
-                                   const std::string& basicRom,
-                                   const std::string& kernalRom,
-                                   const std::string& charRom,
-                                   std::atomic<bool>& running,
-                                   std::atomic<bool>& uiQuit,
-                                   std::atomic<bool>& uiPaused)
-    : cart_(cart),
-      cia1object_(cia1object),
-      cia2object_(cia2object),
-      processor_(processor),
-      debug_(debug),
-      ui_(ui),
-      bus_(bus),
-      inputMgr_(inputMgr),
-      inputRouter_(inputRouter),
-      ioAdapter_(ioAdapter),
-      logger_(logger),
-      media_(media),
-      mem_(mem),
-      pla_(pla),
-      sidchip_(sidchip),
-      uiBridge_(uiBridge),
-      vicII_(vicII),
-      running_(running),
+EmulationSession::EmulationSession(MachineComponents& components, MachineRuntimeState& runtime, MachineRomConfig& roms, std::atomic<bool>& uiQuit)
+    : components_(components),
+      runtime_(runtime),
+      roms_(roms),
       uiQuit_(uiQuit),
-      uiPaused_(uiPaused),
       frameDuration_(0.0),
-      nextFrameTime_(),
-      cpuCfg_(cpuCfg),
-      pendingBusPrime_(pendingBusPrime),
-      busPrimedAfterBoot_(busPrimedAfterBoot),
-      basicRom_(basicRom),
-      kernalRom_(kernalRom),
-      charRom_(charRom)
+      nextFrameTime_()
 {
 
 }
@@ -100,7 +41,7 @@ bool EmulationSession::run()
         if (!finalizeFrame())
             break;
 
-        if (!running_)
+        if (!runtime_.running)
             break;
     }
 
@@ -110,38 +51,38 @@ bool EmulationSession::run()
 
 bool EmulationSession::initializeMachine()
 {
-    if (!mem_.Initialize(basicRom_, kernalRom_, charRom_))
+    if (!components_.mem->Initialize(roms_.basicRom, roms_.kernalRom, roms_.charRom))
     {
         throw std::runtime_error("Error: Problem encountered initializing memory!");
     }
 
     // Reset all chips
-    bus_.reset();
-    pla_.reset();
-    processor_.reset();
-    vicII_.reset();
-    cia1object_.reset();
-    cia2object_.reset();
-    sidchip_.reset();
+    components_.bus->reset();
+    components_.pla->reset();
+    components_.cpu->reset();
+    components_.vic->reset();
+    components_.cia1->reset();
+    components_.cia2->reset();
+    components_.sid->reset();
 
     // Process boot attachments
-    media_.applyBootAttachments();
+    components_.media->applyBootAttachments();
 
     // Start audio
-    ioAdapter_.playAudio();
-    sidchip_.setSampleRate(ioAdapter_.getSampleRate());
+    components_.io->playAudio();
+    components_.sid->setSampleRate(components_.io->getSampleRate());
 
     // Show the ImGui menu
-    ioAdapter_.setGuiCallback([this]()
+    components_.io->setGuiCallback([this]()
     {
-        ui_.draw();
+        components_.ui->draw();
     });
 
     // Prime the renderer once up front
-    ioAdapter_.finishFrameAndSignal();
-    ioAdapter_.renderFrame(running_);
+    components_.io->finishFrameAndSignal();
+    components_.io->renderFrame(runtime_.running);
 
-    frameDuration_ = std::chrono::duration<double, std::milli>(1000.0 / cpuCfg_->frameRate);
+    frameDuration_ = std::chrono::duration<double, std::milli>(1000.0 / runtime_.cpuCfg->frameRate);
     nextFrameTime_ = std::chrono::steady_clock::now() +
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
 
@@ -150,7 +91,7 @@ bool EmulationSession::initializeMachine()
 
 void EmulationSession::processEvents()
 {
-    const bool wantTextInput = debug_.monitorController().isOpen() || ui_.isFileDialogOpen();
+    const bool wantTextInput = components_.debug->monitorController().isOpen() || components_.ui->isFileDialogOpen();
 
     if (wantTextInput)
         SDL_StartTextInput();
@@ -161,60 +102,60 @@ void EmulationSession::processEvents()
     while (SDL_PollEvent(&e))
     {
         // Let IO handle ImGui + main-thread window/input events
-        ioAdapter_.handleEvent(e, running_);
+        components_.io->handleEvent(e, runtime_.running);
 
         // Then let InputRouter handle hotkeys, monitor toggle, etc.
-        if (inputRouter_.handleEvent(e))
+        if (components_.inputRouter->handleEvent(e))
             continue;
 
         if (e.type == SDL_QUIT)
         {
-            running_ = false;
+            runtime_.running = false;
             uiQuit_ = true;
         }
     }
 
-    debug_.tick();
-    inputMgr_.tick();
+    components_.debug->tick();
+    components_.inputMgr->tick();
 }
 
 bool EmulationSession::runFrame()
 {
-    if (pendingBusPrime_)
+    if (runtime_.pendingBusPrime)
     {
-        bus_.reset();
-        pendingBusPrime_    = false;
-        busPrimedAfterBoot_ = true;
+        components_.bus->reset();
+        runtime_.pendingBusPrime    = false;
+        runtime_.busPrimedAfterBoot = true;
     }
 
     int frameCycles = 0;
 
-    while (frameCycles < cpuCfg_->cyclesPerFrame())
+    while (frameCycles < runtime_.cpuCfg->cyclesPerFrame())
     {
         uint32_t elapsedCycles = 0;
 
-        if (vicII_.getAEC())
+        if (components_.vic->getAEC())
         {
             try
             {
-                uint16_t pc = processor_.getPC();
-                if (!uiPaused_.load() && debug_.hasBreakpoint(pc))
+                uint16_t pc = components_.cpu->getPC();
+                if (!runtime_.uiPaused.load() && components_.debug->hasBreakpoint(pc))
                 {
-                    uiPaused_ = true;
-                    debug_.onBreakpoint(pc);
+                    runtime_.uiPaused = true;
+                    components_.debug->onBreakpoint(pc);
                     break;
                 }
 
-                processor_.tick();
-                elapsedCycles = processor_.getElapsedCycles();
+                components_.cpu->tick();
+                elapsedCycles = components_.cpu->getElapsedCycles();
 
-                if (uiPaused_.load())
+                if (runtime_.uiPaused.load())
                     break;
             }
             catch (const std::exception& e)
             {
                 std::cerr << "Exception caught: " << e.what() << "\n";
-                logger_.flush();
+                components_.logger->flush();
                 return false;
             }
         }
@@ -224,19 +165,19 @@ bool EmulationSession::runFrame()
             elapsedCycles = 1;
         }
 
-        sidchip_.tick(elapsedCycles);
-        cia1object_.updateTimers(elapsedCycles);
-        cia2object_.updateTimers(elapsedCycles);
-        vicII_.tick(elapsedCycles);
-        bus_.tick(elapsedCycles);
+        components_.sid->tick(elapsedCycles);
+        components_.cia1->updateTimers(elapsedCycles);
+        components_.cia2->updateTimers(elapsedCycles);
+        components_.vic->tick(elapsedCycles);
+        components_.bus->tick(elapsedCycles);
 
-        if (vicII_.isFrameDone())
+        if (components_.vic->isFrameDone())
         {
-            vicII_.clearFrameFlag();
-            ioAdapter_.finishFrameAndSignal();
+            components_.vic->clearFrameFlag();
+            components_.io->finishFrameAndSignal();
         }
 
-        if (auto* mapper = cart_.getMapper())
+        if (auto* mapper = components_.cart->getMapper())
             mapper->tick(elapsedCycles);
 
         frameCycles += static_cast<int>(elapsedCycles);
@@ -249,15 +190,14 @@ bool EmulationSession::finalizeFrame()
 {
     if (uiQuit_.exchange(false))
     {
-        running_ = false;
+        runtime_.running = false;
         return false;
     }
 
-    ui_.setMediaViewState(uiBridge_.buildMediaViewState());
+    components_.ui->setMediaViewState(components_.uiBridge->buildMediaViewState());
 
     auto now = std::chrono::steady_clock::now();
-    const auto frameStep =
-        std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
+    const auto frameStep = std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
 
     if (now < nextFrameTime_)
     {
@@ -269,17 +209,17 @@ bool EmulationSession::finalizeFrame()
     }
     while (nextFrameTime_ <= now);
 
-    uiBridge_.processCommands();
-    media_.tick();
+    components_.uiBridge->processCommands();
+    components_.media->tick();
 
-    ioAdapter_.renderFrame(running_);
+    components_.io->renderFrame(runtime_.running);
     return true;
 }
 
 void EmulationSession::shutdown()
 {
-    running_ = false;
+    runtime_.running = false;
 
-    ioAdapter_.stopRenderThread(running_);
-    ioAdapter_.setGuiCallback({});
+    components_.io->stopRenderThread(runtime_.running);
+    components_.io->setGuiCallback({});
 }

@@ -31,7 +31,16 @@ Computer::Computer() :
     uiQuit(false),
     uiPaused(false),
     pendingBusPrime(false),
-    busPrimedAfterBoot(false)
+    busPrimedAfterBoot(false),
+    runtime_
+    {
+        running,
+        uiPaused,
+        videoMode_,
+        cpuCfg_,
+        pendingBusPrime,
+        busPrimedAfterBoot
+    }
 {
     components_.cart = std::make_unique<Cartridge>();
     components_.cass = std::make_unique<Cassette>();
@@ -149,32 +158,7 @@ void Computer::setJoystickConfig(int port, JoystickMapping& cfg)
 
 bool Computer::boot()
 {
-    EmulationSession session(*components_.cart,
-                             *components_.cia1,
-                             *components_.cia2,
-                             *components_.cpu,
-                             *components_.debug,
-                             *components_.ui,
-                             *components_.bus,
-                             *components_.inputMgr,
-                             *components_.inputRouter,
-                             *components_.io,
-                             *components_.logger,
-                             *components_.media,
-                             *components_.mem,
-                             *components_.pla,
-                             *components_.sid,
-                             *components_.uiBridge,
-                             *components_.vic,
-                             cpuCfg_,
-                             pendingBusPrime,
-                             busPrimedAfterBoot,
-                             roms_.basicRom,
-                             roms_.kernalRom,
-                             roms_.charRom,
-                             running,
-                             uiQuit,
-                             uiPaused);
+    EmulationSession session(components_, runtime_, roms_, uiQuit);
 
     return session.run();
 }
@@ -196,18 +180,5 @@ void Computer::setVideoMode(const std::string& mode)
 
 void Computer::wireUp()
 {
-    auto runtime = makeRuntimeState();
-    MachineBuilder::assemble(this, components_, runtime, roms_);
-}
-
-MachineRuntimeState Computer::makeRuntimeState()
-{
-    return MachineRuntimeState{
-        running,
-        uiPaused,
-        videoMode_,
-        cpuCfg_,
-        pendingBusPrime,
-        busPrimedAfterBoot
-    };
+    MachineBuilder::assemble(this, components_, runtime_, roms_);
 }
