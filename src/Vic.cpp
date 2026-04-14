@@ -1415,6 +1415,22 @@ bool Vic::spriteHasFetchedDisplayRow(int sprite) const
     return spriteUnits[sprite].rowDataLatched;
 }
 
+bool Vic::spriteCanRenderThisRaster(int sprite) const
+{
+    return (registers.spriteEnabled & (1 << sprite)) != 0 &&
+           spriteUnits[sprite].dmaActive &&
+           spriteHasFetchedDisplayRow(sprite);
+}
+
+void Vic::resetSpriteLineOutputState(int sprite)
+{
+    spriteUnits[sprite].rowPrepared = false;
+    spriteUnits[sprite].outputBit = 0;
+    spriteUnits[sprite].outputRepeat = 0;
+    spriteUnits[sprite].outputXStart = 0;
+    spriteUnits[sprite].outputWidth = 0;
+}
+
 void Vic::clearSpriteFetchedRowState(int sprite)
 {
     spriteUnits[sprite].rowDataLatched = false;
@@ -1461,11 +1477,7 @@ void Vic::prepareSpriteOutputForRaster(int raster)
 
     for (int i = 0; i < 8; ++i)
     {
-        spriteUnits[i].rowPrepared = false;
-        spriteUnits[i].outputBit = 0;
-        spriteUnits[i].outputRepeat = 0;
-        spriteUnits[i].outputXStart = 0;
-        spriteUnits[i].outputWidth = 0;
+        resetSpriteLineOutputState(i);
 
         if (!(registers.spriteEnabled & (1 << i)))
         {
@@ -1473,18 +1485,12 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        // DMA activity is the long-lived ownership signal here.
-        // Do not require displayActive; that field is also touched by
-        // line-output staging and is too transient to use as the gate.
         if (!spriteUnits[i].dmaActive)
         {
             clearSpriteFetchedRowState(i);
             continue;
         }
 
-        // A sprite may still be logically active across raster lines even if
-        // the current fetched row is blank. We only need a fetched row to
-        // enter the visible output stage for this raster.
         if (!spriteHasFetchedDisplayRow(i))
             continue;
 
@@ -1503,20 +1509,9 @@ void Vic::beginSpriteLineOutput(int spr, int raster)
     int rowInSprite = 0;
     int fbLine = 0;
 
-    spriteUnits[spr].rowPrepared = false;
-    spriteUnits[spr].outputBit = 0;
-    spriteUnits[spr].outputRepeat = 0;
-    spriteUnits[spr].outputXStart = 0;
-    spriteUnits[spr].outputWidth = 0;
+    resetSpriteLineOutputState(spr);
 
-    if (!(registers.spriteEnabled & (1 << spr)))
-        return;
-
-    // Use DMA as the durable activity gate.
-    if (!spriteUnits[spr].dmaActive)
-        return;
-
-    if (!spriteHasFetchedDisplayRow(spr))
+    if (!spriteCanRenderThisRaster(spr))
         return;
 
     if (!spriteDisplayCoversRaster(spr, raster, rowInSprite, fbLine))
@@ -1612,10 +1607,10 @@ void Vic::beginSpriteRasterOutput(int raster)
 
     for (int spr = 0; spr < 8; ++spr)
     {
-        // Do not mutate displayActive here based on line-local prep state.
-        // This function should only start the raster output stage for rows
-        // that are already prepared.
-        if (!spriteUnits[spr].rowPrepared || !spriteHasFetchedDisplayRow(spr))
+        if (!spriteUnits[spr].rowPrepared)
+            continue;
+
+        if (!spriteHasFetchedDisplayRow(spr))
             continue;
 
         resetSpriteLineSequencer(spr, raster);
@@ -1719,16 +1714,8 @@ void Vic::resetSpriteDMAState(int spr)
     spriteUnits[spr].mc = 0;
     spriteUnits[spr].mcBase = 0;
 
-    spriteUnits[spr].rowPrepared = false;
+    resetSpriteLineOutputState(spr);
     clearSpriteFetchedRowState(spr);
-    spriteUnits[spr].outputBit = 0;
-    spriteUnits[spr].outputRepeat = 0;
-    spriteUnits[spr].outputXStart = 0;
-    spriteUnits[spr].outputWidth = 0;
-
-    spriteUnits[spr].shift0 = 0;
-    spriteUnits[spr].shift1 = 0;
-    spriteUnits[spr].shift2 = 0;
 }
 
 void Vic::performSpriteDataFetches()
@@ -1830,18 +1817,8 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
         spriteUnits[s].mcBase = 0;
         spriteUnits[s].startY = registers.spriteY[s];
 
-        spriteUnits[s].outputBit = 0;
-        spriteUnits[s].outputRepeat = 0;
-        spriteUnits[s].rowPrepared = false;
-        spriteUnits[s].rowDataLatched = false;
-        spriteUnits[s].outputXStart = 0;
-        spriteUnits[s].outputWidth = 0;
-        spriteUnits[s].fetched0 = 0;
-        spriteUnits[s].fetched1 = 0;
-        spriteUnits[s].fetched2 = 0;
-        spriteUnits[s].shift0 = 0;
-        spriteUnits[s].shift1 = 0;
-        spriteUnits[s].shift2 = 0;
+        resetSpriteLineOutputState(s);
+        clearSpriteFetchedRowState(s);
 
         traceVicSpriteDmaStart(s);
         traceVicSpriteSlotEvent(s, "dma-start", raster, currentCycle);

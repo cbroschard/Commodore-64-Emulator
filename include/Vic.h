@@ -231,8 +231,13 @@ class Vic
 
         struct SpriteUnit
         {
+                        // DMA lifetime/state
             bool dmaActive = false;
+
+            // Legacy "sprite display is in progress" state.
+            // Do not use this as the authoritative gate for line prep/output.
             bool displayActive = false;
+
             bool yExpandLatch = false;
 
             uint8_t mc = 0;
@@ -241,22 +246,28 @@ class Vic
             uint8_t pointerByte = 0;
             uint16_t dataBase = 0;
 
+            // Latched row bits currently visible to the sprite output sequencer.
             uint8_t shift0 = 0;
             uint8_t shift1 = 0;
             uint8_t shift2 = 0;
 
             int currentRow = 0;
-
             int startY = 0;
 
+            // Line-local sprite output sequencer state.
             int outputBit = 0;
             int outputRepeat = 0;
             bool rowPrepared = false;
+
+            // True once a full 3-byte sprite row has been fetched and copied
+            // into shift0/1/2. This is the authoritative "row data exists"
+            // signal for visible output.
             bool rowDataLatched = false;
 
             int outputXStart = 0;
             int outputWidth = 0;
 
+            // Most recently fetched DMA row bytes.
             uint8_t fetched0 = 0;
             uint8_t fetched1 = 0;
             uint8_t fetched2 = 0;
@@ -409,6 +420,8 @@ class Vic
         void syncSpriteCompatAddress(int sprite);
 
         void prepareSpriteOutputForRaster(int raster);
+        bool spriteCanRenderThisRaster(int sprite) const;
+        void resetSpriteLineOutputState(int sprite);
 
         int spritePreparedOutputWidth(int sprIndex) const;
         void beginSpriteLineOutput(int sprIndex, int raster);
