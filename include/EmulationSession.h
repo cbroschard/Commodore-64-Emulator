@@ -5,12 +5,30 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#ifndef EMULATIONSESSION_H
-#define EMULATIONSESSION_H
+#ifndef EMULATION_SESSION_H
+#define EMULATION_SESSION_H
 
 #include <atomic>
 #include <chrono>
-#include <thread>
+#include <string>
+
+class Cartridge;
+class CIA1;
+class CIA2;
+class CPU;
+class DebugManager;
+class EmulatorUI;
+class IECBUS;
+class InputManager;
+class InputRouter;
+class IO;
+class Logging;
+class MediaManager;
+class Memory;
+class PLA;
+class SID;
+class UIBridge;
+class Vic;
 
 struct MachineComponents;
 struct MachineRuntimeState;
@@ -18,31 +36,49 @@ struct MachineRomConfig;
 
 class EmulationSession
 {
-    public:
-        EmulationSession(MachineComponents& components, MachineRuntimeState& runtime, MachineRomConfig& roms, std::atomic<bool>& uiQuit);
+public:
+    EmulationSession(MachineComponents& components,
+                     MachineRuntimeState& runtime,
+                     MachineRomConfig& roms,
+                     std::atomic<bool>& uiQuit);
+    ~EmulationSession();
 
-        ~EmulationSession();
+    bool run();
 
-        bool run();
+private:
+    bool initializeMachine();
+    void processEvents();
+    bool runFrame();
+    bool finalizeFrame();
+    void shutdown();
 
-    protected:
+private:
+    MachineComponents& components_;
+    MachineRuntimeState& runtime_;
+    MachineRomConfig& roms_;
+    std::atomic<bool>& uiQuit_;
 
-    private:
-        MachineComponents& components_;
-        MachineRuntimeState& runtime_;
-        MachineRomConfig& roms_;
+    // Cached hot references for debug-build performance
+    Cartridge& cart_;
+    CIA1& cia1_;
+    CIA2& cia2_;
+    CPU& cpu_;
+    DebugManager& debug_;
+    EmulatorUI& ui_;
+    IECBUS& bus_;
+    InputManager& inputMgr_;
+    InputRouter& inputRouter_;
+    IO& io_;
+    Logging& logger_;
+    MediaManager& media_;
+    Memory& mem_;
+    PLA& pla_;
+    SID& sid_;
+    UIBridge& uiBridge_;
+    Vic& vic_;
 
-        std::atomic<bool>& uiQuit_;
-
-        std::chrono::duration<double, std::milli> frameDuration_;
-        std::chrono::steady_clock::time_point nextFrameTime_;
-
-        // Emulation phases
-        bool initializeMachine();
-        void processEvents();
-        bool runFrame();
-        bool finalizeFrame();
-        void shutdown();
+    std::chrono::duration<double, std::milli> frameDuration_;
+    std::chrono::steady_clock::time_point nextFrameTime_;
 };
 
-#endif // EMULATIONSESSION_H
+#endif // EMULATION_SESSION_H
