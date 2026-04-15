@@ -743,7 +743,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 void DriveCIA::triggerInterrupt(InterruptBit bit)
 {
     interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
-    interruptStatus |= 0x80; // master IRQ flag
 }
 
 void DriveCIA::setFlagLine(bool level)
