@@ -33,7 +33,8 @@ DriveCIA::DriveCIA() :
     spLevel(false),
     lastSpLevel(false),
     serialShiftRegister(0x00),
-    serialBitCount(0)
+    serialBitCount(0),
+    serialRxArmed(false)
 {
 
 }
@@ -107,6 +108,7 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(lastSpLevel);
     wrtr.writeU8(serialShiftRegister);
     wrtr.writeU8(serialBitCount);
+    wrtr.writeBool(serialRxArmed);
 }
 
 bool DriveCIA::loadState(StateReader& rdr)
@@ -186,6 +188,7 @@ bool DriveCIA::loadState(StateReader& rdr)
     if (!rdr.readBool(lastSpLevel)) return false;
     if (!rdr.readU8(serialShiftRegister)) return false;
     if (!rdr.readU8(serialBitCount)) return false;
+    if (!rdr.readBool(serialRxArmed)) return false;
 
     // Post-restore fixups
 
@@ -270,6 +273,7 @@ void DriveCIA::reset()
     lastSpLevel                 = false;
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
+    serialRxArmed               = false;
 
     // Handshake
     lastAtnLow                  = false;
@@ -322,6 +326,11 @@ void DriveCIA::notifyAtnInput(bool atnLow)
 
         extDataLow = true;
 
+        // Do not let SDR sample during the ATN presence-ack phase
+        serialShiftRegister = 0x00;
+        serialBitCount = 0;
+        serialRxArmed = false;
+
         applyIECOutputs();
 
         #ifdef Debug
@@ -335,7 +344,12 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         std::cout << "[CIA] notifyAtnInput RISE (cancel ACK)\n";
         #endif
         ackArmed = false;
-        extDataLow = false;
+        extDataLow = false
+
+        serialShiftRegister = 0x00;
+        serialBitCount = 0;
+        serialRxArmed = false;
+
         applyIECOutputs();
     }
 
@@ -344,7 +358,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
 
 void DriveCIA::tick(uint32_t cycles)
 {
-    while(cycles-- > 0)
+    while (cycles-- > 0)
     {
         // Update Pin B
         updatePinsFromBus();
@@ -366,6 +380,12 @@ void DriveCIA::tick(uint32_t cycles)
                 atnAckHoldCycles = 0;
                 atnAckSawClkLow = false;
                 atnAckSawClkHigh = false;
+
+                // Do not carry partial serial state across ATN release
+                serialShiftRegister = 0x00;
+                serialBitCount = 0;
+                serialRxArmed = false;
+
                 applyIECOutputs();
             }
             else
@@ -392,6 +412,12 @@ void DriveCIA::tick(uint32_t cycles)
                 {
                     ackArmed = false;
                     extDataLow = false;
+
+                    // Start SDR receive fresh only after ACK release
+                    serialShiftRegister = 0x00;
+                    serialBitCount = 0;
+                    serialRxArmed = true;
+
                     applyIECOutputs();
                 }
 
@@ -407,6 +433,12 @@ void DriveCIA::tick(uint32_t cycles)
                     {
                         ackArmed = false;
                         extDataLow = false;
+
+                        // Start SDR receive fresh only after ACK release
+                        serialShiftRegister = 0x00;
+                        serialBitCount = 0;
+                        serialRxArmed = true;
+
                         applyIECOutputs();
                     }
                 }
@@ -414,15 +446,30 @@ void DriveCIA::tick(uint32_t cycles)
         }
 
         // CIA serial receive path:
-        // CRA bit 6 = 0 means serial input mode.
+        // Keep the original best-behaving polarity/edge:
+        //   cntLevel = !iecClkInLow
+        //   spLevel  = !iecDataInLow
+        //   sample on CNT rising edge
         const bool cntRisingEdge = (cntLevel && !lastCntLevel);
         const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
-        if (sdrInputMode && cntRisingEdge)
+        if (serialRxArmed && sdrInputMode && cntRisingEdge)
         {
-            serialShiftRegister =
-                static_cast<uint8_t>((serialShiftRegister << 1) | (spLevel ? 1 : 0));
+            uint8_t nextShift = static_cast<uint8_t>(serialShiftRegister << 1);
+            if (spLevel)
+                nextShift |= 0x01;
+            serialShiftRegister = nextShift;
+
             ++serialBitCount;
+
+            #ifdef Debug
+            std::cout << "[CIA] SDR bit: sp=" << (spLevel ? 1 : 0)
+                      << " count=" << static_cast<int>(serialBitCount)
+                      << " shift=$"
+                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(serialShiftRegister)
+                      << std::dec << "\n";
+            #endif
 
             if (serialBitCount == 8)
             {
