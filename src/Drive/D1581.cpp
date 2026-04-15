@@ -254,7 +254,7 @@ void D1581::tick(uint32_t cycles)
         iecLinesPrimed = true;
     }
 
-    while (cycles > 0)
+    while (cycles-- > 0)
     {
         if (bus)
         {
@@ -268,12 +268,25 @@ void D1581::tick(uint32_t cycles)
         }
 
         driveCPU.tick();
+
         uint32_t dc = driveCPU.getElapsedCycles();
         if (dc == 0) dc = 1;
 
-        d1581mem.tick(dc);
+        while (dc-- > 0)
+        {
+            d1581mem.tick(1);
 
-        cycles -= dc;
+            if (bus)
+            {
+                const bool newAtnLow  = !bus->readAtnLine();
+                const bool newClkLow  = !bus->readClkLine();
+                const bool newDataLow = !bus->readDataLine();
+
+                if (newAtnLow  != atnLineLow)  atnChanged(newAtnLow);
+                if (newClkLow  != clkLineLow)  clkChanged(newClkLow);
+                if (newDataLow != dataLineLow) dataChanged(newDataLow);
+            }
+        }
     }
 }
 
