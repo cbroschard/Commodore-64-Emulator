@@ -587,9 +587,12 @@ uint8_t DriveCIA::readRegister(uint16_t address)
             uint8_t result = pending;
             if (pending & registers.interruptEnable) result |= 0x80;
 
-            // Clear the acknowledged sources (bits 0–4 that were set)
             interruptStatus &= static_cast<uint8_t>(~pending);
             if ((interruptStatus & 0x1F) == 0) interruptStatus &= 0x7F;
+
+            if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
+                drive->updateIRQ();
+
             return result;
         }
         case 0x0E: return registers.controlRegisterA;
@@ -667,16 +670,15 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         {
             uint8_t mask = value & 0x1F;
             if (value & 0x80)
-            {
                 registers.interruptEnable |= mask;
-            }
             else
-            {
                 registers.interruptEnable &= static_cast<uint8_t>(~mask);
-            }
+
+            if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
+                drive->updateIRQ();
+
             break;
         }
-
         case 0x0E: // CRA
         {
             const uint8_t old = registers.controlRegisterA;
@@ -707,7 +709,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 
             break;
         }
-
         case 0x0F: // CRB
         {
             const uint8_t old = registers.controlRegisterB;
@@ -735,6 +736,9 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 void DriveCIA::triggerInterrupt(InterruptBit bit)
 {
     interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
+
+    if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
+        drive->updateIRQ();
 }
 
 void DriveCIA::setFlagLine(bool level)
