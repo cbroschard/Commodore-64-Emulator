@@ -378,11 +378,6 @@ void DriveCIA::tick(uint32_t cycles)
                 atnAckSawClkLow = false;
                 atnAckSawClkHigh = false;
 
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-                serialRxArmed = false;
-                serialRxJustArmed = false;
-
                 applyIECOutputs();
             }
             else
