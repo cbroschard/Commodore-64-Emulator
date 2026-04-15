@@ -453,10 +453,7 @@ void DriveCIA::tick(uint32_t cycles)
         // Do not sample in the same cycle the receiver was just armed.
         if (serialRxArmed && !serialRxJustArmed && sdrInputMode && cntRisingEdge)
         {
-            uint8_t nextShift = static_cast<uint8_t>(serialShiftRegister << 1);
-            if (spLevel)
-                nextShift |= 0x01;
-            serialShiftRegister = nextShift;
+            serialShiftRegister = static_cast<uint8_t>((serialShiftRegister >> 1) | (spLevel ? 0x80 : 0x00));
 
             ++serialBitCount;
 
