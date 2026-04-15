@@ -29,7 +29,11 @@ DriveCIA::DriveCIA() :
     atnAckSawClkLow(false),
     iecAtnInLow(false),
     iecClkInLow(false),
-    iecDataInLow(false)
+    iecDataInLow(false),
+    spLevel(false),
+    lastSpLevel(false),
+    serialShiftRegister(0x00),
+    serialBitCount(0)
 {
 
 }
@@ -98,6 +102,11 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(iecAtnInLow);
     wrtr.writeBool(iecClkInLow);
     wrtr.writeBool(iecDataInLow);
+
+    wrtr.writeBool(spLevel);
+    wrtr.writeBool(lastSpLevel);
+    wrtr.writeU8(serialShiftRegister);
+    wrtr.writeU8(serialBitCount);
 }
 
 bool DriveCIA::loadState(StateReader& rdr)
@@ -173,6 +182,11 @@ bool DriveCIA::loadState(StateReader& rdr)
     if (!rdr.readBool(iecClkInLow)) return false;
     if (!rdr.readBool(iecDataInLow)) return false;
 
+    if (!rdr.readBool(spLevel)) return false;
+    if (!rdr.readBool(lastSpLevel)) return false;
+    if (!rdr.readU8(serialShiftRegister)) return false;
+    if (!rdr.readU8(serialBitCount)) return false;
+
     // Post-restore fixups
 
     // Ensure the master IRQ flag bit matches whether any source bits are set
@@ -183,6 +197,11 @@ bool DriveCIA::loadState(StateReader& rdr)
 
     // Overlay IEC inputs onto portBPins (so ROM sees correct ATN/CLK/DATA inputs)
     applyIECInputsToPortBPins();
+
+    cntLevel = !iecClkInLow;
+    lastCntLevel = cntLevel;
+    spLevel = !iecDataInLow;
+    lastSpLevel = spLevel;
 
     // Re-apply outputs based on restored registers/DDRs (safe even if no bus attached)
     applyPortOutputs();
@@ -246,6 +265,12 @@ void DriveCIA::reset()
     iecClkInLow                 = false;
     iecDataInLow                = false;
 
+    // CIA serial receive side
+    spLevel                     = false;
+    lastSpLevel                 = false;
+    serialShiftRegister         = 0x00;
+    serialBitCount              = 0;
+
     // Handshake
     lastAtnLow                  = false;
     extDataLow                  = false;
@@ -295,8 +320,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         lastClkInLowForAck = iecClkInLow;
         atnAckHoldCycles = 0;
 
-        // If CLK already low, assert ACK now (otherwise tick() will assert when CLK drops)
-        extDataLow = atnAckSawClkLow;
+        extDataLow = true;
 
         applyIECOutputs();
 
@@ -389,7 +413,34 @@ void DriveCIA::tick(uint32_t cycles)
             }
         }
 
-        // inside each cycle
+        // CIA serial receive path:
+        // CRA bit 6 = 0 means serial input mode.
+        const bool cntRisingEdge = (cntLevel && !lastCntLevel);
+        const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
+
+        if (sdrInputMode && cntRisingEdge)
+        {
+            serialShiftRegister =
+                static_cast<uint8_t>((serialShiftRegister << 1) | (spLevel ? 1 : 0));
+            ++serialBitCount;
+
+            if (serialBitCount == 8)
+            {
+                registers.serialData = serialShiftRegister;
+                triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+
+                #ifdef Debug
+                std::cout << "[CIA] SDR RX complete: $"
+                          << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                          << static_cast<int>(registers.serialData)
+                          << std::dec << "\n";
+                #endif
+
+                serialShiftRegister = 0x00;
+                serialBitCount = 0;
+            }
+        }
+
         bool timerAUnderflowThisCycle = false;
 
         // --- Timer A decrement decision ---
@@ -468,6 +519,7 @@ void DriveCIA::tick(uint32_t cycles)
 
         // end-of-cycle
         lastCntLevel = cntLevel;
+        lastSpLevel = spLevel;
     }
 }
 
@@ -591,6 +643,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             }
             break;
         }
+
         case 0x0E: // CRA
         {
             const uint8_t old = registers.controlRegisterA;
@@ -611,6 +664,14 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 timerACounter = timerALatch;
                 registers.controlRegisterA &= static_cast<uint8_t>(~CRA_LOAD);
             }
+
+            // If serial mode changed, discard any partial byte receive.
+            if ((old ^ value) & CRA_SPMODE)
+            {
+                serialShiftRegister = 0x00;
+                serialBitCount = 0;
+            }
+
             break;
         }
 
@@ -749,11 +810,20 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
               << " DATA=" << dataLow
               << " (prev ATN=" << iecAtnInLow << ")\n";
     #endif
+
     const bool atnChanged = (atnLow != iecAtnInLow);
 
     iecAtnInLow  = atnLow;
     iecClkInLow  = clkLow;
     iecDataInLow = dataLow;
+
+    // 1581 IEC inputs are inverted before reaching the CIA-visible side.
+    // Keep CNT/SP consistent with the same polarity convention used in
+    // applyIECInputsToPortBPins():
+    // IEC LOW  -> CIA-side HIGH
+    // IEC HIGH -> CIA-side LOW
+    cntLevel = !iecClkInLow;
+    spLevel  = !iecDataInLow;
 
     // Keep port B input pins in sync immediately so ROM reads are correct.
     applyIECInputsToPortBPins();

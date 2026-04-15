@@ -124,6 +124,7 @@ class DriveCIA : public DriveCIABase
         static constexpr uint8_t CRA_RUNMODE  = 1 << 3; // 1=one-shot
         static constexpr uint8_t CRA_LOAD     = 1 << 4; // strobe
         static constexpr uint8_t CRA_INMODE   = 1 << 5; // 1=count CNT rising edges
+        static constexpr uint8_t CRA_SPMODE   = 1 << 6; // 0=serial input, 1=serial output
 
         // CRB ($0F)
         static constexpr uint8_t CRB_START    = 1 << 0;
@@ -217,6 +218,12 @@ class DriveCIA : public DriveCIABase
         bool iecAtnInLow;
         bool iecClkInLow;
         bool iecDataInLow;
+
+        // CIA serial input state (1581 IEC receive path)
+        bool spLevel;
+        bool lastSpLevel;
+        uint8_t serialShiftRegister;
+        uint8_t serialBitCount;
 
         // Forces PRB input bits to match the stored IEC inputs
         void applyIECInputsToPortBPins();
