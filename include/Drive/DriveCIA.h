@@ -225,6 +225,7 @@ class DriveCIA : public DriveCIABase
         uint8_t serialShiftRegister;
         uint8_t serialBitCount;
         bool serialRxArmed;
+        bool serialRxJustArmed;
 
         // Forces PRB input bits to match the stored IEC inputs
         void applyIECInputsToPortBPins();

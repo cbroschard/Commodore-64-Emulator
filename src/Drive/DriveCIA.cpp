@@ -34,7 +34,8 @@ DriveCIA::DriveCIA() :
     lastSpLevel(false),
     serialShiftRegister(0x00),
     serialBitCount(0),
-    serialRxArmed(false)
+    serialRxArmed(false),
+    serialRxJustArmed(false)
 {
 
 }
@@ -109,6 +110,7 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeU8(serialShiftRegister);
     wrtr.writeU8(serialBitCount);
     wrtr.writeBool(serialRxArmed);
+    wrtr.writeBool(serialRxJustArmed);
 }
 
 bool DriveCIA::loadState(StateReader& rdr)
@@ -189,6 +191,7 @@ bool DriveCIA::loadState(StateReader& rdr)
     if (!rdr.readU8(serialShiftRegister)) return false;
     if (!rdr.readU8(serialBitCount)) return false;
     if (!rdr.readBool(serialRxArmed)) return false;
+    if (!rdr.readBool(serialRxJustArmed)) return false;
 
     // Post-restore fixups
 
@@ -274,6 +277,7 @@ void DriveCIA::reset()
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
     serialRxArmed               = false;
+    serialRxJustArmed           = false;
 
     // Handshake
     lastAtnLow                  = false;
@@ -330,6 +334,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         serialShiftRegister = 0x00;
         serialBitCount = 0;
         serialRxArmed = false;
+        serialRxJustArmed = false;
 
         applyIECOutputs();
 
@@ -349,6 +354,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         serialShiftRegister = 0x00;
         serialBitCount = 0;
         serialRxArmed = false;
+        serialRxJustArmed = false;
 
         applyIECOutputs();
     }
@@ -362,6 +368,8 @@ void DriveCIA::tick(uint32_t cycles)
     {
         // Update Pin B
         updatePinsFromBus();
+
+        bool armedThisCycle = false;
 
         const bool hwAutoAtnRespEnable =
             (registers.ddrB & PRB_ATNACK) && ((registers.portB & PRB_ATNACK) != 0);
@@ -381,16 +389,15 @@ void DriveCIA::tick(uint32_t cycles)
                 atnAckSawClkLow = false;
                 atnAckSawClkHigh = false;
 
-                // Do not carry partial serial state across ATN release
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
                 serialRxArmed = false;
+                serialRxJustArmed = false;
 
                 applyIECOutputs();
             }
             else
             {
-                // Detect edges on CLK (remember: clkInLow==true means physical CLK is LOW)
                 const bool prevClkLow = lastClkInLowForAck;
 
                 // High -> Low transition: controller pulled CLK low
@@ -400,60 +407,51 @@ void DriveCIA::tick(uint32_t cycles)
                 // Low -> High transition: controller released CLK high
                 if (prevClkLow && !clkInLow)
                 {
-                    // Only count "saw high" once we've seen low at least once
                     if (atnAckSawClkLow)
                         atnAckSawClkHigh = true;
                 }
 
                 lastClkInLowForAck = clkInLow;
 
-                // RELEASE ONLY AFTER: held long enough + saw low + then saw high
-                if (atnAckHoldCycles >= MIN_ACK_HOLD && atnAckSawClkLow && atnAckSawClkHigh)
+                const bool shouldReleaseAck =
+                    (atnAckHoldCycles >= MIN_ACK_HOLD &&
+                     atnAckSawClkLow &&
+                     atnAckSawClkHigh);
+
+                if (shouldReleaseAck)
                 {
                     ackArmed = false;
                     extDataLow = false;
 
-                    // Start SDR receive fresh only after ACK release
+                    // Arm SDR receive only after ACK release, and
+                    // prevent a synthetic first sample this same cycle.
                     serialShiftRegister = 0x00;
                     serialBitCount = 0;
                     serialRxArmed = true;
+                    serialRxJustArmed = true;
+                    armedThisCycle = true;
+
+                    // IMPORTANT: sync edge baseline so we do not detect
+                    // a stale CNT edge immediately after arming.
+                    lastCntLevel = cntLevel;
+                    lastSpLevel = spLevel;
 
                     applyIECOutputs();
                 }
 
-                // If ACK is asserted, count hold cycles
                 if (extDataLow)
                 {
                     ++atnAckHoldCycles;
-
-                    // Release only after:
-                    //  - minimum hold time
-                    //  - saw CLK low and then saw CLK return high (full phase)
-                    if (atnAckHoldCycles >= MIN_ACK_HOLD && atnAckSawClkLow && atnAckSawClkHigh)
-                    {
-                        ackArmed = false;
-                        extDataLow = false;
-
-                        // Start SDR receive fresh only after ACK release
-                        serialShiftRegister = 0x00;
-                        serialBitCount = 0;
-                        serialRxArmed = true;
-
-                        applyIECOutputs();
-                    }
                 }
             }
         }
 
-        // CIA serial receive path:
-        // Keep the original best-behaving polarity/edge:
-        //   cntLevel = !iecClkInLow
-        //   spLevel  = !iecDataInLow
-        //   sample on CNT rising edge
+        // CIA serial receive path
         const bool cntRisingEdge = (cntLevel && !lastCntLevel);
         const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
-        if (serialRxArmed && sdrInputMode && cntRisingEdge)
+        // Do not sample in the same cycle the receiver was just armed.
+        if (serialRxArmed && !serialRxJustArmed && sdrInputMode && cntRisingEdge)
         {
             uint8_t nextShift = static_cast<uint8_t>(serialShiftRegister << 1);
             if (spLevel)
@@ -515,7 +513,6 @@ void DriveCIA::tick(uint32_t cycles)
                 triggerInterrupt(INTERRUPT_TIMER_A);
                 timerAUnderflowThisCycle = true;
 
-                // one-shot?
                 if (registers.controlRegisterA & CRA_RUNMODE)
                 {
                     timerARunning = false;
@@ -538,7 +535,7 @@ void DriveCIA::tick(uint32_t cycles)
             if (mode == CRB_INMODE_PHI2) decB = true;
             else if (mode == CRB_INMODE_CNT) decB = (cntLevel && !lastCntLevel);
             else if (mode == CRB_INMODE_TA) decB = timerAUnderflowThisCycle;
-            else /* TA underflow while CNT high */ decB = timerAUnderflowThisCycle && cntLevel;
+            else decB = timerAUnderflowThisCycle && cntLevel;
         }
 
         // --- Timer B run ---
@@ -564,7 +561,13 @@ void DriveCIA::tick(uint32_t cycles)
             }
         }
 
-        // end-of-cycle
+        if (serialRxJustArmed && !armedThisCycle)
+            serialRxJustArmed = false;
+        else if (armedThisCycle)
+            serialRxJustArmed = true;
+        else
+            serialRxJustArmed = false;
+
         lastCntLevel = cntLevel;
         lastSpLevel = spLevel;
     }
