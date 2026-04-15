@@ -31,6 +31,38 @@ class EmulatorUI
         // Computer pulls and clears commands each frame
         std::vector<UiCommand> consumeCommands();
 
+        // Handle Drive Status if attached
+        enum class DriveLightColor
+        {
+            Green,
+            Red,
+            Yellow,
+            Amber
+        };
+
+        struct DriveLightView
+        {
+            std::string name;
+            bool on = false;
+            DriveLightColor color = DriveLightColor::Green;
+        };
+
+        struct DriveStatusView
+        {
+            int deviceNum = 8;
+            bool present = false;
+            bool diskInserted = false;
+
+            std::string modelName;
+            std::string imagePath;
+
+            std::vector<DriveLightView> lights;
+
+            bool hasTrackSector = false;
+            int track = -1;
+            int sector = -1;
+        };
+
         // Handle cartridges that have physical switches and buttons
         struct CartSwitchView
         {
@@ -61,6 +93,8 @@ class EmulatorUI
 
             bool paused          = false;
             bool pal             = true;
+
+            std::vector<DriveStatusView> drives;
 
             std::vector<CartSwitchView> cartSwitches;
             std::vector<CartButtonView> cartButtons;
@@ -131,6 +165,11 @@ class EmulatorUI
 
         bool isAllowedByExtension(const std::filesystem::path& path) const;
         void emitChosenPath(const std::filesystem::path& path);
+
+        void drawDriveStatus(const MediaViewState& v);
+        void drawDriveLights(const DriveStatusView& drive);
+
+        ImU32 toImGuiColor(DriveLightColor color, bool on);
 };
 
 #endif // EMULATORUI_H

@@ -27,6 +27,7 @@ void EmulatorUI::draw()
     }
 
     installMenu(snapshot);
+    drawDriveStatus(snapshot);
 }
 
 std::vector<UiCommand> EmulatorUI::consumeCommands()
@@ -632,4 +633,107 @@ void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
     fileDlg.error.clear();
     fileDlg.lastClickedEntry.clear();
     fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
+}
+
+void EmulatorUI::drawDriveStatus(const MediaViewState& v)
+{
+    bool anyPresent = false;
+    for (const auto& drive : v.drives)
+    {
+        if (drive.present)
+        {
+            anyPresent = true;
+            break;
+        }
+    }
+
+    if (!anyPresent)
+        return;
+
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + 8.0f, vp->WorkPos.y + 28.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.85f);
+
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (!ImGui::Begin("##DriveStatus", nullptr, flags))
+    {
+        ImGui::End();
+        return;
+    }
+
+    for (const auto& drive : v.drives)
+    {
+        if (!drive.present)
+            continue;
+
+        if (!drive.modelName.empty())
+            ImGui::Text("Drive %d (%s)", drive.deviceNum, drive.modelName.c_str());
+        else
+            ImGui::Text("Drive %d", drive.deviceNum);
+
+        if (!drive.lights.empty())
+            drawDriveLights(drive);
+
+        if (drive.diskInserted)
+        {
+            if (drive.hasTrackSector)
+                ImGui::Text("Track/Sector: %d / %d", drive.track, drive.sector);
+            else
+                ImGui::TextUnformatted("Track/Sector: -- / --");
+        }
+        else
+        {
+            ImGui::TextUnformatted("No disk inserted");
+        }
+
+        ImGui::Separator();
+    }
+
+    ImGui::End();
+}
+
+void EmulatorUI::drawDriveLights(const DriveStatusView& drive)
+{
+    for (size_t i = 0; i < drive.lights.size(); ++i)
+    {
+        const auto& light = drive.lights[i];
+
+        ImGui::TextUnformatted(light.name.c_str());
+        ImGui::SameLine();
+
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        const float radius = 5.0f;
+        ImVec2 center(p.x + radius, p.y + radius + 2.0f);
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddCircleFilled(center, radius, toImGuiColor(light.color, light.on));
+        dl->AddCircle(center, radius, IM_COL32(0, 0, 0, 255), 0, 1.0f);
+
+        ImGui::Dummy(ImVec2(radius * 2.0f + 4.0f, radius * 2.0f + 4.0f));
+
+        if (i + 1 < drive.lights.size())
+            ImGui::SameLine();
+    }
+}
+
+ImU32 EmulatorUI::toImGuiColor(EmulatorUI::DriveLightColor color, bool on)
+{
+    if (!on)
+        return IM_COL32(40, 40, 40, 255);
+
+    switch (color)
+    {
+        case EmulatorUI::DriveLightColor::Green:    return IM_COL32(0, 220, 80, 255);
+        case EmulatorUI::DriveLightColor::Red:      return IM_COL32(255, 60, 60, 255);
+        case EmulatorUI::DriveLightColor::Yellow:   return IM_COL32(255, 220, 60, 255);
+
+        case EmulatorUI::DriveLightColor::Amber:    return IM_COL32(255, 180, 60, 255);
+        default:                                    return IM_COL32(200, 200, 200, 255);
+    }
 }
