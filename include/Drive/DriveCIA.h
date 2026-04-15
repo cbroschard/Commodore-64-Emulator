@@ -75,7 +75,7 @@ class DriveCIA : public DriveCIABase
         void setFlagLine(bool level);
         inline void linesChanged() { updatePinsFromBus(); }
 
-        inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x7F) != 0; }
+        inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x1F) != 0; }
 
         void setWiring(const DriveCIAWiring* w) { wiring = w; }
 
