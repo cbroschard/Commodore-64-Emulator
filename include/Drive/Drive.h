@@ -74,6 +74,9 @@ class Drive : public Peripheral
         // Timing simulation.
         virtual void tick(uint32_t cycles) = 0; // Called each emulation cycle
 
+        // IRQ handling
+        virtual void updateIRQ() = 0;
+
         // Motor control.
         virtual void startMotor() = 0;
         virtual void stopMotor() = 0;

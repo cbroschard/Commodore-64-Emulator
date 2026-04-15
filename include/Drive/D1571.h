@@ -54,7 +54,7 @@ class D1571 : public Drive, public FloppyControllerHost
         inline bool getSRQAsserted() const override  { return srqAsserted; }
 
         // IRQ handling
-        void updateIRQ();
+        void updateIRQ() override;
 
         // Drive Mechanics
         inline void startMotor() override { motorOn = true; }

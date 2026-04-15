@@ -37,7 +37,7 @@ class D1541 : public Drive
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }
 
         // IRQ handling
-        void updateIRQ();
+        void updateIRQ() override;
 
         // Drive interface
         inline bool isTrack0() { return currentTrack == 0; }

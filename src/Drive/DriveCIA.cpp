@@ -733,6 +733,12 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 void DriveCIA::triggerInterrupt(InterruptBit bit)
 {
     interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
+    if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
+    {
+        // temporary next step:
+        // add a virtual updateIRQ() to Drive, or wire a callback
+        drive->updateIRQ();
+    }
 }
 
 void DriveCIA::setFlagLine(bool level)

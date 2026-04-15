@@ -80,7 +80,7 @@ class D1581 : public Drive, public FloppyControllerHost
         void onSecondaryAddress(uint8_t sa) override;
 
         // IRQ handling
-        void updateIRQ();
+        void updateIRQ() override;
 
         // IEC getters
         inline bool getAtnLineLow() const override { return bus ? !bus->readAtnLine() : atnLineLow; }
