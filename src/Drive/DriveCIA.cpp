@@ -756,19 +756,16 @@ void DriveCIA::applyIECOutputs()
     // Effective auto-ACK: either forced by emulator OR enabled by the ROM via PB4.
     const bool autoAckEnabled = autoAtnAckEnabled || hwAutoAtnRespEnable;
 
-    const bool ciaDataLow   = datOutAssertLow;
-    const bool ciaClkLow    = clkOutAssertLow;
+    const bool ciaDataLow = datOutAssertLow;
+    const bool ciaClkLow  = clkOutAssertLow;
 
-    // External auto-ACK pulls DATA low when enabled.
-    const bool busdirOut = ((ddrB & PRB_BUSDIR) != 0) && ((portB & PRB_BUSDIR) != 0);
-
-    // Presence ACK ignores BUSDIR (hardware quirk)
+    // PB4 ATN-ACK path still forces DATA low when active
     const bool autoAckDriveLow = autoAckEnabled && extDataLow;
 
-    // Normal CIA output obeys BUSDIR
-    const bool ciaDriveLow = busdirOut && ciaDataLow;
-
-    const bool driveDataLow = autoAckDriveLow || ciaDriveLow;
+    // For now, do not gate IEC DATA with BUSDIR.
+    // The log shows the ROM is asserting DATOUT after receiving a byte,
+    // but BUSDIR gating is preventing the line from ever going low.
+    const bool driveDataLow = autoAckDriveLow || ciaDataLow;
     const bool driveClkLow  = ciaClkLow;
 
     drive->peripheralAssertData(driveDataLow);
