@@ -310,15 +310,9 @@ void DriveCIA::notifyAtnInput(bool atnLow)
     const bool falling = (!lastAtnLow &&  atnLow);
     const bool rising  = ( lastAtnLow && !atnLow);
 
-    if (!autoAckEnabled)
-    {
-        lastAtnLow = atnLow;
-        return;
-    }
-
     if (falling)
     {
-        ackArmed = true;
+        ackArmed = autoAckEnabled;
 
         // IMPORTANT: if CLK is already low at the moment ATN falls,
         // we must treat that as "saw CLK low" immediately.
@@ -328,7 +322,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         lastClkInLowForAck = iecClkInLow;
         atnAckHoldCycles = 0;
 
-        extDataLow = true;
+        extDataLow = autoAckEnabled;
 
         // Do not let SDR sample during the ATN presence-ack phase
         serialShiftRegister = 0x00;
