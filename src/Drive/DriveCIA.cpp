@@ -345,11 +345,6 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         ackArmed = false;
         extDataLow = false;
 
-        serialShiftRegister = 0x00;
-        serialBitCount = 0;
-        serialRxArmed = false;
-        serialRxJustArmed = false;
-
         applyIECOutputs();
     }
 
