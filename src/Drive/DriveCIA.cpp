@@ -344,7 +344,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         std::cout << "[CIA] notifyAtnInput RISE (cancel ACK)\n";
         #endif
         ackArmed = false;
-        extDataLow = false
+        extDataLow = false;
 
         serialShiftRegister = 0x00;
         serialBitCount = 0;
