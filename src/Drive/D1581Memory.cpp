@@ -169,13 +169,13 @@ void D1581Memory::tick(uint32_t cycles)
     {
         cia.tick(1);
         fdc.tick(1);
-    }
 
-    if (parentPeripheral)
-    {
-        auto* drive = static_cast<D1581*>(parentPeripheral);
-        drive->syncTrackFromFDC();
-        drive->updateIRQ();
+        if (parentPeripheral)
+        {
+            auto* drive = static_cast<D1581*>(parentPeripheral);
+            drive->syncTrackFromFDC();
+            drive->updateIRQ();
+        }
     }
 }
 
