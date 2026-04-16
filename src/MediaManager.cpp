@@ -20,6 +20,9 @@
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
 #include "Drive/Drive.h"
+#include "Drive/IDriveIndicatorView.h"
+#include "Drive/IDrivePositionView.h"
+#include "Drive/IDriveUiView.h"
 #include "IECBUS.h"
 #include "Logging.h"
 #include "Memory.h"
@@ -533,6 +536,81 @@ void MediaManager::tick()
     else if (state_.prgAttached && !state_.prgLoaded && state_.prgDelay > 0)
     {
         --state_.prgDelay;
+    }
+}
+
+void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>& out) const
+{
+    out.clear();
+
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        EmulatorUI::DriveStatusView ds;
+        ds.deviceNum = dev;
+
+        Drive* drive = drives_[dev].get();
+        if (!drive)
+        {
+            out.push_back(std::move(ds));
+            continue;
+        }
+
+        ds.present = true;
+
+        if (auto* ui = dynamic_cast<IDriveUiView*>(drive))
+        {
+            ds.modelName = ui->getDriveModelName();
+            ds.diskInserted = ui->hasDiskInserted();
+            ds.imagePath = ui->getMountedImagePath();
+        }
+        else
+        {
+            ds.diskInserted = drive->isDiskLoaded();
+            ds.imagePath = ds.diskInserted ? drive->getCurrentDiskPath() : std::string{};
+        }
+
+        if (auto* pos = dynamic_cast<IDrivePositionView*>(drive))
+        {
+            ds.hasTrackSector = pos->hasTrackSector();
+            if (ds.hasTrackSector)
+            {
+                ds.track = pos->getTrack();
+                ds.sector = pos->getSector();
+            }
+        }
+
+        if (auto* ind = dynamic_cast<IDriveIndicatorView*>(drive))
+        {
+            std::vector<IDriveIndicatorView::Indicator> temp;
+            ind->getDriveIndicators(temp);
+
+            for (const auto& src : temp)
+            {
+                EmulatorUI::DriveLightView light;
+                light.name = src.name;
+                light.on = src.on;
+
+                switch (src.color)
+                {
+                    case IDriveIndicatorView::DriveIndicatorColor::Green:
+                        light.color = EmulatorUI::DriveLightColor::Green;
+                        break;
+                    case IDriveIndicatorView::DriveIndicatorColor::Red:
+                        light.color = EmulatorUI::DriveLightColor::Red;
+                        break;
+                    case IDriveIndicatorView::DriveIndicatorColor::Yellow:
+                        light.color = EmulatorUI::DriveLightColor::Yellow;
+                        break;
+                    case IDriveIndicatorView::DriveIndicatorColor::Amber:
+                        light.color = EmulatorUI::DriveLightColor::Amber;
+                        break;
+                }
+
+                ds.lights.push_back(std::move(light));
+            }
+        }
+
+        out.push_back(std::move(ds));
     }
 }
 

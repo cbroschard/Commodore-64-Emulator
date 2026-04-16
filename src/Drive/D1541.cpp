@@ -27,7 +27,10 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     currentSector(0),
     gcrBitCounter(0),
     gcrPos(0),
-    gcrDirty(true)
+    gcrDirty(true),
+    uiTrack(17),
+    uiSector(0),
+    uiActivityHoldCycles(0)
 {
     setDeviceNumber(deviceNumber);
     d1541mem.attachPeripheralInstance(this);
@@ -82,6 +85,11 @@ void D1541::saveState(StateWriter& wrtr) const
     wrtr.writeI32(iecRxBitCount);
     wrtr.writeU8(iecRxByte);
 
+    // UI Activity State
+    wrtr.writeU8(uiTrack);
+    wrtr.writeU8(uiSector);
+    wrtr.writeI32(uiActivityHoldCycles);
+
     // Dump memory
     d1541mem.saveState(wrtr);
 
@@ -103,62 +111,66 @@ bool D1541::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Header
     uint32_t ver = 0;
-    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ver))                              { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                       { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t dev = 0;
-    if (!rdr.readU8(dev))  { rdr.exitChunkPayload(chunk); return false; }
-    deviceNumber = static_cast<int>(dev); // adjust type if needed
+    if (!rdr.readU8(dev))                               { rdr.exitChunkPayload(chunk); return false; }
+    deviceNumber = static_cast<int>(dev);
 
     // CPU (payload-only)
-    if (!driveCPU.loadStatePayload(rdr)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!driveCPU.loadStatePayload(rdr))                { rdr.exitChunkPayload(chunk); return false; }
     if (!driveCPU.loadStateExtendedPayload(chunk, rdr)) { rdr.exitChunkPayload(chunk); return false; }
 
     // Mechanics / GCR
-    if (!rdr.readBool(motorOn))            { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(diskLoaded))         { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(diskWriteProtected)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(motorOn))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskLoaded))                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskWriteProtected))              { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU8(currentTrack))         { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(currentSector))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(densityCode))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentTrack))                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentSector))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(densityCode))                       { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readI32(halfTrackPos))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readI32(gcrBitCounter))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(halfTrackPos))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(gcrBitCounter))                    { rdr.exitChunkPayload(chunk); return false; }
 
     uint32_t gp = 0;
-    if (!rdr.readU32(gp))                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(gp))                               { rdr.exitChunkPayload(chunk); return false; }
     gcrPos = static_cast<size_t>(gp);
 
-    if (!rdr.readBool(gcrDirty))           { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(gcrDirty))                        { rdr.exitChunkPayload(chunk); return false; }
 
     // IEC protocol state
-    if (!rdr.readBool(atnLineLow))         { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(clkLineLow))         { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(dataLineLow))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(srqAsserted))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(atnLineLow))                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(clkLineLow))                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(dataLineLow))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(srqAsserted))                     { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(iecLinesPrimed))     { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(iecListening))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(iecTalking))         { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(presenceAckDone))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecLinesPrimed))                  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecListening))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecTalking))                      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(presenceAckDone))                 { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(expectingSecAddr))   { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(expectingDataByte))  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(expectingSecAddr))                { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(expectingDataByte))               { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU8(currentListenSA))      { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(currentTalkSA))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentListenSA))                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentTalkSA))                     { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(iecRxActive))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readI32(iecRxBitCount))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(iecRxByte))            { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecRxActive))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(iecRxBitCount))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(iecRxByte))                         { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(uiTrack))                           { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(uiSector))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(uiActivityHoldCycles))             { rdr.exitChunkPayload(chunk); return false; }
 
     // Memory (payload-only)
-    if (!d1541mem.loadState(rdr))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!d1541mem.loadState(rdr))                       { rdr.exitChunkPayload(chunk); return false; }
 
     // VIA1 / VIA2 (payload-only)
-    if (!d1541mem.getVIA1().loadState(rdr)){ rdr.exitChunkPayload(chunk); return false; }
-    if (!d1541mem.getVIA2().loadState(rdr)){ rdr.exitChunkPayload(chunk); return false; }
+    if (!d1541mem.getVIA1().loadState(rdr))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!d1541mem.getVIA2().loadState(rdr))             { rdr.exitChunkPayload(chunk); return false; }
 
     // Done reading payload
     rdr.exitChunkPayload(chunk);
@@ -221,9 +233,15 @@ void D1541::reset()
 
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     d1541mem.reset();
     driveCPU.reset();
+
+    // UI activity
+    uiTrack                     = currentTrack;
+    uiSector                    = currentSector;
+    uiActivityHoldCycles        = 0;
 
     bool atnLow=false, clkLow=false, dataLow=false;
     if (bus)
@@ -240,16 +258,23 @@ void D1541::tick(uint32_t cycles)
 {
     int32_t remaining = cycles;
 
-    while(remaining > 0)
+    while (remaining > 0)
     {
         driveCPU.tick();
         uint32_t dc = driveCPU.getElapsedCycles();
-        if(dc == 0) dc = 1;
+        if (dc == 0) dc = 1;
 
         d1541mem.tick(dc);
 
         if (motorOn && diskLoaded)
             gcrAdvance(dc);
+
+        if (uiActivityHoldCycles > 0)
+        {
+            uiActivityHoldCycles -= static_cast<int>(dc);
+            if (uiActivityHoldCycles < 0)
+                uiActivityHoldCycles = 0;
+        }
 
         remaining -= dc;
     }
@@ -269,15 +294,36 @@ bool D1541::gcrTick()
             gcrPos = 0;
     }
 
-    if (gcrTrackStream.empty()) return false;
+    if (gcrTrackStream.empty())
+        return false;
+
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
 
-    uint8_t gcrByte = gcrTrackStream[gcrPos];
-    bool syncHigh    = (gcrSync[gcrPos] != 0);
+    if (gcrSectorAtPos.size() != gcrTrackStream.size())
+        gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
+
+    const size_t pos = gcrPos;
+
+    const uint8_t gcrByte = gcrTrackStream[pos];
+    const bool syncHigh   = (gcrSync[pos] != 0);
+    const uint8_t sectorNow = gcrSectorAtPos[pos];
+
+    // Snapshot whether VIA2 was ready for a new media byte.
+    const bool hadPendingByte = getByteReadyLow();
+
+    currentSector = sectorNow;
 
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
     d1541mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
+
+    if (!hadPendingByte && motorOn && diskLoaded)
+    {
+        uiTrack = currentTrack;
+        uiSector = currentSector;
+        uiActivityHoldCycles = 2000;
+    }
+
     return true;
 }
 
@@ -299,6 +345,7 @@ void D1541::rebuildGCRTrackStream()
 {
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     if (!diskLoaded || !diskImage) return;
 
@@ -310,21 +357,22 @@ void D1541::rebuildGCRTrackStream()
     const uint8_t id1 = bam[0xA2];
     const uint8_t id2 = bam[0xA3];
 
-    auto pushN = [&](uint8_t v, int count, bool isSync)
+    auto pushN = [&](uint8_t v, int count, bool isSync, uint8_t sectorTag)
     {
         gcrTrackStream.insert(gcrTrackStream.end(), count, v);
         gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
+        gcrSectorAtPos.insert(gcrSectorAtPos.end(), count, sectorTag);
     };
 
-    auto pushEncoded = [&](const uint8_t* in, size_t len)
+    auto pushEncoded = [&](const uint8_t* in, size_t len, uint8_t sectorTag)
     {
-        // Must be multiple of 4 bytes (hdr=8, raw=260 are OK)
         for (size_t i = 0; i < len; i += 4)
         {
             uint8_t g[5];
             gcrCodec.encode4Bytes(&in[i], g);
             gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
             gcrSync.insert(gcrSync.end(), 5, 0);
+            gcrSectorAtPos.insert(gcrSectorAtPos.end(), 5, sectorTag);
         }
     };
 
@@ -334,7 +382,7 @@ void D1541::rebuildGCRTrackStream()
     constexpr int TAIL_GAP   = 9;
 
     // Lead-in gap (NOT sync)
-    pushN(0x55, 64, false);
+    pushN(0x55, 64, false, 0);
 
     for (int sector = 0; sector < spt; ++sector)
     {
@@ -342,7 +390,7 @@ void D1541::rebuildGCRTrackStream()
         if (sec.size() != 256) sec.assign(256, 0x00);
 
         // ---- HEADER ----
-        pushN(0xFF, SYNC_LEN, true);
+        pushN(0xFF, SYNC_LEN, true, uint8_t(sector));
 
         uint8_t hdr[8] = {0};
         hdr[0] = 0x08;
@@ -354,11 +402,11 @@ void D1541::rebuildGCRTrackStream()
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]); // header checksum
 
-        pushEncoded(hdr, 8);
-        pushN(0x55, HEADER_GAP, false);
+        pushEncoded(hdr, 8, uint8_t(sector));
+        pushN(0x55, HEADER_GAP, false, uint8_t(sector));
 
         // ---- DATA ----
-        pushN(0xFF, SYNC_LEN, true);
+        pushN(0xFF, SYNC_LEN, true, uint8_t(sector));
 
         std::vector<uint8_t> raw(260, 0x00);
         raw[0] = 0x07; // data block ID
@@ -373,12 +421,12 @@ void D1541::rebuildGCRTrackStream()
         raw[258] = 0x00;
         raw[259] = 0x00;
 
-        pushEncoded(raw.data(), raw.size());
-        pushN(0x55, TAIL_GAP, false);
+        pushEncoded(raw.data(), raw.size(), uint8_t(sector));
+        pushN(0x55, TAIL_GAP, false, uint8_t(sector));
     }
 
     // Trailing gap
-    pushN(0x55, 128, false);
+    pushN(0x55, 128, false, 0);
 
     // Sanity
     if (gcrSync.size() != gcrTrackStream.size())
@@ -404,39 +452,44 @@ void D1541::loadDisk(const std::string& path)
 {
     resetForMediaChange();
 
-    diskWriteProtected = false;
+    diskWriteProtected  = false;
 
-    auto img = DiskFactory::create(path);
+    auto img            = DiskFactory::create(path);
     if (!img || !img->loadDisk(path))
     {
         // "Door open / no media" behavior: don't reset the drive computer
-        diskImage.reset();
-        diskLoaded = false;
         loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
+        diskImage.reset();
+        diskLoaded      = false;
+        lastError       = DriveError::NO_DISK;
 
         // Invalidate any ongoing media stream
-        gcrDirty = true;
-        gcrPos = 0;
-        gcrBitCounter = 0;
+        gcrDirty        = true;
+        gcrPos          = 0;
+        gcrBitCounter   = 0;
+
         gcrTrackStream.clear();
         gcrSync.clear();
+        gcrSectorAtPos.clear();
         d1541mem.getVIA2().clearMechBytePending();
         return;
     }
 
     // HOT SWAP
-    diskImage      = std::move(img);
-    diskLoaded     = true;
-    loadedDiskName = path;
-    lastError      = DriveError::NONE;
+    diskImage           = std::move(img);
+    diskLoaded          = true;
+    loadedDiskName      = path;
+    status              = DriveStatus::READY;
+    lastError           = DriveError::NONE;
 
     // Invalidate/rebuild media stream for the newly inserted disk
-    gcrDirty = true;
-    gcrPos = 0;
-    gcrBitCounter = 0;
+    gcrDirty            = true;
+    gcrPos              = 0;
+    gcrBitCounter       = 0;
+
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
     d1541mem.getVIA2().clearMechBytePending();
 }
 
@@ -445,30 +498,41 @@ void D1541::unloadDisk()
     diskImage.reset();  // Reset disk image by assigning a fresh instance
     loadedDiskName.clear();
 
-    diskLoaded      = false;
-    currentTrack    = 17;
-    currentSector   = 0;
-    lastError       = DriveError::NONE;
-    status          = DriveStatus::IDLE;
+    gcrPos = 0;
+    gcrBitCounter = 0;
+    gcrTrackStream.clear();
+    gcrSync.clear();
+    gcrSectorAtPos.clear();
+
+    diskLoaded              = false;
+    currentTrack            = 17;
+    currentSector           = 0;
+    uiTrack                 = currentTrack;
+    uiSector                = currentSector;
+    uiActivityHoldCycles    = 0;
+    lastError               = DriveError::NONE;
+    status                  = DriveStatus::IDLE;
 }
 
 void D1541::onListen()
 {
     // IEC bus has selected this drive as a listener
-    iecListening = true;
-    iecTalking   = false;
+    iecListening            = true;
+    iecTalking              = false;
 
-    listening = true;
-    talking   = false;
-    iecRxActive   = true;
-    iecRxBitCount = 0;
-    iecRxByte     = 0;
+    listening               = true;
+    talking                 = false;
+    iecRxActive             = true;
+    iecRxBitCount           = 0;
+    iecRxByte               = 0;
 
     // We're about to receive a secondary address byte after LISTEN
-    presenceAckDone   = false;   // so we do the LISTEN presence ACK
-    expectingSecAddr  = true;    // first byte after LISTEN is secondary address
-    expectingDataByte = false;
+    presenceAckDone         = false;   // so we do the LISTEN presence ACK
+    expectingSecAddr        = true;    // first byte after LISTEN is secondary address
+    expectingDataByte       = false;
     currentSecondaryAddress = 0xFF;  // "none" / invalid
+
+    status                  = DriveStatus::READY;
 
     #ifdef Debug
     std::cout << "[D1541] onListen() device=" << int(deviceNumber)
@@ -478,14 +542,21 @@ void D1541::onListen()
 
 void D1541::onUnListen()
 {
-    iecListening = false;
-    listening    = false;
-    iecRxActive = false;
-    iecRxBitCount = 0;
-    iecRxByte = 0;
+    iecListening        = false;
+    listening           = false;
+    iecRxActive         = false;
+    iecRxBitCount       = 0;
+    iecRxByte           = 0;
 
-    expectingSecAddr  = false;
-    expectingDataByte = false;
+    expectingSecAddr    = false;
+    expectingDataByte   = false;
+
+    status              = DriveStatus::IDLE;
+
+    // After TALK, the next byte from the C64 is a secondary address
+    expectingSecAddr        = true;
+    expectingDataByte       = false;
+    currentSecondaryAddress = 0xFF;
 
     peripheralAssertData(false);
 
@@ -506,10 +577,7 @@ void D1541::onTalk()
     iecRxByte               = 0;
     presenceAckDone         = false;
 
-    // After TALK, the next byte from the C64 is a secondary address
-    expectingSecAddr        = true;
-    expectingDataByte       = false;
-    currentSecondaryAddress = 0xFF;
+    status                  = DriveStatus::READY;
 
     peripheralAssertClk(false);
 
@@ -521,14 +589,21 @@ void D1541::onTalk()
 
 void D1541::onUnTalk()
 {
-    iecTalking = false;
-    talking    = false;
-    iecRxActive = false;
-    iecRxBitCount = 0;
-    iecRxByte = 0;
+    iecTalking          = false;
+    talking             = false;
+    iecRxActive         = false;
+    iecRxBitCount       = 0;
+    iecRxByte           = 0;
 
-    expectingSecAddr  = false;
-    expectingDataByte = false;
+    expectingSecAddr    = false;
+    expectingDataByte   = false;
+
+    status              = DriveStatus::IDLE;
+
+    // After TALK, the next byte from the C64 is a secondary address
+    expectingSecAddr        = true;
+    expectingDataByte       = false;
+    currentSecondaryAddress = 0xFF;
 
     #ifdef Debug
     std::cout << "[D1541] onUnTalk() device=" << int(deviceNumber) << "\n";
@@ -538,23 +613,15 @@ void D1541::onUnTalk()
 void D1541::onSecondaryAddress(uint8_t sa)
 {
     currentSecondaryAddress = sa;
-
-    // We’ve now consumed the secondary address; next bytes are data/commands
     expectingSecAddr  = false;
     expectingDataByte = true;
 
-    #ifdef Debug
-    const char* meaning = "";
     if (sa == 0)
-        meaning = " (LOAD channel)";
+        status = DriveStatus::READING;
     else if (sa == 1)
-        meaning = " (SAVE channel)";
-    else if (sa == 15)
-        meaning = " (COMMAND channel)";
-
-    std::cout << "[D1541] onSecondaryAddress() device=" << int(deviceNumber)
-              << " sa=" << int(sa) << meaning << "\n";
-    #endif
+        status = DriveStatus::WRITING;
+    else
+        status = DriveStatus::READY;
 }
 
 void D1541::atnChanged(bool atnLow)
@@ -624,6 +691,7 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
     currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
+
     gcrDirty = true;
 }
 
@@ -637,40 +705,45 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
 void D1541::resetForMediaChange()
 {
     // --- D1541-level flags ---
-    atnLineLow = clkLineLow = dataLineLow = srqAsserted = false;
+    atnLineLow                  = false;
+    clkLineLow                  = false;
+    dataLineLow                 = false;
+    srqAsserted                 = false;
 
-    iecListening = false;
-    iecTalking   = false;
+    iecListening                = false;
+    iecTalking                  = false;
 
-    presenceAckDone   = false;
-    expectingSecAddr  = false;
-    expectingDataByte = false;
+    presenceAckDone             = false;
+    expectingSecAddr            = false;
+    expectingDataByte           = false;
 
-    currentListenSA = 0;
-    currentTalkSA   = 0;
+    currentListenSA             = 0;
+    currentTalkSA               = 0;
 
-    iecRxActive   = false;
-    iecRxBitCount = 0;
-    iecRxByte     = 0;
+    iecRxActive                 = false;
+    iecRxBitCount               = 0;
+    iecRxByte                   = 0;
 
     // --- IMPORTANT: Drive/Peripheral protocol abort ---
-    listening = false;
-    talking   = false;
+    listening                   = false;
+    talking                     = false;
 
-    currentSecondaryAddress = 0xFF;   // ensure “no channel selected”
+    currentSecondaryAddress     = 0xFF;   // ensure “no channel selected”
 
-    shiftReg = 0;
-    bitsProcessed = 0;
+    shiftReg                    = 0;
+    bitsProcessed               = 0;
 
     // Clear handshake state so next LISTEN/TALK starts fresh
-    waitingForAck = false;
-    ackEdgeCountdown = 0;
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
     swallowPostHandshakeFalling = false;
-    waitingForClkRelease = false;
-    prevClkLevel = true;     // idle CLK high
-    ackHold = false;
-    byteAckHold = false;
-    ackDelay = 0;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;     // idle CLK high
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+    status                      = DriveStatus::IDLE;
 
     // Clear any pending outgoing bytes
     while (!talkQueue.empty()) talkQueue.pop();
@@ -700,6 +773,7 @@ void D1541::resetForMediaChange()
     gcrDirty = true;
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     uint16_t pc = driveCPU.getPC();
     if (!(pc < 0x0800))
@@ -760,7 +834,7 @@ void D1541::getDriveIndicators(std::vector<Indicator>& out) const
 
     Indicator act;
     act.name = "ACT";
-    act.on = isDiskLoaded();
+    act.on = (uiActivityHoldCycles > 0);
     act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
     out.push_back(std::move(act));
 }

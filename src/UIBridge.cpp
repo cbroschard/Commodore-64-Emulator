@@ -61,6 +61,8 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         s.tapePath     = m.tapePath;
         s.prgAttached  = m.prgAttached;
         s.prgPath      = m.prgPath;
+
+        media_->fillDriveStatusViews(s.drives);
     }
 
     if (input_)
@@ -86,6 +88,7 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.pal    = isPal_ ? isPal_() : false;
 
     s.cartSwitches.clear();
+    s.cartButtons.clear();
 
     if (media_ && s.cartAttached)
     {

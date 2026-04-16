@@ -17,7 +17,7 @@
 #include "Floppy/DiskFactory.h"
 #include "Drive/D1541VIA.h"
 
-class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, IDriveUiView
+class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
@@ -55,8 +55,8 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         // Emulator UI interface
         inline bool hasTrackSector() const override { return true; }
-        inline int getTrack() const override { return currentTrack; }
-        inline int getSector() const override { return currentSector; }
+        inline int getTrack() const override { return uiTrack; }
+        inline int getSector() const override { return uiSector; }
 
         inline const char* getDriveModelName() const override { return "1541"; }
         inline bool hasDiskInserted() const override { return isDiskLoaded(); }
@@ -140,6 +140,9 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Floppy factory
         std::unique_ptr<Disk> diskImage;
 
+        // Track sectors for UI
+        std::vector<uint8_t> gcrSectorAtPos;
+
         // Floppy Image
         std::string loadedDiskName;
         bool        diskLoaded;
@@ -176,6 +179,11 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;
+
+        // UI Activity
+        uint8_t uiTrack;
+        uint8_t uiSector;
+        int uiActivityHoldCycles;
 
         bool gcrTick();
         void gcrAdvance(uint32_t dc);

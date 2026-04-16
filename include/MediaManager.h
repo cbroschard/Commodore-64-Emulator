@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include "Common/DriveTypes.h"
+#include "EmulatorUI.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -135,6 +136,8 @@ public:
 
     // Call once per frame
     void tick();
+
+    void fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>& out) const;
 
 private:
 
