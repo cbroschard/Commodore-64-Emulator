@@ -55,7 +55,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         // Emulator UI interface
         inline bool hasTrackSector() const override { return true; }
-        inline int getTrack() const override { return uiTrack; }
+        inline int getTrack() const override { return int(uiTrack) + 1; }
         inline int getSector() const override { return uiSector; }
 
         inline const char* getDriveModelName() const override { return "1541"; }
@@ -183,7 +183,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // UI Activity
         uint8_t uiTrack;
         uint8_t uiSector;
-        int uiActivityHoldCycles;
+        bool uiLedWasOn;
 
         bool gcrTick();
         void gcrAdvance(uint32_t dc);

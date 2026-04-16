@@ -30,7 +30,7 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     gcrDirty(true),
     uiTrack(17),
     uiSector(0),
-    uiActivityHoldCycles(0)
+    uiLedWasOn(false)
 {
     setDeviceNumber(deviceNumber);
     d1541mem.attachPeripheralInstance(this);
@@ -88,7 +88,7 @@ void D1541::saveState(StateWriter& wrtr) const
     // UI Activity State
     wrtr.writeU8(uiTrack);
     wrtr.writeU8(uiSector);
-    wrtr.writeI32(uiActivityHoldCycles);
+    wrtr.writeBool(uiLedWasOn);
 
     // Dump memory
     d1541mem.saveState(wrtr);
@@ -163,7 +163,7 @@ bool D1541::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     if (!rdr.readU8(uiTrack))                           { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(uiSector))                          { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readI32(uiActivityHoldCycles))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(uiLedWasOn))                      { rdr.exitChunkPayload(chunk); return false; }
 
     // Memory (payload-only)
     if (!d1541mem.loadState(rdr))                       { rdr.exitChunkPayload(chunk); return false; }
@@ -177,6 +177,8 @@ bool D1541::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Post-load resync
     forceSyncIEC();
+
+    uiLedWasOn = d1541mem.getVIA2().isLedOn();
 
     return true;
 }
@@ -241,7 +243,7 @@ void D1541::reset()
     // UI activity
     uiTrack                     = currentTrack;
     uiSector                    = currentSector;
-    uiActivityHoldCycles        = 0;
+    uiLedWasOn                  = false;
 
     bool atnLow=false, clkLow=false, dataLow=false;
     if (bus)
@@ -269,12 +271,17 @@ void D1541::tick(uint32_t cycles)
         if (motorOn && diskLoaded)
             gcrAdvance(dc);
 
-        if (uiActivityHoldCycles > 0)
+        const bool ledOn = d1541mem.getVIA2().isLedOn();
+
+        if (ledOn)
+            uiTrack = currentTrack;
+
+        if (ledOn && !uiLedWasOn)
         {
-            uiActivityHoldCycles -= static_cast<int>(dc);
-            if (uiActivityHoldCycles < 0)
-                uiActivityHoldCycles = 0;
+            uiSector = currentSector;
         }
+
+        uiLedWasOn = ledOn;
 
         remaining -= dc;
     }
@@ -309,20 +316,10 @@ bool D1541::gcrTick()
     const bool syncHigh   = (gcrSync[pos] != 0);
     const uint8_t sectorNow = gcrSectorAtPos[pos];
 
-    // Snapshot whether VIA2 was ready for a new media byte.
-    const bool hadPendingByte = getByteReadyLow();
-
     currentSector = sectorNow;
 
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
     d1541mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
-
-    if (!hadPendingByte && motorOn && diskLoaded)
-    {
-        uiTrack = currentTrack;
-        uiSector = currentSector;
-        uiActivityHoldCycles = 2000;
-    }
 
     return true;
 }
@@ -509,7 +506,7 @@ void D1541::unloadDisk()
     currentSector           = 0;
     uiTrack                 = currentTrack;
     uiSector                = currentSector;
-    uiActivityHoldCycles    = 0;
+    uiLedWasOn              = false;
     lastError               = DriveError::NONE;
     status                  = DriveStatus::IDLE;
 }
@@ -692,6 +689,9 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
     halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
     currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
 
+    uiTrack = currentTrack;
+    uiSector = currentSector;
+
     gcrDirty = true;
 }
 
@@ -834,7 +834,7 @@ void D1541::getDriveIndicators(std::vector<Indicator>& out) const
 
     Indicator act;
     act.name = "ACT";
-    act.on = (uiActivityHoldCycles > 0);
+    act.on = d1541mem.getVIA2().isLedOn();
     act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
     out.push_back(std::move(act));
 }
