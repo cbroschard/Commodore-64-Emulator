@@ -305,7 +305,7 @@ void DriveCIA::notifyAtnInput(bool atnLow)
     const bool hwAutoAtnRespEnable =
         ((ddrB & PRB_ATNACK) != 0) && ((portB & PRB_ATNACK) != 0);
 
-    const bool autoAckEnabled = autoAtnAckEnabled || hwAutoAtnRespEnable;
+    const bool autoAckEnabled = iecAtnInLow && (autoAtnAckEnabled || hwAutoAtnRespEnable);
 
     const bool falling = (!lastAtnLow &&  atnLow);
     const bool rising  = ( lastAtnLow && !atnLow);
@@ -568,6 +568,18 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x01:
         {
             uint8_t result = (registers.portB & registers.ddrB) | (portBPins & ~registers.ddrB);
+        #ifdef Debug
+            std::cout << "[CIA] read PRB -> $"
+                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(result)
+                      << " rawPortB=$"
+                      << std::setw(2) << static_cast<int>(registers.portB)
+                      << " pins=$"
+                      << std::setw(2) << static_cast<int>(portBPins)
+                      << " ddrB=$"
+                      << std::setw(2) << static_cast<int>(registers.ddrB)
+                      << std::dec << "\n";
+        #endif
             return result;
         }
         case 0x02: return registers.ddrA;
@@ -580,7 +592,16 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x09: return registers.todSeconds;
         case 0x0A: return registers.todMinutes;
         case 0x0B: return registers.todHours;
-        case 0x0C: return registers.serialData;
+        case 0x0C:
+        {
+        #ifdef Debug
+            std::cout << "[CIA] read SDR -> $"
+                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(registers.serialData)
+                      << std::dec << "\n";
+        #endif
+            return registers.serialData;
+        }
         case 0x0D:
         {
             uint8_t pending = interruptStatus & 0x1F;
@@ -615,6 +636,17 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         case 0x01:
         {
             registers.portB = value;
+
+        #ifdef Debug
+            std::cout << "[CIA] write PRB=$"
+                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(value)
+                      << " ddrB=$"
+                      << std::setw(2)
+                      << static_cast<int>(registers.ddrB)
+                      << std::dec << "\n";
+        #endif
+
             applyPortOutputs();
             break;
         }
@@ -785,22 +817,17 @@ void DriveCIA::applyIECOutputs()
     const bool datOutAssertLow = ((ddrB & PRB_DATOUT) != 0) && ((portB & PRB_DATOUT) != 0);
     const bool clkOutAssertLow = ((ddrB & PRB_CLKOUT) != 0) && ((portB & PRB_CLKOUT) != 0);
 
-    // PB4 on a 1581 is NOT a direct IEC driver.
-    // It enables the "automatic ATN response" logic.
+    // PB4 should only matter for the ATN auto-ack helper itself,
+    // not as a general always-on post-byte bus control.
     const bool hwAutoAtnRespEnable = ((ddrB & PRB_ATNACK) != 0) && ((portB & PRB_ATNACK) != 0);
 
-    // Effective auto-ACK: either forced by emulator OR enabled by the ROM via PB4.
-    const bool autoAckEnabled = autoAtnAckEnabled || hwAutoAtnRespEnable;
+    // Only let PB4 influence the ATN helper while ATN is actually asserted.
+    const bool autoAckEnabled = iecAtnInLow && (autoAtnAckEnabled || hwAutoAtnRespEnable);
 
     const bool ciaDataLow = datOutAssertLow;
     const bool ciaClkLow  = clkOutAssertLow;
-
-    // PB4 ATN-ACK path still forces DATA low when active
     const bool autoAckDriveLow = autoAckEnabled && extDataLow;
 
-    // For now, do not gate IEC DATA with BUSDIR.
-    // The log shows the ROM is asserting DATOUT after receiving a byte,
-    // but BUSDIR gating is preventing the line from ever going low.
     const bool driveDataLow = autoAckDriveLow || ciaDataLow;
     const bool driveClkLow  = ciaClkLow;
 
