@@ -15,6 +15,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include "Drive/IDriveIndicatorView.h"
 #include "imgui/imgui.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
 #include "UiCommand.h"
@@ -170,6 +171,7 @@ class EmulatorUI
         void drawDriveLights(const DriveStatusView& drive);
 
         ImU32 toImGuiColor(DriveLightColor color, bool on);
+        EmulatorUI::DriveLightColor toUiColor(IDriveIndicatorView::DriveIndicatorColor c);
 };
 
 #endif // EMULATORUI_H

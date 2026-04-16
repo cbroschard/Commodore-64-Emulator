@@ -737,3 +737,15 @@ ImU32 EmulatorUI::toImGuiColor(EmulatorUI::DriveLightColor color, bool on)
         default:                                    return IM_COL32(200, 200, 200, 255);
     }
 }
+
+EmulatorUI::DriveLightColor EmulatorUI::toUiColor(IDriveIndicatorView::DriveIndicatorColor c)
+{
+    switch (c)
+    {
+        case IDriveIndicatorView::DriveIndicatorColor::Green:  return EmulatorUI::DriveLightColor::Green;
+        case IDriveIndicatorView::DriveIndicatorColor::Red:    return EmulatorUI::DriveLightColor::Red;
+        case IDriveIndicatorView::DriveIndicatorColor::Yellow: return EmulatorUI::DriveLightColor::Yellow;
+        case IDriveIndicatorView::DriveIndicatorColor::Amber:  return EmulatorUI::DriveLightColor::Amber;
+        default:                                               return EmulatorUI::DriveLightColor::Green;
+    }
+}

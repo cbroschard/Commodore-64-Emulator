@@ -13,8 +13,8 @@ class IDrivePositionView
     public:
         virtual ~IDrivePositionView() = default;
         virtual bool hasTrackSector() const = 0;
-        virtual int getCurrentTrack() const = 0;
-        virtual int getCurrentSector() const = 0;
+        virtual int getTrack() const = 0;
+        virtual int getSector() const = 0;
 };
 
 #endif // IDRIVEPOSITIONVIEW_H_INCLUDED

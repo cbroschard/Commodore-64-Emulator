@@ -10,11 +10,14 @@
 
 #include "Drive/Drive.h"
 #include "Drive/D1541Memory.h"
+#include "Drive/IDriveIndicatorView.h"
+#include "Drive/IDrivePositionView.h"
+#include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "Drive/D1541VIA.h"
 
-class D1541 : public Drive
+class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, IDriveUiView
 {
     public:
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
@@ -49,6 +52,17 @@ class D1541 : public Drive
         inline bool isWriteProtected() const { return diskWriteProtected; }
         void loadDisk(const std::string& path) override;
         void unloadDisk() override;
+
+        // Emulator UI interface
+        inline bool hasTrackSector() const override { return true; }
+        inline int getTrack() const override { return currentTrack; }
+        inline int getSector() const override { return currentSector; }
+
+        inline const char* getDriveModelName() const override { return "1541"; }
+        inline bool hasDiskInserted() const override { return isDiskLoaded(); }
+        inline std::string getMountedImagePath() const override { return getCurrentDiskPath(); }
+
+        void getDriveIndicators(std::vector<Indicator>& out) const override;
 
         // IECBUS communication
         void onListen() override;

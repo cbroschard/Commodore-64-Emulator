@@ -13,17 +13,24 @@
 
 class IDriveIndicatorView
 {
-    public:
-        struct Indicator
-        {
-            std::string name;
-            bool on = false;
-            EmulatorUI::DriveLightColor color = EmulatorUI::DriveLightColor::Green;
-        };
+public:
+    enum class DriveIndicatorColor
+    {
+        Green,
+        Red,
+        Yellow,
+        Amber
+    };
 
-        virtual ~IDriveIndicatorView() = default;
-        virtual void getDriveIndicators(std::vector<Indicator>& out) const = 0;
+    struct Indicator
+    {
+        std::string name;
+        bool on = false;
+        DriveIndicatorColor color = DriveIndicatorColor::Green;
+    };
+
+    virtual ~IDriveIndicatorView() = default;
+    virtual void getDriveIndicators(std::vector<Indicator>& out) const = 0;
 };
-
 
 #endif // IDRIVEINDICATORVIEW_H_INCLUDED

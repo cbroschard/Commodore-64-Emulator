@@ -753,3 +753,14 @@ void D1541::forceSyncIEC()
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }
+
+void D1541::getDriveIndicators(std::vector<Indicator>& out) const
+{
+    out.clear();
+
+    Indicator act;
+    act.name = "ACT";
+    act.on = isDiskLoaded();
+    act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
+    out.push_back(std::move(act));
+}
