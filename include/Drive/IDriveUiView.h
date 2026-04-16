@@ -8,6 +8,8 @@
 #ifndef IDRIVEUIVIEW_H_INCLUDED
 #define IDRIVEUIVIEW_H_INCLUDED
 
+#include <string>
+
 class IDriveUiView
 {
     public:

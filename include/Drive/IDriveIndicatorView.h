@@ -8,6 +8,9 @@
 #ifndef IDRIVEINDICATORVIEW_H_INCLUDED
 #define IDRIVEINDICATORVIEW_H_INCLUDED
 
+#include <string>
+#include <vector>
+
 class IDriveIndicatorView
 {
     public:
