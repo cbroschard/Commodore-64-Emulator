@@ -651,8 +651,17 @@ void EmulatorUI::drawDriveStatus(const MediaViewState& v)
         return;
 
     ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + 8.0f, vp->WorkPos.y + 28.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.85f);
+
+    const float marginX = 8.0f;
+
+    // Smaller = lower. 0 puts it very close to the bottom.
+    const float marginY = 0.0f;
+
+    // Use full viewport bottom instead of WorkSize bottom so it sits slightly lower.
+    float nextX = vp->Pos.x + marginX;
+    const float bottomY = vp->Pos.y + vp->Size.y - marginY;
+
+    const float gapX = 8.0f;
 
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoTitleBar |
@@ -661,41 +670,55 @@ void EmulatorUI::drawDriveStatus(const MediaViewState& v)
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoSavedSettings;
 
-    if (!ImGui::Begin("##DriveStatus", nullptr, flags))
-    {
-        ImGui::End();
-        return;
-    }
-
     for (const auto& drive : v.drives)
     {
         if (!drive.present)
             continue;
 
-        if (!drive.modelName.empty())
-            ImGui::Text("Drive %d (%s)", drive.deviceNum, drive.modelName.c_str());
-        else
-            ImGui::Text("Drive %d", drive.deviceNum);
+        ImGui::SetNextWindowPos(
+            ImVec2(nextX, bottomY),
+            ImGuiCond_Always,
+            ImVec2(0.0f, 1.0f) // bottom-left anchor
+        );
 
-        if (!drive.lights.empty())
-            drawDriveLights(drive);
+        ImGui::SetNextWindowBgAlpha(0.85f);
 
-        if (drive.diskInserted)
+        char windowName[64];
+        std::snprintf(windowName, sizeof(windowName), "##DriveStatus%d", drive.deviceNum);
+
+        ImVec2 thisWindowSize(0.0f, 0.0f);
+
+        if (ImGui::Begin(windowName, nullptr, flags))
         {
-            if (drive.hasTrackSector)
-                ImGui::Text("Track/Sector: %d / %d", drive.track, drive.sector);
+            if (!drive.modelName.empty())
+                ImGui::Text("Drive %d (%s)", drive.deviceNum, drive.modelName.c_str());
             else
-                ImGui::TextUnformatted("Track/Sector: -- / --");
-        }
-        else
-        {
-            ImGui::TextUnformatted("No disk inserted");
+                ImGui::Text("Drive %d", drive.deviceNum);
+
+            if (!drive.lights.empty())
+                drawDriveLights(drive);
+
+            if (drive.diskInserted)
+            {
+                if (drive.hasTrackSector)
+                    ImGui::Text("Track/Sector: %d / %d", drive.track, drive.sector);
+                else
+                    ImGui::TextUnformatted("Track/Sector: -- / --");
+            }
+            else
+            {
+                ImGui::TextUnformatted("No disk inserted");
+            }
+
+            // Important: capture size while this window is still active.
+            thisWindowSize = ImGui::GetWindowSize();
         }
 
-        ImGui::Separator();
+        ImGui::End();
+
+        // Put the next drive immediately to the right of the one we just drew.
+        nextX += thisWindowSize.x + gapX;
     }
-
-    ImGui::End();
 }
 
 void EmulatorUI::drawDriveLights(const DriveStatusView& drive)
