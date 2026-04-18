@@ -17,13 +17,16 @@ class IECBUS;
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
 #include "Drive/FloppyControllerHost.h"
+#include "Drive/IDriveIndicatorView.h"
+#include "Drive/IDrivePositionView.h"
+#include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IECBUS.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1571 : public Drive, public FloppyControllerHost
+class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1571(int deviceNumber, const std::string& romName);
@@ -81,6 +84,17 @@ class D1571 : public Drive, public FloppyControllerHost
         void setSRQAsserted(bool state) override;
         void forceSyncIEC() override;
         inline bool isSRQAsserted() const override { return srqAsserted; }
+
+        // Emulator UI interface
+        inline bool hasTrackSector() const override { return true; }
+        inline int getTrack() const override { return int(uiTrack) + 1; }
+        inline int getSector() const override { return uiSector; }
+
+        inline const char* getDriveModelName() const override { return "1571"; }
+        inline bool hasDiskInserted() const override { return isDiskLoaded(); }
+        inline std::string getMountedImagePath() const override { return getCurrentDiskPath(); }
+
+        void getDriveIndicators(std::vector<Indicator>& out) const override;
 
         // IECBUS communication
         void onListen() override;
@@ -184,9 +198,15 @@ class D1571 : public Drive, public FloppyControllerHost
         // GCR
         std::vector<uint8_t> gcrTrackStream;
         std::vector<uint8_t> gcrSync;
+        std::vector<uint8_t> gcrSectorAtPos;
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;
+
+        // UI Activity
+        uint8_t uiTrack;
+        uint8_t uiSector;
+        bool    uiLedWasOn;
 
         bool gcrTick();
         void gcrAdvance(uint32_t dc);

@@ -35,7 +35,10 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     currentSector(0),
     gcrBitCounter(0),
     gcrPos(0),
-    gcrDirty(true)
+    gcrDirty(true),
+    uiTrack(17),
+    uiSector(0),
+    uiLedWasOn(false)
 {
     setDeviceNumber(deviceNumber);
     d1571mem.attachPeripheralInstance(this);
@@ -114,6 +117,11 @@ void D1571::saveState(StateWriter& wrtr) const
     wrtr.writeU32(static_cast<uint32_t>(gcrPos));
     wrtr.writeBool(gcrDirty);
 
+    // UI Activity State
+    wrtr.writeU8(uiTrack);
+    wrtr.writeU8(uiSector);
+    wrtr.writeBool(uiLedWasOn);
+
     // Dump RAM
     d1571mem.saveState(wrtr);
 
@@ -139,96 +147,101 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Header / identity
     uint32_t ver = 0;
-    if (!rdr.readU32(ver)) return false;
-    if (ver != 1) return false;
+    if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t devU8 = 0;
-    if (!rdr.readU8(devU8)) return false;
+    if (!rdr.readU8(devU8))                                 { rdr.exitChunkPayload(chunk); return false; }
     setDeviceNumber(static_cast<int>(devU8));
 
     uint8_t mediaU8 = 0;
-    if (!rdr.readU8(mediaU8)) return false;
+    if (!rdr.readU8(mediaU8))                               { rdr.exitChunkPayload(chunk); return false; }
     mediaPath = static_cast<MediaPath>(mediaU8);
 
     // CPU state (must match save order)
-    if (!driveCPU.loadStatePayload(rdr)) return false;
-    if (!driveCPU.loadStateExtendedPayload(chunk, rdr)) return false;
+    if (!driveCPU.loadStatePayload(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!driveCPU.loadStateExtendedPayload(chunk, rdr))     { rdr.exitChunkPayload(chunk); return false; }
 
     // Mechanics / runtime state
-    if (!rdr.readBool(motorOn)) return false;
-    if (!rdr.readBool(diskLoaded)) return false;
-    if (!rdr.readBool(diskWriteProtected)) return false;
+    if (!rdr.readBool(motorOn))                             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskLoaded))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(diskWriteProtected))                  { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t u8 = 0;
 
-    if (!rdr.readU8(u8)) return false;
+    if (!rdr.readU8(u8))                                    { rdr.exitChunkPayload(chunk); return false; }
     lastError = static_cast<DriveError>(u8);
 
-    if (!rdr.readU8(u8)) return false;
+    if (!rdr.readU8(u8))                                    { rdr.exitChunkPayload(chunk); return false; }
     status = static_cast<DriveStatus>(u8);
 
-    if (!rdr.readU8(currentTrack)) return false;
-    if (!rdr.readU8(currentSector)) return false;
-    if (!rdr.readU8(densityCode)) return false;
+    if (!rdr.readU8(currentTrack))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentSector))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(densityCode))                           { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(currentSide)) return false;
+    if (!rdr.readBool(currentSide))                         { rdr.exitChunkPayload(chunk); return false; }
 
     uint16_t ht = 0;
-    if (!rdr.readU16(ht)) return false;
+    if (!rdr.readU16(ht))                                   { rdr.exitChunkPayload(chunk); return false; }
     halfTrackPos = static_cast<int>(ht);
 
     // Disk attachment info
-    if (!rdr.readString(loadedDiskName)) return false;
+    if (!rdr.readString(loadedDiskName))                    { rdr.exitChunkPayload(chunk); return false; }
 
     // IEC protocol state (D1571-local)
-    if (!rdr.readBool(iecListening)) return false;
-    if (!rdr.readBool(iecTalking)) return false;
+    if (!rdr.readBool(iecListening))                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(iecTalking))                          { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readBool(presenceAckDone)) return false;
-    if (!rdr.readBool(expectingSecAddr)) return false;
-    if (!rdr.readBool(expectingDataByte)) return false;
+    if (!rdr.readBool(presenceAckDone))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(expectingSecAddr))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(expectingDataByte))                   { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU8(currentListenSA)) return false;
-    if (!rdr.readU8(currentTalkSA)) return false;
+    if (!rdr.readU8(currentListenSA))                       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentTalkSA))                         { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readI32(currentSecondaryAddress)) return false;
+    if (!rdr.readI32(currentSecondaryAddress))              { rdr.exitChunkPayload(chunk); return false; }
 
     // Receive shifter
-    if (!rdr.readBool(iecRxActive)) return false;
-    if (!rdr.readI32(iecRxBitCount)) return false;
-    if (!rdr.readU8(iecRxByte)) return false;
+    if (!rdr.readBool(iecRxActive))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(iecRxBitCount))                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(iecRxByte))                             { rdr.exitChunkPayload(chunk); return false; }
 
     // Runtime flags
-    if (!rdr.readBool(busDriversEnabled)) return false;
-    if (!rdr.readBool(twoMHzMode)) return false;
+    if (!rdr.readBool(busDriversEnabled))                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(twoMHzMode))                          { rdr.exitChunkPayload(chunk); return false; }
 
     // IEC bus line levels
-    if (!rdr.readBool(atnLineLow)) return false;
-    if (!rdr.readBool(clkLineLow)) return false;
-    if (!rdr.readBool(dataLineLow)) return false;
-    if (!rdr.readBool(srqAsserted)) return false;
+    if (!rdr.readBool(atnLineLow))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(clkLineLow))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(dataLineLow))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(srqAsserted))                         { rdr.exitChunkPayload(chunk); return false; }
 
     // GCR resume state
     uint32_t tmp32 = 0;
 
-    if (!rdr.readU32(tmp32)) return false;
+    if (!rdr.readU32(tmp32))                                { rdr.exitChunkPayload(chunk); return false; }
     gcrBitCounter = static_cast<int>(tmp32);
 
-    if (!rdr.readU32(tmp32)) return false;
+    if (!rdr.readU32(tmp32))                                { rdr.exitChunkPayload(chunk); return false; }
     gcrPos = static_cast<size_t>(tmp32);
 
-    if (!rdr.readBool(gcrDirty)) return false;
+    if (!rdr.readBool(gcrDirty))                            { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(uiTrack))                               { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(uiSector))                              { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(uiLedWasOn))                          { rdr.exitChunkPayload(chunk); return false; }
 
     // Memory + VIAs (match save order)
-    if (!d1571mem.loadState(rdr)) return false;
-    if (!d1571mem.getVIA1().loadState(rdr)) return false;
-    if (!d1571mem.getVIA2().loadState(rdr)) return false;
+    if (!d1571mem.loadState(rdr))                           { rdr.exitChunkPayload(chunk); return false; }
+    if (!d1571mem.getVIA1().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
+    if (!d1571mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
 
     // Post-restore fixups (IMPORTANT for deterministic resume)
 
     // We do NOT serialize gcrTrackStream/gcrSync (huge). Rebuild lazily.
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     // If a disk is expected, ensure rebuild will happen next gcrTick().
     if (diskLoaded)
@@ -265,6 +278,18 @@ void D1571::tick(uint32_t cycles)
         if (isGCRMode() && motorOn && diskLoaded)
             gcrAdvance(dc);
 
+        const bool ledOn = d1571mem.getVIA2().isLedOn();
+
+        if (ledOn)
+            uiTrack = currentTrack;
+
+        if (ledOn && !uiLedWasOn)
+        {
+            uiSector = currentSector;
+        }
+
+        uiLedWasOn = ledOn;
+
         cycles -= dc;
     }
 }
@@ -287,10 +312,18 @@ bool D1571::gcrTick()
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
 
-    uint8_t gcrByte = gcrTrackStream[gcrPos];
-    bool syncHigh    = (gcrSync[gcrPos] != 0);
+    const size_t pos = gcrPos;
+
+    uint8_t gcrByte = gcrTrackStream[pos];
+    bool syncHigh = (gcrSync[pos] != 0);
+
+    if (gcrSectorAtPos.size() == gcrTrackStream.size())
+    {
+        currentSector = gcrSectorAtPos[pos];
+    }
 
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
+
     d1571mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
     return true;
 }
@@ -352,6 +385,11 @@ void D1571::reset()
     gcrPos                      = 0;
     gcrDirty                    = true;
 
+    // UI activity
+    uiTrack                     = currentTrack;
+    uiSector                    = currentSector;
+    uiLedWasOn                  = false;
+
     // Reset actual line states
     peripheralAssertClk(false);  // Release Clock
     peripheralAssertData(false); // Release Data
@@ -365,6 +403,7 @@ void D1571::reset()
 
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     d1571mem.reset();
     driveCPU.reset();
@@ -446,6 +485,7 @@ void D1571::rebuildGCRTrackStream()
 {
     gcrTrackStream.clear();
     gcrSync.clear();
+    gcrSectorAtPos.clear();
 
     if (!diskLoaded || !diskImage) return;
 
@@ -466,21 +506,23 @@ void D1571::rebuildGCRTrackStream()
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
 
-    auto pushN = [&](uint8_t v, int count, bool isSync)
+    auto pushN = [&](uint8_t v, int count, bool isSync, uint8_t sectorTag)
     {
         gcrTrackStream.insert(gcrTrackStream.end(), count, v);
         gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
+        gcrSectorAtPos.insert(gcrSectorAtPos.end(), count, sectorTag);
     };
 
-    auto pushEncoded = [&](const uint8_t* in, size_t len)
+    auto pushEncoded = [&](const uint8_t* in, size_t len, uint8_t sectorTag)
     {
-        // encodes into gcrTrackStream AND appends 0s into gcrSync
         for (size_t i = 0; i < len; i += 4)
         {
             uint8_t g[5];
             gcrEncode4Bytes(&in[i], g);
+
             gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
             gcrSync.insert(gcrSync.end(), 5, 0);
+            gcrSectorAtPos.insert(gcrSectorAtPos.end(), 5, sectorTag);
         }
     };
 
@@ -490,11 +532,12 @@ void D1571::rebuildGCRTrackStream()
     constexpr int TAIL_GAP      = 9;   // typical 4..12 between sectors
 
     // lead-in gap (NOT sync)
-    pushN(0x55, 64, false);
+    pushN(0x55, 64, false, 0);
 
     for (int sector = 0; sector < spt; ++sector)
     {
-        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sector));
+        const uint8_t sectorTag = static_cast<uint8_t>(sector);
+        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sectorTag));
         #ifdef Debug
         if (!currentSide && imageTrack1based == 18 && sector == 1)
         {
@@ -509,7 +552,7 @@ void D1571::rebuildGCRTrackStream()
         if (sec.size() != 256) sec.assign(256, 0x00);
 
         // ---- HEADER ----
-        pushN(0xFF, SYNC_LEN, true);        // sync region
+        pushN(0xFF, SYNC_LEN, true, sectorTag);        // sync region
 
         uint8_t hdr[8] = {0};
         hdr[0] = 0x08;
@@ -521,11 +564,11 @@ void D1571::rebuildGCRTrackStream()
         hdr[7] = 0x0F;
         hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]);
 
-        pushEncoded(hdr, 8);
-        pushN(0x55, HEADER_GAP, false);
+        pushEncoded(hdr, 8, sectorTag);
+        pushN(0x55, HEADER_GAP, false, sectorTag);
 
         // ---- DATA ----
-        pushN(0xFF, SYNC_LEN, true);
+        pushN(0xFF, SYNC_LEN, true, sectorTag);
 
         std::vector<uint8_t> raw(260, 0x00);
         raw[0] = 0x07;          // data block ID
@@ -542,15 +585,18 @@ void D1571::rebuildGCRTrackStream()
         raw[258] = 0x00;
         raw[259] = 0x00;
 
-        pushEncoded(raw.data(), raw.size());
-        pushN(0x55, TAIL_GAP, false);
+        pushEncoded(raw.data(), raw.size(), sectorTag);
+        pushN(0x55, TAIL_GAP, false, sectorTag);
     }
 
-    pushN(0x55, 128, false);
+    pushN(0x55, 128, false, 0);
 
     // sanity
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
+
+    if (gcrSectorAtPos.size() != gcrTrackStream.size())
+        gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
 
     // Reset
     gcrPos = 0;
@@ -636,6 +682,10 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
     currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
+
+    uiTrack = currentTrack;
+    uiSector = currentSector;
+
     gcrDirty = true;
 }
 
@@ -673,6 +723,8 @@ void D1571::loadDisk(const std::string& path)
     gcrDirty       = true;
 
     gcrTrackStream.clear();
+    gcrSync.clear();
+    gcrSectorAtPos.clear();
 }
 
 void D1571::unloadDisk()
@@ -684,10 +736,12 @@ void D1571::unloadDisk()
     loadedDiskName.clear();
 
     // Reset basic geometry/status
-    currentTrack  = 0;
-    currentSector = 0;
-    lastError     = DriveError::NONE;
-    status        = DriveStatus::IDLE;
+    currentTrack        = 17;
+    currentSector       = 0;
+    uiTrack             = currentTrack;
+    uiSector            = currentSector;
+    lastError           = DriveError::NONE;
+    status              = DriveStatus::IDLE;
 }
 
 bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
@@ -959,4 +1013,21 @@ Drive::IECSnapshot D1571::snapshotIEC() const
     s.talkQueueLen = talkQueue.size();
 
     return s;
+}
+
+void D1571::getDriveIndicators(std::vector<Indicator>& out) const
+{
+    out.clear();
+
+    Indicator pwr;
+    pwr.name = "PWR";
+    pwr.on = isDiskLoaded();
+    pwr.color = IDriveIndicatorView::DriveIndicatorColor::Red;
+    out.push_back(std::move(pwr));
+
+    Indicator act;
+    act.name = "ACT";
+    act.on = d1571mem.getVIA2().isLedOn();
+    act.color = IDriveIndicatorView::DriveIndicatorColor::Green;
+    out.push_back(std::move(act));
 }
