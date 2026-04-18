@@ -98,3 +98,23 @@ bool D71::validateDiskImage()
     return (sz == D71_STANDARD_SIZE_70     || sz == D71_STANDARD_SIZE_70_ERR ||
             sz == D71_EXTENDED_SIZE_80     || sz == D71_EXTENDED_SIZE_80_ERR);
 }
+
+void D71::initializeGeometryForBlankImage()
+{
+
+}
+
+void D71::initializeBlankImageBuffer()
+{
+
+}
+
+bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volumeID)
+{
+    return true;
+}
+
+bool D71::writeBlankDirectory()
+{
+    return true;
+}

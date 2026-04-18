@@ -528,77 +528,22 @@ bool CBMImage::copyFile(const std::string& srcName, const std::string& destName)
 
 bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volumeID)
 {
-    size_t totalSectors = 0;
-    for(auto s : geom.sectorsPerTrack)
-    {
-        totalSectors += s;
-    }
+    initializeGeometryForBlankImage();
+    initializeBlankImageBuffer();
 
-    // Resize and clear the image
-    fileImageBuffer.assign(totalSectors * sectorSize(), 0x00);
-
-    // Build each BAM sector
-    size_t numBAMS = bamLocations.size();
-    size_t tracksPerBAM = geom.sectorsPerTrack.size() / numBAMS;
-
-    for (size_t side = 0; side < numBAMS; ++side)
-    {
-        auto [bamTrack, bamSector] = bamLocations[side];
-        std::vector<uint8_t> bam(sectorSize(), 0x00);
-
-        // Next directory track
-        bam[0] = directoryStart.track;
-        bam[1] = directoryStart.sector;
-        bam[2] = static_cast<uint8_t>(tracksPerBAM);
-
-        // For each track in this side of the disk: free count + per sector bitmask
-        for (uint8_t t = 1; t <= tracksPerBAM; t++)
-        {
-            size_t globalTrack = side * tracksPerBAM + (t - 1);
-            uint8_t freeCount = geom.sectorsPerTrack[globalTrack];
-            size_t entryOffset = 4 + (t -1) * 4;
-
-            // Free sector count
-            bam[entryOffset] = freeCount;
-
-            // Mark all sectors free
-            for (uint8_t s = 0; s < freeCount; s++)
-            {
-                size_t byteOffset = entryOffset + 1 + (s / 8);
-                bam[byteOffset] |= uint8_t(1 << (s % 8));
-            }
-        }
-
-        // Volume name at 0x90 to 0x9F padded with 0xA0 to 16 characters in PETSCII
-        for (size_t i = 0; i < 16; i++)
-        {
-            bam[0x90 + i] = (i < volumeName.size()) ? asciiToPetscii(volumeName[i]) : 0xA0;
-        }
-
-        // Volume ID at 0xA2 to 0xA3
-        bam[0xA2] = asciiToPetscii((volumeID[0]));
-        bam[0xA3] = asciiToPetscii((volumeID[1]));
-        // DOS signature 2A at 0xA5 to 0xA7
-        bam[0xA5] = '2';
-        bam[0xA6] = 'A';
-        bam[0xA7] = ' ';
-
-        // Write the bam sector out to the image
-        if (!writeSector(bamTrack, bamSector, bam))
-        {
-            return false;
-        }
-    }
-
-    // Write out a blank directory start sector so LOAD"$",8 will return 0 files
-    std::vector<uint8_t> directoryBuffer(sectorSize(), 0x00);
-    directoryBuffer[0] = 0;
-    directoryBuffer[1] = 0xFF;
-    if (!writeSector(directoryStart.track, directoryStart.sector, directoryBuffer))
-    {
+    if (geom.sectorsPerTrack.empty())
         return false;
-    }
-    return true;
+
+    if (fileImageBuffer.empty())
+        return false;
+
+    if (!writeBlankBAM(volumeName, volumeID))
+        return false;
+
+    if (!writeBlankDirectory())
+        return false;
+
+    return validateDirectory();
 }
 
 bool CBMImage::validateDirectory()

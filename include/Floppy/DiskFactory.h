@@ -42,6 +42,8 @@ class DiskFactory
             }
         }
 
+        std::unique_ptr<Disk> createBlank(const std::string& path, DiskFormat type, const std::string& name, const std::string& id);
+
     protected:
 
     private:

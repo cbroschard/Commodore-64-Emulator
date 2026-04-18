@@ -77,3 +77,23 @@ bool D81::validateDiskImage()
     }
     return true;
 }
+
+void D81::initializeGeometryForBlankImage()
+{
+
+}
+
+void D81::initializeBlankImageBuffer()
+{
+
+}
+
+bool D81::writeBlankBAM(const std::string& volumeName, const std::string& volumeID)
+{
+    return true;
+}
+
+bool D81::writeBlankDirectory()
+{
+    return true;
+}

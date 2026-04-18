@@ -32,6 +32,11 @@ class D64 : public CBMImage
 
     protected:
 
+        void initializeGeometryForBlankImage() override;
+        void initializeBlankImageBuffer() override;
+        bool writeBlankBAM(const std::string& volumeName, const std::string& volumeID) override;
+        bool writeBlankDirectory() override;
+
     private:
 
         // Disk size constants

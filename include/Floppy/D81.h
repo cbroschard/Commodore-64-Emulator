@@ -24,6 +24,10 @@ class D81 : public CBMImage
         const std::vector<uint8_t>& getRawImage() const override;
 
     protected:
+        void initializeGeometryForBlankImage() override;
+        void initializeBlankImageBuffer() override;
+        bool writeBlankBAM(const std::string& volumeName, const std::string& volumeID) override;
+        bool writeBlankDirectory() override;
 
         size_t sectorSize() const override { return 512; }
 

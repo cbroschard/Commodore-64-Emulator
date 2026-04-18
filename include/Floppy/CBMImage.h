@@ -37,6 +37,12 @@ class CBMImage : public Disk
         std::vector<TrackSector> bamLocations;  // Handle different BAM locations based on image format
         TrackSector directoryStart;   // Handle different directory start locations based on image format
 
+        // Disk format helpers
+        virtual void initializeGeometryForBlankImage() = 0;
+        virtual void initializeBlankImageBuffer() = 0;
+        virtual bool writeBlankBAM(const std::string& volumeName, const std::string& volumeID) = 0;
+        virtual bool writeBlankDirectory() = 0;
+
         // Helpers for image validation
         bool isValidPETSCII(uint8_t c);
         bool validateHeader();
