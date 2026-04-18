@@ -832,6 +832,12 @@ void D1541::getDriveIndicators(std::vector<Indicator>& out) const
 {
     out.clear();
 
+    Indicator pwr;
+    pwr.name = "PWR";
+    pwr.on = isDiskLoaded();
+    pwr.color = IDriveIndicatorView::DriveIndicatorColor::Green;
+    out.push_back(std::move(pwr));
+
     Indicator act;
     act.name = "ACT";
     act.on = d1541mem.getVIA2().isLedOn();
