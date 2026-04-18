@@ -145,8 +145,7 @@ void D64::initializeBlankImageBuffer()
     fileImageBuffer.assign(totalSectors * sectorSize(), 0x00);
 }
 
-bool D64::writeBlankBAM(const std::string& volumeName,
-                        const std::string& volumeID)
+bool D64::writeBlankBAM(const std::string& volumeName, const std::string& volumeID)
 {
     std::vector<uint8_t> bam(sectorSize(), 0x00);
 

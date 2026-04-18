@@ -85,7 +85,12 @@ void D81::initializeGeometryForBlankImage()
 
 void D81::initializeBlankImageBuffer()
 {
+    size_t totalSectors = 0;
 
+    for (int spt : geom.sectorsPerTrack)
+        totalSectors += static_cast<size_t>(spt);
+
+    fileImageBuffer.assign(totalSectors * sectorSize(), 0x00);
 }
 
 bool D81::writeBlankBAM(const std::string& volumeName, const std::string& volumeID)
