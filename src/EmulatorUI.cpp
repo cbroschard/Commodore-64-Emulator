@@ -481,8 +481,16 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
-            if (ImGui::MenuItem("Attach Cartridge image..."))
-                startFileDialog("Select CRT Image", { ".crt" }, UiCommand::Type::AttachCRT);
+            if (ImGui::BeginMenu("Cartridge"))
+            {
+                if (ImGui::MenuItem("Attach Cartridge image..."))
+                    startFileDialog("Select CRT Image", { ".crt" }, UiCommand::Type::AttachCRT);
+
+                if (ImGui::MenuItem("Eject Cartridge...", nullptr, false, v.cartAttached))
+                    push(UiCommand::Type::EjectCRT);
+
+                ImGui::EndMenu();
+            }
 
             if (ImGui::MenuItem("Attach T64 image..."))
                 startFileDialog("Select T64 image", { ".t64" }, UiCommand::Type::AttachT64);
@@ -845,9 +853,7 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
         const bool hasDisk = driveHasDisk(v, dev);
 
         if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
-        {
             pushEjectDisk(dev);
-        }
 
         ImGui::EndMenu();
     }

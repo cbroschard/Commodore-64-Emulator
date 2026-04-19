@@ -507,7 +507,23 @@ void MediaManager::detachDiskImage(int dev)
 
 void MediaManager::detachCRTImage()
 {
-    if (state_.cartAttached == false) return;
+    if (!state_.cartAttached)
+        return;
+
+    state_.cartAttached = false;
+    state_.cartPath.clear();
+
+    mem_.setCartridgeAttached(false);
+    pla_.setCartridgeAttached(false);
+
+    recreateCartridge();
+
+    if (coldReset_)
+        coldReset_();
+
+    #ifdef Debug
+    std::cout << "Cartridge detached\n";
+    #endif
 }
 
 void MediaManager::pressButton(uint32_t index)
