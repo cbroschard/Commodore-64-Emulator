@@ -147,31 +147,28 @@ bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volume
             // Track/Sector link to first directory sector.
             bam[0] = directoryStart.track;   // 18
             bam[1] = directoryStart.sector;  // 1
+            bam[3] = 0x80; // Double sided flag
         }
         else
         {
             // No directory chain on side 1 BAM.
             bam[0] = 0;
             bam[1] = 0;
+            bam[3] = 0;
         }
 
         bam[2] = 'A';
 
         for (size_t i = 0; i < 16; ++i)
-        {
-            bam[0x90 + i] =
-                i < volumeName.size()
-                    ? asciiToPetscii(static_cast<unsigned char>(std::toupper(volumeName[i])))
-                    : 0xA0;
-        }
+            bam[0x90 + i] = i < volumeName.size() ? static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(volumeName[i]))) : 0xA0;
 
         const char id0 = volumeID.size() > 0 ? volumeID[0] : '0';
         const char id1 = volumeID.size() > 1 ? volumeID[1] : '1';
 
         bam[0xA0] = 0xA0;
         bam[0xA1] = 0xA0;
-        bam[0xA2] = asciiToPetscii(static_cast<unsigned char>(std::toupper(id0)));
-        bam[0xA3] = asciiToPetscii(static_cast<unsigned char>(std::toupper(id1)));
+        bam[0xA2] = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id0)));
+        bam[0xA3] = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id1)));
         bam[0xA4] = 0xA0;
 
         bam[0xA5] = '2';
