@@ -190,6 +190,27 @@ void UIBridge::processCommands()
                 }
                 break;
 
+            case UiCommand::Type::CreateBlankDisk:
+                if (media_)
+                {
+                    DriveModel model =
+                        (cmd.driveType == UiCommand::DriveType::D1571) ? DriveModel::D1571 :
+                        (cmd.driveType == UiCommand::DriveType::D1581) ? DriveModel::D1581 :
+                                                                         DriveModel::D1541;
+                    media_->createBlankDisk(cmd.deviceNum, model, cmd.path);
+                }
+                break;
+
+            case UiCommand::Type::EjectCRT:
+                if (media_)
+                    media_->detachCRTImage();
+                break;
+
+            case UiCommand::Type::EjectDisk:
+                if (media_)
+                    media_->detachDiskImage(cmd.deviceNum);
+                break;
+
             case UiCommand::Type::SaveState:
                 {
                     uiPaused_ = true;

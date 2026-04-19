@@ -288,6 +288,19 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
         if (requestBusPrime_) requestBusPrime_();
     }
 
+    // Existing drive must match requested model.
+    if (drives_[deviceNum]->getDriveModel() != model)
+    {
+        #ifdef Debug
+        std::cout << "Drive " << deviceNum
+                  << " already exists as model "
+                  << static_cast<int>(drives_[deviceNum]->getDriveModel())
+                  << ". Eject/remove the drive before changing type.\n";
+        #endif
+
+        return;
+    }
+
     if (!drives_[deviceNum]->insert(path))
     {
         #ifdef Debug
@@ -408,6 +421,93 @@ void MediaManager::attachTAPImage()
         #endif
         state_.tapeAttached = false;
     }
+}
+
+void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)
+{
+    if (path.empty()) return;
+    if (deviceNum < 8 || deviceNum > 11) return;
+
+    const std::string ext = lowerExt(path);
+    if (!isExtCompatible(model, ext))
+    {
+        #ifdef Debug
+        std::cout << "Incompatible disk image for selected drive type.\n";
+        std::cout << "Drive " << deviceNum << " model=" << (int)model
+                  << " path=" << path << "\n";
+        #endif
+        return;
+    }
+
+    if (!drives_[deviceNum])
+    {
+        switch (model)
+        {
+            case DriveModel::None:
+                return;
+            case DriveModel::D1541:
+                drives_[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
+                break;
+            case DriveModel::D1571:
+                drives_[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
+                break;
+            case DriveModel::D1581:
+                drives_[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
+                break;
+            default:
+                return;
+        }
+
+        if (!drives_[deviceNum]) return;
+        bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+
+        // Sync all existing devices so nobody has stale cached bus state
+        for (int dev = 8; dev <= 11; ++dev)
+        {
+            if (drives_[dev]) drives_[dev]->forceSyncIEC();
+        }
+
+        // Defer bus priming to the emulator (safe point)
+        if (requestBusPrime_) requestBusPrime_();
+    }
+
+    // Existing drive must match requested model.
+    if (drives_[deviceNum]->getDriveModel() != model)
+    {
+        #ifdef Debug
+        std::cout << "Drive " << deviceNum
+                  << " already exists as model "
+                  << static_cast<int>(drives_[deviceNum]->getDriveModel())
+                  << ". Eject/remove the drive before changing type.\n";
+        #endif
+
+        return;
+    }
+
+    DiskFormat format = diskFormatForDriveModel(model);
+
+    DiskFactory factory;
+    auto disk = factory.createBlank(path, format, "BLANK", "00");
+
+    attachDiskImage(deviceNum, model, path);
+}
+
+void MediaManager::detachDiskImage(int dev)
+{
+    if (dev < 8 || dev > 11) return;
+
+    if (!drives_[dev]) return;
+
+    drives_[dev]->unloadDisk();
+
+    bus_.unregisterDevice(dev);
+
+    drives_[dev].reset();
+}
+
+void MediaManager::detachCRTImage()
+{
+    if (state_.cartAttached == false) return;
 }
 
 void MediaManager::pressButton(uint32_t index)
@@ -562,6 +662,7 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
             ds.modelName = ui->getDriveModelName();
             ds.diskInserted = ui->hasDiskInserted();
             ds.imagePath = ui->getMountedImagePath();
+            ds.driveType = toUiDriveType(drive->getDriveModel());
         }
         else
         {
@@ -703,4 +804,42 @@ void MediaManager::recreateCartridge()
     pla_.attachCartridgeInstance(cart_.get());
     traceMgr_.attachCartInstance(cart_.get());
     monbackend_.attachCartridgeInstance(cart_.get());
+}
+
+UiCommand::DriveType MediaManager::toUiDriveType(DriveModel model) const
+{
+    switch (model)
+    {
+        case DriveModel::D1541:
+            return UiCommand::DriveType::D1541;
+
+        case DriveModel::D1571:
+            return UiCommand::DriveType::D1571;
+
+        case DriveModel::D1581:
+            return UiCommand::DriveType::D1581;
+
+        case DriveModel::None:
+        default:
+            return UiCommand::DriveType::None;
+    }
+}
+
+DiskFormat MediaManager::diskFormatForDriveModel(DriveModel model)
+{
+    switch (model)
+    {
+        case DriveModel::D1541:
+            return DiskFormat::D64;
+
+        case DriveModel::D1571:
+            return DiskFormat::D71;
+
+        case DriveModel::D1581:
+            return DiskFormat::D81;
+
+        case DriveModel::None:
+        default:
+            return DiskFormat::Unknown;
+    }
 }

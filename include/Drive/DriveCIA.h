@@ -41,8 +41,8 @@ class DriveCIA : public DriveCIABase
             PRA_MOTOR   = 1u << 2, // 0 = on, 1 = off
             PRA_DEVSW2  = 1u << 3, // device switch 2 (right)
             PRA_DEVSW1  = 1u << 4, // device switch 1 (left)
-            PRA_ERRLED  = 1u << 5, // red LED
-            PRA_ACTLED  = 1u << 6, // green LED
+            PRA_ACTLED  = 1u << 5, // green LED
+            PRA_ERRLED  = 1u << 6, // red LED
             PRA_DSKCH   = 1u << 7  // disk present/change
         };
 

@@ -57,6 +57,8 @@ class EmulatorUI
             std::string modelName;
             std::string imagePath;
 
+            UiCommand::DriveType driveType = UiCommand::DriveType::None;
+
             std::vector<DriveLightView> lights;
 
             bool hasTrackSector = false;
@@ -157,7 +159,13 @@ class EmulatorUI
         void startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type);
         void startSaveFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type, bool allowOverwrite = false);
         void startDiskFileDialog(int deviceNum, UiCommand::DriveType driveType);
+        void startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType);
         void drawFileDialog();
+
+        bool driveHasDisk(const MediaViewState& v, int dev);
+        void drawDriveDiskMenu(const MediaViewState& v, int dev);
+        void pushEjectDisk(int deviceNum);
+        UiCommand::DriveType getDriveTypeForDev(const MediaViewState& v, int dev) const;
 
         void push(UiCommand::Type t, std::string path = {}, int deviceNum = 8, UiCommand::DriveType driveType = UiCommand::DriveType::D1541);
 

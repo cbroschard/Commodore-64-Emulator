@@ -28,6 +28,8 @@ struct UiCommand
         AttachT64,
         AttachTAP,
 
+        CreateBlankDisk,
+
         EjectDisk,
         EjectCRT,
         EjectTape,
@@ -56,6 +58,7 @@ struct UiCommand
 
     enum class DriveType
     {
+        None,
         D1541,
         D1571,
         D1581

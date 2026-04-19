@@ -15,13 +15,16 @@ class IECBUS;
 #include "Drive/Drive.h"
 #include "Drive/D1581Memory.h"
 #include "Drive/FloppyControllerHost.h"
+#include "Drive/IDriveIndicatorView.h"
+#include "Drive/IDrivePositionView.h"
+#include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D1581 : public Drive, public FloppyControllerHost
+class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1581(int deviceNumber, const std::string& romNAME);
@@ -58,6 +61,23 @@ class D1581 : public Drive, public FloppyControllerHost
         inline DriveMemoryBase* getMemory() override { return &d1581mem; }
         inline const DriveVIABase* getVIA1() const override { return nullptr; }
         inline const DriveVIABase* getVIA2() const override { return nullptr; }
+
+        // Emulator UI interface
+        inline bool hasTrackSector() const override { return true; }
+        inline int getTrack() const override { return int(uiTrack) + 1; }
+        inline int getSector() const override { return uiSector; }
+
+        inline const char* getDriveModelName() const override { return "1581"; }
+        inline bool hasDiskInserted() const override { return isDiskLoaded(); }
+        inline std::string getMountedImagePath() const override { return getCurrentDiskPath(); }
+
+        void getDriveIndicators(std::vector<Indicator>& out) const override;
+
+        inline void setPowerLed(bool on) { powerLedOn = on; }
+        inline void setActivityLed(bool on) { activityLedOn = on; }
+
+        inline bool isPowerLedOn() const { return powerLedOn; }
+        inline bool isActivityLedOn() const { return activityLedOn; }
 
         // FDC Sync
         void syncTrackFromFDC();
@@ -161,6 +181,13 @@ class D1581 : public Drive, public FloppyControllerHost
         // Drive geometry
         uint8_t currentTrack;
         uint8_t currentSector;
+
+        // UI Activity
+        uint8_t uiTrack;
+        uint8_t uiSector;
+        bool uiLedWasOn;
+        bool powerLedOn;
+        bool activityLedOn;
 
         // Helpers
         uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;

@@ -133,6 +133,45 @@ void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveTy
         case UiCommand::DriveType::D1581:
             startFileDialog("Select D81 Image (1581)", { ".d81" }, UiCommand::Type::AttachDisk);
             break;
+
+        case UiCommand::DriveType::None:
+        default:
+            return;
+    }
+}
+
+void EmulatorUI::startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType)
+{
+    pendingType_      = UiCommand::Type::CreateBlankDisk;
+    pendingDevice_    = deviceNum;
+    pendingDriveType_ = driveType;
+
+    switch (driveType)
+    {
+        case UiCommand::DriveType::D1541:
+            startSaveFileDialog("Create Blank D64 Image (1541)",
+                                { ".d64" },
+                                UiCommand::Type::CreateBlankDisk,
+                                false);
+            break;
+
+        case UiCommand::DriveType::D1571:
+            startSaveFileDialog("Create Blank D71 Image (1571)",
+                                { ".d71" },
+                                UiCommand::Type::CreateBlankDisk,
+                                false);
+            break;
+
+        case UiCommand::DriveType::D1581:
+            startSaveFileDialog("Create Blank D81 Image (1581)",
+                                { ".d81" },
+                                UiCommand::Type::CreateBlankDisk,
+                                false);
+            break;
+
+        case UiCommand::DriveType::None:
+        default:
+            return;
     }
 }
 
@@ -427,32 +466,20 @@ void EmulatorUI::installMenu(const MediaViewState& v)
     {
         if (ImGui::BeginMenu("File"))
         {
-            if (ImGui::BeginMenu("Attach Disk Image..."))
+            if (ImGui::MenuItem("Load Program..."))
+                startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRG);
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Disk"))
             {
-                for (int dev = 8; dev <= 11; ++dev)
-                {
-                    char label[32];
-                    std::snprintf(label, sizeof(label), "Drive %d", dev);
+                drawDriveDiskMenu(v, 8);
+                drawDriveDiskMenu(v, 9);
+                drawDriveDiskMenu(v, 10);
+                drawDriveDiskMenu(v, 11);
 
-                    if (ImGui::BeginMenu(label))
-                    {
-                        if (ImGui::MenuItem("1541 (D64)"))
-                            startDiskFileDialog(dev, UiCommand::DriveType::D1541);
-
-                        if (ImGui::MenuItem("1571 (D64/D71)"))
-                            startDiskFileDialog(dev, UiCommand::DriveType::D1571);
-
-                        if (ImGui::MenuItem("1581 (D81)"))
-                            startDiskFileDialog(dev, UiCommand::DriveType::D1581);
-
-                        ImGui::EndMenu();
-                    }
-                }
                 ImGui::EndMenu();
             }
-
-            if (ImGui::MenuItem("Attach PRG/P00 image..."))
-                startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRG);
 
             if (ImGui::MenuItem("Attach Cartridge image..."))
                 startFileDialog("Select CRT Image", { ".crt" }, UiCommand::Type::AttachCRT);
@@ -622,7 +649,7 @@ bool EmulatorUI::isAllowedByExtension(const std::filesystem::path& path) const
 
 void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
 {
-    if (pendingType_ == UiCommand::Type::AttachDisk)
+    if (pendingType_ == UiCommand::Type::AttachDisk || pendingType_ == UiCommand::Type::CreateBlankDisk)
         push(pendingType_, path.string(), pendingDevice_, pendingDriveType_);
     else
         push(pendingType_, path.string());
@@ -771,4 +798,90 @@ EmulatorUI::DriveLightColor EmulatorUI::toUiColor(IDriveIndicatorView::DriveIndi
         case IDriveIndicatorView::DriveIndicatorColor::Amber:  return EmulatorUI::DriveLightColor::Amber;
         default:                                               return EmulatorUI::DriveLightColor::Green;
     }
+}
+
+void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
+{
+    char label[32];
+    std::snprintf(label, sizeof(label), "Drive %d", dev);
+
+    if (ImGui::BeginMenu(label))
+    {
+        const UiCommand::DriveType existingType = getDriveTypeForDev(v, dev);
+        const bool drivePresent = existingType != UiCommand::DriveType::None;
+
+        const bool canUse1541 = !drivePresent || existingType == UiCommand::DriveType::D1541;
+        const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
+        const bool canUse1581 = !drivePresent || existingType == UiCommand::DriveType::D1581;
+
+        if (ImGui::BeginMenu("Attach Disk Image..."))
+        {
+            if (ImGui::MenuItem("1541 (D64)", nullptr, false, canUse1541))
+                startDiskFileDialog(dev, UiCommand::DriveType::D1541);
+
+            if (ImGui::MenuItem("1571 (D64/D71)", nullptr, false, canUse1571))
+                startDiskFileDialog(dev, UiCommand::DriveType::D1571);
+
+            if (ImGui::MenuItem("1581 (D81)", nullptr, false, canUse1581))
+                startDiskFileDialog(dev, UiCommand::DriveType::D1581);
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Create Blank Disk"))
+        {
+            if (ImGui::MenuItem("D64", nullptr, false, canUse1541))
+                startCreateBlankDiskDialog(dev, UiCommand::DriveType::D1541);
+
+            if (ImGui::MenuItem("D71", nullptr, false, canUse1571))
+                startCreateBlankDiskDialog(dev, UiCommand::DriveType::D1571);
+
+            if (ImGui::MenuItem("D81", nullptr, false, canUse1581))
+                startCreateBlankDiskDialog(dev, UiCommand::DriveType::D1581);
+
+            ImGui::EndMenu();
+        }
+
+        const bool hasDisk = driveHasDisk(v, dev);
+
+        if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
+        {
+            pushEjectDisk(dev);
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+bool EmulatorUI::driveHasDisk(const MediaViewState& v, int dev)
+{
+    for (const auto& ds : v.drives)
+    {
+        if (ds.deviceNum == dev)
+            return ds.present && ds.diskInserted;
+    }
+
+    return false;
+}
+
+void EmulatorUI::pushEjectDisk(int deviceNum)
+{
+    push
+    (
+        UiCommand::Type::EjectDisk,
+        std::string{},
+        deviceNum,
+        UiCommand::DriveType::D1541 // placeholder; ignored for eject
+    );
+}
+
+UiCommand::DriveType EmulatorUI::getDriveTypeForDev(const MediaViewState& v, int dev) const
+{
+    for (const auto& ds : v.drives)
+    {
+        if (ds.deviceNum == dev && ds.present)
+            return ds.driveType;
+    }
+
+    return UiCommand::DriveType::None;
 }

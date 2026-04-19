@@ -46,21 +46,32 @@ namespace
     {
         auto& d = static_cast<D1581&>(drive);
 
-        // Motor control: PRA_MOTOR comment says 0=on, 1=off :contentReference[oaicite:7]{index=7}
+        // Motor control: active-low
         if (ddra & DriveCIA::PRA_MOTOR)
         {
             if (pra & DriveCIA::PRA_MOTOR) d.stopMotor();
             else                           d.startMotor();
         }
 
-        // Side select (store it so fdcReadSector can use it)
+        // Side select
         if (ddra & DriveCIA::PRA_SIDE)
         {
             uint8_t side = (pra & DriveCIA::PRA_SIDE) ? 1 : 0;
             d.setCurrentSide(side);
         }
 
-        // LEDs can be latched/logged later; not required for LOAD to work.
+        // 1581 LED cathode outputs: low = on
+        if (ddra & DriveCIA::PRA_ERRLED)
+        {
+            const bool on = (pra & DriveCIA::PRA_ERRLED) == 0;
+            d.setPowerLed(on);
+        }
+
+        if (ddra & DriveCIA::PRA_ACTLED)
+        {
+            const bool on = (pra & DriveCIA::PRA_ACTLED) == 0;
+            d.setActivityLed(on);
+        }
     }
 
     void sampleB_1581(DriveCIA& cia, Drive& drive, uint8_t& outPinsB)

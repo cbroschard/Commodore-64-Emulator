@@ -30,7 +30,12 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     lastError(DriveError::NONE),
     status(DriveStatus::IDLE),
     currentTrack(17),
-    currentSector(0)
+    currentSector(0),
+    uiTrack(17),
+    uiSector(0),
+    uiLedWasOn(false),
+    powerLedOn(false),
+    activityLedOn(false)
 {
     setDeviceNumber(deviceNumber);
     d1581mem.attachPeripheralInstance(this);
@@ -223,6 +228,13 @@ void D1581::reset()
     currentTalkSA       = 0;
     iecRxBitCount       = 0;
     iecRxByte           = 0;
+
+    // UI activity
+    uiTrack             = currentTrack;
+    uiSector            = currentSector;
+    uiLedWasOn          = false;
+    powerLedOn          = true;
+    activityLedOn       = false;
 
     // Reset actual line states
     peripheralAssertClk(false);  // Release Clock
@@ -538,4 +550,21 @@ uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
     const uint16_t cyl  = uint16_t(fdcTrack);        // 0..79
     const uint16_t side = uint16_t(getCurrentSide() & 1); // 0/1
     return (side * 80) + (cyl + 1);                  // 1..160
+}
+
+void D1581::getDriveIndicators(std::vector<Indicator>& out) const
+{
+    out.clear();
+
+    Indicator pwr;
+    pwr.name = "PWR";
+    pwr.on = isPowerLedOn();
+    pwr.color = IDriveIndicatorView::DriveIndicatorColor::Red;
+    out.push_back(std::move(pwr));
+
+    Indicator act;
+    act.name = "ACT";
+    act.on = isActivityLedOn();
+    act.color = IDriveIndicatorView::DriveIndicatorColor::Green;
+    out.push_back(std::move(act));
 }

@@ -16,6 +16,7 @@
 #include <vector>
 #include "Common/DriveTypes.h"
 #include "EmulatorUI.h"
+#include "Floppy/DiskFactory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -115,6 +116,13 @@ public:
     void attachT64Image();
     void attachTAPImage();
 
+    // Blank disk creation
+    void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
+
+    // Detachments
+    void detachDiskImage(int dev);
+    void detachCRTImage();
+
     // Load state effects
     inline const Cartridge* getCartridge() const { return cart_.get(); }
     inline Cartridge* getCartridge() { return cart_.get(); }
@@ -172,6 +180,9 @@ private:
     bool loadPrgImage();
     void loadPrgIntoMem();
     void recreateCartridge();
+
+    UiCommand::DriveType toUiDriveType(DriveModel model) const;
+    DiskFormat diskFormatForDriveModel(DriveModel model);
 };
 
 #endif // MEDIAMANAGER_H
