@@ -481,31 +481,34 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Datasette"))
+            {
+                if (ImGui::MenuItem("Load T64 image..."))
+                    startFileDialog("Select T64 image", { ".t64" }, UiCommand::Type::AttachT64);
+
+                if (ImGui::MenuItem("Insert TAP image..."))
+                    startFileDialog("Select TAP image", { ".tap" }, UiCommand::Type::AttachTAP);
+
+                if (ImGui::BeginMenu("Cassette Control"))
+                {
+                    if (ImGui::MenuItem("Play", "Alt+P"))   push(UiCommand::Type::CassPlay);
+                    if (ImGui::MenuItem("Stop", "Alt+S"))   push(UiCommand::Type::CassStop);
+                    if (ImGui::MenuItem("Rewind", "Alt+R")) push(UiCommand::Type::CassRewind);
+                    if (ImGui::MenuItem("Eject", "Alt+E"))  push(UiCommand::Type::CassEject);
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenu();
+            }
+
             if (ImGui::BeginMenu("Cartridge"))
             {
-                if (ImGui::MenuItem("Attach Cartridge image..."))
+                if (ImGui::MenuItem("Insert Cartridge image..."))
                     startFileDialog("Select CRT Image", { ".crt" }, UiCommand::Type::AttachCRT);
 
                 if (ImGui::MenuItem("Eject Cartridge...", nullptr, false, v.cartAttached))
                     push(UiCommand::Type::EjectCRT);
 
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::MenuItem("Attach T64 image..."))
-                startFileDialog("Select T64 image", { ".t64" }, UiCommand::Type::AttachT64);
-
-            if (ImGui::MenuItem("Attach TAP image..."))
-                startFileDialog("Select TAP image", { ".tap" }, UiCommand::Type::AttachTAP);
-
-            ImGui::Separator();
-
-            if (ImGui::BeginMenu("Cassette Control"))
-            {
-                if (ImGui::MenuItem("Play", "Alt+P"))   push(UiCommand::Type::CassPlay);
-                if (ImGui::MenuItem("Stop", "Alt+S"))   push(UiCommand::Type::CassStop);
-                if (ImGui::MenuItem("Rewind", "Alt+R")) push(UiCommand::Type::CassRewind);
-                if (ImGui::MenuItem("Eject", "Alt+E"))  push(UiCommand::Type::CassEject);
                 ImGui::EndMenu();
             }
 
@@ -822,7 +825,7 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
         const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
         const bool canUse1581 = !drivePresent || existingType == UiCommand::DriveType::D1581;
 
-        if (ImGui::BeginMenu("Attach Disk Image..."))
+        if (ImGui::BeginMenu("Insert Disk Image..."))
         {
             if (ImGui::MenuItem("1541 (D64)", nullptr, false, canUse1541))
                 startDiskFileDialog(dev, UiCommand::DriveType::D1541);
