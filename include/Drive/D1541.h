@@ -119,6 +119,9 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Helper to force the IEC BUS state
         void forceSyncIEC() override;
 
+        // Force flush to disk
+        void flushAndSaveDisk() override;
+
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
         inline bool hasVIA1() const override { return true;  }
@@ -253,7 +256,6 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector);
         void flushCurrentRawTrackToImage();
         void flushAllDirtyRawTracksToImage();
-        void flushAndSaveDisk();
 
         // Debug
         bool debugVerifyRawSector(uint8_t track, uint8_t sector);

@@ -82,6 +82,8 @@ class Drive : public Peripheral
         virtual void stopMotor() = 0;
         virtual bool isMotorOn() const = 0;
 
+        virtual void flushAndSaveDisk() = 0;
+
         // ML Monitor
         virtual DriveStatus getDriveStatus() const = 0;
         bool isDrive() const override { return true; }

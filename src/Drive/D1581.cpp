@@ -568,3 +568,8 @@ void D1581::getDriveIndicators(std::vector<Indicator>& out) const
     act.color = IDriveIndicatorView::DriveIndicatorColor::Green;
     out.push_back(std::move(act));
 }
+
+void D1581::flushAndSaveDisk()
+{
+    // todo: add code to save to disk
+}

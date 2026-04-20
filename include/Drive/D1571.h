@@ -116,6 +116,9 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void syncTrackFromFDC();
         bool getByteReadyLow() const;
 
+        // Force flush to disk
+        void flushAndSaveDisk() override;
+
         // ML Monitor
         inline bool hasCIA() const override { return true; }
         inline bool hasVIA1() const override { return true; }

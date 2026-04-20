@@ -120,6 +120,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline bool isDiskLoaded() const override { return diskLoaded; }
         inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
 
+        // Force flush to disk
+        void flushAndSaveDisk() override;
+
         // ML Monitor
         inline bool hasCIA() const override { return true; }
         inline bool hasVIA1() const override { return false; }
