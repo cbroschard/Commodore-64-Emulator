@@ -98,6 +98,9 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Drive Mechanics
         void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
         void setDensityCode(uint8_t code);
+        void onVIA2PortAWrite(uint8_t value, uint8_t ddrA);
+        void acceptGCRWriteByte(uint8_t value);
+        void tryDecodeWrittenGCR();
 
         // Status tracking
         DriveError  lastError;
@@ -188,6 +191,11 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool gcrTick();
         void gcrAdvance(uint32_t dc);
         void rebuildGCRTrackStream();
+
+        std::vector<uint8_t> writeGcrBuffer;
+        uint8_t lastHeaderTrack;
+        uint8_t lastHeaderSector;
+        bool haveLastHeader;
 
         // Helpers
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }

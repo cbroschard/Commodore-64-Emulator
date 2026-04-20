@@ -22,6 +22,9 @@ class GCRCodec
         void encode4Bytes(const uint8_t in[4], uint8_t out[5]);
         void encodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);
 
+        bool decode5Bytes(const uint8_t in[5], uint8_t out[4]) const;
+        bool decodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out) const;
+
         int sectorsPerTrack1541(int track1based) const;
 
     protected:

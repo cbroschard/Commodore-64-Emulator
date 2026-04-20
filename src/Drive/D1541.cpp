@@ -30,7 +30,10 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     gcrDirty(true),
     uiTrack(17),
     uiSector(0),
-    uiLedWasOn(false)
+    uiLedWasOn(false),
+    lastHeaderTrack(0),
+    lastHeaderSector(0),
+    haveLastHeader(false)
 {
     setDeviceNumber(deviceNumber);
     d1541mem.attachPeripheralInstance(this);
@@ -232,7 +235,11 @@ void D1541::reset()
     gcrPos                      = 0;
     gcrBitCounter               = 0;
     gcrDirty                    = true;
+    lastHeaderTrack             = 0;
+    lastHeaderSector            = 0;
+    haveLastHeader              = false;
 
+    writeGcrBuffer.clear();
     gcrTrackStream.clear();
     gcrSync.clear();
     gcrSectorAtPos.clear();
@@ -492,6 +499,13 @@ void D1541::loadDisk(const std::string& path)
 
 void D1541::unloadDisk()
 {
+    // Save any file changes to disk first
+    if (diskImage && diskImage->isDirty() && !loadedDiskName.empty())
+    {
+        diskImage->saveDisk(loadedDiskName);
+        diskImage->clearDirty();
+    }
+
     diskImage.reset();  // Reset disk image by assigning a fresh instance
     loadedDiskName.clear();
 
@@ -500,6 +514,7 @@ void D1541::unloadDisk()
     gcrTrackStream.clear();
     gcrSync.clear();
     gcrSectorAtPos.clear();
+    writeGcrBuffer.clear();
 
     diskLoaded              = false;
     currentTrack            = 17;
@@ -509,6 +524,10 @@ void D1541::unloadDisk()
     uiLedWasOn              = false;
     lastError               = DriveError::NONE;
     status                  = DriveStatus::IDLE;
+    lastHeaderTrack         = 0;
+    lastHeaderSector        = 0;
+    haveLastHeader          = false;
+
 }
 
 void D1541::onListen()
@@ -669,6 +688,185 @@ void D1541::setDensityCode(uint8_t code)
     if (densityCode != code) densityCode = code;
 }
 
+void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
+{
+    if (!diskLoaded || !diskImage)
+        return;
+
+    if (!motorOn)
+        return;
+
+    if (diskWriteProtected)
+        return;
+
+    if (ddrA != 0xFF)
+        return;
+
+    acceptGCRWriteByte(value);
+}
+
+void D1541::acceptGCRWriteByte(uint8_t value)
+{
+    writeGcrBuffer.push_back(value);
+
+    // Keep bounded so noise does not grow forever.
+    if (writeGcrBuffer.size() > 4096)
+    {
+        writeGcrBuffer.erase(writeGcrBuffer.begin(),
+                             writeGcrBuffer.begin() + 1024);
+    }
+
+    #ifdef Debug
+        std::cout << "[D1541:GCR-WRITE] $"
+                  << std::hex << std::uppercase << int(value)
+                  << std::dec
+                  << " T" << int(currentTrack + 1)
+                  << " S" << int(currentSector)
+                  << "\n";
+    #endif
+
+    tryDecodeWrittenGCR();
+}
+
+void D1541::tryDecodeWrittenGCR()
+{
+    if (!diskImage)
+        return;
+
+    constexpr size_t HEADER_GCR_SIZE = 10;   // 8 raw bytes encoded as 10 GCR bytes
+    constexpr size_t DATA_GCR_SIZE   = 325;  // 260 raw bytes encoded as 325 GCR bytes
+
+    auto decodeHeaderAt = [&](size_t pos, uint8_t& outTrack, uint8_t& outSector) -> bool
+    {
+        if (pos + HEADER_GCR_SIZE > writeGcrBuffer.size())
+            return false;
+
+        std::vector<uint8_t> raw;
+        raw.reserve(8);
+
+        if (!gcrCodec.decodeBytes(&writeGcrBuffer[pos], HEADER_GCR_SIZE, raw))
+            return false;
+
+        if (raw.size() != 8)
+            return false;
+
+        if (raw[0] != 0x08)
+            return false;
+
+        const uint8_t sector = raw[2];
+        const uint8_t track  = raw[3];
+        const uint8_t id2    = raw[4];
+        const uint8_t id1    = raw[5];
+
+        const uint8_t expectedChecksum =
+            static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
+
+        if (raw[1] != expectedChecksum)
+            return false;
+
+        if (track < 1 || track > 35)
+            return false;
+
+        if (sector >= gcrCodec.sectorsPerTrack1541(track))
+            return false;
+
+        outTrack  = track;
+        outSector = sector;
+        return true;
+    };
+
+    auto decodeDataAt = [&](size_t pos, std::vector<uint8_t>& outSectorData) -> bool
+    {
+        if (pos + DATA_GCR_SIZE > writeGcrBuffer.size())
+            return false;
+
+        std::vector<uint8_t> raw;
+        raw.reserve(260);
+
+        if (!gcrCodec.decodeBytes(&writeGcrBuffer[pos], DATA_GCR_SIZE, raw))
+            return false;
+
+        if (raw.size() != 260)
+            return false;
+
+        if (raw[0] != 0x07)
+            return false;
+
+        uint8_t checksum = 0;
+        for (int i = 1; i <= 256; ++i)
+            checksum ^= raw[i];
+
+        if (checksum != raw[257])
+            return false;
+
+        outSectorData.assign(raw.begin() + 1, raw.begin() + 257);
+        return true;
+    };
+
+    bool madeProgress = true;
+
+    while (madeProgress)
+    {
+        madeProgress = false;
+
+        for (size_t pos = 0; pos < writeGcrBuffer.size(); ++pos)
+        {
+            uint8_t headerTrack = 0;
+            uint8_t headerSector = 0;
+
+            if (decodeHeaderAt(pos, headerTrack, headerSector))
+            {
+                lastHeaderTrack  = headerTrack;
+                lastHeaderSector = headerSector;
+                haveLastHeader   = true;
+
+                #ifdef Debug
+                    std::cout << "[D1541:GCR-WRITE] header T"
+                              << int(lastHeaderTrack)
+                              << " S"
+                              << int(lastHeaderSector)
+                              << "\n";
+                #endif
+
+                writeGcrBuffer.erase(writeGcrBuffer.begin(),
+                                     writeGcrBuffer.begin() + pos + HEADER_GCR_SIZE);
+
+                madeProgress = true;
+                break;
+            }
+
+            std::vector<uint8_t> sectorData;
+
+            if (haveLastHeader && decodeDataAt(pos, sectorData))
+            {
+                if (lastHeaderTrack >= 1 &&
+                    lastHeaderTrack <= 35 &&
+                    lastHeaderSector < gcrCodec.sectorsPerTrack1541(lastHeaderTrack))
+                {
+                    diskImage->writeSector(lastHeaderTrack, lastHeaderSector, sectorData);
+
+                    // Rebuild generated GCR stream from the updated sector data.
+                    gcrDirty = true;
+
+                #ifdef Debug
+                    std::cout << "[D1541:GCR-WRITE] committed T"
+                              << int(lastHeaderTrack)
+                              << " S"
+                              << int(lastHeaderSector)
+                              << "\n";
+                #endif
+                }
+
+                writeGcrBuffer.erase(writeGcrBuffer.begin(),
+                                     writeGcrBuffer.begin() + pos + DATA_GCR_SIZE);
+
+                madeProgress = true;
+                break;
+            }
+        }
+    }
+}
+
 void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
     const int oldIdx = stepIndex(oldPhase);
@@ -771,9 +969,13 @@ void D1541::resetForMediaChange()
     gcrPos = 0;
     gcrBitCounter = 0;
     gcrDirty = true;
+    lastHeaderTrack = 0;
+    lastHeaderSector = 0;
+    haveLastHeader = false;
     gcrTrackStream.clear();
     gcrSync.clear();
     gcrSectorAtPos.clear();
+    writeGcrBuffer.clear();
 
     uint16_t pc = driveCPU.getPC();
     if (!(pc < 0x0800))

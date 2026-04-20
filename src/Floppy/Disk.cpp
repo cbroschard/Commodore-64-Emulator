@@ -7,7 +7,11 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Floppy/Disk.h"
 
-Disk::Disk() = default;
+Disk::Disk() :
+    dirty(false)
+{
+
+}
 
 Disk::~Disk() = default;
 
@@ -71,13 +75,25 @@ bool Disk::writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t
     const size_t sz = sectorSize();
     auto offset = computeOffset(track, sector);
 
-    // Safety: don’t assume buf is the right size
     const size_t n = std::min(sz, buf.size());
     std::copy(buf.begin(), buf.begin() + n, fileImageBuffer.begin() + offset);
 
-    // Optional: if buf smaller than sector, zero-fill remainder
     if (n < sz)
-        std::fill(fileImageBuffer.begin() + offset + n, fileImageBuffer.begin() + offset + sz, 0x00);
+    {
+        std::fill(fileImageBuffer.begin() + offset + n,
+                  fileImageBuffer.begin() + offset + sz,
+                  0x00);
+    }
+
+    dirty = true;
+
+    #ifdef Debug
+        std::cout << "[DISK] writeSector T"
+                  << int(track)
+                  << " S"
+                  << int(sector)
+                  << "\n";
+    #endif
 
     return true;
 }

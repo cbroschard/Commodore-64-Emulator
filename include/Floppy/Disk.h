@@ -53,7 +53,11 @@ class Disk
         virtual bool formatDisk(const std::string& volumeName, const std::string& volumeID) = 0;
         virtual bool validateDirectory() = 0;
 
+        bool isDirty() const { return dirty; }
+        void clearDirty() { dirty = false; }
+
     protected:
+        bool dirty;
 
         Geometry geom;
         std::vector<uint8_t> fileImageBuffer; // Vector to hold file image data

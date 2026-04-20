@@ -633,6 +633,14 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         {
             registers.oraIRA = value;
 
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                {
+                    drive->onVIA2PortAWrite(value, registers.ddrA);
+                }
+            }
+
             clearIFR(IFR_CA1);
 
             const uint8_t ca2Mode = (registers.peripheralControlRegister >> 1) & 0x07;
