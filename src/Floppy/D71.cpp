@@ -213,12 +213,19 @@ bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volume
     fillBamRange(bam0, 1, 35);
     fillBamRange(bam1, 36, 70);
 
-    // Reserve BAM/header and first directory sector on side 0.
-    markUsed(bam0, 1, 18, 0);
-    markUsed(bam0, 1, 18, 1);
+    // Reserve the entire directory/BAM track on side 0.
+    // This matches the normal CBM DOS "664 blocks free" behavior for one side.
+    for (uint8_t sector = 0; sector < getSectorsForTrack(18); ++sector)
+    {
+        markUsed(bam0, 1, 18, sector);
+    }
 
-    // Reserve side-1 BAM sector.
-    markUsed(bam1, 36, 53, 0);
+    // Reserve the entire BAM track on side 1.
+    // This gives the second side another 664 free blocks.
+    for (uint8_t sector = 0; sector < getSectorsForTrack(53); ++sector)
+    {
+        markUsed(bam1, 36, 53, sector);
+    }
 
     if (!writeSector(18, 0, bam0))
         return false;

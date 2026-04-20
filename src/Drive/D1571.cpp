@@ -10,7 +10,7 @@
 
 D1571::D1571(int deviceNumber, const std::string& romName) :
     motorOn(false),
-    mediaPath(MediaPath::GCR_1541),
+    mediaPath(MediaPath::GCR_D64),
     atnLineLow(false),
     clkLineLow(false),
     dataLineLow(false),
@@ -466,7 +466,7 @@ void D1571::setDensityCode(uint8_t code)
 void D1571::setHeadSide(bool side1)
 {
     // In 1541 (D64) mode, ignore side-select completely.
-    if (mediaPath == MediaPath::GCR_1541)
+    if (mediaPath == MediaPath::GCR_D64)
     {
         if (currentSide != 0)
         {
@@ -517,7 +517,7 @@ void D1571::rebuildGCRTrackStream()
 
     if (!diskLoaded || !diskImage) return;
 
-    const size_t cacheTrack = static_cast<size_t>(currentTrack);
+    const size_t cacheTrack = currentRawCacheIndex();
 
     if (cacheTrack < rawGcrTrackValid.size() && rawGcrTrackValid[cacheTrack])
     {
@@ -534,11 +534,9 @@ void D1571::rebuildGCRTrackStream()
         return;
     }
 
-    const int trackOnSide1based = int(currentTrack) + 1;
+    const int trackOnSide1based = int(currentTrackOnSide1Based());
+    const int imageTrack1based  = int(currentImageTrack1Based());
     const int spt = sectorsPerTrack1541(trackOnSide1based);
-    int imageTrack1based = trackOnSide1based;
-    if  (mediaPath != MediaPath::GCR_1541 && currentSide)
-        imageTrack1based += 35;
 
     auto bam = diskImage->readSector(18, 0);
     #ifdef Debug
@@ -828,6 +826,28 @@ void D1571::loadDisk(const std::string& path)
 
     // Hard reset in case user switched disk
     reset();
+
+    auto lowerExt = [](const std::string& p) -> std::string
+    {
+        const auto dot = p.find_last_of('.');
+        if (dot == std::string::npos)
+            return {};
+
+        std::string ext = p.substr(dot);
+        for (auto& c : ext)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+        return ext;
+    };
+
+    const std::string ext = lowerExt(path);
+
+    if (ext == ".d71")
+        mediaPath = MediaPath::GCR_D71;
+    else if (ext == ".d64" || ext == ".g64")
+        mediaPath = MediaPath::GCR_D64;
+    else
+        mediaPath = MediaPath::FDC_MFM;
 
     // Success load it
     diskImage      = std::move(img);
@@ -1366,17 +1386,20 @@ void D1571::flushCurrentRawTrackToImage()
     if (!diskLoaded || !diskImage)
         return;
 
-    if (currentTrack >= rawGcrTrackDirty.size())
+    const size_t cacheTrack = currentRawCacheIndex();
+
+    if (cacheTrack >= rawGcrTrackDirty.size())
         return;
 
-    if (!rawGcrTrackDirty[currentTrack])
+    if (!rawGcrTrackDirty[cacheTrack])
         return;
 
     // Make sure current live raw track is cached first.
     saveCurrentRawTrackToCache();
 
-    const uint8_t track1based = static_cast<uint8_t>(currentTrack + 1);
-    const int spt = sectorsPerTrack1541(track1based);
+    const uint8_t trackOnSide1based = currentTrackOnSide1Based();
+    const uint8_t imageTrack1based  = currentImageTrack1Based();
+    const int spt = sectorsPerTrack1541(trackOnSide1based);
 
     int written = 0;
     int failed = 0;
@@ -1385,19 +1408,15 @@ void D1571::flushCurrentRawTrackToImage()
     {
         std::vector<uint8_t> sectorBytes;
 
-        if (!decodeRawSectorFromCurrentTrack(track1based, static_cast<uint8_t>(sector), sectorBytes))
+        if (!decodeRawSectorFromCurrentTrack(trackOnSide1based, static_cast<uint8_t>(sector), sectorBytes))
         {
             ++failed;
             continue;
         }
 
-        if (sectorBytes.size() != 256)
-        {
-            ++failed;
-            continue;
-        }
-
-        if (diskImage->writeSector(track1based, static_cast<uint8_t>(sector), sectorBytes))
+        if (diskImage->writeSector(imageTrack1based,
+                                   static_cast<uint8_t>(sector),
+                                   sectorBytes))
         {
             ++written;
         }
@@ -1407,15 +1426,15 @@ void D1571::flushCurrentRawTrackToImage()
         }
     }
 
-#ifdef Debug
+    #ifdef Debug
     std::cout << "[D1571:FLUSH-TRACK] T"
-              << int(track1based)
+              << int(imageTrack1based)
               << " written=" << written
               << " failed=" << failed
               << "\n";
-#endif
+    #endif
 
-    rawGcrTrackDirty[currentTrack] = false;
+    rawGcrTrackDirty[cacheTrack] = false;
 }
 
 void D1571::flushAllDirtyRawTracksToImage()
@@ -1507,7 +1526,7 @@ void D1571::flushAndSaveDisk()
 
 void D1571::saveCurrentRawTrackToCache()
 {
-    const size_t t = static_cast<size_t>(currentTrack);
+    const size_t t = currentRawCacheIndex();
 
     if (t >= rawGcrTrackCache.size())
         return;
@@ -1523,4 +1542,27 @@ void D1571::saveCurrentRawTrackToCache()
         rawGcrTrackDirty[t] = true;
         trackModifiedByWrite = false;
     }
+}
+
+uint8_t D1571::currentTrackOnSide1Based() const
+{
+    return static_cast<uint8_t>(currentTrack + 1);
+}
+
+uint8_t D1571::currentImageTrack1Based() const
+{
+    const uint8_t trackOnSide = currentTrackOnSide1Based();
+
+    if (mediaPath == MediaPath::GCR_D71 && currentSide)
+        return static_cast<uint8_t>(trackOnSide + 35);
+
+    return trackOnSide;
+}
+
+size_t D1571::currentRawCacheIndex() const
+{
+    if (mediaPath == MediaPath::GCR_D71 && currentSide)
+        return static_cast<size_t>(currentTrack + 35);
+
+    return static_cast<size_t>(currentTrack);
 }

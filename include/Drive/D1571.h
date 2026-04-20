@@ -109,7 +109,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
 
         // Drive Runtime Properties
-        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_1541; }
+        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_D71; }
         inline bool isTrack0() { return currentTrack == 0; }
         inline bool isIecTalking() const { return iecTalking; }
         inline bool isIecListening() const { return iecListening; }
@@ -162,7 +162,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         // Floppy factory
         std::unique_ptr<Disk> diskImage;
 
-        enum class MediaPath { FDC_MFM, GCR_1541 };
+        enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71 };
         MediaPath mediaPath;
 
         // IECBUS
@@ -256,6 +256,10 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         // Helper
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
+
+        uint8_t currentTrackOnSide1Based() const;
+        uint8_t currentImageTrack1Based() const;
+        size_t currentRawCacheIndex() const;
 };
 
 #endif // D1571_H
