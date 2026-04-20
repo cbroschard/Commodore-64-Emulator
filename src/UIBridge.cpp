@@ -315,8 +315,11 @@ void UIBridge::processCommands()
                 break;
 
             case UiCommand::Type::Quit:
+            {
+                if (media_) media_->flushAndSaveMedia();
                 running_ = false;
                 break;
+            }
 
             default:
                 break;

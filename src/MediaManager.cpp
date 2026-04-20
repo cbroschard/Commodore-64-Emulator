@@ -859,3 +859,15 @@ DiskFormat MediaManager::diskFormatForDriveModel(DriveModel model)
             return DiskFormat::Unknown;
     }
 }
+
+void MediaManager::flushAndSaveMedia()
+{
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        if (!drives_[dev])
+            continue;
+
+        // Best option if Drive base has/gets a virtual flush method:
+        drives_[dev]->flushAndSaveDisk();
+    }
+}

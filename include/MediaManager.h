@@ -147,6 +147,8 @@ public:
 
     void fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>& out) const;
 
+    void flushAndSaveMedia();
+
 private:
 
     std::unique_ptr<Cartridge>& cart_;

@@ -241,6 +241,8 @@ void EmulationSession::shutdown()
 {
     runtime_.running = false;
 
+    media_.flushAndSaveMedia();
+
     io_.stopRenderThread(runtime_.running);
     io_.setGuiCallback({});
 }
