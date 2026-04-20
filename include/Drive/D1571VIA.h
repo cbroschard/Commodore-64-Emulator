@@ -61,6 +61,7 @@ class D1571VIA : public DriveVIABase
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
         void clearMechBytePending();
+        void pulseWriteByteReady();
 
         // ML Monitor
         inline viaRegsView getRegsView() const override
@@ -205,6 +206,7 @@ class D1571VIA : public DriveVIABase
 
         // Helper
         void updateIECOutputsFromPortB();
+        void recomputeDiskWriteGate();
 };
 
 #endif // D1571VIA_H

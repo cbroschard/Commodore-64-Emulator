@@ -12,6 +12,7 @@
 class IECBUS;
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include "CPU.h"
 #include "Drive/D1571Memory.h"
@@ -102,6 +103,10 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void onTalk() override;
         void onUnTalk() override;
         void onSecondaryAddress(uint8_t sa) override;
+
+        void setDiskWriteGate(bool enabled);
+        void onVIA2PortAWrite(uint8_t value, uint8_t ddrA);
+
 
         // Drive Runtime Properties
         inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_1541; }
@@ -216,7 +221,38 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void rebuildGCRTrackStream();
         void gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5]);
         void gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);
+        bool gcrDecodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out) const;
         int sectorsPerTrack1541(int track1based);
+
+        static constexpr size_t MAX_GCR_TRACKS = 70;
+
+        std::array<std::vector<uint8_t>, MAX_GCR_TRACKS> rawGcrTrackCache;
+        std::array<std::vector<uint8_t>, MAX_GCR_TRACKS> rawGcrSyncCache;
+        std::array<std::vector<uint8_t>, MAX_GCR_TRACKS> rawGcrSectorCache;
+        std::array<bool, MAX_GCR_TRACKS> rawGcrTrackValid{};
+        std::array<bool, MAX_GCR_TRACKS> rawGcrTrackDirty{};
+
+        std::vector<uint8_t> gcrWrittenMask;
+
+        bool diskWriteGate = false;
+        size_t pendingWritePos = 0;
+        bool pendingWritePosValid = false;
+        bool trackModifiedByWrite = false;
+
+        std::vector<uint8_t> writeGcrBuffer;
+        int writeSyncRun = 0;
+        bool writeAfterSync = false;
+        int writeGapRun = 0;
+
+        void invalidateRawGcrCache();
+        void saveCurrentRawTrackToCache();
+        void rebuildSyncMapForCurrentTrack();
+
+        bool decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector);
+        void flushCurrentRawTrackToImage();
+        void flushAllDirtyRawTracksToImage();
+
+        size_t findHeaderPosForSector(uint8_t track, uint8_t sector) const;
 
         // Helper
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
