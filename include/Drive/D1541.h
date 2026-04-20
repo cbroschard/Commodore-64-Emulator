@@ -16,6 +16,8 @@
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "Drive/D1541VIA.h"
+#include <array>
+#include <vector>
 
 class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
@@ -102,6 +104,10 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void acceptGCRWriteByte(uint8_t value);
         void tryDecodeWrittenGCR();
 
+        // Raw GCR write mechanics
+        void setDiskWriteGate(bool enabled);
+        void onVIA2PortARead(uint8_t value);
+
         // Status tracking
         DriveError  lastError;
         DriveStatus status;
@@ -183,6 +189,20 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         size_t gcrPos;
         bool gcrDirty;
 
+        // Raw GCR track cache. Once written, the raw track is authoritative
+        // until we explicitly flush/decode it back to the sector image.
+        std::array<std::vector<uint8_t>, 35> rawGcrTrackCache;
+        std::array<std::vector<uint8_t>, 35> rawGcrSyncCache;
+        std::array<std::vector<uint8_t>, 35> rawGcrSectorCache;
+        std::array<bool, 35> rawGcrTrackValid{};
+        std::array<bool, 35> rawGcrTrackDirty{};
+
+        std::vector<uint8_t> gcrWrittenMask;
+        bool diskWriteGate;
+        size_t pendingWritePos;
+        bool pendingWritePosValid;
+        bool trackModifiedByWrite;
+
         // UI Activity
         uint8_t uiTrack;
         uint8_t uiSector;
@@ -191,16 +211,48 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool gcrTick();
         void gcrAdvance(uint32_t dc);
         void rebuildGCRTrackStream();
+        void saveCurrentRawTrackToCache();
+        void loadCurrentRawTrackFromCacheOrBuild();
+        void invalidateRawGcrCache();
+
+        void sampleHeaderAtCurrentPosition(size_t pos);
+        size_t findHeaderPosForSector(uint8_t track, uint8_t sector) const;
+
+#ifdef Debug
+        void debugDumpDirectorySectors(const char* tag);
+        void debugDumpWriteContext(const char* tag);
+        void debugDumpGcrWindow(const char* tag, size_t center, int before, int after);
+#endif
 
         std::vector<uint8_t> writeGcrBuffer;
         uint8_t lastHeaderTrack;
         uint8_t lastHeaderSector;
         bool haveLastHeader;
+        size_t lastHeaderPos;
+        bool lastHeaderValid;
+
+        int readSyncRun;
+        bool readAfterSync;
+        std::vector<uint8_t> readGcrHeaderProbe;
+
+        uint8_t lastRomHeaderTrack;
+        uint8_t lastRomHeaderSector;
+        bool lastRomHeaderValid;
+        size_t lastRomHeaderPos;
+        uint64_t lastRomHeaderCycle;
+
+        int writeSyncRun;
+        bool writeAfterSync;
+        int writeGapRun;
 
         // Helpers
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
         int cyclesPerByteFromDensity(uint8_t code) const;
         void resetForMediaChange();
+        void rebuildSyncMapForCurrentTrack();
+
+        // Debug
+        bool debugVerifyRawSector(uint8_t track, uint8_t sector);
 };
 
 #endif // D1541_H

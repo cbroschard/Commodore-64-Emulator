@@ -65,6 +65,7 @@ class D1541VIA : public DriveVIABase
 
         // Helpers
         void clearMechBytePending();
+        void pulseWriteByteReady();
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
         void onCA2Edge(bool rising, bool falling);
@@ -259,6 +260,7 @@ class D1541VIA : public DriveVIABase
 
                 // Helpers
         void updateIECOutputsFromPortB();
+        void recomputeDiskWriteGate();
         bool isAtnAckClearAsserted() const;
 };
 

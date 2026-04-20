@@ -496,12 +496,13 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             {
                 value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (mechDataLatch & static_cast<uint8_t>(~ddrA)));
 
-                // Reading PRA consumes the pending byte and clears CA1 IFR
+                // Reading PRA consumes the pending byte and clears CA1 IFR.
+                // Notify the drive so it can trace the bytes the ROM really consumed.
                 if (mechBytePending)
                 {
-                    #ifdef Debug
-                    std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
-                    #endif
+                    if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                        drive->onVIA2PortARead(mechDataLatch);
+
                     mechBytePending = false;
                 }
             }
@@ -700,7 +701,33 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             }
             break;
         }
-        case 0x03: registers.ddrA = value; break;
+        case 0x03:
+        {
+            const uint8_t oldDDRA = registers.ddrA;
+            registers.ddrA = value;
+
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+#ifdef Debug
+                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                {
+                    if (oldDDRA != value)
+                    {
+                        std::cout << "[VIA2:DDRA] $"
+                                  << std::hex << std::uppercase << int(oldDDRA)
+                                  << " -> $" << int(value)
+                                  << std::dec
+                                  << " T" << int(drive->getTrack())
+                                  << " S" << int(drive->getSector())
+                                  << "\n";
+                    }
+                }
+#endif
+                recomputeDiskWriteGate();
+            }
+
+            break;
+        }
         case 0x04: // T1C-L
         {
             // On real 6522 this also updates the latch low byte.
@@ -793,6 +820,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0C: // PCR
         {
             registers.peripheralControlRegister = value;
+
+            if (viaRole == VIARole::VIA2_Mechanics)
+                recomputeDiskWriteGate();
+
             break;
         }
         case 0x0D:
@@ -812,9 +843,15 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             refreshMasterBit();
             break;
         }
-        case 0x0F:
+        case 0x0F: // ORA no handshake
         {
             registers.oraIRA = value;
+
+            if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                    drive->onVIA2PortAWrite(value, registers.ddrA);
+            }
 
             clearIFR(IFR_CA1);
 
@@ -831,12 +868,13 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
 void D1541VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
-    if (viaRole != VIARole::VIA2_Mechanics) return;
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
 
-    // Update sync marker state (PB7 handling happens in readRegister($00))
     setSyncDetected(inSync);
 
-    // During SYNC marks, don't deliver bytes / don't generate byte-ready events
+    // During sync, the data separator reports SYNC on PB7.
+    // Do not keep an old data byte pending through sync.
     if (inSync)
     {
         mechBytePending = false;
@@ -844,19 +882,21 @@ void D1541VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         return;
     }
 
-    if (mechBytePending)
-        return;
-
-    mechDataLatch   = byte;
+    // Hardware-like behavior:
+    // the disk continues rotating. Do not freeze the data latch just because
+    // the ROM did not read the previous byte yet.
+    mechDataLatch = byte;
     mechBytePending = true;
 
     triggerInterrupt(IFR_CA1);
 
-    // Pulse SO to set V flag for the BVC loop
     if (parentPeripheral)
     {
-        auto* drive = static_cast<D1541*>(parentPeripheral);
-        drive->asDrive()->getDriveCPU()->pulseSO();
+        if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+        {
+            if (auto* cpu = drive->getDriveCPU())
+                cpu->pulseSO();
+        }
     }
 }
 
@@ -1255,6 +1295,75 @@ void D1541VIA::clearIECTransientState()
 
     // Recompute outputs so DATA gets released if latch was holding it low
     updateIECOutputsFromPortB();
+}
+
+
+void D1541VIA::pulseWriteByteReady()
+{
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    triggerInterrupt(IFR_CA1);
+
+    if (parentPeripheral)
+    {
+        if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+        {
+            if (auto* cpu = drive->getDriveCPU())
+                cpu->pulseSO();
+        }
+    }
+}
+
+void D1541VIA::recomputeDiskWriteGate()
+{
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    auto* drive = dynamic_cast<D1541*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t pcr = registers.peripheralControlRegister;
+    const uint8_t ca2Mode = (pcr >> 1) & 0x07;
+    const uint8_t cb2Mode = (pcr >> 5) & 0x07;
+
+    const bool portAOutput = (registers.ddrA == 0xFF);
+
+    // Your log shows this is the only phase where DDRA is FF:
+    // PCR=$CE DDRA=$FF CA2=7 CB2=6
+    const bool pcrWritePhase =
+        (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
+
+    const bool gate = portAOutput && pcrWritePhase;
+
+#ifdef Debug
+    static bool lastGate = false;
+    static uint8_t lastPcr = 0xFF;
+    static uint8_t lastDdra = 0xFF;
+
+    // Only print important transitions.
+    if (gate != lastGate || registers.ddrA != lastDdra || pcr != lastPcr)
+    {
+        if (gate || lastGate || registers.ddrA == 0xFF)
+        {
+            std::cout << "[VIA2:GATE] "
+                      << "PCR=$" << std::hex << std::uppercase << int(pcr)
+                      << " DDRA=$" << int(registers.ddrA)
+                      << std::dec
+                      << " CA2=" << int(ca2Mode)
+                      << " CB2=" << int(cb2Mode)
+                      << " gate=" << (gate ? 1 : 0)
+                      << "\n";
+        }
+
+        lastGate = gate;
+        lastPcr = pcr;
+        lastDdra = registers.ddrA;
+    }
+#endif
+
+    drive->setDiskWriteGate(gate);
 }
 
 void D1541VIA::clearMechLatch()
