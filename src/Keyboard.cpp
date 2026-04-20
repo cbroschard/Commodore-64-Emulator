@@ -77,7 +77,7 @@ void Keyboard::initKeyboard()
     charMap['\''] = {SDL_SCANCODE_APOSTROPHE};
     charMap['+'] = {SDL_SCANCODE_KP_PLUS};
     charMap['*'] = {SDL_SCANCODE_KP_MULTIPLY};
-    charMap[':'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_SEMICOLON};
+    charMap[':'] = {SDL_SCANCODE_LEFTBRACKET};
     charMap['_'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_MINUS};
     charMap['~'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_GRAVE};
     charMap['<']  = {SDL_SCANCODE_LSHIFT,SDL_SCANCODE_COMMA};
