@@ -67,28 +67,24 @@ const std::vector<uint8_t>& D71::getRawImage() const
 
 uint16_t D71::getSectorsForTrack(uint8_t track)
 {
-    static const std::vector<TrackSectorInfo> trackSectorInfo =
-    {
-        {1,  17, 21},
-        {18, 24, 19},
-        {25, 30, 18},
-        {31, 40, 17},
-        {41, 57, 21},
-        {58, 64, 19},
-        {65, 70, 18},
-        {71, 80, 17}
-    };
+    if (track < 1 || track > 80)
+        throw std::out_of_range("Invalid track number provided");
 
-    for (const auto& info : trackSectorInfo)
-    {
-        if (track >= info.startTrack && track <= info.endTrack)
-        {
-            return info.numSectors;
-        }
-    }
+    // D71 is two 35-track 1541-style sides.
+    // Image tracks:
+    //   1-35  = side 0 physical tracks 1-35
+    //   36-70 = side 1 physical tracks 1-35
+    //
+    // Extended 80-track images keep 71-80 as extra 17-sector tracks.
+    uint8_t physicalTrack = track;
 
-    // Throw an exception if not found
-     throw std::out_of_range("Invalid track number provided");
+    if (track >= 36 && track <= 70)
+        physicalTrack = static_cast<uint8_t>(track - 35);
+
+    if (physicalTrack <= 17) return 21;
+    if (physicalTrack <= 24) return 19;
+    if (physicalTrack <= 30) return 18;
+    return 17;
 }
 
 bool D71::validateDiskImage()
