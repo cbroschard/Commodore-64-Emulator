@@ -250,6 +250,10 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         int cyclesPerByteFromDensity(uint8_t code) const;
         void resetForMediaChange();
         void rebuildSyncMapForCurrentTrack();
+        bool decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector);
+        void flushCurrentRawTrackToImage();
+        void flushAllDirtyRawTracksToImage();
+        void flushAndSaveDisk();
 
         // Debug
         bool debugVerifyRawSector(uint8_t track, uint8_t sector);

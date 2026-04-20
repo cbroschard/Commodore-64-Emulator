@@ -45,7 +45,17 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     reset();
 }
 
-D1541::~D1541() = default;
+D1541::~D1541()
+{
+    try
+    {
+        flushAndSaveDisk();
+    }
+    catch(...)
+    {
+
+    }
+}
 
 void D1541::saveState(StateWriter& wrtr) const
 {
@@ -534,12 +544,7 @@ void D1541::loadDisk(const std::string& path)
 
 void D1541::unloadDisk()
 {
-    // Save any file changes to disk first
-    if (diskImage && diskImage->isDirty() && !loadedDiskName.empty())
-    {
-        diskImage->saveDisk(loadedDiskName);
-        diskImage->clearDirty();
-    }
+    flushAndSaveDisk();
 
     diskImage.reset();  // Reset disk image by assigning a fresh instance
     loadedDiskName.clear();
@@ -1549,6 +1554,164 @@ void D1541::rebuildSyncMapForCurrentTrack()
     }
 }
 
+bool D1541::decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector)
+{
+    outSector.clear();
+
+    if (gcrTrackStream.empty())
+        return false;
+
+    const size_t headerPos = findHeaderPosForSector(track, sector);
+    if (headerPos == SIZE_MAX)
+        return false;
+
+    const size_t n = gcrTrackStream.size();
+
+    constexpr size_t DATA_GCR_SIZE = 325;
+
+    // After the header block, search for a valid data block.
+    // Do not trust one fixed offset; written sectors may shift a few bytes.
+    const size_t scanStart = (headerPos + 10) % n;
+
+    for (size_t offset = 0; offset < 128; ++offset)
+    {
+        const size_t dataStart = (scanStart + offset) % n;
+
+        std::vector<uint8_t> gcrBlock;
+        gcrBlock.reserve(DATA_GCR_SIZE);
+
+        for (size_t i = 0; i < DATA_GCR_SIZE; ++i)
+            gcrBlock.push_back(gcrTrackStream[(dataStart + i) % n]);
+
+        std::vector<uint8_t> raw;
+        raw.reserve(260);
+
+        if (!gcrCodec.decodeBytes(gcrBlock.data(), DATA_GCR_SIZE, raw))
+            continue;
+
+        if (raw.size() != 260)
+            continue;
+
+        if (raw[0] != 0x07)
+            continue;
+
+        uint8_t checksum = 0;
+        for (int i = 0; i < 256; ++i)
+            checksum ^= raw[1 + i];
+
+        if (checksum != raw[257])
+            continue;
+
+        outSector.assign(raw.begin() + 1, raw.begin() + 257);
+        return true;
+    }
+
+    return false;
+}
+
+void D1541::flushCurrentRawTrackToImage()
+{
+    if (!diskLoaded || !diskImage)
+        return;
+
+    if (currentTrack >= rawGcrTrackDirty.size())
+        return;
+
+    if (!rawGcrTrackDirty[currentTrack])
+        return;
+
+    // Make sure current live raw track is cached first.
+    saveCurrentRawTrackToCache();
+
+    const uint8_t track1based = static_cast<uint8_t>(currentTrack + 1);
+    const int spt = gcrCodec.sectorsPerTrack1541(track1based);
+
+    int written = 0;
+    int failed = 0;
+
+    for (int sector = 0; sector < spt; ++sector)
+    {
+        std::vector<uint8_t> sectorBytes;
+
+        if (!decodeRawSectorFromCurrentTrack(track1based, static_cast<uint8_t>(sector), sectorBytes))
+        {
+            ++failed;
+            continue;
+        }
+
+        if (sectorBytes.size() != 256)
+        {
+            ++failed;
+            continue;
+        }
+
+        if (diskImage->writeSector(track1based, static_cast<uint8_t>(sector), sectorBytes))
+        {
+            ++written;
+        }
+        else
+        {
+            ++failed;
+        }
+    }
+
+#ifdef Debug
+    std::cout << "[D1541:FLUSH-TRACK] T"
+              << int(track1based)
+              << " written=" << written
+              << " failed=" << failed
+              << "\n";
+#endif
+
+    rawGcrTrackDirty[currentTrack] = false;
+}
+
+void D1541::flushAllDirtyRawTracksToImage()
+{
+    if (!diskLoaded || !diskImage)
+        return;
+
+    // Save current live track before flushing.
+    saveCurrentRawTrackToCache();
+
+    const uint8_t oldTrack = currentTrack;
+    const size_t oldPos = gcrPos;
+
+    for (size_t t = 0; t < rawGcrTrackDirty.size(); ++t)
+    {
+        if (!rawGcrTrackDirty[t])
+            continue;
+
+        if (!rawGcrTrackValid[t])
+            continue;
+
+        currentTrack = static_cast<uint8_t>(t);
+
+        gcrTrackStream = rawGcrTrackCache[t];
+        gcrSync        = rawGcrSyncCache[t];
+        gcrSectorAtPos = rawGcrSectorCache[t];
+
+        if (!gcrTrackStream.empty())
+            gcrPos %= gcrTrackStream.size();
+        else
+            gcrPos = 0;
+
+        flushCurrentRawTrackToImage();
+    }
+
+    currentTrack = oldTrack;
+    gcrPos = oldPos;
+
+    if (rawGcrTrackValid[currentTrack])
+    {
+        gcrTrackStream = rawGcrTrackCache[currentTrack];
+        gcrSync        = rawGcrSyncCache[currentTrack];
+        gcrSectorAtPos = rawGcrSectorCache[currentTrack];
+    }
+
+    gcrDirty = false;
+}
+
 Drive::IECSnapshot D1541::snapshotIEC() const
 {
     Drive::IECSnapshot s{};
@@ -1594,6 +1757,27 @@ void D1541::forceSyncIEC()
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }
+
+void D1541::flushAndSaveDisk()
+{
+    // Decode dirty raw GCR tracks back into the disk image buffer.
+    flushAllDirtyRawTracksToImage();
+
+    // Persist the image buffer to the mounted file.
+    if (diskImage && !loadedDiskName.empty())
+    {
+#ifdef Debug
+        std::cout << "[D1541:SAVE-DISK] saving "
+                  << loadedDiskName
+                  << " dirty=" << (diskImage->isDirty() ? 1 : 0)
+                  << "\n";
+#endif
+
+        diskImage->saveDisk(loadedDiskName);
+        diskImage->clearDirty();
+    }
+}
+
 
 void D1541::getDriveIndicators(std::vector<Indicator>& out) const
 {
