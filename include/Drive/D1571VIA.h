@@ -60,6 +60,7 @@ class D1571VIA : public DriveVIABase
         bool checkIRQActive() const override;
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
+        inline void pulseCB2() { triggerInterrupt(IFR_CB2); }
         void clearMechBytePending();
         void pulseWriteByteReady();
 

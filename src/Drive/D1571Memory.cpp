@@ -29,12 +29,13 @@ namespace
 
     void sampleB_1571(DriveCIA&, Drive& drive, uint8_t& outPinsB)
     {
-        outPinsB = 0xFF;
+        outPinsB = 0x00;
 
         const auto s = drive.snapshotIEC();
-        if (s.dataLow) outPinsB &= ~DriveCIA::PRB_DATAIN;
-        if (s.clkLow)  outPinsB &= ~DriveCIA::PRB_CLKIN;
-        if (s.atnLow)  outPinsB &= ~DriveCIA::PRB_ATNIN;
+
+        if (s.dataLow) outPinsB |= DriveCIA::PRB_DATAIN;
+        if (s.clkLow)  outPinsB |= DriveCIA::PRB_CLKIN;
+        if (s.atnLow)  outPinsB |= DriveCIA::PRB_ATNIN;
     }
 
     void applyA_1571(DriveCIA&, Drive&, uint8_t, uint8_t) {}

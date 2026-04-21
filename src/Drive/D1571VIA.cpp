@@ -263,11 +263,12 @@ void D1571VIA::tick(uint32_t cycles)
 
                 if (t2Counter == 0)
                 {
-                    // Set IFR bit 5
-                     triggerInterrupt(IFR_TIMER2);
+                    // 6522 T2 interval mode is one-shot.
+                    // It sets IFR5 once per write to T2C-H.
+                    triggerInterrupt(IFR_TIMER2);
 
-                    // Free-running: reload from latch and keep going
-                    t2Counter = t2Latch;
+                    // Do not reload. Do not keep generating IFR5.
+                    t2Running = false;
                 }
             }
         }
@@ -370,9 +371,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                                              (mechDataLatch & static_cast<uint8_t>(~ddrA)));
                 // Reading Port A consumes "byte pending" and clears CA1 IFR
                 if (mechBytePending)
-                {
                     mechBytePending  = false;
-                }
             }
             clearIFR(IFR_CA1);
             return value;

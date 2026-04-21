@@ -30,7 +30,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
-    halfTrackPos(18 * 2),
+    halfTrackPos(17 * 2),
     currentTrack(17),
     currentSector(0),
     gcrBitCounter(0),
@@ -441,7 +441,6 @@ void D1571::setSRQAsserted(bool state)
 
 void D1571::forceSyncIEC()
 {
-    // Push current line states into VIA even if nothing changed
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }
@@ -571,16 +570,27 @@ void D1571::rebuildGCRTrackStream()
     const int imageTrack1based  = int(currentImageTrack1Based());
     const int spt = sectorsPerTrack1541(trackOnSide1based);
 
-    auto bam = diskImage->readSector(18, 0);
-    #ifdef Debug
-    std::cout << "[BAM] 18/0 first bytes: "
-              << std::hex
-              << int(bam[0]) << " " << int(bam[1]) << " " << int(bam[2]) << " " << int(bam[3])
-              << std::dec << "\n";
-    #endif
-    if (bam.size() < 256) bam.resize(256, 0x00);
+    std::vector<uint8_t> bam = diskImage->readSector(18, 0);
+    if (bam.size() < 256)
+        bam.resize(256, 0x00);
+
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
+
+    if (mediaPath == MediaPath::GCR_D71 && currentSide)
+    {
+        std::vector<uint8_t> bam2 = diskImage->readSector(53, 0);
+        if (bam2.size() < 256)
+            bam2.resize(256, 0x00);
+
+        // Use side-2 BAM ID when building side-2 GCR tracks.
+        // Fall back to side-1 ID if side-2 ID is blank.
+        if (bam2[0xA2] != 0x00 && bam2[0xA3] != 0x00)
+        {
+            id1 = bam2[0xA2];
+            id2 = bam2[0xA3];
+        }
+   }
 
     auto pushN = [&](uint8_t v, int count, bool isSync, uint8_t sectorTag)
     {
@@ -610,32 +620,11 @@ void D1571::rebuildGCRTrackStream()
     // lead-in gap (NOT sync)
     pushN(0x55, 64, false, 0);
 
-    #ifdef Debug
-    std::cout << "[D1571:GCRBUILD] "
-              << "currentTrack0=" << int(currentTrack)
-              << " trackOnSide1based=" << trackOnSide1based
-              << " imageTrack1based=" << imageTrack1based
-              << " currentSide=" << int(currentSide)
-              << " spt=" << spt
-              << " mediaPath=" << int(mediaPath)
-              << "\n";
-    #endif
-
     for (int sector = 0; sector < spt; ++sector)
     {
         const uint8_t sectorTag = static_cast<uint8_t>(sector);
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sectorTag));
 
-        #ifdef Debug
-        if (!currentSide && imageTrack1based == 18 && sector == 1)
-        {
-            std::cout << "[DIR] imageT" << imageTrack1based
-                      << " S" << sector
-                      << " link=" << int(sec[0]) << "/" << int(sec[1])
-                      << " type=$" << std::hex << int(sec[2]) << std::dec
-                      << "\n";
-        }
-        #endif
 
         if (sec.size() != 256) sec.assign(256, 0x00);
 
@@ -645,7 +634,7 @@ void D1571::rebuildGCRTrackStream()
         uint8_t hdr[8] = {0};
         hdr[0] = 0x08;
         hdr[2] = uint8_t(sector);            // Byte 2 is Sector
-        hdr[3] = uint8_t(trackOnSide1based); // Physical track on selected side
+        hdr[3] = uint8_t(imageTrack1based); // Physical track on selected side
         hdr[4] = id2;
         hdr[5] = id1;
         hdr[6] = 0x0F;
@@ -686,8 +675,10 @@ void D1571::rebuildGCRTrackStream()
     if (gcrSectorAtPos.size() != gcrTrackStream.size())
         gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
 
-    // Reset
-    gcrPos = 0;
+    if (!gcrTrackStream.empty())
+        gcrPos %= gcrTrackStream.size();
+    else
+        gcrPos = 0;
 
     d1571mem.getVIA2().clearMechBytePending();
     saveCurrentRawTrackToCache();
@@ -1062,9 +1053,8 @@ void D1571::clkChanged(bool clkLow)
 
 void D1571::dataChanged(bool dataLow)
 {
-    if (dataLow == dataLineLow) return; // ignore no change
+    if (dataLow == dataLineLow) return;
 
-    // Bus DATA line changed (dataLow=true -> line pulled low, false -> high).
     dataLineLow = dataLow;
 
     auto& via1 = d1571mem.getVIA1();

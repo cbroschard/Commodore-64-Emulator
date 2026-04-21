@@ -234,15 +234,15 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         std::vector<uint8_t> gcrWrittenMask;
 
-        bool diskWriteGate = false;
-        size_t pendingWritePos = 0;
-        bool pendingWritePosValid = false;
-        bool trackModifiedByWrite = false;
+        bool diskWriteGate;
+        size_t pendingWritePos;
+        bool pendingWritePosValid;
+        bool trackModifiedByWrite;
 
         std::vector<uint8_t> writeGcrBuffer;
-        int writeSyncRun = 0;
-        bool writeAfterSync = false;
-        int writeGapRun = 0;
+        int writeSyncRun;
+        bool writeAfterSync;
+        int writeGapRun;
 
         void invalidateRawGcrCache();
         void saveCurrentRawTrackToCache();
