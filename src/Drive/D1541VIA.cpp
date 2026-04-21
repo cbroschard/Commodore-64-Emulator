@@ -384,7 +384,7 @@ void D1541VIA::tick(uint32_t cycles)
                     registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0xFF);
 
                     // Datasheet: T2 provides a single interrupt per "write T2C-H",
-                    // then disables further flag setting until rewritten. :contentReference[oaicite:5]{index=5}
+                    // then disables further flag setting until rewritten.
                     if (t2Counter == 0x0000 && !t2InhibitIRQ)
                     {
                         triggerInterrupt(IFR_TIMER2);
