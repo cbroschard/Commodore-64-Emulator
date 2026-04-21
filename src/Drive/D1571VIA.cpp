@@ -410,7 +410,50 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             return registers.interruptFlag;
         }
         case 0x0E: return registers.interruptEnable;
-        case 0x0F: return registers.oraIRANoHandshake;
+        case 0x0F:
+        {
+            uint8_t ddrA  = registers.ddrA;
+            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
+            if (viaRole == VIARole::VIA1_IECBus)
+            {
+                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+                {
+                    // Bit 0 Track 0
+                    if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
+                    {
+                        bool atTrack0 = drive->isTrack0();
+                        if (atTrack0) value &= (~(1u << PORTA_TRACK0_SENSOR));
+                        else          value |= (1u << PORTA_TRACK0_SENSOR);
+                    }
+
+                    // Bits 3&4 unused/pulled high
+                    if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
+                    {
+                        value |= (1u << PORTA_UNUSED3);
+                    }
+                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
+                    {
+                        value |= (1u << PORTA_UNUSED4);
+                    }
+
+                    // Bit 7 BYTE READY
+                    if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
+                    {
+                        bool byteReadLow = drive->getByteReadyLow();
+                        if (byteReadLow) value &= (~(1u << PORTA_BYTE_READY));
+                        else             value |= (1u << PORTA_BYTE_READY);
+                    }
+                }
+            }
+           else if (viaRole == VIARole::VIA2_Mechanics)
+            {
+                // Port A without handshake.
+                // Return the current disk byte/input pins, but do NOT consume
+                // mechBytePending and do NOT clear CA1.
+                value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (mechDataLatch & static_cast<uint8_t>(~ddrA)));
+            }
+            return value;
+        }
         default: return 0xFF; // open bus
     }
     return 0xFF;
@@ -476,46 +519,11 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             break;
         }
         case 0x01:
-            {
-                uint8_t ddrA = registers.ddrA;
-                registers.oraIRA = value;
-
-                if (viaRole == VIARole::VIA1_IECBus)
-                {
-                    if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                    {
-                        // Bit 1 Bus Driver Selection
-                        if (ddrA & (1u << PORTA_FSM_DIRECTION))
-                        {
-                            bool output = (value & (1u << PORTA_FSM_DIRECTION)) != 0;
-                            drive->setBusDriversEnabled(output);
-                            updateIECOutputsFromPortB();
-                        }
-
-                        // Bit 2 Head Side Select
-                        if (ddrA & (1u << PORTA_RWSIDE_SELECT))
-                        {
-                            bool side1 = (value & (1u << PORTA_RWSIDE_SELECT)) != 0;
-                            drive->setHeadSide(side1); // True = side 1(top)
-                        }
-
-                        // Bit 5 PHI2 Clock Select
-                        if (ddrA & (1u << PORTA_PHI2_CLKSEL))
-                        {
-                            bool twoMHz = (value & (1u << PORTA_PHI2_CLKSEL)) != 0;
-                            drive->setBurstClock2MHz(twoMHz);
-                        }
-                    }
-                }
-                else if (viaRole == VIARole::VIA2_Mechanics)
-                {
-                    if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                    {
-                        drive->onVIA2PortAWrite(value, registers.ddrA);
-                    }
-                }
-                break;
-            }
+        {
+            registers.oraIRA = value;
+            applyPortAOutputs(value);
+            break;
+        }
         case 0x02:
         {
             registers.ddrB = value;
@@ -560,39 +568,11 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         {
             registers.ddrA = value;
 
+            applyPortAOutputs(registers.oraIRA);
+
             if (viaRole == VIARole::VIA2_Mechanics)
                 recomputeDiskWriteGate();
 
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                {
-                    uint8_t ora = registers.oraIRA;
-                    uint8_t ddrA = registers.ddrA;
-
-                    // Bit 1 Bus Driver Selection
-                    if (ddrA & (1u << PORTA_FSM_DIRECTION))
-                    {
-                        bool output = (ora & (1u << PORTA_FSM_DIRECTION)) != 0;
-                        drive->setBusDriversEnabled(output);
-                        updateIECOutputsFromPortB();
-                    }
-
-                    // Bit 2 Head Side Select
-                    if (ddrA & (1u << PORTA_RWSIDE_SELECT))
-                    {
-                        bool side1 = (ora & (1u << PORTA_RWSIDE_SELECT));
-                        drive->setHeadSide(side1);
-                    }
-
-                    // Bit 5 Phi2 Clock Select
-                    if (ddrA & (1u << PORTA_PHI2_CLKSEL))
-                    {
-                        bool twoMHz = (ora & (1u << PORTA_PHI2_CLKSEL));
-                        drive->setBurstClock2MHz(twoMHz);
-                    }
-                }
-            }
             break;
         }
         case 0x04:
@@ -681,7 +661,14 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             }
             break;
         }
-        case 0x0F: registers.oraIRANoHandshake = value; break;
+        case 0x0F:
+        {
+            // ORA without handshake. Still writes the real Port A output latch.
+            registers.oraIRA = value;
+            registers.oraIRANoHandshake = value;
+            applyPortAOutputs(value);
+            break;
+        }
         default: break;
     }
 }
@@ -982,4 +969,39 @@ void D1571VIA::recomputeDiskWriteGate()
 #endif
 
     drive->setDiskWriteGate(gate);
+}
+
+void D1571VIA::applyPortAOutputs(uint8_t value)
+{
+    const uint8_t ddrA = registers.ddrA;
+
+    if (viaRole == VIARole::VIA1_IECBus)
+    {
+        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+        {
+            if (ddrA & (1u << PORTA_FSM_DIRECTION))
+            {
+                const bool output = (value & (1u << PORTA_FSM_DIRECTION)) != 0;
+                drive->setBusDriversEnabled(output);
+                updateIECOutputsFromPortB();
+            }
+
+            if (ddrA & (1u << PORTA_RWSIDE_SELECT))
+            {
+                const bool side1 = (value & (1u << PORTA_RWSIDE_SELECT)) != 0;
+                drive->setHeadSide(side1);
+            }
+
+            if (ddrA & (1u << PORTA_PHI2_CLKSEL))
+            {
+                const bool twoMHz = (value & (1u << PORTA_PHI2_CLKSEL)) != 0;
+                drive->setBurstClock2MHz(twoMHz);
+            }
+        }
+    }
+    else if (viaRole == VIARole::VIA2_Mechanics)
+    {
+        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+            drive->onVIA2PortAWrite(value, registers.ddrA);
+    }
 }

@@ -207,6 +207,7 @@ class D1571VIA : public DriveVIABase
         // Helper
         void updateIECOutputsFromPortB();
         void recomputeDiskWriteGate();
+        void applyPortAOutputs(uint8_t value);
 };
 
 #endif // D1571VIA_H

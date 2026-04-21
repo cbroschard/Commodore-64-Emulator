@@ -465,23 +465,48 @@ void D1571::setDensityCode(uint8_t code)
 
 void D1571::setHeadSide(bool side1)
 {
-    // In 1541 (D64) mode, ignore side-select completely.
+    // D64 must remain single-sided.
     if (mediaPath == MediaPath::GCR_D64)
     {
         if (currentSide != 0)
         {
+            saveCurrentRawTrackToCache();
+
             currentSide = 0;
-            gcrDirty    = true;
+
+            // Force rebuild, but preserve rotational position.
+            gcrTrackStream.clear();
+            gcrSync.clear();
+            gcrSectorAtPos.clear();
+
+            d1571mem.getVIA2().clearMechBytePending();
+
+            gcrDirty = true;
         }
+
         return;
     }
 
-    bool prevSide = currentSide;
-    if (prevSide != side1)
+    const bool newSide = side1 ? true : false;
+
+    if (currentSide != newSide)
     {
         saveCurrentRawTrackToCache();
 
-        currentSide = side1 ? 1 : 0;
+        currentSide = newSide;
+
+        // Changing sides changes the disk surface under the head,
+        // but NOT the physical cylinder and NOT the rotational position.
+        //
+        // Do not reset gcrPos here.
+        // gcrTick() will save oldPos, rebuild the track, then remap oldPos
+        // onto the new side's GCR stream.
+        gcrTrackStream.clear();
+        gcrSync.clear();
+        gcrSectorAtPos.clear();
+
+        d1571mem.getVIA2().clearMechBytePending();
+
         gcrDirty = true;
     }
 }
@@ -600,7 +625,7 @@ void D1571::rebuildGCRTrackStream()
         uint8_t hdr[8] = {0};
         hdr[0] = 0x08;
         hdr[2] = uint8_t(sector);            // Byte 2 is Sector
-        hdr[3] = uint8_t(trackOnSide1based); // Byte 3 is Track
+        hdr[3] = uint8_t(trackOnSide1based); // Physical track on selected side
         hdr[4] = id2;
         hdr[5] = id1;
         hdr[6] = 0x0F;
@@ -848,6 +873,15 @@ void D1571::loadDisk(const std::string& path)
         mediaPath = MediaPath::GCR_D64;
     else
         mediaPath = MediaPath::FDC_MFM;
+
+    #ifdef Debug
+    std::cout << "[D1571:LOAD] path=" << path
+              << " mediaPath="
+              << (mediaPath == MediaPath::GCR_D71 ? "GCR_D71" :
+                  mediaPath == MediaPath::GCR_D64 ? "GCR_D64" :
+                  "FDC_MFM")
+              << "\n";
+    #endif
 
     // Success load it
     diskImage      = std::move(img);
@@ -1414,9 +1448,7 @@ void D1571::flushCurrentRawTrackToImage()
             continue;
         }
 
-        if (diskImage->writeSector(imageTrack1based,
-                                   static_cast<uint8_t>(sector),
-                                   sectorBytes))
+        if (diskImage->writeSector(imageTrack1based, static_cast<uint8_t>(sector), sectorBytes))
         {
             ++written;
         }
@@ -1442,10 +1474,10 @@ void D1571::flushAllDirtyRawTracksToImage()
     if (!diskLoaded || !diskImage)
         return;
 
-    // Save current live track before flushing.
     saveCurrentRawTrackToCache();
 
     const uint8_t oldTrack = currentTrack;
+    const bool oldSide = currentSide;
     const size_t oldPos = gcrPos;
 
     for (size_t t = 0; t < rawGcrTrackDirty.size(); ++t)
@@ -1456,7 +1488,16 @@ void D1571::flushAllDirtyRawTracksToImage()
         if (!rawGcrTrackValid[t])
             continue;
 
-        currentTrack = static_cast<uint8_t>(t);
+        if (mediaPath == MediaPath::GCR_D71 && t >= 35)
+        {
+            currentSide = true;
+            currentTrack = static_cast<uint8_t>(t - 35);
+        }
+        else
+        {
+            currentSide = false;
+            currentTrack = static_cast<uint8_t>(t);
+        }
 
         gcrTrackStream = rawGcrTrackCache[t];
         gcrSync        = rawGcrSyncCache[t];
@@ -1471,16 +1512,21 @@ void D1571::flushAllDirtyRawTracksToImage()
     }
 
     currentTrack = oldTrack;
+    currentSide = oldSide;
     gcrPos = oldPos;
 
-    if (rawGcrTrackValid[currentTrack])
-    {
-        gcrTrackStream = rawGcrTrackCache[currentTrack];
-        gcrSync        = rawGcrSyncCache[currentTrack];
-        gcrSectorAtPos = rawGcrSectorCache[currentTrack];
-    }
+    const size_t restoreIndex = currentRawCacheIndex();
 
-    gcrDirty = false;
+    if (restoreIndex < rawGcrTrackValid.size() && rawGcrTrackValid[restoreIndex])
+    {
+        gcrTrackStream = rawGcrTrackCache[restoreIndex];
+        gcrSync        = rawGcrSyncCache[restoreIndex];
+        gcrSectorAtPos = rawGcrSectorCache[restoreIndex];
+    }
+    else
+    {
+        gcrDirty = true;
+    }
 }
 
 void D1571::invalidateRawGcrCache()
