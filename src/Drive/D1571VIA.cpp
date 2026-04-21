@@ -371,9 +371,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                 // Reading Port A consumes "byte pending" and clears CA1 IFR
                 if (mechBytePending)
                 {
-                    #ifdef Debug
-                    std::cout << "[VIA2] PRA consume $" << std::hex << int(mechDataLatch) << std::dec << "\n";
-                    #endif
                     mechBytePending  = false;
                 }
             }
