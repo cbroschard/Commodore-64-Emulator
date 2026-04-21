@@ -263,20 +263,29 @@ void D1571::tick(uint32_t cycles)
 {
     while (cycles > 0)
     {
-        driveCPU.tick();
+        // One host/world cycle.
+        const uint32_t cpuTicks = twoMHzMode ? 2u : 1u;
 
-        uint32_t dc = driveCPU.getElapsedCycles();
-        if (dc == 0) dc = 1;
-        if (dc > cycles) dc = cycles;
+        for (uint32_t i = 0; i < cpuTicks; ++i)
+        {
+            driveCPU.tick();
 
-        // Tick “hardware time”
-        d1571mem.tick(dc);
-        Drive::tick(dc);
+            // Your CPU::tick() advances exactly one CPU cycle per call.
+            // So tick the drive-local chips once per drive CPU PHI2 cycle.
+            d1571mem.tick(1);
 
-        if (atnLineLow) peripheralAssertClk(false);
+            updateIRQ();
+        }
 
+        // Physical/mechanical time is not doubled by 2 MHz mode.
+        Drive::tick(1);
+
+        if (atnLineLow)
+            peripheralAssertClk(false);
+
+        // Disk rotation / GCR stream must stay at normal physical speed.
         if (isGCRMode() && motorOn && diskLoaded)
-            gcrAdvance(dc);
+            gcrAdvance(1);
 
         const bool ledOn = d1571mem.getVIA2().isLedOn();
 
@@ -284,13 +293,11 @@ void D1571::tick(uint32_t cycles)
             uiTrack = currentTrack;
 
         if (ledOn && !uiLedWasOn)
-        {
             uiSector = currentSector;
-        }
 
         uiLedWasOn = ledOn;
 
-        cycles -= dc;
+        --cycles;
     }
 }
 
@@ -508,7 +515,18 @@ void D1571::setBusDriversEnabled(bool output)
 
 void D1571::setBurstClock2MHz(bool enable)
 {
+    if (twoMHzMode == enable)
+        return;
+
     twoMHzMode = enable;
+
+#ifdef Debug
+    std::cout << "[D1571] PHI2 clock select -> "
+              << (twoMHzMode ? "2MHz" : "1MHz")
+              << " track=" << int(currentTrack)
+              << " side=" << int(currentSide)
+              << "\n";
+#endif
 }
 
 bool D1571::getByteReadyLow() const
@@ -592,21 +610,33 @@ void D1571::rebuildGCRTrackStream()
     // lead-in gap (NOT sync)
     pushN(0x55, 64, false, 0);
 
+    #ifdef Debug
+    std::cout << "[D1571:GCRBUILD] "
+              << "currentTrack0=" << int(currentTrack)
+              << " trackOnSide1based=" << trackOnSide1based
+              << " imageTrack1based=" << imageTrack1based
+              << " currentSide=" << int(currentSide)
+              << " spt=" << spt
+              << " mediaPath=" << int(mediaPath)
+              << "\n";
+    #endif
+
     for (int sector = 0; sector < spt; ++sector)
     {
         const uint8_t sectorTag = static_cast<uint8_t>(sector);
         std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sectorTag));
+
         #ifdef Debug
         if (!currentSide && imageTrack1based == 18 && sector == 1)
         {
-            std::cout << "[DIR] T18 S1 link=" << int(sec[0]) << "/" << int(sec[1])
-                      << " type=$" << std::hex << int(sec[2]) << std::dec << "\n";
-
-            std::cout << "      first 32 bytes: ";
-            for (int i = 0; i < 32; i++) std::cout << std::hex << int(sec[i]) << " ";
-            std::cout << std::dec << "\n";
+            std::cout << "[DIR] imageT" << imageTrack1based
+                      << " S" << sector
+                      << " link=" << int(sec[0]) << "/" << int(sec[1])
+                      << " type=$" << std::hex << int(sec[2]) << std::dec
+                      << "\n";
         }
         #endif
+
         if (sec.size() != 256) sec.assign(256, 0x00);
 
         // ---- HEADER ----
@@ -790,25 +820,43 @@ void D1571::updateIRQ()
 
 void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 {
-    const int oldIdx = stepIndex(oldPhase);
-    const int newIdx = stepIndex(newPhase);
+    oldPhase &= 0x03;
+    newPhase &= 0x03;
 
-    if (oldIdx < 0 || newIdx < 0 || oldIdx == newIdx)
+    if (oldPhase == newPhase)
         return;
 
-    // delta in [0..7]
-    const int delta = (newIdx - oldIdx + 8) & 7;
-
     int step = 0;
-    if (delta == 2)      step = +1;   // forward one half-track
-    else if (delta == 6) step = -1;   // backward one half-track
+
+    // 4-phase stepper sequence.
+    // Test polarity may need swapping depending on your VIA wiring.
+    if (((oldPhase + 1) & 0x03) == newPhase)
+        step = +1;
+    else if (((oldPhase + 3) & 0x03) == newPhase)
+        step = -1;
     else
-        return; // ignore illegal jumps (delta 2..6)
+        return; // ignore illegal two-phase jump
+
+#ifdef Debug
+    std::cout << "[D1571:STEP] phase "
+              << int(oldPhase) << " -> " << int(newPhase)
+              << " step=" << step
+              << " halfTrackBefore=" << halfTrackPos
+              << " trackBefore0=" << int(currentTrack)
+              << "\n";
+#endif
 
     saveCurrentRawTrackToCache();
 
-    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
-    currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);
+    currentTrack = uint8_t(halfTrackPos / 2);
+
+#ifdef Debug
+    std::cout << "[D1571:STEP] halfTrackAfter=" << halfTrackPos
+              << " trackAfter0=" << int(currentTrack)
+              << " track1=" << int(currentTrack + 1)
+              << "\n";
+#endif
 
     uiTrack = currentTrack;
     uiSector = currentSector;
