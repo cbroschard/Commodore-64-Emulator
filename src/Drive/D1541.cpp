@@ -45,17 +45,7 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     reset();
 }
 
-D1541::~D1541()
-{
-    try
-    {
-        flushAndSaveDisk();
-    }
-    catch(...)
-    {
-
-    }
-}
+D1541::~D1541() = default;
 
 void D1541::saveState(StateWriter& wrtr) const
 {
