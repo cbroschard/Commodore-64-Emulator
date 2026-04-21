@@ -53,17 +53,7 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
     reset();
 }
 
-D1571::~D1571()
-{
-    try
-    {
-        flushAndSaveDisk();
-    }
-    catch(...)
-    {
-
-    }
-}
+D1571::~D1571() = default;
 
 void D1571::saveState(StateWriter& wrtr) const
 {
