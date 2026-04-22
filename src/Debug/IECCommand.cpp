@@ -186,13 +186,14 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "  Legacy/software state: " << stateStr << "\n";
         std::cout << "  Legacy talking:        " << (isTalker ? "yes" : "no") << "\n";
         std::cout << "  Legacy listening:      " << (isListener ? "yes" : "no") << "\n";
-        std::cout << "\n";
 
         if (bus->isRomControlledIEC())
         {
             std::cout << "  Note: ROM-controlled IEC is enabled; "
                       << "legacy fields are debug-only.\n";
         }
+
+        std::cout << "\n";
 
         return; // 'device' doesn’t show the global sections
     }

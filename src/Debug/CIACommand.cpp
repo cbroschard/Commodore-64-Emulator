@@ -64,7 +64,7 @@ Examples:
 
 void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    if (args.size() < 2 || (args.size() == 2 && isHelp(args[1])))
+    if (args.size() < 3)
     {
         std::cout << "Usage: cia <1|2> <subcommand>\n";
         return;
@@ -106,7 +106,9 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (subcmd == "vic") std::cout << mon.mlmonitorbackend()->dumpCIA2VICBanks();
         else if (subcmd == "iec")
         {
-            std::cout << mon.mlmonitorbackend()->dumpCIA2IECSnapshot() ;
+            std::cout << mon.mlmonitorbackend()->dumpCIA2IECSnapshot();
+
+            std::cout << "\nLegacy/software IEC decode:\n";
             std::cout << mon.mlmonitorbackend()->dumpCIA2IEC();
         }
         else if (subcmd == "help") std::cout << help();

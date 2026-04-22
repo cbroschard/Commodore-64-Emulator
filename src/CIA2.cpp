@@ -1446,12 +1446,12 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     // IEC
     if (group == "iec" || group == "all")
     {
-        out << "\nIEC Bus State\n\n";
+        out << "\nLegacy/software IEC state\n\n";
         out << "Device Number = " << static_cast<int>(deviceNumber) << "\n";
 
         // These flags are *C64 perspective*
-        out << "C64 acting as talker   = " << (talking   ? "Yes" : "No") << "\n";
-        out << "C64 acting as listener = " << (listening ? "Yes" : "No") << "\n";
+        out << "Legacy C64 talker flag   = " << (talking ? "Yes" : "No") << "\n";
+        out << "Legacy C64 listener flag = " << (listening ? "Yes" : "No") << "\n";
         out << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n";
     }
 
