@@ -88,6 +88,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
+    std::cout << bus->debugPhysicalSnapshotString() << "\n";
+
     // === device <n> special-case ===
     if (sub == "device")
     {

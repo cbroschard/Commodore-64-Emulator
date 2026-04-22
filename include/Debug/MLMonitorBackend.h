@@ -62,6 +62,7 @@ class MLMonitorBackend
         inline std::string dumpCIA2Serial() const { return cia2object ? cia2object->dumpRegisters("serial") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
         inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2IECSnapshot() const { return cia2object ? cia2object->debugIECSnapshotString() : "CIA2 not attached\n"; }
 
         // ML Monitor Computer Methods
         void enterMonitor();

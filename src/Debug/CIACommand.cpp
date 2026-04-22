@@ -104,7 +104,11 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else if (subcmd == "icr") std::cout << mon.mlmonitorbackend()->dumpCIA2ICR();
         else if (subcmd == "serial") std::cout << mon.mlmonitorbackend()->dumpCIA2Serial();
         else if (subcmd == "vic") std::cout << mon.mlmonitorbackend()->dumpCIA2VICBanks();
-        else if (subcmd == "iec") std::cout << mon.mlmonitorbackend()->dumpCIA2IEC();
+        else if (subcmd == "iec")
+        {
+            std::cout << mon.mlmonitorbackend()->dumpCIA2IECSnapshot() ;
+            std::cout << mon.mlmonitorbackend()->dumpCIA2IEC();
+        }
         else if (subcmd == "help") std::cout << help();
         else std::cout << help(); // default show help
     }
