@@ -1452,7 +1452,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         // These flags are *C64 perspective*
         out << "Legacy C64 talker flag   = " << (talking ? "Yes" : "No") << "\n";
         out << "Legacy C64 listener flag = " << (listening ? "Yes" : "No") << "\n";
-        out << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n";
+        out << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n\n";
     }
 
     return out.str();
