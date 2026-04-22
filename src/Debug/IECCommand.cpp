@@ -49,7 +49,7 @@ Subcommands:
     - Current talker & listeners
     - Registered devices
 
-  rom           Turn ROM enabled IEC on/off
+  rom [on|off]  Show or set ROM-controlled IEC protocol mode
 
   bus           Show bus line levels only:
                 ATN / CLK / DATA / SRQ as H (released/high)
@@ -94,7 +94,9 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         if (args.size() < 3)
         {
-            std::cout << "Usage: iec rom on:off\n";
+            std::cout << "IEC mode: ROM-controlled protocol "
+                      << (bus->isRomControlledIEC() ? "enabled" : "disabled")
+                      << "\n";
             return;
         }
 
@@ -105,21 +107,16 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        else if (args[2] == "off")
+        if (args[2] == "off")
         {
             bus->setRomControlledIEC(false);
             std::cout << "IEC mode: ROM-controlled protocol disabled\n";
             return;
         }
 
-        else
-        {
-            std::cout << "IEC mode: Rom-controlled protocol" << (bus->isRomControlledIEC() ? "on" : "off") << "\n";
-            return;
-        }
+        std::cout << "Usage: iec rom on|off\n";
+        return;
     }
-
-    std::cout << bus->debugPhysicalSnapshotString() << "\n";
 
     // === device <n> special-case ===
     if (sub == "device")
@@ -186,17 +183,32 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         std::cout << "IEC device #" << devNum << ":\n";
         std::cout << "  Attached:          yes\n";
-        std::cout << "  Current bus state: " << stateStr << "\n";
-        std::cout << "  Currently talking: " << (isTalker   ? "yes" : "no") << "\n";
-        std::cout << "  Currently listening: "
-                  << (isListener ? "yes" : "no") << "\n";
+        std::cout << "  Legacy/software state: " << stateStr << "\n";
+        std::cout << "  Legacy talking:        " << (isTalker ? "yes" : "no") << "\n";
+        std::cout << "  Legacy listening:      " << (isListener ? "yes" : "no") << "\n";
         std::cout << "\n";
+
+        if (bus->isRomControlledIEC())
+        {
+            std::cout << "  Note: ROM-controlled IEC is enabled; "
+                      << "legacy fields are debug-only.\n";
+        }
 
         return; // 'device' doesn’t show the global sections
     }
 
     // Do we want the full view?
     bool wantAll = (args.size() == 1 || sub == "all");
+
+    if (wantAll)
+    {
+        std::cout << "IEC protocol mode:\n";
+        std::cout << "  ROM-controlled protocol: "
+                  << (bus->isRomControlledIEC() ? "ON" : "OFF")
+                  << "\n\n";
+
+        std::cout << bus->debugPhysicalSnapshotString() << "\n";
+    }
 
     // Unknown subcommand?
     if (args.size() >= 2 &&
@@ -255,11 +267,20 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             case IECBUS::State::UNTALK:    stateStr = "UNTALK";    break;
         }
 
-        std::cout << "State:\n";
-        std::cout << "  Mode: " << stateStr << "\n\n";
+        std::cout << "Legacy/software IEC decode:\n";
+        std::cout << "  Mode: " << stateStr << "\n";
+
+        if (bus->isRomControlledIEC())
+        {
+            std::cout << "  Note: ROM-controlled IEC is enabled; "
+                      << "legacy talk/listen fields are debug-only.\n";
+        }
+
+        std::cout << "\n";
+        std::cout << "Legacy talker / listeners:\n";
 
         Peripheral* talker = bus->getCurrentTalker();
-        std::cout << "Talker / listeners:\n";
+
         if (talker)
         {
             std::cout << "  Current talker:    #"
