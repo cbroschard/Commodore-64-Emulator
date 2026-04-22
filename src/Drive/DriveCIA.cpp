@@ -599,18 +599,6 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x01:
         {
             uint8_t result = (registers.portB & registers.ddrB) | (portBPins & ~registers.ddrB);
-        #ifdef Debug
-            std::cout << "[CIA] read PRB -> $"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(result)
-                      << " rawPortB=$"
-                      << std::setw(2) << static_cast<int>(registers.portB)
-                      << " pins=$"
-                      << std::setw(2) << static_cast<int>(portBPins)
-                      << " ddrB=$"
-                      << std::setw(2) << static_cast<int>(registers.ddrB)
-                      << std::dec << "\n";
-        #endif
             return result;
         }
         case 0x02: return registers.ddrA;
@@ -891,7 +879,6 @@ void DriveCIA::updatePinsFromBus()
     cntLevel = (portBPins & PRB_CLKIN)  != 0;
     spLevel  = (portBPins & PRB_DATAIN) != 0;
 }
-
 void DriveCIA::applyIECOutputs()
 {
     auto* drive = dynamic_cast<Drive*>(parentPeripheral);
@@ -900,21 +887,30 @@ void DriveCIA::applyIECOutputs()
     const uint8_t ddrB  = registers.ddrB;
     const uint8_t portB = registers.portB;
 
-    const bool busDriversEnabled = ((ddrB & PRB_BUSDIR) == 0) || ((portB & PRB_BUSDIR) != 0);
+    const bool busDriversEnabled =
+        ((ddrB & PRB_BUSDIR) == 0) || ((portB & PRB_BUSDIR) != 0);
 
-    const bool datOutAssertLow = busDriversEnabled && ((ddrB & PRB_DATOUT) != 0) && ((portB & PRB_DATOUT) != 0);
-    const bool clkOutAssertLow = busDriversEnabled && ((ddrB & PRB_CLKOUT) != 0) && ((portB & PRB_CLKOUT) != 0);
+    const bool datOutAssertLow =
+        busDriversEnabled &&
+        ((ddrB & PRB_DATOUT) != 0) &&
+        ((portB & PRB_DATOUT) != 0);
 
-    // PB4 should only matter for the ATN auto-ack helper itself,
-    // not as a general always-on post-byte bus control.
-    const bool hwAutoAtnRespEnable = ((ddrB & PRB_ATNACK) != 0) && ((portB & PRB_ATNACK) != 0);
+    const bool clkOutAssertLow =
+        busDriversEnabled &&
+        ((ddrB & PRB_CLKOUT) != 0) &&
+        ((portB & PRB_CLKOUT) != 0);
 
-    // Only let PB4 influence the ATN helper while ATN is actually asserted.
+    // PB4 enables the ATN acknowledge helper.
+    const bool hwAutoAtnRespEnable =
+        ((ddrB & PRB_ATNACK) != 0) &&
+        ((portB & PRB_ATNACK) != 0);
+
     const bool autoAckEnabled = iecAtnInLow && (autoAtnAckEnabled || hwAutoAtnRespEnable);
 
     const bool ciaDataLow = datOutAssertLow;
     const bool ciaClkLow  = clkOutAssertLow;
-    const bool autoAckDriveLow = autoAckEnabled && extDataLow;
+
+    const bool autoAckDriveLow = autoAckEnabled;
 
     const bool driveDataLow = autoAckDriveLow || ciaDataLow;
     const bool driveClkLow  = ciaClkLow;
@@ -922,18 +918,24 @@ void DriveCIA::applyIECOutputs()
     drive->peripheralAssertData(driveDataLow);
     drive->peripheralAssertClk(driveClkLow);
 
-    #ifdef Debug
-    std::cout << "[CIA] applyIECOutputs: extDataLow=" << (extDataLow ? 1 : 0)
+#ifdef Debug
+    std::cout << "[CIA] applyIECOutputs:"
+              << " atnLow=" << (iecAtnInLow ? 1 : 0)
+              << " extDataLow=" << (extDataLow ? 1 : 0)
+              << " busDriversEnabled=" << (busDriversEnabled ? 1 : 0)
+              << " autoAtnAckEnabled=" << (autoAtnAckEnabled ? 1 : 0)
+              << " hwAutoAtnRespEnable=" << (hwAutoAtnRespEnable ? 1 : 0)
               << " autoAckEnabled=" << (autoAckEnabled ? 1 : 0)
+              << " autoAckDriveLow=" << (autoAckDriveLow ? 1 : 0)
               << " ciaDataLow=" << (ciaDataLow ? 1 : 0)
               << " -> driveDataLow=" << (driveDataLow ? 1 : 0)
-              << "  driveClkLow=" << (driveClkLow ? 1 : 0)
-              << "  ddrB=" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+              << " driveClkLow=" << (driveClkLow ? 1 : 0)
+              << " ddrB=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
               << static_cast<int>(ddrB)
-              << " portB=" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+              << " portB=$" << std::setw(2)
               << static_cast<int>(portB)
               << std::dec << "\n";
-    #endif
+#endif
 }
 
 void DriveCIA::applyPortOutputs()
@@ -974,6 +976,8 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     if (atnChanged)
         notifyAtnInput(atnLow);
+
+    applyIECOutputs();
 }
 
 void DriveCIA::applyIECInputsToPortBPins()
