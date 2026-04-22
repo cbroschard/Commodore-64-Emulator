@@ -122,6 +122,10 @@ class IECBUS
         Peripheral* getDevice(int id) const;
         std::string debugPhysicalSnapshotString() const;
 
+        // Compatibility helpers
+        inline void setRomControlledIEC(bool enabled) { romControlledIEC = enabled; }
+        inline bool isRomControlledIEC() const { return romControlledIEC; }
+
     protected:
 
     private:
@@ -150,6 +154,8 @@ class IECBUS
 
         bool lastClk;
         bool lastData;
+
+        bool romControlledIEC;
 
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;

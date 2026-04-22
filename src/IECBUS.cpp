@@ -21,7 +21,8 @@ IECBUS::IECBUS() :
     peripheralDrivesClkLow(false),
     peripheralDrivesDataLow(false),
     peripheralDrivesAtnLow(false),
-    lastClk(true)
+    lastClk(true),
+    romControlledIEC(false)
 {
     currentListeners.clear(); // Ensure listener list is empty on start
     reset();
@@ -78,6 +79,8 @@ void IECBUS::saveState(StateWriter& wrtr) const
         wrtr.writeBool(dataLow);
         wrtr.writeBool(atnLow);
     }
+
+    wrtr.writeBool(romControlledIEC);
 
     wrtr.endChunk();
 }
@@ -149,6 +152,8 @@ bool IECBUS::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // If the device isn't registered yet, we silently drop it.
     }
 
+    if (!rdr.readBool(romControlledIEC))                            { rdr.exitChunkPayload(chunk); return false; }
+
     // Restore talker/listeners pointers from IDs
     currentTalker = nullptr;
     if (talkerId >= 0)
@@ -203,6 +208,9 @@ void IECBUS::reset()
     const bool clkLow  = !busLines.clk;
     const bool dataLow = !busLines.data;
 
+    // Compatibility mode
+    romControlledIEC = false;
+
     if (cia2object)
     {
         cia2object->atnChanged(atnLow);
@@ -214,6 +222,7 @@ void IECBUS::reset()
     for (auto const& [num, dev] : devices)
     {
         if (!dev) continue;
+
         dev->atnChanged(atnLow);
         dev->clkChanged(clkLow);
         dev->dataChanged(dataLow);
@@ -361,6 +370,8 @@ void IECBUS::unregisterDevice(int deviceNumber)
 
 void IECBUS::listen(int deviceNumber)
 {
+    if (romControlledIEC) return;
+
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
@@ -369,11 +380,14 @@ void IECBUS::listen(int deviceNumber)
     if (std::find(currentListeners.begin(), currentListeners.end(), dev) == currentListeners.end()) currentListeners.push_back(dev);
 
     currentState = State::LISTEN;
+
     dev->onListen();
 }
 
 void IECBUS::unListen(int deviceNumber)
 {
+    if (romControlledIEC) return;
+
     // UNLISTEN is global ($3F)
     currentState = State::UNLISTEN;
 
@@ -385,6 +399,8 @@ void IECBUS::unListen(int deviceNumber)
 
 void IECBUS::talk(int deviceNumber)
 {
+    if (romControlledIEC) return;
+
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
@@ -400,6 +416,8 @@ void IECBUS::talk(int deviceNumber)
 
 void IECBUS::unTalk(int deviceNumber)
 {
+    if (romControlledIEC) return;
+
     // UNTALK is global ($5F)
     currentState = State::UNTALK;
 
@@ -527,6 +545,9 @@ void IECBUS::updateSrqLine()
 
 void IECBUS::secondaryAddress(uint8_t devNum, uint8_t sa)
 {
+    if (romControlledIEC)
+        return;
+
     auto it = devices.find(devNum);
     if (it == devices.end())
         return;

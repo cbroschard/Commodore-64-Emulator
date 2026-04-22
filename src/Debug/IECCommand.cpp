@@ -49,6 +49,8 @@ Subcommands:
     - Current talker & listeners
     - Registered devices
 
+  rom           Turn ROM enabled IEC on/off
+
   bus           Show bus line levels only:
                 ATN / CLK / DATA / SRQ as H (released/high)
                 or L (pulled low)
@@ -86,6 +88,35 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         std::cout << help();
         return;
+    }
+
+    if (sub == "rom")
+    {
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: iec rom on:off\n";
+            return;
+        }
+
+        if (args[2] == "on")
+        {
+            bus->setRomControlledIEC(true);
+            std::cout << "IEC mode: ROM-controlled protocol enabled\n";
+            return;
+        }
+
+        else if (args[2] == "off")
+        {
+            bus->setRomControlledIEC(true);
+            std::cout << "IEC mode: ROM-controlled protocol disabled\n";
+            return;
+        }
+
+        else
+        {
+            std::cout << "IEC mode: Rom-controlled protocol" << (bus->isRomControlledIEC() ? "on" : "off") << "\n";
+            return;
+        }
     }
 
     std::cout << bus->debugPhysicalSnapshotString() << "\n";
