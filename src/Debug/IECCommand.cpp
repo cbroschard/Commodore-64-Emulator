@@ -107,7 +107,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         else if (args[2] == "off")
         {
-            bus->setRomControlledIEC(true);
+            bus->setRomControlledIEC(false);
             std::cout << "IEC mode: ROM-controlled protocol disabled\n";
             return;
         }
