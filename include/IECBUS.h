@@ -29,6 +29,35 @@ class IECBUS
         // State of IEC bus
         enum class State {IDLE, ATTENTION, TALK, LISTEN, UNLISTEN, UNTALK} currentState;
 
+        struct PhysicalSnapshot
+        {
+            // Resolved wire levels. true = high/released, false = low/asserted.
+            bool atnHigh  = true;
+            bool clkHigh  = true;
+            bool dataHigh = true;
+            bool srqHigh  = true;
+
+            // C64-side pull-low contributions.
+            bool c64AtnLow  = false;
+            bool c64ClkLow  = false;
+            bool c64DataLow = false;
+
+            // Any peripheral pull-low contribution.
+            bool peripheralAtnLow  = false;
+            bool peripheralClkLow  = false;
+            bool peripheralDataLow = false;
+
+            int peripheralAtnPullers  = 0;
+            int peripheralClkPullers  = 0;
+            int peripheralDataPullers = 0;
+
+            State legacyState = State::IDLE;
+            int legacyTalkerDevice = -1;
+            int legacyListenerCount = 0;
+        };
+
+        PhysicalSnapshot snapshotPhysical() const;
+
         // Pointers
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
@@ -91,6 +120,7 @@ class IECBUS
         inline const std::vector<Peripheral*>& getCurrentListeners() const { return currentListeners; }
         inline const std::map<int, Peripheral*>& getDevices() const { return devices; }
         Peripheral* getDevice(int id) const;
+        std::string debugPhysicalSnapshotString() const;
 
     protected:
 

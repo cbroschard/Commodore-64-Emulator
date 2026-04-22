@@ -81,6 +81,28 @@ class CIA2
         void setCNTLine(bool level);
 
         // ML Monitor access
+        struct IECSnapshot
+        {
+            uint8_t pra = 0;
+            uint8_t ddra = 0;
+
+            bool atnOutReleased = true;
+            bool clkOutReleased = true;
+            bool dataOutReleased = true;
+
+            bool clkInHigh = true;
+            bool dataInHigh = true;
+            bool srqInHigh = true;
+
+            bool legacyProtocolEnabled = false;
+            bool legacyListening = false;
+            bool legacyTalking = false;
+            uint8_t legacySecondaryAddress = 0xFF;
+        };
+
+        IECSnapshot snapshotIEC() const;
+        std::string debugIECSnapshotString() const;
+
         std::string dumpRegisters(const std::string& group) const;
         inline void setLog(bool enable) { setLogging = enable; }
         struct CIA2IRQSnapshot { uint8_t ier; };

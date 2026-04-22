@@ -460,6 +460,54 @@ void IECBUS::updateBusState()
     );
 }
 
+IECBUS::PhysicalSnapshot IECBUS::snapshotPhysical() const
+{
+    PhysicalSnapshot s{};
+
+    // Resolved bus wires.
+    s.atnHigh  = busLines.atn;
+    s.clkHigh  = busLines.clk;
+    s.dataHigh = busLines.data;
+    s.srqHigh  = line_srqin;
+
+    // C64 pull-low contributions.
+    s.c64AtnLow  = c64DrivesAtnLow;
+    s.c64ClkLow  = c64DrivesClkLow;
+    s.c64DataLow = c64DrivesDataLow;
+
+    // Peripheral pull-low contributions.
+    s.peripheralAtnLow  = peripheralDrivesAtnLow;
+    s.peripheralClkLow  = peripheralDrivesClkLow;
+    s.peripheralDataLow = peripheralDrivesDataLow;
+
+    for (const auto& [dev, low] : devDrivesAtnLow)
+    {
+        if (dev && low)
+            ++s.peripheralAtnPullers;
+    }
+
+    for (const auto& [dev, low] : devDrivesClkLow)
+    {
+        if (dev && low)
+            ++s.peripheralClkPullers;
+    }
+
+    for (const auto& [dev, low] : devDrivesDataLow)
+    {
+        if (dev && low)
+            ++s.peripheralDataPullers;
+    }
+
+    // Existing software protocol state.
+    s.legacyState = currentState;
+    s.legacyTalkerDevice = currentTalker
+        ? deviceNumberOf(currentTalker, devices)
+        : -1;
+    s.legacyListenerCount = static_cast<int>(currentListeners.size());
+
+    return s;
+}
+
 void IECBUS::updateSrqLine()
 {
     bool srqAsserted = false;
@@ -575,4 +623,41 @@ void IECBUS::recalcAndNotify()
         for (auto const& [num, dev] : devices)
             if (dev) dev->dataChanged(dataLow);
     }
+}
+
+std::string IECBUS::debugPhysicalSnapshotString() const
+{
+    const auto s = snapshotPhysical();
+
+    std::ostringstream out;
+
+    out << "IEC physical bus:\n";
+    out << "  Resolved lines: "
+        << "ATN="  << (s.atnHigh  ? "H" : "L") << "  "
+        << "CLK="  << (s.clkHigh  ? "H" : "L") << "  "
+        << "DATA=" << (s.dataHigh ? "H" : "L") << "  "
+        << "SRQ="  << (s.srqHigh  ? "H" : "L") << "\n";
+
+    out << "  C64 drives low: "
+        << "ATN="  << (s.c64AtnLow  ? "yes" : "no") << "  "
+        << "CLK="  << (s.c64ClkLow  ? "yes" : "no") << "  "
+        << "DATA=" << (s.c64DataLow ? "yes" : "no") << "\n";
+
+    out << "  Peripheral drives low: "
+        << "ATN="  << (s.peripheralAtnLow  ? "yes" : "no")
+        << " (" << s.peripheralAtnPullers << ")  "
+        << "CLK="  << (s.peripheralClkLow  ? "yes" : "no")
+        << " (" << s.peripheralClkPullers << ")  "
+        << "DATA=" << (s.peripheralDataLow ? "yes" : "no")
+        << " (" << s.peripheralDataPullers << ")\n";
+
+    out << "\n";
+    out << "Legacy/software IEC decode:\n";
+    out << "  State enum: " << static_cast<int>(s.legacyState) << "\n";
+    out << "  Talker device: "
+        << (s.legacyTalkerDevice >= 0 ? std::to_string(s.legacyTalkerDevice) : "(none)")
+        << "\n";
+    out << "  Listener count: " << s.legacyListenerCount << "\n";
+
+    return out.str();
 }

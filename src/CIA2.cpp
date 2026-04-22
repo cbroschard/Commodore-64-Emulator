@@ -1558,3 +1558,72 @@ TraceManager::Stamp CIA2::makeCIAStamp() const
         vicII ? vicII->getCurrentRaster() : 0,
         vicII ? vicII->getRasterDot() : 0);
 }
+
+CIA2::IECSnapshot CIA2::snapshotIEC() const
+{
+    IECSnapshot s{};
+
+    s.pra  = portA;
+    s.ddra = dataDirectionPortA;
+
+    auto released = [&](uint8_t mask) -> bool
+    {
+        if (!(dataDirectionPortA & mask))
+            return true;              // input = released
+
+        return (portA & mask) == 0;   // output 0 = released, output 1 = pull low
+    };
+
+    s.atnOutReleased  = released(MASK_ATN_OUT);
+    s.clkOutReleased  = released(MASK_CLK_OUT);
+    s.dataOutReleased = released(MASK_DATA_OUT);
+
+    if (bus)
+    {
+        s.clkInHigh  = bus->readClkLine();
+        s.dataInHigh = bus->readDataLine();
+        s.srqInHigh  = bus->readSrqLine();
+    }
+
+    s.legacyProtocolEnabled  = iecProtocolEnabled;
+    s.legacyListening        = listening;
+    s.legacyTalking          = talking;
+    s.legacySecondaryAddress = currentSecondaryAddress;
+
+    return s;
+}
+
+std::string CIA2::debugIECSnapshotString() const
+{
+    const auto s = snapshotIEC();
+
+    std::ostringstream out;
+
+    out << "C64 CIA2 IEC:\n";
+    out << "  PRA=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(s.pra)
+        << "  DDRA=$"
+        << std::setw(2) << int(s.ddra)
+        << std::dec << "\n";
+
+    out << "  Outputs: "
+        << "ATN="  << (s.atnOutReleased  ? "released" : "pull-low") << "  "
+        << "CLK="  << (s.clkOutReleased  ? "released" : "pull-low") << "  "
+        << "DATA=" << (s.dataOutReleased ? "released" : "pull-low") << "\n";
+
+    out << "  Inputs: "
+        << "CLK="  << (s.clkInHigh  ? "H" : "L") << "  "
+        << "DATA=" << (s.dataInHigh ? "H" : "L") << "  "
+        << "SRQ="  << (s.srqInHigh  ? "H" : "L") << "\n";
+
+    out << "  Legacy/software decode: "
+        << "enabled=" << (s.legacyProtocolEnabled ? "yes" : "no")
+        << " listening=" << (s.legacyListening ? "yes" : "no")
+        << " talking=" << (s.legacyTalking ? "yes" : "no")
+        << " sa=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << int(s.legacySecondaryAddress)
+        << std::dec << "\n";
+
+    return out.str();
+}
