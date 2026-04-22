@@ -624,11 +624,13 @@ void MLMonitorBackend::dumpDriveIECState(int id)
               << "DATA=" << HL(s.dataLow) << "  "
               << "SRQ="  << HL(s.srqLow)  << "\n";
 
+    auto yesno = [](bool v) { return v ? "yes" : "no"; };
+
     std::cout << "  Drive pulls low:   "
-              << "ATN="  << HL(s.drvAssertAtn)  << "  "
-              << "CLK="  << HL(s.drvAssertClk)  << "  "
-              << "DATA=" << HL(s.drvAssertData) << "  "
-              << "SRQ="  << HL(s.drvAssertSrq)  << "\n\n";
+          << "ATN="  << yesno(s.drvAssertAtn)  << "  "
+          << "CLK="  << yesno(s.drvAssertClk)  << "  "
+          << "DATA=" << yesno(s.drvAssertData) << "  "
+          << "SRQ="  << yesno(s.drvAssertSrq)  << "\n\n";
 
     std::cout << "Legacy/software IEC decode:\n";
     std::cout << "  Mode: " << busStateToStr(s.busState)
