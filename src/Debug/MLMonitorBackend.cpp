@@ -604,7 +604,6 @@ void MLMonitorBackend::dumpDriveIECState(int id)
     auto HL = [](bool low) { return low ? "L" : "H"; };
     auto yn = [](bool v) { return v ? "1" : "0"; };
 
-    // Pretty name for bus state
     auto busStateToStr = [](Drive::DriveBusState st) {
         switch (st)
         {
@@ -616,20 +615,22 @@ void MLMonitorBackend::dumpDriveIECState(int id)
         }
     };
 
-    std::cout << "Drive #" << id << " IEC state:\n";
+    std::cout << "Drive #" << id << " IEC monitor state:\n\n";
 
-    std::cout << "  Lines (seen):        "
+    std::cout << "Drive IEC physical:\n";
+    std::cout << "  Lines seen:        "
               << "ATN="  << HL(s.atnLow)  << "  "
               << "CLK="  << HL(s.clkLow)  << "  "
               << "DATA=" << HL(s.dataLow) << "  "
               << "SRQ="  << HL(s.srqLow)  << "\n";
 
-    std::cout << "  Drive drives(low?):  "
+    std::cout << "  Drive pulls low:   "
               << "ATN="  << HL(s.drvAssertAtn)  << "  "
               << "CLK="  << HL(s.drvAssertClk)  << "  "
               << "DATA=" << HL(s.drvAssertData) << "  "
-              << "SRQ="  << HL(s.drvAssertSrq)  << "\n";
+              << "SRQ="  << HL(s.drvAssertSrq)  << "\n\n";
 
+    std::cout << "Legacy/software IEC decode:\n";
     std::cout << "  Mode: " << busStateToStr(s.busState)
               << "   listen=" << yn(s.listening)
               << " talk=" << yn(s.talking)

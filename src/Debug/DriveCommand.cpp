@@ -48,7 +48,7 @@ Usage:
   drive <id> via2                   Show VIA2 state
   drive <id> cia                    Show CIA state (1571/1581)
   drive <id> fdc                    Show FDC controller state
-  drive <id> state                  Show IEC protocol state
+  drive <id> state                  Show drive IEC physical and legacy/debug state
   drive <id> step                   Tick drive once
 )";
 }
