@@ -19,14 +19,6 @@ DriveCIA::DriveCIA() :
     todAlarmTriggered(false),
     interruptStatus(0x00),
     lastAtnLow(false),
-    extDataLow(false),
-    autoAtnAckEnabled(false),
-    ackArmed(false),
-    lastClkInLowForAck(false),
-    atnAckHoldCycles(0),
-    atnAckArmedWhileClkLow(false),
-    atnAckSawClkHigh(false),
-    atnAckSawClkLow(false),
     iecAtnInLow(false),
     iecClkInLow(false),
     iecDataInLow(false),
@@ -92,14 +84,6 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeU8(interruptStatus);
 
     wrtr.writeBool(lastAtnLow);
-    wrtr.writeBool(extDataLow);
-    wrtr.writeBool(autoAtnAckEnabled);
-    wrtr.writeBool(ackArmed);
-    wrtr.writeBool(lastClkInLowForAck);
-    wrtr.writeU16(atnAckHoldCycles);
-    wrtr.writeBool(atnAckArmedWhileClkLow);
-    wrtr.writeBool(atnAckSawClkHigh);
-    wrtr.writeBool(atnAckSawClkLow);
 
     wrtr.writeBool(iecAtnInLow);
     wrtr.writeBool(iecClkInLow);
@@ -170,16 +154,8 @@ bool DriveCIA::loadState(StateReader& rdr)
     // Interrupt latch
     if (!rdr.readU8(interruptStatus)) return false;
 
-    // ATN auto-ack handshake
+    // ATN Edge Tracking
     if (!rdr.readBool(lastAtnLow)) return false;
-    if (!rdr.readBool(extDataLow)) return false;
-    if (!rdr.readBool(autoAtnAckEnabled)) return false;
-    if (!rdr.readBool(ackArmed)) return false;
-    if (!rdr.readBool(lastClkInLowForAck)) return false;
-    if (!rdr.readU16(atnAckHoldCycles)) return false;
-    if (!rdr.readBool(atnAckArmedWhileClkLow)) return false;
-    if (!rdr.readBool(atnAckSawClkHigh)) return false;
-    if (!rdr.readBool(atnAckSawClkLow)) return false;
 
     // IEC inputs
     if (!rdr.readBool(iecAtnInLow)) return false;
@@ -280,83 +256,35 @@ void DriveCIA::reset()
     serialRxArmed               = false;
     serialRxJustArmed           = false;
 
-    // Handshake
+    // ATN edge tracking
     lastAtnLow                  = false;
-    extDataLow                  = false;
-    ackArmed                    = false;
-    lastClkInLowForAck          = iecClkInLow;
-    atnAckHoldCycles            = 0;
-    atnAckArmedWhileClkLow      = false;
-    atnAckSawClkHigh            = false;
-    atnAckSawClkLow             = false;
 }
 
 void DriveCIA::notifyAtnInput(bool atnLow)
 {
-    #ifdef Debug
+#ifdef Debug
     std::cout << "[CIA] notifyAtnInput atnLow=" << atnLow
-              << " forcedAutoAck=" << autoAtnAckEnabled
-              << " lastAtnLow=" << lastAtnLow
-              << " ext(before)=" << extDataLow << "\n";
-    #endif
-
-    const uint8_t ddrB  = registers.ddrB;
-    const uint8_t portB = registers.portB;
-
-    const bool hwAutoAtnRespEnable =
-        ((ddrB & PRB_ATNACK) != 0) && ((portB & PRB_ATNACK) != 0);
-
-    const bool autoAckEnabled = iecAtnInLow && (autoAtnAckEnabled || hwAutoAtnRespEnable);
+              << " lastAtnLow=" << lastAtnLow << "\n";
+#endif
 
     const bool falling = (!lastAtnLow &&  atnLow);
     const bool rising  = ( lastAtnLow && !atnLow);
 
     if (falling)
     {
-        ackArmed = autoAckEnabled;
-
-        // IMPORTANT: if CLK is already low at the moment ATN falls,
-        // we must treat that as "saw CLK low" immediately.
-        atnAckSawClkLow  = iecClkInLow;
-        atnAckSawClkHigh = false;
-
-        lastClkInLowForAck = iecClkInLow;
-        atnAckHoldCycles = 0;
-
-        extDataLow = autoAckEnabled;
-
-        // Do not let SDR sample during the ATN presence-ack phase
-        serialShiftRegister = 0x00;
-    serialBitCount = 0;
-
-    // Stay armed if the ROM still wants serial receive interrupts.
-    serialRxArmed =
-        ((registers.controlRegisterA & CRA_SPMODE) == 0) &&
-        ((registers.interruptEnable & INTERRUPT_SERIAL_SHIFT_REGISTER) != 0);
-
-    serialRxJustArmed = false;
-    lastCntLevel = cntLevel;
-    lastSpLevel = spLevel;
-
-        applyIECOutputs();
-
-        #ifdef Debug
-        std::cout << "[CIA] ATN FALL: clkAlreadyLow=" << (iecClkInLow ? 1 : 0)
-                  << " -> extDataLow=" << (extDataLow ? 1 : 0) << "\n";
-        #endif
+        // ATN asserted by host. Hardware path should notify the ROM
+        // through the CIA interrupt/FLAG-style input path.
+        setFlagLine(false);
     }
     else if (rising)
     {
-        #ifdef Debug
-        std::cout << "[CIA] notifyAtnInput RISE (cancel ACK)\n";
-        #endif
-        ackArmed = false;
-        extDataLow = false;
-
-        applyIECOutputs();
+        setFlagLine(true);
     }
 
     lastAtnLow = atnLow;
+
+    // ATN level may affect the hardware ATN-ACK output gate.
+    applyIECOutputs();
 }
 
 void DriveCIA::tick(uint32_t cycles)
@@ -365,78 +293,6 @@ void DriveCIA::tick(uint32_t cycles)
     {
         // Update Pin B
         updatePinsFromBus();
-
-        bool armedThisCycle = false;
-
-        const bool hwAutoAtnRespEnable =
-            (registers.ddrB & PRB_ATNACK) && ((registers.portB & PRB_ATNACK) != 0);
-        const bool autoAckEnabled = autoAtnAckEnabled || hwAutoAtnRespEnable;
-
-        if (autoAckEnabled && ackArmed)
-        {
-            const bool atnInLow = ((portBPins & PRB_ATNIN) != 0); // true when physical ATN is LOW
-            const bool clkInLow = ((portBPins & PRB_CLKIN) != 0); // true when physical CLK is LOW
-
-            // ATN released -> cancel immediately
-            if (!atnInLow)
-            {
-                ackArmed = false;
-                extDataLow = false;
-                atnAckHoldCycles = 0;
-                atnAckSawClkLow = false;
-                atnAckSawClkHigh = false;
-
-                applyIECOutputs();
-            }
-            else
-            {
-                const bool prevClkLow = lastClkInLowForAck;
-
-                // High -> Low transition: controller pulled CLK low
-                if (!prevClkLow && clkInLow)
-                    atnAckSawClkLow = true;
-
-                // Low -> High transition: controller released CLK high
-                if (prevClkLow && !clkInLow)
-                {
-                    if (atnAckSawClkLow)
-                        atnAckSawClkHigh = true;
-                }
-
-                lastClkInLowForAck = clkInLow;
-
-                const bool shouldReleaseAck =
-                    (atnAckHoldCycles >= MIN_ACK_HOLD &&
-                     atnAckSawClkLow &&
-                     atnAckSawClkHigh);
-
-                if (shouldReleaseAck)
-                {
-                    ackArmed = false;
-                    extDataLow = false;
-
-                    // Arm SDR receive only after ACK release, and
-                    // prevent a synthetic first sample this same cycle.
-                    serialShiftRegister = 0x00;
-                    serialBitCount = 0;
-                    serialRxArmed = true;
-                    serialRxJustArmed = true;
-                    armedThisCycle = true;
-
-                    // IMPORTANT: sync edge baseline so we do not detect
-                    // a stale CNT edge immediately after arming.
-                    lastCntLevel = cntLevel;
-                    lastSpLevel = spLevel;
-
-                    applyIECOutputs();
-                }
-
-                if (extDataLow)
-                {
-                    ++atnAckHoldCycles;
-                }
-            }
-        }
 
         // CIA serial receive path
         const bool cntRisingEdge = (cntLevel && !lastCntLevel);
@@ -575,12 +431,7 @@ void DriveCIA::tick(uint32_t cycles)
             }
         }
 
-        if (serialRxJustArmed && !armedThisCycle)
-            serialRxJustArmed = false;
-        else if (armedThisCycle)
-            serialRxJustArmed = true;
-        else
-            serialRxJustArmed = false;
+        serialRxJustArmed = false;
 
         lastCntLevel = cntLevel;
         lastSpLevel = spLevel;
@@ -754,20 +605,10 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             else
                 registers.interruptEnable &= static_cast<uint8_t>(~mask);
 
-            // If the ROM enables CIA serial IRQ, prepare to receive a serial byte.
-            // This is needed for 1581 IEC serial/burst paths and 1571 native mode,
-            // where the ROM polls/uses ICR bit $08.
-            if ((value & 0x80) && (mask & INTERRUPT_SERIAL_SHIFT_REGISTER))
-            {
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-                serialRxArmed = true;
-                serialRxJustArmed = true;
-
-                // Avoid sampling a stale CNT edge immediately.
-                lastCntLevel = cntLevel;
-                lastSpLevel = spLevel;
-            }
+            if ((interruptStatus & registers.interruptEnable & 0x1F) != 0)
+                interruptStatus |= 0x80;
+            else
+                interruptStatus &= 0x7F;
 
             if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
                 drive->updateIRQ();
@@ -778,7 +619,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t old = registers.controlRegisterA;
             registers.controlRegisterA = value;
-            const bool serialInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
             const bool oldStart = (old & CRA_START) != 0;
             const bool newStart = (value & CRA_START) != 0;
@@ -801,16 +641,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             {
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
-            }
-
-            if (serialInputMode && (registers.interruptEnable & INTERRUPT_SERIAL_SHIFT_REGISTER))
-            {
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-                serialRxArmed = true;
-                serialRxJustArmed = true;
-                lastCntLevel = cntLevel;
-                lastSpLevel = spLevel;
             }
 
             break;
@@ -841,7 +671,14 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 
 void DriveCIA::triggerInterrupt(InterruptBit bit)
 {
-    interruptStatus |= (static_cast<uint8_t>(bit) & 0x1F);
+    const uint8_t mask = static_cast<uint8_t>(bit) & 0x1F;
+
+    interruptStatus = static_cast<uint8_t>((interruptStatus & 0x1F) | mask);
+
+    if ((interruptStatus & registers.interruptEnable & 0x1F) != 0)
+        interruptStatus |= 0x80;
+    else
+        interruptStatus &= 0x7F;
 
     if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
         drive->updateIRQ();
@@ -879,6 +716,7 @@ void DriveCIA::updatePinsFromBus()
     cntLevel = (portBPins & PRB_CLKIN)  != 0;
     spLevel  = (portBPins & PRB_DATAIN) != 0;
 }
+
 void DriveCIA::applyIECOutputs()
 {
     auto* drive = dynamic_cast<Drive*>(parentPeripheral);
@@ -887,8 +725,11 @@ void DriveCIA::applyIECOutputs()
     const uint8_t ddrB  = registers.ddrB;
     const uint8_t portB = registers.portB;
 
+    // Bus output gate: only active if the ROM configured the control bit
+    // as output and drove it active.
     const bool busDriversEnabled =
-        ((ddrB & PRB_BUSDIR) == 0) || ((portB & PRB_BUSDIR) != 0);
+        ((ddrB & PRB_BUSDIR) != 0) &&
+        ((portB & PRB_BUSDIR) != 0);
 
     const bool datOutAssertLow =
         busDriversEnabled &&
@@ -900,20 +741,16 @@ void DriveCIA::applyIECOutputs()
         ((ddrB & PRB_CLKOUT) != 0) &&
         ((portB & PRB_CLKOUT) != 0);
 
-    // PB4 enables the ATN acknowledge helper.
-    const bool hwAutoAtnRespEnable =
+    // Hardware ATN acknowledge helper:
+    // if ATN is physically low and the ROM enables PB4 as output/high,
+    // the drive pulls DATA low.
+    const bool hwAtnAckDataLow =
+        iecAtnInLow &&
         ((ddrB & PRB_ATNACK) != 0) &&
         ((portB & PRB_ATNACK) != 0);
 
-    const bool autoAckEnabled = iecAtnInLow && (autoAtnAckEnabled || hwAutoAtnRespEnable);
-
-    const bool ciaDataLow = datOutAssertLow;
-    const bool ciaClkLow  = clkOutAssertLow;
-
-    const bool autoAckDriveLow = autoAckEnabled;
-
-    const bool driveDataLow = autoAckDriveLow || ciaDataLow;
-    const bool driveClkLow  = ciaClkLow;
+    const bool driveDataLow = datOutAssertLow || hwAtnAckDataLow;
+    const bool driveClkLow  = clkOutAssertLow;
 
     drive->peripheralAssertData(driveDataLow);
     drive->peripheralAssertClk(driveClkLow);
@@ -921,13 +758,10 @@ void DriveCIA::applyIECOutputs()
 #ifdef Debug
     std::cout << "[CIA] applyIECOutputs:"
               << " atnLow=" << (iecAtnInLow ? 1 : 0)
-              << " extDataLow=" << (extDataLow ? 1 : 0)
               << " busDriversEnabled=" << (busDriversEnabled ? 1 : 0)
-              << " autoAtnAckEnabled=" << (autoAtnAckEnabled ? 1 : 0)
-              << " hwAutoAtnRespEnable=" << (hwAutoAtnRespEnable ? 1 : 0)
-              << " autoAckEnabled=" << (autoAckEnabled ? 1 : 0)
-              << " autoAckDriveLow=" << (autoAckDriveLow ? 1 : 0)
-              << " ciaDataLow=" << (ciaDataLow ? 1 : 0)
+              << " hwAtnAckDataLow=" << (hwAtnAckDataLow ? 1 : 0)
+              << " datOutLow=" << (datOutAssertLow ? 1 : 0)
+              << " clkOutLow=" << (clkOutAssertLow ? 1 : 0)
               << " -> driveDataLow=" << (driveDataLow ? 1 : 0)
               << " driveClkLow=" << (driveClkLow ? 1 : 0)
               << " ddrB=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
@@ -993,14 +827,10 @@ void DriveCIA::applyIECInputsToPortBPins()
 
 void DriveCIA::primeAtnLevel(bool atnLow)
 {
-    #ifdef Debug
-    std::cout << "[CIA] primeAtnLevel called, forcing extDataLow=0\n";
-    #endif
-    lastAtnLow = atnLow;     // sync edge detector baseline
-    ackArmed = false;
-    extDataLow = false;      // start released
-    atnAckHoldCycles = 0;
-    atnAckSawClkHigh = false;
-    atnAckSawClkLow  = false;
-    lastClkInLowForAck = iecClkInLow;
+#ifdef Debug
+    std::cout << "[CIA] primeAtnLevel called atnLow=" << atnLow << "\n";
+#endif
+
+    // Sync edge detector baseline only.
+    lastAtnLow = atnLow;
 }

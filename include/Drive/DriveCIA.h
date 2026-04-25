@@ -63,7 +63,6 @@ class DriveCIA : public DriveCIABase
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
 
-        inline void enableAutoAtnAck(bool enabled) { autoAtnAckEnabled = enabled; }
         void notifyAtnInput(bool atnLow);
 
         void reset();
@@ -203,16 +202,7 @@ class DriveCIA : public DriveCIABase
         void triggerInterrupt(InterruptBit bit);
 
         // Handshake
-        static constexpr uint16_t MIN_ACK_HOLD = 300; // cycles
         bool lastAtnLow;
-        bool extDataLow;
-        bool autoAtnAckEnabled;
-        bool ackArmed;
-        bool lastClkInLowForAck;
-        uint16_t atnAckHoldCycles;
-        bool atnAckArmedWhileClkLow;
-        bool atnAckSawClkHigh;
-        bool atnAckSawClkLow;
 
         // IEC input levels as seen from the host bus (C64 side)
         bool iecAtnInLow;

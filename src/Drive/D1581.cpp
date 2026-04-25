@@ -253,8 +253,6 @@ void D1581::reset()
     d1581mem.reset();
     driveCPU.reset();
 
-    d1581mem.getCIA().enableAutoAtnAck(true);
-
     forceSyncIEC();
 }
 
