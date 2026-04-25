@@ -27,12 +27,7 @@ DriveCIA::DriveCIA() :
     serialShiftRegister(0x00),
     serialBitCount(0),
     serialRxArmed(false),
-    serialRxJustArmed(false),
-    atnAckLatched(false),
-    atnAckHoldCycles(0),
-    atnAckSawClkLow(false),
-    atnAckSawClkHigh(false),
-    lastClkInLowForAck(false)
+    serialRxJustArmed(false)
 {
 
 }
@@ -263,12 +258,6 @@ void DriveCIA::reset()
 
     // ATN edge tracking
     lastAtnLow                  = false;
-
-    atnAckLatched               = false;
-    atnAckHoldCycles            = 0;
-    atnAckSawClkLow             = false;
-    atnAckSawClkHigh            = false;
-    lastClkInLowForAck          = iecClkInLow;
 }
 
 void DriveCIA::notifyAtnInput(bool atnLow)
@@ -297,46 +286,6 @@ void DriveCIA::tick(uint32_t cycles)
     {
         // Update Pin B
         updatePinsFromBus();
-
-        if (atnAckLatched)
-        {
-            if (!iecAtnInLow)
-            {
-                atnAckLatched = false;
-                atnAckHoldCycles = 0;
-                atnAckSawClkLow = false;
-                atnAckSawClkHigh = false;
-                applyIECOutputs();
-            }
-            else
-            {
-                const bool clkLow = iecClkInLow;
-
-                if (!lastClkInLowForAck && clkLow)
-                    atnAckSawClkLow = true;
-
-                if (lastClkInLowForAck && !clkLow && atnAckSawClkLow)
-                    atnAckSawClkHigh = true;
-
-                lastClkInLowForAck = clkLow;
-
-                if (atnAckHoldCycles < 0xFFFF)
-                    ++atnAckHoldCycles;
-
-                if (atnAckSawClkLow && atnAckSawClkHigh)
-                {
-                #ifdef Debug
-                    std::cout << "[CIA] ATN ACK latch release"
-                              << " hold=" << atnAckHoldCycles
-                              << " clkLowSeen=" << atnAckSawClkLow
-                              << " clkHighSeen=" << atnAckSawClkHigh
-                              << "\n";
-                #endif
-                    atnAckLatched = false;
-                    applyIECOutputs();
-                }
-            }
-        }
 
         // CIA serial receive path
         const bool cntRisingEdge = (cntLevel && !lastCntLevel);
@@ -393,13 +342,13 @@ void DriveCIA::tick(uint32_t cycles)
         }
 
         // --- Timer A run ---
-        if (decA && timerACounter > 0)
+        if (decA)
         {
-            --timerACounter;
-            registers.timerALowByte  = static_cast<uint8_t>(timerACounter & 0xFF);
-            registers.timerAHighByte = static_cast<uint8_t>((timerACounter >> 8) & 0xFF);
+            const bool underflow = (timerACounter == 0x0000);
 
-            if (timerACounter == 0)
+            timerACounter = static_cast<uint16_t>(timerACounter - 1);
+
+            if (underflow)
             {
                 triggerInterrupt(INTERRUPT_TIMER_A);
                 timerAUnderflowThisCycle = true;
@@ -414,6 +363,9 @@ void DriveCIA::tick(uint32_t cycles)
                     timerACounter = timerALatch;
                 }
             }
+
+            registers.timerALowByte  = static_cast<uint8_t>(timerACounter & 0xFF);
+            registers.timerAHighByte = static_cast<uint8_t>((timerACounter >> 8) & 0xFF);
         }
 
         // CIA serial output path.
@@ -453,13 +405,13 @@ void DriveCIA::tick(uint32_t cycles)
         }
 
         // --- Timer B run ---
-        if (decB && timerBCounter > 0)
+        if (decB)
         {
-            --timerBCounter;
-            registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0xFF);
-            registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0xFF);
+            const bool underflow = (timerBCounter == 0x0000);
 
-            if (timerBCounter == 0)
+            timerBCounter = static_cast<uint16_t>(timerBCounter - 1);
+
+            if (underflow)
             {
                 triggerInterrupt(INTERRUPT_TIMER_B);
 
@@ -473,6 +425,9 @@ void DriveCIA::tick(uint32_t cycles)
                     timerBCounter = timerBLatch;
                 }
             }
+
+            registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0xFF);
+            registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0xFF);
         }
 
         serialRxJustArmed = false;
@@ -889,8 +844,8 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     // IEC inputs are inverted before reaching CIA-visible side:
     // physical LOW => CIA pin HIGH.
-    cntLevel = iecClkInLow;
-    spLevel  = iecDataInLow;
+    cntLevel = (portBPins & PRB_CLKIN) != 0;
+    spLevel  = (portBPins & PRB_DATAIN) != 0;
 
     applyIECInputsToPortBPins();
 
@@ -902,9 +857,9 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
 void DriveCIA::applyIECInputsToPortBPins()
 {
-    // 1581 IEC input presentation currently known-best:
-    // physical IEC LOW  -> CIA PB input bit 1
-    // physical IEC HIGH -> CIA PB input bit 0
+    // Current working polarity:
+    // physical IEC LOW  => CIA pin bit 1
+    // physical IEC HIGH => CIA pin bit 0
 
     if (iecAtnInLow)
         portBPins |= PRB_ATNIN;

@@ -266,20 +266,17 @@ void D1581::tick(uint32_t cycles)
 
     while (cycles-- > 0)
     {
-        // One 1581 CPU PHI2 cycle.
+        // CPU::tick() is already one external CPU cycle.
         driveCPU.tick();
 
-        // Tick 1581 local hardware once per drive CPU cycle.
+        // Match D1571 behavior: local chips advance one cycle,
+        // not getElapsedCycles() cycles.
         d1581mem.tick(1);
 
-        // IMPORTANT: keep the drive CPU IRQ line synchronized with
-        // CIA/FDC interrupt sources every cycle, like D1571 does.
         updateIRQ();
 
-        // Keep common drive-level timing/hooks consistent with other drives.
         Drive::tick(1);
 
-        // Optional but useful: keep UI/status track synced from the FDC.
         syncTrackFromFDC();
 
         const bool ledOn = activityLedOn;

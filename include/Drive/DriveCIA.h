@@ -217,14 +217,6 @@ class DriveCIA : public DriveCIABase
         bool serialRxArmed;
         bool serialRxJustArmed;
 
-        // ATN acknowledge latch
-        static constexpr uint16_t MIN_ACK_HOLD = 300;
-        bool atnAckLatched;
-        uint16_t atnAckHoldCycles;
-        bool atnAckSawClkLow;
-        bool atnAckSawClkHigh;
-        bool lastClkInLowForAck;
-
         // Forces PRB input bits to match the stored IEC inputs
         void applyIECInputsToPortBPins();
 
