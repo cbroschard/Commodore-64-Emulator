@@ -266,37 +266,31 @@ void D1581::tick(uint32_t cycles)
 
     while (cycles-- > 0)
     {
-        if (bus)
-        {
-            const bool newAtnLow  = !bus->readAtnLine();
-            const bool newClkLow  = !bus->readClkLine();
-            const bool newDataLow = !bus->readDataLine();
-
-            if (newAtnLow  != atnLineLow)  atnChanged(newAtnLow);
-            if (newClkLow  != clkLineLow)  clkChanged(newClkLow);
-            if (newDataLow != dataLineLow) dataChanged(newDataLow);
-        }
-
+        // One 1581 CPU PHI2 cycle.
         driveCPU.tick();
 
-        uint32_t dc = driveCPU.getElapsedCycles();
-        if (dc == 0) dc = 1;
+        // Tick 1581 local hardware once per drive CPU cycle.
+        d1581mem.tick(1);
 
-        while (dc-- > 0)
-        {
-            d1581mem.tick(1);
+        // IMPORTANT: keep the drive CPU IRQ line synchronized with
+        // CIA/FDC interrupt sources every cycle, like D1571 does.
+        updateIRQ();
 
-            if (bus)
-            {
-                const bool newAtnLow  = !bus->readAtnLine();
-                const bool newClkLow  = !bus->readClkLine();
-                const bool newDataLow = !bus->readDataLine();
+        // Keep common drive-level timing/hooks consistent with other drives.
+        Drive::tick(1);
 
-                if (newAtnLow  != atnLineLow)  atnChanged(newAtnLow);
-                if (newClkLow  != clkLineLow)  clkChanged(newClkLow);
-                if (newDataLow != dataLineLow) dataChanged(newDataLow);
-            }
-        }
+        // Optional but useful: keep UI/status track synced from the FDC.
+        syncTrackFromFDC();
+
+        const bool ledOn = activityLedOn;
+
+        if (ledOn)
+            uiTrack = currentTrack;
+
+        if (ledOn && !uiLedWasOn)
+            uiSector = currentSector;
+
+        uiLedWasOn = ledOn;
     }
 }
 
@@ -332,7 +326,6 @@ void D1581::forceSyncIEC()
 
     // Update the CIA
     d1581mem.getCIA().setIECInputs(newAtnLow, newClkLow, newDataLow);
-    d1581mem.getCIA().setFlagLine(!newAtnLow);
     d1581mem.getCIA().linesChanged();
 }
 
@@ -344,7 +337,6 @@ void D1581::atnChanged(bool atnLow)
 
     // Keep CIA informed
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
-    d1581mem.getCIA().setFlagLine(!atnLow);
     d1581mem.getCIA().linesChanged();
 }
 

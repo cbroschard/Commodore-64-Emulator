@@ -27,7 +27,12 @@ DriveCIA::DriveCIA() :
     serialShiftRegister(0x00),
     serialBitCount(0),
     serialRxArmed(false),
-    serialRxJustArmed(false)
+    serialRxJustArmed(false),
+    atnAckLatched(false),
+    atnAckHoldCycles(0),
+    atnAckSawClkLow(false),
+    atnAckSawClkHigh(false),
+    lastClkInLowForAck(false)
 {
 
 }
@@ -258,6 +263,12 @@ void DriveCIA::reset()
 
     // ATN edge tracking
     lastAtnLow                  = false;
+
+    atnAckLatched               = false;
+    atnAckHoldCycles            = 0;
+    atnAckSawClkLow             = false;
+    atnAckSawClkHigh            = false;
+    lastClkInLowForAck          = iecClkInLow;
 }
 
 void DriveCIA::notifyAtnInput(bool atnLow)
@@ -271,19 +282,12 @@ void DriveCIA::notifyAtnInput(bool atnLow)
     const bool rising  = ( lastAtnLow && !atnLow);
 
     if (falling)
-    {
-        // ATN asserted by host. Hardware path should notify the ROM
-        // through the CIA interrupt/FLAG-style input path.
         setFlagLine(false);
-    }
     else if (rising)
-    {
         setFlagLine(true);
-    }
 
     lastAtnLow = atnLow;
 
-    // ATN level may affect the hardware ATN-ACK output gate.
     applyIECOutputs();
 }
 
@@ -293,6 +297,46 @@ void DriveCIA::tick(uint32_t cycles)
     {
         // Update Pin B
         updatePinsFromBus();
+
+        if (atnAckLatched)
+        {
+            if (!iecAtnInLow)
+            {
+                atnAckLatched = false;
+                atnAckHoldCycles = 0;
+                atnAckSawClkLow = false;
+                atnAckSawClkHigh = false;
+                applyIECOutputs();
+            }
+            else
+            {
+                const bool clkLow = iecClkInLow;
+
+                if (!lastClkInLowForAck && clkLow)
+                    atnAckSawClkLow = true;
+
+                if (lastClkInLowForAck && !clkLow && atnAckSawClkLow)
+                    atnAckSawClkHigh = true;
+
+                lastClkInLowForAck = clkLow;
+
+                if (atnAckHoldCycles < 0xFFFF)
+                    ++atnAckHoldCycles;
+
+                if (atnAckSawClkLow && atnAckSawClkHigh)
+                {
+                #ifdef Debug
+                    std::cout << "[CIA] ATN ACK latch release"
+                              << " hold=" << atnAckHoldCycles
+                              << " clkLowSeen=" << atnAckSawClkLow
+                              << " clkHighSeen=" << atnAckSawClkHigh
+                              << "\n";
+                #endif
+                    atnAckLatched = false;
+                    applyIECOutputs();
+                }
+            }
+        }
 
         // CIA serial receive path
         const bool cntRisingEdge = (cntLevel && !lastCntLevel);
@@ -725,50 +769,92 @@ void DriveCIA::applyIECOutputs()
     const uint8_t ddrB  = registers.ddrB;
     const uint8_t portB = registers.portB;
 
-    // Bus output gate: only active if the ROM configured the control bit
-    // as output and drove it active.
+    // PB5 / BUSDIR:
+    // Test as active-high output enable.
+    //
+    // This avoids idle PRB=$D5 clamping CLK, but allows later PRB=$74
+    // to drive CLK during the post-ATN transfer phase without adding
+    // protocol-phase state.
     const bool busDriversEnabled =
         ((ddrB & PRB_BUSDIR) != 0) &&
         ((portB & PRB_BUSDIR) != 0);
 
-    const bool datOutAssertLow =
-        busDriversEnabled &&
-        ((ddrB & PRB_DATOUT) != 0) &&
-        ((portB & PRB_DATOUT) != 0);
-
-    const bool clkOutAssertLow =
-        busDriversEnabled &&
-        ((ddrB & PRB_CLKOUT) != 0) &&
-        ((portB & PRB_CLKOUT) != 0);
-
-    // Hardware ATN acknowledge helper:
-    // if ATN is physically low and the ROM enables PB4 as output/high,
-    // the drive pulls DATA low.
-    const bool hwAtnAckDataLow =
+    const bool atnAckDataLow =
         iecAtnInLow &&
         ((ddrB & PRB_ATNACK) != 0) &&
         ((portB & PRB_ATNACK) != 0);
 
-    const bool driveDataLow = datOutAssertLow || hwAtnAckDataLow;
+    // PB1 / DATOUT:
+    // Test as active-low, gated by PB5/BUSDIR.
+    // This keeps idle PRB=$D5 released because PB5=0,
+    // but allows PRB=$74 to pull DATA low when PB5=1.
+    const bool datOutAssertLow =
+        busDriversEnabled &&
+        ((ddrB & PRB_DATOUT) != 0) &&
+        ((portB & PRB_DATOUT) == 0);
+
+    // PB3 / CLKOUT:
+    // Active-low, gated by PB5/BUSDIR.
+    const bool clkOutAssertLow =
+        busDriversEnabled &&
+        ((ddrB & PRB_CLKOUT) != 0) &&
+        ((portB & PRB_CLKOUT) == 0);
+
+    const bool driveDataLow = atnAckDataLow || datOutAssertLow;
     const bool driveClkLow  = clkOutAssertLow;
 
     drive->peripheralAssertData(driveDataLow);
     drive->peripheralAssertClk(driveClkLow);
 
 #ifdef Debug
-    std::cout << "[CIA] applyIECOutputs:"
-              << " atnLow=" << (iecAtnInLow ? 1 : 0)
-              << " busDriversEnabled=" << (busDriversEnabled ? 1 : 0)
-              << " hwAtnAckDataLow=" << (hwAtnAckDataLow ? 1 : 0)
-              << " datOutLow=" << (datOutAssertLow ? 1 : 0)
-              << " clkOutLow=" << (clkOutAssertLow ? 1 : 0)
-              << " -> driveDataLow=" << (driveDataLow ? 1 : 0)
-              << " driveClkLow=" << (driveClkLow ? 1 : 0)
-              << " ddrB=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-              << static_cast<int>(ddrB)
-              << " portB=$" << std::setw(2)
-              << static_cast<int>(portB)
-              << std::dec << "\n";
+    static bool firstOutLog = true;
+    static bool lastDataLow = false;
+    static bool lastClkLow = false;
+    static bool lastAtnLow = false;
+    static bool lastAck = false;
+    static bool lastDat = false;
+    static bool lastClk = false;
+    static bool lastBus = false;
+    static uint8_t lastPortB = 0;
+    static uint8_t lastDdrB = 0;
+
+    if (firstOutLog ||
+        driveDataLow != lastDataLow ||
+        driveClkLow != lastClkLow ||
+        iecAtnInLow != lastAtnLow ||
+        atnAckDataLow != lastAck ||
+        datOutAssertLow != lastDat ||
+        clkOutAssertLow != lastClk ||
+        busDriversEnabled != lastBus ||
+        portB != lastPortB ||
+        ddrB != lastDdrB)
+    {
+        firstOutLog = false;
+        lastDataLow = driveDataLow;
+        lastClkLow = driveClkLow;
+        lastAtnLow = iecAtnInLow;
+        lastAck = atnAckDataLow;
+        lastDat = datOutAssertLow;
+        lastClk = clkOutAssertLow;
+        lastBus = busDriversEnabled;
+        lastPortB = portB;
+        lastDdrB = ddrB;
+
+        std::cout << "[CIA OUT]"
+                  << " ATN=" << (iecAtnInLow ? 1 : 0)
+                  << " DATA=" << (driveDataLow ? 1 : 0)
+                  << " CLK=" << (driveClkLow ? 1 : 0)
+                  << " ack=" << (atnAckDataLow ? 1 : 0)
+                  << " dat=" << (datOutAssertLow ? 1 : 0)
+                  << " clk=" << (clkOutAssertLow ? 1 : 0)
+                  << " bus=" << (busDriversEnabled ? 1 : 0)
+                  << " PRB=$" << std::hex << std::uppercase
+                  << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(portB)
+                  << " DDRB=$" << std::setw(2)
+                  << static_cast<int>(ddrB)
+                  << std::dec << "\n";
+    }
 #endif
 }
 
@@ -816,13 +902,24 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
 void DriveCIA::applyIECInputsToPortBPins()
 {
-    // 1581 hardware: IEC inputs go through an inverter (74LS14)
-    // IEC LOW  => CIA pin HIGH => bit = 1
-    // IEC HIGH => CIA pin LOW  => bit = 0
+    // 1581 IEC input presentation currently known-best:
+    // physical IEC LOW  -> CIA PB input bit 1
+    // physical IEC HIGH -> CIA PB input bit 0
 
-    if (iecAtnInLow)  portBPins |=  PRB_ATNIN;  else portBPins &= ~PRB_ATNIN;
-    if (iecClkInLow)  portBPins |=  PRB_CLKIN;  else portBPins &= ~PRB_CLKIN;
-    if (iecDataInLow) portBPins |=  PRB_DATAIN; else portBPins &= ~PRB_DATAIN;
+    if (iecAtnInLow)
+        portBPins |= PRB_ATNIN;
+    else
+        portBPins &= static_cast<uint8_t>(~PRB_ATNIN);
+
+    if (iecClkInLow)
+        portBPins |= PRB_CLKIN;
+    else
+        portBPins &= static_cast<uint8_t>(~PRB_CLKIN);
+
+    if (iecDataInLow)
+        portBPins |= PRB_DATAIN;
+    else
+        portBPins &= static_cast<uint8_t>(~PRB_DATAIN);
 }
 
 void DriveCIA::primeAtnLevel(bool atnLow)
