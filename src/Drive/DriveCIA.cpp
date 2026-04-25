@@ -25,9 +25,7 @@ DriveCIA::DriveCIA() :
     spLevel(false),
     lastSpLevel(false),
     serialShiftRegister(0x00),
-    serialBitCount(0),
-    serialRxArmed(false),
-    serialRxJustArmed(false)
+    serialBitCount(0)
 {
 
 }
@@ -93,8 +91,6 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(lastSpLevel);
     wrtr.writeU8(serialShiftRegister);
     wrtr.writeU8(serialBitCount);
-    wrtr.writeBool(serialRxArmed);
-    wrtr.writeBool(serialRxJustArmed);
 }
 
 bool DriveCIA::loadState(StateReader& rdr)
@@ -166,8 +162,6 @@ bool DriveCIA::loadState(StateReader& rdr)
     if (!rdr.readBool(lastSpLevel)) return false;
     if (!rdr.readU8(serialShiftRegister)) return false;
     if (!rdr.readU8(serialBitCount)) return false;
-    if (!rdr.readBool(serialRxArmed)) return false;
-    if (!rdr.readBool(serialRxJustArmed)) return false;
 
     // Post-restore fixups
 
@@ -180,10 +174,10 @@ bool DriveCIA::loadState(StateReader& rdr)
     // Overlay IEC inputs onto portBPins (so ROM sees correct ATN/CLK/DATA inputs)
     applyIECInputsToPortBPins();
 
-    cntLevel = iecClkInLow;
+    cntLevel = (portBPins & PRB_CLKIN) != 0;
     lastCntLevel = cntLevel;
 
-    spLevel = iecDataInLow;
+    spLevel = (portBPins & PRB_DATAIN) != 0;
     lastSpLevel = spLevel;
 
     // Re-apply outputs based on restored registers/DDRs (safe even if no bus attached)
@@ -253,8 +247,6 @@ void DriveCIA::reset()
     lastSpLevel                 = false;
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
-    serialRxArmed               = false;
-    serialRxJustArmed           = false;
 
     // ATN edge tracking
     lastAtnLow                  = false;
@@ -288,23 +280,27 @@ void DriveCIA::tick(uint32_t cycles)
         updatePinsFromBus();
 
         // CIA serial receive path
-        const bool cntRisingEdge = (cntLevel && !lastCntLevel);
+        const bool cntFallingEdge = (!cntLevel && lastCntLevel);
         const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
         // Do not sample in the same cycle the receiver was just armed.
-        if (serialRxArmed && !serialRxJustArmed && sdrInputMode && cntRisingEdge)
+        if (sdrInputMode && cntFallingEdge)
         {
-            serialShiftRegister = static_cast<uint8_t>((serialShiftRegister >> 1) | (spLevel ? 0x80 : 0x00));
+            const bool serialBit = !spLevel;
+
+            serialShiftRegister = static_cast<uint8_t>((serialShiftRegister >> 1) | (serialBit ? 0x80 : 0x00));
 
             ++serialBitCount;
 
             #ifdef Debug
-            std::cout << "[CIA] SDR bit: sp=" << (spLevel ? 1 : 0)
-                      << " count=" << static_cast<int>(serialBitCount)
-                      << " shift=$"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(serialShiftRegister)
-                      << std::dec << "\n";
+            std::cout << "[CIA] SDR bit:"
+              << " sp=" << (spLevel ? 1 : 0)
+              << " bit=" << (serialBit ? 1 : 0)
+              << " count=" << static_cast<int>(serialBitCount)
+              << " shift=$"
+              << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+              << static_cast<int>(serialShiftRegister)
+              << std::dec << "\n";
             #endif
 
             if (serialBitCount == 8)
@@ -321,8 +317,6 @@ void DriveCIA::tick(uint32_t cycles)
 
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
-                serialRxArmed = false;
-                serialRxJustArmed = false;
             }
         }
 
@@ -373,7 +367,7 @@ void DriveCIA::tick(uint32_t cycles)
         // clock bits out through the serial port. After 8 bits, ICR bit $08 is set.
         const bool sdrOutputMode = (registers.controlRegisterA & CRA_SPMODE) != 0;
 
-        if (sdrOutputMode && timerAUnderflowThisCycle && !serialRxJustArmed)
+        if (sdrOutputMode && timerAUnderflowThisCycle)
         {
             // Minimal output emulation: advance one bit per Timer A underflow.
             // Exact SP/CNT output pin behavior can be improved later; the ROM's
@@ -429,8 +423,6 @@ void DriveCIA::tick(uint32_t cycles)
             registers.timerBLowByte  = static_cast<uint8_t>(timerBCounter & 0xFF);
             registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0xFF);
         }
-
-        serialRxJustArmed = false;
 
         lastCntLevel = cntLevel;
         lastSpLevel = spLevel;
@@ -584,15 +576,22 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         {
             registers.serialData = value;
 
-            // Prepare CIA serial output/input shift state.
-            // In output mode, Timer A underflows clock out the SDR and
-            // the CIA raises serial interrupt after 8 bits.
+        #ifdef Debug
+            std::cout << "[CIA] write SDR=$"
+                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                      << static_cast<int>(value)
+                      << " CRA=$" << std::setw(2) << static_cast<int>(registers.controlRegisterA)
+                      << " CRB=$" << std::setw(2) << static_cast<int>(registers.controlRegisterB)
+                      << " CNT=" << std::dec << (cntLevel ? 1 : 0)
+                      << " SP=" << (spLevel ? 1 : 0)
+                      << " bitCount=" << static_cast<int>(serialBitCount)
+                      << "\n";
+        #endif
+
             serialShiftRegister = value;
             serialBitCount = 0;
-            serialRxJustArmed = true;
             lastCntLevel = cntLevel;
             lastSpLevel = spLevel;
-
             break;
         }
         case 0x0D:
