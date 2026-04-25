@@ -842,12 +842,10 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
     iecClkInLow  = clkLow;
     iecDataInLow = dataLow;
 
-    // IEC inputs are inverted before reaching CIA-visible side:
-    // physical LOW => CIA pin HIGH.
+    applyIECInputsToPortBPins();
+
     cntLevel = (portBPins & PRB_CLKIN) != 0;
     spLevel  = (portBPins & PRB_DATAIN) != 0;
-
-    applyIECInputsToPortBPins();
 
     if (atnChanged)
         notifyAtnInput(atnLow);
