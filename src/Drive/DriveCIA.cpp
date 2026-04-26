@@ -182,8 +182,10 @@ bool DriveCIA::loadState(StateReader& rdr)
     cntLevel = iecClkInLow;
     lastCntLevel = cntLevel;
 
-    spLevel = iecDataInLow;
+    spLevel = !iecDataInLow;
     lastSpLevel = spLevel;
+
+    serialRxJustReturnedToInput = false;
 
     applyPortOutputs();
     applyIECOutputs();
@@ -195,6 +197,7 @@ void DriveCIA::reset()
 {
     // Initialize all registers
     registers.portA             = 0x00;
+
     registers.portB             = 0x00;
     registers.ddrA              = 0x00;
     registers.ddrB              = 0x00;
