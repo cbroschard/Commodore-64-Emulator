@@ -820,7 +820,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             registers.rasterInterruptLine = newLine;
 
             const int raster = registers.raster;
-            d011_per_raster[raster] = registers.control;
 
             checkRasterIRQCompareTransition(oldLine, newLine);
 
@@ -879,9 +878,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             const int raster = registers.raster;
             updateHorizontalBorderState(raster);
-            borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
-            borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
-            d016_per_raster[raster] = registers.control2;
             updateGraphicsMode(raster);
 
             traceVicRegWrite(address, oldValue, registers.control2);
@@ -900,8 +896,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.memory_pointer;
             registers.memory_pointer = value & 0xFE;
-            const int raster = registers.raster;
-            d018_per_raster[raster] = registers.memory_pointer;
             traceVicRegWrite(address, oldValue, registers.memory_pointer);
             break;
         }
@@ -1093,6 +1087,12 @@ void Vic::runCycleDecisionPhase()
 void Vic::handleCycle0Decisions()
 {
     const int raster = registers.raster;
+
+    // Latch the register state used by completed-raster rendering.
+    // Do this once at the start of the raster, not on every register write.
+    d011_per_raster[raster] = registers.control & 0x7F;
+    d016_per_raster[raster] = registers.control2 & 0x1F;
+    d018_per_raster[raster] = registers.memory_pointer & 0xFE;
 
     latchNextRasterDD00();
 
