@@ -2019,6 +2019,9 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
 {
     BackgroundLineGeometry g {};
 
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return g;
+
     g.rows = getLatchedRSEL(raster) ? 25 : 24;
     g.cols = getLatchedCSEL(raster) ? 40 : 38;
     g.charRow = currentCharacterRow();
@@ -2029,8 +2032,11 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
     g.fineX = xScroll & 0x07;
     g.fetchCols = g.cols + (g.fineX ? 1 : 0);
 
-    g.x0 = std::max(0, vicState.leftBorderOpenX);
-    g.x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    g.x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    g.x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+
+    if (g.x0 >= g.x1)
+        return g;
 
     g.valid = true;
     return g;
@@ -2834,8 +2840,8 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     const int fine = xScroll & 0x07;
     const int fetchCols = cols + (fine ? 1 : 0);
 
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
         return false;
@@ -2926,8 +2932,8 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     const int fine = xScroll & 0x07;
     const int fetchCols = cols + (fine ? 1 : 0);
 
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
         return false;
@@ -3206,8 +3212,8 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     const int fine = xScroll & 0x07;
     const int fetchCols = cols + (fine ? 1 : 0);
 
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
         return false;
@@ -3371,8 +3377,8 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const int fine = xScroll & 0x07;
     const int fetchCols = cols + (fine ? 1 : 0);
 
-    const int x0 = std::max(0, vicState.leftBorderOpenX);
-    const int x1 = std::min(VISIBLE_WIDTH, vicState.rightBorderCloseX);
+    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
         return false;
