@@ -7,6 +7,10 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveCIA.h"
 
+#ifdef Debug
+#include "Drive/D1581.h"
+#endif
+
 DriveCIA::DriveCIA() :
     parentPeripheral(nullptr),
     portAPins(0xFF),
@@ -25,7 +29,8 @@ DriveCIA::DriveCIA() :
     spLevel(false),
     lastSpLevel(false),
     serialShiftRegister(0x00),
-    serialBitCount(0)
+    serialBitCount(0),
+    serialRxJustReturnedToInput(false)
 {
 
 }
@@ -174,15 +179,13 @@ bool DriveCIA::loadState(StateReader& rdr)
     // Overlay IEC inputs onto portBPins (so ROM sees correct ATN/CLK/DATA inputs)
     applyIECInputsToPortBPins();
 
-    cntLevel = (portBPins & PRB_CLKIN) != 0;
+    cntLevel = iecClkInLow;
     lastCntLevel = cntLevel;
 
-    spLevel = (portBPins & PRB_DATAIN) != 0;
+    spLevel = iecDataInLow;
     lastSpLevel = spLevel;
 
-    // Re-apply outputs based on restored registers/DDRs (safe even if no bus attached)
     applyPortOutputs();
-
     applyIECOutputs();
 
     return true;
@@ -247,6 +250,7 @@ void DriveCIA::reset()
     lastSpLevel                 = false;
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
+    serialRxJustReturnedToInput = false;
 
     // ATN edge tracking
     lastAtnLow                  = false;
@@ -258,59 +262,6 @@ void DriveCIA::tick(uint32_t cycles)
     {
         // Update CIA-visible input pins from external wiring/bus state.
         updatePinsFromBus();
-
-        // CIA serial receive path.
-        //
-        // Hardware-accuracy test:
-        //   - 6526/8520 serial input shifts on CNT rising edge
-        //   - 1581 board/IEC DATA sense is still tested as inverted SP
-        //   - CIA shifts left; new bit enters bit 0
-        const bool cntRisingEdge = (cntLevel && !lastCntLevel);
-        const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
-
-        if (sdrInputMode && cntRisingEdge)
-        {
-            const bool serialBit = spLevel;
-
-            serialShiftRegister = static_cast<uint8_t>((serialShiftRegister << 1) | (serialBit ? 0x01 : 0x00));
-
-            ++serialBitCount;
-
-#ifdef Debug
-            std::cout << "[CIA] SDR bit:"
-                      << " sp=" << (spLevel ? 1 : 0)
-                      << " bit=" << (serialBit ? 1 : 0)
-                      << " count=" << static_cast<int>(serialBitCount)
-                      << " shift=$"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(serialShiftRegister)
-                      << std::dec << "\n";
-#endif
-
-            if (serialBitCount == 8)
-            {
-                registers.serialData = serialShiftRegister;
-                triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
-
-#ifdef Debug
-                std::cout << "[CIA] SDR RX complete: $"
-                          << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                          << static_cast<int>(registers.serialData)
-                          << " PRB=$" << std::setw(2) << static_cast<int>(registers.portB)
-                          << " DDRB=$" << std::setw(2) << static_cast<int>(registers.ddrB)
-                          << " CRA=$" << std::setw(2) << static_cast<int>(registers.controlRegisterA)
-                          << " IER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable)
-                          << std::dec
-                          << " ATN=" << (iecAtnInLow ? 1 : 0)
-                          << " CLK=" << (iecClkInLow ? 1 : 0)
-                          << " DATA=" << (iecDataInLow ? 1 : 0)
-                          << "\n";
-#endif
-
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-            }
-        }
 
         bool timerAUnderflowThisCycle = false;
 
@@ -457,47 +408,27 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         {
             uint8_t result = (registers.portB & registers.ddrB) | (portBPins & ~registers.ddrB);
 
-        #ifdef Debug
-            static bool first = true;
-            static uint8_t lastResult = 0xFF;
-            static uint8_t lastPRB = 0xFF;
-            static uint8_t lastDDRB = 0xFF;
-            static uint8_t lastPins = 0xFF;
-            static bool lastAtn = false;
-            static bool lastClk = false;
-            static bool lastData = false;
+            #ifdef Debug
+            const uint16_t pc = debugCurrentPC();
 
-            if (first ||
-                result != lastResult ||
-                registers.portB != lastPRB ||
-                registers.ddrB != lastDDRB ||
-                portBPins != lastPins ||
-                iecAtnInLow != lastAtn ||
-                iecClkInLow != lastClk ||
-                iecDataInLow != lastData)
+            if (pc >= 0xAE80 && pc <= 0xAEB8)
             {
-                first = false;
-                lastResult = result;
-                lastPRB = registers.portB;
-                lastDDRB = registers.ddrB;
-                lastPins = portBPins;
-                lastAtn = iecAtnInLow;
-                lastClk = iecClkInLow;
-                lastData = iecDataInLow;
-
-                std::cout << "[CIA] read PRB -> $"
-                          << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                          << static_cast<int>(result)
-                          << " PRB=$" << std::setw(2) << static_cast<int>(registers.portB)
-                          << " DDRB=$" << std::setw(2) << static_cast<int>(registers.ddrB)
-                          << " pins=$" << std::setw(2) << static_cast<int>(portBPins)
-                          << std::dec
-                          << " ATN=" << (iecAtnInLow ? 1 : 0)
-                          << " CLK=" << (iecClkInLow ? 1 : 0)
-                          << " DATA=" << (iecDataInLow ? 1 : 0)
-                          << "\n";
+                std::cout << "[1581 RX-PRB]"
+                  << " cyc=" << debugDriveCycles()
+                  << " PC=$"
+                  << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+                  << static_cast<int>(pc)
+                  << " PRB=$" << std::setw(2) << static_cast<int>(result)
+                  << std::dec
+                  << " ATNbit=" << ((result & PRB_ATNIN) ? 1 : 0)
+                  << " CLKbit=" << ((result & PRB_CLKIN) ? 1 : 0)
+                  << " DATbit=" << ((result & PRB_DATAIN) ? 1 : 0)
+                  << " rawATN=" << (iecAtnInLow ? 1 : 0)
+                  << " rawCLK=" << (iecClkInLow ? 1 : 0)
+                  << " rawDATA=" << (iecDataInLow ? 1 : 0)
+                  << "\n";
             }
-        #endif
+            #endif
 
             return result;
         }
@@ -514,10 +445,25 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x0C:
         {
         #ifdef Debug
-            std::cout << "[CIA] read SDR -> $"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            const uint16_t pc = debugCurrentPC();
+
+            std::cout << "[CIA] read SDR PC=$"
+                      << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+                      << static_cast<int>(pc)
+                      << " -> $" << std::setw(2)
                       << static_cast<int>(registers.serialData)
-                      << std::dec << "\n";
+                      << " PRB=$" << std::setw(2)
+                      << static_cast<int>(registers.portB)
+                      << " DDRB=$" << std::setw(2)
+                      << static_cast<int>(registers.ddrB)
+                      << std::dec
+                      << " CNT=" << (cntLevel ? 1 : 0)
+                      << " SP=" << (spLevel ? 1 : 0)
+                      << " bitCount=" << static_cast<int>(serialBitCount)
+                      << " rawATN=" << (iecAtnInLow ? 1 : 0)
+                      << " rawCLK=" << (iecClkInLow ? 1 : 0)
+                      << " rawDATA=" << (iecDataInLow ? 1 : 0)
+                      << "\n";
         #endif
             return registers.serialData;
         }
@@ -556,15 +502,20 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         {
             registers.portB = value;
 
-        #ifdef Debug
-            std::cout << "[CIA] write PRB=$"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            #ifdef Debug
+            const uint16_t pc = debugCurrentPC();
+
+            std::cout << "[CIA] write PRB PC=$"
+                      << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+                      << static_cast<int>(pc)
+                      << " value=$"
+                      << std::setw(2)
                       << static_cast<int>(value)
                       << " ddrB=$"
                       << std::setw(2)
                       << static_cast<int>(registers.ddrB)
                       << std::dec << "\n";
-        #endif
+            #endif
 
             applyPortOutputs();
             break;
@@ -682,6 +633,13 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const bool oldStart = (old & CRA_START) != 0;
             const bool newStart = (value & CRA_START) != 0;
 
+            const bool oldSerialOutput = (old & CRA_SPMODE) != 0;
+            const bool newSerialOutput = (value & CRA_SPMODE) != 0;
+
+            const bool serialModeChanged = oldSerialOutput != newSerialOutput;
+            const bool serialStarted = (!oldStart && newStart);
+            const bool returnedToSerialInput = serialModeChanged && oldSerialOutput && !newSerialOutput;
+
             // Start transition: load counter from latch
             if (!oldStart && newStart)
                 timerACounter = timerALatch;
@@ -695,9 +653,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 registers.controlRegisterA &= static_cast<uint8_t>(~CRA_LOAD);
             }
 
-            // If serial mode changed, discard any partial serial transfer and
-            // re-baseline CNT/SP so the next edge is measured from the new mode.
-            if ((old ^ value) & CRA_SPMODE)
+            if (serialModeChanged || serialStarted)
             {
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
@@ -705,7 +661,14 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 lastSpLevel = spLevel;
             }
 
-            #ifdef Debug
+            if (returnedToSerialInput)
+            {
+                // Not a blind protocol skip: this is tied to the ROM/CIA transition
+                // from serial output handshake mode back to serial input mode.
+                serialRxJustReturnedToInput = true;
+            }
+
+        #ifdef Debug
             std::cout << "[CIA] write CRA old=$"
                       << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
                       << static_cast<int>(old)
@@ -715,8 +678,9 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                       << " CNT=" << (cntLevel ? 1 : 0)
                       << " SP=" << (spLevel ? 1 : 0)
                       << " bitCount=" << static_cast<int>(serialBitCount)
+                      << " rxReturn=" << (serialRxJustReturnedToInput ? 1 : 0)
                       << "\n";
-            #endif
+        #endif
 
             break;
         }
@@ -788,9 +752,10 @@ void DriveCIA::updatePinsFromBus()
     // so the ROM sees correct inputs regardless of wiring callbacks.
     applyIECInputsToPortBPins();
 
-    // Current best/default sense: CIA-visible CNT/SP follow the Port B IEC input bits.
-    cntLevel = (portBPins & PRB_CLKIN) != 0;
-    spLevel  = (portBPins & PRB_DATAIN) != 0;
+    // Dedicated CIA serial pins.
+    // Do not derive CNT from PRB_CLKIN now that PRB_CLKIN has board-specific polarity.
+    cntLevel = iecClkInLow;
+    spLevel  = !iecDataInLow;
 }
 
 void DriveCIA::applyIECOutputs()
@@ -907,12 +872,16 @@ void DriveCIA::applyPortOutputs()
 void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
 #ifdef Debug
-    std::cout << "[CIA] setIECInputs: ATN=" << atnLow
+    std::cout << "[CIA] setIECInputs"
+              << " cyc=" << debugDriveCycles()
+              << " ATN=" << atnLow
               << " CLK=" << clkLow
               << " DATA=" << dataLow
-              << " (prev ATN=" << iecAtnInLow << ")\n";
+              << " prevATN=" << iecAtnInLow
+              << "\n";
 #endif
 
+    const bool oldCntLevel = cntLevel;
     const bool atnChanged = (atnLow != iecAtnInLow);
 
     iecAtnInLow  = atnLow;
@@ -921,9 +890,17 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     applyIECInputsToPortBPins();
 
-    // Keep CNT/SP consistent with updatePinsFromBus().
-    cntLevel = (portBPins & PRB_CLKIN) != 0;
-    spLevel  = (portBPins & PRB_DATAIN) != 0;
+    // Keep your updated polarity here.
+    cntLevel = iecClkInLow;
+    spLevel  = !iecDataInLow;
+
+    // Important:
+    // Sample serial input now, while this exact CLK/DATA transition is visible.
+    handleSerialInputEdge(oldCntLevel, cntLevel, spLevel);
+
+    // Prevent tick() from seeing the same CNT edge again.
+    lastCntLevel = cntLevel;
+    lastSpLevel = spLevel;
 
     if (atnChanged)
         notifyAtnInput(atnLow);
@@ -943,14 +920,80 @@ void DriveCIA::applyIECInputsToPortBPins()
         portBPins &= static_cast<uint8_t>(~PRB_ATNIN);
 
     if (iecClkInLow)
-        portBPins |= PRB_CLKIN;
-    else
         portBPins &= static_cast<uint8_t>(~PRB_CLKIN);
+    else
+        portBPins |= PRB_CLKIN;
 
     if (iecDataInLow)
-        portBPins |= PRB_DATAIN;
-    else
         portBPins &= static_cast<uint8_t>(~PRB_DATAIN);
+    else
+        portBPins |= PRB_DATAIN;
+}
+
+void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel)
+{
+    const bool cntRisingEdge = (newCntLevel && !oldCntLevel);
+    const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
+
+    if (!sdrInputMode || !cntRisingEdge)
+        return;
+
+    if (serialRxJustReturnedToInput)
+    {
+    #ifdef Debug
+        std::cout << "[CIA] SDR RX skipped post-output turnaround edge"
+                  << " sp=" << (newSpLevel ? 1 : 0)
+                  << " CNT=" << (newCntLevel ? 1 : 0)
+                  << "\n";
+    #endif
+
+        serialRxJustReturnedToInput = false;
+        return;
+    }
+
+    const bool serialBit = newSpLevel;
+
+    // IEC serial bytes are received LSB-first.
+    // Preserve the first sampled bit as bit 0, second as bit 1, etc.
+    if (serialBit)
+        serialShiftRegister |= static_cast<uint8_t>(1u << serialBitCount);
+
+    ++serialBitCount;
+
+#ifdef Debug
+    std::cout << "[CIA] SDR bit:"
+              << " sp=" << (newSpLevel ? 1 : 0)
+              << " bit=" << (serialBit ? 1 : 0)
+              << " count=" << static_cast<int>(serialBitCount)
+              << " shift=$"
+              << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+              << static_cast<int>(serialShiftRegister)
+              << std::dec << "\n";
+#endif
+
+    if (serialBitCount == 8)
+    {
+        registers.serialData = serialShiftRegister;
+        triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+
+#ifdef Debug
+        std::cout << "[CIA] SDR RX complete: $"
+                  << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(registers.serialData)
+                  << " PRB=$" << std::setw(2) << static_cast<int>(registers.portB)
+                  << " DDRB=$" << std::setw(2) << static_cast<int>(registers.ddrB)
+                  << " CRA=$" << std::setw(2) << static_cast<int>(registers.controlRegisterA)
+                  << " IER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable)
+                  << std::dec
+                  << " ATN=" << (iecAtnInLow ? 1 : 0)
+                  << " CLK=" << (iecClkInLow ? 1 : 0)
+                  << " DATA=" << (iecDataInLow ? 1 : 0)
+                  << "\n";
+#endif
+
+        serialShiftRegister = 0x00;
+        serialBitCount = 0;
+    }
 }
 
 void DriveCIA::primeAtnLevel(bool atnLow)
@@ -961,4 +1004,27 @@ void DriveCIA::primeAtnLevel(bool atnLow)
 
     // Sync edge detector baseline only.
     lastAtnLow = atnLow;
+}
+
+uint16_t DriveCIA::debugCurrentPC() const
+{
+#ifdef Debug
+    if (auto* d1581 = dynamic_cast<D1581*>(parentPeripheral))
+        return d1581->getDriveCPU()->getPC();
+#endif
+
+    return debugPC;
+}
+
+uint64_t DriveCIA::debugDriveCycles() const
+{
+#ifdef Debug
+    if (auto* d1581 = dynamic_cast<D1581*>(parentPeripheral))
+    {
+        if (auto* cpu = d1581->getDriveCPU())
+            return cpu->getTotalCycles();
+    }
+#endif
+
+    return 0;
 }

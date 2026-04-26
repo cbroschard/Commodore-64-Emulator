@@ -215,8 +215,17 @@ class DriveCIA : public DriveCIABase
         uint8_t serialShiftRegister;
         uint8_t serialBitCount;
 
+        bool serialRxJustReturnedToInput;
+
+        uint16_t debugPC = 0x0000;
+
+        uint16_t debugCurrentPC() const;
+        uint64_t debugDriveCycles() const;
+
         // Forces PRB input bits to match the stored IEC inputs
         void applyIECInputsToPortBPins();
+
+        void handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel);
 
         // Port updates
         void updatePinsFromBus();
