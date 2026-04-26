@@ -2871,7 +2871,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
     const bool multicolor =
-        ((registers.control2 & 0x10) != 0) &&
+        ((latchedD016ForRaster(raster) & 0x10) != 0) &&
         ((colorByte & 0x08) != 0);
 
     out.valid = true;
