@@ -2060,7 +2060,7 @@ void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raste
     if (!cell.valid || cell.multicolor || !mem)
         return;
 
-    const uint16_t addr = static_cast<uint16_t>(getCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
+    const uint16_t addr = static_cast<uint16_t>(getLatchedCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
     updateOpenBus(rowBits);
@@ -2249,7 +2249,7 @@ uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
         return 0;
 
     const int raster = bgPipeline.raster;
-    const uint16_t charBase = getCHARBase(raster);
+    const uint16_t charBase = getLatchedCHARBase(raster);
 
     const uint16_t glyphAddr = static_cast<uint16_t>(
         charBase +
@@ -2900,7 +2900,7 @@ Vic::BackgroundPixel Vic::sampleStandardTextPixel(const TextCellSample& cell, in
         return out;
 
     const uint16_t addr =
-        static_cast<uint16_t>(getCHARBase(raster) +
+        static_cast<uint16_t>(getLatchedCHARBase(raster) +
                               static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits =
@@ -2959,7 +2959,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
         static_cast<uint16_t>(charRow * 40 + displayCol);
 
     const uint16_t addr =
-        static_cast<uint16_t>(getBitmapBase(raster) + cellIndex * 8 + yInChar);
+        static_cast<uint16_t>(getLatchedBitmapBase(raster) + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
@@ -2982,7 +2982,7 @@ void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, i
         return;
 
     const uint16_t addr =
-        static_cast<uint16_t>(getCHARBase(raster) +
+        static_cast<uint16_t>(getLatchedCHARBase(raster) +
                               static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits =
@@ -3050,7 +3050,7 @@ void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0,
         return;
 
     const uint16_t addr =
-        static_cast<uint16_t>(getCHARBase(raster) +
+        static_cast<uint16_t>(getLatchedCHARBase(raster) +
                               static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits =
@@ -3239,7 +3239,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
         static_cast<uint16_t>(charRow * 40 + displayCol);
 
     const uint16_t addr =
-        static_cast<uint16_t>(getBitmapBase(raster) + cellIndex * 8 + yInChar);
+        static_cast<uint16_t>(getLatchedBitmapBase(raster) + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
@@ -3979,7 +3979,7 @@ void Vic::getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) con
 
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t address = getCHARBase(raster) + c * 8;
+    uint16_t address = getLatchedCHARBase(raster) + c * 8;
     uint8_t row = mem->vicRead(address + yInChar, raster);
 
     // Latch Open Bus
@@ -4002,7 +4002,7 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
 
 void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t address = getCHARBase(raster) + c * 8;
+    uint16_t address = getLatchedCHARBase(raster) + c * 8;
     uint8_t  row  = mem->vicRead(address + yInChar, raster);
 
     // Latch Open Bus
