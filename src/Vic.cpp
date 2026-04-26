@@ -3495,7 +3495,6 @@ void Vic::generateBackgroundLine(int raster)
     resetActiveBackgroundPixelState();
     resetBackgroundPipeline();
 
-    const int screenY = fbY(raster);
     const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
 
     const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
@@ -3535,26 +3534,21 @@ void Vic::generateBackgroundLine(int raster)
         default:
             break;
     }
-
-    // Mirror the generated opacity into the frame-sized background opacity map.
-    if (screenY >= 0 && screenY < (int)bgOpaque.size())
-    {
-        for (int px = 0; px < 512; ++px)
-            bgOpaque[screenY][px] = bgOpaqueLine[px];
-    }
 }
 
 void Vic::emitRasterLineInOrder(int raster)
 {
+    if (!IO_adapter)
+        return;
+
+    const int screenY = fbY(raster);
+
     const int xStart = rasterVisibleStartX(raster);
     const int xEnd   = rasterVisibleEndX(raster);
 
-    int currentRasterX = xStart;
-
-    while (currentRasterX < xEnd)
+    for (int px = xStart; px < xEnd; ++px)
     {
-        emitRasterPixel(raster, currentRasterX);
-        ++currentRasterX;
+        IO_adapter->setPixel(px, screenY, finalColorLine[px] & 0x0F);
     }
 }
 
@@ -3620,7 +3614,9 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
 
 void Vic::buildBorderMaskLine(int raster)
 {
-    std::fill(borderMaskLine.begin(), borderMaskLine.begin() + VISIBLE_WIDTH, 1);
+    std::fill(borderMaskLine.begin(),
+              borderMaskLine.begin() + VISIBLE_WIDTH,
+              1);
 
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return;
@@ -3628,22 +3624,15 @@ void Vic::buildBorderMaskLine(int raster)
     if (borderVertical_per_raster[raster] != 0)
         return;
 
-    const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
-    const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+    const int openX  = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
-    bool leftBorderLatched = true;
-    bool rightBorderLatched = false;
+    if (openX >= closeX)
+        return;
 
-    for (int px = 0; px < VISIBLE_WIDTH; ++px)
-    {
-        if (leftBorderLatched && px >= openX)
-            leftBorderLatched = false;
-
-        if (!rightBorderLatched && px >= closeX)
-            rightBorderLatched = true;
-
-        borderMaskLine[px] = (leftBorderLatched || rightBorderLatched) ? 1 : 0;
-    }
+    std::fill(borderMaskLine.begin() + openX,
+              borderMaskLine.begin() + closeX,
+              0);
 }
 
 void Vic::composeFinalRasterLine(int raster)
@@ -3926,8 +3915,17 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
 {
-    if (y < 0 || y >= (int)bgOpaque.size()) return false;
-    if (x < 0 || x >= (int)bgOpaque[y].size()) return false;
+    if (x < 0 || x >= 512)
+        return false;
+
+    const int currentLine = fbY(registers.raster);
+
+    if (y == currentLine)
+        return bgOpaqueLine[x] != 0;
+
+    if (y < 0 || y >= static_cast<int>(bgOpaque.size()))
+        return false;
+
     return bgOpaque[y][x] != 0;
 }
 
