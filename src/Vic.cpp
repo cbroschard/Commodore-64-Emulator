@@ -1432,7 +1432,6 @@ Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
 
     const bool rsel25 = getLatchedRSEL(raster);
 
-    // Keep current behavior for now.
     w.topOpen = rsel25 ? 51 : 55;
     w.bottomClose = rsel25 ? 250 : 246;
 
