@@ -1001,12 +1001,12 @@ void Vic::tick(int cycles)
     {
         beginFrameIfNeeded();
 
-        // Per-cycle timing-sensitive decisions happen at their own checkpoints.
         runCycleDecisionPhase();
+
+        currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
 
         updateBusArbitration();
 
-        // Existing fetch ownership stays unchanged for now.
         runFetchPhase();
 
         advanceCycleAndFinalizeLineIfNeeded();
@@ -1175,9 +1175,7 @@ void Vic::runFetchPhase()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
-
-    switch (slot.fetchKind)
+    switch (currentCycleSlot.fetchKind)
     {
         case FetchKind::CharMatrix:
             performBadLineFetchesForCurrentCycle();
@@ -1830,14 +1828,11 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
 void Vic::updateBusArbitration()
 {
     const int raster = registers.raster;
-    const int cycle  = currentCycle;
-
-    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
 
     const bool badLineNow = isBadLine(raster);
 
-    const bool baLow  = slot.baLow;
-    const bool aecLow = slot.aecLow;
+    const bool baLow  = currentCycleSlot.baLow;
+    const bool aecLow = currentCycleSlot.aecLow;
 
     const bool oldBA  = vicState.ba;
     const bool oldAEC = vicState.aec;
@@ -4830,29 +4825,6 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     }
 
     return out.str();
-}
-
-std::string Vic::dumpCycleOwnerDebug(int raster, int cycle) const
-{
-    std::ostringstream oss;
-
-    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
-
-    oss << "VIC cycle owner"
-        << " raster=" << raster
-        << " cycle=" << cycle
-        << " fetch=" << static_cast<int>(slot.fetchKind)
-        << " oldBA=" << shouldBALow(raster, cycle)
-        << " newBA=" << slot.baLow
-        << " oldAEC=" << shouldAECLow(raster, cycle)
-        << " newAEC=" << slot.aecLow
-        << " badWarn=" << slot.badlineWarning
-        << " badSteal=" << slot.badlineSteal
-        << " sprWarn=" << slot.spriteWarning
-        << " sprSteal=" << slot.spriteSteal
-        << " sprAEC=" << slot.spriteAECSteal;
-
-    return oss.str();
 }
 
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const

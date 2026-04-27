@@ -126,6 +126,8 @@ class Vic
             bool rasterIrqSample = false;
         };
 
+
+        VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
         struct VICIRQSnapshot { uint8_t ier = 0; };
@@ -146,7 +148,6 @@ class Vic
         std::string dumpCurrentCycleDebug() const;
         std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
-        std::string dumpCycleOwnerDebug(int raster, int cycle) const;
 
     protected:
 
