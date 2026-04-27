@@ -4832,6 +4832,31 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     return out.str();
 }
 
+std::string Vic::dumpBadlineState() const
+{
+    std::ostringstream oss;
+
+    oss << "VIC badline/display row state\n";
+    oss << "  raster=" << registers.raster
+        << " cycle=" << currentCycle << "\n";
+
+    oss << "  badLine=" << vicState.badLine
+        << " badLineSampled=" << vicState.badLineSampled << "\n";
+
+    oss << "  displayEnabled=" << vicState.displayEnabled
+        << " displayEnabledNext=" << vicState.displayEnabledNext << "\n";
+
+    oss << "  denSeenOn30=" << denSeenOn30
+        << " firstBadlineY=" << firstBadlineY << "\n";
+
+    oss << "  vcBase=" << vicState.vcBase
+        << " vmliBase=" << vicState.vmliBase
+        << " vmliFetchIndex=" << static_cast<int>(vicState.vmliFetchIndex)
+        << " rc=" << static_cast<int>(vicState.rc) << "\n";
+
+    return oss.str();
+}
+
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
 {
     return traceMgr && traceMgr->vicDetailOn(d);

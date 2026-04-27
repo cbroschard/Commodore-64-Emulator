@@ -38,7 +38,8 @@ std::string VICCommand::help() const
         "    regs <group>         Dump VIC-II registers\n"
         "    cycle                Show debug info for current raster/cycle\n"
         "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
-        "    map <r>              Show fetch map for one raster line\n";
+        "    map <r>              Show fetch map for one raster line\n"
+        "    row                  Show badline row sequencer\n";
 }
 
 std::string VICCommand::regsUsage() const
@@ -176,6 +177,10 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             std::cout << mapUsage();
         }
+    }
+    else if (sub == "row")
+    {
+        std::cout << mon.mlmonitorbackend()->vicDumpBadlineState();
     }
     else
     {

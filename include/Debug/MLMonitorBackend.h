@@ -151,7 +151,8 @@ class MLMonitorBackend
         inline uint8_t getCurrentRaster() { return vicII->getCurrentRaster(); }
         inline std::string vicDumpCurrentCycleDebug() const { return vicII ? vicII->dumpCurrentCycleDebug() : "VIC not available"; }
         inline std::string vicDumpCycleDebugFor(int raster, int cycle) const { return vicII ? vicII->dumpCycleDebugFor(raster, cycle) : "VIC not available"; }
-        std::string vicDumpRasterFetchMap(int raster) const { return vicII ? vicII->dumpRasterFetchMap(raster) : "VIC not available"; }
+        inline std::string vicDumpRasterFetchMap(int raster) const { return vicII ? vicII->dumpRasterFetchMap(raster) : "VIC not available"; }
+        inline std::string vicDumpBadlineState() const { return vicII ? vicII->dumpBadlineState() : "VIC not available"; }
         void vicFFRaster(uint8_t targetRaster);
 
     protected:
