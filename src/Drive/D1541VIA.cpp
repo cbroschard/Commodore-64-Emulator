@@ -662,6 +662,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                           << std::dec << "\n";
             }
             #endif
+
             registers.ddrB = value;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -703,12 +704,15 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         }
         case 0x03:
         {
+            #ifdef Debug
             const uint8_t oldDDRA = registers.ddrA;
+            #endif
+
             registers.ddrA = value;
 
             if (viaRole == VIARole::VIA2_Mechanics)
             {
-#ifdef Debug
+                #ifdef Debug
                 if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
                 {
                     if (oldDDRA != value)
@@ -722,7 +726,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                                   << "\n";
                     }
                 }
-#endif
+                #endif
                 recomputeDiskWriteGate();
             }
 
