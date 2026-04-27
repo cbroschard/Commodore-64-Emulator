@@ -148,6 +148,12 @@ class Vic
         static constexpr int BORDER_SIZE = 32;
         static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
 
+        // VIC-II background sequencer always operates on 40 display columns.
+        // CSEL changes the border clipping, not the number of matrix columns fetched.
+        static constexpr int BACKGROUND_MATRIX_COLUMNS = 40;
+
+        static constexpr int BACKGROUND_40COL_X0 = 31;
+
         // Video Mode configuration at runtime (NTSC or PAL)
         VideoMode mode_;
         const ModeConfig* cfg_;
@@ -231,7 +237,7 @@ class Vic
 
         struct SpriteUnit
         {
-                        // DMA lifetime/state
+            // DMA lifetime/state
             bool dmaActive = false;
 
             // Legacy "sprite display is in progress" state.

@@ -2023,15 +2023,24 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
         return g;
 
     g.rows = getLatchedRSEL(raster) ? 25 : 24;
-    g.cols = getLatchedCSEL(raster) ? 40 : 38;
+
+    // Hardware note:
+    // The VIC-II display sequencer is still 40 columns wide.
+    // CSEL only changes where the horizontal border opens/closes.
+    g.cols = BACKGROUND_MATRIX_COLUMNS;
+
     g.charRow = currentCharacterRow();
 
     if (g.charRow < 0 || g.charRow >= g.rows)
         return g;
 
     g.fineX = xScroll & 0x07;
-    g.fetchCols = g.cols + (g.fineX ? 1 : 0);
 
+    // Do not turn 38-column mode into 38/39 fetched cells.
+    // The matrix/FIFO path is 40 columns.
+    g.fetchCols = BACKGROUND_MATRIX_COLUMNS;
+
+    // These remain the clipping bounds produced by the horizontal border logic.
     g.x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
     g.x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
@@ -2830,7 +2839,6 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     out = {};
 
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     const int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows)
@@ -2838,27 +2846,31 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const int yInChar = static_cast<int>(vicState.rc & 0x07);
     const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
 
     const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
     const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
-    if (col < 0 || col >= fetchCols)
+    if (col < 0 || col >= BACKGROUND_MATRIX_COLUMNS)
         return false;
 
-    if (col > 40)
-        return false;
+    // Hardware-accurate intent:
+    // The 40-column sequencer starts from the 40-column origin.
+    // CSEL clips the left/right edges with border, but does not move
+    // the sequencer origin.
+    //
+    // D016 fine X delays/shifts the displayed matrix to the right.
+    // This matches the common left-scroll pattern:
+    //   fine = 7,6,5,...,0, then shift screen RAM left and reset fine to 7.
+    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
 
-    const int xStart = x0 - fine;
-    const int px = xStart + col * 8;
-
+    // Skip cells completely hidden by the border clip.
     if (px >= x1)
         return false;
 
     if (px + 8 <= x0)
         return false;
 
-    const int displayCol = (col < 40) ? col : 39;
+    const int displayCol = col;
 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
@@ -2870,6 +2882,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     }
 
     const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+
     const bool multicolor =
         ((latchedD016ForRaster(raster) & 0x10) != 0) &&
         ((colorByte & 0x08) != 0);
