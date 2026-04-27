@@ -4871,6 +4871,51 @@ std::string Vic::dumpBadlineState() const
     return oss.str();
 }
 
+std::string Vic::dumpBorderState() const
+{
+    std::ostringstream oss;
+
+    const int raster = static_cast<int>(registers.raster);
+
+    oss << "VIC border state\n";
+    oss << "  raster=" << raster
+        << " cycle=" << currentCycle << "\n";
+
+    oss << "  verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
+        << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
+        << " rightBorder=" << (vicState.rightBorder ? "on" : "off") << "\n";
+
+    oss << "  leftBorderOpenX=" << vicState.leftBorderOpenX
+        << " rightBorderCloseX=" << vicState.rightBorderCloseX << "\n";
+
+    if (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+    {
+        const uint8_t latchedD011 = latchedD011ForRaster(raster);
+        const uint8_t latchedD016 = latchedD016ForRaster(raster);
+
+        oss << "  latched RSEL=" << ((latchedD011 & 0x08) ? 1 : 0)
+            << " latched CSEL=" << ((latchedD016 & 0x08) ? 1 : 0) << "\n";
+
+        oss << "  latched D011=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(latchedD011)
+            << " latched D016=$"
+            << std::setw(2)
+            << static_cast<int>(latchedD016)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+    }
+
+    oss << "  live D011=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(registers.control)
+        << " live D016=$"
+        << std::setw(2)
+        << static_cast<int>(registers.control2)
+        << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+    return oss.str();
+}
+
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
 {
     return traceMgr && traceMgr->vicDetailOn(d);

@@ -35,6 +35,7 @@ std::string VICCommand::help() const
         "vic <subcommand>:\n"
         "    mode                 Show current VIC-II graphics mode\n"
         "    banks                Show current screen/charset/bitmap base addresses\n"
+        "    border               Dump current border state\n"
         "    regs <group>         Dump VIC-II registers\n"
         "    cycle                Show debug info for current raster/cycle\n"
         "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
@@ -94,7 +95,11 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "banks")
     {
-        std::cout << mon.mlmonitorbackend()->getCurrentVICBanks() << std::endl;
+        std::cout << mon.mlmonitorbackend()->getCurrentVICBanks();
+    }
+    else if (sub == "border")
+    {
+        std::cout << mon.mlmonitorbackend()->vicDumpBorderState();
     }
     else if (sub == "regs")
     {
