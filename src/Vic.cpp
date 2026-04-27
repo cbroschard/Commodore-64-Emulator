@@ -4187,6 +4187,11 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
 {
+    advanceCharacterSequencerEndOfLine(raster);
+}
+
+void Vic::advanceCharacterSequencerEndOfLine(int raster)
+{
     if (!vicState.displayEnabledNext)
     {
         vicState.displayEnabled = false;
@@ -4227,6 +4232,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     }
 
     const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
+
     if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
         vicState.displayEnabled = false;

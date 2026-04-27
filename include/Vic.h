@@ -778,8 +778,8 @@ class Vic
 
         // Badline helpers
         void traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t rc, bool den) const;
-        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex,
-            uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
+        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
+        void advanceCharacterSequencerEndOfLine(int raster);
 
         // Cycle helpers
         void traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const;
@@ -791,13 +791,11 @@ class Vic
         void traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int cycle, int byteIndex = -1) const;
         void traceVicSpriteEolState(int sprite, int raster) const;
         void traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance) const;
-        void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
-            bool rasterMatch, bool willStart) const;
+        void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded, bool rasterMatch, bool willStart) const;
         void traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const;
 
         // Bus helpers
-        void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC,
-            bool badLineNow, bool baLow, bool aecLow) const;
+        void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const;
         const char* busArbReason(int raster, int cycle) const;
 };
 #endif // VIC_H
