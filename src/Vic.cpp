@@ -4933,6 +4933,17 @@ std::string Vic::dumpBorderState() const
         << static_cast<int>(registers.control2)
         << std::dec << std::nouppercase << std::setfill(' ') << "\n";
 
+    const VerticalBorderWindow vw = verticalBorderWindowForRaster(raster);
+
+    oss << "  verticalWindow topOpen=" << vw.topOpen
+        << " bottomClose=" << vw.bottomClose << "\n";
+
+    oss << "  latched verticalBorder="
+        << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
+        << " latched openX=" << borderLeftOpenX_per_raster[raster]
+        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+        << "\n";
+
     return oss.str();
 }
 
