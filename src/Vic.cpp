@@ -1405,6 +1405,27 @@ bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
            cycle == ((slotStart + 3) % lineCycles);
 }
 
+Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
+{
+    BorderWindow w {};
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return w;
+
+    w.vertical = borderVertical_per_raster[raster] != 0;
+    w.openX = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    w.closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+
+    if (w.openX >= w.closeX)
+    {
+        w.vertical = true;
+        w.openX = 0;
+        w.closeX = VISIBLE_WIDTH;
+    }
+
+    return w;
+}
+
 void Vic::syncSpriteCompatAddress(int sprite)
 {
     sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
@@ -3671,20 +3692,13 @@ void Vic::buildBorderMaskLine(int raster)
               borderMaskLine.begin() + VISIBLE_WIDTH,
               1);
 
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    const BorderWindow w = borderWindowForRaster(raster);
+
+    if (w.vertical)
         return;
 
-    if (borderVertical_per_raster[raster] != 0)
-        return;
-
-    const int openX  = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
-
-    if (openX >= closeX)
-        return;
-
-    std::fill(borderMaskLine.begin() + openX,
-              borderMaskLine.begin() + closeX,
+    std::fill(borderMaskLine.begin() + w.openX,
+              borderMaskLine.begin() + w.closeX,
               0);
 }
 

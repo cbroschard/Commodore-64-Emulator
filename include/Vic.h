@@ -301,6 +301,15 @@ class Vic
             uint8_t fetched2 = 0;
         };
 
+        struct BorderWindow
+        {
+            bool vertical = true;
+            int openX = 0;
+            int closeX = VISIBLE_WIDTH;
+        };
+
+        BorderWindow borderWindowForRaster(int raster) const;
+
         std::array<SpriteUnit, 8> spriteUnits;
 
         std::array<std::array<uint8_t, 512>, 8> spriteOpaqueLine{};
