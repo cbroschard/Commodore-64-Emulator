@@ -4901,6 +4901,21 @@ std::string Vic::dumpBorderState() const
     oss << "  raster=" << raster
         << " cycle=" << currentCycle << "\n";
 
+    const bool liveVertical = vicState.verticalBorder;
+    const bool latchedVertical = borderVertical_per_raster[raster] != 0;
+
+    oss << "  live verticalBorder="
+        << (liveVertical ? "on" : "off")
+        << " latched verticalBorder="
+        << (latchedVertical ? "on" : "off")
+        << " match="
+        << ((liveVertical == latchedVertical) ? "yes" : "NO")
+        << "\n";
+
+    oss << "  latched openX=" << borderLeftOpenX_per_raster[raster]
+        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+        << "\n";
+
     oss << "  verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
         << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
         << " rightBorder=" << (vicState.rightBorder ? "on" : "off") << "\n";
