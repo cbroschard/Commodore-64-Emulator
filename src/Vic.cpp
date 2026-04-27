@@ -1832,10 +1832,12 @@ void Vic::updateBusArbitration()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
+    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
     const bool badLineNow = isBadLine(raster);
 
-    const bool baLow  = shouldBALow(raster, cycle);
-    const bool aecLow = shouldAECLow(raster, cycle);
+    const bool baLow  = slot.baLow;
+    const bool aecLow = slot.aecLow;
 
     const bool oldBA  = vicState.ba;
     const bool oldAEC = vicState.aec;
