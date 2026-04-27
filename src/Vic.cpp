@@ -3571,14 +3571,16 @@ void Vic::generateBackgroundLine(int raster)
 
     const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
 
-    const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
-    const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+    const BorderWindow w = borderWindowForRaster(raster);
 
     // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || borderVertical_per_raster[raster] != 0)
+    if (!DEN || w.vertical)
     {
         return;
     }
+
+    const int leftInner  = w.openX;
+    const int rightInner = w.closeX;
 
     // Fill the interior with background color first for non-bitmap modes.
     if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
@@ -3677,11 +3679,17 @@ int Vic::rasterVisibleEndX(int raster) const
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return false;
 
-    const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
-    const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return false;
+
+    if (borderVertical_per_raster[raster] != 0)
+        return false;
+
+    const int openX  = borderLeftOpenX_per_raster[raster];
+    const int closeX = borderRightCloseX_per_raster[raster];
 
     return px >= openX && px < closeX;
 }
@@ -4271,10 +4279,8 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const
 {
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return false;
-
-    return borderVertical_per_raster[raster] == 0;
+    const BorderWindow w = borderWindowForRaster(raster);
+    return !w.vertical;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
@@ -4348,12 +4354,19 @@ bool Vic::rasterWithinVerticalDisplayWindow(int raster) const
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
 {
-    (void)raster;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return true;
 
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    return borderMaskLine[px] != 0;
+    if (borderVertical_per_raster[raster] != 0)
+        return true;
+
+    const int openX  = borderLeftOpenX_per_raster[raster];
+    const int closeX = borderRightCloseX_per_raster[raster];
+
+    return px < openX || px >= closeX;
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
