@@ -4195,7 +4195,6 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
     if (!vicState.displayEnabledNext)
     {
         vicState.displayEnabled = false;
-        clearBadLineFifo();
         return;
     }
 
