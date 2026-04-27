@@ -1175,7 +1175,9 @@ void Vic::runFetchPhase()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    switch (getFetchKindForCycle(raster, cycle))
+    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
+    switch (slot.fetchKind)
     {
         case FetchKind::CharMatrix:
             performBadLineFetchesForCurrentCycle();
