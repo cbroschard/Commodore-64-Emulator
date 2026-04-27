@@ -146,7 +146,7 @@ class Vic
         std::string dumpCurrentCycleDebug() const;
         std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
-        std::string dumpCycleOwnerDebug(int raster, int cycle) const
+        std::string dumpCycleOwnerDebug(int raster, int cycle) const;
 
     protected:
 
