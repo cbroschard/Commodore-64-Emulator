@@ -309,6 +309,13 @@ class Vic
             int closeX = VISIBLE_WIDTH;
         };
 
+        struct VerticalBorderWindow
+        {
+            int topOpen = 0;
+            int bottomClose = 0;
+        };
+
+        VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
 
         std::array<SpriteUnit, 8> spriteUnits;

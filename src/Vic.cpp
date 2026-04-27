@@ -1426,6 +1426,19 @@ Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
     return w;
 }
 
+Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
+{
+    VerticalBorderWindow w {};
+
+    const bool rsel25 = getLatchedRSEL(raster);
+
+    // Keep current behavior for now.
+    w.topOpen = rsel25 ? 51 : 55;
+    w.bottomClose = rsel25 ? 250 : 246;
+
+    return w;
+}
+
 void Vic::syncSpriteCompatAddress(int sprite)
 {
     sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
@@ -4342,14 +4355,9 @@ bool Vic::rasterWithinVerticalDisplayWindow(int raster) const
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
-    const bool rsel25 = getLatchedRSEL(raster);
+    const VerticalBorderWindow w = verticalBorderWindowForRaster(raster);
 
-    // 25-row mode opens one character row earlier and closes one later
-    // than 24-row mode.
-    const int topOpen    = rsel25 ? 51 : 55;
-    const int bottomClose = rsel25 ? 250 : 246;
-
-    return raster >= topOpen && raster <= bottomClose;
+    return raster >= w.topOpen && raster <= w.bottomClose;
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
