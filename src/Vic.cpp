@@ -1976,6 +1976,41 @@ bool Vic::isBadLine(int raster) const
     return (raster & 0x07) == yScroll;
 }
 
+Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
+{
+    VicCycleSlot slot {};
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return slot;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return slot;
+
+    slot.fetchKind = getFetchKindForCycle(raster, cycle);
+
+    slot.badlineWarning = isBadLineBusWarningCycle(raster, cycle);
+    slot.badlineSteal   = isBadLineBusStealCycle(raster, cycle);
+
+    slot.spriteWarning  = isSpriteBusWarningCycle(raster, cycle);
+    slot.spriteSteal    = isSpriteBusStealCycle(raster, cycle);
+    slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
+
+    slot.baLow =
+        slot.badlineWarning ||
+        slot.badlineSteal   ||
+        slot.spriteWarning  ||
+        slot.spriteSteal;
+
+    slot.aecLow =
+        slot.badlineSteal ||
+        slot.spriteAECSteal;
+
+    slot.rasterIrqSample =
+        (cycle == RASTER_IRQ_COMPARE_CYCLE);
+
+    return slot;
+}
+
 void Vic::beginBadLineFetch()
 {
     vicState.rc = 0;
@@ -4791,6 +4826,29 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     }
 
     return out.str();
+}
+
+std::string Vic::dumpCycleOwnerDebug(int raster, int cycle) const
+{
+    std::ostringstream oss;
+
+    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
+    oss << "VIC cycle owner"
+        << " raster=" << raster
+        << " cycle=" << cycle
+        << " fetch=" << static_cast<int>(slot.fetchKind)
+        << " oldBA=" << shouldBALow(raster, cycle)
+        << " newBA=" << slot.baLow
+        << " oldAEC=" << shouldAECLow(raster, cycle)
+        << " newAEC=" << slot.aecLow
+        << " badWarn=" << slot.badlineWarning
+        << " badSteal=" << slot.badlineSteal
+        << " sprWarn=" << slot.spriteWarning
+        << " sprSteal=" << slot.spriteSteal
+        << " sprAEC=" << slot.spriteAECSteal;
+
+    return oss.str();
 }
 
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
