@@ -1737,7 +1737,6 @@ void Vic::beginSpriteRasterOutput(int raster)
         if (!spriteHasFetchedDisplayRow(spr))
             continue;
 
-        resetSpriteLineSequencer(spr, raster);
         traceVicSpriteSlotEvent(spr, "display-begin", raster, currentCycle);
     }
 }
