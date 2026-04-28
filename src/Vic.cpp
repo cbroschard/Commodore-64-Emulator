@@ -5104,6 +5104,15 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
 
     const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
     const FetchKind fk = getFetchKindForCycle(raster, cycle);
+    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
+    const bool ptrMismatch =
+        fetchKindIsSpritePointer(slot.fetchKind) &&
+        slot.busOwner != BusOwner::SpritePointer;
+
+    const bool dataMismatch =
+        fetchKindIsSpriteData(slot.fetchKind) &&
+        slot.busOwner != BusOwner::SpriteData;
 
     out << "VIC Cycle Debug\n\n";
     out << "Raster: " << raster << "\n";
@@ -5118,6 +5127,13 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
     out << "DisplayRow: " << currentCharacterRow() << "\n";
     out << "FineY: " << int(fineYScroll(raster)) << "\n";
     out << "FineX: " << int(fineXScroll(raster)) << "\n";
+    out << "Owner: " << busOwnerName(slot.busOwner) << "\n";
+
+    if (ptrMismatch)
+        out << "WARNING: sprite pointer fetch does not have SpritePointer bus owner\n";
+
+    if (dataMismatch)
+        out << "WARNING: sprite data fetch does not have SpriteData bus owner\n";
 
     out << "\nSprite DMA active:";
     bool any = false;
@@ -5775,4 +5791,63 @@ const char* Vic::busArbReason(int raster, int cycle) const
         return "sprite-warn";
 
     return "none";
+}
+
+const char* Vic::busOwnerName(BusOwner owner) const
+{
+    switch(owner)
+    {
+        case Vic::BusOwner::BadLine:
+            return "BADLINE";
+        case Vic::BusOwner::CPU:
+            return "CPU";
+        case Vic::BusOwner::Idle:
+            return "IDLE";
+        case Vic::BusOwner::Refresh:
+            return "REFRESH";
+        case Vic::BusOwner::SpriteData:
+            return "SPRITE DATA";
+        case Vic::BusOwner::SpritePointer:
+            return "SPRITE POINTER";
+        default:
+            return "?";
+    }
+}
+
+bool Vic::fetchKindIsSpritePointer(Vic::FetchKind kind) const
+{
+    switch (kind)
+    {
+        case Vic::FetchKind::SpritePtr0:
+        case Vic::FetchKind::SpritePtr1:
+        case Vic::FetchKind::SpritePtr2:
+        case Vic::FetchKind::SpritePtr3:
+        case Vic::FetchKind::SpritePtr4:
+        case Vic::FetchKind::SpritePtr5:
+        case Vic::FetchKind::SpritePtr6:
+        case Vic::FetchKind::SpritePtr7:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool Vic::fetchKindIsSpriteData(Vic::FetchKind kind) const
+{
+    switch (kind)
+    {
+        case Vic::FetchKind::SpriteData0:
+        case Vic::FetchKind::SpriteData1:
+        case Vic::FetchKind::SpriteData2:
+        case Vic::FetchKind::SpriteData3:
+        case Vic::FetchKind::SpriteData4:
+        case Vic::FetchKind::SpriteData5:
+        case Vic::FetchKind::SpriteData6:
+        case Vic::FetchKind::SpriteData7:
+            return true;
+
+        default:
+            return false;
+    }
 }
