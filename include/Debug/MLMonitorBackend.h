@@ -157,6 +157,7 @@ class MLMonitorBackend
         inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vicII ? vicII->dumpBadlineTimelineAroundRaster(centerRaster) : "VIC not available"; }
         inline std::string vicDumpBorderWindowAroundCurrentRaster() const { return vicII ? vicII->dumpBorderWindowAroundCurrentRaster() : "VIC not available"; }
         inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vicII ? vicII->dumpBorderWindowAroundRaster(centerRaster) : "VIC not available"; }
+        inline std::string vicDumpSpriteDMAState() const { return vicII ? vicII->dumpSpriteDmaState() : "VIC not available"; }
         void vicFFRaster(uint8_t targetRaster);
 
     protected:

@@ -5286,6 +5286,52 @@ std::string Vic::dumpBorderState() const
     return oss.str();
 }
 
+std::string Vic::dumpSpriteDmaState() const
+{
+    std::ostringstream oss;
+
+    oss << "Sprite DMA state\n";
+    oss << "------------------------------------------------------------\n";
+    oss << "Raster=" << registers.raster
+        << " Cycle=" << currentCycle
+        << " D015=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(registers.spriteEnabled)
+        << " D017=$" << std::setw(2) << static_cast<int>(registers.spriteYExpansion)
+        << " D01D=$" << std::setw(2) << static_cast<int>(registers.spriteXExpansion)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n\n";
+
+    oss << "Spr En  Y    DMA Disp YExpLatch MC MCBase Ptr  DataBase RowPrep RowLatched XStart Width\n";
+
+    for (int s = 0; s < 8; ++s)
+    {
+        const SpriteUnit& u = spriteUnits[s];
+
+        const bool enabled = (registers.spriteEnabled & (1 << s)) != 0;
+
+        oss << std::setw(3) << s << " "
+            << " " << (enabled ? 1 : 0) << "  "
+            << std::setw(3) << static_cast<int>(registers.spriteY[s]) << "   "
+            << (u.dmaActive ? 1 : 0) << "    "
+            << (u.displayActive ? 1 : 0) << "      "
+            << (u.yExpandLatch ? 1 : 0) << "      "
+            << std::setw(2) << static_cast<int>(u.mc) << "   "
+            << std::setw(2) << static_cast<int>(u.mcBase) << "    "
+            << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(u.pointerByte)
+            << "  $"
+            << std::setw(4) << static_cast<int>(u.dataBase)
+            << std::dec << std::nouppercase << std::setfill(' ') << "     "
+            << (u.rowPrepared ? 1 : 0) << "        "
+            << (u.rowDataLatched ? 1 : 0) << "       "
+            << std::setw(4) << u.outputXStart << "   "
+            << std::setw(3) << u.outputWidth
+            << "\n";
+    }
+
+    return oss.str();
+}
+
 std::string Vic::dumpBadlineTimelineAroundRaster(int centerRaster) const
 {
     std::ostringstream oss;

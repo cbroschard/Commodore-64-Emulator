@@ -41,7 +41,8 @@ std::string VICCommand::help() const
         "    cycle                Show debug info for current raster/cycle\n"
         "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
         "    map <r>              Show fetch map for one raster line\n"
-        "    row                  Show badline row sequencer\n";
+        "    row                  Show badline row sequencer\n"
+        "    sprite               Show sprite DMA state\n";
 }
 
 std::string VICCommand::regsUsage() const
@@ -242,6 +243,10 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (sub == "row")
     {
         std::cout << mon.mlmonitorbackend()->vicDumpBadlineState();
+    }
+    else if (sub == "sprite")
+    {
+        std::cout << mon.mlmonitorbackend()->vicDumpSpriteDMAState();
     }
     else
     {
