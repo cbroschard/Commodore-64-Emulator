@@ -62,7 +62,8 @@ std::string VICCommand::borderUsage() const
     return
         "Usage:\n"
         " vic border\n"
-        " vic border edge\n";
+        " vic border edge\n"
+        " vic border edge <raster>\n";
 }
 
 std::string VICCommand::cycleUsage() const
@@ -113,7 +114,22 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
         else if (args[2] == "edge")
         {
-            std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundCurrentRaster();
+            if (args.size() == 3)
+            {
+                std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundCurrentRaster();
+            }
+            else if (args.size() == 4)
+            {
+                try
+                {
+                    const int raster = std::stoi(args[3]);
+                    std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundRaster(raster);
+                }
+                catch (const std::exception&)
+                {
+                    std::cout << borderUsage();
+                }
+            }
         }
         else
         {

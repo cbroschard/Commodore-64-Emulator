@@ -150,7 +150,8 @@ class Vic
         std::string dumpRasterFetchMap(int raster) const;
         std::string dumpBadlineState() const;
         std::string dumpBorderState() const;
-        std::string dumpBorderWindowAroundCurrentRaster() const;
+        std::string dumpBorderWindowAroundRaster(int centerRaster) const;
+        inline std::string dumpBorderWindowAroundCurrentRaster() const { return dumpBorderWindowAroundRaster(static_cast<int>(registers.raster)); }
 
     protected:
 

@@ -4962,15 +4962,13 @@ std::string Vic::dumpBorderState() const
     return oss.str();
 }
 
-std::string Vic::dumpBorderWindowAroundCurrentRaster() const
+std::string Vic::dumpBorderWindowAroundRaster(int centerRaster) const
 {
     std::ostringstream oss;
 
-    const int center = static_cast<int>(registers.raster);
+    oss << "VIC border window around raster " << centerRaster << "\n";
 
-    oss << "VIC border window around raster " << center << "\n";
-
-    for (int r = center - 4; r <= center + 4; ++r)
+    for (int r = centerRaster - 4; r <= centerRaster + 4; ++r)
     {
         if (r < 0 || r >= static_cast<int>(cfg_->maxRasterLines))
             continue;
@@ -4987,6 +4985,9 @@ std::string Vic::dumpBorderWindowAroundCurrentRaster() const
             << " D011=$"
             << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << static_cast<int>(latchedD011ForRaster(r))
+            << " D016=$"
+            << std::setw(2)
+            << static_cast<int>(latchedD016ForRaster(r))
             << std::dec << std::nouppercase << std::setfill(' ')
             << "\n";
     }
