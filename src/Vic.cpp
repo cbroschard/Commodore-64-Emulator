@@ -3824,7 +3824,23 @@ void Vic::updateIRQLine()
 
 void Vic::triggerRasterIRQIfMatched()
 {
-    if (!rasterCompareMatchesNow())
+    const bool matched = rasterCompareMatchesNow();
+
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] trigger-check"
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " target=" << registers.rasterInterruptLine
+            << " matched=" << (matched ? 1 : 0)
+            << " pendingBefore=" << ((registers.interruptStatus & 0x01) ? 1 : 0)
+            << " enabled=" << ((registers.interruptEnable & 0x01) ? 1 : 0);
+
+        logger->WriteLog(oss.str());
+    }
+
+    if (!matched)
         return;
 
     if ((registers.interruptStatus & 0x01) == 0)
@@ -3841,8 +3857,27 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
     if (newlySet == 0)
         return;
 
+    const uint8_t oldStatus = registers.interruptStatus;
+
     registers.interruptStatus |= newlySet;
     updateIRQLine();
+
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] raise"
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " source=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(masked)
+            << " oldIFR=$" << std::setw(2) << int(oldStatus)
+            << " newIFR=$" << std::setw(2) << int(registers.interruptStatus)
+            << " IER=$" << std::setw(2) << int(registers.interruptEnable)
+            << std::dec << std::nouppercase << std::setfill(' ');
+
+        logger->WriteLog(oss.str());
+    }
 }
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
