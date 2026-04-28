@@ -1001,12 +1001,12 @@ void Vic::tick(int cycles)
     {
         beginFrameIfNeeded();
 
-        // Per-cycle timing-sensitive decisions happen at their own checkpoints.
         runCycleDecisionPhase();
+
+        currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
 
         updateBusArbitration();
 
-        // Existing fetch ownership stays unchanged for now.
         runFetchPhase();
 
         advanceCycleAndFinalizeLineIfNeeded();
@@ -1175,7 +1175,7 @@ void Vic::runFetchPhase()
     const int raster = registers.raster;
     const int cycle  = currentCycle;
 
-    switch (getFetchKindForCycle(raster, cycle))
+    switch (currentCycleSlot.fetchKind)
     {
         case FetchKind::CharMatrix:
             performBadLineFetchesForCurrentCycle();
@@ -1403,6 +1403,39 @@ bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
     return cycle == ((slotStart + 1) % lineCycles) ||
            cycle == ((slotStart + 2) % lineCycles) ||
            cycle == ((slotStart + 3) % lineCycles);
+}
+
+Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
+{
+    BorderWindow w {};
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return w;
+
+    w.vertical = borderVertical_per_raster[raster] != 0;
+    w.openX = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    w.closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+
+    if (w.openX >= w.closeX)
+    {
+        w.vertical = true;
+        w.openX = 0;
+        w.closeX = VISIBLE_WIDTH;
+    }
+
+    return w;
+}
+
+Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
+{
+    VerticalBorderWindow w {};
+
+    const bool rsel25 = getLatchedRSEL(raster);
+
+    w.topOpen = rsel25 ? 51 : 55;
+    w.bottomClose = rsel25 ? 250 : 246;
+
+    return w;
 }
 
 void Vic::syncSpriteCompatAddress(int sprite)
@@ -1828,12 +1861,11 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
 void Vic::updateBusArbitration()
 {
     const int raster = registers.raster;
-    const int cycle  = currentCycle;
 
     const bool badLineNow = isBadLine(raster);
 
-    const bool baLow  = shouldBALow(raster, cycle);
-    const bool aecLow = shouldAECLow(raster, cycle);
+    const bool baLow  = currentCycleSlot.baLow;
+    const bool aecLow = currentCycleSlot.aecLow;
 
     const bool oldBA  = vicState.ba;
     const bool oldAEC = vicState.aec;
@@ -1974,6 +2006,41 @@ bool Vic::isBadLine(int raster) const
         return false;
 
     return (raster & 0x07) == yScroll;
+}
+
+Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
+{
+    VicCycleSlot slot {};
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return slot;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return slot;
+
+    slot.fetchKind = getFetchKindForCycle(raster, cycle);
+
+    slot.badlineWarning = isBadLineBusWarningCycle(raster, cycle);
+    slot.badlineSteal   = isBadLineBusStealCycle(raster, cycle);
+
+    slot.spriteWarning  = isSpriteBusWarningCycle(raster, cycle);
+    slot.spriteSteal    = isSpriteBusStealCycle(raster, cycle);
+    slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
+
+    slot.baLow =
+        slot.badlineWarning ||
+        slot.badlineSteal   ||
+        slot.spriteWarning  ||
+        slot.spriteSteal;
+
+    slot.aecLow =
+        slot.badlineSteal ||
+        slot.spriteAECSteal;
+
+    slot.rasterIrqSample =
+        (cycle == RASTER_IRQ_COMPARE_CYCLE);
+
+    return slot;
 }
 
 void Vic::beginBadLineFetch()
@@ -3516,14 +3583,16 @@ void Vic::generateBackgroundLine(int raster)
 
     const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
 
-    const int leftInner  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
-    const int rightInner = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+    const BorderWindow w = borderWindowForRaster(raster);
 
     // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || borderVertical_per_raster[raster] != 0)
+    if (!DEN || w.vertical)
     {
         return;
     }
+
+    const int leftInner  = w.openX;
+    const int rightInner = w.closeX;
 
     // Fill the interior with background color first for non-bitmap modes.
     if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
@@ -3622,11 +3691,17 @@ int Vic::rasterVisibleEndX(int raster) const
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
 {
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return false;
 
-    const int openX  = std::max(0, int(borderLeftOpenX_per_raster[raster]));
-    const int closeX = std::min(VISIBLE_WIDTH, int(borderRightCloseX_per_raster[raster]));
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return false;
+
+    if (borderVertical_per_raster[raster] != 0)
+        return false;
+
+    const int openX  = borderLeftOpenX_per_raster[raster];
+    const int closeX = borderRightCloseX_per_raster[raster];
 
     return px >= openX && px < closeX;
 }
@@ -3637,20 +3712,13 @@ void Vic::buildBorderMaskLine(int raster)
               borderMaskLine.begin() + VISIBLE_WIDTH,
               1);
 
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    const BorderWindow w = borderWindowForRaster(raster);
+
+    if (w.vertical)
         return;
 
-    if (borderVertical_per_raster[raster] != 0)
-        return;
-
-    const int openX  = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
-
-    if (openX >= closeX)
-        return;
-
-    std::fill(borderMaskLine.begin() + openX,
-              borderMaskLine.begin() + closeX,
+    std::fill(borderMaskLine.begin() + w.openX,
+              borderMaskLine.begin() + w.closeX,
               0);
 }
 
@@ -4153,10 +4221,14 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
 
 void Vic::advanceVideoCountersEndOfLine(int raster)
 {
+    advanceCharacterSequencerEndOfLine(raster);
+}
+
+void Vic::advanceCharacterSequencerEndOfLine(int raster)
+{
     if (!vicState.displayEnabledNext)
     {
         vicState.displayEnabled = false;
-        clearBadLineFifo();
         return;
     }
 
@@ -4193,6 +4265,7 @@ void Vic::advanceVideoCountersEndOfLine(int raster)
     }
 
     const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
+
     if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
         vicState.displayEnabled = false;
@@ -4218,10 +4291,8 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 bool Vic::verticalDisplayOpenForRaster(int raster) const
 {
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return false;
-
-    return borderVertical_per_raster[raster] == 0;
+    const BorderWindow w = borderWindowForRaster(raster);
+    return !w.vertical;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
@@ -4283,24 +4354,26 @@ bool Vic::rasterWithinVerticalDisplayWindow(int raster) const
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
-    const bool rsel25 = getLatchedRSEL(raster);
+    const VerticalBorderWindow w = verticalBorderWindowForRaster(raster);
 
-    // 25-row mode opens one character row earlier and closes one later
-    // than 24-row mode.
-    const int topOpen    = rsel25 ? 51 : 55;
-    const int bottomClose = rsel25 ? 250 : 246;
-
-    return raster >= topOpen && raster <= bottomClose;
+    return raster >= w.topOpen && raster <= w.bottomClose;
 }
 
 bool Vic::borderActiveAtPixel(int raster, int px) const
 {
-    (void)raster;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return true;
 
     if (px < 0 || px >= VISIBLE_WIDTH)
         return true;
 
-    return borderMaskLine[px] != 0;
+    if (borderVertical_per_raster[raster] != 0)
+        return true;
+
+    const int openX  = borderLeftOpenX_per_raster[raster];
+    const int closeX = borderRightCloseX_per_raster[raster];
+
+    return px < openX || px >= closeX;
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
@@ -4791,6 +4864,135 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     }
 
     return out.str();
+}
+
+std::string Vic::dumpBadlineState() const
+{
+    std::ostringstream oss;
+
+    oss << "VIC badline/display row state\n";
+    oss << "  raster=" << registers.raster
+        << " cycle=" << currentCycle << "\n";
+
+    oss << "  badLine=" << vicState.badLine
+        << " badLineSampled=" << vicState.badLineSampled << "\n";
+
+    oss << "  displayEnabled=" << vicState.displayEnabled
+        << " displayEnabledNext=" << vicState.displayEnabledNext << "\n";
+
+    oss << "  denSeenOn30=" << denSeenOn30
+        << " firstBadlineY=" << firstBadlineY << "\n";
+
+    oss << "  vcBase=" << vicState.vcBase
+        << " vmliBase=" << vicState.vmliBase
+        << " vmliFetchIndex=" << static_cast<int>(vicState.vmliFetchIndex)
+        << " rc=" << static_cast<int>(vicState.rc) << "\n";
+
+    return oss.str();
+}
+
+std::string Vic::dumpBorderState() const
+{
+    std::ostringstream oss;
+
+    const int raster = static_cast<int>(registers.raster);
+
+    oss << "VIC border state\n";
+    oss << "  raster=" << raster
+        << " cycle=" << currentCycle << "\n";
+
+    const bool liveVertical = vicState.verticalBorder;
+    const bool latchedVertical = borderVertical_per_raster[raster] != 0;
+
+    oss << "  live verticalBorder="
+        << (liveVertical ? "on" : "off")
+        << " latched verticalBorder="
+        << (latchedVertical ? "on" : "off")
+        << " match="
+        << ((liveVertical == latchedVertical) ? "yes" : "NO")
+        << "\n";
+
+    oss << "  latched openX=" << borderLeftOpenX_per_raster[raster]
+        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+        << "\n";
+
+    oss << "  verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
+        << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
+        << " rightBorder=" << (vicState.rightBorder ? "on" : "off") << "\n";
+
+    oss << "  leftBorderOpenX=" << vicState.leftBorderOpenX
+        << " rightBorderCloseX=" << vicState.rightBorderCloseX << "\n";
+
+    if (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+    {
+        const uint8_t latchedD011 = latchedD011ForRaster(raster);
+        const uint8_t latchedD016 = latchedD016ForRaster(raster);
+
+        oss << "  latched RSEL=" << ((latchedD011 & 0x08) ? 1 : 0)
+            << " latched CSEL=" << ((latchedD016 & 0x08) ? 1 : 0) << "\n";
+
+        oss << "  latched D011=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(latchedD011)
+            << " latched D016=$"
+            << std::setw(2)
+            << static_cast<int>(latchedD016)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+    }
+
+    oss << "  live D011=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(registers.control)
+        << " live D016=$"
+        << std::setw(2)
+        << static_cast<int>(registers.control2)
+        << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+    const VerticalBorderWindow vw = verticalBorderWindowForRaster(raster);
+
+    oss << "  verticalWindow topOpen=" << vw.topOpen
+        << " bottomClose=" << vw.bottomClose << "\n";
+
+    oss << "  latched verticalBorder="
+        << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
+        << " latched openX=" << borderLeftOpenX_per_raster[raster]
+        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+        << "\n";
+
+    return oss.str();
+}
+
+std::string Vic::dumpBorderWindowAroundRaster(int centerRaster) const
+{
+    std::ostringstream oss;
+
+    oss << "VIC border window around raster " << centerRaster << "\n";
+
+    for (int r = centerRaster - 4; r <= centerRaster + 4; ++r)
+    {
+        if (r < 0 || r >= static_cast<int>(cfg_->maxRasterLines))
+            continue;
+
+        const VerticalBorderWindow vw = verticalBorderWindowForRaster(r);
+        const bool latchedVertical = borderVertical_per_raster[r] != 0;
+        const bool withinWindow = rasterWithinVerticalDisplayWindow(r);
+
+        oss << "  raster=" << r
+            << " withinWindow=" << (withinWindow ? "yes" : "no")
+            << " latchedVertical=" << (latchedVertical ? "on" : "off")
+            << " topOpen=" << vw.topOpen
+            << " bottomClose=" << vw.bottomClose
+            << " D011=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(latchedD011ForRaster(r))
+            << " D016=$"
+            << std::setw(2)
+            << static_cast<int>(latchedD016ForRaster(r))
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+
+    return oss.str();
 }
 
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const

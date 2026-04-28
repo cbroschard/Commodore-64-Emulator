@@ -35,10 +35,12 @@ std::string VICCommand::help() const
         "vic <subcommand>:\n"
         "    mode                 Show current VIC-II graphics mode\n"
         "    banks                Show current screen/charset/bitmap base addresses\n"
+        "    border               Dump current border state\n"
         "    regs <group>         Dump VIC-II registers\n"
         "    cycle                Show debug info for current raster/cycle\n"
         "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
-        "    map <r>              Show fetch map for one raster line\n";
+        "    map <r>              Show fetch map for one raster line\n"
+        "    row                  Show badline row sequencer\n";
 }
 
 std::string VICCommand::regsUsage() const
@@ -53,6 +55,15 @@ std::string VICCommand::regsUsage() const
         "  collisions  Sprite collision latches (D01E, D01F)\n"
         "  colors      Border/background/sprite colors (D020-D02E)\n"
         "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
+}
+
+std::string VICCommand::borderUsage() const
+{
+    return
+        "Usage:\n"
+        " vic border\n"
+        " vic border edge\n"
+        " vic border edge <raster>\n";
 }
 
 std::string VICCommand::cycleUsage() const
@@ -93,7 +104,37 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "banks")
     {
-        std::cout << mon.mlmonitorbackend()->getCurrentVICBanks() << std::endl;
+        std::cout << mon.mlmonitorbackend()->getCurrentVICBanks();
+    }
+    else if (sub == "border")
+    {
+        if (args.size() == 2)
+        {
+            std::cout << mon.mlmonitorbackend()->vicDumpBorderState();
+        }
+        else if (args[2] == "edge")
+        {
+            if (args.size() == 3)
+            {
+                std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundCurrentRaster();
+            }
+            else if (args.size() == 4)
+            {
+                try
+                {
+                    const int raster = std::stoi(args[3]);
+                    std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundRaster(raster);
+                }
+                catch (const std::exception&)
+                {
+                    std::cout << borderUsage();
+                }
+            }
+        }
+        else
+        {
+            std::cout << borderUsage();
+        }
     }
     else if (sub == "regs")
     {
@@ -176,6 +217,10 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             std::cout << mapUsage();
         }
+    }
+    else if (sub == "row")
+    {
+        std::cout << mon.mlmonitorbackend()->vicDumpBadlineState();
     }
     else
     {

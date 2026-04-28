@@ -109,6 +109,27 @@ class Vic
             SpriteData4, SpriteData5, SpriteData6, SpriteData7
         };
 
+        struct VicCycleSlot
+        {
+            FetchKind fetchKind = FetchKind::None;
+
+            bool badlineWarning = false;
+            bool badlineSteal = false;
+
+            bool spriteWarning = false;
+            bool spriteSteal = false;
+            bool spriteAECSteal = false;
+
+            bool baLow = false;
+            bool aecLow = false;
+
+            bool rasterIrqSample = false;
+        };
+
+
+        VicCycleSlot currentCycleSlot {};
+        VicCycleSlot cycleSlotFor(int raster, int cycle) const;
+
         struct VICIRQSnapshot { uint8_t ier = 0; };
         std::string decodeModeName() const;
         std::string getVICBanks() const;
@@ -127,6 +148,10 @@ class Vic
         std::string dumpCurrentCycleDebug() const;
         std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
+        std::string dumpBadlineState() const;
+        std::string dumpBorderState() const;
+        std::string dumpBorderWindowAroundRaster(int centerRaster) const;
+        inline std::string dumpBorderWindowAroundCurrentRaster() const { return dumpBorderWindowAroundRaster(static_cast<int>(registers.raster)); }
 
     protected:
 
@@ -278,6 +303,22 @@ class Vic
             uint8_t fetched1 = 0;
             uint8_t fetched2 = 0;
         };
+
+        struct BorderWindow
+        {
+            bool vertical = true;
+            int openX = 0;
+            int closeX = VISIBLE_WIDTH;
+        };
+
+        struct VerticalBorderWindow
+        {
+            int topOpen = 0;
+            int bottomClose = 0;
+        };
+
+        VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
+        BorderWindow borderWindowForRaster(int raster) const;
 
         std::array<SpriteUnit, 8> spriteUnits;
 
@@ -757,8 +798,8 @@ class Vic
 
         // Badline helpers
         void traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t rc, bool den) const;
-        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex,
-            uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
+        void traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
+        void advanceCharacterSequencerEndOfLine(int raster);
 
         // Cycle helpers
         void traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const;
@@ -770,13 +811,11 @@ class Vic
         void traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int cycle, int byteIndex = -1) const;
         void traceVicSpriteEolState(int sprite, int raster) const;
         void traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance) const;
-        void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded,
-            bool rasterMatch, bool willStart) const;
+        void traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool enabled, bool yExpanded, bool rasterMatch, bool willStart) const;
         void traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const;
 
         // Bus helpers
-        void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC,
-            bool badLineNow, bool baLow, bool aecLow) const;
+        void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const;
         const char* busArbReason(int raster, int cycle) const;
 };
 #endif // VIC_H
