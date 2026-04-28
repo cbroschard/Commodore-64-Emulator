@@ -4519,13 +4519,66 @@ std::string Vic::dumpRegisters(const std::string& group) const
 
         out << "\nInterrupt Registers:\n\n";
 
-        out << "D019 = $" << std::setw(2) << int(d019Status) << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
-        << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N") << ", SprBg="  << ((pending & 0x04) ? "Y" : "N") << ", LightPen="
-        << ((pending & 0x08) ? "Y" : "N") << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
+        out << "D019 = $" << std::setw(2) << int(d019Status)
+            << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
+            << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N")
+            << ", SprBg="  << ((pending & 0x04) ? "Y" : "N")
+            << ", LightPen=" << ((pending & 0x08) ? "Y" : "N")
+            << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
 
-        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable) << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
-        << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N") << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N") << ", LightPen="
-        << ((enabled & 0x08) ? "Y" : "N") << ")\n";
+        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable)
+            << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
+            << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N")
+            << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N")
+            << ", LightPen=" << ((enabled & 0x08) ? "Y" : "N") << ")\n";
+
+        const uint16_t visibleRaster = visibleRasterForRead();
+        const uint16_t irqTarget = registers.rasterInterruptLine;
+        const bool irqTargetValid = irqTarget < cfg_->maxRasterLines;
+
+        out << "\nRaster IRQ Timing:\n";
+
+        out << "Raster now      = " << std::dec << registers.raster
+            << "   Cycle=" << currentCycle
+            << "   Dot=" << getRasterDot() << "\n";
+
+        out << "Visible raster  = " << visibleRaster
+            << "   D012 read=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(visibleRaster & 0xFF)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+        out << "IRQ target      = ";
+
+        if (irqTargetValid)
+        {
+            out << std::dec << irqTarget
+                << "   D011 IRQ bit8=" << ((irqTarget & 0x0100) ? 1 : 0)
+                << "   D012 IRQ low=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << int(irqTarget & 0xFF)
+                << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+        }
+        else
+        {
+            out << "disabled/unset"
+                << "   raw=" << irqTarget << "\n";
+        }
+
+        out << "Compare cycle   = " << RASTER_IRQ_COMPARE_CYCLE
+            << "   Sampled this line="
+            << (rasterIrqSampledThisLine ? "Yes" : "No") << "\n";
+
+        out << "Compare match   = "
+            << (rasterCompareMatchesNow() ? "Yes" : "No") << "\n";
+
+        out << "Raw IFR         = $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(registers.interruptStatus)
+            << "   Raw IER=$"
+            << std::setw(2)
+            << int(registers.interruptEnable)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
     }
 
     // Sprite control
