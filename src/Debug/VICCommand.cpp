@@ -52,6 +52,7 @@ std::string VICCommand::regsUsage() const
         "  raster      Raster/control registers (D011, D012, D016, D018)\n"
         "  irq         Interrupt registers (D019, D01A)\n"
         "  sprites     Sprite control (D015, D017, D01B-D01D)\n"
+        "  latch       Latched registers\n"
         "  collisions  Sprite collision latches (D01E, D01F)\n"
         "  colors      Border/background/sprite colors (D020-D02E)\n"
         "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
@@ -146,7 +147,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             const std::string& group = args[2];
             static const std::set<std::string> validGroups = {
-                "all", "raster", "irq", "sprites", "collisions", "colors", "pos"
+                "all", "raster", "irq", "sprites", "latch", "collisions", "colors", "pos"
             };
 
             if (!validGroups.count(group))

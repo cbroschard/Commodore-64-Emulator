@@ -4764,6 +4764,97 @@ std::string Vic::dumpRegisters(const std::string& group) const
             std::bitset<8>(registers.spriteDataCollision) << ")\n";
     }
 
+    // Latched registers
+    if (group == "all" || group == "latch")
+    {
+        const int raster = static_cast<int>(registers.raster);
+        const int nextRaster = (raster + 1) % static_cast<int>(cfg_->maxRasterLines);
+
+        const uint8_t liveD011 = registers.control & 0x7F;
+        const uint8_t liveD016 = registers.control2 & 0x1F;
+        const uint8_t liveD018 = registers.memory_pointer & 0xFE;
+
+        const uint8_t curD011 = latchedD011ForRaster(raster);
+        const uint8_t curD016 = latchedD016ForRaster(raster);
+        const uint8_t curD018 = latchedD018ForRaster(raster);
+
+        const uint8_t nextD011 = latchedD011ForRaster(nextRaster);
+        const uint8_t nextD016 = latchedD016ForRaster(nextRaster);
+        const uint8_t nextD018 = latchedD018ForRaster(nextRaster);
+
+        auto yn = [](bool v) { return v ? "Y" : "N"; };
+
+        out << "\nVIC Register Latches:\n\n";
+
+        out << "Raster=" << std::dec << raster
+            << "   Cycle=" << currentCycle
+            << "   NextRaster=" << nextRaster << "\n\n";
+
+        out << "Live:      "
+            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(liveD011)
+            << " D016=$" << std::setw(2) << int(liveD016)
+            << " D018=$" << std::setw(2) << int(liveD018)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+        out << "Latched:   "
+            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(curD011)
+            << " D016=$" << std::setw(2) << int(curD016)
+            << " D018=$" << std::setw(2) << int(curD018)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "   for raster " << raster << "\n";
+
+        out << "NextLatch: "
+            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(nextD011)
+            << " D016=$" << std::setw(2) << int(nextD016)
+            << " D018=$" << std::setw(2) << int(nextD018)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "   for raster " << nextRaster << "\n\n";
+
+        out << "Live flags:      "
+            << "DEN=" << yn((liveD011 & 0x10) != 0)
+            << " RSEL=" << yn((liveD011 & 0x08) != 0)
+            << " CSEL=" << yn((liveD016 & 0x08) != 0)
+            << " YSCROLL=" << int(liveD011 & 0x07)
+            << " XSCROLL=" << int(liveD016 & 0x07)
+            << "\n";
+
+        out << "Latched flags:   "
+            << "DEN=" << yn((curD011 & 0x10) != 0)
+            << " RSEL=" << yn((curD011 & 0x08) != 0)
+            << " CSEL=" << yn((curD016 & 0x08) != 0)
+            << " YSCROLL=" << int(curD011 & 0x07)
+            << " XSCROLL=" << int(curD016 & 0x07)
+            << "\n";
+
+        out << "Next flags:      "
+            << "DEN=" << yn((nextD011 & 0x10) != 0)
+            << " RSEL=" << yn((nextD011 & 0x08) != 0)
+            << " CSEL=" << yn((nextD016 & 0x08) != 0)
+            << " YSCROLL=" << int(nextD011 & 0x07)
+            << " XSCROLL=" << int(nextD016 & 0x07)
+            << "\n\n";
+
+        out << "Live border:     "
+            << "vertical=" << (vicState.verticalBorder ? "on" : "off")
+            << " left=" << (vicState.leftBorder ? "on" : "off")
+            << " right=" << (vicState.rightBorder ? "on" : "off")
+            << " openX=" << vicState.leftBorderOpenX
+            << " closeX=" << vicState.rightBorderCloseX
+            << "\n";
+
+        out << "Latched border:  "
+            << "vertical=" << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
+            << " openX=" << borderLeftOpenX_per_raster[raster]
+            << " closeX=" << borderRightCloseX_per_raster[raster]
+            << "\n";
+
+        out << "Next border:     "
+            << "vertical=" << ((borderVertical_per_raster[nextRaster] != 0) ? "on" : "off")
+            << " openX=" << borderLeftOpenX_per_raster[nextRaster]
+            << " closeX=" << borderRightCloseX_per_raster[nextRaster]
+            << "\n";
+    }
+
     // Color registers
     if (group == "all" || group == "colors")
     {
