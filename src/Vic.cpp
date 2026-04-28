@@ -4572,6 +4572,32 @@ std::string Vic::dumpRegisters(const std::string& group) const
         out << "Compare match   = "
             << (rasterCompareMatchesNow() ? "Yes" : "No") << "\n";
 
+        const bool compareWillSampleNext =
+            !rasterIrqSampledThisLine &&
+            currentCycle < RASTER_IRQ_COMPARE_CYCLE &&
+            rasterCompareMatchesNow();
+
+        out << "Compare status  = ";
+
+        if (rasterIrqSampledThisLine)
+        {
+            out << "already sampled this line\n";
+        }
+        else if (currentCycle < RASTER_IRQ_COMPARE_CYCLE)
+        {
+            out << (compareWillSampleNext ? "will match at compare cycle" : "waiting for compare cycle")
+                << "\n";
+        }
+        else if (currentCycle == RASTER_IRQ_COMPARE_CYCLE)
+        {
+            out << (rasterCompareMatchesNow() ? "sampling match now" : "sampling no-match now")
+                << "\n";
+        }
+        else
+        {
+            out << "compare point already passed\n";
+        }
+
         out << "Raw IFR         = $"
             << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << int(registers.interruptStatus)
