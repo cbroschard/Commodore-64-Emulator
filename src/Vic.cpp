@@ -815,11 +815,32 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             registers.control = value & 0x7F;
 
-            const uint16_t newLine = (oldLine & 0x00FF) | (static_cast<uint16_t>(value & 0x80) << 1);
+            const uint16_t newLine =
+                (oldLine & 0x00FF) |
+                (static_cast<uint16_t>(value & 0x80) << 1);
 
             registers.rasterInterruptLine = newLine;
 
             const int raster = registers.raster;
+
+            if (logger && setLogging)
+            {
+                std::ostringstream oss;
+                oss << "[VIC:IRQ] write D011"
+                    << " raster=" << registers.raster
+                    << " cycle=" << currentCycle
+                    << " value=$"
+                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(value)
+                    << " oldControl=$" << std::setw(2) << static_cast<int>(oldValue)
+                    << std::dec << std::nouppercase << std::setfill(' ')
+                    << " oldTarget=" << oldLine
+                    << " newTarget=" << newLine
+                    << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
+                    << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
+
+                logger->WriteLog(oss.str());
+            }
 
             checkRasterIRQCompareTransition(oldLine, newLine);
 
@@ -840,6 +861,24 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
                 static_cast<uint16_t>(value);
 
             registers.rasterInterruptLine = newLine;
+
+            if (logger && setLogging)
+            {
+                std::ostringstream oss;
+                oss << "[VIC:IRQ] write D012"
+                    << " raster=" << registers.raster
+                    << " cycle=" << currentCycle
+                    << " value=$"
+                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(value)
+                    << std::dec << std::nouppercase << std::setfill(' ')
+                    << " oldTarget=" << oldLine
+                    << " newTarget=" << newLine
+                    << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
+                    << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
+
+                logger->WriteLog(oss.str());
+            }
 
             checkRasterIRQCompareTransition(oldLine, newLine);
 
@@ -902,10 +941,37 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         case 0xD019:
         {
-            const uint8_t oldValue = registers.interruptStatus & 0x0F;
-            value &= 0x0F;
-            registers.interruptStatus &= ~value;
-            traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.interruptStatus & 0x0F));
+            const uint8_t oldPending = registers.interruptStatus & 0x0F;
+            const uint8_t oldD019 = d019Read();
+
+            const uint8_t clearMask = value & 0x0F;
+
+            registers.interruptStatus &= ~clearMask;
+
+            const uint8_t newPending = registers.interruptStatus & 0x0F;
+            const uint8_t newD019 = d019Read();
+
+            if (logger && setLogging)
+            {
+                std::ostringstream oss;
+                oss << "[VIC:IRQ] write D019 clear"
+                    << " raster=" << registers.raster
+                    << " cycle=" << currentCycle
+                    << " value=$"
+                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(value)
+                    << " clearMask=$" << std::setw(2) << static_cast<int>(clearMask)
+                    << " oldD019=$" << std::setw(2) << static_cast<int>(oldD019)
+                    << " newD019=$" << std::setw(2) << static_cast<int>(newD019)
+                    << " oldPending=$" << std::setw(2) << static_cast<int>(oldPending)
+                    << " newPending=$" << std::setw(2) << static_cast<int>(newPending)
+                    << " IER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable & 0x0F)
+                    << std::dec << std::nouppercase << std::setfill(' ');
+
+                logger->WriteLog(oss.str());
+            }
+
+            traceVicRegWrite(address, oldPending, newPending);
             updateIRQLine();
             break;
         }
@@ -913,7 +979,28 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD01A:
         {
             const uint8_t oldValue = registers.interruptEnable & 0x0F;
+
             registers.interruptEnable = value & 0x0F;
+
+            if (logger && setLogging)
+            {
+                std::ostringstream oss;
+                oss << "[VIC:IRQ] write D01A"
+                    << " raster=" << registers.raster
+                    << " cycle=" << currentCycle
+                    << " value=$"
+                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(value)
+                    << " oldIER=$" << std::setw(2) << static_cast<int>(oldValue)
+                    << " newIER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable & 0x0F)
+                    << " D019=$" << std::setw(2) << static_cast<int>(d019Read())
+                    << " pending=$" << std::setw(2) << static_cast<int>(registers.interruptStatus & 0x0F)
+                    << std::dec << std::nouppercase << std::setfill(' ')
+                    << " irqLineActive=" << (irqLineActive() ? 1 : 0);
+
+                logger->WriteLog(oss.str());
+            }
+
             traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.interruptEnable & 0x0F));
             updateIRQLine();
             break;
@@ -3824,10 +3911,28 @@ void Vic::updateIRQLine()
 
 void Vic::triggerRasterIRQIfMatched()
 {
-    if (!rasterCompareMatchesNow())
+    const bool matched = rasterCompareMatchesNow();
+    const bool pending = (registers.interruptStatus & 0x01) != 0;
+    const bool enabled = (registers.interruptEnable & 0x01) != 0;
+
+    if (!matched)
         return;
 
-    if ((registers.interruptStatus & 0x01) == 0)
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] trigger-check"
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " target=" << registers.rasterInterruptLine
+            << " matched=1"
+            << " pendingBefore=" << (pending ? 1 : 0)
+            << " enabled=" << (enabled ? 1 : 0);
+
+        logger->WriteLog(oss.str());
+    }
+
+    if (!pending)
         raiseVicIRQSource(0x01);
 }
 
@@ -3841,8 +3946,27 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
     if (newlySet == 0)
         return;
 
+    const uint8_t oldStatus = registers.interruptStatus;
+
     registers.interruptStatus |= newlySet;
     updateIRQLine();
+
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] raise"
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " source=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(masked)
+            << " oldIFR=$" << std::setw(2) << int(oldStatus)
+            << " newIFR=$" << std::setw(2) << int(registers.interruptStatus)
+            << " IER=$" << std::setw(2) << int(registers.interruptEnable)
+            << std::dec << std::nouppercase << std::setfill(' ');
+
+        logger->WriteLog(oss.str());
+    }
 }
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
@@ -4519,13 +4643,92 @@ std::string Vic::dumpRegisters(const std::string& group) const
 
         out << "\nInterrupt Registers:\n\n";
 
-        out << "D019 = $" << std::setw(2) << int(d019Status) << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
-        << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N") << ", SprBg="  << ((pending & 0x04) ? "Y" : "N") << ", LightPen="
-        << ((pending & 0x08) ? "Y" : "N") << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
+        out << "D019 = $" << std::setw(2) << int(d019Status)
+            << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
+            << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N")
+            << ", SprBg="  << ((pending & 0x04) ? "Y" : "N")
+            << ", LightPen=" << ((pending & 0x08) ? "Y" : "N")
+            << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
 
-        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable) << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
-        << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N") << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N") << ", LightPen="
-        << ((enabled & 0x08) ? "Y" : "N") << ")\n";
+        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable)
+            << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
+            << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N")
+            << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N")
+            << ", LightPen=" << ((enabled & 0x08) ? "Y" : "N") << ")\n";
+
+        const uint16_t visibleRaster = visibleRasterForRead();
+        const uint16_t irqTarget = registers.rasterInterruptLine;
+        const bool irqTargetValid = irqTarget < cfg_->maxRasterLines;
+
+        out << "\nRaster IRQ Timing:\n";
+
+        out << "Raster now      = " << std::dec << registers.raster
+            << "   Cycle=" << currentCycle
+            << "   Dot=" << getRasterDot() << "\n";
+
+        out << "Visible raster  = " << visibleRaster
+            << "   D012 read=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(visibleRaster & 0xFF)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+        out << "IRQ target      = ";
+
+        if (irqTargetValid)
+        {
+            out << std::dec << irqTarget
+                << "   D011 IRQ bit8=" << ((irqTarget & 0x0100) ? 1 : 0)
+                << "   D012 IRQ low=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << int(irqTarget & 0xFF)
+                << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+        }
+        else
+        {
+            out << "disabled/unset"
+                << "   raw=" << irqTarget << "\n";
+        }
+
+        out << "Compare cycle   = " << RASTER_IRQ_COMPARE_CYCLE
+            << "   Sampled this line="
+            << (rasterIrqSampledThisLine ? "Yes" : "No") << "\n";
+
+        out << "Compare match   = "
+            << (rasterCompareMatchesNow() ? "Yes" : "No") << "\n";
+
+        const bool compareWillSampleNext =
+            !rasterIrqSampledThisLine &&
+            currentCycle < RASTER_IRQ_COMPARE_CYCLE &&
+            rasterCompareMatchesNow();
+
+        out << "Compare status  = ";
+
+        if (rasterIrqSampledThisLine)
+        {
+            out << "already sampled this line\n";
+        }
+        else if (currentCycle < RASTER_IRQ_COMPARE_CYCLE)
+        {
+            out << (compareWillSampleNext ? "will match at compare cycle" : "waiting for compare cycle")
+                << "\n";
+        }
+        else if (currentCycle == RASTER_IRQ_COMPARE_CYCLE)
+        {
+            out << (rasterCompareMatchesNow() ? "sampling match now" : "sampling no-match now")
+                << "\n";
+        }
+        else
+        {
+            out << "compare point already passed\n";
+        }
+
+        out << "Raw IFR         = $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << int(registers.interruptStatus)
+            << "   Raw IER=$"
+            << std::setw(2)
+            << int(registers.interruptEnable)
+            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
     }
 
     // Sprite control
