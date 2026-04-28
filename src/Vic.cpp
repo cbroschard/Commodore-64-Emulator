@@ -2114,18 +2114,48 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.spriteSteal    = isSpriteBusStealCycle(raster, cycle);
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
 
-    slot.baLow =
-        slot.badlineWarning ||
-        slot.badlineSteal   ||
-        slot.spriteWarning  ||
-        slot.spriteSteal;
+    slot.baLow = slot.badlineWarning || slot.badlineSteal   || slot.spriteWarning  || slot.spriteSteal;
+    slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
+    slot.rasterIrqSample = (cycle == RASTER_IRQ_COMPARE_CYCLE);
 
-    slot.aecLow =
-        slot.badlineSteal ||
-        slot.spriteAECSteal;
+    slot.busOwner = BusOwner::CPU;
 
-    slot.rasterIrqSample =
-        (cycle == RASTER_IRQ_COMPARE_CYCLE);
+    switch (slot.fetchKind)
+    {
+        case FetchKind::CharMatrix:
+            slot.busOwner = BusOwner::BadLine;
+            break;
+
+        case FetchKind::SpritePtr0:
+        case FetchKind::SpritePtr1:
+        case FetchKind::SpritePtr2:
+        case FetchKind::SpritePtr3:
+        case FetchKind::SpritePtr4:
+        case FetchKind::SpritePtr5:
+        case FetchKind::SpritePtr6:
+        case FetchKind::SpritePtr7:
+            slot.busOwner = BusOwner::SpritePointer;
+            break;
+
+        case FetchKind::SpriteData0:
+        case FetchKind::SpriteData1:
+        case FetchKind::SpriteData2:
+        case FetchKind::SpriteData3:
+        case FetchKind::SpriteData4:
+        case FetchKind::SpriteData5:
+        case FetchKind::SpriteData6:
+        case FetchKind::SpriteData7:
+            slot.busOwner = BusOwner::SpriteData;
+            break;
+
+        case FetchKind::None:
+        default:
+            if (slot.baLow || slot.aecLow)
+                slot.busOwner = BusOwner::Idle;
+            else
+                slot.busOwner = BusOwner::CPU;
+            break;
+    }
 
     return slot;
 }

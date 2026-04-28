@@ -109,9 +109,21 @@ class Vic
             SpriteData4, SpriteData5, SpriteData6, SpriteData7
         };
 
+        // Bus arbitration reason
+        enum class BusOwner
+        {
+            CPU,
+            BadLine,
+            SpritePointer,
+            SpriteData,
+            Refresh,
+            Idle
+        };
+
         struct VicCycleSlot
         {
             FetchKind fetchKind = FetchKind::None;
+            BusOwner busOwner = BusOwner::CPU;
 
             bool badlineWarning = false;
             bool badlineSteal = false;
