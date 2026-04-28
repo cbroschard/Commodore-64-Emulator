@@ -1775,14 +1775,6 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
 
-        if (isSpriteDMAComplete(s))
-        {
-            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
-            clearSpriteFetchedRowState(s);
-            resetSpriteDMAState(s);
-            continue;
-        }
-
         const bool willAdvance = shouldAdvanceSpriteMCBaseThisLine(s);
         traceVicSpriteAdvanceDecision(s, raster, willAdvance);
 
@@ -1793,13 +1785,20 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         if (spriteUnits[s].yExpandLatch)
         {
-            // Keep expanded sprites on a true per-raster-line row cadence
-            // instead of snapping back to baseRow*2 every line.
+            // currentRow tracks physical raster lines of the expanded sprite.
             spriteUnits[s].currentRow += 1;
         }
         else
         {
             spriteUnits[s].currentRow = spriteRowFromMCBase(s);
+        }
+
+        if (isSpriteDMAComplete(s))
+        {
+            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
+            clearSpriteFetchedRowState(s);
+            resetSpriteDMAState(s);
+            continue;
         }
 
         traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
@@ -1817,7 +1816,11 @@ bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
         return true;
 
     const int currentRow = spriteUnits[spr].currentRow;
-    return (currentRow & 1) == 0;
+
+    // In expanded Y mode, each sprite row is used for two raster lines.
+    // currentRow starts at 0, so do not advance after the first line of a pair.
+    // Advance after rows 1, 3, 5, etc.
+    return (currentRow & 1) != 0;
 }
 
 bool Vic::isSpriteDMAComplete(int spr) const
@@ -1829,10 +1832,12 @@ void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
     spriteUnits[spr].displayActive = false;
+    spriteUnits[spr].yExpandLatch = false;
 
     spriteUnits[spr].currentRow = 0;
     spriteUnits[spr].mc = 0;
     spriteUnits[spr].mcBase = 0;
+    spriteUnits[spr].startY = 0;
 
     resetSpriteLineOutputState(spr);
     clearSpriteFetchedRowState(spr);
