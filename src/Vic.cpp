@@ -1593,27 +1593,31 @@ void Vic::fetchSpritePointer(int sprite, int raster)
 
 void Vic::prepareSpriteOutputForRaster(int raster)
 {
-    (void)raster;
-
     for (int i = 0; i < 8; ++i)
     {
         resetSpriteLineOutputState(i);
 
         if (!(registers.spriteEnabled & (1 << i)))
         {
+            traceVicSpriteSlotEvent(i, "prep-disabled", raster, currentCycle);
             clearSpriteFetchedRowState(i);
             continue;
         }
 
         if (!spriteUnits[i].dmaActive)
         {
+            traceVicSpriteSlotEvent(i, "prep-inactive", raster, currentCycle);
             clearSpriteFetchedRowState(i);
             continue;
         }
 
         if (!spriteHasFetchedDisplayRow(i))
+        {
+            traceVicSpriteSlotEvent(i, "prep-no-row", raster, currentCycle);
             continue;
+        }
 
+        traceVicSpriteSlotEvent(i, "prep-output", raster, currentCycle);
         beginSpriteLineOutput(i, raster);
     }
 }
@@ -1911,6 +1915,8 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     spriteUnits[sprite].shift1 = spriteUnits[sprite].fetched1;
     spriteUnits[sprite].shift2 = spriteUnits[sprite].fetched2;
     spriteUnits[sprite].rowDataLatched = true;
+
+    traceVicSpriteSlotEvent(sprite, "row-latched", registers.raster, currentCycle);
 }
 
 bool Vic::isSpritePointerFetchCycle(int sprite, int cycle) const
