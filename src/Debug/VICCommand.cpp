@@ -34,6 +34,7 @@ std::string VICCommand::help() const
     return
         "vic <subcommand>:\n"
         "    mode                 Show current VIC-II graphics mode\n"
+        "    badline <r>          Show badline timing around raster\n"
         "    banks                Show current screen/charset/bitmap base addresses\n"
         "    border               Dump current border state\n"
         "    regs <group>         Dump VIC-II registers\n"
@@ -102,6 +103,25 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Current VIC-II mode: "
                   << mon.mlmonitorbackend()->vicGetModeName()
                   << std::endl;
+    }
+    else if (sub == "badline")
+    {
+        if (args.size() == 3)
+        {
+            try
+            {
+                const int raster = std::stoi(args[2]);
+                std::cout << mon.mlmonitorbackend()->VicDumpBadlineTimelineAroundRaster(raster);
+            }
+            catch (std::exception& e)
+            {
+                std::cout << help();
+            }
+        }
+        else
+        {
+            std::cout << help();
+        }
     }
     else if (sub == "banks")
     {

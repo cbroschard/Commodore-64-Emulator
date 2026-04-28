@@ -5286,6 +5286,53 @@ std::string Vic::dumpBorderState() const
     return oss.str();
 }
 
+std::string Vic::dumpBadlineTimelineAroundRaster(int centerRaster) const
+{
+    std::ostringstream oss;
+
+    oss << "Bad-line timeline around raster " << centerRaster << "\n";
+    oss << "------------------------------------------------------------\n";
+    oss << "Raster  D011  DEN  YSC  Bad  LatchedBad  Disp  DispNext  RC  VCBase  VMLIBase  VMLIIdx\n";
+
+    for (int r = centerRaster - 8; r <= centerRaster + 8; ++r)
+    {
+        if (r < 0 || r >= cfg_->maxRasterLines)
+            continue;
+
+        const uint8_t d011 = effectiveD011ForRaster(r);
+        const bool den = (d011 & 0x10) != 0;
+        const int yscroll = d011 & 0x07;
+        const bool bad = isBadLine(r);
+
+        oss << std::setw(6) << r << "  "
+            << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(d011)
+            << std::dec << std::nouppercase << std::setfill(' ') << "    "
+            << (den ? 1 : 0) << "    "
+            << yscroll << "    "
+            << (bad ? 1 : 0) << "       ";
+
+        if (r == registers.raster)
+        {
+            oss << (vicState.badLineSampled ? 1 : 0) << "          "
+                << (vicState.displayEnabled ? 1 : 0) << "         "
+                << (vicState.displayEnabledNext ? 1 : 0) << "       "
+                << static_cast<int>(vicState.rc) << "   "
+                << vicState.vcBase << "      "
+                << vicState.vmliBase << "       "
+                << static_cast<int>(vicState.vmliFetchIndex);
+        }
+        else
+        {
+            oss << "-          -         -       -   -       -        -";
+        }
+
+        oss << "\n";
+    }
+
+    return oss.str();
+}
+
 std::string Vic::dumpBorderWindowAroundRaster(int centerRaster) const
 {
     std::ostringstream oss;
