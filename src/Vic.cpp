@@ -2039,11 +2039,13 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        // Pointer fetches still participate in BA-low timing.
+        // Pointer fetches are tracked as fetch events, but for now do not
+        // force BA low. Treating them as CPU stalls can over-slow
+        // sprite-heavy games.
         if (isSpritePointerFetchCycle(s, cycle))
-            return true;
+            continue;
 
-        // Sprite data fetches also participate in BA-low timing.
+        // Sprite data fetches participate in BA-low timing.
         if (isSpriteDMAFetchCycle(s, cycle))
             return true;
     }
