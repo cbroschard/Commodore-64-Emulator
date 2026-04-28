@@ -57,6 +57,14 @@ std::string VICCommand::regsUsage() const
         "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
 }
 
+std::string VICCommand::borderUsage() const
+{
+    return
+        "Usage:\n"
+        " vic border\n"
+        " vic border edge\n";
+}
+
 std::string VICCommand::cycleUsage() const
 {
     return
@@ -99,7 +107,18 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "border")
     {
-        std::cout << mon.mlmonitorbackend()->vicDumpBorderState();
+        if (args.size() == 2)
+        {
+            std::cout << mon.mlmonitorbackend()->vicDumpBorderState();
+        }
+        else if (args[2] == "edge")
+        {
+            std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundCurrentRaster();
+        }
+        else
+        {
+            std::cout << borderUsage();
+        }
     }
     else if (sub == "regs")
     {

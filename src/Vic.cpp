@@ -4962,6 +4962,38 @@ std::string Vic::dumpBorderState() const
     return oss.str();
 }
 
+std::string Vic::dumpBorderWindowAroundCurrentRaster() const
+{
+    std::ostringstream oss;
+
+    const int center = static_cast<int>(registers.raster);
+
+    oss << "VIC border window around raster " << center << "\n";
+
+    for (int r = center - 4; r <= center + 4; ++r)
+    {
+        if (r < 0 || r >= static_cast<int>(cfg_->maxRasterLines))
+            continue;
+
+        const VerticalBorderWindow vw = verticalBorderWindowForRaster(r);
+        const bool latchedVertical = borderVertical_per_raster[r] != 0;
+        const bool withinWindow = rasterWithinVerticalDisplayWindow(r);
+
+        oss << "  raster=" << r
+            << " withinWindow=" << (withinWindow ? "yes" : "no")
+            << " latchedVertical=" << (latchedVertical ? "on" : "off")
+            << " topOpen=" << vw.topOpen
+            << " bottomClose=" << vw.bottomClose
+            << " D011=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(latchedD011ForRaster(r))
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+
+    return oss.str();
+}
+
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
 {
     return traceMgr && traceMgr->vicDetailOn(d);
