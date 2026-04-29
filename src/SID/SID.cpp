@@ -9,6 +9,22 @@
 #include "Vic.h"
 #include "SID/SID.h"
 
+static double sumVoiceSamplesRaw(const std::vector<double>& voiceSamples)
+{
+    if (voiceSamples.empty())
+        return 0.0;
+
+    double sum = 0.0;
+
+    // Keep conservative gain so 3 voices do not instantly overload the filter.
+    constexpr double PER_VOICE_GAIN = 0.5;
+
+    for (double s : voiceSamples)
+        sum += s * PER_VOICE_GAIN;
+
+    return std::clamp(sum, -1.0, 1.0);
+}
+
 SID::SID(double sampleRate) :
     processor(nullptr),
     logger(nullptr),
@@ -642,8 +658,8 @@ double SID::generateAudioSample()
         }
     }
 
-    const double filteredMix   = mixerobj.mixSamples(filteredVoices);
-    const double unfilteredMix = mixerobj.mixSamples(unfilteredVoices);
+    const double filteredMix   = sumVoiceSamplesRaw(filteredVoices);
+    const double unfilteredMix = sumVoiceSamplesRaw(unfilteredVoices);
 
     double filteredOut = 0.0;
 
@@ -678,6 +694,10 @@ double SID::generateAudioSample()
     // Conservative level so it does not overpower normal SID audio.
     constexpr double VOLUME_DAC_GAIN = 0.05;
     mixed += volumeDacCentered * VOLUME_DAC_GAIN;
+
+    // Final safety soft-clip, after filter + direct voices + volume DAC.
+    mixed = std::clamp(mixed, -1.5, 1.5);
+    mixed = mixed / (1.0 + std::abs(mixed));
 
     double hp = HP_ALPHA * (hpPrevOut + mixed - hpPrevIn);
     hpPrevIn  = mixed;
