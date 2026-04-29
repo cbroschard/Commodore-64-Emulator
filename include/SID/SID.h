@@ -153,6 +153,8 @@ class SID
         uint16_t combineBytes(uint8_t high, uint8_t low);
         void updateEnvelopeParameters(Voice &voice, voiceRegisters &regs);
         void updateCutoffFromRegisters();
+        void applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl);
+        void configureOscillatorSources();
 
         // Monitor helpers
         std::string decodeControlRegister(uint8_t control) const;

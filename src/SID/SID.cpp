@@ -28,6 +28,8 @@ SID::SID(double sampleRate) :
     // Zero initialize all registers in the SID structure.
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
     sidRegisters.filter.volume = 0x00; // All voices muted volume
+
+    configureOscillatorSources();
 }
 
 SID::~SID() = default;
@@ -168,6 +170,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             voice1.setControl(sidRegisters.voice1.control);
             voice2.setControl(sidRegisters.voice2.control);
             voice3.setControl(sidRegisters.voice3.control);
+
+            configureOscillatorSources();
 
             // Envelope parameters derived from ADSR regs
             updateEnvelopeParameters(voice1, sidRegisters.voice1);
@@ -378,21 +382,10 @@ void SID::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD404:
         {
-            // Update the control value and process envelope updates
+            const uint8_t oldControl = sidRegisters.voice1.control;
             sidRegisters.voice1.control = value;
 
-            // Update the voice control value to update the oscillator
-            voice1.setControl(value);
-
-            // Use the gate bit to trigger or release the envelope
-            if (value & 0x01)
-            {
-                voice1.trigger();
-            }
-            else
-            {
-                voice1.release();
-            }
+            applyVoiceControl(voice1, oldControl, value);
             break;
         }
         case 0xD405:
@@ -450,25 +443,10 @@ void SID::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD40B:
         {
-            // Update the control value and process envelope updates
+            const uint8_t oldControl = sidRegisters.voice2.control;
             sidRegisters.voice2.control = value;
 
-            // Set up SYNC and RING MOD relationships
-            voice2.getOscillator().setSyncSource(&voice1.getOscillator());
-            voice2.getOscillator().setRingSource(&voice1.getOscillator());
-
-            // Update the control value in voice to update the oscillator
-            voice2.setControl(value);
-
-            // Use the gate bit to trigger or release the envelope
-            if (value & 0x01)
-            {
-                voice2.trigger();
-            }
-            else
-            {
-                voice2.release();
-            }
+            applyVoiceControl(voice2, oldControl, value);
             break;
         }
         case 0xD40C:
@@ -525,25 +503,10 @@ void SID::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD412:
         {
-            // Update the control value and process envelope updates
+            const uint8_t oldControl = sidRegisters.voice3.control;
             sidRegisters.voice3.control = value;
 
-            // Set up SYNC and RING MOD relationships
-            voice3.getOscillator().setSyncSource(&voice2.getOscillator());
-            voice3.getOscillator().setRingSource(&voice2.getOscillator());
-
-            // Update the voice control value to update the oscillator
-            voice3.setControl(value);
-
-            // Use the gate bit to trigger or release the envelope
-            if (value & 0x01)
-            {
-                voice3.trigger();
-            }
-            else
-            {
-                voice3.release();
-            }
+            applyVoiceControl(voice3, oldControl, value);
             break;
         }
         case 0xD413:
@@ -734,6 +697,9 @@ void SID::reset()
     voice1.reset();
     voice2.reset();
     voice3.reset();
+
+    configureOscillatorSources();
+
     filterobj.reset();
 }
 
@@ -776,6 +742,41 @@ void SID::updateCutoffFromRegisters()
 
     // Apply to filter
     filterobj.setCutoffFreq(cutoffFreq);
+}
+
+void SID::applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl)
+{
+    voice.setControl(newControl);
+
+    const bool oldGate = (oldControl & 0x01) != 0;
+    const bool newGate = (newControl & 0x01) != 0;
+
+    if (!oldGate && newGate)
+    {
+        voice.trigger();
+    }
+    else if (oldGate && !newGate)
+    {
+        voice.release();
+    }
+}
+
+void SID::configureOscillatorSources()
+{
+    // SID oscillator source chain:
+    //
+    // Voice 1 SYNC/RING source = voice 3
+    // Voice 2 SYNC/RING source = voice 1
+    // Voice 3 SYNC/RING source = voice 2
+
+    voice1.getOscillator().setSyncSource(&voice3.getOscillator());
+    voice1.getOscillator().setRingSource(&voice3.getOscillator());
+
+    voice2.getOscillator().setSyncSource(&voice1.getOscillator());
+    voice2.getOscillator().setRingSource(&voice1.getOscillator());
+
+    voice3.getOscillator().setSyncSource(&voice2.getOscillator());
+    voice3.getOscillator().setRingSource(&voice2.getOscillator());
 }
 
 std::string SID::dumpRegisters(const std::string& group)
