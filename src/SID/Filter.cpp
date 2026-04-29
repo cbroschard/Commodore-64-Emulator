@@ -45,13 +45,13 @@ double Filter::processSample(double input)
 
 void Filter::reset()
 {
-    f = 0.0;
-    q = 0.0;
     lowPassOut = 0.0;
     bandPassOut = 0.0;
     highPassOut = 0.0;
     dcBlock = 0.0;
     mode = 0;
+
+    calculateCoefficients();
 }
 
 void Filter::setSampleRate(double sample)

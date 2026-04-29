@@ -647,10 +647,17 @@ double SID::generateAudioSample()
 
     double filteredOut = 0.0;
 
-    // If a voice is routed into the filter but no LP/BP/HP mode is selected,
-    // that routed signal should not appear directly.
-    if (filterMode != 0)
-        filteredOut = filterobj.processSample(filteredMix);
+    // If any voice is routed into the filter, the filter should still process
+    // internally even when no LP/BP/HP output mode is selected.
+    if (!filteredVoices.empty())
+    {
+        const double filterResult = filterobj.processSample(filteredMix);
+
+        // $D418 bits 4-6 decide whether the filter output is audible.
+        // With no mode selected, routed voices are swallowed by the filter path.
+        if (filterMode != 0)
+            filteredOut = filterResult;
+    }
 
     double mixed = filteredOut + unfilteredMix;
 
