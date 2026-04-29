@@ -45,7 +45,7 @@ class Oscillator
         void reset();
 
         // Reset the phase
-        inline void resetPhase() { phase = 0.0; }
+        inline void resetPhase() { phase = 0.0; phaseOverflow = false; }
 
         // Update the phase accumulator for the next cycle
         void updatePhase();

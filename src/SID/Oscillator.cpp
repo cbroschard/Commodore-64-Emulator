@@ -46,11 +46,15 @@ inline double Oscillator::convertToFloat(uint16_t sampleBits)
 
 void Oscillator::setControl(uint8_t controlValue)
 {
-    if ((controlValue & 0x08) && !(control & 0x08))
+    const bool oldTest = (control & 0x08) != 0;
+    const bool newTest = (controlValue & 0x08) != 0;
+
+    if (newTest && !oldTest)
     {
-        phase = 0.0;
+        resetPhase();
         noiseLFSR = 0x7FFFFF;
     }
+
     control = controlValue;
 }
 
@@ -285,26 +289,23 @@ uint16_t Oscillator::getNoiseBits()
 
 void Oscillator::updatePhase()
 {
+    if (control & 0x08)
+    {
+        resetPhase();
+        return;
+    }
+
     if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
     {
         resetPhase();
     }
 
     phase += frequency / sampleRate;
-
     phaseOverflow = (phase >= 1.0);
+    phase -= std::floor(phase);
 
-    if (phaseOverflow)
+    if (phaseOverflow && (control & 0x80))
     {
-        phase -= std::floor(phase);
-
-        // Noise should advance according to oscillator timing,
-        // not once per audio sample.
-        if (control & 0x80)
-            clockNoiseLFSR();
-    }
-    else
-    {
-        phase -= std::floor(phase);
+        clockNoiseLFSR();
     }
 }
