@@ -84,29 +84,35 @@ void Voice::setFilterRouted(bool routed)
 
 double Voice::generateVoiceSample()
 {
-    uint8_t ctrl = osc.getControl();
+    const uint8_t ctrl = osc.getControl();
 
-    // If we're supposed to be filter-routed but the gate is off and
-    // the envelope has gone idle, suppress any low-frequency rumble:
-    if (filterRouted && env.isIdle() && !(ctrl & 0x01)) {
+    // Even when a voice is silent, the SID oscillator should keep running.
+    // This matters for OSC3 reads, SYNC/RING sources, and enabling a waveform later.
+    if (filterRouted && env.isIdle() && !(ctrl & 0x01))
+    {
+        osc.updatePhase();
         return 0.0;
     }
 
-    // Test-bit silence
-    if (ctrl & 0x08) {
+    // TEST bit forces silence, but keep oscillator state handled by updatePhase().
+    if (ctrl & 0x08)
+    {
+        osc.updatePhase();
         env.processSample();
         return 0.0;
     }
 
-    // No waveform selected
-    if (!(ctrl & 0xF0)) {
+    // No waveform selected: oscillator still free-runs, envelope still clocks.
+    if (!(ctrl & 0xF0))
+    {
+        osc.updatePhase();
         env.processSample();
         return 0.0;
     }
 
-    double oscSample = osc.generateMixedSample();
-    double envLevel  = env.processSample();
-    double out       = oscSample * envLevel;
+    const double oscSample = osc.generateMixedSample();
+    const double envLevel  = env.processSample();
+    const double out       = oscSample * envLevel;
 
     return (std::abs(out) < 0.001) ? 0.0 : out;
 }

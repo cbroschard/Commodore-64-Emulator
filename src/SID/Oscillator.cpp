@@ -128,14 +128,14 @@ uint8_t Oscillator::readOutput8() const
 
 double Oscillator::generateMixedSample()
 {
+    updatePhase();
+
     if ((control & 0xF0) == 0)
     {
         return 0.0;
     }
 
-    updatePhase();
-
-    uint16_t mixedBits = 0xFFFF; // Start with all bits set for the AND operation
+    uint16_t mixedBits = 0xFFFF;
     bool waveformSelected = false;
 
     if (control & 0x10) // Triangle
@@ -143,48 +143,39 @@ double Oscillator::generateMixedSample()
         mixedBits &= getTriangleBits();
         waveformSelected = true;
     }
+
     if (control & 0x20) // Sawtooth
     {
         if (!waveformSelected)
-        {
-             mixedBits = getSawBits(); // If this is the first selected, initialize
-        }
+            mixedBits = getSawBits();
         else
-        {
-             mixedBits &= getSawBits(); // Otherwise, AND
-        }
+            mixedBits &= getSawBits();
+
         waveformSelected = true;
     }
+
     if (control & 0x40) // Pulse
     {
         if (!waveformSelected)
-        {
-             mixedBits = getPulseBits();
-             waveformSelected = true;
-        }
+            mixedBits = getPulseBits();
         else
-        {
             mixedBits &= getPulseBits();
-        }
+
+        waveformSelected = true;
     }
+
     if (control & 0x80) // Noise
     {
         if (!waveformSelected)
-        {
-             mixedBits = getNoiseBits();
-             waveformSelected = true;
-        }
+            mixedBits = getNoiseBits();
         else
-        {
             mixedBits &= getNoiseBits();
-        }
+
+        waveformSelected = true;
     }
 
-    // If F0 is non-zero but no individual waveform bit was set (unusual state)
-    if (!waveformSelected && (control & 0xF0) != 0)
-    {
-        return 0.0; // Treat as silence
-    }
+    if (!waveformSelected)
+        return 0.0;
 
     return convertToFloat(mixedBits);
 }
