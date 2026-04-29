@@ -63,7 +63,7 @@ void Voice::setFrequency(uint16_t freqValue)
 
 void Voice::setPulseWidth(uint16_t pulseWidth)
 {
-    double duty = static_cast<double>(pulseWidth & 0x0FFF) / 4095.0;
+    double duty = static_cast<double>(pulseWidth & 0x0FFF) / 4096.0;
     osc.setPulseWidth(duty);
 }
 

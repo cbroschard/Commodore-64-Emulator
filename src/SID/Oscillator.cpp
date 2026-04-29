@@ -226,21 +226,27 @@ uint16_t Oscillator::getSawBits()
 
 uint16_t Oscillator::getPulseBits()
 {
-    double dt = frequency / sampleRate;
-    double t  = phase - floor(phase); // wrap to [0..1)
+    const double dt = frequency / sampleRate;
+    const double t  = phase - std::floor(phase);
 
-    // basic pulse
+    if (pulseWidth <= 0.0)
+        return 0x0000;
+
+    if (pulseWidth >= 1.0)
+        return 0x0FFF;
+
     double value = (t < pulseWidth) ? 1.0 : 0.0;
 
-    // subtract the discontinuity at the rising edge
+    // Rising edge at phase wrap.
     value -= polyBLEP(t, dt);
 
-    // add the discontinuity at the falling edge
+    // Falling edge at pulse-width threshold.
     double t2 = t - pulseWidth;
-    if (t2 < 0.0) t2 += 1.0;
+    if (t2 < 0.0)
+        t2 += 1.0;
+
     value += polyBLEP(t2, dt);
 
-    // clamp & convert to 12-bit
     value = std::clamp(value, 0.0, 1.0);
     return static_cast<uint16_t>(value * 4095.0);
 }
