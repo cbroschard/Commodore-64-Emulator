@@ -36,6 +36,7 @@ class Oscillator
         void setSyncSource(Oscillator* source) { syncSource  = source; }
         void setRingSource(Oscillator* source) { ringSource = source; }
         void setControl(uint8_t controlValue);
+        uint8_t readOutput8() const;
 
         // Generate the sample for output
         double generateMixedSample();

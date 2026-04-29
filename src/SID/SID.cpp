@@ -176,7 +176,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             // Filter derived from regs
             updateCutoffFromRegisters();
-            filterobj.setMode(sidRegisters.filter.resonanceControl & 0x07);
+            filterobj.setMode((sidRegisters.filter.volume >> 4) & 0x07);
             filterobj.setResonance(sidRegisters.filter.resonanceControl);
         }
         rdr.exitChunkPayload(chunk);
@@ -317,8 +317,16 @@ uint8_t SID::readRegister(uint16_t address)
         case 0xD418: return sidRegisters.filter.volume;
         case 0xD419: return rand() & 0xFF; // read only register should return joy1 value; using random instead
         case 0xD41A: return rand() & 0xFF; // read only register should return joy2 value; using random instead
-        case 0xD41B: return rand() & 0xFF; // read only register returns osc voice 3 value
-        case 0xD41C: return rand() & 0xFF; // read only register returns env voice  3
+        case 0xD41B:
+        {
+            // OSC3: read current voice 3 oscillator output.
+            return voice3.getOscillator().readOutput8();
+        }
+        case 0xD41C:
+        {
+            // ENV3: read current voice 3 envelope output.
+            return voice3.getEnvelope().readOutput8();
+        }
     }
     // Default value
     return 0xFF;

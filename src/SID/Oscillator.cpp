@@ -54,6 +54,74 @@ void Oscillator::setControl(uint8_t controlValue)
     control = controlValue;
 }
 
+uint8_t Oscillator::readOutput8() const
+{
+    if ((control & 0xF0) == 0)
+        return 0x00;
+
+    const double t = phase - std::floor(phase);
+
+    uint16_t mixedBits = 0x0FFF;
+    bool waveformSelected = false;
+
+    if (control & 0x10) // Triangle
+    {
+        double tri = std::fabs(2.0 * (t - 0.5));
+
+        if ((control & 0x04) && ringSource)
+        {
+            if (ringSource->getPhase() >= 0.5)
+                tri = 1.0 - tri;
+        }
+
+        tri = std::clamp(tri, 0.0, 1.0);
+        mixedBits &= static_cast<uint16_t>(tri * 4095.0);
+        waveformSelected = true;
+    }
+
+    if (control & 0x20) // Sawtooth
+    {
+        const uint16_t sawBits = static_cast<uint16_t>(std::clamp(t, 0.0, 1.0) * 4095.0);
+
+        if (!waveformSelected)
+            mixedBits = sawBits;
+        else
+            mixedBits &= sawBits;
+
+        waveformSelected = true;
+    }
+
+    if (control & 0x40) // Pulse
+    {
+        const uint16_t pulseBits = (t < pulseWidth) ? 0x0FFF : 0x0000;
+
+        if (!waveformSelected)
+            mixedBits = pulseBits;
+        else
+            mixedBits &= pulseBits;
+
+        waveformSelected = true;
+    }
+
+    if (control & 0x80) // Noise
+    {
+        // Non-mutating read of current noise register state.
+        const uint16_t noiseBits = static_cast<uint16_t>((noiseLFSR >> 11) & 0x0FFF);
+
+        if (!waveformSelected)
+            mixedBits = noiseBits;
+        else
+            mixedBits &= noiseBits;
+
+        waveformSelected = true;
+    }
+
+    if (!waveformSelected)
+        return 0x00;
+
+    return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
+}
+
 double Oscillator::generateMixedSample()
 {
     if ((control & 0xF0) == 0)

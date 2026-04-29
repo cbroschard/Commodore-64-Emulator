@@ -8,6 +8,7 @@
 #ifndef ENVELOPE_H
 #define ENVELOPE_H
 
+#include <cstdint>
 #include <cmath>
 #include <string>
 
@@ -36,6 +37,7 @@ class Envelope
         // Getters
         inline double getLevel() const { return level; }
         inline State getState() const { return state; }
+        uint8_t readOutput8() const;
 
 
         // Setters

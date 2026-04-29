@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include "SID/Envelope.h"
 
 Envelope::Envelope(double sampleRate) :
@@ -29,6 +30,12 @@ void Envelope::trigger()
 void Envelope::release()
 {
     state = State::Release;
+}
+
+uint8_t Envelope::readOutput8() const
+{
+    const double clamped = std::clamp(level, 0.0, 1.0);
+    return static_cast<uint8_t>(std::round(clamped * 255.0));
 }
 
 double Envelope::processSample()
