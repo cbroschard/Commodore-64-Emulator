@@ -655,8 +655,22 @@ double SID::generateAudioSample()
     double mixed = filteredOut + unfilteredMix;
 
     // $D418 low nibble is master volume.
-    const double masterVol = static_cast<double>(modeVol & 0x0F) / 15.0;
+    // It also behaves like a small DAC offset on many SID revisions,
+    // which is how volume-register sample playback works.
+    const uint8_t volumeNibble = modeVol & 0x0F;
+    const double masterVol = static_cast<double>(volumeNibble) / 15.0;
+
+    // Apply master volume to normal voice/filter audio.
     mixed *= masterVol;
+
+    // Add volume-DAC DC offset before the high-pass stage.
+    // The high-pass filter turns rapid $D418 volume changes into audible clicks/samples.
+    const double volumeDacCentered =
+        (static_cast<double>(volumeNibble) - 7.5) / 7.5;
+
+    // Conservative level so it does not overpower normal SID audio.
+    constexpr double VOLUME_DAC_GAIN = 0.05;
+    mixed += volumeDacCentered * VOLUME_DAC_GAIN;
 
     double hp = HP_ALPHA * (hpPrevOut + mixed - hpPrevIn);
     hpPrevIn  = mixed;
