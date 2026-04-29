@@ -72,6 +72,9 @@ class Oscillator
         uint16_t getPulseBits();
         uint16_t getNoiseBits();
         double convertToFloat(uint16_t sampleBits);
+
+        void clockNoiseLFSR();
+        uint16_t getNoiseOutputBits() const;
 };
 
 #endif // OSCILLATOR_H

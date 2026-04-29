@@ -106,7 +106,7 @@ uint8_t Oscillator::readOutput8() const
     if (control & 0x80) // Noise
     {
         // Non-mutating read of current noise register state.
-        const uint16_t noiseBits = static_cast<uint16_t>((noiseLFSR >> 11) & 0x0FFF);
+        const uint16_t noiseBits = getNoiseOutputBits();
 
         if (!waveformSelected)
             mixedBits = noiseBits;
@@ -251,17 +251,36 @@ uint16_t Oscillator::getPulseBits()
     return static_cast<uint16_t>(value * 4095.0);
 }
 
+void Oscillator::clockNoiseLFSR()
+{
+    const uint32_t bit22 = (noiseLFSR >> 22) & 1;
+    const uint32_t bit17 = (noiseLFSR >> 17) & 1;
+    const uint32_t newBit = bit22 ^ bit17;
+
+    noiseLFSR = ((noiseLFSR << 1) | newBit) & 0x7FFFFF;
+}
+
+uint16_t Oscillator::getNoiseOutputBits() const
+{
+    // SID noise output uses selected LFSR bits:
+    // output bits from LFSR bits 20, 18, 14, 11, 9, 5, 2, 0.
+    const uint8_t noise8 =
+        (((noiseLFSR >> 20) & 1) << 7) |
+        (((noiseLFSR >> 18) & 1) << 6) |
+        (((noiseLFSR >> 14) & 1) << 5) |
+        (((noiseLFSR >> 11) & 1) << 4) |
+        (((noiseLFSR >>  9) & 1) << 3) |
+        (((noiseLFSR >>  5) & 1) << 2) |
+        (((noiseLFSR >>  2) & 1) << 1) |
+        (((noiseLFSR >>  0) & 1) << 0);
+
+    // Expand 8-bit noise to your existing 12-bit waveform path.
+    return static_cast<uint16_t>((noise8 << 4) | (noise8 >> 4));
+}
+
 uint16_t Oscillator::getNoiseBits()
 {
-    // Update the 23-bit LFSR
-    uint32_t bit22 = (noiseLFSR >> 22) & 1;
-    uint32_t bit17 = (noiseLFSR >> 17) & 1;
-    uint32_t newBit = bit22 ^ bit17;
-
-    noiseLFSR = ((noiseLFSR << 1) | newBit) & 0x7FFFFF; // Keep it 23 bits
-
-    // Return the top 12 bits as SID does
-    return (noiseLFSR >> 11) & 0x0FFF;
+    return getNoiseOutputBits();
 }
 
 void Oscillator::updatePhase()
@@ -270,7 +289,22 @@ void Oscillator::updatePhase()
     {
         resetPhase();
     }
+
     phase += frequency / sampleRate;
+
     phaseOverflow = (phase >= 1.0);
-    phase -= floor(phase);
+
+    if (phaseOverflow)
+    {
+        phase -= std::floor(phase);
+
+        // Noise should advance according to oscillator timing,
+        // not once per audio sample.
+        if (control & 0x80)
+            clockNoiseLFSR();
+    }
+    else
+    {
+        phase -= std::floor(phase);
+    }
 }
