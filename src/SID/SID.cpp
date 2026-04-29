@@ -94,6 +94,9 @@ void SID::saveState(StateWriter& wrtr) const
     // Dump current video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
 
+    // Dump SID Model
+    wrtr.writeU8(static_cast<uint8_t>(sidModel_));
+
     // Dump fractional accumulator
     wrtr.writeF64(sidCycleCounter);
 
@@ -214,6 +217,11 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(modeU8)) return false;
         mode_ = static_cast<VideoMode>(modeU8);
         setMode(mode_); // restores sidClockFrequency & sidCyclesPerAudioSample coherently
+
+        uint8_t sidModeU8 = 0;
+        if (!rdr.readU8(sidModeU8)) return false;
+        sidModel_ = static_cast<SIDModel>(sidModeU8);
+        setSIDModel(sidModel_);
 
         if (!rdr.readF64(sidCycleCounter)) return false;
 
