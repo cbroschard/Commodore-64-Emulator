@@ -26,6 +26,7 @@ static double sumVoiceSamplesRaw(const std::vector<double>& voiceSamples)
 }
 
 SID::SID(double sampleRate) :
+    sidModel_(SIDModel::MOS6581),
     processor(nullptr),
     logger(nullptr),
     traceMgr(nullptr),
@@ -44,6 +45,8 @@ SID::SID(double sampleRate) :
     // Zero initialize all registers in the SID structure.
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
     sidRegisters.filter.volume = 0x00; // All voices muted volume
+
+    setSIDModel(SIDModel::MOS6581);
 
     configureOscillatorSources();
 }
@@ -289,6 +292,12 @@ void SID::setMode(VideoMode mode)
 
     // Update the filter
     filterobj.setSIDClockFrequency(sidClockFrequency);
+}
+
+void SID::setSIDModel(SIDModel model)
+{
+    sidModel_ = model;
+    filterobj.setModel(model);
 }
 
 void SID::setSampleRate(double sample)
@@ -691,9 +700,10 @@ double SID::generateAudioSample()
     const double volumeDacCentered =
         (static_cast<double>(volumeNibble) - 7.5) / 7.5;
 
-    // Conservative level so it does not overpower normal SID audio.
-    constexpr double VOLUME_DAC_GAIN = 0.05;
-    mixed += volumeDacCentered * VOLUME_DAC_GAIN;
+    const double volumeDacGain =
+    (sidModel_ == SIDModel::MOS6581) ? 0.06 : 0.015;
+
+    mixed += volumeDacCentered * volumeDacGain;
 
     // Final safety soft-clip, after filter + direct voices + volume DAC.
     mixed = std::clamp(mixed, -1.5, 1.5);
@@ -742,6 +752,10 @@ void SID::reset()
     configureOscillatorSources();
 
     filterobj.reset();
+    setSIDModel(sidModel_);
+
+    hpPrevIn = 0.0;
+    hpPrevOut = 0.0;
 }
 
 uint16_t SID::combineBytes(uint8_t high, uint8_t low)
@@ -831,7 +845,7 @@ std::string SID::dumpRegisters(const std::string& group)
     if (group == "filter" || group == "all")
     {
         // Filter
-        uint16_t cutoff = ((sidRegisters.filter.cutoffHigh & 0x07) << 8) | sidRegisters.filter.cutoffLow;
+        uint16_t cutoff = (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) | (sidRegisters.filter.cutoffLow & 0x07);
         out << "Filter:\n";
         out << "  Cutoff=$" << std::hex << std::setw(4) << std::setfill('0') << cutoff
             << "  Res/Route=$" << std::setw(2) << static_cast<int>(sidRegisters.filter.resonanceControl)
