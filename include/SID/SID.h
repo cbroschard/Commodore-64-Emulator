@@ -19,6 +19,7 @@ class Vic;
 #include <iostream>
 #include <queue>
 #include <vector>
+#include "Common/SIDModel.h"
 #include "Common/VideoMode.h"
 #include "Logging.h"
 #include "Debug/TraceManager.h"
@@ -65,6 +66,10 @@ class SID
         // Full reset to default power on state
         void reset();
 
+        // SID Model
+        void setSIDModel(SIDModel model);
+        inline SIDModel getSIDModel() const { return sidModel_; }
+
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
         inline void setLog(bool enable) { setLogging = enable; }
@@ -72,6 +77,7 @@ class SID
     protected:
 
     private:
+        SIDModel sidModel_;
 
         // Non owning pointers
         CPU* processor;

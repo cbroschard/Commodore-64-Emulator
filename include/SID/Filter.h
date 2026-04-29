@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <math.h>
+#include "Common/SIDModel.h"
 
 class Filter
 {
@@ -25,6 +26,9 @@ class Filter
 
         // Reset function
         void reset();
+
+        // Model setter
+        void setModel(SIDModel model);
 
         // Getters
         inline double getLowPassOut()  const { return lowPassOut; }
@@ -47,12 +51,14 @@ class Filter
 
 
     private:
+        SIDModel model;
 
         double sidClockFrequency;
         double sampleRate;
-        double cutoff;    // Cutoff frequency in Hz.
-        double resonance; // Normalized resonance (0.0 - 1.0).
-        double f, q;      // Filter coefficients.
+        double cutoff;      // Cutoff frequency in Hz.
+        double resonance;   // normalized resonance
+        double f;           // Filter coefficient
+        double q;           // Filter coefficient
         double lowPassOut;
         double bandPassOut;
         double highPassOut;

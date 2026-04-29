@@ -8,11 +8,13 @@
 #include "SID/Filter.h"
 
 Filter::Filter(double sampleRate) :
+    model(SIDModel::MOS6581),
     sidClockFrequency(0.0),
     sampleRate(sampleRate),
     cutoff(1000.0),
     resonance(0.0),
-    f(0.0), q(0.0),
+    f(0.0),
+    q(0.0),
     lowPassOut(0.0),
     bandPassOut(0.0),
     highPassOut(0.0),
@@ -41,6 +43,12 @@ double Filter::processSample(double input)
     dcBlock = dcAlpha * dcBlock + (1.0 - dcAlpha) * output;
     //return output - dcBlock;
     return std::clamp(output - dcBlock, -1.0, 1.0);
+}
+
+void Filter::setModel(SIDModel newModel)
+{
+    model = newModel;
+    calculateCoefficients();
 }
 
 void Filter::reset()
@@ -83,16 +91,32 @@ void Filter::setResonance(uint8_t res)
 
 void Filter::calculateCoefficients()
 {
-    double fc = std::clamp(cutoff, 30.0, sampleRate * 0.45);
-    f = 2.0 * sin(M_PI * fc / sampleRate);
+    double fc = cutoff;
 
-    // Clamp f to prevent potential instability at very high frequencies
-    if (f > 0.99) f = 0.99;
-    if (f < 0.0) f = 0.0;
+    if (model == SIDModel::MOS6581)
+    {
+        // 6581: rougher and generally less predictable.
+        fc = std::clamp(fc, 30.0, 11000.0);
+    }
+    else
+    {
+        // 8580: cleaner and more predictable.
+        fc = std::clamp(fc, 30.0, 14000.0);
+    }
 
-    // Calculate 'q' based on resonance
-    q = 1.0 - pow(resonance, 1.3);
-    // Clamp q to ensure stable operation (resonance 0.0 to 1.0)
-    if (q > 1.0) q = 1.0;
-    if (q < 0.0) q = 0.0;
+    fc = std::clamp(fc, 30.0, sampleRate * 0.45);
+
+    f = 2.0 * std::sin(M_PI * fc / sampleRate);
+    f = std::clamp(f, 0.0, 0.99);
+
+    if (model == SIDModel::MOS6581)
+    {
+        q = 1.0 - std::pow(resonance, 1.15);
+    }
+    else
+    {
+        q = 1.0 - std::pow(resonance, 1.45);
+    }
+
+    q = std::clamp(q, 0.0, 1.0);
 }
