@@ -41,7 +41,7 @@ class Envelope
 
 
         // Setters
-        inline void setLevel(double value) { level = value; }
+        void setLevel(double newLevel);
         inline void setState(Envelope::State value) { state = value; }
         void setSampleRate(double sample);
         void setParameters(double attack, double decay, double sustain, double release);
@@ -56,9 +56,9 @@ class Envelope
 
     private:
 
-        double sampleRate; // Audio sample rate passed in by SID
-        State state;         // Current envelope state
-        double level;        // Current amplitude level (0.0 to 1.0)
+        double sampleRate;      // Audio sample rate passed in by SID
+        State state;            // Current envelope state
+        double level;           // Current amplitude level (0.0 to 1.0)
 
         // Envelope timing parameters (in seconds)
         double attackTime;
@@ -66,10 +66,16 @@ class Envelope
         double sustainLevel;
         double releaseTime;
 
-        // Envelope coefficients
-        double attackCoeff;
-        double decayCoeff;
-        double releaseCoeff;
+        uint8_t envCounter;
+        double stepAccumulator;
+
+        double attackStepSamples;
+        double decayStepSamples;
+        double releaseStepSamples;
+
+        uint8_t sustainCounter;
+
+        void syncLevelFromCounter();
 };
 
 #endif // ENVELOPE_H
