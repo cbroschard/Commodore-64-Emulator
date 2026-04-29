@@ -1,7 +1,7 @@
 #ifndef SIDMODEL_H_INCLUDED
 #define SIDMODEL_H_INCLUDED
 
-#iclude <string>
+#include <string>
 
 enum class SIDModel
 {
@@ -24,13 +24,8 @@ inline const char* sidModelToString(SIDModel model)
 
 inline SIDModel sidModelFromString(const std::string& model)
 {
-    switch(model)
-    {
-        case ("8580" || "MOS8580" || "mos8580"):
+    if (model == "8580" || "MOS8580" || "mos8580")
             return SIDModel::MOS8580;
-        case ("6581" || "MOS6581" || "mos6581" ):
-            return SIDModel::MOS6581;
-    }
 
     return SIDModel::MOS6581;
 }
