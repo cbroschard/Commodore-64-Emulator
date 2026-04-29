@@ -570,18 +570,40 @@ void SID::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xD417:
         {
-            // Update the value and the filter at the same time
+            // $D417 = RES/FILT
+            //
+            // Bits 0-2:
+            //   bit 0 = voice 1 routed through filter
+            //   bit 1 = voice 2 routed through filter
+            //   bit 2 = voice 3 routed through filter
+            //
+            // Bit 3:
+            //   external input routed through filter - not implemented yet
+            //
+            // Bits 4-7:
+            //   resonance
             sidRegisters.filter.resonanceControl = value;
-
-            // Set filter mode bits (bit 0 = LP, bit 1 = BP, bit 2 = HP)
-            filterobj.setMode(value & 0x07);
-
             filterobj.setResonance(value);
             break;
         }
         case 0xD418:
         {
+            // $D418 = MODE/VOL
+            //
+            // Bits 4-6:
+            //   bit 4 = low-pass
+            //   bit 5 = band-pass
+            //   bit 6 = high-pass
+            //
+            // Bit 7:
+            //   voice 3 direct-path off
+            //
+            // Bits 0-3:
+            //   master volume
             sidRegisters.filter.volume = value;
+
+            const uint8_t filterMode = (value >> 4) & 0x07;
+            filterobj.setMode(filterMode);
             break;
         }
         case 0xD419:
@@ -609,57 +631,67 @@ void SID::writeRegister(uint16_t address, uint8_t value)
 
 double SID::generateAudioSample()
 {
-    if (voice1.getOscillator().getPhaseOverflow() && (sidRegisters.voice2.control & 0x02))
-    {
-        voice2.getOscillator().resetPhase();
-    }
-    if (voice2.getOscillator().getPhaseOverflow() && (sidRegisters.voice3.control & 0x02))
-    {
-        voice3.getOscillator().resetPhase();
-    }
-
     std::vector<double> filteredVoices;
     std::vector<double> unfilteredVoices;
-    uint8_t routeBits = sidRegisters.filter.resonanceControl;  // bits 4/5/6
+
+    const uint8_t resFilt = sidRegisters.filter.resonanceControl;
+    const uint8_t modeVol = sidRegisters.filter.volume;
+
+    // $D417 bits 0-2 select which voices enter the filter.
+    const uint8_t filterRouteBits = resFilt & 0x07;
+
+    // $D418 bits 4-6 select LP/BP/HP output modes.
+    const uint8_t filterMode = (modeVol >> 4) & 0x07;
+
+    // $D418 bit 7 disconnects voice 3 from the direct audio path.
+    const bool voice3DirectOff = (modeVol & 0x80) != 0;
+
+    // Keep the filter mode coherent even after loadState/reset edge cases.
+    filterobj.setMode(filterMode);
 
     for (int i = 0; i < 3; ++i)
     {
-        Voice* v = (i == 0 ? &voice1 : i == 1 ? &voice2 : &voice3);
-        static const int routeMask[3] = { 1<<6, 1<<5, 1<<4 };   // v1,v2,v3
-        bool route = routeBits & routeMask[i];
-        //bool route = routeBits & (1 << (4 + i));
-        v->setFilterRouted(route);
+        Voice* v = (i == 0) ? &voice1 : (i == 1) ? &voice2 : &voice3;
 
-        double s = v->generateVoiceSample();
-        if (route)
+        const bool routedToFilter = (filterRouteBits & (1 << i)) != 0;
+        v->setFilterRouted(routedToFilter);
+
+        const double s = v->generateVoiceSample();
+
+        if (routedToFilter)
         {
             filteredVoices.push_back(s);
         }
         else
         {
-            unfilteredVoices.push_back(s);
+            // Voice 3 OFF only kills the direct path. It does not stop OSC3/ENV3 reads,
+            // and it should not silence voice 3 if you intentionally route it through filter.
+            if (!(i == 2 && voice3DirectOff))
+                unfilteredVoices.push_back(s);
         }
     }
 
-    double filteredMix   = mixerobj.mixSamples(filteredVoices);
-    double unfilteredMix = mixerobj.mixSamples(unfilteredVoices);
+    const double filteredMix   = mixerobj.mixSamples(filteredVoices);
+    const double unfilteredMix = mixerobj.mixSamples(unfilteredVoices);
 
     double filteredOut = 0.0;
-    if (routeBits & 0x07)
-    {
-        filteredOut = filterobj.processSample((filteredMix));
-    }
+
+    // If a voice is routed into the filter but no LP/BP/HP mode is selected,
+    // that routed signal should not appear directly.
+    if (filterMode != 0)
+        filteredOut = filterobj.processSample(filteredMix);
 
     double mixed = filteredOut + unfilteredMix;
-    double dacLevel = ((sidRegisters.filter.volume & 0xF0) >> 4) / 15.0;
-    mixed += dacLevel * 0.2;
+
+    // $D418 low nibble is master volume.
+    const double masterVol = static_cast<double>(modeVol & 0x0F) / 15.0;
+    mixed *= masterVol;
 
     double hp = HP_ALPHA * (hpPrevOut + mixed - hpPrevIn);
     hpPrevIn  = mixed;
     hpPrevOut = hp;
 
-    double masterVol = (sidRegisters.filter.volume & 0x0F) / 15.0;
-    return hp * masterVol;
+    return hp;
 }
 
 void SID::tick(uint32_t cycles)
@@ -722,8 +754,9 @@ void SID::updateEnvelopeParameters(Voice &voice, voiceRegisters &regs)
 
 void SID::updateCutoffFromRegisters()
 {
-    // Extract the 11-bit cutoff value from D416 (high) and D415 (low)
-    uint16_t cutoff11bit = ((sidRegisters.filter.cutoffHigh & 0x07) << 8) | sidRegisters.filter.cutoffLow;
+    uint16_t cutoff11bit =
+        (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
+        (sidRegisters.filter.cutoffLow & 0x07);
 
     // Normalize and apply SID-like cutoff mapping curve (approx 30Hz – 12kHz)
     double normalized = static_cast<double>(cutoff11bit) / 2047.0;
