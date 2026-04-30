@@ -306,6 +306,10 @@ void SID::setSIDModel(SIDModel model)
 {
     sidModel_ = model;
 
+    voice1.setSIDModel(model);
+    voice2.setSIDModel(model);
+    voice3.setSIDModel(model);
+
     filterobj.setModel(model);
     updateCutoffFromRegisters();
 }

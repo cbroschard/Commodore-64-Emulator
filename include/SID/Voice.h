@@ -41,6 +41,8 @@ class Voice
         // Reset function for clean startup
         void reset();
 
+        inline void setSIDModel(SIDModel model) { osc.setSIDModel(model); }
+
     protected:
 
     private:
