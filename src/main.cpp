@@ -43,7 +43,8 @@ po::options_description get_config_file_options()
         ("1571.ROM", po::value<std::string>(), "Full path and filename of the 1571 ROM to load")
         ("1581.ROM", po::value<std::string>(), "Full path and filename of the 1581 ROM to load")
         ("c64.Joy1", po::value<std::string>(), "Joystick 1 key bindings: Up,Down,Left,Right,Fire")
-        ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire");
+        ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire")
+        ("c64.SID.Model", po::value<std::string>(), "SID CHIP Model: 6581 8580");
     return desc;
 }
 
@@ -138,6 +139,11 @@ int main(int argc, char* argv[])
                 SDL_SCANCODE_RETURN
             };
             c64.setJoystickConfig(2, defaults2);
+        }
+
+        if (vmConfig.count("c64.SID.Model"))
+        {
+            c64.setSIDModel(vmConfig["c64.SID.Model"].as<std::string>());
         }
 
         // Setup command line options
