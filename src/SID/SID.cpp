@@ -305,7 +305,9 @@ void SID::setMode(VideoMode mode)
 void SID::setSIDModel(SIDModel model)
 {
     sidModel_ = model;
+
     filterobj.setModel(model);
+    updateCutoffFromRegisters();
 }
 
 void SID::setSampleRate(double sample)
@@ -791,19 +793,27 @@ void SID::updateEnvelopeParameters(Voice &voice, voiceRegisters &regs)
 
 void SID::updateCutoffFromRegisters()
 {
-    uint16_t cutoff11bit =
+    const uint16_t cutoff11bit =
         (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
         (sidRegisters.filter.cutoffLow & 0x07);
 
-    // Normalize and apply SID-like cutoff mapping curve (approx 30Hz – 12kHz)
-    double normalized = static_cast<double>(cutoff11bit) / 2047.0;
-    double curve = pow(2.0, normalized * 8.0) - 1.0;
-    double cutoffFreq = 30.0 + (curve / 255.0) * (12000.0 - 30.0);
+    const double x = static_cast<double>(cutoff11bit) / 2047.0;
 
-    // Safety clamp
-    cutoffFreq = std::clamp(cutoffFreq, 30.0, 12000.0);
+    double cutoffFreq = 0.0;
 
-    // Apply to filter
+    if (sidModel_ == SIDModel::MOS6581)
+    {
+        // Rougher/lower 6581-style approximation.
+        const double curve = std::pow(x, 2.2);
+        cutoffFreq = 30.0 + curve * (11000.0 - 30.0);
+    }
+    else
+    {
+        // Cleaner/wider 8580-style approximation.
+        const double curve = std::pow(x, 1.35);
+        cutoffFreq = 30.0 + curve * (14000.0 - 30.0);
+    }
+
     filterobj.setCutoffFreq(cutoffFreq);
 }
 
