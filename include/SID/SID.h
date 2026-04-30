@@ -85,6 +85,18 @@ class SID
         TraceManager* traceMgr;
         Vic* vicII;
 
+        struct AnalogProfile
+        {
+            double directGain;
+            double filterInputGain;
+            double filterOutputGain;
+            double volumeDacGain;
+            double outputBias;
+            double softClipDrive;
+        };
+
+        AnalogProfile getAnalogProfile() const;
+
         // Monitor logging
         bool setLogging;
 

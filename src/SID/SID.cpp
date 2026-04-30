@@ -637,6 +637,8 @@ void SID::writeRegister(uint16_t address, uint8_t value)
 
 double SID::generateAudioSample()
 {
+    const AnalogProfile profile = getAnalogProfile();
+
     std::vector<double> filteredVoices;
     std::vector<double> unfilteredVoices;
 
@@ -652,7 +654,6 @@ double SID::generateAudioSample()
     // $D418 bit 7 disconnects voice 3 from the direct audio path.
     const bool voice3DirectOff = (modeVol & 0x80) != 0;
 
-    // Keep the filter mode coherent even after loadState/reset edge cases.
     filterobj.setMode(filterMode);
 
     for (int i = 0; i < 3; ++i)
@@ -670,52 +671,45 @@ double SID::generateAudioSample()
         }
         else
         {
-            // Voice 3 OFF only kills the direct path. It does not stop OSC3/ENV3 reads,
-            // and it should not silence voice 3 if you intentionally route it through filter.
             if (!(i == 2 && voice3DirectOff))
                 unfilteredVoices.push_back(s);
         }
     }
 
-    const double filteredMix   = sumVoiceSamplesRaw(filteredVoices);
-    const double unfilteredMix = sumVoiceSamplesRaw(unfilteredVoices);
+    const double filteredMix =
+        sumVoiceSamplesRaw(filteredVoices) * profile.filterInputGain;
+
+    const double unfilteredMix =
+        sumVoiceSamplesRaw(unfilteredVoices) * profile.directGain;
 
     double filteredOut = 0.0;
 
-    // If any voice is routed into the filter, the filter should still process
-    // internally even when no LP/BP/HP output mode is selected.
     if (!filteredVoices.empty())
     {
         const double filterResult = filterobj.processSample(filteredMix);
 
-        // $D418 bits 4-6 decide whether the filter output is audible.
-        // With no mode selected, routed voices are swallowed by the filter path.
         if (filterMode != 0)
-            filteredOut = filterResult;
+            filteredOut = filterResult * profile.filterOutputGain;
     }
 
     double mixed = filteredOut + unfilteredMix;
 
-    // $D418 low nibble is master volume.
-    // It also behaves like a small DAC offset on many SID revisions,
-    // which is how volume-register sample playback works.
     const uint8_t volumeNibble = modeVol & 0x0F;
     const double masterVol = static_cast<double>(volumeNibble) / 15.0;
 
-    // Apply master volume to normal voice/filter audio.
     mixed *= masterVol;
 
-    // Add volume-DAC DC offset before the high-pass stage.
-    // The high-pass filter turns rapid $D418 volume changes into audible clicks/samples.
+    // $D418 volume DAC behavior differs strongly between 6581 and 8580.
     const double volumeDacCentered =
         (static_cast<double>(volumeNibble) - 7.5) / 7.5;
 
-    const double volumeDacGain =
-    (sidModel_ == SIDModel::MOS6581) ? 0.06 : 0.015;
+    mixed += volumeDacCentered * profile.volumeDacGain;
 
-    mixed += volumeDacCentered * volumeDacGain;
+    // 6581 has more analog bias / character than 8580.
+    mixed += profile.outputBias;
 
-    // Final safety soft-clip, after filter + direct voices + volume DAC.
+    // Model-specific analog saturation.
+    mixed *= profile.softClipDrive;
     mixed = std::clamp(mixed, -1.5, 1.5);
     mixed = mixed / (1.0 + std::abs(mixed));
 
@@ -766,6 +760,32 @@ void SID::reset()
 
     hpPrevIn = 0.0;
     hpPrevOut = 0.0;
+}
+
+SID::AnalogProfile SID::getAnalogProfile() const
+{
+    if (sidModel_ == SIDModel::MOS8580)
+    {
+        return AnalogProfile
+        {
+            0.95,   // directGain
+            0.90,   // filterInputGain
+            0.95,   // filterOutputGain
+            0.015,  // volumeDacGain
+            0.000,  // outputBias
+            1.00    // softClipDrive
+        };
+    }
+
+    return AnalogProfile
+    {
+        1.05,   // directGain
+        1.15,   // filterInputGain
+        1.10,   // filterOutputGain
+        0.060,  // volumeDacGain
+        0.010,  // outputBias
+        1.20    // softClipDrive
+    };
 }
 
 uint16_t SID::combineBytes(uint8_t high, uint8_t low)
