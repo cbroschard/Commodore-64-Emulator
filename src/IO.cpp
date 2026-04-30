@@ -70,7 +70,7 @@ IO::IO() :
 
     SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr)
     {
         SDL_DestroyWindow(window);
