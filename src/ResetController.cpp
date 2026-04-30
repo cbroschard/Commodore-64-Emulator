@@ -32,6 +32,7 @@ ResetController::ResetController(
     const std::string& kernalRom,
     const std::string& charRom,
     VideoMode& videoMode,
+    SIDModel& sidModel,
     const CPUConfig*& cpuCfg)
     : cpu_(cpu)
     , mem_(mem)
@@ -47,6 +48,7 @@ ResetController::ResetController(
     , kernalRom_(kernalRom)
     , charRom_(charRom)
     , videoMode_(videoMode)
+    , sidModel_(sidModel)
     , cpuCfg_(cpuCfg)
 {
 }
@@ -70,6 +72,16 @@ void ResetController::setVideoMode(const std::string& mode)
     cia1_.setMode(videoMode_);
     cia2_.setMode(videoMode_);
     if (media_) media_->setVideoMode(videoMode_);
+}
+
+void ResetController::setSIDModel(const std::string& model)
+{
+    if (model == "8580" || model == "MOS8580")
+        sidModel_ = SIDModel::MOS8580;
+    else
+        sidModel_ = SIDModel::MOS6581;
+
+    sid_.setSIDModel(sidModel_);
 }
 
 void ResetController::warmReset()

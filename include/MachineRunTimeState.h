@@ -17,6 +17,7 @@ struct MachineRuntimeState
     std::atomic<bool>& uiPaused;
 
     VideoMode& videoMode;
+    SIDModel& sidModel;
     const CPUConfig*& cpuCfg;
 
     bool& pendingBusPrime;

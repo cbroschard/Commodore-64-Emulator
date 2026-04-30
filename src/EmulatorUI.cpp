@@ -540,6 +540,32 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Audio"))
+        {
+            if (ImGui::BeginMenu("SID Model"))
+            {
+                const bool is8580 = v.sid8580;
+
+                if (ImGui::MenuItem("MOS 6581 - classic C64",
+                                    nullptr,
+                                    !is8580))
+                {
+                    push(UiCommand::Type::SetMOS6581);
+                }
+
+                if (ImGui::MenuItem("MOS 8580 - C64C / cleaner SID",
+                                    nullptr,
+                                    is8580))
+                {
+                    push(UiCommand::Type::SetMOS8580);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("System"))
         {
             if (ImGui::MenuItem("Save Emulator State to File...", "Ctrl+S"))

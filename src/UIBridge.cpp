@@ -14,9 +14,11 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
                    UIBridge::VoidFn coldReset,
+                   UIBridge::StringFn setSIDModel,
                    UIBridge::StringFn setVideoMode,
                    UIBridge::VoidFn enterMonitor,
                    UIBridge::BoolFn isPal,
+                   UIBridge::BoolFn is8580,
                    UIBridge::BoolFn isMonitorOpen)
     : ui_(ui),
       media_(media),
@@ -27,9 +29,11 @@ UIBridge::UIBridge(EmulatorUI& ui,
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
       coldReset_(std::move(coldReset)),
+      setSIDModel_(std::move(setSIDModel)),
       setVideoMode_(std::move(setVideoMode)),
       enterMonitor_(std::move(enterMonitor)),
       isPal_(std::move(isPal)),
+      is8580_(std::move(is8580)),
       manualPaused_(false),
       dialogPaused_(false),
       isMonitorOpen_(std::move(isMonitorOpen))
@@ -86,6 +90,7 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 
     s.paused = uiPaused_.load();
     s.pal    = isPal_ ? isPal_() : false;
+    s.sid8580 = is8580_ ? is8580_() : false;
 
     s.cartSwitches.clear();
     s.cartButtons.clear();
@@ -308,6 +313,16 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::CassEject:
                 if (media_) media_->tapeEject();
+                break;
+
+            case UiCommand::Type::SetMOS6581:
+                if (setSIDModel_)
+                    setSIDModel_("6581");
+                break;
+
+            case UiCommand::Type::SetMOS8580:
+                if (setSIDModel_)
+                    setSIDModel_("8580");
                 break;
 
             case UiCommand::Type::EnterMonitor:

@@ -25,9 +25,11 @@ class UIBridge
          StringFn loadState,
          VoidFn warmReset,
          VoidFn coldReset,
+         StringFn setSIDModel,
          StringFn setVideoMode,
          VoidFn enterMonitor,
          BoolFn isPal,
+         BoolFn is8580,
          BoolFn isMonitorOpen);
 
         virtual ~UIBridge();
@@ -56,9 +58,11 @@ class UIBridge
         StringFn loadState_;
         VoidFn warmReset_;
         VoidFn coldReset_;
+        StringFn setSIDModel_;
         StringFn setVideoMode_;
         VoidFn enterMonitor_;
         BoolFn isPal_;
+        BoolFn is8580_;
 
         bool manualPaused_;
         bool dialogPaused_;

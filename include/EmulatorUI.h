@@ -96,6 +96,7 @@ class EmulatorUI
 
             bool paused          = false;
             bool pal             = true;
+            bool sid8580         = true;
 
             std::vector<DriveStatusView> drives;
 

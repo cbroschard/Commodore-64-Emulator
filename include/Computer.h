@@ -48,8 +48,9 @@ class Computer : public ICartridgeHost
         void warmReset();
         void coldReset();
 
-        // Setter for video mode
+        // Setters for video mode/SID Model
         void setVideoMode(const std::string& mode);
+        void setSIDModel(const std::string& model);
 
         // Attachments
         inline void setCartridgeAttached(bool flag) { if (components_.media) components_.media->setCartAttached(flag); }
@@ -84,7 +85,8 @@ class Computer : public ICartridgeHost
     protected:
 
     private:
-        // Video/CPU mode setup
+        // Video/CPU/SID mode setup
+        SIDModel sidModel_ = SIDModel::MOS6581;
         VideoMode videoMode_ = VideoMode::NTSC;
         const CPUConfig* cpuCfg_ = &NTSC_CPU;
 

@@ -37,6 +37,7 @@ Computer::Computer() :
         running,
         uiPaused,
         videoMode_,
+        sidModel_,
         cpuCfg_,
         pendingBusPrime,
         busPrimedAfterBoot
@@ -176,6 +177,11 @@ void Computer::coldReset()
 void Computer::setVideoMode(const std::string& mode)
 {
     if (components_.resetCtl) components_.resetCtl->setVideoMode(mode);
+}
+
+void Computer::setSIDModel(const std::string& model)
+{
+    if (components_.resetCtl) components_.resetCtl->setSIDModel(model);
 }
 
 void Computer::wireUp()

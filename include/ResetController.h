@@ -10,6 +10,7 @@
 
 #include <string>
 #include "CPUTiming.h"
+#include "Common/SIDModel.h"
 
 // forward declares
 class Cartridge;
@@ -43,6 +44,7 @@ public:
         const std::string& kernalRom,
         const std::string& charRom,
         VideoMode& videoMode,
+        SIDModel& sidModel,
         const CPUConfig*& cpuCfg);
 
     ~ResetController() = default;
@@ -50,6 +52,7 @@ public:
     void warmReset();
     void coldReset();
     void setVideoMode(const std::string& mode);
+    void setSIDModel(const std::string& model);
 
 private:
     CPU& cpu_;
@@ -68,6 +71,7 @@ private:
     const std::string& charRom_;
 
     VideoMode& videoMode_;
+    SIDModel& sidModel_;
     const CPUConfig*& cpuCfg_;
 };
 

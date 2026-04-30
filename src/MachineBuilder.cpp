@@ -124,14 +124,16 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.resetCtl = std::make_unique<ResetController>(*components.cpu, *components.mem, *components.pla, *components.cia1, *components.cia2,
                                                              *components.vic, *components.sid, *components.bus, *components.cart,
                                                              components.media.get(), roms.basicRom, roms.kernalRom, roms.charRom, runtime.videoMode,
-                                                             runtime.cpuCfg);
+                                                             runtime.sidModel, runtime.cpuCfg);
 
     components.uiBridge = std::make_unique<UIBridge>(*components.ui, components.media.get(), components.inputMgr.get(), runtime.uiPaused,
                                                       runtime.running, [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
-                                                      [host]() { host->coldReset(); }, [host](const std::string& mode) { host->setVideoMode(mode); },
+                                                      [host]() { host->coldReset(); }, [host](const std::string& model) { host->setSIDModel(model); },
+                                                      [host](const std::string& mode) { host->setVideoMode(mode); },
                                                       [host]() { host->enterMonitor(); },
                                                       [&videoMode = runtime.videoMode]() -> bool { return videoMode == VideoMode::PAL; },
+                                                      [&sidModel = runtime.sidModel]() -> bool { return sidModel == SIDModel::MOS8580; },
                                                       [&components]() -> bool {return components.debug && components.debug->monitorController().isOpen();});
 
     components.stateMgr = std::make_unique<StateManager>(*components.cart, *components.cass, *components.cia1, *components.cia2,

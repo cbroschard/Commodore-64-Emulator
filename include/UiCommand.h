@@ -52,6 +52,9 @@ struct UiCommand
         ToggleJoy1,
         ToggleJoy2,
 
+        SetMOS6581,
+        SetMOS8580,
+
         EnterMonitor,
         Quit
     };
