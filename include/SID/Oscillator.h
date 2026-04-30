@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include "Common/SIDModel.h"
 
 class Oscillator
 {
@@ -44,6 +45,8 @@ class Oscillator
         // Reset function
         void reset();
 
+        inline void setSIDModel(SIDModel model) { sidModel_ = model; }
+
         // Reset the phase
         inline void resetPhase() { phase = 0.0; phaseOverflow = false; }
 
@@ -56,6 +59,8 @@ class Oscillator
 
         Oscillator* syncSource = nullptr;
         Oscillator* ringSource = nullptr;
+
+        SIDModel sidModel_ = SIDModel::MOS6581;
 
         uint32_t noiseLFSR;
         double sampleRate;

@@ -8,8 +8,9 @@
 #ifndef VOICE_H
 #define VOICE_H
 
-#include "Oscillator.h"
-#include "Envelope.h"
+#include "Common/SIDModel.h"
+#include "SID/Oscillator.h"
+#include "SID/Envelope.h"
 
 class Voice
 {
