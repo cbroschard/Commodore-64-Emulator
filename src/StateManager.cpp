@@ -36,6 +36,7 @@ StateManager::StateManager(Cartridge& cart,
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
                      VideoMode& videoMode,
+                     SIDModel& sidModel,
                      const CPUConfig*& cpuCfg,
                      bool& pendingBusPrime,
                      bool& busPrimedAfterBoot,
@@ -55,6 +56,7 @@ StateManager::StateManager(Cartridge& cart,
       vicII_(vicII),
       uiPaused_(uiPaused),
       videoMode_(videoMode),
+      sidModel_(sidModel),
       cpuCfg_(cpuCfg),
       pendingBusPrime_(pendingBusPrime),
       busPrimedAfterBoot_(busPrimedAfterBoot),
@@ -79,6 +81,9 @@ bool StateManager::save(const std::string& path)
 
     // Dump Video mode
     wrtr.writeU8(static_cast<uint8_t>(videoMode_));
+
+    // Dump SID model
+    wrtr.writeU8(static_cast<uint8_t>(sidModel_));
 
     // Dump CPU timing ID
     const uint8_t cpuTimingId = (videoMode_ == VideoMode::NTSC) ? 0 : 1;
@@ -170,6 +175,11 @@ bool StateManager::load(const std::string& path)
     uint8_t mode = 0;
     if (!rdr.readU8(mode)) return false;
     videoMode_ = static_cast<VideoMode>(mode);
+
+    // Restore SID Model
+    uint8_t model = 0;
+    if (!rdr.readU8(model)) return false;
+    sidModel_ = static_cast<SIDModel>(model);
 
     // Restore CPU timing
     uint8_t cpuTimingID = 0;

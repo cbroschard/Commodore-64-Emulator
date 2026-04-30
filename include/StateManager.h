@@ -51,6 +51,7 @@ class StateManager
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
                      VideoMode& videoMode,
+                     SIDModel& sidModel,
                      const CPUConfig*& cpuCfg,
                      bool& pendingBusPrime,
                      bool& busPrimedAfterBoot,
@@ -83,6 +84,7 @@ class StateManager
         std::atomic<bool>& uiPaused_;
 
         VideoMode& videoMode_;
+        SIDModel& sidModel_;
         const CPUConfig*& cpuCfg_;
 
         bool& pendingBusPrime_;
