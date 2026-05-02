@@ -53,6 +53,7 @@ class IO
 
         // Audio functions
         bool playAudio();
+        void pauseAudio();
         void stopAudio();
         void resumeAudio();
         inline int getBlockSamples() const { return obtainedSpec.samples; }

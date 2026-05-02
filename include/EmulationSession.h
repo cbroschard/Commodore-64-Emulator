@@ -78,7 +78,9 @@ private:
     Vic& vic_;
 
     std::chrono::duration<double, std::milli> frameDuration_;
-    std::chrono::steady_clock::time_point nextFrameTime_;
+    std::chrono::steady_clock::time_point nextFrameTime_;;
+
+    bool audioPausedForMonitor_;
 };
 
 #endif // EMULATION_SESSION_H

@@ -71,7 +71,9 @@ class SID
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
         inline void setLog(bool enable) { setLogging = enable; }
+        inline int getAudioBufferedSamples() const { return audioBufferedSamples.load(std::memory_order_relaxed); }
         std::string dumpAudioStats() const;
+        void resetAudioStats();
 
     protected:
 

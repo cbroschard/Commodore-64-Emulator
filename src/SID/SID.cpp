@@ -1040,22 +1040,44 @@ std::string SID::dumpAudioStats() const
 
     out << "\nHealth:\n";
 
-    if (underruns == 0)
+    const int deficit =
+        (consumed > generated)
+            ? static_cast<int>(consumed - generated)
+            : 0;
+
+    if (underruns == 0 && buffered > 1024)
     {
-        out << "  Status: OK - no audio underruns recorded.\n";
+        out << "  Status: OK - audio cushion is healthy.\n";
     }
-    else if (buffered <= 0)
+    else if (buffered > 0)
     {
-        out << "  Status: STARVING - SDL is draining the SID queue.\n";
+        out << "  Status: LOW - audio is running, but cushion is small.\n";
     }
-    else if (buffered < 1024)
+    else if (deficit < 5000)
     {
-        out << "  Status: LOW - audio cushion is small.\n";
+        out << "  Status: NO CUSHION - queue is empty, but generation is close to real time.\n";
     }
     else
     {
-        out << "  Status: OK - audio cushion is present, but underruns occurred earlier.\n";
+        out << "  Status: STARVING - SDL is consuming faster than SID is generating.\n";
     }
 
     return out.str();
+}
+
+void SID::resetAudioStats()
+{
+    // Preserve current queue depth instead of blindly zeroing it.
+    // audioBufferedSamples is current state, not just a stat counter.
+    const int buffered = audioBufferedSamples.load(std::memory_order_relaxed);
+
+    audioGeneratedSamples.store(static_cast<uint64_t>(std::max(0, buffered)),
+                                std::memory_order_relaxed);
+    audioConsumedSamples.store(0, std::memory_order_relaxed);
+    audioUnderrunCount.store(0, std::memory_order_relaxed);
+
+    // Do not reset lastOutputSample / underrun smoothing here.
+    // This command should reset counters, not create an audible discontinuity.
+    audioWasUnderrunning = false;
+    underrunRecoverySamples = 0;
 }

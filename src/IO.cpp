@@ -186,6 +186,12 @@ bool IO::playAudio()
     return true;
 }
 
+void IO::pauseAudio()
+{
+    if (dev != 0)
+        SDL_PauseAudioDevice(dev, 1);
+}
+
 void IO::stopAudio()
 {
     if (dev != 0)

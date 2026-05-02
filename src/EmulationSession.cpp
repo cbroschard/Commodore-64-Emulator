@@ -40,8 +40,10 @@ EmulationSession::EmulationSession(MachineComponents& components,
       uiBridge_(*components.uiBridge),
       vic_(*components.vic),
       frameDuration_(0.0),
-      nextFrameTime_()
+      nextFrameTime_(),
+      audioPausedForMonitor_(false)
 {
+
 }
 
 EmulationSession::~EmulationSession() = default;
@@ -113,7 +115,19 @@ bool EmulationSession::initializeMachine()
 
 void EmulationSession::processEvents()
 {
-    const bool wantTextInput = debug_.monitorController().isOpen() || ui_.isFileDialogOpen();
+    const bool monitorOpen = debug_.monitorController().isOpen();
+    const bool wantTextInput = monitorOpen || ui_.isFileDialogOpen();
+
+    if (monitorOpen && !audioPausedForMonitor_)
+    {
+        io_.pauseAudio();
+        audioPausedForMonitor_ = true;
+    }
+    else if (!monitorOpen && audioPausedForMonitor_)
+    {
+        io_.resumeAudio();
+        audioPausedForMonitor_ = false;
+    }
 
     if (wantTextInput)
         SDL_StartTextInput();
@@ -123,10 +137,8 @@ void EmulationSession::processEvents()
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
-        // Let IO handle ImGui + main-thread window/input events
         io_.handleEvent(e, runtime_.running);
 
-        // Then let InputRouter handle hotkeys, monitor toggle, etc.
         if (inputRouter_.handleEvent(e))
             continue;
 
@@ -222,10 +234,24 @@ bool EmulationSession::finalizeFrame()
     const auto frameStep =
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
 
+    const int audioBuffered = sid_.getAudioBufferedSamples();
+    const int audioLowWatermark = io_.getBlockSamples();       // e.g. 2048
+    const bool audioStarving = audioBuffered < audioLowWatermark;
+
     if (now < nextFrameTime_)
     {
-        std::this_thread::sleep_until(nextFrameTime_);
+        if (!audioStarving)
+        {
+            std::this_thread::sleep_until(nextFrameTime_);
+        }
+        else
+        {
+            // Audio is starving, so do not sleep this frame.
+            // Also reset the pacing target so we do not create a huge future sleep.
+            nextFrameTime_ = now;
+        }
     }
+
     do
     {
         nextFrameTime_ += frameStep;
