@@ -824,27 +824,16 @@ void SID::reset()
 
 SID::AnalogProfile SID::getAnalogProfile() const
 {
-    if (sidModel_ == SIDModel::MOS8580)
-    {
-        return AnalogProfile
-        {
-            0.95,   // directGain
-            0.90,   // filterInputGain
-            0.95,   // filterOutputGain
-            0.015,  // volumeDacGain
-            0.000,  // outputBias
-            1.00    // softClipDrive
-        };
-    }
+    const SIDModelProfile& profile = getSIDModelProfile(sidModel_);
 
     return AnalogProfile
     {
-        1.05,   // directGain
-        1.15,   // filterInputGain
-        1.10,   // filterOutputGain
-        0.060,  // volumeDacGain
-        0.010,  // outputBias
-        1.20    // softClipDrive
+        profile.directGain,
+        profile.filterInputGain,
+        profile.filterOutputGain,
+        profile.volumeDacGain,
+        profile.outputBias,
+        profile.softClipDrive
     };
 }
 
@@ -877,22 +866,8 @@ void SID::updateCutoffFromRegisters()
         (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
         (sidRegisters.filter.cutoffLow & 0x07);
 
-    const double x = static_cast<double>(cutoff11bit) / 2047.0;
-
-    double cutoffFreq = 0.0;
-
-    if (sidModel_ == SIDModel::MOS6581)
-    {
-        // Rougher/lower 6581-style approximation.
-        const double curve = std::pow(x, 2.2);
-        cutoffFreq = 30.0 + curve * (11000.0 - 30.0);
-    }
-    else
-    {
-        // Cleaner/wider 8580-style approximation.
-        const double curve = std::pow(x, 1.35);
-        cutoffFreq = 30.0 + curve * (14000.0 - 30.0);
-    }
+    const double cutoffFreq =
+        mapSIDCutoff11BitToHz(cutoff11bit, sidModel_);
 
     filterobj.setCutoffFreq(cutoffFreq);
 }

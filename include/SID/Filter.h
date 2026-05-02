@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <math.h>
 #include "Common/SIDModel.h"
+#include "SID/SIDModelProfile.h"
 
 class Filter
 {

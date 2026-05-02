@@ -40,23 +40,7 @@ Oscillator::~Oscillator() = default;
 
 double Oscillator::convertToFloat(uint16_t sampleBits)
 {
-    sampleBits &= 0x0FFF;
-
-    double x = static_cast<double>(sampleBits) / 4095.0;
-
-    if (sidModel_ == SIDModel::MOS6581)
-    {
-        // This makes the 6581 waveform output less perfectly linear
-        // without destroying pitch, envelope behavior, or combined-waveform tests.
-        x = std::pow(x, 1.08);
-
-        // Small center bias; final SID output high-pass will remove most DC,
-        // but this gives the 6581 path a slightly different analog character.
-        return std::clamp((x * 2.0) - 1.0 + 0.015, -1.0, 1.0);
-    }
-
-    // 8580: cleaner, closer to linear.
-    return (x * 2.0) - 1.0;
+    return applySIDWaveformDac(sampleBits, sidModel_);
 }
 
 void Oscillator::setControl(uint8_t controlValue)

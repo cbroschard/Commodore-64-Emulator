@@ -91,32 +91,16 @@ void Filter::setResonance(uint8_t res)
 
 void Filter::calculateCoefficients()
 {
+    const SIDModelProfile& profile = getSIDModelProfile(model);
+
     double fc = cutoff;
 
-    if (model == SIDModel::MOS6581)
-    {
-        // 6581: rougher and generally less predictable.
-        fc = std::clamp(fc, 30.0, 11000.0);
-    }
-    else
-    {
-        // 8580: cleaner and more predictable.
-        fc = std::clamp(fc, 30.0, 14000.0);
-    }
-
-    fc = std::clamp(fc, 30.0, sampleRate * 0.45);
+    fc = std::clamp(fc, profile.cutoffMinHz, profile.cutoffMaxHz);
+    fc = std::clamp(fc, profile.cutoffMinHz, sampleRate * 0.45);
 
     f = 2.0 * std::sin(M_PI * fc / sampleRate);
     f = std::clamp(f, 0.0, 0.99);
 
-    if (model == SIDModel::MOS6581)
-    {
-        q = 1.0 - std::pow(resonance, 1.15);
-    }
-    else
-    {
-        q = 1.0 - std::pow(resonance, 1.45);
-    }
-
+    q = 1.0 - std::pow(resonance, profile.resonanceCurvePower);
     q = std::clamp(q, 0.0, 1.0);
 }
