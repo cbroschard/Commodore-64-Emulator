@@ -34,6 +34,8 @@ struct SIDModelProfile
     double cutoffMaxHz;
     double cutoffCurvePower;
     double resonanceCurvePower;
+    double filterDrive;
+    double filterAsymmetry;
 };
 
 struct SIDCutoffPoint
@@ -62,7 +64,9 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         30.0,     // cutoffMinHz
         11000.0,  // cutoffMaxHz
         2.20,     // cutoffCurvePower
-        1.15      // resonanceCurvePower
+        1.15,     // resonanceCurvePower
+        0.18,     // filterDrive
+        0.06      // filterAsymmetry
     };
 
     static const SIDModelProfile mos8580 =
@@ -83,7 +87,9 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         30.0,     // cutoffMinHz
         14000.0,  // cutoffMaxHz
         1.35,     // cutoffCurvePower
-        1.45      // resonanceCurvePower
+        1.45,     // resonanceCurvePower
+        0.03,     // filterDrive
+        0.00      // filterAsymmetry
     };
 
     return (model == SIDModel::MOS8580) ? mos8580 : mos6581;

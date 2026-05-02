@@ -28,10 +28,33 @@ Filter::~Filter() = default;
 
 double Filter::processSample(double input)
 {
-    highPassOut = input - lowPassOut - q * bandPassOut;
+    const SIDModelProfile& profile = getSIDModelProfile(model);
+
+    double drivenInput = input;
+
+    // Model-specific analog-ish input drive.
+    // 6581 gets more color; 8580 stays mostly clean.
+    if (profile.filterDrive > 0.0)
+    {
+        drivenInput *= (1.0 + profile.filterDrive);
+
+        if (profile.filterAsymmetry != 0.0)
+        {
+            // Small asymmetric bend. This makes the 6581 filter path less
+            // perfectly symmetrical without being a harsh distortion effect.
+            drivenInput += profile.filterAsymmetry * drivenInput * std::abs(drivenInput);
+        }
+
+        // Soft saturation before the state-variable filter.
+        drivenInput = std::tanh(drivenInput);
+    }
+
+    highPassOut = drivenInput - lowPassOut - q * bandPassOut;
+
     bandPassOut += f * highPassOut;
     bandPassOut = std::clamp(bandPassOut, -1.0, 1.0);
-    lowPassOut  += f * bandPassOut;
+
+    lowPassOut += f * bandPassOut;
     lowPassOut = std::clamp(lowPassOut, -1.0, 1.0);
 
     double output = 0.0;
@@ -39,9 +62,9 @@ double Filter::processSample(double input)
     if (mode & 0x02) output += bandPassOut;
     if (mode & 0x04) output += highPassOut;
 
-    const double dcAlpha = 0.999; // Controls strength of filtering
+    const double dcAlpha = 0.999;
     dcBlock = dcAlpha * dcBlock + (1.0 - dcAlpha) * output;
-    //return output - dcBlock;
+
     return std::clamp(output - dcBlock, -1.0, 1.0);
 }
 
