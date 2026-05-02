@@ -53,6 +53,9 @@ class Envelope
         // Reset envelope
         void reset();
 
+        // ML Monitor
+        std::string dumpDebug() const;
+
     protected:
 
     private:

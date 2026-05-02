@@ -1033,19 +1033,26 @@ std::string SID::decodeADSR(const voiceRegisters& regs, const Voice& voice, int 
 {
     std::stringstream out;
 
-    // ADSR nibbles
-    uint8_t A = (regs.attackDecay >> 4) & 0x0F;
-    uint8_t D = (regs.attackDecay)      & 0x0F;
-    uint8_t S = (regs.sustainRelease >> 4) & 0x0F;
-    uint8_t R = (regs.sustainRelease)      & 0x0F;
+    const uint8_t A = (regs.attackDecay >> 4) & 0x0F;
+    const uint8_t D =  regs.attackDecay       & 0x0F;
+    const uint8_t S = (regs.sustainRelease >> 4) & 0x0F;
+    const uint8_t R =  regs.sustainRelease       & 0x0F;
 
-    out << "  ADSR: A=$" << std::hex << static_cast<int>(A) << " D=$" << static_cast<int>(D)
-        << " S=$" << static_cast<int>(S) << " R=$" << static_cast<int>(R) << "\n";
+    out << "  ADSR: A=$" << std::hex << static_cast<int>(A)
+        << " D=$" << static_cast<int>(D)
+        << " S=$" << static_cast<int>(S)
+        << " R=$" << static_cast<int>(R) << "\n";
 
-    // Current envelope level
-    Envelope::State st = voice.getEnvelope().getState();
-    double level = voice.getEnvelope().getLevel();
-    out << "  ENV State=" << Envelope::stateToString(st) << " Level=" << std::dec << std::fixed << std::setprecision(3) << level << "\n";
+    const Envelope& env = voice.getEnvelope();
+
+    out << "  ENV State=" << Envelope::stateToString(env.getState())
+        << " Counter=$" << std::hex << std::setw(2) << std::setfill('0')
+        << static_cast<int>(env.readOutput8())
+        << std::dec
+        << " Level=" << std::fixed << std::setprecision(3)
+        << env.getLevel() << "\n";
+
+    out << env.dumpDebug();
 
     return out.str();
 }

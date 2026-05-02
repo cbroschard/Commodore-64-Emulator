@@ -7,6 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 #include "SID/Envelope.h"
 
 Envelope::Envelope(double sampleRate) :
@@ -222,4 +224,48 @@ std::string Envelope::stateToString(State s) {
 void Envelope::syncLevelFromCounter()
 {
     level = static_cast<double>(envCounter) / 255.0;
+}
+
+std::string Envelope::dumpDebug() const
+{
+    std::ostringstream out;
+
+    out << "ENV Debug:\n";
+    out << "  State:              " << stateToString(state) << "\n";
+    out << "  Counter:            $" << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(envCounter)
+        << std::dec << " (" << static_cast<int>(envCounter) << "/255)\n";
+
+    out << std::fixed << std::setprecision(6);
+    out << "  Level:              " << level << "\n";
+
+    out << std::setprecision(3);
+    out << "  Attack time:        " << attackTime << " s\n";
+    out << "  Decay time:         " << decayTime << " s\n";
+    out << "  Sustain level:      " << sustainLevel << "\n";
+    out << "  Release time:       " << releaseTime << " s\n";
+
+    out << "  Sustain counter:    $" << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(sustainCounter)
+        << std::dec << " (" << static_cast<int>(sustainCounter) << "/255)\n";
+
+    out << std::fixed << std::setprecision(3);
+    out << "  Step accumulator:   " << stepAccumulator << "\n";
+
+    // Use these names if you changed Phase III-A to cycle-based fields.
+    out << "  Attack step cycles: " << attackStepCycles << "\n";
+    out << "  Decay step cycles:  " << decayStepCycles << "\n";
+    out << "  Release step cycles:" << releaseStepCycles << "\n";
+
+    out << "  SID clock:          " << sidClockFrequency << " Hz\n";
+    out << "  Sample rate:        " << sampleRate << " Hz\n";
+
+    const double cyclesPerSample =
+        (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 0.0;
+
+    out << "  SID cycles/sample:  " << cyclesPerSample << "\n";
+
+    return out.str();
 }
