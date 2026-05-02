@@ -21,6 +21,8 @@ class Voice
         void trigger();
         void release();
 
+        void clockEnvelope(double sidCycles);
+
         // Getters
         const Oscillator& getOscillator() const;
         Oscillator& getOscillator();

@@ -34,6 +34,9 @@ class Envelope
         double processSample();
         bool isIdle() const;
 
+        void clock(double sidCycles);
+        double output() const;
+
         // Getters
         inline double getLevel() const { return level; }
         inline State getState() const { return state; }

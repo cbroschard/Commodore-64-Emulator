@@ -722,6 +722,10 @@ double SID::generateAudioSample()
 
 void SID::tick(uint32_t cycles)
 {
+    voice1.clockEnvelope(static_cast<double>(cycles));
+    voice2.clockEnvelope(static_cast<double>(cycles));
+    voice3.clockEnvelope(static_cast<double>(cycles));
+
     sidCycleCounter += static_cast<double>(cycles);
 
     if (sidCyclesPerAudioSample <= 0.0)

@@ -71,7 +71,22 @@ void Envelope::setLevel(double newLevel)
 
 double Envelope::processSample()
 {
-    const double sidCyclesThisSample = (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 1.0;
+    const double sidCyclesThisSample =
+        (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 1.0;
+
+    clock(sidCyclesThisSample);
+    return output();
+}
+
+bool Envelope::isIdle() const
+{
+    return state == State::Idle;
+}
+
+void Envelope::clock(double sidCycles)
+{
+    if (sidCycles <= 0.0)
+        return;
 
     switch (state)
     {
@@ -84,7 +99,7 @@ double Envelope::processSample()
 
         case State::Attack:
         {
-            stepAccumulator += sidCyclesThisSample;
+            stepAccumulator += sidCycles;
 
             while (stepAccumulator >= attackStepCycles)
             {
@@ -116,7 +131,7 @@ double Envelope::processSample()
 
         case State::Decay:
         {
-            stepAccumulator += sidCyclesThisSample;
+            stepAccumulator += sidCycles;
 
             while (stepAccumulator >= decayStepCycles)
             {
@@ -148,7 +163,7 @@ double Envelope::processSample()
 
         case State::Release:
         {
-            stepAccumulator += sidCyclesThisSample;
+            stepAccumulator += sidCycles;
 
             while (stepAccumulator >= releaseStepCycles)
             {
@@ -178,13 +193,11 @@ double Envelope::processSample()
             break;
         }
     }
-
-    return level;
 }
 
-bool Envelope::isIdle() const
+double Envelope::output() const
 {
-    return state == State::Idle;
+    return level;
 }
 
 void Envelope::setSampleRate(double sample)

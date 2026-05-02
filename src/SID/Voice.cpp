@@ -48,6 +48,11 @@ void Voice::release()
     env.release();
 }
 
+void Voice::clockEnvelope(double sidCycles)
+{
+    env.clock(sidCycles);
+}
+
 void Voice::setSIDClockFrequency(double frequency)
 {
     sidClockFrequency = frequency;
@@ -91,33 +96,29 @@ double Voice::generateVoiceSample()
     if (filterRouted && env.isIdle() && !(ctrl & 0x01))
     {
         osc.updatePhase();
-        env.processSample();
         return 0.0;
     }
 
-    // TEST bit forces silence, but keep oscillator/envelope timing moving.
+    // TEST bit forces oscillator silence.
+    // Envelope timing is now handled separately by clockEnvelope().
     if (ctrl & 0x08)
     {
         osc.updatePhase();
-        env.processSample();
         return 0.0;
     }
 
-    // No waveform selected: oscillator still free-runs, envelope still clocks.
+    // No waveform selected: oscillator still free-runs.
+    // Envelope timing is now handled separately by clockEnvelope().
     if (!(ctrl & 0xF0))
     {
         osc.updatePhase();
-        env.processSample();
         return 0.0;
     }
 
     const double oscSample = osc.generateMixedSample();
-    const double envLevel  = env.processSample();
-    const double out       = oscSample * envLevel;
+    const double envLevel  = env.output();
 
-    // Do not hard-gate small samples to zero.
-    // That creates clicks during envelope attack/release testing.
-    return out;
+    return oscSample * envLevel;
 }
 
 void Voice::reset()
