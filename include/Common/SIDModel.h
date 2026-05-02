@@ -31,8 +31,13 @@ inline const char* sidModelToString(SIDModel model)
 
 inline SIDModel sidModelFromString(const std::string& model)
 {
-    if (model == "8580" || "MOS8580" || "mos8580")
-            return SIDModel::MOS8580;
+    if (model == "8580" ||
+        model == "MOS8580" ||
+        model == "mos8580" ||
+        model == "MOS_8580")
+    {
+        return SIDModel::MOS8580;
+    }
 
     return SIDModel::MOS6581;
 }
