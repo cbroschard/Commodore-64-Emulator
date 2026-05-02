@@ -911,9 +911,15 @@ std::string SID::dumpRegisters(const std::string& group)
 {
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
-    if (group == "voice1" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice1, voice1, 1);
-    if (group == "voice2" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice2, voice2, 2);
-    if (group == "voice3" || group == "voices" || group == "all") out << dumpVoice(sidRegisters.voice3, voice3, 3);
+
+    if (group == "voice1" || group == "voices" || group == "all")
+        out << dumpVoice(sidRegisters.voice1, voice1, 1);
+
+    if (group == "voice2" || group == "voices" || group == "all")
+        out << dumpVoice(sidRegisters.voice2, voice2, 2);
+
+    if (group == "voice3" || group == "voices" || group == "all")
+        out << dumpVoice(sidRegisters.voice3, voice3, 3);
 
     if (group == "filter" || group == "all")
     {
@@ -926,6 +932,9 @@ std::string SID::dumpRegisters(const std::string& group)
 
         const double cutoffHz =
             mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
+
+        const SIDModelProfile& profile =
+            getSIDModelProfile(sidModel_);
 
         const uint8_t resRoute = sidRegisters.filter.resonanceControl;
         const uint8_t modeVol  = sidRegisters.filter.volume;
@@ -958,6 +967,22 @@ std::string SID::dumpRegisters(const std::string& group)
         out << "  Cutoff mapped:  " << std::fixed << std::setprecision(1)
             << cutoffHz << " Hz\n";
 
+        out << "\n";
+        out << "  Profile:\n";
+
+        out << "    Filter drive:      " << std::fixed << std::setprecision(3)
+            << profile.filterDrive << "\n";
+
+        out << "    Filter asymmetry:  " << std::fixed << std::setprecision(3)
+            << profile.filterAsymmetry << "\n";
+
+        out << "    Resonance curve:   " << std::fixed << std::setprecision(3)
+            << profile.resonanceCurvePower << "\n";
+
+        out << "    Cutoff range:      " << std::fixed << std::setprecision(1)
+            << profile.cutoffMinHz << " - " << profile.cutoffMaxHz << " Hz\n";
+
+        out << "\n";
         out << "  RES/FILT=$" << std::hex << std::setw(2) << std::setfill('0')
             << static_cast<int>(resRoute) << std::dec << "\n";
 
@@ -980,6 +1005,7 @@ std::string SID::dumpRegisters(const std::string& group)
             << "HP=" << (modeHighPass ? "Y" : "N") << "\n";
 
         out << "    Voice3 off:   " << (voice3DirectOff ? "Y" : "N") << "\n";
+
         out << "    Volume:       $" << std::hex << static_cast<int>(volumeNibble)
             << std::dec << " (" << static_cast<int>(volumeNibble) << "/15)\n";
     }
