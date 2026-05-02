@@ -9,22 +9,6 @@
 #include "Vic.h"
 #include "SID/SID.h"
 
-static double sumVoiceSamplesRaw(const std::vector<double>& voiceSamples)
-{
-    if (voiceSamples.empty())
-        return 0.0;
-
-    double sum = 0.0;
-
-    // Keep conservative gain so 3 voices do not instantly overload the filter.
-    constexpr double PER_VOICE_GAIN = 0.5;
-
-    for (double s : voiceSamples)
-        sum += s * PER_VOICE_GAIN;
-
-    return std::clamp(sum, -1.0, 1.0);
-}
-
 SID::SID(double sampleRate) :
     sidModel_(SIDModel::MOS6581),
     processor(nullptr),
@@ -36,7 +20,11 @@ SID::SID(double sampleRate) :
     hpPrevIn(0.0),
     hpPrevOut(0.0),
     lastOutputSample(0.0),
+    underrunOutputSample(0.0),
+    recoveryStartSample(0.0),
     audioUnderrunCount(0),
+    audioWasUnderrunning(false),
+    underrunRecoverySamples(0),
     sampleRate(sampleRate),
     sidCycleCounter(0.0),
     voice1(sampleRate),
@@ -645,9 +633,6 @@ double SID::generateAudioSample()
 {
     const AnalogProfile profile = getAnalogProfile();
 
-    std::vector<double> filteredVoices;
-    std::vector<double> unfilteredVoices;
-
     const uint8_t resFilt = sidRegisters.filter.resonanceControl;
     const uint8_t modeVol = sidRegisters.filter.volume;
 
@@ -662,6 +647,12 @@ double SID::generateAudioSample()
 
     filterobj.setMode(filterMode);
 
+    constexpr double PER_VOICE_GAIN = 0.5;
+
+    double filteredMixRaw = 0.0;
+    double unfilteredMixRaw = 0.0;
+    bool anyFilteredVoice = false;
+
     for (int i = 0; i < 3; ++i)
     {
         Voice* v = (i == 0) ? &voice1 : (i == 1) ? &voice2 : &voice3;
@@ -669,28 +660,32 @@ double SID::generateAudioSample()
         const bool routedToFilter = (filterRouteBits & (1 << i)) != 0;
         v->setFilterRouted(routedToFilter);
 
-        const double s = v->generateVoiceSample();
+        const double s = v->generateVoiceSample() * PER_VOICE_GAIN;
 
         if (routedToFilter)
         {
-            filteredVoices.push_back(s);
+            filteredMixRaw += s;
+            anyFilteredVoice = true;
         }
         else
         {
             if (!(i == 2 && voice3DirectOff))
-                unfilteredVoices.push_back(s);
+                unfilteredMixRaw += s;
         }
     }
 
+    filteredMixRaw = std::clamp(filteredMixRaw, -1.0, 1.0);
+    unfilteredMixRaw = std::clamp(unfilteredMixRaw, -1.0, 1.0);
+
     const double filteredMix =
-        sumVoiceSamplesRaw(filteredVoices) * profile.filterInputGain;
+        filteredMixRaw * profile.filterInputGain;
 
     const double unfilteredMix =
-        sumVoiceSamplesRaw(unfilteredVoices) * profile.directGain;
+        unfilteredMixRaw * profile.directGain;
 
     double filteredOut = 0.0;
 
-    if (!filteredVoices.empty())
+    if (anyFilteredVoice)
     {
         const double filterResult = filterobj.processSample(filteredMix);
 
@@ -719,7 +714,7 @@ double SID::generateAudioSample()
     mixed = std::clamp(mixed, -1.5, 1.5);
     mixed = mixed / (1.0 + std::abs(mixed));
 
-    double hp = HP_ALPHA * (hpPrevOut + mixed - hpPrevIn);
+    const double hp = HP_ALPHA * (hpPrevOut + mixed - hpPrevIn);
     hpPrevIn  = mixed;
     hpPrevOut = hp;
 
@@ -741,17 +736,57 @@ void SID::tick(uint32_t cycles)
 
 double SID::popSample()
 {
+    constexpr int RECOVERY_LEN = 64;
+
     double s = 0.0;
 
     if (audioBuf.pop(s))
     {
+        // If we just recovered from an underrun, ramp from the held/faded
+        // sample back into the real SID stream instead of jumping instantly.
+        if (audioWasUnderrunning)
+        {
+            audioWasUnderrunning = false;
+            underrunRecoverySamples = RECOVERY_LEN;
+            recoveryStartSample = underrunOutputSample;
+        }
+
+        if (underrunRecoverySamples > 0)
+        {
+            const double t =
+                1.0 - (static_cast<double>(underrunRecoverySamples) /
+                       static_cast<double>(RECOVERY_LEN));
+
+            const double out = recoveryStartSample + (s - recoveryStartSample) * t;
+
+            --underrunRecoverySamples;
+            lastOutputSample = out;
+            underrunOutputSample = out;
+            return out;
+        }
+
         lastOutputSample = s;
+        underrunOutputSample = s;
         return s;
     }
 
     ++audioUnderrunCount;
 
-    return lastOutputSample;
+    if ((audioUnderrunCount % 250000) == 0)
+    {
+        std::cout << "[SID AUDIO UNDERRUN] count="
+                  << audioUnderrunCount
+                  << " last=" << underrunOutputSample << "\n";
+    }
+
+    audioWasUnderrunning = true;
+
+    // Fade toward silence while starved instead of holding a non-zero sample forever.
+    // This prevents a flat held waveform from becoming an audible edge when audio resumes.
+    underrunOutputSample *= 0.995;
+
+    lastOutputSample = underrunOutputSample;
+    return underrunOutputSample;
 }
 
 void SID::reset()
@@ -761,7 +796,11 @@ void SID::reset()
     sidCycleCounter = 0.0;
 
     lastOutputSample = 0.0;
+    underrunOutputSample = 0.0;
+    recoveryStartSample = 0.0;
     audioUnderrunCount = 0;
+    audioWasUnderrunning = false;
+    underrunRecoverySamples = 0;
 
     voice1.reset();
     voice2.reset();

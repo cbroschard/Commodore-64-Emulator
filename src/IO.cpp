@@ -182,7 +182,7 @@ bool IO::playAudio()
         return false;
     }
 
-    SDL_PauseAudioDevice(dev, 1);
+    SDL_PauseAudioDevice(dev, 0);
     return true;
 }
 

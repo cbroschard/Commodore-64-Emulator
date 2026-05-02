@@ -95,7 +95,7 @@ double Voice::generateVoiceSample()
         return 0.0;
     }
 
-    // TEST bit forces silence, but still clock the envelope.
+    // TEST bit forces silence, but keep oscillator/envelope timing moving.
     if (ctrl & 0x08)
     {
         osc.updatePhase();
@@ -113,8 +113,11 @@ double Voice::generateVoiceSample()
 
     const double oscSample = osc.generateMixedSample();
     const double envLevel  = env.processSample();
+    const double out       = oscSample * envLevel;
 
-    return oscSample * envLevel;
+    // Do not hard-gate small samples to zero.
+    // That creates clicks during envelope attack/release testing.
+    return out;
 }
 
 void Voice::reset()

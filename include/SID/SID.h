@@ -18,7 +18,6 @@ class Vic;
 #include <cstring>
 #include <iostream>
 #include <queue>
-#include <vector>
 #include "Common/SIDModel.h"
 #include "Common/VideoMode.h"
 #include "Logging.h"
@@ -111,7 +110,13 @@ class SID
         static constexpr double HP_ALPHA = 0.9997;
 
         double lastOutputSample;
+        double underrunOutputSample;
+        double recoveryStartSample;
+
         uint64_t audioUnderrunCount;
+
+        bool audioWasUnderrunning;
+        int underrunRecoverySamples;
 
         // Frequency and sample rate
         double sidClockFrequency;
