@@ -182,7 +182,7 @@ bool IO::playAudio()
         return false;
     }
 
-    SDL_PauseAudioDevice(dev, 0);
+    SDL_PauseAudioDevice(dev, 1);
     return true;
 }
 
@@ -196,6 +196,12 @@ void IO::stopAudio()
     }
 
     sidchip = nullptr;
+}
+
+void IO::resumeAudio()
+{
+    if (dev != 0)
+        SDL_PauseAudioDevice(dev, 0);
 }
 
 void IO::renderBackgroundLine(int row, uint8_t color, int x0, int x1)

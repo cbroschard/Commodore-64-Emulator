@@ -54,6 +54,7 @@ class IO
         // Audio functions
         bool playAudio();
         void stopAudio();
+        void resumeAudio();
         inline int getBlockSamples() const { return obtainedSpec.samples; }
         inline int getSampleRate() const { return obtainedSpec.freq; }
         void fillAudioBuffer(Uint8* stream, int len);

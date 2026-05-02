@@ -88,9 +88,11 @@ bool EmulationSession::initializeMachine()
     // Process boot attachments
     media_.applyBootAttachments();
 
-    // Start audio
+    // Open audio paused, synchronize SID to the actual obtained SDL rate,
+    // then start the callback.
     io_.playAudio();
     sid_.setSampleRate(io_.getSampleRate());
+    io_.resumeAudio();
 
     // Show the ImGui menu
     io_.setGuiCallback([this]()
