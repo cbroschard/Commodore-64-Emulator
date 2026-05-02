@@ -52,8 +52,8 @@ void Voice::setSIDClockFrequency(double frequency)
 {
     sidClockFrequency = frequency;
 
-    // Update oscillator and envelope
     osc.setSIDClockFrequency(sidClockFrequency);
+    env.setSIDClockFrequency(sidClockFrequency);
 }
 
 void Voice::setFrequency(uint16_t freqValue)

@@ -41,6 +41,7 @@ class Envelope
 
 
         // Setters
+        void setSIDClockFrequency(double frequency);
         void setLevel(double newLevel);
         inline void setState(Envelope::State value) { state = value; }
         void setSampleRate(double sample);
@@ -55,6 +56,7 @@ class Envelope
     protected:
 
     private:
+        double sidClockFrequency;
 
         double sampleRate;      // Audio sample rate passed in by SID
         State state;            // Current envelope state
@@ -69,9 +71,9 @@ class Envelope
         uint8_t envCounter;
         double stepAccumulator;
 
-        double attackStepSamples;
-        double decayStepSamples;
-        double releaseStepSamples;
+        double attackStepCycles;
+        double decayStepCycles;
+        double releaseStepCycles;
 
         uint8_t sustainCounter;
 

@@ -10,6 +10,7 @@
 #include "SID/Envelope.h"
 
 Envelope::Envelope(double sampleRate) :
+    sidClockFrequency(1022727.0), // NTSC default; SID::setMode will correct it
     sampleRate(sampleRate),
     state(State::Idle),
     level(0.0),
@@ -19,9 +20,9 @@ Envelope::Envelope(double sampleRate) :
     releaseTime(0.2),
     envCounter(0),
     stepAccumulator(0.0),
-    attackStepSamples(1.0),
-    decayStepSamples(1.0),
-    releaseStepSamples(1.0),
+    attackStepCycles(1.0),
+    decayStepCycles(1.0),
+    releaseStepCycles(1.0),
     sustainCounter(0)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
@@ -49,6 +50,12 @@ void Envelope::reset()
     stepAccumulator = 0.0;
 }
 
+void Envelope::setSIDClockFrequency(double frequency)
+{
+    sidClockFrequency = frequency;
+    setParameters(attackTime, decayTime, sustainLevel, releaseTime);
+}
+
 uint8_t Envelope::readOutput8() const
 {
     return envCounter;
@@ -62,6 +69,8 @@ void Envelope::setLevel(double newLevel)
 
 double Envelope::processSample()
 {
+    const double sidCyclesThisSample = (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 1.0;
+
     switch (state)
     {
         case State::Idle:
@@ -73,11 +82,11 @@ double Envelope::processSample()
 
         case State::Attack:
         {
-            stepAccumulator += 1.0;
+            stepAccumulator += sidCyclesThisSample;
 
-            while (stepAccumulator >= attackStepSamples)
+            while (stepAccumulator >= attackStepCycles)
             {
-                stepAccumulator -= attackStepSamples;
+                stepAccumulator -= attackStepCycles;
 
                 if (envCounter < 0xFF)
                 {
@@ -105,11 +114,11 @@ double Envelope::processSample()
 
         case State::Decay:
         {
-            stepAccumulator += 1.0;
+            stepAccumulator += sidCyclesThisSample;
 
-            while (stepAccumulator >= decayStepSamples)
+            while (stepAccumulator >= decayStepCycles)
             {
-                stepAccumulator -= decayStepSamples;
+                stepAccumulator -= decayStepCycles;
 
                 if (envCounter > sustainCounter)
                 {
@@ -137,11 +146,11 @@ double Envelope::processSample()
 
         case State::Release:
         {
-            stepAccumulator += 1.0;
+            stepAccumulator += sidCyclesThisSample;
 
-            while (stepAccumulator >= releaseStepSamples)
+            while (stepAccumulator >= releaseStepCycles)
             {
-                stepAccumulator -= releaseStepSamples;
+                stepAccumulator -= releaseStepCycles;
 
                 if (envCounter > 0)
                 {
@@ -191,12 +200,11 @@ void Envelope::setParameters(double attack, double decay, double sustain, double
 
     sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
 
-    // Convert total ADSR times into approximate samples per 8-bit envelope step.
-    // This keeps your existing SID_ATTACK_S and SID_DECAY_RELEASE_S tables,
-    // but makes the output behave like a stepped 8-bit SID envelope.
-    attackStepSamples  = std::max(1.0, (attackTime  * sampleRate) / 255.0);
-    decayStepSamples   = std::max(1.0, (decayTime   * sampleRate) / 255.0);
-    releaseStepSamples = std::max(1.0, (releaseTime * sampleRate) / 255.0);
+    // Convert ADSR times into SID-cycle intervals per 8-bit envelope step.
+    // This keeps timing tied to the SID clock instead of directly to audio sample count.
+    attackStepCycles  = std::max(1.0, (attackTime  * sidClockFrequency) / 255.0);
+    decayStepCycles   = std::max(1.0, (decayTime   * sidClockFrequency) / 255.0);
+    releaseStepCycles = std::max(1.0, (releaseTime * sidClockFrequency) / 255.0);
 }
 
 std::string Envelope::stateToString(State s) {
