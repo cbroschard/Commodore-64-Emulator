@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include "Common/SIDModel.h"
 
@@ -33,6 +34,12 @@ struct SIDModelProfile
     double cutoffMaxHz;
     double cutoffCurvePower;
     double resonanceCurvePower;
+};
+
+struct SIDCutoffPoint
+{
+    double x;   // normalized cutoff register value, 0.0 - 1.0
+    double hz;  // mapped cutoff frequency
 };
 
 inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
@@ -80,6 +87,87 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
     };
 
     return (model == SIDModel::MOS8580) ? mos8580 : mos6581;
+}
+
+inline double interpolateSIDCutoffTable(
+    double x,
+    const SIDCutoffPoint* table,
+    size_t count)
+{
+    if (!table || count == 0)
+        return 30.0;
+
+    x = std::clamp(x, 0.0, 1.0);
+
+    if (x <= table[0].x)
+        return table[0].hz;
+
+    for (size_t i = 1; i < count; ++i)
+    {
+        if (x <= table[i].x)
+        {
+            const SIDCutoffPoint& a = table[i - 1];
+            const SIDCutoffPoint& b = table[i];
+
+            const double span = b.x - a.x;
+            if (span <= 0.0)
+                return b.hz;
+
+            const double t = (x - a.x) / span;
+            return a.hz + (b.hz - a.hz) * t;
+        }
+    }
+
+    return table[count - 1].hz;
+}
+
+inline double mapSIDCutoff11BitToHzTable(uint16_t cutoff11bit, SIDModel model)
+{
+    static constexpr SIDCutoffPoint mos6581Table[] =
+    {
+        {0.00, 30.0},
+        {0.10, 80.0},
+        {0.20, 180.0},
+        {0.30, 400.0},
+        {0.40, 900.0},
+        {0.50, 1600.0},
+        {0.60, 2800.0},
+        {0.70, 4300.0},
+        {0.80, 6200.0},
+        {0.90, 8500.0},
+        {1.00, 11000.0}
+    };
+
+    static constexpr SIDCutoffPoint mos8580Table[] =
+    {
+        {0.00, 30.0},
+        {0.10, 500.0},
+        {0.20, 1200.0},
+        {0.30, 2200.0},
+        {0.40, 3500.0},
+        {0.50, 5000.0},
+        {0.60, 6800.0},
+        {0.70, 8500.0},
+        {0.80, 10500.0},
+        {0.90, 12500.0},
+        {1.00, 14000.0}
+    };
+
+    const double x =
+        std::clamp(static_cast<double>(cutoff11bit & 0x07FF) / 2047.0, 0.0, 1.0);
+
+    if (model == SIDModel::MOS8580)
+    {
+        return interpolateSIDCutoffTable(
+            x,
+            mos8580Table,
+            sizeof(mos8580Table) / sizeof(mos8580Table[0]));
+    }
+
+    return interpolateSIDCutoffTable(
+        x,
+        mos6581Table,
+        sizeof(mos6581Table) / sizeof(mos6581Table[0]));
 }
 
 inline double applySIDWaveformDac(uint16_t sampleBits, SIDModel model)

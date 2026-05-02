@@ -867,7 +867,7 @@ void SID::updateCutoffFromRegisters()
         (sidRegisters.filter.cutoffLow & 0x07);
 
     const double cutoffFreq =
-        mapSIDCutoff11BitToHz(cutoff11bit, sidModel_);
+        mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
 
     filterobj.setCutoffFreq(cutoffFreq);
 }
