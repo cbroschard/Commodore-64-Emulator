@@ -75,6 +75,7 @@ class SID
         inline void setLog(bool enable) { setLogging = enable; }
         inline int getAudioBufferedSamples() const { return audioBufferedSamples.load(std::memory_order_relaxed); }
         std::string dumpAudioStats() const;
+        std::string dumpCutoffTable() const;
         void resetAudioStats();
 
     protected:

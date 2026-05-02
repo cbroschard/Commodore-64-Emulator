@@ -60,6 +60,7 @@ std::string SIDCommand::help() const
     sid filter      Inspect filter cutoff/resonance and volume control
     sid audio       Dump SID audio queue / underrun health
     sid audio reset Reset SID audio underrun/stat counters
+    sid cutoff      Preview model-specific cutoff mapping table
 )";
 }
 
@@ -79,6 +80,7 @@ void SIDCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (subcmd == "voice3")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice3();
     else if (subcmd == "voices")  std::cout << mon.mlmonitorbackend()->dumpSIDVoices();
     else if (subcmd == "filter")  std::cout << mon.mlmonitorbackend()->dumpSIDFilter();
+    else if (subcmd == "cutoff") std::cout << mon.mlmonitorbackend()->dumpSIDCutoffTable();
     else if (subcmd == "audio")
     {
         if (args.size() >= 3 && args[2] == "reset")

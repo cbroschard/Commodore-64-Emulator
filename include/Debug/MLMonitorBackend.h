@@ -144,6 +144,7 @@ class MLMonitorBackend
         inline std::string dumpSIDVoices() const { return sidchip ? sidchip->dumpRegisters("voices") : "SID not attached\n"; }
         inline std::string dumpSIDFilter() const { return sidchip ? sidchip->dumpRegisters("filter") : "SID not attached\n"; }
         inline std::string dumpSIDAudio() const  { return sidchip ? sidchip->dumpAudioStats() : "SID not attached\n"; }
+        inline std::string dumpSIDCutoffTable() const { return sidchip ? sidchip->dumpCutoffTable() : "SID not attached\n"; }
         inline void resetSIDAudioStats() { if (sidchip) sidchip->resetAudioStats(); }
 
         // ML Monitor VIC-II methods

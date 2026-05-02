@@ -1126,6 +1126,42 @@ std::string SID::dumpAudioStats() const
     return out.str();
 }
 
+std::string SID::dumpCutoffTable() const
+{
+    std::ostringstream out;
+
+    out << "SID Cutoff Table Preview:\n";
+    out << "  Model: " << sidModelToString(sidModel_) << "\n\n";
+    out << "  Raw    Norm    Hz\n";
+    out << "  ----   -----   --------\n";
+
+    for (uint16_t raw = 0; raw <= 0x07FF; raw += 0x0100)
+    {
+        const double norm = static_cast<double>(raw) / 2047.0;
+        const double hz = mapSIDCutoff11BitToHzTable(raw, sidModel_);
+
+        out << "  $" << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << raw
+            << std::dec << std::setfill(' ')
+            << "   " << std::fixed << std::setprecision(3) << norm
+            << "   " << std::setw(8) << std::setprecision(1) << hz
+            << "\n";
+    }
+
+    const uint16_t raw = 0x07FF;
+    const double norm = 1.0;
+    const double hz = mapSIDCutoff11BitToHzTable(raw, sidModel_);
+
+    out << "  $" << std::hex << std::uppercase << std::setw(4)
+        << std::setfill('0') << raw
+        << std::dec << std::setfill(' ')
+        << "   " << std::fixed << std::setprecision(3) << norm
+        << "   " << std::setw(8) << std::setprecision(1) << hz
+        << "\n";
+
+    return out.str();
+}
+
 void SID::resetAudioStats()
 {
     // Preserve current queue depth instead of blindly zeroing it.
