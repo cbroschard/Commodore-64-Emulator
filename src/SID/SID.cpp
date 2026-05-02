@@ -22,7 +22,6 @@ SID::SID(double sampleRate) :
     lastOutputSample(0.0),
     underrunOutputSample(0.0),
     recoveryStartSample(0.0),
-    audioUnderrunCount(0),
     audioWasUnderrunning(false),
     underrunRecoverySamples(0),
     sampleRate(sampleRate),
@@ -724,6 +723,10 @@ double SID::generateAudioSample()
 void SID::tick(uint32_t cycles)
 {
     sidCycleCounter += static_cast<double>(cycles);
+
+    if (sidCyclesPerAudioSample <= 0.0)
+        return;
+
     size_t samplesToPush = static_cast<size_t>(sidCycleCounter / sidCyclesPerAudioSample);
     sidCycleCounter -= samplesToPush * sidCyclesPerAudioSample;
 
@@ -731,6 +734,9 @@ void SID::tick(uint32_t cycles)
     {
         double sample = generateAudioSample();
         audioBuf.push(sample);
+
+        audioGeneratedSamples.fetch_add(1, std::memory_order_relaxed);
+        audioBufferedSamples.fetch_add(1, std::memory_order_relaxed);
     }
 }
 
@@ -738,12 +744,16 @@ double SID::popSample()
 {
     constexpr int RECOVERY_LEN = 64;
 
+    audioConsumedSamples.fetch_add(1, std::memory_order_relaxed);
+
     double s = 0.0;
 
     if (audioBuf.pop(s))
     {
-        // If we just recovered from an underrun, ramp from the held/faded
-        // sample back into the real SID stream instead of jumping instantly.
+        int buffered = audioBufferedSamples.load(std::memory_order_relaxed);
+        if (buffered > 0)
+            audioBufferedSamples.fetch_sub(1, std::memory_order_relaxed);
+
         if (audioWasUnderrunning)
         {
             audioWasUnderrunning = false;
@@ -770,19 +780,11 @@ double SID::popSample()
         return s;
     }
 
-    ++audioUnderrunCount;
-
-    if ((audioUnderrunCount % 250000) == 0)
-    {
-        std::cout << "[SID AUDIO UNDERRUN] count="
-                  << audioUnderrunCount
-                  << " last=" << underrunOutputSample << "\n";
-    }
+    audioUnderrunCount.fetch_add(1, std::memory_order_relaxed);
 
     audioWasUnderrunning = true;
 
-    // Fade toward silence while starved instead of holding a non-zero sample forever.
-    // This prevents a flat held waveform from becoming an audible edge when audio resumes.
+    // Fade toward silence during starvation.
     underrunOutputSample *= 0.995;
 
     lastOutputSample = underrunOutputSample;
@@ -813,6 +815,11 @@ void SID::reset()
 
     hpPrevIn = 0.0;
     hpPrevOut = 0.0;
+
+    audioGeneratedSamples.store(0, std::memory_order_relaxed);
+    audioConsumedSamples.store(0, std::memory_order_relaxed);
+    audioUnderrunCount.store(0, std::memory_order_relaxed);
+    audioBufferedSamples.store(0, std::memory_order_relaxed);
 }
 
 SID::AnalogProfile SID::getAnalogProfile() const
@@ -1000,5 +1007,55 @@ std::string SID::dumpVoice(const voiceRegisters& regs, const Voice& voice, int i
 
     out << decodeControlRegister(regs.control);
     out << decodeADSR(regs, voice, index);
+    return out.str();
+}
+
+std::string SID::dumpAudioStats() const
+{
+    const uint64_t generated =
+        audioGeneratedSamples.load(std::memory_order_relaxed);
+
+    const uint64_t consumed =
+        audioConsumedSamples.load(std::memory_order_relaxed);
+
+    const uint64_t underruns =
+        audioUnderrunCount.load(std::memory_order_relaxed);
+
+    const int buffered =
+        audioBufferedSamples.load(std::memory_order_relaxed);
+
+    const int estimatedDepth =
+        static_cast<int>(generated >= consumed ? generated - consumed : 0);
+
+    std::ostringstream out;
+
+    out << "SID Audio:\n";
+    out << "  Generated samples:   " << generated << "\n";
+    out << "  Consumed samples:    " << consumed << "\n";
+    out << "  Underruns:           " << underruns << "\n";
+    out << "  Buffered samples:    " << buffered << "\n";
+    out << "  Estimated depth:     " << estimatedDepth << "\n";
+    out << "  Last output sample:  " << std::fixed << std::setprecision(6)
+        << lastOutputSample << "\n";
+
+    out << "\nHealth:\n";
+
+    if (underruns == 0)
+    {
+        out << "  Status: OK - no audio underruns recorded.\n";
+    }
+    else if (buffered <= 0)
+    {
+        out << "  Status: STARVING - SDL is draining the SID queue.\n";
+    }
+    else if (buffered < 1024)
+    {
+        out << "  Status: LOW - audio cushion is small.\n";
+    }
+    else
+    {
+        out << "  Status: OK - audio cushion is present, but underruns occurred earlier.\n";
+    }
+
     return out.str();
 }

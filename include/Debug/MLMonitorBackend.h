@@ -94,7 +94,7 @@ class MLMonitorBackend
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return bus; }
 
-                // ML Monitor IRQ
+        // ML Monitor IRQ
         struct IRQSnapshot
         {
             bool has = false;
@@ -143,6 +143,7 @@ class MLMonitorBackend
         inline std::string dumpSIDVoice3() const { return sidchip ? sidchip->dumpRegisters("voice3") : "SID not attached\n"; }
         inline std::string dumpSIDVoices() const { return sidchip ? sidchip->dumpRegisters("voices") : "SID not attached\n"; }
         inline std::string dumpSIDFilter() const { return sidchip ? sidchip->dumpRegisters("filter") : "SID not attached\n"; }
+        inline std::string dumpSIDAudio() const  { return sidchip ? sidchip->dumpAudioStats() : "SID not attached\n"; }
 
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vicII ? vicII->decodeModeName() : "VIC not attached\n"; }

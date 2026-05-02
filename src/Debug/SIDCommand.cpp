@@ -45,19 +45,20 @@ std::string SIDCommand::help() const
     sid voice3      Dump registers/state for Voice 3
     sid voices      Dump summary of all 3 voices
     sid filter      Dump filter and volume registers
+    sid audio       Dump SID audio queue / underrun health
     sid help        Show this help page
 
  Description:
     The 'sid' command lets you inspect the current state of the SID sound chip.
-    You can view all registers, focus on a single voice, or check the filter
-    configuration. This is useful for debugging music playback, testing ADSR
-    envelope behavior, and confirming filter routing.
+    You can view all registers, focus on a single voice, check filter
+    configuration, or inspect SDL/SID audio-buffer health.
 
  Examples:
     sid all         Show all register values
     sid voice1      Inspect ADSR/waveform/regs for Voice 1
     sid voices      Summarize the 3 voices (ADSR + envelope levels)
     sid filter      Inspect filter cutoff/resonance and volume control
+    sid audio       Check generated/consumed samples and underruns
 )";
 }
 
@@ -77,6 +78,7 @@ void SIDCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (subcmd == "voice3")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice3();
     else if (subcmd == "voices")  std::cout << mon.mlmonitorbackend()->dumpSIDVoices();
     else if (subcmd == "filter")  std::cout << mon.mlmonitorbackend()->dumpSIDFilter();
+    else if (subcmd == "audio")   std::cout << mon.mlmonitorbackend()->dumpSIDAudio();
     else if (subcmd == "help")    std::cout << help();
     else std::cout << help(); // default show help
 }

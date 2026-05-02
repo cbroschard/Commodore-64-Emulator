@@ -8,11 +8,8 @@
 #ifndef SID_H
 #define SID_H
 
-// Forward declarations
-class CPU;
-class Vic;
-
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -29,6 +26,10 @@ class Vic;
 #include "StateReader.h"
 #include "StateWriter.h"
 
+// Forward declarations
+class CPU;
+class Vic;
+
 class SID
 {
     public:
@@ -44,13 +45,11 @@ class SID
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
-        // Getter for main emulation loop processing
+        // Getters
         double getSidCyclesPerAudioSample() const;
 
-        // Setter for mode (NTSC or PAL)
+        // Setters for mode (NTSC or PAL)
         void setMode(VideoMode mode);
-
-        // Setter for sample rate pulled in from SDL
         void setSampleRate(double sample);
 
         // Register read/write
@@ -72,7 +71,7 @@ class SID
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
         inline void setLog(bool enable) { setLogging = enable; }
-        uint64_t getAudioUnderrunCount() const { return audioUnderrunCount; }
+        std::string dumpAudioStats() const;
 
     protected:
 
@@ -113,8 +112,6 @@ class SID
         double underrunOutputSample;
         double recoveryStartSample;
 
-        uint64_t audioUnderrunCount;
-
         bool audioWasUnderrunning;
         int underrunRecoverySamples;
 
@@ -124,6 +121,11 @@ class SID
         double sampleRate;
 
         double sidCycleCounter;
+
+        std::atomic<uint64_t> audioGeneratedSamples {0};
+        std::atomic<uint64_t> audioConsumedSamples  {0};
+        std::atomic<uint64_t> audioUnderrunCount    {0};
+        std::atomic<int> audioBufferedSamples       {0};
 
         // Synthesis components:
         Voice voice1;
