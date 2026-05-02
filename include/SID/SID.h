@@ -15,13 +15,13 @@
 #include <cstring>
 #include <iostream>
 #include <queue>
-#include "Common/SIDModel.h"
 #include "Common/VideoMode.h"
 #include "Logging.h"
 #include "Debug/TraceManager.h"
 #include "SID/Filter.h"
 #include "SID/Mixer.h"
 #include "SID/RingBuffer.h"
+#include "SID/SIDModelProfile.h"
 #include "SID/Voice.h"
 #include "StateReader.h"
 #include "StateWriter.h"

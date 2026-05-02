@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include "Common/SIDModel.h"
+#include "SID/SIDModelProfile.h"
 
 class Oscillator
 {

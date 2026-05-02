@@ -8,7 +8,7 @@
 #ifndef VOICE_H
 #define VOICE_H
 
-#include "Common/SIDModel.h"
+#include "SID/SIDModelProfile.h"
 #include "SID/Oscillator.h"
 #include "SID/Envelope.h"
 
