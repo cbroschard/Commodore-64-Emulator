@@ -917,12 +917,71 @@ std::string SID::dumpRegisters(const std::string& group)
 
     if (group == "filter" || group == "all")
     {
-        // Filter
-        uint16_t cutoff = (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) | (sidRegisters.filter.cutoffLow & 0x07);
+        const uint16_t cutoff11bit =
+            (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
+            (sidRegisters.filter.cutoffLow & 0x07);
+
+        const double cutoffNorm =
+            static_cast<double>(cutoff11bit) / 2047.0;
+
+        const double cutoffHz =
+            mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
+
+        const uint8_t resRoute = sidRegisters.filter.resonanceControl;
+        const uint8_t modeVol  = sidRegisters.filter.volume;
+
+        const uint8_t resonanceNibble = (resRoute >> 4) & 0x0F;
+        const uint8_t routeBits       = resRoute & 0x0F;
+
+        const bool routeVoice1 = (resRoute & 0x01) != 0;
+        const bool routeVoice2 = (resRoute & 0x02) != 0;
+        const bool routeVoice3 = (resRoute & 0x04) != 0;
+        const bool routeExtIn  = (resRoute & 0x08) != 0;
+
+        const bool modeLowPass  = (modeVol & 0x10) != 0;
+        const bool modeBandPass = (modeVol & 0x20) != 0;
+        const bool modeHighPass = (modeVol & 0x40) != 0;
+
+        const bool voice3DirectOff = (modeVol & 0x80) != 0;
+        const uint8_t volumeNibble = modeVol & 0x0F;
+
         out << "Filter:\n";
-        out << "  Cutoff=$" << std::hex << std::setw(4) << std::setfill('0') << cutoff
-            << "  Res/Route=$" << std::setw(2) << static_cast<int>(sidRegisters.filter.resonanceControl)
-            << "  Volume=$" << std::setw(2) << static_cast<int>(sidRegisters.filter.volume) << "\n";
+        out << "  Model:          " << sidModelToString(sidModel_) << "\n";
+
+        out << "  Cutoff raw:     $" << std::hex << std::setw(4) << std::setfill('0')
+            << cutoff11bit
+            << std::dec << " (" << cutoff11bit << "/2047)\n";
+
+        out << "  Cutoff norm:    " << std::fixed << std::setprecision(3)
+            << cutoffNorm << "\n";
+
+        out << "  Cutoff mapped:  " << std::fixed << std::setprecision(1)
+            << cutoffHz << " Hz\n";
+
+        out << "  RES/FILT=$" << std::hex << std::setw(2) << std::setfill('0')
+            << static_cast<int>(resRoute) << std::dec << "\n";
+
+        out << "    Resonance:    $" << std::hex << static_cast<int>(resonanceNibble)
+            << std::dec << " (" << static_cast<int>(resonanceNibble) << "/15)\n";
+
+        out << "    Routing:      "
+            << "V1=" << (routeVoice1 ? "Y" : "N") << "  "
+            << "V2=" << (routeVoice2 ? "Y" : "N") << "  "
+            << "V3=" << (routeVoice3 ? "Y" : "N") << "  "
+            << "EXT=" << (routeExtIn ? "Y" : "N")
+            << "  bits=$" << std::hex << static_cast<int>(routeBits) << std::dec << "\n";
+
+        out << "  MODE/VOL=$" << std::hex << std::setw(2) << std::setfill('0')
+            << static_cast<int>(modeVol) << std::dec << "\n";
+
+        out << "    Mode:         "
+            << "LP=" << (modeLowPass ? "Y" : "N") << "  "
+            << "BP=" << (modeBandPass ? "Y" : "N") << "  "
+            << "HP=" << (modeHighPass ? "Y" : "N") << "\n";
+
+        out << "    Voice3 off:   " << (voice3DirectOff ? "Y" : "N") << "\n";
+        out << "    Volume:       $" << std::hex << static_cast<int>(volumeNibble)
+            << std::dec << " (" << static_cast<int>(volumeNibble) << "/15)\n";
     }
 
     return out.str();

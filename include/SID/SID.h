@@ -13,8 +13,10 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <queue>
+#include <sstream>
 #include "Common/VideoMode.h"
 #include "Logging.h"
 #include "Debug/TraceManager.h"
