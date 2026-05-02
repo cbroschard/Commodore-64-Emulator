@@ -1024,8 +1024,22 @@ std::string SID::dumpAudioStats() const
     const int buffered =
         audioBufferedSamples.load(std::memory_order_relaxed);
 
-    const int estimatedDepth =
-        static_cast<int>(generated >= consumed ? generated - consumed : 0);
+    const uint64_t deficit =
+        (consumed > generated) ? (consumed - generated) : 0;
+
+    const uint64_t surplus =
+        (generated > consumed) ? (generated - consumed) : 0;
+
+    const double sr = (sampleRate > 0.0) ? sampleRate : 44100.0;
+
+    const double bufferedMs =
+        (static_cast<double>(buffered) / sr) * 1000.0;
+
+    const double deficitMs =
+        (static_cast<double>(deficit) / sr) * 1000.0;
+
+    const double surplusMs =
+        (static_cast<double>(surplus) / sr) * 1000.0;
 
     std::ostringstream out;
 
@@ -1034,24 +1048,37 @@ std::string SID::dumpAudioStats() const
     out << "  Consumed samples:    " << consumed << "\n";
     out << "  Underruns:           " << underruns << "\n";
     out << "  Buffered samples:    " << buffered << "\n";
-    out << "  Estimated depth:     " << estimatedDepth << "\n";
-    out << "  Last output sample:  " << std::fixed << std::setprecision(6)
-        << lastOutputSample << "\n";
+    out << "  Estimated depth:     " << surplus << "\n";
+
+    out << std::fixed << std::setprecision(3);
+    out << "  Buffered time:       " << bufferedMs << " ms\n";
+    out << "  Deficit time:        " << deficitMs << " ms\n";
+    out << "  Surplus time:        " << surplusMs << " ms\n";
+
+    out << std::setprecision(6);
+    out << "  Last output sample:  " << lastOutputSample << "\n";
 
     out << "\nHealth:\n";
 
-    const int deficit =
-        (consumed > generated)
-            ? static_cast<int>(consumed - generated)
-            : 0;
-
-    if (underruns == 0 && buffered > 1024)
+    if (underruns == 0 && buffered >= 2048)
     {
-        out << "  Status: OK - audio cushion is healthy.\n";
+        out << "  Status: OK - no underruns recorded; audio cushion is healthy.\n";
+    }
+    else if (underruns == 0 && buffered > 0)
+    {
+        out << "  Status: OK - no underruns recorded; audio cushion is present but small.\n";
+    }
+    else if (underruns == 0)
+    {
+        out << "  Status: NO CUSHION - no underruns yet, but queue is empty.\n";
+    }
+    else if (buffered >= 2048)
+    {
+        out << "  Status: RECOVERED - underruns occurred earlier, but cushion is now healthy.\n";
     }
     else if (buffered > 0)
     {
-        out << "  Status: LOW - audio is running, but cushion is small.\n";
+        out << "  Status: LOW - underruns occurred, but audio is currently buffered.\n";
     }
     else if (deficit < 5000)
     {
