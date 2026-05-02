@@ -73,6 +73,7 @@ class SID
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
         inline void setLog(bool enable) { setLogging = enable; }
+        uint64_t getAudioUnderrunCount() const { return audioUnderrunCount; }
 
     protected:
 
@@ -108,6 +109,9 @@ class SID
         double hpPrevIn;
         double hpPrevOut;
         static constexpr double HP_ALPHA = 0.9997;
+
+        double lastOutputSample;
+        uint64_t audioUnderrunCount;
 
         // Frequency and sample rate
         double sidClockFrequency;

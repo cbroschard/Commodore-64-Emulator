@@ -91,10 +91,11 @@ double Voice::generateVoiceSample()
     if (filterRouted && env.isIdle() && !(ctrl & 0x01))
     {
         osc.updatePhase();
+        env.processSample();
         return 0.0;
     }
 
-    // TEST bit forces silence, but keep oscillator state handled by updatePhase().
+    // TEST bit forces silence, but still clock the envelope.
     if (ctrl & 0x08)
     {
         osc.updatePhase();
@@ -112,9 +113,8 @@ double Voice::generateVoiceSample()
 
     const double oscSample = osc.generateMixedSample();
     const double envLevel  = env.processSample();
-    const double out       = oscSample * envLevel;
 
-    return (std::abs(out) < 0.001) ? 0.0 : out;
+    return oscSample * envLevel;
 }
 
 void Voice::reset()

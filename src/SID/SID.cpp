@@ -35,6 +35,8 @@ SID::SID(double sampleRate) :
     mode_(VideoMode::NTSC), // default to NTSC
     hpPrevIn(0.0),
     hpPrevOut(0.0),
+    lastOutputSample(0.0),
+    audioUnderrunCount(0),
     sampleRate(sampleRate),
     sidCycleCounter(0.0),
     voice1(sampleRate),
@@ -739,19 +741,27 @@ void SID::tick(uint32_t cycles)
 
 double SID::popSample()
 {
-    double s;
+    double s = 0.0;
+
     if (audioBuf.pop(s))
     {
+        lastOutputSample = s;
         return s;
     }
-    return 0.0;
+
+    ++audioUnderrunCount;
+
+    return lastOutputSample;
 }
 
 void SID::reset()
 {
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
-    sidRegisters.filter.volume = 0x00;  // Mute audio until set
+    sidRegisters.filter.volume = 0x00;
     sidCycleCounter = 0.0;
+
+    lastOutputSample = 0.0;
+    audioUnderrunCount = 0;
 
     voice1.reset();
     voice2.reset();
