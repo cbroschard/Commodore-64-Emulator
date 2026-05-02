@@ -58,7 +58,8 @@ std::string SIDCommand::help() const
     sid voice1      Inspect ADSR/waveform/regs for Voice 1
     sid voices      Summarize the 3 voices (ADSR + envelope levels)
     sid filter      Inspect filter cutoff/resonance and volume control
-    sid audio       Check generated/consumed samples and underruns
+    sid audio       Dump SID audio queue / underrun health
+    sid audio reset Reset SID audio underrun/stat counters
 )";
 }
 
@@ -78,7 +79,18 @@ void SIDCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (subcmd == "voice3")  std::cout << mon.mlmonitorbackend()->dumpSIDVoice3();
     else if (subcmd == "voices")  std::cout << mon.mlmonitorbackend()->dumpSIDVoices();
     else if (subcmd == "filter")  std::cout << mon.mlmonitorbackend()->dumpSIDFilter();
-    else if (subcmd == "audio")   std::cout << mon.mlmonitorbackend()->dumpSIDAudio();
+    else if (subcmd == "audio")
+    {
+        if (args.size() >= 3 && args[2] == "reset")
+        {
+            mon.mlmonitorbackend()->resetSIDAudioStats();
+            std::cout << "SID audio stats reset.\n";
+        }
+        else
+        {
+            std::cout << mon.mlmonitorbackend()->dumpSIDAudio();
+        }
+    }
     else if (subcmd == "help")    std::cout << help();
     else std::cout << help(); // default show help
 }

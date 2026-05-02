@@ -41,7 +41,9 @@ EmulationSession::EmulationSession(MachineComponents& components,
       vic_(*components.vic),
       frameDuration_(0.0),
       nextFrameTime_(),
-      audioPausedForMonitor_(false)
+      audioPausedForMonitor_(false),
+      audioStarted_(false),
+      audioCatchupMode_(true)
 {
 
 }
@@ -90,11 +92,11 @@ bool EmulationSession::initializeMachine()
     // Process boot attachments
     media_.applyBootAttachments();
 
-    // Open audio paused, synchronize SID to the actual obtained SDL rate,
-    // then start the callback.
     io_.playAudio();
     sid_.setSampleRate(io_.getSampleRate());
-    io_.resumeAudio();
+
+    audioStarted_ = false;
+    audioCatchupMode_ = true;
 
     // Show the ImGui menu
     io_.setGuiCallback([this]()
@@ -234,20 +236,50 @@ bool EmulationSession::finalizeFrame()
     const auto frameStep =
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
 
+    const int blockSamples = std::max(1, io_.getBlockSamples());
+
+    // Hysteresis thresholds.
+    // Start/resume with 2 SDL blocks of cushion.
+    // If we fall below 1/2 block, catch up until we rebuild to 2 blocks.
+    const int highWatermark = blockSamples * 3;
+    const int lowWatermark  = blockSamples;
+
     const int audioBuffered = sid_.getAudioBufferedSamples();
-    const int audioLowWatermark = io_.getBlockSamples();       // e.g. 2048
-    const bool audioStarving = audioBuffered < audioLowWatermark;
+
+    // Initial startup: do not start SDL until SID has built a real cushion.
+    if (!audioStarted_)
+    {
+        audioCatchupMode_ = true;
+
+        if (audioBuffered >= highWatermark)
+        {
+            io_.resumeAudio();
+            audioStarted_ = true;
+            audioCatchupMode_ = false;
+        }
+    }
+    else
+    {
+        // Runtime catch-up hysteresis.
+        if (audioBuffered < lowWatermark)
+        {
+            audioCatchupMode_ = true;
+        }
+        else if (audioBuffered >= highWatermark)
+        {
+            audioCatchupMode_ = false;
+        }
+    }
 
     if (now < nextFrameTime_)
     {
-        if (!audioStarving)
+        if (!audioCatchupMode_)
         {
             std::this_thread::sleep_until(nextFrameTime_);
         }
         else
         {
-            // Audio is starving, so do not sleep this frame.
-            // Also reset the pacing target so we do not create a huge future sleep.
+            // Do not sleep while building/rebuilding audio cushion.
             nextFrameTime_ = now;
         }
     }

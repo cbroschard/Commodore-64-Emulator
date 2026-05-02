@@ -81,6 +81,8 @@ private:
     std::chrono::steady_clock::time_point nextFrameTime_;;
 
     bool audioPausedForMonitor_;
+    bool audioStarted_;
+    bool audioCatchupMode_;
 };
 
 #endif // EMULATION_SESSION_H

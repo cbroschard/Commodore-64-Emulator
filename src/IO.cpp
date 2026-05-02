@@ -182,7 +182,8 @@ bool IO::playAudio()
         return false;
     }
 
-    SDL_PauseAudioDevice(dev, 0);
+    // Start paused. EmulationSession will resume after SID has buffered samples.
+    SDL_PauseAudioDevice(dev, 1);
     return true;
 }
 
