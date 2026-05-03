@@ -184,7 +184,7 @@ void Oscillator::reset()
 uint16_t Oscillator::getTriangleBits()
 {
     double dt = frequency / sampleRate;
-    double t  = phase - floor(phase); // wrap to [0..1)
+    const double t = getAccumulatorPhase();
 
     // basic triangle: peak at t=0.5
     double tri = fabs(2.0 * (t - 0.5));
@@ -195,9 +195,8 @@ uint16_t Oscillator::getTriangleBits()
     // optional ring-mod
     if ((control & 0x04) && ringSource)
     {
-        if (ringSource->getPhase() >= 0.5)
-            tri = 1.0 - tri;
-    }
+        if (ringSource->getAccumulatorPhase() >= 0.5)
+            tri = 1.0 - tri;    }
 
     // clamp & convert to 12-bit
     tri = std::clamp(tri, 0.0, 1.0);
@@ -206,17 +205,17 @@ uint16_t Oscillator::getTriangleBits()
 
 uint16_t Oscillator::getSawBits()
 {
-    // Sawtooth waveform from 0 to 4095
-    double dt  = frequency / sampleRate;
-    double t   = phase - floor(phase);
-    double saw = t - polyBLEP(t, dt);
-    return uint16_t(saw * 4095.0);
+    const double dt = frequency / sampleRate;
+    const double t  = getAccumulatorPhase();
+
+    const double saw = std::clamp(t - polyBLEP(t, dt), 0.0, 1.0);
+    return static_cast<uint16_t>(saw * 4095.0);
 }
 
 uint16_t Oscillator::getPulseBits()
 {
     const double dt = frequency / sampleRate;
-    const double t  = phase - std::floor(phase);
+    const double t = getAccumulatorPhase();
 
     if (pulseWidth <= 0.0)
         return 0x0000;
@@ -476,8 +475,7 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
 
     if (syncSource)
     {
-        const double srcPhase =
-            syncSource->getPhase() - std::floor(syncSource->getPhase());
+        const double srcPhase = syncSource->getAccumulatorPhase();
 
         out << std::fixed << std::setprecision(6);
         out << "  SYNC source phase: " << srcPhase
@@ -491,8 +489,7 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
 
     if (ringSource)
     {
-        const double srcPhase =
-            ringSource->getPhase() - std::floor(ringSource->getPhase());
+        const double srcPhase = ringSource->getAccumulatorPhase();
 
         out << std::fixed << std::setprecision(6);
         out << "  RING source phase: " << srcPhase << "\n";
