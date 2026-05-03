@@ -161,6 +161,59 @@ uint8_t Oscillator::readOutput8() const
     return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
 }
 
+bool Oscillator::hasCombinedWaveform() const
+{
+    const uint8_t waveBits = (control >> 4) & 0x0F;
+
+    // More than one waveform bit selected.
+    return waveBits && ((waveBits & (waveBits - 1)) != 0);
+}
+
+bool Oscillator::hasNoiseCombinedWithOtherWaveform() const
+{
+    const bool noise = (control & 0x80) != 0;
+    const bool other =
+        (control & 0x10) || // TRI
+        (control & 0x20) || // SAW
+        (control & 0x40);   // PULSE
+
+    return noise && other;
+}
+
+std::string Oscillator::describeWaveformSelection() const
+{
+    std::ostringstream out;
+
+    const bool tri   = (control & 0x10) != 0;
+    const bool saw   = (control & 0x20) != 0;
+    const bool pulse = (control & 0x40) != 0;
+    const bool noise = (control & 0x80) != 0;
+
+    if (!tri && !saw && !pulse && !noise)
+        return "NONE";
+
+    bool first = true;
+
+    auto add = [&](const char* name)
+    {
+        if (!first)
+            out << "+";
+
+        out << name;
+        first = false;
+    };
+
+    if (tri)   add("TRI");
+    if (saw)   add("SAW");
+    if (pulse) add("PULSE");
+    if (noise) add("NOISE");
+
+    if (hasNoiseCombinedWithOtherWaveform())
+        out << "  WARNING: noise-combined waveform";
+
+    return out.str();
+}
+
 double Oscillator::generateMixedSample()
 {
     updatePhase();
@@ -442,6 +495,14 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
     out << "  CTRL:              $" << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0') << static_cast<int>(control)
         << std::dec << "  ";
+
+    out << "  Waveform select:   " << describeWaveformSelection() << "\n";
+
+    out << "  Combined waveform: "
+        << (hasCombinedWaveform() ? "Y" : "N") << "\n";
+
+    out << "  Noise combined:    "
+        << (hasNoiseCombinedWithOtherWaveform() ? "Y" : "N") << "\n";
 
     out << "["
         << "GATE="  << (gate  ? "Y" : "N") << " "

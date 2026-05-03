@@ -41,6 +41,11 @@ class Oscillator
         void setControl(uint8_t controlValue);
         uint8_t readOutput8() const;
 
+        // Helpers
+        std::string describeWaveformSelection() const;
+        bool hasCombinedWaveform() const;
+        bool hasNoiseCombinedWithOtherWaveform() const;
+
         // Generate the sample for output
         double generateMixedSample();
 
