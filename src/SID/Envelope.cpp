@@ -267,11 +267,21 @@ std::string Envelope::dumpDebug() const
     std::ostringstream out;
 
     out << "ENV Debug:\n";
+
     out << "  State:              " << stateToString(state) << "\n";
+
+    out << "  ADSR nibbles:       "
+        << "A=$" << std::hex << std::uppercase << static_cast<int>(attackRate)
+        << " D=$" << static_cast<int>(decayRate)
+        << " S=$" << static_cast<int>(sustainRate)
+        << " R=$" << static_cast<int>(releaseRate)
+        << std::dec << "\n";
+
     out << "  Counter:            $" << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0')
         << static_cast<int>(envCounter)
-        << std::dec << " (" << static_cast<int>(envCounter) << "/255)\n";
+        << std::dec << std::setfill(' ')
+        << " (" << static_cast<int>(envCounter) << "/255)\n";
 
     out << std::fixed << std::setprecision(6);
     out << "  Level:              " << level << "\n";
@@ -285,12 +295,11 @@ std::string Envelope::dumpDebug() const
     out << "  Sustain counter:    $" << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0')
         << static_cast<int>(sustainCounter)
-        << std::dec << " (" << static_cast<int>(sustainCounter) << "/255)\n";
+        << std::dec << std::setfill(' ')
+        << " (" << static_cast<int>(sustainCounter) << "/255)\n";
 
     out << std::fixed << std::setprecision(3);
     out << "  Step accumulator:   " << stepAccumulator << "\n";
-
-    // Use these names if you changed Phase III-A to cycle-based fields.
     out << "  Attack step cycles: " << attackStepCycles << "\n";
     out << "  Decay step cycles:  " << decayStepCycles << "\n";
     out << "  Release step cycles:" << releaseStepCycles << "\n";
