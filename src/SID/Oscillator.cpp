@@ -55,6 +55,40 @@ void Oscillator::setFrequency(uint16_t freqRegValue)
         (static_cast<double>(frequencyReg) * sidClockFrequency) / 16777216.0;
 }
 
+uint16_t Oscillator::applyCombinedWaveformModel(uint16_t mixedBits) const
+{
+    const bool tri   = (control & 0x10) != 0;
+    const bool saw   = (control & 0x20) != 0;
+    const bool pulse = (control & 0x40) != 0;
+    const bool noise = (control & 0x80) != 0;
+
+    // Leave noise-combined waveforms alone for now.
+    // They need special handling later.
+    if (noise && (tri || saw || pulse))
+        return mixedBits;
+
+    if (!hasCombinedWaveform())
+        return mixedBits;
+
+    double x = static_cast<double>(mixedBits & 0x0FFF) / 4095.0;
+
+    if (sidModel_ == SIDModel::MOS6581)
+    {
+        // 6581 combined waveforms tend to be more nonlinear/attenuated.
+        x = std::pow(x, 1.35);
+        x *= 0.82;
+    }
+    else
+    {
+        // 8580 is cleaner and stronger.
+        x = std::pow(x, 1.12);
+        x *= 0.92;
+    }
+
+    x = std::clamp(x, 0.0, 1.0);
+    return static_cast<uint16_t>(x * 4095.0);
+}
+
 void Oscillator::setAccumulator24(uint32_t value)
 {
     accumulator24 = value & 0x00FFFFFF;
@@ -156,7 +190,9 @@ uint8_t Oscillator::readOutput8() const
     }
 
     if (!waveformSelected)
-        return 0x00;
+    return 0x00;
+
+    mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
 }
@@ -438,6 +474,8 @@ double Oscillator::outputSample()
 
     if (!waveformSelected)
         return 0.0;
+
+    mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return convertToFloat(mixedBits);
 }

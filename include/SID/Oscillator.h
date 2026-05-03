@@ -104,6 +104,7 @@ class Oscillator
         uint16_t getPulseBits();
         uint16_t getNoiseBits();
         double convertToFloat(uint16_t sampleBits);
+        uint16_t applyCombinedWaveformModel(uint16_t mixedBits) const;
 
         void clockNoiseLFSR();
         uint16_t getNoiseOutputBits() const;
