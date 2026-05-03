@@ -104,7 +104,7 @@ uint8_t Oscillator::readOutput8() const
     if ((control & 0xF0) == 0)
         return 0x00;
 
-    const double t = phase - std::floor(phase);
+    const double t = getAccumulatorPhase();
 
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
@@ -115,7 +115,7 @@ uint8_t Oscillator::readOutput8() const
 
         if ((control & 0x04) && ringSource)
         {
-            if (ringSource->getPhase() >= 0.5)
+            if (ringSource->getAccumulatorPhase() >= 0.5)
                 tri = 1.0 - tri;
         }
 
@@ -395,6 +395,11 @@ double Oscillator::outputSample()
         return 0.0;
 
     return convertToFloat(mixedBits);
+}
+
+double Oscillator::getAccumulatorPhase() const
+{
+    return static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
 std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const

@@ -62,6 +62,7 @@ class Oscillator
         uint16_t getFrequencyReg() const { return frequencyReg; }
 
         // ML Monitor
+        double getAccumulatorPhase() const;
         std::string dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const;
 
     protected:
