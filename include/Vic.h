@@ -409,6 +409,7 @@ class Vic
         // Bad line Helpers
         void initializeFirstBadLineIfNeeded(int raster);
         bool isBadLine(int raster) const;
+        bool isBadLineCandidateForBusWarning(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
         void performBadLineFetchesForCurrentCycle();

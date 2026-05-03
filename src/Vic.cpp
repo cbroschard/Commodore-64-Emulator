@@ -1984,17 +1984,16 @@ void Vic::updateBusArbitration()
 
 bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 {
-    if (!vicState.badLineSampled)
+    if (!isBadLineCandidateForBusWarning(raster))
         return false;
 
-    const int lineCycles = cfg_->cyclesPerLine;
-    const int slot = cfg_->DMAStartCycle;
+    const int warning0 = cfg_->DMAStartCycle - 3;
+    const int warning1 = cfg_->DMAStartCycle - 2;
+    const int warning2 = cfg_->DMAStartCycle - 1;
 
-    const int warn0 = (slot - 3 + lineCycles) % lineCycles;
-    const int warn1 = (slot - 2 + lineCycles) % lineCycles;
-    const int warn2 = (slot - 1 + lineCycles) % lineCycles;
-
-    return cycle == warn0 || cycle == warn1 || cycle == warn2;
+    return cycle == warning0 ||
+           cycle == warning1 ||
+           cycle == warning2;
 }
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
@@ -2101,6 +2100,27 @@ bool Vic::isBadLine(int raster) const
 
     // VIC-II bad lines are only possible in the fixed display window.
     // The window itself does not move with YSCROLL or RSEL.
+    if (raster < 0x30 || raster > 0xF7)
+        return false;
+
+    return (raster & 0x07) == yScroll;
+}
+
+bool Vic::isBadLineCandidateForBusWarning(int raster) const
+{
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return false;
+
+    if (!denSeenOn30)
+        return false;
+
+    const uint8_t d011 = effectiveD011ForRaster(raster);
+
+    if ((d011 & 0x10) == 0) // DEN
+        return false;
+
+    const int yScroll = d011 & 0x07;
+
     if (raster < 0x30 || raster > 0xF7)
         return false;
 
