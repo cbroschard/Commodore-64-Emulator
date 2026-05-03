@@ -29,6 +29,10 @@ struct SIDModelProfile
     double waveformDacGamma;
     double waveformDacBias;
 
+    // Combined waveform profile
+    double combinedWaveformGamma;
+    double combinedWaveformGain;
+
     // Filter profile
     double cutoffMinHz;
     double cutoffMaxHz;
@@ -59,6 +63,8 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         // Oscillator DAC profile
         1.08,   // waveformDacGamma
         0.015,  // waveformDacBias
+        1.35,   // combinedWaveformGamma
+        0.82,   // combinedWaveformGain
 
         // Filter profile
         30.0,     // cutoffMinHz
@@ -82,6 +88,8 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         // Oscillator DAC profile
         1.00,   // waveformDacGamma
         0.000,  // waveformDacBias
+        1.12,   // combinedWaveformGamma
+        0.92,   // combinedWaveformGain
 
         // Filter profile
         30.0,     // cutoffMinHz
