@@ -1064,18 +1064,35 @@ std::string SID::dumpVoice(const voiceRegisters& regs, const Voice& voice, int i
     std::stringstream out;
     out << "SID Voice " << index << ":\n";
 
-    uint16_t freq = (regs.frequencyHigh << 8) | regs.frequencyLow;
-    double freqHz = (freq * sidClockFrequency) / 65536.0;
-    out << "  FREQ=$" << std::hex << std::setw(4) << std::setfill('0') << freq
-        << " (" << std::dec << std::fixed << std::setprecision(1) << freqHz << " Hz)\n";
+    const uint16_t freq =
+        (static_cast<uint16_t>(regs.frequencyHigh) << 8) |
+         static_cast<uint16_t>(regs.frequencyLow);
 
-    uint16_t pw = ((regs.pulseWidthHigh & 0x0F) << 8) | regs.pulseWidthLow;
-    double duty = (pw / 4096.0) * 100.0;
-    out << "  PW=$" << std::hex << std::setw(4) << std::setfill('0') << pw
-        << " (" << std::dec << std::setprecision(1) << duty << "%)\n";
+    const double freqHz =
+        (freq * sidClockFrequency) / 65536.0;
+
+    out << "  FREQ=$" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << freq
+        << " (" << std::dec << std::fixed << std::setprecision(1)
+        << freqHz << " Hz)\n";
+
+    const uint16_t pw =
+        ((static_cast<uint16_t>(regs.pulseWidthHigh) & 0x0F) << 8) |
+         static_cast<uint16_t>(regs.pulseWidthLow);
+
+    const double duty = (static_cast<double>(pw) / 4095.0) * 100.0;
+
+    out << "  PW=$" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << pw
+        << " (" << std::dec << std::fixed << std::setprecision(1)
+        << duty << "%)\n";
 
     out << decodeControlRegister(regs.control);
     out << decodeADSR(regs, voice, index);
+
+    out << "\n";
+    out << voice.getOscillator().dumpDebug(freq, pw);
+
     return out.str();
 }
 

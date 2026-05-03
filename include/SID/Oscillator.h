@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 #include "SID/SIDModelProfile.h"
 
 class Oscillator
@@ -55,6 +56,9 @@ class Oscillator
 
         void clock(double sidCycles);
         double outputSample();
+
+        // ML Monitor
+        std::string dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const;
 
     protected:
 

@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
+#include <sstream>
 #include "SID/Oscillator.h"
 
 static inline double polyBLEP(double t, double dt) {
@@ -340,4 +342,103 @@ double Oscillator::outputSample()
         return 0.0;
 
     return convertToFloat(mixedBits);
+}
+
+std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const
+{
+    std::ostringstream out;
+
+    const double phaseWrapped = phase - std::floor(phase);
+    const double dutyPercent = pulseWidth * 100.0;
+
+    const bool tri   = (control & 0x10) != 0;
+    const bool saw   = (control & 0x20) != 0;
+    const bool pulse = (control & 0x40) != 0;
+    const bool noise = (control & 0x80) != 0;
+    const bool test  = (control & 0x08) != 0;
+    const bool ring  = (control & 0x04) != 0;
+    const bool sync  = (control & 0x02) != 0;
+    const bool gate  = (control & 0x01) != 0;
+
+    out << "OSC Debug:\n";
+
+    out << "  FREQ reg:          $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << freqReg
+        << std::dec << " (" << freqReg << ")\n";
+
+    out << std::fixed << std::setprecision(3);
+    out << "  Frequency:         " << frequency << " Hz\n";
+
+    out << "  Phase:             " << std::setprecision(6)
+        << phaseWrapped << "\n";
+
+    out << "  Phase overflow:    " << (phaseOverflow ? "Y" : "N") << "\n";
+
+    out << "  PW reg:            $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << (pulseWidthReg & 0x0FFF)
+        << std::dec << " (" << (pulseWidthReg & 0x0FFF) << "/4095)\n";
+
+    out << std::fixed << std::setprecision(2);
+    out << "  Pulse width:       " << dutyPercent << "%\n";
+
+    out << "  CTRL:              $" << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0') << static_cast<int>(control)
+        << std::dec << "  ";
+
+    out << "["
+        << "GATE="  << (gate  ? "Y" : "N") << " "
+        << "SYNC="  << (sync  ? "Y" : "N") << " "
+        << "RING="  << (ring  ? "Y" : "N") << " "
+        << "TEST="  << (test  ? "Y" : "N") << " "
+        << "TRI="   << (tri   ? "Y" : "N") << " "
+        << "SAW="   << (saw   ? "Y" : "N") << " "
+        << "PULSE=" << (pulse ? "Y" : "N") << " "
+        << "NOISE=" << (noise ? "Y" : "N")
+        << "]\n";
+
+    out << "  Noise LFSR:        $" << std::hex << std::uppercase
+        << std::setw(6) << std::setfill('0') << (noiseLFSR & 0x7FFFFF)
+        << std::dec << "\n";
+
+    out << "  Noise output:      $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << getNoiseOutputBits()
+        << std::dec << "\n";
+
+    out << "  OSC3 read value:   $" << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0') << static_cast<int>(readOutput8())
+        << std::dec << "\n";
+
+    if (syncSource)
+    {
+        const double srcPhase =
+            syncSource->getPhase() - std::floor(syncSource->getPhase());
+
+        out << std::fixed << std::setprecision(6);
+        out << "  SYNC source phase: " << srcPhase
+            << " overflow=" << (syncSource->getPhaseOverflow() ? "Y" : "N")
+            << "\n";
+    }
+    else
+    {
+        out << "  SYNC source phase: (none)\n";
+    }
+
+    if (ringSource)
+    {
+        const double srcPhase =
+            ringSource->getPhase() - std::floor(ringSource->getPhase());
+
+        out << std::fixed << std::setprecision(6);
+        out << "  RING source phase: " << srcPhase << "\n";
+    }
+    else
+    {
+        out << "  RING source phase: (none)\n";
+    }
+
+    out << std::fixed << std::setprecision(3);
+    out << "  SID clock:         " << sidClockFrequency << " Hz\n";
+    out << "  Sample rate:       " << sampleRate << " Hz\n";
+
+    return out.str();
 }
