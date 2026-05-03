@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <sstream>
 #include "SID/Envelope.h"
+#include "SID/SIDEnvelopeTables.h"
 
 Envelope::Envelope(double sampleRate) :
     sidClockFrequency(1022727.0), // NTSC default; SID::setMode will correct it
@@ -20,6 +21,10 @@ Envelope::Envelope(double sampleRate) :
     decayTime(0.1),
     sustainLevel(0.7),
     releaseTime(0.2),
+    attackRate(0),
+    decayRate(0),
+    sustainRate(0),
+    releaseRate(0),
     envCounter(0),
     stepAccumulator(0.0),
     attackStepCycles(1.0),
@@ -220,6 +225,24 @@ void Envelope::setParameters(double attack, double decay, double sustain, double
     attackStepCycles  = std::max(1.0, (attackTime  * sidClockFrequency) / 255.0);
     decayStepCycles   = std::max(1.0, (decayTime   * sidClockFrequency) / 255.0);
     releaseStepCycles = std::max(1.0, (releaseTime * sidClockFrequency) / 255.0);
+}
+
+void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
+{
+    attackRate  = attack  & 0x0F;
+    decayRate   = decay   & 0x0F;
+    sustainRate = sustain & 0x0F;
+    releaseRate = release & 0x0F;
+
+    const double sustainLevelFromNibble =
+        static_cast<double>(sustainRate) / 15.0;
+
+    setParameters(
+        SID_ATTACK_S[attackRate],
+        SID_DECAY_RELEASE_S[decayRate],
+        sustainLevelFromNibble,
+        SID_DECAY_RELEASE_S[releaseRate]
+    );
 }
 
 std::string Envelope::stateToString(State s) {

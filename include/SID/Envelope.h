@@ -49,6 +49,7 @@ class Envelope
         inline void setState(Envelope::State value) { state = value; }
         void setSampleRate(double sample);
         void setParameters(double attack, double decay, double sustain, double release);
+        void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
 
         // Helpers
         static std::string stateToString(State s);
@@ -73,6 +74,11 @@ class Envelope
         double decayTime;
         double sustainLevel;
         double releaseTime;
+
+        uint8_t attackRate;
+        uint8_t decayRate;
+        uint8_t sustainRate;
+        uint8_t releaseRate;
 
         uint8_t envCounter;
         double stepAccumulator;

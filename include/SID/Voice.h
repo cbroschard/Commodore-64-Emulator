@@ -34,6 +34,7 @@ class Voice
         void setFrequency(uint16_t freqValue);
         void setPulseWidth(uint16_t pulseWidth);
         void setEnvelopeParameters(double attack, double decay, double sustain, double release);
+        void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
         void setControl(uint8_t controlValue);
         void setFilterRouted(bool routed);
 

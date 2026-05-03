@@ -77,6 +77,11 @@ void Voice::setEnvelopeParameters(double attack, double delay, double sustain, d
     env.setParameters(attack, delay, sustain, release);
 }
 
+void Voice::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
+{
+    env.setADSR(attack, decay, sustain, release);
+}
+
 void Voice::setControl(uint8_t controlValue)
 {
     osc.setControl(controlValue);
