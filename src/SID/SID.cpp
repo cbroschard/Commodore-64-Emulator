@@ -400,8 +400,8 @@ uint8_t SID::readRegister(uint16_t address)
         case 0xD416: return sidRegisters.filter.cutoffHigh;
         case 0xD417: return sidRegisters.filter.resonanceControl;
         case 0xD418: return sidRegisters.filter.volume;
-        case 0xD419: return rand() & 0xFF; // read only register should return joy1 value; using random instead
-        case 0xD41A: return rand() & 0xFF; // read only register should return joy2 value; using random instead
+        case 0xD419: return 0xFF;
+        case 0xD41A: return 0xFF;
         case 0xD41B:
         {
             // OSC3: read current voice 3 oscillator output.
