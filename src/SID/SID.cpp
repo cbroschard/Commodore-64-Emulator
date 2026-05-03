@@ -97,22 +97,46 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeF64(voice1.getOscillator().getPhase());
     wrtr.writeBool(voice1.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice1.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice1.getOscillator().getAccumulator24());
+    wrtr.writeU16(voice1.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
     wrtr.writeF64(voice1.getEnvelope().getLevel());
+    wrtr.writeU8(voice1.getEnvelope().getAttackRate());
+    wrtr.writeU8(voice1.getEnvelope().getDecayRate());
+    wrtr.writeU8(voice1.getEnvelope().getSustainRate());
+    wrtr.writeU8(voice1.getEnvelope().getReleaseRate());
+    wrtr.writeU32(voice1.getEnvelope().getExponentialCounter());
+    wrtr.writeU32(voice1.getEnvelope().getExponentialPeriod());
 
     // Dump Voice2 runtime status
     wrtr.writeF64(voice2.getOscillator().getPhase());
     wrtr.writeBool(voice2.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice2.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice2.getOscillator().getAccumulator24());
+    wrtr.writeU16(voice2.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
     wrtr.writeF64(voice2.getEnvelope().getLevel());
+    wrtr.writeU8(voice2.getEnvelope().getAttackRate());
+    wrtr.writeU8(voice2.getEnvelope().getDecayRate());
+    wrtr.writeU8(voice2.getEnvelope().getSustainRate());
+    wrtr.writeU8(voice2.getEnvelope().getReleaseRate());
+    wrtr.writeU32(voice2.getEnvelope().getExponentialCounter());
+    wrtr.writeU32(voice2.getEnvelope().getExponentialPeriod());
 
     // Dump Voice3 runtime state
     wrtr.writeF64(voice3.getOscillator().getPhase());
     wrtr.writeBool(voice3.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice3.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice3.getOscillator().getAccumulator24());
+    wrtr.writeU16(voice3.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
     wrtr.writeF64(voice3.getEnvelope().getLevel());
+    wrtr.writeU8(voice3.getEnvelope().getAttackRate());
+    wrtr.writeU8(voice3.getEnvelope().getDecayRate());
+    wrtr.writeU8(voice3.getEnvelope().getSustainRate());
+    wrtr.writeU8(voice3.getEnvelope().getReleaseRate());
+    wrtr.writeU32(voice3.getEnvelope().getExponentialCounter());
+    wrtr.writeU32(voice3.getEnvelope().getExponentialPeriod());
 
     // Dump Filter runtime state
     wrtr.writeF64(filterobj.getLowPassOut());

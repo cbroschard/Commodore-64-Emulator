@@ -40,10 +40,17 @@ class Envelope
         // Getters
         inline double getLevel() const { return level; }
         inline State getState() const { return state; }
+        inline uint8_t getAttackRate() const { return attackRate; }
+        inline uint8_t getDecayRate() const { return decayRate; }
+        inline uint8_t getSustainRate() const { return sustainRate; }
+        inline uint8_t getReleaseRate() const { return releaseRate; }
+        inline uint32_t getExponentialCounter() const { return exponentialCounter; }
+        inline uint32_t getExponentialPeriod() const { return exponentialPeriod; }
         uint8_t readOutput8() const;
 
-
         // Setters
+        inline void setExponentialCounter(uint32_t value) { exponentialCounter = value; }
+        inline void setExponentialPeriod(uint32_t value) { exponentialPeriod = std::max<uint32_t>(1, value); }
         void setSIDClockFrequency(double frequency);
         void setLevel(double newLevel);
         inline void setState(Envelope::State value) { state = value; }
