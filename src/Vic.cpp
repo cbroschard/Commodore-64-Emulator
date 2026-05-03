@@ -2029,6 +2029,24 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
            cycle <= cfg_->DMAEndCycle;
 }
 
+bool Vic::isRefreshCycle(int cycle) const
+{
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
+    const int c0 = cfg_->refreshStartCycle;
+    const int c1 = (c0 + 1) % cfg_->cyclesPerLine;
+    const int c2 = (c0 + 2) % cfg_->cyclesPerLine;
+    const int c3 = (c0 + 3) % cfg_->cyclesPerLine;
+    const int c4 = (c0 + 4) % cfg_->cyclesPerLine;
+
+    return cycle == c0 ||
+           cycle == c1 ||
+           cycle == c2 ||
+           cycle == c3 ||
+           cycle == c4;
+}
+
 bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
 {
     (void)raster;
@@ -2183,13 +2201,15 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
             slot.busOwner = BusOwner::SpriteData;
             break;
 
-        case FetchKind::None:
-        default:
-            if (slot.baLow || slot.aecLow)
-                slot.busOwner = BusOwner::Idle;
-            else
-                slot.busOwner = BusOwner::CPU;
-            break;
+            case FetchKind::None:
+            default:
+                if (isRefreshCycle(cycle))
+                    slot.busOwner = BusOwner::Refresh;
+                else if (slot.baLow || slot.aecLow)
+                    slot.busOwner = BusOwner::Idle;
+                else
+                    slot.busOwner = BusOwner::CPU;
+                break;
     }
 
     return slot;

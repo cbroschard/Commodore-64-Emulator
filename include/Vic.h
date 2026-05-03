@@ -400,6 +400,8 @@ class Vic
         bool isBadLineBusWarningCycle(int raster, int cycle) const;
         bool isBadLineBusStealCycle(int raster, int cycle) const;
 
+        bool isRefreshCycle(int cycle) const;
+
         bool isSpriteBusWarningCycle(int raster, int cycle) const;
         bool isSpriteBusStealCycle(int raster, int cycle) const;
         bool isSpriteBusAECStealCycle(int raster, int cycle) const;
