@@ -1351,7 +1351,7 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (!vicState.badLineSampled)
         return;
 
-    if (currentCycle < 15 || currentCycle > 54)
+    if (currentCycle < cfg_->DMAStartCycle || currentCycle > cfg_->DMAEndCycle)
         return;
 
     if (vicState.vmliFetchIndex >= 40)
