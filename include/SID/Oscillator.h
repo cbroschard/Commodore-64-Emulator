@@ -32,11 +32,11 @@ class Oscillator
         inline void setPhaseOverflow(bool value) { phaseOverflow = value; }
         inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF; }
         inline void setSampleRate(double sample) { sampleRate = sample; }
-        inline void setSIDClockFrequency(double frequency) { sidClockFrequency = frequency; }
-        inline void setFrequency(uint16_t freqRegValue) { frequency = (static_cast<double>(freqRegValue) * sidClockFrequency) / 16777216.0; }
         inline void setPulseWidth(double width) { pulseWidth = width; }
-        void setSyncSource(Oscillator* source) { syncSource  = source; }
-        void setRingSource(Oscillator* source) { ringSource = source; }
+        inline void setSyncSource(Oscillator* source) { syncSource  = source; }
+        inline void setRingSource(Oscillator* source) { ringSource = source; }
+        void setSIDClockFrequency(double frequency);
+        void setFrequency(uint16_t freqRegValue);
         void setControl(uint8_t controlValue);
         uint8_t readOutput8() const;
 
@@ -49,13 +49,16 @@ class Oscillator
         inline void setSIDModel(SIDModel model) { sidModel_ = model; }
 
         // Reset the phase
-        inline void resetPhase() { phase = 0.0; phaseOverflow = false; }
+        void resetPhase();
 
         // Update the phase accumulator for the next cycle
         void updatePhase();
 
         void clock(double sidCycles);
         double outputSample();
+
+        uint32_t getAccumulator24() const { return accumulator24 & 0x00FFFFFF; }
+        uint16_t getFrequencyReg() const { return frequencyReg; }
 
         // ML Monitor
         std::string dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const;
@@ -77,6 +80,9 @@ class Oscillator
         double pulseWidth; // Pulse width for pulse waveform
         bool phaseOverflow;
         uint8_t control; // Control value from relevant voice
+
+        uint32_t accumulator24;
+        uint16_t frequencyReg;
 
         // Helpers
         uint16_t getTriangleBits();

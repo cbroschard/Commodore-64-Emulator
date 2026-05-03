@@ -33,7 +33,9 @@ Oscillator::Oscillator(double sampleRate) :
     frequency(0.0),
     pulseWidth(0.5),
     phaseOverflow(false),
-    control(0)
+    control(0),
+    accumulator24(0),
+    frequencyReg(0)
 {
 
 }
@@ -43,6 +45,29 @@ Oscillator::~Oscillator() = default;
 double Oscillator::convertToFloat(uint16_t sampleBits)
 {
     return applySIDWaveformDac(sampleBits, sidModel_);
+}
+
+void Oscillator::setFrequency(uint16_t freqRegValue)
+{
+    frequencyReg = freqRegValue;
+
+    frequency =
+        (static_cast<double>(frequencyReg) * sidClockFrequency) / 16777216.0;
+}
+
+void Oscillator::setSIDClockFrequency(double clockFrequency)
+{
+    sidClockFrequency = clockFrequency;
+
+    frequency =
+        (static_cast<double>(frequencyReg) * sidClockFrequency) / 16777216.0;
+}
+
+void Oscillator::resetPhase()
+{
+    phase = 0.0;
+    accumulator24 = 0;
+    phaseOverflow = false;
 }
 
 void Oscillator::setControl(uint8_t controlValue)
@@ -136,6 +161,7 @@ double Oscillator::generateMixedSample()
 void Oscillator::reset()
 {
     phase = 0.0;
+    accumulator24 = 0;
     noiseLFSR = 0x7FFFFF;
     phaseOverflow = false;
 }
@@ -233,25 +259,12 @@ uint16_t Oscillator::getNoiseBits()
 
 void Oscillator::updatePhase()
 {
-    if (control & 0x08)
-    {
-        resetPhase();
-        return;
-    }
+    const double sidCyclesThisSample =
+        (sampleRate > 0.0 && sidClockFrequency > 0.0)
+            ? (sidClockFrequency / sampleRate)
+            : 1.0;
 
-    if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
-    {
-        resetPhase();
-    }
-
-    phase += frequency / sampleRate;
-    phaseOverflow = (phase >= 1.0);
-    phase -= std::floor(phase);
-
-    if (phaseOverflow && (control & 0x80))
-    {
-        clockNoiseLFSR();
-    }
+    clock(sidCyclesThisSample);
 }
 
 void Oscillator::clock(double sidCycles)
@@ -262,36 +275,61 @@ void Oscillator::clock(double sidCycles)
     if (control & 0x08)
     {
         resetPhase();
+        noiseLFSR = 0x7FFFFF;
         return;
     }
 
-    if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
+    phaseOverflow = false;
+
+    const uint32_t fullCycles =
+        static_cast<uint32_t>(std::floor(sidCycles));
+
+    const double fractionalCycles =
+        sidCycles - static_cast<double>(fullCycles);
+
+    for (uint32_t i = 0; i < fullCycles; ++i)
     {
-        resetPhase();
+        if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
+        {
+            resetPhase();
+        }
+
+        const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
+        accumulator24 = (accumulator24 + frequencyReg) & 0x00FFFFFF;
+
+        const bool overflow = accumulator24 < oldAcc;
+
+        if (overflow)
+        {
+            phaseOverflow = true;
+
+            if (control & 0x80)
+                clockNoiseLFSR();
+        }
     }
 
-    const double cyclesPerSecond = sidClockFrequency > 0.0
-        ? sidClockFrequency
-        : sampleRate;
-
-    const double phaseStep =
-        (frequency / cyclesPerSecond) * sidCycles;
-
-    phase += phaseStep;
-
-    phaseOverflow = (phase >= 1.0);
-
-    if (phaseOverflow)
+    if (fractionalCycles > 0.0)
     {
-        phase -= std::floor(phase);
+        const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
 
-        if (control & 0x80)
-            clockNoiseLFSR();
+        const double next =
+            static_cast<double>(oldAcc) +
+            (static_cast<double>(frequencyReg) * fractionalCycles);
+
+        accumulator24 =
+            static_cast<uint32_t>(std::fmod(next, 16777216.0)) & 0x00FFFFFF;
+
+        if (accumulator24 < oldAcc)
+        {
+            phaseOverflow = true;
+
+            if (control & 0x80)
+                clockNoiseLFSR();
+        }
     }
-    else
-    {
-        phase -= std::floor(phase);
-    }
+
+    phase =
+        static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
 double Oscillator::outputSample()
@@ -373,6 +411,14 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
         << phaseWrapped << "\n";
 
     out << "  Phase overflow:    " << (phaseOverflow ? "Y" : "N") << "\n";
+
+    out << "  Accumulator24:      $" << std::hex << std::uppercase
+        << std::setw(6) << std::setfill('0') << (accumulator24 & 0x00FFFFFF)
+        << std::dec << "\n";
+
+    out << "  Internal FREQ reg:  $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << frequencyReg
+        << std::dec << " (" << frequencyReg << ")\n";
 
     out << "  PW reg:            $" << std::hex << std::uppercase
         << std::setw(4) << std::setfill('0') << (pulseWidthReg & 0x0FFF)
