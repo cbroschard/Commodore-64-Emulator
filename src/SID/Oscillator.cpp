@@ -236,29 +236,7 @@ uint16_t Oscillator::getSawBits()
 
 uint16_t Oscillator::getPulseBits()
 {
-    const double dt = frequency / sampleRate;
-    const double t = getAccumulatorPhase();
-
-    if (pulseWidth <= 0.0)
-        return 0x0000;
-
-    if (pulseWidth >= 1.0)
-        return 0x0FFF;
-
-    double value = (t < pulseWidth) ? 1.0 : 0.0;
-
-    // Rising edge at phase wrap.
-    value -= polyBLEP(t, dt);
-
-    // Falling edge at pulse-width threshold.
-    double t2 = t - pulseWidth;
-    if (t2 < 0.0)
-        t2 += 1.0;
-
-    value += polyBLEP(t2, dt);
-
-    value = std::clamp(value, 0.0, 1.0);
-    return static_cast<uint16_t>(value * 4095.0);
+    return getAccumulatorPulse12();
 }
 
 void Oscillator::clockNoiseLFSR()
