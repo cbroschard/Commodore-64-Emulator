@@ -389,6 +389,8 @@ std::string Envelope::dumpDebug() const
 
     out << std::fixed << std::setprecision(3);
     out << "  Step accumulator:   " << stepAccumulator << "\n";
+    out << "  Exponential count:  " << exponentialCounter << "\n";
+    out << "  Exponential period: " << exponentialPeriod << "\n";
     out << "  Attack step cycles: " << attackStepCycles << "\n";
     out << "  Decay step cycles:  " << decayStepCycles << "\n";
     out << "  Release step cycles:" << releaseStepCycles << "\n";
