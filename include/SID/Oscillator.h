@@ -28,13 +28,14 @@ class Oscillator
         inline double getFrequency() const { return frequency; }
 
         // Setters
-        inline void setPhase(double value) { phase = value; }
         inline void setPhaseOverflow(bool value) { phaseOverflow = value; }
         inline void setNoiseLFSR(uint32_t value) { noiseLFSR = value & 0x7FFFFF; }
         inline void setSampleRate(double sample) { sampleRate = sample; }
         inline void setPulseWidth(double width) { pulseWidth = width; }
         inline void setSyncSource(Oscillator* source) { syncSource  = source; }
         inline void setRingSource(Oscillator* source) { ringSource = source; }
+        void setAccumulator24(uint32_t value);
+        void setPhase(double value);
         void setSIDClockFrequency(double frequency);
         void setFrequency(uint16_t freqRegValue);
         void setControl(uint8_t controlValue);

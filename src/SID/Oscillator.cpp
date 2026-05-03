@@ -55,6 +55,21 @@ void Oscillator::setFrequency(uint16_t freqRegValue)
         (static_cast<double>(frequencyReg) * sidClockFrequency) / 16777216.0;
 }
 
+void Oscillator::setAccumulator24(uint32_t value)
+{
+    accumulator24 = value & 0x00FFFFFF;
+    phase = static_cast<double>(accumulator24) / 16777216.0;
+}
+
+void Oscillator::setPhase(double value)
+{
+    phase = value - std::floor(value);
+
+    accumulator24 =
+        static_cast<uint32_t>(std::clamp(phase, 0.0, 0.999999999) * 16777216.0)
+        & 0x00FFFFFF;
+}
+
 void Oscillator::setSIDClockFrequency(double clockFrequency)
 {
     sidClockFrequency = clockFrequency;
