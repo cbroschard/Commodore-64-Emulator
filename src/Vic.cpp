@@ -1038,6 +1038,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.borderColor;
             registers.borderColor = value & 0x0F;
+            recordRasterColorWrite(address, oldValue, registers.borderColor);
             traceVicRegWrite(address, oldValue, registers.borderColor);
             break;
         }
@@ -1046,6 +1047,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.backgroundColor0;
             registers.backgroundColor0 = value & 0x0F;
+            recordRasterColorWrite(address, oldValue, registers.backgroundColor0);
             traceVicRegWrite(address, oldValue, registers.backgroundColor0);
             break;
         }
@@ -1106,6 +1108,8 @@ void Vic::beginFrameIfNeeded()
     // of the frame only.
     if (currentCycle == 0 && registers.raster == 0)
     {
+        rasterColorEvents.clear();
+
         firstBadlineY = -1;
         denSeenOn30 = false;
 
@@ -2252,6 +2256,21 @@ void Vic::renderLine(int raster)
     buildBorderMaskLine(raster);
     composeFinalRasterLine(raster);
     emitRasterLineInOrder(raster);
+}
+
+void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
+{
+    if (address != 0xD020 && address != 0xD021)
+        return;
+
+    RasterColorEvent e;
+    e.raster = registers.raster;
+    e.cycle = currentCycle;
+    e.address = address;
+    e.oldValue = oldValue & 0x0F;
+    e.newValue = newValue & 0x0F;
+
+    rasterColorEvents.push_back(e);
 }
 
 Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const

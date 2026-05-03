@@ -646,6 +646,19 @@ class Vic
             int phase = 0;
         };
 
+        struct RasterColorEvent
+        {
+            int raster = 0;
+            int cycle = 0;
+            uint16_t address = 0;
+            uint8_t oldValue = 0;
+            uint8_t newValue = 0;
+        };
+
+        std::vector<RasterColorEvent> rasterColorEvents;
+
+        void recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
+
         ActiveBackgroundPixelState activeBgPixel;
 
         inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
