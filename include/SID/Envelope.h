@@ -87,9 +87,14 @@ class Envelope
         double decayStepCycles;
         double releaseStepCycles;
 
+        uint32_t exponentialCounter;
+        uint32_t exponentialPeriod;
+
         uint8_t sustainCounter;
 
+        // Helpers
         void syncLevelFromCounter();
+        void updateExponentialPeriod();
 };
 
 #endif // ENVELOPE_H

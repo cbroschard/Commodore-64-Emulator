@@ -30,6 +30,8 @@ Envelope::Envelope(double sampleRate) :
     attackStepCycles(1.0),
     decayStepCycles(1.0),
     releaseStepCycles(1.0),
+    exponentialCounter(0),
+    exponentialPeriod(1),
     sustainCounter(0)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
@@ -39,22 +41,28 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
-    state = State::Attack;
-    stepAccumulator = 0.0;
+    state               = State::Attack;
+    stepAccumulator     = 0.0;
+    exponentialCounter  = 0;
+    exponentialPeriod   = 1;
 }
 
 void Envelope::release()
 {
-    state = State::Release;
-    stepAccumulator = 0.0;
+    state               = State::Release;
+    stepAccumulator     = 0.0;
+    exponentialCounter  = 0;
+    updateExponentialPeriod();
 }
 
 void Envelope::reset()
 {
-    state = State::Idle;
-    level = 0.0;
-    envCounter = 0;
-    stepAccumulator = 0.0;
+    state               = State::Idle;
+    level               = 0.0;
+    envCounter          = 0;
+    stepAccumulator     = 0.0;
+    exponentialCounter  = 0;
+    exponentialPeriod   = 1;
 }
 
 void Envelope::setSIDClockFrequency(double frequency)
@@ -274,6 +282,24 @@ std::string Envelope::stateToString(State s) {
 void Envelope::syncLevelFromCounter()
 {
     level = static_cast<double>(envCounter) / 255.0;
+}
+
+void Envelope::updateExponentialPeriod()
+{
+    if (envCounter == 0x00)
+        exponentialPeriod = 1;
+    else if (envCounter <= 0x06)
+        exponentialPeriod = 30;
+    else if (envCounter <= 0x0E)
+        exponentialPeriod = 16;
+    else if (envCounter <= 0x1A)
+        exponentialPeriod = 8;
+    else if (envCounter <= 0x36)
+        exponentialPeriod = 4;
+    else if (envCounter <= 0x5D)
+        exponentialPeriod = 2;
+    else
+        exponentialPeriod = 1;
 }
 
 std::string Envelope::dumpDebug() const
