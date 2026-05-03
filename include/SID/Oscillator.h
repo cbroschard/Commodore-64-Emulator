@@ -53,6 +53,9 @@ class Oscillator
         // Update the phase accumulator for the next cycle
         void updatePhase();
 
+        void clock(double sidCycles);
+        double outputSample();
+
     protected:
 
     private:

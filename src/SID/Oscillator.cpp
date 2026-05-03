@@ -128,55 +128,7 @@ uint8_t Oscillator::readOutput8() const
 double Oscillator::generateMixedSample()
 {
     updatePhase();
-
-    if ((control & 0xF0) == 0)
-    {
-        return 0.0;
-    }
-
-    uint16_t mixedBits = 0xFFFF;
-    bool waveformSelected = false;
-
-    if (control & 0x10) // Triangle
-    {
-        mixedBits &= getTriangleBits();
-        waveformSelected = true;
-    }
-
-    if (control & 0x20) // Sawtooth
-    {
-        if (!waveformSelected)
-            mixedBits = getSawBits();
-        else
-            mixedBits &= getSawBits();
-
-        waveformSelected = true;
-    }
-
-    if (control & 0x40) // Pulse
-    {
-        if (!waveformSelected)
-            mixedBits = getPulseBits();
-        else
-            mixedBits &= getPulseBits();
-
-        waveformSelected = true;
-    }
-
-    if (control & 0x80) // Noise
-    {
-        if (!waveformSelected)
-            mixedBits = getNoiseBits();
-        else
-            mixedBits &= getNoiseBits();
-
-        waveformSelected = true;
-    }
-
-    if (!waveformSelected)
-        return 0.0;
-
-    return convertToFloat(mixedBits);
+    return outputSample();
 }
 
 void Oscillator::reset()
@@ -298,4 +250,94 @@ void Oscillator::updatePhase()
     {
         clockNoiseLFSR();
     }
+}
+
+void Oscillator::clock(double sidCycles)
+{
+    if (sidCycles <= 0.0)
+        return;
+
+    if (control & 0x08)
+    {
+        resetPhase();
+        return;
+    }
+
+    if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
+    {
+        resetPhase();
+    }
+
+    const double cyclesPerSecond = sidClockFrequency > 0.0
+        ? sidClockFrequency
+        : sampleRate;
+
+    const double phaseStep =
+        (frequency / cyclesPerSecond) * sidCycles;
+
+    phase += phaseStep;
+
+    phaseOverflow = (phase >= 1.0);
+
+    if (phaseOverflow)
+    {
+        phase -= std::floor(phase);
+
+        if (control & 0x80)
+            clockNoiseLFSR();
+    }
+    else
+    {
+        phase -= std::floor(phase);
+    }
+}
+
+double Oscillator::outputSample()
+{
+    if ((control & 0xF0) == 0)
+        return 0.0;
+
+    uint16_t mixedBits = 0xFFFF;
+    bool waveformSelected = false;
+
+    if (control & 0x10) // Triangle
+    {
+        mixedBits &= getTriangleBits();
+        waveformSelected = true;
+    }
+
+    if (control & 0x20) // Sawtooth
+    {
+        if (!waveformSelected)
+            mixedBits = getSawBits();
+        else
+            mixedBits &= getSawBits();
+
+        waveformSelected = true;
+    }
+
+    if (control & 0x40) // Pulse
+    {
+        if (!waveformSelected)
+            mixedBits = getPulseBits();
+        else
+            mixedBits &= getPulseBits();
+
+        waveformSelected = true;
+    }
+
+    if (control & 0x80) // Noise
+    {
+        if (!waveformSelected)
+            mixedBits = getNoiseBits();
+        else
+            mixedBits &= getNoiseBits();
+
+        waveformSelected = true;
+    }
+
+    if (!waveformSelected)
+        return 0.0;
+
+    return convertToFloat(mixedBits);
 }

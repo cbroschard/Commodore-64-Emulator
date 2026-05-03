@@ -722,11 +722,17 @@ double SID::generateAudioSample()
 
 void SID::tick(uint32_t cycles)
 {
-    voice1.clockEnvelope(static_cast<double>(cycles));
-    voice2.clockEnvelope(static_cast<double>(cycles));
-    voice3.clockEnvelope(static_cast<double>(cycles));
+    const double sidCycles = static_cast<double>(cycles);
 
-    sidCycleCounter += static_cast<double>(cycles);
+    voice1.clockEnvelope(sidCycles);
+    voice2.clockEnvelope(sidCycles);
+    voice3.clockEnvelope(sidCycles);
+
+    voice1.clockOscillator(sidCycles);
+    voice2.clockOscillator(sidCycles);
+    voice3.clockOscillator(sidCycles);
+
+    sidCycleCounter += sidCycles;
 
     if (sidCyclesPerAudioSample <= 0.0)
         return;

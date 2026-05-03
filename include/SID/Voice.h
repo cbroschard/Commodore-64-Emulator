@@ -44,6 +44,8 @@ class Voice
         // Reset function for clean startup
         void reset();
 
+        inline void clockOscillator(double sidCycles) {  osc.clock(sidCycles); }
+
         inline void setSIDModel(SIDModel model) { osc.setSIDModel(model); }
 
     protected:

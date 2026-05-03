@@ -96,31 +96,22 @@ double Voice::generateVoiceSample()
 {
     const uint8_t ctrl = osc.getControl();
 
-    // Even when a voice is silent, the SID oscillator should keep running.
-    // This matters for OSC3 reads, SYNC/RING sources, and enabling a waveform later.
-    if (filterRouted && env.isIdle() && !(ctrl & 0x01))
-    {
-        osc.updatePhase();
-        return 0.0;
-    }
-
     // TEST bit forces oscillator silence.
-    // Envelope timing is now handled separately by clockEnvelope().
+    // Oscillator timing is handled separately by clockOscillator().
     if (ctrl & 0x08)
-    {
-        osc.updatePhase();
         return 0.0;
-    }
 
-    // No waveform selected: oscillator still free-runs.
-    // Envelope timing is now handled separately by clockEnvelope().
+    // No waveform selected: oscillator still free-runs,
+    // but audio output is silent.
     if (!(ctrl & 0xF0))
-    {
-        osc.updatePhase();
         return 0.0;
-    }
 
-    const double oscSample = osc.generateMixedSample();
+    // If routed through the filter and fully idle, output can be silent,
+    // but oscillator timing has already advanced separately.
+    if (filterRouted && env.isIdle() && !(ctrl & 0x01))
+        return 0.0;
+
+    const double oscSample = osc.outputSample();
     const double envLevel  = env.output();
 
     return oscSample * envLevel;
