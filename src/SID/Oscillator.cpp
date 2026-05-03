@@ -181,6 +181,38 @@ void Oscillator::reset()
     phaseOverflow = false;
 }
 
+uint16_t Oscillator::getAccumulatorSaw12() const
+{
+    // SID sawtooth is effectively taken from the upper bits of the 24-bit accumulator.
+    return static_cast<uint16_t>((accumulator24 >> 12) & 0x0FFF);
+}
+
+uint16_t Oscillator::getAccumulatorTriangle12() const
+{
+    // Triangle uses the accumulator MSB to invert the upper accumulator bits.
+    const uint32_t acc = accumulator24 & 0x00FFFFFF;
+    uint16_t tri = static_cast<uint16_t>((acc >> 11) & 0x0FFF);
+
+    if (acc & 0x00800000)
+        tri ^= 0x0FFF;
+
+    if ((control & 0x04) && ringSource)
+    {
+        if (ringSource->getAccumulatorPhase() >= 0.5)
+            tri ^= 0x0FFF;
+    }
+
+    return tri;
+}
+
+uint16_t Oscillator::getAccumulatorPulse12() const
+{
+    const uint32_t pw24 =
+        static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
+
+    return ((accumulator24 & 0x00FFFFFF) < pw24) ? 0x0FFF : 0x0000;
+}
+
 uint16_t Oscillator::getTriangleBits()
 {
     double dt = frequency / sampleRate;
@@ -471,6 +503,18 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
 
     out << "  OSC3 read value:   $" << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0') << static_cast<int>(readOutput8())
+        << std::dec << "\n";
+
+    out << "  Raw saw12:         $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << getAccumulatorSaw12()
+        << std::dec << "\n";
+
+    out << "  Raw triangle12:    $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << getAccumulatorTriangle12()
+        << std::dec << "\n";
+
+    out << "  Raw pulse12:       $" << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << getAccumulatorPulse12()
         << std::dec << "\n";
 
     if (syncSource)

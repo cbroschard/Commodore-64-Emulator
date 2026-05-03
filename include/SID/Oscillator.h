@@ -86,6 +86,10 @@ class Oscillator
         uint32_t accumulator24;
         uint16_t frequencyReg;
 
+        uint16_t getAccumulatorSaw12() const;
+        uint16_t getAccumulatorTriangle12() const;
+        uint16_t getAccumulatorPulse12() const;
+
         // Helpers
         uint16_t getTriangleBits();
         uint16_t getSawBits();
