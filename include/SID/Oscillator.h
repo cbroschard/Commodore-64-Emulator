@@ -90,6 +90,9 @@ class Oscillator
         uint16_t getAccumulatorTriangle12() const;
         uint16_t getAccumulatorPulse12() const;
 
+        uint8_t getNoiseOutput8() const;
+        uint16_t getNoiseOutput12() const;
+
         // Helpers
         uint16_t getTriangleBits();
         uint16_t getSawBits();
