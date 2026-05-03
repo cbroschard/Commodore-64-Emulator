@@ -109,6 +109,9 @@ void Envelope::clock(double sidCycles)
         {
             envCounter = 0;
             syncLevelFromCounter();
+
+            exponentialCounter = 0;
+            exponentialPeriod = 1;
             break;
         }
 
@@ -128,6 +131,9 @@ void Envelope::clock(double sidCycles)
                     {
                         state = State::Decay;
                         stepAccumulator = 0.0;
+
+                        exponentialCounter = 0;
+                        updateExponentialPeriod();
                         break;
                     }
                 }
@@ -136,6 +142,9 @@ void Envelope::clock(double sidCycles)
                     envCounter = 0xFF;
                     state = State::Decay;
                     stepAccumulator = 0.0;
+
+                    exponentialCounter = 0;
+                    updateExponentialPeriod();
                     break;
                 }
             }
@@ -152,16 +161,39 @@ void Envelope::clock(double sidCycles)
             {
                 stepAccumulator -= decayStepCycles;
 
-                if (envCounter > sustainCounter)
-                {
-                    --envCounter;
-                }
-                else
+                if (envCounter <= sustainCounter)
                 {
                     envCounter = sustainCounter;
                     state = State::Sustain;
                     stepAccumulator = 0.0;
+
+                    exponentialCounter = 0;
+                    updateExponentialPeriod();
                     break;
+                }
+
+                ++exponentialCounter;
+
+                if (exponentialCounter >= exponentialPeriod)
+                {
+                    exponentialCounter = 0;
+
+                    if (envCounter > sustainCounter)
+                    {
+                        --envCounter;
+                        updateExponentialPeriod();
+
+                        if (envCounter <= sustainCounter)
+                        {
+                            envCounter = sustainCounter;
+                            state = State::Sustain;
+                            stepAccumulator = 0.0;
+
+                            exponentialCounter = 0;
+                            updateExponentialPeriod();
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -173,6 +205,9 @@ void Envelope::clock(double sidCycles)
         {
             envCounter = sustainCounter;
             syncLevelFromCounter();
+
+            exponentialCounter = 0;
+            updateExponentialPeriod();
             break;
         }
 
@@ -184,23 +219,38 @@ void Envelope::clock(double sidCycles)
             {
                 stepAccumulator -= releaseStepCycles;
 
-                if (envCounter > 0)
-                {
-                    --envCounter;
-
-                    if (envCounter == 0)
-                    {
-                        state = State::Idle;
-                        stepAccumulator = 0.0;
-                        break;
-                    }
-                }
-                else
+                if (envCounter == 0)
                 {
                     envCounter = 0;
                     state = State::Idle;
                     stepAccumulator = 0.0;
+
+                    exponentialCounter = 0;
+                    exponentialPeriod = 1;
                     break;
+                }
+
+                ++exponentialCounter;
+
+                if (exponentialCounter >= exponentialPeriod)
+                {
+                    exponentialCounter = 0;
+
+                    if (envCounter > 0)
+                    {
+                        --envCounter;
+                        updateExponentialPeriod();
+
+                        if (envCounter == 0)
+                        {
+                            state = State::Idle;
+                            stepAccumulator = 0.0;
+
+                            exponentialCounter = 0;
+                            exponentialPeriod = 1;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -218,7 +268,6 @@ double Envelope::output() const
 void Envelope::setSampleRate(double sample)
 {
     sampleRate = sample;
-    setParameters(attackTime, decayTime, sustainLevel, releaseTime);
 }
 
 void Envelope::setParameters(double attack, double decay, double sustain, double release)
