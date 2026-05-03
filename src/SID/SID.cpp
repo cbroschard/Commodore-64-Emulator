@@ -155,34 +155,34 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         // Read registers in the exact order we wrote them.
-        if (!rdr.readU8(sidRegisters.voice1.frequencyLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.frequencyHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.pulseWidthLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.pulseWidthHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.control)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.attackDecay)) return false;
-        if (!rdr.readU8(sidRegisters.voice1.sustainRelease)) return false;
+        if (!rdr.readU8(sidRegisters.voice1.frequencyLow))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.frequencyHigh))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.pulseWidthLow))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.pulseWidthHigh))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.control))                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.attackDecay))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice1.sustainRelease))            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(sidRegisters.voice2.frequencyLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.frequencyHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.pulseWidthLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.pulseWidthHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.control)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.attackDecay)) return false;
-        if (!rdr.readU8(sidRegisters.voice2.sustainRelease)) return false;
+        if (!rdr.readU8(sidRegisters.voice2.frequencyLow))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.frequencyHigh))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.pulseWidthLow))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.pulseWidthHigh))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.control))                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.attackDecay))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice2.sustainRelease))            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(sidRegisters.voice3.frequencyLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.frequencyHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.pulseWidthLow)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.pulseWidthHigh)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.control)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.attackDecay)) return false;
-        if (!rdr.readU8(sidRegisters.voice3.sustainRelease)) return false;
+        if (!rdr.readU8(sidRegisters.voice3.frequencyLow))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.frequencyHigh))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.pulseWidthLow))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.pulseWidthHigh))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.control))                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.attackDecay))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.voice3.sustainRelease))            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(sidRegisters.filter.cutoffLow)) return false;
-        if (!rdr.readU8(sidRegisters.filter.cutoffHigh)) return false;
-        if (!rdr.readU8(sidRegisters.filter.resonanceControl)) return false;
-        if (!rdr.readU8(sidRegisters.filter.volume)) return false;
+        if (!rdr.readU8(sidRegisters.filter.cutoffLow))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.filter.cutoffHigh))                { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.filter.resonanceControl))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sidRegisters.filter.volume))                    { rdr.exitChunkPayload(chunk); return false; }
 
         // Re-apply derived state WITHOUT triggering envelopes like writeRegister() would.
         {
@@ -227,19 +227,19 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         uint8_t modeU8 = 0;
-        if (!rdr.readU8(modeU8)) return false;
+        if (!rdr.readU8(modeU8))                            { rdr.exitChunkPayload(chunk); return false; }
         mode_ = static_cast<VideoMode>(modeU8);
         setMode(mode_); // restores sidClockFrequency & sidCyclesPerAudioSample coherently
 
         uint8_t sidModeU8 = 0;
-        if (!rdr.readU8(sidModeU8)) return false;
+        if (!rdr.readU8(sidModeU8))                         { rdr.exitChunkPayload(chunk); return false; }
         sidModel_ = static_cast<SIDModel>(sidModeU8);
         setSIDModel(sidModel_);
 
-        if (!rdr.readF64(sidCycleCounter)) return false;
+        if (!rdr.readF64(sidCycleCounter))                  { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readF64(hpPrevIn)) return false;
-        if (!rdr.readF64(hpPrevOut)) return false;
+        if (!rdr.readF64(hpPrevIn))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(hpPrevOut))                        { rdr.exitChunkPayload(chunk); return false; }
 
         auto loadVoiceRuntime = [&](Voice& v) -> bool {
         double phase = 0.0;
@@ -259,21 +259,21 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint32_t exponentialCounter = 0;
         uint32_t exponentialPeriod = 1;
 
-        if (!rdr.readF64(phase)) return false;
-        if (!rdr.readBool(overflow)) return false;
-        if (!rdr.readU32(lfsr)) return false;
-        if (!rdr.readU32(accumulator24)) return false;
-        if (!rdr.readU16(frequencyReg)) return false;
+        if (!rdr.readF64(phase))                            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(overflow))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(lfsr))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(accumulator24))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(frequencyReg))                     { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(envStateU8)) return false;
-        if (!rdr.readF64(envLevel)) return false;
+        if (!rdr.readU8(envStateU8))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(envLevel))                         { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(attackRate)) return false;
-        if (!rdr.readU8(decayRate)) return false;
-        if (!rdr.readU8(sustainRate)) return false;
-        if (!rdr.readU8(releaseRate)) return false;
-        if (!rdr.readU32(exponentialCounter)) return false;
-        if (!rdr.readU32(exponentialPeriod)) return false;
+        if (!rdr.readU8(attackRate))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(decayRate))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(sustainRate))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(releaseRate))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(exponentialCounter))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(exponentialPeriod))                { rdr.exitChunkPayload(chunk); return false; }
 
         // Oscillator runtime state.
         v.getOscillator().setFrequency(frequencyReg);
@@ -292,15 +292,15 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         return true;
     };
 
-        if (!loadVoiceRuntime(voice1)) return false;
-        if (!loadVoiceRuntime(voice2)) return false;
-        if (!loadVoiceRuntime(voice3)) return false;
+        if (!loadVoiceRuntime(voice1))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!loadVoiceRuntime(voice2))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!loadVoiceRuntime(voice3))                      { rdr.exitChunkPayload(chunk); return false; }
 
         double lp=0.0, bp=0.0, hp=0.0, dc=0.0;
-        if (!rdr.readF64(lp)) return false;
-        if (!rdr.readF64(bp)) return false;
-        if (!rdr.readF64(hp)) return false;
-        if (!rdr.readF64(dc)) return false;
+        if (!rdr.readF64(lp))                               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(bp))                               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(hp))                               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(dc))                               { rdr.exitChunkPayload(chunk); return false; }
 
         filterobj.setLowPassOut(lp);
         filterobj.setBandPassOut(bp);
