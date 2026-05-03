@@ -242,26 +242,55 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readF64(hpPrevOut)) return false;
 
         auto loadVoiceRuntime = [&](Voice& v) -> bool {
-            double phase = 0.0;
-            bool overflow = false;
-            uint32_t lfsr = 0;
-            uint8_t envStateU8 = 0;
-            double envLevel = 0.0;
+        double phase = 0.0;
+        bool overflow = false;
+        uint32_t lfsr = 0;
+        uint32_t accumulator24 = 0;
+        uint16_t frequencyReg = 0;
 
-            if (!rdr.readF64(phase)) return false;
-            if (!rdr.readBool(overflow)) return false;
-            if (!rdr.readU32(lfsr)) return false;
-            if (!rdr.readU8(envStateU8)) return false;
-            if (!rdr.readF64(envLevel)) return false;
+        uint8_t envStateU8 = 0;
+        double envLevel = 0.0;
 
-            v.getOscillator().setPhase(phase);
-            v.getOscillator().setPhaseOverflow(overflow);
-            v.getOscillator().setNoiseLFSR(lfsr);
+        uint8_t attackRate = 0;
+        uint8_t decayRate = 0;
+        uint8_t sustainRate = 0;
+        uint8_t releaseRate = 0;
 
-            v.getEnvelope().setState(static_cast<Envelope::State>(envStateU8));
-            v.getEnvelope().setLevel(envLevel);
-            return true;
-        };
+        uint32_t exponentialCounter = 0;
+        uint32_t exponentialPeriod = 1;
+
+        if (!rdr.readF64(phase)) return false;
+        if (!rdr.readBool(overflow)) return false;
+        if (!rdr.readU32(lfsr)) return false;
+        if (!rdr.readU32(accumulator24)) return false;
+        if (!rdr.readU16(frequencyReg)) return false;
+
+        if (!rdr.readU8(envStateU8)) return false;
+        if (!rdr.readF64(envLevel)) return false;
+
+        if (!rdr.readU8(attackRate)) return false;
+        if (!rdr.readU8(decayRate)) return false;
+        if (!rdr.readU8(sustainRate)) return false;
+        if (!rdr.readU8(releaseRate)) return false;
+        if (!rdr.readU32(exponentialCounter)) return false;
+        if (!rdr.readU32(exponentialPeriod)) return false;
+
+        // Oscillator runtime state.
+        v.getOscillator().setFrequency(frequencyReg);
+        v.getOscillator().setPhase(phase);
+        v.getOscillator().setAccumulator24(accumulator24);
+        v.getOscillator().setPhaseOverflow(overflow);
+        v.getOscillator().setNoiseLFSR(lfsr);
+
+        // Envelope rate/state.
+        v.getEnvelope().setADSR(attackRate, decayRate, sustainRate, releaseRate);
+        v.getEnvelope().setState(static_cast<Envelope::State>(envStateU8));
+        v.getEnvelope().setLevel(envLevel);
+        v.getEnvelope().setExponentialCounter(exponentialCounter);
+        v.getEnvelope().setExponentialPeriod(exponentialPeriod);
+
+        return true;
+    };
 
         if (!loadVoiceRuntime(voice1)) return false;
         if (!loadVoiceRuntime(voice2)) return false;
