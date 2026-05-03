@@ -396,6 +396,7 @@ class Vic
         inline void updateOpenBus(uint8_t value) { vicState.openBus = value; }
 
         // Bus Arbitration Helpers
+        bool isBadLineCandidateForBusWarning(int raster) const;
         bool isBadLineBusWarningCycle(int raster, int cycle) const;
         bool isBadLineBusStealCycle(int raster, int cycle) const;
 
@@ -409,7 +410,6 @@ class Vic
         // Bad line Helpers
         void initializeFirstBadLineIfNeeded(int raster);
         bool isBadLine(int raster) const;
-        bool isBadLineCandidateForBusWarning(int raster) const;
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
         void performBadLineFetchesForCurrentCycle();
