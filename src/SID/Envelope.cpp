@@ -60,7 +60,9 @@ void Envelope::reset()
 void Envelope::setSIDClockFrequency(double frequency)
 {
     sidClockFrequency = frequency;
-    setParameters(attackTime, decayTime, sustainLevel, releaseTime);
+
+    // Recompute ADSR periods using current ADSR nibbles and new clock.
+    setADSR(attackRate, decayRate, sustainRate, releaseRate);
 }
 
 uint8_t Envelope::readOutput8() const
@@ -234,15 +236,27 @@ void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t r
     sustainRate = sustain & 0x0F;
     releaseRate = release & 0x0F;
 
-    const double sustainLevelFromNibble =
-        static_cast<double>(sustainRate) / 15.0;
+    sustainLevel = static_cast<double>(sustainRate) / 15.0;
+    sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
 
-    setParameters(
-        SID_ATTACK_S[attackRate],
-        SID_DECAY_RELEASE_S[decayRate],
-        sustainLevelFromNibble,
-        SID_DECAY_RELEASE_S[releaseRate]
-    );
+    // Keep these for monitor/debug display.
+    attackTime  = SID_ATTACK_S[attackRate];
+    decayTime   = SID_DECAY_RELEASE_S[decayRate];
+    releaseTime = SID_DECAY_RELEASE_S[releaseRate];
+
+    // These tables are NTSC-cycle based. Scale by active SID clock so PAL
+    // keeps roughly the same real-time envelope duration.
+    const double clockScale =
+        (sidClockFrequency > 0.0) ? (sidClockFrequency / SID_CLOCK_NTSC) : 1.0;
+
+    attackStepCycles =
+        std::max(1.0, SID_ATTACK_STEP_CYCLES_NTSC[attackRate] * clockScale);
+
+    decayStepCycles =
+        std::max(1.0, SID_DECAY_RELEASE_STEP_CYCLES_NTSC[decayRate] * clockScale);
+
+    releaseStepCycles =
+        std::max(1.0, SID_DECAY_RELEASE_STEP_CYCLES_NTSC[releaseRate] * clockScale);
 }
 
 std::string Envelope::stateToString(State s) {
