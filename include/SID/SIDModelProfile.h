@@ -33,6 +33,10 @@ struct SIDModelProfile
     double combinedWaveformGamma;
     double combinedWaveformGain;
 
+    // Noise-combined waveform profile
+    double noiseCombinedGamma;
+    double noiseCombinedGain;
+
     // Filter profile
     double cutoffMinHz;
     double cutoffMaxHz;
@@ -65,6 +69,8 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         0.015,  // waveformDacBias
         1.35,   // combinedWaveformGamma
         0.82,   // combinedWaveformGain
+        1.60,   // noiseCombinedGamma
+        0.55,   // noiseCombinedGain
 
         // Filter profile
         30.0,     // cutoffMinHz
@@ -90,6 +96,8 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         0.000,  // waveformDacBias
         1.12,   // combinedWaveformGamma
         0.92,   // combinedWaveformGain
+        1.25,   // noiseCombinedGamma
+        0.75,   // noiseCombinedGain
 
         // Filter profile
         30.0,     // cutoffMinHz

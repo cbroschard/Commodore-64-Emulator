@@ -62,8 +62,8 @@ uint16_t Oscillator::applyCombinedWaveformModel(uint16_t mixedBits) const
     const bool pulse = (control & 0x40) != 0;
     const bool noise = (control & 0x80) != 0;
 
-    if (noise && (tri || saw || pulse))
-        return mixedBits;
+    const bool hasOtherWaveform = tri || saw || pulse;
+    const bool noiseCombined = noise && hasOtherWaveform;
 
     if (!hasCombinedWaveform())
         return mixedBits;
@@ -72,8 +72,16 @@ uint16_t Oscillator::applyCombinedWaveformModel(uint16_t mixedBits) const
 
     double x = static_cast<double>(mixedBits & 0x0FFF) / 4095.0;
 
-    x = std::pow(x, profile.combinedWaveformGamma);
-    x *= profile.combinedWaveformGain;
+    if (noiseCombined)
+    {
+        x = std::pow(x, profile.noiseCombinedGamma);
+        x *= profile.noiseCombinedGain;
+    }
+    else
+    {
+        x = std::pow(x, profile.combinedWaveformGamma);
+        x *= profile.combinedWaveformGain;
+    }
 
     x = std::clamp(x, 0.0, 1.0);
     return static_cast<uint16_t>(x * 4095.0);
@@ -533,6 +541,12 @@ std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) cons
 
     out << "  Combined gamma:    " << std::fixed << std::setprecision(3)
         << profile.combinedWaveformGamma << "\n";
+
+    out << "  Noise comb gamma:  " << std::fixed << std::setprecision(3)
+        << profile.noiseCombinedGamma << "\n";
+
+    out << "  Noise comb gain:   " << std::fixed << std::setprecision(3)
+        << profile.noiseCombinedGain << "\n";
 
     out << "  Combined gain:     " << std::fixed << std::setprecision(3)
         << profile.combinedWaveformGain << "\n";
