@@ -231,11 +231,7 @@ uint16_t Oscillator::getTriangleBits()
 
 uint16_t Oscillator::getSawBits()
 {
-    const double dt = frequency / sampleRate;
-    const double t  = getAccumulatorPhase();
-
-    const double saw = std::clamp(t - polyBLEP(t, dt), 0.0, 1.0);
-    return static_cast<uint16_t>(saw * 4095.0);
+    return getAccumulatorSaw12();
 }
 
 uint16_t Oscillator::getPulseBits()
