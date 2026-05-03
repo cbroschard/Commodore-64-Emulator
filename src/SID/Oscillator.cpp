@@ -104,29 +104,24 @@ uint8_t Oscillator::readOutput8() const
     if ((control & 0xF0) == 0)
         return 0x00;
 
-    const double t = getAccumulatorPhase();
-
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
     if (control & 0x10) // Triangle
     {
-        double tri = std::fabs(2.0 * (t - 0.5));
+        const uint16_t triBits = getAccumulatorTriangle12();
 
-        if ((control & 0x04) && ringSource)
-        {
-            if (ringSource->getAccumulatorPhase() >= 0.5)
-                tri = 1.0 - tri;
-        }
+        if (!waveformSelected)
+            mixedBits = triBits;
+        else
+            mixedBits &= triBits;
 
-        tri = std::clamp(tri, 0.0, 1.0);
-        mixedBits &= static_cast<uint16_t>(tri * 4095.0);
         waveformSelected = true;
     }
 
     if (control & 0x20) // Sawtooth
     {
-        const uint16_t sawBits = static_cast<uint16_t>(std::clamp(t, 0.0, 1.0) * 4095.0);
+        const uint16_t sawBits = getAccumulatorSaw12();
 
         if (!waveformSelected)
             mixedBits = sawBits;
@@ -138,7 +133,7 @@ uint8_t Oscillator::readOutput8() const
 
     if (control & 0x40) // Pulse
     {
-        const uint16_t pulseBits = (t < pulseWidth) ? 0x0FFF : 0x0000;
+        const uint16_t pulseBits = getAccumulatorPulse12();
 
         if (!waveformSelected)
             mixedBits = pulseBits;
@@ -150,7 +145,6 @@ uint8_t Oscillator::readOutput8() const
 
     if (control & 0x80) // Noise
     {
-        // Non-mutating read of current noise register state.
         const uint16_t noiseBits = getNoiseOutputBits();
 
         if (!waveformSelected)
