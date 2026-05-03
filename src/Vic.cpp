@@ -5156,8 +5156,21 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
     out << "Badline: " << (badLine ? "Yes" : "No") << "\n";
     out << "VCBASE: " << vicState.vcBase << "\n";
     out << "RC    : " << int(vicState.rc) << "\n";
-    out << "BA    : " << (vicState.ba ? "High" : "Low") << "\n";
-    out << "AEC   : " << (vicState.aec ? "High" : "Low") << "\n";
+    out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
+    out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
+    out << "BA src: "
+        << (slot.badlineWarning ? "badline-warning " : "")
+        << (slot.badlineSteal   ? "badline-steal "   : "")
+        << (slot.spriteWarning  ? "sprite-warning "  : "")
+        << (slot.spriteSteal    ? "sprite-steal "    : "")
+        << ((!slot.badlineWarning && !slot.badlineSteal &&
+             !slot.spriteWarning && !slot.spriteSteal) ? "none" : "")
+        << "\n";
+    out << "AECsrc: "
+        << (slot.badlineSteal   ? "badline-steal " : "")
+        << (slot.spriteAECSteal ? "sprite-steal "  : "")
+        << ((!slot.badlineSteal && !slot.spriteAECSteal) ? "none" : "")
+        << "\n";
     out << "DEN@raster: " << (((d011_per_raster[raster] & 0x10) != 0) ? "On" : "Off") << "\n";
     out << "DisplayRow: " << currentCharacterRow() << "\n";
     out << "FineY: " << int(fineYScroll(raster)) << "\n";
