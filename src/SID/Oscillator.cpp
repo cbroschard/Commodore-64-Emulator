@@ -209,24 +209,7 @@ uint16_t Oscillator::getAccumulatorPulse12() const
 
 uint16_t Oscillator::getTriangleBits()
 {
-    double dt = frequency / sampleRate;
-    const double t = getAccumulatorPhase();
-
-    // basic triangle: peak at t=0.5
-    double tri = fabs(2.0 * (t - 0.5));
-
-    tri -= polyBLEP(t, dt);
-    tri += polyBLEP(fmod(t+0.5, 1.0), dt);
-
-    // optional ring-mod
-    if ((control & 0x04) && ringSource)
-    {
-        if (ringSource->getAccumulatorPhase() >= 0.5)
-            tri = 1.0 - tri;    }
-
-    // clamp & convert to 12-bit
-    tri = std::clamp(tri, 0.0, 1.0);
-    return static_cast<uint16_t>(tri * 4095.0);
+    return getAccumulatorTriangle12();
 }
 
 uint16_t Oscillator::getSawBits()
