@@ -2702,6 +2702,21 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
 {
     std::ostringstream out;
 
+    auto screenBaseFromD018 = [](uint8_t value) -> uint16_t
+    {
+        return static_cast<uint16_t>((value & 0xF0) << 6);
+    };
+
+    auto charBaseFromD018 = [](uint8_t value) -> uint16_t
+    {
+        return static_cast<uint16_t>(((value >> 1) & 0x07) * 0x0800);
+    };
+
+    auto bitmapBaseFromD018 = [](uint8_t value) -> uint16_t
+    {
+        return static_cast<uint16_t>(((value >> 3) & 0x01) * 0x2000);
+    };
+
     if (e.kind == RasterEventKind::SpriteX)
     {
         if (e.address == 0xD010)
@@ -2716,6 +2731,62 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
             out << "sprite " << sprite << " X low";
             return out.str();
         }
+    }
+
+    if (e.kind == RasterEventKind::Control)
+    {
+        const uint8_t oldVal = e.oldValue & 0x7F;
+        const uint8_t newVal = e.newValue & 0x7F;
+
+        out << "$D011"
+            << " yscroll " << static_cast<int>(oldVal & 0x07)
+            << "->" << static_cast<int>(newVal & 0x07)
+            << " RSEL " << (((oldVal & 0x08) != 0) ? 25 : 24)
+            << "->" << (((newVal & 0x08) != 0) ? 25 : 24)
+            << " DEN " << (((oldVal & 0x10) != 0) ? 1 : 0)
+            << "->" << (((newVal & 0x10) != 0) ? 1 : 0);
+
+        return out.str();
+    }
+
+    if (e.kind == RasterEventKind::Control2)
+    {
+        const uint8_t oldVal = e.oldValue & 0x1F;
+        const uint8_t newVal = e.newValue & 0x1F;
+
+        out << "$D016"
+            << " xscroll " << static_cast<int>(oldVal & 0x07)
+            << "->" << static_cast<int>(newVal & 0x07)
+            << " CSEL " << (((oldVal & 0x08) != 0) ? 40 : 38)
+            << "->" << (((newVal & 0x08) != 0) ? 40 : 38)
+            << " MCM " << (((oldVal & 0x10) != 0) ? 1 : 0)
+            << "->" << (((newVal & 0x10) != 0) ? 1 : 0);
+
+        return out.str();
+    }
+
+    if (e.kind == RasterEventKind::MemoryPointer)
+    {
+        const uint8_t oldVal = e.oldValue & 0xFE;
+        const uint8_t newVal = e.newValue & 0xFE;
+
+        out << "$D018"
+            << " screen $"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+            << screenBaseFromD018(oldVal)
+            << "->$"
+            << std::setw(4) << screenBaseFromD018(newVal)
+            << " char $"
+            << std::setw(4) << charBaseFromD018(oldVal)
+            << "->$"
+            << std::setw(4) << charBaseFromD018(newVal)
+            << " bitmap $"
+            << std::setw(4) << bitmapBaseFromD018(oldVal)
+            << "->$"
+            << std::setw(4) << bitmapBaseFromD018(newVal)
+            << std::dec << std::nouppercase << std::setfill(' ');
+
+        return out.str();
     }
 
     return "";
