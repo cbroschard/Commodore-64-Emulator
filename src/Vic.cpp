@@ -2909,7 +2909,9 @@ Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1)
+void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits,
+                                     uint8_t fg, uint8_t bg,
+                                     int x0, int x1)
 {
     const int startPx = std::max(pxBase, x0);
     const int endPx   = std::min(pxBase + 8, x1);
@@ -2919,11 +2921,20 @@ void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_
         const int bit = px - pxBase;
         const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
 
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+        stampBackgroundPixelSource(
+            px,
+            py,
+            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
+            pixelOn,
+            BackgroundSource::Bitmap
+        );
     }
 }
 
-void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase)
+void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
+                                              uint8_t fg, uint8_t bg,
+                                              int x0, int x1,
+                                              int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
     const int end   = std::min(8, endPhase);
@@ -2934,11 +2945,19 @@ void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBit
     for (int phase = begin; phase < end; ++phase)
     {
         const int px = pxBase + phase;
+
         if (px < x0 || px >= x1)
             continue;
 
         const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+
+        stampBackgroundPixelSource(
+            px,
+            py,
+            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
+            pixelOn,
+            BackgroundSource::Bitmap
+        );
     }
 }
 
