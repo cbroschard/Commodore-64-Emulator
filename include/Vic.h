@@ -763,6 +763,9 @@ class Vic
         uint8_t compositePixelAtX(int raster, int px) const;
         uint8_t produceRasterPixel(int raster, int px) const;
 
+        int rasterColorEventPixelX(const RasterColorEvent& e) const;
+        void applyBorderColorEventsToFinalLine(int raster);
+
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         bool verticalDisplayOpenForRaster(int raster) const;
         bool horizontalBorderLatchedAtPixel(int raster, int px) const;

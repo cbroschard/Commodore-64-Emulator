@@ -2255,6 +2255,7 @@ void Vic::renderLine(int raster)
     generateBackgroundLine(raster);
     buildBorderMaskLine(raster);
     composeFinalRasterLine(raster);
+    applyBorderColorEventsToFinalLine(raster);
     emitRasterLineInOrder(raster);
 }
 
@@ -3978,6 +3979,57 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
 {
     (void)raster;
     return finalColorLine[px] & 0x0F;
+}
+
+int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
+{
+    // Convert VIC cycle to approximate framebuffer X.
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
+}
+
+void Vic::applyBorderColorEventsToFinalLine(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    uint8_t activeBorderColor = registers.borderColor & 0x0F;
+
+    int startX = rasterVisibleStartX(raster);
+    const int endX = rasterVisibleEndX(raster);
+
+    for (const RasterColorEvent& e : rasterColorEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.address != 0xD020)
+            continue;
+
+        const int eventX = rasterColorEventPixelX(e);
+
+        for (int px = startX; px < eventX && px < endX; ++px)
+        {
+            if (borderMaskLine[px])
+                finalColorLine[px] = activeBorderColor;
+        }
+
+        activeBorderColor = e.newValue & 0x0F;
+        startX = std::clamp(eventX, 0, endX);
+    }
+
+    for (int px = startX; px < endX; ++px)
+    {
+        if (borderMaskLine[px])
+            finalColorLine[px] = activeBorderColor;
+    }
 }
 
 uint16_t Vic::visibleRasterForIRQCompare() const
