@@ -6675,26 +6675,17 @@ std::string Vic::dumpRasterEvents(int raster) const
         return out.str();
     }
 
-    auto hasEventsForRaster = [&](const std::vector<RasterEventRecord>& events)
+    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
+    const char* sourceName = "previous frame";
+    bool usingPreviousFrame = true;
+
+    // Prefer the previous completed frame for stable diagnostics.
+    // Fall back to current frame only if no previous-frame log exists yet.
+    if (events->empty())
     {
-        for (const RasterEventRecord& e : events)
-        {
-            if (e.raster == raster)
-                return true;
-        }
-
-        return false;
-    };
-
-    const std::vector<RasterEventRecord>* events = &rasterEventLog;
-    const char* sourceName = "current frame";
-    bool usingPreviousFrame = false;
-
-    if (!hasEventsForRaster(*events))
-    {
-        events = &lastFrameRasterEventLog;
-        sourceName = "previous frame";
-        usingPreviousFrame = true;
+        events = &rasterEventLog;
+        sourceName = "current frame";
+        usingPreviousFrame = false;
     }
 
     out << "Raster Events for line " << raster
@@ -6741,6 +6732,23 @@ std::string Vic::dumpRasterEvents(int raster) const
 
     if (!any)
         out << "No recorded events on this raster.\n";
+
+    return out.str();
+}
+
+std::string Vic::dumpRasterRowState(int raster) const
+{
+    std::ostringstream out;
+
+    out << "Raster Row State for line " << raster << " (previous frame)\n";
+    out << "----------------------------------------\n";
+
+    const std::string detail = rasterRowStateDetail(raster, true);
+
+    if (detail.empty())
+        out << "No row-state snapshot available.\n";
+    else
+        out << detail << "\n";
 
     return out.str();
 }

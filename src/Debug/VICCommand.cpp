@@ -83,6 +83,7 @@ std::string VICCommand::eventsUsage() const
     return
         "Usage:\n"
         " vic events\n"
+        " vic events row <raster>\n"
         " vic events summary\n"
         " vic events <raster>\n";
 }
@@ -236,14 +237,14 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
 
         // vic events summary
-        if (args.size() == 3 && args[2] == "summary")
+        else if (args.size() == 3 && args[2] == "summary")
         {
             std::cout << mon.mlmonitorbackend()->vicDumpRasterEventsSummary();
             return;
         }
 
         // vic events <raster>
-        if (args.size() == 3)
+        else if (args.size() == 3)
         {
             try
             {
@@ -266,8 +267,32 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
         }
 
-        std::cout << eventsUsage();
-        return;
+        // vic events row raster
+        else if (args.size() == 4 && args[2] == "row")
+        {
+            try
+            {
+                const int raster = std::stoi(args[3]);
+
+                const std::string output =
+                    mon.mlmonitorbackend()->vicDumpRasterRowState(raster);
+
+                std::cout << output;
+                if (!output.empty() && output.back() != '\n')
+                    std::cout << '\n';
+                return;
+            }
+            catch(const std::exception& e)
+            {
+                std::cout << eventsUsage();
+                return;
+            }
+        }
+        else
+        {
+            std::cout << eventsUsage();
+            return;
+        }
     }
     else if (sub == "map")
     {
