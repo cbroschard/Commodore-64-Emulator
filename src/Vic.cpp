@@ -1157,13 +1157,16 @@ void Vic::beginFrameIfNeeded()
     // of the frame only.
     if (currentCycle == 0 && registers.raster == 0)
     {
-         if (!rasterEventLog.empty())
+        if (!rasterEventLog.empty())
             lastFrameRasterEventLog = rasterEventLog;
+
+        // Preserve the completed frame's row snapshots before clearing them.
+        lastFrameRasterRowStates = rasterRowStates;
+
+        rasterEventLog.clear();
 
         for (auto& s : rasterRowStates)
             s = {};
-
-        rasterEventLog.clear();
 
         rasterColorEvents.clear();
         rasterPriorityEvents.clear();
