@@ -6296,6 +6296,60 @@ std::string Vic::dumpAllRasterEvents() const
     return out.str();
 }
 
+std::string Vic::dumpRasterEventSummary() const
+{
+    std::ostringstream out;
+
+    auto summarize = [&](const char* name, const std::vector<RasterEventRecord>& events)
+    {
+        out << name << ": " << events.size() << " events\n";
+
+        if (events.empty())
+            return;
+
+        int minRaster = cfg_->maxRasterLines;
+        int maxRaster = -1;
+
+        int color = 0;
+        int priority = 0;
+        int mode = 0;
+        int xexp = 0;
+        int enable = 0;
+        int spriteX = 0;
+
+        for (const RasterEventRecord& e : events)
+        {
+            minRaster = std::min(minRaster, e.raster);
+            maxRaster = std::max(maxRaster, e.raster);
+
+            switch (e.kind)
+            {
+                case RasterEventKind::Color:            ++color; break;
+                case RasterEventKind::SpritePriority:   ++priority; break;
+                case RasterEventKind::SpriteMode:       ++mode; break;
+                case RasterEventKind::SpriteXExpansion: ++xexp; break;
+                case RasterEventKind::SpriteEnable:     ++enable; break;
+                case RasterEventKind::SpriteX:          ++spriteX; break;
+            }
+        }
+
+        out << "  raster range: " << minRaster << " - " << maxRaster << "\n";
+        out << "  Color: " << color << "\n";
+        out << "  Sprite priority: " << priority << "\n";
+        out << "  Sprite mode: " << mode << "\n";
+        out << "  Sprite X expansion: " << xexp << "\n";
+        out << "  Sprite enable: " << enable << "\n";
+        out << "  Sprite X position: " << spriteX << "\n";
+    };
+
+    out << "Raster Event Summary\n";
+    out << "--------------------\n";
+    summarize("Current frame", rasterEventLog);
+    summarize("Previous frame", lastFrameRasterEventLog);
+
+    return out.str();
+}
+
 std::string Vic::dumpRasterEvents(int raster) const
 {
     std::ostringstream out;

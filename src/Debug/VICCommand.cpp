@@ -78,6 +78,15 @@ std::string VICCommand::cycleUsage() const
         "  vic cycle <raster> <cycle>\n";
 }
 
+std::string VICCommand::eventsUsage() const
+{
+    return
+        "Usage:\n"
+        " vic events\n"
+        " vic events summary\n"
+        " vic events <raster>\n";
+}
+
 std::string VICCommand::mapUsage() const
 {
     return
@@ -219,35 +228,46 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "events")
     {
+        // vic events
         if (args.size() == 2)
         {
-            const std::string output =
-                mon.mlmonitorbackend()->vicDumpAllRasterEvents();
-
-            std::cout << output;
-
-            if (!output.empty() && output.back() != '\n')
-                std::cout << '\n';
-
+            std::cout << mon.mlmonitorbackend()->vicDumpAllRasterEvents();
             return;
         }
 
-        try
+        // vic events summary
+        if (args.size() == 3 && args[2] == "summary")
         {
-            const int raster = std::stoi(args[2]);
-
-            const std::string output =
-                mon.mlmonitorbackend()->vicDumpRasterEvents(raster);
-
-            std::cout << output;
-
-            if (!output.empty() && output.back() != '\n')
-                std::cout << '\n';
+            std::cout << mon.mlmonitorbackend()->vicDumpRasterEventsSummary();
+            return;
         }
-        catch (const std::exception& e)
+
+        // vic events <raster>
+        if (args.size() == 3)
         {
-            std::cout << help();
+            try
+            {
+                const int raster = std::stoi(args[2]);
+
+                const std::string output =
+                    mon.mlmonitorbackend()->vicDumpRasterEvents(raster);
+
+                std::cout << output;
+
+                if (!output.empty() && output.back() != '\n')
+                    std::cout << '\n';
+
+                return;
+            }
+            catch (const std::exception&)
+            {
+                std::cout << eventsUsage();
+                return;
+            }
         }
+
+        std::cout << eventsUsage();
+        return;
     }
     else if (sub == "map")
     {

@@ -27,6 +27,7 @@ class VICCommand : public MonitorCommand
         std::string regsUsage() const;
         std::string borderUsage() const;
         std::string cycleUsage() const;
+        std::string eventsUsage() const;
         std::string mapUsage() const;
         std::string help() const override;
 
