@@ -1138,6 +1138,11 @@ void Vic::beginFrameIfNeeded()
     // of the frame only.
     if (currentCycle == 0 && registers.raster == 0)
     {
+         if (!rasterEventLog.empty())
+            lastFrameRasterEventLog = rasterEventLog;
+
+        rasterEventLog.clear();
+
         rasterColorEvents.clear();
         rasterPriorityEvents.clear();
         rasterSpriteModeEvents.clear();
@@ -2600,6 +2605,8 @@ void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t new
     e.newValue = newValue & 0x0F;
 
     rasterColorEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::Color, address, e.oldValue, e.newValue);
 }
 
 void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
@@ -2611,6 +2618,8 @@ void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterPriorityEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::SpritePriority, 0xD01B, oldValue, newValue);
 }
 
 void Vic::recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue)
@@ -2622,6 +2631,8 @@ void Vic::recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterSpriteModeEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::SpriteMode, 0xD01C, oldValue, newValue);
 }
 
 void Vic::recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue)
@@ -2633,6 +2644,8 @@ void Vic::recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterSpriteXExpansionEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::SpriteXExpansion, 0xD01D, oldValue, newValue);
 }
 
 void Vic::recordRasterSpriteEnableWrite(uint8_t oldValue, uint8_t newValue)
@@ -2644,6 +2657,8 @@ void Vic::recordRasterSpriteEnableWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterSpriteEnableEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::SpriteEnable, 0xD015, oldValue, newValue);
 }
 
 void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
@@ -2656,6 +2671,50 @@ void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t n
     e.newValue = newValue;
 
     rasterSpriteXEvents.push_back(e);
+
+    recordRasterEventLog(RasterEventKind::SpriteX, address, oldValue, newValue);
+}
+
+void Vic::recordRasterEventLog(RasterEventKind kind,
+                               uint16_t address,
+                               uint8_t oldValue,
+                               uint8_t newValue)
+{
+    RasterEventRecord e;
+    e.kind = kind;
+    e.raster = registers.raster;
+    e.cycle = currentCycle;
+    e.address = address;
+    e.oldValue = oldValue;
+    e.newValue = newValue;
+
+    rasterEventLog.push_back(e);
+}
+
+const char* Vic::rasterEventKindName(RasterEventKind kind) const
+{
+    switch (kind)
+    {
+        case RasterEventKind::Color:
+            return "Color";
+
+        case RasterEventKind::SpritePriority:
+            return "Sprite priority";
+
+        case RasterEventKind::SpriteMode:
+            return "Sprite multicolor mode";
+
+        case RasterEventKind::SpriteXExpansion:
+            return "Sprite X expansion";
+
+        case RasterEventKind::SpriteEnable:
+            return "Sprite enable";
+
+        case RasterEventKind::SpriteX:
+            return "Sprite X position";
+    }
+
+    return "Unknown";
 }
 
 bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const
@@ -6191,6 +6250,52 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     return out.str();
 }
 
+std::string Vic::dumpAllRasterEvents() const
+{
+    std::ostringstream out;
+
+    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
+    const char* sourceName = "previous frame";
+
+    if (events->empty() && !rasterEventLog.empty())
+    {
+        events = &rasterEventLog;
+        sourceName = "current frame";
+    }
+
+    out << "All Raster Events (" << sourceName << ")\n";
+    out << "-------------------------------------\n";
+    out << "  raster  type                    cycle  x     addr   old  new\n";
+
+    if (events->empty())
+    {
+        out << "No recorded events.\n";
+        return out.str();
+    }
+
+    for (const RasterEventRecord& e : *events)
+    {
+        out << "  "
+            << std::dec << std::setw(6) << e.raster
+            << "  "
+            << std::left << std::setw(22) << rasterEventKindName(e.kind)
+            << std::right
+            << std::setw(5) << e.cycle
+            << "  "
+            << std::setw(4) << rasterEventPixelX(e.cycle)
+            << "  $"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << e.address
+            << "  $"
+            << std::setw(2) << static_cast<int>(e.oldValue)
+            << "   $"
+            << std::setw(2) << static_cast<int>(e.newValue)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+
+    return out.str();
+}
+
 std::string Vic::dumpRasterEvents(int raster) const
 {
     std::ostringstream out;
@@ -6201,85 +6306,54 @@ std::string Vic::dumpRasterEvents(int raster) const
         return out.str();
     }
 
-    out << "Raster Events for line " << raster << "\n";
-    out << "--------------------------------\n";
-
-    auto printEventHeader = [&]()
+    auto hasEventsForRaster = [&](const std::vector<RasterEventRecord>& events)
     {
-        out << "  cycle  x     addr   old  new\n";
+        for (const RasterEventRecord& e : events)
+        {
+            if (e.raster == raster)
+                return true;
+        }
+
+        return false;
     };
+
+    const std::vector<RasterEventRecord>* events = &rasterEventLog;
+    const char* sourceName = "current frame";
+
+    if (!hasEventsForRaster(*events))
+    {
+        events = &lastFrameRasterEventLog;
+        sourceName = "previous frame";
+    }
+
+    out << "Raster Events for line " << raster
+        << " (" << sourceName << ")\n";
+    out << "--------------------------------\n";
+    out << "  type                    cycle  x     addr   old  new\n";
 
     bool any = false;
 
-    auto printColorLikeEvent =
-        [&](const char* group, int cycle, uint16_t address, uint8_t oldValue, uint8_t newValue)
-        {
-            if (!any)
-                any = true;
-
-            out << group << "\n";
-            printEventHeader();
-
-            out << "  "
-                << std::dec << std::setw(5) << cycle
-                << "  "
-                << std::setw(4) << rasterEventPixelX(cycle)
-                << "  $"
-                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << address
-                << "  $"
-                << std::setw(2) << static_cast<int>(oldValue)
-                << "   $"
-                << std::setw(2) << static_cast<int>(newValue)
-                << std::dec << std::nouppercase << std::setfill(' ')
-                << "\n";
-        };
-
-    for (const RasterColorEvent& e : rasterColorEvents)
+    for (const RasterEventRecord& e : *events)
     {
         if (e.raster != raster)
             continue;
 
-        printColorLikeEvent("Color events", e.cycle, e.address, e.oldValue, e.newValue);
-    }
+        any = true;
 
-    for (const RasterPriorityEvent& e : rasterPriorityEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        printColorLikeEvent("Sprite priority events ($D01B)", e.cycle, 0xD01B, e.oldValue, e.newValue);
-    }
-
-    for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        printColorLikeEvent("Sprite multicolor mode events ($D01C)", e.cycle, 0xD01C, e.oldValue, e.newValue);
-    }
-
-    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        printColorLikeEvent("Sprite X expansion events ($D01D)", e.cycle, 0xD01D, e.oldValue, e.newValue);
-    }
-
-    for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        printColorLikeEvent("Sprite enable events ($D015)", e.cycle, 0xD015, e.oldValue, e.newValue);
-    }
-
-    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        printColorLikeEvent("Sprite X position events", e.cycle, e.address, e.oldValue, e.newValue);
+        out << "  "
+            << std::left << std::setw(22) << rasterEventKindName(e.kind)
+            << std::right
+            << std::dec << std::setw(5) << e.cycle
+            << "  "
+            << std::setw(4) << rasterEventPixelX(e.cycle)
+            << "  $"
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << e.address
+            << "  $"
+            << std::setw(2) << static_cast<int>(e.oldValue)
+            << "   $"
+            << std::setw(2) << static_cast<int>(e.newValue)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
     }
 
     if (!any)

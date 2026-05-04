@@ -219,9 +219,16 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "events")
     {
-        if (args.size() != 3)
+        if (args.size() == 2)
         {
-            std::cout << help();
+            const std::string output =
+                mon.mlmonitorbackend()->vicDumpAllRasterEvents();
+
+            std::cout << output;
+
+            if (!output.empty() && output.back() != '\n')
+                std::cout << '\n';
+
             return;
         }
 
@@ -232,10 +239,10 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const std::string output =
                 mon.mlmonitorbackend()->vicDumpRasterEvents(raster);
 
-                std::cout << output;
+            std::cout << output;
 
-                if (!output.empty() && output.back() != '\n')
-                    std::cout << '\n';
+            if (!output.empty() && output.back() != '\n')
+                std::cout << '\n';
         }
         catch (const std::exception& e)
         {
