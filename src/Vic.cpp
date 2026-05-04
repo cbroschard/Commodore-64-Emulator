@@ -3088,13 +3088,25 @@ void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, 
 
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
+    stampBackgroundPixelSource(
+        px,
+        py,
+        color,
+        opaque,
+        opaque ? BackgroundSource::Foreground : BackgroundSource::BG0
+    );
+}
+
+void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
+{
+    (void)py;
+
     if (px < 0 || px >= 512)
         return;
 
-    bgColorLine[px] = static_cast<uint8_t>(color & 0x0F);
-
-    if (opaque)
-        markBGOpaque(py, px);
+    bgColorLine[px] = color & 0x0F;
+    bgOpaqueLine[px] = opaque ? 1 : 0;
+    bgSourceLine[px] = source;
 }
 
 bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const
@@ -3769,6 +3781,7 @@ void Vic::clearBackgroundLineBuffers()
 {
     bgColorLine.fill(registers.borderColor & 0x0F);
     bgOpaqueLine.fill(0);
+    bgSourceLine.fill(BackgroundSource::Border);
 }
 
 void Vic::generateBackgroundLine(int raster)
@@ -3795,7 +3808,11 @@ void Vic::generateBackgroundLine(int raster)
     {
         const uint8_t bg = registers.backgroundColor0 & 0x0F;
         for (int px = leftInner; px < rightInner && px < 512; ++px)
+        {
             bgColorLine[px] = bg;
+            bgOpaqueLine[px] = 0;
+            bgSourceLine[px] = BackgroundSource::BG0;
+        }
     }
 
     const int lineXScroll = latchedD016ForRaster(raster) & 0x07;

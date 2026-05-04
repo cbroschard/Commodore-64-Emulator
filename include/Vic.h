@@ -331,6 +331,18 @@ class Vic
             int bottomClose = 0;
         };
 
+        enum class BackgroundSource : uint8_t
+        {
+            Border = 0,
+            BG0,
+            BG1,
+            BG2,
+            BG3,
+            Foreground,
+            Bitmap,
+            Unknown
+        };
+
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
 
@@ -341,6 +353,7 @@ class Vic
 
         std::array<uint8_t, 512> bgColorLine{};
         std::array<uint8_t, 512> bgOpaqueLine{};
+        std::array<BackgroundSource, 512> bgSourceLine{};
 
         // Per raster register latches
         std::vector<uint8_t> d011_per_raster;
@@ -716,6 +729,7 @@ class Vic
         void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
+        void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
         void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
