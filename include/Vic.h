@@ -713,6 +713,7 @@ class Vic
                                                  int x0, int x1, int startPhase, int endPhase);
         void stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
                                              int x0, int x1, int& phase, int pixelCount);
+        BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
 
         void stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
         void stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);

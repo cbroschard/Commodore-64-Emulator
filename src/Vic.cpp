@@ -163,6 +163,7 @@ void Vic::reset()
 
     bgColorLine.fill(0);
     bgOpaqueLine.fill(0);
+    bgSourceLine.fill(BackgroundSource::Border);
 
     borderMaskLine.fill(1);
     finalColorLine.fill(0);
@@ -2801,6 +2802,7 @@ void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
 
         uint8_t color = bg0 & 0x0F;
         bool opaque = false;
+        BackgroundSource source = multicolorTextSourceForBits(bits);
 
         switch (bits)
         {
@@ -2822,11 +2824,12 @@ void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
                 break;
         }
 
-        stampBackgroundPixel(px, py, color, opaque);
+        stampBackgroundPixelSource(px, py, color, opaque, source);
     }
 }
 
-void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
+void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
+                                              uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
                                               int x0, int x1, int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
@@ -2847,6 +2850,7 @@ void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBit
 
         uint8_t color = bg0 & 0x0F;
         bool opaque = false;
+        BackgroundSource source = multicolorTextSourceForBits(bits);
 
         switch (bits)
         {
@@ -2868,7 +2872,7 @@ void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBit
                 break;
         }
 
-        stampBackgroundPixel(px, py, color, opaque);
+        stampBackgroundPixelSource(px, py, color, opaque, source);
     }
 }
 
@@ -2885,6 +2889,19 @@ void Vic::stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, u
                                         x0, x1, startPhase, endPhase);
 
     phase = endPhase;
+}
+
+Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
+{
+    switch (bits & 0x03)
+    {
+        case 0x00: return BackgroundSource::BG0;        // $D021
+        case 0x01: return BackgroundSource::BG1;        // $D022
+        case 0x02: return BackgroundSource::BG2;        // $D023
+        case 0x03: return BackgroundSource::Foreground; // color RAM low 3 bits
+    }
+
+    return BackgroundSource::Unknown;
 }
 
 void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1)
@@ -4099,7 +4116,7 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
             if (!isInnerDisplayPixel(raster, px))
                 continue;
 
-            if (bgOpaqueLine[px] == 0)
+            if (bgSourceLine[px] == BackgroundSource::BG0)
                 bgColorLine[px] = activeBg0;
         }
 
@@ -4112,7 +4129,7 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
         if (!isInnerDisplayPixel(raster, px))
             continue;
 
-        if (bgOpaqueLine[px] == 0)
+        if (bgSourceLine[px] == BackgroundSource::BG0)
             bgColorLine[px] = activeBg0;
     }
 }
