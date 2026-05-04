@@ -1421,6 +1421,9 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     // Prepare sprite row/output state for this raster
     prepareSpriteOutputForRaster(curRaster);
 
+    // Build per-pixel sprite multicolor mode state before output.
+    buildSpriteMulticolorModeLine(curRaster);
+
     // Raster-progressive sprite output into line buffers
     beginSpriteRasterOutput(curRaster);
 
@@ -1431,15 +1434,11 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
         stepSpriteSequencersAtX(curRaster, px);
     }
 
-    // Render and collisions for this line
     renderLine(curRaster);
     detectSpriteToSpriteCollision(curRaster);
     detectSpriteToBackgroundCollision(curRaster);
 
-    // Advance/finish sprite DMA state
     updateSpriteDMAEndOfLine(curRaster);
-
-    // Advance VIC-style display counters
     advanceVideoCountersEndOfLine(curRaster);
 
     finalizeFrameIfNeeded(curRaster);
@@ -1592,6 +1591,91 @@ uint32_t Vic::getLatchedSpriteBits(int sprite) const
           |  uint32_t(spriteUnits[sprite].shift2);
 }
 
+bool Vic::firstRasterSpriteModeEventValue(int raster, uint8_t& value) const
+{
+    for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        value = e.oldValue;
+        return true;
+    }
+
+    return false;
+}
+
+bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (px < 0 || px >= 512)
+        return false;
+
+    return spriteMulticolorModeLine[sprite][px] != 0;
+}
+
+void Vic::buildSpriteMulticolorModeLine(int raster)
+{
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (auto& line : spriteMulticolorModeLine)
+        line.fill(0);
+
+    uint8_t activeMode = registers.spriteMultiColor;
+
+    if (!firstRasterSpriteModeEventValue(raster, activeMode))
+    {
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = xStart; px < xEnd; ++px)
+                spriteMulticolorModeLine[spr][px] = multicolor;
+        }
+
+        return;
+    }
+
+    int startX = xStart;
+
+    for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        RasterColorEvent temp {};
+        temp.raster = raster;
+        temp.cycle = e.cycle;
+        temp.address = 0xD01C;
+        temp.oldValue = e.oldValue;
+        temp.newValue = e.newValue;
+
+        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = startX; px < eventX; ++px)
+                spriteMulticolorModeLine[spr][px] = multicolor;
+        }
+
+        activeMode = e.newValue;
+        startX = eventX;
+    }
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
+
+        for (int px = startX; px < xEnd; ++px)
+            spriteMulticolorModeLine[spr][px] = multicolor;
+    }
+}
+
 void Vic::fetchSpritePointer(int sprite, int raster)
 {
     if (!mem)
@@ -1674,10 +1758,10 @@ void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
     spriteUnits[sprIndex].outputWidth = spritePreparedOutputWidth(sprIndex);
 }
 
-void Vic::advanceSpriteOutputState(int sprIndex)
+void Vic::advanceSpriteOutputState(int sprIndex, int px)
 {
     const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
-    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
+    const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
 
     const int repeatsPerSourceUnit =
         multClr ? (expandX ? 4 : 2)
@@ -1693,6 +1777,7 @@ void Vic::advanceSpriteOutputState(int sprIndex)
 }
 
 bool Vic::currentSpriteSequencerPixel(int sprIndex,
+                                      int px,
                                       uint8_t& outColor,
                                       bool& opaque,
                                       SpriteColorSource& outSource) const
@@ -1704,7 +1789,7 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
     if (!spriteUnits[sprIndex].rowPrepared)
         return false;
 
-    const bool multClr = (registers.spriteMultiColor & (1 << sprIndex)) != 0;
+    const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
     const uint32_t rowBits = getLatchedSpriteBits(sprIndex);
 
     if (!multClr)
@@ -1747,6 +1832,9 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
             outColor = registers.spriteMultiColor2 & 0x0F;
             outSource = SpriteColorSource::SpriteMultiColor2;
             break;
+
+        default:
+            return false;
     }
 
     opaque = true;
@@ -1800,14 +1888,14 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
         bool opaque = false;
         SpriteColorSource source = SpriteColorSource::None;
 
-        if (currentSpriteSequencerPixel(spr, color, opaque, source) && opaque)
+        if (currentSpriteSequencerPixel(spr, px, color, opaque, source) && opaque)
         {
             spriteOpaqueLine[spr][px] = 1;
             spriteColorLine[spr][px] = color;
             spriteColorSourceLine[spr][px] = source;
         }
 
-        advanceSpriteOutputState(spr);
+        advanceSpriteOutputState(spr, px);
     }
 }
 

@@ -359,6 +359,7 @@ class Vic
         std::array<std::array<uint8_t, 512>, 8> spriteColorLine{};
         std::array<std::array<SpriteColorSource, 512>, 8> spriteColorSourceLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteBehindLine{};
+        std::array<std::array<uint8_t, 512>, 8> spriteMulticolorModeLine{};
 
         std::array<uint8_t, 512> bgColorLine{};
         std::array<uint8_t, 512> bgOpaqueLine{};
@@ -513,8 +514,8 @@ class Vic
         void beginSpriteLineOutput(int sprIndex, int raster);
 
         void resetSpriteLineSequencer(int sprIndex, int raster);
-        void advanceSpriteOutputState(int sprIndex);
-        bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque, SpriteColorSource& outSource) const;
+        void advanceSpriteOutputState(int sprIndex, int px);
+        bool currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, bool& opaque, SpriteColorSource& outSource) const;
 
         void clearSpriteLineBuffers();
 
@@ -522,6 +523,10 @@ class Vic
         void stepSpriteSequencersAtX(int raster, int px);
 
         uint32_t getLatchedSpriteBits(int sprite) const;
+
+        bool firstRasterSpriteModeEventValue(int raster, uint8_t& value) const;
+        void buildSpriteMulticolorModeLine(int raster);
+        bool spriteMulticolorAtPixel(int sprite, int px) const;
 
         bool isBackgroundPixelOpaque(int x, int y);
 
