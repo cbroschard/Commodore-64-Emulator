@@ -1424,6 +1424,8 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
+    buildSpriteEnableLine(curRaster);
+
     prepareSpriteOutputForRaster(curRaster);
 
     buildSpriteMulticolorModeLine(curRaster);
@@ -1768,6 +1770,105 @@ void Vic::buildSpriteMulticolorModeLine(int raster)
     }
 }
 
+bool Vic::firstRasterSpriteEnableEventValue(int raster, uint8_t& value) const
+{
+    for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        value = e.oldValue;
+        return true;
+    }
+
+    return false;
+}
+
+bool Vic::spriteEnabledAtPixel(int sprite, int px) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (px < 0 || px >= 512)
+        return false;
+
+    return spriteEnableLine[sprite][px] != 0;
+}
+
+bool Vic::spriteEnabledSomewhereOnLine(int sprite) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    for (int px = 0; px < VISIBLE_WIDTH; ++px)
+    {
+        if (spriteEnableLine[sprite][px])
+            return true;
+    }
+
+    return false;
+}
+
+void Vic::buildSpriteEnableLine(int raster)
+{
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (auto& line : spriteEnableLine)
+        line.fill(0);
+
+    uint8_t activeEnable = registers.spriteEnabled;
+
+    if (!firstRasterSpriteEnableEventValue(raster, activeEnable))
+    {
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = xStart; px < xEnd; ++px)
+                spriteEnableLine[spr][px] = enabled;
+        }
+
+        return;
+    }
+
+    int startX = xStart;
+
+    for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        RasterColorEvent temp {};
+        temp.raster = raster;
+        temp.cycle = e.cycle;
+        temp.address = 0xD015;
+        temp.oldValue = e.oldValue;
+        temp.newValue = e.newValue;
+
+        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = startX; px < eventX; ++px)
+                spriteEnableLine[spr][px] = enabled;
+        }
+
+        activeEnable = e.newValue;
+        startX = eventX;
+    }
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
+
+        for (int px = startX; px < xEnd; ++px)
+            spriteEnableLine[spr][px] = enabled;
+    }
+}
+
 void Vic::fetchSpritePointer(int sprite, int raster)
 {
     if (!mem)
@@ -1794,7 +1895,7 @@ void Vic::prepareSpriteOutputForRaster(int raster)
     {
         resetSpriteLineOutputState(i);
 
-        if (!(registers.spriteEnabled & (1 << i)))
+        if (!spriteEnabledSomewhereOnLine(i))
         {
             traceVicSpriteSlotEvent(i, "prep-disabled", raster, currentCycle);
             clearSpriteFetchedRowState(i);
@@ -1981,6 +2082,12 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         if (px < startX || px >= endX)
             continue;
+
+        if (!spriteEnabledAtPixel(spr, px))
+        {
+            advanceSpriteOutputState(spr, px);
+            continue;
+        }
 
         uint8_t color = 0;
         bool opaque = false;

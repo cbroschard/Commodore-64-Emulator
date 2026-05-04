@@ -361,6 +361,7 @@ class Vic
         std::array<std::array<uint8_t, 512>, 8> spriteBehindLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteMulticolorModeLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteXExpansionLine{};
+        std::array<std::array<uint8_t, 512>, 8> spriteEnableLine{};
 
         std::array<uint8_t, 512> bgColorLine{};
         std::array<uint8_t, 512> bgOpaqueLine{};
@@ -531,6 +532,10 @@ class Vic
         bool firstRasterSpriteXExpansionEventValue(int raster, uint8_t& value) const;
         void buildSpriteXExpansionLine(int raster);
         bool spriteXExpandedAtPixel(int sprite, int px) const;
+        bool firstRasterSpriteEnableEventValue(int raster, uint8_t& value) const;
+        void buildSpriteEnableLine(int raster);
+        bool spriteEnabledAtPixel(int sprite, int px) const;
+        bool spriteEnabledSomewhereOnLine(int sprite) const;
 
         bool isBackgroundPixelOpaque(int x, int y);
 
