@@ -784,7 +784,10 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
     {
         const int index = address - 0xD022;
         const uint8_t oldValue = registers.backgroundColor[index];
+
         registers.backgroundColor[index] = value & 0x0F;
+
+        recordRasterColorWrite(address, oldValue, registers.backgroundColor[index]);
         traceVicRegWrite(address, oldValue, registers.backgroundColor[index]);
         return;
     }
@@ -2262,7 +2265,7 @@ void Vic::renderLine(int raster)
 
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
-    if (address != 0xD020 && address != 0xD021)
+    if (!((address >= 0xD020 && address <= 0xD024)))
         return;
 
     RasterColorEvent e;
