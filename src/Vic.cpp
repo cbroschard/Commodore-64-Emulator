@@ -1019,6 +1019,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spritePriority;
             registers.spritePriority = value;
+
+            recordRasterPriorityWrite(oldValue, registers.spritePriority);
             traceVicRegWrite(address, oldValue, registers.spritePriority);
             break;
         }
@@ -1120,6 +1122,7 @@ void Vic::beginFrameIfNeeded()
     if (currentCycle == 0 && registers.raster == 0)
     {
         rasterColorEvents.clear();
+        rasterPriorityEvents.clear();
 
         firstBadlineY = -1;
         denSeenOn30 = false;
@@ -2290,6 +2293,7 @@ void Vic::renderLine(int raster)
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
     applySpriteColorEventsToLine(raster);
+    buildSpritePriorityLine(raster);
 
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
@@ -2309,6 +2313,102 @@ void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t new
     e.newValue = newValue & 0x0F;
 
     rasterColorEvents.push_back(e);
+}
+
+void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
+{
+    RasterPriorityEvent e;
+    e.raster = registers.raster;
+    e.cycle = currentCycle;
+    e.oldValue = oldValue;
+    e.newValue = newValue;
+
+    rasterPriorityEvents.push_back(e);
+}
+
+bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const
+{
+    for (const RasterPriorityEvent& e : rasterPriorityEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        value = e.oldValue;
+        return true;
+    }
+
+    return false;
+}
+
+void Vic::buildSpritePriorityLine(int raster)
+{
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (auto& line : spriteBehindLine)
+        line.fill(0);
+
+    uint8_t activePriority = registers.spritePriority;
+
+    if (!firstRasterPriorityEventValue(raster, activePriority))
+    {
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = xStart; px < xEnd; ++px)
+                spriteBehindLine[spr][px] = behind;
+        }
+
+        return;
+    }
+
+    int startX = xStart;
+
+    for (const RasterPriorityEvent& e : rasterPriorityEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        RasterColorEvent temp {};
+        temp.raster = raster;
+        temp.cycle = e.cycle;
+        temp.address = 0xD01B;
+        temp.oldValue = e.oldValue;
+        temp.newValue = e.newValue;
+
+        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = startX; px < eventX; ++px)
+                spriteBehindLine[spr][px] = behind;
+        }
+
+        activePriority = e.newValue;
+        startX = eventX;
+    }
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
+
+        for (int px = startX; px < xEnd; ++px)
+            spriteBehindLine[spr][px] = behind;
+    }
+}
+
+bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (px < 0 || px >= 512)
+        return false;
+
+    return spriteBehindLine[sprite][px] != 0;
 }
 
 Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const
@@ -4148,7 +4248,7 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
     // only visible if background is not opaque at this pixel.
     for (int spr = 0; spr < 8; ++spr)
     {
-        const bool behind = (registers.spritePriority & (1 << spr)) != 0;
+        const bool behind = spriteBehindBackgroundAtPixel(spr, px);
         if (!behind)
             continue;
 
