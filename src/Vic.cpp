@@ -187,6 +187,13 @@ void Vic::reset()
     // Clear the bad line fifo
     clearBadLineFifo();
 
+    // Clear SPrite Raster Line arrays
+    for (auto& line : spriteColorSourceLine)    line.fill(SpriteColorSource::None);
+    for (auto& line : spriteBehindLine)         line.fill(0);
+    for (auto& line : spriteMulticolorModeLine) line.fill(0);
+    for (auto& line : spriteXExpansionLine)     line.fill(0);
+    for (auto& line : spriteEnableLine)         line.fill(0);
+
     // ML Monitor logging default disable
     setLogging = false;
 }
