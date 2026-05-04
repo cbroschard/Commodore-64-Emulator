@@ -4227,6 +4227,7 @@ void Vic::applyExtendedBackgroundColorEventsToLine(int raster)
 
     replayForRegister(0xD022, BackgroundSource::BG1);
     replayForRegister(0xD023, BackgroundSource::BG2);
+    replayForRegister(0xD024, BackgroundSource::BG3);
 }
 
 void Vic::applyBackgroundColorEventsToLine(int raster)
