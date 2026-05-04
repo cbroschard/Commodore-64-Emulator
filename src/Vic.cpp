@@ -2286,8 +2286,11 @@ void Vic::renderLine(int raster)
 
     generateBackgroundLine(raster);
     buildBorderMaskLine(raster);
+
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
+    applySpriteColorEventsToLine(raster);
+
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
     emitRasterLineInOrder(raster);
@@ -4341,6 +4344,108 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
 
         if (bgSourceLine[px] == BackgroundSource::BG0)
             bgColorLine[px] = activeBg0;
+    }
+}
+
+void Vic::applySpriteColorEventsToLine(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    auto applyToSpriteRange =
+        [&](int sprite, SpriteColorSource source, int startX, int endX, uint8_t color)
+        {
+            if (sprite < 0 || sprite >= 8)
+                return;
+
+            startX = std::clamp(startX, 0, VISIBLE_WIDTH);
+            endX   = std::clamp(endX,   0, VISIBLE_WIDTH);
+
+            if (startX >= endX)
+                return;
+
+            for (int px = startX; px < endX; ++px)
+            {
+                if (!spriteOpaqueLine[sprite][px])
+                    continue;
+
+                if (spriteColorSourceLine[sprite][px] != source)
+                    continue;
+
+                spriteColorLine[sprite][px] = color & 0x0F;
+            }
+        };
+
+    auto replayRegisterForSprite =
+        [&](uint16_t address, int sprite, SpriteColorSource source)
+        {
+            uint8_t activeColor = 0;
+            if (!firstRasterColorEventValue(raster, address, activeColor))
+                return;
+
+            int startX = xStart;
+
+            for (const RasterColorEvent& e : rasterColorEvents)
+            {
+                if (e.raster != raster)
+                    continue;
+
+                if (e.address != address)
+                    continue;
+
+                const int eventX = std::clamp(rasterColorEventPixelX(e), startX, xEnd);
+
+                applyToSpriteRange(sprite, source, startX, eventX, activeColor);
+
+                activeColor = e.newValue & 0x0F;
+                startX = eventX;
+            }
+
+            applyToSpriteRange(sprite, source, startX, xEnd, activeColor);
+        };
+
+    auto replaySharedSpriteRegister =
+        [&](uint16_t address, SpriteColorSource source)
+        {
+            uint8_t activeColor = 0;
+            if (!firstRasterColorEventValue(raster, address, activeColor))
+                return;
+
+            int startX = xStart;
+
+            for (const RasterColorEvent& e : rasterColorEvents)
+            {
+                if (e.raster != raster)
+                    continue;
+
+                if (e.address != address)
+                    continue;
+
+                const int eventX = std::clamp(rasterColorEventPixelX(e), startX, xEnd);
+
+                for (int spr = 0; spr < 8; ++spr)
+                    applyToSpriteRange(spr, source, startX, eventX, activeColor);
+
+                activeColor = e.newValue & 0x0F;
+                startX = eventX;
+            }
+
+            for (int spr = 0; spr < 8; ++spr)
+                applyToSpriteRange(spr, source, startX, xEnd, activeColor);
+        };
+
+    // Shared multicolor sprite registers.
+    replaySharedSpriteRegister(0xD025, SpriteColorSource::SpriteMultiColor1);
+    replaySharedSpriteRegister(0xD026, SpriteColorSource::SpriteMultiColor2);
+
+    // Per-sprite color registers.
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const uint16_t address = static_cast<uint16_t>(0xD027 + spr);
+        replayRegisterForSprite(address, spr, SpriteColorSource::SpriteOwnColor);
     }
 }
 

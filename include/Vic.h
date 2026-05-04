@@ -810,6 +810,8 @@ class Vic
         void applyExtendedBackgroundColorEventsToLine(int raster);
         void applyBackgroundColorEventsToLine(int raster);
 
+        void applySpriteColorEventsToLine(int raster);
+
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         bool verticalDisplayOpenForRaster(int raster) const;
         bool horizontalBorderLatchedAtPixel(int raster, int px) const;
