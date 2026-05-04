@@ -2992,7 +2992,7 @@ void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
                 break;
         }
 
-        stampBackgroundPixel(px, py, color, opaque);
+        stampBackgroundPixelSource(px, py, color, opaque, multicolorBitmapSourceForBits(bits));
     }
 }
 
@@ -3026,21 +3026,30 @@ void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowB
                 color = c00 & 0x0F;
                 opaque = false;
                 break;
+
             case 0x01:
                 color = c01 & 0x0F;
                 opaque = true;
                 break;
+
             case 0x02:
                 color = c10 & 0x0F;
                 opaque = true;
                 break;
+
             case 0x03:
                 color = c11 & 0x0F;
                 opaque = true;
                 break;
         }
 
-        stampBackgroundPixel(px, py, color, opaque);
+        stampBackgroundPixelSource(
+            px,
+            py,
+            color,
+            opaque,
+            multicolorBitmapSourceForBits(bits)
+        );
     }
 }
 
@@ -3059,6 +3068,19 @@ void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits,
                                           x0, x1, startPhase, endPhase);
 
     phase = endPhase;
+}
+
+Vic::BackgroundSource Vic::multicolorBitmapSourceForBits(uint8_t bits) const
+{
+    switch (bits & 0x03)
+    {
+        case 0x00: return BackgroundSource::BG0;    // $D021
+        case 0x01: return BackgroundSource::Bitmap; // screen high nibble
+        case 0x02: return BackgroundSource::Bitmap; // screen low nibble
+        case 0x03: return BackgroundSource::Bitmap; // color RAM
+    }
+
+    return BackgroundSource::Unknown;
 }
 
 void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
