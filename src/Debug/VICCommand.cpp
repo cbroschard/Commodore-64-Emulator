@@ -33,17 +33,18 @@ std::string VICCommand::help() const
 {
     return
         "vic <subcommand>:\n"
-        "    mode                 Show current VIC-II graphics mode\n"
-        "    badline <r>          Show badline timing around raster\n"
-        "    banks                Show current screen/charset/bitmap base addresses\n"
-        "    border               Dump current border state\n"
-        "    regs <group>         Dump VIC-II registers\n"
-        "    cycle                Show debug info for current raster/cycle\n"
-        "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
-        "    events <r>           Show recorded raster register events\n"
-        "    map <r>              Show fetch map for one raster line\n"
-        "    row                  Show badline row sequencer\n"
-        "    sprite               Show sprite DMA state\n";
+        "    mode                   Show current VIC-II graphics mode\n"
+        "    badline <r>            Show badline timing around raster\n"
+        "    banks                  Show current screen/charset/bitmap base addresses\n"
+        "    bgcell <raster> <col>  Dump background cell debug info for a raster/column\n"
+        "    border                 Dump current border state\n"
+        "    regs <group>           Dump VIC-II registers\n"
+        "    cycle                  Show debug info for current raster/cycle\n"
+        "    cycle <r> <c>          Show debug info for specific raster/cycle\n"
+        "    events <r>             Show recorded raster register events\n"
+        "    map <r>                Show fetch map for one raster line\n"
+        "    row                    Show badline row sequencer\n"
+        "    sprite                 Show sprite DMA state\n";
 }
 
 std::string VICCommand::regsUsage() const
@@ -139,17 +140,40 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         std::cout << mon.mlmonitorbackend()->getCurrentVICBanks();
     }
+    else if (sub == "bgcell")
+    {
+        if (args.size() != 4)
+        {
+            std::cout << help();
+            return;
+        }
+        try
+        {
+            const int raster = std::stoi(args[2]);
+            const int col = std::stoi(args[3]);
+
+            std::cout << mon.mlmonitorbackend()->vicDumpBackgroundCellDebug(raster, col);
+            return;
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << help();
+            return;
+        }
+    }
     else if (sub == "border")
     {
         if (args.size() == 2)
         {
             std::cout << mon.mlmonitorbackend()->vicDumpBorderState();
+            return;
         }
         else if (args[2] == "edge")
         {
             if (args.size() == 3)
             {
                 std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundCurrentRaster();
+                return;
             }
             else if (args.size() == 4)
             {
@@ -157,16 +181,19 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 {
                     const int raster = std::stoi(args[3]);
                     std::cout << mon.mlmonitorbackend()->vicDumpBorderWindowAroundRaster(raster);
+                    return;
                 }
                 catch (const std::exception&)
                 {
                     std::cout << borderUsage();
+                    return;
                 }
             }
         }
         else
         {
             std::cout << borderUsage();
+            return;
         }
     }
     else if (sub == "regs")

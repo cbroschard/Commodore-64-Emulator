@@ -161,6 +161,7 @@ class MLMonitorBackend
         inline std::string vicDumpRasterRowState(int raster) const { return vicII ? vicII->dumpRasterRowState(raster) : "VIC not available"; }
         inline std::string vicDumpBadlineState() const { return vicII ? vicII->dumpBadlineState() : "VIC not available"; }
         inline std::string vicDumpBorderState() const { return vicII ? vicII->dumpBorderState() : "VIC not available"; }
+        inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vicII ? vicII->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
         inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vicII ? vicII->dumpBadlineTimelineAroundRaster(centerRaster) : "VIC not available"; }
         inline std::string vicDumpBorderWindowAroundCurrentRaster() const { return vicII ? vicII->dumpBorderWindowAroundCurrentRaster() : "VIC not available"; }
         inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vicII ? vicII->dumpBorderWindowAroundRaster(centerRaster) : "VIC not available"; }

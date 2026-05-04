@@ -6767,6 +6767,139 @@ std::string Vic::dumpRasterRowState(int raster) const
     return out.str();
 }
 
+std::string Vic::dumpBackgroundCellDebug(int raster, int col) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        out << "Raster " << raster << " is out of range\n";
+        return out.str();
+    }
+
+    if (col < 0 || col >= BACKGROUND_MATRIX_COLUMNS)
+    {
+        out << "Column " << col << " is out of range\n";
+        return out.str();
+    }
+
+    const RasterRowStateSnapshot* snap = nullptr;
+    const char* snapSource = "none";
+
+    if (raster < static_cast<int>(lastFrameRasterRowStates.size()) &&
+        lastFrameRasterRowStates[raster].valid)
+    {
+        snap = &lastFrameRasterRowStates[raster];
+        snapSource = "previous frame";
+    }
+    else if (raster < static_cast<int>(rasterRowStates.size()) &&
+             rasterRowStates[raster].valid)
+    {
+        snap = &rasterRowStates[raster];
+        snapSource = "current frame";
+    }
+
+    if (!snap)
+    {
+        out << "No row-state snapshot available for raster " << raster << "\n";
+        return out.str();
+    }
+
+    const uint8_t d011 = snap->d011 & 0x7F;
+    const uint8_t d016 = snap->d016 & 0x1F;
+    const uint8_t d018 = snap->d018 & 0xFE;
+
+    const uint16_t screenBase = static_cast<uint16_t>((d018 & 0xF0) << 6);
+    const uint16_t charBase   = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
+    const uint16_t bitmapBase = static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
+
+    const int fineY = d011 & 0x07;
+    const int fineX = d016 & 0x07;
+
+    const int matrixRow = snap->vcBase / 40;
+    const int vmliRow = snap->vmliBase / 40;
+    const int matrixOffset = snap->vcBase + col;
+
+    const uint16_t screenAddr =
+        static_cast<uint16_t>(screenBase + (matrixOffset & 0x03FF));
+
+    const uint8_t screenByte =
+        mem ? mem->vicRead(screenAddr, raster) : 0xFF;
+
+    const uint16_t colorAddr =
+        static_cast<uint16_t>(COLOR_MEMORY_START + (matrixOffset & 0x03FF));
+
+    const uint8_t colorByte =
+        mem ? static_cast<uint8_t>(mem->read(colorAddr) & 0x0F) : 0x0F;
+
+    const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
+
+    const uint16_t charAddr =
+        static_cast<uint16_t>(charBase + (static_cast<uint16_t>(screenByte) * 8) + yInChar);
+
+    const uint8_t rowBits =
+        mem ? mem->vicRead(charAddr, raster) : 0x00;
+
+    out << "Background Cell Debug\n";
+    out << "---------------------\n";
+    out << "snapshot: " << snapSource << "\n";
+    out << "raster: " << raster << "\n";
+    out << "col: " << col << "\n";
+    out << "mode: " << decodeModeName() << "\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "D011: $" << std::setw(2) << static_cast<int>(d011)
+        << std::dec
+        << " fineY=" << fineY
+        << " RSEL=" << (((d011 & 0x08) != 0) ? 25 : 24)
+        << " DEN=" << (((d011 & 0x10) != 0) ? 1 : 0)
+        << "\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "D016: $" << std::setw(2) << static_cast<int>(d016)
+        << std::dec
+        << " fineX=" << fineX
+        << " CSEL=" << (((d016 & 0x08) != 0) ? 40 : 38)
+        << " MCM=" << (((d016 & 0x10) != 0) ? 1 : 0)
+        << "\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "D018: $" << std::setw(2) << static_cast<int>(d018) << "\n";
+    out << "screenBase: $" << std::setw(4) << screenBase << "\n";
+    out << "charBase:   $" << std::setw(4) << charBase << "\n";
+    out << "bitmapBase: $" << std::setw(4) << bitmapBase << "\n";
+
+    out << std::dec << std::setfill(' ');
+
+    out << "firstBadlineY: " << snap->firstBadlineY << "\n";
+    out << "vcBase: " << snap->vcBase << "\n";
+    out << "matrixRow: " << matrixRow << "\n";
+    out << "vmliBase: " << snap->vmliBase << "\n";
+    out << "vmliRow: " << vmliRow << "\n";
+    out << "vmliFetchIndex: " << static_cast<int>(snap->vmliFetchIndex) << "\n";
+    out << "rc/yInChar: " << static_cast<int>(yInChar) << "\n";
+    out << "displayEnabled: " << (snap->displayEnabled ? 1 : 0) << "\n";
+    out << "displayEnabledNext: " << (snap->displayEnabledNext ? 1 : 0) << "\n";
+    out << "badLine: " << (snap->badLine ? 1 : 0) << "\n";
+    out << "badLineSampled: " << (snap->badLineSampled ? 1 : 0) << "\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "screenAddr: $" << std::setw(4) << screenAddr << "\n";
+    out << "screenByte: $" << std::setw(2) << static_cast<int>(screenByte) << "\n";
+    out << "colorAddr:  $" << std::setw(4) << colorAddr << "\n";
+    out << "colorByte:  $" << std::setw(2) << static_cast<int>(colorByte) << "\n";
+    out << "charAddr:   $" << std::setw(4) << charAddr << "\n";
+    out << "rowBits:    $" << std::setw(2) << static_cast<int>(rowBits) << "\n";
+
+    out << std::dec << std::nouppercase << std::setfill(' ');
+
+    return out.str();
+}
+
 std::string Vic::dumpBadlineState() const
 {
     std::ostringstream oss;
