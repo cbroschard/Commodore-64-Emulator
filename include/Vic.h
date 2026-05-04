@@ -714,6 +714,15 @@ class Vic
             uint8_t newValue = 0;
         };
 
+        struct RasterSpriteEnableEvent
+        {
+            int raster = 0;
+            int cycle = 0;
+            uint8_t oldValue = 0;
+            uint8_t newValue = 0;
+        };
+
+        std::vector<RasterSpriteEnableEvent> rasterSpriteEnableEvents;
         std::vector<RasterSpriteXExpansionEvent> rasterSpriteXExpansionEvents;
         std::vector<RasterSpriteModeEvent> rasterSpriteModeEvents;
         std::vector<RasterPriorityEvent> rasterPriorityEvents;
@@ -723,6 +732,7 @@ class Vic
         void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue);
+        void recordRasterSpriteEnableWrite(uint8_t oldValue, uint8_t newValue);
         bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
