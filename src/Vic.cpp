@@ -2512,6 +2512,8 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
     bgPipeline.bgColor2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
     bgPipeline.bgColor3 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
 
+    bgPipeline.bgSource = cell.bgSource;
+
     bgPipeline.multicolor = false;
     bgPipeline.bitmap = false;
     bgPipeline.ecm = true;
@@ -2735,6 +2737,8 @@ void Vic::resetBackgroundPipeline()
     bgPipeline.bgColor1 = 0;
     bgPipeline.bgColor2 = 0;
     bgPipeline.bgColor3 = 0;
+
+    bgPipeline.bgSource = BackgroundSource::BG0;
 
     bgPipeline.multicolor = false;
     bgPipeline.bitmap = false;
@@ -3058,7 +3062,9 @@ void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits,
 }
 
 void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
-                          uint8_t fg, uint8_t bg, int x0, int x1)
+                          uint8_t fg, uint8_t bg,
+                          BackgroundSource bgSource,
+                          int x0, int x1)
 {
     const int startPx = std::max(pxBase, x0);
     const int endPx   = std::min(pxBase + 8, x1);
@@ -3068,11 +3074,21 @@ void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
         const int bit = px - pxBase;
         const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
 
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+        stampBackgroundPixelSource(
+            px,
+            py,
+            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
+            pixelOn,
+            pixelOn ? BackgroundSource::Foreground : bgSource
+        );
     }
 }
 
-void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase)
+void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
+                                   uint8_t fg, uint8_t bg,
+                                   BackgroundSource bgSource,
+                                   int x0, int x1,
+                                   int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
     const int end   = std::min(8, endPhase);
@@ -3087,11 +3103,22 @@ void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t 
             continue;
 
         const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
+
+        stampBackgroundPixelSource(
+            px,
+            py,
+            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
+            pixelOn,
+            pixelOn ? BackgroundSource::Foreground : bgSource
+        );
     }
 }
 
-void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount)
+void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
+                               uint8_t fg, uint8_t bg,
+                               BackgroundSource bgSource,
+                               int x0, int x1,
+                               int& phase, int pixelCount)
 {
     if (pixelCount <= 0)
         return;
@@ -3099,9 +3126,33 @@ void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, 
     const int startPhase = std::clamp(phase, 0, 8);
     const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
 
-    stampECMRowBitsFromPhase(pxBase, py, rowBits, fg, bg, x0, x1, startPhase, endPhase);
+    stampECMRowBitsFromPhase(
+        pxBase,
+        py,
+        rowBits,
+        fg,
+        bg,
+        bgSource,
+        x0,
+        x1,
+        startPhase,
+        endPhase
+    );
 
     phase = endPhase;
+}
+
+Vic::BackgroundSource Vic::ecmBackgroundSourceForCharIndex(uint8_t charIndex) const
+{
+    switch ((charIndex >> 6) & 0x03)
+    {
+        case 0x00: return BackgroundSource::BG0; // $D021
+        case 0x01: return BackgroundSource::BG1; // $D022
+        case 0x02: return BackgroundSource::BG2; // $D023
+        case 0x03: return BackgroundSource::BG3; // $D024
+    }
+
+    return BackgroundSource::Unknown;
 }
 
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
@@ -3705,14 +3756,37 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
 
+    // ECM:
+    // bits 0-5 = character index
+    // bits 6-7 = background color select
     const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
     const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
 
-    const uint8_t bgColor =
-        (bgSel == 0) ? (registers.backgroundColor0 & 0x0F) :
-        (bgSel == 1) ? (getBackgroundColor(0) & 0x0F) :
-        (bgSel == 2) ? (getBackgroundColor(1) & 0x0F) :
-                       (getBackgroundColor(2) & 0x0F);
+    uint8_t bgColor = 0;
+    BackgroundSource bgSource = BackgroundSource::BG0;
+
+    switch (bgSel)
+    {
+        case 0x00:
+            bgColor = registers.backgroundColor0 & 0x0F;   // $D021
+            bgSource = BackgroundSource::BG0;
+            break;
+
+        case 0x01:
+            bgColor = getBackgroundColor(0) & 0x0F;        // $D022
+            bgSource = BackgroundSource::BG1;
+            break;
+
+        case 0x02:
+            bgColor = getBackgroundColor(1) & 0x0F;        // $D023
+            bgSource = BackgroundSource::BG2;
+            break;
+
+        case 0x03:
+            bgColor = getBackgroundColor(2) & 0x0F;        // $D024
+            bgSource = BackgroundSource::BG3;
+            break;
+    }
 
     const uint8_t fgColor = static_cast<uint8_t>(colorByte & 0x0F);
 
@@ -3724,6 +3798,7 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     out.charIndex = charIndex;
     out.fgColor = fgColor;
     out.bgColor = bgColor;
+    out.bgSource = bgSource;
 
     return true;
 }
@@ -3745,7 +3820,7 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
     const uint8_t fg = static_cast<uint8_t>(cell.fgColor & 0x0F);
     const uint8_t bg = static_cast<uint8_t>(cell.bgColor & 0x0F);
 
-    stampECMRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
+    stampECMRowBits(cell.px, cell.py, rowBits, fg, bg, cell.bgSource, x0, x1);
 }
 
 void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1)
@@ -3760,7 +3835,19 @@ void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, 
     const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
 
     int phase = 0;
-    stampECMPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, 8);
+
+    stampECMPipelineSpan(
+        cell.px,
+        cell.py,
+        rowBits,
+        fg,
+        bg,
+        bgPipeline.bgSource,
+        x0,
+        x1,
+        phase,
+        8
+    );
 }
 
 void Vic::renderECMLine(int raster, int xScroll)

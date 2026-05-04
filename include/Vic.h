@@ -592,6 +592,8 @@ class Vic
             uint8_t charIndex = 0;
             uint8_t fgColor = 0;
             uint8_t bgColor = 0;
+
+            BackgroundSource bgSource = BackgroundSource::BG0;
         };
 
         struct BackgroundLineGeometry
@@ -631,6 +633,8 @@ class Vic
             uint8_t bgColor1 = 0;
             uint8_t bgColor2 = 0;
             uint8_t bgColor3 = 0;
+
+            BackgroundSource bgSource = BackgroundSource::BG0;
 
             bool multicolor = false;
             bool bitmap = false;
@@ -725,9 +729,21 @@ class Vic
         void stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
                                        int x0, int x1, int& phase, int pixelCount);
 
-        void stampECMRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
-        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
-        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
+        void stampECMRowBits(int pxBase, int py, uint8_t rowBits,
+                             uint8_t fg, uint8_t bg,
+                             BackgroundSource bgSource,
+                             int x0, int x1);
+        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
+                                      uint8_t fg, uint8_t bg,
+                                      BackgroundSource bgSource,
+                                      int x0, int x1,
+                                      int startPhase, int endPhase);
+        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
+                                  uint8_t fg, uint8_t bg,
+                                  BackgroundSource bgSource,
+                                  int x0, int x1,
+                                  int& phase, int pixelCount);
+        BackgroundSource ecmBackgroundSourceForCharIndex(uint8_t charIndex) const;
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
