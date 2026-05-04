@@ -40,6 +40,7 @@ std::string VICCommand::help() const
         "    regs <group>         Dump VIC-II registers\n"
         "    cycle                Show debug info for current raster/cycle\n"
         "    cycle <r> <c>        Show debug info for specific raster/cycle\n"
+        "    events <r>           Show recorded raster register events\n"
         "    map <r>              Show fetch map for one raster line\n"
         "    row                  Show badline row sequencer\n"
         "    sprite               Show sprite DMA state\n";
@@ -214,6 +215,31 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         else
         {
             std::cout << cycleUsage();
+        }
+    }
+    else if (sub == "events")
+    {
+        if (args.size() != 3)
+        {
+            std::cout << help();
+            return;
+        }
+
+        try
+        {
+            const int raster = std::stoi(args[2]);
+
+            const std::string output =
+                mon.mlmonitorbackend()->vicDumpRasterEvents(raster);
+
+                std::cout << output;
+
+                if (!output.empty() && output.back() != '\n')
+                    std::cout << '\n';
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << help();
         }
     }
     else if (sub == "map")

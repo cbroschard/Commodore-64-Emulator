@@ -159,6 +159,7 @@ class Vic
         std::string dumpCurrentCycleDebug() const;
         std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
+        std::string dumpRasterEvents(int raster) const;
         std::string dumpBadlineState() const;
         std::string dumpBorderState() const;
         std::string dumpSpriteDmaState() const;

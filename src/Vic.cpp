@@ -6191,6 +6191,103 @@ std::string Vic::dumpRasterFetchMap(int raster) const
     return out.str();
 }
 
+std::string Vic::dumpRasterEvents(int raster) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        out << "Raster " << raster << " is out of range\n";
+        return out.str();
+    }
+
+    out << "Raster Events for line " << raster << "\n";
+    out << "--------------------------------\n";
+
+    auto printEventHeader = [&]()
+    {
+        out << "  cycle  x     addr   old  new\n";
+    };
+
+    bool any = false;
+
+    auto printColorLikeEvent =
+        [&](const char* group, int cycle, uint16_t address, uint8_t oldValue, uint8_t newValue)
+        {
+            if (!any)
+                any = true;
+
+            out << group << "\n";
+            printEventHeader();
+
+            out << "  "
+                << std::dec << std::setw(5) << cycle
+                << "  "
+                << std::setw(4) << rasterEventPixelX(cycle)
+                << "  $"
+                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << address
+                << "  $"
+                << std::setw(2) << static_cast<int>(oldValue)
+                << "   $"
+                << std::setw(2) << static_cast<int>(newValue)
+                << std::dec << std::nouppercase << std::setfill(' ')
+                << "\n";
+        };
+
+    for (const RasterColorEvent& e : rasterColorEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Color events", e.cycle, e.address, e.oldValue, e.newValue);
+    }
+
+    for (const RasterPriorityEvent& e : rasterPriorityEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Sprite priority events ($D01B)", e.cycle, 0xD01B, e.oldValue, e.newValue);
+    }
+
+    for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Sprite multicolor mode events ($D01C)", e.cycle, 0xD01C, e.oldValue, e.newValue);
+    }
+
+    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Sprite X expansion events ($D01D)", e.cycle, 0xD01D, e.oldValue, e.newValue);
+    }
+
+    for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Sprite enable events ($D015)", e.cycle, 0xD015, e.oldValue, e.newValue);
+    }
+
+    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        printColorLikeEvent("Sprite X position events", e.cycle, e.address, e.oldValue, e.newValue);
+    }
+
+    if (!any)
+        out << "No recorded events on this raster.\n";
+
+    return out.str();
+}
+
 std::string Vic::dumpBadlineState() const
 {
     std::ostringstream oss;
