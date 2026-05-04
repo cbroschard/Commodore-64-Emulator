@@ -343,6 +343,14 @@ class Vic
             Unknown
         };
 
+        enum class SpriteColorSource : uint8_t
+        {
+            None = 0,
+            SpriteOwnColor,
+            SpriteMultiColor1,
+            SpriteMultiColor2
+        };
+
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
 
@@ -350,6 +358,7 @@ class Vic
 
         std::array<std::array<uint8_t, 512>, 8> spriteOpaqueLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteColorLine{};
+        std::array<std::array<SpriteColorSource, 512>, 8> spriteColorSourceLine{};
 
         std::array<uint8_t, 512> bgColorLine{};
         std::array<uint8_t, 512> bgOpaqueLine{};
@@ -505,7 +514,7 @@ class Vic
 
         void resetSpriteLineSequencer(int sprIndex, int raster);
         void advanceSpriteOutputState(int sprIndex);
-        bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const;
+        bool currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque, SpriteColorSource& outSource) const;
 
         void clearSpriteLineBuffers();
 

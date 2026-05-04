@@ -1686,10 +1686,14 @@ void Vic::advanceSpriteOutputState(int sprIndex)
     }
 }
 
-bool Vic::currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opaque) const
+bool Vic::currentSpriteSequencerPixel(int sprIndex,
+                                      uint8_t& outColor,
+                                      bool& opaque,
+                                      SpriteColorSource& outSource) const
 {
     outColor = 0;
     opaque = false;
+    outSource = SpriteColorSource::None;
 
     if (!spriteUnits[sprIndex].rowPrepared)
         return false;
@@ -1708,36 +1712,51 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, uint8_t& outColor, bool& opa
 
         outColor = registers.spriteColors[sprIndex] & 0x0F;
         opaque = true;
+        outSource = SpriteColorSource::SpriteOwnColor;
         return true;
     }
-    else
+
+    const int srcPair = spriteUnits[sprIndex].outputBit;
+    if (srcPair < 0 || srcPair >= 12)
+        return false;
+
+    const uint8_t bits = static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
+
+    if (bits == 0)
+        return false;
+
+    switch (bits)
     {
-        const int srcPair = spriteUnits[sprIndex].outputBit;
-        if (srcPair < 0 || srcPair >= 12)
-            return false;
+        case 0x01:
+            outColor = registers.spriteMultiColor1 & 0x0F;
+            outSource = SpriteColorSource::SpriteMultiColor1;
+            break;
 
-        const uint8_t bits = (rowBits >> (22 - srcPair * 2)) & 0x03;
-        if (bits == 0)
-            return false;
+        case 0x02:
+            outColor = registers.spriteColors[sprIndex] & 0x0F;
+            outSource = SpriteColorSource::SpriteOwnColor;
+            break;
 
-        const uint8_t mc1 = registers.spriteMultiColor1 & 0x0F;
-        const uint8_t mc2 = registers.spriteMultiColor2 & 0x0F;
-        const uint8_t col = registers.spriteColors[sprIndex] & 0x0F;
-
-        outColor =
-            (bits == 1) ? mc1 :
-            (bits == 2) ? col :
-                          mc2;
-
-        opaque = true;
-        return true;
+        case 0x03:
+            outColor = registers.spriteMultiColor2 & 0x0F;
+            outSource = SpriteColorSource::SpriteMultiColor2;
+            break;
     }
+
+    opaque = true;
+    return true;
 }
 
 void Vic::clearSpriteLineBuffers()
 {
-    for (auto& line : spriteOpaqueLine) line.fill(0);
-    for (auto& line : spriteColorLine)  line.fill(0);
+    for (auto& line : spriteOpaqueLine)
+        line.fill(0);
+
+    for (auto& line : spriteColorLine)
+        line.fill(0);
+
+    for (auto& line : spriteColorSourceLine)
+        line.fill(SpriteColorSource::None);
 }
 
 void Vic::beginSpriteRasterOutput(int raster)
@@ -1773,11 +1792,13 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         uint8_t color = 0;
         bool opaque = false;
+        SpriteColorSource source = SpriteColorSource::None;
 
-        if (currentSpriteSequencerPixel(spr, color, opaque) && opaque)
+        if (currentSpriteSequencerPixel(spr, color, opaque, source) && opaque)
         {
             spriteOpaqueLine[spr][px] = 1;
-            spriteColorLine[spr][px]  = color;
+            spriteColorLine[spr][px] = color;
+            spriteColorSourceLine[spr][px] = source;
         }
 
         advanceSpriteOutputState(spr);
