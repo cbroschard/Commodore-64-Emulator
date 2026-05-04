@@ -163,6 +163,7 @@ class Vic
         std::string dumpRasterEventSummary() const;
         std::string dumpRasterEvents(int raster) const;
         std::string dumpRasterRowState(int raster) const;
+        std::string dumpBackgroundRowDebug(int raster) const;
         std::string dumpBackgroundCellDebug(int raster, int col) const;
         std::string dumpBadlineState() const;
         std::string dumpBorderState() const;

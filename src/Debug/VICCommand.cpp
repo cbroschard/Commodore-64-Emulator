@@ -37,6 +37,7 @@ std::string VICCommand::help() const
         "    badline <r>            Show badline timing around raster\n"
         "    banks                  Show current screen/charset/bitmap base addresses\n"
         "    bgcell <raster> <col>  Dump background cell debug info for a raster/column\n"
+        "    bgrow <raster>         Dump all background cells for one raster\n"
         "    border                 Dump current border state\n"
         "    regs <group>           Dump VIC-II registers\n"
         "    cycle                  Show debug info for current raster/cycle\n"
@@ -153,6 +154,26 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const int col = std::stoi(args[3]);
 
             std::cout << mon.mlmonitorbackend()->vicDumpBackgroundCellDebug(raster, col);
+            return;
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << help();
+            return;
+        }
+    }
+    else if (sub == "bgrow")
+    {
+        if (args.size() != 3)
+        {
+            std::cout << help();
+            return;
+        }
+
+        try
+        {
+            const int raster = std::stoi(args[2]);
+            std::cout << mon.mlmonitorbackend()->vicDumpBackgroundRowDebug(raster);
             return;
         }
         catch(const std::exception& e)
