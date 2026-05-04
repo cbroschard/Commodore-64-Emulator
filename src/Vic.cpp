@@ -2738,13 +2738,57 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
         const uint8_t oldVal = e.oldValue & 0x7F;
         const uint8_t newVal = e.newValue & 0x7F;
 
+        const int raster = e.raster;
+        const int nextRaster =
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? ((raster + 1) % static_cast<int>(cfg_->maxRasterLines))
+                : raster;
+
+        const uint8_t thisLatched =
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? latchedD011ForRaster(raster)
+                : registers.control;
+
+        const uint8_t thisEffective =
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? effectiveD011ForRaster(raster)
+                : registers.control;
+
+        const uint8_t nextLatched =
+            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
+                ? latchedD011ForRaster(nextRaster)
+                : registers.control;
+
+        const uint8_t nextEffective =
+            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
+                ? effectiveD011ForRaster(nextRaster)
+                : registers.control;
+
+        auto rselRows = [](uint8_t value) -> int
+        {
+            return (value & 0x08) ? 25 : 24;
+        };
+
+        auto denBit = [](uint8_t value) -> int
+        {
+            return (value & 0x10) ? 1 : 0;
+        };
+
         out << "$D011"
             << " yscroll " << static_cast<int>(oldVal & 0x07)
             << "->" << static_cast<int>(newVal & 0x07)
-            << " RSEL " << (((oldVal & 0x08) != 0) ? 25 : 24)
-            << "->" << (((newVal & 0x08) != 0) ? 25 : 24)
-            << " DEN " << (((oldVal & 0x10) != 0) ? 1 : 0)
-            << "->" << (((newVal & 0x10) != 0) ? 1 : 0);
+            << " RSEL " << rselRows(oldVal)
+            << "->" << rselRows(newVal)
+            << " DEN " << denBit(oldVal)
+            << "->" << denBit(newVal)
+            << " this latched yscroll " << static_cast<int>(thisLatched & 0x07)
+            << " this effective yscroll " << static_cast<int>(thisEffective & 0x07)
+            << " next latched yscroll " << static_cast<int>(nextLatched & 0x07)
+            << " next effective yscroll " << static_cast<int>(nextEffective & 0x07)
+            << " this RSEL " << rselRows(thisLatched)
+            << " next RSEL " << rselRows(nextLatched)
+            << " this DEN " << denBit(thisLatched)
+            << " next DEN " << denBit(nextLatched);
 
         return out.str();
     }
