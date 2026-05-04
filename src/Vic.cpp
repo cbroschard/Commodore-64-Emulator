@@ -2770,14 +2770,30 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
         const uint8_t oldVal = e.oldValue & 0xFE;
         const uint8_t newVal = e.newValue & 0xFE;
 
+        const int raster = e.raster;
+        const int nextRaster =
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? ((raster + 1) % static_cast<int>(cfg_->maxRasterLines))
+                : raster;
+
         const uint8_t latchedVal =
-            (e.raster >= 0 && e.raster < static_cast<int>(cfg_->maxRasterLines))
-                ? latchedD018ForRaster(e.raster)
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? latchedD018ForRaster(raster)
                 : registers.memory_pointer;
 
         const uint8_t effectiveVal =
-            (e.raster >= 0 && e.raster < static_cast<int>(cfg_->maxRasterLines))
-                ? effectiveD018ForRaster(e.raster)
+            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
+                ? effectiveD018ForRaster(raster)
+                : registers.memory_pointer;
+
+        const uint8_t nextLatchedVal =
+            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
+                ? latchedD018ForRaster(nextRaster)
+                : registers.memory_pointer;
+
+        const uint8_t nextEffectiveVal =
+            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
+                ? effectiveD018ForRaster(nextRaster)
                 : registers.memory_pointer;
 
         out << "$D018"
@@ -2794,14 +2810,18 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
             << std::setw(4) << bitmapBaseFromD018(oldVal)
             << "->$"
             << std::setw(4) << bitmapBaseFromD018(newVal)
-            << " latched char $"
+            << " this latched char $"
             << std::setw(4) << charBaseFromD018(latchedVal)
-            << " effective char $"
+            << " this effective char $"
             << std::setw(4) << charBaseFromD018(effectiveVal)
+            << " next latched char $"
+            << std::setw(4) << charBaseFromD018(nextLatchedVal)
+            << " next effective char $"
+            << std::setw(4) << charBaseFromD018(nextEffectiveVal)
             << std::dec << std::nouppercase << std::setfill(' ');
 
-        return out.str();
-    }
+            return out.str();
+        }
 
     return "";
 }
