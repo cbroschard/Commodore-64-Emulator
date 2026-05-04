@@ -742,6 +742,9 @@ class Vic
         enum class RasterEventKind : uint8_t
         {
             Color,
+            Control,
+            Control2,
+            MemoryPointer,
             SpritePriority,
             SpriteMode,
             SpriteXExpansion,

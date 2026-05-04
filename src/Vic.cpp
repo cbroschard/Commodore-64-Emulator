@@ -835,6 +835,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             registers.control = value & 0x7F;
 
+            recordRasterEventLog(RasterEventKind::Control, 0xD011, oldValue, registers.control);
+
             const uint16_t newLine =
                 (oldLine & 0x00FF) |
                 (static_cast<uint16_t>(value & 0x80) << 1);
@@ -937,6 +939,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.control2;
             registers.control2 = value;
 
+            recordRasterEventLog(RasterEventKind::Control2, 0xD016, oldValue, registers.control2);
+
             const int raster = registers.raster;
             updateHorizontalBorderState(raster);
             updateGraphicsMode(raster);
@@ -957,6 +961,9 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.memory_pointer;
             registers.memory_pointer = value & 0xFE;
+
+            recordRasterEventLog(RasterEventKind::MemoryPointer, 0xD018, oldValue, registers.memory_pointer);
+
             traceVicRegWrite(address, oldValue, registers.memory_pointer);
             break;
         }
@@ -2697,6 +2704,15 @@ const char* Vic::rasterEventKindName(RasterEventKind kind) const
     {
         case RasterEventKind::Color:
             return "Color";
+
+        case RasterEventKind::Control:
+            return "Control $D011";
+
+        case RasterEventKind::Control2:
+            return "Control2 $D016";
+
+        case RasterEventKind::MemoryPointer:
+            return "Memory ptr $D018";
 
         case RasterEventKind::SpritePriority:
             return "Sprite priority";
@@ -6307,10 +6323,13 @@ std::string Vic::dumpRasterEventSummary() const
         if (events.empty())
             return;
 
-        int minRaster = cfg_->maxRasterLines;
+        int minRaster = static_cast<int>(cfg_->maxRasterLines);
         int maxRaster = -1;
 
         int color = 0;
+        int control = 0;
+        int control2 = 0;
+        int memoryPointer = 0;
         int priority = 0;
         int mode = 0;
         int xexp = 0;
@@ -6324,17 +6343,49 @@ std::string Vic::dumpRasterEventSummary() const
 
             switch (e.kind)
             {
-                case RasterEventKind::Color:            ++color; break;
-                case RasterEventKind::SpritePriority:   ++priority; break;
-                case RasterEventKind::SpriteMode:       ++mode; break;
-                case RasterEventKind::SpriteXExpansion: ++xexp; break;
-                case RasterEventKind::SpriteEnable:     ++enable; break;
-                case RasterEventKind::SpriteX:          ++spriteX; break;
+                case RasterEventKind::Color:
+                    ++color;
+                    break;
+
+                case RasterEventKind::Control:
+                    ++control;
+                    break;
+
+                case RasterEventKind::Control2:
+                    ++control2;
+                    break;
+
+                case RasterEventKind::MemoryPointer:
+                    ++memoryPointer;
+                    break;
+
+                case RasterEventKind::SpritePriority:
+                    ++priority;
+                    break;
+
+                case RasterEventKind::SpriteMode:
+                    ++mode;
+                    break;
+
+                case RasterEventKind::SpriteXExpansion:
+                    ++xexp;
+                    break;
+
+                case RasterEventKind::SpriteEnable:
+                    ++enable;
+                    break;
+
+                case RasterEventKind::SpriteX:
+                    ++spriteX;
+                    break;
             }
         }
 
         out << "  raster range: " << minRaster << " - " << maxRaster << "\n";
         out << "  Color: " << color << "\n";
+        out << "  Control $D011: " << control << "\n";
+        out << "  Control2 $D016: " << control2 << "\n";
+        out << "  Memory ptr $D018: " << memoryPointer << "\n";
         out << "  Sprite priority: " << priority << "\n";
         out << "  Sprite mode: " << mode << "\n";
         out << "  Sprite X expansion: " << xexp << "\n";
