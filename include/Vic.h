@@ -764,6 +764,7 @@ class Vic
         uint8_t produceRasterPixel(int raster, int px) const;
 
         int rasterColorEventPixelX(const RasterColorEvent& e) const;
+        bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;
         void applyBorderColorEventsToFinalLine(int raster);
         void applyBackgroundColorEventsToLine(int raster);
 

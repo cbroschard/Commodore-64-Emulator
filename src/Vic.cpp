@@ -3996,12 +3996,31 @@ int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
     return x;
 }
 
+bool Vic::firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const
+{
+    for (const RasterColorEvent& e : rasterColorEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.address != address)
+            continue;
+
+        value = e.oldValue & 0x0F;
+        return true;
+    }
+
+    return false;
+}
+
 void Vic::applyBorderColorEventsToFinalLine(int raster)
 {
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    uint8_t activeBorderColor = registers.borderColor & 0x0F;
+    uint8_t activeBorderColor = 0;
+    if (!firstRasterColorEventValue(raster, 0xD020, activeBorderColor))
+        return; // no D020 event on this raster; normal composition is already correct
 
     int startX = rasterVisibleStartX(raster);
     const int endX = rasterVisibleEndX(raster);
@@ -4014,16 +4033,16 @@ void Vic::applyBorderColorEventsToFinalLine(int raster)
         if (e.address != 0xD020)
             continue;
 
-        const int eventX = rasterColorEventPixelX(e);
+        const int eventX = std::clamp(rasterColorEventPixelX(e), startX, endX);
 
-        for (int px = startX; px < eventX && px < endX; ++px)
+        for (int px = startX; px < eventX; ++px)
         {
             if (borderMaskLine[px])
                 finalColorLine[px] = activeBorderColor;
         }
 
         activeBorderColor = e.newValue & 0x0F;
-        startX = std::clamp(eventX, 0, endX);
+        startX = eventX;
     }
 
     for (int px = startX; px < endX; ++px)
@@ -4038,12 +4057,12 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    // Only apply to visible inner display area.
-    // Border color events are handled separately by applyBorderColorEventsToFinalLine().
+    uint8_t activeBg0 = 0;
+    if (!firstRasterColorEventValue(raster, 0xD021, activeBg0))
+        return; // no D021 event on this raster; normal background generation is already correct
+
     int startX = rasterVisibleStartX(raster);
     const int endX = rasterVisibleEndX(raster);
-
-    uint8_t activeBg0 = registers.backgroundColor0 & 0x0F;
 
     for (const RasterColorEvent& e : rasterColorEvents)
     {
@@ -4060,9 +4079,6 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
             if (!isInnerDisplayPixel(raster, px))
                 continue;
 
-            // Only replace background-0 style pixels.
-            // Do not overwrite character foreground, bitmap foreground,
-            // or other opaque background data.
             if (bgOpaqueLine[px] == 0)
                 bgColorLine[px] = activeBg0;
         }
