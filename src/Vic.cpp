@@ -1421,13 +1421,11 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
-    // Prepare sprite row/output state for this raster
     prepareSpriteOutputForRaster(curRaster);
 
-    // Build per-pixel sprite multicolor mode state before output.
     buildSpriteMulticolorModeLine(curRaster);
+    buildSpriteXExpansionLine(curRaster);
 
-    // Raster-progressive sprite output into line buffers
     beginSpriteRasterOutput(curRaster);
 
     int sx0, sx1;
@@ -1622,6 +1620,91 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
     return spriteMulticolorModeLine[sprite][px] != 0;
 }
 
+bool Vic::firstRasterSpriteXExpansionEventValue(int raster, uint8_t& value) const
+{
+    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        value = e.oldValue;
+        return true;
+    }
+
+    return false;
+}
+
+bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (px < 0 || px >= 512)
+        return false;
+
+    return spriteXExpansionLine[sprite][px] != 0;
+}
+
+void Vic::buildSpriteXExpansionLine(int raster)
+{
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (auto& line : spriteXExpansionLine)
+        line.fill(0);
+
+    uint8_t activeExpansion = registers.spriteXExpansion;
+
+    if (!firstRasterSpriteXExpansionEventValue(raster, activeExpansion))
+    {
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = xStart; px < xEnd; ++px)
+                spriteXExpansionLine[spr][px] = expanded;
+        }
+
+        return;
+    }
+
+    int startX = xStart;
+
+    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        RasterColorEvent temp {};
+        temp.raster = raster;
+        temp.cycle = e.cycle;
+        temp.address = 0xD01D;
+        temp.oldValue = e.oldValue;
+        temp.newValue = e.newValue;
+
+        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
+
+            for (int px = startX; px < eventX; ++px)
+                spriteXExpansionLine[spr][px] = expanded;
+        }
+
+        activeExpansion = e.newValue;
+        startX = eventX;
+    }
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
+
+        for (int px = startX; px < xEnd; ++px)
+            spriteXExpansionLine[spr][px] = expanded;
+    }
+}
+
 void Vic::buildSpriteMulticolorModeLine(int raster)
 {
     const int xStart = rasterVisibleStartX(raster);
@@ -1735,8 +1818,8 @@ void Vic::prepareSpriteOutputForRaster(int raster)
 
 int Vic::spritePreparedOutputWidth(int sprIndex) const
 {
-    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
-    return expandX ? 48 : 24;
+    (void)sprIndex;
+    return 48;
 }
 
 void Vic::beginSpriteLineOutput(int spr, int raster)
@@ -1769,7 +1852,7 @@ void Vic::advanceSpriteOutputState(int sprIndex, int px)
     if (sprIndex < 0 || sprIndex >= 8)
         return;
 
-    const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
+    const bool expandX = spriteXExpandedAtPixel(sprIndex, px);
     const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
 
     const int repeatsPerSourceUnit =
