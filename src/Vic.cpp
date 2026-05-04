@@ -2682,11 +2682,11 @@ void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t n
     recordRasterEventLog(RasterEventKind::SpriteX, address, oldValue, newValue);
 }
 
-void Vic::recordRasterEventLog(RasterEventKind kind,
-                               uint16_t address,
-                               uint8_t oldValue,
-                               uint8_t newValue)
+void Vic::recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
+    if (oldValue == newValue)
+        return;
+
     RasterEventRecord e;
     e.kind = kind;
     e.raster = registers.raster;
@@ -2696,6 +2696,29 @@ void Vic::recordRasterEventLog(RasterEventKind kind,
     e.newValue = newValue;
 
     rasterEventLog.push_back(e);
+}
+
+std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
+{
+    std::ostringstream out;
+
+    if (e.kind == RasterEventKind::SpriteX)
+    {
+        if (e.address == 0xD010)
+        {
+            out << "sprite X MSB";
+            return out.str();
+        }
+
+        if (e.address >= 0xD000 && e.address <= 0xD00E && isSpriteX(e.address))
+        {
+            const int sprite = getSpriteIndex(e.address);
+            out << "sprite " << sprite << " X low";
+            return out.str();
+        }
+    }
+
+    return "";
 }
 
 const char* Vic::rasterEventKindName(RasterEventKind kind) const
@@ -6281,7 +6304,8 @@ std::string Vic::dumpAllRasterEvents() const
 
     out << "All Raster Events (" << sourceName << ")\n";
     out << "-------------------------------------\n";
-    out << "  raster  type                    cycle  x     addr   old  new\n";
+    out << "Total events: " << events->size() << "\n";
+    out << "  raster  type                    cycle  x     addr   old  new  detail\n";
 
     if (events->empty())
     {
@@ -6305,8 +6329,13 @@ std::string Vic::dumpAllRasterEvents() const
             << std::setw(2) << static_cast<int>(e.oldValue)
             << "   $"
             << std::setw(2) << static_cast<int>(e.newValue)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
+            << std::dec << std::nouppercase << std::setfill(' ');
+
+        const std::string detail = rasterEventDetail(e);
+        if (!detail.empty())
+            out << "  " << detail;
+
+        out << "\n";
     }
 
     return out.str();
@@ -6434,7 +6463,8 @@ std::string Vic::dumpRasterEvents(int raster) const
     out << "Raster Events for line " << raster
         << " (" << sourceName << ")\n";
     out << "--------------------------------\n";
-    out << "  type                    cycle  x     addr   old  new\n";
+    out << "Total events in " << sourceName << ": " << events->size() << "\n";
+    out << "  type                    cycle  x     addr   old  new  detail\n";
 
     bool any = false;
 
@@ -6457,8 +6487,13 @@ std::string Vic::dumpRasterEvents(int raster) const
             << std::setw(2) << static_cast<int>(e.oldValue)
             << "   $"
             << std::setw(2) << static_cast<int>(e.newValue)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
+            << std::dec << std::nouppercase << std::setfill(' ');
+
+        const std::string detail = rasterEventDetail(e);
+        if (!detail.empty())
+            out << "  " << detail;
+
+        out << "\n";
     }
 
     if (!any)

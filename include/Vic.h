@@ -778,6 +778,7 @@ class Vic
         void recordRasterSpriteEnableWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
+        std::string rasterEventDetail(const RasterEventRecord& e) const;
         const char* rasterEventKindName(RasterEventKind kind) const;
         bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
