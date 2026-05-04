@@ -1685,14 +1685,7 @@ void Vic::buildSpriteXExpansionLine(int raster)
         if (e.raster != raster)
             continue;
 
-        RasterColorEvent temp {};
-        temp.raster = raster;
-        temp.cycle = e.cycle;
-        temp.address = 0xD01D;
-        temp.oldValue = e.oldValue;
-        temp.newValue = e.newValue;
-
-        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
 
         for (int spr = 0; spr < 8; ++spr)
         {
@@ -1745,14 +1738,7 @@ void Vic::buildSpriteMulticolorModeLine(int raster)
         if (e.raster != raster)
             continue;
 
-        RasterColorEvent temp {};
-        temp.raster = raster;
-        temp.cycle = e.cycle;
-        temp.address = 0xD01C;
-        temp.oldValue = e.oldValue;
-        temp.newValue = e.newValue;
-
-        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
 
         for (int spr = 0; spr < 8; ++spr)
         {
@@ -1844,14 +1830,7 @@ void Vic::buildSpriteEnableLine(int raster)
         if (e.raster != raster)
             continue;
 
-        RasterColorEvent temp {};
-        temp.raster = raster;
-        temp.cycle = e.cycle;
-        temp.address = 0xD015;
-        temp.oldValue = e.oldValue;
-        temp.newValue = e.newValue;
-
-        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
 
         for (int spr = 0; spr < 8; ++spr)
         {
@@ -2716,14 +2695,7 @@ void Vic::buildSpritePriorityLine(int raster)
         if (e.raster != raster)
             continue;
 
-        RasterColorEvent temp {};
-        temp.raster = raster;
-        temp.cycle = e.cycle;
-        temp.address = 0xD01B;
-        temp.oldValue = e.oldValue;
-        temp.newValue = e.newValue;
-
-        const int eventX = std::clamp(rasterColorEventPixelX(temp), startX, xEnd);
+        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
 
         for (int spr = 0; spr < 8; ++spr)
         {
@@ -4625,10 +4597,9 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
     return finalColorLine[px] & 0x0F;
 }
 
-int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
+int Vic::rasterEventPixelX(int cycle) const
 {
-    // Convert VIC cycle to approximate framebuffer X.
-    int x = cfg_->hardware_X + (e.cycle * 8);
+    int x = cfg_->hardware_X + (cycle * 8);
 
     if (x < 0)
         x = 0;
@@ -4637,6 +4608,11 @@ int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
         x = VISIBLE_WIDTH;
 
     return x;
+}
+
+int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
+{
+    return rasterEventPixelX(e.cycle);
 }
 
 bool Vic::firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const
