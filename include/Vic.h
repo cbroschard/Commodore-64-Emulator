@@ -765,6 +765,7 @@ class Vic
 
         int rasterColorEventPixelX(const RasterColorEvent& e) const;
         void applyBorderColorEventsToFinalLine(int raster);
+        void applyBackgroundColorEventsToLine(int raster);
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         bool verticalDisplayOpenForRaster(int raster) const;

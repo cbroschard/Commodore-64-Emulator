@@ -2254,6 +2254,7 @@ void Vic::renderLine(int raster)
 
     generateBackgroundLine(raster);
     buildBorderMaskLine(raster);
+    applyBackgroundColorEventsToLine(raster);
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
     emitRasterLineInOrder(raster);
@@ -4029,6 +4030,54 @@ void Vic::applyBorderColorEventsToFinalLine(int raster)
     {
         if (borderMaskLine[px])
             finalColorLine[px] = activeBorderColor;
+    }
+}
+
+void Vic::applyBackgroundColorEventsToLine(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    // Only apply to visible inner display area.
+    // Border color events are handled separately by applyBorderColorEventsToFinalLine().
+    int startX = rasterVisibleStartX(raster);
+    const int endX = rasterVisibleEndX(raster);
+
+    uint8_t activeBg0 = registers.backgroundColor0 & 0x0F;
+
+    for (const RasterColorEvent& e : rasterColorEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.address != 0xD021)
+            continue;
+
+        const int eventX = std::clamp(rasterColorEventPixelX(e), startX, endX);
+
+        for (int px = startX; px < eventX; ++px)
+        {
+            if (!isInnerDisplayPixel(raster, px))
+                continue;
+
+            // Only replace background-0 style pixels.
+            // Do not overwrite character foreground, bitmap foreground,
+            // or other opaque background data.
+            if (bgOpaqueLine[px] == 0)
+                bgColorLine[px] = activeBg0;
+        }
+
+        activeBg0 = e.newValue & 0x0F;
+        startX = eventX;
+    }
+
+    for (int px = startX; px < endX; ++px)
+    {
+        if (!isInnerDisplayPixel(raster, px))
+            continue;
+
+        if (bgOpaqueLine[px] == 0)
+            bgColorLine[px] = activeBg0;
     }
 }
 
