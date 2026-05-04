@@ -2770,6 +2770,16 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
         const uint8_t oldVal = e.oldValue & 0xFE;
         const uint8_t newVal = e.newValue & 0xFE;
 
+        const uint8_t latchedVal =
+            (e.raster >= 0 && e.raster < static_cast<int>(cfg_->maxRasterLines))
+                ? latchedD018ForRaster(e.raster)
+                : registers.memory_pointer;
+
+        const uint8_t effectiveVal =
+            (e.raster >= 0 && e.raster < static_cast<int>(cfg_->maxRasterLines))
+                ? effectiveD018ForRaster(e.raster)
+                : registers.memory_pointer;
+
         out << "$D018"
             << " screen $"
             << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
@@ -2784,6 +2794,10 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
             << std::setw(4) << bitmapBaseFromD018(oldVal)
             << "->$"
             << std::setw(4) << bitmapBaseFromD018(newVal)
+            << " latched char $"
+            << std::setw(4) << charBaseFromD018(latchedVal)
+            << " effective char $"
+            << std::setw(4) << charBaseFromD018(effectiveVal)
             << std::dec << std::nouppercase << std::setfill(' ');
 
         return out.str();
