@@ -780,6 +780,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
         return;
     }
+
     // Handle multicolor registers with helper
     else if (address >= 0xD022 && address <= 0xD024)
     {
@@ -792,12 +793,16 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         traceVicRegWrite(address, oldValue, registers.backgroundColor[index]);
         return;
     }
+
     // Handle Sprite Color registers with helper
     else if (address >= 0xD027 && address <= 0xD02E)
     {
         int index = getSpriteColorIndex(address);
         const uint8_t oldValue = registers.spriteColors[index];
-        registers.spriteColors[index] = value & 0x0F; // Mask to 4 bits
+
+        registers.spriteColors[index] = value & 0x0F;
+
+        recordRasterColorWrite(address, oldValue, registers.spriteColors[index]);
         traceVicRegWrite(address, oldValue, registers.spriteColors[index]);
         return;
     }
@@ -1060,6 +1065,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteMultiColor1;
             registers.spriteMultiColor1 = value & 0x0F;
+            recordRasterColorWrite(address, oldValue, registers.spriteMultiColor1);
             traceVicRegWrite(address, oldValue, registers.spriteMultiColor1);
             break;
         }
@@ -1068,6 +1074,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteMultiColor2;
             registers.spriteMultiColor2 = value & 0x0F;
+            recordRasterColorWrite(address, oldValue, registers.spriteMultiColor2);
             traceVicRegWrite(address, oldValue, registers.spriteMultiColor2);
             break;
         }
@@ -2267,7 +2274,7 @@ void Vic::renderLine(int raster)
 
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
-    if (!((address >= 0xD020 && address <= 0xD024)))
+    if (!(address >= 0xD020 && address <= 0xD02E))
         return;
 
     RasterColorEvent e;
