@@ -2259,6 +2259,7 @@ void Vic::renderLine(int raster)
     generateBackgroundLine(raster);
     buildBorderMaskLine(raster);
     applyBackgroundColorEventsToLine(raster);
+    applyExtendedBackgroundColorEventsToLine(raster);
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
     emitRasterLineInOrder(raster);
@@ -4087,6 +4088,58 @@ void Vic::applyBorderColorEventsToFinalLine(int raster)
         if (borderMaskLine[px])
             finalColorLine[px] = activeBorderColor;
     }
+}
+
+void Vic::applyExtendedBackgroundColorEventsToLine(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    const int endX = rasterVisibleEndX(raster);
+
+    auto replayForRegister = [&](uint16_t address, BackgroundSource source)
+    {
+        uint8_t activeColor = 0;
+        if (!firstRasterColorEventValue(raster, address, activeColor))
+            return;
+
+        int startX = rasterVisibleStartX(raster);
+
+        for (const RasterColorEvent& e : rasterColorEvents)
+        {
+            if (e.raster != raster)
+                continue;
+
+            if (e.address != address)
+                continue;
+
+            const int eventX = std::clamp(rasterColorEventPixelX(e), startX, endX);
+
+            for (int px = startX; px < eventX; ++px)
+            {
+                if (!isInnerDisplayPixel(raster, px))
+                    continue;
+
+                if (bgSourceLine[px] == source)
+                    bgColorLine[px] = activeColor & 0x0F;
+            }
+
+            activeColor = e.newValue & 0x0F;
+            startX = eventX;
+        }
+
+        for (int px = startX; px < endX; ++px)
+        {
+            if (!isInnerDisplayPixel(raster, px))
+                continue;
+
+            if (bgSourceLine[px] == source)
+                bgColorLine[px] = activeColor & 0x0F;
+        }
+    };
+
+    replayForRegister(0xD022, BackgroundSource::BG1);
+    replayForRegister(0xD023, BackgroundSource::BG2);
 }
 
 void Vic::applyBackgroundColorEventsToLine(int raster)
