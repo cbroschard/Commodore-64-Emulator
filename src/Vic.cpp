@@ -1029,6 +1029,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteMultiColor;
             registers.spriteMultiColor = value;
+
+            recordRasterSpriteModeWrite(oldValue, registers.spriteMultiColor);
             traceVicRegWrite(address, oldValue, registers.spriteMultiColor);
             break;
         }
@@ -1123,6 +1125,7 @@ void Vic::beginFrameIfNeeded()
     {
         rasterColorEvents.clear();
         rasterPriorityEvents.clear();
+        rasterSpriteModeEvents.clear();
 
         firstBadlineY = -1;
         denSeenOn30 = false;
@@ -2324,6 +2327,17 @@ void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterPriorityEvents.push_back(e);
+}
+
+void Vic::recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue)
+{
+    RasterSpriteModeEvent e;
+    e.raster = registers.raster;
+    e.cycle = currentCycle;
+    e.oldValue = oldValue;
+    e.newValue = newValue;
+
+    rasterSpriteModeEvents.push_back(e);
 }
 
 bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const

@@ -689,11 +689,21 @@ class Vic
             uint8_t newValue = 0;
         };
 
+        struct RasterSpriteModeEvent
+        {
+            int raster = 0;
+            int cycle = 0;
+            uint8_t oldValue = 0;
+            uint8_t newValue = 0;
+        };
+
+        std::vector<RasterSpriteModeEvent> rasterSpriteModeEvents;
         std::vector<RasterPriorityEvent> rasterPriorityEvents;
         std::vector<RasterColorEvent> rasterColorEvents;
 
         void recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
+        void recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue);
         bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
