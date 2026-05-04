@@ -2939,19 +2939,30 @@ std::string Vic::rasterRowStateDetail(int raster, bool preferPreviousFrame) cons
     const int rel = s->firstBadlineY >= 0 ? (raster - s->firstBadlineY) : -1;
     const int displayRow = rel >= 0 ? (rel / 8) : -1;
 
+    const int fineY = static_cast<int>(s->d011 & 0x07);
+    const int rasterLow3 = raster & 0x07;
+    const bool badlineByFineY = (rasterLow3 == fineY);
+
+    const int matrixRow = s->vcBase / 40;
+    const int vmliRow = s->vmliBase / 40;
+
     out << " rowstate"
         << " firstBadlineY " << s->firstBadlineY
-        << " fineY " << static_cast<int>(s->d011 & 0x07)
+        << " fineY " << fineY
         << " rows " << (((s->d011 & 0x08) != 0) ? 25 : 24)
+        << " rasterLow3 " << rasterLow3
+        << " badlineByFineY " << (badlineByFineY ? 1 : 0)
         << " rc " << static_cast<int>(s->rc)
         << " vcBase " << s->vcBase
+        << " matrixRow " << matrixRow
         << " vmliBase " << s->vmliBase
+        << " vmliRow " << vmliRow
         << " vmliFetchIndex " << static_cast<int>(s->vmliFetchIndex)
         << " displayEnabled " << (s->displayEnabled ? 1 : 0)
         << " displayEnabledNext " << (s->displayEnabledNext ? 1 : 0)
         << " badLine " << (s->badLine ? 1 : 0)
         << " badLineSampled " << (s->badLineSampled ? 1 : 0)
-        << " displayRow " << displayRow;
+        << " displayRowApprox " << displayRow;
 
     return out.str();
 }
