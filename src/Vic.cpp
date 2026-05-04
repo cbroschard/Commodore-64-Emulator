@@ -24,6 +24,9 @@ Vic::Vic(VideoMode mode) :
     d018_per_raster.resize(cfg_->maxRasterLines);
     dd00_per_raster.resize(cfg_->maxRasterLines);
 
+    rasterRowStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
+
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
@@ -133,6 +136,12 @@ void Vic::reset()
     for (auto& line : spriteOpaqueLine) line.fill(0);
     for (auto& line : spriteColorLine)  line.fill(0);
 
+    for (auto& s : rasterRowStates)
+        s = {};
+
+    for (auto& s : lastFrameRasterRowStates)
+        s = {};
+
     // Background pipeline
     resetBackgroundPipeline();
 
@@ -212,6 +221,9 @@ void Vic::setMode(VideoMode mode)
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
+
+    rasterRowStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
 
     rebuildBorderRasterLatches();
 
@@ -1148,6 +1160,9 @@ void Vic::beginFrameIfNeeded()
          if (!rasterEventLog.empty())
             lastFrameRasterEventLog = rasterEventLog;
 
+        for (auto& s : rasterRowStates)
+            s = {};
+
         rasterEventLog.clear();
 
         rasterColorEvents.clear();
@@ -1467,6 +1482,8 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     renderLine(curRaster);
     detectSpriteToSpriteCollision(curRaster);
     detectSpriteToBackgroundCollision(curRaster);
+
+    snapshotRasterRowState(curRaster);
 
     updateSpriteDMAEndOfLine(curRaster);
     advanceVideoCountersEndOfLine(curRaster);
@@ -2698,6 +2715,32 @@ void Vic::recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t o
     rasterEventLog.push_back(e);
 }
 
+void Vic::snapshotRasterRowState(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    RasterRowStateSnapshot& s = rasterRowStates[raster];
+
+    s.valid = true;
+    s.raster = raster;
+    s.firstBadlineY = firstBadlineY;
+
+    s.rc = vicState.rc;
+    s.vcBase = vicState.vcBase;
+    s.vmliBase = vicState.vmliBase;
+    s.vmliFetchIndex = vicState.vmliFetchIndex;
+
+    s.displayEnabled = vicState.displayEnabled;
+    s.displayEnabledNext = vicState.displayEnabledNext;
+    s.badLine = vicState.badLine;
+    s.badLineSampled = vicState.badLineSampled;
+
+    s.d011 = latchedD011ForRaster(raster);
+    s.d016 = latchedD016ForRaster(raster);
+    s.d018 = latchedD018ForRaster(raster);
+}
+
 std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
 {
     std::ostringstream out;
@@ -2868,6 +2911,49 @@ std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
         }
 
     return "";
+}
+
+std::string Vic::rasterRowStateDetail(int raster, bool preferPreviousFrame) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return "";
+
+    const std::vector<RasterRowStateSnapshot>& primary =
+        preferPreviousFrame ? lastFrameRasterRowStates : rasterRowStates;
+
+    const std::vector<RasterRowStateSnapshot>& fallback =
+        preferPreviousFrame ? rasterRowStates : lastFrameRasterRowStates;
+
+    const RasterRowStateSnapshot* s = nullptr;
+
+    if (raster < static_cast<int>(primary.size()) && primary[raster].valid)
+        s = &primary[raster];
+    else if (raster < static_cast<int>(fallback.size()) && fallback[raster].valid)
+        s = &fallback[raster];
+
+    if (!s)
+        return " rowstate unavailable";
+
+    const int rel = s->firstBadlineY >= 0 ? (raster - s->firstBadlineY) : -1;
+    const int displayRow = rel >= 0 ? (rel / 8) : -1;
+
+    out << " rowstate"
+        << " firstBadlineY " << s->firstBadlineY
+        << " fineY " << static_cast<int>(s->d011 & 0x07)
+        << " rows " << (((s->d011 & 0x08) != 0) ? 25 : 24)
+        << " rc " << static_cast<int>(s->rc)
+        << " vcBase " << s->vcBase
+        << " vmliBase " << s->vmliBase
+        << " vmliFetchIndex " << static_cast<int>(s->vmliFetchIndex)
+        << " displayEnabled " << (s->displayEnabled ? 1 : 0)
+        << " displayEnabledNext " << (s->displayEnabledNext ? 1 : 0)
+        << " badLine " << (s->badLine ? 1 : 0)
+        << " badLineSampled " << (s->badLineSampled ? 1 : 0)
+        << " displayRow " << displayRow;
+
+    return out.str();
 }
 
 const char* Vic::rasterEventKindName(RasterEventKind kind) const
@@ -6602,11 +6688,13 @@ std::string Vic::dumpRasterEvents(int raster) const
 
     const std::vector<RasterEventRecord>* events = &rasterEventLog;
     const char* sourceName = "current frame";
+    bool usingPreviousFrame = false;
 
     if (!hasEventsForRaster(*events))
     {
         events = &lastFrameRasterEventLog;
         sourceName = "previous frame";
+        usingPreviousFrame = true;
     }
 
     out << "Raster Events for line " << raster
@@ -6641,6 +6729,12 @@ std::string Vic::dumpRasterEvents(int raster) const
         const std::string detail = rasterEventDetail(e);
         if (!detail.empty())
             out << "  " << detail;
+
+        const std::string rowDetail =
+            rasterRowStateDetail(e.raster, usingPreviousFrame);
+
+        if (!rowDetail.empty())
+            out << "  " << rowDetail;
 
         out << "\n";
     }

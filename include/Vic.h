@@ -739,6 +739,28 @@ class Vic
             uint8_t newValue = 0;
         };
 
+        struct RasterRowStateSnapshot
+        {
+            bool valid = false;
+
+            int raster = 0;
+            int firstBadlineY = -1;
+
+            uint8_t rc = 0;
+            uint16_t vcBase = 0;
+            uint16_t vmliBase = 0;
+            uint8_t vmliFetchIndex = 0;
+
+            bool displayEnabled = false;
+            bool displayEnabledNext = false;
+            bool badLine = false;
+            bool badLineSampled = false;
+
+            uint8_t d011 = 0;
+            uint8_t d016 = 0;
+            uint8_t d018 = 0;
+        };
+
         enum class RasterEventKind : uint8_t
         {
             Color,
@@ -762,6 +784,8 @@ class Vic
             uint8_t newValue = 0;
         };
 
+        std::vector<RasterRowStateSnapshot> rasterRowStates;
+        std::vector<RasterRowStateSnapshot> lastFrameRasterRowStates;
         std::vector<RasterEventRecord> rasterEventLog;
         std::vector<RasterEventRecord> lastFrameRasterEventLog;
         std::vector<RasterSpriteXEvent> rasterSpriteXEvents;
@@ -778,7 +802,12 @@ class Vic
         void recordRasterSpriteEnableWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
+
+        void snapshotRasterRowState(int raster);
+
+        std::string rasterRowStateDetail(int raster, bool preferPreviousFrame) const;
         std::string rasterEventDetail(const RasterEventRecord& e) const;
+
         const char* rasterEventKindName(RasterEventKind kind) const;
         bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
