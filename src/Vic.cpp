@@ -1039,6 +1039,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteXExpansion;
             registers.spriteXExpansion = value;
+
+            recordRasterSpriteXExpansionWrite(oldValue, registers.spriteXExpansion);
             traceVicRegWrite(address, oldValue, registers.spriteXExpansion);
             break;
         }
@@ -1126,6 +1128,7 @@ void Vic::beginFrameIfNeeded()
         rasterColorEvents.clear();
         rasterPriorityEvents.clear();
         rasterSpriteModeEvents.clear();
+        rasterSpriteXExpansionEvents.clear();
 
         firstBadlineY = -1;
         denSeenOn30 = false;
@@ -1586,6 +1589,9 @@ void Vic::clearSpriteFetchedRowState(int sprite)
 
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
 {
+    if (sprite < 0 || sprite >= 8)
+        return 0;
+
     return  (uint32_t(spriteUnits[sprite].shift0) << 16)
           | (uint32_t(spriteUnits[sprite].shift1) << 8)
           |  uint32_t(spriteUnits[sprite].shift2);
@@ -1760,6 +1766,9 @@ void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 
 void Vic::advanceSpriteOutputState(int sprIndex, int px)
 {
+    if (sprIndex < 0 || sprIndex >= 8)
+        return;
+
     const bool expandX = (registers.spriteXExpansion & (1 << sprIndex)) != 0;
     const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
 
@@ -1785,6 +1794,9 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
     outColor = 0;
     opaque = false;
     outSource = SpriteColorSource::None;
+
+    if (sprIndex < 0 || sprIndex >= 8)
+        return false;
 
     if (!spriteUnits[sprIndex].rowPrepared)
         return false;
@@ -2426,6 +2438,17 @@ void Vic::recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue)
     e.newValue = newValue;
 
     rasterSpriteModeEvents.push_back(e);
+}
+
+void Vic::recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue)
+{
+    RasterSpriteXExpansionEvent e;
+    e.raster = registers.raster;
+    e.cycle = currentCycle;
+    e.oldValue = oldValue;
+    e.newValue = newValue;
+
+    rasterSpriteXExpansionEvents.push_back(e);
 }
 
 bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const
