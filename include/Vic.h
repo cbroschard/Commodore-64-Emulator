@@ -450,6 +450,7 @@ class Vic
         bool isSpriteBusWarningCycle(int raster, int cycle) const;
         bool isSpriteBusStealCycle(int raster, int cycle) const;
         bool isSpriteBusAECStealCycle(int raster, int cycle) const;
+        bool isSpriteDataCpuStealCycle(int sprite, int cycle) const;
 
         bool shouldBALow(int raster, int cycle) const;
         bool shouldAECLow(int raster, int cycle) const;

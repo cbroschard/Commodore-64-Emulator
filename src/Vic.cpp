@@ -2428,6 +2428,9 @@ bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
 {
     (void)raster;
 
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
     const int lineCycles = cfg_->cyclesPerLine;
 
     for (int s = 0; s < 8; ++s)
@@ -2435,11 +2438,14 @@ bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        const int slot = spriteFetchSlotStart(s);
+        const int slotStart = spriteFetchSlotStart(s);
 
-        const int warn0 = (slot - 3 + lineCycles) % lineCycles;
-        const int warn1 = (slot - 2 + lineCycles) % lineCycles;
-        const int warn2 = (slot - 1 + lineCycles) % lineCycles;
+        // Data byte 0 is the first CPU-visible sprite data steal in this model.
+        const int firstCpuStealCycle = (slotStart + 1) % lineCycles;
+
+        const int warn0 = (firstCpuStealCycle - 3 + lineCycles) % lineCycles;
+        const int warn1 = (firstCpuStealCycle - 2 + lineCycles) % lineCycles;
+        const int warn2 = (firstCpuStealCycle - 1 + lineCycles) % lineCycles;
 
         if (cycle == warn0 || cycle == warn1 || cycle == warn2)
             return true;
@@ -2457,14 +2463,12 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        // Pointer fetches are tracked as fetch events, but for now do not
-        // force BA low. Treating them as CPU stalls can over-slow
-        // sprite-heavy games.
+        // Pointer fetches are tracked as fetch events, but they should not
+        // be modeled as full CPU-steal cycles.
         if (isSpritePointerFetchCycle(s, cycle))
             continue;
 
-        // Sprite data fetches participate in BA-low timing.
-        if (isSpriteDMAFetchCycle(s, cycle))
+        if (isSpriteDataCpuStealCycle(s, cycle))
             return true;
     }
 
@@ -2480,12 +2484,36 @@ bool Vic::isSpriteBusAECStealCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        // Only actual sprite data fetch cycles force AEC low.
-        if (isSpriteDMAFetchCycle(s, cycle))
+        if (isSpriteDataCpuStealCycle(s, cycle))
             return true;
     }
 
     return false;
+}
+
+bool Vic::isSpriteDataCpuStealCycle(int sprite, int cycle) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
+    if (!spriteUnits[sprite].dmaActive)
+        return false;
+
+    if (!isSpriteDMAFetchCycle(sprite, cycle))
+        return false;
+
+    const int byteIndex = spriteDataByteIndexForCycle(sprite, cycle);
+
+    // Sprite row data is still fetched as 3 bytes, but only two of those
+    // occupy the CPU-visible bus phase in this full-cycle approximation.
+    //
+    // byte 0: CPU-phase steal
+    // byte 1: VIC-phase fetch, do not halt CPU in this model
+    // byte 2: CPU-phase steal
+    return byteIndex == 0 || byteIndex == 2;
 }
 
 bool Vic::shouldBALow(int raster, int cycle) const
