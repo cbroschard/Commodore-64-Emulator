@@ -4332,8 +4332,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     const uint16_t cellIndex =
         static_cast<uint16_t>(charRow * 40 + displayCol);
 
-    const uint16_t bitmapBase =
-    bitmapBaseForRasterPixelX(raster, px);
+    const uint16_t bitmapBase = bitmapBaseForRasterPixelX(raster, px);
 
     const uint16_t addr =
         static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
@@ -4423,15 +4422,12 @@ void Vic::drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& 
 
 void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
 {
-    if (!cell.valid || !mem || !cell.multicolor)
+    (void)raster;
+
+    if (!cell.valid || !cell.multicolor)
         return;
 
-    const uint16_t addr =
-        static_cast<uint16_t>(getLatchedCHARBase(raster) +
-                              static_cast<uint16_t>(cell.screenByte) * 8);
-
-    const uint8_t rowBits =
-        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+    const uint8_t rowBits = cell.rowBits;
 
     updateOpenBus(rowBits);
 
