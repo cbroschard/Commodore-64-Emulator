@@ -1428,9 +1428,23 @@ int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
     return byteIndex;
 }
 
-uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster) const
+uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) const
 {
-    return static_cast<uint16_t>(getLatchedScreenBase(raster) + 0x03F8 + sprite);
+    if (sprite < 0 || sprite >= 8)
+        return 0;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return 0;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        cycle = currentCycle;
+
+    const int px = rasterEventPixelX(cycle);
+
+    const uint16_t screenBase =
+        screenBaseForRasterPixelX(raster, px);
+
+    return static_cast<uint16_t>(screenBase + 0x03F8 + sprite);
 }
 
 void Vic::performBadLineFetchesForCurrentCycle()
@@ -1916,7 +1930,7 @@ void Vic::fetchSpritePointer(int sprite, int raster)
     if (!mem)
         return;
 
-    const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster);
+    const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster, currentCycle);
     const uint8_t ptr = mem->vicRead(ptrLoc, raster);
 
     // Latch Open Bus
