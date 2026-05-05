@@ -563,6 +563,11 @@ class Vic
             int px = 0;
             int py = 0;
 
+            uint8_t rowBits = 0;
+            uint16_t charAddr = 0;
+            uint8_t d018 = 0;
+            uint16_t charBase = 0;
+
             int displayCol = 0;
             int yInChar = 0;
 

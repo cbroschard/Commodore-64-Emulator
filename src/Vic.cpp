@@ -3178,18 +3178,17 @@ void Vic::resetActiveBackgroundPixelState()
 
 void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raster)
 {
+    (void)raster;
+
     activeBgPixel.valid = false;
 
-    if (!cell.valid || cell.multicolor || !mem)
+    if (!cell.valid || cell.multicolor)
         return;
 
-    const uint16_t addr = static_cast<uint16_t>(charBaseForRasterPixelX(raster, cell.px) + static_cast<uint16_t>(cell.screenByte) * 8);
-
-    const uint8_t rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
-    updateOpenBus(rowBits);
+    updateOpenBus(cell.rowBits);
 
     activeBgPixel.valid = true;
-    activeBgPixel.rowBits = rowBits;
+    activeBgPixel.rowBits = cell.rowBits;
     activeBgPixel.fg = static_cast<uint8_t>(cell.colorByte & 0x0F);
     activeBgPixel.bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
     activeBgPixel.pxBase = cell.px;
@@ -3252,7 +3251,7 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.bitmap = false;
     bgPipeline.ecm = false;
 
-    bgPipeline.rowBits = fetchBackgroundPipelineTextRowBits();
+    bgPipeline.rowBits = cell.rowBits;
 }
 
 void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col)
@@ -4109,17 +4108,8 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     if (col < 0 || col >= BACKGROUND_MATRIX_COLUMNS)
         return false;
 
-    // Hardware-accurate intent:
-    // The 40-column sequencer starts from the 40-column origin.
-    // CSEL clips the left/right edges with border, but does not move
-    // the sequencer origin.
-    //
-    // D016 fine X delays/shifts the displayed matrix to the right.
-    // This matches the common left-scroll pattern:
-    //   fine = 7,6,5,...,0, then shift screen RAM left and reset fine to 7.
     const int px = BACKGROUND_40COL_X0 + fine + col * 8;
 
-    // Skip cells completely hidden by the border clip.
     if (px >= x1)
         return false;
 
@@ -4143,6 +4133,21 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
         ((latchedD016ForRaster(raster) & 0x10) != 0) &&
         ((colorByte & 0x08) != 0);
 
+    const uint8_t d018 =
+        d018ForRasterPixelX(raster, px, false) & 0xFE;
+
+    const uint16_t charBase =
+        static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
+
+    const uint16_t charAddr = static_cast<uint16_t>(
+        charBase +
+        static_cast<uint16_t>(screenByte) * 8 +
+        static_cast<uint16_t>(yInChar & 0x07)
+    );
+
+    const uint8_t rowBits =
+        mem ? mem->vicRead(charAddr, raster) : 0x00;
+
     out.valid = true;
     out.px = px;
     out.py = fbY(raster);
@@ -4152,6 +4157,12 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     out.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
     out.bgColor = bgColor;
     out.multicolor = multicolor;
+
+    // Newly sampled text glyph data.
+    out.d018 = d018;
+    out.charBase = charBase;
+    out.charAddr = charAddr;
+    out.rowBits = rowBits;
 
     return true;
 }
