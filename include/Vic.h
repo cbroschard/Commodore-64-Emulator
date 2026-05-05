@@ -357,6 +357,19 @@ class Vic
             SpriteMultiColor2
         };
 
+        struct MatrixRowCache
+        {
+            bool valid = false;
+            uint16_t vcBase = 0;
+            int row = -1;
+
+            std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> screen {};
+            std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> color {};
+            std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> fetched {};
+        };
+
+        MatrixRowCache activeMatrixRow;
+
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
 
@@ -866,6 +879,8 @@ class Vic
         BackgroundPixel sampleBitmapPipelinePixel() const;
         BackgroundPixel sampleECMPipelinePixel() const;
 
+        void resetActiveMatrixRow();
+        bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
 
         void advanceBackgroundPipelinePixelPhase();
         void rewindBackgroundPipelinePixelPhase();

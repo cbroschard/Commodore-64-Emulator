@@ -212,6 +212,8 @@ void Vic::reset()
     for (auto& line : spriteXExpansionLine)     line.fill(0);
     for (auto& line : spriteEnableLine)         line.fill(0);
 
+    resetActiveMatrixRow();
+
     // ML Monitor logging default disable
     setLogging = false;
 }
@@ -2597,9 +2599,15 @@ void Vic::beginBadLineFetch()
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
 
-    // Latch/start the active 40-byte row for this bad line.
     vicState.vmliBase = vicState.vcBase;
     vicState.vmliFetchIndex = 0;
+
+    activeMatrixRow.valid = true;
+    activeMatrixRow.vcBase = vicState.vmliBase;
+    activeMatrixRow.row = static_cast<int>(vicState.vmliBase / 40);
+    activeMatrixRow.screen.fill(0);
+    activeMatrixRow.color.fill(0);
+    activeMatrixRow.fetched.fill(0);
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
@@ -2613,6 +2621,13 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     charPtrFIFO[fetchIndex]  = screenByte;
     colorPtrFIFO[fetchIndex] = colorByte;
+
+    if (fetchIndex >= 0 && fetchIndex < BACKGROUND_MATRIX_COLUMNS && activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
+    {
+        activeMatrixRow.screen[fetchIndex] = screenByte;
+        activeMatrixRow.color[fetchIndex] = static_cast<uint8_t>(colorByte & 0x0F);
+        activeMatrixRow.fetched[fetchIndex] = 1;
+    }
 
     traceVicBadLineFetch(raster, currentCycle, fetchIndex, vc, row, col, screenByte, colorByte);
 }
@@ -3528,6 +3543,35 @@ Vic::BackgroundPixel Vic::sampleECMPipelinePixel() const
     return out;
 }
 
+void Vic::resetActiveMatrixRow()
+{
+    activeMatrixRow.valid = false;
+    activeMatrixRow.vcBase = 0;
+    activeMatrixRow.row = -1;
+
+    activeMatrixRow.screen.fill(0);
+    activeMatrixRow.color.fill(0);
+    activeMatrixRow.fetched.fill(0);
+}
+
+bool Vic::activeMatrixRowByteForDisplayCol(int displayCol,
+                                           uint8_t& screenByte,
+                                           uint8_t& colorByte) const
+{
+    if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)
+        return false;
+
+    if (!activeMatrixRow.valid)
+        return false;
+
+    if (!activeMatrixRow.fetched[displayCol])
+        return false;
+
+    screenByte = activeMatrixRow.screen[displayCol];
+    colorByte = static_cast<uint8_t>(activeMatrixRow.color[displayCol] & 0x0F);
+    return true;
+}
+
 Vic::BackgroundPixel Vic::sampleBackgroundPipelinePixel() const
 {
     if (!bgPipeline.valid)
@@ -4121,7 +4165,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    if (!fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
+    if (!activeMatrixRowByteForDisplayCol(displayCol, screenByte, colorByte))
     {
         screenByte = fetchDisplayScreenByte(displayCol, raster);
         colorByte  = static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
