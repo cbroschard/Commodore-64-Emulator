@@ -4204,8 +4204,11 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     const uint8_t bgColor =
         static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
+    const uint8_t d016AtCell =
+        d016ForRasterPixelX(raster, px, false);
+
     const bool multicolor =
-        ((latchedD016ForRaster(raster) & 0x10) != 0) &&
+        ((d016AtCell & 0x10) != 0) &&
         ((colorByte & 0x08) != 0);
 
     const uint8_t d018 =
@@ -6491,6 +6494,63 @@ uint8_t Vic::effectiveD018ForRaster(int raster) const
     return d018_per_raster[raster] & 0xFE;        // latched for other rasters
 }
 
+uint8_t Vic::d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return registers.control2 & 0x1F;
+
+    uint8_t active = latchedD016ForRaster(raster) & 0x1F;
+
+    const std::vector<RasterEventRecord>& events =
+        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+
+    for (const RasterEventRecord& e : events)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.kind != RasterEventKind::Control2)
+            continue;
+
+        const int eventX = rasterEventPixelX(e.cycle);
+
+        if (px >= eventX)
+            active = e.newValue & 0x1F;
+    }
+
+    return active;
+}
+
+uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return registers.memory_pointer & 0xFE;
+
+    uint8_t active = latchedD018ForRaster(raster) & 0xFE;
+
+    // Rendering must only use the current frame's events.
+    // Previous-frame events are useful for monitor diagnostics, but they
+    // should never leak into current-frame rendering.
+    const std::vector<RasterEventRecord>& events =
+        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+
+    for (const RasterEventRecord& e : events)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.kind != RasterEventKind::MemoryPointer)
+            continue;
+
+        const int eventX = rasterEventPixelX(e.cycle);
+
+        if (px >= eventX)
+            active = e.newValue & 0xFE;
+    }
+
+    return active;
+}
+
 Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
 {
     if (raster < 0 || raster >= cfg_->maxRasterLines)
@@ -8002,34 +8062,4 @@ bool Vic::fetchKindIsSpriteData(Vic::FetchKind kind) const
         default:
             return false;
     }
-}
-
-uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
-{
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return registers.memory_pointer & 0xFE;
-
-    uint8_t active = latchedD018ForRaster(raster) & 0xFE;
-
-    // Rendering must only use the current frame's events.
-    // Previous-frame events are useful for monitor diagnostics, but they
-    // should never leak into current-frame rendering.
-    const std::vector<RasterEventRecord>& events =
-        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
-
-    for (const RasterEventRecord& e : events)
-    {
-        if (e.raster != raster)
-            continue;
-
-        if (e.kind != RasterEventKind::MemoryPointer)
-            continue;
-
-        const int eventX = rasterEventPixelX(e.cycle);
-
-        if (px >= eventX)
-            active = e.newValue & 0xFE;
-    }
-
-    return active;
 }

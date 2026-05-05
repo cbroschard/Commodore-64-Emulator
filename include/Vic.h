@@ -428,6 +428,9 @@ class Vic
         uint8_t effectiveD016ForRaster(int raster) const;
         uint8_t effectiveD018ForRaster(int raster) const;
 
+        uint8_t d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
+        uint8_t d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
+
         // Read/Write register Helpers
         inline int getSpriteIndex(uint16_t address) const { return (address - 0xD000) / 2; }
         inline int getSpriteColorIndex(uint16_t address) const { return (address - 0xD027); }
@@ -1076,7 +1079,5 @@ class Vic
         const char* busOwnerName(BusOwner owner) const;
         bool fetchKindIsSpritePointer(Vic::FetchKind kind) const;
         bool fetchKindIsSpriteData(Vic::FetchKind kind) const;
-
-        uint8_t d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
 };
 #endif // VIC_H
