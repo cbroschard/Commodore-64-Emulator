@@ -644,6 +644,9 @@ class Vic
         {
             bool valid = false;
 
+            int px = 0;
+            int py = 0;
+
             uint8_t bitmapByte = 0;
             uint8_t screenByte = 0;
             uint8_t colorByte = 0;
@@ -941,6 +944,9 @@ class Vic
         void applyBorderColorEventsToFinalLine(int raster);
         void applyExtendedBackgroundColorEventsToLine(int raster);
         void applyBackgroundColorEventsToLine(int raster);
+
+        uint16_t charBaseForRasterPixelX(int raster, int px) const;
+        uint16_t screenBaseForRasterPixelX(int raster, int px) const;
 
         void applySpriteColorEventsToLine(int raster);
 

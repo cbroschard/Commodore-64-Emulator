@@ -3137,7 +3137,7 @@ void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raste
     if (!cell.valid || cell.multicolor || !mem)
         return;
 
-    const uint16_t addr = static_cast<uint16_t>(getLatchedCHARBase(raster) + static_cast<uint16_t>(cell.screenByte) * 8);
+    const uint16_t addr = static_cast<uint16_t>(charBaseForRasterPixelX(raster, cell.px) + static_cast<uint16_t>(cell.screenByte) * 8);
 
     const uint8_t rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
     updateOpenBus(rowBits);
@@ -3178,6 +3178,9 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
 {
     bgPipeline.valid = true;
 
+    bgPipeline.px = cell.px;
+    bgPipeline.py = cell.py;
+
     bgPipeline.raster = raster;
     bgPipeline.col = col;
     bgPipeline.displayCol = cell.displayCol;
@@ -3209,6 +3212,9 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
 void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col)
 {
     bgPipeline.valid = true;
+
+    bgPipeline.px = cell.px;
+    bgPipeline.py = cell.py;
 
     bgPipeline.raster = raster;
     bgPipeline.col = col;
@@ -3260,6 +3266,9 @@ void Vic::loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapC
 {
     bgPipeline.valid = true;
 
+    bgPipeline.px = cell.px;
+    bgPipeline.py = cell.py;
+
     bgPipeline.raster = raster;
     bgPipeline.col = col;
     bgPipeline.displayCol = cell.displayCol;
@@ -3288,6 +3297,9 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
 {
     bgPipeline.valid = true;
 
+    bgPipeline.px = cell.px;
+    bgPipeline.py = cell.py;
+
     bgPipeline.raster = raster;
     bgPipeline.col = col;
     bgPipeline.displayCol = cell.displayCol;
@@ -3299,9 +3311,14 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
 
     if (mem)
     {
-        const uint16_t addr = static_cast<uint16_t>(getLatchedCHARBase(raster) + static_cast<uint16_t>(cell.charIndex) * 8);
+        const uint16_t addr = static_cast<uint16_t>(
+            charBaseForRasterPixelX(raster, cell.px) +
+            static_cast<uint16_t>(cell.charIndex) * 8
+        );
 
-        bgPipeline.rowBits = mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+        bgPipeline.rowBits =
+            mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+
         updateOpenBus(bgPipeline.rowBits);
     }
 
@@ -3328,7 +3345,9 @@ uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
         return 0;
 
     const int raster = bgPipeline.raster;
-    const uint16_t charBase = getLatchedCHARBase(raster);
+
+    const uint16_t charBase =
+        charBaseForRasterPixelX(raster, bgPipeline.px);
 
     const uint16_t glyphAddr = static_cast<uint16_t>(
         charBase +
@@ -3521,6 +3540,9 @@ std::array<Vic::BackgroundPixel, 8> Vic::sampleBackgroundPipelineRow() const
 void Vic::resetBackgroundPipeline()
 {
     bgPipeline.valid = false;
+
+    bgPipeline.px = 0;
+    bgPipeline.py = 0;
 
     bgPipeline.bitmapByte = 0;
     bgPipeline.screenByte = 0;
@@ -5121,6 +5143,18 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
         if (bgSourceLine[px] == BackgroundSource::BG0)
             bgColorLine[px] = activeBg0;
     }
+}
+
+uint16_t Vic::charBaseForRasterPixelX(int raster, int px) const
+{
+    const uint8_t d018 = d018ForRasterPixelX(raster, px) & 0xFE;
+    return static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
+}
+
+uint16_t Vic::screenBaseForRasterPixelX(int raster, int px) const
+{
+    const uint8_t d018 = d018ForRasterPixelX(raster, px) & 0xFE;
+    return static_cast<uint16_t>((d018 & 0xF0) << 6);
 }
 
 void Vic::applySpriteColorEventsToLine(int raster)
