@@ -3596,7 +3596,9 @@ void Vic::resetActiveMatrixRow()
     activeMatrixRow.fetched.fill(0);
 }
 
-bool Vic::activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const
+bool Vic::activeMatrixRowByteForDisplayCol(int displayCol,
+                                           uint8_t& screenByte,
+                                           uint8_t& colorByte) const
 {
     if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)
         return false;
@@ -5881,13 +5883,13 @@ bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& s
     if (!shouldUseFetchedMatrixForDisplayCol(displayCol, raster))
         return false;
 
-    // Prefer the explicit active badline matrix row. This tells us whether
-    // this column was actually fetched for the current display row.
+    // Prefer the active matrix row because it records whether this exact
+    // display column was fetched for the current badline/display row.
     if (activeMatrixRowByteForDisplayCol(displayCol, screenByte, colorByte))
         return true;
 
-    // Fallback to the existing FIFO path. This keeps your current behavior
-    // intact for cases where activeMatrixRow is not populated but the FIFO is.
+    // Fallback to the existing FIFO path to preserve current behavior when
+    // activeMatrixRow is not populated but the badline FIFO is valid.
     screenByte = charPtrFIFO[displayCol];
     colorByte  = static_cast<uint8_t>(colorPtrFIFO[displayCol] & 0x0F);
 
