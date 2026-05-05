@@ -6801,18 +6801,22 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
 
     const uint8_t d011 = snap->d011 & 0x7F;
     const uint8_t d016 = snap->d016 & 0x1F;
-    const uint8_t d018 = snap->d018 & 0xFE;
+    const uint8_t rowD018 = snap->d018 & 0xFE;
 
-    const uint16_t screenBase = static_cast<uint16_t>((d018 & 0xF0) << 6);
-    const uint16_t charBase   = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-    const uint16_t bitmapBase = static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
+    const uint16_t screenBase =
+        static_cast<uint16_t>((rowD018 & 0xF0) << 6);
+
+    const uint16_t rowCharBase =
+        static_cast<uint16_t>(((rowD018 >> 1) & 0x07) * 0x0800);
+
+    const uint16_t bitmapBase =
+        static_cast<uint16_t>(((rowD018 >> 3) & 0x01) * 0x2000);
 
     const int fineY = d011 & 0x07;
     const int fineX = d016 & 0x07;
-
-    const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
     const int matrixRow = snap->vcBase / 40;
     const int vmliRow = snap->vmliBase / 40;
+    const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
 
     out << "Background Row Debug\n";
     out << "--------------------\n";
@@ -6821,6 +6825,7 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
     out << "mode: " << decodeModeName() << "\n";
 
     out << std::hex << std::uppercase << std::setfill('0');
+
     out << "D011: $" << std::setw(2) << static_cast<int>(d011)
         << std::dec
         << " fineY=" << fineY
@@ -6829,6 +6834,7 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
         << "\n";
 
     out << std::hex << std::uppercase << std::setfill('0');
+
     out << "D016: $" << std::setw(2) << static_cast<int>(d016)
         << std::dec
         << " fineX=" << fineX
@@ -6837,12 +6843,14 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
         << "\n";
 
     out << std::hex << std::uppercase << std::setfill('0');
-    out << "D018: $" << std::setw(2) << static_cast<int>(d018) << "\n";
+
+    out << "D018 row-latched: $" << std::setw(2) << static_cast<int>(rowD018) << "\n";
     out << "screenBase: $" << std::setw(4) << screenBase << "\n";
-    out << "charBase:   $" << std::setw(4) << charBase << "\n";
-    out << "bitmapBase: $" << std::setw(4) << bitmapBase << "\n";
+    out << "rowCharBase: $" << std::setw(4) << rowCharBase << "\n";
+    out << "bitmapBase:  $" << std::setw(4) << bitmapBase << "\n";
 
     out << std::dec << std::setfill(' ');
+
     out << "firstBadlineY: " << snap->firstBadlineY << "\n";
     out << "vcBase: " << snap->vcBase << "\n";
     out << "matrixRow: " << matrixRow << "\n";
@@ -6854,8 +6862,8 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
     out << "badLineSampled: " << (snap->badLineSampled ? 1 : 0) << "\n";
 
     out << "\n";
-    out << "  col  scrAddr scr color charAddr bits\n";
-    out << "  -------------------------------------\n";
+    out << "  col  x    scrAddr scr color d018 charBase charAddr bits\n";
+    out << "  --------------------------------------------------------\n";
 
     for (int col = 0; col < BACKGROUND_MATRIX_COLUMNS; ++col)
     {
@@ -6873,9 +6881,18 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
         const uint8_t colorByte =
             mem ? static_cast<uint8_t>(mem->read(colorAddr) & 0x0F) : 0x0F;
 
+        // Approximate visible X for this text column using the same coordinate
+        // space as rasterEventPixelX().
+        const int colX = cfg_->hardware_X + (col * 8);
+
+        const uint8_t colD018 = d018ForRasterPixelX(raster, colX) & 0xFE;
+
+        const uint16_t colCharBase =
+            static_cast<uint16_t>(((colD018 >> 1) & 0x07) * 0x0800);
+
         const uint16_t charAddr =
             static_cast<uint16_t>(
-                charBase +
+                colCharBase +
                 (static_cast<uint16_t>(screenByte) * 8) +
                 yInChar
             );
@@ -6885,23 +6902,28 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
 
         out << "  "
             << std::dec << std::setw(3) << col
+            << "  "
+            << std::setw(3) << colX
             << "  $"
-            << std::hex << std::uppercase << std::setfill('0')
-            << std::setw(4) << screenAddr
+            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << screenAddr
             << "   $"
             << std::setw(2) << static_cast<int>(screenByte)
             << "  $"
             << std::setw(2) << static_cast<int>(colorByte)
             << "   $"
+            << std::setw(2) << static_cast<int>(colD018)
+            << "   $"
+            << std::setw(4) << colCharBase
+            << "   $"
             << std::setw(4) << charAddr
             << "    $"
-            << std::setw(2) << static_cast<int>(rowBits)
-            << std::dec << std::nouppercase << std::setfill(' ');
+            << std::setw(2) << static_cast<int>(rowBits);
 
         if (rowBits != 0)
             out << "  *";
 
-        out << "\n";
+        out << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
     }
 
     return out.str();
@@ -7684,4 +7706,29 @@ bool Vic::fetchKindIsSpriteData(Vic::FetchKind kind) const
         default:
             return false;
     }
+}
+
+uint8_t Vic::d018ForRasterPixelX(int raster, int px) const
+{
+    uint8_t active = latchedD018ForRaster(raster) & 0xFE;
+
+    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
+    if (events->empty())
+        events = &rasterEventLog;
+
+    for (const RasterEventRecord& e : *events)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.kind != RasterEventKind::MemoryPointer)
+            continue;
+
+        const int eventX = rasterEventPixelX(e.cycle);
+
+        if (px >= eventX)
+            active = e.newValue & 0xFE;
+    }
+
+    return active;
 }

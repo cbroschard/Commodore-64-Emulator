@@ -1032,5 +1032,7 @@ class Vic
         const char* busOwnerName(BusOwner owner) const;
         bool fetchKindIsSpritePointer(Vic::FetchKind kind) const;
         bool fetchKindIsSpriteData(Vic::FetchKind kind) const;
+
+        uint8_t d018ForRasterPixelX(int raster, int px) const;
 };
 #endif // VIC_H
