@@ -4829,9 +4829,14 @@ void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
     if (!cell.valid || !mem)
         return;
 
+    const uint16_t charBase =
+        charBaseForRasterPixelX(raster, cell.px);
+
     const uint16_t addr =
-        static_cast<uint16_t>(getLatchedCHARBase(raster) +
-                              static_cast<uint16_t>(cell.charIndex) * 8);
+        static_cast<uint16_t>(
+            charBase +
+            static_cast<uint16_t>(cell.charIndex) * 8
+        );
 
     const uint8_t rowBits =
         mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
