@@ -3331,35 +3331,21 @@ void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int
     bgPipeline.screenByte = cell.screenByte;
     bgPipeline.colorByte = cell.colorByte;
 
-    const bool isMulticolorBitmap = (currentMode == graphicsMode::multiColorBitmap);
+    // Standard bitmap only.
+    // Multicolor bitmap has its own loader:
+    // loadBackgroundPipelineFromMultiColorBitmapCell().
+    //
+    // Standard bitmap:
+    // bit=1 -> high nibble of screen byte
+    // bit=0 -> low nibble of screen byte
+    bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
+    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.screenByte & 0x0F);
 
-    if (!isMulticolorBitmap)
-    {
-        // Standard bitmap:
-        // bit=1 -> high nibble of screen byte
-        // bit=0 -> low nibble of screen byte
-        bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-        bgPipeline.bgColor0 = static_cast<uint8_t>(cell.screenByte & 0x0F);
+    bgPipeline.bgColor1 = 0;
+    bgPipeline.bgColor2 = 0;
+    bgPipeline.bgColor3 = 0;
 
-        bgPipeline.bgColor1 = 0;
-        bgPipeline.bgColor2 = 0;
-        bgPipeline.bgColor3 = 0;
-    }
-    else
-    {
-        // Multicolor bitmap:
-        // 00 -> global background color 0
-        // 01 -> high nibble of screen byte
-        // 10 -> low nibble of screen byte
-        // 11 -> color RAM nibble
-        bgPipeline.bgColor0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-        bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-        bgPipeline.bgColor1 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-        bgPipeline.bgColor2 = static_cast<uint8_t>(cell.colorByte & 0x0F);
-        bgPipeline.bgColor3 = 0;
-    }
-
-    bgPipeline.multicolor = isMulticolorBitmap;
+    bgPipeline.multicolor = false;
     bgPipeline.bitmap = true;
     bgPipeline.ecm = false;
 }
