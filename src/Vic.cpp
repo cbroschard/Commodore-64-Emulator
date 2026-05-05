@@ -145,6 +145,12 @@ void Vic::reset()
     for (auto& s : lastFrameRasterRowStates)
         s = {};
 
+    for (auto& s : rasterPixelStates)
+        s = {};
+
+    for (auto& s : lastFrameRasterPixelStates)
+        s = {};
+
     // Background pipeline
     resetBackgroundPipeline();
 
@@ -1166,8 +1172,9 @@ void Vic::beginFrameIfNeeded()
         if (!rasterEventLog.empty())
             lastFrameRasterEventLog = rasterEventLog;
 
-        // Preserve the completed frame's row snapshots before clearing them.
+        // Preserve completed-frame diagnostics before clearing current-frame state.
         lastFrameRasterRowStates = rasterRowStates;
+        lastFrameRasterPixelStates = rasterPixelStates;
 
         rasterEventLog.clear();
 
@@ -5186,13 +5193,13 @@ void Vic::applyBackgroundColorEventsToLine(int raster)
 
 uint16_t Vic::charBaseForRasterPixelX(int raster, int px) const
 {
-    const uint8_t d018 = d018ForRasterPixelX(raster, px) & 0xFE;
+    const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
     return static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
 }
 
 uint16_t Vic::screenBaseForRasterPixelX(int raster, int px) const
 {
-    const uint8_t d018 = d018ForRasterPixelX(raster, px) & 0xFE;
+    const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
     return static_cast<uint16_t>((d018 & 0xF0) << 6);
 }
 
@@ -6976,18 +6983,21 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
 
     const RasterRowStateSnapshot* snap = nullptr;
     const char* snapSource = "none";
+    bool usingPreviousFrame = false;
 
     if (raster < static_cast<int>(lastFrameRasterRowStates.size()) &&
         lastFrameRasterRowStates[raster].valid)
     {
         snap = &lastFrameRasterRowStates[raster];
         snapSource = "previous frame";
+        usingPreviousFrame = true;
     }
     else if (raster < static_cast<int>(rasterRowStates.size()) &&
              rasterRowStates[raster].valid)
     {
         snap = &rasterRowStates[raster];
         snapSource = "current frame";
+        usingPreviousFrame = false;
     }
 
     if (!snap)
@@ -7082,7 +7092,8 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
         // space as rasterEventPixelX().
         const int colX = cfg_->hardware_X + (col * 8);
 
-        const uint8_t colD018 = d018ForRasterPixelX(raster, colX) & 0xFE;
+        const uint8_t colD018 =
+            d018ForRasterPixelX(raster, colX, usingPreviousFrame) & 0xFE;
 
         const uint16_t colCharBase =
             static_cast<uint16_t>(((colD018 >> 1) & 0x07) * 0x0800);
@@ -7905,27 +7916,40 @@ bool Vic::fetchKindIsSpriteData(Vic::FetchKind kind) const
     }
 }
 
-uint8_t Vic::d018ForRasterPixelX(int raster, int px) const
+uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
 {
     uint8_t active = latchedD018ForRaster(raster) & 0xFE;
 
-    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
-    if (events->empty())
-        events = &rasterEventLog;
+    const std::vector<RasterEventRecord>& primary =
+        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
 
-    for (const RasterEventRecord& e : *events)
+    const std::vector<RasterEventRecord>& fallback =
+        preferPreviousFrame ? rasterEventLog : lastFrameRasterEventLog;
+
+    auto applyEvents = [&](const std::vector<RasterEventRecord>& events, bool& found)
     {
-        if (e.raster != raster)
-            continue;
+        for (const RasterEventRecord& e : events)
+        {
+            if (e.raster != raster)
+                continue;
 
-        if (e.kind != RasterEventKind::MemoryPointer)
-            continue;
+            if (e.kind != RasterEventKind::MemoryPointer)
+                continue;
 
-        const int eventX = rasterEventPixelX(e.cycle);
+            found = true;
 
-        if (px >= eventX)
-            active = e.newValue & 0xFE;
-    }
+            const int eventX = rasterEventPixelX(e.cycle);
+
+            if (px >= eventX)
+                active = e.newValue & 0xFE;
+        }
+    };
+
+    bool found = false;
+    applyEvents(primary, found);
+
+    if (!found)
+        applyEvents(fallback, found);
 
     return active;
 }

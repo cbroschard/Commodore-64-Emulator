@@ -1056,6 +1056,6 @@ class Vic
         bool fetchKindIsSpritePointer(Vic::FetchKind kind) const;
         bool fetchKindIsSpriteData(Vic::FetchKind kind) const;
 
-        uint8_t d018ForRasterPixelX(int raster, int px) const;
+        uint8_t d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
 };
 #endif // VIC_H
