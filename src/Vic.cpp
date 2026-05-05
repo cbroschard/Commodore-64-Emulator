@@ -4910,7 +4910,10 @@ void Vic::generateBackgroundLine(int raster)
     const int rightInner = w.closeX;
 
     // Fill the interior with background color first for non-bitmap modes.
-    if (!(currentMode == graphicsMode::bitmap || currentMode == graphicsMode::multiColorBitmap))
+    const graphicsMode lineMode = graphicsModeForRaster(raster);
+
+    // Fill the interior with background color first for non-bitmap modes.
+    if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multiColorBitmap))
     {
         const uint8_t bg = registers.backgroundColor0 & 0x0F;
         for (int px = leftInner; px < rightInner && px < 512; ++px)
@@ -4923,7 +4926,7 @@ void Vic::generateBackgroundLine(int raster)
 
     const int lineXScroll = latchedD016ForRaster(raster) & 0x07;
 
-    switch (currentMode)
+    switch (lineMode)
     {
         case graphicsMode::standard:
         case graphicsMode::multiColor:
@@ -5658,27 +5661,44 @@ bool Vic::isBackgroundPixelOpaque(int x, int y)
     return bgOpaque[y][x] != 0;
 }
 
-void Vic::updateGraphicsMode(int raster)
+Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
 {
-    const uint8_t d011 = latchedD011ForRaster(raster);
-    const uint8_t d016 = latchedD016ForRaster(raster);
-
     const bool MCM = (d016 & 0x10) != 0;
     const bool BMM = (d011 & 0x20) != 0;
     const bool ECM = (d011 & 0x40) != 0;
 
     if (!BMM && !MCM && !ECM)
-        currentMode = graphicsMode::standard;
-    else if (!BMM && MCM && !ECM)
-        currentMode = graphicsMode::multiColor;
-    else if (!BMM && !MCM && ECM)
-        currentMode = graphicsMode::extendedColorText;
-    else if (BMM && !MCM)
-        currentMode = graphicsMode::bitmap;
-    else if (BMM && MCM)
-        currentMode = graphicsMode::multiColorBitmap;
-    else
-        currentMode = graphicsMode::invalid;
+        return graphicsMode::standard;
+
+    if (!BMM && MCM && !ECM)
+        return graphicsMode::multiColor;
+
+    if (!BMM && !MCM && ECM)
+        return graphicsMode::extendedColorText;
+
+    if (BMM && !MCM && !ECM)
+        return graphicsMode::bitmap;
+
+    if (BMM && MCM && !ECM)
+        return graphicsMode::multiColorBitmap;
+
+    return graphicsMode::invalid;
+}
+
+Vic::graphicsMode Vic::graphicsModeForRaster(int raster) const
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return currentMode;
+
+    const uint8_t d011 = latchedD011ForRaster(raster);
+    const uint8_t d016 = latchedD016ForRaster(raster);
+
+    return graphicsModeFromRegisters(d011, d016);
+}
+
+void Vic::updateGraphicsMode(int raster)
+{
+    currentMode = graphicsModeForRaster(raster);
 }
 
 void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
