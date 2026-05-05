@@ -44,6 +44,7 @@ std::string VICCommand::help() const
         "    cycle <r> <c>          Show debug info for specific raster/cycle\n"
         "    events <r>             Show recorded raster register events\n"
         "    map <r>                Show fetch map for one raster line\n"
+        "    pixels <r> <x0> <x1>   Dump pixel composition state for one raster range\n"
         "    row                    Show badline row sequencer\n"
         "    sprite                 Show sprite DMA state\n";
 }
@@ -364,6 +365,29 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         catch (const std::exception&)
         {
             std::cout << mapUsage();
+        }
+    }
+    else if (sub == "pixels")
+    {
+        if (args.size() != 5)
+        {
+            std::cout << "Usage: vic pixels <raster> <x0> <x1>\n";
+            return;
+        }
+
+        try
+        {
+            const int raster = std::stoi(args[2]);
+            const int x0     = std::stoi(args[3]);
+            const int x1     = std::stoi(args[4]);
+
+            std::cout << mon.mlmonitorbackend()->vicDumpRasterPixelCompositionDebug(raster, x0, x1);
+            return;
+        }
+        catch (const std::exception&)
+        {
+            std::cout << "Usage: vic pixels <raster> <x0> <x1>\n";
+            return;
         }
     }
     else if (sub == "row")

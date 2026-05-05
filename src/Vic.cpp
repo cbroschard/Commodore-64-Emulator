@@ -27,6 +27,9 @@ Vic::Vic(VideoMode mode) :
     rasterRowStates.resize(cfg_->maxRasterLines);
     lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
 
+    rasterPixelStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterPixelStates.resize(cfg_->maxRasterLines);
+
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
@@ -224,6 +227,9 @@ void Vic::setMode(VideoMode mode)
 
     rasterRowStates.resize(cfg_->maxRasterLines);
     lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
+
+    rasterPixelStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterPixelStates.resize(cfg_->maxRasterLines);
 
     rebuildBorderRasterLatches();
 
@@ -1168,6 +1174,9 @@ void Vic::beginFrameIfNeeded()
         for (auto& s : rasterRowStates)
             s = {};
 
+        for (auto& s : rasterPixelStates)
+            s = {};
+
         rasterColorEvents.clear();
         rasterPriorityEvents.clear();
         rasterSpriteModeEvents.clear();
@@ -1486,6 +1495,7 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     detectSpriteToSpriteCollision(curRaster);
     detectSpriteToBackgroundCollision(curRaster);
 
+    snapshotRasterPixelComposition(curRaster);
     snapshotRasterRowState(curRaster);
 
     updateSpriteDMAEndOfLine(curRaster);
@@ -2716,6 +2726,35 @@ void Vic::recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t o
     e.newValue = newValue;
 
     rasterEventLog.push_back(e);
+}
+
+void Vic::snapshotRasterPixelComposition(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    RasterPixelCompositionSnapshot& s = rasterPixelStates[raster];
+
+    s.valid = true;
+    s.raster = raster;
+
+    for (int x = 0; x < VISIBLE_WIDTH; ++x)
+    {
+        s.bgColor[x] = bgColorLine[x] & 0x0F;
+        s.bgOpaque[x] = bgOpaqueLine[x] ? 1 : 0;
+        s.bgSource[x] = static_cast<uint8_t>(bgSourceLine[x]);
+        s.borderMask[x] = borderMaskLine[x] ? 1 : 0;
+        s.finalColor[x] = finalColorLine[x] & 0x0F;
+
+        uint8_t mask = 0;
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            if (spriteOpaqueLine[spr][x])
+                mask |= static_cast<uint8_t>(1u << spr);
+        }
+
+        s.spriteMask[x] = mask;
+    }
 }
 
 void Vic::snapshotRasterRowState(int raster)
@@ -6780,6 +6819,130 @@ std::string Vic::dumpRasterEvents(int raster) const
 
     if (!any)
         out << "No recorded events on this raster.\n";
+
+    return out.str();
+}
+
+std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        out << "Raster " << raster << " is out of range\n";
+        return out.str();
+    }
+
+    if (x0 > x1)
+        std::swap(x0, x1);
+
+    x0 = std::clamp(x0, 0, VISIBLE_WIDTH - 1);
+    x1 = std::clamp(x1, 0, VISIBLE_WIDTH - 1);
+
+    const RasterPixelCompositionSnapshot* snap = nullptr;
+    const char* snapSource = "none";
+
+    if (raster < static_cast<int>(lastFrameRasterPixelStates.size()) &&
+        lastFrameRasterPixelStates[raster].valid)
+    {
+        snap = &lastFrameRasterPixelStates[raster];
+        snapSource = "previous frame";
+    }
+    else if (raster < static_cast<int>(rasterPixelStates.size()) &&
+             rasterPixelStates[raster].valid)
+    {
+        snap = &rasterPixelStates[raster];
+        snapSource = "current frame";
+    }
+
+    if (!snap)
+    {
+        out << "No pixel composition snapshot available for raster "
+            << raster << "\n";
+        return out.str();
+    }
+
+    const int py = fbY(raster);
+
+    out << "Raster Pixel Composition Debug\n";
+    out << "------------------------------\n";
+    out << "snapshot: " << snapSource << "\n";
+    out << "raster: " << raster << "\n";
+    out << "fbY: " << py << "\n";
+    out << "x range: " << x0 << " - " << x1 << "\n";
+    out << "\n";
+
+    out << "  x    bgOpq bgCol bgSrc border final sprMask flags\n";
+    out << "  --------------------------------------------------\n";
+
+    for (int x = x0; x <= x1; ++x)
+    {
+        const uint8_t bgOpq    = snap->bgOpaque[x] ? 1 : 0;
+        const uint8_t bgCol    = snap->bgColor[x] & 0x0F;
+        const uint8_t bgSrc    = snap->bgSource[x];
+        const uint8_t border   = snap->borderMask[x] ? 1 : 0;
+        const uint8_t finalCol = snap->finalColor[x] & 0x0F;
+        const uint8_t sprMask  = snap->spriteMask[x];
+
+        out << "  "
+            << std::dec << std::setw(3) << x
+            << "     "
+            << std::setw(1) << static_cast<int>(bgOpq)
+            << "    $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(bgCol)
+            << std::dec << std::setfill(' ')
+            << "   "
+            << std::setw(5) << static_cast<int>(bgSrc)
+            << "      "
+            << std::setw(1) << static_cast<int>(border)
+            << "    $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(finalCol)
+            << "   $"
+            << std::setw(2) << static_cast<int>(sprMask)
+            << std::dec << std::setfill(' ')
+            << "   ";
+
+        bool wroteFlag = false;
+
+        if (border)
+        {
+            out << "BORDER";
+            wroteFlag = true;
+        }
+
+        if (sprMask != 0)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "SPR";
+            wroteFlag = true;
+        }
+
+        if (!bgOpq)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "BG-TRANSPARENT";
+            wroteFlag = true;
+        }
+
+        if (sprMask == 0 && !border && finalCol != bgCol)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "FINAL!=BG";
+            wroteFlag = true;
+        }
+
+        if (!wroteFlag)
+            out << "-";
+
+        out << "\n";
+    }
+
+    out << std::dec << std::nouppercase << std::setfill(' ');
 
     return out.str();
 }

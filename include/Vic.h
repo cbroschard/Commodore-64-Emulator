@@ -162,6 +162,7 @@ class Vic
         std::string dumpAllRasterEvents() const;
         std::string dumpRasterEventSummary() const;
         std::string dumpRasterEvents(int raster) const;
+        std::string dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const;
         std::string dumpRasterRowState(int raster) const;
         std::string dumpBackgroundRowDebug(int raster) const;
         std::string dumpBackgroundCellDebug(int raster, int col) const;
@@ -790,6 +791,21 @@ class Vic
             uint8_t newValue = 0;
         };
 
+        struct RasterPixelCompositionSnapshot
+        {
+            bool valid = false;
+            int raster = 0;
+
+            std::array<uint8_t, VISIBLE_WIDTH> bgColor {};
+            std::array<uint8_t, VISIBLE_WIDTH> bgOpaque {};
+            std::array<uint8_t, VISIBLE_WIDTH> bgSource {};
+            std::array<uint8_t, VISIBLE_WIDTH> borderMask {};
+            std::array<uint8_t, VISIBLE_WIDTH> finalColor {};
+            std::array<uint8_t, VISIBLE_WIDTH> spriteMask {};
+        };
+
+        std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;
+        std::vector<RasterPixelCompositionSnapshot> lastFrameRasterPixelStates;
         std::vector<RasterRowStateSnapshot> rasterRowStates;
         std::vector<RasterRowStateSnapshot> lastFrameRasterRowStates;
         std::vector<RasterEventRecord> rasterEventLog;
@@ -809,6 +825,7 @@ class Vic
         void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
 
+        void snapshotRasterPixelComposition(int raster);
         void snapshotRasterRowState(int raster);
 
         std::string rasterRowStateDetail(int raster, bool preferPreviousFrame) const;
