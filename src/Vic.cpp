@@ -3554,21 +3554,29 @@ void Vic::resetActiveMatrixRow()
     activeMatrixRow.fetched.fill(0);
 }
 
-bool Vic::activeMatrixRowByteForDisplayCol(int displayCol,
-                                           uint8_t& screenByte,
-                                           uint8_t& colorByte) const
+bool Vic::activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const
 {
     if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)
         return false;
 
+    if (!vicState.displayEnabled)
+        return false;
+
     if (!activeMatrixRow.valid)
+        return false;
+
+    const uint16_t expectedBase =
+        static_cast<uint16_t>(currentDisplayRowBase());
+
+    if (activeMatrixRow.vcBase != expectedBase)
         return false;
 
     if (!activeMatrixRow.fetched[displayCol])
         return false;
 
     screenByte = activeMatrixRow.screen[displayCol];
-    colorByte = static_cast<uint8_t>(activeMatrixRow.color[displayCol] & 0x0F);
+    colorByte  = static_cast<uint8_t>(activeMatrixRow.color[displayCol] & 0x0F);
+
     return true;
 }
 
@@ -4162,16 +4170,11 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const int displayCol = col;
 
-    uint8_t screenByte = 0;
-    uint8_t colorByte = 0;
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
-    if (!activeMatrixRowByteForDisplayCol(displayCol, screenByte, colorByte))
-    {
-        screenByte = fetchDisplayScreenByte(displayCol, raster);
-        colorByte  = static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
-    }
-
-    const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const uint8_t bgColor =
+        static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
     const bool multicolor =
         ((latchedD016ForRaster(raster) & 0x10) != 0) &&
@@ -4183,11 +4186,12 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     const uint16_t charBase =
         static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
 
-    const uint16_t charAddr = static_cast<uint16_t>(
-        charBase +
-        static_cast<uint16_t>(screenByte) * 8 +
-        static_cast<uint16_t>(yInChar & 0x07)
-    );
+    const uint16_t charAddr =
+        static_cast<uint16_t>(
+            charBase +
+            static_cast<uint16_t>(screenByte) * 8 +
+            static_cast<uint16_t>(yInChar & 0x07)
+        );
 
     const uint8_t rowBits =
         mem ? mem->vicRead(charAddr, raster) : 0x00;
@@ -4202,7 +4206,6 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     out.bgColor = bgColor;
     out.multicolor = multicolor;
 
-    // Newly sampled text glyph data.
     out.d018 = d018;
     out.charBase = charBase;
     out.charAddr = charAddr;
@@ -5769,39 +5772,43 @@ uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
 
 bool Vic::shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const
 {
-    if (displayCol < 0 || displayCol >= 40)
+    if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)
         return false;
 
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
-    // Only trust the matrix FIFO while display progression is active
-    // and the raster is inside the vertical display window.
+    // Only trust matrix bytes while display progression is active.
     if (!vicState.displayEnabled)
         return false;
 
+    // Avoid using stale matrix data outside the active display window.
     if (!rasterWithinVerticalDisplayWindow(raster))
         return false;
 
-    // The FIFO is only meaningful once the current row has actually
-    // been fetched on a bad line for this display row.
+    // The matrix cache/FIFO is only meaningful after display has actually
+    // started from a real badline this frame.
     if (!denSeenOn30 || firstBadlineY < 0)
         return false;
 
     return true;
 }
 
-bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster,
-                                          uint8_t& screenByte,
-                                          uint8_t& colorByte) const
+bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& screenByte, uint8_t& colorByte) const
 {
-    (void)raster;
-
     if (!shouldUseFetchedMatrixForDisplayCol(displayCol, raster))
         return false;
 
+    // Prefer the explicit active badline matrix row. This tells us whether
+    // this column was actually fetched for the current display row.
+    if (activeMatrixRowByteForDisplayCol(displayCol, screenByte, colorByte))
+        return true;
+
+    // Fallback to the existing FIFO path. This keeps your current behavior
+    // intact for cases where activeMatrixRow is not populated but the FIFO is.
     screenByte = charPtrFIFO[displayCol];
     colorByte  = static_cast<uint8_t>(colorPtrFIFO[displayCol] & 0x0F);
+
     return true;
 }
 
