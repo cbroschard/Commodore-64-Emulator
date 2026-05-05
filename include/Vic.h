@@ -992,6 +992,7 @@ class Vic
 
         uint16_t charBaseForRasterPixelX(int raster, int px) const;
         uint16_t screenBaseForRasterPixelX(int raster, int px) const;
+        uint16_t bitmapBaseForRasterPixelX(int raster, int px) const;
 
         void applySpriteColorEventsToLine(int raster);
 

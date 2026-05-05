@@ -4316,8 +4316,11 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     const uint16_t cellIndex =
         static_cast<uint16_t>(charRow * 40 + displayCol);
 
+    const uint16_t bitmapBase =
+    bitmapBaseForRasterPixelX(raster, px);
+
     const uint16_t addr =
-        static_cast<uint16_t>(getLatchedBitmapBase(raster) + cellIndex * 8 + yInChar);
+        static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
@@ -4596,8 +4599,11 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     const uint16_t cellIndex =
         static_cast<uint16_t>(charRow * 40 + displayCol);
 
+    const uint16_t bitmapBase =
+    bitmapBaseForRasterPixelX(raster, px);
+
     const uint16_t addr =
-        static_cast<uint16_t>(getLatchedBitmapBase(raster) + cellIndex * 8 + yInChar);
+        static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
@@ -5293,6 +5299,12 @@ uint16_t Vic::screenBaseForRasterPixelX(int raster, int px) const
 {
     const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
     return static_cast<uint16_t>((d018 & 0xF0) << 6);
+}
+
+uint16_t Vic::bitmapBaseForRasterPixelX(int raster, int px) const
+{
+    const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
+    return static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
 }
 
 void Vic::applySpriteColorEventsToLine(int raster)
