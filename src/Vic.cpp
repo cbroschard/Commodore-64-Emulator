@@ -7088,9 +7088,7 @@ std::string Vic::dumpBackgroundRowDebug(int raster) const
         const uint8_t colorByte =
             mem ? static_cast<uint8_t>(mem->read(colorAddr) & 0x0F) : 0x0F;
 
-        // Approximate visible X for this text column using the same coordinate
-        // space as rasterEventPixelX().
-        const int colX = cfg_->hardware_X + (col * 8);
+        const int colX = BACKGROUND_40COL_X0 + fineX + (col * 8);
 
         const uint8_t colD018 =
             d018ForRasterPixelX(raster, colX, usingPreviousFrame) & 0xFE;
