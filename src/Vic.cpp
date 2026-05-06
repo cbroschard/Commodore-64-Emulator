@@ -5683,9 +5683,10 @@ int Vic::spriteScreenXFor(int sprIndex, int raster) const
 
 bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
 {
+    rowInSprite = 0;
     fbLine = fbY(raster);
 
-    if (!(registers.spriteEnabled & (1 << sprIndex)))
+    if (sprIndex < 0 || sprIndex >= 8)
         return false;
 
     if (!spriteUnits[sprIndex].displayActive)
