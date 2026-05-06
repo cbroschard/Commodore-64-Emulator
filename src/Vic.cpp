@@ -5632,7 +5632,10 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 
 void Vic::detectSpriteToSpriteCollision(int raster)
 {
-    uint8_t old = registers.spriteCollision;
+    const uint8_t old = registers.spriteCollision;
+    uint8_t collisionMask = old;
+
+    int firstCollisionX = -1;
 
     for (int i = 0; i < 8; ++i)
     {
@@ -5644,13 +5647,44 @@ void Vic::detectSpriteToSpriteCollision(int raster)
             if (!spriteEnabledSomewhereOnLine(j))
                 continue;
 
-            if (checkSpriteSpriteOverlapOnLine(i, j, raster))
-                registers.spriteCollision |= static_cast<uint8_t>((1 << i) | (1 << j));
+            const int x = firstSpriteSpriteCollisionXOnLine(i, j, raster);
+            if (x < 0)
+                continue;
+
+            collisionMask |= static_cast<uint8_t>((1 << i) | (1 << j));
+
+            if (firstCollisionX < 0 || x < firstCollisionX)
+                firstCollisionX = x;
         }
     }
 
-    if (registers.spriteCollision & ~old)
+    registers.spriteCollision = collisionMask;
+
+    const uint8_t newlySet =
+        static_cast<uint8_t>(registers.spriteCollision & ~old);
+
+    if (newlySet)
+    {
+        if (logger && setLogging)
+        {
+            std::ostringstream oss;
+            oss << "[VIC:COLL] sprite-sprite"
+                << " raster=" << raster
+                << " firstX=" << firstCollisionX
+                << " old=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << static_cast<int>(old)
+                << " new=$" << std::setw(2)
+                << static_cast<int>(registers.spriteCollision)
+                << " newlySet=$" << std::setw(2)
+                << static_cast<int>(newlySet)
+                << std::dec << std::nouppercase << std::setfill(' ');
+
+            logger->WriteLog(oss.str());
+        }
+
         raiseVicIRQSource(0x02);
+    }
 }
 
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
@@ -5731,19 +5765,53 @@ int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
 
 void Vic::detectSpriteToBackgroundCollision(int raster)
 {
-    uint8_t old = registers.spriteDataCollision;
+    const uint8_t old = registers.spriteDataCollision;
+    uint8_t collisionMask = old;
+
+    int firstCollisionX = -1;
 
     for (int i = 0; i < 8; ++i)
     {
         if (!spriteEnabledSomewhereOnLine(i))
             continue;
 
-        if (checkSpriteBackgroundOverlap(i, raster))
-            registers.spriteDataCollision |= static_cast<uint8_t>(1 << i);
+        const int x = firstSpriteBackgroundCollisionXOnLine(i, raster);
+        if (x < 0)
+            continue;
+
+        collisionMask |= static_cast<uint8_t>(1 << i);
+
+        if (firstCollisionX < 0 || x < firstCollisionX)
+            firstCollisionX = x;
     }
 
-    if (registers.spriteDataCollision & ~old)
+    registers.spriteDataCollision = collisionMask;
+
+    const uint8_t newlySet =
+        static_cast<uint8_t>(registers.spriteDataCollision & ~old);
+
+    if (newlySet)
+    {
+        if (logger && setLogging)
+        {
+            std::ostringstream oss;
+            oss << "[VIC:COLL] sprite-background"
+                << " raster=" << raster
+                << " firstX=" << firstCollisionX
+                << " old=$"
+                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << static_cast<int>(old)
+                << " new=$" << std::setw(2)
+                << static_cast<int>(registers.spriteDataCollision)
+                << " newlySet=$" << std::setw(2)
+                << static_cast<int>(newlySet)
+                << std::dec << std::nouppercase << std::setfill(' ');
+
+            logger->WriteLog(oss.str());
+        }
+
         raiseVicIRQSource(0x04);
+    }
 }
 
 bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
