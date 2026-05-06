@@ -1001,6 +1001,7 @@ class Vic
         uint8_t compositePixelAtX(int raster, int px) const;
         uint8_t produceRasterPixel(int raster, int px) const;
 
+        int rasterPixelToCycle(int px) const;
         int rasterEventPixelX(int cycle) const;
         int rasterColorEventPixelX(const RasterColorEvent& e) const;
         bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;

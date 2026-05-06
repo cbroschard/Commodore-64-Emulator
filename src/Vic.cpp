@@ -5177,6 +5177,19 @@ uint8_t Vic::produceRasterPixel(int raster, int px) const
     return finalColorLine[px] & 0x0F;
 }
 
+int Vic::rasterPixelToCycle(int px) const
+{
+    if (px < 0)
+        return -1;
+
+    const int cycle = px / 8;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return -1;
+
+    return cycle;
+}
+
 int Vic::rasterEventPixelX(int cycle) const
 {
     int x = cfg_->hardware_X + (cycle * 8);
@@ -5909,10 +5922,15 @@ void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
 
     if (logger && setLogging)
     {
+        const int approxCycle = rasterPixelToCycle(firstX);
+        const int approxDot = firstX;
+
         std::ostringstream oss;
         oss << "[VIC:COLL] sprite-sprite"
             << " raster=" << raster
             << " firstX=" << firstX
+            << " approxCycle=" << approxCycle
+            << " approxDot=" << approxDot
             << " bits=$"
             << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << static_cast<int>(bits)
@@ -5949,10 +5967,15 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
 
     if (logger && setLogging)
     {
+        const int approxCycle = rasterPixelToCycle(firstX);
+        const int approxDot = firstX;
+
         std::ostringstream oss;
         oss << "[VIC:COLL] sprite-background"
             << " raster=" << raster
             << " firstX=" << firstX
+            << " approxCycle=" << approxCycle
+            << " approxDot=" << approxDot
             << " bits=$"
             << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << static_cast<int>(bits)
