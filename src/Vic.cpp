@@ -5823,13 +5823,43 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
 
 uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
 {
-    const uint16_t address = getLatchedScreenBase(raster) + row * 40 + col;
+    if (!mem)
+        return 0x00;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = registers.raster;
+
+    row = std::clamp(row, 0, 24);
+    col = std::clamp(col, 0, BACKGROUND_MATRIX_COLUMNS - 1);
+
+    // Legacy helper:
+    // Display rendering should prefer resolveDisplayScreenByte() /
+    // fetchDisplayScreenByte(), because those can use D018 pixel-event timing.
+    const uint16_t address =
+        static_cast<uint16_t>(
+            getLatchedScreenBase(raster) +
+            static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + col)
+        );
+
     return mem->vicRead(address, raster);
 }
 
 uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 {
-    const uint16_t address = COLOR_MEMORY_START + row * 40 + col;
+    if (!mem)
+        return 0x00;
+
+    (void)raster;
+
+    row = std::clamp(row, 0, 24);
+    col = std::clamp(col, 0, BACKGROUND_MATRIX_COLUMNS - 1);
+
+    const uint16_t address =
+        static_cast<uint16_t>(
+            COLOR_MEMORY_START +
+            static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + col)
+        );
+
     return mem->vicReadColor(address);
 }
 
