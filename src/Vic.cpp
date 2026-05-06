@@ -4289,8 +4289,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     if (col < 0 || col >= fetchCols)
         return false;
 
-    const int xStart = x0 - fine;
-    const int px = xStart + col * 8;
+    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
 
     if (px >= x1)
         return false;
@@ -4568,8 +4567,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     if (col < 0 || col >= fetchCols)
         return false;
 
-    const int xStart = x0 - fine;
-    const int px = xStart + col * 8;
+    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
 
     if (px >= x1)
         return false;
@@ -4735,8 +4733,7 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     if (col < 0 || col >= fetchCols)
         return false;
 
-    const int xStart = x0 - fine;
-    const int px = xStart + col * 8;
+    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
 
     if (px >= x1)
         return false;
