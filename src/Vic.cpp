@@ -4333,7 +4333,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
         static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
 
     const uint16_t bitmapBase =
-        bitmapBaseForRasterPixelX(raster, px);
+        getLatchedBitmapBase(raster);
 
     const uint16_t addr =
         static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
@@ -4611,7 +4611,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
         static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
 
     const uint16_t bitmapBase =
-        bitmapBaseForRasterPixelX(raster, px);
+        getLatchedBitmapBase(raster);
 
     const uint16_t addr =
         static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
