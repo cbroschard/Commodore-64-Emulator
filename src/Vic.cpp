@@ -5636,6 +5636,77 @@ bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
     return false;
 }
 
+int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
+{
+    if (sprIndex < 0 || sprIndex >= 8)
+        return 0;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return registers.spriteX[sprIndex];
+
+    uint8_t xLow = registers.spriteX[sprIndex];
+    uint8_t xMsb = registers.spriteX_MSB;
+
+    // If this raster had sprite-X events, start from the old value of the
+    // first relevant event. That reconstructs the value that was active
+    // before mid-raster writes changed the live register.
+    bool seededLow = false;
+    bool seededMsb = false;
+
+    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.address >= 0xD000 && e.address <= 0xD00E &&
+            ((e.address - 0xD000) / 2) == sprIndex &&
+            ((e.address - 0xD000) % 2) == 0)
+        {
+            if (!seededLow)
+            {
+                xLow = e.oldValue;
+                seededLow = true;
+            }
+        }
+        else if (e.address == 0xD010)
+        {
+            if (!seededMsb)
+            {
+                xMsb = e.oldValue;
+                seededMsb = true;
+            }
+        }
+    }
+
+    // Apply writes that occurred at or before the sampled pixel position.
+    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
+    {
+        if (e.raster != raster)
+            continue;
+
+        const int eventX = rasterEventPixelX(e.cycle);
+        if (eventX > px)
+            continue;
+
+        if (e.address >= 0xD000 && e.address <= 0xD00E &&
+            ((e.address - 0xD000) / 2) == sprIndex &&
+            ((e.address - 0xD000) % 2) == 0)
+        {
+            xLow = e.newValue;
+        }
+        else if (e.address == 0xD010)
+        {
+            xMsb = e.newValue;
+        }
+    }
+
+    int x = static_cast<int>(xLow);
+    if (xMsb & (1 << sprIndex))
+        x += 256;
+
+    return x;
+}
+
 void Vic::detectSpriteToBackgroundCollision(int raster)
 {
     uint8_t old = registers.spriteDataCollision;
@@ -5680,11 +5751,18 @@ bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
 
 int Vic::spriteScreenXFor(int sprIndex, int raster) const
 {
-    int x = registers.spriteX[sprIndex];
-    if (registers.spriteX_MSB & (1 << sprIndex))
-        x += 256;
+    if (sprIndex < 0 || sprIndex >= 8)
+        return 0;
 
-    // Apply VIC-II hardware offset + border
+    // Use the beginning of the visible sprite test as the sample point.
+    // This prevents end-of-line live X register values from moving the
+    // whole sprite after the raster has already been processed.
+    const int samplePx = 0;
+
+    const int x =
+        spriteRegisterXForRasterPixel(sprIndex, raster, samplePx);
+
+    // Apply VIC-II hardware offset + border.
     return (x - cfg_->hardware_X) + BORDER_SIZE;
 }
 
