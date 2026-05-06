@@ -5068,6 +5068,8 @@ void Vic::buildBorderMaskLine(int raster)
     if (borderVertical_per_raster[raster] != 0)
         return;
 
+    bool inBorder = true;
+
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
         const uint8_t d016 =
@@ -5078,8 +5080,17 @@ void Vic::buildBorderMaskLine(int raster)
         const HorizontalBorderWindow w =
             horizontalBorderWindowForCSEL(csel40);
 
-        if (px >= w.openX && px < w.closeX)
-            borderMaskLine[px] = 0;
+        // Open transition: only happens when the current pixel reaches
+        // the active CSEL opening comparison point.
+        if (inBorder && px == w.openX)
+            inBorder = false;
+
+        // Close transition: only happens when the current pixel reaches
+        // the active CSEL closing comparison point.
+        if (!inBorder && px == w.closeX)
+            inBorder = true;
+
+        borderMaskLine[px] = inBorder ? 1 : 0;
     }
 }
 
