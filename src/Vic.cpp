@@ -1519,7 +1519,8 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     }
 
     renderLine(curRaster);
-    detectSpriteToSpriteCollision(curRaster);
+
+    // Sprite-sprite collisions are now latched during sprite pixel output
     detectSpriteToBackgroundCollision(curRaster);
 
     snapshotRasterPixelComposition(curRaster);
