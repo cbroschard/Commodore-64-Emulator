@@ -2161,6 +2161,8 @@ void Vic::beginSpriteRasterOutput(int raster)
 
 void Vic::stepSpriteSequencersAtX(int raster, int px)
 {
+    (void)raster;
+
     if (px < 0 || px >= VISIBLE_WIDTH)
         return;
 
@@ -2195,8 +2197,6 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
             spriteOpaqueLine[spr][px] = 1;
             spriteColorLine[spr][px] = static_cast<uint8_t>(color & 0x0F);
             spriteColorSourceLine[spr][px] = source;
-            spriteBehindLine[spr][px] =
-                ((registers.spritePriority >> spr) & 0x01) ? 1 : 0;
         }
 
         advanceSpriteOutputState(spr, px);
