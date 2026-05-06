@@ -5712,28 +5712,38 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
     x1 = x0 + innerWidth;
 }
 
-void Vic::getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const
-{
-    innerWindowForRaster(raster, leftInner, rightInner);
-}
-
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t address = getLatchedCHARBase(raster) + c * 8;
-    uint8_t row = mem->vicRead(address + yInChar, raster);
+    if (!mem)
+        return;
 
-    // Latch Open Bus
+    const uint16_t charBase =
+        charBaseForRasterPixelX(raster, x);
+
+    const uint16_t address =
+        static_cast<uint16_t>(
+            charBase +
+            static_cast<uint16_t>(c) * 8
+        );
+
+    const uint8_t row =
+        mem->vicRead(static_cast<uint16_t>(address + (yInChar & 0x07)), raster);
+
     updateOpenBus(row);
 
     for (int col = 0; col < 8; ++col)
     {
-        int pxRaw = x + col;
-        if (pxRaw < x0 || pxRaw >= x1) continue;
+        const int pxRaw = x + col;
+        if (pxRaw < x0 || pxRaw >= x1)
+            continue;
 
-        bool bit = (row >> (7 - col)) & 0x01;
-        uint8_t color = bit ? (fg & 0x0F) : (bg & 0x0F);
+        const bool bit = ((row >> (7 - col)) & 0x01) != 0;
 
-        bgColorLine[pxRaw] = color & 0x0F;
+        const uint8_t color = bit
+            ? static_cast<uint8_t>(fg & 0x0F)
+            : static_cast<uint8_t>(bg & 0x0F);
+
+        bgColorLine[pxRaw] = static_cast<uint8_t>(color & 0x0F);
 
         if (bit)
             markBGOpaque(y, pxRaw);
@@ -5742,21 +5752,35 @@ void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInCha
 
 void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1)
 {
-    uint16_t address = getLatchedCHARBase(raster) + c * 8;
-    uint8_t  row  = mem->vicRead(address + yInChar, raster);
+    if (!mem)
+        return;
 
-    // Latch Open Bus
+    const uint16_t charBase =
+        charBaseForRasterPixelX(raster, x);
+
+    const uint16_t address =
+        static_cast<uint16_t>(
+            charBase +
+            static_cast<uint16_t>(c) * 8
+        );
+
+    const uint8_t row =
+        mem->vicRead(static_cast<uint16_t>(address + (yInChar & 0x07)), raster);
+
     updateOpenBus(row);
 
-    uint8_t bg1 = registers.backgroundColor[0] & 0x0F;
-    uint8_t bg2 = registers.backgroundColor[1] & 0x0F;
-    uint8_t colRAM = (uint8_t)(cellCol) & 0x07;
+    const uint8_t bg0 = static_cast<uint8_t>(bg & 0x0F);
+    const uint8_t bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+    const uint8_t bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+    const uint8_t colRAM = static_cast<uint8_t>(cellCol & 0x07);
 
     for (int pair = 0; pair < 4; ++pair)
     {
-        uint8_t bits = (row >> ((3 - pair) * 2)) & 0x03;
-        uint8_t col  =
-            (bits == 0) ? (bg & 0x0F) :
+        const uint8_t bits =
+            static_cast<uint8_t>((row >> ((3 - pair) * 2)) & 0x03);
+
+        const uint8_t color =
+            (bits == 0) ? bg0 :
             (bits == 1) ? bg1 :
             (bits == 2) ? bg2 :
                           colRAM;
@@ -5764,19 +5788,24 @@ void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t
         const int p0 = x + pair * 2;
         const int p1 = p0 + 1;
 
-        if (p0 >= x1) break;
-        if (p1 <  x0) continue;
+        if (p0 >= x1)
+            break;
 
-        // Per-pixel clipping + marking
+        if (p1 < x0)
+            continue;
+
         if (p0 >= x0 && p0 < x1)
         {
-            bgColorLine[p0] = col & 0x0F;
-            if (bits != 0) markBGOpaque(y, p0);
+            bgColorLine[p0] = static_cast<uint8_t>(color & 0x0F);
+            if (bits != 0)
+                markBGOpaque(y, p0);
         }
+
         if (p1 >= x0 && p1 < x1)
         {
-            bgColorLine[p1] = col & 0x0F;
-            if (bits != 0) markBGOpaque(y, p1);
+            bgColorLine[p1] = static_cast<uint8_t>(color & 0x0F);
+            if (bits != 0)
+                markBGOpaque(y, p1);
         }
     }
 }
