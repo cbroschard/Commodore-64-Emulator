@@ -6135,7 +6135,18 @@ bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        vicState.verticalBorder = true;
+        return;
+    }
+
+    // Use the raster-latched D011 state for the vertical border decision.
+    // Do not let later same-raster D011 event replay retroactively change
+    // whether this raster's vertical border is open or closed.
+    const uint8_t d011 = latchedD011ForRaster(raster);
+
+    const bool den = (d011 & 0x10) != 0;
 
     if (!den || !denSeenOn30)
     {
@@ -6143,7 +6154,11 @@ void Vic::updateVerticalBorderState(int raster)
         return;
     }
 
-    vicState.verticalBorder = !rasterWithinVerticalDisplayWindow(raster);
+    const VerticalBorderWindow w =
+        verticalBorderWindowForRaster(raster);
+
+    vicState.verticalBorder =
+        !(raster >= w.topOpen && raster <= w.bottomClose);
 
     if (!vicState.verticalBorder && vicState.topBorderOpenRaster < 0)
         vicState.topBorderOpenRaster = raster;
