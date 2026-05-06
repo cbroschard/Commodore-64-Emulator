@@ -4202,8 +4202,8 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     const int yInChar = static_cast<int>(vicState.rc & 0x07);
     const int fine = xScroll & 0x07;
 
-    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x0 = 0;
+    const int x1 = VISIBLE_WIDTH;
 
     if (col < 0 || col >= BACKGROUND_MATRIX_COLUMNS)
         return false;
@@ -4312,8 +4312,8 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     // CSEL affects border clipping, not the 40-column matrix/bitmap fetch width.
     const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
-    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x0 = 0;
+    const int x1 = VISIBLE_WIDTH;
 
     if (col < 0 || col >= fetchCols)
         return false;
@@ -4590,8 +4590,8 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     // CSEL affects border clipping, not the 40-column matrix/bitmap fetch width.
     const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
-    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x0 = 0;
+    const int x1 = VISIBLE_WIDTH;
 
     if (col < 0 || col >= fetchCols)
         return false;
@@ -4756,8 +4756,8 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     // CSEL affects border clipping, not the 40-column matrix fetch width.
     const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
-    const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+    const int x0 = 0;
+    const int x1 = VISIBLE_WIDTH;
 
     if (col < 0 || col >= fetchCols)
         return false;
