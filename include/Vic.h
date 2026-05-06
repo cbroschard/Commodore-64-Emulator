@@ -533,6 +533,9 @@ class Vic
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
 
+        int firstSpriteSpriteCollisionXOnLine(int A, int B, int raster) const;
+        int firstSpriteBackgroundCollisionXOnLine(int spriteIndex, int raster) const;
+
         void updateSpriteDMAStartForCurrentLine(int raster);
         void updateSpriteDMAEndOfLine(int raster);
         void fetchSpritePointer(int sprite, int raster);

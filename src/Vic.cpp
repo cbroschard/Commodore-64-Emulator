@@ -5655,35 +5655,7 @@ void Vic::detectSpriteToSpriteCollision(int raster)
 
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
 {
-    int ra, rb, fbLine;
-    if (!spriteDisplayCoversRaster(A, raster, ra, fbLine)) return false;
-    if (!spriteDisplayCoversRaster(B, raster, rb, fbLine)) return false;
-
-    if (!spriteUnits[A].rowPrepared || !spriteUnits[B].rowPrepared)
-        return false;
-
-    const int a0 = spriteUnits[A].outputXStart;
-    const int a1 = a0 + spriteUnits[A].outputWidth;
-    const int b0 = spriteUnits[B].outputXStart;
-    const int b1 = b0 + spriteUnits[B].outputWidth;
-
-    const int startX = std::max(a0, b0);
-    const int endX   = std::min(a1, b1);
-
-    if (startX >= endX)
-        return false;
-
-    for (int px = startX; px < endX; ++px)
-    {
-        if (px >= 0 && px < 512 &&
-            spriteOpaqueLine[A][px] &&
-            spriteOpaqueLine[B][px])
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return firstSpriteSpriteCollisionXOnLine(A, B, raster) >= 0;
 }
 
 int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
@@ -5776,27 +5748,7 @@ void Vic::detectSpriteToBackgroundCollision(int raster)
 
 bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
 {
-    int rowInSprite, fbLine;
-    if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
-        return false;
-
-    if (!spriteUnits[spriteIndex].rowPrepared)
-        return false;
-
-    const int startX = spriteUnits[spriteIndex].outputXStart;
-    const int endX   = startX + spriteUnits[spriteIndex].outputWidth;
-
-    for (int px = startX; px < endX; ++px)
-    {
-        if (px >= 0 && px < 512 &&
-            spriteOpaqueLine[spriteIndex][px] &&
-            isBackgroundPixelOpaque(px, fbLine))
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return firstSpriteBackgroundCollisionXOnLine(spriteIndex, raster) >= 0;
 }
 
 int Vic::spriteScreenXFor(int sprIndex, int raster) const
@@ -5845,6 +5797,83 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
         traceVicSpriteRowMismatch(sprIndex, raster, computedRow);
 
     return computedRow >= 0 && computedRow < 21;
+}
+
+int Vic::firstSpriteSpriteCollisionXOnLine(int A, int B, int raster) const
+{
+    if (A < 0 || A >= 8 || B < 0 || B >= 8 || A == B)
+        return -1;
+
+    int ra = 0;
+    int rb = 0;
+    int fbLine = 0;
+
+    if (!spriteDisplayCoversRaster(A, raster, ra, fbLine))
+        return -1;
+
+    if (!spriteDisplayCoversRaster(B, raster, rb, fbLine))
+        return -1;
+
+    if (!spriteUnits[A].rowPrepared || !spriteUnits[B].rowPrepared)
+        return -1;
+
+    const int a0 = spriteUnits[A].outputXStart;
+    const int a1 = a0 + spriteUnits[A].outputWidth;
+
+    const int b0 = spriteUnits[B].outputXStart;
+    const int b1 = b0 + spriteUnits[B].outputWidth;
+
+    const int startX = std::max(a0, b0);
+    const int endX   = std::min(a1, b1);
+
+    if (startX >= endX)
+        return -1;
+
+    const int clippedStart = std::max(startX, 0);
+    const int clippedEnd   = std::min(endX, VISIBLE_WIDTH);
+
+    for (int px = clippedStart; px < clippedEnd; ++px)
+    {
+        if (spriteOpaqueLine[A][px] && spriteOpaqueLine[B][px])
+            return px;
+    }
+
+    return -1;
+}
+
+int Vic::firstSpriteBackgroundCollisionXOnLine(int spriteIndex, int raster) const
+{
+    if (spriteIndex < 0 || spriteIndex >= 8)
+        return -1;
+
+    int rowInSprite = 0;
+    int fbLine = 0;
+
+    if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
+        return -1;
+
+    if (!spriteUnits[spriteIndex].rowPrepared)
+        return -1;
+
+    const int startX = spriteUnits[spriteIndex].outputXStart;
+    const int endX   = startX + spriteUnits[spriteIndex].outputWidth;
+
+    const int clippedStart = std::max(startX, 0);
+    const int clippedEnd   = std::min(endX, VISIBLE_WIDTH);
+
+    for (int px = clippedStart; px < clippedEnd; ++px)
+    {
+        if (!spriteOpaqueLine[spriteIndex][px])
+            continue;
+
+        // Collision is based on the current rendered background opacity line.
+        // This branch runs immediately after renderLine(), before the raster
+        // advances, so bgOpaqueLine is the relevant current line.
+        if (bgOpaqueLine[px] != 0)
+            return px;
+    }
+
+    return -1;
 }
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
