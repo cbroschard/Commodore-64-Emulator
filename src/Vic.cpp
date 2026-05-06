@@ -6147,25 +6147,43 @@ std::string Vic::getVICBanks() const
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');
 
-    // Current VIC bank base (CIA2 16 KB window)
-    uint16_t bankBase = dd00_per_raster[registers.raster];
+    const int raster = std::clamp<int>(
+        static_cast<int>(registers.raster),
+        0,
+        static_cast<int>(cfg_->maxRasterLines - 1)
+    );
+
+    const uint16_t bankBase = dd00_per_raster[raster];
+
+    // Representative display X for monitor reporting.
+    // Actual rendering remains pixel-aware across the whole raster.
+    const int samplePx = BACKGROUND_40COL_X0;
+
+    const uint16_t charOffset =
+        charBaseForRasterPixelX(raster, samplePx);
+
+    const uint16_t screenOffset =
+        screenBaseForRasterPixelX(raster, samplePx);
+
+    const uint16_t bitmapOffset =
+        bitmapBaseForRasterPixelX(raster, samplePx);
 
     out << "Active VIC Bank = " << (bankBase >> 14)
         << " ($" << std::setw(4) << bankBase
-        << "-$" << std::setw(4) << (bankBase + 0x3FFF) << ")\n\n";
+        << "-$" << std::setw(4) << static_cast<uint16_t>(bankBase + 0x3FFF)
+        << ")\n\n";
 
-    uint16_t charOffset   = getLatchedCHARBase(registers.raster);
-    uint16_t screenOffset = getLatchedScreenBase(registers.raster);
-    uint16_t bitmapOffset = getLatchedBitmapBase(registers.raster);
-
-    out << "CHAR Base   = offset $"   << std::setw(4) << charOffset
-        << "  ->  address $" << std::setw(4) << (bankBase + charOffset) << "\n";
+    out << "CHAR Base   = offset $" << std::setw(4) << charOffset
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + charOffset) << "\n";
 
     out << "Screen Base = offset $" << std::setw(4) << screenOffset
-        << "  ->  address $" << std::setw(4) << (bankBase + screenOffset) << "\n";
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + screenOffset) << "\n";
 
     out << "Bitmap Base = offset $" << std::setw(4) << bitmapOffset
-        << "  ->  address $" << std::setw(4) << (bankBase + bitmapOffset) << "\n";
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + bitmapOffset) << "\n";
 
     return out.str();
 }
