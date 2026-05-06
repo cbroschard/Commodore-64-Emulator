@@ -1616,6 +1616,33 @@ Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
     return w;
 }
 
+Vic::HorizontalBorderWindow Vic::horizontalBorderWindowForCSEL(bool csel40) const
+{
+    HorizontalBorderWindow w {};
+
+    if (csel40)
+    {
+        w.openX = 31;
+        w.closeX = 351;
+    }
+    else
+    {
+        w.openX = 38;
+        w.closeX = 344;
+    }
+
+    w.openX = std::clamp(w.openX, 0, VISIBLE_WIDTH);
+    w.closeX = std::clamp(w.closeX, 0, VISIBLE_WIDTH);
+
+    if (w.openX >= w.closeX)
+    {
+        w.openX = 0;
+        w.closeX = 0;
+    }
+
+    return w;
+}
+
 Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
 {
     VerticalBorderWindow w {};
@@ -6086,16 +6113,11 @@ void Vic::updateHorizontalBorderState(int raster)
 {
     const bool csel40 = getLatchedCSEL(raster);
 
-    if (csel40)
-    {
-        vicState.leftBorderOpenX = 31;
-        vicState.rightBorderCloseX = 351;
-    }
-    else
-    {
-        vicState.leftBorderOpenX = 38;
-        vicState.rightBorderCloseX = 344;
-    }
+    const HorizontalBorderWindow w =
+        horizontalBorderWindowForCSEL(csel40);
+
+    vicState.leftBorderOpenX = w.openX;
+    vicState.rightBorderCloseX = w.closeX;
 
     vicState.leftBorder  = false;
     vicState.rightBorder = false;

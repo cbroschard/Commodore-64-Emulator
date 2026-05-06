@@ -331,6 +331,12 @@ class Vic
             int closeX = VISIBLE_WIDTH;
         };
 
+        struct HorizontalBorderWindow
+        {
+            int openX = 0;
+            int closeX = VISIBLE_WIDTH;
+        };
+
         struct VerticalBorderWindow
         {
             int topOpen = 0;
@@ -370,6 +376,7 @@ class Vic
 
         MatrixRowCache activeMatrixRow;
 
+        HorizontalBorderWindow horizontalBorderWindowForCSEL(bool csel40) const;
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
 
