@@ -4267,8 +4267,10 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
 {
     out = {};
 
+    if (!mem)
+        return false;
+
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     const int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows)
@@ -4276,15 +4278,15 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
 
     const int yInChar = static_cast<int>(vicState.rc & 0x07);
     const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
+
+    // Hardware-style display fetch width:
+    // CSEL affects border clipping, not the 40-column matrix/bitmap fetch width.
+    const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
     const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
     const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
-        return false;
-
-    if (col > 40)
         return false;
 
     const int xStart = x0 - fine;
@@ -4296,15 +4298,16 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     if (px + 8 <= x0)
         return false;
 
-    const int displayCol = (col < 40) ? col : 39;
+    const int displayCol = col;
 
     const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
     const uint16_t cellIndex =
-        static_cast<uint16_t>(charRow * 40 + displayCol);
+        static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
 
-    const uint16_t bitmapBase = bitmapBaseForRasterPixelX(raster, px);
+    const uint16_t bitmapBase =
+        bitmapBaseForRasterPixelX(raster, px);
 
     const uint16_t addr =
         static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
@@ -4543,8 +4546,10 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
 {
     out = {};
 
+    if (!mem)
+        return false;
+
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     const int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows)
@@ -4552,15 +4557,15 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
 
     const int yInChar = static_cast<int>(vicState.rc & 0x07);
     const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
+
+    // Hardware-style display fetch width:
+    // CSEL affects border clipping, not the 40-column matrix/bitmap fetch width.
+    const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
     const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
     const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
-        return false;
-
-    if (col > 40)
         return false;
 
     const int xStart = x0 - fine;
@@ -4572,16 +4577,16 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     if (px + 8 <= x0)
         return false;
 
-    const int displayCol = (col < 40) ? col : 39;
+    const int displayCol = col;
 
     const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
     const uint16_t cellIndex =
-        static_cast<uint16_t>(charRow * 40 + displayCol);
+        static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
 
     const uint16_t bitmapBase =
-    bitmapBaseForRasterPixelX(raster, px);
+        bitmapBaseForRasterPixelX(raster, px);
 
     const uint16_t addr =
         static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
