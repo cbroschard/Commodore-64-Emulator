@@ -7674,14 +7674,27 @@ std::string Vic::dumpBorderState() const
 {
     std::ostringstream oss;
 
-    const int raster = static_cast<int>(registers.raster);
+    int raster = static_cast<int>(registers.raster);
 
     oss << "VIC border state\n";
     oss << "  raster=" << raster
         << " cycle=" << currentCycle << "\n";
 
-    const bool liveVertical = vicState.verticalBorder;
-    const bool latchedVertical = borderVertical_per_raster[raster] != 0;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        oss << "  raster out of range\n";
+        return oss.str();
+    }
+
+    const bool liveVertical =
+        vicState.verticalBorder;
+
+    const bool latchedVertical =
+        borderVertical_per_raster[raster] != 0;
+
+    int maskInnerX0 = 0;
+    int maskInnerX1 = 0;
+    innerWindowForRaster(raster, maskInnerX0, maskInnerX1);
 
     oss << "  live verticalBorder="
         << (liveVertical ? "on" : "off")
@@ -7691,33 +7704,38 @@ std::string Vic::dumpBorderState() const
         << ((liveVertical == latchedVertical) ? "yes" : "NO")
         << "\n";
 
-    oss << "  latched openX=" << borderLeftOpenX_per_raster[raster]
-        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+    oss << "  horizontal border window:\n"
+        << "    latched openX=" << borderLeftOpenX_per_raster[raster]
+        << " closeX=" << borderRightCloseX_per_raster[raster] << "\n"
+        << "    mask innerX0=" << maskInnerX0
+        << " innerX1=" << maskInnerX1 << "\n";
+
+    oss << "  live border flags:"
+        << " verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
+        << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
+        << " rightBorder=" << (vicState.rightBorder ? "on" : "off")
         << "\n";
 
-    oss << "  verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
-        << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
-        << " rightBorder=" << (vicState.rightBorder ? "on" : "off") << "\n";
+    oss << "  live border window:"
+        << " leftBorderOpenX=" << vicState.leftBorderOpenX
+        << " rightBorderCloseX=" << vicState.rightBorderCloseX
+        << "\n";
 
-    oss << "  leftBorderOpenX=" << vicState.leftBorderOpenX
-        << " rightBorderCloseX=" << vicState.rightBorderCloseX << "\n";
+    const uint8_t latchedD011 = latchedD011ForRaster(raster);
+    const uint8_t latchedD016 = latchedD016ForRaster(raster);
 
-    if (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-    {
-        const uint8_t latchedD011 = latchedD011ForRaster(raster);
-        const uint8_t latchedD016 = latchedD016ForRaster(raster);
+    oss << "  latched RSEL=" << ((latchedD011 & 0x08) ? 1 : 0)
+        << " latched CSEL=" << ((latchedD016 & 0x08) ? 1 : 0)
+        << "\n";
 
-        oss << "  latched RSEL=" << ((latchedD011 & 0x08) ? 1 : 0)
-            << " latched CSEL=" << ((latchedD016 & 0x08) ? 1 : 0) << "\n";
-
-        oss << "  latched D011=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(latchedD011)
-            << " latched D016=$"
-            << std::setw(2)
-            << static_cast<int>(latchedD016)
-            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-    }
+    oss << "  latched D011=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(latchedD011)
+        << " latched D016=$"
+        << std::setw(2)
+        << static_cast<int>(latchedD016)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
 
     oss << "  live D011=$"
         << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
@@ -7725,17 +7743,20 @@ std::string Vic::dumpBorderState() const
         << " live D016=$"
         << std::setw(2)
         << static_cast<int>(registers.control2)
-        << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
 
-    const VerticalBorderWindow vw = verticalBorderWindowForRaster(raster);
+    const VerticalBorderWindow vw =
+        verticalBorderWindowForRaster(raster);
 
     oss << "  verticalWindow topOpen=" << vw.topOpen
         << " bottomClose=" << vw.bottomClose << "\n";
 
-    oss << "  latched verticalBorder="
+    oss << "  latched border:"
+        << " verticalBorder="
         << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
-        << " latched openX=" << borderLeftOpenX_per_raster[raster]
-        << " latched closeX=" << borderRightCloseX_per_raster[raster]
+        << " openX=" << borderLeftOpenX_per_raster[raster]
+        << " closeX=" << borderRightCloseX_per_raster[raster]
         << "\n";
 
     return oss.str();
