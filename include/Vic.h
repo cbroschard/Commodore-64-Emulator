@@ -497,7 +497,7 @@ class Vic
         int currentCycle;
 
         // IRQ Helpers
-        inline bool rasterCompareMatchesNow() const { return registers.raster == registers.rasterInterruptLine; }
+        inline bool rasterCompareMatchesNow() const { return visibleRasterForIRQCompare() == registers.rasterInterruptLine; }
         uint16_t visibleRasterForIRQCompare() const;
         uint16_t visibleRasterForRead() const;
         void updateIRQLine();
