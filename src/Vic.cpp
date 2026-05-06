@@ -4717,7 +4717,6 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     out = {};
 
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
 
     const int charRow = currentCharacterRow();
     if (charRow < 0 || charRow >= rows)
@@ -4725,15 +4724,15 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
 
     const int yInChar = static_cast<int>(vicState.rc & 0x07);
     const int fine = xScroll & 0x07;
-    const int fetchCols = cols + (fine ? 1 : 0);
+
+    // Hardware-style display fetch width:
+    // CSEL affects border clipping, not the 40-column matrix fetch width.
+    const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
     const int x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
     const int x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
 
     if (col < 0 || col >= fetchCols)
-        return false;
-
-    if (col > 40)
         return false;
 
     const int xStart = x0 - fine;
@@ -4745,7 +4744,8 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     if (px + 8 <= x0)
         return false;
 
-    const int displayCol = (col < 40) ? col : 39;
+    const int displayCol = col;
+
     const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
 
@@ -4755,9 +4755,18 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
     const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
 
-    const uint16_t charBase = charBaseForRasterPixelX(raster, px);
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(yInChar & 0x07));
-    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint16_t charBase =
+        charBaseForRasterPixelX(raster, px);
+
+    const uint16_t charAddr =
+        static_cast<uint16_t>(
+            charBase +
+            static_cast<uint16_t>(charIndex) * 8 +
+            static_cast<uint16_t>(yInChar & 0x07)
+        );
+
+    const uint8_t rowBits =
+        mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     uint8_t bgColor = 0;
     BackgroundSource bgSource = BackgroundSource::BG0;
