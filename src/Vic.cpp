@@ -5063,14 +5063,25 @@ void Vic::buildBorderMaskLine(int raster)
               borderMaskLine.begin() + VISIBLE_WIDTH,
               1);
 
-    const BorderWindow w = borderWindowForRaster(raster);
-
-    if (w.vertical)
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    std::fill(borderMaskLine.begin() + w.openX,
-              borderMaskLine.begin() + w.closeX,
-              0);
+    if (borderVertical_per_raster[raster] != 0)
+        return;
+
+    for (int px = 0; px < VISIBLE_WIDTH; ++px)
+    {
+        const uint8_t d016 =
+            d016ForRasterPixelX(raster, px, false);
+
+        const bool csel40 = (d016 & 0x08) != 0;
+
+        const HorizontalBorderWindow w =
+            horizontalBorderWindowForCSEL(csel40);
+
+        if (px >= w.openX && px < w.closeX)
+            borderMaskLine[px] = 0;
+    }
 }
 
 void Vic::composeFinalRasterLine(int raster)
@@ -6150,10 +6161,7 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
     if (borderVertical_per_raster[raster] != 0)
         return true;
 
-    const int openX  = borderLeftOpenX_per_raster[raster];
-    const int closeX = borderRightCloseX_per_raster[raster];
-
-    return px < openX || px >= closeX;
+    return borderMaskLine[px] != 0;
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)
