@@ -5051,10 +5051,7 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
     if (borderVertical_per_raster[raster] != 0)
         return false;
 
-    const int openX  = borderLeftOpenX_per_raster[raster];
-    const int closeX = borderRightCloseX_per_raster[raster];
-
-    return px >= openX && px < closeX;
+    return borderMaskLine[px] == 0;
 }
 
 void Vic::buildBorderMaskLine(int raster)
