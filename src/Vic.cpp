@@ -5638,16 +5638,17 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (rasterIrqSampledThisLine || currentCycle > RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // Only care if the *new* target matches the current raster.
-    if (registers.raster != newLine)
+    // Use the same visible-raster abstraction as the normal compare path.
+    if (visibleRasterForIRQCompare() != newLine)
         return;
 
     // Do not retrigger if raster IRQ source is already pending.
     if ((registers.interruptStatus & 0x01) != 0)
         return;
 
-    triggerRasterIRQIfMatched();
-    rasterIrqSampledThisLine = true;
+    // Route retarget-triggered compares through the same helper as the
+    // normal cycle compare path.
+    sampleRasterIRQCompare("retarget-sample");
 }
 
 void Vic::sampleRasterIRQCompare(const char* reason)
