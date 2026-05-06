@@ -5586,16 +5586,20 @@ void Vic::detectSpriteToSpriteCollision(int raster)
 
     for (int i = 0; i < 8; ++i)
     {
-        if (!(registers.spriteEnabled & (1 << i))) continue;
+        if (!spriteEnabledSomewhereOnLine(i))
+            continue;
+
         for (int j = i + 1; j < 8; ++j)
         {
-            if (!(registers.spriteEnabled & (1 << j))) continue;
+            if (!spriteEnabledSomewhereOnLine(j))
+                continue;
+
             if (checkSpriteSpriteOverlapOnLine(i, j, raster))
-                registers.spriteCollision |= (1 << i) | (1 << j);
+                registers.spriteCollision |= static_cast<uint8_t>((1 << i) | (1 << j));
         }
     }
 
-    if (registers.spriteCollision & ~old) //&& (registers.interruptEnable & 0x02) && IRQ)
+    if (registers.spriteCollision & ~old)
         raiseVicIRQSource(0x02);
 }
 
@@ -5638,11 +5642,14 @@ void Vic::detectSpriteToBackgroundCollision(int raster)
 
     for (int i = 0; i < 8; ++i)
     {
-        if (!(registers.spriteEnabled & (1 << i))) continue;
-        if (checkSpriteBackgroundOverlap(i, raster)) registers.spriteDataCollision |= (1 << i);
+        if (!spriteEnabledSomewhereOnLine(i))
+            continue;
+
+        if (checkSpriteBackgroundOverlap(i, raster))
+            registers.spriteDataCollision |= static_cast<uint8_t>(1 << i);
     }
 
-    if (registers.spriteDataCollision & ~old) //&& (registers.interruptEnable & 0x04) && IRQ)
+    if (registers.spriteDataCollision & ~old)
         raiseVicIRQSource(0x04);
 }
 
