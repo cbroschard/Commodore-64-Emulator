@@ -5748,16 +5748,34 @@ void Vic::updateGraphicsMode(int raster)
 
 void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 {
-    const int cols = getLatchedCSEL(raster) ? 40 : 38;
+    x0 = 0;
+    x1 = 0;
 
-    // Center the active text window: 40 cols = 320 px, 38 cols = 304 px.
-    // The 38-column mode should shrink by 8 px on each side, not 4 on one side.
-    const int innerWidth = cols * 8;
-    const int fullWidth  = 40 * 8;
-    const int inset      = (fullWidth - innerWidth) / 2;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
 
-    x0 = BORDER_SIZE + inset;
-    x1 = x0 + innerWidth;
+    if (borderVertical_per_raster[raster] != 0)
+        return;
+
+    int first = -1;
+    int last = -1;
+
+    for (int px = 0; px < VISIBLE_WIDTH; ++px)
+    {
+        if (borderMaskLine[px] == 0)
+        {
+            if (first < 0)
+                first = px;
+
+            last = px + 1;
+        }
+    }
+
+    if (first < 0 || last <= first)
+        return;
+
+    x0 = first;
+    x1 = last;
 }
 
 void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
@@ -6092,9 +6110,13 @@ bool Vic::verticalDisplayOpenForRaster(int raster) const
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
 {
-    (void)raster;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return true;
 
     if (px < 0 || px >= VISIBLE_WIDTH)
+        return true;
+
+    if (borderVertical_per_raster[raster] != 0)
         return true;
 
     return borderMaskLine[px] != 0;
