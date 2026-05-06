@@ -547,6 +547,7 @@ class Vic
 
         void latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX);
         void latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX);
+        void latchSpriteBackgroundCollisionsAtPixel(int raster, int px);
 
         SpriteCollisionTimingSnapshot lastSpriteSpriteCollision;
         SpriteCollisionTimingSnapshot lastSpriteBackgroundCollision;

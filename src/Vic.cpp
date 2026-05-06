@@ -1520,9 +1520,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
 
     renderLine(curRaster);
 
-    // Sprite-sprite collisions are now latched during sprite pixel output
-    detectSpriteToBackgroundCollision(curRaster);
-
     snapshotRasterPixelComposition(curRaster);
     snapshotRasterRowState(curRaster);
 
@@ -5130,7 +5127,10 @@ void Vic::composeFinalRasterLine(int raster)
     const int xEnd   = rasterVisibleEndX(raster);
 
     for (int px = xStart; px < xEnd; ++px)
+    {
+        latchSpriteBackgroundCollisionsAtPixel(raster, px);
         finalColorLine[px] = compositePixelAtX(raster, px);
+    }
 }
 
 Vic::BackgroundPixel Vic::sampleBackgroundPixelAtX(int raster, int px) const
@@ -6017,6 +6017,31 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
     }
 
     raiseVicIRQSource(0x04);
+}
+
+void Vic::latchSpriteBackgroundCollisionsAtPixel(int raster, int px)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return;
+
+    if (bgOpaqueLine[px] == 0)
+        return;
+
+    uint8_t bits = 0;
+
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        if (!spriteOpaqueLine[spr][px])
+            continue;
+
+        bits = static_cast<uint8_t>(bits | (1 << spr));
+    }
+
+    if (bits != 0)
+        latchSpriteBackgroundCollision(bits, raster, px);
 }
 
 bool Vic::isBackgroundPixelOpaque(int x, int y)
