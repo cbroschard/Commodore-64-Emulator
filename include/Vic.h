@@ -505,6 +505,8 @@ class Vic
         void raiseVicIRQSource(uint8_t sourceBitMask);
         void checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine);
 
+        void sampleRasterIRQCompare(const char* reason);
+
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
 

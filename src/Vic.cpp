@@ -1225,15 +1225,8 @@ void Vic::beginFrameIfNeeded()
 
 void Vic::runCycleDecisionPhase()
 {
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE && !rasterIrqSampledThisLine)
-    {
-        const bool matched = rasterCompareMatchesNow();
-        traceVicCycleCheckpoint("raster-irq-sample", registers.raster, currentCycle);
-        traceVicRasterRetargetTest("normal-sample", registers.rasterInterruptLine, registers.rasterInterruptLine, rasterIrqSampledThisLine, matched);
-
-        rasterIrqSampledThisLine = true;
-        triggerRasterIRQIfMatched();
-    }
+    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE)
+        sampleRasterIRQCompare("normal-sample");
 
     switch (currentCycle)
     {
@@ -5655,6 +5648,35 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 
     triggerRasterIRQIfMatched();
     rasterIrqSampledThisLine = true;
+}
+
+void Vic::sampleRasterIRQCompare(const char* reason)
+{
+    if (rasterIrqSampledThisLine)
+        return;
+
+    const char* sampleReason =
+        reason ? reason : "normal-sample";
+
+    const bool matched = rasterCompareMatchesNow();
+
+    traceVicCycleCheckpoint(
+        "raster-irq-sample",
+        registers.raster,
+        currentCycle
+    );
+
+    traceVicRasterRetargetTest(
+        sampleReason,
+        registers.rasterInterruptLine,
+        registers.rasterInterruptLine,
+        rasterIrqSampledThisLine,
+        matched
+    );
+
+    rasterIrqSampledThisLine = true;
+
+    triggerRasterIRQIfMatched();
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
