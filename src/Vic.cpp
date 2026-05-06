@@ -2065,11 +2065,7 @@ void Vic::advanceSpriteOutputState(int sprIndex, int px)
     }
 }
 
-bool Vic::currentSpriteSequencerPixel(int sprIndex,
-                                      int px,
-                                      uint8_t& outColor,
-                                      bool& opaque,
-                                      SpriteColorSource& outSource) const
+bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, bool& opaque, SpriteColorSource& outSource) const
 {
     outColor = 0;
     opaque = false;
@@ -2093,7 +2089,9 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
         if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
             return false;
 
-        outColor = registers.spriteColors[sprIndex] & 0x0F;
+        // Color is intentionally assigned later by applySpriteColorEventsToLine().
+        // This function only identifies opacity and color source.
+        outColor = 0;
         opaque = true;
         outSource = SpriteColorSource::SpriteOwnColor;
         return true;
@@ -2103,7 +2101,8 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
     if (srcPair < 0 || srcPair >= 12)
         return false;
 
-    const uint8_t bits = static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
+    const uint8_t bits =
+        static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
 
     if (bits == 0)
         return false;
@@ -2111,17 +2110,14 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
     switch (bits)
     {
         case 0x01:
-            outColor = registers.spriteMultiColor1 & 0x0F;
             outSource = SpriteColorSource::SpriteMultiColor1;
             break;
 
         case 0x02:
-            outColor = registers.spriteColors[sprIndex] & 0x0F;
             outSource = SpriteColorSource::SpriteOwnColor;
             break;
 
         case 0x03:
-            outColor = registers.spriteMultiColor2 & 0x0F;
             outSource = SpriteColorSource::SpriteMultiColor2;
             break;
 
@@ -2129,6 +2125,8 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex,
             return false;
     }
 
+    // Color is intentionally assigned later by applySpriteColorEventsToLine().
+    outColor = 0;
     opaque = true;
     return true;
 }
@@ -5389,14 +5387,52 @@ void Vic::applySpriteColorEventsToLine(int raster)
                 if (spriteColorSourceLine[sprite][px] != source)
                     continue;
 
-                spriteColorLine[sprite][px] = color & 0x0F;
+                spriteColorLine[sprite][px] = static_cast<uint8_t>(color & 0x0F);
             }
         };
+
+    auto applyToAllSpritesRange =
+        [&](SpriteColorSource source, int startX, int endX, uint8_t color)
+        {
+            for (int sprite = 0; sprite < 8; ++sprite)
+                applyToSpriteRange(sprite, source, startX, endX, color);
+        };
+
+    // First seed every opaque sprite pixel with the current register colors.
+    // This handles the common case where there were no sprite color writes
+    // on this raster.
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        applyToSpriteRange(
+            sprite,
+            SpriteColorSource::SpriteOwnColor,
+            xStart,
+            xEnd,
+            static_cast<uint8_t>(registers.spriteColors[sprite] & 0x0F)
+        );
+    }
+
+    applyToAllSpritesRange(
+        SpriteColorSource::SpriteMultiColor1,
+        xStart,
+        xEnd,
+        static_cast<uint8_t>(registers.spriteMultiColor1 & 0x0F)
+    );
+
+    applyToAllSpritesRange(
+        SpriteColorSource::SpriteMultiColor2,
+        xStart,
+        xEnd,
+        static_cast<uint8_t>(registers.spriteMultiColor2 & 0x0F)
+    );
 
     auto replayRegisterForSprite =
         [&](uint16_t address, int sprite, SpriteColorSource source)
         {
             uint8_t activeColor = 0;
+
+            // If there was no write to this color register on this raster,
+            // the seed pass above is already correct.
             if (!firstRasterColorEventValue(raster, address, activeColor))
                 return;
 
@@ -5410,11 +5446,12 @@ void Vic::applySpriteColorEventsToLine(int raster)
                 if (e.address != address)
                     continue;
 
-                const int eventX = std::clamp(rasterColorEventPixelX(e), startX, xEnd);
+                const int eventX =
+                    std::clamp(rasterColorEventPixelX(e), startX, xEnd);
 
                 applyToSpriteRange(sprite, source, startX, eventX, activeColor);
 
-                activeColor = e.newValue & 0x0F;
+                activeColor = static_cast<uint8_t>(e.newValue & 0x0F);
                 startX = eventX;
             }
 
@@ -5425,6 +5462,9 @@ void Vic::applySpriteColorEventsToLine(int raster)
         [&](uint16_t address, SpriteColorSource source)
         {
             uint8_t activeColor = 0;
+
+            // If there was no write to this shared sprite color register on
+            // this raster, the seed pass above is already correct.
             if (!firstRasterColorEventValue(raster, address, activeColor))
                 return;
 
@@ -5438,29 +5478,31 @@ void Vic::applySpriteColorEventsToLine(int raster)
                 if (e.address != address)
                     continue;
 
-                const int eventX = std::clamp(rasterColorEventPixelX(e), startX, xEnd);
+                const int eventX =
+                    std::clamp(rasterColorEventPixelX(e), startX, xEnd);
 
-                for (int spr = 0; spr < 8; ++spr)
-                    applyToSpriteRange(spr, source, startX, eventX, activeColor);
+                applyToAllSpritesRange(source, startX, eventX, activeColor);
 
-                activeColor = e.newValue & 0x0F;
+                activeColor = static_cast<uint8_t>(e.newValue & 0x0F);
                 startX = eventX;
             }
 
-            for (int spr = 0; spr < 8; ++spr)
-                applyToSpriteRange(spr, source, startX, xEnd, activeColor);
+            applyToAllSpritesRange(source, startX, xEnd, activeColor);
         };
 
-    // Shared multicolor sprite registers.
+    // Per-sprite own colors: $D027-$D02E
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        replayRegisterForSprite(
+            static_cast<uint16_t>(0xD027 + sprite),
+            sprite,
+            SpriteColorSource::SpriteOwnColor
+        );
+    }
+
+    // Shared sprite multicolor registers.
     replaySharedSpriteRegister(0xD025, SpriteColorSource::SpriteMultiColor1);
     replaySharedSpriteRegister(0xD026, SpriteColorSource::SpriteMultiColor2);
-
-    // Per-sprite color registers.
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        const uint16_t address = static_cast<uint16_t>(0xD027 + spr);
-        replayRegisterForSprite(address, spr, SpriteColorSource::SpriteOwnColor);
-    }
 }
 
 uint16_t Vic::visibleRasterForIRQCompare() const
