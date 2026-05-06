@@ -1667,9 +1667,19 @@ bool Vic::spriteHasFetchedDisplayRow(int sprite) const
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const
 {
-    return (registers.spriteEnabled & (1 << sprite)) != 0 &&
-           spriteUnits[sprite].dmaActive &&
-           spriteHasFetchedDisplayRow(sprite);
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    if (!spriteEnabledSomewhereOnLine(sprite))
+        return false;
+
+    if (!spriteUnits[sprite].dmaActive)
+        return false;
+
+    if (!spriteHasFetchedDisplayRow(sprite))
+        return false;
+
+    return true;
 }
 
 void Vic::resetSpriteLineOutputState(int sprite)
