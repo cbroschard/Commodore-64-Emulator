@@ -5844,10 +5844,35 @@ int Vic::currentDisplayRowBase() const
 
 uint8_t Vic::fetchDisplayScreenByte(int col, int raster) const
 {
+    if (!mem)
+        return 0x00;
+
     int row = 0;
     int c = 0;
     currentDisplayRowCol(col, row, c);
-    return fetchScreenByte(row, c, raster);
+
+    if (c < 0)
+        c = 0;
+
+    if (c >= BACKGROUND_MATRIX_COLUMNS)
+        c = BACKGROUND_MATRIX_COLUMNS - 1;
+
+    const int fine =
+        latchedD016ForRaster(raster) & 0x07;
+
+    const int px =
+        BACKGROUND_40COL_X0 + fine + c * 8;
+
+    const uint16_t screenBase =
+        screenBaseForRasterPixelX(raster, px);
+
+    const uint16_t address =
+        static_cast<uint16_t>(
+            screenBase +
+            static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + c)
+        );
+
+    return mem->vicRead(address, raster);
 }
 
 uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
