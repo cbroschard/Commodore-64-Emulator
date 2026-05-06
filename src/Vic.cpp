@@ -2161,19 +2161,25 @@ void Vic::beginSpriteRasterOutput(int raster)
 
 void Vic::stepSpriteSequencersAtX(int raster, int px)
 {
-    (void)raster;
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return;
 
     for (int spr = 0; spr < 8; ++spr)
     {
-        if (!spriteUnits[spr].rowPrepared)
+        SpriteUnit& u = spriteUnits[spr];
+
+        if (!u.rowPrepared)
             continue;
 
-        const int startX = spriteUnits[spr].outputXStart;
-        const int endX   = startX + spriteUnits[spr].outputWidth;
-
-        if (px < startX || px >= endX)
+        if (px < u.outputXStart)
             continue;
 
+        if (px >= u.outputXStart + u.outputWidth)
+            continue;
+
+        // Event-aware D015 gate:
+        // the sprite may be prepared for the line, but individual pixels
+        // should only be emitted while the sprite is enabled at that X.
         if (!spriteEnabledAtPixel(spr, px))
         {
             advanceSpriteOutputState(spr, px);
@@ -2187,8 +2193,10 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
         if (currentSpriteSequencerPixel(spr, px, color, opaque, source) && opaque)
         {
             spriteOpaqueLine[spr][px] = 1;
-            spriteColorLine[spr][px] = color;
+            spriteColorLine[spr][px] = static_cast<uint8_t>(color & 0x0F);
             spriteColorSourceLine[spr][px] = source;
+            spriteBehindLine[spr][px] =
+                ((registers.spritePriority >> spr) & 0x01) ? 1 : 0;
         }
 
         advanceSpriteOutputState(spr, px);
