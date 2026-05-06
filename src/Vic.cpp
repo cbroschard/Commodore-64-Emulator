@@ -6508,12 +6508,24 @@ void Vic::rebuildBorderRasterLatches()
 
 void Vic::updateMonitorCaches(int raster)
 {
-    uint16_t currentVICBank = dd00_per_raster[raster];
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = registers.raster;
 
-    // Build the full address
-    charBaseCache = getLatchedCHARBase(raster) + currentVICBank;
-    screenBaseCache = getLatchedScreenBase(raster) + currentVICBank;
-    bitmapBaseCache = getLatchedBitmapBase(raster) + currentVICBank;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = 0;
+
+    const uint16_t currentVICBank = dd00_per_raster[raster];
+
+    // Use a representative visible display X for monitor/debug cache reporting.
+    // Rendering itself remains pixel-aware through charBaseForRasterPixelX(),
+    // screenBaseForRasterPixelX(), and bitmapBaseForRasterPixelX().
+    const int samplePx = BACKGROUND_40COL_X0;
+
+    charBaseCache = static_cast<uint16_t>(charBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+
+    screenBaseCache = static_cast<uint16_t>(screenBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+
+    bitmapBaseCache = static_cast<uint16_t>(bitmapBaseForRasterPixelX(raster, samplePx) + currentVICBank);
 }
 
 void Vic::setIERExact(uint8_t mask)
