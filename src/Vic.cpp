@@ -3221,14 +3221,15 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
 {
     BackgroundLineGeometry g {};
 
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return g;
 
     g.rows = getLatchedRSEL(raster) ? 25 : 24;
 
-    // Hardware note:
-    // The VIC-II display sequencer is still 40 columns wide.
-    // CSEL only changes where the horizontal border opens/closes.
+    // Hardware-style model:
+    // The background sequencer remains 40 matrix columns wide.
+    // Horizontal border/CSEL only controls final visibility through
+    // borderMaskLine, not whether background pixels are generated.
     g.cols = BACKGROUND_MATRIX_COLUMNS;
 
     g.charRow = currentCharacterRow();
@@ -3238,16 +3239,13 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
 
     g.fineX = xScroll & 0x07;
 
-    // Do not turn 38-column mode into 38/39 fetched cells.
-    // The matrix/FIFO path is 40 columns.
+    // Always sample/render the full 40-column background row.
     g.fetchCols = BACKGROUND_MATRIX_COLUMNS;
 
-    // These remain the clipping bounds produced by the horizontal border logic.
-    g.x0 = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    g.x1 = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
-
-    if (g.x0 >= g.x1)
-        return g;
+    // Do not clip background stamping to the old per-raster border window.
+    // The pixel-aware border mask now decides final visibility.
+    g.x0 = 0;
+    g.x1 = VISIBLE_WIDTH;
 
     g.valid = true;
     return g;
