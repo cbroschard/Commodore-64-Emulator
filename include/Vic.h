@@ -524,6 +524,15 @@ class Vic
         bool spriteHasFetchedDisplayRow(int sprite) const;
         void clearSpriteFetchedRowState(int sprite);
 
+        struct SpriteCollisionTimingSnapshot
+        {
+            bool valid = false;
+            int raster = -1;
+            int x = -1;
+            int cycle = -1;
+            uint8_t bits = 0;
+        };
+
         // Sprite collision Helpers
         void detectSpriteToSpriteCollision(int raster);
         void detectSpriteToBackgroundCollision(int raster);
@@ -538,6 +547,9 @@ class Vic
 
         void latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX);
         void latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX);
+
+        SpriteCollisionTimingSnapshot lastSpriteSpriteCollision;
+        SpriteCollisionTimingSnapshot lastSpriteBackgroundCollision;
 
         void updateSpriteDMAStartForCurrentLine(int raster);
         void updateSpriteDMAEndOfLine(int raster);

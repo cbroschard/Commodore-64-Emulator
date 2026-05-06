@@ -214,6 +214,10 @@ void Vic::reset()
 
     resetActiveMatrixRow();
 
+    // Sprite collision latches
+    lastSpriteSpriteCollision = {};
+    lastSpriteBackgroundCollision = {};
+
     // ML Monitor logging default disable
     setLogging = false;
 }
@@ -5920,6 +5924,12 @@ void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
     if (newlySet == 0)
         return;
 
+    lastSpriteSpriteCollision.valid = true;
+    lastSpriteSpriteCollision.raster = raster;
+    lastSpriteSpriteCollision.x = firstX;
+    lastSpriteSpriteCollision.cycle = rasterPixelToCycle(firstX);
+    lastSpriteSpriteCollision.bits = newlySet;
+
     if (logger && setLogging)
     {
         const int approxCycle = rasterPixelToCycle(firstX);
@@ -5964,6 +5974,12 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
 
     if (newlySet == 0)
         return;
+
+    lastSpriteBackgroundCollision.valid = true;
+    lastSpriteBackgroundCollision.raster = raster;
+    lastSpriteBackgroundCollision.x = firstX;
+    lastSpriteBackgroundCollision.cycle = rasterPixelToCycle(firstX);
+    lastSpriteBackgroundCollision.bits = newlySet;
 
     if (logger && setLogging)
     {
@@ -8129,6 +8145,42 @@ std::string Vic::dumpSpriteDmaState() const
     oss << "  Row = mcBase / 3. CurRow tracks physical raster line in Y-expanded mode.\n";
     oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
     oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
+
+    oss << "\nLast collision timing:\n";
+
+    if (lastSpriteSpriteCollision.valid)
+    {
+        oss << "  sprite-sprite:"
+            << " raster=" << lastSpriteSpriteCollision.raster
+            << " x=" << lastSpriteSpriteCollision.x
+            << " cycle=" << lastSpriteSpriteCollision.cycle
+            << " bits=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(lastSpriteSpriteCollision.bits)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+    else
+    {
+        oss << "  sprite-sprite: none\n";
+    }
+
+    if (lastSpriteBackgroundCollision.valid)
+    {
+        oss << "  sprite-background:"
+            << " raster=" << lastSpriteBackgroundCollision.raster
+            << " x=" << lastSpriteBackgroundCollision.x
+            << " cycle=" << lastSpriteBackgroundCollision.cycle
+            << " bits=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(lastSpriteBackgroundCollision.bits)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+    else
+    {
+        oss << "  sprite-background: none\n";
+    }
 
     return oss.str();
 }
