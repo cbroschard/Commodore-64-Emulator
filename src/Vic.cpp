@@ -2703,12 +2703,16 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
 void Vic::renderLine(int raster)
 {
-    if (!IO_adapter || !mem) return;
+    if (!IO_adapter || !mem)
+        return;
 
     updateGraphicsMode(raster);
 
-    generateBackgroundLine(raster);
+    // Build the pixel-aware border mask first so background generation,
+    // color-event replay, and final composition can all use the same
+    // CSEL-aware border state.
     buildBorderMaskLine(raster);
+    generateBackgroundLine(raster);
 
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
@@ -4935,18 +4939,18 @@ void Vic::generateBackgroundLine(int raster)
         return;
     }
 
-    const int leftInner  = w.openX;
-    const int rightInner = w.closeX;
-
     // Fill the interior with background color first for non-bitmap modes.
     const graphicsMode lineMode = graphicsModeForRaster(raster);
 
-    // Fill the interior with background color first for non-bitmap modes.
     if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multiColorBitmap))
     {
         const uint8_t bg = registers.backgroundColor0 & 0x0F;
-        for (int px = leftInner; px < rightInner && px < 512; ++px)
+
+        for (int px = 0; px < VISIBLE_WIDTH && px < 512; ++px)
         {
+            if (!isInnerDisplayPixel(raster, px))
+                continue;
+
             bgColorLine[px] = bg;
             bgOpaqueLine[px] = 0;
             bgSourceLine[px] = BackgroundSource::BG0;
