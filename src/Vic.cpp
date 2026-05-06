@@ -7766,44 +7766,77 @@ std::string Vic::dumpSpriteDmaState() const
 {
     std::ostringstream oss;
 
-    oss << "Sprite DMA state\n";
+    oss << "Sprite DMA / output state\n";
     oss << "------------------------------------------------------------\n";
     oss << "Raster=" << registers.raster
         << " Cycle=" << currentCycle
         << " D015=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
         << static_cast<int>(registers.spriteEnabled)
         << " D017=$" << std::setw(2) << static_cast<int>(registers.spriteYExpansion)
+        << " D01B=$" << std::setw(2) << static_cast<int>(registers.spritePriority)
+        << " D01C=$" << std::setw(2) << static_cast<int>(registers.spriteMultiColor)
         << " D01D=$" << std::setw(2) << static_cast<int>(registers.spriteXExpansion)
         << std::dec << std::nouppercase << std::setfill(' ')
         << "\n\n";
 
-    oss << "Spr En  Y    DMA Disp YExpLatch MC MCBase Ptr  DataBase RowPrep RowLatched XStart Width\n";
+    oss << "Spr En  Y    X    DMA Disp YExp MC MCBase Row CurRow Ptr  DataBase "
+           "RowPrep RowLatched XStart Width OutBit Rep ShiftBytes  Mode@X Exp@X En@X\n";
 
     for (int s = 0; s < 8; ++s)
     {
         const SpriteUnit& u = spriteUnits[s];
 
         const bool enabled = (registers.spriteEnabled & (1 << s)) != 0;
+        const int sx = spriteScreenXFor(s, static_cast<int>(registers.raster));
+
+        const bool modeAtX =
+            (sx >= 0 && sx < 512) ? spriteMulticolorAtPixel(s, sx) : false;
+
+        const bool expAtX =
+            (sx >= 0 && sx < 512) ? spriteXExpandedAtPixel(s, sx) : false;
+
+        const bool enAtX =
+            (sx >= 0 && sx < 512) ? spriteEnabledAtPixel(s, sx) : false;
 
         oss << std::setw(3) << s << " "
             << " " << (enabled ? 1 : 0) << "  "
-            << std::setw(3) << static_cast<int>(registers.spriteY[s]) << "   "
+            << std::setw(3) << static_cast<int>(registers.spriteY[s]) << "  "
+            << std::setw(4) << sx << "   "
             << (u.dmaActive ? 1 : 0) << "    "
-            << (u.displayActive ? 1 : 0) << "      "
-            << (u.yExpandLatch ? 1 : 0) << "      "
+            << (u.displayActive ? 1 : 0) << "    "
+            << (u.yExpandLatch ? 1 : 0) << "   "
             << std::setw(2) << static_cast<int>(u.mc) << "   "
-            << std::setw(2) << static_cast<int>(u.mcBase) << "    "
+            << std::setw(2) << static_cast<int>(u.mcBase) << "     "
+            << std::setw(2) << spriteRowFromMCBase(s) << "    "
+            << std::setw(2) << u.currentRow << "   "
             << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << static_cast<int>(u.pointerByte)
             << "  $"
             << std::setw(4) << static_cast<int>(u.dataBase)
-            << std::dec << std::nouppercase << std::setfill(' ') << "     "
-            << (u.rowPrepared ? 1 : 0) << "        "
-            << (u.rowDataLatched ? 1 : 0) << "       "
+            << "   $"
+            << std::setw(2) << static_cast<int>(u.shift0)
+            << " $"
+            << std::setw(2) << static_cast<int>(u.shift1)
+            << " $"
+            << std::setw(2) << static_cast<int>(u.shift2)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "      "
+            << (u.rowPrepared ? 1 : 0) << "          "
+            << (u.rowDataLatched ? 1 : 0) << "      "
             << std::setw(4) << u.outputXStart << "   "
-            << std::setw(3) << u.outputWidth
+            << std::setw(3) << u.outputWidth << "    "
+            << std::setw(2) << u.outputBit << "   "
+            << std::setw(2) << u.outputRepeat << "      "
+            << (modeAtX ? 1 : 0) << "     "
+            << (expAtX ? 1 : 0) << "    "
+            << (enAtX ? 1 : 0)
             << "\n";
     }
+
+    oss << "\nNotes:\n";
+    oss << "  Row = mcBase / 3. CurRow tracks physical raster line in Y-expanded mode.\n";
+    oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
+    oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
 
     return oss.str();
 }
