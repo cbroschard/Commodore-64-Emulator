@@ -649,6 +649,10 @@ class Vic
             uint8_t fgColor = 0;
             uint8_t bgColor = 0;
 
+            uint8_t rowBits = 0;
+            uint16_t charAddr = 0;
+            uint16_t charBase = 0;
+
             BackgroundSource bgSource = BackgroundSource::BG0;
         };
 

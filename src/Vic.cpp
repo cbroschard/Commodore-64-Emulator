@@ -3395,20 +3395,9 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
     bgPipeline.pixelPhase = 0;
 
     bgPipeline.charCode = cell.charIndex;
-    bgPipeline.rowBits = 0;
+    bgPipeline.rowBits = cell.rowBits;
 
-    if (mem)
-    {
-        const uint16_t addr = static_cast<uint16_t>(
-            charBaseForRasterPixelX(raster, cell.px) +
-            static_cast<uint16_t>(cell.charIndex) * 8
-        );
-
-        bgPipeline.rowBits =
-            mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
-
-        updateOpenBus(bgPipeline.rowBits);
-    }
+    updateOpenBus(bgPipeline.rowBits);
 
     bgPipeline.bitmapByte = 0;
     bgPipeline.screenByte = 0;
@@ -4761,6 +4750,10 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
     const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
 
+    const uint16_t charBase = charBaseForRasterPixelX(raster, px);
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(yInChar & 0x07));
+    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+
     uint8_t bgColor = 0;
     BackgroundSource bgSource = BackgroundSource::BG0;
 
@@ -4798,26 +4791,21 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     out.fgColor = fgColor;
     out.bgColor = bgColor;
     out.bgSource = bgSource;
+    out.rowBits = rowBits;
+    out.charAddr = charAddr;
+    out.charBase = charBase;
 
     return true;
 }
 
 void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
 {
-    if (!cell.valid || !mem)
+    (void)raster;
+
+    if (!cell.valid)
         return;
 
-    const uint16_t charBase =
-        charBaseForRasterPixelX(raster, cell.px);
-
-    const uint16_t addr =
-        static_cast<uint16_t>(
-            charBase +
-            static_cast<uint16_t>(cell.charIndex) * 8
-        );
-
-    const uint8_t rowBits =
-        mem->vicRead(static_cast<uint16_t>(addr + cell.yInChar), raster);
+    const uint8_t rowBits = cell.rowBits;
 
     updateOpenBus(rowBits);
 
