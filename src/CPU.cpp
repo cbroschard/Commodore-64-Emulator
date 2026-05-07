@@ -57,7 +57,7 @@ bool CPU::CPUState::load(StateReader& rdr)
     if (!rdr.readU8(SP))  return false;
     if (!rdr.readU8(SR))  return false;
 
-    SR |= 0x20; // force U bit
+    SR |= 0x20 & ~0x10; // force U bit
     return true;
 }
 
@@ -1392,25 +1392,23 @@ void CPU::BPL()
 
 void CPU::BRK()
 {
-    uint16_t newPC = PC + 1;  // Point to the instruction after BRK
+    uint16_t newPC = PC + 1;  // BRK is treated as a 2-byte instruction
 
     // Dummy read for accuracy
     mem->read(PC);
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
-    setFlag(B, 1);
-    push(SR | 0x20);
 
-    // Set the interrupt disable flag (I flag) in the processor status
-    setFlag(I, 1);
-    setFlag(B, 0);
+    // B and U exist only in the pushed status byte.
+    // Do not mutate internal SR's B bit.
+    push(SR | 0x30); // B=1, U=1
 
-    // Load the new Program Counter (PC) from the interrupt vector (0xFFFE and 0xFFFF)
-    uint16_t interruptVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    // Set interrupt disable
+    setFlag(I, true);
 
-    // Set the PC to the interrupt vector
-    PC = interruptVector;
+    uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    PC = vector;
 }
 
 void CPU::BVC()
@@ -2031,9 +2029,8 @@ void CPU::PHA()
 
 void CPU::PHP()
 {
-    // Dummy read for accuracy
-    mem->read(PC);
-
+    // Push status with B=1 and U=1.
+    // Internal SR should not permanently store B.
     push(SR | 0x30);
 }
 
@@ -2048,13 +2045,19 @@ void CPU::PLA()
 
 void CPU::PLP()
 {
-    mem->read(0x100 + ((SP + 1) & 0xFF)); // dummy stack read
-
     uint8_t status = pop();
-    status |= 0x20;
-    bool willEnableIRQ = ((status & I) == 0);
-    SR = status;
-    if (willEnableIRQ) irqSuppressOne = true;
+
+    const bool oldI = (SR & I) != 0;
+
+    // U forced high, B cleared internally.
+    SR = (status | 0x20) & ~0x10;
+
+    const bool newI = (SR & I) != 0;
+
+    // Preserve your existing CLI-like IRQ suppression behavior
+    // when PLP changes I from set to clear.
+    if (oldI && !newI)
+        irqSuppressOne = true;
 }
 
 void CPU::RLA(uint8_t opcode)
