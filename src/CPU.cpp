@@ -109,7 +109,7 @@ bool CPU::loadStatePayload(StateReader& rdr)
     X  = state.X;
     Y  = state.Y;
     SP = state.SP;
-    SR = (state.SR | 0x20); // force U bit
+    SR = (state.SR | 0x20) & ~0x10; // force U bit
 
     return true;
 }
@@ -2209,15 +2209,19 @@ void CPU::RRA(uint8_t opcode)
 
 void CPU::RTI()
 {
-    // Dummy read
+    // RTI dummy read / throwaway read.
+    // PC already points to the byte after opcode $40.
     mem->read(PC);
 
-    SR = pop();
-    SR |= 0x20; // force bit 5 = 1
-    bool willEnableIRQ = ((SR & I) == 0);
-    uint8_t lo = pop(), hi = pop();
-    PC = (hi << 8) | lo;
-    if (willEnableIRQ) irqSuppressOne = true;
+    uint8_t status = pop();
+
+    // U forced high, B cleared internally.
+    SR = (status | 0x20) & ~0x10;
+
+    uint8_t lo = pop();
+    uint8_t hi = pop();
+
+    PC = uint16_t(lo) | (uint16_t(hi) << 8);
 }
 
 void CPU::RTS()
