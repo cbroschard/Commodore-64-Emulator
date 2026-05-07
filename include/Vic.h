@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <sstream>
+#include <string>
 #include "Common/VideoMode.h"
 #include "CIA2.h"
 #include "CPU.h"
@@ -495,6 +496,24 @@ class Vic
         void updateBusArbitration();
         bool AEC;
         int currentCycle;
+
+        struct RasterIRQSampleSnapshot
+        {
+            bool valid = false;
+
+            int raster = -1;
+            int cycle = -1;
+
+            uint16_t visibleRaster = 0;
+            uint16_t targetRaster = 0;
+
+            bool matched = false;
+            bool sampledBefore = false;
+
+            std::string reason;
+        };
+
+        RasterIRQSampleSnapshot lastRasterIRQSample;
 
         // IRQ Helpers
         inline bool rasterCompareMatchesNow() const { return visibleRasterForIRQCompare() == registers.rasterInterruptLine; }

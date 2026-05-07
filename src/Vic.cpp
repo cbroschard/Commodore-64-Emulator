@@ -75,6 +75,7 @@ void Vic::reset()
 
     // Raster IRQ
     rasterIrqSampledThisLine = false;
+    lastRasterIRQSample = {};
 
     // Internal VIC state
     vicState.vcBase = 0;
@@ -5659,7 +5660,26 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     const char* sampleReason =
         reason ? reason : "normal-sample";
 
-    const bool matched = rasterCompareMatchesNow();
+    const uint16_t visibleRaster =
+        visibleRasterForIRQCompare();
+
+    const uint16_t targetRaster =
+        registers.rasterInterruptLine;
+
+    const bool sampledBefore =
+        rasterIrqSampledThisLine;
+
+    const bool matched =
+        rasterCompareMatchesNow();
+
+    lastRasterIRQSample.valid = true;
+    lastRasterIRQSample.raster = static_cast<int>(registers.raster);
+    lastRasterIRQSample.cycle = currentCycle;
+    lastRasterIRQSample.visibleRaster = visibleRaster;
+    lastRasterIRQSample.targetRaster = targetRaster;
+    lastRasterIRQSample.matched = matched;
+    lastRasterIRQSample.sampledBefore = sampledBefore;
+    lastRasterIRQSample.reason = sampleReason;
 
     traceVicCycleCheckpoint(
         "raster-irq-sample",
@@ -5669,9 +5689,9 @@ void Vic::sampleRasterIRQCompare(const char* reason)
 
     traceVicRasterRetargetTest(
         sampleReason,
-        registers.rasterInterruptLine,
-        registers.rasterInterruptLine,
-        rasterIrqSampledThisLine,
+        targetRaster,
+        targetRaster,
+        sampledBefore,
         matched
     );
 
@@ -6832,6 +6852,24 @@ std::string Vic::dumpRegisters(const std::string& group) const
             << std::setw(2)
             << int(registers.interruptEnable)
             << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+        out << "Last Raster IRQ Sample:\n";
+
+        if (lastRasterIRQSample.valid)
+        {
+            out << "  reason=" << lastRasterIRQSample.reason
+                << " raster=" << lastRasterIRQSample.raster
+                << " cycle=" << lastRasterIRQSample.cycle
+                << " visibleRaster=" << lastRasterIRQSample.visibleRaster
+                << " target=" << lastRasterIRQSample.targetRaster
+                << " matched=" << (lastRasterIRQSample.matched ? 1 : 0)
+                << " sampledBefore=" << (lastRasterIRQSample.sampledBefore ? 1 : 0)
+                << "\n";
+        }
+        else
+        {
+            out << "  none\n";
+        }
     }
 
     // Sprite control
