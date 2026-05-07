@@ -300,7 +300,9 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     // ---------- $8000-$9FFF (ROML) ----------
     if (addr >= 0x8000 && addr <= 0x9FFF)
     {
-        if ((cfg == CartCfg::Cart8K || cfg == CartCfg::Cart16K) && (loram || hiram))
+        // In normal 8K/16K cartridge modes, ROML is visible only when HIRAM is high.
+        // If HIRAM is low, RAM underneath $8000-$9FFF is visible.
+        if ((cfg == CartCfg::Cart8K || cfg == CartCfg::Cart16K) && hiram)
             return CARTRIDGE_LO;
 
         return RAM;
