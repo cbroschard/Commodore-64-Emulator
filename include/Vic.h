@@ -522,7 +522,6 @@ class Vic
         uint16_t visibleRasterForIRQCompare() const;
         uint16_t visibleRasterForRead() const;
         void updateIRQLine();
-        void triggerRasterIRQIfMatched();
         void raiseVicIRQSource(uint8_t sourceBitMask);
         void noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine);
 

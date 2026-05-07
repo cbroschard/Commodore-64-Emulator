@@ -5530,33 +5530,6 @@ void Vic::updateIRQLine()
     }
 }
 
-void Vic::triggerRasterIRQIfMatched()
-{
-    const bool matched = rasterCompareMatchesNow();
-    const bool pending = (registers.interruptStatus & 0x01) != 0;
-    const bool enabled = (registers.interruptEnable & 0x01) != 0;
-
-    if (!matched)
-        return;
-
-    if (logger && setLogging)
-    {
-        std::ostringstream oss;
-        oss << "[VIC:IRQ] trigger-check"
-            << " raster=" << registers.raster
-            << " cycle=" << currentCycle
-            << " target=" << registers.rasterInterruptLine
-            << " matched=1"
-            << " pendingBefore=" << (pending ? 1 : 0)
-            << " enabled=" << (enabled ? 1 : 0);
-
-        logger->WriteLog(oss.str());
-    }
-
-    if (!pending)
-        raiseVicIRQSource(0x01);
-}
-
 void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 {
     const uint8_t masked = sourceBitMask & 0x0F;
