@@ -63,13 +63,13 @@ bool PLA::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 void PLA::reset()
 {
-    // Default memory control register state on power on
-    updateMemoryControlRegister(0x37);
-
     // No cartridge
     exROMLine = true;
     gameLine = true;
     cartridgeAttached = false;
+
+    // Default memory control register state on power on
+    updateMemoryControlRegister(0x37);
 
     // ML Monitor logging default off
     setLogging = false;
