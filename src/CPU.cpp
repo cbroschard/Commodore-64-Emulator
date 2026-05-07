@@ -2153,18 +2153,32 @@ void CPU::RTS()
 
 void CPU::SAX(uint8_t opcode)
 {
+    const uint8_t value = A & X;
     uint16_t address = 0;
+
     switch (opcode)
     {
-        case 0x83: address = indirectXAddress(); break;
-        case 0x87: address = zpAddress(); break;
-        case 0x8F: address = absAddress(); break;
-        case 0x97: address = zpYAddress(); break;
+        case 0x87: // ZP
+            address = zpAddress();
+            break;
+
+        case 0x97: // ZP,Y
+            address = zpYAddress();
+            break;
+
+        case 0x83: // (ZP,X)
+            address = indirectXAddress();
+            break;
+
+        case 0x8F: // ABS
+            address = absAddress();
+            break;
+
+        default:
+            return;
     }
 
-    uint8_t result = A & X; // Compute A AND X
-
-    mem->write(address, result); // Store the result in memory
+    mem->write(address, value);
 }
 
 void CPU::SBC(uint8_t opcode)
