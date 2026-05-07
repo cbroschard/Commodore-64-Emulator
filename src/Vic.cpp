@@ -5496,7 +5496,10 @@ void Vic::applySpriteColorEventsToLine(int raster)
 
 uint16_t Vic::visibleRasterForIRQCompare() const
 {
-    return visibleRasterForRead();
+    if (registers.raster >= cfg_->maxRasterLines)
+        return 0;
+
+    return static_cast<uint16_t>(registers.raster);
 }
 
 uint16_t Vic::visibleRasterForRead() const
