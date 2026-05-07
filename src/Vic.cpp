@@ -5635,20 +5635,22 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     const char* sampleReason =
         reason ? reason : "normal-sample";
 
+    // Capture everything used by the comparator at the sample point.
     const uint16_t visibleRaster =
         visibleRasterForIRQCompare();
 
     const uint16_t targetRaster =
-        registers.rasterInterruptLine;
+        static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
 
     const bool targetInRange =
-        rasterIRQTargetInRange();
+        targetRaster < cfg_->maxRasterLines;
 
     const bool sampledBefore =
         rasterIrqSampledThisLine;
 
+    // Use the captured values, not a second helper call.
     const bool matched =
-        rasterCompareMatchesNow();
+        targetInRange && (visibleRaster == targetRaster);
 
     lastRasterIRQSample.valid = true;
     lastRasterIRQSample.raster = static_cast<int>(registers.raster);
