@@ -731,14 +731,22 @@ uint16_t CPU::zpAddress()
 
 uint16_t CPU::zpXAddress()
 {
-    uint16_t address = (fetch() + X) & 0XFF;
-    return address;
+    const uint8_t base = fetch();
+
+    // Zero-page indexed dummy read before applying X.
+    mem->read(base);
+
+    return uint16_t((base + X) & 0xFF);
 }
 
 uint16_t CPU::zpYAddress()
 {
-    uint16_t address = (fetch() + Y) & 0xFF;
-    return address;
+    const uint8_t base = fetch();
+
+    // Zero-page indexed dummy read before applying Y.
+    mem->read(base);
+
+    return uint16_t((base + Y) & 0xFF);
 }
 
 CPU::ReadByte CPU::readABSXAddressBoundary()
