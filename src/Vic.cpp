@@ -5603,16 +5603,34 @@ void Vic::noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine)
     if (newLine >= cfg_->maxRasterLines)
         return;
 
-    // If this raster's compare point has already happened, a retarget to the
-    // current raster should not immediately fire from the register write path.
+    // With the current model the raster IRQ comparator samples at cycle 0.
+    // Any CPU write to D011/D012 during this raster occurs after that
+    // compare point, so it cannot create a same-line raster IRQ.
     if (rasterIrqSampledThisLine || currentCycle >= rasterIRQCompareCycle())
+    {
+        if (logger && setLogging)
+        {
+            std::ostringstream oss;
+            oss << "[VIC:IRQ] retarget ignored"
+                << " raster=" << registers.raster
+                << " cycle=" << currentCycle
+                << " oldTarget=" << oldLine
+                << " newTarget=" << newLine
+                << " compareCycle=" << rasterIRQCompareCycle()
+                << " reason=compare-point-passed";
+
+            logger->WriteLog(oss.str());
+        }
+
         return;
+    }
 
     if (visibleRasterForIRQCompare() != newLine)
         return;
 
-    // Do not trigger here. The upcoming normal compare sample will see the
-    // new target at the hardware compare point.
+    // This path only matters if the compare cycle is later than the current
+    // cycle. With compareCycle=0 this normally will not be reachable, but it
+    // remains useful if the compare timing is tuned again later.
     if (logger && setLogging)
     {
         std::ostringstream oss;
