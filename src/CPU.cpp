@@ -2097,15 +2097,23 @@ void CPU::RTI()
     // PC already points to the byte after opcode $40.
     mem->read(PC);
 
+    const bool oldI = (SR & I) != 0;
+
     uint8_t status = pop();
 
     // U forced high, B cleared internally.
     SR = (status | 0x20) & ~0x10;
 
+    const bool newI = (SR & I) != 0;
+
     uint8_t lo = pop();
     uint8_t hi = pop();
 
     PC = uint16_t(lo) | (uint16_t(hi) << 8);
+
+    // Only suppress one IRQ check if RTI changed I from set to clear.
+    if (oldI && !newI)
+        irqSuppressOne = true;
 }
 
 void CPU::RTS()
