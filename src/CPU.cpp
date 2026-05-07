@@ -2036,15 +2036,22 @@ void CPU::PHP()
 
 void CPU::PLA()
 {
-    mem->read(0x100 + ((SP + 1) & 0xFF)); // dummy stack read
+    // PLA dummy read / throwaway read.
+    // PC already points to the byte after opcode $68.
+    mem->read(PC);
 
     A = pop();
+
     setFlag(Z, A == 0);
-    setFlag(N, A & 0x80);
+    setFlag(N, (A & 0x80) != 0);
 }
 
 void CPU::PLP()
 {
+    // PLP dummy read / throwaway read.
+    // PC already points to the byte after opcode $28.
+    mem->read(PC);
+
     uint8_t status = pop();
 
     const bool oldI = (SR & I) != 0;
@@ -2054,8 +2061,6 @@ void CPU::PLP()
 
     const bool newI = (SR & I) != 0;
 
-    // Preserve your existing CLI-like IRQ suppression behavior
-    // when PLP changes I from set to clear.
     if (oldI && !newI)
         irqSuppressOne = true;
 }
