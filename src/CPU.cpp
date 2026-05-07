@@ -833,32 +833,30 @@ void CPU::branchIf(bool condition)
 
 void CPU::dummyReadWrongPageABSX(uint16_t address)
 {
-    uint16_t base = (address - X) & 0xFFFF;
-    if ((base ^ address) & 0xFF00)
-    {
-        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
-        mem->read(dummy);
-    }
+    const uint16_t base = uint16_t(address - X);
+
+    // Absolute,X RMW dummy/read cycle.
+    // If page crossed, this is old high byte + indexed low byte.
+    // If not crossed, this equals the final effective address.
+    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+
+    mem->read(dummy);
 }
 
 void CPU::dummyReadWrongPageABSY(uint16_t address)
 {
-    uint16_t base = (address - Y) & 0xFFFF;
-    if ((base ^ address) & 0xFF00)
-    {
-        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
-        mem->read(dummy);
-    }
+    const uint16_t base = uint16_t(address - Y);
+    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+
+    mem->read(dummy);
 }
 
 void CPU::dummyReadWrongPageINDY(uint16_t address)
 {
-    uint16_t base = (address - Y) & 0xFFFF;
-    if ((base ^ address) & 0xFF00)
-    {
-        uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
-        mem->read(dummy);
-    }
+    const uint16_t base = uint16_t(address - Y);
+    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+
+    mem->read(dummy);
 }
 
 void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
