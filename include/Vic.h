@@ -531,6 +531,9 @@ class Vic
         void setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue);
         bool rasterIRQTargetInRange() const;
 
+        int rasterIRQCompareCycle() const;
+        bool isRasterIRQCompareCycle(int cycle) const;
+
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
 

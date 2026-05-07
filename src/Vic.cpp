@@ -1186,7 +1186,7 @@ void Vic::beginFrameIfNeeded()
 
 void Vic::runCycleDecisionPhase()
 {
-    if (currentCycle == RASTER_IRQ_COMPARE_CYCLE)
+    if (isRasterIRQCompareCycle(currentCycle))
         sampleRasterIRQCompare("normal-sample");
 
     switch (currentCycle)
@@ -5605,7 +5605,7 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 
     // If this raster's compare point has already happened, a retarget to the
     // current raster should not immediately fire from the register write path.
-    if (rasterIrqSampledThisLine || currentCycle >= RASTER_IRQ_COMPARE_CYCLE)
+    if (rasterIrqSampledThisLine || currentCycle >= rasterIRQCompareCycle())
         return;
 
     if (visibleRasterForIRQCompare() != newLine)
@@ -5621,7 +5621,7 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
             << " cycle=" << currentCycle
             << " oldTarget=" << oldLine
             << " newTarget=" << newLine
-            << " compareCycle=" << RASTER_IRQ_COMPARE_CYCLE;
+            << " compareCycle=" << rasterIRQCompareCycle();
 
         logger->WriteLog(oss.str());
     }
@@ -5732,6 +5732,16 @@ bool Vic::rasterIRQTargetMatchesVisibleRaster() const
         return false;
 
     return visibleRasterForIRQCompare() == registers.rasterInterruptLine;
+}
+
+int Vic::rasterIRQCompareCycle() const
+{
+    return RASTER_IRQ_COMPARE_CYCLE;
+}
+
+bool Vic::isRasterIRQCompareCycle(int cycle) const
+{
+    return cycle == rasterIRQCompareCycle();
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -6851,7 +6861,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
                 << "   raw=" << irqTarget << "\n";
         }
 
-        out << "Compare cycle   = " << RASTER_IRQ_COMPARE_CYCLE
+        out << "Compare cycle   = " << rasterIRQCompareCycle()
             << "   Sampled this line="
             << (rasterIrqSampledThisLine ? "Yes" : "No") << "\n";
 
@@ -6871,12 +6881,12 @@ std::string Vic::dumpRegisters(const std::string& group) const
         {
             out << "already sampled this line\n";
         }
-        else if (currentCycle < RASTER_IRQ_COMPARE_CYCLE)
+        else if (currentCycle < rasterIRQCompareCycle())
         {
             out << (compareWillSampleNext ? "will match at compare cycle" : "waiting for compare cycle")
                 << "\n";
         }
-        else if (currentCycle == RASTER_IRQ_COMPARE_CYCLE)
+        else if (currentCycle == rasterIRQCompareCycle())
         {
             out << (rasterCompareMatchesNow() ? "sampling match now" : "sampling no-match now")
                 << "\n";
