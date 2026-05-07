@@ -799,6 +799,30 @@ CPU::ReadByte CPU::readIndirectYAddressBoundary()
     return { value, crossed };
 }
 
+void CPU::branchIf(bool condition)
+{
+    const int8_t offset = static_cast<int8_t>(fetch());
+
+    if (!condition)
+        return;
+
+    // Branch taken: extra cycle and dummy read of next opcode address.
+    cycles++;
+    mem->read(PC);
+
+    const uint16_t oldPC = PC;
+    const uint16_t newPC = uint16_t(PC + offset);
+
+    if ((oldPC & 0xFF00) != (newPC & 0xFF00))
+    {
+        // Page-cross dummy read from old high byte + new low byte.
+        mem->read((oldPC & 0xFF00) | (newPC & 0x00FF));
+        cycles++;
+    }
+
+    PC = newPC;
+}
+
 void CPU::dummyReadWrongPageABSX(uint16_t address)
 {
     uint16_t base = (address - X) & 0xFFFF;
@@ -1240,68 +1264,17 @@ void CPU::AXS()
 
 void CPU::BCC()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (!getFlag(C))  // Branch if Carry Clear
-    {
-        cycles++; // Extra cycle for a taken branch
-        uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles++; // Extra cycle if page boundary is crossed
-        }
-        PC = newPC;  // Update program counter
-    }
+    branchIf(!getFlag(C));
 }
 
 void CPU::BCS()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (getFlag(C))  // Branch if Carry Set
-    {
-        cycles++; // Extra cycle for a taken branch
-
-        uint16_t newPC = (PC + offset) & 0xFFFF;
-
-        // Extra cycle if page boundary is crossed
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles++;
-        }
-
-        PC = newPC;
-    }
+    branchIf(getFlag(C));
 }
 
 void CPU::BEQ()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (getFlag(Z))
-    {
-        cycles++;
-
-        uint16_t newPC = (PC + offset) & 0xFFFF; // handle wrapping
-
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles ++;
-        }
-        PC = newPC;
-    }
+    branchIf(getFlag(Z));
 }
 
 void CPU::BIT(uint8_t opcode)
@@ -1321,73 +1294,17 @@ void CPU::BIT(uint8_t opcode)
 
 void CPU::BMI()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    uint16_t newPC = (PC + offset) & 0xFFFF;
-
-    if (getFlag(N))
-    {
-        cycles++;
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles ++;
-        }
-        PC = newPC;
-    }
+    branchIf(getFlag(N));
 }
 
 void CPU::BNE()
 {
-    // Fetch the signed 8-bit branch offset
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (!getFlag(Z)) // Branch if Zero flag is NOT set
-    {
-        cycles++; // Add cycle for taking the branch
-
-        uint16_t newPC = (PC + offset) & 0xFFFF; // Ensure 16-bit wrapping
-
-        // Check if the branch crosses a page boundary
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles++; // Add cycle if page boundary crossed
-        }
-
-        // Update the program counter to the new address
-        PC = newPC;
-    }
+    branchIf(!getFlag(Z));
 }
 
 void CPU::BPL()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (!getFlag(N))  // Check if Negative flag is not set (i.e., positive)
-    {
-        uint16_t oldPC = PC;
-        PC = (PC + offset) & 0xFFFF;
-
-        // Base cycles for branch instruction
-        cycles ++;
-
-        // Check if crossing a page boundary
-        if ((oldPC & 0xFF00) != (PC & 0xFF00))
-        {
-            mem->read((oldPC & 0xFF00) | (PC & 0x00FF));
-            cycles++;  // Extra cycle for page boundary crossing
-        }
-    }
+    branchIf(!getFlag(N));
 }
 
 void CPU::BRK()
@@ -1413,50 +1330,12 @@ void CPU::BRK()
 
 void CPU::BVC()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (!getFlag(V)) // Branch if Overflow Clear
-    {
-        cycles++; // Extra cycle for taking the branch
-
-        uint16_t newPC = (PC + offset) & 0xFFFF;
-
-        // Extra cycle if page boundary is crossed
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles++;
-        }
-
-        PC = newPC;
-    }
+    branchIf(!getFlag(V));
 }
 
 void CPU::BVS()
 {
-    int8_t offset = static_cast<int8_t>(fetch());
-
-    // Dummy read for accuracy
-    mem->read(PC);
-
-    if (getFlag(V)) // Branch if Overflow Set
-    {
-        cycles++; // Extra cycle for taking the branch
-
-        uint16_t newPC = (PC + offset) & 0xFFFF;
-
-        // Extra cycle if page boundary is crossed
-        if ((PC & 0xFF00) != (newPC & 0xFF00))
-        {
-            mem->read((PC & 0xFF00) | (newPC & 0x00FF));
-            cycles++;
-        }
-
-        PC = newPC;
-    }
+    branchIf(getFlag(V));
 }
 
 void CPU::CMP(uint8_t opcode)

@@ -260,6 +260,8 @@ class CPU
         uint16_t zpXAddress();
         uint16_t zpYAddress();
 
+        void branchIf(bool condition);
+
         // Struct to track page boundary for read only opcodes
         struct ReadByte
         {
