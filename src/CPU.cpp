@@ -1624,18 +1624,25 @@ void CPU::JMP(uint8_t opcode)
 
 void CPU::JSR()
 {
-    // Calculate the return address (next instruction address - 1) before fetching the target address
-    uint16_t returnAddress = (PC + 1) & 0xFFFF;  // PC currently points to the low byte of the operand
+    // PC currently points to the low byte of the JSR target
+    // because opcode $20 has already been fetched by tick().
 
-    // Fetch the target address for the JSR instruction
-    uint16_t address = absAddress();
+    const uint8_t lo = fetch();
 
-    // Push the return address onto the stack (high byte first, then low byte)
-    push((returnAddress >> 8) & 0xFF);  // Push high byte
-    push(returnAddress & 0xFF);         // Push low byte
+    // JSR internal/stack timing read.
+    // After fetching low target byte, PC points to the high target byte.
+    mem->read(0x0100 | SP);
 
-    // Update the program counter (PC) to the target address of the JSR subroutine
-    PC = address;
+    const uint8_t hi = fetch();
+
+    // 6502 pushes address of the last operand byte.
+    // After fetching hi, PC points to next instruction, so return is PC - 1.
+    const uint16_t returnAddress = uint16_t(PC - 1);
+
+    push((returnAddress >> 8) & 0xFF);
+    push(returnAddress & 0xFF);
+
+    PC = uint16_t(lo) | (uint16_t(hi) << 8);
 }
 
 void CPU::LAS()
