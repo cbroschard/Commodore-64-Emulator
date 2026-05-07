@@ -5590,7 +5590,7 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
     }
 }
 
-void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
+void Vic::noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine)
 {
     oldLine &= 0x01FF;
     newLine &= 0x01FF;
@@ -5718,7 +5718,7 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
         logger->WriteLog(oss.str());
     }
 
-    checkRasterIRQCompareTransition(oldLine, registers.rasterInterruptLine);
+    noteRasterIRQRetargetIfRelevant(oldLine, registers.rasterInterruptLine);
 }
 
 bool Vic::rasterIRQTargetInRange() const
