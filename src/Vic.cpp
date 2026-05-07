@@ -2596,7 +2596,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.baLow = slot.badlineWarning || slot.badlineSteal   || slot.spriteWarning  || slot.spriteSteal;
     slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
-    slot.rasterIrqSample = (cycle == RASTER_IRQ_COMPARE_CYCLE);
+    slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 
     slot.busOwner = BusOwner::CPU;
 
