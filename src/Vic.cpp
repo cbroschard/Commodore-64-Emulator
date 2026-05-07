@@ -66,7 +66,8 @@ void Vic::reset()
     registers.backgroundColor[2] = 0x00;
     registers.spriteMultiColor1 = 0x00;
     registers.spriteMultiColor2 = 0x00;
-    registers.rasterInterruptLine = cfg_->maxRasterLines + 1;
+    // Use an out-of-range 9-bit target as the default disabled/no-match target.
+    registers.rasterInterruptLine = 0x01FF;
     registers.undefined = 0xFF; // Undefined always returns 0xFF
 
     // AEC
@@ -464,12 +465,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(registers.spriteCollision))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(registers.spriteDataCollision))         { rdr.exitChunkPayload(chunk); return false; }
 
-        const uint16_t disabled = uint16_t(cfg_->maxRasterLines + 1);
-        if (registers.rasterInterruptLine != disabled)
-        {
-            if (registers.rasterInterruptLine >= cfg_->maxRasterLines)
-                registers.rasterInterruptLine %= cfg_->maxRasterLines;
-        }
+        // Preserve the programmed 9-bit raster IRQ target.
+        registers.rasterInterruptLine &= 0x01FF;
 
         // Mask colors to 4-bit (safer on corrupt/old states)
         registers.borderColor &= 0x0F;
