@@ -847,7 +847,10 @@ bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetB
 bool Memory::Initialize(const std::string& basic, const std::string& kernal, const std::string& character)
 {
     // Initialize RAM to 0
-    std::fill(mem.begin(), mem.end(), 0x00);
+    for (size_t i = 0; i < mem.size(); ++i)
+{
+    mem[i] = (i & 0x40) ? 0xFF : 0x00;
+}
 
     // Load each ROM and check for successful load
     if (!load_ROM(basic, basicROM, 0x2000, "BASIC") || !load_ROM(kernal, kernalROM, 0x2000, "Kernal") || !load_ROM(character, charROM, 0x1000, "CHAR"))
