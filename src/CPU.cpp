@@ -1848,8 +1848,8 @@ void CPU::NOP(uint8_t opcode)
         case 0x14: case 0x34: case 0x54: case 0x74:
         case 0xD4: case 0xF4: // Zero-page,X
         {
-            uint8_t zp = fetch();
-            mem->read(uint8_t(zp + X));
+            const uint16_t addr = zpXAddress();
+            mem->read(addr);
             break;
         }
         case 0x0C: // Absolute
