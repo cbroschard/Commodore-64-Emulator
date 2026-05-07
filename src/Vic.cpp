@@ -5707,7 +5707,15 @@ void Vic::sampleRasterIRQCompare(const char* reason)
 
     rasterIrqSampledThisLine = true;
 
-    triggerRasterIRQIfMatched();
+    triggerRasterIRQFromSample(matched);
+}
+
+void Vic::triggerRasterIRQFromSample(bool matched)
+{
+    if (!matched)
+        return;
+
+    raiseVicIRQSource(0x01);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
