@@ -490,7 +490,7 @@ void Memory::write(uint16_t address, uint8_t value)
     }
     else if (address == 0x0001)
     {
-        port1OutputLatch = value & 0x3F;
+        port1OutputLatch = value;
         uint8_t effective = computeEffectivePort1(port1OutputLatch, dataDirectionRegister);
 
         if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
