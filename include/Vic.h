@@ -526,6 +526,7 @@ class Vic
 
         void sampleRasterIRQCompare(const char* reason);
         void triggerRasterIRQFromSample(bool matched);
+        void setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue);
 
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;

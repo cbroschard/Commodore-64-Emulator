@@ -862,40 +862,20 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD011:
         {
             const uint8_t oldValue = registers.control;
-            const uint16_t oldLine = registers.rasterInterruptLine;
 
             registers.control = value & 0x7F;
 
             recordRasterEventLog(RasterEventKind::Control, 0xD011, oldValue, registers.control);
 
             const uint16_t newLine =
-                (oldLine & 0x00FF) |
-                (static_cast<uint16_t>(value & 0x80) << 1);
+                static_cast<uint16_t>(
+                    (registers.rasterInterruptLine & 0x00FF) |
+                    (static_cast<uint16_t>(value & 0x80) << 1)
+                );
 
-            registers.rasterInterruptLine = newLine;
+            setRasterIRQTarget(newLine, "D011", value);
 
             const int raster = registers.raster;
-
-            if (logger && setLogging)
-            {
-                std::ostringstream oss;
-                oss << "[VIC:IRQ] write D011"
-                    << " raster=" << registers.raster
-                    << " cycle=" << currentCycle
-                    << " value=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(value)
-                    << " oldControl=$" << std::setw(2) << static_cast<int>(oldValue)
-                    << std::dec << std::nouppercase << std::setfill(' ')
-                    << " oldTarget=" << oldLine
-                    << " newTarget=" << newLine
-                    << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
-                    << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
-
-                logger->WriteLog(oss.str());
-            }
-
-            checkRasterIRQCompareTransition(oldLine, newLine);
 
             updateGraphicsMode(raster);
             updateVerticalBorderState(raster);
@@ -907,35 +887,18 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         case 0xD012:
         {
-            const uint16_t oldLine = registers.rasterInterruptLine;
+            const uint8_t oldLow =
+                static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
 
             const uint16_t newLine =
-                (oldLine & 0x0100) |
-                static_cast<uint16_t>(value);
+                static_cast<uint16_t>(
+                    (registers.rasterInterruptLine & 0x0100) |
+                    static_cast<uint16_t>(value)
+                );
 
-            registers.rasterInterruptLine = newLine;
+            setRasterIRQTarget(newLine, "D012", value);
 
-            if (logger && setLogging)
-            {
-                std::ostringstream oss;
-                oss << "[VIC:IRQ] write D012"
-                    << " raster=" << registers.raster
-                    << " cycle=" << currentCycle
-                    << " value=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(value)
-                    << std::dec << std::nouppercase << std::setfill(' ')
-                    << " oldTarget=" << oldLine
-                    << " newTarget=" << newLine
-                    << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
-                    << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
-
-                logger->WriteLog(oss.str());
-            }
-
-            checkRasterIRQCompareTransition(oldLine, newLine);
-
-            traceVicRegWrite(address, static_cast<uint8_t>(oldLine & 0x00FF), value);
+            traceVicRegWrite(address, oldLow, value);
             break;
         }
 
@@ -5716,6 +5679,38 @@ void Vic::triggerRasterIRQFromSample(bool matched)
         return;
 
     raiseVicIRQSource(0x01);
+}
+
+void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue)
+{
+    const uint16_t oldLine = registers.rasterInterruptLine;
+
+    // Keep the target in the VIC raster range.
+    if (newLine >= cfg_->maxRasterLines)
+        newLine %= cfg_->maxRasterLines;
+
+    registers.rasterInterruptLine = newLine;
+
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] target update"
+            << " reason=" << (reason ? reason : "unknown")
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " value=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(writtenValue)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << " oldTarget=" << oldLine
+            << " newTarget=" << registers.rasterInterruptLine
+            << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
+            << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
+
+        logger->WriteLog(oss.str());
+    }
+
+    checkRasterIRQCompareTransition(oldLine, registers.rasterInterruptLine);
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
