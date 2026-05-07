@@ -1026,35 +1026,37 @@ void CPU::ADC(uint8_t opcode)
 
     if (getFlag(D))
     {
-        // NMOS 6502/6510 BCD correction
         uint16_t adj = sum;
 
-        // +0x06 if low nibble overflowed 9
-        if ( ((a0 & 0x0F) + (value & 0x0F) + cIn) > 9 )
+        if (((a0 & 0x0F) + (value & 0x0F) + cIn) > 9)
             adj += 0x06;
 
-        // +0x60 if > 0x99 (and set carry)
         if (adj > 0x99)
         {
             adj += 0x60;
-            setFlag(C, 1);
+            setFlag(C, true);
         }
         else
         {
-            setFlag(C, 0);
+            setFlag(C, false);
         }
 
         A = uint8_t(adj);
+
+        // Important NMOS decimal-mode quirk:
+        // N/Z come from the pre-adjust binary result.
+        setFlag(Z, bin8 == 0);
+        setFlag(N, (bin8 & 0x80) != 0);
     }
     else
     {
         // Pure binary
         A = bin8;
         setFlag(C, sum > 0xFF);
-    }
 
-    setFlag(Z, A == 0);
-    setFlag(N, (A & 0x80) != 0);
+        setFlag(Z, A == 0);
+        setFlag(N, (A & 0x80) != 0);
+    }
 }
 
 void CPU::AHX(uint8_t opcode)
@@ -2269,27 +2271,39 @@ void CPU::SBC(uint8_t opcode)
 
     setFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
 
-    if (getFlag(D)) {
-        // NMOS 6502/6510 decimal-mode correction for SBC
+    if (getFlag(D))
+    {
+        // NMOS 6502/6510 decimal-mode correction for SBC.
+        // V is already based on the binary result above.
+        // N/Z should be based on the binary 8-bit result, not final BCD A.
         uint16_t adj = diff;
 
-        // Low nibble borrow? (do the nibble subtraction and see if it went negative)
+        // Low nibble borrow?
         int lo = (a0 & 0x0F) - (value & 0x0F) - (1 - cIn);
-        if (lo < 0) adj -= 0x06;     // subtract 6 if low digit borrowed
+        if (lo < 0)
+            adj -= 0x06;
 
-        // High nibble borrow? (i.e., result > 0x99 in BCD sense)
-        if (adj > 0x99) adj -= 0x60; // subtract 0x60 if high digit borrowed
+        // High digit borrow?
+        if (adj > 0x99)
+            adj -= 0x60;
 
         A = uint8_t(adj);
-    } else {
+
+        // Important NMOS decimal-mode quirk:
+        // N/Z come from the pre-adjust binary result.
+        setFlag(Z, resBin == 0);
+        setFlag(N, (resBin & 0x80) != 0);
+    }
+    else
+    {
         // Pure binary
         A = resBin;
+
+        setFlag(Z, A == 0);
+        setFlag(N, (A & 0x80) != 0);
     }
 
     setFlag(C, diff < 0x100);
-
-    setFlag(Z, A == 0);
-    setFlag(N, A & 0x80);
 }
 
 void CPU::SHX()
