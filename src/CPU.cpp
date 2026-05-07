@@ -1093,41 +1093,46 @@ void CPU::AHX(uint8_t opcode)
 {
     uint16_t base = 0;
     uint16_t address = 0;
-    uint8_t value = A & X; // Compute A AND X
 
-    // Determine addressing mode
     switch (opcode)
     {
-        case 0x93: // (Indirect), Y
+        case 0x93: // AHX (zp),Y
         {
-            uint8_t zp = fetch();
-            uint8_t lo = mem->read(zp);
-            uint8_t hi = mem->read((uint8_t)(zp + 1));
-            base = (uint16_t)lo | ((uint16_t)hi << 8);
-            address = (base + Y) & 0xFFFF;
-            if ((base & 0xFF00) != (address & 0xFF00))
-                mem->read((base & 0xFF00) | (address & 0x00FF));
-            else
-                mem->read(address);
+            const uint8_t zp = fetch();
+
+            const uint8_t lo = mem->read(zp);
+            const uint8_t hi = mem->read(uint8_t(zp + 1));
+
+            base = uint16_t(lo) | (uint16_t(hi) << 8);
+            address = uint16_t(base + Y);
+
+            // Indexed-store dummy read: uncorrected high byte + indexed low byte.
+            const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+            mem->read(dummy);
             break;
         }
-        case 0x9F: // Absolute, Y
+
+        case 0x9F: // AHX abs,Y
         {
-            uint8_t lo = fetch();
-            uint8_t hi = fetch();
-            base = (uint16_t)lo | ((uint16_t)hi << 8);
-            address = (base + Y) & 0xFFFF;
-            if ((base & 0xFF00) != (address & 0xFF00))
-                mem->read((base & 0xFF00) | (address & 0x00FF));
-            else
-                mem->read(address);
+            const uint8_t lo = fetch();
+            const uint8_t hi = fetch();
+
+            base = uint16_t(lo) | (uint16_t(hi) << 8);
+            address = uint16_t(base + Y);
+
+            // Indexed-store dummy read: uncorrected high byte + indexed low byte.
+            const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+            mem->read(dummy);
             break;
         }
+
+        default:
+            return;
     }
 
-    value &= (( (base >> 8) + 1) & 0xFF);
+    const uint8_t value = (A & X) & uint8_t((base >> 8) + 1);
 
-    mem->write(address, value); // Store result at the effective address
+    mem->write(address, value);
 }
 
 void CPU::ALR()
@@ -2224,33 +2229,29 @@ void CPU::SBC(uint8_t opcode)
 
 void CPU::SHX()
 {
-    uint16_t baseAddress = absAddress();
-    uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
-    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
-    uint8_t value = X & highByte;
+    const uint16_t base = absAddress();
+    const uint16_t effectiveAddress = uint16_t(base + Y);
 
-    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
-        mem->read((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
-    else
-        mem->read(effectiveAddress);
+    const uint8_t highByte = uint8_t((base >> 8) + 1);
+    const uint8_t value = X & highByte;
 
-    // Write the value
+    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
+    mem->read(dummy);
+
     mem->write(effectiveAddress, value);
 }
 
 void CPU::SHY()
 {
-    uint16_t baseAddress = absAddress();
-    uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
-    uint8_t highByte = ((baseAddress >> 8) + 1) & 0xFF;
-    uint8_t value = Y & highByte;  // Logical AND of Y and high byte + 1
+    const uint16_t base = absAddress();
+    const uint16_t effectiveAddress = uint16_t(base + X);
 
-    if ((baseAddress & 0xFF00) != (effectiveAddress & 0xFF00))
-        mem->read((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
-    else
-        mem->read(effectiveAddress);
+    const uint8_t highByte = uint8_t((base >> 8) + 1);
+    const uint8_t value = Y & highByte;
 
-    // Write the value
+    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
+    mem->read(dummy);
+
     mem->write(effectiveAddress, value);
 }
 
@@ -2407,19 +2408,18 @@ void CPU::STY(uint8_t opcode)
 
 void CPU::TAS()
 {
-    uint16_t base = absAddress();               // fetch operand
-    uint16_t effectiveAddress = (base + Y) & 0xFFFF;         // add index
-    uint8_t high = base >> 8;
+    const uint16_t base = absAddress();
+    const uint16_t effectiveAddress = uint16_t(base + Y);
 
-    // Update SP
+    // TAS updates SP to A & X.
     SP = A & X;
 
-    // Value written = (A & X) & (high + 1)
-    uint8_t value = (A & X) & (high + 1);
+    // Value written = (A & X) & high-byte-plus-one.
+    const uint8_t value = (A & X) & uint8_t((base >> 8) + 1);
 
-    // Dummy read for cycle accuracy
-    if ((base & 0xFF00) != (effectiveAddress & 0xFF00)) mem->read((base & 0xFF00) | (effectiveAddress & 0x00FF));
-    else mem->read(effectiveAddress);
+    // Indexed-store dummy read: uncorrected high byte + indexed low byte.
+    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
+    mem->read(dummy);
 
     mem->write(effectiveAddress, value);
 }
