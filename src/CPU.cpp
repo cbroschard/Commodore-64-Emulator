@@ -1908,6 +1908,10 @@ void CPU::PHA()
 
 void CPU::PHP()
 {
+    // PHP dummy read / throwaway read.
+    // PC already points to the byte after opcode $08.
+    mem->read(PC);
+
     // Push status with B=1 and U=1.
     // Internal SR should not permanently store B.
     push(SR | 0x30);
