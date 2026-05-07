@@ -5635,21 +5635,31 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (oldLine == newLine)
         return;
 
-    // Too late for this raster once the compare point has already been sampled.
-    if (rasterIrqSampledThisLine || currentCycle > RASTER_IRQ_COMPARE_CYCLE)
+    // If this raster's compare point has already happened, a retarget to the
+    // current raster should not immediately fire from the register write path.
+    if (rasterIrqSampledThisLine || currentCycle >= RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // Use the same visible-raster abstraction as the normal compare path.
+    // If the newly programmed target is not the raster that will be compared
+    // at the normal compare point, there is nothing to do.
     if (visibleRasterForIRQCompare() != newLine)
         return;
 
-    // Do not retrigger if raster IRQ source is already pending.
-    if ((registers.interruptStatus & 0x01) != 0)
-        return;
+    // Do not trigger here. The upcoming normal compare sample will see the
+    // new target and call sampleRasterIRQCompare("normal-sample") at the
+    // hardware compare point.
+    if (logger && setLogging)
+    {
+        std::ostringstream oss;
+        oss << "[VIC:IRQ] retarget armed"
+            << " raster=" << registers.raster
+            << " cycle=" << currentCycle
+            << " oldTarget=" << oldLine
+            << " newTarget=" << newLine
+            << " compareCycle=" << RASTER_IRQ_COMPARE_CYCLE;
 
-    // Route retarget-triggered compares through the same helper as the
-    // normal cycle compare path.
-    sampleRasterIRQCompare("retarget-sample");
+        logger->WriteLog(oss.str());
+    }
 }
 
 void Vic::sampleRasterIRQCompare(const char* reason)
