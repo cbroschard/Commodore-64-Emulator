@@ -5638,6 +5638,9 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     const uint16_t targetRaster =
         registers.rasterInterruptLine;
 
+    const bool targetInRange =
+        rasterIRQTargetInRange();
+
     const bool sampledBefore =
         rasterIrqSampledThisLine;
 
@@ -5649,6 +5652,7 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     lastRasterIRQSample.cycle = currentCycle;
     lastRasterIRQSample.visibleRaster = visibleRaster;
     lastRasterIRQSample.targetRaster = targetRaster;
+    lastRasterIRQSample.targetInRange = targetInRange;
     lastRasterIRQSample.matched = matched;
     lastRasterIRQSample.sampledBefore = sampledBefore;
     lastRasterIRQSample.reason = sampleReason;
@@ -5685,6 +5689,8 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
     const uint16_t oldLine = registers.rasterInterruptLine;
 
     // Preserve the 9-bit programmed IRQ target.
+    // Do not modulo it to maxRasterLines. If the target is outside
+    // the machine's raster range, the normal compare simply will not match.
     registers.rasterInterruptLine = static_cast<uint16_t>(newLine & 0x01FF);
 
     if (logger && setLogging)
@@ -5700,6 +5706,7 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
             << std::dec << std::nouppercase << std::setfill(' ')
             << " oldTarget=" << oldLine
             << " newTarget=" << registers.rasterInterruptLine
+            << " targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
             << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
             << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
 
@@ -5707,6 +5714,19 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
     }
 
     checkRasterIRQCompareTransition(oldLine, registers.rasterInterruptLine);
+}
+
+bool Vic::rasterIRQTargetInRange() const
+{
+    return registers.rasterInterruptLine < cfg_->maxRasterLines;
+}
+
+bool Vic::rasterIRQTargetMatchesVisibleRaster() const
+{
+    if (!rasterIRQTargetInRange())
+        return false;
+
+    return visibleRasterForIRQCompare() == registers.rasterInterruptLine;
 }
 
 void Vic::detectSpriteToSpriteCollision(int raster)
@@ -6789,8 +6809,9 @@ std::string Vic::dumpRegisters(const std::string& group) const
             << ", LightPen=" << ((enabled & 0x08) ? "Y" : "N") << ")\n";
 
         const uint16_t visibleRaster = visibleRasterForRead();
+        const uint16_t compareRaster = visibleRasterForIRQCompare();
         const uint16_t irqTarget = registers.rasterInterruptLine;
-        const bool irqTargetValid = irqTarget < cfg_->maxRasterLines;
+        const bool irqTargetValid = rasterIRQTargetInRange();
 
         out << "\nRaster IRQ Timing:\n";
 
@@ -6803,6 +6824,10 @@ std::string Vic::dumpRegisters(const std::string& group) const
             << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
             << int(visibleRaster & 0xFF)
             << std::dec << std::nouppercase << std::setfill(' ') << "\n";
+
+        out << "Compare raster  = " << compareRaster
+            << "   targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
+            << "\n";
 
         out << "IRQ target      = ";
 
@@ -6826,7 +6851,9 @@ std::string Vic::dumpRegisters(const std::string& group) const
             << (rasterIrqSampledThisLine ? "Yes" : "No") << "\n";
 
         out << "Compare match   = "
-            << (rasterCompareMatchesNow() ? "Yes" : "No") << "\n";
+            << (rasterCompareMatchesNow() ? "Yes" : "No")
+            << "   targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
+            << "\n";
 
         const bool compareWillSampleNext =
             !rasterIrqSampledThisLine &&
@@ -6871,6 +6898,7 @@ std::string Vic::dumpRegisters(const std::string& group) const
                 << " cycle=" << lastRasterIRQSample.cycle
                 << " visibleRaster=" << lastRasterIRQSample.visibleRaster
                 << " target=" << lastRasterIRQSample.targetRaster
+                << " targetInRange=" << (lastRasterIRQSample.targetInRange ? 1 : 0)
                 << " matched=" << (lastRasterIRQSample.matched ? 1 : 0)
                 << " sampledBefore=" << (lastRasterIRQSample.sampledBefore ? 1 : 0)
                 << "\n";

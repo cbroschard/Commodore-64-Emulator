@@ -507,6 +507,7 @@ class Vic
             uint16_t visibleRaster = 0;
             uint16_t targetRaster = 0;
 
+            bool targetInRange = false;
             bool matched = false;
             bool sampledBefore = false;
 
@@ -516,7 +517,8 @@ class Vic
         RasterIRQSampleSnapshot lastRasterIRQSample;
 
         // IRQ Helpers
-        inline bool rasterCompareMatchesNow() const { return visibleRasterForIRQCompare() == registers.rasterInterruptLine; }
+        bool rasterIRQTargetMatchesVisibleRaster() const;
+        inline bool rasterCompareMatchesNow() const { return rasterIRQTargetMatchesVisibleRaster(); }
         uint16_t visibleRasterForIRQCompare() const;
         uint16_t visibleRasterForRead() const;
         void updateIRQLine();
@@ -527,6 +529,7 @@ class Vic
         void sampleRasterIRQCompare(const char* reason);
         void triggerRasterIRQFromSample(bool matched);
         void setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue);
+        bool rasterIRQTargetInRange() const;
 
         // Helper to keep monitor output consistent with IRQ status
         uint8_t d019Read() const;
