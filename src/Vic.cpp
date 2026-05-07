@@ -5592,10 +5592,15 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 
 void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
 {
-    oldLine %= cfg_->maxRasterLines;
-    newLine %= cfg_->maxRasterLines;
+    oldLine &= 0x01FF;
+    newLine &= 0x01FF;
 
     if (oldLine == newLine)
+        return;
+
+    // If the new target is outside the current video mode's raster range,
+    // it cannot match the current raster.
+    if (newLine >= cfg_->maxRasterLines)
         return;
 
     // If this raster's compare point has already happened, a retarget to the
@@ -5603,14 +5608,11 @@ void Vic::checkRasterIRQCompareTransition(uint16_t oldLine, uint16_t newLine)
     if (rasterIrqSampledThisLine || currentCycle >= RASTER_IRQ_COMPARE_CYCLE)
         return;
 
-    // If the newly programmed target is not the raster that will be compared
-    // at the normal compare point, there is nothing to do.
     if (visibleRasterForIRQCompare() != newLine)
         return;
 
     // Do not trigger here. The upcoming normal compare sample will see the
-    // new target and call sampleRasterIRQCompare("normal-sample") at the
-    // hardware compare point.
+    // new target at the hardware compare point.
     if (logger && setLogging)
     {
         std::ostringstream oss;
@@ -5685,11 +5687,8 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
 {
     const uint16_t oldLine = registers.rasterInterruptLine;
 
-    // Keep the target in the VIC raster range.
-    if (newLine >= cfg_->maxRasterLines)
-        newLine %= cfg_->maxRasterLines;
-
-    registers.rasterInterruptLine = newLine;
+    // Preserve the 9-bit programmed IRQ target.
+    registers.rasterInterruptLine = static_cast<uint16_t>(newLine & 0x01FF);
 
     if (logger && setLogging)
     {
