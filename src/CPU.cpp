@@ -2405,7 +2405,7 @@ void CPU::STA(uint8_t opcode)
             mem->write(ea, A);
             return;
 
-        case 0x95: // ZP,X  (no dummy read)
+        case 0x95: // ZP,X
             ea = zpXAddress();
             mem->write(ea, A);
             return;
@@ -2415,37 +2415,50 @@ void CPU::STA(uint8_t opcode)
             mem->write(ea, A);
             return;
 
-        case 0x9D: // ABS,X  (dummy read @ EA, always)
+        case 0x9D: // ABS,X
         {
-            uint16_t base = fetch() | (fetch() << 8);
+            const uint16_t base = fetch() | (fetch() << 8);
             ea = uint16_t(base + X);
-            mem->read(ea);              // required dummy read
+
+            // Indexed store dummy read uses uncorrected high byte.
+            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            mem->read(dummy);
+
             mem->write(ea, A);
             return;
         }
 
-        case 0x99: // ABS,Y  (dummy read @ EA, always)
+        case 0x99: // ABS,Y
         {
-            uint16_t base = fetch() | (fetch() << 8);
+            const uint16_t base = fetch() | (fetch() << 8);
             ea = uint16_t(base + Y);
-            mem->read(ea);              // required dummy read
+
+            // Indexed store dummy read uses uncorrected high byte.
+            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            mem->read(dummy);
+
             mem->write(ea, A);
             return;
         }
 
-        case 0x81: // (ZP,X)  (no dummy read)
+        case 0x81: // (ZP,X)
             ea = indirectXAddress();
             mem->write(ea, A);
             return;
 
-        case 0x91: // (ZP),Y  (dummy read @ EA, always)
+        case 0x91: // (ZP),Y
         {
-            uint8_t zp = fetch();
-            uint8_t lo = mem->read(zp);
-            uint8_t hi = mem->read(uint8_t(zp + 1));
-            ea = (uint16_t(hi) << 8) | lo;
-            ea = uint16_t(ea + Y);
-            mem->read(ea);              // required dummy read
+            const uint8_t zp = fetch();
+            const uint8_t lo = mem->read(zp);
+            const uint8_t hi = mem->read(uint8_t(zp + 1));
+
+            const uint16_t base = uint16_t(lo) | (uint16_t(hi) << 8);
+            ea = uint16_t(base + Y);
+
+            // Indexed indirect-Y store dummy read uses uncorrected high byte.
+            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            mem->read(dummy);
+
             mem->write(ea, A);
             return;
         }
