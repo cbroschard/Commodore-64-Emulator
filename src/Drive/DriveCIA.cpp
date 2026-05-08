@@ -923,14 +923,14 @@ void DriveCIA::applyIECInputsToPortBPins()
         portBPins &= static_cast<uint8_t>(~PRB_ATNIN);
 
     if (iecClkInLow)
-        portBPins &= static_cast<uint8_t>(~PRB_CLKIN);
-    else
         portBPins |= PRB_CLKIN;
+    else
+        portBPins &= static_cast<uint8_t>(~PRB_CLKIN);
 
     if (iecDataInLow)
-        portBPins &= static_cast<uint8_t>(~PRB_DATAIN);
-    else
         portBPins |= PRB_DATAIN;
+    else
+        portBPins &= static_cast<uint8_t>(~PRB_DATAIN);
 }
 
 void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel)
