@@ -78,6 +78,7 @@ class MLMonitorBackend
         inline uint16_t getPC() { return processor->getPC(); }
         std::string cpuIrqStatus() const;
         std::string cpuCycleStatus() const;
+        std::string cpuStackStatus(int count) const;
         void setJamMode(const std::string& mode);
         inline void setPC(uint16_t address) { processor->setPC(address); }
 

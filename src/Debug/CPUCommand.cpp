@@ -42,7 +42,6 @@ std::string CPUCommand::help() const
   cpu cycles            - Show CPU cycle counters and current timing state
   cpu stack [count]     - Show stack contents
   cpu jam               - Show or set JAM/KIL opcode behavior
-  cpu trace             - Show CPU trace configuration
 )";
 }
 
@@ -115,6 +114,27 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         if (mon.mlmonitorbackend())
             std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
+        return;
+    }
+    else if (sub == "stack")
+    {
+        int count = 16;
+
+        if (args.size() >= 3)
+        {
+            try
+            {
+                count = std::stoi(args[2]);
+            }
+            catch (...)
+            {
+                std::cout << "Invalid count. Usage: cpu stack [count]\n";
+                return;
+            }
+        }
+
+        if (mon.mlmonitorbackend())
+            std::cout << mon.mlmonitorbackend()->cpuStackStatus(count);
         return;
     }
     else

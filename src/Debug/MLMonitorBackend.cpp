@@ -221,6 +221,60 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuStackStatus(int count) const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    if (count <= 0)
+        count = 16;
+
+    if (count > 256)
+        count = 256;
+
+    const uint8_t sp = processor->getSP();
+    const uint8_t first = uint8_t(sp + 1);
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "CPU Stack\n";
+    out << "---------\n";
+    out << "SP:              $" << hexByte(sp) << "\n";
+    out << "Next pop addr:   $" << hexWord(uint16_t(0x0100 | first)) << "\n";
+    out << "Count:           " << std::dec << count << "\n\n";
+
+    out << "Pop#  Addr   Value\n";
+
+    for (int i = 0; i < count; ++i)
+    {
+        const uint8_t stackOffset = uint8_t(first + i);
+        const uint16_t addr = uint16_t(0x0100 | stackOffset);
+        const uint8_t value = processor->debugRead(addr);
+
+        out << std::dec << std::setw(4) << i << "  "
+            << "$" << hexWord(addr) << "  "
+            << "$" << hexByte(value) << "\n";
+    }
+
+    return out.str();
+}
+
 void MLMonitorBackend::setJamMode(const std::string& mode)
 {
     if (processor)
