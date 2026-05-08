@@ -4298,14 +4298,6 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     return true;
 }
 
-void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
-{
-    bgPipeline.pixelPhase = 0;
-
-    for (int i = 0; i < 8; ++i)
-        drawStandardTextCellViaPipelineBudgeted(cell, raster, x0, x1, 1);
-}
-
 void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
 {
     (void)raster;
@@ -4320,30 +4312,6 @@ void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, in
     int phase = std::clamp(bgPipeline.pixelPhase, 0, 8);
     stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, pixelBudget);
     bgPipeline.pixelPhase = phase;
-}
-
-void Vic::drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget, bool reloadState)
-{
-    if (!cell.valid || cell.multicolor || pixelBudget <= 0)
-        return;
-
-    if (reloadState)
-        loadActiveStandardTextPixelState(cell, raster);
-
-    if (!activeBgPixel.valid)
-        return;
-
-    for (int i = 0; i < pixelBudget; ++i)
-    {
-        if (activeBgPixel.phase >= 8)
-            break;
-
-        const int px = cell.px + activeBgPixel.phase;
-        const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
-
-        if (px >= x0 && px < x1)
-            stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
-    }
 }
 
 void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
