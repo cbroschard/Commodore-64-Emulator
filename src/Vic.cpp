@@ -2527,20 +2527,6 @@ bool Vic::isSpriteDataCpuStealCycle(int sprite, int cycle) const
     return byteIndex == 0 || byteIndex == 2;
 }
 
-bool Vic::shouldBALow(int raster, int cycle) const
-{
-    return isBadLineBusWarningCycle(raster, cycle) ||
-           isBadLineBusStealCycle(raster, cycle)   ||
-           isSpriteBusWarningCycle(raster, cycle)  ||
-           isSpriteBusStealCycle(raster, cycle);
-}
-
-bool Vic::shouldAECLow(int raster, int cycle) const
-{
-    return isBadLineBusStealCycle(raster, cycle) ||
-           isSpriteBusAECStealCycle(raster, cycle);
-}
-
 bool Vic::isBadLine(int raster) const
 {
     if (raster < 0 || raster >= cfg_->maxRasterLines)

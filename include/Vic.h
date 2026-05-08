@@ -455,9 +455,6 @@ class Vic
         bool isSpriteBusAECStealCycle(int raster, int cycle) const;
         bool isSpriteDataCpuStealCycle(int sprite, int cycle) const;
 
-        bool shouldBALow(int raster, int cycle) const;
-        bool shouldAECLow(int raster, int cycle) const;
-
         // Bad line Helpers
         void initializeFirstBadLineIfNeeded(int raster);
         bool isBadLine(int raster) const;
