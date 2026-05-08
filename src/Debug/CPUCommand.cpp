@@ -21,7 +21,7 @@ std::string CPUCommand::category() const
 
 std::string CPUCommand::shortHelp() const
 {
-    return "cpu       - Show CPU registers, IRQ status, cycles, etc.";
+    return "cpu       - CPU commands (regs, irq, cycles, stack, jam, trace)";
 }
 
 std::string CPUCommand::help() const
