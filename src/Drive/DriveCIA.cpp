@@ -769,36 +769,26 @@ void DriveCIA::applyIECOutputs()
     const uint8_t ddrB  = registers.ddrB;
     const uint8_t portB = registers.portB;
 
-    // PB5 / BUSDIR:
-    // Test as active-high output enable.
-    //
-    // This avoids idle PRB=$D5 clamping CLK, but allows later PRB=$74
-    // to drive CLK during the post-ATN transfer phase without adding
-    // protocol-phase state.
-    const bool busDriversEnabled =
-        ((ddrB & PRB_BUSDIR) != 0) &&
-        ((portB & PRB_BUSDIR) != 0);
-
+    // ATN ACK (PB4) + ATN IN (IEC ATN)
+    // Active HIGH: Hardware NAND gate pulls DATA low if PB4=1 and ATN=low
     const bool atnAckDataLow =
         iecAtnInLow &&
         ((ddrB & PRB_ATNACK) != 0) &&
         ((portB & PRB_ATNACK) != 0);
 
     // PB1 / DATOUT:
-    // Test as active-low, gated by PB5/BUSDIR.
-    // This keeps idle PRB=$D5 released because PB5=0,
-    // but allows PRB=$74 to pull DATA low when PB5=1.
+    // Hardware: PB1 -> 74LS38 NAND (pin 2 tied high) -> IEC DATA
+    // Active HIGH: If PB1 is 1, NAND outputs 0 (pulls IEC line low)
     const bool datOutAssertLow =
-        busDriversEnabled &&
         ((ddrB & PRB_DATOUT) != 0) &&
-        ((portB & PRB_DATOUT) == 0);
+        ((portB & PRB_DATOUT) != 0);
 
     // PB3 / CLKOUT:
-    // Active-low, gated by PB5/BUSDIR.
+    // Hardware: PB3 -> 74LS38 NAND (pin 10 tied high) -> IEC CLK
+    // Active HIGH: If PB3 is 1, NAND outputs 0 (pulls IEC line low)
     const bool clkOutAssertLow =
-        busDriversEnabled &&
         ((ddrB & PRB_CLKOUT) != 0) &&
-        ((portB & PRB_CLKOUT) == 0);
+        ((portB & PRB_CLKOUT) != 0);
 
     const bool driveDataLow = atnAckDataLow || datOutAssertLow;
     const bool driveClkLow  = clkOutAssertLow;
@@ -814,7 +804,6 @@ void DriveCIA::applyIECOutputs()
     static bool lastAck = false;
     static bool lastDat = false;
     static bool lastClk = false;
-    static bool lastBus = false;
     static uint8_t lastPortB = 0;
     static uint8_t lastDdrB = 0;
 
@@ -825,7 +814,6 @@ void DriveCIA::applyIECOutputs()
         atnAckDataLow != lastAck ||
         datOutAssertLow != lastDat ||
         clkOutAssertLow != lastClk ||
-        busDriversEnabled != lastBus ||
         portB != lastPortB ||
         ddrB != lastDdrB)
     {
@@ -836,7 +824,6 @@ void DriveCIA::applyIECOutputs()
         lastAck = atnAckDataLow;
         lastDat = datOutAssertLow;
         lastClk = clkOutAssertLow;
-        lastBus = busDriversEnabled;
         lastPortB = portB;
         lastDdrB = ddrB;
 
@@ -847,7 +834,6 @@ void DriveCIA::applyIECOutputs()
                   << " ack=" << (atnAckDataLow ? 1 : 0)
                   << " dat=" << (datOutAssertLow ? 1 : 0)
                   << " clk=" << (clkOutAssertLow ? 1 : 0)
-                  << " bus=" << (busDriversEnabled ? 1 : 0)
                   << " PRB=$" << std::hex << std::uppercase
                   << std::setw(2) << std::setfill('0')
                   << static_cast<int>(portB)
