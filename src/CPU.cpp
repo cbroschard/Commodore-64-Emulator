@@ -57,7 +57,7 @@ bool CPU::CPUState::load(StateReader& rdr)
     if (!rdr.readU8(SP))  return false;
     if (!rdr.readU8(SR))  return false;
 
-    SR |= 0x20 & ~0x10; // force U bit
+    (SR |= 0x20) & ~0x10; // force U bit
     return true;
 }
 
