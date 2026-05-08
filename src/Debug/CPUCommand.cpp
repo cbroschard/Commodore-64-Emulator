@@ -111,6 +111,12 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << mon.mlmonitorbackend()->cpuIrqStatus();
         return;
     }
+    else if (sub == "cycles")
+    {
+        if (mon.mlmonitorbackend())
+            std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
+        return;
+    }
     else
     {
         std::cout << "Unknown cpu subcommand: " << sub << std::endl;

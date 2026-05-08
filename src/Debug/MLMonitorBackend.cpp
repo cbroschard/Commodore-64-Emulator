@@ -195,6 +195,32 @@ std::string MLMonitorBackend::cpuIrqStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuCycleStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getCycleDebugState();
+
+    std::ostringstream out;
+
+    out << "CPU Cycle State\n";
+    out << "---------------\n";
+
+    out << "Total cycles:       " << s.totalCycles << "\n";
+    out << "Cycles remaining:   " << s.cyclesRemaining << "\n";
+    out << "Between instr:      " << (s.betweenInstructions ? "yes" : "no") << "\n";
+    out << "BA hold:            " << (s.baHold ? "yes" : "no") << "\n";
+    out << "Halted/JAM:         " << (s.halted ? "yes" : "no") << "\n";
+
+    out << "\nVideo timing:\n";
+    out << "  Mode:             " << (s.mode == VideoMode::PAL ? "PAL" : "NTSC") << "\n";
+    out << "  Frame cycles:     " << s.frameCycle << " / " << s.cyclesPerFrame << "\n";
+    out << "  Raster/Dot:       " << s.raster << " / " << s.dot << "\n";
+
+    return out.str();
+}
+
 void MLMonitorBackend::setJamMode(const std::string& mode)
 {
     if (processor)

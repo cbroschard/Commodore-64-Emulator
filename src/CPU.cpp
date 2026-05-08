@@ -373,6 +373,27 @@ CPU::CPUIrqDebugState CPU::getIrqDebugState() const
     return s;
 }
 
+CPU::CPUCycleDebugState CPU::getCycleDebugState() const
+{
+    CPUCycleDebugState s;
+
+    s.totalCycles = totalCycles;
+    s.cyclesRemaining = cycles;
+    s.cyclesPerFrame = CYCLES_PER_FRAME;
+    s.frameCycle = CYCLES_PER_FRAME ? (totalCycles % CYCLES_PER_FRAME) : 0;
+
+    s.betweenInstructions = cycles <= 0;
+    s.baHold = baHold;
+    s.halted = halted;
+
+    s.mode = mode_;
+
+    s.raster = vicII ? vicII->getCurrentRaster() : 0;
+    s.dot = vicII ? vicII->getRasterDot() : 0;
+
+    return s;
+}
+
 CPU::CPUState CPU::getState() const
 {
     CPUState st;

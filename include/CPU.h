@@ -174,7 +174,25 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUCycleDebugState
+        {
+            uint32_t totalCycles = 0;
+            uint32_t cyclesRemaining = 0;
+            uint32_t cyclesPerFrame = 0;
+            uint32_t frameCycle = 0;
+
+            bool betweenInstructions = false;
+            bool baHold = false;
+            bool halted = false;
+
+            VideoMode mode = VideoMode::NTSC;
+
+            int raster = 0;
+            int dot = 0;
+        };
+
         CPUIrqDebugState getIrqDebugState() const;
+        CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
