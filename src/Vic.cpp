@@ -106,7 +106,6 @@ void Vic::reset()
     for (auto& s : spriteUnits)
     {
         s.dmaActive = false;
-        s.displayActive = false;
         s.yExpandLatch = false;
 
         s.mc = 0;
@@ -367,7 +366,6 @@ void Vic::saveState(StateWriter& wrtr) const
     for (const auto& s : spriteUnits)
     {
         wrtr.writeBool(s.dmaActive);
-        wrtr.writeBool(s.displayActive);
         wrtr.writeBool(s.yExpandLatch);
 
         wrtr.writeU8(s.mc);
@@ -533,7 +531,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         for (auto& s : spriteUnits)
         {
             if (!rdr.readBool(s.dmaActive))                     { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(s.displayActive))                 { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readBool(s.yExpandLatch))                  { rdr.exitChunkPayload(chunk); return false; }
 
             if (!rdr.readU8(s.mc))                              { rdr.exitChunkPayload(chunk); return false; }
@@ -2227,7 +2224,6 @@ bool Vic::isSpriteDMAComplete(int spr) const
 void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
-    spriteUnits[spr].displayActive = false;
     spriteUnits[spr].yExpandLatch = false;
 
     spriteUnits[spr].currentRow = 0;
@@ -2333,7 +2329,6 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
             continue;
 
         spriteUnits[s].dmaActive = true;
-        spriteUnits[s].displayActive = true;
         spriteUnits[s].yExpandLatch = yExp;
         spriteUnits[s].currentRow = 0;
         spriteUnits[s].mc = 0;
@@ -5867,7 +5862,7 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     if (sprIndex < 0 || sprIndex >= 8)
         return false;
 
-    if (!spriteUnits[sprIndex].displayActive)
+    if (!spriteUnits[sprIndex].dmaActive)
         return false;
 
     const int startY = spriteUnits[sprIndex].startY;
@@ -7356,11 +7351,11 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
     if (!any)
         out << " none";
 
-    out << "\nSprite display active:";
+    out << "\nSprite row latched:";
     any = false;
     for (int i = 0; i < 8; ++i)
     {
-        if (spriteUnits[i].displayActive)
+        if (spriteUnits[i].rowDataLatched)
         {
             out << " " << i;
             any = true;
@@ -8198,8 +8193,8 @@ std::string Vic::dumpSpriteDmaState() const
         << std::dec << std::nouppercase << std::setfill(' ')
         << "\n\n";
 
-    oss << "Spr En  Y    X    DMA Disp YExp MC MCBase Row CurRow Ptr  DataBase "
-           "RowPrep RowLatched XStart Width OutBit Rep ShiftBytes  Mode@X Exp@X En@X\n";
+    oss << "Spr En  Y    X    DMA RowLat YExp MC MCBase Row CurRow Ptr  DataBase "
+           "ShiftBytes RowPrep XStart Width OutBit Rep Mode@X Exp@X En@X\n";
 
     for (int s = 0; s < 8; ++s)
     {
@@ -8221,8 +8216,8 @@ std::string Vic::dumpSpriteDmaState() const
             << " " << (enabled ? 1 : 0) << "  "
             << std::setw(3) << static_cast<int>(registers.spriteY[s]) << "  "
             << std::setw(4) << sx << "   "
-            << (u.dmaActive ? 1 : 0) << "    "
-            << (u.displayActive ? 1 : 0) << "    "
+            << (u.dmaActive ? 1 : 0) << "     "
+            << (u.rowDataLatched ? 1 : 0) << "     "
             << (u.yExpandLatch ? 1 : 0) << "   "
             << std::setw(2) << static_cast<int>(u.mc) << "   "
             << std::setw(2) << static_cast<int>(u.mcBase) << "     "
@@ -8240,8 +8235,7 @@ std::string Vic::dumpSpriteDmaState() const
             << std::setw(2) << static_cast<int>(u.shift2)
             << std::dec << std::nouppercase << std::setfill(' ')
             << "      "
-            << (u.rowPrepared ? 1 : 0) << "          "
-            << (u.rowDataLatched ? 1 : 0) << "      "
+            << (u.rowPrepared ? 1 : 0) << "      "
             << std::setw(4) << u.outputXStart << "   "
             << std::setw(3) << u.outputWidth << "    "
             << std::setw(2) << u.outputBit << "   "
@@ -8254,6 +8248,7 @@ std::string Vic::dumpSpriteDmaState() const
 
     oss << "\nNotes:\n";
     oss << "  Row = mcBase / 3. CurRow tracks physical raster line in Y-expanded mode.\n";
+    oss << "  RowLat means rowDataLatched: a 3-byte sprite row is available for output.\n";
     oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
     oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
 
@@ -8612,7 +8607,7 @@ void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int
         << " dot=" << std::dec << (cycle * 8)
         << " slot=$" << std::hex << std::uppercase << std::setw(2) << spriteFetchSlotStart(sprite)
         << " dma=" << std::dec << (su.dmaActive ? 1 : 0)
-        << " disp=" << (su.displayActive ? 1 : 0)
+        << " rowlat=" << (su.rowDataLatched ? 1 : 0)
         << " yexp=" << (su.yExpandLatch ? 1 : 0)
         << " mc=" << int(su.mc)
         << " mcbase=" << int(su.mcBase)
@@ -8649,7 +8644,7 @@ void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance
         << " dot=" << std::dec << (currentCycle * 8)
         << " willAdvance=" << (willAdvance ? 1 : 0)
         << " dma=" << (spriteUnits[sprite].dmaActive ? 1 : 0)
-        << " disp=" << (spriteUnits[sprite].displayActive ? 1 : 0)
+        << " rowlat=" << (spriteUnits[sprite].rowDataLatched ? 1 : 0)
         << " yexp=" << (spriteUnits[sprite].yExpandLatch ? 1 : 0)
         << " mc=" << int(spriteUnits[sprite].mc)
         << " mcbase=" << int(spriteUnits[sprite].mcBase)
@@ -8678,7 +8673,7 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
         << " match=" << int(rasterMatch)
         << " start=" << int(willStart)
         << " dma=" << int(spriteUnits[sprite].dmaActive)
-        << " disp=" << int(spriteUnits[sprite].displayActive)
+        << " rowlat=" << int(spriteUnits[sprite].rowDataLatched)
         << " row=" << spriteUnits[sprite].currentRow
         << " mc=" << int(spriteUnits[sprite].mc)
         << " mcbase=" << int(spriteUnits[sprite].mcBase)
@@ -8700,7 +8695,7 @@ void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) con
         << " current=" << spriteUnits[sprite].currentRow
         << " mcBase=" << int(spriteUnits[sprite].mcBase)
         << " dma=" << int(spriteUnits[sprite].dmaActive)
-        << " disp=" << int(spriteUnits[sprite].displayActive)
+        << " rowlat=" << int(spriteUnits[sprite].rowDataLatched)
         << " yExp=" << int(spriteUnits[sprite].yExpandLatch)
         << " startY=" << spriteUnits[sprite].startY;
 

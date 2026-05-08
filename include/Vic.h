@@ -286,10 +286,6 @@ class Vic
             // DMA lifetime/state
             bool dmaActive = false;
 
-            // Legacy "sprite display is in progress" state.
-            // Do not use this as the authoritative gate for line prep/output.
-            bool displayActive = false;
-
             bool yExpandLatch = false;
 
             uint8_t mc = 0;
