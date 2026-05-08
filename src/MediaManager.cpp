@@ -318,6 +318,12 @@ void MediaManager::attachPRGImage()
 {
     if (state_.prgPath.empty()) return;
 
+    // First check if CRT attached and detach it
+    if (state_.cartAttached)
+        detachCRTImage();
+    else if (coldReset_) // Perform cold reset if no cartridge since detaching will also do it
+        coldReset_();
+
     state_.prgAttached = true;
     state_.prgLoaded   = false;
     state_.prgDelay    = 140;
