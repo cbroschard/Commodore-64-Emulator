@@ -4235,33 +4235,6 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     return true;
 }
 
-Vic::BackgroundPixel Vic::sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const
-{
-    (void)raster;
-
-    BackgroundPixel out {};
-    out.color = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    out.opaque = false;
-
-    if (!cell.valid || cell.multicolor)
-        return out;
-
-    if (px < cell.px || px >= cell.px + 8)
-        return out;
-
-    const uint8_t rowBits = cell.rowBits;
-
-    const int col = px - cell.px;
-    const bool pixelOn = ((rowBits >> (7 - col)) & 0x01) != 0;
-
-    out.color = pixelOn
-        ? static_cast<uint8_t>(cell.colorByte & 0x0F)
-        : static_cast<uint8_t>(cell.bgColor & 0x0F);
-
-    out.opaque = pixelOn;
-    return out;
-}
-
 bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const
 {
     out = {};
@@ -4419,29 +4392,6 @@ void Vic::renderTextLine(int raster, int xScroll)
     }
 }
 
-Vic::BackgroundPixel Vic::sampleBitmapPixel(const BitmapCellSample& cell, int px) const
-{
-    BackgroundPixel out {};
-    out.color = static_cast<uint8_t>(cell.screenByte & 0x0F);
-    out.opaque = false;
-
-    if (!cell.valid)
-        return out;
-
-    if (px < cell.px || px >= cell.px + 8)
-        return out;
-
-    const int bit = px - cell.px;
-    const bool pixelOn = ((cell.bitmapByte >> (7 - bit)) & 0x01) != 0;
-
-    const uint8_t fgColor = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    const uint8_t bgColor = static_cast<uint8_t>(cell.screenByte & 0x0F);
-
-    out.color = pixelOn ? fgColor : bgColor;
-    out.opaque = pixelOn;
-    return out;
-}
-
 void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1)
 {
     (void)raster;
@@ -4537,54 +4487,6 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     out.colorByte = colorByte;
 
     return true;
-}
-
-Vic::BackgroundPixel Vic::sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const
-{
-    BackgroundPixel out {};
-    out.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-    out.opaque = false;
-
-    if (!cell.valid)
-        return out;
-
-    if (px < cell.px || px >= cell.px + 8)
-        return out;
-
-    const int localX = px - cell.px;
-    const int pairIndex = localX >> 1;
-    const int shift = 6 - pairIndex * 2;
-    const uint8_t bits = static_cast<uint8_t>((cell.bitmapByte >> shift) & 0x03);
-
-    const uint8_t color00 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-    const uint8_t color01 = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    const uint8_t color10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-    const uint8_t color11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
-
-    switch (bits)
-    {
-        case 0x00:
-            out.color = color00;
-            out.opaque = false;
-            break;
-
-        case 0x01:
-            out.color = color01;
-            out.opaque = true;
-            break;
-
-        case 0x02:
-            out.color = color10;
-            out.opaque = true;
-            break;
-
-        case 0x03:
-            out.color = color11;
-            out.opaque = true;
-            break;
-    }
-
-    return out;
 }
 
 void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)

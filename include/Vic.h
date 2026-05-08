@@ -986,14 +986,10 @@ class Vic
         void drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1);
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
-        BackgroundPixel sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const;
 
         bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
-        BackgroundPixel sampleBitmapPixel(const BitmapCellSample& cell, int px) const;
         void drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1);
         void drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
-
-        BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         void drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
