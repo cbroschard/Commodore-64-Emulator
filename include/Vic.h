@@ -551,8 +551,6 @@ class Vic
         };
 
         // Sprite collision Helpers
-        void detectSpriteToSpriteCollision(int raster);
-        void detectSpriteToBackgroundCollision(int raster);
         bool checkSpriteBackgroundOverlap(int spriteIndex, int raster);
         bool checkSpriteSpriteOverlapOnLine(int A, int B, int raster);
         int spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const;

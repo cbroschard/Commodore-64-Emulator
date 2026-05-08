@@ -5264,36 +5264,6 @@ bool Vic::isRasterIRQCompareCycle(int cycle) const
     return cycle == rasterIRQCompareCycle();
 }
 
-void Vic::detectSpriteToSpriteCollision(int raster)
-{
-    uint8_t collisionBits = 0;
-    int firstCollisionX = -1;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        if (!spriteEnabledSomewhereOnLine(i))
-            continue;
-
-        for (int j = i + 1; j < 8; ++j)
-        {
-            if (!spriteEnabledSomewhereOnLine(j))
-                continue;
-
-            const int x = firstSpriteSpriteCollisionXOnLine(i, j, raster);
-            if (x < 0)
-                continue;
-
-            collisionBits =
-                static_cast<uint8_t>(collisionBits | (1 << i) | (1 << j));
-
-            if (firstCollisionX < 0 || x < firstCollisionX)
-                firstCollisionX = x;
-        }
-    }
-
-    latchSpriteSpriteCollision(collisionBits, raster, firstCollisionX);
-}
-
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
 {
     return firstSpriteSpriteCollisionXOnLine(A, B, raster) >= 0;
@@ -5368,30 +5338,6 @@ int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
         x += 256;
 
     return x;
-}
-
-void Vic::detectSpriteToBackgroundCollision(int raster)
-{
-    uint8_t collisionBits = 0;
-    int firstCollisionX = -1;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        if (!spriteEnabledSomewhereOnLine(i))
-            continue;
-
-        const int x = firstSpriteBackgroundCollisionXOnLine(i, raster);
-        if (x < 0)
-            continue;
-
-        collisionBits =
-            static_cast<uint8_t>(collisionBits | (1 << i));
-
-        if (firstCollisionX < 0 || x < firstCollisionX)
-            firstCollisionX = x;
-    }
-
-    latchSpriteBackgroundCollision(collisionBits, raster, firstCollisionX);
 }
 
 bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
