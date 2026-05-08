@@ -4325,23 +4325,6 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     return true;
 }
 
-void Vic::drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid || cell.multicolor)
-        return;
-
-    const uint8_t rowBits = cell.rowBits;
-
-    updateOpenBus(rowBits);
-
-    const uint8_t fg = static_cast<uint8_t>(cell.colorByte & 0x0F);
-    const uint8_t bg = static_cast<uint8_t>(cell.bgColor & 0x0F);
-
-    stampStandardTextRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
-}
-
 void Vic::drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
 {
     bgPipeline.pixelPhase = 0;
@@ -4388,25 +4371,6 @@ void Vic::drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& 
         if (px >= x0 && px < x1)
             stampBackgroundPixel(px, cell.py, pixel.color, pixel.opaque);
     }
-}
-
-void Vic::drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid || !cell.multicolor)
-        return;
-
-    const uint8_t rowBits = cell.rowBits;
-
-    updateOpenBus(rowBits);
-
-    const uint8_t bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    const uint8_t bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-    const uint8_t bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-    const uint8_t cellColor = static_cast<uint8_t>(cell.colorByte & 0x07);
-
-    stampMulticolorTextRowBits(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1);
 }
 
 void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
@@ -4476,20 +4440,6 @@ Vic::BackgroundPixel Vic::sampleBitmapPixel(const BitmapCellSample& cell, int px
     out.color = pixelOn ? fgColor : bgColor;
     out.opaque = pixelOn;
     return out;
-}
-
-void Vic::drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid)
-        return;
-
-    const uint8_t rowBits = cell.bitmapByte;
-    const uint8_t fg = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    const uint8_t bg = static_cast<uint8_t>(cell.screenByte & 0x0F);
-
-    stampStandardBitmapRowBits(cell.px, cell.py, rowBits, fg, bg, x0, x1);
 }
 
 void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1)
@@ -4637,23 +4587,6 @@ Vic::BackgroundPixel Vic::sampleMultiColorBitmapPixel(const MultiColorBitmapCell
     return out;
 }
 
-void Vic::drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid)
-        return;
-
-    const uint8_t rowBits = cell.bitmapByte;
-    const uint8_t c00 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-    const uint8_t c01 = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    const uint8_t c10 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-    const uint8_t c11 = static_cast<uint8_t>(cell.colorByte & 0x0F);
-
-    stampMulticolorBitmapRowBits(cell.px, cell.py, rowBits,
-                                 c00, c01, c10, c11, x0, x1);
-}
-
 void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1)
 {
     (void)raster;
@@ -4788,23 +4721,6 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     out.charBase = charBase;
 
     return true;
-}
-
-void Vic::drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid)
-        return;
-
-    const uint8_t rowBits = cell.rowBits;
-
-    updateOpenBus(rowBits);
-
-    const uint8_t fg = static_cast<uint8_t>(cell.fgColor & 0x0F);
-    const uint8_t bg = static_cast<uint8_t>(cell.bgColor & 0x0F);
-
-    stampECMRowBits(cell.px, cell.py, rowBits, fg, bg, cell.bgSource, x0, x1);
 }
 
 void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1)

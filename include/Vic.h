@@ -983,27 +983,22 @@ class Vic
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
-        void drawECMCell(const ECMCellSample& cell, int raster, int x0, int x1);
         void drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1);
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
         BackgroundPixel sampleMultiColorBitmapPixel(const MultiColorBitmapCellSample& cell, int px) const;
-        void drawMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
         BackgroundPixel sampleBitmapPixel(const BitmapCellSample& cell, int px) const;
-        void drawBitmapCell(const BitmapCellSample& cell, int raster, int x0, int x1);
         void drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1);
         void drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         BackgroundPixel sampleStandardTextPixel(const TextCellSample& cell, int px, int raster) const;
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
-        void drawStandardTextCell(const TextCellSample& cell, int raster, int x0, int x1);
         void drawStandardTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
         void drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget);
         void drawStandardTextCellViaActivePixelStateBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget, bool reloadState);
-        void drawMulticolorTextCell(const TextCellSample& cell, int raster, int x0, int x1);
         void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers
