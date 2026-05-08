@@ -156,12 +156,6 @@ void Vic::reset()
     // Background pipeline
     resetBackgroundPipeline();
 
-    bgPipelineConfig.standardText = true;
-    bgPipelineConfig.multicolorText = true;
-    bgPipelineConfig.standardBitmap = true;
-    bgPipelineConfig.multicolorBitmap = true;
-    bgPipelineConfig.ecm = true;
-
     // Default character mode
     currentMode = graphicsMode::standard;
 
@@ -4454,24 +4448,14 @@ void Vic::renderTextLine(int raster, int xScroll)
 
         if (!cell.multicolor)
         {
-            if (bgPipelineConfig.standardText)
-            {
-                loadActiveStandardTextPixelState(cell, raster);
+            loadActiveStandardTextPixelState(cell, raster);
 
-                while (!activeStandardTextPixelStateFinished())
-                    emitStandardTextCyclePixelsBudgeted(g.x0, g.x1, 1);
-            }
-            else
-            {
-                drawStandardTextCell(cell, raster, g.x0, g.x1);
-            }
+            while (!activeStandardTextPixelStateFinished())
+                emitStandardTextCyclePixelsBudgeted(g.x0, g.x1, 1);
         }
         else
         {
-            if (bgPipelineConfig.multicolorText)
-                drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
-            else
-                drawMulticolorTextCell(cell, raster, g.x0, g.x1);
+            drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
         }
     }
 }
@@ -4543,11 +4527,7 @@ void Vic::renderBitmapLine(int raster, int xScroll)
             continue;
 
         loadBackgroundPipelineFromBitmapCell(cell, raster, col);
-
-        if (bgPipelineConfig.standardBitmap)
-            drawBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
-        else
-            drawBitmapCell(cell, raster, g.x0, g.x1);
+        drawBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -4712,11 +4692,7 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
             continue;
 
         loadBackgroundPipelineFromMultiColorBitmapCell(cell, raster, col);
-
-        if (bgPipelineConfig.multicolorBitmap)
-            drawMultiColorBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
-        else
-            drawMultiColorBitmapCell(cell, raster, g.x0, g.x1);
+        drawMultiColorBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -4876,11 +4852,7 @@ void Vic::renderECMLine(int raster, int xScroll)
             continue;
 
         loadBackgroundPipelineFromECMCell(cell, raster, col);
-
-        if (bgPipelineConfig.ecm)
-            drawECMCellViaPipeline(cell, raster, g.x0, g.x1);
-        else
-            drawECMCell(cell, raster, g.x0, g.x1);
+        drawECMCellViaPipeline(cell, raster, g.x0, g.x1);
     }
 }
 

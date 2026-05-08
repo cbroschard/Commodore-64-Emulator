@@ -759,15 +759,6 @@ class Vic
             bool ecm = false;
         };
 
-        struct BackgroundPipelineConfig
-        {
-            bool standardText = true;
-            bool multicolorText = true;
-            bool standardBitmap = true;
-            bool multicolorBitmap = true;
-            bool ecm = true;
-        };
-
         struct ActiveBackgroundPixelState
         {
             bool valid = false;
@@ -928,7 +919,6 @@ class Vic
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
 
         BackgroundPipelineState bgPipeline;
-        BackgroundPipelineConfig bgPipelineConfig;
 
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
