@@ -351,6 +351,28 @@ void CPU::executeNMI()
     cycles += 7;
 }
 
+CPU::CPUIrqDebugState CPU::getIrqDebugState() const
+{
+    CPUIrqDebugState s;
+
+    s.pc = PC;
+    s.sr = SR;
+    s.iFlag = getFlag(I);
+    s.irqLineActive = IRQ && IRQ->isIRQActive();
+
+    s.nmiPending = nmiPending;
+    s.nmiLine = nmiLine;
+    s.irqSuppressOne = irqSuppressOne;
+
+    s.baHold = baHold;
+    s.soLevel = soLevel;
+
+    s.cyclesRemaining = cycles;
+    s.totalCycles = totalCycles;
+
+    return s;
+}
+
 CPU::CPUState CPU::getState() const
 {
     CPUState st;

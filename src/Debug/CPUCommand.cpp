@@ -103,10 +103,18 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
              << "  (NV-BDIZC=" << flagsBits(st.SR) << ")\n";
 
         std::cout << out.str();
+        return;
+    }
+    else if (sub == "irq")
+    {
+        if (mon.mlmonitorbackend())
+            std::cout << mon.mlmonitorbackend()->cpuIrqStatus();
+        return;
     }
     else
     {
         std::cout << "Unknown cpu subcommand: " << sub << std::endl;
         std::cout << help() << std::endl;
+        return;
     }
 }

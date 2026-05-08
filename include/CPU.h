@@ -155,6 +155,26 @@ class CPU
         inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
         // ML Monitor
+        struct CPUIrqDebugState
+        {
+            uint16_t pc = 0;
+            uint8_t sr = 0;
+
+            bool iFlag = false;
+            bool irqLineActive = false;
+
+            bool nmiPending = false;
+            bool nmiLine = false;
+            bool irqSuppressOne = false;
+
+            bool baHold = false;
+            bool soLevel = true;
+
+            uint32_t cyclesRemaining = 0;
+            uint32_t totalCycles = 0;
+        };
+
+        CPUIrqDebugState getIrqDebugState() const;
         CPUState getState() const;
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }

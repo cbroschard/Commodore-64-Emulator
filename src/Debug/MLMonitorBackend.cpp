@@ -136,6 +136,65 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
     }
 }
 
+std::string MLMonitorBackend::cpuIrqStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getIrqDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    auto flagsString = [](uint8_t sr)
+    {
+        std::string f;
+        f += (sr & 0x80) ? 'N' : '.';
+        f += (sr & 0x40) ? 'V' : '.';
+        f += '-';
+        f += (sr & 0x10) ? 'B' : '.';
+        f += (sr & 0x08) ? 'D' : '.';
+        f += (sr & 0x04) ? 'I' : '.';
+        f += (sr & 0x02) ? 'Z' : '.';
+        f += (sr & 0x01) ? 'C' : '.';
+        return f;
+    };
+
+    std::ostringstream out;
+
+    out << "CPU IRQ/NMI State\n";
+    out << "-----------------\n";
+
+    out << "PC:              $" << hexWord(s.pc) << "\n";
+    out << "SR:              $" << hexByte(s.sr)
+        << "  " << flagsString(s.sr) << "\n";
+
+    out << "I flag:          " << (s.iFlag ? "set" : "clear") << "\n";
+    out << "IRQ line:        " << (s.irqLineActive ? "active" : "inactive") << "\n";
+    out << "NMI line:        " << (s.nmiLine ? "high" : "low") << "\n";
+    out << "NMI pending:     " << (s.nmiPending ? "yes" : "no") << "\n";
+    out << "IRQ suppress:    " << (s.irqSuppressOne ? "yes" : "no") << "\n";
+    out << "BA hold:         " << (s.baHold ? "yes" : "no") << "\n";
+    out << "SO level:        " << (s.soLevel ? "high" : "low") << "\n";
+    out << "Cycles left:     " << s.cyclesRemaining << "\n";
+    out << "Total cycles:    " << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 void MLMonitorBackend::setJamMode(const std::string& mode)
 {
     if (processor)
