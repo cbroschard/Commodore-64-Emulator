@@ -927,17 +927,9 @@ class Vic
         void loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col);
         uint8_t fetchBackgroundPipelineTextRowBits() const;
-        BackgroundPixel sampleBackgroundPipelinePixel() const;
-        BackgroundPixel sampleTextPipelinePixel() const;
-        BackgroundPixel sampleBitmapPipelinePixel() const;
-        BackgroundPixel sampleECMPipelinePixel() const;
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
-
-        void advanceBackgroundPipelinePixelPhase();
-        void rewindBackgroundPipelinePixelPhase();
-        std::array<BackgroundPixel, 8> sampleBackgroundPipelineRow() const;
 
         void resetBackgroundPipeline();
 
