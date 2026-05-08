@@ -992,7 +992,6 @@ class Vic
         void drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
-        void drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget);
         void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers

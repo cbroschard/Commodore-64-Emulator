@@ -4298,22 +4298,6 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     return true;
 }
 
-void Vic::drawStandardTextCellViaPipelineBudgeted(const TextCellSample& cell, int raster, int x0, int x1, int pixelBudget)
-{
-    (void)raster;
-
-    if (!cell.valid || cell.multicolor || pixelBudget <= 0)
-        return;
-
-    const uint8_t rowBits = bgPipeline.rowBits;
-    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
-    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
-
-    int phase = std::clamp(bgPipeline.pixelPhase, 0, 8);
-    stampStandardTextPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, pixelBudget);
-    bgPipeline.pixelPhase = phase;
-}
-
 void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
 {
     (void)raster;
