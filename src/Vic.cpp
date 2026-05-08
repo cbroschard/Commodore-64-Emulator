@@ -4727,15 +4727,6 @@ void Vic::emitRasterLineInOrder(int raster)
     }
 }
 
-void Vic::emitRasterPixel(int raster, int px)
-{
-    if (!IO_adapter)
-        return;
-
-    const int screenY = fbY(raster);
-    IO_adapter->setPixel(px, screenY, produceRasterPixel(raster, px));
-}
-
 void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
 {
     if (!activeBgPixel.valid || pixelBudget <= 0)
@@ -4890,12 +4881,6 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
     }
 
     return color & 0x0F;
-}
-
-uint8_t Vic::produceRasterPixel(int raster, int px) const
-{
-    (void)raster;
-    return finalColorLine[px] & 0x0F;
 }
 
 int Vic::rasterPixelToCycle(int px) const
