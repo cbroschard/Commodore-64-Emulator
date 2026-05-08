@@ -21,6 +21,7 @@
 #include "Debug/BreakpointCommand.h"
 #include "Debug/CartridgeCommand.h"
 #include "Debug/CIACommand.h"
+#include "Debug/CPUCommand.h"
 #include "Debug/DisassembleCommand.h"
 #include "Debug/DriveCommand.h"
 #include "Debug/ExportDisassemblyCommand.h"
