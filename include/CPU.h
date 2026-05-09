@@ -279,6 +279,20 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUPHADebugState
+        {
+            bool valid = false;
+
+            uint16_t phaOpcodePC = 0;
+
+            uint8_t pushedA = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         struct CPUPHPDebugState
         {
             bool valid = false;
@@ -287,6 +301,24 @@ class CPU
 
             uint8_t internalSR = 0;
             uint8_t pushedSR = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
+        struct CPUPLADebugState
+        {
+            bool valid = false;
+
+            uint16_t plaOpcodePC = 0;
+
+            uint8_t pulledA = 0;
+            uint8_t finalA = 0;
+
+            bool zFlag = false;
+            bool nFlag = false;
 
             uint8_t spBefore = 0;
             uint8_t spAfter = 0;
@@ -317,8 +349,11 @@ class CPU
         inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
         inline CPUJSRDebugState getLastJSRDebugState() const { return lastJSR; }
         inline CPURTSDebugState getLastRTSDebugState() const { return lastRTS; }
+        inline CPUPHADebugState getLastPHADebugState() const { return lastPHA; }
         inline CPUPHPDebugState getLastPHPDebugState() const { return lastPHP; }
+        inline CPUPLADebugState getLastPLADebugState() const { return lastPLA; }
         inline CPUPLPDebugState getLastPLPDebugState() const { return lastPLP; }
+
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
@@ -357,7 +392,9 @@ class CPU
         CPUJSRDebugState lastJSR;
         CPURTSDebugState lastRTS;
         CPURTIDebugState lastRTI;
+        CPUPHADebugState lastPHA;
         CPUPHPDebugState lastPHP;
+        CPUPLADebugState lastPLA;
         CPUPLPDebugState lastPLP;
 
         // NMI scheduling

@@ -2128,10 +2128,36 @@ void CPU::ORA(uint8_t opcode)
 
 void CPU::PHA()
 {
+    const uint16_t phaPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+    const uint8_t pushedValue = A;
+
     // Dummy read for accuracy
     mem->read(PC);
 
-    push(A);
+    push(pushedValue);
+
+    const uint8_t spAfter = SP;
+
+    lastPHA.valid = true;
+    lastPHA.phaOpcodePC = phaPC;
+    lastPHA.pushedA = pushedValue;
+    lastPHA.spBefore = spBefore;
+    lastPHA.spAfter = spAfter;
+    lastPHA.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "PHA at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << phaPC
+            << " pushed A=$" << std::setw(2) << int(pushedValue)
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::PHP()
@@ -2176,14 +2202,47 @@ void CPU::PHP()
 
 void CPU::PLA()
 {
+    const uint16_t plaPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // PLA dummy read / throwaway read.
     // PC already points to the byte after opcode $68.
     mem->read(PC);
 
-    A = pop();
+    const uint8_t pulledValue = pop();
+
+    A = pulledValue;
 
     setFlag(Z, A == 0);
     setFlag(N, (A & 0x80) != 0);
+
+    const uint8_t spAfter = SP;
+
+    lastPLA.valid = true;
+    lastPLA.plaOpcodePC = plaPC;
+    lastPLA.pulledA = pulledValue;
+    lastPLA.finalA = A;
+    lastPLA.zFlag = getFlag(Z);
+    lastPLA.nFlag = getFlag(N);
+    lastPLA.spBefore = spBefore;
+    lastPLA.spAfter = spAfter;
+    lastPLA.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "PLA at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << plaPC
+            << " pulled A=$" << std::setw(2) << int(pulledValue)
+            << " final A=$" << std::setw(2) << int(A)
+            << " Z=" << (lastPLA.zFlag ? "1" : "0")
+            << " N=" << (lastPLA.nFlag ? "1" : "0")
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::PLP()
