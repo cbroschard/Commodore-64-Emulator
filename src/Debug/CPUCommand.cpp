@@ -42,6 +42,7 @@ std::string CPUCommand::help() const
   cpu intr              - Show the last BRK/IRQ/NMI entry details.
   cpu irq               - Show IRQ/NMI timing state
   cpu jam               - Show or set JAM/KIL opcode behavior
+  cpu jmp               - Show last JMP target details
   cpu jsr               - Show last JSR stack details
   cpu last              - Show last executed opcode and timing position
   cpu pc <addr>         - Set CPU program counter
@@ -148,6 +149,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "The current Jam mode is: " << mon.mlmonitorbackend()->getJamMode() << "\n";
             return;
         }
+    }
+    else if (sub == "jmp")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuJMPStatus();
+        return;
     }
     else if (sub == "jsr")
     {

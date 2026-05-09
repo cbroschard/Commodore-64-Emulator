@@ -409,6 +409,66 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuJMPStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastJMPDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last JMP\n";
+    out << "--------\n";
+
+    if (!s.valid)
+    {
+        out << "No JMP has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "JMP opcode PC:  $" << hexWord(s.jmpOpcodePC) << "\n";
+    out << "Opcode:         $" << hexByte(s.opcode) << "\n";
+    out << "Mode:           " << (s.indirect ? "indirect" : "absolute") << "\n";
+    out << "Operand addr:   $" << hexWord(s.operandAddress) << "\n";
+
+    if (s.indirect)
+    {
+        out << "Pointer addr:   $" << hexWord(s.pointerAddress) << "\n";
+        out << "Low read addr:  $" << hexWord(s.lowReadAddress) << "\n";
+        out << "High read addr: $" << hexWord(s.highReadAddress) << "\n";
+        out << "Low/high bytes: $" << hexByte(s.lowByte)
+            << " / $" << hexByte(s.highByte) << "\n";
+        out << "Page bug:       " << (s.indirectPageBug ? "yes" : "no") << "\n";
+    }
+    else
+    {
+        out << "Target low/high:$" << hexByte(s.lowByte)
+            << " / $" << hexByte(s.highByte) << "\n";
+    }
+
+    out << "Final PC:       $" << hexWord(s.finalPC) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuJSRStatus() const
 {
     if (!processor)

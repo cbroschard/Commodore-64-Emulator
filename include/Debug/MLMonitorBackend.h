@@ -84,6 +84,7 @@ class MLMonitorBackend
         std::string cpuInterruptStatus() const;
         std::string cpuIrqStatus() const;
         std::string cpuCycleStatus() const;
+        std::string cpuJMPStatus() const;
         std::string cpuJSRStatus() const;
         std::string cpuPHAStatus() const;
         std::string cpuPHPStatus() const;
