@@ -299,6 +299,41 @@ std::string MLMonitorBackend::cpuStackStatus(int count) const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuLastStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getCycleDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last CPU Instruction\n";
+    out << "--------------------\n";
+    out << "PC:          $" << hexWord(s.lastOpcodePC) << "\n";
+    out << "Opcode:      $" << hexByte(s.lastOpcode) << "\n";
+    out << "Cycles left: " << s.cyclesRemaining << "\n";
+    out << "Raster/Dot:  " << s.raster << " / " << s.dot << "\n";
+
+    return out.str();
+}
+
 void MLMonitorBackend::setJamMode(const std::string& mode)
 {
     if (processor)
