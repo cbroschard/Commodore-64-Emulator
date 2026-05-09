@@ -44,7 +44,9 @@ std::string CPUCommand::help() const
   cpu jsr               - Show last JSR stack details
   cpu last              - Show last executed opcode and timing position
   cpu pc <addr>         - Set CPU program counter
+  cpu pha               - Show last PHA stack push details
   cpu php               - Show last PHP status push details
+  cpu pla               - Show last PLA stack pull details
   cpu plp               - Show last PLP status restore details
   cpu regs              - Show CPU registers
   cpu rti               - Show last RTI return details
@@ -173,9 +175,19 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         return;
     }
+    else if (sub == "pha")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuPHAStatus();
+        return;
+    }
     else if (sub == "php")
     {
         std::cout << mon.mlmonitorbackend()->cpuPHPStatus();
+        return;
+    }
+    else if (sub == "pla")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuPLAStatus();
         return;
     }
     else if (sub == "plp")

@@ -394,6 +394,49 @@ std::string MLMonitorBackend::cpuJSRStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuPHAStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastPHADebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last PHA Stack Push\n";
+    out << "-------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No PHA has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "PHA opcode PC:  $" << hexWord(s.phaOpcodePC) << "\n";
+    out << "Pushed A:       $" << hexByte(s.pushedA) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuPHPStatus() const
 {
     if (!processor)
@@ -431,6 +474,52 @@ std::string MLMonitorBackend::cpuPHPStatus() const
     out << "PHP opcode PC:  $" << hexWord(s.phpOpcodePC) << "\n";
     out << "Internal SR:    $" << hexByte(s.internalSR) << "\n";
     out << "Pushed SR:      $" << hexByte(s.pushedSR) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
+std::string MLMonitorBackend::cpuPLAStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastPLADebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last PLA Stack Pull\n";
+    out << "-------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No PLA has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "PLA opcode PC:  $" << hexWord(s.plaOpcodePC) << "\n";
+    out << "Pulled A:       $" << hexByte(s.pulledA) << "\n";
+    out << "Final A:        $" << hexByte(s.finalA) << "\n";
+    out << "Z flag:         " << (s.zFlag ? "set" : "clear") << "\n";
+    out << "N flag:         " << (s.nFlag ? "set" : "clear") << "\n";
     out << "SP before:      $" << hexByte(s.spBefore) << "\n";
     out << "SP after:       $" << hexByte(s.spAfter) << "\n";
     out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
