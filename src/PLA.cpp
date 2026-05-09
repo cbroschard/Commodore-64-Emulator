@@ -279,20 +279,17 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     // Ultimax completely bypasses normal memory mapping rules
     if (cfg == CartCfg::Ultimax)
     {
-        if (addr <= 0x0FFF) return RAM;
-        if (addr >= 0x8000 && addr <= 0x9FFF)   return CARTRIDGE_LO;
-        if (addr >= 0xD000 && addr <= 0xDFFF)   return IO;
-        if (addr >= 0xE000)
-        {
-            // If a cart is attached and it says it provides E000 overlay, use it
-            if (cart && cartridgeAttached && cart->getMapper()->isRegionEnabled(CartridgeMapper::CartRegion::ROM_E000_FFFF))
-                return CARTRIDGE_HI_E000;
-
-            if (hiram)
-                return KERNAL_ROM;
-
+        if (addr <= 0x0FFF)
             return RAM;
-        }
+
+        if (addr >= 0x8000 && addr <= 0x9FFF)
+            return CARTRIDGE_LO;
+
+        if (addr >= 0xD000 && addr <= 0xDFFF)
+            return IO;
+
+        if (addr >= 0xE000)
+            return CARTRIDGE_HI_E000;
 
         return UNMAPPED;
     }
