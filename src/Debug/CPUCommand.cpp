@@ -41,12 +41,14 @@ std::string CPUCommand::help() const
   cpu intr              - Show the last BRK/IRQ/NMI entry details.
   cpu irq               - Show IRQ/NMI timing state
   cpu jam               - Show or set JAM/KIL opcode behavior
+  cpu jsr               - Show last JSR stack details
   cpu last              - Show last executed opcode and timing position
   cpu pc <addr>         - Set CPU program counter
   cpu php               - Show last PHP status push details
   cpu plp               - Show last PLP status restore details
   cpu regs              - Show CPU registers
   cpu rti               - Show last RTI return details
+  cpu rts               - Show last RTS return details
   cpu stack [count]     - Show stack contents
 )";
 }
@@ -139,6 +141,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
     }
+    else if (sub == "jsr")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuJSRStatus();
+        return;
+    }
     else if (sub == "last")
     {
         std:: cout << mon.mlmonitorbackend()->cpuLastStatus();
@@ -223,6 +230,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (sub == "rti")
     {
         std::cout << mon.mlmonitorbackend()->cpuRTIStatus();
+        return;
+    }
+    else if (sub == "rts")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuRTSStatus();
         return;
     }
     else if (sub == "stack")

@@ -348,6 +348,52 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuJSRStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastJSRDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last JSR Stack Push\n";
+    out << "-------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No JSR has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "JSR opcode PC:  $" << hexWord(s.jsrOpcodePC) << "\n";
+    out << "Target PC:      $" << hexWord(s.targetPC) << "\n";
+    out << "Pushed return:  $" << hexWord(s.pushedReturn) << "\n";
+    out << "Pushed high/low:$" << hexByte(s.pushedHigh)
+        << " / $" << hexByte(s.pushedLow) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuPHPStatus() const
 {
     if (!processor)
@@ -508,6 +554,52 @@ std::string MLMonitorBackend::cpuRTIStatus() const
             out << "fresh - RTI occurred after last interrupt entry\n";
         }
     }
+
+    return out.str();
+}
+
+std::string MLMonitorBackend::cpuRTSStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastRTSDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last RTS Stack Pull\n";
+    out << "-------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No RTS has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "RTS opcode PC:  $" << hexWord(s.rtsOpcodePC) << "\n";
+    out << "Pulled return:  $" << hexWord(s.pulledReturn) << "\n";
+    out << "Final PC:       $" << hexWord(s.finalPC) << "\n";
+    out << "Pulled low/high:$" << hexByte(s.pulledLow)
+        << " / $" << hexByte(s.pulledHigh) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
 
     return out.str();
 }
