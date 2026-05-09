@@ -937,28 +937,91 @@ CPU::ReadByte CPU::readIndirectYAddressBoundary()
     return { value, crossed };
 }
 
-void CPU::branchIf(bool condition)
+void CPU::branchIf(bool condition, const char* mnemonic, uint8_t opcode)
 {
+    const uint16_t opcodePC = uint16_t(PC - 1); // opcode already fetched
+    const uint16_t operandPC = PC;
+
     const int8_t offset = static_cast<int8_t>(fetch());
 
+    lastBranch.valid = true;
+    lastBranch.opcodePC = opcodePC;
+    lastBranch.opcode = opcode;
+    lastBranch.mnemonic = mnemonic;
+    lastBranch.condition = condition;
+    lastBranch.taken = false;
+    lastBranch.offset = offset;
+    lastBranch.operandPC = operandPC;
+    lastBranch.oldPC = PC;
+    lastBranch.newPC = PC;
+    lastBranch.pageCrossed = false;
+    lastBranch.takenDummyRead = 0;
+    lastBranch.pageCrossDummyRead = 0;
+    lastBranch.extraCycles = 0;
+    lastBranch.totalCycles = totalCycles;
+
     if (!condition)
+    {
+        if (traceMgr)
+        {
+            std::ostringstream oss;
+            oss << mnemonic << " not taken at PC=$"
+                << std::hex << std::uppercase << std::setw(4)
+                << std::setfill('0') << opcodePC
+                << " offset=" << std::dec << int(offset);
+            traceMgr->recordCPUExec(opcodePC, opcode, makeCpuStamp());
+        }
+
         return;
+    }
 
     // Branch taken: extra cycle and dummy read of next opcode address.
     cycles++;
-    mem->read(PC);
+    const uint16_t takenDummy = PC;
+    mem->read(takenDummy);
 
     const uint16_t oldPC = PC;
     const uint16_t newPC = uint16_t(PC + offset);
 
+    bool crossed = false;
+    uint16_t pageDummy = 0;
+    uint8_t extraCycles = 1;
+
     if ((oldPC & 0xFF00) != (newPC & 0xFF00))
     {
         // Page-cross dummy read from old high byte + new low byte.
-        mem->read((oldPC & 0xFF00) | (newPC & 0x00FF));
+        pageDummy = uint16_t((oldPC & 0xFF00) | (newPC & 0x00FF));
+        mem->read(pageDummy);
         cycles++;
+        extraCycles++;
+        crossed = true;
     }
 
     PC = newPC;
+
+    lastBranch.taken = true;
+    lastBranch.oldPC = oldPC;
+    lastBranch.newPC = newPC;
+    lastBranch.pageCrossed = crossed;
+    lastBranch.takenDummyRead = takenDummy;
+    lastBranch.pageCrossDummyRead = pageDummy;
+    lastBranch.extraCycles = extraCycles;
+    lastBranch.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << mnemonic << " taken at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << opcodePC
+            << " from=$" << std::setw(4) << oldPC
+            << " to=$" << std::setw(4) << newPC
+            << " offset=" << std::dec << int(offset)
+            << " pageCross=" << (crossed ? "yes" : "no")
+            << " extraCycles=" << int(extraCycles);
+
+        traceMgr->recordCPUExec(opcodePC, opcode, makeCpuStamp());
+    }
 }
 
 void CPU::dummyReadWrongPageABSX(uint16_t address)
@@ -1408,17 +1471,17 @@ void CPU::AXS()
 
 void CPU::BCC()
 {
-    branchIf(!getFlag(C));
+    branchIf(!getFlag(C), "BCC", 0x90);
 }
 
 void CPU::BCS()
 {
-    branchIf(getFlag(C));
+    branchIf(getFlag(C), "BCS", 0xB0);
 }
 
 void CPU::BEQ()
 {
-    branchIf(getFlag(Z));
+    branchIf(getFlag(Z), "BEQ", 0xF0);
 }
 
 void CPU::BIT(uint8_t opcode)
@@ -1438,17 +1501,17 @@ void CPU::BIT(uint8_t opcode)
 
 void CPU::BMI()
 {
-    branchIf(getFlag(N));
+    branchIf(getFlag(N), "BMI", 0x30);
 }
 
 void CPU::BNE()
 {
-    branchIf(!getFlag(Z));
+    branchIf(!getFlag(Z), "BNE", 0xD0);
 }
 
 void CPU::BPL()
 {
-    branchIf(!getFlag(N));
+    branchIf(!getFlag(N), "BPL", 0x10);
 }
 
 void CPU::BRK()
@@ -1519,12 +1582,12 @@ void CPU::BRK()
 
 void CPU::BVC()
 {
-    branchIf(!getFlag(V));
+    branchIf(!getFlag(V), "BVC", 0x50);
 }
 
 void CPU::BVS()
 {
-    branchIf(getFlag(V));
+    branchIf(getFlag(V), "BVS", 0x70);
 }
 
 void CPU::CMP(uint8_t opcode)

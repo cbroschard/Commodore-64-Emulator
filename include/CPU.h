@@ -202,6 +202,30 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUBranchDebugState
+        {
+            bool valid = false;
+
+            uint16_t opcodePC = 0;
+            uint8_t opcode = 0;
+            const char* mnemonic = "";
+
+            bool condition = false;
+            bool taken = false;
+
+            int8_t offset = 0;
+            uint16_t operandPC = 0;
+            uint16_t oldPC = 0;
+            uint16_t newPC = 0;
+
+            bool pageCrossed = false;
+            uint16_t takenDummyRead = 0;
+            uint16_t pageCrossDummyRead = 0;
+
+            uint8_t extraCycles = 0;
+            uint32_t totalCycles = 0;
+        };
+
         struct CPUCycleDebugState
         {
             uint16_t lastOpcodePC = 0;
@@ -346,6 +370,7 @@ class CPU
         };
 
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
+        inline CPUBranchDebugState getLastBranchDebugState() const { return lastBranch; }
         inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
         inline CPUJSRDebugState getLastJSRDebugState() const { return lastJSR; }
         inline CPURTSDebugState getLastRTSDebugState() const { return lastRTS; }
@@ -388,6 +413,7 @@ class CPU
         Vic* vicII;
 
         // Debug
+        CPUBranchDebugState lastBranch;
         CPUInterruptEntryDebugState lastInterruptEntry;
         CPUJSRDebugState lastJSR;
         CPURTSDebugState lastRTS;
@@ -478,7 +504,7 @@ class CPU
         uint16_t zpXAddress();
         uint16_t zpYAddress();
 
-        void branchIf(bool condition);
+        void branchIf(bool condition, const char* mnemonic, uint8_t opcode);
 
         // Struct to track page boundary for read only opcodes
         struct ReadByte
