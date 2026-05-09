@@ -26,5 +26,6 @@ basic
 *.d64
 *.d71
 *.d81
+*.nib
 *.ini
 *.sav
