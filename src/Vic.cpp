@@ -2413,7 +2413,16 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
+    (void)raster;
+
+    // Actual badline CPU stealing is based on the cycle-14 sampled badline
+    // decision, not a fresh live D011/YSCROLL test. This prevents mid-line
+    // D011 writes from reclassifying the current line after the hardware
+    // decision point.
     if (!vicState.badLineSampled)
+        return false;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
     return cycle >= cfg_->DMAStartCycle &&
