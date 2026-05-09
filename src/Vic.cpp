@@ -2345,19 +2345,14 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
 
 void Vic::updateBusArbitration()
 {
-    const int raster = registers.raster;
-
-    const bool badLineNow = isBadLine(raster);
-
     const bool baLow  = currentCycleSlot.baLow;
     const bool aecLow = currentCycleSlot.aecLow;
 
     const bool oldBA  = vicState.ba;
     const bool oldAEC = vicState.aec;
 
-    vicState.badLine = badLineNow;
-    vicState.ba      = !baLow;
-    vicState.aec     = !aecLow;
+    vicState.ba  = !baLow;
+    vicState.aec = !aecLow;
 
     AEC = vicState.aec;
 
@@ -2366,7 +2361,15 @@ void Vic::updateBusArbitration()
 
     if (oldBA != vicState.ba || oldAEC != vicState.aec)
     {
-        traceVicBusArb(oldBA, oldAEC, vicState.ba, vicState.aec, badLineNow, baLow, aecLow);
+        traceVicBusArb(
+            oldBA,
+            oldAEC,
+            vicState.ba,
+            vicState.aec,
+            vicState.badLineSampled,
+            baLow,
+            aecLow
+        );
     }
 }
 
