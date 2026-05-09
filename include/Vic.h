@@ -532,6 +532,7 @@ class Vic
         void resetSpriteDMAState(int spr);
         void performSpriteDataFetches();
         void performSpriteDataFetchForSprite(int sprite);
+        int spritePointerFetchSpriteForKind(FetchKind kind) const;
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
         bool isSpritePointerFetchCycle(int sprite, int cycle) const;

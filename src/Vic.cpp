@@ -1313,9 +1313,10 @@ void Vic::runFetchPhase()
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
         {
-            const int sprite = spritePointerFetchSpriteForCycle(cycle);
+            const int sprite = spritePointerFetchSpriteForKind(currentCycleSlot.fetchKind);
             if (sprite >= 0)
                 fetchSpritePointer(sprite, raster);
+
             break;
         }
 
@@ -2280,6 +2281,22 @@ void Vic::performSpriteDataFetchForSprite(int sprite)
         return;
 
     fetchSpriteDataByte(sprite, byteIndex, registers.raster);
+}
+
+int Vic::spritePointerFetchSpriteForKind(FetchKind kind) const
+{
+    switch (kind)
+    {
+        case FetchKind::SpritePtr0: return 0;
+        case FetchKind::SpritePtr1: return 1;
+        case FetchKind::SpritePtr2: return 2;
+        case FetchKind::SpritePtr3: return 3;
+        case FetchKind::SpritePtr4: return 4;
+        case FetchKind::SpritePtr5: return 5;
+        case FetchKind::SpritePtr6: return 6;
+        case FetchKind::SpritePtr7: return 7;
+        default: return -1;
+    }
 }
 
 void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
