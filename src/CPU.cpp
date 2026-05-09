@@ -2127,20 +2127,54 @@ void CPU::PLA()
 
 void CPU::PLP()
 {
+    const uint16_t plpPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // PLP dummy read / throwaway read.
     // PC already points to the byte after opcode $28.
     mem->read(PC);
 
-    uint8_t status = pop();
-
     const bool oldI = (SR & I) != 0;
 
+    const uint8_t pulledStatus = pop();
+
     // U forced high, B cleared internally.
-    SR = (status | 0x20) & ~0x10;
+    SR = (pulledStatus | 0x20) & ~0x10;
 
     const bool newI = (SR & I) != 0;
+    const bool suppress = oldI && !newI;
 
-    if (oldI && !newI)
+    const uint8_t spAfter = SP;
+
+    lastPLP.valid = true;
+    lastPLP.plpOpcodePC = plpPC;
+    lastPLP.pulledSR = pulledStatus;
+    lastPLP.finalSR = SR;
+    lastPLP.spBefore = spBefore;
+    lastPLP.spAfter = spAfter;
+    lastPLP.oldI = oldI;
+    lastPLP.newI = newI;
+    lastPLP.irqSuppressSet = suppress;
+    lastPLP.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "PLP at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << plpPC
+            << " pulled SR=$" << std::setw(2) << int(pulledStatus)
+            << " final SR=$" << std::setw(2) << int(SR)
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        if (suppress)
+            oss << " IRQ suppress set";
+
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
+
+    if (suppress)
         irqSuppressOne = true;
 }
 

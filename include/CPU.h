@@ -245,11 +245,32 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUPLPDebugState
+        {
+            bool valid = false;
+
+            uint16_t plpOpcodePC = 0;
+
+            uint8_t pulledSR = 0;
+            uint8_t finalSR = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            bool oldI = false;
+            bool newI = false;
+            bool irqSuppressSet = false;
+
+            uint32_t totalCycles = 0;
+        };
+
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
+        inline CPUPLPDebugState getLastPLPDebugState() const { return lastPLP; }
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
+
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
         inline uint8_t getA() const { return A; }
@@ -280,6 +301,7 @@ class CPU
         // Debug
         CPUInterruptEntryDebugState lastInterruptEntry;
         CPURTIDebugState lastRTI;
+        CPUPLPDebugState lastPLP;
 
         // NMI scheduling
         bool nmiPending;

@@ -43,6 +43,7 @@ std::string CPUCommand::help() const
   cpu jam               - Show or set JAM/KIL opcode behavior
   cpu last              - Show last executed opcode and timing position
   cpu pc <addr>         - Set CPU program counter
+  cpu plp               - Show last PLP status restore details
   cpu regs              - Show CPU registers
   cpu rti               - Show last RTI return details
   cpu stack [count]     - Show stack contents
@@ -162,6 +163,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "Bad address: " << args[2] << "\n";
         }
 
+        return;
+    }
+    else if (sub == "plp")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuPLPStatus();
         return;
     }
     else if (sub == "regs")
