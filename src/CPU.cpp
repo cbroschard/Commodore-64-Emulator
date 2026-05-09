@@ -2316,6 +2316,22 @@ void CPU::RTI()
 
     const uint8_t spAfter = SP;
 
+    const bool suppress = oldI && !newI;
+
+    lastRTI.valid = true;
+    lastRTI.rtiOpcodePC = rtiPC;
+    lastRTI.pulledSR = pulledStatus;
+    lastRTI.finalSR = SR;
+    lastRTI.pulledPCL = lo;
+    lastRTI.pulledPCH = hi;
+    lastRTI.returnPC = PC;
+    lastRTI.spBefore = spBefore;
+    lastRTI.spAfter = spAfter;
+    lastRTI.oldI = oldI;
+    lastRTI.newI = newI;
+    lastRTI.irqSuppressSet = suppress;
+    lastRTI.totalCycles = totalCycles;
+
     if (traceMgr)
     {
         std::ostringstream oss;
@@ -2331,7 +2347,7 @@ void CPU::RTI()
     }
 
     // Only suppress one IRQ check if RTI changed I from set to clear.
-    if (oldI && !newI)
+    if (suppress)
         irqSuppressOne = true;
 }
 

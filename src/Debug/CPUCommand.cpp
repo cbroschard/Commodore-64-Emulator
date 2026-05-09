@@ -43,6 +43,7 @@ std::string CPUCommand::help() const
   cpu jam               - Show or set JAM/KIL opcode behavior
   cpu last              - Show last executed opcode and timing position
   cpu regs              - Show CPU registers
+  cpu rti               - Show last RTI return details
   cpu stack [count]     - Show stack contents
 )";
 }
@@ -182,6 +183,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
              << "  (NV-BDIZC=" << flagsBits(st.SR) << ")\n";
 
         std::cout << out.str();
+        return;
+    }
+    else if (sub == "rti")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuRTIStatus();
         return;
     }
     else if (sub == "stack")

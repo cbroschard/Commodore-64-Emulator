@@ -80,6 +80,7 @@ class MLMonitorBackend
         std::string cpuInterruptStatus() const;
         std::string cpuIrqStatus() const;
         std::string cpuCycleStatus() const;
+        std::string cpuRTIStatus() const;
         std::string cpuStackStatus(int count) const;
         std::string cpuLastStatus() const;
         void setJamMode(const std::string& mode);

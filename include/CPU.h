@@ -222,7 +222,31 @@ class CPU
             int dot = 0;
         };
 
+        struct CPURTIDebugState
+        {
+            bool valid = false;
+
+            uint16_t rtiOpcodePC = 0;
+
+            uint8_t pulledSR = 0;
+            uint8_t finalSR = 0;
+
+            uint8_t pulledPCL = 0;
+            uint8_t pulledPCH = 0;
+            uint16_t returnPC = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            bool oldI = false;
+            bool newI = false;
+            bool irqSuppressSet = false;
+
+            uint32_t totalCycles = 0;
+        };
+
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
+        inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
@@ -255,6 +279,7 @@ class CPU
 
         // Debug
         CPUInterruptEntryDebugState lastInterruptEntry;
+        CPURTIDebugState lastRTI;
 
         // NMI scheduling
         bool nmiPending;

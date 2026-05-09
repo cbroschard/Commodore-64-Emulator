@@ -322,6 +322,55 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
+
+std::string MLMonitorBackend::cpuRTIStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastRTIDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last RTI Return\n";
+    out << "---------------\n";
+
+    if (!s.valid)
+    {
+        out << "No RTI has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "RTI opcode PC:  $" << hexWord(s.rtiOpcodePC) << "\n";
+    out << "Pulled SR:      $" << hexByte(s.pulledSR) << "\n";
+    out << "Final SR:       $" << hexByte(s.finalSR) << "\n";
+    out << "Pulled PCL/PCH: $" << hexByte(s.pulledPCL) << " / $" << hexByte(s.pulledPCH) << "\n";
+    out << "Return PC:      $" << hexWord(s.returnPC) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "I old/new:      " << (s.oldI ? "1" : "0") << " -> " << (s.newI ? "1" : "0") << "\n";
+    out << "IRQ suppress:   " << (s.irqSuppressSet ? "set" : "not set") << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuStackStatus(int count) const
 {
     if (!processor)
