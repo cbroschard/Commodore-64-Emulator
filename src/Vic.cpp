@@ -1329,7 +1329,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
         {
-            const int sprite = spriteDataFetchSpriteForCycle(cycle);
+            const int sprite = spriteDataFetchSpriteForKind(currentCycleSlot.fetchKind);
             if (sprite >= 0)
                 performSpriteDataFetchForSprite(sprite);
 
@@ -2295,6 +2295,22 @@ int Vic::spritePointerFetchSpriteForKind(FetchKind kind) const
         case FetchKind::SpritePtr5: return 5;
         case FetchKind::SpritePtr6: return 6;
         case FetchKind::SpritePtr7: return 7;
+        default: return -1;
+    }
+}
+
+int Vic::spriteDataFetchSpriteForKind(FetchKind kind) const
+{
+    switch (kind)
+    {
+        case FetchKind::SpriteData0: return 0;
+        case FetchKind::SpriteData1: return 1;
+        case FetchKind::SpriteData2: return 2;
+        case FetchKind::SpriteData3: return 3;
+        case FetchKind::SpriteData4: return 4;
+        case FetchKind::SpriteData5: return 5;
+        case FetchKind::SpriteData6: return 6;
+        case FetchKind::SpriteData7: return 7;
         default: return -1;
     }
 }
