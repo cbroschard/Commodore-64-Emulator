@@ -1296,7 +1296,6 @@ void Vic::handleCycle58Decisions()
 void Vic::runFetchPhase()
 {
     const int raster = registers.raster;
-    const int cycle  = currentCycle;
 
     switch (currentCycleSlot.fetchKind)
     {
@@ -2231,32 +2230,6 @@ void Vic::resetSpriteDMAState(int spr)
 
     resetSpriteLineOutputState(spr);
     clearSpriteFetchedRowState(spr);
-}
-
-void Vic::performSpriteDataFetches()
-{
-    const int raster = registers.raster;
-    const int cycle = currentCycle;
-    const int lineCycles = cfg_->cyclesPerLine;
-
-    for (int s = 0; s < 8; ++s)
-    {
-        if (!spriteUnits[s].dmaActive)
-            continue;
-
-        if (!isSpriteDMAFetchCycle(s, cycle))
-            continue;
-
-        const int slotStart = spriteFetchSlotStart(s);
-        const int firstDataCycle = (slotStart + 1) % lineCycles;
-
-        int byteIndex = cycle - firstDataCycle;
-        if (byteIndex < 0)
-            byteIndex += lineCycles;
-
-        if (byteIndex >= 0 && byteIndex < 3)
-            fetchSpriteDataByte(s, byteIndex, raster);
-    }
 }
 
 void Vic::performSpriteDataFetchForSprite(int sprite)

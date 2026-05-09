@@ -530,7 +530,6 @@ class Vic
         bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
         bool isSpriteDMAComplete(int spr) const;
         void resetSpriteDMAState(int spr);
-        void performSpriteDataFetches();
         void performSpriteDataFetchForSprite(int sprite);
         int spritePointerFetchSpriteForKind(FetchKind kind) const;
         int spriteDataFetchSpriteForKind(FetchKind kind) const;
