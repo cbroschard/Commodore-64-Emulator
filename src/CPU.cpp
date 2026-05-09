@@ -1853,24 +1853,98 @@ void CPU::JAM()
 
 void CPU::JMP(uint8_t opcode)
 {
-    uint16_t address = 0;
+    const uint16_t jmpPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
 
     switch (opcode)
     {
         case 0x4C:
         {
-            address = fetch() | (fetch() << 8);
+            const uint16_t operandAddress = PC;
+
+            const uint8_t lowByte = fetch();
+            const uint8_t highByte = fetch();
+
+            const uint16_t address = uint16_t(lowByte) | (uint16_t(highByte) << 8);
             PC = address;
+
+            lastJMP.valid = true;
+            lastJMP.jmpOpcodePC = jmpPC;
+            lastJMP.opcode = opcode;
+            lastJMP.indirect = false;
+            lastJMP.operandAddress = operandAddress;
+            lastJMP.pointerAddress = 0;
+            lastJMP.lowReadAddress = operandAddress;
+            lastJMP.highReadAddress = uint16_t(operandAddress + 1);
+            lastJMP.lowByte = lowByte;
+            lastJMP.highByte = highByte;
+            lastJMP.indirectPageBug = false;
+            lastJMP.finalPC = PC;
+            lastJMP.totalCycles = totalCycles;
+
+            if (traceMgr)
+            {
+                std::ostringstream oss;
+                oss << "JMP abs at PC=$"
+                    << std::hex << std::uppercase << std::setw(4)
+                    << std::setfill('0') << jmpPC
+                    << " target=$" << std::setw(4) << PC;
+                traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+            }
+
             break;
         }
-        case 0x6C: // JMP indirect
+
+        case 0x6C:
         {
-            uint16_t pointer = fetch() | (fetch() << 8);
-            uint8_t lowByte = mem->read(pointer);
-            uint8_t highByte = mem->read((pointer & 0xFF00) | ((pointer + 1) & 0x00FF)); // Page-boundary bug
-            PC = (highByte << 8) | lowByte;
+            const uint16_t operandAddress = PC;
+
+            const uint8_t ptrLow = fetch();
+            const uint8_t ptrHigh = fetch();
+
+            const uint16_t pointer = uint16_t(ptrLow) | (uint16_t(ptrHigh) << 8);
+
+            const uint16_t lowReadAddress = pointer;
+            const uint16_t highReadAddress =
+                uint16_t((pointer & 0xFF00) | ((pointer + 1) & 0x00FF)); // 6502 page-boundary bug
+
+            const uint8_t lowByte = mem->read(lowReadAddress);
+            const uint8_t highByte = mem->read(highReadAddress);
+
+            PC = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
+            lastJMP.valid = true;
+            lastJMP.jmpOpcodePC = jmpPC;
+            lastJMP.opcode = opcode;
+            lastJMP.indirect = true;
+            lastJMP.operandAddress = operandAddress;
+            lastJMP.pointerAddress = pointer;
+            lastJMP.lowReadAddress = lowReadAddress;
+            lastJMP.highReadAddress = highReadAddress;
+            lastJMP.lowByte = lowByte;
+            lastJMP.highByte = highByte;
+            lastJMP.indirectPageBug = ((pointer & 0x00FF) == 0x00FF);
+            lastJMP.finalPC = PC;
+            lastJMP.totalCycles = totalCycles;
+
+            if (traceMgr)
+            {
+                std::ostringstream oss;
+                oss << "JMP indirect at PC=$"
+                    << std::hex << std::uppercase << std::setw(4)
+                    << std::setfill('0') << jmpPC
+                    << " pointer=$" << std::setw(4) << pointer
+                    << " lo@$" << std::setw(4) << lowReadAddress
+                    << " hi@$" << std::setw(4) << highReadAddress
+                    << " final=$" << std::setw(4) << PC
+                    << " pageBug=" << (lastJMP.indirectPageBug ? "yes" : "no");
+                traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+            }
+
             break;
         }
+
+        default:
+            break;
     }
 }
 

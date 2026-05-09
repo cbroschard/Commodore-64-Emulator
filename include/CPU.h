@@ -246,6 +246,31 @@ class CPU
             int dot = 0;
         };
 
+        struct CPUJMPDebugState
+        {
+            bool valid = false;
+
+            uint16_t jmpOpcodePC = 0;
+            uint8_t opcode = 0;
+
+            bool indirect = false;
+
+            uint16_t operandAddress = 0;
+            uint16_t pointerAddress = 0;
+
+            uint16_t lowReadAddress = 0;
+            uint16_t highReadAddress = 0;
+
+            uint8_t lowByte = 0;
+            uint8_t highByte = 0;
+
+            bool indirectPageBug = false;
+
+            uint16_t finalPC = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         struct CPUJSRDebugState
         {
             bool valid = false;
@@ -371,13 +396,14 @@ class CPU
 
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPUBranchDebugState getLastBranchDebugState() const { return lastBranch; }
-        inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
+        inline CPUJMPDebugState getLastJMPDebugState() const { return lastJMP; }
         inline CPUJSRDebugState getLastJSRDebugState() const { return lastJSR; }
         inline CPURTSDebugState getLastRTSDebugState() const { return lastRTS; }
         inline CPUPHADebugState getLastPHADebugState() const { return lastPHA; }
         inline CPUPHPDebugState getLastPHPDebugState() const { return lastPHP; }
         inline CPUPLADebugState getLastPLADebugState() const { return lastPLA; }
         inline CPUPLPDebugState getLastPLPDebugState() const { return lastPLP; }
+        inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
 
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
@@ -415,6 +441,7 @@ class CPU
         // Debug
         CPUBranchDebugState lastBranch;
         CPUInterruptEntryDebugState lastInterruptEntry;
+        CPUJMPDebugState lastJMP;
         CPUJSRDebugState lastJSR;
         CPURTSDebugState lastRTS;
         CPURTIDebugState lastRTI;
