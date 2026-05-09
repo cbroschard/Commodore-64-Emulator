@@ -348,6 +348,50 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
+std::string MLMonitorBackend::cpuPHPStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastPHPDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last PHP Status Push\n";
+    out << "--------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No PHP has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "PHP opcode PC:  $" << hexWord(s.phpOpcodePC) << "\n";
+    out << "Internal SR:    $" << hexByte(s.internalSR) << "\n";
+    out << "Pushed SR:      $" << hexByte(s.pushedSR) << "\n";
+    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuPLPStatus() const
 {
     if (!processor)
