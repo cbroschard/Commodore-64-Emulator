@@ -30,7 +30,7 @@ std::string CPUCommand::category() const
 
 std::string CPUCommand::shortHelp() const
 {
-    return "cpu       - CPU commands (regs, irq, cycles, stack, jam, trace)";
+    return "cpu       - CPU commands (regs, irq, cycles, stack, jam)";
 }
 
 std::string CPUCommand::help() const
@@ -164,21 +164,25 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             {
                 mon.mlmonitorbackend()->setJamMode("freeze");
                 std::cout << "Updated Jam mode to FreezePC\n";
+                return;
             }
             else if (args[2] == "halt")
             {
                 mon.mlmonitorbackend()->setJamMode("halt");
                 std::cout << "Updated Jam mode to Halt.\n";
+                return;
             }
             else if (args[2] == "nop")
             {
                 mon.mlmonitorbackend()->setJamMode("nop");
                 std::cout << "Updated Jam mode to NopCompat\n";
+                return;
             }
             else
             {
-                std::cout << "Invalid argument! \n";
+                std::cout << "Invalid JAM mode: " << args[2] << "\n";
                 std::cout << jamUsage();
+                return;
             }
         }
         else
