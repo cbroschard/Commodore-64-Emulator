@@ -1330,11 +1330,8 @@ void Vic::runFetchPhase()
         {
             const int sprite = spriteDataFetchSpriteForCycle(cycle);
             if (sprite >= 0)
-            {
-                const int byteIndex = spriteDataByteIndexForCycle(sprite, cycle);
-                if (byteIndex >= 0 && byteIndex < 3)
-                    fetchSpriteDataByte(sprite, byteIndex, raster);
-            }
+                performSpriteDataFetchForSprite(sprite);
+
             break;
         }
 
@@ -2259,6 +2256,30 @@ void Vic::performSpriteDataFetches()
         if (byteIndex >= 0 && byteIndex < 3)
             fetchSpriteDataByte(s, byteIndex, raster);
     }
+}
+
+void Vic::performSpriteDataFetchForSprite(int sprite)
+{
+    if (sprite < 0 || sprite >= 8)
+        return;
+
+    if (!spriteUnits[sprite].dmaActive)
+        return;
+
+    const int cycle = currentCycle;
+    const int lineCycles = cfg_->cyclesPerLine;
+
+    const int slotStart = spriteFetchSlotStart(sprite);
+    const int firstDataCycle = (slotStart + 1) % lineCycles;
+
+    int byteIndex = cycle - firstDataCycle;
+    if (byteIndex < 0)
+        byteIndex += lineCycles;
+
+    if (byteIndex < 0 || byteIndex >= 3)
+        return;
+
+    fetchSpriteDataByte(sprite, byteIndex, registers.raster);
 }
 
 void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)

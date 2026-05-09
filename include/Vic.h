@@ -531,6 +531,7 @@ class Vic
         bool isSpriteDMAComplete(int spr) const;
         void resetSpriteDMAState(int spr);
         void performSpriteDataFetches();
+        void performSpriteDataFetchForSprite(int sprite);
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
         bool isSpritePointerFetchCycle(int sprite, int cycle) const;
