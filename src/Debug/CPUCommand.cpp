@@ -37,6 +37,7 @@ std::string CPUCommand::help() const
 {
     return R"(CPU commands
  Usage:
+  cpu branch            - Show last branch timing details
   cpu cycles            - Show CPU cycle counters and current timing state
   cpu intr              - Show the last BRK/IRQ/NMI entry details.
   cpu irq               - Show IRQ/NMI timing state
@@ -85,6 +86,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (isHelp(sub))
     {
         std::cout << "Usage:\n" << help() << std::endl;
+        return;
+    }
+    else if (sub == "branch" || sub == "br")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuBranchStatus();
         return;
     }
     else if (sub == "cycles")

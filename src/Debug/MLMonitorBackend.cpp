@@ -180,6 +180,67 @@ void MLMonitorBackend::cpuStepInstruction()
     }
 }
 
+std::string MLMonitorBackend::cpuBranchStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastBranchDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    std::ostringstream out;
+
+    out << "Last Branch\n";
+    out << "-----------\n";
+
+    if (!s.valid)
+    {
+        out << "No branch has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "Opcode PC:      $" << hexWord(s.opcodePC) << "\n";
+    out << "Opcode:         $" << hexByte(s.opcode) << "\n";
+    out << "Mnemonic:       " << (s.mnemonic ? s.mnemonic : "") << "\n";
+    out << "Condition:      " << (s.condition ? "true" : "false") << "\n";
+    out << "Taken:          " << (s.taken ? "yes" : "no") << "\n";
+    out << "Offset:         " << std::dec << int(s.offset) << "\n";
+    out << "Operand PC:     $" << hexWord(s.operandPC) << "\n";
+    out << "Old PC:         $" << hexWord(s.oldPC) << "\n";
+    out << "New PC:         $" << hexWord(s.newPC) << "\n";
+    out << "Page crossed:   " << (s.pageCrossed ? "yes" : "no") << "\n";
+
+    if (s.taken)
+        out << "Taken dummy:    $" << hexWord(s.takenDummyRead) << "\n";
+    else
+        out << "Taken dummy:    none\n";
+
+    if (s.pageCrossed)
+        out << "Page dummy:     $" << hexWord(s.pageCrossDummyRead) << "\n";
+    else
+        out << "Page dummy:     none\n";
+
+    out << "Extra cycles:   " << std::dec << int(s.extraCycles) << "\n";
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuInterruptStatus() const
 {
     if (!processor)
