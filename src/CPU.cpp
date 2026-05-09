@@ -297,21 +297,42 @@ void CPU::pulseSO()
 
 void CPU::executeIRQ()
 {
+    const uint16_t irqReturnPC = PC;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "IRQ accepted at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << irqReturnPC;
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
+
     // Dummy read for accuracy
     mem->read(PC);
 
-    push((PC >> 8) & 0xFF);     // High byte of PC
-    push(PC & 0xFF);            // Low byte of PC
+    push((PC >> 8) & 0xFF);
+    push(PC & 0xFF);
 
     // Push SR with B=0, bit 5=1
     uint8_t status = SR;
     status &= ~0x10; // clear B
     status |= 0x20;  // set unused bit 5
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "IRQ pushed return=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << irqReturnPC
+            << " SR=$" << std::setw(2) << int(status);
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
+
     push(status);
 
-    setFlag(I, true); // Disable further interrupts
+    setFlag(I, true);
 
-    // Fetch the IRQ vector
     uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = irqVector;
 
@@ -329,19 +350,20 @@ void CPU::executeIRQ()
 
 void CPU::executeNMI()
 {
+    const uint16_t nmiReturnPC = PC;
+
     if (traceMgr)
     {
         std::ostringstream oss;
         oss << "NMI accepted at PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << PC;
+            << std::setfill('0') << nmiReturnPC;
         traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
     }
 
     // Dummy read for accuracy
     mem->read(PC);
 
-    // Save CPU state
     push((PC >> 8) & 0xFF);
     push(PC & 0xFF);
 
@@ -349,9 +371,19 @@ void CPU::executeNMI()
     uint8_t status = SR;
     status &= ~0x10;
     status |= 0x20;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "NMI pushed return=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << nmiReturnPC
+            << " SR=$" << std::setw(2) << int(status);
+        traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
+    }
+
     push(status);
 
-    // Disable interrupt flag
     setFlag(I, true);
 
     const uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
@@ -1388,7 +1420,18 @@ void CPU::BPL()
 
 void CPU::BRK()
 {
-    uint16_t newPC = PC + 1;  // BRK is treated as a 2-byte instruction
+    const uint16_t brkPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    uint16_t newPC = PC + 1;                 // BRK is treated as a 2-byte instruction
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "BRK accepted at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << brkPC
+            << " return=$" << std::setw(4) << newPC;
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
 
     // Dummy read for accuracy
     mem->read(PC);
@@ -1396,15 +1439,34 @@ void CPU::BRK()
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
 
+    const uint8_t pushedStatus = SR | 0x30; // B=1, U=1
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "BRK pushed SR=$"
+            << std::hex << std::uppercase << std::setw(2)
+            << std::setfill('0') << int(pushedStatus);
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
+
     // B and U exist only in the pushed status byte.
     // Do not mutate internal SR's B bit.
-    push(SR | 0x30); // B=1, U=1
+    push(pushedStatus);
 
-    // Set interrupt disable
     setFlag(I, true);
 
     uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = vector;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "BRK vector -> PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << vector;
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::BVC()
