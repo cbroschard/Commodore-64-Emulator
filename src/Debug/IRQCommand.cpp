@@ -21,7 +21,7 @@ int IRQCommand::order() const
 
 std::string IRQCommand::category() const
 {
-    return "CPU/Execution";
+    return "Hardware/Interrupts";
 }
 
 std::string IRQCommand::name() const
@@ -31,7 +31,7 @@ std::string IRQCommand::name() const
 
 std::string IRQCommand::shortHelp() const
 {
-    return "irq [status|off|on|restore|clear|vic <mask>|cia1 <mask>|cia2 <mask>|sei|cli]";
+    return "irq       - Manipulate or inspect interrupt sources/line behavior";
 }
 
 std::string IRQCommand::help() const
