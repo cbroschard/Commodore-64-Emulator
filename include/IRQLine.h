@@ -23,7 +23,8 @@ class IRQLine
             D1541_IRQ   = 0x02,
             D1571_IRQ   = 0x04,
             D1581_IRQ   = 0x08,
-            VICII       = 0x10
+            VICII       = 0x10,
+            MONITOR     = 0x20
         };
 
         void raiseIRQ(Source source);

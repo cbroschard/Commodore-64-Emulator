@@ -24,6 +24,7 @@ class MLMonitorBackend
         inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
         inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
+        inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachProcessorInstance(CPU* processor) { this->processor = processor; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
         inline void attachIOInstance(IO* IO_adapter) { this->IO_adapter = IO_adapter; }
@@ -107,6 +108,9 @@ class MLMonitorBackend
             CIA2::CIA2IRQSnapshot cia2;
         };
 
+        inline bool irqLineActive() const { return irq && irq->isIRQActive(); }
+        void irqForceOn();
+        void irqForceOff();
         void irqDisableAll();
         void irqClearAll();
         void irqRestore();
@@ -193,6 +197,7 @@ class MLMonitorBackend
         CPU* processor;
         IECBUS* bus;
         IO* IO_adapter;
+        IRQLine* irq;
         Keyboard* keyb;
         Logging* logger;
         Memory* mem;

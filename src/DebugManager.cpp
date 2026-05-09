@@ -21,6 +21,7 @@
 #include "CPU.h"
 #include "IECBUS.h"
 #include "IO.h"
+#include "IRQLine.h"
 #include "keyboard.h"
 #include "Logging.h"
 #include "Memory.h"
@@ -71,6 +72,7 @@ void DebugManager::wireBackend(Computer* computer,
                               CPU* cpu,
                               IECBUS* bus,
                               IO* io,
+                              IRQLine* irq,
                               Keyboard* keyb,
                               Logging* log,
                               Memory* mem,
@@ -89,6 +91,7 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachProcessorInstance(cpu);
     backend_->attachIECBusInstance(bus);
     backend_->attachIOInstance(io);
+    backend_->attachIRQLineInstance(irq);
     backend_->attachKeyboardInstance(keyb);
     backend_->attachLogInstance(log);
     backend_->attachMemoryInstance(mem);

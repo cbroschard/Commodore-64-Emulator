@@ -67,9 +67,23 @@ void MLMonitorBackend::warmReset()
     else std::cerr << "Error: No Computer attached, cannot perform reset!\n";
 }
 
+void MLMonitorBackend::irqForceOn()
+{
+    if (irq)
+        irq->raiseIRQ(IRQLine::MONITOR);
+}
+
+void MLMonitorBackend::irqForceOff()
+{
+    if (irq)
+        irq->clearIRQ(IRQLine::MONITOR);
+}
+
 void MLMonitorBackend::irqDisableAll()
 {
     if (!vicII && !cia1object && !cia2object) return;
+
+    irqForceOff();
 
     snapshot.has = true;
     snapshot.vic  = vicII->snapshotIRQs();
@@ -87,6 +101,8 @@ void MLMonitorBackend::irqClearAll()
 {
     if (!vicII && !cia1object && !cia2object) return;
 
+    irqForceOff();
+
     vicII->clearPendingIRQs();
     cia1object->clearPendingIRQs();
     cia2object->clearPendingIRQs();
@@ -96,6 +112,8 @@ void MLMonitorBackend::irqRestore()
 {
     if (!vicII && !cia1object && !cia2object) return;
     if (!snapshot.has) return;
+
+    irqForceOff();
 
     vicII->restoreIRQs(snapshot.vic);
     cia1object->restoreIRQs(snapshot.cia1);

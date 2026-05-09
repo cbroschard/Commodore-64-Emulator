@@ -25,6 +25,7 @@ class CIA2;
 class CPU;
 class IECBUS;
 class IO;
+class IRQLine;
 class Keyboard;
 class Logging;
 class Memory;
@@ -56,6 +57,7 @@ class DebugManager
                          CPU* cpu,
                          IECBUS* bus,
                          IO* io,
+                         IRQLine* irq,
                          Keyboard* keyb,
                          Logging* log,
                          Memory* mem,

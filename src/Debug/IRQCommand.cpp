@@ -5,7 +5,6 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Computer.h"
 #include "Debug/IRQCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
@@ -37,16 +36,16 @@ std::string IRQCommand::shortHelp() const
 std::string IRQCommand::help() const
 {
     return
-          "irq off        - Disable all IRQ sources (VIC + CIA1 + CIA2) and clear any pending.\n"
-          "irq on         - Restore IRQ enables from snapshot (taken when 'irq off' ran).\n"
-          "irq status     - Displays current status of all IRQs\n"
-          "irq clear      - Acknowledge/clear any pending interrupts without changing masks.\n"
-          "irq restore    - Restores the original configuration\n"
-          "irq vic <m>    - Set VIC $D01A to mask m (hex or dec). Bits: 0=raster,1=spr-bg,2=spr-spr,3=lightpen.\n"
-          "irq cia1 <m>   - Enable CIA1 IER bits m (0..31). (Write-only on HW; monitor remembers what it sets.)\n"
-          "irq cia2 <m>   - Enable CIA2 IER bits m (0..31). (CIA2 drives NMI.)\n"
-          "irq sei        - Set CPU I flag (disable maskable IRQs)\n"
-          "irq cli        - Clear CPU I flag (enable maskable IRQs)\n";
+          "irq status     - Display current status of IRQ/NMI sources.\n"
+          "irq on         - Force a monitor-generated IRQ source active for CPU testing.\n"
+          "irq off        - Disable interrupt sources and clear pending interrupts.\n"
+          "irq clear      - Acknowledge/clear pending interrupts without changing masks.\n"
+          "irq restore    - Restore IRQ enables from snapshot and clear monitor-forced IRQ.\n"
+          "irq vic <m>    - Set VIC $D01A to mask m. Bits: 0=raster,1=spr-bg,2=spr-spr,3=lightpen.\n"
+          "irq cia1 <m>   - Enable CIA1 IER bits m (0..31). Monitor remembers what it sets.\n"
+          "irq cia2 <m>   - Enable CIA2 IER bits m (0..31). CIA2 drives NMI.\n"
+          "irq sei        - Set CPU I flag (disable maskable IRQs).\n"
+          "irq cli        - Clear CPU I flag (enable maskable IRQs).\n";
 }
 
 void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -72,6 +71,10 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << " IFR=$";       printHex2(mon.mlmonitorbackend()->cia2IFR());
         std::cout << " NMI=" << (mon.mlmonitorbackend()->cia2NMI() ? "asserted" : "clear") << "\n";
 
+        std::cout << "IRQ : line="
+          << (mon.mlmonitorbackend()->irqLineActive() ? "active" : "inactive")
+          << "\n";
+
         uint8_t sr = mon.mlmonitorbackend()->cpuGetSR();
         std::cout << "CPU : SR=$";  printHex2(sr);
         std::cout << " I=" << ((sr & CPU::I) ? "1" : "0") << " ("
@@ -82,31 +85,40 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     const std::string& sub = args[1];
 
-    if (sub == "off")
+    if (isHelp(sub))
     {
-        mon.mlmonitorbackend()->irqDisableAll();
-        std::cout << "IRQs disabled and pending cleared.\n";
+        std::cout << help();
+        return;
+    }
+    else if (sub == "on")
+    {
+        mon.mlmonitorbackend()->irqForceOn();
+        std::cout << "Monitor IRQ source forced active.\n";
         showStatus();
         return;
     }
-
-    if (sub == "clear")
+    else if (sub == "off")
+    {
+        mon.mlmonitorbackend()->irqDisableAll();
+        std::cout << "Interrupt sources disabled and pending cleared.\n";
+        showStatus();
+        return;
+    }
+    else if (sub == "clear")
     {
         mon.mlmonitorbackend()->irqClearAll();
         std::cout << "Pending interrupts cleared.\n";
         showStatus();
         return;
     }
-
-    if (sub == "on" || sub == "restore")
+    else if (sub == "restore")
     {
         mon.mlmonitorbackend()->irqRestore();
         std::cout << "IRQ masks restored from snapshot.\n";
         showStatus();
         return;
     }
-
-    if (sub == "vic" || sub == "cia1" || sub == "cia2")
+    else if (sub == "vic" || sub == "cia1" || sub == "cia2")
     {
         if (args.size() < 3)
         {
@@ -132,30 +144,28 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         showStatus();
         return;
     }
-
-    if (sub == "sei")
+    else if (sub == "sei")
     {
         mon.mlmonitorbackend()->cpuSEI();
         std::cout << "CPU: SEI (I=1). Maskable IRQs disabled.\n";
         showStatus();
         return;
     }
-
-    if (sub == "cli")
+    else if (sub == "cli")
     {
         mon.mlmonitorbackend()->cpuCLI();
         std::cout << "CPU: CLI (I=0). Maskable IRQs enabled.\n";
         showStatus();
         return;
     }
-
-    if (sub == "status") { showStatus(); return; }
-
-    if (sub == "help")
+    else if (sub == "status")
+    {
+        showStatus();
+        return;
+    }
+    else
     {
         std::cout << help() << "\n";
         return;
     }
-
-    std::cout << "Unknown subcommand. " << shortHelp() << "\n";
 }
