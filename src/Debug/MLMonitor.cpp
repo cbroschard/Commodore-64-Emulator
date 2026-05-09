@@ -25,14 +25,12 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<GoCommand>());
     registerCommand(std::make_unique<IECCommand>());
     registerCommand(std::make_unique<IRQCommand>());
-    registerCommand(std::make_unique<JamCommand>());
     registerCommand(std::make_unique<LogCommand>());
     registerCommand(std::make_unique<MemoryDumpCommand>());
     registerCommand(std::make_unique<MemoryEditCommand>());
     registerCommand(std::make_unique<MemoryEditDirectCommand>());
     registerCommand(std::make_unique<NextCommand>());
     registerCommand(std::make_unique<PLACommand>());
-    registerCommand(std::make_unique<RegisterDumpCommand>());
     registerCommand(std::make_unique<ResetCommand>());
     registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
