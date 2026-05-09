@@ -234,6 +234,22 @@ void CPU::setNMILine(bool asserted)
 
 void CPU::handleIRQ()
 {
+    // IRQs are sampled at instruction boundaries.
+    // The one-instruction suppression after CLI/PLP/RTI expires
+    // at the boundary even if no IRQ source is currently active.
+
+    if (getFlag(I))
+    {
+        irqSuppressOne = false;
+        return;
+    }
+
+    if (irqSuppressOne)
+    {
+        irqSuppressOne = false;
+        return;
+    }
+
     if (!IRQ || !IRQ->isIRQActive())
         return;
 
@@ -281,9 +297,6 @@ void CPU::pulseSO()
 
 void CPU::executeIRQ()
 {
-    if (getFlag(I)) { irqSuppressOne = false; return; } // Skip if interrupts are disabled
-    if (irqSuppressOne) { irqSuppressOne = false; return; }
-
     // Dummy read for accuracy
     mem->read(PC);
 
