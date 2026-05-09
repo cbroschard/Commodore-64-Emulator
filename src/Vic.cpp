@@ -1109,9 +1109,9 @@ void Vic::tick(int cycles)
     {
         beginFrameIfNeeded();
 
-        runCycleDecisionPhase();
-
         currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+
+        runCycleDecisionPhase();
 
         updateBusArbitration();
 
