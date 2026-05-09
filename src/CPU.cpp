@@ -308,16 +308,14 @@ void CPU::executeIRQ()
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
-    // Dummy read for accuracy
     mem->read(PC);
 
     push((PC >> 8) & 0xFF);
     push(PC & 0xFF);
 
-    // Push SR with B=0, bit 5=1
     uint8_t status = SR;
-    status &= ~0x10; // clear B
-    status |= 0x20;  // set unused bit 5
+    status &= ~0x10;
+    status |= 0x20;
 
     if (traceMgr)
     {
@@ -335,6 +333,14 @@ void CPU::executeIRQ()
 
     uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = irqVector;
+
+    lastInterruptEntry.type = InterruptEntryType::IRQ;
+    lastInterruptEntry.acceptedAtPC = irqReturnPC;
+    lastInterruptEntry.pushedReturnPC = irqReturnPC;
+    lastInterruptEntry.pushedSR = status;
+    lastInterruptEntry.vectorAddress = 0xFFFE;
+    lastInterruptEntry.vectorTarget = irqVector;
+    lastInterruptEntry.totalCycles = totalCycles;
 
     if (traceMgr)
     {
@@ -361,13 +367,11 @@ void CPU::executeNMI()
         traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
     }
 
-    // Dummy read for accuracy
     mem->read(PC);
 
     push((PC >> 8) & 0xFF);
     push(PC & 0xFF);
 
-    // Push SR with B=0, bit 5=1
     uint8_t status = SR;
     status &= ~0x10;
     status |= 0x20;
@@ -388,6 +392,14 @@ void CPU::executeNMI()
 
     const uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
     PC = nmiVector;
+
+    lastInterruptEntry.type = InterruptEntryType::NMI;
+    lastInterruptEntry.acceptedAtPC = nmiReturnPC;
+    lastInterruptEntry.pushedReturnPC = nmiReturnPC;
+    lastInterruptEntry.pushedSR = status;
+    lastInterruptEntry.vectorAddress = 0xFFFA;
+    lastInterruptEntry.vectorTarget = nmiVector;
+    lastInterruptEntry.totalCycles = totalCycles;
 
     if (traceMgr)
     {
@@ -1420,8 +1432,8 @@ void CPU::BPL()
 
 void CPU::BRK()
 {
-    const uint16_t brkPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
-    uint16_t newPC = PC + 1;                 // BRK is treated as a 2-byte instruction
+    const uint16_t brkPC = uint16_t(PC - 1);
+    const uint16_t newPC = uint16_t(PC + 1);
 
     if (traceMgr)
     {
@@ -1433,13 +1445,12 @@ void CPU::BRK()
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
-    // Dummy read for accuracy
     mem->read(PC);
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
 
-    const uint8_t pushedStatus = SR | 0x30; // B=1, U=1
+    const uint8_t pushedStatus = SR | 0x30;
 
     if (traceMgr)
     {
@@ -1450,14 +1461,20 @@ void CPU::BRK()
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
-    // B and U exist only in the pushed status byte.
-    // Do not mutate internal SR's B bit.
     push(pushedStatus);
 
     setFlag(I, true);
 
-    uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    const uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = vector;
+
+    lastInterruptEntry.type = InterruptEntryType::BRK;
+    lastInterruptEntry.acceptedAtPC = brkPC;
+    lastInterruptEntry.pushedReturnPC = newPC;
+    lastInterruptEntry.pushedSR = pushedStatus;
+    lastInterruptEntry.vectorAddress = 0xFFFE;
+    lastInterruptEntry.vectorTarget = vector;
+    lastInterruptEntry.totalCycles = totalCycles;
 
     if (traceMgr)
     {

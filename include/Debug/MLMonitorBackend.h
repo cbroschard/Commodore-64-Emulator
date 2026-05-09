@@ -77,6 +77,7 @@ class MLMonitorBackend
         inline std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline uint16_t getPC() { return processor->getPC(); }
+        std::string cpuInterruptStatus() const;
         std::string cpuIrqStatus() const;
         std::string cpuCycleStatus() const;
         std::string cpuStackStatus(int count) const;

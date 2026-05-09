@@ -155,6 +155,28 @@ class CPU
         inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
         // ML Monitor
+        enum class InterruptEntryType : uint8_t
+        {
+            None,
+            IRQ,
+            NMI,
+            BRK
+        };
+
+        struct CPUInterruptEntryDebugState
+        {
+            InterruptEntryType type = InterruptEntryType::None;
+
+            uint16_t acceptedAtPC = 0;
+            uint16_t pushedReturnPC = 0;
+            uint8_t pushedSR = 0;
+
+            uint16_t vectorAddress = 0;
+            uint16_t vectorTarget = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         struct CPUIrqDebugState
         {
             uint16_t pc = 0;
@@ -197,6 +219,7 @@ class CPU
             int dot = 0;
         };
 
+        inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
@@ -226,6 +249,9 @@ class CPU
         CPUBus* mem;
         TraceManager* traceMgr;
         Vic* vicII;
+
+        // Debug
+        CPUInterruptEntryDebugState lastInterruptEntry;
 
         // NMI scheduling
         bool nmiPending;

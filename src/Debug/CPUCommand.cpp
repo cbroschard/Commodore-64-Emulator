@@ -38,6 +38,7 @@ std::string CPUCommand::help() const
     return R"(CPU commands
  Usage:
   cpu cycles            - Show CPU cycle counters and current timing state
+  cpu intr              - Show the last BRK/IRQ/NMI entry details.
   cpu irq               - Show IRQ/NMI timing state
   cpu jam               - Show or set JAM/KIL opcode behavior
   cpu last              - Show last executed opcode and timing position
@@ -81,6 +82,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (sub == "cycles")
     {
         std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
+        return;
+    }
+    else if (sub == "intr" || sub == "interrupt")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuInterruptStatus();
         return;
     }
     else if (sub == "irq")

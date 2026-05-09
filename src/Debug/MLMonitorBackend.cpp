@@ -154,6 +154,62 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
     }
 }
 
+std::string MLMonitorBackend::cpuInterruptStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastInterruptEntryDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    auto typeName = [](CPU::InterruptEntryType type)
+    {
+        switch (type)
+        {
+            case CPU::InterruptEntryType::IRQ: return "IRQ";
+            case CPU::InterruptEntryType::NMI: return "NMI";
+            case CPU::InterruptEntryType::BRK: return "BRK";
+            default: return "None";
+        }
+    };
+
+    std::ostringstream out;
+
+    out << "Last Interrupt Entry\n";
+    out << "--------------------\n";
+    out << "Type:          " << typeName(s.type) << "\n";
+
+    if (s.type == CPU::InterruptEntryType::None)
+    {
+        out << "No interrupt entry has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "Accepted PC:   $" << hexWord(s.acceptedAtPC) << "\n";
+    out << "Pushed return: $" << hexWord(s.pushedReturnPC) << "\n";
+    out << "Pushed SR:     $" << hexByte(s.pushedSR) << "\n";
+    out << "Vector addr:   $" << hexWord(s.vectorAddress) << "\n";
+    out << "Vector target: $" << hexWord(s.vectorTarget) << "\n";
+    out << "Total cycles:  " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuIrqStatus() const
 {
     if (!processor)
