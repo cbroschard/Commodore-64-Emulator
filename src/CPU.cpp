@@ -2104,13 +2104,42 @@ void CPU::PHA()
 
 void CPU::PHP()
 {
+    const uint16_t phpPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // PHP dummy read / throwaway read.
     // PC already points to the byte after opcode $08.
     mem->read(PC);
 
     // Push status with B=1 and U=1.
     // Internal SR should not permanently store B.
-    push(SR | 0x30);
+    const uint8_t pushedStatus = SR | 0x30;
+
+    push(pushedStatus);
+
+    const uint8_t spAfter = SP;
+
+    lastPHP.valid = true;
+    lastPHP.phpOpcodePC = phpPC;
+    lastPHP.internalSR = SR;
+    lastPHP.pushedSR = pushedStatus;
+    lastPHP.spBefore = spBefore;
+    lastPHP.spAfter = spAfter;
+    lastPHP.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "PHP at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << phpPC
+            << " internal SR=$" << std::setw(2) << int(SR)
+            << " pushed SR=$" << std::setw(2) << int(pushedStatus)
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::PLA()

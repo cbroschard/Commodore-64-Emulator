@@ -245,6 +245,21 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUPHPDebugState
+        {
+            bool valid = false;
+
+            uint16_t phpOpcodePC = 0;
+
+            uint8_t internalSR = 0;
+            uint8_t pushedSR = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         struct CPUPLPDebugState
         {
             bool valid = false;
@@ -266,6 +281,7 @@ class CPU
 
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
+        inline CPUPHPDebugState getLastPHPDebugState() const { return lastPHP; }
         inline CPUPLPDebugState getLastPLPDebugState() const { return lastPLP; }
         CPUIrqDebugState getIrqDebugState() const;
         CPUCycleDebugState getCycleDebugState() const;
@@ -303,6 +319,7 @@ class CPU
         // Debug
         CPUInterruptEntryDebugState lastInterruptEntry;
         CPURTIDebugState lastRTI;
+        CPUPHPDebugState lastPHP;
         CPUPLPDebugState lastPLP;
 
         // NMI scheduling
