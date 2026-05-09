@@ -8253,6 +8253,9 @@ const char* Vic::busArbReason(int raster, int cycle) const
     if (isSpriteBusWarningCycle(raster, cycle))
         return "sprite-warn";
 
+    if (isRefreshCycle(cycle))
+        return "refresh";
+
     return "none";
 }
 
