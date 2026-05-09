@@ -2293,23 +2293,42 @@ void CPU::RRA(uint8_t opcode)
 
 void CPU::RTI()
 {
+    const uint16_t rtiPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // RTI dummy read / throwaway read.
     // PC already points to the byte after opcode $40.
     mem->read(PC);
 
     const bool oldI = (SR & I) != 0;
 
-    uint8_t status = pop();
+    const uint8_t pulledStatus = pop();
 
     // U forced high, B cleared internally.
-    SR = (status | 0x20) & ~0x10;
+    SR = (pulledStatus | 0x20) & ~0x10;
 
     const bool newI = (SR & I) != 0;
 
-    uint8_t lo = pop();
-    uint8_t hi = pop();
+    const uint8_t lo = pop();
+    const uint8_t hi = pop();
 
     PC = uint16_t(lo) | (uint16_t(hi) << 8);
+
+    const uint8_t spAfter = SP;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "RTI at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << rtiPC
+            << " pulled SR=$" << std::setw(2) << int(pulledStatus)
+            << " final SR=$" << std::setw(2) << int(SR)
+            << " return=$" << std::setw(4) << PC
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+        traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
+    }
 
     // Only suppress one IRQ check if RTI changed I from set to clear.
     if (oldI && !newI)
