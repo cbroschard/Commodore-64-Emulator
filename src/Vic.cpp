@@ -1341,26 +1341,6 @@ void Vic::runFetchPhase()
     }
 }
 
-int Vic::spritePointerFetchSpriteForCycle(int cycle) const
-{
-    for (int s = 0; s < 8; ++s)
-    {
-        if (isSpritePointerFetchCycle(s, cycle))
-            return s;
-    }
-    return -1;
-}
-
-int Vic::spriteDataFetchSpriteForCycle(int cycle) const
-{
-    for (int s = 0; s < 8; ++s)
-    {
-        if (spriteUnits[s].dmaActive && isSpriteDMAFetchCycle(s, cycle))
-            return s;
-    }
-    return -1;
-}
-
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
 {
     const int lineCycles = cfg_->cyclesPerLine;

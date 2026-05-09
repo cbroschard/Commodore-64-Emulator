@@ -536,8 +536,6 @@ class Vic
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
         bool isSpritePointerFetchCycle(int sprite, int cycle) const;
-        int spritePointerFetchSpriteForCycle(int cycle) const;
-        int spriteDataFetchSpriteForCycle(int cycle) const;
         int spriteDataByteIndexForCycle(int sprite, int cycle) const;
         uint16_t spritePointerAddressForRaster(int sprite, int raster, int cycle) const;
         bool spriteHasFetchedDisplayRow(int sprite) const;
