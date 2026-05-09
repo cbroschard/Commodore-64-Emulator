@@ -322,13 +322,13 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     return out.str();
 }
 
-
 std::string MLMonitorBackend::cpuRTIStatus() const
 {
     if (!processor)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastRTIDebugState();
+    const auto rti = processor->getLastRTIDebugState();
+    const auto intr = processor->getLastInterruptEntryDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -351,22 +351,46 @@ std::string MLMonitorBackend::cpuRTIStatus() const
     out << "Last RTI Return\n";
     out << "---------------\n";
 
-    if (!s.valid)
+    if (!rti.valid)
     {
         out << "No RTI has been recorded yet.\n";
+
+        if (intr.type != CPU::InterruptEntryType::None)
+            out << "Compared to intr: no RTI recorded after last interrupt entry\n";
+
         return out.str();
     }
 
-    out << "RTI opcode PC:  $" << hexWord(s.rtiOpcodePC) << "\n";
-    out << "Pulled SR:      $" << hexByte(s.pulledSR) << "\n";
-    out << "Final SR:       $" << hexByte(s.finalSR) << "\n";
-    out << "Pulled PCL/PCH: $" << hexByte(s.pulledPCL) << " / $" << hexByte(s.pulledPCH) << "\n";
-    out << "Return PC:      $" << hexWord(s.returnPC) << "\n";
-    out << "SP before:      $" << hexByte(s.spBefore) << "\n";
-    out << "SP after:       $" << hexByte(s.spAfter) << "\n";
-    out << "I old/new:      " << (s.oldI ? "1" : "0") << " -> " << (s.newI ? "1" : "0") << "\n";
-    out << "IRQ suppress:   " << (s.irqSuppressSet ? "set" : "not set") << "\n";
-    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+    out << "RTI opcode PC:  $" << hexWord(rti.rtiOpcodePC) << "\n";
+    out << "Pulled SR:      $" << hexByte(rti.pulledSR) << "\n";
+    out << "Final SR:       $" << hexByte(rti.finalSR) << "\n";
+    out << "Pulled PCL/PCH: $" << hexByte(rti.pulledPCL)
+        << " / $" << hexByte(rti.pulledPCH) << "\n";
+    out << "Return PC:      $" << hexWord(rti.returnPC) << "\n";
+    out << "SP before:      $" << hexByte(rti.spBefore) << "\n";
+    out << "SP after:       $" << hexByte(rti.spAfter) << "\n";
+    out << "I old/new:      " << (rti.oldI ? "1" : "0")
+        << " -> " << (rti.newI ? "1" : "0") << "\n";
+    out << "IRQ suppress:   " << (rti.irqSuppressSet ? "set" : "not set") << "\n";
+    out << "Total cycles:   " << std::dec << rti.totalCycles << "\n";
+
+    if (intr.type != CPU::InterruptEntryType::None)
+    {
+        out << "Compared to intr: ";
+
+        if (rti.totalCycles < intr.totalCycles)
+        {
+            out << "STALE - RTI occurred before last interrupt entry\n";
+        }
+        else if (rti.totalCycles == intr.totalCycles)
+        {
+            out << "same cycle as last interrupt entry\n";
+        }
+        else
+        {
+            out << "fresh - RTI occurred after last interrupt entry\n";
+        }
+    }
 
     return out.str();
 }
