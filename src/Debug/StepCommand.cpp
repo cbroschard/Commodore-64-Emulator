@@ -70,7 +70,7 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     std::cout << disASM << std::endl;
 
     // Execute OPCODE
-    mon.mlmonitorbackend()->cpuStep();
+    mon.mlmonitorbackend()->cpuStepInstruction();
 
     // Dump CPU registers
     auto st = mon.mlmonitorbackend()->getCPUState();

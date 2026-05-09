@@ -154,6 +154,32 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
     }
 }
 
+void MLMonitorBackend::setPC(uint16_t value)
+{
+    if (!processor)
+        return;
+
+    processor->setPC(value);
+    processor->forceInstructionBoundaryForMonitor();
+}
+
+void MLMonitorBackend::cpuStepInstruction()
+{
+    if (!processor)
+        return;
+
+    // Start or continue the current instruction.
+    processor->tick();
+
+    // Finish the instruction by consuming its remaining cycles.
+    int guard = 128;
+
+    while (!processor->isAtInstructionBoundary() && guard-- > 0)
+    {
+        processor->tick();
+    }
+}
+
 std::string MLMonitorBackend::cpuInterruptStatus() const
 {
     if (!processor)
