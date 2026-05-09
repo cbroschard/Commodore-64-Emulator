@@ -192,6 +192,10 @@ std::string MLMonitorBackend::cpuIrqStatus() const
     out << "Cycles left:     " << s.cyclesRemaining << "\n";
     out << "Total cycles:    " << s.totalCycles << "\n";
 
+    out << "\nLast instruction:\n";
+    out << "PC:              $" << hexWord(s.lastOpcodePC) << "\n";
+    out << "Opcode:          $" << hexByte(s.lastOpcode) << "\n";
+
     return out.str();
 }
 
@@ -199,6 +203,22 @@ std::string MLMonitorBackend::cpuCycleStatus() const
 {
     if (!processor)
         return "CPU not attached.\n";
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
 
     const auto s = processor->getCycleDebugState();
 
@@ -217,6 +237,10 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     out << "  Mode:             " << (s.mode == VideoMode::PAL ? "PAL" : "NTSC") << "\n";
     out << "  Frame cycles:     " << s.frameCycle << " / " << s.cyclesPerFrame << "\n";
     out << "  Raster/Dot:       " << s.raster << " / " << s.dot << "\n";
+
+    out << "\nLast instruction:\n";
+    out << "PC:                 $" << hexWord(s.lastOpcodePC) << "\n";
+    out << "Opcode:             $" << hexByte(s.lastOpcode) << "\n";
 
     return out.str();
 }

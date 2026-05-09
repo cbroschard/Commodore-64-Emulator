@@ -160,6 +160,9 @@ class CPU
             uint16_t pc = 0;
             uint8_t sr = 0;
 
+            uint16_t lastOpcodePC = 0;
+            uint8_t lastOpcode = 0xEA;
+
             bool iFlag = false;
             bool irqLineActive = false;
 
@@ -176,6 +179,9 @@ class CPU
 
         struct CPUCycleDebugState
         {
+            uint16_t lastOpcodePC = 0;
+            uint8_t lastOpcode = 0xEA;
+
             uint32_t totalCycles = 0;
             uint32_t cyclesRemaining = 0;
             uint32_t cyclesPerFrame = 0;
@@ -256,6 +262,10 @@ class CPU
         uint8_t SP;
         uint8_t SR;
         uint16_t PC;
+
+        // Last executed instruction diagnostics
+        uint16_t lastOpcodePC;
+        uint8_t lastOpcode;
 
         // ML Monitor logging
         bool setLogging;

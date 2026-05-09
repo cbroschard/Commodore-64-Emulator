@@ -30,6 +30,9 @@ CPU::CPU() :
     Y(0),
     SP(0xFD),
     SR(0x20),
+    PC(0),
+    lastOpcodePC(0),
+    lastOpcode(0xEA),
     setLogging(false),
     baHold(false)
 {
@@ -176,6 +179,8 @@ void CPU::reset()
     // Defaults
     SP              = 0xFD;
     SR              = 0x24;
+    lastOpcodePC    = PC;
+    lastOpcode      = 0xEA;
     cycles          = 0;
     totalCycles     = 0;
     elapsedCycles   = 0;
@@ -355,20 +360,22 @@ CPU::CPUIrqDebugState CPU::getIrqDebugState() const
 {
     CPUIrqDebugState s;
 
-    s.pc = PC;
-    s.sr = SR;
-    s.iFlag = getFlag(I);
-    s.irqLineActive = IRQ && IRQ->isIRQActive();
+    s.pc                = PC;
+    s.sr                = SR;
+    s.lastOpcodePC      = lastOpcodePC;
+    s.lastOpcode        = lastOpcode;
+    s.iFlag             = getFlag(I);
+    s.irqLineActive     = IRQ && IRQ->isIRQActive();
 
-    s.nmiPending = nmiPending;
-    s.nmiLine = nmiLine;
-    s.irqSuppressOne = irqSuppressOne;
+    s.nmiPending        = nmiPending;
+    s.nmiLine           = nmiLine;
+    s.irqSuppressOne    = irqSuppressOne;
 
-    s.baHold = baHold;
-    s.soLevel = soLevel;
+    s.baHold            = baHold;
+    s.soLevel           = soLevel;
 
-    s.cyclesRemaining = cycles;
-    s.totalCycles = totalCycles;
+    s.cyclesRemaining   = cycles;
+    s.totalCycles       = totalCycles;
 
     return s;
 }
@@ -377,19 +384,21 @@ CPU::CPUCycleDebugState CPU::getCycleDebugState() const
 {
     CPUCycleDebugState s;
 
-    s.totalCycles = totalCycles;
-    s.cyclesRemaining = cycles;
-    s.cyclesPerFrame = CYCLES_PER_FRAME;
-    s.frameCycle = CYCLES_PER_FRAME ? (totalCycles % CYCLES_PER_FRAME) : 0;
+    s.lastOpcodePC          = lastOpcodePC;
+    s.lastOpcode            = lastOpcode;
+    s.totalCycles           = totalCycles;
+    s.cyclesRemaining       = cycles;
+    s.cyclesPerFrame        = CYCLES_PER_FRAME;
+    s.frameCycle            = CYCLES_PER_FRAME ? (totalCycles % CYCLES_PER_FRAME) : 0;
 
-    s.betweenInstructions = cycles <= 0;
-    s.baHold = baHold;
-    s.halted = halted;
+    s.betweenInstructions    = cycles <= 0;
+    s.baHold                = baHold;
+    s.halted                = halted;
 
-    s.mode = mode_;
+    s.mode                  = mode_;
 
-    s.raster = vicII ? vicII->getCurrentRaster() : 0;
-    s.dot = vicII ? vicII->getRasterDot() : 0;
+    s.raster                = vicII ? vicII->getCurrentRaster() : 0;
+    s.dot                   = vicII ? vicII->getRasterDot() : 0;
 
     return s;
 }
@@ -942,6 +951,9 @@ void CPU::tick()
 
             const uint16_t pcExec = PC;   // PC of the instruction to execute
             uint8_t opcode = fetch();
+
+            lastOpcodePC = pcExec;
+            lastOpcode = opcode;
 
             // Log it
             if (logger && setLogging)
