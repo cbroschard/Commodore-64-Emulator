@@ -23,6 +23,8 @@ class CPUCommand : public MonitorCommand
         std::string shortHelp() const override;
         std::string help() const override;
 
+        std::string jamUsage() const;
+
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 
     protected:

@@ -45,6 +45,23 @@ std::string CPUCommand::help() const
 )";
 }
 
+std::string CPUCommand::jamUsage() const
+{
+    return R"(cpu jam [mode]
+
+Usage:
+    cpu jam           Show the current JAM handling mode
+    cpu jam freeze    Freeze PC when a JAM/KIL is encountered
+    cpu jam halt      Halt CPU execution on JAM/KIL
+    cpu jam nop       Treat JAM/KIL as a 2-byte NOP
+
+Description:
+    Controls how the emulator reacts when encountering
+    undocumented KIL/JAM opcodes. By default, most demos
+    expect Freeze or NOP handling instead of a hard halt.
+)";
+}
+
 void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
     if (args.size() < 2)
@@ -106,14 +123,12 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "irq")
     {
-        if (mon.mlmonitorbackend())
-            std::cout << mon.mlmonitorbackend()->cpuIrqStatus();
+        std::cout << mon.mlmonitorbackend()->cpuIrqStatus();
         return;
     }
     else if (sub == "cycles")
     {
-        if (mon.mlmonitorbackend())
-            std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
+        std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
         return;
     }
     else if (sub == "stack")
@@ -133,9 +148,45 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
         }
 
-        if (mon.mlmonitorbackend())
-            std::cout << mon.mlmonitorbackend()->cpuStackStatus(count);
+        std::cout << mon.mlmonitorbackend()->cpuStackStatus(count);
         return;
+    }
+    else if (sub == "jam")
+    {
+        if (args.size() >= 3)
+        {
+            if (isHelp(args[2]))
+            {
+                std::cout << jamUsage();
+                return;
+            }
+            else if (args[2] == "freeze")
+            {
+                mon.mlmonitorbackend()->setJamMode("freeze");
+                std::cout << "Updated Jam mode to FreezePC\n";
+            }
+            else if (args[2] == "halt")
+            {
+                mon.mlmonitorbackend()->setJamMode("halt");
+                std::cout << "Updated Jam mode to Halt.\n";
+            }
+            else if (args[2] == "nop")
+            {
+                mon.mlmonitorbackend()->setJamMode("nop");
+                std::cout << "Updated Jam mode to NopCompat\n";
+            }
+            else
+            {
+                std::cout << "Invalid argument! \n";
+                std::cout << jamUsage();
+            }
+        }
+        else
+        {
+            // Show current mode
+            std::cout << "The current Jam mode is: " << mon.mlmonitorbackend()->getJamMode() << "\n";
+            return;
+        }
     }
     else
     {
