@@ -1401,16 +1401,16 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (!vicState.badLineSampled)
         return;
 
-    if (currentCycle < cfg_->DMAStartCycle || currentCycle > cfg_->DMAEndCycle)
+    if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
         return;
 
-    if (vicState.vmliFetchIndex >= 40)
+    if (vicState.vmliFetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const int raster = registers.raster;
     const int fetchIndex = vicState.vmliFetchIndex;
 
-    fetchBadLineMatrixByte(fetchIndex, raster);
+    fetchBadLineMatrixByte(fetchIndex, registers.raster);
+
     ++vicState.vmliFetchIndex;
 }
 
