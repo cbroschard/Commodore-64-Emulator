@@ -42,6 +42,7 @@ std::string CPUCommand::help() const
   cpu irq               - Show IRQ/NMI timing state
   cpu jam               - Show or set JAM/KIL opcode behavior
   cpu last              - Show last executed opcode and timing position
+  cpu pc <addr>         - Set CPU program counter
   cpu regs              - Show CPU registers
   cpu rti               - Show last RTI return details
   cpu stack [count]     - Show stack contents
@@ -139,6 +140,28 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     else if (sub == "last")
     {
         std:: cout << mon.mlmonitorbackend()->cpuLastStatus();
+        return;
+    }
+    else if (sub == "pc")
+    {
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: cpu pc <addr>\n";
+            return;
+        }
+
+        try
+        {
+            const uint16_t addr = parseAddress(args[2]);
+            mon.mlmonitorbackend()->setPC(addr);
+            std::cout << "PC set to $" << std::uppercase << std::hex
+                      << std::setw(4) << std::setfill('0') << int(addr) << "\n";
+        }
+        catch (...)
+        {
+            std::cout << "Bad address: " << args[2] << "\n";
+        }
+
         return;
     }
     else if (sub == "regs")
