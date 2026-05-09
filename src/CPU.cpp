@@ -835,20 +835,68 @@ uint16_t CPU::absYAddress()
 
 uint16_t CPU::indirectXAddress()
 {
-    uint8_t zpAddress = (fetch() + X) & 0xFF;
-    uint8_t lowByte = mem->read(zpAddress);
-    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF);
-    uint16_t baseAddress = (lowByte | (highByte << 8));
+    const uint16_t operandPC = PC;
+    const uint8_t zpOperand = fetch();
+
+    const uint8_t zpAddress = uint8_t(zpOperand + X);
+    const uint8_t lowByte = mem->read(zpAddress);
+    const uint8_t highAddr = uint8_t(zpAddress + 1);
+    const uint8_t highByte = mem->read(highAddr);
+
+    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
+    lastAddressDebug.valid = true;
+    lastAddressDebug.mode = CPUAddressDebugMode::IndirectX;
+    lastAddressDebug.operandPC = operandPC;
+    lastAddressDebug.zpOperand = zpOperand;
+    lastAddressDebug.indexValue = X;
+    lastAddressDebug.indexedZP = zpAddress;
+    lastAddressDebug.pointerLowAddr = zpAddress;
+    lastAddressDebug.pointerHighAddr = highAddr;
+    lastAddressDebug.pointerLowValue = lowByte;
+    lastAddressDebug.pointerHighValue = highByte;
+    lastAddressDebug.baseAddress = baseAddress;
+    lastAddressDebug.effectiveAddress = baseAddress;
+    lastAddressDebug.pageCrossed = false;
+    lastAddressDebug.dummyReadUsed = false;
+    lastAddressDebug.dummyReadAddress = 0;
+    lastAddressDebug.valueRead = 0;
+    lastAddressDebug.totalCycles = totalCycles;
+
     return baseAddress;
 }
 
 uint16_t CPU::indirectYAddress()
 {
-    uint8_t zpAddress = fetch();
-    uint8_t lowByte = mem->read(zpAddress);
-    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF); // Handle zero-page wrap
-    uint16_t baseAddress = (lowByte | (highByte << 8));
-    uint16_t effectiveAddress = baseAddress + Y;
+    const uint16_t operandPC = PC;
+    const uint8_t zpAddress = fetch();
+
+    const uint8_t lowAddr = zpAddress;
+    const uint8_t highAddr = uint8_t(zpAddress + 1);
+
+    const uint8_t lowByte = mem->read(lowAddr);
+    const uint8_t highByte = mem->read(highAddr);
+
+    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+    const uint16_t effectiveAddress = uint16_t(baseAddress + Y);
+
+    lastAddressDebug.valid = true;
+    lastAddressDebug.mode = CPUAddressDebugMode::IndirectY;
+    lastAddressDebug.operandPC = operandPC;
+    lastAddressDebug.zpOperand = zpAddress;
+    lastAddressDebug.indexValue = Y;
+    lastAddressDebug.indexedZP = zpAddress;
+    lastAddressDebug.pointerLowAddr = lowAddr;
+    lastAddressDebug.pointerHighAddr = highAddr;
+    lastAddressDebug.pointerLowValue = lowByte;
+    lastAddressDebug.pointerHighValue = highByte;
+    lastAddressDebug.baseAddress = baseAddress;
+    lastAddressDebug.effectiveAddress = effectiveAddress;
+    lastAddressDebug.pageCrossed = false;
+    lastAddressDebug.dummyReadUsed = false;
+    lastAddressDebug.dummyReadAddress = 0;
+    lastAddressDebug.valueRead = 0;
+    lastAddressDebug.totalCycles = totalCycles;
 
     return effectiveAddress;
 }
@@ -919,21 +967,48 @@ CPU::ReadByte CPU::readABSYAddressBoundary()
 
 CPU::ReadByte CPU::readIndirectYAddressBoundary()
 {
-    uint8_t zpAddress = fetch();
-    uint8_t lowByte = mem->read(zpAddress);
-    uint8_t highByte = mem->read((zpAddress + 1) & 0xFF); // zero-page wrap
-    uint16_t baseAddress = lowByte | (highByte << 8);
-    uint16_t effectiveAddress = baseAddress + Y;
+    const uint16_t operandPC = PC;
+    const uint8_t zpAddress = fetch();
 
-    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    const uint8_t lowAddr = zpAddress;
+    const uint8_t highAddr = uint8_t(zpAddress + 1);
+
+    const uint8_t lowByte = mem->read(lowAddr);
+    const uint8_t highByte = mem->read(highAddr);
+
+    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+    const uint16_t effectiveAddress = uint16_t(baseAddress + Y);
+
+    const bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+
+    uint16_t dummy = 0;
     if (crossed)
     {
-        // Dummy read from base address + low-page offset (wrong page)
-        uint16_t dummy = (baseAddress & 0xFF00) | (effectiveAddress & 0x00FF);
+        // Dummy read from base address + low-page offset, using old high byte.
+        dummy = uint16_t((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
         mem->read(dummy);
     }
 
-    uint8_t value = mem->read(effectiveAddress & 0xFFFF);
+    const uint8_t value = mem->read(effectiveAddress & 0xFFFF);
+
+    lastAddressDebug.valid = true;
+    lastAddressDebug.mode = CPUAddressDebugMode::IndirectYBoundary;
+    lastAddressDebug.operandPC = operandPC;
+    lastAddressDebug.zpOperand = zpAddress;
+    lastAddressDebug.indexValue = Y;
+    lastAddressDebug.indexedZP = zpAddress;
+    lastAddressDebug.pointerLowAddr = lowAddr;
+    lastAddressDebug.pointerHighAddr = highAddr;
+    lastAddressDebug.pointerLowValue = lowByte;
+    lastAddressDebug.pointerHighValue = highByte;
+    lastAddressDebug.baseAddress = baseAddress;
+    lastAddressDebug.effectiveAddress = effectiveAddress;
+    lastAddressDebug.pageCrossed = crossed;
+    lastAddressDebug.dummyReadUsed = crossed;
+    lastAddressDebug.dummyReadAddress = dummy;
+    lastAddressDebug.valueRead = value;
+    lastAddressDebug.totalCycles = totalCycles;
+
     return { value, crossed };
 }
 

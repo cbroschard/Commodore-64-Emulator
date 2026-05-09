@@ -155,6 +155,44 @@ class CPU
         inline void setCLI() { setFlag(I, false); irqSuppressOne = true; }
 
         // ML Monitor
+        enum class CPUAddressDebugMode : uint8_t
+        {
+            None,
+            IndirectX,
+            IndirectY,
+            IndirectYBoundary
+        };
+
+        struct CPUAddressDebugState
+        {
+            bool valid = false;
+
+            CPUAddressDebugMode mode = CPUAddressDebugMode::None;
+
+            uint16_t operandPC = 0;
+            uint8_t zpOperand = 0;
+
+            uint8_t indexValue = 0;
+            uint8_t indexedZP = 0;
+
+            uint8_t pointerLowAddr = 0;
+            uint8_t pointerHighAddr = 0;
+
+            uint8_t pointerLowValue = 0;
+            uint8_t pointerHighValue = 0;
+
+            uint16_t baseAddress = 0;
+            uint16_t effectiveAddress = 0;
+
+            bool pageCrossed = false;
+            bool dummyReadUsed = false;
+            uint16_t dummyReadAddress = 0;
+
+            uint8_t valueRead = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         enum class InterruptEntryType : uint8_t
         {
             None,
@@ -394,6 +432,7 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        inline CPUAddressDebugState getLastAddressDebugState() const { return lastAddressDebug; }
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPUBranchDebugState getLastBranchDebugState() const { return lastBranch; }
         inline CPUJMPDebugState getLastJMPDebugState() const { return lastJMP; }
@@ -439,6 +478,7 @@ class CPU
         Vic* vicII;
 
         // Debug
+        CPUAddressDebugState lastAddressDebug;
         CPUBranchDebugState lastBranch;
         CPUInterruptEntryDebugState lastInterruptEntry;
         CPUJMPDebugState lastJMP;
