@@ -34,7 +34,7 @@ std::string TraceCommand::category() const
 
 std::string TraceCommand::shortHelp() const
 {
-    return "trace     - Enable or control component Tracing";
+    return "trace     - Enable or control component tracing";
 }
 
 std::string TraceCommand::help() const
