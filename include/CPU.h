@@ -167,14 +167,17 @@ class CPU
         {
             InterruptEntryType type = InterruptEntryType::None;
 
-            uint16_t acceptedAtPC = 0;
+            uint8_t spBefore        = 0;
+            uint8_t spAfter         = 0;
+
+            uint16_t acceptedAtPC   = 0;
             uint16_t pushedReturnPC = 0;
-            uint8_t pushedSR = 0;
+            uint8_t pushedSR        = 0;
 
-            uint16_t vectorAddress = 0;
-            uint16_t vectorTarget = 0;
+            uint16_t vectorAddress  = 0;
+            uint16_t vectorTarget   = 0;
 
-            uint32_t totalCycles = 0;
+            uint32_t totalCycles    = 0;
         };
 
         struct CPUIrqDebugState

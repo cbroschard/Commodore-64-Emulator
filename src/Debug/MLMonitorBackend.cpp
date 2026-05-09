@@ -207,6 +207,9 @@ std::string MLMonitorBackend::cpuInterruptStatus() const
     out << "Vector target: $" << hexWord(s.vectorTarget) << "\n";
     out << "Total cycles:  " << std::dec << s.totalCycles << "\n";
 
+    out << "SP before:     $" << hexByte(s.spBefore) << "\n";
+    out << "SP after:      $" << hexByte(s.spAfter) << "\n";
+
     return out.str();
 }
 

@@ -298,24 +298,29 @@ void CPU::pulseSO()
 void CPU::executeIRQ()
 {
     const uint16_t irqReturnPC = PC;
+    const uint8_t spBefore = SP;
 
     if (traceMgr)
     {
         std::ostringstream oss;
         oss << "IRQ accepted at PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << irqReturnPC;
+            << std::setfill('0') << irqReturnPC
+            << " SP=$" << std::setw(2) << int(spBefore);
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
+    // Dummy read for accuracy
     mem->read(PC);
 
+    // Push return PC high, then low
     push((PC >> 8) & 0xFF);
     push(PC & 0xFF);
 
+    // Push SR with B=0, bit 5/U=1 for hardware IRQ
     uint8_t status = SR;
-    status &= ~0x10;
-    status |= 0x20;
+    status &= ~0x10; // clear B
+    status |= 0x20;  // set U / unused bit
 
     if (traceMgr)
     {
@@ -329,15 +334,21 @@ void CPU::executeIRQ()
 
     push(status);
 
+    const uint8_t spAfter = SP;
+
+    // Set interrupt disable
     setFlag(I, true);
 
-    uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    // Fetch IRQ/BRK vector
+    const uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
     PC = irqVector;
 
     lastInterruptEntry.type = InterruptEntryType::IRQ;
     lastInterruptEntry.acceptedAtPC = irqReturnPC;
     lastInterruptEntry.pushedReturnPC = irqReturnPC;
     lastInterruptEntry.pushedSR = status;
+    lastInterruptEntry.spBefore = spBefore;
+    lastInterruptEntry.spAfter = spAfter;
     lastInterruptEntry.vectorAddress = 0xFFFE;
     lastInterruptEntry.vectorTarget = irqVector;
     lastInterruptEntry.totalCycles = totalCycles;
@@ -347,7 +358,9 @@ void CPU::executeIRQ()
         std::ostringstream oss;
         oss << "IRQ vector -> PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << irqVector;
+            << std::setfill('0') << irqVector
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
@@ -357,13 +370,15 @@ void CPU::executeIRQ()
 void CPU::executeNMI()
 {
     const uint16_t nmiReturnPC = PC;
+    const uint8_t spBefore = SP;
 
     if (traceMgr)
     {
         std::ostringstream oss;
         oss << "NMI accepted at PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << nmiReturnPC;
+            << std::setfill('0') << nmiReturnPC
+            << " SP=$" << std::setw(2) << int(spBefore);
         traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
     }
 
@@ -373,8 +388,8 @@ void CPU::executeNMI()
     push(PC & 0xFF);
 
     uint8_t status = SR;
-    status &= ~0x10;
-    status |= 0x20;
+    status &= ~0x10; // B=0 for hardware interrupt
+    status |= 0x20;  // U/bit 5 set in pushed status
 
     if (traceMgr)
     {
@@ -388,6 +403,8 @@ void CPU::executeNMI()
 
     push(status);
 
+    const uint8_t spAfter = SP;
+
     setFlag(I, true);
 
     const uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
@@ -397,6 +414,8 @@ void CPU::executeNMI()
     lastInterruptEntry.acceptedAtPC = nmiReturnPC;
     lastInterruptEntry.pushedReturnPC = nmiReturnPC;
     lastInterruptEntry.pushedSR = status;
+    lastInterruptEntry.spBefore = spBefore;
+    lastInterruptEntry.spAfter = spAfter;
     lastInterruptEntry.vectorAddress = 0xFFFA;
     lastInterruptEntry.vectorTarget = nmiVector;
     lastInterruptEntry.totalCycles = totalCycles;
@@ -406,7 +425,9 @@ void CPU::executeNMI()
         std::ostringstream oss;
         oss << "NMI vector -> PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << nmiVector;
+            << std::setfill('0') << nmiVector
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
         traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
     }
 
@@ -1432,8 +1453,9 @@ void CPU::BPL()
 
 void CPU::BRK()
 {
-    const uint16_t brkPC = uint16_t(PC - 1);
-    const uint16_t newPC = uint16_t(PC + 1);
+    const uint16_t brkPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint16_t newPC = uint16_t(PC + 1); // BRK is treated as a 2-byte instruction
+    const uint8_t spBefore = SP;
 
     if (traceMgr)
     {
@@ -1441,16 +1463,18 @@ void CPU::BRK()
         oss << "BRK accepted at PC=$"
             << std::hex << std::uppercase << std::setw(4)
             << std::setfill('0') << brkPC
-            << " return=$" << std::setw(4) << newPC;
+            << " return=$" << std::setw(4) << newPC
+            << " SP=$" << std::setw(2) << int(spBefore);
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
+    // Dummy read for accuracy
     mem->read(PC);
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
 
-    const uint8_t pushedStatus = SR | 0x30;
+    const uint8_t pushedStatus = SR | 0x30; // B=1, U=1
 
     if (traceMgr)
     {
@@ -1463,6 +1487,9 @@ void CPU::BRK()
 
     push(pushedStatus);
 
+    const uint8_t spAfter = SP;
+
+    // Set interrupt disable
     setFlag(I, true);
 
     const uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
@@ -1472,6 +1499,8 @@ void CPU::BRK()
     lastInterruptEntry.acceptedAtPC = brkPC;
     lastInterruptEntry.pushedReturnPC = newPC;
     lastInterruptEntry.pushedSR = pushedStatus;
+    lastInterruptEntry.spBefore = spBefore;
+    lastInterruptEntry.spAfter = spAfter;
     lastInterruptEntry.vectorAddress = 0xFFFE;
     lastInterruptEntry.vectorTarget = vector;
     lastInterruptEntry.totalCycles = totalCycles;
@@ -1481,7 +1510,9 @@ void CPU::BRK()
         std::ostringstream oss;
         oss << "BRK vector -> PC=$"
             << std::hex << std::uppercase << std::setw(4)
-            << std::setfill('0') << vector;
+            << std::setfill('0') << vector
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 }
