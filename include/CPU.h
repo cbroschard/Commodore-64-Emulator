@@ -222,6 +222,40 @@ class CPU
             int dot = 0;
         };
 
+        struct CPUJSRDebugState
+        {
+            bool valid = false;
+
+            uint16_t jsrOpcodePC = 0;
+            uint16_t targetPC = 0;
+            uint16_t pushedReturn = 0;
+
+            uint8_t pushedHigh = 0;
+            uint8_t pushedLow = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
+        struct CPURTSDebugState
+        {
+            bool valid = false;
+
+            uint16_t rtsOpcodePC = 0;
+            uint16_t pulledReturn = 0;
+            uint16_t finalPC = 0;
+
+            uint8_t pulledLow = 0;
+            uint8_t pulledHigh = 0;
+
+            uint8_t spBefore = 0;
+            uint8_t spAfter = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         struct CPURTIDebugState
         {
             bool valid = false;
@@ -281,6 +315,8 @@ class CPU
 
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPURTIDebugState getLastRTIDebugState() const { return lastRTI; }
+        inline CPUJSRDebugState getLastJSRDebugState() const { return lastJSR; }
+        inline CPURTSDebugState getLastRTSDebugState() const { return lastRTS; }
         inline CPUPHPDebugState getLastPHPDebugState() const { return lastPHP; }
         inline CPUPLPDebugState getLastPLPDebugState() const { return lastPLP; }
         CPUIrqDebugState getIrqDebugState() const;
@@ -318,6 +354,8 @@ class CPU
 
         // Debug
         CPUInterruptEntryDebugState lastInterruptEntry;
+        CPUJSRDebugState lastJSR;
+        CPURTSDebugState lastRTS;
         CPURTIDebugState lastRTI;
         CPUPHPDebugState lastPHP;
         CPUPLPDebugState lastPLP;

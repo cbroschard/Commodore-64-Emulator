@@ -1813,9 +1813,11 @@ void CPU::JMP(uint8_t opcode)
 
 void CPU::JSR()
 {
+    const uint16_t jsrPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // PC currently points to the low byte of the JSR target
     // because opcode $20 has already been fetched by tick().
-
     const uint8_t lo = fetch();
 
     // JSR internal/stack timing read.
@@ -1828,10 +1830,40 @@ void CPU::JSR()
     // After fetching hi, PC points to next instruction, so return is PC - 1.
     const uint16_t returnAddress = uint16_t(PC - 1);
 
-    push((returnAddress >> 8) & 0xFF);
-    push(returnAddress & 0xFF);
+    const uint8_t returnHigh = uint8_t((returnAddress >> 8) & 0xFF);
+    const uint8_t returnLow  = uint8_t(returnAddress & 0xFF);
 
-    PC = uint16_t(lo) | (uint16_t(hi) << 8);
+    push(returnHigh);
+    push(returnLow);
+
+    const uint8_t spAfter = SP;
+
+    const uint16_t target = uint16_t(lo) | (uint16_t(hi) << 8);
+    PC = target;
+
+    lastJSR.valid = true;
+    lastJSR.jsrOpcodePC = jsrPC;
+    lastJSR.targetPC = target;
+    lastJSR.pushedReturn = returnAddress;
+    lastJSR.pushedHigh = returnHigh;
+    lastJSR.pushedLow = returnLow;
+    lastJSR.spBefore = spBefore;
+    lastJSR.spAfter = spAfter;
+    lastJSR.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "JSR at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << jsrPC
+            << " target=$" << std::setw(4) << target
+            << " pushed return=$" << std::setw(4) << returnAddress
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::LAS()
@@ -2416,15 +2448,45 @@ void CPU::RTI()
 
 void CPU::RTS()
 {
+    const uint16_t rtsPC = uint16_t(PC - 1); // opcode address, since opcode fetch already advanced PC
+    const uint8_t spBefore = SP;
+
     // Dummy read
     mem->read(PC);
 
-    uint8_t lowByte = pop();  // Pop low byte first
-    uint8_t highByte = pop();  // Pop high byte second
+    const uint8_t lowByte = pop();   // Pop low byte first
+    const uint8_t highByte = pop();  // Pop high byte second
 
-    // Set the PC to the return address
-    PC = (highByte << 8) | lowByte;
-    PC = (PC + 1) & 0xFFFF;
+    const uint16_t pulledReturn = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
+    // RTS returns to pulled address + 1.
+    PC = uint16_t(pulledReturn + 1);
+
+    const uint8_t spAfter = SP;
+
+    lastRTS.valid = true;
+    lastRTS.rtsOpcodePC = rtsPC;
+    lastRTS.pulledReturn = pulledReturn;
+    lastRTS.finalPC = PC;
+    lastRTS.pulledLow = lowByte;
+    lastRTS.pulledHigh = highByte;
+    lastRTS.spBefore = spBefore;
+    lastRTS.spAfter = spAfter;
+    lastRTS.totalCycles = totalCycles;
+
+    if (traceMgr)
+    {
+        std::ostringstream oss;
+        oss << "RTS at PC=$"
+            << std::hex << std::uppercase << std::setw(4)
+            << std::setfill('0') << rtsPC
+            << " pulled return=$" << std::setw(4) << pulledReturn
+            << " final PC=$" << std::setw(4) << PC
+            << " SP $" << std::setw(2) << int(spBefore)
+            << "->$" << std::setw(2) << int(spAfter);
+
+        traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
+    }
 }
 
 void CPU::SAX(uint8_t opcode)
