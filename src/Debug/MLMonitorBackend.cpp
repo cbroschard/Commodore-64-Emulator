@@ -180,6 +180,77 @@ void MLMonitorBackend::cpuStepInstruction()
     }
 }
 
+std::string MLMonitorBackend::cpuAddressStatus() const
+{
+    if (!processor)
+        return "CPU not attached.\n";
+
+    const auto s = processor->getLastAddressDebugState();
+
+    auto hexByte = [](uint8_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(2) << int(v);
+        return os.str();
+    };
+
+    auto hexWord = [](uint16_t v)
+    {
+        std::ostringstream os;
+        os << std::uppercase << std::hex << std::setfill('0')
+           << std::setw(4) << int(v);
+        return os.str();
+    };
+
+    auto modeName = [](CPU::CPUAddressDebugMode mode)
+    {
+        switch (mode)
+        {
+            case CPU::CPUAddressDebugMode::IndirectX:         return "($nn,X)";
+            case CPU::CPUAddressDebugMode::IndirectY:         return "($nn),Y";
+            case CPU::CPUAddressDebugMode::IndirectYBoundary: return "($nn),Y read";
+            default:                                          return "None";
+        }
+    };
+
+    std::ostringstream out;
+
+    out << "Last Addressing Mode\n";
+    out << "--------------------\n";
+
+    if (!s.valid)
+    {
+        out << "No indirect addressing mode has been recorded yet.\n";
+        return out.str();
+    }
+
+    out << "Mode:           " << modeName(s.mode) << "\n";
+    out << "Operand PC:     $" << hexWord(s.operandPC) << "\n";
+    out << "ZP operand:     $" << hexByte(s.zpOperand) << "\n";
+    out << "Index value:    $" << hexByte(s.indexValue) << "\n";
+    out << "Indexed ZP:     $" << hexByte(s.indexedZP) << "\n";
+    out << "Pointer low:    $" << hexByte(s.pointerLowAddr)
+        << " -> $" << hexByte(s.pointerLowValue) << "\n";
+    out << "Pointer high:   $" << hexByte(s.pointerHighAddr)
+        << " -> $" << hexByte(s.pointerHighValue) << "\n";
+    out << "Base address:   $" << hexWord(s.baseAddress) << "\n";
+    out << "Effective addr: $" << hexWord(s.effectiveAddress) << "\n";
+    out << "Page crossed:   " << (s.pageCrossed ? "yes" : "no") << "\n";
+
+    if (s.dummyReadUsed)
+        out << "Dummy read:     $" << hexWord(s.dummyReadAddress) << "\n";
+    else
+        out << "Dummy read:     none\n";
+
+    if (s.valueRead != 0 || s.mode == CPU::CPUAddressDebugMode::IndirectYBoundary)
+        out << "Value read:     $" << hexByte(s.valueRead) << "\n";
+
+    out << "Total cycles:   " << std::dec << s.totalCycles << "\n";
+
+    return out.str();
+}
+
 std::string MLMonitorBackend::cpuBranchStatus() const
 {
     if (!processor)

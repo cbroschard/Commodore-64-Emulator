@@ -80,6 +80,7 @@ class MLMonitorBackend
 
         void setPC(uint16_t address);
         void cpuStepInstruction();
+        std::string cpuAddressStatus() const;
         std::string cpuBranchStatus() const;
         std::string cpuInterruptStatus() const;
         std::string cpuIrqStatus() const;

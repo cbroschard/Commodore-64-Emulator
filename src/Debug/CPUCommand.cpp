@@ -37,6 +37,7 @@ std::string CPUCommand::help() const
 {
     return R"(CPU commands
  Usage:
+  cpu addr              - Show last indirect addressing details
   cpu branch            - Show last branch timing details
   cpu cycles            - Show CPU cycle counters and current timing state
   cpu intr              - Show the last BRK/IRQ/NMI entry details.
@@ -87,6 +88,11 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (isHelp(sub))
     {
         std::cout << "Usage:\n" << help() << std::endl;
+        return;
+    }
+    else if (sub == "addr" || sub == "address")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuAddressStatus();
         return;
     }
     else if (sub == "branch" || sub == "br")
