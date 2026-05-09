@@ -2220,15 +2220,7 @@ void Vic::performSpriteDataFetchForSprite(int sprite)
     if (!spriteUnits[sprite].dmaActive)
         return;
 
-    const int cycle = currentCycle;
-    const int lineCycles = cfg_->cyclesPerLine;
-
-    const int slotStart = spriteFetchSlotStart(sprite);
-    const int firstDataCycle = (slotStart + 1) % lineCycles;
-
-    int byteIndex = cycle - firstDataCycle;
-    if (byteIndex < 0)
-        byteIndex += lineCycles;
+    const int byteIndex = spriteDataByteIndexForCycle(sprite, currentCycle);
 
     if (byteIndex < 0 || byteIndex >= 3)
         return;
