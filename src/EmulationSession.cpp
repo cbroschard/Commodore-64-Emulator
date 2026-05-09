@@ -152,11 +152,21 @@ void EmulationSession::processEvents()
     }
 
     debug_.tick();
-    inputMgr_.tick();
+
+    if (!monitorOpen && !ui_.isFileDialogOpen())
+        inputMgr_.tick();
 }
 
 bool EmulationSession::runFrame()
 {
+    const bool monitorOpen = debug_.monitorController().isOpen();
+    const bool paused = runtime_.uiPaused.load() || monitorOpen || ui_.isFileDialogOpen();
+
+    if (paused)
+    {
+        return true;
+    }
+
     if (runtime_.pendingBusPrime)
     {
         bus_.reset();
