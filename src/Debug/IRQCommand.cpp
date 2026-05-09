@@ -37,15 +37,15 @@ std::string IRQCommand::help() const
 {
     return
           "irq status     - Display current status of IRQ/NMI sources.\n"
-          "irq on         - Force a monitor-generated IRQ source active for CPU testing.\n"
+          "irq on|force   - Force a monitor-generated IRQ source active until clear/restore.\n"
           "irq off        - Disable interrupt sources and clear pending interrupts.\n"
           "irq clear      - Acknowledge/clear pending interrupts without changing masks.\n"
           "irq restore    - Restore IRQ enables from snapshot and clear monitor-forced IRQ.\n"
           "irq vic <m>    - Set VIC $D01A to mask m. Bits: 0=raster,1=spr-bg,2=spr-spr,3=lightpen.\n"
           "irq cia1 <m>   - Enable CIA1 IER bits m (0..31). Monitor remembers what it sets.\n"
           "irq cia2 <m>   - Enable CIA2 IER bits m (0..31). CIA2 drives NMI.\n"
-          "irq sei        - Set CPU I flag (disable maskable IRQs).\n"
-          "irq cli        - Clear CPU I flag (enable maskable IRQs).\n";
+          "irq sei        - Set CPU I flag immediately.\n"
+          "irq cli        - Clear CPU I flag immediately.\n";
 }
 
 void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -90,10 +90,12 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << help();
         return;
     }
-    else if (sub == "on")
+    else if (sub == "on" || sub == "force")
     {
         mon.mlmonitorbackend()->irqForceOn();
         std::cout << "Monitor IRQ source forced active.\n";
+        std::cout << "WARNING: This will cause an IRQ storm if you resume execution.\n";
+        std::cout << "Use 'irq clear' or 'irq restore' before returning to BASIC.\n";
         showStatus();
         return;
     }

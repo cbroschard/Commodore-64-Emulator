@@ -99,6 +99,9 @@ class MLMonitorBackend
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return bus; }
 
+        // Helper to check if irq is left on which is disruptive to normal operation
+        inline bool irqForceActive() const { return irq && ( irq->getActiveSources() & IRQLine::MONITOR) != 0; }
+
         // ML Monitor IRQ
         struct IRQSnapshot
         {
