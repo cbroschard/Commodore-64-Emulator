@@ -21,19 +21,19 @@ class MLMonitorBackend
         // Pointer functions
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-        inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
+        inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
+        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
-        inline void attachProcessorInstance(CPU* processor) { this->processor = processor; }
+        inline void attachProcessorInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
-        inline void attachIOInstance(IO* IO_adapter) { this->IO_adapter = IO_adapter; }
+        inline void attachIOInstance(IO* io) { this->io = io; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
-        inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
          using CPUState = CPU::CPUState;
 
@@ -46,24 +46,24 @@ class MLMonitorBackend
         inline std::string dumpTapeDebug(size_t count) const { return cass ? cass->dumpPulses(count) : "CASSETTE not attached\n"; }
 
         // ML Monitor CIA1 Register Dumps
-        inline std::string dumpCIA1Regs() const { return cia1object ? cia1object->dumpRegisters("all") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1Ports() const { return cia1object ? cia1object->dumpRegisters("port") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1Timers() const { return cia1object ? cia1object->dumpRegisters("timer") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1TOD() const { return cia1object ? cia1object->dumpRegisters("tod") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1ICR() const { return cia1object ? cia1object->dumpRegisters("icr") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1Serial() const { return cia1object ? cia1object->dumpRegisters("serial") : "CIA1 not attached\n"; }
-        inline std::string dumpCIA1Mode() const { return cia1object ? cia1object->dumpRegisters("mode") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Regs() const { return cia1 ? cia1->dumpRegisters("all") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Ports() const { return cia1 ? cia1->dumpRegisters("port") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Timers() const { return cia1 ? cia1->dumpRegisters("timer") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1TOD() const { return cia1 ? cia1->dumpRegisters("tod") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1ICR() const { return cia1 ? cia1->dumpRegisters("icr") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Serial() const { return cia1 ? cia1->dumpRegisters("serial") : "CIA1 not attached\n"; }
+        inline std::string dumpCIA1Mode() const { return cia1 ? cia1->dumpRegisters("mode") : "CIA1 not attached\n"; }
 
         // ML Monitor CIA2 Register Dumps
-        inline std::string dumpCIA2Regs() const { return cia2object ? cia2object->dumpRegisters("all") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2Ports() const { return cia2object ? cia2object->dumpRegisters("port") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2Timers() const { return cia2object ? cia2object->dumpRegisters("timer") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2TOD() const { return cia2object ? cia2object->dumpRegisters("tod") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2ICR() const { return cia2object ? cia2object->dumpRegisters("icr") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2Serial() const { return cia2object ? cia2object->dumpRegisters("serial") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2VICBanks() const { return cia2object ? cia2object->dumpRegisters("vic") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2IEC() const { return cia2object ? cia2object->dumpRegisters("iec") : "CIA2 not attached\n"; }
-        inline std::string dumpCIA2IECSnapshot() const { return cia2object ? cia2object->debugIECSnapshotString() : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Regs() const { return cia2 ? cia2->dumpRegisters("all") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Ports() const { return cia2 ? cia2->dumpRegisters("port") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Timers() const { return cia2 ? cia2->dumpRegisters("timer") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2TOD() const { return cia2 ? cia2->dumpRegisters("tod") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2ICR() const { return cia2 ? cia2->dumpRegisters("icr") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2Serial() const { return cia2 ? cia2->dumpRegisters("serial") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2VICBanks() const { return cia2 ? cia2->dumpRegisters("vic") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2IEC() const { return cia2 ? cia2->dumpRegisters("iec") : "CIA2 not attached\n"; }
+        inline std::string dumpCIA2IECSnapshot() const { return cia2 ? cia2->debugIECSnapshotString() : "CIA2 not attached\n"; }
 
         // ML Monitor Computer Methods
         void enterMonitor();
@@ -71,12 +71,12 @@ class MLMonitorBackend
         void warmReset();
 
         // ML Monitor CPU Methods
-        inline CPUState getCPUState() const { return processor ? processor->getState() : CPUState{}; }
-        inline uint8_t cpuGetSR() { return processor->getSR(); }
-        inline void cpuStep() { return processor->tick(); }
-        inline std::string getJamMode() const { return processor ? jamModeToString() : "Processor not attached\n"; }
+        inline CPUState getCPUState() const { return cpu ? cpu->getState() : CPUState{}; }
+        inline uint8_t cpuGetSR() { return cpu->getSR(); }
+        inline void cpuStep() { return cpu->tick(); }
+        inline std::string getJamMode() const { return cpu ? jamModeToString() : "Processor not attached\n"; }
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
-        inline uint16_t getPC() { return processor->getPC(); }
+        inline uint16_t getPC() { return cpu->getPC(); }
 
         void setPC(uint16_t address);
         void cpuStepInstruction();
@@ -132,20 +132,20 @@ class MLMonitorBackend
         void irqRestore();
 
         // ML Monitor per chip IRQ helpers
-        inline uint8_t vicIER()  const { return vicII ? vicII->getIER() : 0; }
-        inline uint8_t vicIFR()  const { return vicII ? vicII->getIFR() : 0; }
-        inline bool    vicIRQ()  const { return vicII && vicII->irqLineActive(); }
-        inline uint8_t cia1IER() const { return cia1object ? cia1object->getIER() : 0; }
-        inline uint8_t cia1IFR() const { return cia1object ? cia1object->getIFR() : 0; }
-        inline bool    cia1IRQ() const { return cia1object && cia1object->irqLineActive(); }
-        inline uint8_t cia2IER() const { return cia2object ? cia2object->getIER() : 0; }
-        inline uint8_t cia2IFR() const { return cia2object ? cia2object->getIFR() : 0; }
-        inline bool    cia2NMI() const { return cia2object && cia2object->irqLineActive(); }
-        inline void cpuCLI(){ return processor->setCLI(); }
-        inline void cpuSEI(){ return processor->setSEI(); }
-        inline void setVicIER(uint8_t m)  { if (vicII)      vicII->setIERExact(m & 0x0F); }
-        inline void setCIA1IER(uint8_t m) { if (cia1object) cia1object->setIERExact(m & 0x1F); }
-        inline void setCIA2IER(uint8_t m) { if (cia2object) cia2object->setIERExact(m & 0x1F); }
+        inline uint8_t vicIER()  const { return vic ? vic->getIER() : 0; }
+        inline uint8_t vicIFR()  const { return vic ? vic->getIFR() : 0; }
+        inline bool    vicIRQ()  const { return vic && vic->irqLineActive(); }
+        inline uint8_t cia1IER() const { return cia1 ? cia1->getIER() : 0; }
+        inline uint8_t cia1IFR() const { return cia1 ? cia1->getIFR() : 0; }
+        inline bool    cia1IRQ() const { return cia1 && cia1->irqLineActive(); }
+        inline uint8_t cia2IER() const { return cia2 ? cia2->getIER() : 0; }
+        inline uint8_t cia2IFR() const { return cia2 ? cia2->getIFR() : 0; }
+        inline bool    cia2NMI() const { return cia2 && cia2->irqLineActive(); }
+        inline void cpuCLI(){ return cpu->setCLI(); }
+        inline void cpuSEI(){ return cpu->setSEI(); }
+        inline void setVicIER(uint8_t m)  { if (vic)      vic->setIERExact(m & 0x0F); }
+        inline void setCIA1IER(uint8_t m) { if (cia1) cia1->setIERExact(m & 0x1F); }
+        inline void setCIA2IER(uint8_t m) { if (cia2) cia2->setIERExact(m & 0x1F); }
 
         // ML Monitor Logging enable/disable
         void setLogging(LogSet log, bool enabled);
@@ -161,43 +161,43 @@ class MLMonitorBackend
         inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
 
         // ML Monitor SID Register Dumps
-        inline std::string dumpSIDRegs() const { return sidchip ? sidchip->dumpRegisters("all") : "SID not attached\n"; }
-        inline std::string dumpSIDVoice1() const { return sidchip ? sidchip->dumpRegisters("voice1") : "SID not attached\n"; }
-        inline std::string dumpSIDVoice2() const { return sidchip ? sidchip->dumpRegisters("voice2") : "SID not attached\n"; }
-        inline std::string dumpSIDVoice3() const { return sidchip ? sidchip->dumpRegisters("voice3") : "SID not attached\n"; }
-        inline std::string dumpSIDVoices() const { return sidchip ? sidchip->dumpRegisters("voices") : "SID not attached\n"; }
-        inline std::string dumpSIDFilter() const { return sidchip ? sidchip->dumpRegisters("filter") : "SID not attached\n"; }
-        inline std::string dumpSIDAudio() const  { return sidchip ? sidchip->dumpAudioStats() : "SID not attached\n"; }
-        inline std::string dumpSIDCutoffTable() const { return sidchip ? sidchip->dumpCutoffTable() : "SID not attached\n"; }
-        inline void resetSIDAudioStats() { if (sidchip) sidchip->resetAudioStats(); }
+        inline std::string dumpSIDRegs() const { return sid ? sid->dumpRegisters("all") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice1() const { return sid ? sid->dumpRegisters("voice1") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice2() const { return sid ? sid->dumpRegisters("voice2") : "SID not attached\n"; }
+        inline std::string dumpSIDVoice3() const { return sid ? sid->dumpRegisters("voice3") : "SID not attached\n"; }
+        inline std::string dumpSIDVoices() const { return sid ? sid->dumpRegisters("voices") : "SID not attached\n"; }
+        inline std::string dumpSIDFilter() const { return sid ? sid->dumpRegisters("filter") : "SID not attached\n"; }
+        inline std::string dumpSIDAudio() const  { return sid ? sid->dumpAudioStats() : "SID not attached\n"; }
+        inline std::string dumpSIDCutoffTable() const { return sid ? sid->dumpCutoffTable() : "SID not attached\n"; }
+        inline void resetSIDAudioStats() { if (sid) sid->resetAudioStats(); }
 
         // ML Monitor VIC-II methods
-        inline std::string vicGetModeName() { return vicII ? vicII->decodeModeName() : "VIC not attached\n"; }
-        inline std::string getCurrentVICBanks() { return vicII ? vicII->getVICBanks() : "VIC not attached\n"; }
-        inline std::string vicDumpRegs(const std::string& group) { return vicII ? vicII->dumpRegisters(group) : " VIC not attached\n"; }
-        inline uint8_t getCurrentRaster() { return vicII->getCurrentRaster(); }
-        inline std::string vicDumpCurrentCycleDebug() const { return vicII ? vicII->dumpCurrentCycleDebug() : "VIC not available"; }
-        inline std::string vicDumpCycleDebugFor(int raster, int cycle) const { return vicII ?
-                                                vicII->dumpCycleDebugFor(raster, cycle) : "VIC not available"; }
-        inline std::string vicDumpRasterFetchMap(int raster) const { return vicII ? vicII->dumpRasterFetchMap(raster) : "VIC not available"; }
-        inline std::string vicDumpAllRasterEvents() const { return vicII ? vicII->dumpAllRasterEvents() : "VIC not available"; }
-        inline std::string vicDumpRasterEventsSummary() const { return vicII ? vicII->dumpRasterEventSummary() : "VIC not available"; }
-        inline std::string vicDumpRasterEvents(int raster) const { return vicII ? vicII->dumpRasterEvents(raster) : "VIC not available"; }
-        inline std::string vicDumpRasterPixelCompositionDebug(int raster, int x0, int x1) const { return vicII ?
-                                                                    vicII->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
-        inline std::string vicDumpRasterRowState(int raster) const { return vicII ? vicII->dumpRasterRowState(raster) : "VIC not available"; }
-        inline std::string vicDumpBadlineState() const { return vicII ? vicII->dumpBadlineState() : "VIC not available"; }
-        inline std::string vicDumpBackgroundRowDebug(int raster) const { return vicII ? vicII->dumpBackgroundRowDebug(raster) : "VIC not available"; }
-        inline std::string vicDumpBorderState() const { return vicII ? vicII->dumpBorderState() : "VIC not available"; }
-        inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vicII ?
-                                                                                   vicII->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
-        inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vicII ?
-                                                              vicII->dumpBadlineTimelineAroundRaster(centerRaster) : "VIC not available"; }
-        inline std::string vicDumpBorderWindowAroundCurrentRaster() const { return vicII ? vicII->dumpBorderWindowAroundCurrentRaster()
+        inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }
+        inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
+        inline std::string vicDumpRegs(const std::string& group) { return vic ? vic->dumpRegisters(group) : " VIC not attached\n"; }
+        inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
+        inline std::string vicDumpCurrentCycleDebug() const { return vic ? vic->dumpCurrentCycleDebug() : "VIC not available"; }
+        inline std::string vicDumpCycleDebugFor(int raster, int cycle) const { return vic ?
+                                                vic->dumpCycleDebugFor(raster, cycle) : "VIC not available"; }
+        inline std::string vicDumpRasterFetchMap(int raster) const { return vic ? vic->dumpRasterFetchMap(raster) : "VIC not available"; }
+        inline std::string vicDumpAllRasterEvents() const { return vic ? vic->dumpAllRasterEvents() : "VIC not available"; }
+        inline std::string vicDumpRasterEventsSummary() const { return vic ? vic->dumpRasterEventSummary() : "VIC not available"; }
+        inline std::string vicDumpRasterEvents(int raster) const { return vic ? vic->dumpRasterEvents(raster) : "VIC not available"; }
+        inline std::string vicDumpRasterPixelCompositionDebug(int raster, int x0, int x1) const { return vic ?
+                                                                    vic->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
+        inline std::string vicDumpRasterRowState(int raster) const { return vic ? vic->dumpRasterRowState(raster) : "VIC not available"; }
+        inline std::string vicDumpBadlineState() const { return vic ? vic->dumpBadlineState() : "VIC not available"; }
+        inline std::string vicDumpBackgroundRowDebug(int raster) const { return vic ? vic->dumpBackgroundRowDebug(raster) : "VIC not available"; }
+        inline std::string vicDumpBorderState() const { return vic ? vic->dumpBorderState() : "VIC not available"; }
+        inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vic ?
+                                                                                   vic->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
+        inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vic ?
+                                                              vic->dumpBadlineTimelineAroundRaster(centerRaster) : "VIC not available"; }
+        inline std::string vicDumpBorderWindowAroundCurrentRaster() const { return vic ? vic->dumpBorderWindowAroundCurrentRaster()
                                                                             : "VIC not available"; }
-        inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vicII ? vicII->dumpBorderWindowAroundRaster(centerRaster)
+        inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vic ? vic->dumpBorderWindowAroundRaster(centerRaster)
                                                                                : "VIC not available"; }
-        inline std::string vicDumpSpriteDMAState() const { return vicII ? vicII->dumpSpriteDmaState() : "VIC not available"; }
+        inline std::string vicDumpSpriteDMAState() const { return vic ? vic->dumpSpriteDmaState() : "VIC not available"; }
         void vicFFRaster(uint8_t targetRaster);
 
     protected:
@@ -207,19 +207,19 @@ class MLMonitorBackend
         // Non-owning pointers
         Cartridge* cart;
         Cassette* cass;
-        CIA1* cia1object;
-        CIA2* cia2object;
+        CIA1* cia1;
+        CIA2* cia2;
         Computer* comp;
-        CPU* processor;
+        CPU* cpu;
         IECBUS* bus;
-        IO* IO_adapter;
+        IO* io;
         IRQLine* irq;
         Keyboard* keyb;
         Logging* logger;
         Memory* mem;
         PLA* pla;
-        SID* sidchip;
-        Vic* vicII;
+        SID* sid;
+        Vic* vic;
 
         // ML Monitor IRQ snapshot
         IRQSnapshot snapshot;

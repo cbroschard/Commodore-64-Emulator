@@ -13,14 +13,14 @@
 MLMonitorBackend::MLMonitorBackend() :
     cart(nullptr),
     cass(nullptr),
-    cia1object(nullptr),
-    cia2object(nullptr),
-    processor(nullptr),
+    cia1(nullptr),
+    cia2(nullptr),
+    cpu(nullptr),
     bus(nullptr),
     logger(nullptr),
     pla(nullptr),
-    sidchip(nullptr),
-    vicII(nullptr)
+    sid(nullptr),
+    vic(nullptr)
 {
 
 }
@@ -40,13 +40,13 @@ bool MLMonitorBackend::getCartridgeAttached()
 
 void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
 {
-    while(vicII->getCurrentRaster() != targetRaster)
+    while(vic->getCurrentRaster() != targetRaster)
     {
-        vicII->tick(1);
-        processor->tick();
-        cia1object->updateTimers(1);
-        cia2object->updateTimers(1);
-        sidchip->tick(1);
+        vic->tick(1);
+        cpu->tick();
+        cia1->updateTimers(1);
+        cia2->updateTimers(1);
+        sid->tick(1);
     }
 }
 
@@ -81,43 +81,43 @@ void MLMonitorBackend::irqForceOff()
 
 void MLMonitorBackend::irqDisableAll()
 {
-    if (!vicII && !cia1object && !cia2object) return;
+    if (!vic && !cia1 && !cia2) return;
 
     irqForceOff();
 
     snapshot.has = true;
-    snapshot.vic  = vicII->snapshotIRQs();
-    snapshot.cia1 = cia1object->snapshotIRQs();
-    snapshot.cia2 = cia2object->snapshotIRQs();
+    snapshot.vic  = vic->snapshotIRQs();
+    snapshot.cia1 = cia1->snapshotIRQs();
+    snapshot.cia2 = cia2->snapshotIRQs();
 
-    vicII->disableAllIRQs();
-    cia1object->disableAllIRQs();
-    cia2object->disableAllIRQs();
+    vic->disableAllIRQs();
+    cia1->disableAllIRQs();
+    cia2->disableAllIRQs();
 
     irqClearAll();  // acknowledge anything pending after the mask change
 }
 
 void MLMonitorBackend::irqClearAll()
 {
-    if (!vicII && !cia1object && !cia2object) return;
+    if (!vic && !cia1 && !cia2) return;
 
     irqForceOff();
 
-    vicII->clearPendingIRQs();
-    cia1object->clearPendingIRQs();
-    cia2object->clearPendingIRQs();
+    vic->clearPendingIRQs();
+    cia1->clearPendingIRQs();
+    cia2->clearPendingIRQs();
 }
 
 void MLMonitorBackend::irqRestore()
 {
-    if (!vicII && !cia1object && !cia2object) return;
+    if (!vic && !cia1 && !cia2) return;
     if (!snapshot.has) return;
 
     irqForceOff();
 
-    vicII->restoreIRQs(snapshot.vic);
-    cia1object->restoreIRQs(snapshot.cia1);
-    cia2object->restoreIRQs(snapshot.cia2);
+    vic->restoreIRQs(snapshot.vic);
+    cia1->restoreIRQs(snapshot.cia1);
+    cia2->restoreIRQs(snapshot.cia2);
 }
 
 void MLMonitorBackend::setLogging(LogSet log, bool enabled)
@@ -126,10 +126,10 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
     {
         case LogSet::Cartridge: if (cart) cart->setLog(enabled); break;
         case LogSet::Cassette: if (cass) cass->setLog(enabled); break;
-        case LogSet::CIA1: if (cia1object) cia1object->setLog(enabled); break;
-        case LogSet::CIA2: if (cia2object) cia2object->setLog(enabled); break;
-        case LogSet::CPU: if (processor) processor->setLog(enabled); break;
-        case LogSet::IO: if (IO_adapter) IO_adapter->setLog(enabled); break;
+        case LogSet::CIA1: if (cia1) cia1->setLog(enabled); break;
+        case LogSet::CIA2: if (cia2) cia2->setLog(enabled); break;
+        case LogSet::CPU: if (cpu) cpu->setLog(enabled); break;
+        case LogSet::IO: if (io) io->setLog(enabled); break;
         case LogSet::Joystick:
         {
             Joystick* joy1 = comp->getJoy1();
@@ -150,42 +150,42 @@ void MLMonitorBackend::setLogging(LogSet log, bool enabled)
         case LogSet::Keyboard: if (keyb) keyb->setLog(enabled); break;
         case LogSet::Memory: if (mem) mem->setLog(enabled); break;
         case LogSet::PLA: if (pla) pla->setLog(enabled); break;
-        case LogSet::VIC: if (vicII) vicII->setLog(enabled); break;
+        case LogSet::VIC: if (vic) vic->setLog(enabled); break;
     }
 }
 
 void MLMonitorBackend::setPC(uint16_t value)
 {
-    if (!processor)
+    if (!cpu)
         return;
 
-    processor->setPC(value);
-    processor->forceInstructionBoundaryForMonitor();
+    cpu->setPC(value);
+    cpu->forceInstructionBoundaryForMonitor();
 }
 
 void MLMonitorBackend::cpuStepInstruction()
 {
-    if (!processor)
+    if (!cpu)
         return;
 
     // Start or continue the current instruction.
-    processor->tick();
+    cpu->tick();
 
     // Finish the instruction by consuming its remaining cycles.
     int guard = 128;
 
-    while (!processor->isAtInstructionBoundary() && guard-- > 0)
+    while (!cpu->isAtInstructionBoundary() && guard-- > 0)
     {
-        processor->tick();
+        cpu->tick();
     }
 }
 
 std::string MLMonitorBackend::cpuAddressStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastAddressDebugState();
+    const auto s = cpu->getLastAddressDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -253,10 +253,10 @@ std::string MLMonitorBackend::cpuAddressStatus() const
 
 std::string MLMonitorBackend::cpuBranchStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastBranchDebugState();
+    const auto s = cpu->getLastBranchDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -314,10 +314,10 @@ std::string MLMonitorBackend::cpuBranchStatus() const
 
 std::string MLMonitorBackend::cpuInterruptStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastInterruptEntryDebugState();
+    const auto s = cpu->getLastInterruptEntryDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -373,10 +373,10 @@ std::string MLMonitorBackend::cpuInterruptStatus() const
 
 std::string MLMonitorBackend::cpuIrqStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getIrqDebugState();
+    const auto s = cpu->getIrqDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -436,7 +436,7 @@ std::string MLMonitorBackend::cpuIrqStatus() const
 
 std::string MLMonitorBackend::cpuCycleStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
     auto hexByte = [](uint8_t v)
@@ -455,7 +455,7 @@ std::string MLMonitorBackend::cpuCycleStatus() const
         return os.str();
     };
 
-    const auto s = processor->getCycleDebugState();
+    const auto s = cpu->getCycleDebugState();
 
     std::ostringstream out;
 
@@ -482,10 +482,10 @@ std::string MLMonitorBackend::cpuCycleStatus() const
 
 std::string MLMonitorBackend::cpuJMPStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastJMPDebugState();
+    const auto s = cpu->getLastJMPDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -542,10 +542,10 @@ std::string MLMonitorBackend::cpuJMPStatus() const
 
 std::string MLMonitorBackend::cpuJSRStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastJSRDebugState();
+    const auto s = cpu->getLastJSRDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -588,10 +588,10 @@ std::string MLMonitorBackend::cpuJSRStatus() const
 
 std::string MLMonitorBackend::cpuPHAStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastPHADebugState();
+    const auto s = cpu->getLastPHADebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -631,10 +631,10 @@ std::string MLMonitorBackend::cpuPHAStatus() const
 
 std::string MLMonitorBackend::cpuPHPStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastPHPDebugState();
+    const auto s = cpu->getLastPHPDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -675,10 +675,10 @@ std::string MLMonitorBackend::cpuPHPStatus() const
 
 std::string MLMonitorBackend::cpuPLAStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastPLADebugState();
+    const auto s = cpu->getLastPLADebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -721,10 +721,10 @@ std::string MLMonitorBackend::cpuPLAStatus() const
 
 std::string MLMonitorBackend::cpuPLPStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastPLPDebugState();
+    const auto s = cpu->getLastPLPDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -768,11 +768,11 @@ std::string MLMonitorBackend::cpuPLPStatus() const
 
 std::string MLMonitorBackend::cpuRTIStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto rti = processor->getLastRTIDebugState();
-    const auto intr = processor->getLastInterruptEntryDebugState();
+    const auto rti = cpu->getLastRTIDebugState();
+    const auto intr = cpu->getLastInterruptEntryDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -841,10 +841,10 @@ std::string MLMonitorBackend::cpuRTIStatus() const
 
 std::string MLMonitorBackend::cpuRTSStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getLastRTSDebugState();
+    const auto s = cpu->getLastRTSDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -887,7 +887,7 @@ std::string MLMonitorBackend::cpuRTSStatus() const
 
 std::string MLMonitorBackend::cpuStackStatus(int count) const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
     if (count <= 0)
@@ -896,7 +896,7 @@ std::string MLMonitorBackend::cpuStackStatus(int count) const
     if (count > 256)
         count = 256;
 
-    const uint8_t sp = processor->getSP();
+    const uint8_t sp = cpu->getSP();
     const uint8_t first = uint8_t(sp + 1);
 
     auto hexByte = [](uint8_t v)
@@ -929,7 +929,7 @@ std::string MLMonitorBackend::cpuStackStatus(int count) const
     {
         const uint8_t stackOffset = uint8_t(first + i);
         const uint16_t addr = uint16_t(0x0100 | stackOffset);
-        const uint8_t value = processor->debugRead(addr);
+        const uint8_t value = cpu->debugRead(addr);
 
         out << std::dec << std::setw(4) << i << "  "
             << "$" << hexWord(addr) << "  "
@@ -941,10 +941,10 @@ std::string MLMonitorBackend::cpuStackStatus(int count) const
 
 std::string MLMonitorBackend::cpuLastStatus() const
 {
-    if (!processor)
+    if (!cpu)
         return "CPU not attached.\n";
 
-    const auto s = processor->getCycleDebugState();
+    const auto s = cpu->getCycleDebugState();
 
     auto hexByte = [](uint8_t v)
     {
@@ -976,19 +976,19 @@ std::string MLMonitorBackend::cpuLastStatus() const
 
 void MLMonitorBackend::setJamMode(const std::string& mode)
 {
-    if (processor)
+    if (cpu)
     {
         if (mode == "freeze")
         {
-            processor->setJamMode(CPU::JamMode::FreezePC);
+            cpu->setJamMode(CPU::JamMode::FreezePC);
         }
         else if (mode == "halt")
         {
-            processor->setJamMode(CPU::JamMode::Halt);
+            cpu->setJamMode(CPU::JamMode::Halt);
         }
         else if (mode == "nop")
         {
-            processor->setJamMode(CPU::JamMode::NopCompat);
+            cpu->setJamMode(CPU::JamMode::NopCompat);
         }
     }
 }
@@ -1768,9 +1768,9 @@ void MLMonitorBackend::dumpDriveFDC(int id)
 
 std::string MLMonitorBackend::jamModeToString() const
 {
-    if (processor)
+    if (cpu)
     {
-        CPU::JamMode mode = processor->getJamMode();
+        CPU::JamMode mode = cpu->getJamMode();
         switch(mode)
         {
             case CPU::JamMode::FreezePC: return "FreezePC";
