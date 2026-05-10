@@ -47,12 +47,12 @@
 Cartridge::Cartridge() :
     hasRAM(false),
     currentBank(0),
-    processor(nullptr),
+    cpu(nullptr),
     host(nullptr),
     logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr),
+    vic(nullptr),
     wiringMode(WiringMode::NONE),
     cartSize(0),
     exROMLine(true),
@@ -1029,8 +1029,8 @@ void Cartridge::traceActiveWindows(const char* why)
     if (!traceMgr || !traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_BANK))
         return;
 
-    auto stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
-                vicII ? vicII->getRasterDot() : 0);
+    auto stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
+                vic ? vic->getRasterDot() : 0);
 
     const std::string mapper = getMapperName();
     switch (wiringMode) {
@@ -1179,9 +1179,9 @@ void Cartridge::setExROMLine(bool level)
     if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_LINE))
     {
         auto stamp = traceMgr->makeStamp(
-            processor ? processor->getTotalCycles() : 0,
-            vicII ? vicII->getCurrentRaster() : 0,
-            vicII ? vicII->getRasterDot() : 0);
+            cpu ? cpu->getTotalCycles() : 0,
+            vic ? vic->getCurrentRaster() : 0,
+            vic ? vic->getRasterDot() : 0);
 
         std::ostringstream out;
         out << "[CART:LINE] EXROM=" << (exROMLine ? "1" : "0")
@@ -1200,9 +1200,9 @@ void Cartridge::setGameLine(bool level)
     if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_LINE))
     {
         auto stamp = traceMgr->makeStamp(
-            processor ? processor->getTotalCycles() : 0,
-            vicII ? vicII->getCurrentRaster() : 0,
-            vicII ? vicII->getRasterDot() : 0);
+            cpu ? cpu->getTotalCycles() : 0,
+            vic ? vic->getCurrentRaster() : 0,
+            vic ? vic->getRasterDot() : 0);
 
         std::ostringstream out;
         out << "[CART:LINE] GAME=" << (gameLine ? "1" : "0")
@@ -1217,7 +1217,7 @@ TraceManager::Stamp Cartridge::makeCartStamp() const
         return { 0, 0, 0 };
 
     return traceMgr->makeStamp(
-        processor ? processor->getTotalCycles() : 0,
-        vicII ? vicII->getCurrentRaster() : 0,
-        vicII ? vicII->getRasterDot() : 0);
+        cpu ? cpu->getTotalCycles() : 0,
+        vic ? vic->getCurrentRaster() : 0,
+        vic ? vic->getRasterDot() : 0);
 }

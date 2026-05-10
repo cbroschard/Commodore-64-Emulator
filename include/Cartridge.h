@@ -35,12 +35,12 @@ class Cartridge
         Cartridge();
         virtual ~Cartridge();
 
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
-        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -179,12 +179,12 @@ class Cartridge
     private:
 
         // Non-owning pointers
-        CPU* processor;
+        CPU* cpu;
         ICartridgeHost* host;
         Logging* logger;
         Memory* mem;
         TraceManager* traceMgr;
-        Vic* vicII;
+        Vic* vic;
 
         // Polymorphic pointer for cartridge mapper types
         std::unique_ptr<CartridgeMapper> mapper;
