@@ -44,12 +44,12 @@ class Memory : public CPUBus
         virtual ~Memory();
 
         // Pointers
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-        inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
-        inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }
+        inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
+        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
+        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -102,16 +102,16 @@ class Memory : public CPUBus
 
         // Non-owning pointers
         Cartridge* cart;
-        CIA1* cia1object;
-        CIA2* cia2object;
+        CIA1* cia1;
+        CIA2* cia2;
         Cassette* cass;
-        CPU* processor;
+        CPU* cpu;
         Logging* logger;
         MLMonitor* monitor;
         PLA* pla;
-        SID* sidchip;
+        SID* sid;
         TraceManager* traceMgr;
-        Vic* vicII;
+        Vic* vic;
 
         // RAM/ROM
         std::vector<uint8_t> mem;
