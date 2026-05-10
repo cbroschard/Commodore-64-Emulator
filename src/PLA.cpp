@@ -9,10 +9,10 @@
 
 PLA::PLA() :
     cart(nullptr),
-    processor(nullptr),
+    cpu(nullptr),
     logger(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr),
+    vic(nullptr),
     lastModeIndex(0xFF),
     lastloram(false),
     lasthiram(false),
@@ -87,9 +87,9 @@ void PLA::updateMemoryControlRegister(uint8_t value)
     if (traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_PORT))
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(
-            processor ? processor->getTotalCycles() : 0,
-            vicII ? vicII->getCurrentRaster() : 0xFFFF,
-            vicII ? vicII->getRasterDot() : 0xFFFF);
+            cpu ? cpu->getTotalCycles() : 0,
+            vic ? vic->getCurrentRaster() : 0xFFFF,
+            vic ? vic->getRasterDot() : 0xFFFF);
 
         traceMgr->recordPlaPortWrite(oldValue, memoryControlRegister,
                                      gameLine, exROMLine, charen, hiram, loram, stamp);
@@ -124,9 +124,9 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
     if (changed && traceMgr && traceMgr->plaDetailOn(TraceManager::TraceDetail::PLA_MODE))
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(
-            processor ? processor->getTotalCycles() : 0,
-            vicII ? vicII->getCurrentRaster() : 0,
-            vicII ? vicII->getRasterDot() : 0);
+            cpu ? cpu->getTotalCycles() : 0,
+            vic ? vic->getCurrentRaster() : 0,
+            vic ? vic->getRasterDot() : 0);
 
         traceMgr->recordPlaMode(modeIndex, gameLine, exROMLine, charen, hiram, loram, stamp);
     }
@@ -165,9 +165,9 @@ PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
         if (interesting)
         {
             TraceManager::Stamp stamp = traceMgr->makeStamp(
-                processor ? processor->getTotalCycles() : 0,
-                vicII ? vicII->getCurrentRaster() : 0xFFFF,
-                vicII ? vicII->getRasterDot() : 0xFFFF);
+                cpu ? cpu->getTotalCycles() : 0,
+                vic ? vic->getCurrentRaster() : 0xFFFF,
+                vic ? vic->getRasterDot() : 0xFFFF);
 
             traceMgr->recordPlaResolve(address, bankToString(info.bank), info.offset,
                                        memoryControlRegister, modeIndex,

@@ -47,10 +47,10 @@ class PLA
         };
 
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
@@ -93,10 +93,10 @@ class PLA
 
         // Non-owning pointers
         Cartridge* cart;
-        CPU* processor;
+        CPU* cpu;
         Logging* logger;
         TraceManager* traceMgr;
-        Vic* vicII;
+        Vic* vic;
 
         // ROM constants
         static const uint16_t CHAR_ROM_START = 0xD000;
