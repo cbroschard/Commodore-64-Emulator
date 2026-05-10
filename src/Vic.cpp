@@ -9,9 +9,9 @@
 #include "IO.h"
 
 Vic::Vic(VideoMode mode) :
-    cia2object(nullptr),
-    processor(nullptr),
-    IO_adapter(nullptr),
+    cia2(nullptr),
+    cpu(nullptr),
+    io(nullptr),
     IRQ(nullptr),
     logger(nullptr),
     mem(nullptr),
@@ -184,7 +184,7 @@ void Vic::reset()
     resetActiveBackgroundPixelState();
 
     // Fill in DD00
-    uint16_t currentVICBank = cia2object ? cia2object->getCurrentVICBank() : 0;
+    uint16_t currentVICBank = cia2 ? cia2->getCurrentVICBank() : 0;
     std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
 
     // Initialize bgOpaque
@@ -248,8 +248,8 @@ void Vic::setMode(VideoMode mode)
     updateMonitorCaches(registers.raster);
 
     // Notify IO of mode
-    if (IO_adapter)
-        IO_adapter->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
+    if (io)
+        io->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
 }
 
 void Vic::saveState(StateWriter& wrtr) const
@@ -623,15 +623,15 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         fixSizeU8(d016_per_raster, 0x08);
         fixSizeU8(d018_per_raster, 0x14);
 
-        uint16_t defBank = cia2object ? cia2object->getCurrentVICBank() : 0;
+        uint16_t defBank = cia2 ? cia2->getCurrentVICBank() : 0;
         fixSizeU16(dd00_per_raster, defBank);
 
         // Recompute mode/caches from restored latches
         updateGraphicsMode(registers.raster);
 
         // Prefer CIA2's current bank for *current raster* (optional but helps)
-        if (cia2object)
-            dd00_per_raster[registers.raster] = cia2object->getCurrentVICBank();
+        if (cia2)
+            dd00_per_raster[registers.raster] = cia2->getCurrentVICBank();
 
         // Rebuild Border Latches
         rebuildBorderRasterLatches();
@@ -1460,14 +1460,14 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
     {
         frameDone = true;
 
-        if (IO_adapter)
+        if (io)
         {
             const int lastFBY = fbY(curRaster);
             const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
 
             for (int y = lastFBY + 1; y < fbH; ++y)
             {
-                IO_adapter->renderBorderLine(y, registers.borderColor, 0, 0);
+                io->renderBorderLine(y, registers.borderColor, 0, 0);
             }
         }
     }
@@ -1487,7 +1487,7 @@ void Vic::traceRasterEnd()
         return;
 
     TraceManager::Stamp stamp =
-        traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0,
+        traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
                             registers.raster,
                             (currentCycle * 8));
 
@@ -2355,8 +2355,8 @@ void Vic::updateBusArbitration()
 
     AEC = vicState.aec;
 
-    if (processor)
-        processor->setBAHold(!vicState.ba);
+    if (cpu)
+        cpu->setBAHold(!vicState.ba);
 
     if (oldBA != vicState.ba || oldAEC != vicState.aec)
     {
@@ -2670,7 +2670,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
 void Vic::renderLine(int raster)
 {
-    if (!IO_adapter || !mem)
+    if (!io || !mem)
         return;
 
     updateGraphicsMode(raster);
@@ -4515,7 +4515,7 @@ void Vic::generateBackgroundLine(int raster)
 
 void Vic::emitRasterLineInOrder(int raster)
 {
-    if (!IO_adapter)
+    if (!io)
         return;
 
     const int screenY = fbY(raster);
@@ -4525,7 +4525,7 @@ void Vic::emitRasterLineInOrder(int raster)
 
     for (int px = xStart; px < xEnd; ++px)
     {
-        IO_adapter->setPixel(px, screenY, finalColorLine[px] & 0x0F);
+        io->setPixel(px, screenY, finalColorLine[px] & 0x0F);
     }
 }
 
@@ -6162,7 +6162,7 @@ void Vic::latchNextRasterDD00()
     const int raster = registers.raster;
     const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
-    dd00_per_raster[nextRaster] = cia2object ? cia2object->getCurrentVICBank() : 0;
+    dd00_per_raster[nextRaster] = cia2 ? cia2->getCurrentVICBank() : 0;
 }
 
 uint8_t Vic::d019Read() const
@@ -7901,7 +7901,7 @@ TraceManager::Stamp Vic::makeVicStamp() const
         return TraceManager::Stamp{0, 0xFFFF, 0xFFFF};
 
     return traceMgr->makeStamp(
-        processor ? processor->getTotalCycles() : 0,
+        cpu ? cpu->getTotalCycles() : 0,
         registers.raster,
         static_cast<uint16_t>(currentCycle * 8));
 }

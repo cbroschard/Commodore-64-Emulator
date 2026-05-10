@@ -31,10 +31,10 @@ class Vic
         virtual ~Vic();
 
         // Pointer functions
-        inline void attachIOInstance(IO* IO_adapter) { this->IO_adapter = IO_adapter; }
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachIOInstance(IO* io) { this->io = io; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
+        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
@@ -174,9 +174,9 @@ class Vic
 
     private:
         // Non-owning pointers
-        CIA2* cia2object;
-        CPU* processor;
-        IO* IO_adapter;
+        CIA2* cia2;
+        CPU* cpu;
+        IO* io;
         IRQLine* IRQ;
         Logging* logger;
         Memory* mem;
