@@ -9,12 +9,12 @@
 #include "CPU.h"
 
 CIA2::CIA2() :
-    processor(nullptr),
+    cpu(nullptr),
     bus(nullptr),
     logger(nullptr),
     rs232dev(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr),
+    vic(nullptr),
     iecProtocolEnabled(false)
 {
     setMode(VideoMode::NTSC);
@@ -1030,7 +1030,7 @@ void CIA2::refreshNMI()
     // Drive the NMI line level based on (IFR & IER)
     bool level = (interruptStatus & interruptEnable & 0x1F) != 0;
     nmiAsserted = level;
-    if (processor) processor->setNMILine(level);
+    if (cpu) cpu->setNMILine(level);
 }
 
 void CIA2::clkChanged(bool level)
@@ -1554,9 +1554,9 @@ TraceManager::Stamp CIA2::makeCIAStamp() const
         return { 0, 0, 0 };
 
     return traceMgr->makeStamp(
-        processor ? processor->getTotalCycles() : 0,
-        vicII ? vicII->getCurrentRaster() : 0,
-        vicII ? vicII->getRasterDot() : 0);
+        cpu ? cpu->getTotalCycles() : 0,
+        vic ? vic->getCurrentRaster() : 0,
+        vic ? vic->getRasterDot() : 0);
 }
 
 CIA2::IECSnapshot CIA2::snapshotIEC() const
