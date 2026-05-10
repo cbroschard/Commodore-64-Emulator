@@ -27,8 +27,8 @@ IO::IO() :
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
     logger(nullptr),
-    sidchip(nullptr),
-    vicII(nullptr),
+    sid(nullptr),
+    vic(nullptr),
     window(nullptr),
     renderer(nullptr),
     screenTexture(nullptr),
@@ -152,8 +152,8 @@ void IO::fillAudioBuffer(Uint8* stream, int len)
     for (int i = 0; i < numSamplesPerChannel; ++i)
     {
         double s = 0.0;
-        if (sidchip)
-            s = sidchip->popSample();
+        if (sid)
+            s = sid->popSample();
 
         if (s > 1.0) s = 1.0;
         else if (s < -1.0) s = -1.0;
@@ -202,7 +202,7 @@ void IO::stopAudio()
         dev = 0;
     }
 
-    sidchip = nullptr;
+    sid = nullptr;
 }
 
 void IO::resumeAudio()

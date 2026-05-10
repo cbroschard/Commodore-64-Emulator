@@ -39,8 +39,8 @@ class IO
         int screenWidthWithBorder;
         int screenHeightWithBorder;
 
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
-        inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
+        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // Functions to update the border and background colors called by the VIC class
@@ -85,8 +85,8 @@ class IO
     private:
         // Non-owning pointers
         Logging* logger;
-        SID* sidchip;
-        Vic* vicII;
+        SID* sid;
+        Vic* vic;
 
         SDLMonitorWindow sdlMon;
 
