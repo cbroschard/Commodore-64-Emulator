@@ -318,6 +318,11 @@ void MediaManager::attachPRGImage()
 {
     if (state_.prgPath.empty()) return;
 
+    // Clear any previous state
+    state_.prgAttached = false;
+    state_.prgLoaded   = false;
+    state_.prgDelay    = 0;
+
     // First check if CRT attached and detach it
     if (state_.cartAttached)
         detachCRTImage();
