@@ -12,7 +12,7 @@
 IECBUS::IECBUS() :
     //Initialize to defaults
     currentState(State::IDLE),
-    cia2object(nullptr),
+    cia2(nullptr),
     currentTalker(nullptr),
     line_srqin(true),
     c64DrivesAtnLow(false),
@@ -211,12 +211,12 @@ void IECBUS::reset()
     // Compatibility mode
     romControlledIEC = false;
 
-    if (cia2object)
+    if (cia2)
     {
-        cia2object->atnChanged(atnLow);
-        cia2object->clkChanged(clkLow);
-        cia2object->dataChanged(dataLow);
-        cia2object->srqChanged(line_srqin);
+        cia2->atnChanged(atnLow);
+        cia2->clkChanged(clkLow);
+        cia2->dataChanged(dataLow);
+        cia2->srqChanged(line_srqin);
     }
 
     for (auto const& [num, dev] : devices)
@@ -257,7 +257,7 @@ void IECBUS::setSrqLine(bool state)
     line_srqin = state;
     updateBusState();
     // Only notify CIA2 if it actually changed
-    if (old != line_srqin && cia2object) cia2object->srqChanged(line_srqin);
+    if (old != line_srqin && cia2) cia2->srqChanged(line_srqin);
 }
 
 void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
@@ -540,7 +540,7 @@ void IECBUS::updateSrqLine()
     }
     line_srqin = !srqAsserted;
     // Update the CIA2
-    if(cia2object) cia2object->srqChanged(line_srqin);
+    if(cia2) cia2->srqChanged(line_srqin);
 }
 
 void IECBUS::secondaryAddress(uint8_t devNum, uint8_t sa)
@@ -616,8 +616,8 @@ void IECBUS::recalcAndNotify()
     {
         const bool atnLow = !busLines.atn;
 
-        if (cia2object)
-            cia2object->atnChanged(atnLow);
+        if (cia2)
+            cia2->atnChanged(atnLow);
 
         for (auto const& [num, dev] : devices)
             if (dev) dev->atnChanged(atnLow);
@@ -627,8 +627,8 @@ void IECBUS::recalcAndNotify()
     {
         const bool clkLow = !busLines.clk;
 
-        if (cia2object)
-            cia2object->clkChanged(clkLow);
+        if (cia2)
+            cia2->clkChanged(clkLow);
 
         for (auto const& [num, dev] : devices)
             if (dev) dev->clkChanged(clkLow);
@@ -638,8 +638,8 @@ void IECBUS::recalcAndNotify()
     {
         const bool dataLow = !busLines.data;
 
-        if (cia2object)
-            cia2object->dataChanged(dataLow);
+        if (cia2)
+            cia2->dataChanged(dataLow);
 
         for (auto const& [num, dev] : devices)
             if (dev) dev->dataChanged(dataLow);

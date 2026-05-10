@@ -59,7 +59,7 @@ class IECBUS
         PhysicalSnapshot snapshotPhysical() const;
 
         // Pointers
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
+        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // State management
@@ -131,7 +131,7 @@ class IECBUS
     private:
 
         // Non-owning pointers
-        CIA2* cia2object;
+        CIA2* cia2;
         Logging* logger;
         Peripheral* currentTalker;
 
