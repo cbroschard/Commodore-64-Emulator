@@ -35,10 +35,10 @@ class CPU
         // Pointers
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
+        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
-        inline void attachVICInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
         struct CPUState
         {
@@ -470,12 +470,12 @@ class CPU
     private:
 
         // non-owning pointers
-        CIA2* cia2object;
+        CIA2* cia2;
         IRQLine* IRQ;
         Logging* logger;
         CPUBus* mem;
         TraceManager* traceMgr;
-        Vic* vicII;
+        Vic* vic;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;

@@ -10,12 +10,12 @@
 
 CPU::CPU() :
     // Initialize
-    cia2object(nullptr),
+    cia2(nullptr),
     IRQ(nullptr),
     logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr),
+    vic(nullptr),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -475,8 +475,8 @@ CPU::CPUCycleDebugState CPU::getCycleDebugState() const
 
     s.mode                  = mode_;
 
-    s.raster                = vicII ? vicII->getCurrentRaster() : 0;
-    s.dot                   = vicII ? vicII->getRasterDot() : 0;
+    s.raster                = vic ? vic->getCurrentRaster() : 0;
+    s.dot                   = vic ? vic->getRasterDot() : 0;
 
     return s;
 }
@@ -1187,7 +1187,7 @@ void CPU::tick()
                 && traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
             {
                 traceMgr->recordCPUExec(pcExec, opcode, traceMgr->makeStamp(totalCycles,
-                    vicII ? vicII->getCurrentRaster() : 0, vicII ? vicII->getRasterDot() : 0));
+                    vic ? vic->getCurrentRaster() : 0, vic ? vic->getRasterDot() : 0));
             }
 
             // Update the cycles based on the table
@@ -3103,7 +3103,7 @@ TraceManager::Stamp CPU::makeCpuStamp() const
 
     return traceMgr->makeStamp(
         totalCycles,
-        vicII ? vicII->getCurrentRaster() : 0,
-        vicII ? vicII->getRasterDot() : 0
+        vic ? vic->getCurrentRaster() : 0,
+        vic ? vic->getRasterDot() : 0
     );
 }
