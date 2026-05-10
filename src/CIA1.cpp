@@ -9,7 +9,7 @@
 
 CIA1::CIA1() :
     cass(nullptr),
-    processor(nullptr),
+    cpu(nullptr),
     IRQ(nullptr),
     joy1(nullptr),
     joy2(nullptr),
@@ -17,7 +17,7 @@ CIA1::CIA1() :
     logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
-    vicII(nullptr)
+    vic(nullptr)
 {
     setMode(VideoMode::NTSC);
 }
@@ -1433,7 +1433,7 @@ TraceManager::Stamp CIA1::makeCIAStamp() const
         return { 0, 0, 0 };
 
     return traceMgr->makeStamp(
-        processor ? processor->getTotalCycles() : 0,
-        vicII ? vicII->getCurrentRaster() : 0,
-        vicII ? vicII->getRasterDot() : 0);
+        cpu ? cpu->getTotalCycles() : 0,
+        vic ? vic->getCurrentRaster() : 0,
+        vic ? vic->getRasterDot() : 0);
 }

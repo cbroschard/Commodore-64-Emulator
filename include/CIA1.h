@@ -37,13 +37,13 @@ class CIA1
 
         // Pointers
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
-        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachVicInstance(Vic* vic) { this->vic = vic; }
         void attachJoystickInstance(Joystick* joy);
 
         // Remove the Joystick(s)
@@ -100,7 +100,7 @@ class CIA1
 
         // Non-owning pointers
         Cassette* cass;
-        CPU* processor;
+        CPU* cpu;
         IRQLine* IRQ;
         Joystick* joy1;
         Joystick* joy2;
@@ -108,7 +108,7 @@ class CIA1
         Logging* logger;
         Memory* mem;
         TraceManager* traceMgr;
-        Vic* vicII;
+        Vic* vic;
 
         // Video
         VideoMode mode_;
@@ -201,7 +201,7 @@ class CIA1
         // Mode
         enum InputMode : uint8_t
         {
-            modeProcessor, // Direct processor polling
+            modeProcessor, // Direct cpu polling
             modeCNT, // CNT signal-driven
             modeTimerA, // Timer A driven
             modeTimerACNT // Combined Timer A and CNT
