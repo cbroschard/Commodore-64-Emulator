@@ -79,6 +79,20 @@ class REU
         REURegisters regs;
 
         REUModel model;
+
+        // Helpers
+        uint8_t baseStatusForModel() const;
+
+        uint32_t reuAddress() const;
+        uint32_t maskedREUAddress() const;
+
+        uint32_t transferLengthBytes() const;
+
+        bool shouldIncrementC64Address() const;
+        bool shouldIncrementREUAddress() const;
+        void incrementREUAddress();
+
+        void updateIRQStatus();
 };
 
 #endif // REU_H
