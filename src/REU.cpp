@@ -29,3 +29,15 @@ void REU::writeIO(uint16_t address, uint8_t value)
 {
 
 }
+
+void REU::setModel(REUModel reuModel)
+{
+    model = reuModel;
+
+    const std::size_t bytes = bytesForREUModel(model);
+
+    ram.clear();
+    ram.resize(bytes, 0x00);
+
+    reset();
+}
