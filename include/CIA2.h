@@ -141,6 +141,7 @@ class CIA2
         static constexpr uint8_t RI_MASK       = 0x08;  // Ring Indicator PB3
         static constexpr uint8_t DTR_MASK      = 0x04;  // Data Terminal Ready PB2
         static constexpr uint8_t RTS_MASK      = 0x02;  // Request To Send PB1
+        static constexpr uint8_t TXD_MASK      = 0x04;  // Transmit Data PA2
         static constexpr uint8_t RXD_MASK      = 0x01;  // Receive Data PB0
 
         // Video mode
@@ -237,6 +238,9 @@ class CIA2
 
         // IEC helper
         void recomputeIEC();
+
+        // RS232 helper
+        void updateRS232Outputs();
 
         TraceManager::Stamp makeCIAStamp() const;
 };

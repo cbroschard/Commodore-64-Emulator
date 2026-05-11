@@ -139,13 +139,8 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         // Normalize
         if (rs232dev)
-        {
-            if (dataDirectionPortB & DTR_MASK) rs232dev->setDTR((portB & DTR_MASK) != 0);
-            if (dataDirectionPortB & RTS_MASK) rs232dev->setRTS((portB & RTS_MASK) != 0);
+            updateRS232Outputs();
 
-            if (dataDirectionPortB & DSR_MASK) rs232dev->setDSR((portB & DSR_MASK) != 0);
-            if (dataDirectionPortB & CTS_MASK) rs232dev->setCTS((portB & CTS_MASK) != 0);
-        }
         recomputeIEC();
 
         // Load timers
@@ -460,6 +455,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         case 0xDD00:
         {  // Data Port A
             portA = value;
+            updateRS232Outputs();
             recomputeIEC();
 
             if (logger && setLogging)
@@ -484,26 +480,13 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         case 0xDD01: // Data port B
         {
             portB = value;
-            // For each output bit, capture and later drive the line
-            if (dataDirectionPortB & DTR_MASK)
-            {
-                if (rs232dev)
-                {
-                    rs232dev->setDTR((portB & DTR_MASK) != 0);
-                }
-            }
-            if (dataDirectionPortB & RTS_MASK)
-            {
-                if (rs232dev)
-                {
-                    rs232dev->setRTS((portB & RTS_MASK) != 0);
-                }
-            }
+            updateRS232Outputs();
             break;
         }
         case 0xDD02: // Data direction Port A
         {
             dataDirectionPortA = value;
+            updateRS232Outputs();
             recomputeIEC();
 
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
@@ -517,6 +500,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         }
         case 0xDD03: // Data direction port B
             dataDirectionPortB = value;
+            updateRS232Outputs();
             break;
         case 0xDD04: // Timer A low byte
         {
@@ -912,17 +896,7 @@ void CIA2::updateTimerA(uint32_t cyclesElapsed)
                 traceMgr->recordCiaTimer(2, 'A', timerA, true, makeCIAStamp());
                 traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, makeCIAStamp());
             }
-
             if (timerBControl & 0x40) ++pendingTBCASTicks;
-
-            const bool pbOn  = (timerAControl & 0x02);
-            const bool pulse = (timerAControl & 0x04);
-            if (pbOn && (dataDirectionPortB & DSR_MASK))
-            {
-                if (pulse) { portB |= DSR_MASK; }
-                else        { portB ^= DSR_MASK; }
-                if (rs232dev) rs232dev->setDSR((portB & DSR_MASK)!=0);
-            }
         }
         else
         {
@@ -1492,22 +1466,6 @@ void CIA2::handleTimerBUnderflow()
     {
         timerB = static_cast<uint16_t>((timerBHighByte << 8) | timerBLowByte);
     }
-
-    // PB6 output (CTS) per PBON/OUTMODE; only when that bit is an output in DDRB
-    const bool pbOn  = (timerBControl & 0x02) != 0; // PBON
-    const bool pulse = (timerBControl & 0x04) != 0; // OUTMODE: 1=pulse, 0=toggle
-    if (pbOn && (dataDirectionPortB & CTS_MASK))
-    {
-        if (pulse)
-        {
-            portB |= CTS_MASK;
-        }
-        else
-        {
-            portB ^= CTS_MASK; // toggle
-        }
-        if (rs232dev) rs232dev->setCTS((portB & CTS_MASK) != 0);
-    }
 }
 
 void CIA2::setIERExact(uint8_t mask)
@@ -1546,6 +1504,24 @@ void CIA2::recomputeIEC()
             << " DDRA=$" << std::setw(2) << int(dataDirectionPortA);
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
+}
+
+void CIA2::updateRS232Outputs()
+{
+    if (!rs232dev)
+        return;
+
+    // PA2 = RS232 TXD
+    if (dataDirectionPortA & TXD_MASK)
+        rs232dev->setTXD((portA & TXD_MASK) != 0);
+
+    // PB1 = RTS
+    if (dataDirectionPortB & RTS_MASK)
+        rs232dev->setRTS((portB & RTS_MASK) != 0);
+
+    // PB2 = DTR
+    if (dataDirectionPortB & DTR_MASK)
+        rs232dev->setDTR((portB & DTR_MASK) != 0);
 }
 
 TraceManager::Stamp CIA2::makeCIAStamp() const
