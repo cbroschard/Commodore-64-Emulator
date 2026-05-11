@@ -8,6 +8,11 @@
 #include "RS232Device.h"
 
 RS232Device::RS232Device() :
+    cycleAccumulator(0),
+    rxBitIndex(0),
+    rxShift(0),
+    receiving(false),
+    lastRXD(true),
     dtr(true),
     dsr(true),
     rts(true),
@@ -21,6 +26,22 @@ RS232Device::RS232Device() :
 }
 
 RS232Device::~RS232Device() = default;
+
+void RS232Device::tick(uint32_t cyclesElapsed)
+{
+    cycleAccumulator += cyclesElapsed;
+
+    if (!receiving && lastRXD && !rxd)
+    {
+        receiving = true;
+        rxBitIndex = 0;
+        rxShift = 0;
+
+        // Start bit detected.
+    }
+
+    lastRXD = rxd;
+}
 
 void RS232Device::setTXD(bool state)
 {

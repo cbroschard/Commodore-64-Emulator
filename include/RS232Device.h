@@ -8,6 +8,7 @@
 #ifndef RS232DEVICE_H
 #define RS232DEVICE_H
 
+#include <cstdint>
 #include <sstream>
 #include <string>
 
@@ -38,6 +39,9 @@ class RS232Device
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
 
+        void tick(uint32_t cyclesElapsed);
+
+        // ML Monitor
         std::string debugString() const;
 
     protected:
@@ -46,6 +50,12 @@ class RS232Device
 
         // Non-owning Pointers
         RS232Device* peer = nullptr;
+
+        uint64_t cycleAccumulator;
+        int rxBitIndex;
+        uint8_t rxShift;
+        bool receiving;
+        bool lastRXD;
 
         bool dtr;
         bool dsr;
