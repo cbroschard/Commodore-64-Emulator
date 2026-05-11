@@ -7,12 +7,25 @@
 // strictly prohibited without the prior written consent of the author.
 #include "REU.h"
 
-REU::REU()
+REU::REU() :
+    model(REUModel::None)
 {
-    //ctor
+
 }
 
-REU::~REU()
+REU::~REU() = default;
+
+void REU::reset()
 {
-    //dtor
+
+}
+
+uint8_t REU::readIO(uint16_t address)
+{
+    return 0xFF;
+}
+
+void REU::writeIO(uint16_t address, uint8_t value)
+{
+
 }
