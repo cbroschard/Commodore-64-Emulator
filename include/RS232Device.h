@@ -8,6 +8,8 @@
 #ifndef RS232DEVICE_H
 #define RS232DEVICE_H
 
+#include <sstream>
+#include <string>
 
 class RS232Device
 {
@@ -35,6 +37,8 @@ class RS232Device
         inline bool getCTS() const { return cts; }
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
+
+        std::string debugString() const;
 
     protected:
 

@@ -53,3 +53,25 @@ void RS232Device::setRTS(bool state)
 
     peer->cts = state;
 }
+
+std::string RS232Device::debugString() const
+{
+    std::ostringstream out;
+
+    out << "RS232 Device:\n";
+    out << "  Outputs: "
+        << "TXD=" << (txd ? "H" : "L") << " "
+        << "DTR=" << (dtr ? "H" : "L") << " "
+        << "RTS=" << (rts ? "H" : "L") << "\n";
+
+    out << "  Inputs:  "
+        << "RXD=" << (rxd ? "H" : "L") << " "
+        << "DSR=" << (dsr ? "H" : "L") << " "
+        << "CTS=" << (cts ? "H" : "L") << " "
+        << "DCD=" << (dcd ? "H" : "L") << " "
+        << "RI="  << (ri  ? "H" : "L") << "\n";
+
+    out << "  Peer: " << (peer ? "attached" : "none") << "\n";
+
+    return out.str();
+}
