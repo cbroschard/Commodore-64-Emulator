@@ -19,16 +19,18 @@ class RS232Device
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
 
         // Setters
-        void setDTR(bool state);
-        void setRTS(bool state);
         inline void setCTS(bool state) { cts = state; }
         inline void setRXD(bool state) { rxd = state; }
         inline void setDSR(bool state) { dsr = state; }
         inline void setDCD(bool state) { dcd = state; }
         inline void setRI(bool state) { ri = state; }
+        void setTXD(bool state);
+        void setDTR(bool state);
+        void setRTS(bool state);
 
         // Getters
         inline bool getRXD() const { return rxd; }
+        inline bool getTXD() const { return txd; }
         inline bool getDSR() const { return dsr; }
         inline bool getCTS() const { return cts; }
         inline bool getRI() const { return ri; }
@@ -44,6 +46,7 @@ class RS232Device
         bool dtr;
         bool dsr;
         bool rts;
+        bool txd;
         bool rxd;
         bool cts;
         bool dcd;

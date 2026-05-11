@@ -11,6 +11,7 @@ RS232Device::RS232Device() :
     dtr(true),
     dsr(true),
     rts(true),
+    txd(true),
     rxd(true),
     cts(true),
     dcd(true),
@@ -21,20 +22,34 @@ RS232Device::RS232Device() :
 
 RS232Device::~RS232Device() = default;
 
+void RS232Device::setTXD(bool state)
+{
+    txd = state;
+
+    if (!peer)
+        return;
+
+    peer->rxd = state;
+}
+
 void RS232Device::setDTR(bool state)
 {
     dtr = state;
-    if (peer)
-    {
-        peer->dsr = state;
-    }
+
+    if (!peer)
+        return;
+
+    // Practical null-modem/modem-present behavior.
+    peer->dsr = state;
+    peer->dcd = state;
 }
 
 void RS232Device::setRTS(bool state)
 {
     rts = state;
-    if (peer)
-    {
-        peer->cts = state;
-    }
+
+    if (!peer)
+        return;
+
+    peer->cts = state;
 }
