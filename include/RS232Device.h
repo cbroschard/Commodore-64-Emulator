@@ -52,6 +52,11 @@ class RS232Device
         void setClockRate(double hz);
         void setConfig(const RS232Config& cfg);
 
+        // Transmit
+        void queueTransmitByte(uint8_t value);
+        bool isTransmitIdle() const;
+
+        // Receive
         bool hasReceivedByte() const;
         bool popReceivedByte(uint8_t& value);
 
@@ -64,6 +69,14 @@ class RS232Device
 
         // Non-owning Pointers
         RS232Device* peer = nullptr;
+
+        enum class TxState
+        {
+            Idle,
+            StartBit,
+            DataBits,
+            StopBit
+        };
 
         enum class RxState
         {
@@ -90,11 +103,22 @@ class RS232Device
         bool ri;
 
         double clockHz;
-        double rxCountdown;
         double cyclesPerBit;
 
+        TxState txState;
+
+        std::queue<uint8_t> txBytes;
+        double txCountdown;
+        uint8_t txShift;
+        uint8_t txBitIndex;
+
+        double rxCountdown;
         RxState rxState;
         std::queue<uint8_t> rxBytes;
+
+        // Helpers
+        void tickTX(uint32_t cyclesElapsed);
+        void tickRX(uint32_t cyclesElapsed);
 };
 
 #endif // RS232DEVICE_H
