@@ -8,6 +8,7 @@
 #ifndef REU_H
 #define REU_H
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include "Common/REUModel.h"
@@ -23,6 +24,7 @@ class REU
         uint8_t readIO(uint16_t addr);
         void writeIO(uint16_t addr, uint8_t value);
 
+        inline bool isEnabled() const    { return model != REUModel::None && !ram.empty(); }
         inline REUModel getModel() const { return model; }
         void setModel(REUModel reuModel);
 
@@ -93,6 +95,8 @@ class REU
         void incrementREUAddress();
 
         void updateIRQStatus();
+
+        void startTransfer();
 };
 
 #endif // REU_H
