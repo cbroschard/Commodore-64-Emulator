@@ -1403,11 +1403,32 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         out << "NMI Asserted = " << (nmiAsserted ? "Yes" : "No") << "\n";
     }
 
-    // Serial data register
+    // Serial
     if (group == "serial" || group == "all")
     {
         out << "\nSerial Register\n\n";
-        out << "Serial Data Register = $" << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
+        out << "Serial Data Register = $"
+            << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
+
+        out << "\nCIA2 RS232 mapping:\n";
+        out << "  PA2 TXD: " << ((dataDirectionPortA & TXD_MASK) ? "output" : "input")
+            << " level=" << ((portA & TXD_MASK) ? "H" : "L") << "\n";
+
+        out << "  PB1 RTS: " << ((dataDirectionPortB & RTS_MASK) ? "output" : "input")
+            << " level=" << ((portB & RTS_MASK) ? "H" : "L") << "\n";
+
+        out << "  PB2 DTR: " << ((dataDirectionPortB & DTR_MASK) ? "output" : "input")
+            << " level=" << ((portB & DTR_MASK) ? "H" : "L") << "\n";
+
+        if (rs232dev)
+        {
+            out << "\n";
+            out << rs232dev->debugString();
+        }
+        else
+        {
+            out << "\nRS232 Device: none attached\n";
+        }
     }
 
     // VIC Bank
