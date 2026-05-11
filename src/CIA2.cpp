@@ -870,6 +870,10 @@ void CIA2::updateTimers(uint32_t cyclesElapsed)
 
     // Check TOD Alarm
     checkTODAlarm(todClock, todAlarm, todAlarmTriggered, interruptStatus, interruptEnable);
+
+    // Update user-port RS232 device timing
+    if (rs232dev)
+        rs232dev->tick(cyclesElapsed);
 }
 
 void CIA2::updateTimerA(uint32_t cyclesElapsed)
