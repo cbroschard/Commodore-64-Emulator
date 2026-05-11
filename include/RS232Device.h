@@ -9,6 +9,7 @@
 #define RS232DEVICE_H
 
 #include <cstdint>
+#include <queue>
 #include <sstream>
 #include <string>
 
@@ -17,6 +18,13 @@ class RS232Device
     public:
         RS232Device();
         virtual ~RS232Device();
+
+        struct RS232Config
+        {
+            uint32_t baud = 300;
+            uint8_t dataBits = 8;
+            uint8_t stopBits = 1;
+        };
 
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
@@ -41,6 +49,12 @@ class RS232Device
 
         void tick(uint32_t cyclesElapsed);
 
+        void setClockRate(double hz);
+        void setConfig(const RS232Config& cfg);
+
+        bool hasReceivedByte() const;
+        bool popReceivedByte(uint8_t& value);
+
         // ML Monitor
         std::string debugString() const;
 
@@ -50,6 +64,15 @@ class RS232Device
 
         // Non-owning Pointers
         RS232Device* peer = nullptr;
+
+        enum class RxState
+        {
+            Idle,
+            DataBits,
+            StopBit
+        };
+
+        RS232Config config;
 
         uint64_t cycleAccumulator;
         int rxBitIndex;
@@ -65,6 +88,13 @@ class RS232Device
         bool cts;
         bool dcd;
         bool ri;
+
+        double clockHz;
+        double rxCountdown;
+        double cyclesPerBit;
+
+        RxState rxState;
+        std::queue<uint8_t> rxBytes;
 };
 
 #endif // RS232DEVICE_H

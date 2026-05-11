@@ -20,7 +20,11 @@ RS232Device::RS232Device() :
     rxd(true),
     cts(true),
     dcd(true),
-    ri(true)
+    ri(true),
+    clockHz(1022727.0),
+    rxCountdown(0),
+    cyclesPerBit(1022727.0 / 300),
+    rxState(RxState::Idle)
 {
 
 }
@@ -29,15 +33,63 @@ RS232Device::~RS232Device() = default;
 
 void RS232Device::tick(uint32_t cyclesElapsed)
 {
-    cycleAccumulator += cyclesElapsed;
+    if (cyclesElapsed == 0)
+        return;
 
-    if (!receiving && lastRXD && !rxd)
+    switch (rxState)
     {
-        receiving = true;
-        rxBitIndex = 0;
-        rxShift = 0;
+        case RxState::Idle:
+        {
+            // Start bit = RXD falling from high to low.
+            if (lastRXD && !rxd)
+            {
+                rxState = RxState::DataBits;
+                rxCountdown = cyclesPerBit * 1.5;
+                rxShift = 0;
+                rxBitIndex = 0;
+            }
+            break;
+        }
 
-        // Start bit detected.
+        case RxState::DataBits:
+        {
+            rxCountdown -= static_cast<double>(cyclesElapsed);
+
+            while (rxCountdown <= 0.0 && rxState == RxState::DataBits)
+            {
+                if (rxd)
+                    rxShift |= static_cast<uint8_t>(1u << rxBitIndex);
+
+                ++rxBitIndex;
+
+                if (rxBitIndex >= config.dataBits)
+                {
+                    rxState = RxState::StopBit;
+                    rxCountdown += cyclesPerBit;
+                    break;
+                }
+
+                rxCountdown += cyclesPerBit;
+            }
+            break;
+        }
+
+        case RxState::StopBit:
+        {
+            rxCountdown -= static_cast<double>(cyclesElapsed);
+
+            if (rxCountdown <= 0.0)
+            {
+                if (rxd)
+                    rxBytes.push(rxShift);
+
+                rxState = RxState::Idle;
+                rxCountdown = 0.0;
+                rxBitIndex = 0;
+                rxShift = 0;
+            }
+            break;
+        }
     }
 
     lastRXD = rxd;
@@ -75,6 +127,47 @@ void RS232Device::setRTS(bool state)
     peer->cts = state;
 }
 
+void RS232Device::setClockRate(double hz)
+{
+    clockHz = hz;
+
+    if (config.baud == 0)
+        config.baud = 300;
+
+    cyclesPerBit = clockHz / static_cast<double>(config.baud);
+}
+
+void RS232Device::setConfig(const RS232Config& cfg)
+{
+    config = cfg;
+
+    if (config.baud == 0)
+        config.baud = 300;
+
+    if (config.dataBits == 0 || config.dataBits > 8)
+        config.dataBits = 8;
+
+    if (config.stopBits == 0)
+        config.stopBits = 1;
+
+    cyclesPerBit = clockHz / static_cast<double>(config.baud);
+}
+
+bool RS232Device::hasReceivedByte() const
+{
+    return !rxBytes.empty();
+}
+
+bool RS232Device::popReceivedByte(uint8_t& value)
+{
+    if (rxBytes.empty())
+        return false;
+
+    value = rxBytes.front();
+    rxBytes.pop();
+    return true;
+}
+
 std::string RS232Device::debugString() const
 {
     std::ostringstream out;
@@ -93,6 +186,23 @@ std::string RS232Device::debugString() const
         << "RI="  << (ri  ? "H" : "L") << "\n";
 
     out << "  Peer: " << (peer ? "attached" : "none") << "\n";
+
+    out << "  RX Engine: "
+    << "state=";
+
+    switch (rxState)
+    {
+        case RxState::Idle:     out << "Idle"; break;
+        case RxState::DataBits: out << "DataBits"; break;
+        case RxState::StopBit:  out << "StopBit"; break;
+    }
+
+    out << " bit=" << int(rxBitIndex)
+        << " shift=$" << std::hex << std::uppercase << int(rxShift)
+        << std::dec
+        << " queued=" << rxBytes.size()
+        << " baud=" << config.baud
+        << "\n";
 
     return out.str();
 }
