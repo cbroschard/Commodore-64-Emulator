@@ -445,11 +445,14 @@ void MediaManager::attachREU(REUModel model)
         return;
     }
 
-    reu_.setModel(model);
-    mem_.attachREUInstance(&reu_);
+    if (state_.reuEnabled && state_.reuModel == model)
+        return;
 
     state_.reuEnabled = true;
     state_.reuModel   = model;
+
+    reu_.setModel(model);
+    mem_.attachREUInstance(&reu_);
 
     if (coldReset_)
         coldReset_();
@@ -560,13 +563,16 @@ void MediaManager::detachCRTImage()
 
 void MediaManager::detachREU()
 {
-    reu_.setModel(REUModel::None);
-
-    // Prefer this if Memory::attachREUInstance(nullptr) is safe.
-    mem_.attachREUInstance(nullptr);
+    if (!state_.reuEnabled && state_.reuModel == REUModel::None)
+        return;
 
     state_.reuEnabled = false;
     state_.reuModel   = REUModel::None;
+
+    reu_.setModel(REUModel::None);
+
+    // Leave Memory attached to the stable REU object.
+    // The REU model/state tells Memory whether REU is active.
 
     if (coldReset_)
         coldReset_();
