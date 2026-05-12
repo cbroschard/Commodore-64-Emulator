@@ -139,7 +139,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.stateMgr = std::make_unique<StateManager>(*components.cart, *components.cass, *components.cia1, *components.cia2,
                                                           *components.cpu, *components.bus, *components.inputMgr, *components.logger,
-                                                          *components.media, *components.mem, *components.pla, *components.sid, *components.vic,
-                                                          runtime.uiPaused, runtime.videoMode, runtime.sidModel, runtime.cpuCfg,
-                                                          runtime.pendingBusPrime, runtime.busPrimedAfterBoot, components.drives);
+                                                          *components.media, *components.mem, *components.pla, *components.reu,
+                                                          *components.sid, *components.vic, runtime.uiPaused, runtime.videoMode,
+                                                          runtime.sidModel, runtime.cpuCfg, runtime.pendingBusPrime, runtime.busPrimedAfterBoot,
+                                                          components.drives);
 }

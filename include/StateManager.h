@@ -47,6 +47,7 @@ class StateManager
                      MediaManager& media,
                      Memory& mem,
                      PLA& pla,
+                     REU& reu,
                      SID& sidchip,
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
@@ -76,6 +77,7 @@ class StateManager
         MediaManager& media_;
         Memory& mem_;
         PLA& pla_;
+        REU& reu_;
         SID& sidchip_;
         Vic& vicII_;
 

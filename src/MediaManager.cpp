@@ -197,23 +197,6 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readBool(hasDisk))                         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readString(diskPath))                      { rdr.exitChunkPayload(chunk); return false; }
 
-            // REU attachment
-            if (!rdr.readBool(state_.reuEnabled))               { rdr.exitChunkPayload(chunk); return false; }
-
-            uint8_t reuModelId = 0;
-            if (!rdr.readU8(reuModelId))                           { rdr.exitChunkPayload(chunk); return false; }
-
-            state_.reuModel = static_cast<REUModel>(reuModelId);
-
-            if (state_.reuEnabled && state_.reuModel != REUModel::None)
-            {
-                attachREU(state_.reuModel);
-            }
-            else
-            {
-                detachREU();
-            }
-
             if (!present) continue;
 
             if (dev < 8 || dev > 11) continue;
@@ -229,6 +212,23 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 // This will create the drive if missing and register it
                 attachDiskImage(static_cast<int>(dev), model, diskPath);
             }
+        }
+
+        // REU attachment
+        if (!rdr.readBool(state_.reuEnabled))                   { rdr.exitChunkPayload(chunk); return false; }
+
+        uint8_t reuModelId = 0;
+        if (!rdr.readU8(reuModelId))                            { rdr.exitChunkPayload(chunk); return false; }
+
+        state_.reuModel = static_cast<REUModel>(reuModelId);
+
+        if (state_.reuEnabled && state_.reuModel != REUModel::None)
+        {
+            attachREU(state_.reuModel);
+        }
+        else
+        {
+            detachREU();
         }
 
         rdr.exitChunkPayload(chunk);

@@ -17,6 +17,7 @@
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
+#include "REU.h"
 #include "SID/SID.h"
 #include "StateManager.h"
 #include "Vic.h"
@@ -32,6 +33,7 @@ StateManager::StateManager(Cartridge& cart,
                      MediaManager& media,
                      Memory& mem,
                      PLA& pla,
+                     REU& reu,
                      SID& sidchip,
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
@@ -52,6 +54,7 @@ StateManager::StateManager(Cartridge& cart,
       media_(media),
       mem_(mem),
       pla_(pla),
+      reu_(reu),
       sidchip_(sidchip),
       vicII_(vicII),
       uiPaused_(uiPaused),
@@ -135,6 +138,9 @@ bool StateManager::save(const std::string& path)
 
     // Save Cassette and tape state if attached
     if (media_.getState().tapeAttached) cass_.saveState(wrtr);
+
+    // Save REU state if attached
+    if (media_.getState().reuEnabled) reu_.saveState(wrtr);
 
     // Write file
     return wrtr.writeToFile(path);
@@ -356,6 +362,14 @@ bool StateManager::load(const std::string& path)
 
             #ifdef Debug
             std::cout << "Loaded Cassette\n";
+            #endif
+        }
+        else if (std::memcmp(chunk.tag, "REU0", 4) == 0)
+        {
+            if (!reu_.loadState(chunk, rdr)) return false;
+
+            #ifdef Debug
+            std::cout << "Loaded REU\n";
             #endif
         }
         else
