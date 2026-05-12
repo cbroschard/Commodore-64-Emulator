@@ -31,6 +31,7 @@ class CIA1;
 #include "Logging.h"
 #include "Mlmonitor.h"
 #include "PLA.h"
+#include "REU.h"
 #include "SID/SID.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -44,17 +45,18 @@ class Memory : public CPUBus
         virtual ~Memory();
 
         // Pointers
-        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
+        inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
-        inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
+        inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
+        inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -109,6 +111,7 @@ class Memory : public CPUBus
         Logging* logger;
         MLMonitor* monitor;
         PLA* pla;
+        REU* reu;
         SID* sid;
         TraceManager* traceMgr;
         Vic* vic;

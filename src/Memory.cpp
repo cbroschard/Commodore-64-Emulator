@@ -16,6 +16,7 @@ Memory::Memory() :
     logger(nullptr),
     monitor(nullptr),
     pla(nullptr),
+    reu(nullptr),
     sid(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
@@ -423,10 +424,10 @@ uint8_t Memory::readIO(uint16_t address)
     }
     else if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        if (cart && cartridgeAttached)
-        {
+        if (reu && reu->isEnabled() && address >= 0xDF00 && address <= 0xDF0A)
+            return reu->readIO(address);
+        else if (cart && cartridgeAttached)
             return cart->read(address);
-        }
         return lastBus;
     }
     else
@@ -792,7 +793,12 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     }
     else if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        if (cart && cartridgeAttached)
+        if (reu && reu->isEnabled() && address >= 0xDF00 && address <= 0xDF0A)
+        {
+            reu->writeIO(address, value);
+            return;
+        }
+        else if (cart && cartridgeAttached)
         {
             cart->write(address, value);
             return;
