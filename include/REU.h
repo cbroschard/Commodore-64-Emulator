@@ -12,12 +12,17 @@
 #include <cstdint>
 #include <vector>
 #include "Common/REUModel.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class REU
 {
     public:
         REU();
         virtual ~REU();
+
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         void reset();
 

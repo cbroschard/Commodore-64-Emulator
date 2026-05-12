@@ -15,6 +15,85 @@ REU::REU() :
 
 REU::~REU() = default;
 
+void REU::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("REU0");
+    wrtr.writeU32(1); //version
+
+    // Dump registers
+    wrtr.writeU8(regs.status);
+    wrtr.writeU8(regs.command);
+
+    wrtr.writeU16(regs.c64Address);
+
+    wrtr.writeU16(regs.reuAddressLo);
+    wrtr.writeU8(regs.reuBank);
+
+    wrtr.writeU16(regs.transferLen);
+
+    wrtr.writeU8(regs.irqMask);
+    wrtr.writeU8(regs.addressControl);
+
+    // Dump RAM
+    wrtr.writeVectorU8(ram);
+
+    wrtr.endChunk();
+}
+
+bool REU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "REU0", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+
+        // Load registers
+        if (!rdr.readU8(regs.status))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(regs.command))          { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU16(regs.c64Address))      { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU16(regs.reuAddressLo))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(regs.reuBank))          { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU16(regs.transferLen))     { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU8(regs.irqMask))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(regs.addressControl))   { rdr.exitChunkPayload(chunk); return false; }
+
+        // Load RAM
+        if (!rdr.readVectorU8(ram))             { rdr.exitChunkPayload(chunk); return false; }
+
+        // Post load validation
+        const std::size_t expectedBytes = bytesForREUModel(model);
+
+        if (expectedBytes == 0)
+        {
+            ram.clear();
+            model = REUModel::None;
+        }
+        else if (ram.size() != expectedBytes)
+        {
+            ram.resize(expectedBytes, 0x00);
+        }
+
+        regs.status = static_cast<uint8_t>(
+            (regs.status & ~SR_SIZE_FLAG) | baseStatusForModel()
+        );
+
+        updateIRQStatus();
+
+        rdr.exitChunkPayload(chunk);
+        return true;
+    }
+
+    // Not our chunk
+    return false;
+}
+
 void REU::reset()
 {
     regs        = REURegisters{};
