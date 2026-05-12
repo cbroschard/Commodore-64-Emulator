@@ -56,6 +56,7 @@ Computer::Computer() :
     components_.logger = std::make_unique<Logging>("debug.txt");
     components_.mem = std::make_unique<Memory>();
     components_.pla = std::make_unique<PLA>();
+    components_.reu = std::make_unique<REU>();
     components_.sid = std::make_unique<SID>(44100);
     components_.io = std::make_unique<IO>();
     components_.vic = std::make_unique<Vic>();
