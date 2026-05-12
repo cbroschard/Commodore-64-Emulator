@@ -30,6 +30,7 @@ class Keyboard;
 class Logging;
 class Memory;
 class PLA;
+class REU;
 class SID;
 class Vic;
 
@@ -62,6 +63,7 @@ class DebugManager
                          Logging* log,
                          Memory* mem,
                          PLA* pla,
+                         REU* reu,
                          SID* sid,
                          Vic* vic);
 

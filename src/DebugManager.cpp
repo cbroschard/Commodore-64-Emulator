@@ -26,6 +26,7 @@
 #include "Logging.h"
 #include "Memory.h"
 #include "PLA.h"
+#include "REU.h"
 #include "SID/SID.h"
 #include "Vic.h"
 #include "computer.h"
@@ -77,6 +78,7 @@ void DebugManager::wireBackend(Computer* computer,
                               Logging* log,
                               Memory* mem,
                               PLA* pla,
+                              REU* reu,
                               SID* sid,
                               Vic* vic)
 {
@@ -96,6 +98,7 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachLogInstance(log);
     backend_->attachMemoryInstance(mem);
     backend_->attachPLAInstance(pla);
+    backend_->attachREUInstance(reu);
     backend_->attachSIDInstance(sid);
     backend_->attachVICInstance(vic);
 }
