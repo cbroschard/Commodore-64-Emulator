@@ -89,6 +89,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.pla->attachTraceManagerInstance(&components.debug->trace());
     components.pla->attachVICInstance(components.vic.get());
 
+    components.reu->attachIRQLineInstance(components.irq.get());
+    components.reu->attachMemoryInstance(components.mem.get());
+
     components.cpu->attachMemoryInstance(components.mem.get());
     components.cpu->attachCIA2Instance(components.cia2.get());
     components.cpu->attachVICInstance(components.vic.get());
