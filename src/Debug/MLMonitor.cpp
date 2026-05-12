@@ -32,6 +32,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<NextCommand>());
     registerCommand(std::make_unique<PLACommand>());
     registerCommand(std::make_unique<ResetCommand>());
+    registerCommand(std::make_unique<REUCommand>());
     registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
     registerCommand(std::make_unique<TapeCommand>());

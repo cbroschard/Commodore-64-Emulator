@@ -35,6 +35,7 @@
 #include "Debug/NextCommand.h"
 #include "Debug/PLACommand.h"
 #include "Debug/ResetCommand.h"
+#include "Debug/REUCommand.h"
 #include "Debug/SIDCommand.h"
 #include "Debug/StepCommand.h"
 #include "Debug/TapeCommand.h"
