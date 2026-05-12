@@ -17,6 +17,7 @@
 #include "Common/DriveTypes.h"
 #include "EmulatorUI.h"
 #include "Floppy/DiskFactory.h"
+#include "Common/REUModel.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -34,6 +35,7 @@ class Logging;
 class Memory;
 class MLMonitorBackend;
 class PLA;
+class REU;
 class TraceManager;
 class Vic;
 
@@ -48,6 +50,7 @@ public:
                  IECBUS& bus,
                  Memory& mem,
                  PLA& pla,
+                 REU& reu,
                  CPU& cpu,
                  Vic& vic,
                  MLMonitorBackend& monbackend,
@@ -115,6 +118,7 @@ public:
     void attachCRTImage();
     void attachT64Image();
     void attachTAPImage();
+    void attachREU(REUModel model);
 
     // Blank disk creation
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
@@ -122,6 +126,7 @@ public:
     // Detachments
     void detachDiskImage(int dev);
     void detachCRTImage();
+    void detachREU();
 
     // Load state effects
     inline const Cartridge* getCartridge() const { return cart_.get(); }
@@ -159,6 +164,7 @@ private:
     IECBUS&             bus_;
     Memory&             mem_;
     PLA&                pla_;
+    REU&                reu_;
     CPU&                cpu_;
     Vic&                vic_;
     MLMonitorBackend&   monbackend_;

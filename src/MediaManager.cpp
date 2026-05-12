@@ -28,6 +28,7 @@
 #include "Memory.h"
 #include "Debug/MLMonitorBackend.h"
 #include "PLA.h"
+#include "REU.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
 
@@ -37,6 +38,7 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
                            IECBUS& bus,
                            Memory& mem,
                            PLA& pla,
+                           REU& reu,
                            CPU& cpu,
                            Vic& vic,
                            MLMonitorBackend& monbackend,
@@ -55,6 +57,7 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
       bus_(bus),
       mem_(mem),
       pla_(pla),
+      reu_(reu),
       cpu_(cpu),
       vic_(vic),
       monbackend_(monbackend),
@@ -434,6 +437,12 @@ void MediaManager::attachTAPImage()
     }
 }
 
+void MediaManager::attachREU(REUModel model)
+{
+    reu_.setModel(model);
+    mem_.attachREUInstance(&reu_);
+}
+
 void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)
 {
     if (path.empty()) return;
@@ -535,6 +544,11 @@ void MediaManager::detachCRTImage()
     #ifdef Debug
     std::cout << "Cartridge detached\n";
     #endif
+}
+
+void MediaManager::detachREU()
+{
+    reu_.setModel(REUModel::None);
 }
 
 void MediaManager::pressButton(uint32_t index)
