@@ -5,9 +5,12 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Memory.h"
 #include "REU.h"
 
 REU::REU() :
+    irq(nullptr),
+    mem(nullptr),
     model(REUModel::None)
 {
 
@@ -308,13 +311,72 @@ void REU::updateIRQStatus()
 
 void REU::startTransfer()
 {
-    if (!isEnabled())
+    if (!isEnabled() || !mem)
         return;
 
-    regs.status &= static_cast<uint8_t>(~(SR_END_OF_BLOCK | SR_VERIFY_ERROR | SR_IRQ_PENDING));
+    // Clear dynamic status bits, preserve model/version bits.
+    regs.status &= static_cast<uint8_t>(~(SR_DYNAMIC_MASK ));
+
     regs.status |= baseStatusForModel();
 
-    // TODO: Add transfer
+    const uint8_t transferType = regs.command & CR_TRANSFER_MASK;
+    const uint32_t length = transferLengthBytes();
+
+    for (uint32_t i = 0; i < length; ++i)
+    {
+        const uint16_t c64Addr = regs.c64Address;
+        const uint32_t reuAddr = maskedREUAddress();
+
+        switch (transferType)
+        {
+            case 0x00: // C64 -> REU
+            {
+                const uint8_t value = mem->readForDMA(c64Addr);
+                ram[reuAddr] = value;
+                break;
+            }
+
+            case 0x01: // REU -> C64
+            {
+                const uint8_t value = ram[reuAddr];
+                mem->writeForDMA(c64Addr, value);
+                break;
+            }
+
+            case 0x02: // Swap C64 <-> REU
+            {
+                const uint8_t c64Value = mem->readForDMA(c64Addr);
+                const uint8_t reuValue = ram[reuAddr];
+
+                mem->writeForDMA(c64Addr, reuValue);
+                ram[reuAddr] = c64Value;
+                break;
+            }
+
+            case 0x03: // Verify C64 against REU
+            {
+                const uint8_t c64Value = mem->readForDMA(c64Addr);
+                const uint8_t reuValue = ram[reuAddr];
+
+                if (c64Value != reuValue)
+                {
+                    regs.status |= SR_VERIFY_ERROR;
+
+                    regs.status |= SR_END_OF_BLOCK;
+                    updateIRQStatus();
+                    return;
+                }
+
+                break;
+            }
+        }
+
+        if (shouldIncrementC64Address())
+            regs.c64Address = static_cast<uint16_t>(regs.c64Address + 1);
+
+        if (shouldIncrementREUAddress())
+            incrementREUAddress();
+    }
 
     regs.status |= SR_END_OF_BLOCK;
     updateIRQStatus();

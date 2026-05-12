@@ -24,7 +24,7 @@ class REU
         REU();
         virtual ~REU();
 
-        inline void attachIRQLineinstance(IRQLine* irq) { this->irq = irq; }
+        inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
         void saveState(StateWriter& wrtr) const;
@@ -73,6 +73,9 @@ class REU
         static constexpr uint8_t ACR_FIX_C64         = 0x80; // bit 7
         static constexpr uint8_t ACR_FIX_REU         = 0x40; // bit 6
         static constexpr uint8_t ACR_UNUSED_MASK     = 0x3F; // bits 0-5
+
+        // Status clear mask
+        static constexpr uint8_t SR_DYNAMIC_MASK = SR_VERIFY_ERROR | SR_END_OF_BLOCK | SR_IRQ_PENDING;
 
         std::vector<uint8_t> ram;
 
