@@ -26,6 +26,7 @@
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
+#include "REU.h"
 #include "SID/SID.h"
 #include "Vic.h"
 
@@ -55,6 +56,7 @@ struct MachineComponents
     std::unique_ptr<Memory> mem;
     std::unique_ptr<PLA> pla;
     std::unique_ptr<ResetController> resetCtl;
+    std::unique_ptr<REU> reu;
     std::unique_ptr<SID> sid;
     std::unique_ptr<StateManager> stateMgr;
     std::unique_ptr<IO> io;
