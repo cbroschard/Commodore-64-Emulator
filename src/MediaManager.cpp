@@ -130,6 +130,10 @@ void MediaManager::saveState(StateWriter& wrtr) const
         wrtr.writeString(diskPath);
     }
 
+    // Dump REU attachment
+    wrtr.writeBool(state_.reuEnabled);
+    wrtr.writeU8(static_cast<uint8_t>(state_.reuModel));
+
     wrtr.endChunk();
 }
 
@@ -192,6 +196,23 @@ bool MediaManager::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readU8(modelId))                           { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readBool(hasDisk))                         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readString(diskPath))                      { rdr.exitChunkPayload(chunk); return false; }
+
+            // REU attachment
+            if (!rdr.readBool(state_.reuEnabled))               { rdr.exitChunkPayload(chunk); return false; }
+
+            uint8_t reuModelId = 0;
+            if (!rdr.readU8(reuModelId))                           { rdr.exitChunkPayload(chunk); return false; }
+
+            state_.reuModel = static_cast<REUModel>(reuModelId);
+
+            if (state_.reuEnabled && state_.reuModel != REUModel::None)
+            {
+                attachREU(state_.reuModel);
+            }
+            else
+            {
+                detachREU();
+            }
 
             if (!present) continue;
 
