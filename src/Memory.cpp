@@ -335,6 +335,81 @@ uint16_t Memory::read16(uint16_t addr)
     return static_cast<uint16_t>(lo | (hi << 8));
 }
 
+uint8_t Memory::readForDMA(uint16_t address)
+{
+    if (address == 0x0000)
+        return dataDirectionRegister;
+
+    if (address == 0x0001)
+    {
+        uint8_t outputs = port1OutputLatch & dataDirectionRegister;
+        uint8_t inputs  = static_cast<uint8_t>(~dataDirectionRegister);
+
+        inputs = cassetteSenseLow ? static_cast<uint8_t>(inputs & ~0x10)
+                                  : static_cast<uint8_t>(inputs |  0x10);
+
+        inputs |= 0xC0;
+
+        const uint8_t value = static_cast<uint8_t>(outputs | inputs);
+        lastBus = value;
+        return value;
+    }
+
+    if (!pla)
+        return lastBus;
+
+    PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
+
+    switch (accessInfo.bank)
+    {
+        case PLA::RAM:
+            return mem[accessInfo.offset];
+
+        case PLA::KERNAL_ROM:
+            return kernalROM[accessInfo.offset];
+
+        case PLA::BASIC_ROM:
+            return basicROM[accessInfo.offset];
+
+        case PLA::CHARACTER_ROM:
+            return charROM[accessInfo.offset];
+
+        case PLA::IO:
+            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
+                return static_cast<uint8_t>(0xF0 | (colorRAM[address - COLOR_MEMORY_START] & 0x0F));
+
+            return readIO(accessInfo.offset);
+
+        case PLA::CARTRIDGE_LO:
+            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                return cart->readRAM(accessInfo.offset);
+
+            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
+                return cart->read(address);
+
+            return cart_lo[accessInfo.offset];
+
+        case PLA::CARTRIDGE_HI:
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                return cart->readRAM(accessInfo.offset);
+
+            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
+                return cart->read(address);
+
+            return cart_hi[accessInfo.offset];
+
+        case PLA::CARTRIDGE_HI_E000:
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                return cart->readRAM(accessInfo.offset);
+
+            return cart_hi_e000[accessInfo.offset];
+
+        case PLA::UNMAPPED:
+        default:
+            return lastBus;
+    }
+}
+
 uint8_t Memory::readIO(uint16_t address)
 {
 
@@ -636,6 +711,88 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
     if (monitor && monitor->checkWatchWrite(address, value))
     {
         monitor->enterMonitor();
+    }
+}
+
+void Memory::writeForDMA(uint16_t address, uint8_t value)
+{
+    lastBus = value;
+
+    if (address == 0x0000)
+    {
+        dataDirectionRegister = value;
+        applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
+        return;
+    }
+
+    if (address == 0x0001)
+    {
+        port1OutputLatch = value;
+        applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
+        return;
+    }
+
+    if (!pla)
+        return;
+
+    PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
+
+    switch (accessInfo.bank)
+    {
+        case PLA::RAM:
+            mem[accessInfo.offset] = value;
+            break;
+
+        case PLA::IO:
+            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
+            {
+                colorRAM[address - COLOR_MEMORY_START] = value & 0x0F;
+                return;
+            }
+
+            writeIO(accessInfo.offset, value);
+            break;
+
+        case PLA::KERNAL_ROM:
+        case PLA::BASIC_ROM:
+        case PLA::CHARACTER_ROM:
+            // Writes under ROM go to underlying RAM.
+            mem[address] = value;
+            break;
+
+        case PLA::CARTRIDGE_LO:
+            mem[address] = value;
+
+            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                cart->writeRAM(accessInfo.offset, value);
+
+            if (cart && cartridgeAttached && cart->romWriteEnabled(address))
+                cart->write(address, value);
+
+            break;
+
+        case PLA::CARTRIDGE_HI:
+            mem[address] = value;
+
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                cart->writeRAM(accessInfo.offset, value);
+
+            if (cart && cartridgeAttached && cart->romWriteEnabled(address))
+                cart->write(address, value);
+
+            break;
+
+        case PLA::CARTRIDGE_HI_E000:
+            mem[address] = value;
+
+            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
+                cart->writeRAM(accessInfo.offset, value);
+
+            break;
+
+        case PLA::UNMAPPED:
+        default:
+            break;
     }
 }
 
