@@ -11,15 +11,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include "IRQLine.h"
 #include "Common/REUModel.h"
 #include "StateReader.h"
 #include "StateWriter.h"
+
+class Memory;
 
 class REU
 {
     public:
         REU();
         virtual ~REU();
+
+        inline void attachIRQLineinstance(IRQLine* irq) { this->irq = irq; }
+        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
@@ -36,6 +42,9 @@ class REU
     protected:
 
     private:
+        // Non-owning pointers
+        IRQLine* irq;
+        Memory* mem;
 
         // Status Register $DF00
         static constexpr uint8_t SR_VERSION_MASK    = 0x0F; // bits 0-3
