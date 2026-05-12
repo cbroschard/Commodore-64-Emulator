@@ -88,6 +88,8 @@ class EmulatorUI
             bool tapeAttached    = false;       std::string tapePath;
             bool prgAttached     = false;       std::string prgPath;
 
+            bool reuEnabled      = false;       uint32_t reuSizeKB = 0;
+
             bool joy1Attached    = false;
             bool joy2Attached    = false;
 
@@ -172,6 +174,8 @@ class EmulatorUI
 
         void pushSetCartSwitch(uint32_t switchIndex, uint32_t switchPos);
         void pushCartButton(uint32_t buttonIndex);
+
+        void pushSetREU(REUModel model);
 
         bool isAllowedByExtension(const std::filesystem::path& path) const;
         void emitChosenPath(const std::filesystem::path& path);

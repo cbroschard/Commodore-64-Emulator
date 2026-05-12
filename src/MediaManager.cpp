@@ -439,8 +439,20 @@ void MediaManager::attachTAPImage()
 
 void MediaManager::attachREU(REUModel model)
 {
+    if (model == REUModel::None)
+    {
+        detachREU();
+        return;
+    }
+
     reu_.setModel(model);
     mem_.attachREUInstance(&reu_);
+
+    state_.reuEnabled = true;
+    state_.reuModel   = model;
+
+    if (coldReset_)
+        coldReset_();
 }
 
 void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)
@@ -549,6 +561,15 @@ void MediaManager::detachCRTImage()
 void MediaManager::detachREU()
 {
     reu_.setModel(REUModel::None);
+
+    // Prefer this if Memory::attachREUInstance(nullptr) is safe.
+    mem_.attachREUInstance(nullptr);
+
+    state_.reuEnabled = false;
+    state_.reuModel   = REUModel::None;
+
+    if (coldReset_)
+        coldReset_();
 }
 
 void MediaManager::pressButton(uint32_t index)

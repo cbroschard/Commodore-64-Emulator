@@ -74,6 +74,17 @@ void EmulatorUI::pushCartButton(uint32_t buttonIndex)
     out_.push_back(std::move(c));
 }
 
+void EmulatorUI::pushSetREU(REUModel model)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+
+    UiCommand c;
+    c.type = UiCommand::Type::SetREU;
+    c.reuModel = model;
+
+    out_.push_back(std::move(c));
+}
+
 void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type)
 {
     fileDlg.title = title ? title : "";
@@ -585,6 +596,71 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) push(UiCommand::Type::SetPAL);
 
             ImGui::Separator();
+
+            if (ImGui::BeginMenu("Expansion"))
+            {
+                if (ImGui::BeginMenu("REU"))
+                {
+                    if (ImGui::MenuItem("Disabled", nullptr, !v.reuEnabled))
+                        pushSetREU(REUModel::None);
+
+                    ImGui::Separator();
+
+                    if (ImGui::MenuItem("Commodore 1700 - 128 KB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 128))
+                    {
+                        pushSetREU(REUModel::Commodore1700);
+                    }
+
+                    if (ImGui::MenuItem("Commodore 1764 - 256 KB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 256))
+                    {
+                        pushSetREU(REUModel::Commodore1764);
+                    }
+
+                    if (ImGui::MenuItem("Commodore 1750 - 512 KB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 512))
+                    {
+                        pushSetREU(REUModel::Commodore1750);
+                    }
+
+                    ImGui::Separator();
+
+                    if (ImGui::MenuItem("Custom 1 MB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 1024))
+                    {
+                        pushSetREU(REUModel::Custom1M);
+                    }
+
+                    if (ImGui::MenuItem("Custom 2 MB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 2048))
+                    {
+                        pushSetREU(REUModel::Custom2M);
+                    }
+
+                    if (ImGui::MenuItem("Custom 4 MB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 4096))
+                    {
+                        pushSetREU(REUModel::Custom4M);
+                    }
+
+                    if (ImGui::MenuItem("Custom 8 MB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 8192))
+                    {
+                        pushSetREU(REUModel::Custom8M);
+                    }
+
+                    if (ImGui::MenuItem("Custom 16 MB", nullptr,
+                                        v.reuEnabled && v.reuSizeKB == 16384))
+                    {
+                        pushSetREU(REUModel::Custom16M);
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenu();
+            }
 
             bool paused = v.paused;
             if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Ctrl+Space")) push(UiCommand::Type::TogglePause);

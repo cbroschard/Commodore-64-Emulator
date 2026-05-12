@@ -66,6 +66,9 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         s.prgAttached  = m.prgAttached;
         s.prgPath      = m.prgPath;
 
+        s.reuEnabled = m.reuEnabled;
+        s.reuSizeKB  = static_cast<uint32_t>(bytesForREUModel(m.reuModel) / 1024);
+
         media_->fillDriveStatusViews(s.drives);
     }
 
@@ -324,6 +327,18 @@ void UIBridge::processCommands()
                 if (setSIDModel_)
                     setSIDModel_("8580");
                 break;
+
+            case UiCommand::Type::SetREU:
+            {
+                if (media_)
+                {
+                    if (cmd.reuModel == REUModel::None)
+                        media_->detachREU();
+                    else
+                        media_->attachREU(cmd.reuModel);
+                }
+                break;
+            }
 
             case UiCommand::Type::EnterMonitor:
                 if (enterMonitor_) enterMonitor_();

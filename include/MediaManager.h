@@ -85,6 +85,10 @@ public:
         bool        prgLoaded   = false;
         int         prgDelay    = 140;
         std::string prgPath;
+
+        // REU
+        bool     reuEnabled = false;
+        REUModel reuModel   = REUModel::None;
     };
 
     // State management

@@ -8,7 +8,9 @@
 #ifndef UICOMMAND_H_INCLUDED
 #define UICOMMAND_H_INCLUDED
 
+#include <cstdint>
 #include <string>
+#include "Common/REUModel.h"
 
 struct UiCommand
 {
@@ -55,6 +57,8 @@ struct UiCommand
         SetMOS6581,
         SetMOS8580,
 
+        SetREU,
+
         EnterMonitor,
         Quit
     };
@@ -76,6 +80,8 @@ struct UiCommand
     uint32_t buttonIndex = 0;
     uint32_t switchIndex = 0;
     uint32_t switchPos   = 0;
+
+    REUModel reuModel = REUModel::None;
 };
 
 
