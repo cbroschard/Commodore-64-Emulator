@@ -18,6 +18,7 @@
 
 // Accept address as hex or decimal
 uint16_t parseAddress(const std::string& arg);
+uint32_t parseAddress32(const std::string& arg);
 
 // Parse a range of memory addresses
 std::pair<uint16_t,uint16_t> parseRangePair(std::string input);

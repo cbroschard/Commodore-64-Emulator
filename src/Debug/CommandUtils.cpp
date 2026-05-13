@@ -32,6 +32,28 @@ uint16_t parseAddress(const std::string& arg)
     }
 }
 
+uint32_t parseAddress32(const std::string& arg)
+{
+    if (arg.empty())
+        throw std::runtime_error("Invalid address format: empty");
+
+    unsigned long value = 0;
+
+    if (arg[0] == '$')
+        value = std::stoul(arg.substr(1), nullptr, 16);
+    else if (arg.rfind("0x", 0) == 0 || arg.rfind("0X", 0) == 0)
+        value = std::stoul(arg.substr(2), nullptr, 16);
+    else if (arg.find_first_of("ABCDEFabcdef") != std::string::npos)
+        value = std::stoul(arg, nullptr, 16);
+    else
+        value = std::stoul(arg, nullptr, 10);
+
+    if (value > 0xFFFFFFul)
+        throw std::runtime_error("REU address out of range");
+
+    return static_cast<uint32_t>(value);
+}
+
 std::string hex2(uint8_t value)
 {
     std::ostringstream s;
