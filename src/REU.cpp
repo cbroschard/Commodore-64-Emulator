@@ -479,6 +479,12 @@ std::string REU::dumpRegs() const
 {
     std::stringstream out;
 
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
     auto hex2 = [](uint8_t value)
     {
         std::stringstream ss;
@@ -590,6 +596,274 @@ std::string REU::dumpRAM(uint32_t address, uint32_t count) const
 
         out << "\n";
     }
+
+    return out.str();
+}
+
+std::string REU::clearRAM()
+{
+    std::stringstream out;
+
+    if (!isEnabled())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    std::fill(ram.begin(), ram.end(), 0x00);
+
+    out << "REU RAM cleared: " << displaySizeForREUModel(model) << "\n";
+    return out.str();
+}
+
+std::string REU::fillRAM(uint32_t address, uint32_t count, uint8_t value)
+{
+    std::stringstream out;
+
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    if (count == 0)
+        count = 1;
+
+    const uint32_t ramSize = static_cast<uint32_t>(ram.size());
+    const uint32_t startAddress = address % ramSize;
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const uint32_t ramAddress = (startAddress + i) % ramSize;
+        ram[ramAddress] = value;
+    }
+
+    const uint32_t endAddress = (startAddress + count - 1) % ramSize;
+
+    out << "Filled REU RAM $"
+        << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+        << startAddress
+        << "-$"
+        << std::setw(6) << std::setfill('0')
+        << endAddress
+        << " with $"
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(value)
+        << std::dec
+        << "\n";
+
+    return out.str();
+}
+
+std::string REU::peekRAM(uint32_t address) const
+{
+    std::stringstream out;
+
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    const uint32_t ramSize = static_cast<uint32_t>(ram.size());
+    const uint32_t maskedAddress = address % ramSize;
+    const uint8_t value = ram[maskedAddress];
+
+    out << "REU[$"
+        << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+        << maskedAddress
+        << "] = $"
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(value)
+        << std::dec
+        << "\n";
+
+    return out.str();
+}
+
+std::string REU::pokeRAM(uint32_t address, uint8_t value)
+{
+    std::stringstream out;
+
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    const uint32_t ramSize = static_cast<uint32_t>(ram.size());
+    const uint32_t maskedAddress = address % ramSize;
+
+    ram[maskedAddress] = value;
+
+    out << "Updated $"
+        << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+        << maskedAddress
+        << " with value: $"
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(value)
+        << std::dec
+        << "\n";
+    return out.str();
+}
+
+std::string REU::selfTest()
+{
+    std::stringstream out;
+
+    auto passFail = [](bool pass)
+    {
+        return pass ? "PASS" : "FAIL";
+    };
+
+    bool allPass = true;
+
+    out << "REU self-test:\n";
+
+    const bool enabled = isEnabled() && mem != nullptr;
+    out << "  Enabled:                       " << passFail(enabled) << "\n";
+
+    if (!enabled)
+    {
+        out << "\nResult: FAIL - REU is disabled or memory is not attached\n";
+        return out.str();
+    }
+
+    // Save current REU register state so the test does not leave the monitor dirty.
+    const REURegisters savedRegs = regs;
+
+    // Safe scratch locations.
+    constexpr uint16_t C64_BASE = 0x2000;
+    constexpr uint32_t REU_BASE = 0x000100;
+
+    // Save original C64 RAM bytes used by the test.
+    uint8_t savedC64[16] = {};
+    for (uint16_t i = 0; i < 16; ++i)
+        savedC64[i] = mem->readForDMA(static_cast<uint16_t>(C64_BASE + i));
+
+    auto restore = [&]()
+    {
+        for (uint16_t i = 0; i < 16; ++i)
+            mem->writeForDMA(static_cast<uint16_t>(C64_BASE + i), savedC64[i]);
+
+        regs = savedRegs;
+        updateIRQStatus();
+    };
+
+    auto setupTransfer = [&](uint16_t c64Addr,
+                             uint32_t reuAddr,
+                             uint16_t length,
+                             uint8_t command)
+    {
+        regs.c64Address = c64Addr;
+        regs.reuAddressLo = static_cast<uint16_t>(reuAddr & 0xFFFFu);
+        regs.reuBank = static_cast<uint8_t>((reuAddr >> 16) & 0xFFu);
+        regs.transferLen = length;
+        regs.addressControl = 0x00;
+        regs.command = command;
+        startTransfer();
+    };
+
+    // ------------------------------------------------------------
+    // 1. Single-byte C64 -> REU -> C64 roundtrip
+    // ------------------------------------------------------------
+    mem->writeForDMA(C64_BASE, 0x5A);
+
+    setupTransfer(C64_BASE, REU_BASE, 1, CR_EXECUTE | 0x00); // C64->REU
+
+    mem->writeForDMA(C64_BASE, 0x00);
+
+    setupTransfer(C64_BASE, REU_BASE, 1, CR_EXECUTE | 0x01); // REU->C64
+
+    const bool roundTripPass = mem->readForDMA(C64_BASE) == 0x5A;
+    allPass &= roundTripPass;
+
+    out << "  C64->REU / REU->C64 roundtrip: "
+        << passFail(roundTripPass) << "\n";
+
+    // ------------------------------------------------------------
+    // 2. 4-byte block transfer
+    // ------------------------------------------------------------
+    mem->writeForDMA(C64_BASE + 0, 0x11);
+    mem->writeForDMA(C64_BASE + 1, 0x22);
+    mem->writeForDMA(C64_BASE + 2, 0x33);
+    mem->writeForDMA(C64_BASE + 3, 0x44);
+
+    setupTransfer(C64_BASE, REU_BASE + 0x10, 4, CR_EXECUTE | 0x00); // C64->REU
+
+    mem->writeForDMA(C64_BASE + 0, 0x00);
+    mem->writeForDMA(C64_BASE + 1, 0x00);
+    mem->writeForDMA(C64_BASE + 2, 0x00);
+    mem->writeForDMA(C64_BASE + 3, 0x00);
+
+    setupTransfer(C64_BASE, REU_BASE + 0x10, 4, CR_EXECUTE | 0x01); // REU->C64
+
+    const bool blockPass =
+        mem->readForDMA(C64_BASE + 0) == 0x11 &&
+        mem->readForDMA(C64_BASE + 1) == 0x22 &&
+        mem->readForDMA(C64_BASE + 2) == 0x33 &&
+        mem->readForDMA(C64_BASE + 3) == 0x44;
+
+    allPass &= blockPass;
+
+    out << "  4-byte block transfer:         "
+        << passFail(blockPass) << "\n";
+
+    // ------------------------------------------------------------
+    // 3. Swap
+    // ------------------------------------------------------------
+    mem->writeForDMA(C64_BASE + 4, 0xAA);
+
+    // Put $55 into REU at REU_BASE + $20 using a normal store.
+    mem->writeForDMA(C64_BASE + 5, 0x55);
+    setupTransfer(C64_BASE + 5, REU_BASE + 0x20, 1, CR_EXECUTE | 0x00);
+
+    // Swap C64[$2004] with REU[$000120]
+    setupTransfer(C64_BASE + 4, REU_BASE + 0x20, 1, CR_EXECUTE | 0x02);
+
+    const uint32_t swapReuAddr = (REU_BASE + 0x20) % static_cast<uint32_t>(ram.size());
+
+    const bool swapPass = (mem->readForDMA(C64_BASE + 4) == 0x55) && (ram[swapReuAddr] == 0xAA);
+
+    allPass &= swapPass;
+
+    out << "  Swap:                          "
+        << passFail(swapPass) << "\n";
+
+    // ------------------------------------------------------------
+    // 4. Verify match
+    // ------------------------------------------------------------
+    mem->writeForDMA(C64_BASE + 6, 0x77);
+    setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x00); // store matching byte
+
+    setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x03); // verify
+
+    const bool verifyMatchPass =
+        (regs.status & SR_VERIFY_ERROR) == 0 &&
+        (regs.status & SR_END_OF_BLOCK) != 0;
+
+    allPass &= verifyMatchPass;
+
+    out << "  Verify match:                  "
+        << passFail(verifyMatchPass) << "\n";
+
+    // ------------------------------------------------------------
+    // 5. Verify mismatch
+    // ------------------------------------------------------------
+    mem->writeForDMA(C64_BASE + 6, 0x88);
+
+    setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x03); // verify mismatch
+
+    const bool verifyMismatchPass = (regs.status & SR_VERIFY_ERROR) != 0;
+
+    allPass &= verifyMismatchPass;
+
+    out << "  Verify mismatch:               "
+        << passFail(verifyMismatchPass) << "\n";
+
+    restore();
+
+    out << "\nResult: " << (allPass ? "PASS" : "FAIL") << "\n";
 
     return out.str();
 }

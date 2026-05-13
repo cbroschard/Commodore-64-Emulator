@@ -47,6 +47,11 @@ class REU
         std::string dumpStatus() const;
         std::string dumpRegs() const;
         std::string dumpRAM(uint32_t address, uint32_t count = 16) const;
+        std::string clearRAM();
+        std::string fillRAM(uint32_t address, uint32_t count, uint8_t value);
+        std::string peekRAM(uint32_t address) const;
+        std::string pokeRAM(uint32_t address, uint8_t value);
+        std::string selfTest();
 
     protected:
 
