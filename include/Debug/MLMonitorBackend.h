@@ -32,6 +32,7 @@ class MLMonitorBackend
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
+        inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -156,9 +157,14 @@ class MLMonitorBackend
         inline void writeRAM(uint16_t address, uint8_t value) { mem->write(address, value); }
         inline void writeRAMDirect(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
 
-        // ML Monitor PLA methods
+        // ML Monitor PLA
         inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
         inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
+
+        // ML Monitor REU
+        inline std::string reuDumpStatus() const { return reu ? reu->dumpStatus() : "REU not attached\n"; }
+        inline std::string reuDumpRegs() const { return reu->isEnabled() ? reu->dumpRegs() : "REU not attached\n"; }
+        inline std::string reuDumpRAM(uint32_t address) const { return reu->isEnabled() ? reu->dumpRAM(address) : "REU not attached\n"; }
 
         // ML Monitor SID Register Dumps
         inline std::string dumpSIDRegs() const { return sid ? sid->dumpRegisters("all") : "SID not attached\n"; }
@@ -218,6 +224,7 @@ class MLMonitorBackend
         Logging* logger;
         Memory* mem;
         PLA* pla;
+        REU* reu;
         SID* sid;
         Vic* vic;
 
