@@ -6719,11 +6719,14 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+    const bool badLineForThisRaster =
+        (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
 
+    // Character matrix fetches use the visible/background fetch window,
+    // not the bus-pressure/DMA warning window.
     if (badLineForThisRaster &&
-        cycle >= cfg_->DMAStartCycle &&
-        cycle <= cfg_->DMAEndCycle)
+        cycle >= cfg_->bgFetchStartCycle &&
+        cycle <= cfg_->bgFetchEndCycle)
     {
         return FetchKind::CharMatrix;
     }
