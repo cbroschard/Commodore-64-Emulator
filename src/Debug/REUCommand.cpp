@@ -69,7 +69,7 @@ void REUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     const std::string subcmd = args[1];
     if (subcmd == "clear")
     {
-        if (args.size() < 3 || args[2] != "confirm")
+        if (args.size() != 3 || args[2] != "confirm")
         {
             std::cout << "This will clear all REU RAM. Use: reu clear confirm\n";
             return;
@@ -120,6 +120,7 @@ void REUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
         catch(const std::exception& e)
         {
+            std::cout << "Invalid argument!\n";
             std::cout << help();
             return;
         }
@@ -168,7 +169,7 @@ void REUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
     }
 
-    else if (subcmd == "regs")
+    else if (subcmd == "regs" && args.size() == 2)
     {
         std::cout << mon.mlmonitorbackend()->reuDumpRegs();
         return;
