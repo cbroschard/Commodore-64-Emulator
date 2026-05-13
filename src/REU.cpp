@@ -381,3 +381,236 @@ void REU::startTransfer()
     regs.status |= SR_END_OF_BLOCK;
     updateIRQStatus();
 }
+
+std::string REU::dumpStatus() const
+{
+    auto yn = [](bool v)
+    {
+        return v ? "Y" : "N";
+    };
+
+    std::stringstream out;
+
+    out << "REU: " << (isEnabled() ? "Enabled" : "Disabled") << "\n";
+
+    if (!isEnabled())
+    {
+        out << "Model: " << displayNameForREUModel(model) << "\n";
+        out << "Size:  " << displaySizeForREUModel(model) << "\n";
+        return out.str();
+    }
+
+    out << "Model: " << displayNameForREUModel(model) << "\n";
+    out << "Size:  " << displaySizeForREUModel(model) << "\n";
+
+    if (!ram.empty())
+    {
+        const uint32_t maxAddr = static_cast<uint32_t>(ram.size() - 1);
+
+        out << "RAM:   $000000-$"
+            << std::hex << std::uppercase
+            << std::setw(6) << std::setfill('0')
+            << maxAddr
+            << std::dec << "\n";
+    }
+
+    out << "\nStatus:\n";
+
+    out << "  $DF00 Status:  $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(regs.status)
+        << std::dec
+        << "  size="      << yn((regs.status & SR_SIZE_FLAG) != 0)
+        << " verifyErr=" << yn((regs.status & SR_VERIFY_ERROR) != 0)
+        << " endBlock="  << yn((regs.status & SR_END_OF_BLOCK) != 0)
+        << " irq="       << yn((regs.status & SR_IRQ_PENDING) != 0)
+        << "\n";
+
+    out << "  $DF01 Command: $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(regs.command)
+        << std::dec
+        << "  execute=" << yn((regs.command & CR_EXECUTE) != 0)
+        << " type=" << transferTypeName(regs.command)
+        << " autoload=" << yn((regs.command & CR_AUTOLOAD) != 0)
+        << "\n";
+
+    out << "\nTransfer:\n";
+
+    out << "  C64 address:   $"
+        << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+        << static_cast<int>(regs.c64Address)
+        << std::dec << "\n";
+
+    out << "  REU address:   $"
+        << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+        << reuAddress()
+        << std::dec << "\n";
+
+    out << "  Length:        $"
+        << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+        << static_cast<int>(regs.transferLen)
+        << std::dec
+        << " / " << transferLengthBytes() << " bytes\n";
+
+    out << "\nControl:\n";
+
+    out << "  IRQ mask:      $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(regs.irqMask)
+        << std::dec
+        << "  irqEnable=" << yn((regs.irqMask & IRQ_ENABLE) != 0)
+        << " eobIrq="    << yn((regs.irqMask & IRQ_END_OF_BLOCK) != 0)
+        << " verifyIrq=" << yn((regs.irqMask & IRQ_VERIFY_ERROR) != 0)
+        << "\n";
+
+    out << "  Addr control:  $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(regs.addressControl)
+        << std::dec
+        << "  incC64=" << yn(shouldIncrementC64Address())
+        << " incREU=" << yn(shouldIncrementREUAddress())
+        << "\n";
+
+    return out.str();
+}
+
+std::string REU::dumpRegs() const
+{
+    std::stringstream out;
+
+    auto hex2 = [](uint8_t value)
+    {
+        std::stringstream ss;
+        ss << std::hex << std::uppercase
+           << std::setw(2) << std::setfill('0')
+           << static_cast<int>(value);
+        return ss.str();
+    };
+
+    const uint8_t df00 = regs.status;
+    const uint8_t df01 = regs.command;
+
+    const uint8_t df02 = static_cast<uint8_t>(regs.c64Address & 0x00FF);
+    const uint8_t df03 = static_cast<uint8_t>((regs.c64Address >> 8) & 0x00FF);
+
+    const uint8_t df04 = static_cast<uint8_t>(regs.reuAddressLo & 0x00FF);
+    const uint8_t df05 = static_cast<uint8_t>((regs.reuAddressLo >> 8) & 0x00FF);
+    const uint8_t df06 = regs.reuBank;
+
+    const uint8_t df07 = static_cast<uint8_t>(regs.transferLen & 0x00FF);
+    const uint8_t df08 = static_cast<uint8_t>((regs.transferLen >> 8) & 0x00FF);
+
+    const uint8_t df09 = regs.irqMask;
+    const uint8_t df0A = regs.addressControl;
+
+    out << "REU Registers:\n"
+        << "  DF00=$" << hex2(df00)
+        << " DF01=$" << hex2(df01)
+        << " DF02=$" << hex2(df02)
+        << " DF03=$" << hex2(df03)
+        << "\n"
+        << "  DF04=$" << hex2(df04)
+        << " DF05=$" << hex2(df05)
+        << " DF06=$" << hex2(df06)
+        << " DF07=$" << hex2(df07)
+        << "\n"
+        << "  DF08=$" << hex2(df08)
+        << " DF09=$" << hex2(df09)
+        << " DF0A=$" << hex2(df0A)
+        << "\n";
+
+    return out.str();
+}
+
+std::string REU::dumpRAM(uint32_t address, uint32_t count) const
+{
+    std::stringstream out;
+
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    if (count == 0)
+        count = 16;
+
+    // Keep accidental huge dumps from flooding the monitor.
+    if (count > 256)
+        count = 256;
+
+    const uint32_t ramSize = static_cast<uint32_t>(ram.size());
+    const uint32_t start   = address % ramSize;
+
+    out << "REU RAM dump from $"
+        << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+        << start
+        << std::dec
+        << ", " << count << " bytes:\n";
+
+    for (uint32_t offset = 0; offset < count; offset += 16)
+    {
+        const uint32_t lineCount = std::min<uint32_t>(16, count - offset);
+        const uint32_t lineAddr  = (start + offset) % ramSize;
+
+        out << std::hex << std::uppercase << std::setw(6) << std::setfill('0')
+            << lineAddr
+            << ": ";
+
+        // Hex bytes
+        for (uint32_t i = 0; i < 16; ++i)
+        {
+            if (i < lineCount)
+            {
+                const uint32_t ramAddr = (start + offset + i) % ramSize;
+                out << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(ram[ramAddr])
+                    << " ";
+            }
+            else
+            {
+                out << "   ";
+            }
+        }
+
+        out << " ";
+
+        // ASCII preview
+        for (uint32_t i = 0; i < lineCount; ++i)
+        {
+            const uint32_t ramAddr = (start + offset + i) % ramSize;
+            const uint8_t ch = ram[ramAddr];
+
+            if (ch >= 32 && ch <= 126)
+                out << static_cast<char>(ch);
+            else
+                out << ".";
+        }
+
+        out << "\n";
+    }
+
+    return out.str();
+}
+
+const char* REU::transferTypeName(uint8_t command)
+{
+    switch (command & CR_TRANSFER_MASK)
+    {
+        case 0x00:
+            return "C64->REU";
+
+        case 0x01:
+            return "REU->C64";
+
+        case 0x02:
+            return "SWAP";
+
+        case 0x03:
+            return "VERIFY";
+
+        default:
+            return "?";
+    }
+}

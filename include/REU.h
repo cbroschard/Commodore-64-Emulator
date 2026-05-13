@@ -8,8 +8,12 @@
 #ifndef REU_H
 #define REU_H
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <sstream>
+#include <string>
+#include <iomanip>
 #include <vector>
 #include "IRQLine.h"
 #include "Common/REUModel.h"
@@ -38,6 +42,11 @@ class REU
         inline bool isEnabled() const    { return model != REUModel::None && !ram.empty(); }
         inline REUModel getModel() const { return model; }
         void setModel(REUModel reuModel);
+
+        // ML Monitor
+        std::string dumpStatus() const;
+        std::string dumpRegs() const;
+        std::string dumpRAM(uint32_t address, uint32_t count = 16) const;
 
     protected:
 
@@ -114,6 +123,8 @@ class REU
         void updateIRQStatus();
 
         void startTransfer();
+
+        static const char* transferTypeName(uint8_t command);
 };
 
 #endif // REU_H
