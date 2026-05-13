@@ -75,7 +75,7 @@ class MLMonitorBackend
         inline CPUState getCPUState() const { return cpu ? cpu->getState() : CPUState{}; }
         inline uint8_t cpuGetSR() { return cpu->getSR(); }
         inline void cpuStep() { return cpu->tick(); }
-        inline std::string getJamMode() const { return cpu ? jamModeToString() : "Processor not attached\n"; }
+        inline std::string getJamMode() const { return cpu ? jamModeToString() : "CPU not attached\n"; }
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline uint16_t getPC() { return cpu->getPC(); }
 
@@ -162,9 +162,14 @@ class MLMonitorBackend
         inline std::string plaGetAddressInfo(uint16_t address) { return pla ? pla->describeAddress(address) : "PLA not attached\n"; }
 
         // ML Monitor REU
+        inline std::string reuClearRAM() { return reu ? reu->clearRAM() : "REU not attached\n"; }
+        inline std::string reuDumpRAM(uint32_t address, uint32_t count) const { return reu ? reu->dumpRAM(address, count) : "REU not attached\n"; }
+        inline std::string reuDumpRegs() const { return reu ? reu->dumpRegs() : "REU not attached\n"; }
         inline std::string reuDumpStatus() const { return reu ? reu->dumpStatus() : "REU not attached\n"; }
-        inline std::string reuDumpRegs() const { return reu->isEnabled() ? reu->dumpRegs() : "REU not attached\n"; }
-        inline std::string reuDumpRAM(uint32_t address) const { return reu->isEnabled() ? reu->dumpRAM(address) : "REU not attached\n"; }
+        inline std::string reuFillRAM(uint32_t address, uint32_t count, uint8_t value) { return reu ? reu->fillRAM(address, count, value) : "REU not attached\n"; }
+        inline std::string reuPeekRAM(uint32_t address) const { return reu ? reu->peekRAM(address) : "REU not attached\n"; }
+        inline std::string reuPokeRAM(uint32_t address, uint8_t value) const { return reu ? reu->pokeRAM(address, value) : "REU not attached\n"; }
+        inline std::string reuSelfTest() { return reu ? reu->selfTest() : "REU not attached\n"; }
 
         // ML Monitor SID Register Dumps
         inline std::string dumpSIDRegs() const { return sid ? sid->dumpRegisters("all") : "SID not attached\n"; }
