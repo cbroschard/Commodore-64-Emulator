@@ -44,6 +44,7 @@ class REU
         void setModel(REUModel reuModel);
 
         // ML Monitor
+        std::string dumpIRQStatus() const;
         std::string dumpStatus() const;
         std::string dumpRegs() const;
         std::string dumpRAM(uint32_t address, uint32_t count = 16) const;

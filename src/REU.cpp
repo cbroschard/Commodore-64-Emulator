@@ -101,6 +101,7 @@ void REU::reset()
 {
     regs        = REURegisters{};
     regs.status = baseStatusForModel();
+    updateIRQStatus();
 }
 
 uint8_t REU::readIO(uint16_t address)
@@ -154,8 +155,18 @@ void REU::writeIO(uint16_t address, uint8_t value)
     switch (reg)
     {
         case 0x00: // Status Register $DF00
-            // Read-mostly for now. Ignore writes.
+        {
+            regs.status &= static_cast<uint8_t>(
+                ~(value & (SR_IRQ_PENDING | SR_END_OF_BLOCK | SR_VERIFY_ERROR))
+            );
+
+            regs.status = static_cast<uint8_t>(
+                (regs.status & ~SR_SIZE_FLAG) | baseStatusForModel()
+            );
+
+            updateIRQStatus();
             break;
+        }
 
         case 0x01: // Command Register $DF01
             regs.command = value;
@@ -292,21 +303,31 @@ void REU::incrementREUAddress()
 
 void REU::updateIRQStatus()
 {
-    regs.status &= ~SR_IRQ_PENDING;
+    regs.status &= static_cast<uint8_t>(~SR_IRQ_PENDING);
 
     const bool irqEnabled =
         (regs.irqMask & IRQ_ENABLE) != 0;
 
     const bool endOfBlockIrq =
-        (regs.irqMask & IRQ_END_OF_BLOCK) &&
-        (regs.status & SR_END_OF_BLOCK);
+        ((regs.irqMask & IRQ_END_OF_BLOCK) != 0) &&
+        ((regs.status & SR_END_OF_BLOCK) != 0);
 
     const bool verifyErrorIrq =
-        (regs.irqMask & IRQ_VERIFY_ERROR) &&
-        (regs.status & SR_VERIFY_ERROR);
+        ((regs.irqMask & IRQ_VERIFY_ERROR) != 0) &&
+        ((regs.status & SR_VERIFY_ERROR) != 0);
 
-    if (irqEnabled && (endOfBlockIrq || verifyErrorIrq))
+    const bool pending = irqEnabled && (endOfBlockIrq || verifyErrorIrq);
+
+    if (pending)
         regs.status |= SR_IRQ_PENDING;
+
+    if (irq)
+    {
+        if (pending)
+            irq->raiseIRQ(IRQLine::REU);
+        else
+            irq->clearIRQ(IRQLine::REU);
+    }
 }
 
 void REU::startTransfer()
@@ -380,6 +401,71 @@ void REU::startTransfer()
 
     regs.status |= SR_END_OF_BLOCK;
     updateIRQStatus();
+}
+
+std::string REU::dumpIRQStatus() const
+{
+    auto yn = [](bool v)
+    {
+        return v ? "Y" : "N";
+    };
+
+    std::stringstream out;
+
+    if (!isEnabled() || ram.empty())
+    {
+        out << "REU RAM unavailable - REU disabled\n";
+        return out.str();
+    }
+
+    const bool irqEnabled =
+        (regs.irqMask & IRQ_ENABLE) != 0;
+
+    const bool eobIrqEnabled =
+        (regs.irqMask & IRQ_END_OF_BLOCK) != 0;
+
+    const bool verifyIrqEnabled =
+        (regs.irqMask & IRQ_VERIFY_ERROR) != 0;
+
+    const bool endOfBlock =
+        (regs.status & SR_END_OF_BLOCK) != 0;
+
+    const bool verifyError =
+        (regs.status & SR_VERIFY_ERROR) != 0;
+
+    const bool pending =
+        (regs.status & SR_IRQ_PENDING) != 0;
+
+    const bool wouldAssert =
+        irqEnabled &&
+        ((eobIrqEnabled && endOfBlock) ||
+         (verifyIrqEnabled && verifyError));
+
+    out << "REU IRQ:\n";
+
+    if (!isEnabled())
+    {
+        out << "  REU:             disabled\n";
+        return out.str();
+    }
+
+    out << "  Status pending:  " << yn(pending) << "\n";
+    out << "  IRQ line:        " << (wouldAssert ? "active" : "inactive") << "\n";
+
+    out << "  IRQ mask:        $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(regs.irqMask)
+        << std::dec << "\n";
+
+    out << "  IRQ enable:      " << yn(irqEnabled) << "\n";
+    out << "  EOB IRQ enable:  " << yn(eobIrqEnabled) << "\n";
+    out << "  Verify IRQ en:   " << yn(verifyIrqEnabled) << "\n";
+
+    out << "\nSources:\n";
+    out << "  End of block:    " << yn(endOfBlock) << "\n";
+    out << "  Verify error:    " << yn(verifyError) << "\n";
+
+    return out.str();
 }
 
 std::string REU::dumpStatus() const
