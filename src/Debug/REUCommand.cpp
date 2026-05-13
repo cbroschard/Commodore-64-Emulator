@@ -45,6 +45,7 @@ Usage:
   reu clear                        Clear all REU RAM
   reu dump <addr> [count]          Dump REU RAM at REU address
   reu fill <addr> <count> <value>  Fill a range of REU RAM
+  reu IRQ                          Dump IRQ status
   reu peek <addr>                  Dump one byte from REU RAM
   reu poke <addr> <value>          Update one byte in REU RAM
   reu regs                         Show compact $DF00-$DF0A register values
@@ -124,6 +125,12 @@ void REUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << help();
             return;
         }
+    }
+
+    else if (subcmd == "irq" && args.size() == 2)
+    {
+        std::cout << mon.mlmonitorbackend()->reuIRQ();
+        return;
     }
 
     else if (subcmd == "peek" && args.size() == 3)

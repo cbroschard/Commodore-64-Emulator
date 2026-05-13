@@ -167,6 +167,7 @@ class MLMonitorBackend
         inline std::string reuDumpRegs() const { return reu ? reu->dumpRegs() : "REU not attached\n"; }
         inline std::string reuDumpStatus() const { return reu ? reu->dumpStatus() : "REU not attached\n"; }
         inline std::string reuFillRAM(uint32_t address, uint32_t count, uint8_t value) { return reu ? reu->fillRAM(address, count, value) : "REU not attached\n"; }
+        inline std::string reuIRQ() const { return reu ? reu->dumpIRQStatus() : "REU not attached\n"; }
         inline std::string reuPeekRAM(uint32_t address) const { return reu ? reu->peekRAM(address) : "REU not attached\n"; }
         inline std::string reuPokeRAM(uint32_t address, uint8_t value) const { return reu ? reu->pokeRAM(address, value) : "REU not attached\n"; }
         inline std::string reuSelfTest() { return reu ? reu->selfTest() : "REU not attached\n"; }
