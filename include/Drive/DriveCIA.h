@@ -215,7 +215,7 @@ class DriveCIA : public DriveCIABase
         uint8_t serialShiftRegister;
         uint8_t serialBitCount;
 
-        bool serialRxJustReturnedToInput;
+        int serialInputSyncEdges;
 
         uint16_t debugPC = 0x0000;
 

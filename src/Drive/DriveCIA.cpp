@@ -30,7 +30,7 @@ DriveCIA::DriveCIA() :
     lastSpLevel(false),
     serialShiftRegister(0x00),
     serialBitCount(0),
-    serialRxJustReturnedToInput(false)
+    serialInputSyncEdges(0)
 {
 
 }
@@ -185,8 +185,6 @@ bool DriveCIA::loadState(StateReader& rdr)
     spLevel = !iecDataInLow;
     lastSpLevel = spLevel;
 
-    serialRxJustReturnedToInput = false;
-
     applyPortOutputs();
     applyIECOutputs();
 
@@ -253,7 +251,7 @@ void DriveCIA::reset()
     lastSpLevel                 = false;
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
-    serialRxJustReturnedToInput = false;
+    serialInputSyncEdges        = 0;
 
     // ATN edge tracking
     lastAtnLow                  = false;
@@ -641,7 +639,9 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 
             const bool serialModeChanged = oldSerialOutput != newSerialOutput;
             const bool serialStarted = (!oldStart && newStart);
-            const bool returnedToSerialInput = serialModeChanged && oldSerialOutput && !newSerialOutput;
+
+            const bool returnedToSerialInput =
+                serialModeChanged && oldSerialOutput && !newSerialOutput;
 
             // Start transition: load counter from latch
             if (!oldStart && newStart)
@@ -666,9 +666,11 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
 
             if (returnedToSerialInput)
             {
-                // Not a blind protocol skip: this is tied to the ROM/CIA transition
-                // from serial output handshake mode back to serial input mode.
-                serialRxJustReturnedToInput = true;
+                // Hardware-shaped receive synchronization:
+                // after CIA serial output mode returns to input mode,
+                // the next CNT rising edge is bus turnaround/handshake,
+                // not the first data bit.
+                serialInputSyncEdges = 1;
             }
 
         #ifdef Debug
@@ -681,7 +683,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                       << " CNT=" << (cntLevel ? 1 : 0)
                       << " SP=" << (spLevel ? 1 : 0)
                       << " bitCount=" << static_cast<int>(serialBitCount)
-                      << " rxReturn=" << (serialRxJustReturnedToInput ? 1 : 0)
+                      << " syncEdges=" << serialInputSyncEdges
                       << "\n";
         #endif
 
@@ -922,21 +924,22 @@ void DriveCIA::applyIECInputsToPortBPins()
 void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel)
 {
     const bool cntRisingEdge = (newCntLevel && !oldCntLevel);
-    const bool sdrInputMode = (registers.controlRegisterA & CRA_SPMODE) == 0;
+    const bool sdrInputMode  = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
     if (!sdrInputMode || !cntRisingEdge)
         return;
 
-    if (serialRxJustReturnedToInput)
+    if (serialInputSyncEdges > 0)
     {
-    #ifdef Debug
-        std::cout << "[CIA] SDR RX skipped post-output turnaround edge"
+#ifdef Debug
+        std::cout << "[CIA] SDR RX sync edge ignored"
+                  << " remaining=" << serialInputSyncEdges
                   << " sp=" << (newSpLevel ? 1 : 0)
                   << " CNT=" << (newCntLevel ? 1 : 0)
                   << "\n";
-    #endif
+#endif
 
-        serialRxJustReturnedToInput = false;
+        --serialInputSyncEdges;
         return;
     }
 
