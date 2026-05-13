@@ -87,6 +87,31 @@ inline std::size_t bytesForREUModel(REUModel model)
     return bytesForREUSize(sizeForREUModel(model));
 }
 
+inline std::string_view displayNameForREUSize(REUSize size)
+{
+    switch (size)
+    {
+        case REUSize::KB128: return "128 KB";
+        case REUSize::KB256: return "256 KB";
+        case REUSize::KB512: return "512 KB";
+
+        case REUSize::MB1:   return "1 MB";
+        case REUSize::MB2:   return "2 MB";
+        case REUSize::MB4:   return "4 MB";
+        case REUSize::MB8:   return "8 MB";
+        case REUSize::MB16:  return "16 MB";
+
+        case REUSize::None:
+        default:
+            return "0 KB";
+    }
+}
+
+inline std::string_view displaySizeForREUModel(REUModel model)
+{
+    return displayNameForREUSize(sizeForREUModel(model));
+}
+
 inline std::string_view displayNameForREUModel(REUModel model)
 {
     switch (model)
