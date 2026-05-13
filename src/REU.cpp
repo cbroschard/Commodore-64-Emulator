@@ -244,6 +244,8 @@ void REU::setModel(REUModel reuModel)
 
 uint8_t REU::baseStatusForModel() const
 {
+    constexpr uint8_t SR_VERSION = 0x01;
+
     switch (model)
     {
         case REUModel::Commodore1750:
@@ -252,10 +254,12 @@ uint8_t REU::baseStatusForModel() const
         case REUModel::Custom4M:
         case REUModel::Custom8M:
         case REUModel::Custom16M:
-            return SR_SIZE_FLAG;
+            return SR_SIZE_FLAG | SR_VERSION;
 
         case REUModel::Commodore1700:
         case REUModel::Commodore1764:
+            return SR_VERSION;
+
         case REUModel::None:
         default:
             return 0x00;
