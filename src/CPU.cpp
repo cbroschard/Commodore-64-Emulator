@@ -442,6 +442,30 @@ void CPU::executeNMI()
     cycles += 7;
 }
 
+uint8_t CPU::cpuRead(uint16_t address, CpuBusCycleType type)
+{
+    currentBusCycle = { type, address, 0 };
+    busCycleActive = true;
+
+    const uint8_t value = mem->read(address);
+
+    busCycleActive = false;
+    currentBusCycle = {};
+
+    return value;
+}
+
+void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
+{
+    currentBusCycle = { type, address, value };
+    busCycleActive = true;
+
+    mem->write(address, value);
+
+    busCycleActive = false;
+    currentBusCycle = {};
+}
+
 CPU::CPUIrqDebugState CPU::getIrqDebugState() const
 {
     CPUIrqDebugState s;
@@ -1224,8 +1248,8 @@ uint32_t CPU::getElapsedCycles()
 
 uint8_t CPU::fetch()
 {
-    uint8_t byte = mem->read(PC);
-    PC = (PC + 1) & 0xFFFF; // Ensure PC wraps properly
+    uint8_t byte = cpuRead(PC, CpuBusCycleType::OpcodeFetch);
+    PC = (PC + 1) & 0xFFFF;
     return byte;
 }
 
@@ -1254,32 +1278,42 @@ void CPU::setFlag(flags flag, bool sc)
 
 void CPU::push(uint8_t value)
 {
+    const uint16_t address = uint16_t(0x0100 | SP);
+
     if (traceMgr)
     {
         std::ostringstream oss;
         oss << "PUSH addr=$"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (0x100 + SP)
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0') << address
             << " value=$" << std::setw(2) << int(value)
             << " SP=$" << std::setw(2) << int(SP);
+
         traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
     }
 
-    mem->write(0x100 + SP, value);
-    SP = (SP - 1) & 0xFF;
+    cpuWrite(address, value, CpuBusCycleType::StackWrite);
+
+    SP = uint8_t((SP - 1) & 0xFF);
 }
 
 uint8_t CPU::pop()
 {
-    SP = (SP + 1) & 0xFF;
-    uint8_t value = mem->read(0x100 + SP);
+    SP = uint8_t((SP + 1) & 0xFF);
+
+    const uint16_t address = uint16_t(0x0100 | SP);
+
+    const uint8_t value = cpuRead(address, CpuBusCycleType::StackRead);
 
     if (traceMgr)
     {
         std::ostringstream oss;
         oss << "POP addr=$"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (0x100 + SP)
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0') << address
             << " value=$" << std::setw(2) << int(value)
             << " SP=$" << std::setw(2) << int(SP);
+
         traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
     }
 

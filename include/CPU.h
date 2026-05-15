@@ -464,7 +464,7 @@ class CPU
         inline uint8_t getSP() const { return SP; }
         uint8_t debugRead(uint16_t address) const;
 
-        // ML Monitor logging
+        // ML Monitor
         inline void setLog(bool enable) { setLogging = enable; }
         inline uint32_t getTotalCycles() const { return totalCycles; }
 
@@ -549,6 +549,9 @@ class CPU
         // Jam handling
         JamMode jamMode;
         bool halted;
+
+        uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
+        void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
         // Process commands
         uint8_t fetch();
