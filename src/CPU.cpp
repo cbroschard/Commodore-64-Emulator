@@ -1083,8 +1083,9 @@ void CPU::branchIf(bool condition, const char* mnemonic, uint8_t opcode)
 
     // Branch taken: extra cycle and dummy read of next opcode address.
     cycles++;
+
     const uint16_t takenDummy = PC;
-    mem->read(takenDummy);
+    cpuRead(takenDummy, CpuBusCycleType::DummyRead);
 
     const uint16_t oldPC = PC;
     const uint16_t newPC = uint16_t(PC + offset);
@@ -1097,7 +1098,8 @@ void CPU::branchIf(bool condition, const char* mnemonic, uint8_t opcode)
     {
         // Page-cross dummy read from old high byte + new low byte.
         pageDummy = uint16_t((oldPC & 0xFF00) | (newPC & 0x00FF));
-        mem->read(pageDummy);
+        cpuRead(pageDummy, CpuBusCycleType::DummyRead);
+
         cycles++;
         extraCycles++;
         crossed = true;
