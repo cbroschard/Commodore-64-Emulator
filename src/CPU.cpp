@@ -1137,34 +1137,34 @@ void CPU::dummyReadWrongPageABSX(uint16_t address)
     // Absolute,X RMW dummy/read cycle.
     // If page crossed, this is old high byte + indexed low byte.
     // If not crossed, this equals the final effective address.
-    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+    const uint16_t dummy = uint16_t((base & 0xFF00) | (address & 0x00FF));
 
-    mem->read(dummy);
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
 }
 
 void CPU::dummyReadWrongPageABSY(uint16_t address)
 {
     const uint16_t base = uint16_t(address - Y);
-    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+    const uint16_t dummy = uint16_t((base & 0xFF00) | (address & 0x00FF));
 
-    mem->read(dummy);
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
 }
 
 void CPU::dummyReadWrongPageINDY(uint16_t address)
 {
     const uint16_t base = uint16_t(address - Y);
-    const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
+    const uint16_t dummy = uint16_t((base & 0xFF00) | (address & 0x00FF));
 
-    mem->read(dummy);
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
 }
 
 void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
-    // Perform "dummy write" first
-    mem->write(address, oldValue);
+    // RMW instructions perform a dummy write of the old value first.
+    cpuWrite(address, oldValue, CpuBusCycleType::DummyWrite);
 
-    // Now we update to the real value
-    mem->write(address, newValue);
+    // Then the modified value is written.
+    cpuWrite(address, newValue, CpuBusCycleType::Write);
 }
 
 void CPU::tick()
