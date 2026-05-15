@@ -2036,14 +2036,16 @@ void CPU::JMP(uint8_t opcode)
 
     switch (opcode)
     {
-        case 0x4C:
+        case 0x4C: // JMP abs
         {
             const uint16_t operandAddress = PC;
 
-            const uint8_t lowByte =  cpuRead(lowReadAddress, CpuBusCycleType::Read);
-            const uint8_t highByte = cpuRead(highReadAddress, CpuBusCycleType::Read);
+            const uint8_t lowByte  = fetchOperand();
+            const uint8_t highByte = fetchOperand();
 
-            const uint16_t address = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+            const uint16_t address =
+                uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
             PC = address;
 
             lastJMP.valid = true;
@@ -2067,27 +2069,35 @@ void CPU::JMP(uint8_t opcode)
                     << std::hex << std::uppercase << std::setw(4)
                     << std::setfill('0') << jmpPC
                     << " target=$" << std::setw(4) << PC;
+
                 traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
             }
 
             break;
         }
 
-        case 0x6C:
+        case 0x6C: // JMP (indirect)
         {
             const uint16_t operandAddress = PC;
 
-            const uint8_t ptrLow = fetchOperand();
+            const uint8_t ptrLow  = fetchOperand();
             const uint8_t ptrHigh = fetchOperand();
 
-            const uint16_t pointer = uint16_t(ptrLow) | (uint16_t(ptrHigh) << 8);
+            const uint16_t pointer =
+                uint16_t(ptrLow) | (uint16_t(ptrHigh) << 8);
 
             const uint16_t lowReadAddress = pointer;
-            const uint16_t highReadAddress =
-                uint16_t((pointer & 0xFF00) | ((pointer + 1) & 0x00FF)); // 6502 page-boundary bug
 
-            const uint8_t lowByte = mem->read(lowReadAddress);
-            const uint8_t highByte = mem->read(highReadAddress);
+            // NMOS 6502/6510 indirect JMP page-boundary bug:
+            // if pointer is $xxFF, high byte is read from $xx00, not $(xx+1)00.
+            const uint16_t highReadAddress =
+                uint16_t((pointer & 0xFF00) | ((pointer + 1) & 0x00FF));
+
+            const uint8_t lowByte =
+                cpuRead(lowReadAddress, CpuBusCycleType::Read);
+
+            const uint8_t highByte =
+                cpuRead(highReadAddress, CpuBusCycleType::Read);
 
             PC = uint16_t(lowByte) | (uint16_t(highByte) << 8);
 
@@ -2116,6 +2126,7 @@ void CPU::JMP(uint8_t opcode)
                     << " hi@$" << std::setw(4) << highReadAddress
                     << " final=$" << std::setw(4) << PC
                     << " pageBug=" << (lastJMP.indirectPageBug ? "yes" : "no");
+
                 traceMgr->recordCPUStack(oss.str(), makeCpuStamp());
             }
 
