@@ -870,11 +870,17 @@ uint16_t CPU::indirectXAddress()
     const uint8_t zpOperand = fetchOperand();
 
     const uint8_t zpAddress = uint8_t(zpOperand + X);
-    const uint8_t lowByte = mem->read(zpAddress);
-    const uint8_t highAddr = uint8_t(zpAddress + 1);
-    const uint8_t highByte = mem->read(highAddr);
 
-    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
+    const uint8_t lowByte =
+        cpuRead(zpAddress, CpuBusCycleType::Read);
+
+    const uint8_t highAddr = uint8_t(zpAddress + 1);
+
+    const uint8_t highByte =
+        cpuRead(highAddr, CpuBusCycleType::Read);
+
+    const uint16_t baseAddress =
+        uint16_t(lowByte) | (uint16_t(highByte) << 8);
 
     lastAddressDebug.valid = true;
     lastAddressDebug.mode = CPUAddressDebugMode::IndirectX;
@@ -902,14 +908,20 @@ uint16_t CPU::indirectYAddress()
     const uint16_t operandPC = PC;
     const uint8_t zpAddress = fetchOperand();
 
-    const uint8_t lowAddr = zpAddress;
+    const uint8_t lowAddr  = zpAddress;
     const uint8_t highAddr = uint8_t(zpAddress + 1);
 
-    const uint8_t lowByte = mem->read(lowAddr);
-    const uint8_t highByte = mem->read(highAddr);
+    const uint8_t lowByte =
+        cpuRead(lowAddr, CpuBusCycleType::Read);
 
-    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
-    const uint16_t effectiveAddress = uint16_t(baseAddress + Y);
+    const uint8_t highByte =
+        cpuRead(highAddr, CpuBusCycleType::Read);
+
+    const uint16_t baseAddress =
+        uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
+    const uint16_t effectiveAddress =
+        uint16_t(baseAddress + Y);
 
     lastAddressDebug.valid = true;
     lastAddressDebug.mode = CPUAddressDebugMode::IndirectY;
