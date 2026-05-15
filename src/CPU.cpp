@@ -3053,11 +3053,11 @@ void CPU::STA(uint8_t opcode)
 
         case 0x9D: // ABS,X
         {
-            const uint16_t base = fetchOperand() | (fetchOperand() << 8);
+            const uint16_t base = uint16_t(fetchOperand()) | (uint16_t(fetchOperand()) << 8);
             ea = uint16_t(base + X);
 
             // Indexed store dummy read uses uncorrected high byte.
-            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            const uint16_t dummy = uint16_t((base & 0xFF00) | (ea & 0x00FF));
             cpuRead(dummy, CpuBusCycleType::DummyRead);
 
             cpuWrite(ea, A, CpuBusCycleType::Write);
@@ -3066,11 +3066,11 @@ void CPU::STA(uint8_t opcode)
 
         case 0x99: // ABS,Y
         {
-            const uint16_t base = fetchOperand() | (fetchOperand() << 8);
+            const uint16_t base = uint16_t(fetchOperand()) | (uint16_t(fetchOperand()) << 8);
             ea = uint16_t(base + Y);
 
             // Indexed store dummy read uses uncorrected high byte.
-            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            const uint16_t dummy = uint16_t((base & 0xFF00) | (ea & 0x00FF));
             cpuRead(dummy, CpuBusCycleType::DummyRead);
 
             cpuWrite(ea, A, CpuBusCycleType::Write);
@@ -3092,12 +3092,15 @@ void CPU::STA(uint8_t opcode)
             ea = uint16_t(base + Y);
 
             // Indexed indirect-Y store dummy read uses uncorrected high byte.
-            const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
+            const uint16_t dummy = uint16_t((base & 0xFF00) | (ea & 0x00FF));
             cpuRead(dummy, CpuBusCycleType::DummyRead);
 
             cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
         }
+
+        default:
+            return;
     }
 }
 
