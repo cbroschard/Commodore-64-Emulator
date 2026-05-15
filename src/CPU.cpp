@@ -2448,8 +2448,9 @@ void CPU::PHA()
     const uint8_t spBefore = SP;
     const uint8_t pushedValue = A;
 
-    // Dummy read for accuracy
-    mem->read(PC);
+    // PHA dummy read / throwaway read.
+    // PC already points to the byte after opcode $48.
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     push(pushedValue);
 
@@ -2483,7 +2484,7 @@ void CPU::PHP()
 
     // PHP dummy read / throwaway read.
     // PC already points to the byte after opcode $08.
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     // Push status with B=1 and U=1.
     // Internal SR should not permanently store B.
@@ -2523,7 +2524,7 @@ void CPU::PLA()
 
     // PLA dummy read / throwaway read.
     // PC already points to the byte after opcode $68.
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     const uint8_t pulledValue = pop();
 
@@ -2568,7 +2569,7 @@ void CPU::PLP()
 
     // PLP dummy read / throwaway read.
     // PC already points to the byte after opcode $28.
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     const bool oldI = (SR & I) != 0;
 
