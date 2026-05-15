@@ -943,7 +943,7 @@ uint16_t CPU::zpXAddress()
     const uint8_t base = fetchOperand();
 
     // Zero-page indexed dummy read before applying X.
-    mem->read(base);
+    cpuRead(base, CpuBusCycleType::DummyRead);
 
     return uint16_t((base + X) & 0xFF);
 }
@@ -953,26 +953,34 @@ uint16_t CPU::zpYAddress()
     const uint8_t base = fetchOperand();
 
     // Zero-page indexed dummy read before applying Y.
-    mem->read(base);
+    cpuRead(base, CpuBusCycleType::DummyRead);
 
     return uint16_t((base + Y) & 0xFF);
 }
 
 CPU::ReadByte CPU::readABSXAddressBoundary()
 {
-    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
-    uint16_t effectiveAddress = (baseAddress + X);
+    const uint16_t baseAddress =
+        uint16_t(fetchOperand()) |
+        uint16_t(fetchOperand() << 8);
 
-    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    const uint16_t effectiveAddress = uint16_t(baseAddress + X);
+
+    const bool crossed =
+        (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+
     if (crossed)
     {
-        // Perform dummy read from the incorrect page (base high + old low+X)
-        uint16_t dummy = (baseAddress & 0xFF00) | ((baseAddress + X) & 0x00FF);
-        mem->read(dummy);
+        // Dummy read from old high byte + indexed low byte.
+        const uint16_t dummy =
+            uint16_t((baseAddress & 0xFF00) |
+                     ((baseAddress + X) & 0x00FF));
+
+        cpuRead(dummy, CpuBusCycleType::DummyRead);
     }
 
-    // Perform the "real" read now
-    uint8_t value = mem->read(effectiveAddress);
+    const uint8_t value =
+        cpuRead(effectiveAddress, CpuBusCycleType::Read);
 
     return { value, crossed };
 }
