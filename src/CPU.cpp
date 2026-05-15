@@ -16,6 +16,7 @@ CPU::CPU() :
     mem(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
+    busCycleActive(false),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -37,6 +38,7 @@ CPU::CPU() :
     rdyLine(true),
     aecLine(true)
 {
+    currentBusCycle = {};
     initializeOpcodeTable();
 }
 
@@ -188,6 +190,8 @@ void CPU::reset()
     totalCycles     = 0;
     elapsedCycles   = 0;
     lastCycleCount  = 0;
+    currentBusCycle = {};
+    busCycleActive  = false;
     rdyLine         = true;
     aecLine         = true;
     setLogging      = false;
@@ -1172,7 +1176,14 @@ void CPU::tick()
             }
 
             const uint16_t pcExec = PC;   // PC of the instruction to execute
+
+            currentBusCycle = {CpuBusCycleType::OpcodeFetch, PC, 0};
+            busCycleActive = true;
+
             uint8_t opcode = fetch();
+
+            busCycleActive = false;
+            currentBusCycle = {};
 
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
@@ -3094,6 +3105,21 @@ void CPU::XAA()
     A = (A | 0xEE) & X & imm;
     setFlag(Z, A == 0);
     setFlag(N, A & 0x80);
+}
+
+bool CPU::shouldRDYStallForCurrentBusCycle() const
+{
+    // RDY/BA low stretches read-like CPU cycles.
+    // Writes should be allowed to complete.
+    return !rdyLine && currentBusCycle.isReadLike();
+}
+
+bool CPU::shouldAECBlockCurrentBusCycle() const
+{
+    // AEC low means the VIC owns the external address bus.
+    // In the final bus-cycle model, the CPU should not perform
+    // an external bus access while AEC is low.
+    return !aecLine && currentBusCycle.usesExternalBus();
 }
 
 uint8_t CPU::debugRead(uint16_t address) const
