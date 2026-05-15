@@ -812,7 +812,7 @@ uint8_t CPU::readABSY()
 
 uint8_t CPU::readImmediate()
 {
-    return fetch();
+    return fetchOperand();
 }
 
 uint8_t CPU::readIndirectX()
@@ -847,13 +847,13 @@ uint8_t CPU::readZPY()
 
 uint16_t CPU::absAddress()
 {
-    uint16_t address = fetch() | (fetch() << 8);
+    uint16_t address = fetchOperand() | (fetchOperand() << 8);
     return address;
 }
 
 uint16_t CPU::absXAddress()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
     uint16_t effectiveAddress = (baseAddress + X) & 0xFFFF;
 
     return effectiveAddress;
@@ -861,7 +861,7 @@ uint16_t CPU::absXAddress()
 
 uint16_t CPU::absYAddress()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
     uint16_t effectiveAddress = (baseAddress + Y) & 0xFFFF;
 
     return effectiveAddress;
@@ -870,7 +870,7 @@ uint16_t CPU::absYAddress()
 uint16_t CPU::indirectXAddress()
 {
     const uint16_t operandPC = PC;
-    const uint8_t zpOperand = fetch();
+    const uint8_t zpOperand = fetchOperand();
 
     const uint8_t zpAddress = uint8_t(zpOperand + X);
     const uint8_t lowByte = mem->read(zpAddress);
@@ -903,7 +903,7 @@ uint16_t CPU::indirectXAddress()
 uint16_t CPU::indirectYAddress()
 {
     const uint16_t operandPC = PC;
-    const uint8_t zpAddress = fetch();
+    const uint8_t zpAddress = fetchOperand();
 
     const uint8_t lowAddr = zpAddress;
     const uint8_t highAddr = uint8_t(zpAddress + 1);
@@ -937,13 +937,13 @@ uint16_t CPU::indirectYAddress()
 
 uint16_t CPU::zpAddress()
 {
-    uint16_t address = fetch();
+    uint16_t address = fetchOperand();
     return address;
 }
 
 uint16_t CPU::zpXAddress()
 {
-    const uint8_t base = fetch();
+    const uint8_t base = fetchOperand();
 
     // Zero-page indexed dummy read before applying X.
     mem->read(base);
@@ -953,7 +953,7 @@ uint16_t CPU::zpXAddress()
 
 uint16_t CPU::zpYAddress()
 {
-    const uint8_t base = fetch();
+    const uint8_t base = fetchOperand();
 
     // Zero-page indexed dummy read before applying Y.
     mem->read(base);
@@ -963,7 +963,7 @@ uint16_t CPU::zpYAddress()
 
 CPU::ReadByte CPU::readABSXAddressBoundary()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
     uint16_t effectiveAddress = (baseAddress + X);
 
     bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
@@ -982,7 +982,7 @@ CPU::ReadByte CPU::readABSXAddressBoundary()
 
 CPU::ReadByte CPU::readABSYAddressBoundary()
 {
-    uint16_t baseAddress = fetch() | (fetch() << 8);
+    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
     uint16_t effectiveAddress = (baseAddress + Y);
 
     bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
@@ -1002,7 +1002,7 @@ CPU::ReadByte CPU::readABSYAddressBoundary()
 CPU::ReadByte CPU::readIndirectYAddressBoundary()
 {
     const uint16_t operandPC = PC;
-    const uint8_t zpAddress = fetch();
+    const uint8_t zpAddress = fetchOperand();
 
     const uint8_t lowAddr = zpAddress;
     const uint8_t highAddr = uint8_t(zpAddress + 1);
@@ -1051,7 +1051,7 @@ void CPU::branchIf(bool condition, const char* mnemonic, uint8_t opcode)
     const uint16_t opcodePC = uint16_t(PC - 1); // opcode already fetched
     const uint16_t operandPC = PC;
 
-    const int8_t offset = static_cast<int8_t>(fetch());
+    const int8_t offset = static_cast<int8_t>(fetchOperand());
 
     lastBranch.valid = true;
     lastBranch.opcodePC = opcodePC;
@@ -1204,7 +1204,7 @@ void CPU::tick()
             currentBusCycle = {CpuBusCycleType::OpcodeFetch, PC, 0};
             busCycleActive = true;
 
-            uint8_t opcode = fetch();
+            uint8_t opcode = fetchOpcode();
 
             busCycleActive = false;
             currentBusCycle = {};
@@ -1246,10 +1246,17 @@ uint32_t CPU::getElapsedCycles()
     return elapsedCycles;
 }
 
-uint8_t CPU::fetch()
+uint8_t CPU::fetchOpcode()
 {
-    uint8_t byte = cpuRead(PC, CpuBusCycleType::OpcodeFetch);
-    PC = (PC + 1) & 0xFFFF;
+    const uint8_t byte = cpuRead(PC, CpuBusCycleType::OpcodeFetch);
+    PC = uint16_t((PC + 1) & 0xFFFF);
+    return byte;
+}
+
+uint8_t CPU::fetchOperand()
+{
+    const uint8_t byte = cpuRead(PC, CpuBusCycleType::Read);
+    PC = uint16_t((PC + 1) & 0xFFFF);
     return byte;
 }
 
@@ -1323,7 +1330,7 @@ uint8_t CPU::pop()
 //OPCODES implemented
 void CPU::AAC()
 {
-    uint8_t value = fetch(); // Fetch the immediate value
+    uint8_t value = fetchOperand(); // Fetch the immediate value
     A &= value; // Perform AND operation on accumulator
 
     // Update flags
@@ -1420,7 +1427,7 @@ void CPU::AHX(uint8_t opcode)
     {
         case 0x93: // AHX (zp),Y
         {
-            const uint8_t zp = fetch();
+            const uint8_t zp = fetchOperand();
 
             const uint8_t lo = mem->read(zp);
             const uint8_t hi = mem->read(uint8_t(zp + 1));
@@ -1436,8 +1443,8 @@ void CPU::AHX(uint8_t opcode)
 
         case 0x9F: // AHX abs,Y
         {
-            const uint8_t lo = fetch();
-            const uint8_t hi = fetch();
+            const uint8_t lo = fetchOperand();
+            const uint8_t hi = fetchOperand();
 
             base = uint16_t(lo) | (uint16_t(hi) << 8);
             address = uint16_t(base + Y);
@@ -1972,7 +1979,7 @@ void CPU::JAM()
 
         case JamMode::NopCompat:
             // Compatibility hack: do nothing (acts like a NOP).
-            // PC already incremented by fetch().
+            // PC already incremented by fetchOperand().
             break;
     }
 }
@@ -1987,8 +1994,8 @@ void CPU::JMP(uint8_t opcode)
         {
             const uint16_t operandAddress = PC;
 
-            const uint8_t lowByte = fetch();
-            const uint8_t highByte = fetch();
+            const uint8_t lowByte = fetchOperand();
+            const uint8_t highByte = fetchOperand();
 
             const uint16_t address = uint16_t(lowByte) | (uint16_t(highByte) << 8);
             PC = address;
@@ -2024,8 +2031,8 @@ void CPU::JMP(uint8_t opcode)
         {
             const uint16_t operandAddress = PC;
 
-            const uint8_t ptrLow = fetch();
-            const uint8_t ptrHigh = fetch();
+            const uint8_t ptrLow = fetchOperand();
+            const uint8_t ptrHigh = fetchOperand();
 
             const uint16_t pointer = uint16_t(ptrLow) | (uint16_t(ptrHigh) << 8);
 
@@ -2081,13 +2088,13 @@ void CPU::JSR()
 
     // PC currently points to the low byte of the JSR target
     // because opcode $20 has already been fetched by tick().
-    const uint8_t lo = fetch();
+    const uint8_t lo = fetchOperand();
 
     // JSR internal/stack timing read.
     // After fetching low target byte, PC points to the high target byte.
     mem->read(0x0100 | SP);
 
-    const uint8_t hi = fetch();
+    const uint8_t hi = fetchOperand();
 
     // 6502 pushes address of the last operand byte.
     // After fetching hi, PC points to next instruction, so return is PC - 1.
@@ -2319,7 +2326,7 @@ void CPU::NOP(uint8_t opcode)
 
         case 0x04: case 0x44: case 0x64: // Zero-page
         {
-            uint8_t zp = fetch();
+            uint8_t zp = fetchOperand();
             mem->read(zp);
             break;
         }
@@ -2332,7 +2339,7 @@ void CPU::NOP(uint8_t opcode)
         }
         case 0x0C: // Absolute
         {
-            uint16_t lo = fetch(); uint16_t hi = fetch();
+            uint16_t lo = fetchOperand(); uint16_t hi = fetchOperand();
             uint16_t addr = uint16_t(lo | (hi << 8));
             mem->read(addr);
             break;
@@ -2346,7 +2353,7 @@ void CPU::NOP(uint8_t opcode)
             break;
         }
         case 0x80: case 0x82: case 0x89: case 0xC2: case 0xE2:
-            fetch();
+            fetchOperand();
             break;
     }
 }
@@ -3008,7 +3015,7 @@ void CPU::STA(uint8_t opcode)
 
         case 0x9D: // ABS,X
         {
-            const uint16_t base = fetch() | (fetch() << 8);
+            const uint16_t base = fetchOperand() | (fetchOperand() << 8);
             ea = uint16_t(base + X);
 
             // Indexed store dummy read uses uncorrected high byte.
@@ -3021,7 +3028,7 @@ void CPU::STA(uint8_t opcode)
 
         case 0x99: // ABS,Y
         {
-            const uint16_t base = fetch() | (fetch() << 8);
+            const uint16_t base = fetchOperand() | (fetchOperand() << 8);
             ea = uint16_t(base + Y);
 
             // Indexed store dummy read uses uncorrected high byte.
@@ -3039,7 +3046,7 @@ void CPU::STA(uint8_t opcode)
 
         case 0x91: // (ZP),Y
         {
-            const uint8_t zp = fetch();
+            const uint8_t zp = fetchOperand();
             const uint8_t lo = mem->read(zp);
             const uint8_t hi = mem->read(uint8_t(zp + 1));
 

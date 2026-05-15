@@ -554,7 +554,8 @@ class CPU
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
         // Process commands
-        uint8_t fetch();
+        uint8_t fetchOpcode();
+        uint8_t fetchOperand();
         void decodeAndExecute(uint8_t opcode);
 
         // Reset vector
