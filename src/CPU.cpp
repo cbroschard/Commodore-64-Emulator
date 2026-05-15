@@ -318,8 +318,8 @@ void CPU::executeIRQ()
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
-    // Dummy read for accuracy
-    mem->read(PC);
+    // IRQ entry dummy read.
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     // Push return PC high, then low
     push((PC >> 8) & 0xFF);
@@ -348,7 +348,9 @@ void CPU::executeIRQ()
     setFlag(I, true);
 
     // Fetch IRQ/BRK vector
-    const uint16_t irqVector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    const uint8_t vectorLo = cpuRead(0xFFFE, CpuBusCycleType::Read);
+    const uint8_t vectorHi = cpuRead(0xFFFF, CpuBusCycleType::Read);
+    const uint16_t irqVector = uint16_t(vectorLo) | (uint16_t(vectorHi) << 8);
     PC = irqVector;
 
     lastInterruptEntry.type = InterruptEntryType::IRQ;
@@ -390,7 +392,7 @@ void CPU::executeNMI()
         traceMgr->recordCPUNMI(oss.str(), makeCpuStamp());
     }
 
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     push((PC >> 8) & 0xFF);
     push(PC & 0xFF);
@@ -415,7 +417,9 @@ void CPU::executeNMI()
 
     setFlag(I, true);
 
-    const uint16_t nmiVector = mem->read(0xFFFA) | (mem->read(0xFFFB) << 8);
+    const uint8_t vectorLo = cpuRead(0xFFFA, CpuBusCycleType::Read);
+    const uint8_t vectorHi = cpuRead(0xFFFB, CpuBusCycleType::Read);
+    const uint16_t nmiVector = uint16_t(vectorLo) | (uint16_t(vectorHi) << 8);
     PC = nmiVector;
 
     lastInterruptEntry.type = InterruptEntryType::NMI;
@@ -1696,8 +1700,8 @@ void CPU::BRK()
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
 
-    // Dummy read for accuracy
-    mem->read(PC);
+    // BRK consumes the padding/signature byte as a dummy read.
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     push((newPC >> 8) & 0xFF);
     push(newPC & 0xFF);
@@ -1720,7 +1724,9 @@ void CPU::BRK()
     // Set interrupt disable
     setFlag(I, true);
 
-    const uint16_t vector = mem->read(0xFFFE) | (mem->read(0xFFFF) << 8);
+    const uint8_t vectorLo = cpuRead(0xFFFE, CpuBusCycleType::Read);
+    const uint8_t vectorHi = cpuRead(0xFFFF, CpuBusCycleType::Read);
+    const uint16_t vector = uint16_t(vectorLo) | (uint16_t(vectorHi) << 8);
     PC = vector;
 
     lastInterruptEntry.type = InterruptEntryType::BRK;
