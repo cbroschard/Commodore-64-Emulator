@@ -979,19 +979,27 @@ CPU::ReadByte CPU::readABSXAddressBoundary()
 
 CPU::ReadByte CPU::readABSYAddressBoundary()
 {
-    uint16_t baseAddress = fetchOperand() | (fetchOperand() << 8);
-    uint16_t effectiveAddress = (baseAddress + Y);
+    const uint16_t baseAddress =
+        uint16_t(fetchOperand()) |
+        uint16_t(fetchOperand() << 8);
 
-    bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    const uint16_t effectiveAddress = uint16_t(baseAddress + Y);
+
+    const bool crossed =
+        (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+
     if (crossed)
     {
-        // Perform dummy read from the incorrect page (base high + old low+Y)
-        uint16_t dummy = (baseAddress & 0xFF00) | ((baseAddress + Y) & 0x00FF);
-        mem->read(dummy);
+        // Dummy read from old high byte + indexed low byte.
+        const uint16_t dummy =
+            uint16_t((baseAddress & 0xFF00) |
+                     ((baseAddress + Y) & 0x00FF));
+
+        cpuRead(dummy, CpuBusCycleType::DummyRead);
     }
 
-    // Perform "real" read now
-    uint8_t value = mem->read(effectiveAddress);
+    const uint8_t value =
+        cpuRead(effectiveAddress, CpuBusCycleType::Read);
 
     return { value, crossed };
 }
@@ -1001,26 +1009,37 @@ CPU::ReadByte CPU::readIndirectYAddressBoundary()
     const uint16_t operandPC = PC;
     const uint8_t zpAddress = fetchOperand();
 
-    const uint8_t lowAddr = zpAddress;
+    const uint8_t lowAddr  = zpAddress;
     const uint8_t highAddr = uint8_t(zpAddress + 1);
 
-    const uint8_t lowByte = mem->read(lowAddr);
-    const uint8_t highByte = mem->read(highAddr);
+    const uint8_t lowByte =
+        cpuRead(lowAddr, CpuBusCycleType::Read);
 
-    const uint16_t baseAddress = uint16_t(lowByte) | (uint16_t(highByte) << 8);
-    const uint16_t effectiveAddress = uint16_t(baseAddress + Y);
+    const uint8_t highByte =
+        cpuRead(highAddr, CpuBusCycleType::Read);
 
-    const bool crossed = (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
+    const uint16_t baseAddress =
+        uint16_t(lowByte) | (uint16_t(highByte) << 8);
+
+    const uint16_t effectiveAddress =
+        uint16_t(baseAddress + Y);
+
+    const bool crossed =
+        (baseAddress & 0xFF00) != (effectiveAddress & 0xFF00);
 
     uint16_t dummy = 0;
+
     if (crossed)
     {
-        // Dummy read from base address + low-page offset, using old high byte.
-        dummy = uint16_t((baseAddress & 0xFF00) | (effectiveAddress & 0x00FF));
-        mem->read(dummy);
+        // Dummy read from old high byte + indexed low byte.
+        dummy = uint16_t((baseAddress & 0xFF00) |
+                         (effectiveAddress & 0x00FF));
+
+        cpuRead(dummy, CpuBusCycleType::DummyRead);
     }
 
-    const uint8_t value = mem->read(effectiveAddress & 0xFFFF);
+    const uint8_t value =
+        cpuRead(effectiveAddress, CpuBusCycleType::Read);
 
     lastAddressDebug.valid = true;
     lastAddressDebug.mode = CPUAddressDebugMode::IndirectYBoundary;
