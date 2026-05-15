@@ -3038,17 +3038,17 @@ void CPU::STA(uint8_t opcode)
     {
         case 0x85: // ZP
             ea = zpAddress();
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
 
         case 0x95: // ZP,X
             ea = zpXAddress();
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
 
         case 0x8D: // ABS
             ea = absAddress();
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
 
         case 0x9D: // ABS,X
@@ -3058,9 +3058,9 @@ void CPU::STA(uint8_t opcode)
 
             // Indexed store dummy read uses uncorrected high byte.
             const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
-            mem->read(dummy);
+            cpuRead(dummy, CpuBusCycleType::DummyRead);
 
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
         }
 
@@ -3071,31 +3071,31 @@ void CPU::STA(uint8_t opcode)
 
             // Indexed store dummy read uses uncorrected high byte.
             const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
-            mem->read(dummy);
+            cpuRead(dummy, CpuBusCycleType::DummyRead);
 
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
         }
 
         case 0x81: // (ZP,X)
             ea = indirectXAddress();
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
 
         case 0x91: // (ZP),Y
         {
             const uint8_t zp = fetchOperand();
-            const uint8_t lo = mem->read(zp);
-            const uint8_t hi = mem->read(uint8_t(zp + 1));
+            const uint8_t lo = cpuRead(zp, CpuBusCycleType::Read);
+            const uint8_t hi = cpuRead(uint8_t(zp + 1), CpuBusCycleType::Read);
 
             const uint16_t base = uint16_t(lo) | (uint16_t(hi) << 8);
             ea = uint16_t(base + Y);
 
             // Indexed indirect-Y store dummy read uses uncorrected high byte.
             const uint16_t dummy = (base & 0xFF00) | (ea & 0x00FF);
-            mem->read(dummy);
+            cpuRead(dummy, CpuBusCycleType::DummyRead);
 
-            mem->write(ea, A);
+            cpuWrite(ea, A, CpuBusCycleType::Write);
             return;
         }
     }
@@ -3104,25 +3104,31 @@ void CPU::STA(uint8_t opcode)
 void CPU::STX(uint8_t opcode)
 {
     uint16_t ea = 0;
+
     switch (opcode)
     {
         case 0x86: ea = zpAddress();  break;  // ZP
         case 0x8E: ea = absAddress(); break;  // ABS
-        case 0x96: ea = zpYAddress(); break;  // ZP,Y  (no dummy read)
+        case 0x96: ea = zpYAddress(); break;  // ZP,Y
+        default: return;
     }
-    mem->write(ea, X);
+
+    cpuWrite(ea, X, CpuBusCycleType::Write);
 }
 
 void CPU::STY(uint8_t opcode)
 {
     uint16_t ea = 0;
+
     switch (opcode)
     {
         case 0x84: ea = zpAddress();  break;  // ZP
         case 0x8C: ea = absAddress(); break;  // ABS
-        case 0x94: ea = zpXAddress(); break;  // ZP,X  (no dummy read)
+        case 0x94: ea = zpXAddress(); break;  // ZP,X
+        default: return;
     }
-    mem->write(ea, Y);
+
+    cpuWrite(ea, Y, CpuBusCycleType::Write);
 }
 
 void CPU::TAS()
