@@ -1621,7 +1621,7 @@ void CPU::ASL(uint8_t opcode)
         case 0x1E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue << 1);
     rmwWrite(address, oldValue, newValue);
 
@@ -1859,7 +1859,7 @@ void CPU::DCP(uint8_t opcode)
     }
 
     // Decrement memory value
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue - 1);
     rmwWrite(address, oldValue, newValue);
 
@@ -1883,7 +1883,7 @@ void CPU::DEC(uint8_t opcode)
         case 0xDE: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue - 1);
     rmwWrite(address, oldValue, newValue);
     setFlag(Z, newValue == 0);
@@ -1954,7 +1954,7 @@ void CPU::INC(uint8_t opcode)
         case 0xFE: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue + 1);
     rmwWrite(address, oldValue, newValue);
     setFlag(Z, newValue == 0);
@@ -1990,7 +1990,7 @@ void CPU::ISC(uint8_t opcode)
         case 0xFF: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue + 1);
     rmwWrite(address, oldValue, newValue);
 
@@ -2040,8 +2040,8 @@ void CPU::JMP(uint8_t opcode)
         {
             const uint16_t operandAddress = PC;
 
-            const uint8_t lowByte = fetchOperand();
-            const uint8_t highByte = fetchOperand();
+            const uint8_t lowByte =  cpuRead(lowReadAddress, CpuBusCycleType::Read);
+            const uint8_t highByte = cpuRead(highReadAddress, CpuBusCycleType::Read);
 
             const uint16_t address = uint16_t(lowByte) | (uint16_t(highByte) << 8);
             PC = address;
@@ -2138,7 +2138,7 @@ void CPU::JSR()
 
     // JSR internal/stack timing read.
     // After fetching low target byte, PC points to the high target byte.
-    mem->read(0x0100 | SP);
+    cpuRead(uint16_t(0x0100 | SP), CpuBusCycleType::DummyRead);
 
     const uint8_t hi = fetchOperand();
 
@@ -2348,7 +2348,7 @@ void CPU::LSR(uint8_t opcode)
         case 0x5E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t(oldValue >> 1);
     rmwWrite(address, oldValue, newValue);
 
@@ -2367,27 +2367,27 @@ void CPU::NOP(uint8_t opcode)
         case 0x1A: case 0x3A: case 0x5A: case 0x7A:
         case 0xDA: case 0xFA:
             // 1 byte, implied
-            mem->read(PC);
+            cpuRead(PC, CpuBusCycleType::DummyRead);
             break;
 
         case 0x04: case 0x44: case 0x64: // Zero-page
         {
             uint8_t zp = fetchOperand();
-            mem->read(zp);
+            cpuRead(zp, CpuBusCycleType::Read);
             break;
         }
         case 0x14: case 0x34: case 0x54: case 0x74:
         case 0xD4: case 0xF4: // Zero-page,X
         {
             const uint16_t addr = zpXAddress();
-            mem->read(addr);
+            cpuRead(addr, CpuBusCycleType::Read);
             break;
         }
         case 0x0C: // Absolute
         {
             uint16_t lo = fetchOperand(); uint16_t hi = fetchOperand();
             uint16_t addr = uint16_t(lo | (hi << 8));
-            mem->read(addr);
+            cpuRead(addr, CpuBusCycleType::Read);
             break;
         }
         case 0x1C: case 0x3C: case 0x5C: case 0x7C:
@@ -2631,7 +2631,7 @@ void CPU::RLA(uint8_t opcode)
         case 0x3F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
     // Perform Rotate Left (ROL) on memory value
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     bool carry = (oldValue & 0x80) != 0;
     uint8_t newValue = uint8_t((oldValue << 1) | (getFlag(C) ? 1 : 0));
     rmwWrite(address, oldValue, newValue);
@@ -2674,7 +2674,7 @@ void CPU::ROL(uint8_t opcode)
         case 0x3E: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
 
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     bool carry = (oldValue & 0x80) != 0;
     uint8_t newValue = uint8_t((oldValue << 1) | (getFlag(C)?1:0));
     rmwWrite(address, oldValue, newValue);
@@ -2713,7 +2713,7 @@ void CPU::ROR(uint8_t opcode)
     }
 
     bool oldCarry = getFlag(C);
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     uint8_t newValue = uint8_t((oldValue >> 1) | (oldCarry ? 0x80 : 0));
     bool newCarry = (oldValue & 0x01) != 0;
     rmwWrite(address, oldValue, newValue);
@@ -2740,7 +2740,7 @@ void CPU::RRA(uint8_t opcode)
         case 0x7F: address = absXAddress(); dummyReadWrongPageABSX(address); break;
     }
     // Perform Rotate Right (ROR) on memory value
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     bool carry = (oldValue & 0x01) != 0; // Capture old LSB
     uint8_t newValue = uint8_t((oldValue >> 1) | (getFlag(C) ? 0x80 : 0)); // Shift right and insert carry into MSB
     rmwWrite(address, oldValue, newValue);
@@ -2769,7 +2769,7 @@ void CPU::RTI()
 
     // RTI dummy read / throwaway read.
     // PC already points to the byte after opcode $40.
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     const bool oldI = (SR & I) != 0;
 
@@ -2828,7 +2828,7 @@ void CPU::RTS()
     const uint8_t spBefore = SP;
 
     // Dummy read
-    mem->read(PC);
+    cpuRead(PC, CpuBusCycleType::DummyRead);
 
     const uint8_t lowByte = pop();   // Pop low byte first
     const uint8_t highByte = pop();  // Pop high byte second
@@ -3017,7 +3017,7 @@ void CPU::SLO(uint8_t opcode)
     }
 
     // Read, shift left, and write back
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     setFlag(C, (oldValue & 0x80) != 0);  // old bit 7 → Carry
     uint8_t newValue = uint8_t(oldValue << 1);
     rmwWrite(address, oldValue, newValue);
@@ -3045,7 +3045,7 @@ void CPU::SRE(uint8_t opcode)
     }
 
     // Perform LSR on memory value
-    uint8_t oldValue = mem->read(address);
+    uint8_t oldValue = cpuRead(address, CpuBusCycleType::Read);
     setFlag(C, (oldValue & 0x01) != 0);
     uint8_t newValue = uint8_t(oldValue >> 1);
     rmwWrite(address, oldValue, newValue);
