@@ -1165,7 +1165,7 @@ void CPU::tick()
             if (!rdyLine)
             {
                 if (traceMgr)
-                    traceMgr->recordCPUBA("CPU stalled by BA hold", makeCpuStamp());
+                    traceMgr->recordCPUBA("CPU stalled by RDY/BA low", makeCpuStamp());
 
                 totalCycles++;
                 return;
