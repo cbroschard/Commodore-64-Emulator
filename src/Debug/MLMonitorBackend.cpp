@@ -422,7 +422,8 @@ std::string MLMonitorBackend::cpuIrqStatus() const
     out << "NMI line:        " << (s.nmiLine ? "high" : "low") << "\n";
     out << "NMI pending:     " << (s.nmiPending ? "yes" : "no") << "\n";
     out << "IRQ suppress:    " << (s.irqSuppressOne ? "yes" : "no") << "\n";
-    out << "BA hold:         " << (s.baHold ? "yes" : "no") << "\n";
+    out << "RDY/BA line:     " << (s.rdyLine ? "high / released" : "low / CPU wait") << "\n";
+    out << "AEC line:        " << (s.aecLine ? "high / CPU bus enabled" : "low / VIC owns bus") << "\n";
     out << "SO level:        " << (s.soLevel ? "high" : "low") << "\n";
     out << "Cycles left:     " << s.cyclesRemaining << "\n";
     out << "Total cycles:    " << s.totalCycles << "\n";
@@ -465,7 +466,8 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     out << "Total cycles:       " << s.totalCycles << "\n";
     out << "Cycles remaining:   " << s.cyclesRemaining << "\n";
     out << "Between instr:      " << (s.betweenInstructions ? "yes" : "no") << "\n";
-    out << "BA hold:            " << (s.baHold ? "yes" : "no") << "\n";
+    out << "RDY/BA line:        " << (s.rdyLine ? "high / released" : "low / CPU wait") << "\n";
+    out << "AEC line:           " << (s.aecLine ? "high / CPU bus enabled" : "low / VIC owns bus") << "\n";
     out << "Halted/JAM:         " << (s.halted ? "yes" : "no") << "\n";
 
     out << "\nVideo timing:\n";

@@ -2356,7 +2356,10 @@ void Vic::updateBusArbitration()
     AEC = vicState.aec;
 
     if (cpu)
-        cpu->setBAHold(!vicState.ba);
+    {
+        cpu->setRDY(vicState.ba);
+        cpu->setAEC(vicState.aec);
+    }
 
     if (oldBA != vicState.ba || oldAEC != vicState.aec)
     {

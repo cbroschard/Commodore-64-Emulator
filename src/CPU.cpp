@@ -34,7 +34,8 @@ CPU::CPU() :
     lastOpcodePC(0),
     lastOpcode(0xEA),
     setLogging(false),
-    baHold(false)
+    rdyLine(true),
+    aecLine(true)
 {
     initializeOpcodeTable();
 }
@@ -132,7 +133,8 @@ void CPU::saveStateExtendedPayload(StateWriter& wrtr) const
 
     wrtr.writeU8(static_cast<uint8_t>(mode_));
     wrtr.writeBool(soLevel);
-    wrtr.writeBool(baHold);
+    wrtr.writeBool(rdyLine);
+    wrtr.writeBool(aecLine);
 }
 
 bool CPU::loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateReader& rdr)
@@ -157,7 +159,8 @@ bool CPU::loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateR
 
     const size_t end = parentChunk.payloadOffset + parentChunk.length;
     if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
-    if (rdr.cursor() < end) { if (!rdr.readBool(baHold)) return false; }
+    if (rdr.cursor() < end) { if (!rdr.readBool(rdyLine)) return false; }
+    if (rdr.cursor() < end) { if (!rdr.readBool(aecLine)) return false; }
 
     return true;
 }
@@ -185,7 +188,8 @@ void CPU::reset()
     totalCycles     = 0;
     elapsedCycles   = 0;
     lastCycleCount  = 0;
-    baHold          = false;
+    rdyLine         = true;
+    aecLine         = true;
     setLogging      = false;
     nmiPending      = false;
     nmiLine         = false;
@@ -449,7 +453,8 @@ CPU::CPUIrqDebugState CPU::getIrqDebugState() const
     s.nmiLine           = nmiLine;
     s.irqSuppressOne    = irqSuppressOne;
 
-    s.baHold            = baHold;
+    s.rdyLine           = rdyLine;
+    s.aecLine           = aecLine;
     s.soLevel           = soLevel;
 
     s.cyclesRemaining   = cycles;
@@ -469,8 +474,9 @@ CPU::CPUCycleDebugState CPU::getCycleDebugState() const
     s.cyclesPerFrame        = CYCLES_PER_FRAME;
     s.frameCycle            = CYCLES_PER_FRAME ? (totalCycles % CYCLES_PER_FRAME) : 0;
 
-    s.betweenInstructions    = cycles <= 0;
-    s.baHold                = baHold;
+    s.betweenInstructions   = cycles <= 0;
+    s.rdyLine               = rdyLine;
+    s.aecLine               = aecLine;
     s.halted                = halted;
 
     s.mode                  = mode_;
@@ -1156,7 +1162,7 @@ void CPU::tick()
 
         if (cycles <= 0)
         {
-            if (baHold)
+            if (!rdyLine)
             {
                 if (traceMgr)
                     traceMgr->recordCPUBA("CPU stalled by BA hold", makeCpuStamp());

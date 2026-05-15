@@ -146,8 +146,9 @@ class CPU
         void setSO(bool level);
         void pulseSO();
 
-        // BA flag hold
-        inline void setBAHold(bool flag) { baHold = flag; }
+        // Bus arbitration
+        inline void setRDY(bool high) { rdyLine = high; }
+        inline void setAEC(bool high) { aecLine = high; }
 
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }
@@ -233,7 +234,8 @@ class CPU
             bool nmiLine = false;
             bool irqSuppressOne = false;
 
-            bool baHold = false;
+            bool rdyLine = true;
+            bool aecLine = true;
             bool soLevel = true;
 
             uint32_t cyclesRemaining = 0;
@@ -275,7 +277,8 @@ class CPU
             uint32_t frameCycle = 0;
 
             bool betweenInstructions = false;
-            bool baHold = false;
+            bool rdyLine = true;
+            bool aecLine = true;
             bool halted = false;
 
             VideoMode mode = VideoMode::NTSC;
@@ -549,7 +552,8 @@ class CPU
         std::array<std::function<void()>, 256> opcodeTable;
         void initializeOpcodeTable();
 
-        bool baHold;
+        bool rdyLine;
+        bool aecLine;
 
         //Helper functions
         uint8_t readABS();
