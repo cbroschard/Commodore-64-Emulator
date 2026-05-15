@@ -2955,30 +2955,48 @@ void CPU::SBC(uint8_t opcode)
 
 void CPU::SHX()
 {
-    const uint16_t base = absAddress();
-    const uint16_t effectiveAddress = uint16_t(base + Y);
+    const uint8_t lo = fetchOperand();
+    const uint8_t hi = fetchOperand();
 
-    const uint8_t highByte = uint8_t((base >> 8) + 1);
-    const uint8_t value = X & highByte;
+    const uint16_t base =
+        uint16_t(lo) | (uint16_t(hi) << 8);
 
-    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
-    mem->read(dummy);
+    const uint16_t address =
+        uint16_t(base + Y);
 
-    mem->write(effectiveAddress, value);
+    // Indexed store dummy read uses uncorrected high byte.
+    const uint16_t dummy =
+        uint16_t((base & 0xFF00) | (address & 0x00FF));
+
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
+
+    const uint8_t value =
+        uint8_t(X & uint8_t((base >> 8) + 1));
+
+    cpuWrite(address, value, CpuBusCycleType::Write);
 }
 
 void CPU::SHY()
 {
-    const uint16_t base = absAddress();
-    const uint16_t effectiveAddress = uint16_t(base + X);
+    const uint8_t lo = fetchOperand();
+    const uint8_t hi = fetchOperand();
 
-    const uint8_t highByte = uint8_t((base >> 8) + 1);
-    const uint8_t value = Y & highByte;
+    const uint16_t base =
+        uint16_t(lo) | (uint16_t(hi) << 8);
 
-    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
-    mem->read(dummy);
+    const uint16_t address =
+        uint16_t(base + X);
 
-    mem->write(effectiveAddress, value);
+    // Indexed store dummy read uses uncorrected high byte.
+    const uint16_t dummy =
+        uint16_t((base & 0xFF00) | (address & 0x00FF));
+
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
+
+    const uint8_t value =
+        uint8_t(Y & uint8_t((base >> 8) + 1));
+
+    cpuWrite(address, value, CpuBusCycleType::Write);
 }
 
 void CPU::SLO(uint8_t opcode)
@@ -3143,20 +3161,27 @@ void CPU::STY(uint8_t opcode)
 
 void CPU::TAS()
 {
-    const uint16_t base = absAddress();
-    const uint16_t effectiveAddress = uint16_t(base + Y);
+    const uint8_t lo = fetchOperand();
+    const uint8_t hi = fetchOperand();
 
-    // TAS updates SP to A & X.
-    SP = A & X;
+    const uint16_t base =
+        uint16_t(lo) | (uint16_t(hi) << 8);
 
-    // Value written = (A & X) & high-byte-plus-one.
-    const uint8_t value = (A & X) & uint8_t((base >> 8) + 1);
+    const uint16_t address =
+        uint16_t(base + Y);
 
-    // Indexed-store dummy read: uncorrected high byte + indexed low byte.
-    const uint16_t dummy = (base & 0xFF00) | (effectiveAddress & 0x00FF);
-    mem->read(dummy);
+    // Indexed store dummy read uses uncorrected high byte.
+    const uint16_t dummy =
+        uint16_t((base & 0xFF00) | (address & 0x00FF));
 
-    mem->write(effectiveAddress, value);
+    cpuRead(dummy, CpuBusCycleType::DummyRead);
+
+    SP = uint8_t(A & X);
+
+    const uint8_t value =
+        uint8_t(SP & uint8_t((base >> 8) + 1));
+
+    cpuWrite(address, value, CpuBusCycleType::Write);
 }
 
 void CPU::TAX()
