@@ -792,22 +792,19 @@ void CPU::initializeOpcodeTable()
 uint8_t CPU::readABS()
 {
     uint16_t address = absAddress();
-    uint8_t value = mem->read(address);
-    return value;
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readABSX()
 {
     uint16_t address = absXAddress();
-    uint8_t value = mem->read(address);
-    return value;
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readABSY()
 {
     uint16_t address = absYAddress();
-    uint8_t value = mem->read(address);
-    return value;
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readImmediate()
@@ -817,32 +814,32 @@ uint8_t CPU::readImmediate()
 
 uint8_t CPU::readIndirectX()
 {
-    uint16_t address = indirectXAddress();
-    return mem->read(address);
+    const uint16_t address = indirectXAddress();
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readIndirectY()
 {
-    uint16_t address = indirectYAddress();
-    return mem->read(address);
+    const uint16_t address = indirectYAddress();
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readZP()
 {
     uint16_t address = zpAddress();
-    return mem->read(address);
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readZPX()
 {
     uint16_t address = zpXAddress();
-    return mem->read(address);
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint8_t CPU::readZPY()
 {
     uint16_t address = zpYAddress();
-    return mem->read(address);
+    return cpuRead(address, CpuBusCycleType::Read);
 }
 
 uint16_t CPU::absAddress()
@@ -1201,13 +1198,7 @@ void CPU::tick()
 
             const uint16_t pcExec = PC;   // PC of the instruction to execute
 
-            currentBusCycle = {CpuBusCycleType::OpcodeFetch, PC, 0};
-            busCycleActive = true;
-
             uint8_t opcode = fetchOpcode();
-
-            busCycleActive = false;
-            currentBusCycle = {};
 
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
