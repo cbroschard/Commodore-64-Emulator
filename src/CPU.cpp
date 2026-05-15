@@ -1465,15 +1465,20 @@ void CPU::AHX(uint8_t opcode)
         {
             const uint8_t zp = fetchOperand();
 
-            const uint8_t lo = mem->read(zp);
-            const uint8_t hi = mem->read(uint8_t(zp + 1));
+            const uint8_t lo =
+                cpuRead(zp, CpuBusCycleType::Read);
+
+            const uint8_t hi =
+                cpuRead(uint8_t(zp + 1), CpuBusCycleType::Read);
 
             base = uint16_t(lo) | (uint16_t(hi) << 8);
             address = uint16_t(base + Y);
 
             // Indexed-store dummy read: uncorrected high byte + indexed low byte.
-            const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
-            mem->read(dummy);
+            const uint16_t dummy =
+                uint16_t((base & 0xFF00) | (address & 0x00FF));
+
+            cpuRead(dummy, CpuBusCycleType::DummyRead);
             break;
         }
 
@@ -1486,8 +1491,10 @@ void CPU::AHX(uint8_t opcode)
             address = uint16_t(base + Y);
 
             // Indexed-store dummy read: uncorrected high byte + indexed low byte.
-            const uint16_t dummy = (base & 0xFF00) | (address & 0x00FF);
-            mem->read(dummy);
+            const uint16_t dummy =
+                uint16_t((base & 0xFF00) | (address & 0x00FF));
+
+            cpuRead(dummy, CpuBusCycleType::DummyRead);
             break;
         }
 
@@ -1495,9 +1502,10 @@ void CPU::AHX(uint8_t opcode)
             return;
     }
 
-    const uint8_t value = (A & X) & uint8_t((base >> 8) + 1);
+    const uint8_t value =
+        uint8_t((A & X) & uint8_t((base >> 8) + 1));
 
-    mem->write(address, value);
+    cpuWrite(address, value, CpuBusCycleType::Write);
 }
 
 void CPU::ALR()
@@ -2858,32 +2866,31 @@ void CPU::RTS()
 
 void CPU::SAX(uint8_t opcode)
 {
-    const uint8_t value = A & X;
-    uint16_t address = 0;
+    uint16_t ea = 0;
 
     switch (opcode)
     {
         case 0x87: // ZP
-            address = zpAddress();
+            ea = zpAddress();
             break;
 
         case 0x97: // ZP,Y
-            address = zpYAddress();
-            break;
-
-        case 0x83: // (ZP,X)
-            address = indirectXAddress();
+            ea = zpYAddress();
             break;
 
         case 0x8F: // ABS
-            address = absAddress();
+            ea = absAddress();
+            break;
+
+        case 0x83: // (ZP,X)
+            ea = indirectXAddress();
             break;
 
         default:
             return;
     }
 
-    mem->write(address, value);
+    cpuWrite(ea, uint8_t(A & X), CpuBusCycleType::Write);
 }
 
 void CPU::SBC(uint8_t opcode)
