@@ -514,7 +514,9 @@ class CPU
 
         // Bus Arbitration
         inline void setVICBusArbitrationEnabled(bool enabled) { vicBusArbitrationEnabled = enabled; }
-        bool isVICBusArbitrationEnabled() const { return vicBusArbitrationEnabled; }
+        inline bool isVICBusArbitrationEnabled() const { return vicBusArbitrationEnabled; }
+        inline void setUseMicroOpsForTest(bool enabled) { useMicroOpsForTest = enabled; }
+        inline bool getUseMicroOpsForTest() const { return useMicroOpsForTest; }
 
         // ML Monitor
         inline void setLog(bool enable) { setLogging = enable; }
@@ -583,6 +585,8 @@ class CPU
 
         uint8_t activeOpcode;
         uint16_t activeOpcodePC;
+
+        bool useMicroOpsForTest;
 
         uint8_t microTemp;
 
@@ -828,6 +832,8 @@ class CPU
         void pushMicroOp(const CpuMicroOp& op);
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
+        bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
+        bool tickMicroOps();
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;

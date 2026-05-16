@@ -23,6 +23,7 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
+    useMicroOpsForTest(false),
     microTemp(0),
     nmiPending(false),
     nmiLine(false),
@@ -215,6 +216,7 @@ void CPU::reset()
     microOpCount                = 0;
     microOpIndex                = 0;
     microInstructionActive      = false;
+    useMicroOpsForTest           = false;
     executingMicroOp            = false;
     activeOpcode                = 0xEA;
     activeOpcodePC              = 0;
@@ -1267,6 +1269,9 @@ void CPU::tick()
         return;
     }
 
+    if (useMicroOpsForTest && tickMicroOps())
+        return;
+
     if (cycles <= 0)
     {
         handleNMI();
@@ -1290,6 +1295,44 @@ void CPU::tick()
                 << ", SP = " << std::hex << static_cast<int>(SP);
                 logger->WriteLog(message.str());
             }
+
+            if (useMicroOpsForTest && canExecuteOpcodeWithMicroOps(opcode))
+            {
+                activeOpcode = opcode;
+                activeOpcodePC = pcExec;
+
+                buildMicroOpsForOpcode(opcode);
+
+                microInstructionActive = true;
+
+                // If the opcode has no remaining micro-ops, finish immediately.
+                if (microOpCount == 0)
+                    clearMicroOps();
+
+                cycles = 0;
+            }
+            else
+            {
+                decodeAndExecute(opcode);
+
+                if (traceMgr && traceMgr->isEnabled() &&
+                    traceMgr->catOn(TraceManager::TraceCat::CPU) &&
+                    traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
+                {
+                    traceMgr->recordCPUExec(
+                        pcExec,
+                        opcode,
+                        traceMgr->makeStamp(
+                            totalCycles,
+                            vic ? vic->getCurrentRaster() : 0,
+                            vic ? vic->getRasterDot() : 0
+                        )
+                    );
+                }
+
+                cycles += CYCLE_COUNTS[opcode];
+            }
+
             decodeAndExecute(opcode);
 
             // If tracing is on capture it
@@ -3530,7 +3573,59 @@ bool CPU::executeCurrentMicroOp()
 
 void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 {
-    (void)opcode;
+    microOpCount = 0;
+    microOpIndex = 0;
+
+    switch (opcode)
+    {
+        case 0xEA: // NOP implied
+        {
+            pushMicroOp({
+                CpuMicroOpKind::Internal,
+                CpuBusCycleType::None,
+                0,
+                0,
+                CpuMicroAction::FinishNOP
+            });
+
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
+bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
+{
+    switch (opcode)
+    {
+        case 0xEA: // NOP implied
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool CPU::tickMicroOps()
+{
+    if (!microInstructionActive)
+        return false;
+
+    if (!executeCurrentMicroOp())
+    {
+        totalCycles++;
+        return true;
+    }
+
+    if (microOpIndex >= microOpCount)
+    {
+        clearMicroOps();
+    }
+
+    totalCycles++;
+    return true;
 }
 
 uint8_t CPU::debugRead(uint16_t address) const
