@@ -164,6 +164,49 @@ class CPU
             IndirectYBoundary
         };
 
+        enum class CpuBusCycleType : uint8_t
+        {
+            None,
+
+            OpcodeFetch,
+
+            Read,
+            Write,
+
+            DummyRead,
+            DummyWrite,
+
+            StackRead,
+            StackWrite
+        };
+
+        struct CpuBusCycle
+        {
+            CpuBusCycleType type = CpuBusCycleType::None;
+            uint16_t address = 0;
+            uint8_t value = 0;
+
+            bool isReadLike() const
+            {
+                return type == CpuBusCycleType::OpcodeFetch ||
+                       type == CpuBusCycleType::Read ||
+                       type == CpuBusCycleType::DummyRead ||
+                       type == CpuBusCycleType::StackRead;
+            }
+
+            bool isWriteLike() const
+            {
+                return type == CpuBusCycleType::Write ||
+                       type == CpuBusCycleType::DummyWrite ||
+                       type == CpuBusCycleType::StackWrite;
+            }
+
+            bool usesExternalBus() const
+            {
+                return isReadLike() || isWriteLike();
+            }
+        };
+
         struct CPUAddressDebugState
         {
             bool valid = false;
@@ -285,6 +328,11 @@ class CPU
 
             int raster = 0;
             int dot = 0;
+
+            bool busCycleActive = false;
+            CpuBusCycleType busCycleType = CpuBusCycleType::None;
+            uint16_t busAddress = 0;
+            uint8_t busValue = 0;
         };
 
         struct CPUJMPDebugState
@@ -479,49 +527,6 @@ class CPU
         CPUBus* mem;
         TraceManager* traceMgr;
         Vic* vic;
-
-        enum class CpuBusCycleType : uint8_t
-        {
-            None,
-
-            OpcodeFetch,
-
-            Read,
-            Write,
-
-            DummyRead,
-            DummyWrite,
-
-            StackRead,
-            StackWrite
-        };
-
-        struct CpuBusCycle
-        {
-            CpuBusCycleType type = CpuBusCycleType::None;
-            uint16_t address = 0;
-            uint8_t value = 0;
-
-            bool isReadLike() const
-            {
-                return type == CpuBusCycleType::OpcodeFetch ||
-                       type == CpuBusCycleType::Read ||
-                       type == CpuBusCycleType::DummyRead ||
-                       type == CpuBusCycleType::StackRead;
-            }
-
-            bool isWriteLike() const
-            {
-                return type == CpuBusCycleType::Write ||
-                       type == CpuBusCycleType::DummyWrite ||
-                       type == CpuBusCycleType::StackWrite;
-            }
-
-            bool usesExternalBus() const
-            {
-                return isReadLike() || isWriteLike();
-            }
-        };
 
         CpuBusCycle currentBusCycle {};
         bool busCycleActive;

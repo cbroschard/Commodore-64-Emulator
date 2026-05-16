@@ -515,6 +515,10 @@ CPU::CPUCycleDebugState CPU::getCycleDebugState() const
 
     s.raster                = vic ? vic->getCurrentRaster() : 0;
     s.dot                   = vic ? vic->getRasterDot() : 0;
+    s.busCycleActive        = busCycleActive;
+    s.busCycleType          = currentBusCycle.type;
+    s.busAddress            = currentBusCycle.address;
+    s.busValue              = currentBusCycle.value;
 
     return s;
 }

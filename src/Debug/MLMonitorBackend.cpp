@@ -10,6 +10,22 @@
 #include "MLMonitorBackend.h"
 #include "Peripheral.h"
 
+static const char* cpuBusCycleTypeName(CPU::CpuBusCycleType type)
+{
+    switch (type)
+    {
+        case CPU::CpuBusCycleType::None:        return "None";
+        case CPU::CpuBusCycleType::OpcodeFetch: return "OpcodeFetch";
+        case CPU::CpuBusCycleType::Read:        return "Read";
+        case CPU::CpuBusCycleType::Write:       return "Write";
+        case CPU::CpuBusCycleType::DummyRead:   return "DummyRead";
+        case CPU::CpuBusCycleType::DummyWrite:  return "DummyWrite";
+        case CPU::CpuBusCycleType::StackRead:   return "StackRead";
+        case CPU::CpuBusCycleType::StackWrite:  return "StackWrite";
+        default:                                return "Unknown";
+    }
+}
+
 MLMonitorBackend::MLMonitorBackend() :
     cart(nullptr),
     cass(nullptr),
@@ -478,6 +494,12 @@ std::string MLMonitorBackend::cpuCycleStatus() const
     out << "\nLast instruction:\n";
     out << "PC:                 $" << hexWord(s.lastOpcodePC) << "\n";
     out << "Opcode:             $" << hexByte(s.lastOpcode) << "\n";
+
+    out << "\nBus cycle:\n";
+    out << "  Active:           " << (s.busCycleActive ? "yes" : "no") << "\n";
+    out << "  Type:             " << cpuBusCycleTypeName(s.busCycleType) << "\n";
+    out << "  Address:          $" << hexWord(s.busAddress) << "\n";
+    out << "  Value:            $" << hexByte(s.busValue) << "\n";
 
     return out.str();
 }
