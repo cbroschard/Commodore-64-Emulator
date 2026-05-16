@@ -451,6 +451,18 @@ uint8_t CPU::cpuRead(uint16_t address, CpuBusCycleType type)
     currentBusCycle = { type, address, 0 };
     busCycleActive = true;
 
+    if (shouldRDYStallForBusCycle(type))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("RDY/BA low during read-like CPU bus cycle", makeCpuStamp());
+    }
+
+    if (shouldAECBlockBusCycle(type))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("AEC low during CPU read bus cycle", makeCpuStamp());
+    }
+
     const uint8_t value = mem->read(address);
 
     busCycleActive = false;
@@ -463,6 +475,12 @@ void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
 {
     currentBusCycle = { type, address, value };
     busCycleActive = true;
+
+    if (shouldAECBlockBusCycle(type))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("AEC low during CPU write bus cycle", makeCpuStamp());
+    }
 
     mem->write(address, value);
 
