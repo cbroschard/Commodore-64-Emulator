@@ -3258,6 +3258,49 @@ bool CPU::shouldAECBlockCurrentBusCycle() const
     return !aecLine && currentBusCycle.usesExternalBus();
 }
 
+bool CPU::isReadLikeBusCycle(CpuBusCycleType type) const
+{
+    switch (type)
+    {
+        case CpuBusCycleType::OpcodeFetch:
+        case CpuBusCycleType::Read:
+        case CpuBusCycleType::DummyRead:
+        case CpuBusCycleType::StackRead:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool CPU::isWriteLikeBusCycle(CpuBusCycleType type) const
+{
+    switch (type)
+    {
+        case CpuBusCycleType::Write:
+        case CpuBusCycleType::DummyWrite:
+        case CpuBusCycleType::StackWrite:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool CPU::shouldRDYStallForBusCycle(CpuBusCycleType type) const
+{
+    // BA/RDY low stretches read-like CPU cycles.
+    // Writes are not stopped the same way.
+    return !rdyLine && isReadLikeBusCycle(type);
+}
+
+bool CPU::shouldAECBlockBusCycle(CpuBusCycleType type) const
+{
+    // AEC low means the VIC owns the external bus.
+    return !aecLine &&
+           (isReadLikeBusCycle(type) || isWriteLikeBusCycle(type));
+}
+
 uint8_t CPU::debugRead(uint16_t address) const
 {
     if (!mem) return 0xFF;

@@ -757,6 +757,10 @@ class CPU
         // Bus Arbitration
         bool shouldRDYStallForCurrentBusCycle() const;
         bool shouldAECBlockCurrentBusCycle() const;
+        bool isReadLikeBusCycle(CpuBusCycleType type) const;
+        bool isWriteLikeBusCycle(CpuBusCycleType type) const;
+        bool shouldRDYStallForBusCycle(CpuBusCycleType type) const;
+        bool shouldAECBlockBusCycle(CpuBusCycleType type) const;
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
