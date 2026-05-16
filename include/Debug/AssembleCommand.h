@@ -27,10 +27,18 @@ class AssembleCommand : public MonitorCommand
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 
+        bool isInteractiveActive() const;
+        bool handleInteractiveLine(MLMonitor& mon, const std::string& line);
+
+        std::string currentPrompt() const;
 
     protected:
 
     private:
+        bool interactiveActive;
+        uint16_t interactiveAddress;
+
+        bool assembleAndWrite(MLMonitor& mon, uint16_t address, const std::string& line, uint16_t& nextAddress);
 };
 
 #endif // AssembleCOMMAND_H

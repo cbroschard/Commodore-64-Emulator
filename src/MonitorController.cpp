@@ -50,6 +50,11 @@ void MonitorController::open()
             {
                 if (!monitor) return "Monitor not available\n";
                 return monitor->executeAndCapture(cmd);
+            },
+            [this]() -> std::string
+            {
+                if (!monitor) return "> ";
+                return monitor->getPrompt();
             });
     }
 

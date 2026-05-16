@@ -22,12 +22,13 @@ class SDLMonitorWindow
 {
     public:
         using ExecFn = std::function<std::string(const std::string& cmd)>; // returns output to show
+        using PromptFn = std::function<std::string()>;
 
         SDLMonitorWindow();
         ~SDLMonitorWindow();
 
         bool isOpen() const { return opened; }
-        bool open(const char* title, int w, int h, ExecFn exec);
+        bool open(const char* title, int w, int h, ExecFn exec, PromptFn prompt);
         void close();
 
         void handleEvent(const SDL_Event& e);
@@ -59,6 +60,9 @@ class SDLMonitorWindow
 
         bool opened;
         ExecFn execFn;
+        PromptFn promptFn;
+
+        std::string currentPrompt() const;
 
         // Output buffer
         std::vector<ConsoleLine> lines;

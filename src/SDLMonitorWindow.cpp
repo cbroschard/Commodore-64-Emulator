@@ -183,12 +183,15 @@ void SDLMonitorWindow::createFontTexture()
     SDL_SetTextureBlendMode(fontTex, SDL_BLENDMODE_BLEND);
 }
 
-bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec)
+bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec, PromptFn prompt)
 {
     if (opened) return true;
 
-    width = w; height = h;
+    width = w;
+    height = h;
+
     execFn = std::move(exec);
+    promptFn = std::move(prompt);
 
     win = SDL_CreateWindow(title,
                            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -242,6 +245,14 @@ void SDLMonitorWindow::close()
     ren = nullptr;
     win = nullptr;
     opened = false;
+}
+
+std::string SDLMonitorWindow::currentPrompt() const
+{
+    if (promptFn)
+        return promptFn();
+
+    return "> ";
 }
 
 void SDLMonitorWindow::appendLine(const std::string& s)
@@ -317,7 +328,7 @@ void SDLMonitorWindow::moveCursorEnd()
 void SDLMonitorWindow::submitCommand()
 {
     // Echo command in Green
-    appendLine("> " + input, COL_PROMPT);
+    appendLine(currentPrompt() + input, COL_PROMPT);
 
     // Add to history if not empty
     if (!input.empty())
@@ -332,7 +343,11 @@ void SDLMonitorWindow::submitCommand()
     historyIndex = history.size(); // point to new blank line at end
 
     std::string out;
-    if (execFn && !input.empty())
+
+    // IMPORTANT:
+    // Even a blank line must be submitted, because interactive assembler mode
+    // uses blank Enter to exit.
+    if (execFn)
         out = execFn(input);
 
     // Split output into lines
@@ -355,14 +370,17 @@ void SDLMonitorWindow::submitCommand()
 
         // Simple heuristic for error coloring
         SDL_Color lineColor = COL_TEXT;
-        if (sub.rfind("Error", 0) == 0 || sub.rfind("Unable", 0) == 0)
+        if (sub.rfind("Error", 0) == 0 ||
+            sub.rfind("Unable", 0) == 0 ||
+            sub.rfind("Assembly error", 0) == 0)
         {
             lineColor = COL_ERROR;
         }
 
         appendLine(sub, lineColor);
 
-        if (start >= out.size()) break;
+        if (start >= out.size())
+            break;
     }
 
     input.clear();
@@ -709,7 +727,7 @@ void SDLMonitorWindow::render()
     // 1. Render Input Line at bottom
     int inputY = height - padding - lineHeight;
 
-    std::string prompt = "> ";
+    std::string prompt = currentPrompt();
     drawString(padding, inputY, prompt, COL_PROMPT);
     drawString(padding + (int(prompt.length()) * charWidth), inputY, input, COL_TEXT);
 

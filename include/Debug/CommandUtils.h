@@ -9,12 +9,13 @@
 #define COMMANDUTILS_H_INCLUDED
 
 #include <algorithm>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
-#include <string>
 #include <sstream>
 #include <stdexcept>
-#include <cstdint>
+#include <string>
+#include <vector>
 
 // Accept address as hex or decimal
 uint16_t parseAddress(const std::string& arg);
@@ -29,5 +30,6 @@ std::string hex4(uint8_t high, uint8_t low);
 std::string hex4(uint16_t value);
 std::string trimCopy(std::string s);
 std::string sanitizeAddrToken(std::string s);
+std::string joinArgs(const std::vector<std::string>& args, size_t start);
 
 #endif // COMMANDUTILS_H_INCLUDED
