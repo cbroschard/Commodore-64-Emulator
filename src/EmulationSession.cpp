@@ -80,6 +80,9 @@ bool EmulationSession::initializeMachine()
         throw std::runtime_error("Error: Problem encountered initializing memory!");
     }
 
+     // Enable VIC-II BA/AEC arbitration only for the host C64 CPU.
+    cpu_.setVICBusArbitrationEnabled(true);
+
     // Reset all chips
     bus_.reset();
     pla_.reset();
