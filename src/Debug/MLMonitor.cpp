@@ -5,7 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Computer.h"
+#include "Debug/AssembleCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
 
@@ -68,6 +68,21 @@ std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
 void MLMonitor::enterMonitor()
 {
     if (monbackend) monbackend->enterMonitor();
+}
+
+std::string MLMonitor::getPrompt() const
+{
+    auto asmIt = commands.find("a");
+    if (asmIt != commands.end())
+    {
+        if (auto* ac = dynamic_cast<AssembleCommand*>(asmIt->second.get()))
+        {
+            if (ac->isInteractiveActive())
+                return ac->currentPrompt();
+        }
+    }
+
+    return "> ";
 }
 
 void MLMonitor::queueAsyncLine(const std::string& s)
@@ -290,12 +305,33 @@ bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)
 
 void MLMonitor::handleCommand(const std::string& line)
 {
+    // If the assembler command is in interactive mode, every submitted line
+    // belongs to the assembler until it exits on blank line or ".".
+    auto asmIt = commands.find("a");
+    if (asmIt != commands.end())
+    {
+        if (auto* ac = dynamic_cast<AssembleCommand*>(asmIt->second.get()))
+        {
+            if (ac->isInteractiveActive())
+            {
+                ac->handleInteractiveLine(*this, line);
+                return;
+            }
+        }
+    }
+
     std::istringstream iss(line);
     std::string cmd;
     iss >> cmd;
 
+    // Blank command outside interactive assembler mode does nothing.
+    if (cmd.empty())
+        return;
+
     // Normalize to lowercase
-    std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
+    std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
 
     if (cmd == "exit" || cmd == "q" || cmd == "quit")
     {
@@ -309,7 +345,9 @@ void MLMonitor::handleCommand(const std::string& line)
         std::string topic;
         if (iss >> topic)
         {
-            std::transform(topic.begin(), topic.end(), topic.begin(), ::tolower);
+            std::transform(topic.begin(), topic.end(), topic.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
 
             auto it = commands.find(topic);
             if (it != commands.end())
@@ -335,20 +373,28 @@ void MLMonitor::handleCommand(const std::string& line)
         for (auto& [cat, cmds] : grouped)
         {
             std::cout << "  " << cat << ":\n";
-            for (auto& line : cmds)
-                std::cout << "    " << line << "\n";
+            for (auto& helpLine : cmds)
+                std::cout << "    " << helpLine << "\n";
         }
         return;
     }
 
     std::vector<std::string> args;
     args.push_back(cmd);
+
     std::string token;
-    while (iss >> token) args.push_back(token);
+    while (iss >> token)
+        args.push_back(token);
 
     auto it = commands.find(cmd);
-    if (it != commands.end()) it->second->execute(*this, args);
-    else std::cout << "Unknown command: " << cmd << "\n";
+    if (it != commands.end())
+    {
+        it->second->execute(*this, args);
+    }
+    else
+    {
+        std::cout << "Unknown command: " << cmd << "\n";
+    }
 }
 
 void MLMonitor::registerCommand(std::unique_ptr<MonitorCommand> cmd)

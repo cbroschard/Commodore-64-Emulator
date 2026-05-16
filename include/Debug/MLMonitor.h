@@ -93,6 +93,7 @@ class MLMonitor
 
         // Monitor access
         void enterMonitor();
+        std::string getPrompt() const;
 
         // std::cout queuing/draining
         void queueAsyncLine(const std::string& s);

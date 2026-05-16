@@ -121,3 +121,18 @@ std::pair<uint16_t,uint16_t> parseRangePair(std::string input)
     if (a > b) std::swap(a, b);
     return {a, b};
 }
+
+std::string joinArgs(const std::vector<std::string>& args, size_t start)
+{
+    std::ostringstream oss;
+
+    for (size_t i = start; i < args.size(); ++i)
+    {
+        if (i != start)
+            oss << ' ';
+
+        oss << args[i];
+    }
+
+    return oss.str();
+}

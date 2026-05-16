@@ -5,12 +5,18 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Computer.h"
+#include <iomanip>
+#include <iostream>
 #include "Debug/AssembleCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
 
-AssembleCommand::AssembleCommand() = default;
+AssembleCommand::AssembleCommand() :
+    interactiveActive(false),
+    interactiveAddress(0)
+{
+
+}
 
 AssembleCommand::~AssembleCommand() = default;
 
@@ -65,9 +71,88 @@ std::string AssembleCommand::help() const
       you can enter multiple 'a' commands or load a PRG/CRT file.)";
 }
 
+bool AssembleCommand::isInteractiveActive() const
+{
+    return interactiveActive;
+}
+
+bool AssembleCommand::assembleAndWrite(MLMonitor& mon,
+                                       uint16_t address,
+                                       const std::string& line,
+                                       uint16_t& nextAddress)
+{
+    Assembler assembler;
+    auto instr = assembler.assembleLine(line, address);
+
+    for (size_t i = 0; i < instr.bytes.size(); ++i)
+    {
+        mon.mlmonitorbackend()->writeRAM(
+            static_cast<uint16_t>(address + i),
+            instr.bytes[i]
+        );
+    }
+
+    std::cout << std::uppercase << std::hex
+              << std::setw(4) << std::setfill('0')
+              << static_cast<int>(address)
+              << ": ";
+
+    for (uint8_t b : instr.bytes)
+    {
+        std::cout << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(b)
+                  << ' ';
+    }
+
+    std::cout << "   " << line << "\n"
+              << std::dec << std::setfill(' ');
+
+    nextAddress = instr.nextAddress;
+    return true;
+}
+
+bool AssembleCommand::handleInteractiveLine(MLMonitor& mon, const std::string& line)
+{
+    if (!interactiveActive)
+        return false;
+
+    const std::string trimmed = trimCopy(line);
+
+    if (trimmed.empty() || trimmed == ".")
+    {
+        interactiveActive = false;
+        std::cout << "Assembly ended.\n";
+        return true;
+    }
+
+    try
+    {
+        uint16_t next = interactiveAddress;
+        assembleAndWrite(mon, interactiveAddress, trimmed, next);
+        interactiveAddress = next;
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "Assembly error: " << e.what() << "\n";
+    }
+
+    return true;
+}
+
+std::string AssembleCommand::currentPrompt() const
+{
+    std::ostringstream oss;
+
+    oss << std::uppercase << std::hex
+        << std::setw(4) << std::setfill('0')
+        << static_cast<int>(interactiveAddress)
+        << " > ";
+
+    return oss.str();
+}
+
 void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    // help or no-arg -> show usage
     if (args.size() == 1 || (args.size() > 1 && isHelp(args[1])))
     {
         std::cout << help() << std::endl;
@@ -76,32 +161,26 @@ void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
 
     uint16_t address = parseAddress(args[1]);
 
-    Assembler assembler;
-    std::string line;
+    // Interactive mode:
+    // a $C000
+    if (args.size() == 2)
+    {
+        interactiveActive = true;
+        interactiveAddress = address;
+        return;
+    }
 
-    while (true) {
-        // Prompt
-        std::cout << std::hex << std::uppercase
-                  << std::setw(4) << std::setfill('0')
-                  << address << " > ";
+    // One-line mode:
+    // a $C000 LDA #$01
+    const std::string line = joinArgs(args, 2);
 
-        // Read user input
-        std::getline(std::cin, line);
-        if (line.empty()) break;  // exit on blank line
-
-        try {
-            auto instr = assembler.assembleLine(line, address);
-
-            // Write into memory
-            for (size_t i = 0; i < instr.bytes.size(); ++i) {
-                mon.mlmonitorbackend()->writeRAM(address + i, instr.bytes[i]);
-            }
-
-            address = instr.nextAddress;  // advance
-        }
-        catch (const std::exception& e) {
-            std::cout << "Assembly error: " << e.what() << "\n";
-        }
+    try
+    {
+        uint16_t next = address;
+        assembleAndWrite(mon, address, line, next);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "Assembly error: " << e.what() << "\n";
     }
 }
-
