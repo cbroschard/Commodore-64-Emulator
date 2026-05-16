@@ -36,7 +36,8 @@ CPU::CPU() :
     lastOpcode(0xEA),
     setLogging(false),
     rdyLine(true),
-    aecLine(true)
+    aecLine(true),
+    vicBusArbitrationEnabled(false)
 {
     currentBusCycle = {};
     initializeOpcodeTable();
@@ -182,23 +183,24 @@ void CPU::reset()
     PC = (mem->read(0xFFFC) | (mem->read(0xFFFD) << 8));
 
     // Defaults
-    SP              = 0xFD;
-    SR              = 0x24;
-    lastOpcodePC    = PC;
-    lastOpcode      = 0xEA;
-    cycles          = 0;
-    totalCycles     = 0;
-    elapsedCycles   = 0;
-    lastCycleCount  = 0;
-    currentBusCycle = {};
-    busCycleActive  = false;
-    rdyLine         = true;
-    aecLine         = true;
-    setLogging      = false;
-    nmiPending      = false;
-    nmiLine         = false;
-    irqSuppressOne  = false;
-    soLevel         = true;
+    SP                          = 0xFD;
+    SR                          = 0x24;
+    lastOpcodePC                = PC;
+    lastOpcode                  = 0xEA;
+    cycles                      = 0;
+    totalCycles                 = 0;
+    elapsedCycles               = 0;
+    lastCycleCount              = 0;
+    currentBusCycle             = {};
+    busCycleActive              = false;
+    rdyLine                     = true;
+    aecLine                     = true;
+    vicBusArbitrationEnabled    = false;
+    setLogging                  = false;
+    nmiPending                  = false;
+    nmiLine                     = false;
+    irqSuppressOne              = false;
+    soLevel                     = true;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -1254,7 +1256,7 @@ void CPU::tick()
 
         if (cycles <= 0)
         {
-            if (!rdyLine)
+            if (vicBusArbitrationEnabled && !rdyLine)
             {
                 if (traceMgr)
                     traceMgr->recordCPUBA("CPU stalled by RDY/BA low", makeCpuStamp());
@@ -3261,19 +3263,21 @@ void CPU::XAA()
     setFlag(N, A & 0x80);
 }
 
-bool CPU::shouldRDYStallForCurrentBusCycle() const
+bool CPU::shouldRDYStallForBusCycle(CpuBusCycleType type) const
 {
-    // RDY/BA low stretches read-like CPU cycles.
-    // Writes should be allowed to complete.
-    return !rdyLine && currentBusCycle.isReadLike();
+    if (!vicBusArbitrationEnabled)
+        return false;
+
+    return !rdyLine && isReadLikeBusCycle(type);
 }
 
-bool CPU::shouldAECBlockCurrentBusCycle() const
+bool CPU::shouldAECBlockBusCycle(CpuBusCycleType type) const
 {
-    // AEC low means the VIC owns the external address bus.
-    // In the final bus-cycle model, the CPU should not perform
-    // an external bus access while AEC is low.
-    return !aecLine && currentBusCycle.usesExternalBus();
+    if (!vicBusArbitrationEnabled)
+        return false;
+
+    return !aecLine &&
+           (isReadLikeBusCycle(type) || isWriteLikeBusCycle(type));
 }
 
 bool CPU::isReadLikeBusCycle(CpuBusCycleType type) const
@@ -3303,20 +3307,6 @@ bool CPU::isWriteLikeBusCycle(CpuBusCycleType type) const
         default:
             return false;
     }
-}
-
-bool CPU::shouldRDYStallForBusCycle(CpuBusCycleType type) const
-{
-    // BA/RDY low stretches read-like CPU cycles.
-    // Writes are not stopped the same way.
-    return !rdyLine && isReadLikeBusCycle(type);
-}
-
-bool CPU::shouldAECBlockBusCycle(CpuBusCycleType type) const
-{
-    // AEC low means the VIC owns the external bus.
-    return !aecLine &&
-           (isReadLikeBusCycle(type) || isWriteLikeBusCycle(type));
 }
 
 uint8_t CPU::debugRead(uint16_t address) const

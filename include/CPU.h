@@ -512,6 +512,10 @@ class CPU
         inline uint8_t getSP() const { return SP; }
         uint8_t debugRead(uint16_t address) const;
 
+        // Bus Arbitration
+        inline void setVICBusArbitrationEnabled(bool enabled) { vicBusArbitrationEnabled = enabled; }
+        bool isVICBusArbitrationEnabled() const { return vicBusArbitrationEnabled; }
+
         // ML Monitor
         inline void setLog(bool enable) { setLogging = enable; }
         inline uint32_t getTotalCycles() const { return totalCycles; }
@@ -609,6 +613,7 @@ class CPU
 
         bool rdyLine;
         bool aecLine;
+        bool vicBusArbitrationEnabled;
 
         //Helper functions
         uint8_t readABS();
