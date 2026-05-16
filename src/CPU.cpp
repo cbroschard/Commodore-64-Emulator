@@ -17,6 +17,13 @@ CPU::CPU() :
     traceMgr(nullptr),
     vic(nullptr),
     busCycleActive(false),
+    microOpCount(0),
+    microOpIndex(0),
+    microInstructionActive(false),
+    executingMicroOp(false),
+    activeOpcode(0xEA),
+    activeOpcodePC(0),
+    microTemp(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -204,6 +211,14 @@ void CPU::reset()
     nmiLine                     = false;
     irqSuppressOne              = false;
     soLevel                     = true;
+    microOps                    = {};
+    microOpCount                = 0;
+    microOpIndex                = 0;
+    microInstructionActive      = false;
+    executingMicroOp            = false;
+    activeOpcode                = 0xEA;
+    activeOpcodePC              = 0;
+    microTemp                   = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -3350,6 +3365,23 @@ bool CPU::isWriteLikeBusCycle(CpuBusCycleType type) const
         default:
             return false;
     }
+}
+
+void CPU::clearMicroOps()
+{
+    microOps = {};
+    microOpCount = 0;
+    microOpIndex = 0;
+    microInstructionActive = false;
+    executingMicroOp = false;
+}
+
+void CPU::pushMicroOp(const CpuMicroOp& op)
+{
+    if (microOpCount >= microOps.size())
+        return;
+
+    microOps[microOpCount++] = op;
 }
 
 uint8_t CPU::debugRead(uint16_t address) const

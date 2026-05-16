@@ -12,10 +12,10 @@
 class CIA2;
 class StateWriter;
 
-#include <stdexcept>
-#include <sstream>
 #include <array>
 #include <functional>
+#include <sstream>
+#include <stdexcept>
 #include <stdint.h>
 #include "Common/BCD.h"
 #include "CPUBus.h"
@@ -535,6 +535,57 @@ class CPU
         CpuBusCycle currentBusCycle {};
         bool busCycleActive;
 
+        enum class CpuMicroOpKind : uint8_t
+        {
+            None,
+
+            OpcodeFetch,
+            OperandRead,
+            MemoryRead,
+            MemoryWrite,
+
+            DummyRead,
+            DummyWrite,
+
+            StackRead,
+            StackWrite,
+
+            Internal
+        };
+
+        enum class CpuMicroAction : uint8_t
+        {
+            None,
+
+            FinishNOP,
+            FinishLDAImmediate,
+            FinishLDXImmediate,
+            FinishLDYImmediate
+        };
+
+        struct CpuMicroOp
+        {
+            CpuMicroOpKind kind = CpuMicroOpKind::None;
+            CpuBusCycleType busType = CpuBusCycleType::None;
+
+            uint16_t address = 0;
+            uint8_t value = 0;
+
+            CpuMicroAction action = CpuMicroAction::None;
+        };
+
+        std::array<CpuMicroOp, 8> microOps {};
+        uint8_t microOpCount;
+        uint8_t microOpIndex;
+
+        bool microInstructionActive;
+        bool executingMicroOp;
+
+        uint8_t activeOpcode;
+        uint16_t activeOpcodePC;
+
+        uint8_t microTemp;
+
         // Debug
         CPUAddressDebugState lastAddressDebug;
         CPUBranchDebugState lastBranch;
@@ -771,6 +822,12 @@ class CPU
         bool shouldRDYStallForBusCycle(CpuBusCycleType type) const;
         bool shouldAECBlockBusCycle(CpuBusCycleType type) const;
         bool tryFetchOpcode(uint8_t& opcode);
+
+        // Micro OP
+        void clearMicroOps();
+        void pushMicroOp(const CpuMicroOp& op);
+        bool executeCurrentMicroOp();
+        void buildMicroOpsForOpcode(uint8_t opcode);
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
