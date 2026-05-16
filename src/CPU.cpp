@@ -23,7 +23,7 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
-    useMicroOpsForTest(false),
+    useMicroOpsForTest(true),
     microTemp(0),
     nmiPending(false),
     nmiLine(false),
@@ -1268,8 +1268,8 @@ void CPU::tick()
         return;
     }
 
-    if (useMicroOpsForTest && tickMicroOps())
-        return;
+    //if (useMicroOpsForTest && tickMicroOps())
+        //return;
 
     if (cycles <= 0)
     {
@@ -1304,12 +1304,33 @@ void CPU::tick()
                 activeOpcodePC = pcExec;
 
                 buildMicroOpsForOpcode(opcode);
-                microInstructionActive = true;
 
-                if (microOpCount == 0)
-                    clearMicroOps();
+                // First hybrid stage:
+                // Run the converted instruction body immediately,
+                // but still use the existing instruction-level cycle table.
+                while (microOpIndex < microOpCount)
+                {
+                    executeCurrentMicroOp();
+                }
 
-                cycles = 0;
+                clearMicroOps();
+
+                if (traceMgr && traceMgr->isEnabled() &&
+                    traceMgr->catOn(TraceManager::TraceCat::CPU) &&
+                    traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
+                {
+                    traceMgr->recordCPUExec(
+                        pcExec,
+                        opcode,
+                        traceMgr->makeStamp(
+                            totalCycles,
+                            vic ? vic->getCurrentRaster() : 0,
+                            vic ? vic->getRasterDot() : 0
+                        )
+                    );
+                }
+
+                cycles += CYCLE_COUNTS[opcode];
             }
             else
             {
@@ -3439,7 +3460,7 @@ bool CPU::executeCurrentMicroOp()
 
     // Only real micro-ops are allowed to behaviorally stall.
     // Old instruction-level cpuRead/cpuWrite paths remain diagnostic-only.
-    if (shouldRDYStallForBusCycle(op.busType))
+    /*if (shouldRDYStallForBusCycle(op.busType))
     {
         if (traceMgr)
             traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
@@ -3459,6 +3480,18 @@ bool CPU::executeCurrentMicroOp()
         busCycleActive = false;
         currentBusCycle = {};
         return false;
+    }*/
+
+    if (shouldRDYStallForBusCycle(op.busType))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("RDY/BA low during CPU micro-op", makeCpuStamp());
+    }
+
+    if (shouldAECBlockBusCycle(op.busType))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("AEC low during CPU micro-op", makeCpuStamp());
     }
 
     switch (op.kind)
@@ -3569,16 +3602,15 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         case 0xEA: // NOP implied
         {
             pushMicroOp({
-                CpuMicroOpKind::Internal,
-                CpuBusCycleType::None,
-                0,
+                CpuMicroOpKind::DummyRead,
+                CpuBusCycleType::DummyRead,
+                PC,
                 0,
                 CpuMicroAction::FinishNOP
             });
 
             break;
         }
-
         default:
             break;
     }
