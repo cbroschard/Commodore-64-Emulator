@@ -23,7 +23,7 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
-    useMicroOpsForTest(true),
+    useMicroOpsForTest(false),
     microTemp(0),
     nmiPending(false),
     nmiLine(false),
@@ -3601,6 +3601,7 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
     {
         case 0xEA: // NOP implied
         {
+            // Match old NOP body: dummy read from current PC.
             pushMicroOp({
                 CpuMicroOpKind::DummyRead,
                 CpuBusCycleType::DummyRead,
@@ -3608,9 +3609,23 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
                 0,
                 CpuMicroAction::FinishNOP
             });
-
             break;
         }
+
+        case 0xA9: // LDA #imm
+        {
+            // Operand byte read from instruction stream.
+            // executeCurrentMicroOp() advances PC for OperandRead.
+            pushMicroOp({
+                CpuMicroOpKind::OperandRead,
+                CpuBusCycleType::Read,
+                PC,
+                0,
+                CpuMicroAction::FinishLDAImmediate
+            });
+            break;
+        }
+
         default:
             break;
     }
@@ -3621,6 +3636,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
     switch (opcode)
     {
         case 0xEA: // NOP implied
+        case 0xA9: // LDA #imm
             return true;
 
         default:
