@@ -563,6 +563,7 @@ class CPU
         uint16_t pendingOpcodeAddress;
 
         // Process commands
+        uint8_t fetchOpcode();
         uint8_t fetchOperand();
         void decodeAndExecute(uint8_t opcode);
 

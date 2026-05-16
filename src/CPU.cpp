@@ -23,7 +23,7 @@ CPU::CPU() :
     jamMode(JamMode::NopCompat),
     halted(false),
     pendingOpcodeFetch(false),
-    pendingOpcodeAddress(false),
+    pendingOpcodeAddress(0),
     cycles(0),
     totalCycles(0),
     elapsedCycles(0),
@@ -198,8 +198,7 @@ void CPU::reset()
     rdyLine                     = true;
     aecLine                     = true;
     pendingOpcodeFetch          = false;
-    pendingOpcodeAddress        = false;
-    vicBusArbitrationEnabled    = false;
+    pendingOpcodeAddress        = 0;
     setLogging                  = false;
     nmiPending                  = false;
     nmiLine                     = false;
@@ -1260,14 +1259,9 @@ void CPU::tick()
 
         if (cycles <= 0)
         {
-            const uint16_t pcExec = pendingOpcodeFetch ? pendingOpcodeAddress : PC;
+            const uint16_t pcExec = PC;
 
-            uint8_t opcode = 0;
-            if (!tryFetchOpcode(opcode))
-            {
-                totalCycles++;
-                return;
-            }
+            uint8_t opcode = fetchOpcode();
 
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
@@ -1304,6 +1298,13 @@ uint32_t CPU::getElapsedCycles()
     elapsedCycles = totalCycles - lastCycleCount;
     lastCycleCount = totalCycles; // Update lastCycleCount for the next call
     return elapsedCycles;
+}
+
+uint8_t CPU::fetchOpcode()
+{
+    const uint8_t byte = cpuRead(PC, CpuBusCycleType::OpcodeFetch);
+    PC = uint16_t((PC + 1) & 0xFFFF);
+    return byte;
 }
 
 uint8_t CPU::fetchOperand()
