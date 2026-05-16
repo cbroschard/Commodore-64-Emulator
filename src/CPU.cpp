@@ -3601,7 +3601,6 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
     {
         case 0xEA: // NOP implied
         {
-            // Match old NOP body: dummy read from current PC.
             pushMicroOp({
                 CpuMicroOpKind::DummyRead,
                 CpuBusCycleType::DummyRead,
@@ -3614,14 +3613,36 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xA9: // LDA #imm
         {
-            // Operand byte read from instruction stream.
-            // executeCurrentMicroOp() advances PC for OperandRead.
             pushMicroOp({
                 CpuMicroOpKind::OperandRead,
                 CpuBusCycleType::Read,
                 PC,
                 0,
                 CpuMicroAction::FinishLDAImmediate
+            });
+            break;
+        }
+
+        case 0xA2: // LDX #imm
+        {
+            pushMicroOp({
+                CpuMicroOpKind::OperandRead,
+                CpuBusCycleType::Read,
+                PC,
+                0,
+                CpuMicroAction::FinishLDXImmediate
+            });
+            break;
+        }
+
+        case 0xA0: // LDY #imm
+        {
+            pushMicroOp({
+                CpuMicroOpKind::OperandRead,
+                CpuBusCycleType::Read,
+                PC,
+                0,
+                CpuMicroAction::FinishLDYImmediate
             });
             break;
         }
@@ -3637,6 +3658,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
     {
         case 0xEA: // NOP implied
         case 0xA9: // LDA #imm
+        case 0xA2: // LDX #imm
+        case 0xA0: // LDY #imm
             return true;
 
         default:
