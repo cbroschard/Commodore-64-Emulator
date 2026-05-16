@@ -216,7 +216,6 @@ void CPU::reset()
     microOpCount                = 0;
     microOpIndex                = 0;
     microInstructionActive      = false;
-    useMicroOpsForTest           = false;
     executingMicroOp            = false;
     activeOpcode                = 0xEA;
     activeOpcodePC              = 0;
@@ -1263,8 +1262,8 @@ void CPU::tick()
         if (traceMgr)
             traceMgr->recordCPUJam("CPU halted/jammed", makeCpuStamp());
 
-        cycles = 1; // always force 1 cycle pending
-        cycles--;   // consume it
+        cycles = 1;
+        cycles--;
         totalCycles++;
         return;
     }
@@ -1281,18 +1280,21 @@ void CPU::tick()
         {
             const uint16_t pcExec = PC;
 
-            uint8_t opcode = fetchOpcode();
+            const uint8_t opcode = fetchOpcode();
 
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
 
-            // Log it
             if (logger && setLogging)
             {
                 std::stringstream message;
-                message << "PC = " << std::hex << static_cast<int>(PC - 1) << ", OPCODE = " << std::hex << static_cast<int>(opcode) << ", A = " << std::hex
-                << static_cast<int>(A) << ", X = " << std::hex << static_cast<int>(X) << ", Y= " << std::hex << static_cast<int>(Y)
-                << ", SP = " << std::hex << static_cast<int>(SP);
+                message << "PC = " << std::hex << static_cast<int>(PC - 1)
+                        << ", OPCODE = " << std::hex << static_cast<int>(opcode)
+                        << ", A = " << std::hex << static_cast<int>(A)
+                        << ", X = " << std::hex << static_cast<int>(X)
+                        << ", Y= " << std::hex << static_cast<int>(Y)
+                        << ", SP = " << std::hex << static_cast<int>(SP);
+
                 logger->WriteLog(message.str());
             }
 
@@ -1302,10 +1304,8 @@ void CPU::tick()
                 activeOpcodePC = pcExec;
 
                 buildMicroOpsForOpcode(opcode);
-
                 microInstructionActive = true;
 
-                // If the opcode has no remaining micro-ops, finish immediately.
                 if (microOpCount == 0)
                     clearMicroOps();
 
@@ -1332,21 +1332,9 @@ void CPU::tick()
 
                 cycles += CYCLE_COUNTS[opcode];
             }
-
-            decodeAndExecute(opcode);
-
-            // If tracing is on capture it
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU)
-                && traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
-            {
-                traceMgr->recordCPUExec(pcExec, opcode, traceMgr->makeStamp(totalCycles,
-                    vic ? vic->getCurrentRaster() : 0, vic ? vic->getRasterDot() : 0));
-            }
-
-            // Update the cycles based on the table
-            cycles += CYCLE_COUNTS[opcode];  // Set cycle count for the opcode
         }
     }
+
     cycles--;
     totalCycles++;
 }
