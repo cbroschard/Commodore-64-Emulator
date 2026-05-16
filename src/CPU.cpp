@@ -22,6 +22,8 @@ CPU::CPU() :
     irqSuppressOne(false),
     jamMode(JamMode::NopCompat),
     halted(false),
+    pendingOpcodeFetch(false),
+    pendingOpcodeAddress(false),
     cycles(0),
     totalCycles(0),
     elapsedCycles(0),
@@ -195,6 +197,8 @@ void CPU::reset()
     busCycleActive              = false;
     rdyLine                     = true;
     aecLine                     = true;
+    pendingOpcodeFetch          = false;
+    pendingOpcodeAddress        = false;
     vicBusArbitrationEnabled    = false;
     setLogging                  = false;
     nmiPending                  = false;
@@ -1256,18 +1260,14 @@ void CPU::tick()
 
         if (cycles <= 0)
         {
-            if (vicBusArbitrationEnabled && !rdyLine)
-            {
-                if (traceMgr)
-                    traceMgr->recordCPUBA("CPU stalled by RDY/BA low", makeCpuStamp());
+            const uint16_t pcExec = pendingOpcodeFetch ? pendingOpcodeAddress : PC;
 
+            uint8_t opcode = 0;
+            if (!tryFetchOpcode(opcode))
+            {
                 totalCycles++;
                 return;
             }
-
-            const uint16_t pcExec = PC;   // PC of the instruction to execute
-
-            uint8_t opcode = fetchOpcode();
 
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
@@ -1304,13 +1304,6 @@ uint32_t CPU::getElapsedCycles()
     elapsedCycles = totalCycles - lastCycleCount;
     lastCycleCount = totalCycles; // Update lastCycleCount for the next call
     return elapsedCycles;
-}
-
-uint8_t CPU::fetchOpcode()
-{
-    const uint8_t byte = cpuRead(PC, CpuBusCycleType::OpcodeFetch);
-    PC = uint16_t((PC + 1) & 0xFFFF);
-    return byte;
 }
 
 uint8_t CPU::fetchOperand()
@@ -3278,6 +3271,55 @@ bool CPU::shouldAECBlockBusCycle(CpuBusCycleType type) const
 
     return !aecLine &&
            (isReadLikeBusCycle(type) || isWriteLikeBusCycle(type));
+}
+
+bool CPU::tryFetchOpcode(uint8_t& opcode)
+{
+    if (!pendingOpcodeFetch)
+    {
+        pendingOpcodeFetch = true;
+        pendingOpcodeAddress = PC;
+    }
+
+    currentBusCycle = {
+        CpuBusCycleType::OpcodeFetch,
+        pendingOpcodeAddress,
+        0
+    };
+
+    busCycleActive = true;
+
+    if (shouldRDYStallForBusCycle(CpuBusCycleType::OpcodeFetch))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("RDY/BA low stalls opcode fetch", makeCpuStamp());
+
+        busCycleActive = false;
+        currentBusCycle = {};
+        return false;
+    }
+
+    if (shouldAECBlockBusCycle(CpuBusCycleType::OpcodeFetch))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("AEC low blocks opcode fetch", makeCpuStamp());
+
+        busCycleActive = false;
+        currentBusCycle = {};
+        return false;
+    }
+
+    opcode = mem->read(pendingOpcodeAddress);
+
+    PC = uint16_t((PC + 1) & 0xFFFF);
+
+    pendingOpcodeFetch = false;
+    pendingOpcodeAddress = 0;
+
+    busCycleActive = false;
+    currentBusCycle = {};
+
+    return true;
 }
 
 bool CPU::isReadLikeBusCycle(CpuBusCycleType type) const

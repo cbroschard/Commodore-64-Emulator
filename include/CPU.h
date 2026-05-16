@@ -559,11 +559,10 @@ class CPU
         JamMode jamMode;
         bool halted;
 
-        uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
-        void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
+        bool pendingOpcodeFetch;
+        uint16_t pendingOpcodeAddress;
 
         // Process commands
-        uint8_t fetchOpcode();
         uint8_t fetchOperand();
         void decodeAndExecute(uint8_t opcode);
 
@@ -606,6 +605,10 @@ class CPU
         uint8_t activeSource;
         void executeIRQ();
         void executeNMI();
+
+
+        uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
+        void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
         // OpCode Table to point to all functions
         std::array<std::function<void()>, 256> opcodeTable;
@@ -766,6 +769,7 @@ class CPU
         bool isWriteLikeBusCycle(CpuBusCycleType type) const;
         bool shouldRDYStallForBusCycle(CpuBusCycleType type) const;
         bool shouldAECBlockBusCycle(CpuBusCycleType type) const;
+        bool tryFetchOpcode(uint8_t& opcode);
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
