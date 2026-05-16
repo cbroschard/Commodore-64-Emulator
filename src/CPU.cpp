@@ -3277,12 +3277,18 @@ bool CPU::shouldRDYStallForBusCycle(CpuBusCycleType type) const
     if (!vicBusArbitrationEnabled)
         return false;
 
+    if (!executingMicroOp)
+        return false;
+
     return !rdyLine && isReadLikeBusCycle(type);
 }
 
 bool CPU::shouldAECBlockBusCycle(CpuBusCycleType type) const
 {
     if (!vicBusArbitrationEnabled)
+        return false;
+
+    if (!executingMicroOp)
         return false;
 
     return !aecLine &&
@@ -3382,6 +3388,149 @@ void CPU::pushMicroOp(const CpuMicroOp& op)
         return;
 
     microOps[microOpCount++] = op;
+}
+
+bool CPU::executeCurrentMicroOp()
+{
+    if (microOpIndex >= microOpCount)
+        return true;
+
+    CpuMicroOp& op = microOps[microOpIndex];
+
+    currentBusCycle = {
+        op.busType,
+        op.address,
+        op.value
+    };
+
+    busCycleActive = (op.busType != CpuBusCycleType::None);
+    executingMicroOp = true;
+
+    // Only real micro-ops are allowed to behaviorally stall.
+    // Old instruction-level cpuRead/cpuWrite paths remain diagnostic-only.
+    if (shouldRDYStallForBusCycle(op.busType))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
+
+        executingMicroOp = false;
+        busCycleActive = false;
+        currentBusCycle = {};
+        return false;
+    }
+
+    if (shouldAECBlockBusCycle(op.busType))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("AEC low blocks CPU micro-op", makeCpuStamp());
+
+        executingMicroOp = false;
+        busCycleActive = false;
+        currentBusCycle = {};
+        return false;
+    }
+
+    switch (op.kind)
+    {
+        case CpuMicroOpKind::OpcodeFetch:
+        {
+            activeOpcodePC = PC;
+            activeOpcode = mem->read(PC);
+            PC = uint16_t((PC + 1) & 0xFFFF);
+
+            lastOpcodePC = activeOpcodePC;
+            lastOpcode = activeOpcode;
+            break;
+        }
+
+        case CpuMicroOpKind::OperandRead:
+        {
+            microTemp = mem->read(PC);
+            PC = uint16_t((PC + 1) & 0xFFFF);
+            break;
+        }
+
+        case CpuMicroOpKind::MemoryRead:
+        {
+            microTemp = mem->read(op.address);
+            break;
+        }
+
+        case CpuMicroOpKind::MemoryWrite:
+        {
+            mem->write(op.address, op.value);
+            break;
+        }
+
+        case CpuMicroOpKind::DummyRead:
+        {
+            (void)mem->read(op.address);
+            break;
+        }
+
+        case CpuMicroOpKind::DummyWrite:
+        {
+            mem->write(op.address, op.value);
+            break;
+        }
+
+        case CpuMicroOpKind::StackRead:
+        {
+            microTemp = mem->read(op.address);
+            break;
+        }
+
+        case CpuMicroOpKind::StackWrite:
+        {
+            mem->write(op.address, op.value);
+            break;
+        }
+
+        case CpuMicroOpKind::Internal:
+        case CpuMicroOpKind::None:
+        default:
+            break;
+    }
+
+    switch (op.action)
+    {
+        case CpuMicroAction::FinishNOP:
+            break;
+
+        case CpuMicroAction::FinishLDAImmediate:
+            A = microTemp;
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::FinishLDXImmediate:
+            X = microTemp;
+            setFlag(Z, X == 0);
+            setFlag(N, (X & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::FinishLDYImmediate:
+            Y = microTemp;
+            setFlag(Z, Y == 0);
+            setFlag(N, (Y & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::None:
+        default:
+            break;
+    }
+
+    executingMicroOp = false;
+    busCycleActive = false;
+    currentBusCycle = {};
+
+    microOpIndex++;
+    return true;
+}
+
+void CPU::buildMicroOpsForOpcode(uint8_t opcode)
+{
+    (void)opcode;
 }
 
 uint8_t CPU::debugRead(uint16_t address) const
