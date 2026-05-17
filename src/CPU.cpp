@@ -37,6 +37,9 @@ CPU::CPU() :
     microBranchOffset(0),
     microBranchTaken(false),
     microOldPC(0),
+    microReturnAddress(0),
+    microReturnLow(0),
+    microReturnHigh(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -244,6 +247,9 @@ void CPU::reset()
     microBranchOffset           = 0;
     microBranchTaken            = false;
     microOldPC                  = 0;
+    microReturnAddress          = 0;
+    microReturnLow              = 0;
+    microReturnHigh             = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -3661,6 +3667,19 @@ bool CPU::executeCurrentMicroOp()
                     break;
                 }
 
+                case CpuMicroAction::PullRTSLow:
+                {
+                    microReturnLow = value;
+                    break;
+                }
+
+                case CpuMicroAction::PullRTSHigh:
+                {
+                    microReturnHigh = value;
+                    microReturnAddress = uint16_t(microReturnLow) | (uint16_t(microReturnHigh) << 8);
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -3681,6 +3700,18 @@ bool CPU::executeCurrentMicroOp()
                 case CpuMicroAction::PushProcessorStatus:
                     value = SR | 0x30; // B set, U set for PHP/BRK-style push
                     break;
+
+                case CpuMicroAction::PushJSRReturnHigh:
+                {
+                    value = uint8_t((microReturnAddress >> 8) & 0xFF);
+                    break;
+                }
+
+                case CpuMicroAction::PushJSRReturnLow:
+                {
+                    value = uint8_t(microReturnAddress & 0xFF);
+                    break;
+                }
 
                 default:
                     value = op.value;
@@ -4024,6 +4055,21 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroAction::JumpToMicroAddress:
         {
             PC = microAddress;
+            break;
+        }
+
+        case CpuMicroAction::PrepareJSRReturnAddress:
+        {
+            // After reading JSR target low byte, PC points at the high operand byte.
+            // JSR pushes the address of that high operand byte.
+            microReturnAddress = PC;
+            break;
+        }
+
+        case CpuMicroAction::FinishRTS:
+        {
+            // RTS returns to pulled address + 1.
+            PC = uint16_t(microReturnAddress + 1);
             break;
         }
 
@@ -4757,6 +4803,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0x28: // PLP
             buildStackPull(CpuMicroAction::PullProcessorStatus);
+            break;
+
+        case 0x20: // JSR abs
+            buildJSR();
+            break;
+
+        case 0x60: // RTS
+            buildRTS();
             break;
 
         default:
@@ -5721,6 +5775,122 @@ void CPU::buildStackPull(CpuMicroAction action)
     pushMicroOp(pullOp);
 }
 
+void CPU::buildJSR()
+{
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = PC;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    CpuMicroOp prepReturn;
+    prepReturn.kind = CpuMicroOpKind::Internal;
+    prepReturn.busType = CpuBusCycleType::None;
+    prepReturn.address = 0;
+    prepReturn.value = 0;
+    prepReturn.useMicroAddress = false;
+    prepReturn.index = CpuIndexReg::None;
+    prepReturn.action = CpuMicroAction::PrepareJSRReturnAddress;
+    pushMicroOp(prepReturn);
+
+    CpuMicroOp pushHi;
+    pushHi.kind = CpuMicroOpKind::StackWrite;
+    pushHi.busType = CpuBusCycleType::StackWrite;
+    pushHi.address = 0;
+    pushHi.value = 0;
+    pushHi.useMicroAddress = false;
+    pushHi.index = CpuIndexReg::None;
+    pushHi.action = CpuMicroAction::PushJSRReturnHigh;
+    pushMicroOp(pushHi);
+
+    CpuMicroOp pushLo;
+    pushLo.kind = CpuMicroOpKind::StackWrite;
+    pushLo.busType = CpuBusCycleType::StackWrite;
+    pushLo.address = 0;
+    pushLo.value = 0;
+    pushLo.useMicroAddress = false;
+    pushLo.index = CpuIndexReg::None;
+    pushLo.action = CpuMicroAction::PushJSRReturnLow;
+    pushMicroOp(pushLo);
+
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    CpuMicroOp jump;
+    jump.kind = CpuMicroOpKind::Internal;
+    jump.busType = CpuBusCycleType::None;
+    jump.address = 0;
+    jump.value = 0;
+    jump.useMicroAddress = false;
+    jump.index = CpuIndexReg::None;
+    jump.action = CpuMicroAction::JumpToMicroAddress;
+    pushMicroOp(jump);
+}
+
+void CPU::buildRTS()
+{
+    CpuMicroOp dummy1;
+    dummy1.kind = CpuMicroOpKind::DummyRead;
+    dummy1.busType = CpuBusCycleType::DummyRead;
+    dummy1.address = PC;
+    dummy1.value = 0;
+    dummy1.useMicroAddress = false;
+    dummy1.index = CpuIndexReg::None;
+    dummy1.action = CpuMicroAction::None;
+    pushMicroOp(dummy1);
+
+    CpuMicroOp dummy2;
+    dummy2.kind = CpuMicroOpKind::DummyRead;
+    dummy2.busType = CpuBusCycleType::DummyRead;
+    dummy2.address = uint16_t(0x0100 | SP);
+    dummy2.value = 0;
+    dummy2.useMicroAddress = false;
+    dummy2.index = CpuIndexReg::None;
+    dummy2.action = CpuMicroAction::None;
+    pushMicroOp(dummy2);
+
+    CpuMicroOp pullLo;
+    pullLo.kind = CpuMicroOpKind::StackRead;
+    pullLo.busType = CpuBusCycleType::StackRead;
+    pullLo.address = 0;
+    pullLo.value = 0;
+    pullLo.useMicroAddress = false;
+    pullLo.index = CpuIndexReg::None;
+    pullLo.action = CpuMicroAction::PullRTSLow;
+    pushMicroOp(pullLo);
+
+    CpuMicroOp pullHi;
+    pullHi.kind = CpuMicroOpKind::StackRead;
+    pullHi.busType = CpuBusCycleType::StackRead;
+    pullHi.address = 0;
+    pullHi.value = 0;
+    pullHi.useMicroAddress = false;
+    pullHi.index = CpuIndexReg::None;
+    pullHi.action = CpuMicroAction::PullRTSHigh;
+    pushMicroOp(pullHi);
+
+    CpuMicroOp finish;
+    finish.kind = CpuMicroOpKind::Internal;
+    finish.busType = CpuBusCycleType::None;
+    finish.address = 0;
+    finish.value = 0;
+    finish.useMicroAddress = false;
+    finish.index = CpuIndexReg::None;
+    finish.action = CpuMicroAction::FinishRTS;
+    pushMicroOp(finish);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -5915,6 +6085,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x10: // BPL
         case 0x50: // BVC
         case 0x70: // BVS
+
+        case 0x20: // JSR
+        case 0x60: // RTS
             return true;
 
         default:

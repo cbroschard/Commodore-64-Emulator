@@ -651,7 +651,14 @@ class CPU
             PushA,
             PushProcessorStatus,
             PullA,
-            PullProcessorStatus
+            PullProcessorStatus,
+
+            PrepareJSRReturnAddress,
+            PushJSRReturnHigh,
+            PushJSRReturnLow,
+            PullRTSLow,
+            PullRTSHigh,
+            FinishRTS
         };
 
         enum class CpuIndexReg : uint8_t
@@ -699,6 +706,9 @@ class CPU
         int8_t microBranchOffset;
         bool microBranchTaken;
         uint16_t microOldPC;
+        uint16_t microReturnAddress;
+        uint8_t microReturnLow;
+        uint8_t microReturnHigh;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;
@@ -963,6 +973,8 @@ class CPU
         void buildBranch(CpuMicroAction action);
         void buildStackPush(CpuMicroAction action);
         void buildStackPull(CpuMicroAction action);
+        void buildJSR();
+        void buildRTS();
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
