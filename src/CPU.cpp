@@ -3848,6 +3848,12 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::JumpToMicroAddress:
+        {
+            PC = microAddress;
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -4409,6 +4415,41 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         case 0xDE: // DEC abs,X
             buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTemp);
             break;
+
+        case 0x4C: // JMP abs
+        {
+            CpuMicroOp readLo;
+            readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+            readLo.busType = CpuBusCycleType::Read;
+            readLo.address = PC;
+            readLo.value = 0;
+            readLo.useMicroAddress = false;
+            readLo.index = CpuIndexReg::None;
+            readLo.action = CpuMicroAction::None;
+            pushMicroOp(readLo);
+
+            CpuMicroOp readHi;
+            readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+            readHi.busType = CpuBusCycleType::Read;
+            readHi.address = 0;
+            readHi.value = 0;
+            readHi.useMicroAddress = false;
+            readHi.index = CpuIndexReg::None;
+            readHi.action = CpuMicroAction::None;
+            pushMicroOp(readHi);
+
+            CpuMicroOp jump;
+            jump.kind = CpuMicroOpKind::Internal;
+            jump.busType = CpuBusCycleType::None;
+            jump.address = 0;
+            jump.value = 0;
+            jump.useMicroAddress = false;
+            jump.index = CpuIndexReg::None;
+            jump.action = CpuMicroAction::JumpToMicroAddress;
+            pushMicroOp(jump);
+
+            break;
+        }
 
         default:
             break;
@@ -5445,6 +5486,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xCE: // DEC abs
         case 0xD6: // DEC zp,X
         case 0xDE: // DEC abs,X
+
+        case 0x4C: // JMP abs
+        //case 0x6C: // JMP (abs)
             return true;
 
         default:

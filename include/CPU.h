@@ -626,7 +626,9 @@ class CPU
             ShiftLeftTemp,
             RotateLeftTemp,
             ShiftRightTemp,
-            RotateRightTemp
+            RotateRightTemp,
+
+            JumpToMicroAddress
         };
 
         enum class CpuIndexReg : uint8_t
