@@ -4331,6 +4331,46 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x14: // NOP zp,X unofficial
+        case 0x34: // NOP zp,X unofficial
+        case 0x54: // NOP zp,X unofficial
+        case 0x74: // NOP zp,X unofficial
+        case 0xD4: // NOP zp,X unofficial
+        case 0xF4: // NOP zp,X unofficial
+        {
+            CpuMicroOp readZp;
+            readZp.kind = CpuMicroOpKind::OperandReadToZP;
+            readZp.busType = CpuBusCycleType::Read;
+            readZp.address = PC;
+            readZp.value = 0;
+            readZp.useMicroAddress = false;
+            readZp.index = CpuIndexReg::None;
+            readZp.action = CpuMicroAction::None;
+            pushMicroOp(readZp);
+
+            CpuMicroOp applyX;
+            applyX.kind = CpuMicroOpKind::ApplyZeroPageIndex;
+            applyX.busType = CpuBusCycleType::None;
+            applyX.address = 0;
+            applyX.value = 0;
+            applyX.useMicroAddress = false;
+            applyX.index = CpuIndexReg::X;
+            applyX.action = CpuMicroAction::None;
+            pushMicroOp(applyX);
+
+            CpuMicroOp readIgnored;
+            readIgnored.kind = CpuMicroOpKind::MemoryRead;
+            readIgnored.busType = CpuBusCycleType::Read;
+            readIgnored.address = 0;
+            readIgnored.value = 0;
+            readIgnored.useMicroAddress = true;
+            readIgnored.index = CpuIndexReg::None;
+            readIgnored.action = CpuMicroAction::None;
+            pushMicroOp(readIgnored);
+
+            break;
+        }
+
         case 0x0D: // ORA abs
             buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
             break;
@@ -6608,6 +6648,12 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x04:
         case 0x44:
         case 0x64:
+        case 0x14:
+        case 0x34:
+        case 0x54:
+        case 0x74:
+        case 0xD4:
+        case 0xF4:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
