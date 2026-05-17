@@ -543,6 +543,7 @@ class CPU
 
             OpcodeFetch,
             OperandRead,
+            OperandReadToAddress,
             MemoryRead,
             MemoryWrite,
 
@@ -594,6 +595,8 @@ class CPU
             uint16_t address = 0;
             uint8_t value = 0;
 
+            bool useMicroAddress = false;
+
             CpuMicroAction action = CpuMicroAction::None;
         };
 
@@ -608,7 +611,7 @@ class CPU
         uint16_t activeOpcodePC;
 
         bool useMicroOpsForTest;
-
+        uint16_t microAddress;
         uint8_t microTemp;
 
         // Debug
@@ -855,6 +858,7 @@ class CPU
         void buildMicroOpsForOpcode(uint8_t opcode);
         void buildImmediateLoad(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
+        void buildZeroPageLoad(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 

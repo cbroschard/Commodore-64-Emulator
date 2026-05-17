@@ -91,6 +91,7 @@ bool EmulationSession::initializeMachine()
 
     // Enable VIC-II BA/AEC arbitration only for the host C64 CPU.
     cpu_.setVICBusArbitrationEnabled(true);
+    cpu_.setUseMicroOpsForTest(true);
 
     // Process boot attachments
     media_.applyBootAttachments();

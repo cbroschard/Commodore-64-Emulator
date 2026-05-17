@@ -23,7 +23,8 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
-    useMicroOpsForTest(true),
+    useMicroOpsForTest(false),
+    microAddress(0),
     microTemp(0),
     nmiPending(false),
     nmiLine(false),
@@ -215,6 +216,7 @@ void CPU::reset()
     microOps                    = {};
     microOpCount                = 0;
     microOpIndex                = 0;
+    microAddress                = 0;
     microInstructionActive      = false;
     executingMicroOp            = false;
     activeOpcode                = 0xEA;
@@ -3516,7 +3518,8 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::MemoryRead:
         {
-            microTemp = mem->read(op.address);
+            const uint16_t address = op.useMicroAddress ? microAddress : op.address;
+            microTemp = mem->read(address);
             break;
         }
 
@@ -3547,6 +3550,13 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::StackWrite:
         {
             mem->write(op.address, op.value);
+            break;
+        }
+
+        case CpuMicroOpKind::OperandReadToAddress:
+        {
+            microAddress = mem->read(PC);
+            PC = uint16_t((PC + 1) & 0xFFFF);
             break;
         }
 
@@ -3691,13 +3701,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
     {
         case 0xEA: // NOP implied
         {
-            pushMicroOp({
-                CpuMicroOpKind::DummyRead,
-                CpuBusCycleType::DummyRead,
-                PC,
-                0,
-                CpuMicroAction::FinishNOP
-            });
+            CpuMicroOp op;
+            op.kind = CpuMicroOpKind::DummyRead;
+            op.busType = CpuBusCycleType::DummyRead;
+            op.address = PC;
+            op.value = 0;
+            op.useMicroAddress = false;
+            op.action = CpuMicroAction::FinishNOP;
+            pushMicroOp(op);
             break;
         }
 
@@ -3711,6 +3722,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xA0: // LDY #imm
             buildImmediateLoad(CpuMicroAction::LoadYFromTemp);
+            break;
+
+        case 0xA5: // LDA zp
+            buildZeroPageLoad(CpuMicroAction::LoadAFromTemp);
+            break;
+
+        case 0xA6: // LDX zp
+            buildZeroPageLoad(CpuMicroAction::LoadXFromTemp);
+            break;
+
+        case 0xA4: // LDY zp
+            buildZeroPageLoad(CpuMicroAction::LoadYFromTemp);
             break;
 
         case 0xAA: // TAX
@@ -3788,24 +3811,51 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
 void CPU::buildImmediateLoad(CpuMicroAction action)
 {
-    pushMicroOp({
-        CpuMicroOpKind::OperandRead,
-        CpuBusCycleType::Read,
-        PC,
-        0,
-        action
-    });
+    CpuMicroOp op;
+    op.kind = CpuMicroOpKind::OperandRead;
+    op.busType = CpuBusCycleType::Read;
+    op.address = PC;
+    op.value = 0;
+    op.useMicroAddress = false;
+    op.action = action;
+
+    pushMicroOp(op);
 }
 
 void CPU::buildInternalAction(CpuMicroAction action)
 {
-    pushMicroOp({
-        CpuMicroOpKind::Internal,
-        CpuBusCycleType::None,
-        0,
-        0,
-        action
-    });
+    CpuMicroOp op;
+    op.kind = CpuMicroOpKind::Internal;
+    op.busType = CpuBusCycleType::None;
+    op.address = 0;
+    op.value = 0;
+    op.useMicroAddress = false;
+    op.action = action;
+
+    pushMicroOp(op);
+}
+
+void CPU::buildZeroPageLoad(CpuMicroAction action)
+{
+    // Read zero-page address operand into microAddress.
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    // Read value from $00xx into microTemp, then load target register.
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.action = action;
+    pushMicroOp(readValue);
 }
 
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
@@ -3817,6 +3867,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm
         case 0xA0: // LDY #imm
+
+        case 0xA5: // LDA zp
+        case 0xA6: // LDX zp
+        case 0xA4: // LDY zp
 
         case 0xAA: // TAX
         case 0xA8: // TAY
