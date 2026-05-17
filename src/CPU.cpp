@@ -4963,6 +4963,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftLeftTempThenOrA);
             break;
 
+        case 0x1B: // SLO abs,Y
+            buildAbsoluteIndexedRMW(CpuIndexReg::Y, CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
         default:
             break;
     }
@@ -6402,6 +6406,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x17: // SLO zp,X
         case 0x0F: // SLO abs
         case 0x1F: // SLO abs,X
+        case 0x1B: // SLO abs,Y
             return true;
 
         default:
