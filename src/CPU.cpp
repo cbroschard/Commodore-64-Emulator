@@ -5059,6 +5059,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildIndirectYRMW(CpuMicroAction::RotateRightTempThenAdcA);
             break;
 
+        case 0xC7: // DCP zp
+            buildZeroPageRMW(CpuMicroAction::DecrementTempThenCompareA);
+            break;
+
+        case 0xD7: // DCP zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTempThenCompareA);
+            break;
+
+        case 0xCF: // DCP abs
+            buildAbsoluteRMW(CpuMicroAction::DecrementTempThenCompareA);
+            break;
+
+        case 0xDF: // DCP abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTempThenCompareA);
+            break;
+
         default:
             break;
     }
@@ -6698,6 +6714,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x7B: // RRA abs,Y
         case 0x63: // RRA (zp,X)
         case 0x73: // RRA (zp),Y
+
+        case 0xC7: // DCP zp
+        case 0xD7: // DCP zp,X
+        case 0xCF: // DCP abs
+        case 0xDF: // DCP abs,X
             return true;
 
         default:
@@ -6963,6 +6984,21 @@ uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
 
             setFlag(Z, result == 0);
             setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::DecrementTempThenCompareA:
+        {
+            const uint8_t result = uint8_t(oldValue - 1);
+
+            // Memory gets the decremented value.
+            // CMP uses A - result and affects C/Z/N.
+            const uint16_t diff = uint16_t(A) - uint16_t(result);
+
+            setFlag(C, A >= result);
+            setFlag(Z, uint8_t(diff) == 0);
+            setFlag(N, (uint8_t(diff) & 0x80) != 0);
 
             return result;
         }

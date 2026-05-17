@@ -605,6 +605,7 @@ class CPU
             DecrementTemp,
             DecrementX,
             DecrementY,
+            DecrementTempThenCompareA,
 
             ClearCarry,
             SetCarry,
