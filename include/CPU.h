@@ -658,7 +658,20 @@ class CPU
             PushJSRReturnLow,
             PullRTSLow,
             PullRTSHigh,
-            FinishRTS
+            FinishRTS,
+
+            PrepareBRKReturnAddress,
+            PushBRKReturnHigh,
+            PushBRKReturnLow,
+            PushBRKStatus,
+            ReadBRKVectorLow,
+            ReadBRKVectorHigh,
+            FinishBRK,
+
+            PullRTIStatus,
+            PullRTIPCLow,
+            PullRTIPCHigh,
+            FinishRTI
         };
 
         enum class CpuIndexReg : uint8_t
@@ -682,7 +695,7 @@ class CPU
             CpuMicroAction action = CpuMicroAction::None;
         };
 
-        std::array<CpuMicroOp, 8> microOps {};
+        std::array<CpuMicroOp, 32> microOps {};
         uint8_t microOpCount;
         uint8_t microOpIndex;
 
@@ -709,6 +722,9 @@ class CPU
         uint16_t microReturnAddress;
         uint8_t microReturnLow;
         uint8_t microReturnHigh;
+        uint8_t microStatus;
+        uint8_t microVectorLow;
+        uint8_t microVectorHigh;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;
@@ -975,6 +991,8 @@ class CPU
         void buildStackPull(CpuMicroAction action);
         void buildJSR();
         void buildRTS();
+        void buildBRK();
+        void buildRTI();
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
