@@ -23,7 +23,7 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
-    useMicroOpsForTest(false),
+    useMicroOpsForTest(true),
     microTemp(0),
     nmiPending(false),
     nmiLine(false),
@@ -3614,6 +3614,30 @@ bool CPU::executeCurrentMicroOp()
             // TXS does not affect flags.
             break;
 
+        case CpuMicroAction::IncrementX:
+            X = uint8_t(X + 1);
+            setFlag(Z, X == 0);
+            setFlag(N, (X & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::IncrementY:
+            Y = uint8_t(Y + 1);
+            setFlag(Z, Y == 0);
+            setFlag(N, (Y & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::DecrementX:
+            X = uint8_t(X - 1);
+            setFlag(Z, X == 0);
+            setFlag(N, (X & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::DecrementY:
+            Y = uint8_t(Y - 1);
+            setFlag(Z, Y == 0);
+            setFlag(N, (Y & 0x80) != 0);
+            break;
+
         case CpuMicroAction::None:
         default:
             break;
@@ -3682,6 +3706,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildInternalAction(CpuMicroAction::TransferXToSP);
             break;
 
+        case 0xE8: // INX
+            buildInternalAction(CpuMicroAction::IncrementX);
+            break;
+
+        case 0xC8: // INY
+            buildInternalAction(CpuMicroAction::IncrementY);
+            break;
+
+        case 0xCA: // DEX
+            buildInternalAction(CpuMicroAction::DecrementX);
+            break;
+
+        case 0x88: // DEY
+            buildInternalAction(CpuMicroAction::DecrementY);
+            break;
+
         default:
             break;
     }
@@ -3725,6 +3765,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x98: // TYA
         case 0xBA: // TSX
         case 0x9A: // TXS
+
+        case 0xE8: // INX
+        case 0xC8: // INY
+        case 0xCA: // DEX
+        case 0x88: // DEY
             return true;
 
         default:

@@ -570,7 +570,12 @@ class CPU
             TransferXToA,
             TransferYToA,
             TransferSPToX,
-            TransferXToSP
+            TransferXToSP,
+
+            IncrementX,
+            IncrementY,
+            DecrementX,
+            DecrementY
         };
 
         struct CpuMicroOp
