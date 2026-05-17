@@ -4264,6 +4264,25 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x1A: // NOP implied unofficial
+        case 0x3A: // NOP implied unofficial
+        case 0x5A: // NOP implied unofficial
+        case 0x7A: // NOP implied unofficial
+        case 0xDA: // NOP implied unofficial
+        case 0xFA: // NOP implied unofficial
+        {
+            CpuMicroOp nop;
+            nop.kind = CpuMicroOpKind::Internal;
+            nop.busType = CpuBusCycleType::None;
+            nop.address = 0;
+            nop.value = 0;
+            nop.useMicroAddress = false;
+            nop.index = CpuIndexReg::None;
+            nop.action = CpuMicroAction::FinishNOP;
+            pushMicroOp(nop);
+            break;
+        }
+
         case 0x0D: // ORA abs
             buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
             break;
@@ -6527,6 +6546,12 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
     switch (opcode)
     {
         case 0xEA: // NOP implied
+        case 0x1A:
+        case 0x3A:
+        case 0x5A:
+        case 0x7A:
+        case 0xDA:
+        case 0xFA:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
