@@ -4063,6 +4063,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildImmediateAction(CpuMicroAction::SubtractWithCarryFromTemp);
             break;
 
+        case 0x65: // ADC zp
+            buildZeroPageReadAction(CpuMicroAction::AddWithCarryFromTemp);
+            break;
+
+        case 0xE5: // SBC zp
+            buildZeroPageReadAction(CpuMicroAction::SubtractWithCarryFromTemp);
+            break;
+
         default:
             break;
     }
@@ -4526,6 +4534,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x69: // ADC #imm
         case 0xE9: // SBC #imm
         case 0xEB: // unofficial SBC #imm alias
+
+        case 0x65: // ADC zp
+        case 0xE5: // SBC zp
             return true;
 
         default:
