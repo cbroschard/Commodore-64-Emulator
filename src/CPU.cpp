@@ -3579,6 +3579,41 @@ bool CPU::executeCurrentMicroOp()
             setFlag(N, (Y & 0x80) != 0);
             break;
 
+        case CpuMicroAction::TransferAToX:
+            X = A;
+            setFlag(Z, X == 0);
+            setFlag(N, (X & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::TransferAToY:
+            Y = A;
+            setFlag(Z, Y == 0);
+            setFlag(N, (Y & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::TransferXToA:
+            A = X;
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::TransferYToA:
+            A = Y;
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::TransferSPToX:
+            X = SP;
+            setFlag(Z, X == 0);
+            setFlag(N, (X & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::TransferXToSP:
+            SP = X;
+            // TXS does not affect flags.
+            break;
+
         case CpuMicroAction::None:
         default:
             break;
@@ -3623,6 +3658,30 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildImmediateLoad(CpuMicroAction::LoadYFromTemp);
             break;
 
+        case 0xAA: // TAX
+            buildInternalAction(CpuMicroAction::TransferAToX);
+            break;
+
+        case 0xA8: // TAY
+            buildInternalAction(CpuMicroAction::TransferAToY);
+            break;
+
+        case 0x8A: // TXA
+            buildInternalAction(CpuMicroAction::TransferXToA);
+            break;
+
+        case 0x98: // TYA
+            buildInternalAction(CpuMicroAction::TransferYToA);
+            break;
+
+        case 0xBA: // TSX
+            buildInternalAction(CpuMicroAction::TransferSPToX);
+            break;
+
+        case 0x9A: // TXS
+            buildInternalAction(CpuMicroAction::TransferXToSP);
+            break;
+
         default:
             break;
     }
@@ -3639,14 +3698,33 @@ void CPU::buildImmediateLoad(CpuMicroAction action)
     });
 }
 
+void CPU::buildInternalAction(CpuMicroAction action)
+{
+    pushMicroOp({
+        CpuMicroOpKind::Internal,
+        CpuBusCycleType::None,
+        0,
+        0,
+        action
+    });
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
     {
         case 0xEA: // NOP implied
+
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm
         case 0xA0: // LDY #imm
+
+        case 0xAA: // TAX
+        case 0xA8: // TAY
+        case 0x8A: // TXA
+        case 0x98: // TYA
+        case 0xBA: // TSX
+        case 0x9A: // TXS
             return true;
 
         default:

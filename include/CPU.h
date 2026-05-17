@@ -563,7 +563,14 @@ class CPU
 
             LoadAFromTemp,
             LoadXFromTemp,
-            LoadYFromTemp
+            LoadYFromTemp,
+
+            TransferAToX,
+            TransferAToY,
+            TransferXToA,
+            TransferYToA,
+            TransferSPToX,
+            TransferXToSP
         };
 
         struct CpuMicroOp
@@ -834,6 +841,7 @@ class CPU
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
         void buildImmediateLoad(CpuMicroAction action);
+        void buildInternalAction(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
