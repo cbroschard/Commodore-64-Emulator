@@ -613,7 +613,12 @@ class CPU
             AddWithCarryFromTemp,
             SubtractWithCarryFromTemp,
 
-            BitTestWithTemp
+            BitTestWithTemp,
+
+            ShiftLeftA,
+            RotateLeftA,
+            ShiftRightA,
+            RotateRightA
         };
 
         enum class CpuIndexReg : uint8_t

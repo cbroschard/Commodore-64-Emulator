@@ -3785,6 +3785,54 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::ShiftLeftA:
+        {
+            const uint8_t old = A;
+            A = uint8_t(old << 1);
+
+            setFlag(C, (old & 0x80) != 0);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+        }
+
+        case CpuMicroAction::RotateLeftA:
+        {
+            const uint8_t old = A;
+            const bool oldCarry = getFlag(C);
+
+            A = uint8_t((old << 1) | (oldCarry ? 1 : 0));
+
+            setFlag(C, (old & 0x80) != 0);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+        }
+
+        case CpuMicroAction::ShiftRightA:
+        {
+            const uint8_t old = A;
+            A = uint8_t(old >> 1);
+
+            setFlag(C, (old & 0x01) != 0);
+            setFlag(Z, A == 0);
+            setFlag(N, false);
+            break;
+        }
+
+        case CpuMicroAction::RotateRightA:
+        {
+            const uint8_t old = A;
+            const bool oldCarry = getFlag(C);
+
+            A = uint8_t((old >> 1) | (oldCarry ? 0x80 : 0x00));
+
+            setFlag(C, (old & 0x01) != 0);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -4233,6 +4281,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0x2C: // BIT abs
             buildAbsoluteLoad(CpuMicroAction::BitTestWithTemp);
+            break;
+
+        case 0x0A: // ASL A
+            buildInternalAction(CpuMicroAction::ShiftLeftA);
+            break;
+
+        case 0x2A: // ROL A
+            buildInternalAction(CpuMicroAction::RotateLeftA);
+            break;
+
+        case 0x4A: // LSR A
+            buildInternalAction(CpuMicroAction::ShiftRightA);
+            break;
+
+        case 0x6A: // ROR A
+            buildInternalAction(CpuMicroAction::RotateRightA);
             break;
 
         default:
@@ -5034,6 +5098,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x24: // BIT zp
         case 0x2C: // BIT abs
+
+        case 0x0A: // ASL A
+        case 0x2A: // ROL A
+        case 0x4A: // LSR A
+        case 0x6A: // ROR A
             return true;
 
         default:
