@@ -3840,6 +3840,30 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteLoad(CpuMicroAction::EorAWithTemp);
             break;
 
+        case 0x1D: // ORA abs,X
+            buildAbsoluteIndexedLoad(CpuIndexReg::X, CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x19: // ORA abs,Y
+            buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x3D: // AND abs,X
+            buildAbsoluteIndexedLoad(CpuIndexReg::X, CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x39: // AND abs,Y
+            buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x5D: // EOR abs,X
+            buildAbsoluteIndexedLoad(CpuIndexReg::X, CpuMicroAction::EorAWithTemp);
+            break;
+
+        case 0x59: // EOR abs,Y
+            buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::EorAWithTemp);
+            break;
+
         case 0x09: // ORA #imm
             buildImmediateAction(CpuMicroAction::OrAWithTemp);
             break;
@@ -4430,6 +4454,15 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
         case 0x4D: // EOR abs
+
+        case 0x1D: // ORA abs,X
+        case 0x19: // ORA abs,Y
+
+        case 0x3D: // AND abs,X
+        case 0x39: // AND abs,Y
+
+        case 0x5D: // EOR abs,X
+        case 0x59: // EOR abs,Y
 
         case 0x09: // ORA #imm
         case 0x29: // AND #imm
