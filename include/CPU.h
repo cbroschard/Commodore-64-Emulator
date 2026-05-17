@@ -544,6 +544,7 @@ class CPU
             OpcodeFetch,
             OperandRead,
             OperandReadToAddress,
+            OperandReadHighToAddress,
             MemoryRead,
             MemoryWrite,
 
@@ -870,6 +871,7 @@ class CPU
         void pushMicroOp(const CpuMicroOp& op);
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
+        void buildAbsoluteLoad(CpuMicroAction action);
         void buildImmediateLoad(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
         void buildZeroPageLoad(CpuMicroAction action);
