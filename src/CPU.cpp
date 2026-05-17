@@ -4079,6 +4079,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteLoad(CpuMicroAction::SubtractWithCarryFromTemp);
             break;
 
+        case 0x75: // ADC zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::AddWithCarryFromTemp);
+            break;
+
+        case 0xF5: // SBC zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::SubtractWithCarryFromTemp);
+            break;
+
         default:
             break;
     }
@@ -4548,6 +4556,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x6D: // ADC abs
         case 0xED: // SBC abs
+
+        case 0x75: // ADC zp,X
+        case 0xF5: // SBC zp,X
             return true;
 
         default:
