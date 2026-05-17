@@ -557,6 +557,9 @@ class CPU
             ApplyIndirectYIndex,
             ConditionalPageCrossDummyRead,
 
+            ReadJmpIndirectLow,
+            ReadJmpIndirectHigh,
+
             DummyRead,
             DummyWrite,
 
@@ -670,6 +673,9 @@ class CPU
         uint8_t microZP;
         uint8_t microPtrLow;
         uint8_t microPtrHigh;
+        uint16_t microPointerAddress;
+        uint8_t microJmpLow;
+        uint8_t microJmpHigh;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;

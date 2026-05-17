@@ -31,6 +31,9 @@ CPU::CPU() :
     microZP(0),
     microPtrLow(0),
     microPtrHigh(0),
+    microPointerAddress(0),
+    microJmpLow(0),
+    microJmpHigh(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -232,6 +235,9 @@ void CPU::reset()
     microZP                     = 0;
     microPtrLow                 = 0;
     microPtrHigh                = 0;
+    microPointerAddress         = 0;
+    microJmpLow                 = 0;
+    microJmpHigh                = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -3633,6 +3639,28 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::ReadJmpIndirectLow:
+        {
+            microPointerAddress = microAddress;
+            microJmpLow = cpuRead(microPointerAddress, CpuBusCycleType::Read);
+            break;
+        }
+
+        case CpuMicroOpKind::ReadJmpIndirectHigh:
+        {
+            const uint16_t highAddr =
+                uint16_t((microPointerAddress & 0xFF00) |
+                         ((microPointerAddress + 1) & 0x00FF));
+
+            microJmpHigh = cpuRead(highAddr, CpuBusCycleType::Read);
+
+            microAddress =
+                uint16_t(microJmpLow) |
+                (uint16_t(microJmpHigh) << 8);
+
+            break;
+        }
+
         case CpuMicroOpKind::Internal:
         case CpuMicroOpKind::None:
         default:
@@ -4437,6 +4465,61 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readHi.index = CpuIndexReg::None;
             readHi.action = CpuMicroAction::None;
             pushMicroOp(readHi);
+
+            CpuMicroOp jump;
+            jump.kind = CpuMicroOpKind::Internal;
+            jump.busType = CpuBusCycleType::None;
+            jump.address = 0;
+            jump.value = 0;
+            jump.useMicroAddress = false;
+            jump.index = CpuIndexReg::None;
+            jump.action = CpuMicroAction::JumpToMicroAddress;
+            pushMicroOp(jump);
+
+            break;
+        }
+
+        case 0x6C: // JMP (abs)
+        {
+            CpuMicroOp readLo;
+            readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+            readLo.busType = CpuBusCycleType::Read;
+            readLo.address = PC;
+            readLo.value = 0;
+            readLo.useMicroAddress = false;
+            readLo.index = CpuIndexReg::None;
+            readLo.action = CpuMicroAction::None;
+            pushMicroOp(readLo);
+
+            CpuMicroOp readHi;
+            readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+            readHi.busType = CpuBusCycleType::Read;
+            readHi.address = 0;
+            readHi.value = 0;
+            readHi.useMicroAddress = false;
+            readHi.index = CpuIndexReg::None;
+            readHi.action = CpuMicroAction::None;
+            pushMicroOp(readHi);
+
+            CpuMicroOp readPtrLo;
+            readPtrLo.kind = CpuMicroOpKind::ReadJmpIndirectLow;
+            readPtrLo.busType = CpuBusCycleType::Read;
+            readPtrLo.address = 0;
+            readPtrLo.value = 0;
+            readPtrLo.useMicroAddress = true;
+            readPtrLo.index = CpuIndexReg::None;
+            readPtrLo.action = CpuMicroAction::None;
+            pushMicroOp(readPtrLo);
+
+            CpuMicroOp readPtrHi;
+            readPtrHi.kind = CpuMicroOpKind::ReadJmpIndirectHigh;
+            readPtrHi.busType = CpuBusCycleType::Read;
+            readPtrHi.address = 0;
+            readPtrHi.value = 0;
+            readPtrHi.useMicroAddress = true;
+            readPtrHi.index = CpuIndexReg::None;
+            readPtrHi.action = CpuMicroAction::None;
+            pushMicroOp(readPtrHi);
 
             CpuMicroOp jump;
             jump.kind = CpuMicroOpKind::Internal;
@@ -5488,7 +5571,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xDE: // DEC abs,X
 
         case 0x4C: // JMP abs
-        //case 0x6C: // JMP (abs)
+        case 0x6C: // JMP (abs)
             return true;
 
         default:
