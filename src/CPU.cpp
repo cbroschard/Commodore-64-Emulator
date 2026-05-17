@@ -5374,6 +5374,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteStore(CpuMicroAction::StoreAAndX);
             break;
 
+        case 0x83: // SAX (zp,X)
+            buildIndirectXStore(CpuMicroAction::StoreAAndX);
+            break;
+
+        case 0x97: // SAX zp,Y
+            buildZeroPageIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreAAndX);
+            break;
+
         default:
             break;
     }
@@ -7066,6 +7074,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x87: // SAX zp
         case 0x8F: // SAX abs
+        case 0x83: // SAX (zp,X)
+        case 0x97: // SAX zp,Y
             return true;
 
         default:
