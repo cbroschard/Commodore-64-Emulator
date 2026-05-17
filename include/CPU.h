@@ -556,7 +556,10 @@ class CPU
 
             Internal,
 
-            ApplyZeroPageIndex
+            ApplyZeroPageIndex,
+            ApplyAbsoluteIndex,
+
+            ConditionalPageCrossDummyRead
         };
 
         enum class CpuMicroAction : uint8_t
@@ -627,6 +630,8 @@ class CPU
 
         bool useMicroOpsForTest;
         uint16_t microAddress;
+        uint16_t microBaseAddress;
+        bool microPageCrossed;
         uint8_t microTemp;
 
         // Debug
@@ -872,6 +877,7 @@ class CPU
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
         void buildAbsoluteLoad(CpuMicroAction action);
+        void buildAbsoluteIndexedLoad(CpuIndexReg index, CpuMicroAction action);
         void buildAbsoluteStore(CpuMicroAction action);
         void buildImmediateLoad(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
