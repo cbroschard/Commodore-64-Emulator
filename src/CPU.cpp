@@ -3675,6 +3675,18 @@ bool CPU::executeCurrentMicroOp()
             setFlag(N, (A & 0x80) != 0);
             break;
 
+        case CpuMicroAction::CompareAWithTemp:
+            compareRegisterWithTemp(A);
+            break;
+
+        case CpuMicroAction::CompareXWithTemp:
+            compareRegisterWithTemp(X);
+            break;
+
+        case CpuMicroAction::CompareYWithTemp:
+            compareRegisterWithTemp(Y);
+            break;
+
         case CpuMicroAction::LoadAFromTemp:
             A = microTemp;
             setFlag(Z, A == 0);
@@ -4002,6 +4014,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xB8: // CLV
             buildInternalAction(CpuMicroAction::ClearOverflow);
+            break;
+
+        case 0xC9: // CMP #imm
+            buildImmediateAction(CpuMicroAction::CompareAWithTemp);
+            break;
+
+        case 0xE0: // CPX #imm
+            buildImmediateAction(CpuMicroAction::CompareXWithTemp);
+            break;
+
+        case 0xC0: // CPY #imm
+            buildImmediateAction(CpuMicroAction::CompareYWithTemp);
             break;
 
         default:
@@ -4426,7 +4450,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x95: // STA zp,X
         case 0x94: // STY zp,X
         case 0x96: // STX zp,Y
-            return true;
+
+        case 0xC9: // CMP #imm
+        case 0xE0: // CPX #imm
+        case 0xC0: // CPY #imm
+           return true;
 
         default:
             return false;
@@ -4461,6 +4489,16 @@ uint8_t CPU::getIndexValue(CpuIndexReg index) const
         case CpuIndexReg::Y: return Y;
         default:             return 0;
     }
+}
+
+void CPU::compareRegisterWithTemp(uint8_t reg)
+{
+    const uint16_t result = uint16_t(reg) - uint16_t(microTemp);
+    const uint8_t result8 = uint8_t(result);
+
+    setFlag(C, reg >= microTemp);
+    setFlag(Z, reg == microTemp);
+    setFlag(N, (result8 & 0x80) != 0);
 }
 
 uint8_t CPU::debugRead(uint16_t address) const

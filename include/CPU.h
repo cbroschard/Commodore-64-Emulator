@@ -598,7 +598,11 @@ class CPU
 
             OrAWithTemp,
             AndAWithTemp,
-            EorAWithTemp
+            EorAWithTemp,
+
+            CompareAWithTemp,
+            CompareXWithTemp,
+            CompareYWithTemp
         };
 
         enum class CpuIndexReg : uint8_t
@@ -895,6 +899,7 @@ class CPU
 
         // Micro Op Helpers
         uint8_t getIndexValue(CpuIndexReg index) const;
+        void compareRegisterWithTemp(uint8_t reg);
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
