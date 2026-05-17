@@ -925,6 +925,7 @@ class CPU
         void buildIndirectYStore(CpuMicroAction action);
         void buildZeroPageRMW(CpuMicroAction action);
         void buildAbsoluteRMW(CpuMicroAction action);
+        void buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 

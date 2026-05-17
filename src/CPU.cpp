@@ -4346,6 +4346,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteRMW(CpuMicroAction::RotateRightTemp);
             break;
 
+        case 0x16: // ASL zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftLeftTemp);
+            break;
+
+        case 0x36: // ROL zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::RotateLeftTemp);
+            break;
+
+        case 0x56: // LSR zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftRightTemp);
+            break;
+
+        case 0x76: // ROR zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::RotateRightTemp);
+            break;
+
         default:
             break;
     }
@@ -5074,6 +5090,65 @@ void CPU::buildAbsoluteRMW(CpuMicroAction action)
     pushMicroOp(rmwWrite);
 }
 
+void CPU::buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action)
+{
+    // Read zero-page operand.
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    // Zero-page indexed instructions perform a dummy read
+    // from the original unindexed zero-page address.
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = true;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    // Apply X/Y with zero-page wrap.
+    CpuMicroOp applyIndex;
+    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
+    applyIndex.busType = CpuBusCycleType::None;
+    applyIndex.address = 0;
+    applyIndex.value = 0;
+    applyIndex.useMicroAddress = false;
+    applyIndex.index = index;
+    applyIndex.action = CpuMicroAction::None;
+    pushMicroOp(applyIndex);
+
+    // Read old value from final zero-page address.
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = CpuMicroAction::None;
+    pushMicroOp(readValue);
+
+    // Dummy write old value, then write modified value.
+    CpuMicroOp rmwWrite;
+    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
+    rmwWrite.busType = CpuBusCycleType::Write;
+    rmwWrite.address = 0;
+    rmwWrite.value = 0;
+    rmwWrite.useMicroAddress = true;
+    rmwWrite.index = CpuIndexReg::None;
+    rmwWrite.action = action;
+    pushMicroOp(rmwWrite);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -5236,6 +5311,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x2E: // ROL abs
         case 0x4E: // LSR abs
         case 0x6E: // ROR abs
+
+        case 0x16: // ASL zp,X
+        case 0x36: // ROL zp,X
+        case 0x56: // LSR zp,X
+        case 0x76: // ROR zp,X
             return true;
 
         default:
