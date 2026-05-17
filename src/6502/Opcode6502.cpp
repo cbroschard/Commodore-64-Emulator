@@ -62,19 +62,19 @@ const InstructionInfo OPCODES[256] =
     /* 0x2F */ {"RLA", AddressingMode::Absolute,    3, 0x2F}, // (undoc) ROL + AND abs
 
     /* 0x30 */ {"BMI", AddressingMode::Relative,    2, 0x30}, // Branch on Minus
-    /* 0x31 */ {"EOR", AddressingMode::IndirectY,   2, 0x31}, // EOR (zp),Y
+    /* 0x31 */ {"AND", AddressingMode::IndirectY,   2, 0x31}, // AND (zp),Y
     /* 0x32 */ {"KIL", AddressingMode::Implied,     1, 0x32}, // (undoc) JAM/KIL - locks CPU
     /* 0x33 */ {"SRE", AddressingMode::IndirectY,   2, 0x33}, // (undoc) LSR + EOR (zp),Y
     /* 0x34 */ {"NOP", AddressingMode::ZeroPageX,   2, 0x34}, // (undoc) NOP zp,X
-    /* 0x35 */ {"EOR", AddressingMode::ZeroPageX,   2, 0x35}, // EOR zp,X
+    /* 0x35 */ {"AND", AddressingMode::ZeroPageX,   2, 0x35}, // AND zp,X
     /* 0x36 */ {"LSR", AddressingMode::ZeroPageX,   2, 0x36}, // LSR zp,X
     /* 0x37 */ {"SRE", AddressingMode::ZeroPageX,   2, 0x37}, // (undoc) LSR + EOR zp,X
     /* 0x38 */ {"SEC", AddressingMode::Implied,     1, 0x38}, // Set Carry
-    /* 0x39 */ {"EOR", AddressingMode::AbsoluteY,   3, 0x39}, // EOR abs,Y
+    /* 0x39 */ {"AND", AddressingMode::AbsoluteY,   3, 0x39}, // AND abs,Y
     /* 0x3A */ {"NOP", AddressingMode::Implied,     1, 0x3A}, // (undoc) NOP (1-byte)
     /* 0x3B */ {"SRE", AddressingMode::AbsoluteY,   3, 0x3B}, // (undoc) LSR + EOR abs,Y
     /* 0x3C */ {"NOP", AddressingMode::AbsoluteX,   3, 0x3C}, // (undoc) NOP abs,X
-    /* 0x3D */ {"EOR", AddressingMode::AbsoluteX,   3, 0x3D}, // EOR abs,X
+    /* 0x3D */ {"AND", AddressingMode::AbsoluteX,   3, 0x3D}, // AND abs,X
     /* 0x3E */ {"LSR", AddressingMode::AbsoluteX,   3, 0x3E}, // LSR abs,X
     /* 0x3F */ {"SRE", AddressingMode::AbsoluteX,   3, 0x3F}, // (undoc) LSR + EOR abs,X
 
