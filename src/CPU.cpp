@@ -28,6 +28,9 @@ CPU::CPU() :
     microBaseAddress(0),
     microPageCrossed(false),
     microTemp(0),
+    microZP(0),
+    microPtrLow(0),
+    microPtrHigh(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -226,6 +229,9 @@ void CPU::reset()
     activeOpcode                = 0xEA;
     activeOpcodePC              = 0;
     microTemp                   = 0;
+    microZP                     = 0;
+    microPtrLow                 = 0;
+    microPtrHigh                = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -3556,6 +3562,50 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::OperandReadToZP:
+        {
+            microZP = mem->read(PC);
+            PC = uint16_t((PC + 1) & 0xFFFF);
+            break;
+        }
+
+        case CpuMicroOpKind::ApplyIndirectXIndex:
+        {
+            microZP = uint8_t(microZP + X);
+            break;
+        }
+
+        case CpuMicroOpKind::ReadPointerLow:
+        {
+            microPtrLow = mem->read(microZP);
+            break;
+        }
+
+        case CpuMicroOpKind::ReadPointerHigh:
+        {
+            microPtrHigh = mem->read(uint8_t(microZP + 1));
+            break;
+        }
+
+        case CpuMicroOpKind::BuildPointerAddress:
+        {
+            microAddress = uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
+            break;
+        }
+
+        case CpuMicroOpKind::ApplyIndirectYIndex:
+        {
+            microBaseAddress = microAddress;
+
+            const uint16_t indexed = uint16_t(microBaseAddress + Y);
+
+            microPageCrossed =
+                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+
+            microAddress = indexed;
+            break;
+        }
+
         case CpuMicroOpKind::StackRead:
         {
             microTemp = mem->read(op.address);
@@ -3840,6 +3890,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xA4: // LDY zp
             buildZeroPageReadAction(CpuMicroAction::LoadYFromTemp);
+            break;
+
+        case 0xA1: // LDA (zp,X)
+            buildIndirectXRead(CpuMicroAction::LoadAFromTemp);
+            break;
+
+        case 0xB1: // LDA (zp),Y
+            buildIndirectYRead(CpuMicroAction::LoadAFromTemp);
             break;
 
         case 0x05: // ORA zp
@@ -4460,6 +4518,153 @@ void CPU::buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action)
     pushMicroOp(writeValue);
 }
 
+void CPU::buildIndirectXRead(CpuMicroAction action)
+{
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToZP;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    // Hardware-style dummy read before applying X.
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = false;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    CpuMicroOp applyX;
+    applyX.kind = CpuMicroOpKind::ApplyIndirectXIndex;
+    applyX.busType = CpuBusCycleType::None;
+    applyX.address = 0;
+    applyX.value = 0;
+    applyX.useMicroAddress = false;
+    applyX.index = CpuIndexReg::None;
+    applyX.action = CpuMicroAction::None;
+    pushMicroOp(applyX);
+
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::ReadPointerLow;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = 0;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::ReadPointerHigh;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    CpuMicroOp buildAddr;
+    buildAddr.kind = CpuMicroOpKind::BuildPointerAddress;
+    buildAddr.busType = CpuBusCycleType::None;
+    buildAddr.address = 0;
+    buildAddr.value = 0;
+    buildAddr.useMicroAddress = false;
+    buildAddr.index = CpuIndexReg::None;
+    buildAddr.action = CpuMicroAction::None;
+    pushMicroOp(buildAddr);
+
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = action;
+    pushMicroOp(readValue);
+}
+
+void CPU::buildIndirectYRead(CpuMicroAction action)
+{
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToZP;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::ReadPointerLow;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = 0;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::ReadPointerHigh;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    CpuMicroOp buildAddr;
+    buildAddr.kind = CpuMicroOpKind::BuildPointerAddress;
+    buildAddr.busType = CpuBusCycleType::None;
+    buildAddr.address = 0;
+    buildAddr.value = 0;
+    buildAddr.useMicroAddress = false;
+    buildAddr.index = CpuIndexReg::None;
+    buildAddr.action = CpuMicroAction::None;
+    pushMicroOp(buildAddr);
+
+    CpuMicroOp applyY;
+    applyY.kind = CpuMicroOpKind::ApplyIndirectYIndex;
+    applyY.busType = CpuBusCycleType::None;
+    applyY.address = 0;
+    applyY.value = 0;
+    applyY.useMicroAddress = false;
+    applyY.index = CpuIndexReg::None;
+    applyY.action = CpuMicroAction::None;
+    pushMicroOp(applyY);
+
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::ConditionalPageCrossDummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = false;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = action;
+    pushMicroOp(readValue);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -4507,6 +4712,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xB9: // LDA abs,Y
         case 0xBC: // LDY abs,X
         case 0xBE: // LDX abs,Y
+
+        case 0xA1: // LDA (zp,X)
+        case 0xB1: // LDA (zp),Y
 
         case 0x85: // STA zp
         case 0x86: // STX zp

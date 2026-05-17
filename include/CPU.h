@@ -548,6 +548,14 @@ class CPU
             MemoryRead,
             MemoryWrite,
 
+            OperandReadToZP,
+            ApplyIndirectXIndex,
+            ReadPointerLow,
+            ReadPointerHigh,
+            BuildPointerAddress,
+            ApplyIndirectYIndex,
+            ConditionalPageCrossDummyRead,
+
             DummyRead,
             DummyWrite,
 
@@ -557,9 +565,7 @@ class CPU
             Internal,
 
             ApplyZeroPageIndex,
-            ApplyAbsoluteIndex,
-
-            ConditionalPageCrossDummyRead
+            ApplyAbsoluteIndex
         };
 
         enum class CpuMicroAction : uint8_t
@@ -644,6 +650,9 @@ class CPU
         uint16_t microBaseAddress;
         bool microPageCrossed;
         uint8_t microTemp;
+        uint8_t microZP;
+        uint8_t microPtrLow;
+        uint8_t microPtrHigh;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;
@@ -897,6 +906,8 @@ class CPU
         void buildZeroPageStore(CpuMicroAction action);
         void buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action);
         void buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action);
+        void buildIndirectXRead(CpuMicroAction action);
+        void buildIndirectYRead(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
