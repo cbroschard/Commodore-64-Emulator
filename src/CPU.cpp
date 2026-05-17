@@ -5003,6 +5003,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildIndirectYRMW(CpuMicroAction::RotateLeftTempThenAndA);
             break;
 
+        case 0x47: // SRE zp
+            buildZeroPageRMW(CpuMicroAction::ShiftRightTempThenEorA);
+            break;
+
+        case 0x57: // SRE zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftRightTempThenEorA);
+            break;
+
+        case 0x4F: // SRE abs
+            buildAbsoluteRMW(CpuMicroAction::ShiftRightTempThenEorA);
+            break;
+
+        case 0x5F: // SRE abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftRightTempThenEorA);
+            break;
+
         default:
             break;
     }
@@ -6626,6 +6642,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x3B: // RLA abs,Y
         case 0x23: // RLA (zp,X)
         case 0x33: // RLA (zp),Y
+
+        case 0x47: // SRE zp
+        case 0x57: // SRE zp,X
+        case 0x4F: // SRE abs
+        case 0x5F: // SRE abs,X
             return true;
 
         default:
@@ -6816,6 +6837,20 @@ uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
             setFlag(C, (oldValue & 0x01) != 0);
             setFlag(Z, result == 0);
             setFlag(N, false);
+
+            return result;
+        }
+
+        case CpuMicroAction::ShiftRightTempThenEorA:
+        {
+            const uint8_t result = uint8_t(oldValue >> 1);
+
+            setFlag(C, (oldValue & 0x01) != 0);
+
+            A = uint8_t(A ^ result);
+
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
 
             return result;
         }

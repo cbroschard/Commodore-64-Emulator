@@ -639,6 +639,8 @@ class CPU
 
             RotateLeftTempThenAndA,
 
+            ShiftRightTempThenEorA,
+
             JumpToMicroAddress,
 
             BranchIfCarryClear,
