@@ -671,7 +671,9 @@ class CPU
             PullRTIStatus,
             PullRTIPCLow,
             PullRTIPCHigh,
-            FinishRTI
+            FinishRTI,
+
+            ShiftLeftTempThenOrA
         };
 
         enum class CpuIndexReg : uint8_t

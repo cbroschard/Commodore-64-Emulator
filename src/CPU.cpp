@@ -4947,6 +4947,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildRTI();
             break;
 
+        case 0x07: // SLO zp
+            buildZeroPageRMW(CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
+        case 0x17: // SLO zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
+        case 0x0F: // SLO abs
+            buildAbsoluteRMW(CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
+        case 0x1F: // SLO abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
         default:
             break;
     }
@@ -6381,6 +6397,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x00: // BRK
         case 0x40: // RTI
+
+        case 0x07: // SLO zp
+        case 0x17: // SLO zp,X
+        case 0x0F: // SLO abs
+        case 0x1F: // SLO abs,X
             return true;
 
         default:
@@ -6554,6 +6575,20 @@ uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
             setFlag(C, (oldValue & 0x01) != 0);
             setFlag(Z, result == 0);
             setFlag(N, false);
+
+            return result;
+        }
+
+        case CpuMicroAction::ShiftLeftTempThenOrA:
+        {
+            const uint8_t result = uint8_t(oldValue << 1);
+
+            setFlag(C, (oldValue & 0x80) != 0);
+
+            A = uint8_t(A | result);
+
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
 
             return result;
         }
