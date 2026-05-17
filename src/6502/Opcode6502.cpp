@@ -67,7 +67,7 @@ const InstructionInfo OPCODES[256] =
     /* 0x33 */ {"SRE", AddressingMode::IndirectY,   2, 0x33}, // (undoc) LSR + EOR (zp),Y
     /* 0x34 */ {"NOP", AddressingMode::ZeroPageX,   2, 0x34}, // (undoc) NOP zp,X
     /* 0x35 */ {"AND", AddressingMode::ZeroPageX,   2, 0x35}, // AND zp,X
-    /* 0x36 */ {"LSR", AddressingMode::ZeroPageX,   2, 0x36}, // LSR zp,X
+    /* 0x36 */ {"ROL", AddressingMode::ZeroPageX,   2, 0x36}, // ROL zp,X
     /* 0x37 */ {"SRE", AddressingMode::ZeroPageX,   2, 0x37}, // (undoc) LSR + EOR zp,X
     /* 0x38 */ {"SEC", AddressingMode::Implied,     1, 0x38}, // Set Carry
     /* 0x39 */ {"AND", AddressingMode::AbsoluteY,   3, 0x39}, // AND abs,Y
@@ -75,7 +75,7 @@ const InstructionInfo OPCODES[256] =
     /* 0x3B */ {"SRE", AddressingMode::AbsoluteY,   3, 0x3B}, // (undoc) LSR + EOR abs,Y
     /* 0x3C */ {"NOP", AddressingMode::AbsoluteX,   3, 0x3C}, // (undoc) NOP abs,X
     /* 0x3D */ {"AND", AddressingMode::AbsoluteX,   3, 0x3D}, // AND abs,X
-    /* 0x3E */ {"LSR", AddressingMode::AbsoluteX,   3, 0x3E}, // LSR abs,X
+    /* 0x3E */ {"ROL", AddressingMode::AbsoluteX,   3, 0x3E}, // ROL abs,X
     /* 0x3F */ {"SRE", AddressingMode::AbsoluteX,   3, 0x3F}, // (undoc) LSR + EOR abs,X
 
     /* 0x40 */ {"RTI", AddressingMode::Implied,     1, 0x40}, // Return from Interrupt
