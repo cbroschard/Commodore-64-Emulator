@@ -5103,6 +5103,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::IncrementTempThenSbcA);
             break;
 
+        case 0xFB: // ISC abs,Y
+            buildAbsoluteIndexedRMW(CpuIndexReg::Y, CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
         default:
             break;
     }
@@ -6754,6 +6758,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xF7: // ISC zp,X
         case 0xEF: // ISC abs
         case 0xFF: // ISC abs,X
+        case 0xFB: // ISC abs,Y
             return true;
 
         default:
