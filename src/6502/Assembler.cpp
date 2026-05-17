@@ -80,25 +80,58 @@ AddressingMode Assembler::parseOperand(const std::string& operand, uint16_t& val
     }
     if (op.front() == '(')
     {
-        if (op.size() > 2 && op.substr(op.size() - 3) == ",X)")
+        // (zp,X)
+        if (op.size() > 4 && op.substr(op.size() - 3) == ",X)")
         {
-            std::string inner = op.substr(2, op.size() - 5); // skip "( $" and remove ",X)"
-            value = std::stoi(inner.substr(1), nullptr, 16); // drop leading $
+            // "($20,X)" -> "$20"
+            std::string base = op.substr(1, op.size() - 4);
+
+            if (base.empty() || base[0] != '$')
+                throw std::runtime_error("Invalid (zp,X) operand: " + op);
+
+            value = static_cast<uint16_t>(
+                std::stoi(base.substr(1), nullptr, 16)
+            );
+
+            if (value > 0xFF)
+                throw std::runtime_error("(zp,X) operand out of range: " + op);
+
             return AddressingMode::IndirectX;
         }
-        else if (op.size() > 2 && op.substr(op.size() - 3) == "),Y")
+
+        // (zp),Y
+        if (op.size() > 4 && op.substr(op.size() - 3) == "),Y")
         {
-            std::string inner = op.substr(2, op.size() - 5); // skip "( $" and remove "),Y"
-            value = std::stoi(inner.substr(1), nullptr, 16); // drop leading $
+            // "($20),Y" -> "$20"
+            std::string base = op.substr(1, op.size() - 4);
+
+            if (base.empty() || base[0] != '$')
+                throw std::runtime_error("Invalid (zp),Y operand: " + op);
+
+            value = static_cast<uint16_t>(
+                std::stoi(base.substr(1), nullptr, 16)
+            );
+
+            if (value > 0xFF)
+                throw std::runtime_error("(zp),Y operand out of range: " + op);
+
             return AddressingMode::IndirectY;
         }
-        else
-        {
-            std::string inner = op.substr(1, op.size() - 2); // strip ( )
-            value = std::stoi(inner.substr(1), nullptr, 16); // drop leading $
-            if (value <= 0xFF) throw std::runtime_error("Invalid indirect operand: JMP ($" + inner + ")");
-            return AddressingMode::Indirect;
-        }
+
+        // (abs) -- JMP ($nnnn)
+        std::string inner = op.substr(1, op.size() - 2);
+
+        if (inner.empty() || inner[0] != '$')
+            throw std::runtime_error("Invalid indirect operand: " + op);
+
+        value = static_cast<uint16_t>(
+            std::stoi(inner.substr(1), nullptr, 16)
+        );
+
+        if (value <= 0xFF)
+            throw std::runtime_error("Invalid absolute indirect operand: " + op);
+
+        return AddressingMode::Indirect;
     }
     // Accumulator mode (ASL A, ROR A, etc.)
     if (op == "A" || op == "a")
