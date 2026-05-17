@@ -3610,7 +3610,21 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::DummyRead:
         {
-            (void)mem->read(op.address);
+            uint16_t address =
+                op.useMicroAddress ? microAddress : op.address;
+
+            // For absolute indexed stores, after ApplyAbsoluteIndex:
+            // microBaseAddress = original base
+            // microAddress     = final indexed address
+            //
+            // The dummy read is from old high byte + indexed low byte.
+            if (!op.useMicroAddress && op.address == 0 && microBaseAddress != 0)
+            {
+                address = uint16_t((microBaseAddress & 0xFF00) |
+                                   (microAddress & 0x00FF));
+            }
+
+            (void)mem->read(address);
             break;
         }
 
@@ -3641,6 +3655,24 @@ bool CPU::executeCurrentMicroOp()
     switch (op.action)
     {
         case CpuMicroAction::FinishNOP:
+            break;
+
+        case CpuMicroAction::OrAWithTemp:
+            A = uint8_t(A | microTemp);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::AndAWithTemp:
+            A = uint8_t(A & microTemp);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            break;
+
+        case CpuMicroAction::EorAWithTemp:
+            A = uint8_t(A ^ microTemp);
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
             break;
 
         case CpuMicroAction::LoadAFromTemp:
@@ -3784,16 +3816,28 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x09: // ORA #imm
+            buildImmediateAction(CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x29: // AND #imm
+            buildImmediateAction(CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x49: // EOR #imm
+            buildImmediateAction(CpuMicroAction::EorAWithTemp);
+            break;
+
         case 0xA9: // LDA #imm
-            buildImmediateLoad(CpuMicroAction::LoadAFromTemp);
+            buildImmediateAction(CpuMicroAction::LoadAFromTemp);
             break;
 
         case 0xA2: // LDX #imm
-            buildImmediateLoad(CpuMicroAction::LoadXFromTemp);
+            buildImmediateAction(CpuMicroAction::LoadXFromTemp);
             break;
 
         case 0xA0: // LDY #imm
-            buildImmediateLoad(CpuMicroAction::LoadYFromTemp);
+            buildImmediateAction(CpuMicroAction::LoadYFromTemp);
             break;
 
         case 0xA5: // LDA zp
@@ -3858,6 +3902,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0x8C: // STY abs
             buildAbsoluteStore(CpuMicroAction::StoreY);
+            break;
+
+        case 0x9D: // STA abs,X
+            buildAbsoluteIndexedStore(CpuIndexReg::X, CpuMicroAction::StoreA);
+            break;
+
+        case 0x99: // STA abs,Y
+            buildAbsoluteIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreA);
             break;
 
         case 0xB5: // LDA zp,X
@@ -4087,7 +4139,66 @@ void CPU::buildAbsoluteStore(CpuMicroAction action)
     pushMicroOp(writeValue);
 }
 
-void CPU::buildImmediateLoad(CpuMicroAction action)
+void CPU::buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action)
+{
+    // Read address low byte.
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = PC;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    // Read address high byte.
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    // Apply X/Y to the absolute base address.
+    CpuMicroOp applyIndex;
+    applyIndex.kind = CpuMicroOpKind::ApplyAbsoluteIndex;
+    applyIndex.busType = CpuBusCycleType::None;
+    applyIndex.address = 0;
+    applyIndex.value = 0;
+    applyIndex.useMicroAddress = false;
+    applyIndex.index = index;
+    applyIndex.action = CpuMicroAction::None;
+    pushMicroOp(applyIndex);
+
+    // Indexed stores always perform the dummy read from:
+    // old high byte + indexed low byte.
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = false;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    // Write selected register to final effective address.
+    CpuMicroOp writeValue;
+    writeValue.kind = CpuMicroOpKind::MemoryWrite;
+    writeValue.busType = CpuBusCycleType::Write;
+    writeValue.address = 0;
+    writeValue.value = 0;
+    writeValue.useMicroAddress = true;
+    writeValue.index = CpuIndexReg::None;
+    writeValue.action = action;
+    pushMicroOp(writeValue);
+}
+
+void CPU::buildImmediateAction(CpuMicroAction action)
 {
     CpuMicroOp op;
     op.kind = CpuMicroOpKind::OperandRead;
@@ -4095,6 +4206,7 @@ void CPU::buildImmediateLoad(CpuMicroAction action)
     op.address = PC;
     op.value = 0;
     op.useMicroAddress = false;
+    op.index = CpuIndexReg::None;
     op.action = action;
 
     pushMicroOp(op);
@@ -4255,6 +4367,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
     {
         case 0xEA: // NOP implied
 
+        case 0x09: // ORA #imm
+        case 0x29: // AND #imm
+        case 0x49: // EOR #imm
+
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm
         case 0xA0: // LDY #imm
@@ -4279,6 +4395,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x8D: // STA abs
         case 0x8E: // STX abs
         case 0x8C: // STY abs
+
+        case 0x9D: // STA abs,X
+        case 0x99: // STA abs,Y
 
         case 0xAA: // TAX
         case 0xA8: // TAY

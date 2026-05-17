@@ -572,6 +572,10 @@ class CPU
             LoadXFromTemp,
             LoadYFromTemp,
 
+            StoreA,
+            StoreX,
+            StoreY,
+
             TransferAToX,
             TransferAToY,
             TransferXToA,
@@ -592,9 +596,9 @@ class CPU
             SetDecimal,
             ClearOverflow,
 
-            StoreA,
-            StoreX,
-            StoreY
+            OrAWithTemp,
+            AndAWithTemp,
+            EorAWithTemp
         };
 
         enum class CpuIndexReg : uint8_t
@@ -879,7 +883,8 @@ class CPU
         void buildAbsoluteLoad(CpuMicroAction action);
         void buildAbsoluteIndexedLoad(CpuIndexReg index, CpuMicroAction action);
         void buildAbsoluteStore(CpuMicroAction action);
-        void buildImmediateLoad(CpuMicroAction action);
+        void buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action);
+        void buildImmediateAction(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
         void buildZeroPageLoad(CpuMicroAction action);
         void buildZeroPageStore(CpuMicroAction action);
