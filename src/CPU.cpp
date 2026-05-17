@@ -5075,6 +5075,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTempThenCompareA);
             break;
 
+        case 0xDB: // DCP abs,Y
+            buildAbsoluteIndexedRMW(CpuIndexReg::Y, CpuMicroAction::DecrementTempThenCompareA);
+            break;
+
         default:
             break;
     }
@@ -6718,7 +6722,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xC7: // DCP zp
         case 0xD7: // DCP zp,X
         case 0xCF: // DCP abs
-        case 0xDF: // DCP abs,X
+        case 0xDF: // DCP abs,Xcase 0xDB: // DCP abs,Y
             return true;
 
         default:
