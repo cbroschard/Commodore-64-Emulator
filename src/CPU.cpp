@@ -4100,6 +4100,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageReadAction(CpuMicroAction::CompareYWithTemp);
             break;
 
+        case 0xCD: // CMP abs
+            buildAbsoluteLoad(CpuMicroAction::CompareAWithTemp);
+            break;
+
+        case 0xEC: // CPX abs
+            buildAbsoluteLoad(CpuMicroAction::CompareXWithTemp);
+            break;
+
+        case 0xCC: // CPY abs
+            buildAbsoluteLoad(CpuMicroAction::CompareYWithTemp);
+            break;
+
         default:
             break;
     }
@@ -4551,6 +4563,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xC5: // CMP zp
         case 0xE4: // CPX zp
         case 0xC4: // CPY zp
+
+        case 0xCD: // CMP abs
+        case 0xEC: // CPX abs
+        case 0xCC: // CPY abs
            return true;
 
         default:
