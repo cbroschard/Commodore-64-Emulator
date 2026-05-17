@@ -4330,6 +4330,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageRMW(CpuMicroAction::RotateRightTemp);
             break;
 
+        case 0x0E: // ASL abs
+            buildAbsoluteRMW(CpuMicroAction::ShiftLeftTemp);
+            break;
+
+        case 0x2E: // ROL abs
+            buildAbsoluteRMW(CpuMicroAction::RotateLeftTemp);
+            break;
+
+        case 0x4E: // LSR abs
+            buildAbsoluteRMW(CpuMicroAction::ShiftRightTemp);
+            break;
+
+        case 0x6E: // ROR abs
+            buildAbsoluteRMW(CpuMicroAction::RotateRightTemp);
+            break;
+
         default:
             break;
     }
@@ -5015,6 +5031,49 @@ void CPU::buildZeroPageRMW(CpuMicroAction action)
     pushMicroOp(rmwWrite);
 }
 
+void CPU::buildAbsoluteRMW(CpuMicroAction action)
+{
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = PC;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = CpuMicroAction::None;
+    pushMicroOp(readValue);
+
+    CpuMicroOp rmwWrite;
+    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
+    rmwWrite.busType = CpuBusCycleType::Write;
+    rmwWrite.address = 0;
+    rmwWrite.value = 0;
+    rmwWrite.useMicroAddress = true;
+    rmwWrite.index = CpuIndexReg::None;
+    rmwWrite.action = action;
+    pushMicroOp(rmwWrite);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -5172,6 +5231,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x26: // ROL zp
         case 0x46: // LSR zp
         case 0x66: // ROR zp
+
+        case 0x0E: // ASL abs
+        case 0x2E: // ROL abs
+        case 0x4E: // LSR abs
+        case 0x6E: // ROR abs
             return true;
 
         default:
