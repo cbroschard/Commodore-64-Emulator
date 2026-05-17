@@ -4406,6 +4406,66 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x1C: // NOP abs,X unofficial
+        case 0x3C: // NOP abs,X unofficial
+        case 0x5C: // NOP abs,X unofficial
+        case 0x7C: // NOP abs,X unofficial
+        case 0xDC: // NOP abs,X unofficial
+        case 0xFC: // NOP abs,X unofficial
+        {
+            CpuMicroOp readLo;
+            readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+            readLo.busType = CpuBusCycleType::Read;
+            readLo.address = PC;
+            readLo.value = 0;
+            readLo.useMicroAddress = false;
+            readLo.index = CpuIndexReg::None;
+            readLo.action = CpuMicroAction::None;
+            pushMicroOp(readLo);
+
+            CpuMicroOp readHi;
+            readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+            readHi.busType = CpuBusCycleType::Read;
+            readHi.address = 0;
+            readHi.value = 0;
+            readHi.useMicroAddress = false;
+            readHi.index = CpuIndexReg::None;
+            readHi.action = CpuMicroAction::None;
+            pushMicroOp(readHi);
+
+            CpuMicroOp applyX;
+            applyX.kind = CpuMicroOpKind::ApplyAbsoluteIndex;
+            applyX.busType = CpuBusCycleType::None;
+            applyX.address = 0;
+            applyX.value = 0;
+            applyX.useMicroAddress = false;
+            applyX.index = CpuIndexReg::X;
+            applyX.action = CpuMicroAction::None;
+            pushMicroOp(applyX);
+
+            CpuMicroOp dummyRead;
+            dummyRead.kind = CpuMicroOpKind::ConditionalPageCrossDummyRead;
+            dummyRead.busType = CpuBusCycleType::DummyRead;
+            dummyRead.address = 0;
+            dummyRead.value = 0;
+            dummyRead.useMicroAddress = false;
+            dummyRead.index = CpuIndexReg::None;
+            dummyRead.action = CpuMicroAction::None;
+            pushMicroOp(dummyRead);
+
+            CpuMicroOp readIgnored;
+            readIgnored.kind = CpuMicroOpKind::MemoryRead;
+            readIgnored.busType = CpuBusCycleType::Read;
+            readIgnored.address = 0;
+            readIgnored.value = 0;
+            readIgnored.useMicroAddress = true;
+            readIgnored.index = CpuIndexReg::None;
+            readIgnored.action = CpuMicroAction::None;
+            pushMicroOp(readIgnored);
+
+            break;
+        }
+
         case 0x0D: // ORA abs
             buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
             break;
@@ -6690,6 +6750,12 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xD4:
         case 0xF4:
         case 0x0C:
+        case 0x1C:
+        case 0x3C:
+        case 0x5C:
+        case 0x7C:
+        case 0xDC:
+        case 0xFC:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
