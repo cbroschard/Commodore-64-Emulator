@@ -5340,6 +5340,28 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadAAndXFromTemp);
             break;
 
+        case 0xA3: // LAX (zp,X)
+            buildIndirectXRead(CpuMicroAction::LoadAAndXFromTemp);
+            break;
+
+        case 0xB3: // LAX (zp),Y
+            buildIndirectYRead(CpuMicroAction::LoadAAndXFromTemp);
+            break;
+
+        case 0xAB: // LAX #imm unofficial
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::LoadAAndXFromTemp;
+            pushMicroOp(readImm);
+            break;
+        }
+
         default:
             break;
     }
@@ -7026,6 +7048,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xB7: // LAX zp,Y
         case 0xAF: // LAX abs
         case 0xBF: // LAX abs,Y
+        case 0xA3: // LAX (zp,X)
+        case 0xB3: // LAX (zp),Y
+        case 0xAB: // LAX #imm
             return true;
 
         default:
