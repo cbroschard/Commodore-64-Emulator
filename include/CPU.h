@@ -590,6 +590,7 @@ class CPU
             LoadAAndXFromTemp,
 
             StoreA,
+            StoreAAndX,
             StoreX,
             StoreY,
 

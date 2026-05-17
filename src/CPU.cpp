@@ -3561,6 +3561,10 @@ bool CPU::executeCurrentMicroOp()
                     value = Y;
                     break;
 
+                case CpuMicroAction::StoreAAndX:
+                    value = uint8_t(A & X);
+                    break;
+
                 default:
                     break;
             }
@@ -5362,6 +5366,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x87: // SAX zp
+            buildZeroPageStore(CpuMicroAction::StoreAAndX);
+            break;
+
+        case 0x8F: // SAX abs
+            buildAbsoluteStore(CpuMicroAction::StoreAAndX);
+            break;
+
         default:
             break;
     }
@@ -7051,6 +7063,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xA3: // LAX (zp,X)
         case 0xB3: // LAX (zp),Y
         case 0xAB: // LAX #imm
+
+        case 0x87: // SAX zp
+        case 0x8F: // SAX abs
             return true;
 
         default:
