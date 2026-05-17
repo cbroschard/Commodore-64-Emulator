@@ -3614,6 +3614,8 @@ bool CPU::executeCurrentMicroOp()
         {
             microZP = mem->read(PC);
             PC = uint16_t((PC + 1) & 0xFFFF);
+
+            microAddress = microZP;
             break;
         }
 
@@ -4280,6 +4282,33 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             nop.index = CpuIndexReg::None;
             nop.action = CpuMicroAction::FinishNOP;
             pushMicroOp(nop);
+            break;
+        }
+
+        case 0x04: // NOP zp unofficial
+        case 0x44: // NOP zp unofficial
+        case 0x64: // NOP zp unofficial
+        {
+            CpuMicroOp readZp;
+            readZp.kind = CpuMicroOpKind::OperandReadToZP;
+            readZp.busType = CpuBusCycleType::Read;
+            readZp.address = PC;
+            readZp.value = 0;
+            readZp.useMicroAddress = false;
+            readZp.index = CpuIndexReg::None;
+            readZp.action = CpuMicroAction::None;
+            pushMicroOp(readZp);
+
+            CpuMicroOp readIgnored;
+            readIgnored.kind = CpuMicroOpKind::MemoryRead;
+            readIgnored.busType = CpuBusCycleType::Read;
+            readIgnored.address = 0;
+            readIgnored.value = 0;
+            readIgnored.useMicroAddress = true;
+            readIgnored.index = CpuIndexReg::None;
+            readIgnored.action = CpuMicroAction::None;
+            pushMicroOp(readIgnored);
+
             break;
         }
 
@@ -6576,6 +6605,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x89:
         case 0xC2:
         case 0xE2:
+        case 0x04:
+        case 0x44:
+        case 0x64:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
