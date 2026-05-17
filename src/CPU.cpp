@@ -3853,15 +3853,27 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
 
         case 0xA5: // LDA zp
-            buildZeroPageLoad(CpuMicroAction::LoadAFromTemp);
+            buildZeroPageReadAction(CpuMicroAction::LoadAFromTemp);
             break;
 
         case 0xA6: // LDX zp
-            buildZeroPageLoad(CpuMicroAction::LoadXFromTemp);
+            buildZeroPageReadAction(CpuMicroAction::LoadXFromTemp);
             break;
 
         case 0xA4: // LDY zp
-            buildZeroPageLoad(CpuMicroAction::LoadYFromTemp);
+            buildZeroPageReadAction(CpuMicroAction::LoadYFromTemp);
+            break;
+
+        case 0x05: // ORA zp
+            buildZeroPageReadAction(CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x25: // AND zp
+            buildZeroPageReadAction(CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x45: // EOR zp
+            buildZeroPageReadAction(CpuMicroAction::EorAWithTemp);
             break;
 
         case 0xAD: // LDA abs
@@ -4249,7 +4261,7 @@ void CPU::buildInternalAction(CpuMicroAction action)
     pushMicroOp(op);
 }
 
-void CPU::buildZeroPageLoad(CpuMicroAction action)
+void CPU::buildZeroPageReadAction(CpuMicroAction action)
 {
     // Read zero-page address operand into microAddress.
     CpuMicroOp readOperand;
@@ -4394,6 +4406,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x09: // ORA #imm
         case 0x29: // AND #imm
         case 0x49: // EOR #imm
+
+        case 0x05: // ORA zp
+        case 0x25: // AND zp
+        case 0x45: // EOR zp
 
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm

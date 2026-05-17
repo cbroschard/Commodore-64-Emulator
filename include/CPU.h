@@ -890,7 +890,7 @@ class CPU
         void buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action);
         void buildImmediateAction(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
-        void buildZeroPageLoad(CpuMicroAction action);
+        void buildZeroPageReadAction(CpuMicroAction action);
         void buildZeroPageStore(CpuMicroAction action);
         void buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action);
         void buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action);
