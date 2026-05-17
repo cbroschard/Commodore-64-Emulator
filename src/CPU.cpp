@@ -3828,6 +3828,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x0D: // ORA abs
+            buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x2D: // AND abs
+            buildAbsoluteLoad(CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x4D: // EOR abs
+            buildAbsoluteLoad(CpuMicroAction::EorAWithTemp);
+            break;
+
         case 0x09: // ORA #imm
             buildImmediateAction(CpuMicroAction::OrAWithTemp);
             break;
@@ -4402,6 +4414,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
     switch (opcode)
     {
         case 0xEA: // NOP implied
+
+        case 0x0D: // ORA abs
+        case 0x2D: // AND abs
+        case 0x4D: // EOR abs
 
         case 0x09: // ORA #imm
         case 0x29: // AND #imm
