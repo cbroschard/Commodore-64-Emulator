@@ -592,6 +592,8 @@ class CPU
 
             IncrementX,
             IncrementY,
+            IncrementTemp,
+            DecrementTemp,
             DecrementX,
             DecrementY,
 

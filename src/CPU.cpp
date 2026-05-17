@@ -4378,6 +4378,38 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::RotateRightTemp);
             break;
 
+        case 0xE6: // INC zp
+            buildZeroPageRMW(CpuMicroAction::IncrementTemp);
+            break;
+
+        case 0xEE: // INC abs
+            buildAbsoluteRMW(CpuMicroAction::IncrementTemp);
+            break;
+
+        case 0xF6: // INC zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::IncrementTemp);
+            break;
+
+        case 0xFE: // INC abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::IncrementTemp);
+            break;
+
+        case 0xC6: // DEC zp
+            buildZeroPageRMW(CpuMicroAction::DecrementTemp);
+            break;
+
+        case 0xCE: // DEC abs
+            buildAbsoluteRMW(CpuMicroAction::DecrementTemp);
+            break;
+
+        case 0xD6: // DEC zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTemp);
+            break;
+
+        case 0xDE: // DEC abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::DecrementTemp);
+            break;
+
         default:
             break;
     }
@@ -5403,6 +5435,16 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x3E: // ROL abs,X
         case 0x5E: // LSR abs,X
         case 0x7E: // ROR abs,X
+
+        case 0xE6: // INC zp
+        case 0xEE: // INC abs
+        case 0xF6: // INC zp,X
+        case 0xFE: // INC abs,X
+
+        case 0xC6: // DEC zp
+        case 0xCE: // DEC abs
+        case 0xD6: // DEC zp,X
+        case 0xDE: // DEC abs,X
             return true;
 
         default:
@@ -5587,6 +5629,26 @@ uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
                 uint8_t((oldValue >> 1) | (oldCarry ? 0x80 : 0x00));
 
             setFlag(C, (oldValue & 0x01) != 0);
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::IncrementTemp:
+        {
+            const uint8_t result = uint8_t(oldValue + 1);
+
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::DecrementTemp:
+        {
+            const uint8_t result = uint8_t(oldValue - 1);
+
             setFlag(Z, result == 0);
             setFlag(N, (result & 0x80) != 0);
 
