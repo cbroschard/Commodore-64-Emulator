@@ -3852,6 +3852,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildImmediateAction(CpuMicroAction::EorAWithTemp);
             break;
 
+        case 0x15: // ORA zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x35: // AND zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x55: // EOR zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::EorAWithTemp);
+            break;
+
         case 0xA9: // LDA #imm
             buildImmediateAction(CpuMicroAction::LoadAFromTemp);
             break;
@@ -4426,6 +4438,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x05: // ORA zp
         case 0x25: // AND zp
         case 0x45: // EOR zp
+
+        case 0x15: // ORA zp,X
+        case 0x35: // AND zp,X
+        case 0x55: // EOR zp,X
 
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm
