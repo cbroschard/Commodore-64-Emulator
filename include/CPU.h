@@ -638,8 +638,8 @@ class CPU
             RotateRightTemp,
 
             RotateLeftTempThenAndA,
-
             ShiftRightTempThenEorA,
+            RotateRightTempThenAdcA,
 
             JumpToMicroAddress,
 
