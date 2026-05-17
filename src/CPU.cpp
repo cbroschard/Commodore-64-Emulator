@@ -4371,6 +4371,41 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x0C: // NOP abs unofficial
+        {
+            CpuMicroOp readLo;
+            readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+            readLo.busType = CpuBusCycleType::Read;
+            readLo.address = PC;
+            readLo.value = 0;
+            readLo.useMicroAddress = false;
+            readLo.index = CpuIndexReg::None;
+            readLo.action = CpuMicroAction::None;
+            pushMicroOp(readLo);
+
+            CpuMicroOp readHi;
+            readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+            readHi.busType = CpuBusCycleType::Read;
+            readHi.address = 0;
+            readHi.value = 0;
+            readHi.useMicroAddress = false;
+            readHi.index = CpuIndexReg::None;
+            readHi.action = CpuMicroAction::None;
+            pushMicroOp(readHi);
+
+            CpuMicroOp readIgnored;
+            readIgnored.kind = CpuMicroOpKind::MemoryRead;
+            readIgnored.busType = CpuBusCycleType::Read;
+            readIgnored.address = 0;
+            readIgnored.value = 0;
+            readIgnored.useMicroAddress = true;
+            readIgnored.index = CpuIndexReg::None;
+            readIgnored.action = CpuMicroAction::None;
+            pushMicroOp(readIgnored);
+
+            break;
+        }
+
         case 0x0D: // ORA abs
             buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
             break;
@@ -6654,6 +6689,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x74:
         case 0xD4:
         case 0xF4:
+        case 0x0C:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
