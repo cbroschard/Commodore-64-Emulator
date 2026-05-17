@@ -3635,13 +3635,60 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::StackRead:
         {
-            microTemp = mem->read(op.address);
+            SP = uint8_t(SP + 1);
+
+            const uint8_t value =
+                cpuRead(uint16_t(0x0100 | SP), CpuBusCycleType::StackRead);
+
+            switch (op.action)
+            {
+                case CpuMicroAction::PullA:
+                    A = value;
+                    setFlag(Z, A == 0);
+                    setFlag(N, (A & 0x80) != 0);
+                    break;
+
+                case CpuMicroAction::PullProcessorStatus:
+                {
+                    const bool oldI = getFlag(I);
+
+                    SR = (value | 0x20) & ~0x10; // force U high, clear internal B
+
+                    const bool newI = getFlag(I);
+                    if (oldI && !newI)
+                        irqSuppressOne = true;
+
+                    break;
+                }
+
+                default:
+                    break;
+            }
+
             break;
         }
 
         case CpuMicroOpKind::StackWrite:
         {
-            mem->write(op.address, op.value);
+            uint8_t value = 0;
+
+            switch (op.action)
+            {
+                case CpuMicroAction::PushA:
+                    value = A;
+                    break;
+
+                case CpuMicroAction::PushProcessorStatus:
+                    value = SR | 0x30; // B set, U set for PHP/BRK-style push
+                    break;
+
+                default:
+                    value = op.value;
+                    break;
+            }
+
+            cpuWrite(uint16_t(0x0100 | SP), value, CpuBusCycleType::StackWrite);
+            SP = uint8_t(SP - 1);
             break;
         }
 
@@ -4696,6 +4743,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildBranch(CpuMicroAction::BranchIfOverflowSet);
             break;
 
+        case 0x48: // PHA
+            buildStackPush(CpuMicroAction::PushA);
+            break;
+
+        case 0x08: // PHP
+            buildStackPush(CpuMicroAction::PushProcessorStatus);
+            break;
+
+        case 0x68: // PLA
+            buildStackPull(CpuMicroAction::PullA);
+            break;
+
+        case 0x28: // PLP
+            buildStackPull(CpuMicroAction::PullProcessorStatus);
+            break;
+
         default:
             break;
     }
@@ -5600,6 +5663,62 @@ void CPU::buildBranch(CpuMicroAction action)
     pageDummy.index = CpuIndexReg::None;
     pageDummy.action = CpuMicroAction::None;
     pushMicroOp(pageDummy);
+}
+
+void CPU::buildStackPush(CpuMicroAction action)
+{
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = PC;
+    dummy.value = 0;
+    dummy.useMicroAddress = false;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    CpuMicroOp pushOp;
+    pushOp.kind = CpuMicroOpKind::StackWrite;
+    pushOp.busType = CpuBusCycleType::StackWrite;
+    pushOp.address = 0;
+    pushOp.value = 0;
+    pushOp.useMicroAddress = false;
+    pushOp.index = CpuIndexReg::None;
+    pushOp.action = action;
+    pushMicroOp(pushOp);
+}
+
+void CPU::buildStackPull(CpuMicroAction action)
+{
+    CpuMicroOp dummy1;
+    dummy1.kind = CpuMicroOpKind::DummyRead;
+    dummy1.busType = CpuBusCycleType::DummyRead;
+    dummy1.address = PC;
+    dummy1.value = 0;
+    dummy1.useMicroAddress = false;
+    dummy1.index = CpuIndexReg::None;
+    dummy1.action = CpuMicroAction::None;
+    pushMicroOp(dummy1);
+
+    CpuMicroOp dummy2;
+    dummy2.kind = CpuMicroOpKind::DummyRead;
+    dummy2.busType = CpuBusCycleType::DummyRead;
+    dummy2.address = uint16_t(0x0100 | SP);
+    dummy2.value = 0;
+    dummy2.useMicroAddress = false;
+    dummy2.index = CpuIndexReg::None;
+    dummy2.action = CpuMicroAction::None;
+    pushMicroOp(dummy2);
+
+    CpuMicroOp pullOp;
+    pullOp.kind = CpuMicroOpKind::StackRead;
+    pullOp.busType = CpuBusCycleType::StackRead;
+    pullOp.address = 0;
+    pullOp.value = 0;
+    pullOp.useMicroAddress = false;
+    pullOp.index = CpuIndexReg::None;
+    pullOp.action = action;
+    pushMicroOp(pullOp);
 }
 
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const

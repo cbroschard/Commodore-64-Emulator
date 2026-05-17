@@ -646,7 +646,12 @@ class CPU
             BranchIfZeroClear,
             BranchIfMinusClear,
             BranchIfOverflowClear,
-            BranchIfOverflowSet
+            BranchIfOverflowSet,
+
+            PushA,
+            PushProcessorStatus,
+            PullA,
+            PullProcessorStatus
         };
 
         enum class CpuIndexReg : uint8_t
@@ -956,6 +961,8 @@ class CPU
         void buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action);
         void buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action);
         void buildBranch(CpuMicroAction action);
+        void buildStackPush(CpuMicroAction action);
+        void buildStackPull(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
