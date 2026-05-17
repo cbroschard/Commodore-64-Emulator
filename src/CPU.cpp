@@ -3498,6 +3498,12 @@ bool CPU::executeCurrentMicroOp()
 
     switch (op.kind)
     {
+        case CpuMicroOpKind::ApplyZeroPageIndex:
+        {
+            microAddress = uint8_t(microAddress + getIndexValue(op.index));
+            break;
+        }
+
         case CpuMicroOpKind::OpcodeFetch:
         {
             activeOpcodePC = PC;
@@ -3771,6 +3777,30 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageStore(CpuMicroAction::StoreY);
             break;
 
+        case 0xB5: // LDA zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::LoadAFromTemp);
+            break;
+
+        case 0xB4: // LDY zp,X
+            buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::LoadYFromTemp);
+            break;
+
+        case 0xB6: // LDX zp,Y
+            buildZeroPageIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadXFromTemp);
+            break;
+
+        case 0x95: // STA zp,X
+            buildZeroPageIndexedStore(CpuIndexReg::X, CpuMicroAction::StoreA);
+            break;
+
+        case 0x94: // STY zp,X
+            buildZeroPageIndexedStore(CpuIndexReg::X, CpuMicroAction::StoreY);
+            break;
+
+        case 0x96: // STX zp,Y
+            buildZeroPageIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreX);
+            break;
+
         case 0xAA: // TAX
             buildInternalAction(CpuMicroAction::TransferAToX);
             break;
@@ -3916,6 +3946,96 @@ void CPU::buildZeroPageStore(CpuMicroAction action)
     pushMicroOp(writeValue);
 }
 
+void CPU::buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action)
+{
+    // Read zero-page base operand into microAddress.
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    // Zero-page indexed modes do a dummy read from the unindexed base.
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = true;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    // Apply X/Y with zero-page wrap.
+    CpuMicroOp applyIndex;
+    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
+    applyIndex.busType = CpuBusCycleType::None;
+    applyIndex.address = 0;
+    applyIndex.value = 0;
+    applyIndex.useMicroAddress = false;
+    applyIndex.index = index;
+    applyIndex.action = CpuMicroAction::None;
+    pushMicroOp(applyIndex);
+
+    // Read final value.
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = action;
+    pushMicroOp(readValue);
+}
+
+void CPU::buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action)
+{
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    CpuMicroOp dummy;
+    dummy.kind = CpuMicroOpKind::DummyRead;
+    dummy.busType = CpuBusCycleType::DummyRead;
+    dummy.address = 0;
+    dummy.value = 0;
+    dummy.useMicroAddress = true;
+    dummy.index = CpuIndexReg::None;
+    dummy.action = CpuMicroAction::None;
+    pushMicroOp(dummy);
+
+    CpuMicroOp applyIndex;
+    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
+    applyIndex.busType = CpuBusCycleType::None;
+    applyIndex.address = 0;
+    applyIndex.value = 0;
+    applyIndex.useMicroAddress = false;
+    applyIndex.index = index;
+    applyIndex.action = CpuMicroAction::None;
+    pushMicroOp(applyIndex);
+
+    CpuMicroOp writeValue;
+    writeValue.kind = CpuMicroOpKind::MemoryWrite;
+    writeValue.busType = CpuBusCycleType::Write;
+    writeValue.address = 0;
+    writeValue.value = 0;
+    writeValue.useMicroAddress = true;
+    writeValue.index = CpuIndexReg::None;
+    writeValue.action = action;
+    pushMicroOp(writeValue);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -3953,6 +4073,14 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xD8: // CLD
         case 0xF8: // SED
         case 0xB8: // CLV
+
+        case 0xB5: // LDA zp,X
+        case 0xB4: // LDY zp,X
+        case 0xB6: // LDX zp,Y
+
+        case 0x95: // STA zp,X
+        case 0x94: // STY zp,X
+        case 0x96: // STX zp,Y
             return true;
 
         default:
@@ -3978,6 +4106,16 @@ bool CPU::tickMicroOps()
 
     totalCycles++;
     return true;
+}
+
+uint8_t CPU::getIndexValue(CpuIndexReg index) const
+{
+    switch (index)
+    {
+        case CpuIndexReg::X: return X;
+        case CpuIndexReg::Y: return Y;
+        default:             return 0;
+    }
 }
 
 uint8_t CPU::debugRead(uint16_t address) const

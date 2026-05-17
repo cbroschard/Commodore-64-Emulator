@@ -553,7 +553,9 @@ class CPU
             StackRead,
             StackWrite,
 
-            Internal
+            Internal,
+
+            ApplyZeroPageIndex
         };
 
         enum class CpuMicroAction : uint8_t
@@ -591,6 +593,13 @@ class CPU
             StoreY
         };
 
+        enum class CpuIndexReg : uint8_t
+        {
+            None,
+            X,
+            Y
+        };
+
         struct CpuMicroOp
         {
             CpuMicroOpKind kind = CpuMicroOpKind::None;
@@ -600,6 +609,7 @@ class CPU
             uint8_t value = 0;
 
             bool useMicroAddress = false;
+            CpuIndexReg index = CpuIndexReg::None;
 
             CpuMicroAction action = CpuMicroAction::None;
         };
@@ -864,8 +874,13 @@ class CPU
         void buildInternalAction(CpuMicroAction action);
         void buildZeroPageLoad(CpuMicroAction action);
         void buildZeroPageStore(CpuMicroAction action);
+        void buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action);
+        void buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
+
+        // Micro Op Helpers
+        uint8_t getIndexValue(CpuIndexReg index) const;
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
