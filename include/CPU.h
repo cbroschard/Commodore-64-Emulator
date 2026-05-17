@@ -584,7 +584,11 @@ class CPU
             SetInterruptDisable,
             ClearDecimal,
             SetDecimal,
-            ClearOverflow
+            ClearOverflow,
+
+            StoreA,
+            StoreX,
+            StoreY
         };
 
         struct CpuMicroOp
@@ -859,6 +863,7 @@ class CPU
         void buildImmediateLoad(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
         void buildZeroPageLoad(CpuMicroAction action);
+        void buildZeroPageStore(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 

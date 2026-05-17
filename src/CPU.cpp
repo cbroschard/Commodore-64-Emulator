@@ -3525,7 +3525,30 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::MemoryWrite:
         {
-            mem->write(op.address, op.value);
+            const uint16_t address =
+                op.useMicroAddress ? microAddress : op.address;
+
+            uint8_t value = op.value;
+
+            switch (op.action)
+            {
+                case CpuMicroAction::StoreA:
+                    value = A;
+                    break;
+
+                case CpuMicroAction::StoreX:
+                    value = X;
+                    break;
+
+                case CpuMicroAction::StoreY:
+                    value = Y;
+                    break;
+
+                default:
+                    break;
+            }
+
+            mem->write(address, value);
             break;
         }
 
@@ -3736,6 +3759,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageLoad(CpuMicroAction::LoadYFromTemp);
             break;
 
+        case 0x85: // STA zp
+            buildZeroPageStore(CpuMicroAction::StoreA);
+            break;
+
+        case 0x86: // STX zp
+            buildZeroPageStore(CpuMicroAction::StoreX);
+            break;
+
+        case 0x84: // STY zp
+            buildZeroPageStore(CpuMicroAction::StoreY);
+            break;
+
         case 0xAA: // TAX
             buildInternalAction(CpuMicroAction::TransferAToX);
             break;
@@ -3858,6 +3893,29 @@ void CPU::buildZeroPageLoad(CpuMicroAction action)
     pushMicroOp(readValue);
 }
 
+void CPU::buildZeroPageStore(CpuMicroAction action)
+{
+    // Read zero-page address operand into microAddress.
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    // Write selected register to $00xx.
+    CpuMicroOp writeValue;
+    writeValue.kind = CpuMicroOpKind::MemoryWrite;
+    writeValue.busType = CpuBusCycleType::Write;
+    writeValue.address = 0;
+    writeValue.value = 0;
+    writeValue.useMicroAddress = true;
+    writeValue.action = action;
+    pushMicroOp(writeValue);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -3871,6 +3929,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xA5: // LDA zp
         case 0xA6: // LDX zp
         case 0xA4: // LDY zp
+
+        case 0x85: // STA zp
+        case 0x86: // STX zp
+        case 0x84: // STY zp
 
         case 0xAA: // TAX
         case 0xA8: // TAY
