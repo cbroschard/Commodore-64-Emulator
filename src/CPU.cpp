@@ -5087,6 +5087,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildIndirectYRMW(CpuMicroAction::DecrementTempThenCompareA);
             break;
 
+        case 0xE7: // ISC zp
+            buildZeroPageRMW(CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
+        case 0xF7: // ISC zp,X
+            buildZeroPageIndexedRMW(CpuIndexReg::X, CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
+        case 0xEF: // ISC abs
+            buildAbsoluteRMW(CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
+        case 0xFF: // ISC abs,X
+            buildAbsoluteIndexedRMW(CpuIndexReg::X, CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
         default:
             break;
     }
@@ -6733,6 +6749,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xDF: // DCP abs,Xcase 0xDB: // DCP abs,Y
         case 0xC3: // DCP (zp,X)
         case 0xD3: // DCP (zp),Y
+
+        case 0xE7: // ISC zp
+        case 0xF7: // ISC zp,X
+        case 0xEF: // ISC abs
+        case 0xFF: // ISC abs,X
             return true;
 
         default:
@@ -6988,6 +7009,17 @@ uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
 
             setFlag(Z, result == 0);
             setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::IncrementTempThenSbcA:
+        {
+            const uint8_t result = uint8_t(oldValue + 1);
+
+            // Memory gets the incremented value.
+            // Then SBC uses the incremented value.
+            sbcValue(result);
 
             return result;
         }
