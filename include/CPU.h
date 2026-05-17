@@ -560,9 +560,10 @@ class CPU
             None,
 
             FinishNOP,
-            FinishLDAImmediate,
-            FinishLDXImmediate,
-            FinishLDYImmediate
+
+            LoadAFromTemp,
+            LoadXFromTemp,
+            LoadYFromTemp
         };
 
         struct CpuMicroOp
@@ -832,6 +833,7 @@ class CPU
         void pushMicroOp(const CpuMicroOp& op);
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
+        void buildImmediateLoad(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 

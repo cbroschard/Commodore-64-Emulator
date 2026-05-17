@@ -3561,19 +3561,19 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroAction::FinishNOP:
             break;
 
-        case CpuMicroAction::FinishLDAImmediate:
+        case CpuMicroAction::LoadAFromTemp:
             A = microTemp;
             setFlag(Z, A == 0);
             setFlag(N, (A & 0x80) != 0);
             break;
 
-        case CpuMicroAction::FinishLDXImmediate:
+        case CpuMicroAction::LoadXFromTemp:
             X = microTemp;
             setFlag(Z, X == 0);
             setFlag(N, (X & 0x80) != 0);
             break;
 
-        case CpuMicroAction::FinishLDYImmediate:
+        case CpuMicroAction::LoadYFromTemp:
             Y = microTemp;
             setFlag(Z, Y == 0);
             setFlag(N, (Y & 0x80) != 0);
@@ -3612,44 +3612,31 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         }
 
         case 0xA9: // LDA #imm
-        {
-            pushMicroOp({
-                CpuMicroOpKind::OperandRead,
-                CpuBusCycleType::Read,
-                PC,
-                0,
-                CpuMicroAction::FinishLDAImmediate
-            });
+            buildImmediateLoad(CpuMicroAction::LoadAFromTemp);
             break;
-        }
 
         case 0xA2: // LDX #imm
-        {
-            pushMicroOp({
-                CpuMicroOpKind::OperandRead,
-                CpuBusCycleType::Read,
-                PC,
-                0,
-                CpuMicroAction::FinishLDXImmediate
-            });
+            buildImmediateLoad(CpuMicroAction::LoadXFromTemp);
             break;
-        }
 
         case 0xA0: // LDY #imm
-        {
-            pushMicroOp({
-                CpuMicroOpKind::OperandRead,
-                CpuBusCycleType::Read,
-                PC,
-                0,
-                CpuMicroAction::FinishLDYImmediate
-            });
+            buildImmediateLoad(CpuMicroAction::LoadYFromTemp);
             break;
-        }
 
         default:
             break;
     }
+}
+
+void CPU::buildImmediateLoad(CpuMicroAction action)
+{
+    pushMicroOp({
+        CpuMicroOpKind::OperandRead,
+        CpuBusCycleType::Read,
+        PC,
+        0,
+        action
+    });
 }
 
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
