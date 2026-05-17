@@ -34,6 +34,9 @@ CPU::CPU() :
     microPointerAddress(0),
     microJmpLow(0),
     microJmpHigh(0),
+    microBranchOffset(0),
+    microBranchTaken(false),
+    microOldPC(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -238,6 +241,9 @@ void CPU::reset()
     microPointerAddress         = 0;
     microJmpLow                 = 0;
     microJmpHigh                = 0;
+    microBranchOffset           = 0;
+    microBranchTaken            = false;
+    microOldPC                  = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -3661,6 +3667,98 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::OperandReadToBranchOffset:
+        {
+            microBranchOffset = static_cast<int8_t>(cpuRead(PC, CpuBusCycleType::Read));
+            PC = uint16_t(PC + 1);
+            break;
+        }
+
+        case CpuMicroOpKind::EvaluateBranchCondition:
+        {
+            switch (op.action)
+            {
+                case CpuMicroAction::BranchIfCarryClear:
+                    microBranchTaken = !getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfCarrySet:
+                    microBranchTaken = getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroSet:
+                    microBranchTaken = getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroClear:
+                    microBranchTaken = !getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusSet:
+                    microBranchTaken = getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusClear:
+                    microBranchTaken = !getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowClear:
+                    microBranchTaken = !getFlag(V);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowSet:
+                    microBranchTaken = getFlag(V);
+                    break;
+
+                default:
+                    microBranchTaken = false;
+                    break;
+            }
+
+            break;
+        }
+
+        case CpuMicroOpKind::BranchTakenDummyRead:
+        {
+            if (microBranchTaken)
+                cpuRead(PC, CpuBusCycleType::DummyRead);
+            break;
+        }
+
+        case CpuMicroOpKind::ApplyBranchOffset:
+        {
+            microOldPC = PC;
+
+            if (microBranchTaken)
+            {
+                const uint16_t newPC =
+                    uint16_t(PC + microBranchOffset);
+
+                microPageCrossed =
+                    (PC & 0xFF00) != (newPC & 0xFF00);
+
+                microAddress = newPC;
+            }
+            break;
+        }
+
+        case CpuMicroOpKind::BranchPageCrossDummyRead:
+        {
+            if (microBranchTaken && microPageCrossed)
+            {
+                const uint16_t dummy =
+                    uint16_t((microOldPC & 0xFF00) |
+                             (microAddress & 0x00FF));
+
+                cpuRead(dummy, CpuBusCycleType::DummyRead);
+            }
+
+            if (microBranchTaken)
+                PC = microAddress;
+
+            break;
+        }
+
         case CpuMicroOpKind::Internal:
         case CpuMicroOpKind::None:
         default:
@@ -3881,6 +3979,38 @@ bool CPU::executeCurrentMicroOp()
             PC = microAddress;
             break;
         }
+
+        case CpuMicroAction::BranchIfCarryClear:
+            microBranchTaken = !getFlag(C);
+            break;
+
+        case CpuMicroAction::BranchIfCarrySet:
+            microBranchTaken = getFlag(C);
+            break;
+
+        case CpuMicroAction::BranchIfZeroSet:
+            microBranchTaken = getFlag(Z);
+            break;
+
+        case CpuMicroAction::BranchIfZeroClear:
+            microBranchTaken = !getFlag(Z);
+            break;
+
+        case CpuMicroAction::BranchIfMinusSet:
+            microBranchTaken = getFlag(N);
+            break;
+
+        case CpuMicroAction::BranchIfMinusClear:
+            microBranchTaken = !getFlag(N);
+            break;
+
+        case CpuMicroAction::BranchIfOverflowClear:
+            microBranchTaken = !getFlag(V);
+            break;
+
+        case CpuMicroAction::BranchIfOverflowSet:
+            microBranchTaken = getFlag(V);
+            break;
 
         case CpuMicroAction::None:
         default:
@@ -4533,6 +4663,38 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
             break;
         }
+
+        case 0x90: // BCC
+            buildBranch(CpuMicroAction::BranchIfCarryClear);
+            break;
+
+        case 0xB0: // BCS
+            buildBranch(CpuMicroAction::BranchIfCarrySet);
+            break;
+
+        case 0xF0: // BEQ
+            buildBranch(CpuMicroAction::BranchIfZeroSet);
+            break;
+
+        case 0xD0: // BNE
+            buildBranch(CpuMicroAction::BranchIfZeroClear);
+            break;
+
+        case 0x30: // BMI
+            buildBranch(CpuMicroAction::BranchIfMinusSet);
+            break;
+
+        case 0x10: // BPL
+            buildBranch(CpuMicroAction::BranchIfMinusClear);
+            break;
+
+        case 0x50: // BVC
+            buildBranch(CpuMicroAction::BranchIfOverflowClear);
+            break;
+
+        case 0x70: // BVS
+            buildBranch(CpuMicroAction::BranchIfOverflowSet);
+            break;
 
         default:
             break;
@@ -5387,6 +5549,59 @@ void CPU::buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action)
     pushMicroOp(rmwWrite);
 }
 
+void CPU::buildBranch(CpuMicroAction action)
+{
+    CpuMicroOp readOffset;
+    readOffset.kind = CpuMicroOpKind::OperandReadToBranchOffset;
+    readOffset.busType = CpuBusCycleType::Read;
+    readOffset.address = PC;
+    readOffset.value = 0;
+    readOffset.useMicroAddress = false;
+    readOffset.index = CpuIndexReg::None;
+    readOffset.action = CpuMicroAction::None;
+    pushMicroOp(readOffset);
+
+    CpuMicroOp eval;
+    eval.kind = CpuMicroOpKind::EvaluateBranchCondition;
+    eval.busType = CpuBusCycleType::None;
+    eval.address = 0;
+    eval.value = 0;
+    eval.useMicroAddress = false;
+    eval.index = CpuIndexReg::None;
+    eval.action = action;
+    pushMicroOp(eval);
+
+    CpuMicroOp takenDummy;
+    takenDummy.kind = CpuMicroOpKind::BranchTakenDummyRead;
+    takenDummy.busType = CpuBusCycleType::DummyRead;
+    takenDummy.address = 0;
+    takenDummy.value = 0;
+    takenDummy.useMicroAddress = false;
+    takenDummy.index = CpuIndexReg::None;
+    takenDummy.action = CpuMicroAction::None;
+    pushMicroOp(takenDummy);
+
+    CpuMicroOp apply;
+    apply.kind = CpuMicroOpKind::ApplyBranchOffset;
+    apply.busType = CpuBusCycleType::None;
+    apply.address = 0;
+    apply.value = 0;
+    apply.useMicroAddress = false;
+    apply.index = CpuIndexReg::None;
+    apply.action = CpuMicroAction::None;
+    pushMicroOp(apply);
+
+    CpuMicroOp pageDummy;
+    pageDummy.kind = CpuMicroOpKind::BranchPageCrossDummyRead;
+    pageDummy.busType = CpuBusCycleType::DummyRead;
+    pageDummy.address = 0;
+    pageDummy.value = 0;
+    pageDummy.useMicroAddress = false;
+    pageDummy.index = CpuIndexReg::None;
+    pageDummy.action = CpuMicroAction::None;
+    pushMicroOp(pageDummy);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -5572,6 +5787,15 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x4C: // JMP abs
         case 0x6C: // JMP (abs)
+
+        case 0x90: // BCC
+        case 0xB0: // BCS
+        case 0xF0: // BEQ
+        case 0xD0: // BNE
+        case 0x30: // BMI
+        case 0x10: // BPL
+        case 0x50: // BVC
+        case 0x70: // BVS
             return true;
 
         default:

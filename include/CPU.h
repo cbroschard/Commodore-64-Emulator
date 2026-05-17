@@ -560,6 +560,12 @@ class CPU
             ReadJmpIndirectLow,
             ReadJmpIndirectHigh,
 
+            OperandReadToBranchOffset,
+            EvaluateBranchCondition,
+            BranchTakenDummyRead,
+            ApplyBranchOffset,
+            BranchPageCrossDummyRead,
+
             DummyRead,
             DummyWrite,
 
@@ -631,7 +637,16 @@ class CPU
             ShiftRightTemp,
             RotateRightTemp,
 
-            JumpToMicroAddress
+            JumpToMicroAddress,
+
+            BranchIfCarryClear,
+            BranchIfCarrySet,
+            BranchIfZeroSet,
+            BranchIfMinusSet,
+            BranchIfZeroClear,
+            BranchIfMinusClear,
+            BranchIfOverflowClear,
+            BranchIfOverflowSet
         };
 
         enum class CpuIndexReg : uint8_t
@@ -676,6 +691,9 @@ class CPU
         uint16_t microPointerAddress;
         uint8_t microJmpLow;
         uint8_t microJmpHigh;
+        int8_t microBranchOffset;
+        bool microBranchTaken;
+        uint16_t microOldPC;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;
@@ -937,6 +955,7 @@ class CPU
         void buildAbsoluteRMW(CpuMicroAction action);
         void buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action);
         void buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action);
+        void buildBranch(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
