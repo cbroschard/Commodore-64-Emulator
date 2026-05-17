@@ -5051,6 +5051,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::Y, CpuMicroAction::RotateRightTempThenAdcA);
             break;
 
+        case 0x63: // RRA (zp,X)
+            buildIndirectXRMW(CpuMicroAction::RotateRightTempThenAdcA);
+            break;
+
+        case 0x73: // RRA (zp),Y
+            buildIndirectYRMW(CpuMicroAction::RotateRightTempThenAdcA);
+            break;
+
         default:
             break;
     }
@@ -6688,6 +6696,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x6F: // RRA abs
         case 0x7F: // RRA abs,X
         case 0x7B: // RRA abs,Y
+        case 0x63: // RRA (zp,X)
+        case 0x73: // RRA (zp),Y
             return true;
 
         default:
