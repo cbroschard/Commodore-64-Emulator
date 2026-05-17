@@ -872,6 +872,7 @@ class CPU
         bool executeCurrentMicroOp();
         void buildMicroOpsForOpcode(uint8_t opcode);
         void buildAbsoluteLoad(CpuMicroAction action);
+        void buildAbsoluteStore(CpuMicroAction action);
         void buildImmediateLoad(CpuMicroAction action);
         void buildInternalAction(CpuMicroAction action);
         void buildZeroPageLoad(CpuMicroAction action);

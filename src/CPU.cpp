@@ -3800,6 +3800,18 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageStore(CpuMicroAction::StoreY);
             break;
 
+        case 0x8D: // STA abs
+            buildAbsoluteStore(CpuMicroAction::StoreA);
+            break;
+
+        case 0x8E: // STX abs
+            buildAbsoluteStore(CpuMicroAction::StoreX);
+            break;
+
+        case 0x8C: // STY abs
+            buildAbsoluteStore(CpuMicroAction::StoreY);
+            break;
+
         case 0xB5: // LDA zp,X
             buildZeroPageIndexedLoad(CpuIndexReg::X, CpuMicroAction::LoadAFromTemp);
             break;
@@ -3931,6 +3943,42 @@ void CPU::buildAbsoluteLoad(CpuMicroAction action)
     readValue.index = CpuIndexReg::None;
     readValue.action = action;
     pushMicroOp(readValue);
+}
+
+void CPU::buildAbsoluteStore(CpuMicroAction action)
+{
+    // Read address low byte.
+    CpuMicroOp readLo;
+    readLo.kind = CpuMicroOpKind::OperandReadToAddress;
+    readLo.busType = CpuBusCycleType::Read;
+    readLo.address = PC;
+    readLo.value = 0;
+    readLo.useMicroAddress = false;
+    readLo.index = CpuIndexReg::None;
+    readLo.action = CpuMicroAction::None;
+    pushMicroOp(readLo);
+
+    // Read address high byte.
+    CpuMicroOp readHi;
+    readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
+    readHi.busType = CpuBusCycleType::Read;
+    readHi.address = 0;
+    readHi.value = 0;
+    readHi.useMicroAddress = false;
+    readHi.index = CpuIndexReg::None;
+    readHi.action = CpuMicroAction::None;
+    pushMicroOp(readHi);
+
+    // Write selected register to full address.
+    CpuMicroOp writeValue;
+    writeValue.kind = CpuMicroOpKind::MemoryWrite;
+    writeValue.busType = CpuBusCycleType::Write;
+    writeValue.address = 0;
+    writeValue.value = 0;
+    writeValue.useMicroAddress = true;
+    writeValue.index = CpuIndexReg::None;
+    writeValue.action = action;
+    pushMicroOp(writeValue);
 }
 
 void CPU::buildImmediateLoad(CpuMicroAction action)
@@ -4116,6 +4164,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x85: // STA zp
         case 0x86: // STX zp
         case 0x84: // STY zp
+
+        case 0x8D: // STA abs
+        case 0x8E: // STX abs
+        case 0x8C: // STY abs
 
         case 0xAA: // TAX
         case 0xA8: // TAY
