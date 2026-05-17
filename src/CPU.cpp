@@ -3775,6 +3775,16 @@ bool CPU::executeCurrentMicroOp()
             sbcValue(microTemp);
             break;
 
+        case CpuMicroAction::BitTestWithTemp:
+        {
+            const uint8_t result = uint8_t(A & microTemp);
+
+            setFlag(Z, result == 0);
+            setFlag(N, (microTemp & 0x80) != 0);
+            setFlag(V, (microTemp & 0x40) != 0);
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -4215,6 +4225,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xF9: // SBC abs,Y
             buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::SubtractWithCarryFromTemp);
+            break;
+
+        case 0x24: // BIT zp
+            buildZeroPageReadAction(CpuMicroAction::BitTestWithTemp);
+            break;
+
+        case 0x2C: // BIT abs
+            buildAbsoluteLoad(CpuMicroAction::BitTestWithTemp);
             break;
 
         default:
@@ -5013,6 +5031,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x79: // ADC abs,Y
         case 0xFD: // SBC abs,X
         case 0xF9: // SBC abs,Y
+
+        case 0x24: // BIT zp
+        case 0x2C: // BIT abs
             return true;
 
         default:

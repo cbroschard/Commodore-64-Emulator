@@ -611,7 +611,9 @@ class CPU
             CompareYWithTemp,
 
             AddWithCarryFromTemp,
-            SubtractWithCarryFromTemp
+            SubtractWithCarryFromTemp,
+
+            BitTestWithTemp
         };
 
         enum class CpuIndexReg : uint8_t
