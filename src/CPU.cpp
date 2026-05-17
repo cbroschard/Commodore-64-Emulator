@@ -4283,6 +4283,25 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
+        case 0x80: // NOP #imm unofficial
+        case 0x82: // NOP #imm unofficial
+        case 0x89: // NOP #imm unofficial
+        case 0xC2: // NOP #imm unofficial
+        case 0xE2: // NOP #imm unofficial
+        {
+            CpuMicroOp readIgnored;
+            readIgnored.kind = CpuMicroOpKind::OperandRead;
+            readIgnored.busType = CpuBusCycleType::Read;
+            readIgnored.address = PC;
+            readIgnored.value = 0;
+            readIgnored.useMicroAddress = false;
+            readIgnored.index = CpuIndexReg::None;
+            readIgnored.action = CpuMicroAction::None;
+            pushMicroOp(readIgnored);
+
+            break;
+        }
+
         case 0x0D: // ORA abs
             buildAbsoluteLoad(CpuMicroAction::OrAWithTemp);
             break;
@@ -6552,6 +6571,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x7A:
         case 0xDA:
         case 0xFA:
+        case 0x80:
+        case 0x82:
+        case 0x89:
+        case 0xC2:
+        case 0xE2:
 
         case 0x0D: // ORA abs
         case 0x2D: // AND abs
