@@ -1498,51 +1498,11 @@ void CPU::ADC(uint8_t opcode)
             value = ret.value;
             break;
         }
+        default:
+            return;
     }
 
-    const uint8_t a0  = A;
-    const uint8_t cIn = getFlag(C) ? 1 : 0;
-
-    // Binary sum (used for V and for non-BCD path)
-    uint16_t sum  = uint16_t(a0) + uint16_t(value) + cIn; // 0..0x1FE
-    uint8_t  bin8 = uint8_t(sum);
-
-    // V is from binary addition even in decimal mode
-    setFlag(V, ((~(a0 ^ value) & (a0 ^ bin8)) & 0x80) != 0);
-
-    if (getFlag(D))
-    {
-        uint16_t adj = sum;
-
-        if (((a0 & 0x0F) + (value & 0x0F) + cIn) > 9)
-            adj += 0x06;
-
-        if (adj > 0x99)
-        {
-            adj += 0x60;
-            setFlag(C, true);
-        }
-        else
-        {
-            setFlag(C, false);
-        }
-
-        A = uint8_t(adj);
-
-        // Important NMOS decimal-mode quirk:
-        // N/Z come from the pre-adjust binary result.
-        setFlag(Z, bin8 == 0);
-        setFlag(N, (bin8 & 0x80) != 0);
-    }
-    else
-    {
-        // Pure binary
-        A = bin8;
-        setFlag(C, sum > 0xFF);
-
-        setFlag(Z, A == 0);
-        setFlag(N, (A & 0x80) != 0);
-    }
+    adcValue(value);
 }
 
 void CPU::AHX(uint8_t opcode)
@@ -3011,49 +2971,11 @@ void CPU::SBC(uint8_t opcode)
         case 0xF5: value = readZPX();       break;
         case 0xF9: { auto r = readABSYAddressBoundary();       addPageCrossIf(r.crossed); value = r.value; break; }
         case 0xFD: { auto r = readABSXAddressBoundary();       addPageCrossIf(r.crossed); value = r.value; break; }
+        default:
+            return;
     }
 
-    const uint8_t a0  = A;
-    const uint8_t cIn = getFlag(C) ? 1 : 0;
-
-    uint16_t diff   = uint16_t(a0) - uint16_t(value) - (1 - cIn);
-    uint8_t  resBin = uint8_t(diff);
-
-    setFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
-
-    if (getFlag(D))
-    {
-        // NMOS 6502/6510 decimal-mode correction for SBC.
-        // V is already based on the binary result above.
-        // N/Z should be based on the binary 8-bit result, not final BCD A.
-        uint16_t adj = diff;
-
-        // Low nibble borrow?
-        int lo = (a0 & 0x0F) - (value & 0x0F) - (1 - cIn);
-        if (lo < 0)
-            adj -= 0x06;
-
-        // High digit borrow?
-        if (adj > 0x99)
-            adj -= 0x60;
-
-        A = uint8_t(adj);
-
-        // Important NMOS decimal-mode quirk:
-        // N/Z come from the pre-adjust binary result.
-        setFlag(Z, resBin == 0);
-        setFlag(N, (resBin & 0x80) != 0);
-    }
-    else
-    {
-        // Pure binary
-        A = resBin;
-
-        setFlag(Z, A == 0);
-        setFlag(N, (A & 0x80) != 0);
-    }
-
-    setFlag(C, diff < 0x100);
+    sbcValue(value);
 }
 
 void CPU::SHX()
@@ -3795,6 +3717,14 @@ bool CPU::executeCurrentMicroOp()
             setFlag(V, false);
             break;
 
+        case CpuMicroAction::AddWithCarryFromTemp:
+            adcValue(microTemp);
+            break;
+
+        case CpuMicroAction::SubtractWithCarryFromTemp:
+            sbcValue(microTemp);
+            break;
+
         case CpuMicroAction::None:
         default:
             break;
@@ -4122,6 +4052,15 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xD9: // CMP abs,Y
             buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::CompareAWithTemp);
+            break;
+
+        case 0x69: // ADC #imm
+            buildImmediateAction(CpuMicroAction::AddWithCarryFromTemp);
+            break;
+
+        case 0xE9: // SBC #imm
+        case 0xEB: // unofficial SBC #imm alias
+            buildImmediateAction(CpuMicroAction::SubtractWithCarryFromTemp);
             break;
 
         default:
@@ -4583,7 +4522,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xD5: // CMP zp,X
         case 0xDD: // CMP abs,X
         case 0xD9: // CMP abs,Y
-           return true;
+
+        case 0x69: // ADC #imm
+        case 0xE9: // SBC #imm
+        case 0xEB: // unofficial SBC #imm alias
+            return true;
 
         default:
             return false;
@@ -4628,6 +4571,97 @@ void CPU::compareRegisterWithTemp(uint8_t reg)
     setFlag(C, reg >= microTemp);
     setFlag(Z, reg == microTemp);
     setFlag(N, (result8 & 0x80) != 0);
+}
+
+void CPU::adcValue(uint8_t value)
+{
+    const uint8_t a0  = A;
+    const uint8_t cIn = getFlag(C) ? 1 : 0;
+
+    // Binary sum used for V and non-BCD path.
+    uint16_t sum  = uint16_t(a0) + uint16_t(value) + cIn;
+    uint8_t  bin8 = uint8_t(sum);
+
+    // V is from binary addition even in decimal mode.
+    setFlag(V, ((~(a0 ^ value) & (a0 ^ bin8)) & 0x80) != 0);
+
+    if (getFlag(D))
+    {
+        uint16_t adj = sum;
+
+        if (((a0 & 0x0F) + (value & 0x0F) + cIn) > 9)
+            adj += 0x06;
+
+        if (adj > 0x99)
+        {
+            adj += 0x60;
+            setFlag(C, true);
+        }
+        else
+        {
+            setFlag(C, false);
+        }
+
+        A = uint8_t(adj);
+
+        // NMOS decimal-mode quirk:
+        // N/Z come from the pre-adjust binary result.
+        setFlag(Z, bin8 == 0);
+        setFlag(N, (bin8 & 0x80) != 0);
+    }
+    else
+    {
+        A = bin8;
+        setFlag(C, sum > 0xFF);
+        setFlag(Z, A == 0);
+        setFlag(N, (A & 0x80) != 0);
+    }
+}
+
+void CPU::sbcValue(uint8_t value)
+{
+    const uint8_t a0  = A;
+    const uint8_t cIn = getFlag(C) ? 1 : 0;
+
+    const uint16_t diff = uint16_t(a0) - uint16_t(value) - uint16_t(1 - cIn);
+    const uint8_t resBin = uint8_t(diff);
+
+    // Overflow is based on the binary subtraction result.
+    setFlag(V, ((a0 ^ value) & (a0 ^ resBin) & 0x80) != 0);
+
+    if (getFlag(D))
+    {
+        // NMOS 6502/6510 decimal-mode correction for SBC.
+        uint16_t adj = diff;
+
+        const int lo =
+            int(a0 & 0x0F) -
+            int(value & 0x0F) -
+            int(1 - cIn);
+
+        if (lo < 0)
+            adj -= 0x06;
+
+        if (adj > 0x99)
+            adj -= 0x60;
+
+        A = uint8_t(adj);
+
+        // NMOS decimal-mode quirk:
+        // N/Z are based on the pre-adjust binary result.
+        setFlag(Z, resBin == 0);
+        setFlag(N, (resBin & 0x80) != 0);
+    }
+    else
+    {
+        A = resBin;
+
+        setFlag(Z, A == 0);
+        setFlag(N, (A & 0x80) != 0);
+    }
+
+    // Carry set means no borrow.
+    setFlag(C, diff < 0x100);
 }
 
 uint8_t CPU::debugRead(uint16_t address) const
