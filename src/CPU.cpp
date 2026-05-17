@@ -3536,6 +3536,21 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::MemoryRMWWrite:
+        {
+            const uint16_t address =
+                op.useMicroAddress ? microAddress : op.address;
+
+            const uint8_t oldValue = microTemp;
+            const uint8_t newValue = applyRMWAction(op.action, oldValue);
+
+            cpuWrite(address, oldValue, CpuBusCycleType::DummyWrite);
+            cpuWrite(address, newValue, CpuBusCycleType::Write);
+
+            microTemp = newValue;
+            break;
+        }
+
         case CpuMicroOpKind::DummyRead:
         {
             uint16_t address =
@@ -4299,6 +4314,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildInternalAction(CpuMicroAction::RotateRightA);
             break;
 
+        case 0x06: // ASL zp
+            buildZeroPageRMW(CpuMicroAction::ShiftLeftTemp);
+            break;
+
+        case 0x26: // ROL zp
+            buildZeroPageRMW(CpuMicroAction::RotateLeftTemp);
+            break;
+
+        case 0x46: // LSR zp
+            buildZeroPageRMW(CpuMicroAction::ShiftRightTemp);
+            break;
+
+        case 0x66: // ROR zp
+            buildZeroPageRMW(CpuMicroAction::RotateRightTemp);
+            break;
+
         default:
             break;
     }
@@ -4951,6 +4982,39 @@ void CPU::buildIndirectYStore(CpuMicroAction action)
     pushMicroOp(writeValue);
 }
 
+void CPU::buildZeroPageRMW(CpuMicroAction action)
+{
+    CpuMicroOp readOperand;
+    readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
+    readOperand.busType = CpuBusCycleType::Read;
+    readOperand.address = PC;
+    readOperand.value = 0;
+    readOperand.useMicroAddress = false;
+    readOperand.index = CpuIndexReg::None;
+    readOperand.action = CpuMicroAction::None;
+    pushMicroOp(readOperand);
+
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = CpuMicroAction::None;
+    pushMicroOp(readValue);
+
+    CpuMicroOp rmwWrite;
+    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
+    rmwWrite.busType = CpuBusCycleType::Write;
+    rmwWrite.address = 0;
+    rmwWrite.value = 0;
+    rmwWrite.useMicroAddress = true;
+    rmwWrite.index = CpuIndexReg::None;
+    rmwWrite.action = action;
+    pushMicroOp(rmwWrite);
+}
+
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
@@ -5103,6 +5167,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x2A: // ROL A
         case 0x4A: // LSR A
         case 0x6A: // ROR A
+
+        case 0x06: // ASL zp
+        case 0x26: // ROL zp
+        case 0x46: // LSR zp
+        case 0x66: // ROR zp
             return true;
 
         default:
@@ -5239,6 +5308,63 @@ void CPU::sbcValue(uint8_t value)
 
     // Carry set means no borrow.
     setFlag(C, diff < 0x100);
+}
+
+uint8_t CPU::applyRMWAction(CpuMicroAction action, uint8_t oldValue)
+{
+    switch (action)
+    {
+        case CpuMicroAction::ShiftLeftTemp:
+        {
+            const uint8_t result = uint8_t(oldValue << 1);
+
+            setFlag(C, (oldValue & 0x80) != 0);
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::RotateLeftTemp:
+        {
+            const bool oldCarry = getFlag(C);
+            const uint8_t result =
+                uint8_t((oldValue << 1) | (oldCarry ? 1 : 0));
+
+            setFlag(C, (oldValue & 0x80) != 0);
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        case CpuMicroAction::ShiftRightTemp:
+        {
+            const uint8_t result = uint8_t(oldValue >> 1);
+
+            setFlag(C, (oldValue & 0x01) != 0);
+            setFlag(Z, result == 0);
+            setFlag(N, false);
+
+            return result;
+        }
+
+        case CpuMicroAction::RotateRightTemp:
+        {
+            const bool oldCarry = getFlag(C);
+            const uint8_t result =
+                uint8_t((oldValue >> 1) | (oldCarry ? 0x80 : 0x00));
+
+            setFlag(C, (oldValue & 0x01) != 0);
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            return result;
+        }
+
+        default:
+            return oldValue;
+    }
 }
 
 uint8_t CPU::debugRead(uint16_t address) const

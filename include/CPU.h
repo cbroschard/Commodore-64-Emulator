@@ -547,6 +547,7 @@ class CPU
             OperandReadHighToAddress,
             MemoryRead,
             MemoryWrite,
+            MemoryRMWWrite,
 
             OperandReadToZP,
             ApplyIndirectXIndex,
@@ -618,7 +619,12 @@ class CPU
             ShiftLeftA,
             RotateLeftA,
             ShiftRightA,
-            RotateRightA
+            RotateRightA,
+
+            ShiftLeftTemp,
+            RotateLeftTemp,
+            ShiftRightTemp,
+            RotateRightTemp
         };
 
         enum class CpuIndexReg : uint8_t
@@ -917,6 +923,7 @@ class CPU
         void buildIndirectYRead(CpuMicroAction action);
         void buildIndirectXStore(CpuMicroAction action);
         void buildIndirectYStore(CpuMicroAction action);
+        void buildZeroPageRMW(CpuMicroAction action);
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
 
@@ -925,6 +932,7 @@ class CPU
         void compareRegisterWithTemp(uint8_t reg);
         void adcValue(uint8_t value);
         void sbcValue(uint8_t value);
+        uint8_t applyRMWAction(CpuMicroAction action, uint8_t oldValue);
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
