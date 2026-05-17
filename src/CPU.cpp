@@ -3956,6 +3956,13 @@ bool CPU::executeCurrentMicroOp()
             setFlag(N, (Y & 0x80) != 0);
             break;
 
+        case CpuMicroAction::LoadAAndXFromTemp:
+            A = microTemp;
+            X = microTemp;
+            setFlag(Z, microTemp == 0);
+            setFlag(N, (microTemp & 0x80) != 0);
+            break;
+
         case CpuMicroAction::TransferAToX:
             X = A;
             setFlag(Z, X == 0);
@@ -5315,6 +5322,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
         case 0xF3: // ISC (zp),Y
             buildIndirectYRMW(CpuMicroAction::IncrementTempThenSbcA);
+            break;
+
+        case 0xA7: // LAX zp
+            buildZeroPageReadAction(CpuMicroAction::LoadAAndXFromTemp);
+            break;
+
+        case 0xB7: // LAX zp,Y
+            buildZeroPageIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadAAndXFromTemp);
+            break;
+
+        case 0xAF: // LAX abs
+            buildAbsoluteLoad(CpuMicroAction::LoadAAndXFromTemp);
+            break;
+
+        case 0xBF: // LAX abs,Y
+            buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadAAndXFromTemp);
             break;
 
         default:
@@ -6998,6 +7021,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xFB: // ISC abs,Y
         case 0xE3: // ISC (zp,X)
         case 0xF3: // ISC (zp),Y
+
+        case 0xA7: // LAX zp
+        case 0xB7: // LAX zp,Y
+        case 0xAF: // LAX abs
+        case 0xBF: // LAX abs,Y
             return true;
 
         default:
