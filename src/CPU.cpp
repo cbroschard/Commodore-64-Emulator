@@ -4967,6 +4967,14 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedRMW(CpuIndexReg::Y, CpuMicroAction::ShiftLeftTempThenOrA);
             break;
 
+        case 0x03: // SLO (zp,X)
+            buildIndirectXRMW(CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
+        case 0x13: // SLO (zp),Y
+            buildIndirectYRMW(CpuMicroAction::ShiftLeftTempThenOrA);
+            break;
+
         default:
             break;
     }
@@ -5469,6 +5477,179 @@ void CPU::buildIndirectYRead(CpuMicroAction action)
     readValue.index = CpuIndexReg::None;
     readValue.action = action;
     pushMicroOp(readValue);
+}
+
+void CPU::buildIndirectXRMW(CpuMicroAction action)
+{
+    // Read zero-page operand.
+    CpuMicroOp readZp;
+    readZp.kind = CpuMicroOpKind::OperandReadToZP;
+    readZp.busType = CpuBusCycleType::Read;
+    readZp.address = PC;
+    readZp.value = 0;
+    readZp.useMicroAddress = false;
+    readZp.index = CpuIndexReg::None;
+    readZp.action = CpuMicroAction::None;
+    pushMicroOp(readZp);
+
+    // Apply X to zero-page pointer address.
+    CpuMicroOp applyX;
+    applyX.kind = CpuMicroOpKind::ApplyIndirectXIndex;
+    applyX.busType = CpuBusCycleType::None;
+    applyX.address = 0;
+    applyX.value = 0;
+    applyX.useMicroAddress = false;
+    applyX.index = CpuIndexReg::None;
+    applyX.action = CpuMicroAction::None;
+    pushMicroOp(applyX);
+
+    // Read pointer low byte from zero page.
+    CpuMicroOp readPtrLo;
+    readPtrLo.kind = CpuMicroOpKind::ReadPointerLow;
+    readPtrLo.busType = CpuBusCycleType::Read;
+    readPtrLo.address = 0;
+    readPtrLo.value = 0;
+    readPtrLo.useMicroAddress = false;
+    readPtrLo.index = CpuIndexReg::None;
+    readPtrLo.action = CpuMicroAction::None;
+    pushMicroOp(readPtrLo);
+
+    // Read pointer high byte from zero page, wrapping at $FF.
+    CpuMicroOp readPtrHi;
+    readPtrHi.kind = CpuMicroOpKind::ReadPointerHigh;
+    readPtrHi.busType = CpuBusCycleType::Read;
+    readPtrHi.address = 0;
+    readPtrHi.value = 0;
+    readPtrHi.useMicroAddress = false;
+    readPtrHi.index = CpuIndexReg::None;
+    readPtrHi.action = CpuMicroAction::None;
+    pushMicroOp(readPtrHi);
+
+    // Build effective address.
+    CpuMicroOp buildAddress;
+    buildAddress.kind = CpuMicroOpKind::BuildPointerAddress;
+    buildAddress.busType = CpuBusCycleType::None;
+    buildAddress.address = 0;
+    buildAddress.value = 0;
+    buildAddress.useMicroAddress = false;
+    buildAddress.index = CpuIndexReg::None;
+    buildAddress.action = CpuMicroAction::None;
+    pushMicroOp(buildAddress);
+
+    // Read old memory value.
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = CpuMicroAction::None;
+    pushMicroOp(readValue);
+
+    // RMW: dummy-write old value, then write modified value.
+    CpuMicroOp rmwWrite;
+    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
+    rmwWrite.busType = CpuBusCycleType::Write;
+    rmwWrite.address = 0;
+    rmwWrite.value = 0;
+    rmwWrite.useMicroAddress = true;
+    rmwWrite.index = CpuIndexReg::None;
+    rmwWrite.action = action;
+    pushMicroOp(rmwWrite);
+}
+
+void CPU::buildIndirectYRMW(CpuMicroAction action)
+{
+    // Read zero-page pointer operand.
+    CpuMicroOp readZp;
+    readZp.kind = CpuMicroOpKind::OperandReadToZP;
+    readZp.busType = CpuBusCycleType::Read;
+    readZp.address = PC;
+    readZp.value = 0;
+    readZp.useMicroAddress = false;
+    readZp.index = CpuIndexReg::None;
+    readZp.action = CpuMicroAction::None;
+    pushMicroOp(readZp);
+
+    // Read pointer low byte from zero page.
+    CpuMicroOp readPtrLo;
+    readPtrLo.kind = CpuMicroOpKind::ReadPointerLow;
+    readPtrLo.busType = CpuBusCycleType::Read;
+    readPtrLo.address = 0;
+    readPtrLo.value = 0;
+    readPtrLo.useMicroAddress = false;
+    readPtrLo.index = CpuIndexReg::None;
+    readPtrLo.action = CpuMicroAction::None;
+    pushMicroOp(readPtrLo);
+
+    // Read pointer high byte from zero page, wrapping at $FF.
+    CpuMicroOp readPtrHi;
+    readPtrHi.kind = CpuMicroOpKind::ReadPointerHigh;
+    readPtrHi.busType = CpuBusCycleType::Read;
+    readPtrHi.address = 0;
+    readPtrHi.value = 0;
+    readPtrHi.useMicroAddress = false;
+    readPtrHi.index = CpuIndexReg::None;
+    readPtrHi.action = CpuMicroAction::None;
+    pushMicroOp(readPtrHi);
+
+    // Build base address from pointer.
+    CpuMicroOp buildAddress;
+    buildAddress.kind = CpuMicroOpKind::BuildPointerAddress;
+    buildAddress.busType = CpuBusCycleType::None;
+    buildAddress.address = 0;
+    buildAddress.value = 0;
+    buildAddress.useMicroAddress = false;
+    buildAddress.index = CpuIndexReg::None;
+    buildAddress.action = CpuMicroAction::None;
+    pushMicroOp(buildAddress);
+
+    // Apply Y index.
+    CpuMicroOp applyY;
+    applyY.kind = CpuMicroOpKind::ApplyIndirectYIndex;
+    applyY.busType = CpuBusCycleType::None;
+    applyY.address = 0;
+    applyY.value = 0;
+    applyY.useMicroAddress = false;
+    applyY.index = CpuIndexReg::None;
+    applyY.action = CpuMicroAction::None;
+    pushMicroOp(applyY);
+
+    // RMW indexed addressing does a dummy read before the real read.
+    // Your DummyRead handler uses microBaseAddress/microAddress to form
+    // old-high-byte + indexed-low-byte when address is 0.
+    CpuMicroOp dummyRead;
+    dummyRead.kind = CpuMicroOpKind::DummyRead;
+    dummyRead.busType = CpuBusCycleType::DummyRead;
+    dummyRead.address = 0;
+    dummyRead.value = 0;
+    dummyRead.useMicroAddress = false;
+    dummyRead.index = CpuIndexReg::None;
+    dummyRead.action = CpuMicroAction::None;
+    pushMicroOp(dummyRead);
+
+    // Read old memory value.
+    CpuMicroOp readValue;
+    readValue.kind = CpuMicroOpKind::MemoryRead;
+    readValue.busType = CpuBusCycleType::Read;
+    readValue.address = 0;
+    readValue.value = 0;
+    readValue.useMicroAddress = true;
+    readValue.index = CpuIndexReg::None;
+    readValue.action = CpuMicroAction::None;
+    pushMicroOp(readValue);
+
+    // RMW: dummy-write old value, then write modified value.
+    CpuMicroOp rmwWrite;
+    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
+    rmwWrite.busType = CpuBusCycleType::Write;
+    rmwWrite.address = 0;
+    rmwWrite.value = 0;
+    rmwWrite.useMicroAddress = true;
+    rmwWrite.index = CpuIndexReg::None;
+    rmwWrite.action = action;
+    pushMicroOp(rmwWrite);
 }
 
 void CPU::buildIndirectXStore(CpuMicroAction action)
@@ -6407,6 +6588,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x0F: // SLO abs
         case 0x1F: // SLO abs,X
         case 0x1B: // SLO abs,Y
+        case 0x03: // SLO (zp,X)
+        case 0x13: // SLO (zp),Y
             return true;
 
         default:

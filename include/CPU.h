@@ -982,6 +982,8 @@ class CPU
         void buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action);
         void buildIndirectXRead(CpuMicroAction action);
         void buildIndirectYRead(CpuMicroAction action);
+        void buildIndirectXRMW(CpuMicroAction action);
+        void buildIndirectYRMW(CpuMicroAction action);
         void buildIndirectXStore(CpuMicroAction action);
         void buildIndirectYStore(CpuMicroAction action);
         void buildZeroPageRMW(CpuMicroAction action);
