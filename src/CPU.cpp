@@ -3912,6 +3912,54 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildZeroPageReadAction(CpuMicroAction::EorAWithTemp);
             break;
 
+        case 0x01: // ORA (zp,X)
+            buildIndirectXRead(CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x11: // ORA (zp),Y
+            buildIndirectYRead(CpuMicroAction::OrAWithTemp);
+            break;
+
+        case 0x21: // AND (zp,X)
+            buildIndirectXRead(CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x31: // AND (zp),Y
+            buildIndirectYRead(CpuMicroAction::AndAWithTemp);
+            break;
+
+        case 0x41: // EOR (zp,X)
+            buildIndirectXRead(CpuMicroAction::EorAWithTemp);
+            break;
+
+        case 0x51: // EOR (zp),Y
+            buildIndirectYRead(CpuMicroAction::EorAWithTemp);
+            break;
+
+        case 0xC1: // CMP (zp,X)
+            buildIndirectXRead(CpuMicroAction::CompareAWithTemp);
+            break;
+
+        case 0xD1: // CMP (zp),Y
+            buildIndirectYRead(CpuMicroAction::CompareAWithTemp);
+            break;
+
+        case 0x61: // ADC (zp,X)
+            buildIndirectXRead(CpuMicroAction::AddWithCarryFromTemp);
+            break;
+
+        case 0x71: // ADC (zp),Y
+            buildIndirectYRead(CpuMicroAction::AddWithCarryFromTemp);
+            break;
+
+        case 0xE1: // SBC (zp,X)
+            buildIndirectXRead(CpuMicroAction::SubtractWithCarryFromTemp);
+            break;
+
+        case 0xF1: // SBC (zp),Y
+            buildIndirectYRead(CpuMicroAction::SubtractWithCarryFromTemp);
+            break;
+
         case 0xAD: // LDA abs
             buildAbsoluteLoad(CpuMicroAction::LoadAFromTemp);
             break;
@@ -4678,6 +4726,15 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x1D: // ORA abs,X
         case 0x19: // ORA abs,Y
 
+        case 0x01: // ORA (zp,X)
+        case 0x11: // ORA (zp),Y
+
+        case 0x21: // AND (zp,X)
+        case 0x31: // AND (zp),Y
+
+        case 0x41: // EOR (zp,X)
+        case 0x51: // EOR (zp),Y
+
         case 0x3D: // AND abs,X
         case 0x39: // AND abs,Y
 
@@ -4695,6 +4752,15 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x15: // ORA zp,X
         case 0x35: // AND zp,X
         case 0x55: // EOR zp,X
+
+        case 0xC1: // CMP (zp,X)
+        case 0xD1: // CMP (zp),Y
+
+        case 0x61: // ADC (zp,X)
+        case 0x71: // ADC (zp),Y
+
+        case 0xE1: // SBC (zp,X)
+        case 0xF1: // SBC (zp),Y
 
         case 0xA9: // LDA #imm
         case 0xA2: // LDX #imm
@@ -4716,6 +4782,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xA1: // LDA (zp,X)
         case 0xB1: // LDA (zp),Y
 
+        case 0xB5: // LDA zp,X
+        case 0xB4: // LDY zp,X
+        case 0xB6: // LDX zp,Y
+
         case 0x85: // STA zp
         case 0x86: // STX zp
         case 0x84: // STY zp
@@ -4726,6 +4796,10 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x9D: // STA abs,X
         case 0x99: // STA abs,Y
+
+        case 0x95: // STA zp,X
+        case 0x94: // STY zp,X
+        case 0x96: // STX zp,Y
 
         case 0xAA: // TAX
         case 0xA8: // TAY
@@ -4746,14 +4820,6 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xD8: // CLD
         case 0xF8: // SED
         case 0xB8: // CLV
-
-        case 0xB5: // LDA zp,X
-        case 0xB4: // LDY zp,X
-        case 0xB6: // LDX zp,Y
-
-        case 0x95: // STA zp,X
-        case 0x94: // STY zp,X
-        case 0x96: // STX zp,Y
 
         case 0xC9: // CMP #imm
         case 0xE0: // CPX #imm
