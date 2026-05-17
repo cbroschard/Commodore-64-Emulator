@@ -575,7 +575,15 @@ class CPU
             IncrementX,
             IncrementY,
             DecrementX,
-            DecrementY
+            DecrementY,
+
+            ClearCarry,
+            SetCarry,
+            ClearInterruptDisable,
+            SetInterruptDisable,
+            ClearDecimal,
+            SetDecimal,
+            ClearOverflow
         };
 
         struct CpuMicroOp

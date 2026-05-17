@@ -3638,6 +3638,37 @@ bool CPU::executeCurrentMicroOp()
             setFlag(N, (Y & 0x80) != 0);
             break;
 
+        case CpuMicroAction::ClearCarry:
+            setFlag(C, false);
+            break;
+
+        case CpuMicroAction::SetCarry:
+            setFlag(C, true);
+            break;
+
+        case CpuMicroAction::ClearInterruptDisable:
+            setFlag(I, false);
+
+            // Keep your existing CLI one-instruction IRQ suppression behavior.
+            irqSuppressOne = true;
+            break;
+
+        case CpuMicroAction::SetInterruptDisable:
+            setFlag(I, true);
+            break;
+
+        case CpuMicroAction::ClearDecimal:
+            setFlag(D, false);
+            break;
+
+        case CpuMicroAction::SetDecimal:
+            setFlag(D, true);
+            break;
+
+        case CpuMicroAction::ClearOverflow:
+            setFlag(V, false);
+            break;
+
         case CpuMicroAction::None:
         default:
             break;
@@ -3722,6 +3753,34 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildInternalAction(CpuMicroAction::DecrementY);
             break;
 
+        case 0x18: // CLC
+            buildInternalAction(CpuMicroAction::ClearCarry);
+            break;
+
+        case 0x38: // SEC
+            buildInternalAction(CpuMicroAction::SetCarry);
+            break;
+
+        case 0x58: // CLI
+            buildInternalAction(CpuMicroAction::ClearInterruptDisable);
+            break;
+
+        case 0x78: // SEI
+            buildInternalAction(CpuMicroAction::SetInterruptDisable);
+            break;
+
+        case 0xD8: // CLD
+            buildInternalAction(CpuMicroAction::ClearDecimal);
+            break;
+
+        case 0xF8: // SED
+            buildInternalAction(CpuMicroAction::SetDecimal);
+            break;
+
+        case 0xB8: // CLV
+            buildInternalAction(CpuMicroAction::ClearOverflow);
+            break;
+
         default:
             break;
     }
@@ -3770,6 +3829,14 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xC8: // INY
         case 0xCA: // DEX
         case 0x88: // DEY
+
+        case 0x18: // CLC
+        case 0x38: // SEC
+        case 0x58: // CLI
+        case 0x78: // SEI
+        case 0xD8: // CLD
+        case 0xF8: // SED
+        case 0xB8: // CLV
             return true;
 
         default:
