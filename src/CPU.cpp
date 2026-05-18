@@ -4269,6 +4269,22 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::StoreAAndXMinusImmediateToX:
+        {
+            const uint8_t source = uint8_t(A & X);
+            const uint16_t diff = uint16_t(source) - uint16_t(microTemp);
+            const uint8_t result = uint8_t(diff & 0xFF);
+
+            X = result;
+
+            setFlag(C, source >= microTemp);
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            break;
+        }
+
+
         case CpuMicroAction::None:
         default:
             break;
@@ -5433,6 +5449,21 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::AndImmediateThenLsrA;
+            pushMicroOp(readImm);
+
+            break;
+        }
+
+        case 0xCB: // AXS/SBX #imm
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::StoreAAndXMinusImmediateToX;
             pushMicroOp(readImm);
 
             break;
@@ -7137,6 +7168,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x2B: // ANC #imm
 
         case 0x4B: // ALR #imm
+
+        case 0xCB: // AXS/SBX #imm
             return true;
 
         default:
