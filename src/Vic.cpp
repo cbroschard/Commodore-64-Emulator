@@ -245,6 +245,14 @@ void Vic::setMode(VideoMode mode)
 
     // Make sure internal state stays consistent
     if (registers.raster >= cfg_->maxRasterLines) registers.raster = 0;
+
+    if (currentCycle < 0)
+        currentCycle = 0;
+
+    if (currentCycle >= cfg_->cyclesPerLine)
+        currentCycle %= cfg_->cyclesPerLine;
+
+    updateBusArbitration();
     updateMonitorCaches(registers.raster);
 
     // Notify IO of mode
