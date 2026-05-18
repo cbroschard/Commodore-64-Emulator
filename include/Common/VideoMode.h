@@ -66,7 +66,7 @@ inline constexpr ModeConfig PAL_CONFIG =
     250,   // lastVisibleLine
     14,    // DMAStartCycle
     53,     // DMAEndCycle
-    31,      // hardwareX
+    24,      // hardwareX
     15,    // bgFetchStartCycle
     54,     // bgFetchEndCycle
     54,     // refreshStartSlots
