@@ -5563,6 +5563,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreAAndXAndHighPlusOne);
             break;
 
+        case 0x93: // AHX (zp),Y
+            buildIndirectYStore(CpuMicroAction::StoreAAndXAndHighPlusOne);
+            break;
+
         default:
             break;
     }
@@ -7274,6 +7278,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x9E: // SHX abs,Y
 
         case 0x9F: // AHX abs,Y
+        case 0x93: // AHX (zp),Y
             return true;
 
         default:
