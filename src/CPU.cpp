@@ -4359,6 +4359,16 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::LoadAFromXAndImmediate:
+        {
+            A = uint8_t(X & microTemp);
+
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -5581,6 +5591,21 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         case 0x9B: // TAS abs,Y
             buildAbsoluteIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreSPFromAAndXAndHighPlusOne);
             break;
+
+        case 0x8B: // XAA #imm
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::LoadAFromXAndImmediate;
+            pushMicroOp(readImm);
+
+            break;
+        }
 
         default:
             break;
@@ -7296,6 +7321,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x93: // AHX (zp),Y
 
         case 0x9B: // TAS abs,Y
+
+        case 0x8B: // XAA #imm
             return true;
 
         default:
