@@ -11,6 +11,8 @@
 #include <atomic>
 #include <chrono>
 #include <string>
+#include "CPUTiming.h"
+#include "Common/VideoMode.h"
 
 class Cartridge;
 class CIA1;
@@ -78,11 +80,16 @@ private:
     Vic& vic_;
 
     std::chrono::duration<double, std::milli> frameDuration_;
-    std::chrono::steady_clock::time_point nextFrameTime_;;
+    std::chrono::steady_clock::time_point nextFrameTime_;
+
+    VideoMode lastVideoMode_;
+    const CPUConfig* lastCpuCfg_;
 
     bool audioPausedForMonitor_;
     bool audioStarted_;
     bool audioCatchupMode_;
+
+    void syncTimingFromRuntimeMode();
 };
 
 #endif // EMULATION_SESSION_H

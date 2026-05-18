@@ -41,6 +41,8 @@ EmulationSession::EmulationSession(MachineComponents& components,
       vic_(*components.vic),
       frameDuration_(0.0),
       nextFrameTime_(),
+      lastVideoMode_(runtime.videoMode),
+      lastCpuCfg_(runtime.cpuCfg),
       audioPausedForMonitor_(false),
       audioStarted_(false),
       audioCatchupMode_(true)
@@ -163,6 +165,8 @@ void EmulationSession::processEvents()
 
 bool EmulationSession::runFrame()
 {
+    syncTimingFromRuntimeMode();
+
     const bool monitorOpen = debug_.monitorController().isOpen();
     const bool paused = runtime_.uiPaused.load() || monitorOpen || ui_.isFileDialogOpen();
 
@@ -319,4 +323,26 @@ void EmulationSession::shutdown()
 
     io_.stopRenderThread(runtime_.running);
     io_.setGuiCallback({});
+}
+
+void EmulationSession::syncTimingFromRuntimeMode()
+{
+    if (lastVideoMode_ == runtime_.videoMode &&
+        lastCpuCfg_ == runtime_.cpuCfg)
+    {
+        return;
+    }
+
+    lastVideoMode_ = runtime_.videoMode;
+    lastCpuCfg_ = runtime_.cpuCfg;
+
+    frameDuration_ = std::chrono::duration<double, std::milli>(
+        1000.0 / runtime_.cpuCfg->frameRate
+    );
+
+    nextFrameTime_ = std::chrono::steady_clock::now() +
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
+
+    audioStarted_ = false;
+    audioCatchupMode_ = true;
 }
