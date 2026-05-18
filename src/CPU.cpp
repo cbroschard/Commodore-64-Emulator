@@ -267,20 +267,18 @@ void CPU::reset()
     lastMicroOpIndexAtEnd       = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
-    if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
+    if (CYCLES_PER_FRAME == 0)
+        setMode(VideoMode::NTSC);
 }
 
 void CPU::setMode(VideoMode mode)
 {
     mode_ = mode;
-    if (mode_ == VideoMode::NTSC)
-    {
-        CYCLES_PER_FRAME = 17096;
-    }
-    else
-    {
-        CYCLES_PER_FRAME = 19656;
-    }
+
+    const ModeConfig& cfg =
+        (mode_ == VideoMode::NTSC) ? NTSC_CONFIG : PAL_CONFIG;
+
+    CYCLES_PER_FRAME = static_cast<uint32_t>(cfg.maxRasterLines) * static_cast<uint32_t>(cfg.cyclesPerLine);
 }
 
 CPU::JamMode CPU::getJamMode() const
