@@ -4244,6 +4244,17 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::AndImmediateThenCarryFromBit7:
+        {
+            A = uint8_t(A & microTemp);
+
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+            setFlag(C, (A & 0x80) != 0);
+
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -5381,6 +5392,22 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         case 0x97: // SAX zp,Y
             buildZeroPageIndexedStore(CpuIndexReg::Y, CpuMicroAction::StoreAAndX);
             break;
+
+        case 0x0B: // ANC #imm
+        case 0x2B: // ANC #imm
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::AndImmediateThenCarryFromBit7;
+            pushMicroOp(readImm);
+
+            break;
+        }
 
         default:
             break;
@@ -7076,6 +7103,9 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x8F: // SAX abs
         case 0x83: // SAX (zp,X)
         case 0x97: // SAX zp,Y
+
+        case 0x0B: // ANC #imm
+        case 0x2B: // ANC #imm
             return true;
 
         default:

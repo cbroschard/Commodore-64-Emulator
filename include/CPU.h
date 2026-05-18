@@ -681,7 +681,9 @@ class CPU
             PullRTIPCHigh,
             FinishRTI,
 
-            ShiftLeftTempThenOrA
+            ShiftLeftTempThenOrA,
+
+            AndImmediateThenCarryFromBit7
         };
 
         enum class CpuIndexReg : uint8_t
