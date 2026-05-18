@@ -93,7 +93,7 @@ bool EmulationSession::initializeMachine()
 
     // Enable VIC-II BA/AEC arbitration only for the host C64 CPU.
     cpu_.setVICBusArbitrationEnabled(true);
-    cpu_.setUseMicroOpsForTest(true);
+    //cpu_.setUseMicroOpsForTest(true);
 
     // Process boot attachments
     media_.applyBootAttachments();
@@ -248,6 +248,14 @@ bool EmulationSession::finalizeFrame()
         return false;
     }
 
+    // Process UI commands before frame pacing is calculated.
+    // This lets PAL/NTSC changes update runtime_.cpuCfg/frameDuration_
+    // before we compute frameStep below.
+    uiBridge_.processCommands();
+    media_.tick();
+
+    syncTimingFromRuntimeMode();
+
     ui_.setMediaViewState(uiBridge_.buildMediaViewState());
 
     auto now = std::chrono::steady_clock::now();
@@ -308,10 +316,8 @@ bool EmulationSession::finalizeFrame()
     }
     while (nextFrameTime_ <= now);
 
-    uiBridge_.processCommands();
-    media_.tick();
-
     io_.renderFrame(runtime_.running);
+
     return true;
 }
 
