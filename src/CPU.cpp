@@ -4307,6 +4307,20 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::LoadA_X_SP_FromTempAndSP:
+        {
+            const uint8_t result = uint8_t(microTemp & SP);
+
+            A  = result;
+            X  = result;
+            SP = result;
+
+            setFlag(Z, result == 0);
+            setFlag(N, (result & 0x80) != 0);
+
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -5505,6 +5519,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
             break;
         }
+
+        case 0xBB: // LAS abs,Y
+            buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadA_X_SP_FromTempAndSP);
+            break;
 
         default:
             break;
@@ -7209,6 +7227,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xCB: // AXS/SBX #imm
 
         case 0x6B: // ARR #imm
+
+        case 0xBB: // LAS abs,Y
             return true;
 
         default:

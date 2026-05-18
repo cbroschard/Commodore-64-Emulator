@@ -588,6 +588,7 @@ class CPU
             LoadXFromTemp,
             LoadYFromTemp,
             LoadAAndXFromTemp,
+            LoadA_X_SP_FromTempAndSP,
 
             StoreA,
             StoreAAndX,
