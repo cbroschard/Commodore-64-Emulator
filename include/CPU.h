@@ -595,6 +595,7 @@ class CPU
             StoreAAndXMinusImmediateToX,
             StoreX,
             StoreY,
+            StoreYAndHighPlusOne,
 
             TransferAToX,
             TransferAToY,

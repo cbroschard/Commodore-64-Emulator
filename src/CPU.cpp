@@ -3565,6 +3565,15 @@ bool CPU::executeCurrentMicroOp()
                     value = uint8_t(A & X);
                     break;
 
+                case CpuMicroAction::StoreYAndHighPlusOne:
+                {
+                    const uint16_t address =
+                        op.useMicroAddress ? microAddress : op.address;
+
+                    value = uint8_t(Y & uint8_t(((address >> 8) + 1) & 0xFF));
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -5524,6 +5533,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             buildAbsoluteIndexedLoad(CpuIndexReg::Y, CpuMicroAction::LoadA_X_SP_FromTempAndSP);
             break;
 
+        case 0x9C: // SHY abs,X
+            buildAbsoluteIndexedStore(CpuIndexReg::X, CpuMicroAction::StoreYAndHighPlusOne);
+            break;
+
         default:
             break;
     }
@@ -7229,6 +7242,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x6B: // ARR #imm
 
         case 0xBB: // LAS abs,Y
+
+        case 0x9C: // SHY abs,X
             return true;
 
         default:
