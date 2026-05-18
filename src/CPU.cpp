@@ -4284,6 +4284,28 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::AndImmediateThenArrA:
+        {
+            const bool oldCarry = getFlag(C);
+
+            const uint8_t intermediate = uint8_t(A & microTemp);
+
+            A = uint8_t((intermediate >> 1) | (oldCarry ? 0x80 : 0x00));
+
+            setFlag(Z, A == 0);
+            setFlag(N, (A & 0x80) != 0);
+
+            // NMOS ARR flag behavior:
+            // C = bit 6 of result
+            // V = bit 6 XOR bit 5 of result
+            const bool bit6 = (A & 0x40) != 0;
+            const bool bit5 = (A & 0x20) != 0;
+
+            setFlag(C, bit6);
+            setFlag(V, bit6 ^ bit5);
+
+            break;
+        }
 
         case CpuMicroAction::None:
         default:
@@ -5464,6 +5486,21 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::StoreAAndXMinusImmediateToX;
+            pushMicroOp(readImm);
+
+            break;
+        }
+
+        case 0x6B: // ARR #imm
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::AndImmediateThenArrA;
             pushMicroOp(readImm);
 
             break;
@@ -7170,6 +7207,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x4B: // ALR #imm
 
         case 0xCB: // AXS/SBX #imm
+
+        case 0x6B: // ARR #imm
             return true;
 
         default:
