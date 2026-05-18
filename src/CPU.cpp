@@ -1300,20 +1300,23 @@ void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 
 void CPU::tick()
 {
-    if (halted) // Jam Halt
+    if (halted)
     {
         if (traceMgr)
             traceMgr->recordCPUJam("CPU halted/jammed", makeCpuStamp());
 
-        cycles = 1;
-        cycles--;
         totalCycles++;
         return;
     }
 
-    //if (useMicroOpsForTest && tickMicroOps())
-        //return;
+    // New cycle-style micro-op CPU path
+    if (useMicroOpsForTest)
+    {
+        tickMicroOps();
+        return;
+    }
 
+    // Old legacy whole-instruction path
     if (cycles <= 0)
     {
         handleNMI();
@@ -1322,7 +1325,6 @@ void CPU::tick()
         if (cycles <= 0)
         {
             const uint16_t pcExec = PC;
-
             const uint8_t opcode = fetchOpcode();
 
             lastOpcodePC = pcExec;
@@ -1341,71 +1343,30 @@ void CPU::tick()
                 logger->WriteLog(message.str());
             }
 
-            const bool microOpCapable = canExecuteOpcodeWithMicroOps(opcode);
+            // This is debug/status only in legacy mode.
+            lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
+            lastOpcodeUsedMicroOps = false;
+            lastMicroOpCount = 0;
+            lastMicroOpIndexAtEnd = 0;
 
-            lastOpcodeMicroOpCapable = microOpCapable;
+            decodeAndExecute(opcode);
 
-            if (useMicroOpsForTest && microOpCapable)
+            if (traceMgr && traceMgr->isEnabled() &&
+                traceMgr->catOn(TraceManager::TraceCat::CPU) &&
+                traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
             {
-                activeOpcode = opcode;
-                activeOpcodePC = pcExec;
-
-                buildMicroOpsForOpcode(opcode);
-
-                lastOpcodeUsedMicroOps = true;
-                lastMicroOpCount = static_cast<uint8_t>(microOpCount);
-
-                while (microOpIndex < microOpCount)
-                {
-                    executeCurrentMicroOp();
-                }
-
-                lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
-
-                clearMicroOps();
-
-                if (traceMgr && traceMgr->isEnabled() &&
-                    traceMgr->catOn(TraceManager::TraceCat::CPU) &&
-                    traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
-                {
-                    traceMgr->recordCPUExec(
-                        pcExec,
-                        opcode,
-                        traceMgr->makeStamp(
-                            totalCycles,
-                            vic ? vic->getCurrentRaster() : 0,
-                            vic ? vic->getRasterDot() : 0
-                        )
-                    );
-                }
-
-                cycles += CYCLE_COUNTS[opcode];
+                traceMgr->recordCPUExec(
+                    pcExec,
+                    opcode,
+                    traceMgr->makeStamp(
+                        totalCycles,
+                        vic ? vic->getCurrentRaster() : 0,
+                        vic ? vic->getRasterDot() : 0
+                    )
+                );
             }
-            else
-            {
-                lastOpcodeUsedMicroOps = false;
-                lastMicroOpCount = 0;
-                lastMicroOpIndexAtEnd = 0;
 
-                decodeAndExecute(opcode);
-
-                if (traceMgr && traceMgr->isEnabled() &&
-                    traceMgr->catOn(TraceManager::TraceCat::CPU) &&
-                    traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_EXEC))
-                {
-                    traceMgr->recordCPUExec(
-                        pcExec,
-                        opcode,
-                        traceMgr->makeStamp(
-                            totalCycles,
-                            vic ? vic->getCurrentRaster() : 0,
-                            vic ? vic->getRasterDot() : 0
-                        )
-                    );
-                }
-
-                cycles += CYCLE_COUNTS[opcode];
-            }
+            cycles += CYCLE_COUNTS[opcode];
         }
     }
 
@@ -7355,17 +7316,61 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
 bool CPU::tickMicroOps()
 {
+    // If no micro-instruction is active, begin one.
     if (!microInstructionActive)
-        return false;
+    {
+        handleNMI();
+        handleIRQ();
 
+        if (cycles > 0)
+        {
+            cycles--;
+            totalCycles++;
+            return true;
+        }
+
+        const uint16_t opcodePC = PC;
+        const uint8_t opcode = fetchOpcode();
+
+        activeOpcodePC = opcodePC;
+        activeOpcode   = opcode;
+
+        lastOpcodePC = opcodePC;
+        lastOpcode   = opcode;
+
+        lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
+
+        if (!lastOpcodeMicroOpCapable)
+        {
+            lastOpcodeUsedMicroOps = false;
+
+            decodeAndExecute(opcode);
+
+            cycles += CYCLE_COUNTS[opcode];
+            cycles--;
+
+            totalCycles++;
+            return true;
+        }
+
+        buildMicroOpsForOpcode(opcode);
+
+        microInstructionActive = true;
+        lastOpcodeUsedMicroOps = true;
+        lastMicroOpCount = static_cast<uint8_t>(microOpCount);
+    }
+
+    // Execute exactly one micro-op this tick.
     if (!executeCurrentMicroOp())
     {
+        // Stalled by RDY/AEC. Do not advance the micro-op.
         totalCycles++;
         return true;
     }
 
     if (microOpIndex >= microOpCount)
     {
+        lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
         clearMicroOps();
     }
 
