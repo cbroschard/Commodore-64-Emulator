@@ -37,25 +37,25 @@ std::string CPUCommand::help() const
 {
     return R"(CPU commands
  Usage:
-  cpu addr              - Show last indirect addressing details
-  cpu branch            - Show last branch timing details
-  cpu cycles            - Show CPU cycle counters and current timing state
-  cpu intr              - Show the last BRK/IRQ/NMI entry details.
-  cpu irq               - Show IRQ/NMI timing state
-  cpu jam               - Show or set JAM/KIL opcode behavior
-  cpu jmp               - Show last JMP target details
-  cpu jsr               - Show last JSR stack details
-  cpu last              - Show last executed opcode and timing position
-  cpu micro             - Show last/current CPU micro-op execution status
-  cpu pc <addr>         - Set CPU program counter
-  cpu pha               - Show last PHA stack push details
-  cpu php               - Show last PHP status push details
-  cpu pla               - Show last PLA stack pull details
-  cpu plp               - Show last PLP status restore details
-  cpu regs              - Show CPU registers
-  cpu rti               - Show last RTI return details
-  cpu rts               - Show last RTS return details
-  cpu stack [count]     - Show stack contents
+  cpu addr                  - Show last indirect addressing details
+  cpu branch                - Show last branch timing details
+  cpu cycles                - Show CPU cycle counters and current timing state
+  cpu intr                  - Show the last BRK/IRQ/NMI entry details.
+  cpu irq                   - Show IRQ/NMI timing state
+  cpu jam                   - Show or set JAM/KIL opcode behavior
+  cpu jmp                   - Show last JMP target details
+  cpu jsr                   - Show last JSR stack details
+  cpu last                  - Show last executed opcode and timing position
+  cpu micro [status|on|off] - Show or change experimental CPU micro-op execution
+  cpu pc <addr>             - Set CPU program counter
+  cpu pha                   - Show last PHA stack push details
+  cpu php                   - Show last PHP status push details
+  cpu pla                   - Show last PLA stack pull details
+  cpu plp                   - Show last PLP status restore details
+  cpu regs                  - Show CPU registers
+  cpu rti                   - Show last RTI return details
+  cpu rts                   - Show last RTS return details
+  cpu stack [count]         - Show stack contents
 )";
 }
 
@@ -118,7 +118,28 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "micro")
     {
-        std::cout << mon.mlmonitorbackend()->cpuMicroOpStatus();
+        if (args.size() == 2 || args[2] == "status" )
+        {
+            std::cout << mon.mlmonitorbackend()->cpuMicroOpStatus();
+            return;
+        }
+        else if (args[2] == "on")
+        {
+            mon.mlmonitorbackend()->cpuSetMicroOp(true);
+            std::cout << "Micro Op enabled\n";
+            return;
+        }
+        else if (args[2] == "off")
+        {
+            mon.mlmonitorbackend()->cpuSetMicroOp(false);
+            std::cout << "Micro Op disabled\n";
+            return;
+        }
+        else
+        {
+            std::cout << help();
+            return;
+        }
     }
     else if (sub == "jam")
     {

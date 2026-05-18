@@ -79,6 +79,7 @@ class MLMonitorBackend
         inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
         inline uint16_t getPC() { return cpu->getPC(); }
         inline std::string cpuMicroOpStatus() const { return cpu->dumpMicroOpStatus(); }
+        inline void cpuSetMicroOp(bool enable) { return cpu->setUseMicroOpsForTest(enable); }
 
         void setPC(uint16_t address);
         void cpuStepInstruction();
