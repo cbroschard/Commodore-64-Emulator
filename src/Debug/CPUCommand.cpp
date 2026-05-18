@@ -46,6 +46,7 @@ std::string CPUCommand::help() const
   cpu jmp               - Show last JMP target details
   cpu jsr               - Show last JSR stack details
   cpu last              - Show last executed opcode and timing position
+  cpu micro             - Show last/current CPU micro-op execution status
   cpu pc <addr>         - Set CPU program counter
   cpu pha               - Show last PHA stack push details
   cpu php               - Show last PHP status push details
@@ -114,6 +115,10 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         std::cout << mon.mlmonitorbackend()->cpuIrqStatus();
         return;
+    }
+    else if (sub == "micro")
+    {
+        std::cout << mon.mlmonitorbackend()->cpuMicroOpStatus();
     }
     else if (sub == "jam")
     {

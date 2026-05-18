@@ -483,6 +483,37 @@ class CPU
             uint32_t totalCycles = 0;
         };
 
+        struct CPUMicroOpDebugState
+        {
+            bool valid = false;
+
+            bool useMicroOpsForTest = false;
+            bool lastOpcodeUsedMicroOps = false;
+            bool lastOpcodeMicroOpCapable = false;
+
+            uint16_t lastOpcodePC = 0;
+            uint8_t lastOpcode = 0xEA;
+
+            uint8_t lastMicroOpCount = 0;
+            uint8_t lastMicroOpIndexAtEnd = 0;
+
+            uint16_t activeOpcodePC = 0;
+            uint8_t activeOpcode = 0xEA;
+
+            uint8_t currentMicroOpCount = 0;
+            uint8_t currentMicroOpIndex = 0;
+
+            bool microInstructionActive = false;
+            bool executingMicroOp = false;
+
+            uint16_t microAddress = 0;
+            uint16_t microBaseAddress = 0;
+            bool microPageCrossed = false;
+            uint8_t microTemp = 0;
+
+            uint32_t totalCycles = 0;
+        };
+
         inline CPUAddressDebugState getLastAddressDebugState() const { return lastAddressDebug; }
         inline CPUInterruptEntryDebugState getLastInterruptEntryDebugState() const { return lastInterruptEntry; }
         inline CPUBranchDebugState getLastBranchDebugState() const { return lastBranch; }
@@ -511,6 +542,9 @@ class CPU
         inline void setY(uint8_t value) { Y = value; }
         inline uint8_t getSP() const { return SP; }
         uint8_t debugRead(uint16_t address) const;
+
+        CPUMicroOpDebugState getMicroOpDebugState() const;
+        std::string dumpMicroOpStatus() const;
 
         // Bus Arbitration
         inline void setVICBusArbitrationEnabled(bool enabled) { vicBusArbitrationEnabled = enabled; }
@@ -823,13 +857,18 @@ class CPU
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
-        // OpCode Table to point to all functions
+        // OpCode Table
         std::array<std::function<void()>, 256> opcodeTable;
         void initializeOpcodeTable();
 
         bool rdyLine;
         bool aecLine;
         bool vicBusArbitrationEnabled;
+
+        bool lastOpcodeUsedMicroOps;
+        bool lastOpcodeMicroOpCapable;
+        uint8_t lastMicroOpCount;
+        uint8_t lastMicroOpIndexAtEnd;
 
         //Helper functions
         uint8_t readABS();

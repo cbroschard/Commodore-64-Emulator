@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
 #include "CPU.h"
 #include "StateWriter.h"
 
@@ -65,7 +66,11 @@ CPU::CPU() :
     setLogging(false),
     rdyLine(true),
     aecLine(true),
-    vicBusArbitrationEnabled(false)
+    vicBusArbitrationEnabled(false),
+    lastOpcodeUsedMicroOps(false),
+    lastOpcodeMicroOpCapable(false),
+    lastMicroOpCount(0),
+    lastMicroOpIndexAtEnd(0)
 {
     currentBusCycle = {};
     initializeOpcodeTable();
@@ -256,6 +261,10 @@ void CPU::reset()
     microStatus                 = 0;
     microVectorLow              = 0;
     microVectorHigh             = 0;
+    lastOpcodeUsedMicroOps      = false;
+    lastOpcodeMicroOpCapable    = false;
+    lastMicroOpCount            = 0;
+    lastMicroOpIndexAtEnd       = 0;
 
     // if mode_ wasn’t set yet, assume NTSC
     if (CYCLES_PER_FRAME == 0) CYCLES_PER_FRAME = 17096;
@@ -1334,20 +1343,26 @@ void CPU::tick()
                 logger->WriteLog(message.str());
             }
 
-            if (useMicroOpsForTest && canExecuteOpcodeWithMicroOps(opcode))
+            const bool microOpCapable = canExecuteOpcodeWithMicroOps(opcode);
+
+            lastOpcodeMicroOpCapable = microOpCapable;
+
+            if (useMicroOpsForTest && microOpCapable)
             {
                 activeOpcode = opcode;
                 activeOpcodePC = pcExec;
 
                 buildMicroOpsForOpcode(opcode);
 
-                // First hybrid stage:
-                // Run the converted instruction body immediately,
-                // but still use the existing instruction-level cycle table.
+                lastOpcodeUsedMicroOps = true;
+                lastMicroOpCount = static_cast<uint8_t>(microOpCount);
+
                 while (microOpIndex < microOpCount)
                 {
                     executeCurrentMicroOp();
                 }
+
+                lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
 
                 clearMicroOps();
 
@@ -1370,6 +1385,10 @@ void CPU::tick()
             }
             else
             {
+                lastOpcodeUsedMicroOps = false;
+                lastMicroOpCount = 0;
+                lastMicroOpIndexAtEnd = 0;
+
                 decodeAndExecute(opcode);
 
                 if (traceMgr && traceMgr->isEnabled() &&
@@ -7627,6 +7646,104 @@ uint8_t CPU::debugRead(uint16_t address) const
 {
     if (!mem) return 0xFF;
     return mem->read(address);
+}
+
+CPU::CPUMicroOpDebugState CPU::getMicroOpDebugState() const
+{
+    CPUMicroOpDebugState s;
+
+    s.valid = true;
+
+    s.useMicroOpsForTest = useMicroOpsForTest;
+    s.lastOpcodeUsedMicroOps = lastOpcodeUsedMicroOps;
+    s.lastOpcodeMicroOpCapable = lastOpcodeMicroOpCapable;
+
+    s.lastOpcodePC = lastOpcodePC;
+    s.lastOpcode = lastOpcode;
+
+    s.lastMicroOpCount = lastMicroOpCount;
+    s.lastMicroOpIndexAtEnd = lastMicroOpIndexAtEnd;
+
+    s.activeOpcodePC = activeOpcodePC;
+    s.activeOpcode = activeOpcode;
+
+    s.currentMicroOpCount = static_cast<uint8_t>(microOpCount);
+    s.currentMicroOpIndex = static_cast<uint8_t>(microOpIndex);
+
+    s.microInstructionActive = microInstructionActive;
+    s.executingMicroOp = executingMicroOp;
+
+    s.microAddress = microAddress;
+    s.microBaseAddress = microBaseAddress;
+    s.microPageCrossed = microPageCrossed;
+    s.microTemp = microTemp;
+
+    s.totalCycles = totalCycles;
+
+    return s;
+}
+
+std::string CPU::dumpMicroOpStatus() const
+{
+    auto hex8 = [](uint8_t v) -> std::string
+    {
+        std::ostringstream oss;
+        oss << std::uppercase << std::hex
+            << std::setw(2) << std::setfill('0')
+            << int(v);
+        return oss.str();
+    };
+
+    auto hex16 = [](uint16_t v) -> std::string
+    {
+        std::ostringstream oss;
+        oss << std::uppercase << std::hex
+            << std::setw(4) << std::setfill('0')
+            << int(v);
+        return oss.str();
+    };
+
+    const CPUMicroOpDebugState s = getMicroOpDebugState();
+
+    std::ostringstream out;
+
+    out << "CPU Micro-op Status\n";
+    out << "-------------------\n";
+
+    out << "Micro-op test mode:      "
+        << (s.useMicroOpsForTest ? "ON" : "OFF") << "\n";
+
+    out << "Last opcode PC:          $" << hex16(s.lastOpcodePC) << "\n";
+    out << "Last opcode:             $" << hex8(s.lastOpcode) << "\n";
+
+    out << "Micro-op capable:        "
+        << (s.lastOpcodeMicroOpCapable ? "yes" : "no") << "\n";
+
+    out << "Used micro-op path:      "
+        << (s.lastOpcodeUsedMicroOps ? "yes" : "no") << "\n";
+
+    out << "Last micro-op count:     " << int(s.lastMicroOpCount) << "\n";
+    out << "Last micro-op end index: " << int(s.lastMicroOpIndexAtEnd) << "\n";
+
+    out << "\nCurrent/active micro-op state\n";
+    out << "-----------------------------\n";
+    out << "Active opcode PC:        $" << hex16(s.activeOpcodePC) << "\n";
+    out << "Active opcode:           $" << hex8(s.activeOpcode) << "\n";
+    out << "Current micro-op count:  " << int(s.currentMicroOpCount) << "\n";
+    out << "Current micro-op index:  " << int(s.currentMicroOpIndex) << "\n";
+    out << "Instruction active:      " << (s.microInstructionActive ? "yes" : "no") << "\n";
+    out << "Executing micro-op:      " << (s.executingMicroOp ? "yes" : "no") << "\n";
+
+    out << "\nMicro temporaries\n";
+    out << "-----------------\n";
+    out << "microAddress:           $" << hex16(s.microAddress) << "\n";
+    out << "microBaseAddress:       $" << hex16(s.microBaseAddress) << "\n";
+    out << "microPageCrossed:       " << (s.microPageCrossed ? "yes" : "no") << "\n";
+    out << "microTemp:              $" << hex8(s.microTemp) << "\n";
+
+    out << "\nTotal cycles:            " << s.totalCycles << "\n";
+
+    return out.str();
 }
 
 TraceManager::Stamp CPU::makeCpuStamp() const
