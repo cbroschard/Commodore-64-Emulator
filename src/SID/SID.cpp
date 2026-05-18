@@ -875,6 +875,7 @@ void SID::reset()
 
     filterobj.reset();
     setSIDModel(sidModel_);
+    setMode(mode_);
 
     hpPrevIn = 0.0;
     hpPrevOut = 0.0;
