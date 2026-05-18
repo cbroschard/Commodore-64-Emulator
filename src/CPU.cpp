@@ -7255,6 +7255,11 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0x50: // BVC
         case 0x70: // BVS
 
+        case 0x08: // PHP
+        case 0x28: // PLP
+        case 0x48: // PHA
+        case 0x68: // PLA
+
         case 0x20: // JSR
         case 0x60: // RTS
 
@@ -7296,7 +7301,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
         case 0xC7: // DCP zp
         case 0xD7: // DCP zp,X
         case 0xCF: // DCP abs
-        case 0xDF: // DCP abs,Xcase 0xDB: // DCP abs,Y
+        case 0xDF: // DCP abs,X
+        case 0xDB: // DCP abs,Y
         case 0xC3: // DCP (zp,X)
         case 0xD3: // DCP (zp),Y
 
