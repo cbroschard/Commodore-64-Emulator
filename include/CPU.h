@@ -683,7 +683,8 @@ class CPU
 
             ShiftLeftTempThenOrA,
 
-            AndImmediateThenCarryFromBit7
+            AndImmediateThenCarryFromBit7,
+            AndImmediateThenLsrA
         };
 
         enum class CpuIndexReg : uint8_t

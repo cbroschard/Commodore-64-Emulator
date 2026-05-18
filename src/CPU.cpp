@@ -4255,6 +4255,20 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroAction::AndImmediateThenLsrA:
+        {
+            const uint8_t intermediate = uint8_t(A & microTemp);
+
+            setFlag(C, (intermediate & 0x01) != 0);
+
+            A = uint8_t(intermediate >> 1);
+
+            setFlag(Z, A == 0);
+            setFlag(N, false); // LSR always clears bit 7
+
+            break;
+        }
+
         case CpuMicroAction::None:
         default:
             break;
@@ -5404,6 +5418,21 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::AndImmediateThenCarryFromBit7;
+            pushMicroOp(readImm);
+
+            break;
+        }
+
+        case 0x4B: // ALR #imm
+        {
+            CpuMicroOp readImm;
+            readImm.kind = CpuMicroOpKind::OperandRead;
+            readImm.busType = CpuBusCycleType::Read;
+            readImm.address = PC;
+            readImm.value = 0;
+            readImm.useMicroAddress = false;
+            readImm.index = CpuIndexReg::None;
+            readImm.action = CpuMicroAction::AndImmediateThenLsrA;
             pushMicroOp(readImm);
 
             break;
@@ -7106,6 +7135,8 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
         case 0x0B: // ANC #imm
         case 0x2B: // ANC #imm
+
+        case 0x4B: // ALR #imm
             return true;
 
         default:
