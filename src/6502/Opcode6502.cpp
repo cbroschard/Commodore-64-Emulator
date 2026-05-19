@@ -286,7 +286,7 @@ const InstructionInfo OPCODES[256] =
 const std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> MNEMONIC_TO_OPCODE = [] {
     std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> map;
     for (const auto& info : OPCODES) {
-        if (info.mnemonic) { // skip unused/illegal opcodes
+        if (info.mnemonic) {
             MnemonicKey key{ info.mnemonic, info.mode };
             map[key] = info.opcode;
         }
