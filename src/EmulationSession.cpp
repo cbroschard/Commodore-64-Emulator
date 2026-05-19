@@ -99,9 +99,6 @@ bool EmulationSession::initializeMachine()
 
     sid_.setSampleRate(io_.getSampleRate());
 
-    // Enable VIC-II BA/AEC arbitration only for the host C64 CPU.
-    cpu_.setVICBusArbitrationEnabled(true);
-
     // Process boot attachments
     media_.applyBootAttachments();
 
