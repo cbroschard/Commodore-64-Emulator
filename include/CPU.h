@@ -590,6 +590,7 @@ class CPU
             ReadPointerHigh,
             BuildPointerAddress,
             ApplyIndirectYIndex,
+            ReadPointerHighAndApplyIndirectYForRead,
             ReadPointerHighAndApplyIndirectY,
             OperandReadHighToAddressAndApplyAbsoluteIndex,
             ConditionalPageCrossDummyRead,
@@ -1074,6 +1075,8 @@ class CPU
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
+
+        uint8_t executedMicroOpsThisInstruction = 0;
 };
 
 #endif // CPU_H

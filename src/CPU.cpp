@@ -3731,6 +3731,29 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::ReadPointerHighAndApplyIndirectYForRead:
+        {
+            microPtrHigh = mem->read(uint8_t(microZP + 1));
+
+            microBaseAddress =
+                uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
+
+            const uint16_t indexed =
+                uint16_t(microBaseAddress + Y);
+
+            microPageCrossed =
+                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+
+            microAddress = indexed;
+
+            // For read/ALU ($zp),Y instructions, the dummy read only happens
+            // on page cross. If no page cross, skip the queued dummy micro-op.
+            if (!microPageCrossed)
+                microOpIndex++;
+
+            break;
+        }
+
         case CpuMicroOpKind::ReadPointerHighAndApplyIndirectY:
         {
             microPtrHigh = mem->read(uint8_t(microZP + 1));
@@ -5641,26 +5664,6 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         default:
             break;
     }
-
-    #ifdef Debug
-    if (useMicroOpsForTest && microOpCount > 0 && activeOpcodePC >= 0xE000)
-    {
-        static std::set<uint32_t> seen;
-
-        const uint8_t expected = uint8_t(CYCLE_COUNTS[opcode] - 1);
-        const uint32_t key = (uint32_t(activeOpcodePC) << 8) | opcode;
-
-        if (microOpCount != expected && seen.insert(key).second)
-        {
-            std::cout << "[KERNAL MICRO MISMATCH] PC=$"
-                      << std::hex << std::uppercase << activeOpcodePC
-                      << " opcode=$" << int(opcode)
-                      << " expected=" << std::dec << int(expected)
-                      << " microOps=" << int(microOpCount)
-                      << "\n";
-        }
-    }
-    #endif
 }
 
 void CPU::buildAbsoluteLoad(CpuMicroAction action)
@@ -6066,7 +6069,7 @@ void CPU::buildIndirectYRead(CpuMicroAction action)
     pushMicroOp(readLo);
 
     CpuMicroOp readHiAndApplyY;
-    readHiAndApplyY.kind = CpuMicroOpKind::ReadPointerHighAndApplyIndirectY;
+    readHiAndApplyY.kind = CpuMicroOpKind::ReadPointerHighAndApplyIndirectYForRead;
     readHiAndApplyY.busType = CpuBusCycleType::Read;
     readHiAndApplyY.address = 0;
     readHiAndApplyY.value = 0;
@@ -7368,6 +7371,7 @@ bool CPU::tickMicroOps()
         microInstructionActive = true;
         lastOpcodeUsedMicroOps = true;
         lastMicroOpCount = static_cast<uint8_t>(microOpCount);
+        executedMicroOpsThisInstruction = 0;
 
         // Important:
         // Do NOT execute the first micro-op in the same tick as opcode fetch.
@@ -7379,13 +7383,37 @@ bool CPU::tickMicroOps()
     // Execute exactly one post-opcode micro-op this tick.
     if (!executeCurrentMicroOp())
     {
-        // Stalled by RDY/AEC. Do not advance the micro-op.
         totalCycles++;
         return true;
     }
 
+    executedMicroOpsThisInstruction++;
+
     if (microOpIndex >= microOpCount)
     {
+    #ifdef Debug
+        const uint8_t expected = uint8_t(CYCLE_COUNTS[activeOpcode] - 1);
+
+        if (activeOpcodePC >= 0x8000 && activeOpcodePC < 0xC000)
+        {
+            static std::set<uint32_t> seen;
+
+            const uint32_t key =
+                (uint32_t(activeOpcodePC) << 8) | uint32_t(activeOpcode);
+
+            if (executedMicroOpsThisInstruction != expected &&
+                seen.insert(key).second)
+            {
+                std::cout << "[GAME MICRO EXEC MISMATCH] PC=$"
+                          << std::hex << std::uppercase << activeOpcodePC
+                          << " opcode=$" << int(activeOpcode)
+                          << " expected=" << std::dec << int(expected)
+                          << " executed=" << int(executedMicroOpsThisInstruction)
+                          << "\n";
+            }
+        }
+    #endif
+
         lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
         clearMicroOps();
     }
