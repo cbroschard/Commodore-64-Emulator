@@ -3394,9 +3394,13 @@ bool CPU::executeCurrentMicroOp()
 
     CpuMicroOp& op = microOps[microOpIndex];
 
-    currentBusCycle = {
+    const uint16_t effectiveAddress =
+        op.useMicroAddress ? microAddress : op.address;
+
+    currentBusCycle =
+    {
         op.busType,
-        op.address,
+        effectiveAddress,
         op.value
     };
 
