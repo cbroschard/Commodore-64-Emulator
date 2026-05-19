@@ -6522,28 +6522,15 @@ void CPU::buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action)
     readOperand.action = CpuMicroAction::None;
     pushMicroOp(readOperand);
 
-    // Zero-page indexed instructions perform a dummy read
-    // from the original unindexed zero-page address.
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = true;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
-
-    // Apply X/Y with zero-page wrap.
-    CpuMicroOp applyIndex;
-    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
-    applyIndex.busType = CpuBusCycleType::None;
-    applyIndex.address = 0;
-    applyIndex.value = 0;
-    applyIndex.useMicroAddress = false;
-    applyIndex.index = index;
-    applyIndex.action = CpuMicroAction::None;
-    pushMicroOp(applyIndex);
+    CpuMicroOp dummyAndIndex;
+    dummyAndIndex.kind = CpuMicroOpKind::ApplyZeroPageIndexAndDummyRead;
+    dummyAndIndex.busType = CpuBusCycleType::DummyRead;
+    dummyAndIndex.address = 0;
+    dummyAndIndex.value = 0;
+    dummyAndIndex.useMicroAddress = true;
+    dummyAndIndex.index = index;
+    dummyAndIndex.action = CpuMicroAction::None;
+    pushMicroOp(dummyAndIndex);
 
     // Read old value from final zero-page address.
     CpuMicroOp readValue;
@@ -6600,28 +6587,15 @@ void CPU::buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action)
     readHi.action = CpuMicroAction::None;
     pushMicroOp(readHi);
 
-    CpuMicroOp applyIndex;
-    applyIndex.kind = CpuMicroOpKind::ApplyAbsoluteIndex;
-    applyIndex.busType = CpuBusCycleType::None;
-    applyIndex.address = 0;
-    applyIndex.value = 0;
-    applyIndex.useMicroAddress = false;
-    applyIndex.index = index;
-    applyIndex.action = CpuMicroAction::None;
-    pushMicroOp(applyIndex);
-
-    // RMW absolute indexed instructions always do this dummy read.
-    // If page crossed, it is the wrong-page address.
-    // If not crossed, it is the final effective address.
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = true;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
+    CpuMicroOp applyIndexAndDummy;
+    applyIndexAndDummy.kind = CpuMicroOpKind::ApplyAbsoluteIndexAndDummyRead;
+    applyIndexAndDummy.busType = CpuBusCycleType::DummyRead;
+    applyIndexAndDummy.address = 0;
+    applyIndexAndDummy.value = 0;
+    applyIndexAndDummy.useMicroAddress = false;
+    applyIndexAndDummy.index = index;
+    applyIndexAndDummy.action = CpuMicroAction::None;
+    pushMicroOp(applyIndexAndDummy);
 
     CpuMicroOp readValue;
     readValue.kind = CpuMicroOpKind::MemoryRead;
