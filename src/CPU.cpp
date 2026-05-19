@@ -3436,6 +3436,16 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::ApplyZeroPageIndexAndDummyRead:
+        {
+            // Dummy read from the original unindexed zero-page address.
+            (void)mem->read(uint8_t(microAddress));
+
+            // Apply X/Y with zero-page wrap in the same cycle.
+            microAddress = uint8_t(microAddress + getIndexValue(op.index));
+            break;
+        }
+
         case CpuMicroOpKind::ApplyAbsoluteIndex:
         {
             microBaseAddress = microAddress;
@@ -5898,27 +5908,16 @@ void CPU::buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action)
     readOperand.action = CpuMicroAction::None;
     pushMicroOp(readOperand);
 
-    // Zero-page indexed modes do a dummy read from the unindexed base.
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = true;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
-
-    // Apply X/Y with zero-page wrap.
-    CpuMicroOp applyIndex;
-    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
-    applyIndex.busType = CpuBusCycleType::None;
-    applyIndex.address = 0;
-    applyIndex.value = 0;
-    applyIndex.useMicroAddress = false;
-    applyIndex.index = index;
-    applyIndex.action = CpuMicroAction::None;
-    pushMicroOp(applyIndex);
+    // Dummy read from unindexed base and apply X/Y in same cycle.
+    CpuMicroOp dummyAndIndex;
+    dummyAndIndex.kind = CpuMicroOpKind::ApplyZeroPageIndexAndDummyRead;
+    dummyAndIndex.busType = CpuBusCycleType::DummyRead;
+    dummyAndIndex.address = 0;
+    dummyAndIndex.value = 0;
+    dummyAndIndex.useMicroAddress = true;
+    dummyAndIndex.index = index;
+    dummyAndIndex.action = CpuMicroAction::None;
+    pushMicroOp(dummyAndIndex);
 
     // Read final value.
     CpuMicroOp readValue;
@@ -5944,25 +5943,16 @@ void CPU::buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action)
     readOperand.action = CpuMicroAction::None;
     pushMicroOp(readOperand);
 
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = true;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
-
-    CpuMicroOp applyIndex;
-    applyIndex.kind = CpuMicroOpKind::ApplyZeroPageIndex;
-    applyIndex.busType = CpuBusCycleType::None;
-    applyIndex.address = 0;
-    applyIndex.value = 0;
-    applyIndex.useMicroAddress = false;
-    applyIndex.index = index;
-    applyIndex.action = CpuMicroAction::None;
-    pushMicroOp(applyIndex);
+    // Dummy read from unindexed base and apply X/Y in same cycle.
+    CpuMicroOp dummyAndIndex;
+    dummyAndIndex.kind = CpuMicroOpKind::ApplyZeroPageIndexAndDummyRead;
+    dummyAndIndex.busType = CpuBusCycleType::DummyRead;
+    dummyAndIndex.address = 0;
+    dummyAndIndex.value = 0;
+    dummyAndIndex.useMicroAddress = true;
+    dummyAndIndex.index = index;
+    dummyAndIndex.action = CpuMicroAction::None;
+    pushMicroOp(dummyAndIndex);
 
     CpuMicroOp writeValue;
     writeValue.kind = CpuMicroOpKind::MemoryWrite;

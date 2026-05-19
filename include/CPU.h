@@ -613,6 +613,7 @@ class CPU
 
             ApplyZeroPageIndex,
             ApplyAbsoluteIndexAndDummyRead,
+            ApplyZeroPageIndexAndDummyRead,
             ApplyAbsoluteIndex
         };
 
