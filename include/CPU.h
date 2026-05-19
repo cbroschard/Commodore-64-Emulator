@@ -530,7 +530,7 @@ class CPU
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
 
-        inline bool isAtInstructionBoundary() const { return cycles <= 0; }
+        inline bool isAtInstructionBoundary() const { return useMicroOpsForTest ? !microInstructionActive : cycles <= 0; }
         inline void forceInstructionBoundaryForMonitor() { cycles = 0; }
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
