@@ -3811,6 +3811,10 @@ bool CPU::executeCurrentMicroOp()
                 case CpuMicroAction::PullRTIPCHigh:
                 {
                     microReturnHigh = value;
+
+                    PC = uint16_t(microReturnLow) |
+                         (uint16_t(microReturnHigh) << 8);
+
                     break;
                 }
 
@@ -6990,18 +6994,11 @@ void CPU::buildRTI()
     pullHi.value = 0;
     pullHi.useMicroAddress = false;
     pullHi.index = CpuIndexReg::None;
-    pullHi.action = CpuMicroAction::PullRTIPCHigh;
-    pushMicroOp(pullHi);
 
-    CpuMicroOp finish;
-    finish.kind = CpuMicroOpKind::Internal;
-    finish.busType = CpuBusCycleType::None;
-    finish.address = 0;
-    finish.value = 0;
-    finish.useMicroAddress = false;
-    finish.index = CpuIndexReg::None;
-    finish.action = CpuMicroAction::FinishRTI;
-    pushMicroOp(finish);
+    // Pull high byte and finish RTI in the same stack-read cycle.
+    pullHi.action = CpuMicroAction::PullRTIPCHigh;
+
+    pushMicroOp(pullHi);
 }
 
 bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
