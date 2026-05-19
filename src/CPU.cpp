@@ -44,6 +44,8 @@ CPU::CPU() :
     microStatus(0),
     microVectorLow(0),
     microVectorHigh(0),
+    microRMWOldValue(0),
+    microRMWNewValue(0),
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
@@ -261,6 +263,8 @@ void CPU::reset()
     microStatus                 = 0;
     microVectorLow              = 0;
     microVectorHigh             = 0;
+    microRMWOldValue            = 0;
+    microRMWNewValue            = 0;
     lastOpcodeUsedMicroOps      = false;
     lastOpcodeMicroOpCapable    = false;
     lastMicroOpCount            = 0;
@@ -3608,6 +3612,32 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::MemoryRMWCompute:
+        {
+            microRMWOldValue = microTemp;
+            microRMWNewValue = applyRMWAction(op.action, microTemp);
+            microTemp = microRMWNewValue;
+            break;
+        }
+
+        case CpuMicroOpKind::MemoryRMWDummyWrite:
+        {
+            const uint16_t address =
+                op.useMicroAddress ? microAddress : op.address;
+
+            mem->write(address, microRMWOldValue);
+            break;
+        }
+
+        case CpuMicroOpKind::MemoryRMWFinalWrite:
+        {
+            const uint16_t address =
+                op.useMicroAddress ? microAddress : op.address;
+
+            mem->write(address, microRMWNewValue);
+            break;
+        }
+
         case CpuMicroOpKind::DummyRead:
         {
             uint16_t address =
@@ -6436,15 +6466,35 @@ void CPU::buildZeroPageRMW(CpuMicroAction action)
     readValue.action = CpuMicroAction::None;
     pushMicroOp(readValue);
 
-    CpuMicroOp rmwWrite;
-    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
-    rmwWrite.busType = CpuBusCycleType::Write;
-    rmwWrite.address = 0;
-    rmwWrite.value = 0;
-    rmwWrite.useMicroAddress = true;
-    rmwWrite.index = CpuIndexReg::None;
-    rmwWrite.action = action;
-    pushMicroOp(rmwWrite);
+    CpuMicroOp compute;
+    compute.kind = CpuMicroOpKind::MemoryRMWCompute;
+    compute.busType = CpuBusCycleType::None;
+    compute.address = 0;
+    compute.value = 0;
+    compute.useMicroAddress = true;
+    compute.index = CpuIndexReg::None;
+    compute.action = action;
+    pushMicroOp(compute);
+
+    CpuMicroOp dummyWrite;
+    dummyWrite.kind = CpuMicroOpKind::MemoryRMWDummyWrite;
+    dummyWrite.busType = CpuBusCycleType::DummyWrite;
+    dummyWrite.address = 0;
+    dummyWrite.value = 0;
+    dummyWrite.useMicroAddress = true;
+    dummyWrite.index = CpuIndexReg::None;
+    dummyWrite.action = CpuMicroAction::None;
+    pushMicroOp(dummyWrite);
+
+    CpuMicroOp finalWrite;
+    finalWrite.kind = CpuMicroOpKind::MemoryRMWFinalWrite;
+    finalWrite.busType = CpuBusCycleType::Write;
+    finalWrite.address = 0;
+    finalWrite.value = 0;
+    finalWrite.useMicroAddress = true;
+    finalWrite.index = CpuIndexReg::None;
+    finalWrite.action = CpuMicroAction::None;
+    pushMicroOp(finalWrite);
 }
 
 void CPU::buildAbsoluteRMW(CpuMicroAction action)

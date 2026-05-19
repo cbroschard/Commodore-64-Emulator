@@ -582,6 +582,9 @@ class CPU
             MemoryRead,
             MemoryWrite,
             MemoryRMWWrite,
+            MemoryRMWCompute,
+            MemoryRMWDummyWrite,
+            MemoryRMWFinalWrite,
 
             OperandReadToZP,
             ApplyIndirectXIndex,
@@ -780,6 +783,8 @@ class CPU
         uint8_t microStatus;
         uint8_t microVectorLow;
         uint8_t microVectorHigh;
+        uint8_t microRMWOldValue;
+        uint8_t microRMWNewValue;
 
         // Debug
         CPUAddressDebugState lastAddressDebug;
