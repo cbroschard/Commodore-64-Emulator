@@ -5163,18 +5163,11 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readHi.value = 0;
             readHi.useMicroAddress = false;
             readHi.index = CpuIndexReg::None;
-            readHi.action = CpuMicroAction::None;
-            pushMicroOp(readHi);
 
-            CpuMicroOp jump;
-            jump.kind = CpuMicroOpKind::Internal;
-            jump.busType = CpuBusCycleType::None;
-            jump.address = 0;
-            jump.value = 0;
-            jump.useMicroAddress = false;
-            jump.index = CpuIndexReg::None;
-            jump.action = CpuMicroAction::JumpToMicroAddress;
-            pushMicroOp(jump);
+            // Fold jump into high-byte operand read.
+            readHi.action = CpuMicroAction::JumpToMicroAddress;
+
+            pushMicroOp(readHi);
 
             break;
         }
@@ -5218,18 +5211,11 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readPtrHi.value = 0;
             readPtrHi.useMicroAddress = true;
             readPtrHi.index = CpuIndexReg::None;
-            readPtrHi.action = CpuMicroAction::None;
-            pushMicroOp(readPtrHi);
 
-            CpuMicroOp jump;
-            jump.kind = CpuMicroOpKind::Internal;
-            jump.busType = CpuBusCycleType::None;
-            jump.address = 0;
-            jump.value = 0;
-            jump.useMicroAddress = false;
-            jump.index = CpuIndexReg::None;
-            jump.action = CpuMicroAction::JumpToMicroAddress;
-            pushMicroOp(jump);
+            // Fold jump into final indirect high-byte read.
+            readPtrHi.action = CpuMicroAction::JumpToMicroAddress;
+
+            pushMicroOp(readPtrHi);
 
             break;
         }
@@ -5625,22 +5611,24 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
     }
 
     #ifdef Debug
-if (useMicroOpsForTest && microOpCount > 0)
-{
-    const uint8_t expected = uint8_t(CYCLE_COUNTS[opcode] - 1);
-
-    if (microOpCount != expected)
+    if (useMicroOpsForTest && microOpCount > 0 && activeOpcodePC >= 0xE000)
     {
-        std::cout << "[MICRO COUNT MISMATCH] PC=$"
-                  << std::hex << std::uppercase << activeOpcodePC
-                  << " opcode=$" << int(opcode)
-                  << " " << OPCODES[opcode].mnemonic
-                  << " expected=" << std::dec << int(expected)
-                  << " microOps=" << int(microOpCount)
-                  << "\n";
+        static std::set<uint32_t> seen;
+
+        const uint8_t expected = uint8_t(CYCLE_COUNTS[opcode] - 1);
+        const uint32_t key = (uint32_t(activeOpcodePC) << 8) | opcode;
+
+        if (microOpCount != expected && seen.insert(key).second)
+        {
+            std::cout << "[KERNAL MICRO MISMATCH] PC=$"
+                      << std::hex << std::uppercase << activeOpcodePC
+                      << " opcode=$" << int(opcode)
+                      << " expected=" << std::dec << int(expected)
+                      << " microOps=" << int(microOpCount)
+                      << "\n";
+        }
     }
-}
-#endif
+    #endif
 }
 
 void CPU::buildAbsoluteLoad(CpuMicroAction action)
@@ -6789,6 +6777,8 @@ void CPU::buildJSR()
     readLo.action = CpuMicroAction::None;
     pushMicroOp(readLo);
 
+    // Keep this internal cycle. JSR has an internal/stack timing cycle here.
+    // After reading target low byte, PC points at the high operand byte.
     CpuMicroOp prepReturn;
     prepReturn.kind = CpuMicroOpKind::Internal;
     prepReturn.busType = CpuBusCycleType::None;
@@ -6826,18 +6816,11 @@ void CPU::buildJSR()
     readHi.value = 0;
     readHi.useMicroAddress = false;
     readHi.index = CpuIndexReg::None;
-    readHi.action = CpuMicroAction::None;
-    pushMicroOp(readHi);
 
-    CpuMicroOp jump;
-    jump.kind = CpuMicroOpKind::Internal;
-    jump.busType = CpuBusCycleType::None;
-    jump.address = 0;
-    jump.value = 0;
-    jump.useMicroAddress = false;
-    jump.index = CpuIndexReg::None;
-    jump.action = CpuMicroAction::JumpToMicroAddress;
-    pushMicroOp(jump);
+    // Fold only the final jump into the high-byte read.
+    readHi.action = CpuMicroAction::JumpToMicroAddress;
+
+    pushMicroOp(readHi);
 }
 
 void CPU::buildRTS()
