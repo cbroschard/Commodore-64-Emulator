@@ -3438,7 +3438,12 @@ bool CPU::executeCurrentMicroOp()
     if (shouldRDYStallForBusCycle(op.busType))
     {
         if (traceMgr)
-            traceMgr->recordCPUBA("RDY/BA low during CPU micro-op", makeCpuStamp());
+            traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
+
+        executingMicroOp = false;
+        busCycleActive = false;
+        currentBusCycle = {};
+        return false;
     }
 
     if (shouldAECBlockBusCycle(op.busType))
