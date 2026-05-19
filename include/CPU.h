@@ -1071,6 +1071,7 @@ class CPU
         // Micro Op Helpers
         uint8_t getIndexValue(CpuIndexReg index) const;
         void compareRegisterWithTemp(uint8_t reg);
+        void finishMicroInstructionAfterCurrentOp();
         void adcValue(uint8_t value);
         void sbcValue(uint8_t value);
         uint8_t applyRMWAction(CpuMicroAction action, uint8_t oldValue);

@@ -3949,6 +3949,55 @@ bool CPU::executeCurrentMicroOp()
         {
             microBranchOffset = static_cast<int8_t>(mem->read(PC));
             PC = uint16_t(PC + 1);
+
+            microBranchTaken = false;
+            microPageCrossed = false;
+            microOldPC = PC;
+            microAddress = PC;
+
+            switch (op.action)
+            {
+                case CpuMicroAction::BranchIfCarryClear:
+                    microBranchTaken = !getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfCarrySet:
+                    microBranchTaken = getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroSet:
+                    microBranchTaken = getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroClear:
+                    microBranchTaken = !getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusSet:
+                    microBranchTaken = getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusClear:
+                    microBranchTaken = !getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowClear:
+                    microBranchTaken = !getFlag(V);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowSet:
+                    microBranchTaken = getFlag(V);
+                    break;
+
+                default:
+                    microBranchTaken = false;
+                    break;
+            }
+
+            // Not taken: branch ends after reading the offset.
+            if (!microBranchTaken)
+                finishMicroInstructionAfterCurrentOp();
+
             break;
         }
 
@@ -3989,8 +4038,32 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::BranchTakenDummyRead:
         {
-            if (microBranchTaken)
-                (void)mem->read(PC);
+            if (!microBranchTaken)
+            {
+                finishMicroInstructionAfterCurrentOp();
+                break;
+            }
+
+            // Taken branch does a dummy read from current PC.
+            (void)mem->read(PC);
+
+            microOldPC = PC;
+
+            const uint16_t newPC =
+                uint16_t(PC + microBranchOffset);
+
+            microPageCrossed =
+                (PC & 0xFF00) != (newPC & 0xFF00);
+
+            microAddress = newPC;
+
+            // Taken, same page: PC changes here and instruction ends.
+            if (!microPageCrossed)
+            {
+                PC = microAddress;
+                finishMicroInstructionAfterCurrentOp();
+            }
+
             break;
         }
 
@@ -4020,10 +4093,9 @@ bool CPU::executeCurrentMicroOp()
                              (microAddress & 0x00FF));
 
                 (void)mem->read(dummy);
-            }
 
-            if (microBranchTaken)
                 PC = microAddress;
+            }
 
             break;
         }
@@ -6623,18 +6695,8 @@ void CPU::buildBranch(CpuMicroAction action)
     readOffset.value = 0;
     readOffset.useMicroAddress = false;
     readOffset.index = CpuIndexReg::None;
-    readOffset.action = CpuMicroAction::None;
+    readOffset.action = action;
     pushMicroOp(readOffset);
-
-    CpuMicroOp eval;
-    eval.kind = CpuMicroOpKind::EvaluateBranchCondition;
-    eval.busType = CpuBusCycleType::None;
-    eval.address = 0;
-    eval.value = 0;
-    eval.useMicroAddress = false;
-    eval.index = CpuIndexReg::None;
-    eval.action = action;
-    pushMicroOp(eval);
 
     CpuMicroOp takenDummy;
     takenDummy.kind = CpuMicroOpKind::BranchTakenDummyRead;
@@ -6645,16 +6707,6 @@ void CPU::buildBranch(CpuMicroAction action)
     takenDummy.index = CpuIndexReg::None;
     takenDummy.action = CpuMicroAction::None;
     pushMicroOp(takenDummy);
-
-    CpuMicroOp apply;
-    apply.kind = CpuMicroOpKind::ApplyBranchOffset;
-    apply.busType = CpuBusCycleType::None;
-    apply.address = 0;
-    apply.value = 0;
-    apply.useMicroAddress = false;
-    apply.index = CpuIndexReg::None;
-    apply.action = CpuMicroAction::None;
-    pushMicroOp(apply);
 
     CpuMicroOp pageDummy;
     pageDummy.kind = CpuMicroOpKind::BranchPageCrossDummyRead;
@@ -7371,7 +7423,50 @@ bool CPU::tickMicroOps()
     if (microOpIndex >= microOpCount)
     {
     #ifdef Debug
-        const uint8_t expected = uint8_t(CYCLE_COUNTS[activeOpcode] - 1);
+        uint8_t expected = uint8_t(CYCLE_COUNTS[activeOpcode] - 1);
+
+        // Absolute indexed reads add 1 cycle on page cross.
+        switch (activeOpcode)
+        {
+            case 0xBD: // LDA abs,X
+            case 0xB9: // LDA abs,Y
+            case 0xBC: // LDY abs,X
+            case 0xBE: // LDX abs,Y
+            case 0x7D: // ADC abs,X
+            case 0x79: // ADC abs,Y
+            case 0x3D: // AND abs,X
+            case 0x39: // AND abs,Y
+            case 0xDD: // CMP abs,X
+            case 0xD9: // CMP abs,Y
+            case 0x5D: // EOR abs,X
+            case 0x59: // EOR abs,Y
+            case 0x1D: // ORA abs,X
+            case 0x19: // ORA abs,Y
+            case 0xFD: // SBC abs,X
+            case 0xF9: // SBC abs,Y
+            {
+                if (microPageCrossed)
+                    expected++;
+                break;
+            }
+
+            // Indirect-Y reads/ALU/CMP add 1 cycle on page cross.
+            case 0xB1: // LDA ($zp),Y
+            case 0x71: // ADC ($zp),Y
+            case 0x31: // AND ($zp),Y
+            case 0xD1: // CMP ($zp),Y
+            case 0x51: // EOR ($zp),Y
+            case 0x11: // ORA ($zp),Y
+            case 0xF1: // SBC ($zp),Y
+            {
+                if (microPageCrossed)
+                    expected++;
+                break;
+            }
+
+            default:
+                break;
+        }
 
         if (activeOpcodePC >= 0x8000 && activeOpcodePC < 0xC000)
         {
@@ -7419,6 +7514,12 @@ void CPU::compareRegisterWithTemp(uint8_t reg)
     setFlag(C, reg >= microTemp);
     setFlag(Z, reg == microTemp);
     setFlag(N, (result8 & 0x80) != 0);
+}
+
+void CPU::finishMicroInstructionAfterCurrentOp()
+{
+    if (microOpCount > 0)
+        microOpIndex = microOpCount - 1;
 }
 
 void CPU::adcValue(uint8_t value)
