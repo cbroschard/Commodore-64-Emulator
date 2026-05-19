@@ -3411,30 +3411,6 @@ bool CPU::executeCurrentMicroOp()
     busCycleActive = (op.busType != CpuBusCycleType::None);
     executingMicroOp = true;
 
-    // Only real micro-ops are allowed to behaviorally stall.
-    // Old instruction-level cpuRead/cpuWrite paths remain diagnostic-only.
-    /*if (shouldRDYStallForBusCycle(op.busType))
-    {
-        if (traceMgr)
-            traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
-
-        executingMicroOp = false;
-        busCycleActive = false;
-        currentBusCycle = {};
-        return false;
-    }
-
-    if (shouldAECBlockBusCycle(op.busType))
-    {
-        if (traceMgr)
-            traceMgr->recordCPUBA("AEC low blocks CPU micro-op", makeCpuStamp());
-
-        executingMicroOp = false;
-        busCycleActive = false;
-        currentBusCycle = {};
-        return false;
-    }*/
-
     if (shouldRDYStallForBusCycle(op.busType))
     {
         if (traceMgr)
@@ -3705,7 +3681,7 @@ bool CPU::executeCurrentMicroOp()
             SP = uint8_t(SP + 1);
 
             const uint8_t value =
-                cpuRead(uint16_t(0x0100 | SP), CpuBusCycleType::StackRead);
+                mem->read(uint16_t(0x0100 | SP));
 
             switch (op.action)
             {
@@ -3822,7 +3798,7 @@ bool CPU::executeCurrentMicroOp()
                     break;
             }
 
-            cpuWrite(uint16_t(0x0100 | SP), value, CpuBusCycleType::StackWrite);
+            mem->write(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
             break;
         }
@@ -3830,7 +3806,7 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::ReadJmpIndirectLow:
         {
             microPointerAddress = microAddress;
-            microJmpLow = cpuRead(microPointerAddress, CpuBusCycleType::Read);
+            microJmpLow = mem->read(microPointerAddress);
             break;
         }
 
@@ -3840,7 +3816,7 @@ bool CPU::executeCurrentMicroOp()
                 uint16_t((microPointerAddress & 0xFF00) |
                          ((microPointerAddress + 1) & 0x00FF));
 
-            microJmpHigh = cpuRead(highAddr, CpuBusCycleType::Read);
+            microJmpHigh = mem->read(highAddr);
 
             microAddress =
                 uint16_t(microJmpLow) |
@@ -3851,7 +3827,7 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::OperandReadToBranchOffset:
         {
-            microBranchOffset = static_cast<int8_t>(cpuRead(PC, CpuBusCycleType::Read));
+            microBranchOffset = static_cast<int8_t>(mem->read(PC));
             PC = uint16_t(PC + 1);
             break;
         }
@@ -3903,7 +3879,7 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::BranchTakenDummyRead:
         {
             if (microBranchTaken)
-                cpuRead(PC, CpuBusCycleType::DummyRead);
+                (void)mem->read(PC);
             break;
         }
 
@@ -3932,7 +3908,7 @@ bool CPU::executeCurrentMicroOp()
                     uint16_t((microOldPC & 0xFF00) |
                              (microAddress & 0x00FF));
 
-                cpuRead(dummy, CpuBusCycleType::DummyRead);
+                (void)mem->read(dummy);
             }
 
             if (microBranchTaken)
@@ -4244,13 +4220,13 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroAction::ReadBRKVectorLow:
         {
-            microVectorLow = cpuRead(0xFFFE, CpuBusCycleType::Read);
+            microVectorLow = mem->read(0xFFFE);
             break;
         }
 
         case CpuMicroAction::ReadBRKVectorHigh:
         {
-            microVectorHigh = cpuRead(0xFFFF, CpuBusCycleType::Read);
+            microVectorHigh = mem->read(0xFFFF);
             break;
         }
 
