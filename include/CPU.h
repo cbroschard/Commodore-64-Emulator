@@ -581,7 +581,6 @@ class CPU
             OperandReadHighToAddress,
             MemoryRead,
             MemoryWrite,
-            MemoryRMWWrite,
             MemoryRMWCompute,
             MemoryRMWDummyWrite,
             MemoryRMWFinalWrite,
