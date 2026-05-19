@@ -6395,35 +6395,15 @@ void CPU::buildIndirectYStore(CpuMicroAction action)
     readLo.action = CpuMicroAction::None;
     pushMicroOp(readLo);
 
-    CpuMicroOp readHi;
-    readHi.kind = CpuMicroOpKind::ReadPointerHigh;
-    readHi.busType = CpuBusCycleType::Read;
-    readHi.address = 0;
-    readHi.value = 0;
-    readHi.useMicroAddress = false;
-    readHi.index = CpuIndexReg::None;
-    readHi.action = CpuMicroAction::None;
-    pushMicroOp(readHi);
-
-    CpuMicroOp buildAddr;
-    buildAddr.kind = CpuMicroOpKind::BuildPointerAddress;
-    buildAddr.busType = CpuBusCycleType::None;
-    buildAddr.address = 0;
-    buildAddr.value = 0;
-    buildAddr.useMicroAddress = false;
-    buildAddr.index = CpuIndexReg::None;
-    buildAddr.action = CpuMicroAction::None;
-    pushMicroOp(buildAddr);
-
-    CpuMicroOp applyY;
-    applyY.kind = CpuMicroOpKind::ApplyIndirectYIndex;
-    applyY.busType = CpuBusCycleType::None;
-    applyY.address = 0;
-    applyY.value = 0;
-    applyY.useMicroAddress = false;
-    applyY.index = CpuIndexReg::None;
-    applyY.action = CpuMicroAction::None;
-    pushMicroOp(applyY);
+    CpuMicroOp readHiAndApplyY;
+    readHiAndApplyY.kind = CpuMicroOpKind::ReadPointerHighAndApplyIndirectY;
+    readHiAndApplyY.busType = CpuBusCycleType::Read;
+    readHiAndApplyY.address = 0;
+    readHiAndApplyY.value = 0;
+    readHiAndApplyY.useMicroAddress = false;
+    readHiAndApplyY.index = CpuIndexReg::None;
+    readHiAndApplyY.action = CpuMicroAction::None;
+    pushMicroOp(readHiAndApplyY);
 
     // Stores always dummy-read old-high + indexed-low.
     CpuMicroOp dummy;
