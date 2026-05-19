@@ -3628,6 +3628,26 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::ApplyAbsoluteIndexAndDummyRead:
+        {
+            microBaseAddress = microAddress;
+
+            const uint16_t indexed =
+                uint16_t(microBaseAddress + getIndexValue(op.index));
+
+            microPageCrossed =
+                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+
+            microAddress = indexed;
+
+            const uint16_t dummy =
+                uint16_t((microBaseAddress & 0xFF00) |
+                         (microAddress & 0x00FF));
+
+            (void)mem->read(dummy);
+            break;
+        }
+
         case CpuMicroOpKind::OperandReadToZP:
         {
             microZP = mem->read(PC);
@@ -5738,7 +5758,6 @@ void CPU::buildAbsoluteStore(CpuMicroAction action)
 
 void CPU::buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action)
 {
-    // Read address low byte.
     CpuMicroOp readLo;
     readLo.kind = CpuMicroOpKind::OperandReadToAddress;
     readLo.busType = CpuBusCycleType::Read;
@@ -5749,7 +5768,6 @@ void CPU::buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action)
     readLo.action = CpuMicroAction::None;
     pushMicroOp(readLo);
 
-    // Read address high byte.
     CpuMicroOp readHi;
     readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
     readHi.busType = CpuBusCycleType::Read;
@@ -5760,30 +5778,16 @@ void CPU::buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action)
     readHi.action = CpuMicroAction::None;
     pushMicroOp(readHi);
 
-    // Apply X/Y to the absolute base address.
-    CpuMicroOp applyIndex;
-    applyIndex.kind = CpuMicroOpKind::ApplyAbsoluteIndex;
-    applyIndex.busType = CpuBusCycleType::None;
-    applyIndex.address = 0;
-    applyIndex.value = 0;
-    applyIndex.useMicroAddress = false;
-    applyIndex.index = index;
-    applyIndex.action = CpuMicroAction::None;
-    pushMicroOp(applyIndex);
+    CpuMicroOp applyIndexAndDummy;
+    applyIndexAndDummy.kind = CpuMicroOpKind::ApplyAbsoluteIndexAndDummyRead;
+    applyIndexAndDummy.busType = CpuBusCycleType::DummyRead;
+    applyIndexAndDummy.address = 0;
+    applyIndexAndDummy.value = 0;
+    applyIndexAndDummy.useMicroAddress = false;
+    applyIndexAndDummy.index = index;
+    applyIndexAndDummy.action = CpuMicroAction::None;
+    pushMicroOp(applyIndexAndDummy);
 
-    // Indexed stores always perform the dummy read from:
-    // old high byte + indexed low byte.
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = false;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
-
-    // Write selected register to final effective address.
     CpuMicroOp writeValue;
     writeValue.kind = CpuMicroOpKind::MemoryWrite;
     writeValue.busType = CpuBusCycleType::Write;
