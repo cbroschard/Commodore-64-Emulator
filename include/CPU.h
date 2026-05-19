@@ -591,6 +591,7 @@ class CPU
             BuildPointerAddress,
             ApplyIndirectYIndex,
             ReadPointerHighAndApplyIndirectY,
+            OperandReadHighToAddressAndApplyAbsoluteIndex,
             ConditionalPageCrossDummyRead,
 
             ReadJmpIndirectLow,
