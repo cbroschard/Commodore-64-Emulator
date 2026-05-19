@@ -3864,6 +3864,50 @@ bool CPU::executeCurrentMicroOp()
         {
             microBranchOffset = static_cast<int8_t>(mem->read(PC));
             PC = uint16_t(PC + 1);
+
+            switch (op.action)
+            {
+                case CpuMicroAction::BranchIfCarryClear:
+                    microBranchTaken = !getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfCarrySet:
+                    microBranchTaken = getFlag(C);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroSet:
+                    microBranchTaken = getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfZeroClear:
+                    microBranchTaken = !getFlag(Z);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusSet:
+                    microBranchTaken = getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfMinusClear:
+                    microBranchTaken = !getFlag(N);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowClear:
+                    microBranchTaken = !getFlag(V);
+                    break;
+
+                case CpuMicroAction::BranchIfOverflowSet:
+                    microBranchTaken = getFlag(V);
+                    break;
+
+                default:
+                    microBranchTaken = false;
+                    break;
+            }
+
+            // Not taken: branch ends after offset read.
+            if (!microBranchTaken)
+                microOpIndex = microOpCount;
+
             break;
         }
 
@@ -3913,8 +3957,32 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::BranchTakenDummyRead:
         {
-            if (microBranchTaken)
-                (void)mem->read(PC);
+            if (!microBranchTaken)
+            {
+                microOpIndex = microOpCount;
+                break;
+            }
+
+            // Taken branch dummy read from current PC.
+            (void)mem->read(PC);
+
+            microOldPC = PC;
+
+            const uint16_t newPC =
+                uint16_t(PC + microBranchOffset);
+
+            microPageCrossed =
+                (PC & 0xFF00) != (newPC & 0xFF00);
+
+            microAddress = newPC;
+
+            // Taken, no page cross: branch ends here.
+            if (!microPageCrossed)
+            {
+                PC = microAddress;
+                microOpIndex = microOpCount;
+            }
+
             break;
         }
 
@@ -3944,10 +4012,9 @@ bool CPU::executeCurrentMicroOp()
                              (microAddress & 0x00FF));
 
                 (void)mem->read(dummy);
-            }
 
-            if (microBranchTaken)
                 PC = microAddress;
+            }
 
             break;
         }
@@ -6658,6 +6725,7 @@ void CPU::buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action)
 
 void CPU::buildBranch(CpuMicroAction action)
 {
+    // Cycle after opcode fetch: read signed branch offset and evaluate condition.
     CpuMicroOp readOffset;
     readOffset.kind = CpuMicroOpKind::OperandReadToBranchOffset;
     readOffset.busType = CpuBusCycleType::Read;
@@ -6665,19 +6733,10 @@ void CPU::buildBranch(CpuMicroAction action)
     readOffset.value = 0;
     readOffset.useMicroAddress = false;
     readOffset.index = CpuIndexReg::None;
-    readOffset.action = CpuMicroAction::None;
+    readOffset.action = action;
     pushMicroOp(readOffset);
 
-    CpuMicroOp eval;
-    eval.kind = CpuMicroOpKind::EvaluateBranchCondition;
-    eval.busType = CpuBusCycleType::None;
-    eval.address = 0;
-    eval.value = 0;
-    eval.useMicroAddress = false;
-    eval.index = CpuIndexReg::None;
-    eval.action = action;
-    pushMicroOp(eval);
-
+    // Only meaningful if branch is taken.
     CpuMicroOp takenDummy;
     takenDummy.kind = CpuMicroOpKind::BranchTakenDummyRead;
     takenDummy.busType = CpuBusCycleType::DummyRead;
@@ -6688,16 +6747,7 @@ void CPU::buildBranch(CpuMicroAction action)
     takenDummy.action = CpuMicroAction::None;
     pushMicroOp(takenDummy);
 
-    CpuMicroOp apply;
-    apply.kind = CpuMicroOpKind::ApplyBranchOffset;
-    apply.busType = CpuBusCycleType::None;
-    apply.address = 0;
-    apply.value = 0;
-    apply.useMicroAddress = false;
-    apply.index = CpuIndexReg::None;
-    apply.action = CpuMicroAction::None;
-    pushMicroOp(apply);
-
+    // Only meaningful if branch is taken and crosses page.
     CpuMicroOp pageDummy;
     pageDummy.kind = CpuMicroOpKind::BranchPageCrossDummyRead;
     pageDummy.busType = CpuBusCycleType::DummyRead;
@@ -7357,6 +7407,7 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 bool CPU::tickMicroOps()
 {
     // If no micro-instruction is active, begin one.
+    // This tick represents the opcode-fetch cycle.
     if (!microInstructionActive)
     {
         handleNMI();
@@ -7398,9 +7449,15 @@ bool CPU::tickMicroOps()
         microInstructionActive = true;
         lastOpcodeUsedMicroOps = true;
         lastMicroOpCount = static_cast<uint8_t>(microOpCount);
+
+        // Important:
+        // Do NOT execute the first micro-op in the same tick as opcode fetch.
+        // This tick was the opcode-fetch cycle.
+        totalCycles++;
+        return true;
     }
 
-    // Execute exactly one micro-op this tick.
+    // Execute exactly one post-opcode micro-op this tick.
     if (!executeCurrentMicroOp())
     {
         // Stalled by RDY/AEC. Do not advance the micro-op.
