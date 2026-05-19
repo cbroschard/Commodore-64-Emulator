@@ -6284,16 +6284,38 @@ void CPU::buildIndirectYRMW(CpuMicroAction action)
     readValue.action = CpuMicroAction::None;
     pushMicroOp(readValue);
 
-    // RMW: dummy-write old value, then write modified value.
-    CpuMicroOp rmwWrite;
-    rmwWrite.kind = CpuMicroOpKind::MemoryRMWWrite;
-    rmwWrite.busType = CpuBusCycleType::Write;
-    rmwWrite.address = 0;
-    rmwWrite.value = 0;
-    rmwWrite.useMicroAddress = true;
-    rmwWrite.index = CpuIndexReg::None;
-    rmwWrite.action = action;
-    pushMicroOp(rmwWrite);
+    // Compute modified value internally.
+    CpuMicroOp compute;
+    compute.kind = CpuMicroOpKind::MemoryRMWCompute;
+    compute.busType = CpuBusCycleType::None;
+    compute.address = 0;
+    compute.value = 0;
+    compute.useMicroAddress = true;
+    compute.index = CpuIndexReg::None;
+    compute.action = action;
+    pushMicroOp(compute);
+
+    // Dummy write old value.
+    CpuMicroOp dummyWrite;
+    dummyWrite.kind = CpuMicroOpKind::MemoryRMWDummyWrite;
+    dummyWrite.busType = CpuBusCycleType::DummyWrite;
+    dummyWrite.address = 0;
+    dummyWrite.value = 0;
+    dummyWrite.useMicroAddress = true;
+    dummyWrite.index = CpuIndexReg::None;
+    dummyWrite.action = CpuMicroAction::None;
+    pushMicroOp(dummyWrite);
+
+    // Final write modified value.
+    CpuMicroOp finalWrite;
+    finalWrite.kind = CpuMicroOpKind::MemoryRMWFinalWrite;
+    finalWrite.busType = CpuBusCycleType::Write;
+    finalWrite.address = 0;
+    finalWrite.value = 0;
+    finalWrite.useMicroAddress = true;
+    finalWrite.index = CpuIndexReg::None;
+    finalWrite.action = CpuMicroAction::None;
+    pushMicroOp(finalWrite);
 }
 
 void CPU::buildIndirectXStore(CpuMicroAction action)
