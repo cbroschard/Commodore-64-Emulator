@@ -3700,6 +3700,16 @@ bool CPU::executeCurrentMicroOp()
             break;
         }
 
+        case CpuMicroOpKind::ApplyIndirectXIndexAndDummyRead:
+        {
+            // Indexed-indirect performs a dummy read from the original zero-page operand.
+            (void)mem->read(microZP);
+
+            // Then applies X with zero-page wrap to select the pointer location.
+            microZP = uint8_t(microZP + X);
+            break;
+        }
+
         case CpuMicroOpKind::ReadPointerLow:
         {
             microPtrLow = mem->read(microZP);
@@ -3709,6 +3719,17 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::ReadPointerHigh:
         {
             microPtrHigh = mem->read(uint8_t(microZP + 1));
+            break;
+        }
+
+        case CpuMicroOpKind::ReadPointerHighAndBuildPointerAddress:
+        {
+            microPtrHigh = mem->read(uint8_t(microZP + 1));
+
+            microAddress =
+                uint16_t(microPtrLow) |
+                (uint16_t(microPtrHigh) << 8);
+
             break;
         }
 
@@ -5984,26 +6005,15 @@ void CPU::buildIndirectXRead(CpuMicroAction action)
     readOperand.action = CpuMicroAction::None;
     pushMicroOp(readOperand);
 
-    // Hardware-style dummy read before applying X.
-    CpuMicroOp dummy;
-    dummy.kind = CpuMicroOpKind::DummyRead;
-    dummy.busType = CpuBusCycleType::DummyRead;
-    dummy.address = 0;
-    dummy.value = 0;
-    dummy.useMicroAddress = false;
-    dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
-    pushMicroOp(dummy);
-
-    CpuMicroOp applyX;
-    applyX.kind = CpuMicroOpKind::ApplyIndirectXIndex;
-    applyX.busType = CpuBusCycleType::None;
-    applyX.address = 0;
-    applyX.value = 0;
-    applyX.useMicroAddress = false;
-    applyX.index = CpuIndexReg::None;
-    applyX.action = CpuMicroAction::None;
-    pushMicroOp(applyX);
+    CpuMicroOp dummyAndApplyX;
+    dummyAndApplyX.kind = CpuMicroOpKind::ApplyIndirectXIndexAndDummyRead;
+    dummyAndApplyX.busType = CpuBusCycleType::DummyRead;
+    dummyAndApplyX.address = 0;
+    dummyAndApplyX.value = 0;
+    dummyAndApplyX.useMicroAddress = false;
+    dummyAndApplyX.index = CpuIndexReg::None;
+    dummyAndApplyX.action = CpuMicroAction::None;
+    pushMicroOp(dummyAndApplyX);
 
     CpuMicroOp readLo;
     readLo.kind = CpuMicroOpKind::ReadPointerLow;
@@ -6015,25 +6025,15 @@ void CPU::buildIndirectXRead(CpuMicroAction action)
     readLo.action = CpuMicroAction::None;
     pushMicroOp(readLo);
 
-    CpuMicroOp readHi;
-    readHi.kind = CpuMicroOpKind::ReadPointerHigh;
-    readHi.busType = CpuBusCycleType::Read;
-    readHi.address = 0;
-    readHi.value = 0;
-    readHi.useMicroAddress = false;
-    readHi.index = CpuIndexReg::None;
-    readHi.action = CpuMicroAction::None;
-    pushMicroOp(readHi);
-
-    CpuMicroOp buildAddr;
-    buildAddr.kind = CpuMicroOpKind::BuildPointerAddress;
-    buildAddr.busType = CpuBusCycleType::None;
-    buildAddr.address = 0;
-    buildAddr.value = 0;
-    buildAddr.useMicroAddress = false;
-    buildAddr.index = CpuIndexReg::None;
-    buildAddr.action = CpuMicroAction::None;
-    pushMicroOp(buildAddr);
+    CpuMicroOp readHiAndBuild;
+    readHiAndBuild.kind = CpuMicroOpKind::ReadPointerHighAndBuildPointerAddress;
+    readHiAndBuild.busType = CpuBusCycleType::Read;
+    readHiAndBuild.address = 0;
+    readHiAndBuild.value = 0;
+    readHiAndBuild.useMicroAddress = false;
+    readHiAndBuild.index = CpuIndexReg::None;
+    readHiAndBuild.action = CpuMicroAction::None;
+    pushMicroOp(readHiAndBuild);
 
     CpuMicroOp readValue;
     readValue.kind = CpuMicroOpKind::MemoryRead;
