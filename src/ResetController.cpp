@@ -86,6 +86,9 @@ void ResetController::setSIDModel(const std::string& model)
 
 void ResetController::warmReset()
 {
+    // Stop the tape if playing
+    media_->tapeStop();
+
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
     if (!cartAttachedNow)
     {
@@ -106,6 +109,9 @@ void ResetController::warmReset()
 
 void ResetController::coldReset()
 {
+    // Stop the tape if playing
+    media_->tapeStop();
+
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
     if (!cartAttachedNow)
     {
