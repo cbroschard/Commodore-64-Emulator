@@ -2423,7 +2423,7 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
-    if (!vicState.badLineSampled)
+    if (!isBadLine(raster))
         return false;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
@@ -2434,9 +2434,7 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
 {
-    (void)raster;
-
-    if (!vicState.badLineSampled)
+    if (!isBadLine(raster))
         return false;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
@@ -2615,13 +2613,29 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.busOwner = BusOwner::CPU;
 
+    auto fallbackOwner = [&]() -> BusOwner
+    {
+        if (slot.refresh)
+            return BusOwner::Refresh;
+
+        if (slot.baLow || slot.aecLow)
+            return BusOwner::Idle;
+
+        return BusOwner::CPU;
+    };
+
     switch (slot.fetchKind)
     {
         case FetchKind::CharMatrix:
+        {
             slot.busOwner = BusOwner::BadLine;
-            slot.matrixFetchIndex = vicState.vmliFetchIndex;
-            break;
 
+            const int index = cycle - cfg_->DMAStartCycle;
+            slot.matrixFetchIndex =
+                (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS) ? index : -1;
+
+            break;
+        }
         case FetchKind::SpritePtr0:
         case FetchKind::SpritePtr1:
         case FetchKind::SpritePtr2:
@@ -2630,9 +2644,17 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
-            slot.busOwner = BusOwner::SpritePointer;
-            slot.spriteIndex = spritePointerFetchSpriteForKind(slot.fetchKind);
+        {
+            const int sprite = spritePointerFetchSpriteForKind(slot.fetchKind);
+            slot.spriteIndex = sprite;
+
+            if (sprite >= 0 && spriteUnits[sprite].dmaActive)
+                slot.busOwner = BusOwner::SpritePointer;
+            else
+                slot.busOwner = fallbackOwner();
+
             break;
+        }
 
         case FetchKind::SpriteData0:
         case FetchKind::SpriteData1:
@@ -2642,23 +2664,24 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpriteData5:
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
-            slot.busOwner = BusOwner::SpriteData;
-            slot.spriteIndex = spriteDataFetchSpriteForKind(slot.fetchKind);
+        {
+            const int sprite = spriteDataFetchSpriteForKind(slot.fetchKind);
+            slot.spriteIndex = sprite;
 
-            if (slot.spriteIndex >= 0)
-                slot.spriteByteIndex =
-                    spriteDataByteIndexForCycle(slot.spriteIndex, cycle);
+            if (sprite >= 0)
+                slot.spriteByteIndex = spriteDataByteIndexForCycle(sprite, cycle);
+
+            if (sprite >= 0 && spriteUnits[sprite].dmaActive)
+                slot.busOwner = BusOwner::SpriteData;
+            else
+                slot.busOwner = fallbackOwner();
 
             break;
+        }
 
         case FetchKind::None:
         default:
-            if (slot.refresh)
-                slot.busOwner = BusOwner::Refresh;
-            else if (slot.baLow || slot.aecLow)
-                slot.busOwner = BusOwner::Idle;
-            else
-                slot.busOwner = BusOwner::CPU;
+            slot.busOwner = fallbackOwner();
             break;
     }
 
@@ -6865,11 +6888,17 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
             ? vicState.badLineSampled
             : isBadLine(raster);
 
+    const bool spriteSlotActive =
+        slot.spriteIndex >= 0 &&
+        spriteUnits[slot.spriteIndex].dmaActive;
+
     const bool ptrMismatch =
+        spriteSlotActive &&
         fetchKindIsSpritePointer(slot.fetchKind) &&
         slot.busOwner != BusOwner::SpritePointer;
 
     const bool dataMismatch =
+        spriteSlotActive &&
         fetchKindIsSpriteData(slot.fetchKind) &&
         slot.busOwner != BusOwner::SpriteData;
 
