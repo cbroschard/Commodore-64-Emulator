@@ -1320,7 +1320,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
         {
-            const int sprite = spritePointerFetchSpriteForKind(currentCycleSlot.fetchKind);
+            const int sprite = currentCycleSlot.spriteIndex;
             if (sprite >= 0)
                 fetchSpritePointer(sprite, raster);
 
@@ -1336,7 +1336,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
         {
-            const int sprite = spriteDataFetchSpriteForKind(currentCycleSlot.fetchKind);
+            const int sprite = currentCycleSlot.spriteIndex;
             if (sprite >= 0)
                 performSpriteDataFetchForSprite(sprite);
 
@@ -2593,16 +2593,24 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.badlineWarning = isBadLineBusWarningCycle(raster, cycle);
     slot.badlineSteal   = isBadLineBusStealCycle(raster, cycle);
+    slot.badlineBAHold  = isBadLineBAHoldCycle(raster, cycle);
 
     slot.spriteWarning  = isSpriteBusWarningCycle(raster, cycle);
     slot.spriteSteal    = isSpriteBusStealCycle(raster, cycle);
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
 
-    const bool badlineBAHold = isBadLineBAHoldCycle(raster, cycle);
+    slot.refresh = isRefreshCycle(cycle);
 
-    slot.baLow = slot.badlineWarning || badlineBAHold || slot.spriteWarning || slot.spriteSteal;
+    slot.baLow =
+        slot.badlineWarning ||
+        slot.badlineBAHold ||
+        slot.spriteWarning ||
+        slot.spriteSteal;
 
-    slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
+    slot.aecLow =
+        slot.badlineSteal ||
+        slot.spriteAECSteal;
+
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 
     slot.busOwner = BusOwner::CPU;
@@ -2611,6 +2619,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     {
         case FetchKind::CharMatrix:
             slot.busOwner = BusOwner::BadLine;
+            slot.matrixFetchIndex = vicState.vmliFetchIndex;
             break;
 
         case FetchKind::SpritePtr0:
@@ -2622,6 +2631,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
             slot.busOwner = BusOwner::SpritePointer;
+            slot.spriteIndex = spritePointerFetchSpriteForKind(slot.fetchKind);
             break;
 
         case FetchKind::SpriteData0:
@@ -2633,17 +2643,23 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
             slot.busOwner = BusOwner::SpriteData;
+            slot.spriteIndex = spriteDataFetchSpriteForKind(slot.fetchKind);
+
+            if (slot.spriteIndex >= 0)
+                slot.spriteByteIndex =
+                    spriteDataByteIndexForCycle(slot.spriteIndex, cycle);
+
             break;
 
-            case FetchKind::None:
-            default:
-                if (isRefreshCycle(cycle))
-                    slot.busOwner = BusOwner::Refresh;
-                else if (slot.baLow || slot.aecLow)
-                    slot.busOwner = BusOwner::Idle;
-                else
-                    slot.busOwner = BusOwner::CPU;
-                break;
+        case FetchKind::None:
+        default:
+            if (slot.refresh)
+                slot.busOwner = BusOwner::Refresh;
+            else if (slot.baLow || slot.aecLow)
+                slot.busOwner = BusOwner::Idle;
+            else
+                slot.busOwner = BusOwner::CPU;
+            break;
     }
 
     return slot;
@@ -6842,9 +6858,12 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
         return out.str();
     }
 
-    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
-    const FetchKind fk = getFetchKindForCycle(raster, cycle);
     const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
+    const bool badLine =
+        (raster == registers.raster)
+            ? vicState.badLineSampled
+            : isBadLine(raster);
 
     const bool ptrMismatch =
         fetchKindIsSpritePointer(slot.fetchKind) &&
@@ -6857,30 +6876,61 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
     out << "VIC Cycle Debug\n\n";
     out << "Raster: " << raster << "\n";
     out << "Cycle : " << cycle << "\n";
-    out << "Fetch : " << fetchKindName(fk) << "\n";
-    out << "Badline: " << (badLine ? "Yes" : "No") << "\n";
+    out << "Fetch : " << fetchKindName(slot.fetchKind) << "\n";
+    out << "Owner : " << busOwnerName(slot.busOwner) << "\n";
+    out << "Badline active: " << (badLine ? "Yes" : "No") << "\n";
+
     out << "VCBASE: " << vicState.vcBase << "\n";
+    out << "VMLI  : " << int(vicState.vmliFetchIndex) << "\n";
     out << "RC    : " << int(vicState.rc) << "\n";
+
     out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
     out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
+
+    out << "Badline:"
+        << " warning=" << bit(slot.badlineWarning)
+        << " steal=" << bit(slot.badlineSteal)
+        << " hold=" << bit(slot.badlineBAHold)
+        << "\n";
+
+    out << "Sprite:"
+        << " index=" << slot.spriteIndex
+        << " byte=" << slot.spriteByteIndex
+        << " warning=" << bit(slot.spriteWarning)
+        << " steal=" << bit(slot.spriteSteal)
+        << " aecSteal=" << bit(slot.spriteAECSteal)
+        << "\n";
+
+    out << "Refresh: " << bit(slot.refresh) << "\n";
+    out << "Raster IRQ sample: " << bit(slot.rasterIrqSample) << "\n";
+    out << "Matrix fetch index: " << slot.matrixFetchIndex << "\n";
+
+    out << "DEN@raster: "
+        << (((d011_per_raster[raster] & 0x10) != 0) ? "On" : "Off")
+        << "\n";
+
+    out << "DisplayRow: " << currentCharacterRow() << "\n";
+    out << "FineY: " << int(fineYScroll(raster)) << "\n";
+    out << "FineX: " << int(fineXScroll(raster)) << "\n";
+
     out << "BA src: "
         << (slot.badlineWarning ? "badline-warning " : "")
         << (slot.badlineSteal   ? "badline-steal "   : "")
+        << (slot.badlineBAHold  ? "badline-hold "    : "")
         << (slot.spriteWarning  ? "sprite-warning "  : "")
         << (slot.spriteSteal    ? "sprite-steal "    : "")
-        << ((!slot.badlineWarning && !slot.badlineSteal &&
-             !slot.spriteWarning && !slot.spriteSteal) ? "none" : "")
+        << ((!slot.badlineWarning &&
+             !slot.badlineSteal &&
+             !slot.badlineBAHold &&
+             !slot.spriteWarning &&
+             !slot.spriteSteal) ? "none" : "")
         << "\n";
-    out << "AECsrc: "
+
+    out << "AEC src: "
         << (slot.badlineSteal   ? "badline-steal " : "")
         << (slot.spriteAECSteal ? "sprite-steal "  : "")
         << ((!slot.badlineSteal && !slot.spriteAECSteal) ? "none" : "")
         << "\n";
-    out << "DEN@raster: " << (((d011_per_raster[raster] & 0x10) != 0) ? "On" : "Off") << "\n";
-    out << "DisplayRow: " << currentCharacterRow() << "\n";
-    out << "FineY: " << int(fineYScroll(raster)) << "\n";
-    out << "FineX: " << int(fineXScroll(raster)) << "\n";
-    out << "Owner: " << busOwnerName(slot.busOwner) << "\n";
 
     if (ptrMismatch)
         out << "WARNING: sprite pointer fetch does not have SpritePointer bus owner\n";
@@ -6898,6 +6948,7 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
             any = true;
         }
     }
+
     if (!any)
         out << " none";
 
@@ -6911,6 +6962,7 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
             any = true;
         }
     }
+
     if (!any)
         out << " none";
 

@@ -124,15 +124,22 @@ class Vic
 
             bool badlineWarning = false;
             bool badlineSteal = false;
+            bool badlineBAHold = false;
 
             bool spriteWarning = false;
             bool spriteSteal = false;
             bool spriteAECSteal = false;
 
+            bool refresh = false;
+
             bool baLow = false;
             bool aecLow = false;
 
             bool rasterIrqSample = false;
+
+            int spriteIndex = -1;
+            int spriteByteIndex = -1;
+            int matrixFetchIndex = -1;
         };
 
         VicCycleSlot currentCycleSlot {};
@@ -1101,5 +1108,7 @@ class Vic
         const char* busOwnerName(BusOwner owner) const;
         bool fetchKindIsSpritePointer(Vic::FetchKind kind) const;
         bool fetchKindIsSpriteData(Vic::FetchKind kind) const;
+
+        static int bit(bool v) { return v ? 1 : 0; }
 };
 #endif // VIC_H
