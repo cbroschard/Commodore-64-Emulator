@@ -541,6 +541,8 @@ class CPU
         inline uint8_t getY() const { return Y; }
         inline void setY(uint8_t value) { Y = value; }
         inline uint8_t getSP() const { return SP; }
+        inline uint16_t getLastOpcodePC() const { return lastOpcodePC; }
+        inline uint8_t getLastOpcode() const { return lastOpcode; }
         uint8_t debugRead(uint16_t address) const;
 
         CPUMicroOpDebugState getMicroOpDebugState() const;
