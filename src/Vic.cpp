@@ -5060,6 +5060,13 @@ uint16_t Vic::visibleRasterForIRQCompare() const
     if (registers.raster >= cfg_->maxRasterLines)
         return 0;
 
+    if (currentCycle == cfg_->cyclesPerLine - 1)
+    {
+        return static_cast<uint16_t>(
+            (registers.raster + 1) % cfg_->maxRasterLines
+        );
+    }
+
     return static_cast<uint16_t>(registers.raster);
 }
 
@@ -5293,7 +5300,7 @@ int Vic::rasterIRQCompareCycle() const
 
 bool Vic::isRasterIRQCompareCycle(int cycle) const
 {
-    return cycle == rasterIRQCompareCycle();
+    return cycle == cfg_->cyclesPerLine - 1;
 }
 
 bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
