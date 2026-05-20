@@ -118,6 +118,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Current VIC-II mode: "
                   << mon.mlmonitorbackend()->vicGetModeName()
                   << std::endl;
+        return;
     }
     else if (sub == "badline")
     {
@@ -127,15 +128,18 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             {
                 const int raster = std::stoi(args[2]);
                 std::cout << mon.mlmonitorbackend()->VicDumpBadlineTimelineAroundRaster(raster);
+                return;
             }
             catch (std::exception& e)
             {
                 std::cout << help();
+                return;
             }
         }
         else
         {
             std::cout << help();
+            return;
         }
     }
     else if (sub == "banks")
@@ -361,10 +365,12 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << output;
             if (!output.empty() && output.back() != '\n')
                 std::cout << '\n';
+            return;
         }
         catch (const std::exception&)
         {
             std::cout << mapUsage();
+            return;
         }
     }
     else if (sub == "pixels")
@@ -392,15 +398,30 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (sub == "row")
     {
+        if (args.size() != 2)
+        {
+            std::cout << help();
+            return;
+        }
+
         std::cout << mon.mlmonitorbackend()->vicDumpBadlineState();
+        return;
     }
     else if (sub == "sprite")
     {
+        if (args.size() != 2)
+        {
+            std::cout << help();
+            return;
+        }
+
         std::cout << mon.mlmonitorbackend()->vicDumpSpriteDMAState();
+        return;
     }
     else
     {
         std::cout << "Unknown vic subcommand: " << sub << std::endl;
         std::cout << help() << std::endl;
+        return;
     }
 }
