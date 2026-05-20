@@ -6902,7 +6902,21 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
         fetchKindIsSpriteData(slot.fetchKind) &&
         slot.busOwner != BusOwner::SpriteData;
 
+    const bool liveSample =
+    raster == registers.raster &&
+    cycle == currentCycle;
+
     out << "VIC Cycle Debug\n\n";
+    out << "Current raster: " << registers.raster << "\n";
+    out << "Current cycle : " << currentCycle << "\n";
+    out << "Live sample   : " << (liveSample ? "Yes" : "No") << "\n";
+
+    if (!liveSample)
+    {
+        out << "NOTE: Fetch/owner/BA/AEC are calculated for the requested raster/cycle, "
+            << "but VC/RC/VMLI/sprite DMA fields are current live state.\n";
+    }
+
     out << "Raster: " << raster << "\n";
     out << "Cycle : " << cycle << "\n";
     out << "Fetch : " << fetchKindName(slot.fetchKind) << "\n";
@@ -6929,6 +6943,24 @@ std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
         << " steal=" << bit(slot.spriteSteal)
         << " aecSteal=" << bit(slot.spriteAECSteal)
         << "\n";
+
+    if (slot.spriteIndex >= 0 && slot.spriteIndex < 8)
+    {
+        const auto& s = spriteUnits[slot.spriteIndex];
+
+        out << "Sprite DMA detail:"
+            << " active=" << bit(s.dmaActive)
+            << " mc=" << int(s.mc)
+            << " mcBase=" << int(s.mcBase)
+            << " row=" << s.currentRow
+            << " rowLatched=" << bit(s.rowDataLatched)
+            << " ptr=$" << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0') << int(s.pointerByte)
+            << " dataBase=$"
+            << std::setw(4) << int(s.dataBase)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
 
     out << "Refresh: " << bit(slot.refresh) << "\n";
     out << "Raster IRQ sample: " << bit(slot.rasterIrqSample) << "\n";
