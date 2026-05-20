@@ -192,9 +192,6 @@ class MLMonitorBackend
         inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
         inline std::string vicDumpRegs(const std::string& group) { return vic ? vic->dumpRegisters(group) : " VIC not attached\n"; }
         inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
-        inline std::string vicDumpCurrentCycleDebug() const { return vic ? vic->dumpCurrentCycleDebug() : "VIC not available"; }
-        inline std::string vicDumpCycleDebugFor(int raster, int cycle) const { return vic ?
-                                                vic->dumpCycleDebugFor(raster, cycle) : "VIC not available"; }
         inline std::string vicDumpRasterFetchMap(int raster) const { return vic ? vic->dumpRasterFetchMap(raster) : "VIC not available"; }
         inline std::string vicDumpAllRasterEvents() const { return vic ? vic->dumpAllRasterEvents() : "VIC not available"; }
         inline std::string vicDumpRasterEventsSummary() const { return vic ? vic->dumpRasterEventSummary() : "VIC not available"; }
@@ -214,6 +211,8 @@ class MLMonitorBackend
         inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vic ? vic->dumpBorderWindowAroundRaster(centerRaster)
                                                                                : "VIC not available"; }
         inline std::string vicDumpSpriteDMAState() const { return vic ? vic->dumpSpriteDmaState() : "VIC not available"; }
+        std::string vicDumpCurrentCycleDebug() const;
+        std::string vicDumpCycleDebugFor(int raster, int cycle) const;
         void vicFFRaster(uint8_t targetRaster);
 
     protected:

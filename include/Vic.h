@@ -142,6 +142,53 @@ class Vic
             int matrixFetchIndex = -1;
         };
 
+        struct VicCycleDebugSnapshot
+        {
+            bool valid = false;
+            std::string error;
+
+            int requestedRaster = 0;
+            int requestedCycle = 0;
+
+            int currentRaster = 0;
+            int currentCycle = 0;
+            bool liveSample = false;
+
+            VicCycleSlot slot {};
+
+            bool badLine = false;
+            bool denAtRaster = false;
+            bool denSeenOn30 = false;
+
+            uint16_t liveVcBase = 0;
+            uint8_t liveVmliFetchIndex = 0;
+            uint8_t liveRc = 0;
+            int liveDisplayRow = 0;
+
+            uint8_t fineY = 0;
+            uint8_t fineX = 0;
+
+            struct SpriteDebug
+            {
+                bool valid = false;
+                bool active = false;
+                bool rowLatched = false;
+
+                uint8_t mc = 0;
+                uint8_t mcBase = 0;
+                int row = 0;
+                int currentRow = 0;
+
+                uint8_t pointerByte = 0;
+                uint16_t dataBase = 0;
+            };
+
+            SpriteDebug sprite {};
+
+            std::array<bool, 8> spriteDmaActive {};
+            std::array<bool, 8> spriteRowLatched {};
+        };
+
         VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
@@ -149,6 +196,7 @@ class Vic
         std::string decodeModeName() const;
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
+        VicCycleDebugSnapshot getCycleDebugSnapshot(int raster, int cycle) const;
         inline void setLog(bool enable) { setLogging = enable; }
         uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }

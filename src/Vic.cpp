@@ -6644,6 +6644,74 @@ std::string Vic::dumpRegisters(const std::string& group) const
     return out.str();
 }
 
+Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) const
+{
+    VicCycleDebugSnapshot s {};
+
+    s.requestedRaster = raster;
+    s.requestedCycle = cycle;
+
+    s.currentRaster = static_cast<int>(registers.raster);
+    s.currentCycle = currentCycle;
+    s.liveSample = (raster == s.currentRaster && cycle == s.currentCycle);
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        s.valid = false;
+        s.error = "Invalid raster: " + std::to_string(raster) + "\n";
+        return s;
+    }
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+    {
+        s.valid = false;
+        s.error = "Invalid cycle: " + std::to_string(cycle) + "\n";
+        return s;
+    }
+
+    s.valid = true;
+    s.slot = cycleSlotFor(raster, cycle);
+
+    s.badLine =
+        (raster == registers.raster)
+            ? vicState.badLineSampled
+            : isBadLine(raster);
+
+    s.denAtRaster = (d011_per_raster[raster] & 0x10) != 0;
+    s.denSeenOn30 = denSeenOn30;
+
+    s.liveVcBase = vicState.vcBase;
+    s.liveVmliFetchIndex = vicState.vmliFetchIndex;
+    s.liveRc = vicState.rc;
+    s.liveDisplayRow = currentCharacterRow();
+
+    s.fineY = fineYScroll(raster);
+    s.fineX = fineXScroll(raster);
+
+    if (s.slot.spriteIndex >= 0 && s.slot.spriteIndex < 8)
+    {
+        const auto& sp = spriteUnits[s.slot.spriteIndex];
+
+        s.sprite.valid = true;
+        s.sprite.active = sp.dmaActive;
+        s.sprite.rowLatched = sp.rowDataLatched;
+        s.sprite.mc = sp.mc;
+        s.sprite.mcBase = sp.mcBase;
+        s.sprite.row = spriteRowFromMCBase(s.slot.spriteIndex);
+        s.sprite.currentRow = sp.currentRow;
+        s.sprite.pointerByte = sp.pointerByte;
+        s.sprite.dataBase = sp.dataBase;
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        s.spriteDmaActive[i] = spriteUnits[i].dmaActive;
+        s.spriteRowLatched[i] = spriteUnits[i].rowDataLatched;
+    }
+
+    return s;
+}
+
 void Vic::rebuildBorderRasterLatches()
 {
     if ((int)borderVertical_per_raster.size() != cfg_->maxRasterLines)

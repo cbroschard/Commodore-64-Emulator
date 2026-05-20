@@ -26,6 +26,67 @@ static const char* cpuBusCycleTypeName(CPU::CpuBusCycleType type)
     }
 }
 
+static int bit(bool v)
+{
+    return v ? 1 : 0;
+}
+
+static const char* vicFetchKindName(Vic::FetchKind kind)
+{
+    switch (kind)
+    {
+        case Vic::FetchKind::None:        return "None";
+        case Vic::FetchKind::CharMatrix:  return "CharMatrix";
+
+        case Vic::FetchKind::SpritePtr0:  return "SpritePtr0";
+        case Vic::FetchKind::SpritePtr1:  return "SpritePtr1";
+        case Vic::FetchKind::SpritePtr2:  return "SpritePtr2";
+        case Vic::FetchKind::SpritePtr3:  return "SpritePtr3";
+        case Vic::FetchKind::SpritePtr4:  return "SpritePtr4";
+        case Vic::FetchKind::SpritePtr5:  return "SpritePtr5";
+        case Vic::FetchKind::SpritePtr6:  return "SpritePtr6";
+        case Vic::FetchKind::SpritePtr7:  return "SpritePtr7";
+
+        case Vic::FetchKind::SpriteData0: return "SpriteData0";
+        case Vic::FetchKind::SpriteData1: return "SpriteData1";
+        case Vic::FetchKind::SpriteData2: return "SpriteData2";
+        case Vic::FetchKind::SpriteData3: return "SpriteData3";
+        case Vic::FetchKind::SpriteData4: return "SpriteData4";
+        case Vic::FetchKind::SpriteData5: return "SpriteData5";
+        case Vic::FetchKind::SpriteData6: return "SpriteData6";
+        case Vic::FetchKind::SpriteData7: return "SpriteData7";
+    }
+
+    return "Unknown";
+}
+
+static const char* vicBusOwnerName(Vic::BusOwner owner)
+{
+    switch (owner)
+    {
+        case Vic::BusOwner::CPU:           return "CPU";
+        case Vic::BusOwner::BadLine:       return "BADLINE";
+        case Vic::BusOwner::SpritePointer: return "SPRITE POINTER";
+        case Vic::BusOwner::SpriteData:    return "SPRITE DATA";
+        case Vic::BusOwner::Refresh:       return "REFRESH";
+        case Vic::BusOwner::Idle:          return "IDLE";
+    }
+
+    return "UNKNOWN";
+}
+
+static bool vicFetchKindIsSpritePointer(Vic::FetchKind kind)
+{
+    return kind >= Vic::FetchKind::SpritePtr0 &&
+           kind <= Vic::FetchKind::SpritePtr7;
+}
+
+static bool vicFetchKindIsSpriteData(Vic::FetchKind kind)
+{
+    return kind >= Vic::FetchKind::SpriteData0 &&
+           kind <= Vic::FetchKind::SpriteData7;
+}
+
 MLMonitorBackend::MLMonitorBackend() :
     cart(nullptr),
     cass(nullptr),
@@ -52,6 +113,168 @@ bool MLMonitorBackend::getCartridgeAttached()
 {
     if (comp) return comp->getCartridgeAttached();
     else return false;
+}
+
+std::string MLMonitorBackend::vicDumpCurrentCycleDebug() const
+{
+    if (!vic)
+        return "VIC not available\n";
+
+    return vicDumpCycleDebugFor(
+        static_cast<int>(vic->getCurrentRaster()),
+        vic->getCurrentCycleForDebug()
+    );
+}
+
+std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
+{
+    if (!vic)
+        return "VIC not available\n";
+
+    const auto s = vic->getCycleDebugSnapshot(raster, cycle);
+
+    if (!s.valid)
+        return s.error;
+
+    const auto& slot = s.slot;
+
+    const bool spriteSlotActive =
+        slot.spriteIndex >= 0 &&
+        slot.spriteIndex < 8 &&
+        s.sprite.valid &&
+        s.sprite.active;
+
+    const bool ptrMismatch =
+        spriteSlotActive &&
+        vicFetchKindIsSpritePointer(slot.fetchKind) &&
+        slot.busOwner != Vic::BusOwner::SpritePointer;
+
+    const bool dataMismatch =
+        spriteSlotActive &&
+        vicFetchKindIsSpriteData(slot.fetchKind) &&
+        slot.busOwner != Vic::BusOwner::SpriteData;
+
+    std::ostringstream out;
+
+    out << "VIC Cycle Debug\n\n";
+    out << "Current raster: " << s.currentRaster << "\n";
+    out << "Current cycle : " << s.currentCycle << "\n";
+    out << "Live sample   : " << (s.liveSample ? "Yes" : "No") << "\n";
+
+    if (!s.liveSample)
+    {
+        out << "NOTE: Fetch/owner/BA/AEC are calculated for the requested raster/cycle, "
+            << "but VC/RC/VMLI/sprite DMA fields are current live state.\n";
+    }
+
+    out << "Raster: " << s.requestedRaster << "\n";
+    out << "Cycle : " << s.requestedCycle << "\n";
+    out << "Fetch : " << vicFetchKindName(slot.fetchKind) << "\n";
+    out << "Owner : " << vicBusOwnerName(slot.busOwner) << "\n";
+    out << "Badline active: " << (s.badLine ? "Yes" : "No") << "\n";
+
+    out << "Live VCBASE: " << s.liveVcBase << "\n";
+    out << "Live VMLI  : " << int(s.liveVmliFetchIndex) << "\n";
+    out << "Live RC    : " << int(s.liveRc) << "\n";
+
+    out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
+    out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
+
+    out << "Badline:"
+        << " warning=" << bit(slot.badlineWarning)
+        << " steal=" << bit(slot.badlineSteal)
+        << " hold=" << bit(slot.badlineBAHold)
+        << "\n";
+
+    out << "Sprite:"
+        << " index=" << slot.spriteIndex
+        << " byte=" << slot.spriteByteIndex
+        << " warning=" << bit(slot.spriteWarning)
+        << " steal=" << bit(slot.spriteSteal)
+        << " aecSteal=" << bit(slot.spriteAECSteal)
+        << "\n";
+
+    if (s.sprite.valid)
+    {
+        out << "Sprite DMA detail:"
+            << " active=" << bit(s.sprite.active)
+            << " mc=" << int(s.sprite.mc)
+            << " mcBase=" << int(s.sprite.mcBase)
+            << " row=" << s.sprite.currentRow
+            << " rowLatched=" << bit(s.sprite.rowLatched)
+            << " ptr=$" << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0') << int(s.sprite.pointerByte)
+            << " dataBase=$"
+            << std::setw(4) << int(s.sprite.dataBase)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+
+    out << "Refresh: " << bit(slot.refresh) << "\n";
+    out << "Raster IRQ sample: " << bit(slot.rasterIrqSample) << "\n";
+    out << "Matrix fetch index: " << slot.matrixFetchIndex << "\n";
+
+    out << "DEN seen on $30: " << (s.denSeenOn30 ? "Yes" : "No") << "\n";
+    out << "DEN@raster: " << (s.denAtRaster ? "On" : "Off") << "\n";
+
+    out << "Live DisplayRow: " << s.liveDisplayRow << "\n";
+    out << "FineY: " << int(s.fineY) << "\n";
+    out << "FineX: " << int(s.fineX) << "\n";
+
+    out << "BA src: "
+        << (slot.badlineWarning ? "badline-warning " : "")
+        << (slot.badlineSteal   ? "badline-steal "   : "")
+        << (slot.badlineBAHold  ? "badline-hold "    : "")
+        << (slot.spriteWarning  ? "sprite-warning "  : "")
+        << (slot.spriteSteal    ? "sprite-steal "    : "")
+        << ((!slot.badlineWarning &&
+             !slot.badlineSteal &&
+             !slot.badlineBAHold &&
+             !slot.spriteWarning &&
+             !slot.spriteSteal) ? "none" : "")
+        << "\n";
+
+    out << "AEC src: "
+        << (slot.badlineSteal   ? "badline-steal " : "")
+        << (slot.spriteAECSteal ? "sprite-steal "  : "")
+        << ((!slot.badlineSteal && !slot.spriteAECSteal) ? "none" : "")
+        << "\n";
+
+    if (ptrMismatch)
+        out << "WARNING: sprite pointer fetch does not have SpritePointer bus owner\n";
+
+    if (dataMismatch)
+        out << "WARNING: sprite data fetch does not have SpriteData bus owner\n";
+
+    out << "\nSprite DMA active:";
+    bool any = false;
+    for (int i = 0; i < 8; ++i)
+    {
+        if (s.spriteDmaActive[i])
+        {
+            out << " " << i;
+            any = true;
+        }
+    }
+    if (!any)
+        out << " none";
+
+    out << "\nSprite row latched:";
+    any = false;
+    for (int i = 0; i < 8; ++i)
+    {
+        if (s.spriteRowLatched[i])
+        {
+            out << " " << i;
+            any = true;
+        }
+    }
+    if (!any)
+        out << " none";
+
+    out << "\n";
+
+    return out.str();
 }
 
 void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
