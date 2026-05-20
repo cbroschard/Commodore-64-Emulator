@@ -6302,348 +6302,6 @@ std::string Vic::getVICBanks() const
     return out.str();
 }
 
-std::string Vic::dumpRegisters(const std::string& group) const
-{
-
-    // Color lookup for colors section
-    static const char* C64ColorNames[16] =
-    {
-        "Black","White","Red","Cyan","Purple","Green","Blue","Yellow",
-        "Orange","Brown","Light Red","Dark Grey","Grey","Light Green","Light Blue","Light Grey"
-    };
-
-    uint16_t currentRaster = registers.raster;
-
-    std::stringstream out;
-    out << std::hex << std::uppercase << std::setfill('0');
-
-    // Dump the regs
-
-    // Raster and Control
-    if (group == "all" || group == "raster")
-    {
-        out << "Raster and Control Registers:\n\n";
-
-        uint8_t rasterHi = (registers.raster >> 8) & 0x01;
-        out << "D011 = $" << std::setw(2) << std::hex << ( (registers.control & 0x7F) | (rasterHi << 7) )
-            << "   (CTRL1: YSCROLL = " << (registers.control & 0x07)
-            << ", 25row = " << ((registers.control & 0x08) ? "Yes" : "No")
-            << ", Screen = " << ((registers.control & 0x10) ? "On" : "Off")
-            << ", Bitmap = " << ((registers.control & 0x20) ? "Yes" : "No")
-            << ", ECM = " << ((registers.control & 0x40) ? "Yes" : "No")
-            << ", RasterHi = " << int(rasterHi) << ")\n";
-
-        out << "D012 = $" << std::setw(2) << std::hex << (registers.raster & 0xFF) << "   (RASTER = " << std::dec << currentRaster << ")\n";
-
-        out << "D016 = $" << std::setw(2) << std::hex << static_cast<int>(registers.control2) << "   (CTRL2: XSCROLL = " << (registers.control2 & 0x07)
-            << ", 40COL = " << ((registers.control2 & 0x08) ? "Yes" : "No") << ", Multicolor = " << ((registers.control2 & 0x10) ? "Yes" : "No")
-            << ",  HIRES = " << ((registers.control2 & 0x10) ? "No" : "Yes") << ")\n";
-
-        out << "D018 = $" << std::setw(2) << static_cast<int>(registers.memory_pointer) << "   (MEM_PTR:   Screen = $" << std::setw(4)
-            << screenBaseCache << ", CHAR = $" << std::setw(4) << charBaseCache << ", Bitmap = $"
-            << std::setw(4) << bitmapBaseCache << ")\n";
-    }
-
-    // Interrupts
-    if (group == "all" || group == "irq")
-    {
-        const uint8_t d019Status = d019Read();
-        const uint8_t pending   = registers.interruptStatus & 0x0F;
-        const uint8_t enabled   = registers.interruptEnable & 0x0F;
-        const bool irqLine      = (pending & enabled) != 0;
-
-        out << "\nInterrupt Registers:\n\n";
-
-        out << "D019 = $" << std::setw(2) << int(d019Status)
-            << "   (Pending: Raster=" << ((pending & 0x01) ? "Y" : "N")
-            << ", SprSpr=" << ((pending & 0x02) ? "Y" : "N")
-            << ", SprBg="  << ((pending & 0x04) ? "Y" : "N")
-            << ", LightPen=" << ((pending & 0x08) ? "Y" : "N")
-            << ", IRQ line=" << (irqLine ? "Low" : "High") << ")\n";
-
-        out << "D01A = $" << std::setw(2) << int(registers.interruptEnable)
-            << "   (Enable: Raster=" << ((enabled & 0x01) ? "Y" : "N")
-            << ", SprSpr=" << ((enabled & 0x02) ? "Y" : "N")
-            << ", SprBg="  << ((enabled & 0x04) ? "Y" : "N")
-            << ", LightPen=" << ((enabled & 0x08) ? "Y" : "N") << ")\n";
-
-        const uint16_t visibleRaster = visibleRasterForRead();
-        const uint16_t compareRaster = visibleRasterForIRQCompare();
-        const uint16_t irqTarget = registers.rasterInterruptLine;
-        const bool irqTargetValid = rasterIRQTargetInRange();
-
-        out << "\nRaster IRQ Timing:\n";
-
-        out << "Raster now      = " << std::dec << registers.raster
-            << "   Cycle=" << currentCycle
-            << "   Dot=" << getRasterDot() << "\n";
-
-        out << "Visible raster  = " << visibleRaster
-            << "   D012 read=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << int(visibleRaster & 0xFF)
-            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-
-        out << "Compare raster  = " << compareRaster
-            << "   targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
-            << "\n";
-
-        out << "IRQ target      = ";
-
-        if (irqTargetValid)
-        {
-            out << std::dec << irqTarget
-                << "   D011 IRQ bit8=" << ((irqTarget & 0x0100) ? 1 : 0)
-                << "   D012 IRQ low=$"
-                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                << int(irqTarget & 0xFF)
-                << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-        }
-        else
-        {
-            out << "disabled/unset"
-                << "   raw=" << irqTarget << "\n";
-        }
-
-        out << "Compare cycle   = " << rasterIRQCompareCycle()
-            << "   Sampled this line="
-            << (rasterIrqSampledThisLine ? "Yes" : "No") << "\n";
-
-        out << "Compare match   = "
-            << (rasterCompareMatchesNow() ? "Yes" : "No")
-            << "   targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
-            << "\n";
-
-        const bool compareWillSampleNext =
-            !rasterIrqSampledThisLine &&
-            currentCycle < RASTER_IRQ_COMPARE_CYCLE &&
-            rasterCompareMatchesNow();
-
-        out << "Compare status  = ";
-
-        if (rasterIrqSampledThisLine)
-        {
-            out << "already sampled this line\n";
-        }
-        else if (currentCycle < rasterIRQCompareCycle())
-        {
-            out << (compareWillSampleNext ? "will match at compare cycle" : "waiting for compare cycle")
-                << "\n";
-        }
-        else if (currentCycle == rasterIRQCompareCycle())
-        {
-            out << (rasterCompareMatchesNow() ? "sampling match now" : "sampling no-match now")
-                << "\n";
-        }
-        else
-        {
-            out << "compare point already passed\n";
-        }
-
-        out << "Raw IFR         = $"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << int(registers.interruptStatus)
-            << "   Raw IER=$"
-            << std::setw(2)
-            << int(registers.interruptEnable)
-            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-
-        out << "Last Raster IRQ Sample:\n";
-
-        if (lastRasterIRQSample.valid)
-        {
-            out << "  reason=" << lastRasterIRQSample.reason
-                << " raster=" << lastRasterIRQSample.raster
-                << " cycle=" << lastRasterIRQSample.cycle
-                << " visibleRaster=" << lastRasterIRQSample.visibleRaster
-                << " target=" << lastRasterIRQSample.targetRaster
-                << " targetInRange=" << (lastRasterIRQSample.targetInRange ? 1 : 0)
-                << " matched=" << (lastRasterIRQSample.matched ? 1 : 0)
-                << " sampledBefore=" << (lastRasterIRQSample.sampledBefore ? 1 : 0)
-                << "\n";
-        }
-        else
-        {
-            out << "  none\n";
-        }
-    }
-
-    // Sprite control
-    if (group == "all" || group == "sprites")
-    {
-        out << "\nSprite Control Registers:\n\n";
-
-        out << "D015 = $" << std::setw(2) << static_cast<int>(registers.spriteEnabled) << " (Enable Mask: " << std::bitset<8> (registers.spriteEnabled)
-            << ")\n";
-
-        out << "D017 = $" << std::setw(2) << static_cast<int>(registers.spriteYExpansion) << " (Y-Expand: " << std::bitset<8>(registers.spriteYExpansion)
-            << ")\n";
-
-        out << "D01B = $" << std::setw(2) << static_cast<int>(registers.spritePriority) << " (Sprite Priority: " << std::bitset<8>(registers.spritePriority)
-            << ")\n";
-
-        out << "D01C = $" << std::setw(2) << static_cast<int>(registers.spriteMultiColor) << " (Sprite Multicolor: "
-            << std::bitset<8>(registers.spriteMultiColor) << ")\n";
-
-        out << "D01D = $" << std::setw(2) << static_cast<int>(registers.spriteXExpansion) << " (Sprite X Expansion: "
-            << std::bitset<8>(registers.spriteXExpansion) << ")\n";
-    }
-
-    // Sprite collision
-    if (group == "all" || group == "collisions")
-    {
-        out << "\nSprite Collision Registers\n\n";
-
-        out << "D01E $" << std::setw(2) << static_cast<int>(registers.spriteCollision) << " (Sprite to Sprite Collision: "
-            << std::bitset<8>(registers.spriteCollision) << ")\n";
-
-        out << "D01F $" << std::setw(2) << static_cast<int>(registers.spriteDataCollision) << " (Sprite to Background Collision " <<
-            std::bitset<8>(registers.spriteDataCollision) << ")\n";
-    }
-
-    // Latched registers
-    if (group == "all" || group == "latch")
-    {
-        const int raster = static_cast<int>(registers.raster);
-        const int nextRaster = (raster + 1) % static_cast<int>(cfg_->maxRasterLines);
-
-        const uint8_t liveD011 = registers.control & 0x7F;
-        const uint8_t liveD016 = registers.control2 & 0x1F;
-        const uint8_t liveD018 = registers.memory_pointer & 0xFE;
-
-        const uint8_t curD011 = latchedD011ForRaster(raster);
-        const uint8_t curD016 = latchedD016ForRaster(raster);
-        const uint8_t curD018 = latchedD018ForRaster(raster);
-
-        const uint8_t nextD011 = latchedD011ForRaster(nextRaster);
-        const uint8_t nextD016 = latchedD016ForRaster(nextRaster);
-        const uint8_t nextD018 = latchedD018ForRaster(nextRaster);
-
-        auto yn = [](bool v) { return v ? "Y" : "N"; };
-
-        out << "\nVIC Register Latches:\n\n";
-
-        out << "Raster=" << std::dec << raster
-            << "   Cycle=" << currentCycle
-            << "   NextRaster=" << nextRaster << "\n\n";
-
-        out << "Live:      "
-            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(liveD011)
-            << " D016=$" << std::setw(2) << int(liveD016)
-            << " D018=$" << std::setw(2) << int(liveD018)
-            << std::dec << std::nouppercase << std::setfill(' ') << "\n";
-
-        out << "Latched:   "
-            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(curD011)
-            << " D016=$" << std::setw(2) << int(curD016)
-            << " D018=$" << std::setw(2) << int(curD018)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "   for raster " << raster << "\n";
-
-        out << "NextLatch: "
-            << "D011=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(nextD011)
-            << " D016=$" << std::setw(2) << int(nextD016)
-            << " D018=$" << std::setw(2) << int(nextD018)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "   for raster " << nextRaster << "\n\n";
-
-        out << "Live flags:      "
-            << "DEN=" << yn((liveD011 & 0x10) != 0)
-            << " RSEL=" << yn((liveD011 & 0x08) != 0)
-            << " CSEL=" << yn((liveD016 & 0x08) != 0)
-            << " YSCROLL=" << int(liveD011 & 0x07)
-            << " XSCROLL=" << int(liveD016 & 0x07)
-            << "\n";
-
-        out << "Latched flags:   "
-            << "DEN=" << yn((curD011 & 0x10) != 0)
-            << " RSEL=" << yn((curD011 & 0x08) != 0)
-            << " CSEL=" << yn((curD016 & 0x08) != 0)
-            << " YSCROLL=" << int(curD011 & 0x07)
-            << " XSCROLL=" << int(curD016 & 0x07)
-            << "\n";
-
-        out << "Next flags:      "
-            << "DEN=" << yn((nextD011 & 0x10) != 0)
-            << " RSEL=" << yn((nextD011 & 0x08) != 0)
-            << " CSEL=" << yn((nextD016 & 0x08) != 0)
-            << " YSCROLL=" << int(nextD011 & 0x07)
-            << " XSCROLL=" << int(nextD016 & 0x07)
-            << "\n\n";
-
-        out << "Live border:     "
-            << "vertical=" << (vicState.verticalBorder ? "on" : "off")
-            << " left=" << (vicState.leftBorder ? "on" : "off")
-            << " right=" << (vicState.rightBorder ? "on" : "off")
-            << " openX=" << vicState.leftBorderOpenX
-            << " closeX=" << vicState.rightBorderCloseX
-            << "\n";
-
-        out << "Latched border:  "
-            << "vertical=" << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
-            << " openX=" << borderLeftOpenX_per_raster[raster]
-            << " closeX=" << borderRightCloseX_per_raster[raster]
-            << "\n";
-
-        out << "Next border:     "
-            << "vertical=" << ((borderVertical_per_raster[nextRaster] != 0) ? "on" : "off")
-            << " openX=" << borderLeftOpenX_per_raster[nextRaster]
-            << " closeX=" << borderRightCloseX_per_raster[nextRaster]
-            << "\n";
-    }
-
-    // Color registers
-    if (group == "all" || group == "colors")
-    {
-        out << "\nColor Registers:\n\n";
-
-        auto printColor = [&](const char* label, uint8_t value)
-        {
-            int idx = value & 0x0F; // only low 4 bits used
-            out << label << " = $" << std::setw(2) << static_cast<int>(value)
-                << "   (" << C64ColorNames[idx] << ")\n";
-        };
-
-        printColor("D020 (Border Color)", registers.borderColor);
-        printColor("D021 (Background 0)", registers.backgroundColor0);
-        printColor("D022 (Background 1)", registers.backgroundColor[0]);
-        printColor("D023 (Background 2)", registers.backgroundColor[1]);
-        printColor("D024 (Background 3)", registers.backgroundColor[2]);
-        printColor("D025 (Sprite Multicolor 0)", registers.spriteMultiColor1);
-        printColor("D026 (Sprite Multicolor 1)", registers.spriteMultiColor2);
-
-        // Per-sprite colors
-        for (int i = 0; i < 8; i++)
-        {
-            std::ostringstream label;
-            label << "D0" << std::hex << std::uppercase << (27+i)
-                  << " (Sprite " << i << " Color)";
-            printColor(label.str().c_str(), registers.spriteColors[i]);
-        }
-    }
-
-    // Sprite position
-    if (group == "all" || group == "pos")
-    {
-        out << "\nSprite Position Registers:\n\n";
-
-        for (int i = 0; i < 8; i++)
-        {
-            // X coordinate is 9 bits: low 8 from spriteX[i], high bit from spriteX_MSB
-            int x = registers.spriteX[i] | ((registers.spriteX_MSB >> i) & 0x01) << 8;
-            int y = registers.spriteY[i];
-
-            out << "Sprite " << i
-                << " -> X=$" << std::setw(3) << x
-                << " (" << std::dec << x << "), "
-                << "Y=$" << std::setw(3) << y
-                << " (" << std::dec << y << ")\n";
-        }
-    }
-
-    return out.str();
-}
-
 Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) const
 {
     VicCycleDebugSnapshot s {};
@@ -6780,6 +6438,82 @@ Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
     snap.spriteBackgroundCollision.bits = lastSpriteBackgroundCollision.bits;
 
     return snap;
+}
+
+Vic::VicRegisterDebugSnapshot Vic::getRegisterDebugSnapshot() const
+{
+    VicRegisterDebugSnapshot s {};
+
+    s.currentRaster = registers.raster;
+    s.currentCycle = currentCycle;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        s.spriteX[i] = registers.spriteX[i];
+        s.spriteY[i] = registers.spriteY[i];
+        s.spriteColors[i] = registers.spriteColors[i] & 0x0F;
+    }
+
+    s.spriteXMsb = registers.spriteX_MSB;
+
+    s.spriteEnabled = registers.spriteEnabled;
+    s.spriteYExpansion = registers.spriteYExpansion;
+    s.spritePriority = registers.spritePriority;
+    s.spriteMultiColor = registers.spriteMultiColor;
+    s.spriteXExpansion = registers.spriteXExpansion;
+
+    s.control = registers.control & 0x7F;
+    s.control2 = registers.control2;
+    s.memoryPointer = registers.memory_pointer & 0xFE;
+    s.rasterInterruptLine = registers.rasterInterruptLine & 0x01FF;
+
+    s.interruptStatus = registers.interruptStatus;
+    s.interruptEnable = registers.interruptEnable;
+    s.irqLineActive = irqLineActive();
+    s.rasterIrqSampledThisLine = rasterIrqSampledThisLine;
+    s.rasterIrqCompareCycle = rasterIRQCompareCycle();
+    s.rasterCompareMatchesNow = rasterCompareMatchesNow();
+    s.rasterIrqTargetInRange = rasterIRQTargetInRange();
+
+    s.spriteCollision = registers.spriteCollision;
+    s.spriteDataCollision = registers.spriteDataCollision;
+
+    s.borderColor = registers.borderColor & 0x0F;
+    s.backgroundColor0 = registers.backgroundColor0 & 0x0F;
+
+    for (int i = 0; i < 3; ++i)
+        s.backgroundColor[i] = registers.backgroundColor[i] & 0x0F;
+
+    s.spriteMultiColor1 = registers.spriteMultiColor1 & 0x0F;
+    s.spriteMultiColor2 = registers.spriteMultiColor2 & 0x0F;
+
+    s.lightPenX = registers.light_pen_X;
+    s.lightPenY = registers.light_pen_Y;
+    s.undefinedReg = registers.undefined;
+
+    const int r = std::clamp<int>(registers.raster, 0, static_cast<int>(cfg_->maxRasterLines) - 1);
+
+    s.latchedD011 = d011_per_raster[r];
+    s.latchedD016 = d016_per_raster[r];
+    s.latchedD018 = d018_per_raster[r];
+    s.latchedDD00 = dd00_per_raster[r];
+
+    s.charBase = charBaseCache;
+    s.screenBase = screenBaseCache;
+    s.bitmapBase = bitmapBaseCache;
+    s.vicBankBase = cia2 ? cia2->getCurrentVICBank() : s.latchedDD00;
+
+    s.lastRasterIrqSample.valid = lastRasterIRQSample.valid;
+    s.lastRasterIrqSample.raster = lastRasterIRQSample.raster;
+    s.lastRasterIrqSample.cycle = lastRasterIRQSample.cycle;
+    s.lastRasterIrqSample.visibleRaster = lastRasterIRQSample.visibleRaster;
+    s.lastRasterIrqSample.targetRaster = lastRasterIRQSample.targetRaster;
+    s.lastRasterIrqSample.targetInRange = lastRasterIRQSample.targetInRange;
+    s.lastRasterIrqSample.matched = lastRasterIRQSample.matched;
+    s.lastRasterIrqSample.sampledBefore = lastRasterIRQSample.sampledBefore;
+    s.lastRasterIrqSample.reason = lastRasterIRQSample.reason;
+
+    return s;
 }
 
 void Vic::rebuildBorderRasterLatches()
@@ -7001,187 +6735,6 @@ const char* Vic::fetchKindName(FetchKind kind) const
     }
 
     return "Unknown";
-}
-
-std::string Vic::dumpCycleDebugFor(int raster, int cycle) const
-{
-    std::ostringstream out;
-
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-    {
-        out << "Invalid raster: " << raster << "\n";
-        return out.str();
-    }
-
-    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
-    {
-        out << "Invalid cycle: " << cycle << "\n";
-        return out.str();
-    }
-
-    const VicCycleSlot slot = cycleSlotFor(raster, cycle);
-
-    const bool badLine =
-        (raster == registers.raster)
-            ? vicState.badLineSampled
-            : isBadLine(raster);
-
-    const bool spriteSlotActive =
-        slot.spriteIndex >= 0 &&
-        spriteUnits[slot.spriteIndex].dmaActive;
-
-    const bool ptrMismatch =
-        spriteSlotActive &&
-        fetchKindIsSpritePointer(slot.fetchKind) &&
-        slot.busOwner != BusOwner::SpritePointer;
-
-    const bool dataMismatch =
-        spriteSlotActive &&
-        fetchKindIsSpriteData(slot.fetchKind) &&
-        slot.busOwner != BusOwner::SpriteData;
-
-    const bool liveSample =
-    raster == registers.raster &&
-    cycle == currentCycle;
-
-    out << "VIC Cycle Debug\n\n";
-    out << "Current raster: " << registers.raster << "\n";
-    out << "Current cycle : " << currentCycle << "\n";
-    out << "Live sample   : " << (liveSample ? "Yes" : "No") << "\n";
-
-    if (!liveSample)
-    {
-        out << "NOTE: Fetch/owner/BA/AEC are calculated for the requested raster/cycle, "
-            << "but VC/RC/VMLI/sprite DMA fields are current live state.\n";
-    }
-
-    out << "Raster: " << raster << "\n";
-    out << "Cycle : " << cycle << "\n";
-    out << "Fetch : " << fetchKindName(slot.fetchKind) << "\n";
-    out << "Owner : " << busOwnerName(slot.busOwner) << "\n";
-    out << "Badline active: " << (badLine ? "Yes" : "No") << "\n";
-
-    out << "VCBASE: " << vicState.vcBase << "\n";
-    out << "VMLI  : " << int(vicState.vmliFetchIndex) << "\n";
-    out << "RC    : " << int(vicState.rc) << "\n";
-
-    out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
-    out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
-
-    out << "Badline:"
-        << " warning=" << bit(slot.badlineWarning)
-        << " steal=" << bit(slot.badlineSteal)
-        << " hold=" << bit(slot.badlineBAHold)
-        << "\n";
-
-    out << "Sprite:"
-        << " index=" << slot.spriteIndex
-        << " byte=" << slot.spriteByteIndex
-        << " warning=" << bit(slot.spriteWarning)
-        << " steal=" << bit(slot.spriteSteal)
-        << " aecSteal=" << bit(slot.spriteAECSteal)
-        << "\n";
-
-    if (slot.spriteIndex >= 0 && slot.spriteIndex < 8)
-    {
-        const auto& s = spriteUnits[slot.spriteIndex];
-
-        out << "Sprite DMA detail:"
-            << " active=" << bit(s.dmaActive)
-            << " mc=" << int(s.mc)
-            << " mcBase=" << int(s.mcBase)
-            << " row=" << s.currentRow
-            << " rowLatched=" << bit(s.rowDataLatched)
-            << " ptr=$" << std::hex << std::uppercase
-            << std::setw(2) << std::setfill('0') << int(s.pointerByte)
-            << " dataBase=$"
-            << std::setw(4) << int(s.dataBase)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
-    }
-
-    out << "Refresh: " << bit(slot.refresh) << "\n";
-    out << "Raster IRQ sample: " << bit(slot.rasterIrqSample) << "\n";
-    out << "Matrix fetch index: " << slot.matrixFetchIndex << "\n";
-
-    out << "DEN@raster: "
-        << (((d011_per_raster[raster] & 0x10) != 0) ? "On" : "Off")
-        << "\n";
-
-    out << "DisplayRow: " << currentCharacterRow() << "\n";
-    out << "FineY: " << int(fineYScroll(raster)) << "\n";
-    out << "FineX: " << int(fineXScroll(raster)) << "\n";
-
-    out << "BA src: "
-        << (slot.badlineWarning ? "badline-warning " : "")
-        << (slot.badlineSteal   ? "badline-steal "   : "")
-        << (slot.badlineBAHold  ? "badline-hold "    : "")
-        << (slot.spriteWarning  ? "sprite-warning "  : "")
-        << (slot.spriteSteal    ? "sprite-steal "    : "")
-        << ((!slot.badlineWarning &&
-             !slot.badlineSteal &&
-             !slot.badlineBAHold &&
-             !slot.spriteWarning &&
-             !slot.spriteSteal) ? "none" : "")
-        << "\n";
-
-    out << "AEC src: "
-        << (slot.badlineSteal   ? "badline-steal " : "")
-        << (slot.spriteAECSteal ? "sprite-steal "  : "")
-        << ((!slot.badlineSteal && !slot.spriteAECSteal) ? "none" : "")
-        << "\n";
-
-    if (ptrMismatch)
-        out << "WARNING: sprite pointer fetch does not have SpritePointer bus owner\n";
-
-    if (dataMismatch)
-        out << "WARNING: sprite data fetch does not have SpriteData bus owner\n";
-
-    out << "\nSprite DMA active:";
-    bool any = false;
-    for (int i = 0; i < 8; ++i)
-    {
-        if (spriteUnits[i].dmaActive)
-        {
-            out << " " << i;
-            any = true;
-        }
-    }
-
-    if (!any)
-        out << " none";
-
-    out << "\nSprite row latched:";
-    any = false;
-    for (int i = 0; i < 8; ++i)
-    {
-        if (spriteUnits[i].rowDataLatched)
-        {
-            out << " " << i;
-            any = true;
-        }
-    }
-
-    if (!any)
-        out << " none";
-
-    out << "\n";
-
-    return out.str();
-}
-
-std::string Vic::dumpCurrentCycleDebug() const
-{
-    const int raster = registers.raster;
-    const int cycle  = currentCycle;
-
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return "Invalid current raster\n";
-
-    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
-        return "Invalid current cycle\n";
-
-    return dumpCycleDebugFor(raster, cycle);
 }
 
 std::string Vic::dumpRasterFetchMap(int raster) const
@@ -7973,121 +7526,6 @@ std::string Vic::dumpBorderState() const
         << " openX=" << borderLeftOpenX_per_raster[raster]
         << " closeX=" << borderRightCloseX_per_raster[raster]
         << "\n";
-
-    return oss.str();
-}
-
-std::string Vic::dumpSpriteDmaState() const
-{
-    std::ostringstream oss;
-
-    oss << "Sprite DMA / output state\n";
-    oss << "------------------------------------------------------------\n";
-    oss << "Raster=" << registers.raster
-        << " Cycle=" << currentCycle
-        << " D015=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-        << static_cast<int>(registers.spriteEnabled)
-        << " D017=$" << std::setw(2) << static_cast<int>(registers.spriteYExpansion)
-        << " D01B=$" << std::setw(2) << static_cast<int>(registers.spritePriority)
-        << " D01C=$" << std::setw(2) << static_cast<int>(registers.spriteMultiColor)
-        << " D01D=$" << std::setw(2) << static_cast<int>(registers.spriteXExpansion)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n\n";
-
-    oss << "Spr En  Y    X    DMA RowLat YExp MC MCBase Row CurRow Ptr  DataBase "
-           "ShiftBytes RowPrep XStart Width OutBit Rep Mode@X Exp@X En@X\n";
-
-    for (int s = 0; s < 8; ++s)
-    {
-        const SpriteUnit& u = spriteUnits[s];
-
-        const bool enabled = (registers.spriteEnabled & (1 << s)) != 0;
-        const int sx = spriteScreenXFor(s, static_cast<int>(registers.raster));
-
-        const bool modeAtX =
-            (sx >= 0 && sx < 512) ? spriteMulticolorAtPixel(s, sx) : false;
-
-        const bool expAtX =
-            (sx >= 0 && sx < 512) ? spriteXExpandedAtPixel(s, sx) : false;
-
-        const bool enAtX =
-            (sx >= 0 && sx < 512) ? spriteEnabledAtPixel(s, sx) : false;
-
-        oss << std::setw(3) << s << " "
-            << " " << (enabled ? 1 : 0) << "  "
-            << std::setw(3) << static_cast<int>(registers.spriteY[s]) << "  "
-            << std::setw(4) << sx << "   "
-            << (u.dmaActive ? 1 : 0) << "     "
-            << (u.rowDataLatched ? 1 : 0) << "     "
-            << (u.yExpandLatch ? 1 : 0) << "   "
-            << std::setw(2) << static_cast<int>(u.mc) << "   "
-            << std::setw(2) << static_cast<int>(u.mcBase) << "     "
-            << std::setw(2) << spriteRowFromMCBase(s) << "    "
-            << std::setw(2) << u.currentRow << "   "
-            << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(u.pointerByte)
-            << "  $"
-            << std::setw(4) << static_cast<int>(u.dataBase)
-            << "   $"
-            << std::setw(2) << static_cast<int>(u.shift0)
-            << " $"
-            << std::setw(2) << static_cast<int>(u.shift1)
-            << " $"
-            << std::setw(2) << static_cast<int>(u.shift2)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "      "
-            << (u.rowPrepared ? 1 : 0) << "      "
-            << std::setw(4) << u.outputXStart << "   "
-            << std::setw(3) << u.outputWidth << "    "
-            << std::setw(2) << u.outputBit << "   "
-            << std::setw(2) << u.outputRepeat << "      "
-            << (modeAtX ? 1 : 0) << "     "
-            << (expAtX ? 1 : 0) << "    "
-            << (enAtX ? 1 : 0)
-            << "\n";
-    }
-
-    oss << "\nNotes:\n";
-    oss << "  Row = mcBase / 3. CurRow tracks physical raster line in Y-expanded mode.\n";
-    oss << "  RowLat means rowDataLatched: a 3-byte sprite row is available for output.\n";
-    oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
-    oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
-
-    oss << "\nLast collision timing:\n";
-
-    if (lastSpriteSpriteCollision.valid)
-    {
-        oss << "  sprite-sprite:"
-            << " raster=" << lastSpriteSpriteCollision.raster
-            << " x=" << lastSpriteSpriteCollision.x
-            << " cycle=" << lastSpriteSpriteCollision.cycle
-            << " bits=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(lastSpriteSpriteCollision.bits)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
-    }
-    else
-    {
-        oss << "  sprite-sprite: none\n";
-    }
-
-    if (lastSpriteBackgroundCollision.valid)
-    {
-        oss << "  sprite-background:"
-            << " raster=" << lastSpriteBackgroundCollision.raster
-            << " x=" << lastSpriteBackgroundCollision.x
-            << " cycle=" << lastSpriteBackgroundCollision.cycle
-            << " bits=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(lastSpriteBackgroundCollision.bits)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
-    }
-    else
-    {
-        oss << "  sprite-background: none\n";
-    }
 
     return oss.str();
 }

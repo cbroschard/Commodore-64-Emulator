@@ -190,7 +190,6 @@ class MLMonitorBackend
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
-        inline std::string vicDumpRegs(const std::string& group) { return vic ? vic->dumpRegisters(group) : " VIC not attached\n"; }
         inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
         inline std::string vicDumpRasterFetchMap(int raster) const { return vic ? vic->dumpRasterFetchMap(raster) : "VIC not available"; }
         inline std::string vicDumpAllRasterEvents() const { return vic ? vic->dumpAllRasterEvents() : "VIC not available"; }
@@ -213,6 +212,7 @@ class MLMonitorBackend
         std::string vicDumpSpriteDmaState() const;
         std::string vicDumpCurrentCycleDebug() const;
         std::string vicDumpCycleDebugFor(int raster, int cycle) const;
+        std::string vicDumpRegs(const std::string& group) const;
         void vicFFRaster(uint8_t targetRaster);
 
     protected:

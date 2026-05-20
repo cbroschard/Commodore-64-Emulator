@@ -26,6 +26,19 @@ static const char* cpuBusCycleTypeName(CPU::CpuBusCycleType type)
     }
 }
 
+static const char* c64ColorName(uint8_t c)
+{
+    static const char* names[16] =
+    {
+        "Black", "White", "Red", "Cyan",
+        "Purple", "Green", "Blue", "Yellow",
+        "Orange", "Brown", "Light Red", "Dark Grey",
+        "Grey", "Light Green", "Light Blue", "Light Grey"
+    };
+
+    return names[c & 0x0F];
+}
+
 static int bit(bool v)
 {
     return v ? 1 : 0;
@@ -381,6 +394,224 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         out << " none";
 
     out << "\n";
+
+    return out.str();
+}
+
+std::string MLMonitorBackend::vicDumpRegs(const std::string& group) const
+{
+    if (!vic)
+        return "VIC not attached\n";
+
+    const auto s = vic->getRegisterDebugSnapshot();
+
+    std::ostringstream out;
+
+    const auto showRaster =
+        group == "all" || group == "raster";
+
+    const auto showIrq =
+        group == "all" || group == "irq";
+
+    const auto showSprites =
+        group == "all" || group == "sprites";
+
+    const auto showLatch =
+        group == "all" || group == "latch";
+
+    const auto showCollisions =
+        group == "all" || group == "collisions";
+
+    const auto showColors =
+        group == "all" || group == "colors";
+
+    const auto showPos =
+        group == "all" || group == "pos";
+
+    if (showRaster)
+    {
+        const uint8_t rasterHi = (s.currentRaster >> 8) & 0x01;
+        const uint8_t d011Read = (s.control & 0x7F) | (rasterHi << 7);
+
+        out << "Raster and Control Registers:\n\n";
+
+        out << "D011 = $" << hex2(d011Read)
+            << "   (CTRL1: YSCROLL = " << int(s.control & 0x07)
+            << ", 25row = " << ((s.control & 0x08) ? "Yes" : "No")
+            << ", Screen = " << ((s.control & 0x10) ? "On" : "Off")
+            << ", Bitmap = " << ((s.control & 0x20) ? "Yes" : "No")
+            << ", ECM = " << ((s.control & 0x40) ? "Yes" : "No")
+            << ", RasterHi = " << int(rasterHi) << ")\n";
+
+        out << "D012 = $" << hex2(static_cast<uint8_t>(s.currentRaster & 0xFF))
+            << "   (RASTER = " << std::dec << s.currentRaster << ")\n";
+
+        out << "D016 = $" << hex2(s.control2)
+            << "   (CTRL2: XSCROLL = " << int(s.control2 & 0x07)
+            << ", 40COL = " << ((s.control2 & 0x08) ? "Yes" : "No")
+            << ", Multicolor = " << ((s.control2 & 0x10) ? "Yes" : "No")
+            << ")\n";
+
+        out << "D018 = $" << hex2(s.memoryPointer)
+            << "   (Memory Pointer)\n";
+
+        out << "Raster IRQ target = " << s.rasterInterruptLine
+            << " ($" << hex4(s.rasterInterruptLine) << ")\n\n";
+    }
+
+    if (showIrq)
+    {
+        out << "Interrupt Registers:\n\n";
+
+        out << "D019 = $" << hex2(s.interruptStatus)
+            << "   pending=$" << hex2(s.interruptStatus & 0x0F)
+            << " irqFlag=" << ((s.interruptStatus & 0x80) ? 1 : 0)
+            << "\n";
+
+        out << "D01A = $" << hex2(s.interruptEnable & 0x0F)
+            << "   enabled mask=$" << hex2(s.interruptEnable & 0x0F)
+            << "\n";
+
+        out << "IRQ line active = " << (s.irqLineActive ? "Yes" : "No") << "\n";
+        out << "Compare cycle   = " << s.rasterIrqCompareCycle
+            << "   Sampled this line=" << (s.rasterIrqSampledThisLine ? "Yes" : "No")
+            << "\n";
+
+        out << "Compare match   = " << (s.rasterCompareMatchesNow ? "Yes" : "No")
+            << "   targetInRange=" << (s.rasterIrqTargetInRange ? 1 : 0)
+            << "\n";
+
+        out << "Last Raster IRQ Sample:\n";
+        if (s.lastRasterIrqSample.valid)
+        {
+            out << "  reason=" << s.lastRasterIrqSample.reason
+                << " raster=" << s.lastRasterIrqSample.raster
+                << " cycle=" << s.lastRasterIrqSample.cycle
+                << " visibleRaster=" << s.lastRasterIrqSample.visibleRaster
+                << " target=" << s.lastRasterIrqSample.targetRaster
+                << " targetInRange=" << (s.lastRasterIrqSample.targetInRange ? 1 : 0)
+                << " matched=" << (s.lastRasterIrqSample.matched ? 1 : 0)
+                << " sampledBefore=" << (s.lastRasterIrqSample.sampledBefore ? 1 : 0)
+                << "\n";
+        }
+        else
+        {
+            out << "  none\n";
+        }
+
+        out << "\n";
+    }
+
+    if (showSprites)
+    {
+        out << "Sprite Control Registers:\n\n";
+
+        out << "D015 = $" << hex2(s.spriteEnabled)
+            << " (Enable Mask: " << std::bitset<8>(s.spriteEnabled) << ")\n";
+
+        out << "D017 = $" << hex2(s.spriteYExpansion)
+            << " (Y-Expand: " << std::bitset<8>(s.spriteYExpansion) << ")\n";
+
+        out << "D01B = $" << hex2(s.spritePriority)
+            << " (Priority: " << std::bitset<8>(s.spritePriority) << ")\n";
+
+        out << "D01C = $" << hex2(s.spriteMultiColor)
+            << " (Multicolor: " << std::bitset<8>(s.spriteMultiColor) << ")\n";
+
+        out << "D01D = $" << hex2(s.spriteXExpansion)
+            << " (X-Expand: " << std::bitset<8>(s.spriteXExpansion) << ")\n\n";
+    }
+
+    if (showLatch)
+    {
+        out << "Latched VIC Registers:\n\n";
+        out << "Current raster = " << s.currentRaster << "\n";
+        out << "D011 latch = $" << hex2(s.latchedD011) << "\n";
+        out << "D016 latch = $" << hex2(s.latchedD016) << "\n";
+        out << "D018 latch = $" << hex2(s.latchedD018) << "\n";
+        out << "DD00 bank  = $" << hex4(s.latchedDD00) << "\n";
+        out << "VIC bank   = $" << hex4(s.vicBankBase) << "\n";
+        out << "Char base  = $" << hex4(s.charBase) << "\n";
+        out << "Screen base= $" << hex4(s.screenBase) << "\n";
+        out << "Bitmap base= $" << hex4(s.bitmapBase) << "\n\n";
+    }
+
+    if (showCollisions)
+    {
+        out << "Collision Registers:\n\n";
+        out << "D01E = $" << hex2(s.spriteCollision)
+            << " (Sprite/Sprite collision latch)\n";
+        out << "D01F = $" << hex2(s.spriteDataCollision)
+            << " (Sprite/Background collision latch)\n\n";
+    }
+
+    if (showColors)
+    {
+        out << "Color Registers:\n\n";
+
+        out << "D020 = $" << hex2(s.borderColor)
+            << " (" << c64ColorName(s.borderColor) << ") Border\n";
+
+        out << "D021 = $" << hex2(s.backgroundColor0)
+            << " (" << c64ColorName(s.backgroundColor0) << ") Background 0\n";
+
+        for (int i = 0; i < 3; ++i)
+        {
+            out << "D0" << std::uppercase << std::hex << (0x22 + i)
+                << " = $" << hex2(s.backgroundColor[i])
+                << " (" << c64ColorName(s.backgroundColor[i])
+                << ") Background " << std::dec << (i + 1) << "\n";
+        }
+
+        out << "D025 = $" << hex2(s.spriteMultiColor1)
+            << " (" << c64ColorName(s.spriteMultiColor1) << ") Sprite multicolor 1\n";
+
+        out << "D026 = $" << hex2(s.spriteMultiColor2)
+            << " (" << c64ColorName(s.spriteMultiColor2) << ") Sprite multicolor 2\n";
+
+        for (int i = 0; i < 8; ++i)
+        {
+            out << "D0" << std::uppercase << std::hex << (0x27 + i)
+                << " = $" << hex2(s.spriteColors[i])
+                << " (" << c64ColorName(s.spriteColors[i])
+                << ") Sprite " << std::dec << i << "\n";
+        }
+
+        out << "\n";
+    }
+
+    if (showPos)
+    {
+        out << "Sprite Position Registers:\n\n";
+
+        out << "D010 = $" << hex2(s.spriteXMsb)
+            << " (X MSB mask: " << std::bitset<8>(s.spriteXMsb) << ")\n\n";
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const int x = int(s.spriteX[i]) |
+                ((s.spriteXMsb & (1 << i)) ? 0x100 : 0);
+
+            out << "Sprite " << i
+                << ": X=" << std::setw(3) << x
+                << " Y=" << std::setw(3) << int(s.spriteY[i])
+                << "  raw D0" << std::uppercase << std::hex << std::setw(2)
+                << std::setfill('0') << (i * 2)
+                << "=$" << hex2(s.spriteX[i])
+                << " D0" << std::setw(2) << (i * 2 + 1)
+                << "=$" << hex2(s.spriteY[i])
+                << std::dec << std::setfill(' ')
+                << "\n";
+        }
+
+        out << "\n";
+    }
+
+    if (!showRaster && !showIrq && !showSprites && !showLatch &&
+        !showCollisions && !showColors && !showPos)
+    {
+        out << "Unknown VIC register group: " << group << "\n";
+    }
 
     return out.str();
 }

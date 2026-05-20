@@ -250,15 +250,91 @@ class Vic
             Collision spriteBackgroundCollision {};
         };
 
+        struct VicRegisterDebugSnapshot
+        {
+            uint16_t currentRaster = 0;
+            int currentCycle = 0;
+
+            // Sprite registers
+            std::array<uint8_t, 8> spriteX {};
+            std::array<uint8_t, 8> spriteY {};
+            uint8_t spriteXMsb = 0;
+
+            uint8_t spriteEnabled = 0;
+            uint8_t spriteYExpansion = 0;
+            uint8_t spritePriority = 0;
+            uint8_t spriteMultiColor = 0;
+            uint8_t spriteXExpansion = 0;
+
+            // Control / raster / memory
+            uint8_t control = 0;          // D011 low 7 bits internally
+            uint8_t control2 = 0;         // D016
+            uint8_t memoryPointer = 0;    // D018
+            uint16_t rasterInterruptLine = 0;
+
+            // IRQ
+            uint8_t interruptStatus = 0;  // D019 raw/internal
+            uint8_t interruptEnable = 0;  // D01A
+            bool irqLineActive = false;
+            bool rasterIrqSampledThisLine = false;
+            int rasterIrqCompareCycle = 0;
+            bool rasterCompareMatchesNow = false;
+            bool rasterIrqTargetInRange = false;
+
+            // Collision
+            uint8_t spriteCollision = 0;      // D01E
+            uint8_t spriteDataCollision = 0;  // D01F
+
+            // Colors
+            uint8_t borderColor = 0;
+            uint8_t backgroundColor0 = 0;
+            std::array<uint8_t, 3> backgroundColor {};
+            uint8_t spriteMultiColor1 = 0;
+            uint8_t spriteMultiColor2 = 0;
+            std::array<uint8_t, 8> spriteColors {};
+
+            // Light pen / undefined
+            uint8_t lightPenX = 0;
+            uint8_t lightPenY = 0;
+            uint8_t undefinedReg = 0;
+
+            // Current raster latches
+            uint8_t latchedD011 = 0;
+            uint8_t latchedD016 = 0;
+            uint8_t latchedD018 = 0;
+            uint16_t latchedDD00 = 0;
+
+            // Decoded bases
+            uint16_t charBase = 0;
+            uint16_t screenBase = 0;
+            uint16_t bitmapBase = 0;
+            uint16_t vicBankBase = 0;
+
+            struct RasterIrqSample
+            {
+                bool valid = false;
+                int raster = 0;
+                int cycle = 0;
+                uint16_t visibleRaster = 0;
+                uint16_t targetRaster = 0;
+                bool targetInRange = false;
+                bool matched = false;
+                bool sampledBefore = false;
+                std::string reason;
+            };
+
+            RasterIrqSample lastRasterIrqSample {};
+        };
+
         VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
         struct VICIRQSnapshot { uint8_t ier = 0; };
         std::string decodeModeName() const;
         std::string getVICBanks() const;
-        std::string dumpRegisters(const std::string& group) const;
         VicCycleDebugSnapshot getCycleDebugSnapshot(int raster, int cycle) const;
         VicSpriteDebugSnapshot getSpriteDebugSnapshot() const;
+        VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
         inline void setLog(bool enable) { setLogging = enable; }
         uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
@@ -271,8 +347,6 @@ class Vic
         inline uint16_t getRasterDot() const { return currentCycle * 8; } // Used for formatting trace
         inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
         int getCurrentCycleForDebug() const { return currentCycle; }
-        std::string dumpCurrentCycleDebug() const;
-        std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
         std::string dumpAllRasterEvents() const;
         std::string dumpRasterEventSummary() const;
@@ -283,7 +357,6 @@ class Vic
         std::string dumpBackgroundCellDebug(int raster, int col) const;
         std::string dumpBadlineState() const;
         std::string dumpBorderState() const;
-        std::string dumpSpriteDmaState() const;
         std::string dumpBadlineTimelineAroundRaster(int centerRaster) const;
         std::string dumpBorderWindowAroundRaster(int centerRaster) const;
         inline std::string dumpBorderWindowAroundCurrentRaster() const { return dumpBorderWindowAroundRaster(static_cast<int>(registers.raster)); }
