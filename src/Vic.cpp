@@ -2423,12 +2423,19 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
+    if (!vicState.badLineSampled)
+        return false;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
+    return getFetchKindForCycle(raster, cycle) == FetchKind::CharMatrix;
+}
+
+bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
+{
     (void)raster;
 
-    // Actual badline CPU stealing is based on the cycle-14 sampled badline
-    // decision, not a fresh live D011/YSCROLL test. This prevents mid-line
-    // D011 writes from reclassifying the current line after the hardware
-    // decision point.
     if (!vicState.badLineSampled)
         return false;
 
@@ -2591,7 +2598,10 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.spriteSteal    = isSpriteBusStealCycle(raster, cycle);
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
 
-    slot.baLow = slot.badlineWarning || slot.badlineSteal   || slot.spriteWarning  || slot.spriteSteal;
+    const bool badlineBAHold = isBadLineBAHoldCycle(raster, cycle);
+
+    slot.baLow = slot.badlineWarning || badlineBAHold || slot.spriteWarning || slot.spriteSteal;
+
     slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 

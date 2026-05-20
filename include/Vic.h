@@ -153,6 +153,7 @@ class Vic
         void clearPendingIRQs();
         inline uint16_t getRasterDot() const { return currentCycle * 8; } // Used for formatting trace
         inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
+        int getCurrentCycleForDebug() const { return currentCycle; }
         std::string dumpCurrentCycleDebug() const;
         std::string dumpCycleDebugFor(int raster, int cycle) const;
         std::string dumpRasterFetchMap(int raster) const;
@@ -447,6 +448,7 @@ class Vic
         bool isBadLineCandidateForBusWarning(int raster) const;
         bool isBadLineBusWarningCycle(int raster, int cycle) const;
         bool isBadLineBusStealCycle(int raster, int cycle) const;
+        bool isBadLineBAHoldCycle(int raster, int cycle) const;
 
         bool isRefreshCycle(int cycle) const;
 
