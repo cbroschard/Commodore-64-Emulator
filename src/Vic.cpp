@@ -6712,6 +6712,76 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     return s;
 }
 
+Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
+{
+    VicSpriteDebugSnapshot snap {};
+
+    snap.currentRaster = static_cast<int>(registers.raster);
+    snap.currentCycle = currentCycle;
+
+    snap.d015 = registers.spriteEnabled;
+    snap.d017 = registers.spriteYExpansion;
+    snap.d01b = registers.spritePriority;
+    snap.d01c = registers.spriteMultiColor;
+    snap.d01d = registers.spriteXExpansion;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        auto& d = snap.sprites[i];
+        const auto& s = spriteUnits[i];
+
+        d.enabled = (registers.spriteEnabled & (1 << i)) != 0;
+
+        d.y = registers.spriteY[i];
+        d.x = registers.spriteX[i] |
+              ((registers.spriteX_MSB & (1 << i)) ? 0x100 : 0);
+
+        d.dmaActive = s.dmaActive;
+        d.rowDataLatched = s.rowDataLatched;
+        d.yExpandLatch = s.yExpandLatch;
+
+        d.mc = s.mc;
+        d.mcBase = s.mcBase;
+
+        d.row = spriteRowFromMCBase(i);
+        d.currentRow = s.currentRow;
+
+        d.pointerByte = s.pointerByte;
+        d.dataBase = s.dataBase;
+
+        d.shift0 = s.shift0;
+        d.shift1 = s.shift1;
+        d.shift2 = s.shift2;
+
+        d.rowPrepared = s.rowPrepared;
+
+        d.outputXStart = s.outputXStart;
+        d.outputWidth = s.outputWidth;
+        d.outputBit = s.outputBit;
+        d.outputRepeat = s.outputRepeat;
+
+        const int sampleX = std::clamp(s.outputXStart, 0, 511);
+
+        d.multicolorAtX = spriteMulticolorModeLine[i][sampleX] != 0;
+        d.xExpandedAtX = spriteXExpansionLine[i][sampleX] != 0;
+        d.enabledAtX = spriteEnableLine[i][sampleX] != 0;
+    }
+
+    snap.spriteSpriteCollision.valid = lastSpriteSpriteCollision.valid;
+    snap.spriteSpriteCollision.raster = lastSpriteSpriteCollision.raster;
+    snap.spriteSpriteCollision.x = lastSpriteSpriteCollision.x;
+    snap.spriteSpriteCollision.cycle = lastSpriteSpriteCollision.cycle;
+    snap.spriteSpriteCollision.bits = lastSpriteSpriteCollision.bits;
+
+    snap.spriteBackgroundCollision.valid = lastSpriteBackgroundCollision.valid;
+    snap.spriteBackgroundCollision.raster = lastSpriteBackgroundCollision.raster;
+    snap.spriteBackgroundCollision.x = lastSpriteBackgroundCollision.x;
+    snap.spriteBackgroundCollision.cycle = lastSpriteBackgroundCollision.cycle;
+    snap.spriteBackgroundCollision.bits = lastSpriteBackgroundCollision.bits;
+
+    return snap;
+}
+
 void Vic::rebuildBorderRasterLatches()
 {
     if ((int)borderVertical_per_raster.size() != cfg_->maxRasterLines)

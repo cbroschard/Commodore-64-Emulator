@@ -189,6 +189,67 @@ class Vic
             std::array<bool, 8> spriteRowLatched {};
         };
 
+        struct VicSpriteDebugSnapshot
+        {
+            int currentRaster = 0;
+            int currentCycle = 0;
+
+            uint8_t d015 = 0;
+            uint8_t d017 = 0;
+            uint8_t d01b = 0;
+            uint8_t d01c = 0;
+            uint8_t d01d = 0;
+
+            struct Sprite
+            {
+                bool enabled = false;
+                int y = 0;
+                int x = 0;
+
+                bool dmaActive = false;
+                bool rowDataLatched = false;
+                bool yExpandLatch = false;
+
+                uint8_t mc = 0;
+                uint8_t mcBase = 0;
+
+                int row = 0;
+                int currentRow = 0;
+
+                uint8_t pointerByte = 0;
+                uint16_t dataBase = 0;
+
+                uint8_t shift0 = 0;
+                uint8_t shift1 = 0;
+                uint8_t shift2 = 0;
+
+                bool rowPrepared = false;
+
+                int outputXStart = 0;
+                int outputWidth = 0;
+                int outputBit = 0;
+                int outputRepeat = 0;
+
+                bool multicolorAtX = false;
+                bool xExpandedAtX = false;
+                bool enabledAtX = false;
+            };
+
+            struct Collision
+            {
+                bool valid = false;
+                int raster = 0;
+                int x = 0;
+                int cycle = 0;
+                uint8_t bits = 0;
+            };
+
+            std::array<Sprite, 8> sprites {};
+
+            Collision spriteSpriteCollision {};
+            Collision spriteBackgroundCollision {};
+        };
+
         VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
@@ -197,6 +258,7 @@ class Vic
         std::string getVICBanks() const;
         std::string dumpRegisters(const std::string& group) const;
         VicCycleDebugSnapshot getCycleDebugSnapshot(int raster, int cycle) const;
+        VicSpriteDebugSnapshot getSpriteDebugSnapshot() const;
         inline void setLog(bool enable) { setLogging = enable; }
         uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }

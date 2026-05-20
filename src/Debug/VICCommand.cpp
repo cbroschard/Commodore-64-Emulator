@@ -415,7 +415,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        std::cout << mon.mlmonitorbackend()->vicDumpSpriteDMAState();
+        std::cout << mon.mlmonitorbackend()->vicDumpSpriteDmaState();
         return;
     }
     else

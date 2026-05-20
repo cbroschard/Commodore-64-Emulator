@@ -210,7 +210,7 @@ class MLMonitorBackend
                                                                             : "VIC not available"; }
         inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vic ? vic->dumpBorderWindowAroundRaster(centerRaster)
                                                                                : "VIC not available"; }
-        inline std::string vicDumpSpriteDMAState() const { return vic ? vic->dumpSpriteDmaState() : "VIC not available"; }
+        std::string vicDumpSpriteDmaState() const;
         std::string vicDumpCurrentCycleDebug() const;
         std::string vicDumpCycleDebugFor(int raster, int cycle) const;
         void vicFFRaster(uint8_t targetRaster);

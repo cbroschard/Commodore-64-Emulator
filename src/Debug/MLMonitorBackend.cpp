@@ -115,6 +115,114 @@ bool MLMonitorBackend::getCartridgeAttached()
     else return false;
 }
 
+std::string MLMonitorBackend::vicDumpSpriteDmaState() const
+{
+    if (!vic)
+        return "VIC not available\n";
+
+    std::ostringstream oss;
+
+    const auto snap = vic->getSpriteDebugSnapshot();
+
+    oss << "Sprite DMA / output state\n";
+    oss << "------------------------------------------------------------\n";
+    oss << "Raster=" << snap.currentRaster
+        << " Cycle=" << snap.currentCycle
+        << " D015=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(snap.d015)
+        << " D017=$" << std::setw(2) << static_cast<int>(snap.d017)
+        << " D01B=$" << std::setw(2) << static_cast<int>(snap.d01b)
+        << " D01C=$" << std::setw(2) << static_cast<int>(snap.d01c)
+        << " D01D=$" << std::setw(2) << static_cast<int>(snap.d01d)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n\n";
+
+    oss << "Spr En  Y    X    DMA RowLat YExp MC MCBase Row CurRow Ptr  DataBase "
+           "ShiftBytes RowPrep XStart Width OutBit Rep Mode@X Exp@X En@X\n";
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& sp = snap.sprites[i];
+
+        oss << std::setw(3) << i << " "
+            << " " << (sp.enabled ? 1 : 0) << "  "
+            << std::setw(3) << sp.y << "  "
+            << std::setw(4) << sp.x << "   "
+            << (sp.dmaActive ? 1 : 0) << "     "
+            << (sp.rowDataLatched ? 1 : 0) << "     "
+            << (sp.yExpandLatch ? 1 : 0) << "   "
+            << std::setw(2) << static_cast<int>(sp.mc) << "   "
+            << std::setw(2) << static_cast<int>(sp.mcBase) << "     "
+            << std::setw(2) << sp.row << "    "
+            << std::setw(2) << sp.currentRow << "   "
+            << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(sp.pointerByte)
+            << "  $"
+            << std::setw(4) << static_cast<int>(sp.dataBase)
+            << "   $"
+            << std::setw(2) << static_cast<int>(sp.shift0)
+            << " $"
+            << std::setw(2) << static_cast<int>(sp.shift1)
+            << " $"
+            << std::setw(2) << static_cast<int>(sp.shift2)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "      "
+            << (sp.rowPrepared ? 1 : 0) << "      "
+            << std::setw(4) << sp.outputXStart << "   "
+            << std::setw(3) << sp.outputWidth << "    "
+            << std::setw(2) << sp.outputBit << "   "
+            << std::setw(2) << sp.outputRepeat << "      "
+            << (sp.multicolorAtX ? 1 : 0) << "     "
+            << (sp.xExpandedAtX ? 1 : 0) << "    "
+            << (sp.enabledAtX ? 1 : 0)
+            << "\n";
+    }
+
+    oss << "\nNotes:\n";
+    oss << "  Row = mcBase / 3. CurRow tracks physical raster line in Y-expanded mode.\n";
+    oss << "  RowLat means rowDataLatched: a 3-byte sprite row is available for output.\n";
+    oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
+    oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
+
+    oss << "\nLast collision timing:\n";
+
+    if (snap.spriteSpriteCollision.valid)
+    {
+        oss << "  sprite-sprite:"
+            << " raster=" << snap.spriteSpriteCollision.raster
+            << " x=" << snap.spriteSpriteCollision.x
+            << " cycle=" << snap.spriteSpriteCollision.cycle
+            << " bits=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(snap.spriteSpriteCollision.bits)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+    else
+    {
+        oss << "  sprite-sprite: none\n";
+    }
+
+    if (snap.spriteBackgroundCollision.valid)
+    {
+        oss << "  sprite-background:"
+            << " raster=" << snap.spriteBackgroundCollision.raster
+            << " x=" << snap.spriteBackgroundCollision.x
+            << " cycle=" << snap.spriteBackgroundCollision.cycle
+            << " bits=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(snap.spriteBackgroundCollision.bits)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+    else
+    {
+        oss << "  sprite-background: none\n";
+    }
+
+    return oss.str();
+}
+
 std::string MLMonitorBackend::vicDumpCurrentCycleDebug() const
 {
     if (!vic)
