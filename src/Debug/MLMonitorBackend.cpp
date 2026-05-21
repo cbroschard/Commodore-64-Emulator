@@ -616,6 +616,36 @@ std::string MLMonitorBackend::vicDumpRegs(const std::string& group) const
     return out.str();
 }
 
+std::string MLMonitorBackend::vicDumpBadlineState() const
+{
+    if (!vic)
+        return "VIC not attached\n";
+
+    const auto s = vic->getBadlineDebugSnapshot();
+
+    std::ostringstream oss;
+
+    oss << "VIC badline/display row state\n";
+    oss << "  raster=" << s.raster
+        << " cycle=" << s.cycle << "\n";
+
+    oss << "  badLine=" << s.badLine
+        << " badLineSampled=" << s.badLineSampled << "\n";
+
+    oss << "  displayEnabled=" << s.displayEnabled
+        << " displayEnabledNext=" << s.displayEnabledNext << "\n";
+
+    oss << "  denSeenOn30=" << s.denSeenOn30
+        << " firstBadlineY=" << s.firstBadlineY << "\n";
+
+    oss << "  vcBase=" << s.vcBase
+        << " vmliBase=" << s.vmliBase
+        << " vmliFetchIndex=" << static_cast<int>(s.vmliFetchIndex)
+        << " rc=" << static_cast<int>(s.rc) << "\n";
+
+    return oss.str();
+}
+
 void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
 {
     while(vic->getCurrentRaster() != targetRaster)

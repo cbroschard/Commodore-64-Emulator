@@ -6516,6 +6516,30 @@ Vic::VicRegisterDebugSnapshot Vic::getRegisterDebugSnapshot() const
     return s;
 }
 
+Vic::VicBadlineDebugSnapshot Vic::getBadlineDebugSnapshot() const
+{
+    VicBadlineDebugSnapshot s {};
+
+    s.raster = registers.raster;
+    s.cycle = currentCycle;
+
+    s.badLine = vicState.badLine;
+    s.badLineSampled = vicState.badLineSampled;
+
+    s.displayEnabled = vicState.displayEnabled;
+    s.displayEnabledNext = vicState.displayEnabledNext;
+
+    s.denSeenOn30 = denSeenOn30;
+    s.firstBadlineY = firstBadlineY;
+
+    s.vcBase = vicState.vcBase;
+    s.vmliBase = vicState.vmliBase;
+    s.vmliFetchIndex = vicState.vmliFetchIndex;
+    s.rc = vicState.rc;
+
+    return s;
+}
+
 void Vic::rebuildBorderRasterLatches()
 {
     if ((int)borderVertical_per_raster.size() != cfg_->maxRasterLines)
@@ -7411,31 +7435,6 @@ std::string Vic::dumpBackgroundCellDebug(int raster, int col) const
     out << std::dec << std::nouppercase << std::setfill(' ');
 
     return out.str();
-}
-
-std::string Vic::dumpBadlineState() const
-{
-    std::ostringstream oss;
-
-    oss << "VIC badline/display row state\n";
-    oss << "  raster=" << registers.raster
-        << " cycle=" << currentCycle << "\n";
-
-    oss << "  badLine=" << vicState.badLine
-        << " badLineSampled=" << vicState.badLineSampled << "\n";
-
-    oss << "  displayEnabled=" << vicState.displayEnabled
-        << " displayEnabledNext=" << vicState.displayEnabledNext << "\n";
-
-    oss << "  denSeenOn30=" << denSeenOn30
-        << " firstBadlineY=" << firstBadlineY << "\n";
-
-    oss << "  vcBase=" << vicState.vcBase
-        << " vmliBase=" << vicState.vmliBase
-        << " vmliFetchIndex=" << static_cast<int>(vicState.vmliFetchIndex)
-        << " rc=" << static_cast<int>(vicState.rc) << "\n";
-
-    return oss.str();
 }
 
 std::string Vic::dumpBorderState() const

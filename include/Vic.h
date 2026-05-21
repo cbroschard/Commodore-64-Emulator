@@ -326,6 +326,26 @@ class Vic
             RasterIrqSample lastRasterIrqSample {};
         };
 
+        struct VicBadlineDebugSnapshot
+        {
+            uint16_t raster = 0;
+            int cycle = 0;
+
+            bool badLine = false;
+            bool badLineSampled = false;
+
+            bool displayEnabled = false;
+            bool displayEnabledNext = false;
+
+            bool denSeenOn30 = false;
+            int firstBadlineY = -1;
+
+            uint16_t vcBase = 0;
+            uint16_t vmliBase = 0;
+            uint8_t vmliFetchIndex = 0;
+            uint8_t rc = 0;
+        };
+
         VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
@@ -335,6 +355,7 @@ class Vic
         VicCycleDebugSnapshot getCycleDebugSnapshot(int raster, int cycle) const;
         VicSpriteDebugSnapshot getSpriteDebugSnapshot() const;
         VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
+        VicBadlineDebugSnapshot getBadlineDebugSnapshot() const;
         inline void setLog(bool enable) { setLogging = enable; }
         uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
@@ -355,7 +376,6 @@ class Vic
         std::string dumpRasterRowState(int raster) const;
         std::string dumpBackgroundRowDebug(int raster) const;
         std::string dumpBackgroundCellDebug(int raster, int col) const;
-        std::string dumpBadlineState() const;
         std::string dumpBorderState() const;
         std::string dumpBadlineTimelineAroundRaster(int centerRaster) const;
         std::string dumpBorderWindowAroundRaster(int centerRaster) const;
