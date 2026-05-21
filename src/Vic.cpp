@@ -1111,6 +1111,17 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
+void Vic::triggerLightPenLatch()
+{
+    const uint16_t dotX = getRasterDot();
+
+    registers.light_pen_X = static_cast<uint8_t>((dotX >> 1) & 0xFF);
+    registers.light_pen_Y = static_cast<uint8_t>(registers.raster & 0xFF);
+
+    // VIC IRQ bit 3 = light pen.
+    raiseVicIRQSource(0x08);
+}
+
 void Vic::tick(int cycles)
 {
     while (cycles-- > 0)
