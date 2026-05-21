@@ -1650,7 +1650,7 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
     return spriteMulticolorModeLine[sprite][px] != 0;
 }
 
-bool Vic::firstRasterSpriteXExpansionEventValue(int raster, uint8_t& value) const
+bool Vic::spriteXExpansionValueBeforeFirstEvent(int raster, uint8_t& value) const
 {
     for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
     {
@@ -1685,7 +1685,7 @@ void Vic::buildSpriteXExpansionLine(int raster)
 
     uint8_t activeExpansion = registers.spriteXExpansion;
 
-    if (!firstRasterSpriteXExpansionEventValue(raster, activeExpansion))
+    if (!spriteXExpansionValueBeforeFirstEvent(raster, activeExpansion))
     {
         for (int spr = 0; spr < 8; ++spr)
         {

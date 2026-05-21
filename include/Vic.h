@@ -890,7 +890,7 @@ class Vic
         bool firstRasterSpriteModeEventValue(int raster, uint8_t& value) const;
         void buildSpriteMulticolorModeLine(int raster);
         bool spriteMulticolorAtPixel(int sprite, int px) const;
-        bool firstRasterSpriteXExpansionEventValue(int raster, uint8_t& value) const;
+        bool spriteXExpansionValueBeforeFirstEvent(int raster, uint8_t& value) const;
         void buildSpriteXExpansionLine(int raster);
         bool spriteXExpandedAtPixel(int sprite, int px) const;
         bool firstRasterSpriteEnableEventValue(int raster, uint8_t& value) const;
