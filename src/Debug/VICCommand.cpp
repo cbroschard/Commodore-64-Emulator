@@ -385,6 +385,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() == 2)
         {
             std::cout << regsUsage();
+            return;
         }
         else
         {
@@ -403,6 +404,7 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << output;
             if (!output.empty() && output.back() != '\n')
                 std::cout << '\n';
+            return;
         }
     }
     else if (sub == "row")
