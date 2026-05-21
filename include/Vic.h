@@ -365,39 +365,105 @@ class Vic
             uint8_t rc = 0;
         };
 
+        struct RasterRowStateSnapshot
+        {
+            bool valid = false;
+
+            int raster = 0;
+            int firstBadlineY = -1;
+
+            uint8_t rc = 0;
+            uint16_t vcBase = 0;
+            uint16_t vmliBase = 0;
+            uint8_t vmliFetchIndex = 0;
+
+            bool displayEnabled = false;
+            bool displayEnabledNext = false;
+            bool badLine = false;
+            bool badLineSampled = false;
+
+            uint8_t d011 = 0;
+            uint8_t d016 = 0;
+            uint8_t d018 = 0;
+        };
+
+        enum class RasterEventKind : uint8_t
+        {
+            Color,
+            Control,
+            Control2,
+            MemoryPointer,
+            SpritePriority,
+            SpriteMode,
+            SpriteXExpansion,
+            SpriteEnable,
+            SpriteX
+        };
+
+        struct RasterEventRecord
+        {
+            RasterEventKind kind = RasterEventKind::Color;
+            int raster = 0;
+            int cycle = 0;
+            uint16_t address = 0;
+            uint8_t oldValue = 0;
+            uint8_t newValue = 0;
+        };
+
+        struct VicBorderRasterDebugSnapshot
+        {
+            bool valid = false;
+
+            int raster = 0;
+
+            bool latchedVerticalBorder = false;
+            int latchedBorderOpenX = 0;
+            int latchedBorderCloseX = 0;
+
+            int verticalTopOpen = 0;
+            int verticalBottomClose = 0;
+            bool withinVerticalDisplayWindow = false;
+
+            uint8_t d011 = 0;
+            uint8_t d016 = 0;
+        };
+
+        VicBorderRasterDebugSnapshot getBorderRasterDebugSnapshot(int raster) const;
+
         VicCycleSlot currentCycleSlot {};
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
         struct VICIRQSnapshot { uint8_t ier = 0; };
+        inline void setLog(bool enable) { setLogging = enable; }
+        inline uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
+        inline uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
+        inline bool irqLineActive() const { return (registers.interruptStatus & registers.interruptEnable & 0x0F); }
+        inline VICIRQSnapshot snapshotIRQs() const { return VICIRQSnapshot { getIER() }; }
+        inline void restoreIRQs(const VICIRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x0F); }
+        inline void disableAllIRQs() { setIERExact(0); }
+        inline uint16_t getRasterDot() const { return currentCycle * 8; } // Used for formatting trace
+        inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
+        inline int getCurrentCycleForDebug() const { return currentCycle; }
+        inline int getMaxRasterLinesForDebug() const { return cfg_ ? cfg_->maxRasterLines : 0; }
+        inline int getCyclesPerLineForDebug() const { return cfg_ ? cfg_->cyclesPerLine : 0; }
+        inline int rasterEventPixelXForDebug(int cycle) const { return rasterEventPixelX(cycle); }
+        inline const std::vector<RasterEventRecord>& getCurrentRasterEventsForDebug() const { return rasterEventLog; }
+        inline const std::vector<RasterEventRecord>& getLastFrameRasterEventsForDebug() const { return lastFrameRasterEventLog; }
+        inline const std::vector<RasterRowStateSnapshot>& getCurrentRasterRowsForDebug() const { return rasterRowStates; }
+        inline const std::vector<RasterRowStateSnapshot>& getLastFrameRasterRowsForDebug() const { return lastFrameRasterRowStates; }
+
+        bool isBadLineForDebug(int raster) const;
+        void setIERExact(uint8_t mask);
+        void clearPendingIRQs();
         std::string decodeModeName() const;
         std::string getVICBanks() const;
         VicCycleDebugSnapshot getCycleDebugSnapshot(int raster, int cycle) const;
         VicSpriteDebugSnapshot getSpriteDebugSnapshot() const;
         VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
         VicBadlineDebugSnapshot getBadlineDebugSnapshot() const;
-        inline void setLog(bool enable) { setLogging = enable; }
-        uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
-        uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
-        inline bool irqLineActive() const { return (registers.interruptStatus & registers.interruptEnable & 0x0F); }
-        inline VICIRQSnapshot snapshotIRQs() const { return VICIRQSnapshot { getIER() }; }
-        inline void restoreIRQs(const VICIRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x0F); }
-        inline void disableAllIRQs() { setIERExact(0); }
-        void setIERExact(uint8_t mask);
-        void clearPendingIRQs();
-        inline uint16_t getRasterDot() const { return currentCycle * 8; } // Used for formatting trace
-        inline uint16_t getCurrentRaster() const { return registers.raster; } // Used for formatting trace
-        int getCurrentCycleForDebug() const { return currentCycle; }
-        std::string dumpRasterFetchMap(int raster) const;
-        std::string dumpAllRasterEvents() const;
-        std::string dumpRasterEventSummary() const;
-        std::string dumpRasterEvents(int raster) const;
         std::string dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const;
-        std::string dumpRasterRowState(int raster) const;
         std::string dumpBackgroundRowDebug(int raster) const;
         std::string dumpBackgroundCellDebug(int raster, int col) const;
-        std::string dumpBadlineTimelineAroundRaster(int centerRaster) const;
-        std::string dumpBorderWindowAroundRaster(int centerRaster) const;
-        inline std::string dumpBorderWindowAroundCurrentRaster() const { return dumpBorderWindowAroundRaster(static_cast<int>(registers.raster)); }
 
     protected:
 
@@ -1025,51 +1091,6 @@ class Vic
             uint8_t newValue = 0;
         };
 
-        struct RasterRowStateSnapshot
-        {
-            bool valid = false;
-
-            int raster = 0;
-            int firstBadlineY = -1;
-
-            uint8_t rc = 0;
-            uint16_t vcBase = 0;
-            uint16_t vmliBase = 0;
-            uint8_t vmliFetchIndex = 0;
-
-            bool displayEnabled = false;
-            bool displayEnabledNext = false;
-            bool badLine = false;
-            bool badLineSampled = false;
-
-            uint8_t d011 = 0;
-            uint8_t d016 = 0;
-            uint8_t d018 = 0;
-        };
-
-        enum class RasterEventKind : uint8_t
-        {
-            Color,
-            Control,
-            Control2,
-            MemoryPointer,
-            SpritePriority,
-            SpriteMode,
-            SpriteXExpansion,
-            SpriteEnable,
-            SpriteX
-        };
-
-        struct RasterEventRecord
-        {
-            RasterEventKind kind = RasterEventKind::Color;
-            int raster = 0;
-            int cycle = 0;
-            uint16_t address = 0;
-            uint8_t oldValue = 0;
-            uint8_t newValue = 0;
-        };
-
         struct RasterPixelCompositionSnapshot
         {
             bool valid = false;
@@ -1107,10 +1128,6 @@ class Vic
         void snapshotRasterPixelComposition(int raster);
         void snapshotRasterRowState(int raster);
 
-        std::string rasterRowStateDetail(int raster, bool preferPreviousFrame) const;
-        std::string rasterEventDetail(const RasterEventRecord& e) const;
-
-        const char* rasterEventKindName(RasterEventKind kind) const;
         bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;

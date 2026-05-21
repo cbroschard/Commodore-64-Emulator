@@ -191,22 +191,20 @@ class MLMonitorBackend
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
         inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
-        inline std::string vicDumpRasterFetchMap(int raster) const { return vic ? vic->dumpRasterFetchMap(raster) : "VIC not available"; }
-        inline std::string vicDumpAllRasterEvents() const { return vic ? vic->dumpAllRasterEvents() : "VIC not available"; }
-        inline std::string vicDumpRasterEventsSummary() const { return vic ? vic->dumpRasterEventSummary() : "VIC not available"; }
-        inline std::string vicDumpRasterEvents(int raster) const { return vic ? vic->dumpRasterEvents(raster) : "VIC not available"; }
         inline std::string vicDumpRasterPixelCompositionDebug(int raster, int x0, int x1) const { return vic ?
                                                                     vic->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
-        inline std::string vicDumpRasterRowState(int raster) const { return vic ? vic->dumpRasterRowState(raster) : "VIC not available"; }
         inline std::string vicDumpBackgroundRowDebug(int raster) const { return vic ? vic->dumpBackgroundRowDebug(raster) : "VIC not available"; }
         inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vic ?
                                                                                    vic->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
-        inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vic ?
-                                                              vic->dumpBadlineTimelineAroundRaster(centerRaster) : "VIC not available"; }
-        inline std::string vicDumpBorderWindowAroundCurrentRaster() const { return vic ? vic->dumpBorderWindowAroundCurrentRaster()
-                                                                            : "VIC not available"; }
-        inline std::string vicDumpBorderWindowAroundRaster(int centerRaster) { return vic ? vic->dumpBorderWindowAroundRaster(centerRaster)
-                                                                               : "VIC not available"; }
+
+        std::string vicDumpAllRasterEvents() const;
+        std::string vicDumpRasterEventsSummary() const;
+        std::string vicDumpRasterEvents(int raster) const;
+        std::string vicDumpRasterRowState(int raster) const;
+        std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const;
+        std::string vicDumpBorderWindowAroundCurrentRaster() const;
+        std::string vicDumpBorderWindowAroundRaster(int centerRaster) const;
+        std::string vicDumpRasterFetchMap(int raster) const;
         std::string vicDumpSpriteDmaState() const;
         std::string vicDumpCurrentCycleDebug() const;
         std::string vicDumpCycleDebugFor(int raster, int cycle) const;

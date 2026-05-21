@@ -2868,267 +2868,6 @@ void Vic::snapshotRasterRowState(int raster)
     s.d018 = latchedD018ForRaster(raster);
 }
 
-std::string Vic::rasterEventDetail(const RasterEventRecord& e) const
-{
-    std::ostringstream out;
-
-    auto screenBaseFromD018 = [](uint8_t value) -> uint16_t
-    {
-        return static_cast<uint16_t>((value & 0xF0) << 6);
-    };
-
-    auto charBaseFromD018 = [](uint8_t value) -> uint16_t
-    {
-        return static_cast<uint16_t>(((value >> 1) & 0x07) * 0x0800);
-    };
-
-    auto bitmapBaseFromD018 = [](uint8_t value) -> uint16_t
-    {
-        return static_cast<uint16_t>(((value >> 3) & 0x01) * 0x2000);
-    };
-
-    if (e.kind == RasterEventKind::SpriteX)
-    {
-        if (e.address == 0xD010)
-        {
-            out << "sprite X MSB";
-            return out.str();
-        }
-
-        if (e.address >= 0xD000 && e.address <= 0xD00E && isSpriteX(e.address))
-        {
-            const int sprite = getSpriteIndex(e.address);
-            out << "sprite " << sprite << " X low";
-            return out.str();
-        }
-    }
-
-    if (e.kind == RasterEventKind::Control)
-    {
-        const uint8_t oldVal = e.oldValue & 0x7F;
-        const uint8_t newVal = e.newValue & 0x7F;
-
-        const int raster = e.raster;
-        const int nextRaster =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? ((raster + 1) % static_cast<int>(cfg_->maxRasterLines))
-                : raster;
-
-        const uint8_t thisLatched =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? latchedD011ForRaster(raster)
-                : registers.control;
-
-        const uint8_t thisEffective =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? effectiveD011ForRaster(raster)
-                : registers.control;
-
-        const uint8_t nextLatched =
-            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
-                ? latchedD011ForRaster(nextRaster)
-                : registers.control;
-
-        const uint8_t nextEffective =
-            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
-                ? effectiveD011ForRaster(nextRaster)
-                : registers.control;
-
-        auto rselRows = [](uint8_t value) -> int
-        {
-            return (value & 0x08) ? 25 : 24;
-        };
-
-        auto denBit = [](uint8_t value) -> int
-        {
-            return (value & 0x10) ? 1 : 0;
-        };
-
-        out << "$D011"
-            << " yscroll " << static_cast<int>(oldVal & 0x07)
-            << "->" << static_cast<int>(newVal & 0x07)
-            << " RSEL " << rselRows(oldVal)
-            << "->" << rselRows(newVal)
-            << " DEN " << denBit(oldVal)
-            << "->" << denBit(newVal)
-            << " this latched yscroll " << static_cast<int>(thisLatched & 0x07)
-            << " this effective yscroll " << static_cast<int>(thisEffective & 0x07)
-            << " next latched yscroll " << static_cast<int>(nextLatched & 0x07)
-            << " next effective yscroll " << static_cast<int>(nextEffective & 0x07)
-            << " this RSEL " << rselRows(thisLatched)
-            << " next RSEL " << rselRows(nextLatched)
-            << " this DEN " << denBit(thisLatched)
-            << " next DEN " << denBit(nextLatched);
-
-        return out.str();
-    }
-
-    if (e.kind == RasterEventKind::Control2)
-    {
-        const uint8_t oldVal = e.oldValue & 0x1F;
-        const uint8_t newVal = e.newValue & 0x1F;
-
-        out << "$D016"
-            << " xscroll " << static_cast<int>(oldVal & 0x07)
-            << "->" << static_cast<int>(newVal & 0x07)
-            << " CSEL " << (((oldVal & 0x08) != 0) ? 40 : 38)
-            << "->" << (((newVal & 0x08) != 0) ? 40 : 38)
-            << " MCM " << (((oldVal & 0x10) != 0) ? 1 : 0)
-            << "->" << (((newVal & 0x10) != 0) ? 1 : 0);
-
-        return out.str();
-    }
-
-    if (e.kind == RasterEventKind::MemoryPointer)
-    {
-        const uint8_t oldVal = e.oldValue & 0xFE;
-        const uint8_t newVal = e.newValue & 0xFE;
-
-        const int raster = e.raster;
-        const int nextRaster =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? ((raster + 1) % static_cast<int>(cfg_->maxRasterLines))
-                : raster;
-
-        const uint8_t latchedVal =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? latchedD018ForRaster(raster)
-                : registers.memory_pointer;
-
-        const uint8_t effectiveVal =
-            (raster >= 0 && raster < static_cast<int>(cfg_->maxRasterLines))
-                ? effectiveD018ForRaster(raster)
-                : registers.memory_pointer;
-
-        const uint8_t nextLatchedVal =
-            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
-                ? latchedD018ForRaster(nextRaster)
-                : registers.memory_pointer;
-
-        const uint8_t nextEffectiveVal =
-            (nextRaster >= 0 && nextRaster < static_cast<int>(cfg_->maxRasterLines))
-                ? effectiveD018ForRaster(nextRaster)
-                : registers.memory_pointer;
-
-        out << "$D018"
-            << " screen $"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
-            << screenBaseFromD018(oldVal)
-            << "->$"
-            << std::setw(4) << screenBaseFromD018(newVal)
-            << " char $"
-            << std::setw(4) << charBaseFromD018(oldVal)
-            << "->$"
-            << std::setw(4) << charBaseFromD018(newVal)
-            << " bitmap $"
-            << std::setw(4) << bitmapBaseFromD018(oldVal)
-            << "->$"
-            << std::setw(4) << bitmapBaseFromD018(newVal)
-            << " this latched char $"
-            << std::setw(4) << charBaseFromD018(latchedVal)
-            << " this effective char $"
-            << std::setw(4) << charBaseFromD018(effectiveVal)
-            << " next latched char $"
-            << std::setw(4) << charBaseFromD018(nextLatchedVal)
-            << " next effective char $"
-            << std::setw(4) << charBaseFromD018(nextEffectiveVal)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-            return out.str();
-        }
-
-    return "";
-}
-
-std::string Vic::rasterRowStateDetail(int raster, bool preferPreviousFrame) const
-{
-    std::ostringstream out;
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return "";
-
-    const std::vector<RasterRowStateSnapshot>& primary =
-        preferPreviousFrame ? lastFrameRasterRowStates : rasterRowStates;
-
-    const std::vector<RasterRowStateSnapshot>& fallback =
-        preferPreviousFrame ? rasterRowStates : lastFrameRasterRowStates;
-
-    const RasterRowStateSnapshot* s = nullptr;
-
-    if (raster < static_cast<int>(primary.size()) && primary[raster].valid)
-        s = &primary[raster];
-    else if (raster < static_cast<int>(fallback.size()) && fallback[raster].valid)
-        s = &fallback[raster];
-
-    if (!s)
-        return " rowstate unavailable";
-
-    const int rel = s->firstBadlineY >= 0 ? (raster - s->firstBadlineY) : -1;
-    const int displayRow = rel >= 0 ? (rel / 8) : -1;
-
-    const int fineY = static_cast<int>(s->d011 & 0x07);
-    const int rasterLow3 = raster & 0x07;
-    const bool badlineByFineY = (rasterLow3 == fineY);
-
-    const int matrixRow = s->vcBase / 40;
-    const int vmliRow = s->vmliBase / 40;
-
-    out << " rowstate"
-        << " firstBadlineY " << s->firstBadlineY
-        << " fineY " << fineY
-        << " rows " << (((s->d011 & 0x08) != 0) ? 25 : 24)
-        << " rasterLow3 " << rasterLow3
-        << " badlineByFineY " << (badlineByFineY ? 1 : 0)
-        << " rc " << static_cast<int>(s->rc)
-        << " vcBase " << s->vcBase
-        << " matrixRow " << matrixRow
-        << " vmliBase " << s->vmliBase
-        << " vmliRow " << vmliRow
-        << " vmliFetchIndex " << static_cast<int>(s->vmliFetchIndex)
-        << " displayEnabled " << (s->displayEnabled ? 1 : 0)
-        << " displayEnabledNext " << (s->displayEnabledNext ? 1 : 0)
-        << " badLine " << (s->badLine ? 1 : 0)
-        << " badLineSampled " << (s->badLineSampled ? 1 : 0)
-        << " displayRowApprox " << displayRow;
-
-    return out.str();
-}
-
-const char* Vic::rasterEventKindName(RasterEventKind kind) const
-{
-    switch (kind)
-    {
-        case RasterEventKind::Color:
-            return "Color";
-
-        case RasterEventKind::Control:
-            return "Control $D011";
-
-        case RasterEventKind::Control2:
-            return "Control2 $D016";
-
-        case RasterEventKind::MemoryPointer:
-            return "Memory ptr $D018";
-
-        case RasterEventKind::SpritePriority:
-            return "Sprite priority";
-
-        case RasterEventKind::SpriteMode:
-            return "Sprite multicolor mode";
-
-        case RasterEventKind::SpriteXExpansion:
-            return "Sprite X expansion";
-
-        case RasterEventKind::SpriteEnable:
-            return "Sprite enable";
-
-        case RasterEventKind::SpriteX:
-            return "Sprite X position";
-    }
-
-    return "Unknown";
-}
-
 bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const
 {
     for (const RasterPriorityEvent& e : rasterPriorityEvents)
@@ -6118,6 +5857,42 @@ void Vic::updateMonitorCaches(int raster)
     bitmapBaseCache = static_cast<uint16_t>(bitmapBaseForRasterPixelX(raster, samplePx) + currentVICBank);
 }
 
+bool Vic::isBadLineForDebug(int raster) const
+{
+    if (raster < 0 || raster >= getMaxRasterLinesForDebug())
+        return false;
+
+    return raster == static_cast<int>(registers.raster)
+        ? vicState.badLineSampled
+        : isBadLine(raster);
+}
+
+Vic::VicBorderRasterDebugSnapshot Vic::getBorderRasterDebugSnapshot(int raster) const
+{
+    VicBorderRasterDebugSnapshot s {};
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return s;
+
+    const auto vw = verticalBorderWindowForRaster(raster);
+
+    s.valid = true;
+    s.raster = raster;
+
+    s.latchedVerticalBorder = borderVertical_per_raster[raster] != 0;
+    s.latchedBorderOpenX = borderLeftOpenX_per_raster[raster];
+    s.latchedBorderCloseX = borderRightCloseX_per_raster[raster];
+
+    s.verticalTopOpen = vw.topOpen;
+    s.verticalBottomClose = vw.bottomClose;
+    s.withinVerticalDisplayWindow = rasterWithinVerticalDisplayWindow(raster);
+
+    s.d011 = latchedD011ForRaster(raster);
+    s.d016 = latchedD016ForRaster(raster);
+
+    return s;
+}
+
 void Vic::setIERExact(uint8_t mask)
 {
     registers.interruptEnable = mask & 0x0F;
@@ -6297,244 +6072,6 @@ const char* Vic::fetchKindName(FetchKind kind) const
     return "Unknown";
 }
 
-std::string Vic::dumpRasterFetchMap(int raster) const
-{
-    std::ostringstream out;
-
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-    {
-        out << "Invalid raster: " << raster << "\n";
-        return out.str();
-    }
-
-    out << "VIC Raster Fetch Map\n\n";
-    out << "Raster: " << raster << "\n";
-    const bool badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
-
-    out << "Badline: " << (badLine ? "Yes" : "No") << "\n\n";
-
-    for (int c = 0; c < cfg_->cyclesPerLine; ++c)
-    {
-        out << std::setw(2) << c << ": "
-            << fetchKindName(getFetchKindForCycle(raster, c))
-            << "\n";
-    }
-
-    return out.str();
-}
-
-std::string Vic::dumpAllRasterEvents() const
-{
-    std::ostringstream out;
-
-    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
-    const char* sourceName = "previous frame";
-
-    if (events->empty() && !rasterEventLog.empty())
-    {
-        events = &rasterEventLog;
-        sourceName = "current frame";
-    }
-
-    out << "All Raster Events (" << sourceName << ")\n";
-    out << "-------------------------------------\n";
-    out << "Total events: " << events->size() << "\n";
-    out << "  raster  type                    cycle  x     addr   old  new  detail\n";
-
-    if (events->empty())
-    {
-        out << "No recorded events.\n";
-        return out.str();
-    }
-
-    for (const RasterEventRecord& e : *events)
-    {
-        out << "  "
-            << std::dec << std::setw(6) << e.raster
-            << "  "
-            << std::left << std::setw(22) << rasterEventKindName(e.kind)
-            << std::right
-            << std::setw(5) << e.cycle
-            << "  "
-            << std::setw(4) << rasterEventPixelX(e.cycle)
-            << "  $"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << e.address
-            << "  $"
-            << std::setw(2) << static_cast<int>(e.oldValue)
-            << "   $"
-            << std::setw(2) << static_cast<int>(e.newValue)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-        const std::string detail = rasterEventDetail(e);
-        if (!detail.empty())
-            out << "  " << detail;
-
-        out << "\n";
-    }
-
-    return out.str();
-}
-
-std::string Vic::dumpRasterEventSummary() const
-{
-    std::ostringstream out;
-
-    auto summarize = [&](const char* name, const std::vector<RasterEventRecord>& events)
-    {
-        out << name << ": " << events.size() << " events\n";
-
-        if (events.empty())
-            return;
-
-        int minRaster = static_cast<int>(cfg_->maxRasterLines);
-        int maxRaster = -1;
-
-        int color = 0;
-        int control = 0;
-        int control2 = 0;
-        int memoryPointer = 0;
-        int priority = 0;
-        int mode = 0;
-        int xexp = 0;
-        int enable = 0;
-        int spriteX = 0;
-
-        for (const RasterEventRecord& e : events)
-        {
-            minRaster = std::min(minRaster, e.raster);
-            maxRaster = std::max(maxRaster, e.raster);
-
-            switch (e.kind)
-            {
-                case RasterEventKind::Color:
-                    ++color;
-                    break;
-
-                case RasterEventKind::Control:
-                    ++control;
-                    break;
-
-                case RasterEventKind::Control2:
-                    ++control2;
-                    break;
-
-                case RasterEventKind::MemoryPointer:
-                    ++memoryPointer;
-                    break;
-
-                case RasterEventKind::SpritePriority:
-                    ++priority;
-                    break;
-
-                case RasterEventKind::SpriteMode:
-                    ++mode;
-                    break;
-
-                case RasterEventKind::SpriteXExpansion:
-                    ++xexp;
-                    break;
-
-                case RasterEventKind::SpriteEnable:
-                    ++enable;
-                    break;
-
-                case RasterEventKind::SpriteX:
-                    ++spriteX;
-                    break;
-            }
-        }
-
-        out << "  raster range: " << minRaster << " - " << maxRaster << "\n";
-        out << "  Color: " << color << "\n";
-        out << "  Control $D011: " << control << "\n";
-        out << "  Control2 $D016: " << control2 << "\n";
-        out << "  Memory ptr $D018: " << memoryPointer << "\n";
-        out << "  Sprite priority: " << priority << "\n";
-        out << "  Sprite mode: " << mode << "\n";
-        out << "  Sprite X expansion: " << xexp << "\n";
-        out << "  Sprite enable: " << enable << "\n";
-        out << "  Sprite X position: " << spriteX << "\n";
-    };
-
-    out << "Raster Event Summary\n";
-    out << "--------------------\n";
-    summarize("Current frame", rasterEventLog);
-    summarize("Previous frame", lastFrameRasterEventLog);
-
-    return out.str();
-}
-
-std::string Vic::dumpRasterEvents(int raster) const
-{
-    std::ostringstream out;
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-    {
-        out << "Raster " << raster << " is out of range\n";
-        return out.str();
-    }
-
-    const std::vector<RasterEventRecord>* events = &lastFrameRasterEventLog;
-    const char* sourceName = "previous frame";
-    bool usingPreviousFrame = true;
-
-    // Prefer the previous completed frame for stable diagnostics.
-    // Fall back to current frame only if no previous-frame log exists yet.
-    if (events->empty())
-    {
-        events = &rasterEventLog;
-        sourceName = "current frame";
-        usingPreviousFrame = false;
-    }
-
-    out << "Raster Events for line " << raster
-        << " (" << sourceName << ")\n";
-    out << "--------------------------------\n";
-    out << "Total events in " << sourceName << ": " << events->size() << "\n";
-    out << "  type                    cycle  x     addr   old  new  detail\n";
-
-    bool any = false;
-
-    for (const RasterEventRecord& e : *events)
-    {
-        if (e.raster != raster)
-            continue;
-
-        any = true;
-
-        out << "  "
-            << std::left << std::setw(22) << rasterEventKindName(e.kind)
-            << std::right
-            << std::dec << std::setw(5) << e.cycle
-            << "  "
-            << std::setw(4) << rasterEventPixelX(e.cycle)
-            << "  $"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << e.address
-            << "  $"
-            << std::setw(2) << static_cast<int>(e.oldValue)
-            << "   $"
-            << std::setw(2) << static_cast<int>(e.newValue)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-        const std::string detail = rasterEventDetail(e);
-        if (!detail.empty())
-            out << "  " << detail;
-
-        const std::string rowDetail =
-            rasterRowStateDetail(e.raster, usingPreviousFrame);
-
-        if (!rowDetail.empty())
-            out << "  " << rowDetail;
-
-        out << "\n";
-    }
-
-    if (!any)
-        out << "No recorded events on this raster.\n";
-
-    return out.str();
-}
-
 std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const
 {
     std::ostringstream out;
@@ -6655,23 +6192,6 @@ std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) con
     }
 
     out << std::dec << std::nouppercase << std::setfill(' ');
-
-    return out.str();
-}
-
-std::string Vic::dumpRasterRowState(int raster) const
-{
-    std::ostringstream out;
-
-    out << "Raster Row State for line " << raster << " (previous frame)\n";
-    out << "----------------------------------------\n";
-
-    const std::string detail = rasterRowStateDetail(raster, true);
-
-    if (detail.empty())
-        out << "No row-state snapshot available.\n";
-    else
-        out << detail << "\n";
 
     return out.str();
 }
@@ -6971,86 +6491,6 @@ std::string Vic::dumpBackgroundCellDebug(int raster, int col) const
     out << std::dec << std::nouppercase << std::setfill(' ');
 
     return out.str();
-}
-
-std::string Vic::dumpBadlineTimelineAroundRaster(int centerRaster) const
-{
-    std::ostringstream oss;
-
-    oss << "Bad-line timeline around raster " << centerRaster << "\n";
-    oss << "------------------------------------------------------------\n";
-    oss << "Raster  D011  DEN  YSC  Bad  LatchedBad  Disp  DispNext  RC  VCBase  VMLIBase  VMLIIdx\n";
-
-    for (int r = centerRaster - 8; r <= centerRaster + 8; ++r)
-    {
-        if (r < 0 || r >= cfg_->maxRasterLines)
-            continue;
-
-        const uint8_t d011 = effectiveD011ForRaster(r);
-        const bool den = (d011 & 0x10) != 0;
-        const int yscroll = d011 & 0x07;
-        const bool bad = isBadLine(r);
-
-        oss << std::setw(6) << r << "  "
-            << "$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(d011)
-            << std::dec << std::nouppercase << std::setfill(' ') << "    "
-            << (den ? 1 : 0) << "    "
-            << yscroll << "    "
-            << (bad ? 1 : 0) << "       ";
-
-        if (r == registers.raster)
-        {
-            oss << (vicState.badLineSampled ? 1 : 0) << "          "
-                << (vicState.displayEnabled ? 1 : 0) << "         "
-                << (vicState.displayEnabledNext ? 1 : 0) << "       "
-                << static_cast<int>(vicState.rc) << "   "
-                << vicState.vcBase << "      "
-                << vicState.vmliBase << "       "
-                << static_cast<int>(vicState.vmliFetchIndex);
-        }
-        else
-        {
-            oss << "-          -         -       -   -       -        -";
-        }
-
-        oss << "\n";
-    }
-
-    return oss.str();
-}
-
-std::string Vic::dumpBorderWindowAroundRaster(int centerRaster) const
-{
-    std::ostringstream oss;
-
-    oss << "VIC border window around raster " << centerRaster << "\n";
-
-    for (int r = centerRaster - 4; r <= centerRaster + 4; ++r)
-    {
-        if (r < 0 || r >= static_cast<int>(cfg_->maxRasterLines))
-            continue;
-
-        const VerticalBorderWindow vw = verticalBorderWindowForRaster(r);
-        const bool latchedVertical = borderVertical_per_raster[r] != 0;
-        const bool withinWindow = rasterWithinVerticalDisplayWindow(r);
-
-        oss << "  raster=" << r
-            << " withinWindow=" << (withinWindow ? "yes" : "no")
-            << " latchedVertical=" << (latchedVertical ? "on" : "off")
-            << " topOpen=" << vw.topOpen
-            << " bottomClose=" << vw.bottomClose
-            << " D011=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(latchedD011ForRaster(r))
-            << " D016=$"
-            << std::setw(2)
-            << static_cast<int>(latchedD016ForRaster(r))
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << "\n";
-    }
-
-    return oss.str();
 }
 
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
