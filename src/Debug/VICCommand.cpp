@@ -39,29 +39,16 @@ std::string VICCommand::help() const
         "    bgcell <raster> <col>  Dump background cell debug info for a raster/column\n"
         "    bgrow <raster>         Dump all background cells for one raster\n"
         "    border                 Dump current border state\n"
+        "    border edge [raster]   Show vertical/horizontal border window around raster\n"
         "    regs <group>           Dump VIC-II registers\n"
         "    cycle                  Show debug info for current raster/cycle\n"
+        "    cycle live             Show debug info for current live raster/cycle\n"
         "    cycle <r> <c>          Show debug info for specific raster/cycle\n"
         "    events <r>             Show recorded raster register events\n"
         "    map <r>                Show fetch map for one raster line\n"
         "    pixels <r> <x0> <x1>   Dump pixel composition state for one raster range\n"
         "    row                    Show badline row sequencer\n"
         "    sprite                 Show sprite DMA state\n";
-}
-
-std::string VICCommand::regsUsage() const
-{
-    return
-        "Usage: vic regs [subcommand]\n"
-        "Subcommands:\n"
-        "  all         Show all registers (default)\n"
-        "  raster      Raster/control registers (D011, D012, D016, D018)\n"
-        "  irq         Interrupt registers (D019, D01A)\n"
-        "  sprites     Sprite control (D015, D017, D01B-D01D)\n"
-        "  latch       Latched registers\n"
-        "  collisions  Sprite collision latches (D01E, D01F)\n"
-        "  colors      Border/background/sprite colors (D020-D02E)\n"
-        "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
 }
 
 std::string VICCommand::borderUsage() const
@@ -78,6 +65,7 @@ std::string VICCommand::cycleUsage() const
     return
         "Usage:\n"
         "  vic cycle\n"
+        "  vic cycle live\n"
         "  vic cycle <raster> <cycle>\n";
 }
 
@@ -96,6 +84,21 @@ std::string VICCommand::mapUsage() const
     return
         "Usage:\n"
         "  vic map <raster>\n";
+}
+
+std::string VICCommand::regsUsage() const
+{
+    return
+        "Usage: vic regs [subcommand]\n"
+        "Subcommands:\n"
+        "  all         Show all registers (default)\n"
+        "  raster      Raster/control registers (D011, D012, D016, D018)\n"
+        "  irq         Interrupt registers (D019, D01A)\n"
+        "  sprites     Sprite control (D015, D017, D01B-D01D)\n"
+        "  latch       Latched registers\n"
+        "  collisions  Sprite collision latches (D01E, D01F)\n"
+        "  colors      Border/background/sprite colors (D020-D02E)\n"
+        "  pos         Sprite X/Y positions (D000-D00F, D010)\n";
 }
 
 void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -222,31 +225,6 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
     }
-    else if (sub == "regs")
-    {
-        if (args.size() == 2)
-        {
-            std::cout << regsUsage();
-        }
-        else
-        {
-            const std::string& group = args[2];
-            static const std::set<std::string> validGroups = {
-                "all", "raster", "irq", "sprites", "latch", "collisions", "colors", "pos"
-            };
-
-            if (!validGroups.count(group))
-            {
-                std::cout << regsUsage();
-                return;
-            }
-
-            const std::string output = mon.mlmonitorbackend()->vicDumpRegs(group);
-            std::cout << output;
-            if (!output.empty() && output.back() != '\n')
-                std::cout << '\n';
-        }
-    }
     else if (sub == "cycle")
     {
         if (args.size() == 2)
@@ -255,6 +233,12 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << output;
             if (!output.empty() && output.back() != '\n')
                 std::cout << '\n';
+            return;
+        }
+        if (args.size() == 3 && args[2] == "live")
+        {
+            std::cout << mon.mlmonitorbackend()->vicDumpCurrentCycleDebug();
+            return;
         }
         else if (args.size() == 4)
         {
@@ -394,6 +378,31 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             std::cout << "Usage: vic pixels <raster> <x0> <x1>\n";
             return;
+        }
+    }
+    else if (sub == "regs")
+    {
+        if (args.size() == 2)
+        {
+            std::cout << regsUsage();
+        }
+        else
+        {
+            const std::string& group = args[2];
+            static const std::set<std::string> validGroups = {
+                "all", "raster", "irq", "sprites", "latch", "collisions", "colors", "pos"
+            };
+
+            if (!validGroups.count(group))
+            {
+                std::cout << regsUsage();
+                return;
+            }
+
+            const std::string output = mon.mlmonitorbackend()->vicDumpRegs(group);
+            std::cout << output;
+            if (!output.empty() && output.back() != '\n')
+                std::cout << '\n';
         }
     }
     else if (sub == "row")
