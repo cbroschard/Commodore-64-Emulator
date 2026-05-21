@@ -193,10 +193,9 @@ class MLMonitorBackend
         inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
         inline std::string vicDumpRasterPixelCompositionDebug(int raster, int x0, int x1) const { return vic ?
                                                                     vic->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
-        inline std::string vicDumpBackgroundRowDebug(int raster) const { return vic ? vic->dumpBackgroundRowDebug(raster) : "VIC not available"; }
-        inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vic ?
-                                                                                   vic->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
 
+        std::string vicDumpBackgroundRowDebug(int raster) const;
+        std::string vicDumpBackgroundCellDebug(int raster, int col) const;
         std::string vicDumpAllRasterEvents() const;
         std::string vicDumpRasterEventsSummary() const;
         std::string vicDumpRasterEvents(int raster) const;

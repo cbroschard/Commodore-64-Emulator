@@ -452,6 +452,12 @@ class Vic
         inline const std::vector<RasterRowStateSnapshot>& getCurrentRasterRowsForDebug() const { return rasterRowStates; }
         inline const std::vector<RasterRowStateSnapshot>& getLastFrameRasterRowsForDebug() const { return lastFrameRasterRowStates; }
 
+        inline int getBackgroundMatrixColumnsForDebug() const { return BACKGROUND_MATRIX_COLUMNS; }
+        inline int getBackground40ColX0ForDebug() const { return BACKGROUND_40COL_X0; }
+        inline uint16_t getColorMemoryStartForDebug() const { return COLOR_MEMORY_START; }
+        inline uint8_t d018ForRasterPixelXForDebug ( int raster, int px, bool preferPreviousFrame) const
+                                                   { return d018ForRasterPixelX(raster, px, preferPreviousFrame); }
+
         bool isBadLineForDebug(int raster) const;
         void setIERExact(uint8_t mask);
         void clearPendingIRQs();
@@ -462,8 +468,6 @@ class Vic
         VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
         VicBadlineDebugSnapshot getBadlineDebugSnapshot() const;
         std::string dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const;
-        std::string dumpBackgroundRowDebug(int raster) const;
-        std::string dumpBackgroundCellDebug(int raster, int col) const;
 
     protected:
 
