@@ -6052,7 +6052,7 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     {
         const int slotStart = spriteFetchSlotStart(s);
 
-        if (cycle == slotStart && spriteUnits[s].dmaActive)
+        if (cycle == slotStart)
         {
             switch (s)
             {
