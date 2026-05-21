@@ -9,6 +9,7 @@
 #define MLMONITOR_H
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -118,6 +119,11 @@ class MLMonitor
         // Unordered list to hold any breakpoints set
         std::unordered_set<uint16_t> breakpoints;
 
+        // Console output to file
+        std::ofstream outputFile;
+        std::string outputFilePath;
+        bool outputFileEnabled;
+
         // Unordered list to hold any watches set
         std::unordered_map<uint16_t, uint8_t> writeWatches; // addr -> last value
         std::unordered_set<uint16_t> readWatches;
@@ -126,6 +132,8 @@ class MLMonitor
         void registerCommand(std::unique_ptr<MonitorCommand> cmd);
         void handleCommand(const std::string& line);
         void captureOutputAndExecute(const std::string& cmdLine);
+        void handleOutputFileCommand(const std::vector<std::string>& args);
+        void writeOutputFileBlock(const std::string& cmdLine, const std::string& output);
 };
 
 #endif // MLMONITOR_H
