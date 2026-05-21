@@ -1351,6 +1351,7 @@ void Vic::runFetchPhase()
 
         case FetchKind::None:
         default:
+            performIdleFetchForCurrentCycle();
             break;
     }
 }
@@ -5505,6 +5506,17 @@ void Vic::latchNextRasterDD00()
     const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
     dd00_per_raster[nextRaster] = cia2 ? cia2->getCurrentVICBank() : 0;
+}
+
+void Vic::performIdleFetchForCurrentCycle()
+{
+    if (!mem)
+        return;
+
+    const uint16_t addr = IDLE_FETCH_ADDRESS;
+    const uint8_t value = mem->vicRead(addr, registers.raster);
+
+    updateOpenBus(value);
 }
 
 uint8_t Vic::d019Read() const

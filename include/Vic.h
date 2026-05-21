@@ -492,10 +492,9 @@ class Vic
         TraceManager* traceMgr;
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;
-
         static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
-
         static constexpr int SPRITE_OUTPUT_WIDTH_EXPANDED_MAX = 48;
+        static constexpr uint16_t IDLE_FETCH_ADDRESS = 0x3FFF;
 
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
@@ -752,6 +751,7 @@ class Vic
 
         // OpenBus helper
         inline void updateOpenBus(uint8_t value) { vicState.openBus = value; }
+        void performIdleFetchForCurrentCycle();
 
         // Bus Arbitration Helpers
         bool isBadLineCandidateForBusWarning(int raster) const;
