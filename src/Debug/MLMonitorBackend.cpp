@@ -638,10 +638,83 @@ std::string MLMonitorBackend::vicDumpBadlineState() const
     oss << "  denSeenOn30=" << s.denSeenOn30
         << " firstBadlineY=" << s.firstBadlineY << "\n";
 
+
     oss << "  vcBase=" << s.vcBase
         << " vmliBase=" << s.vmliBase
         << " vmliFetchIndex=" << static_cast<int>(s.vmliFetchIndex)
         << " rc=" << static_cast<int>(s.rc) << "\n";
+
+    return oss.str();
+}
+
+std::string MLMonitorBackend::vicDumpBorderState() const
+{
+    if (!vic)
+        return "VIC not available\n";
+
+    const auto s = vic->getRegisterDebugSnapshot();
+
+    std::ostringstream oss;
+
+    oss << "VIC border state\n";
+    oss << "  raster=" << s.currentRaster
+        << " cycle=" << s.currentCycle << "\n";
+
+    oss << "  live verticalBorder="
+        << (s.liveVerticalBorder ? "on" : "off")
+        << " latched verticalBorder="
+        << (s.latchedVerticalBorder ? "on" : "off")
+        << " match="
+        << ((s.liveVerticalBorder == s.latchedVerticalBorder) ? "yes" : "NO")
+        << "\n";
+
+    oss << "  horizontal border window:\n"
+        << "    latched openX=" << s.latchedBorderOpenX
+        << " closeX=" << s.latchedBorderCloseX << "\n"
+        << "    mask innerX0=" << s.maskInnerX0
+        << " innerX1=" << s.maskInnerX1 << "\n";
+
+    oss << "  live border flags:"
+        << " verticalBorder=" << (s.liveVerticalBorder ? "on" : "off")
+        << " leftBorder=" << (s.liveLeftBorder ? "on" : "off")
+        << " rightBorder=" << (s.liveRightBorder ? "on" : "off")
+        << "\n";
+
+    oss << "  live border window:"
+        << " leftBorderOpenX=" << s.liveLeftBorderOpenX
+        << " rightBorderCloseX=" << s.liveRightBorderCloseX
+        << "\n";
+
+    oss << "  latched RSEL=" << ((s.latchedD011 & 0x08) ? 1 : 0)
+        << " latched CSEL=" << ((s.latchedD016 & 0x08) ? 1 : 0)
+        << "\n";
+
+    oss << "  latched D011=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.latchedD011)
+        << " latched D016=$"
+        << std::setw(2)
+        << static_cast<int>(s.latchedD016)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    oss << "  live D011=$"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.control)
+        << " live D016=$"
+        << std::setw(2)
+        << static_cast<int>(s.control2)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    oss << "  verticalWindow topOpen=" << s.verticalTopOpen
+        << " bottomClose=" << s.verticalBottomClose << "\n";
+
+    oss << "  latched border:"
+        << " verticalBorder=" << (s.latchedVerticalBorder ? "on" : "off")
+        << " openX=" << s.latchedBorderOpenX
+        << " closeX=" << s.latchedBorderCloseX
+        << "\n";
 
     return oss.str();
 }

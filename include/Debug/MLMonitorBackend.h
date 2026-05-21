@@ -199,7 +199,6 @@ class MLMonitorBackend
                                                                     vic->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
         inline std::string vicDumpRasterRowState(int raster) const { return vic ? vic->dumpRasterRowState(raster) : "VIC not available"; }
         inline std::string vicDumpBackgroundRowDebug(int raster) const { return vic ? vic->dumpBackgroundRowDebug(raster) : "VIC not available"; }
-        inline std::string vicDumpBorderState() const { return vic ? vic->dumpBorderState() : "VIC not available"; }
         inline std::string vicDumpBackgroundCellDebug(int raster, int col) const { return vic ?
                                                                                    vic->dumpBackgroundCellDebug(raster, col) : "VIC not available"; }
         inline std::string VicDumpBadlineTimelineAroundRaster(int centerRaster) const { return vic ?
@@ -213,6 +212,7 @@ class MLMonitorBackend
         std::string vicDumpCycleDebugFor(int raster, int cycle) const;
         std::string vicDumpRegs(const std::string& group) const;
         std::string vicDumpBadlineState() const;
+        std::string vicDumpBorderState() const;
         void vicFFRaster(uint8_t targetRaster);
 
     protected:

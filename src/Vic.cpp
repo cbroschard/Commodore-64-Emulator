@@ -6513,6 +6513,26 @@ Vic::VicRegisterDebugSnapshot Vic::getRegisterDebugSnapshot() const
     s.lastRasterIrqSample.sampledBefore = lastRasterIRQSample.sampledBefore;
     s.lastRasterIrqSample.reason = lastRasterIRQSample.reason;
 
+    // Border/window debug state.
+    s.liveVerticalBorder = vicState.verticalBorder;
+    s.liveLeftBorder = vicState.leftBorder;
+    s.liveRightBorder = vicState.rightBorder;
+
+    s.liveLeftBorderOpenX = vicState.leftBorderOpenX;
+    s.liveRightBorderCloseX = vicState.rightBorderCloseX;
+
+    s.latchedVerticalBorder = borderVertical_per_raster[r] != 0;
+    s.latchedBorderOpenX = borderLeftOpenX_per_raster[r];
+    s.latchedBorderCloseX = borderRightCloseX_per_raster[r];
+
+    innerWindowForRaster(r, s.maskInnerX0, s.maskInnerX1);
+
+    const VerticalBorderWindow vw = verticalBorderWindowForRaster(r);
+    s.verticalTopOpen = vw.topOpen;
+    s.verticalBottomClose = vw.bottomClose;
+
+    s.withinVerticalDisplayWindow = rasterWithinVerticalDisplayWindow(r);
+
     return s;
 }
 
@@ -7435,98 +7455,6 @@ std::string Vic::dumpBackgroundCellDebug(int raster, int col) const
     out << std::dec << std::nouppercase << std::setfill(' ');
 
     return out.str();
-}
-
-std::string Vic::dumpBorderState() const
-{
-    std::ostringstream oss;
-
-    int raster = static_cast<int>(registers.raster);
-
-    oss << "VIC border state\n";
-    oss << "  raster=" << raster
-        << " cycle=" << currentCycle << "\n";
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-    {
-        oss << "  raster out of range\n";
-        return oss.str();
-    }
-
-    const bool liveVertical =
-        vicState.verticalBorder;
-
-    const bool latchedVertical =
-        borderVertical_per_raster[raster] != 0;
-
-    int maskInnerX0 = 0;
-    int maskInnerX1 = 0;
-    innerWindowForRaster(raster, maskInnerX0, maskInnerX1);
-
-    oss << "  live verticalBorder="
-        << (liveVertical ? "on" : "off")
-        << " latched verticalBorder="
-        << (latchedVertical ? "on" : "off")
-        << " match="
-        << ((liveVertical == latchedVertical) ? "yes" : "NO")
-        << "\n";
-
-    oss << "  horizontal border window:\n"
-        << "    latched openX=" << borderLeftOpenX_per_raster[raster]
-        << " closeX=" << borderRightCloseX_per_raster[raster] << "\n"
-        << "    mask innerX0=" << maskInnerX0
-        << " innerX1=" << maskInnerX1 << "\n";
-
-    oss << "  live border flags:"
-        << " verticalBorder=" << (vicState.verticalBorder ? "on" : "off")
-        << " leftBorder=" << (vicState.leftBorder ? "on" : "off")
-        << " rightBorder=" << (vicState.rightBorder ? "on" : "off")
-        << "\n";
-
-    oss << "  live border window:"
-        << " leftBorderOpenX=" << vicState.leftBorderOpenX
-        << " rightBorderCloseX=" << vicState.rightBorderCloseX
-        << "\n";
-
-    const uint8_t latchedD011 = latchedD011ForRaster(raster);
-    const uint8_t latchedD016 = latchedD016ForRaster(raster);
-
-    oss << "  latched RSEL=" << ((latchedD011 & 0x08) ? 1 : 0)
-        << " latched CSEL=" << ((latchedD016 & 0x08) ? 1 : 0)
-        << "\n";
-
-    oss << "  latched D011=$"
-        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-        << static_cast<int>(latchedD011)
-        << " latched D016=$"
-        << std::setw(2)
-        << static_cast<int>(latchedD016)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
-    oss << "  live D011=$"
-        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-        << static_cast<int>(registers.control)
-        << " live D016=$"
-        << std::setw(2)
-        << static_cast<int>(registers.control2)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
-    const VerticalBorderWindow vw =
-        verticalBorderWindowForRaster(raster);
-
-    oss << "  verticalWindow topOpen=" << vw.topOpen
-        << " bottomClose=" << vw.bottomClose << "\n";
-
-    oss << "  latched border:"
-        << " verticalBorder="
-        << ((borderVertical_per_raster[raster] != 0) ? "on" : "off")
-        << " openX=" << borderLeftOpenX_per_raster[raster]
-        << " closeX=" << borderRightCloseX_per_raster[raster]
-        << "\n";
-
-    return oss.str();
 }
 
 std::string Vic::dumpBadlineTimelineAroundRaster(int centerRaster) const

@@ -304,6 +304,25 @@ class Vic
             uint8_t latchedD018 = 0;
             uint16_t latchedDD00 = 0;
 
+            // Border / display window debug
+            bool liveVerticalBorder = false;
+            bool liveLeftBorder = false;
+            bool liveRightBorder = false;
+
+            int liveLeftBorderOpenX = 0;
+            int liveRightBorderCloseX = 0;
+
+            bool latchedVerticalBorder = false;
+            int latchedBorderOpenX = 0;
+            int latchedBorderCloseX = 0;
+
+            int maskInnerX0 = 0;
+            int maskInnerX1 = 0;
+
+            int verticalTopOpen = 0;
+            int verticalBottomClose = 0;
+            bool withinVerticalDisplayWindow = false;
+
             // Decoded bases
             uint16_t charBase = 0;
             uint16_t screenBase = 0;
@@ -376,7 +395,6 @@ class Vic
         std::string dumpRasterRowState(int raster) const;
         std::string dumpBackgroundRowDebug(int raster) const;
         std::string dumpBackgroundCellDebug(int raster, int col) const;
-        std::string dumpBorderState() const;
         std::string dumpBadlineTimelineAroundRaster(int centerRaster) const;
         std::string dumpBorderWindowAroundRaster(int centerRaster) const;
         inline std::string dumpBorderWindowAroundCurrentRaster() const { return dumpBorderWindowAroundRaster(static_cast<int>(registers.raster)); }
