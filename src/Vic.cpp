@@ -1625,7 +1625,7 @@ uint32_t Vic::getLatchedSpriteBits(int sprite) const
           |  uint32_t(spriteUnits[sprite].shift2);
 }
 
-bool Vic::firstRasterSpriteModeEventValue(int raster, uint8_t& value) const
+bool Vic::initialSpriteMulticolorModeForRaster(int raster, uint8_t& value) const
 {
     for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
     {
@@ -1650,7 +1650,7 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
     return spriteMulticolorModeLine[sprite][px] != 0;
 }
 
-bool Vic::spriteXExpansionValueBeforeFirstEvent(int raster, uint8_t& value) const
+bool Vic::initialSpriteXExpansionForRaster(int raster, uint8_t& value) const
 {
     for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
     {
@@ -1685,7 +1685,7 @@ void Vic::buildSpriteXExpansionLine(int raster)
 
     uint8_t activeExpansion = registers.spriteXExpansion;
 
-    if (!spriteXExpansionValueBeforeFirstEvent(raster, activeExpansion))
+    if (!initialSpriteXExpansionForRaster(raster, activeExpansion))
     {
         for (int spr = 0; spr < 8; ++spr)
         {
@@ -1738,7 +1738,7 @@ void Vic::buildSpriteMulticolorModeLine(int raster)
 
     uint8_t activeMode = registers.spriteMultiColor;
 
-    if (!firstRasterSpriteModeEventValue(raster, activeMode))
+    if (!initialSpriteMulticolorModeForRaster(raster, activeMode))
     {
         for (int spr = 0; spr < 8; ++spr)
         {

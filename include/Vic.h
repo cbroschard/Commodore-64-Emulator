@@ -887,10 +887,10 @@ class Vic
 
         uint32_t getLatchedSpriteBits(int sprite) const;
 
-        bool firstRasterSpriteModeEventValue(int raster, uint8_t& value) const;
+        bool initialSpriteMulticolorModeForRaster(int raster, uint8_t& value) const;
         void buildSpriteMulticolorModeLine(int raster);
         bool spriteMulticolorAtPixel(int sprite, int px) const;
-        bool spriteXExpansionValueBeforeFirstEvent(int raster, uint8_t& value) const;
+        bool initialSpriteXExpansionForRaster(int raster, uint8_t& value) const;
         void buildSpriteXExpansionLine(int raster);
         bool spriteXExpandedAtPixel(int sprite, int px) const;
         bool firstRasterSpriteEnableEventValue(int raster, uint8_t& value) const;
