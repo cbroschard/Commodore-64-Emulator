@@ -2868,7 +2868,7 @@ void Vic::snapshotRasterRowState(int raster)
     s.d018 = latchedD018ForRaster(raster);
 }
 
-bool Vic::firstRasterPriorityEventValue(int raster, uint8_t& value) const
+bool Vic::initialSpritePriorityForRaster(int raster, uint8_t& value) const
 {
     for (const RasterPriorityEvent& e : rasterPriorityEvents)
     {
@@ -2892,7 +2892,7 @@ void Vic::buildSpritePriorityLine(int raster)
 
     uint8_t activePriority = registers.spritePriority;
 
-    if (!firstRasterPriorityEventValue(raster, activePriority))
+    if (!initialSpritePriorityForRaster(raster, activePriority))
     {
         for (int spr = 0; spr < 8; ++spr)
         {

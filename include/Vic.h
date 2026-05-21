@@ -1139,7 +1139,7 @@ class Vic
         void snapshotRasterPixelComposition(int raster);
         void snapshotRasterRowState(int raster);
 
-        bool firstRasterPriorityEventValue(int raster, uint8_t& value) const;
+        bool initialSpritePriorityForRaster(int raster, uint8_t& value) const;
         void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
 
