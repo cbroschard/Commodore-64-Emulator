@@ -5585,6 +5585,17 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.valid = true;
     s.slot = cycleSlotFor(raster, cycle);
 
+    s.rasterIrqTarget = registers.rasterInterruptLine & 0x01FF;
+    s.rasterIrqTargetInRange = s.rasterIrqTarget < cfg_->maxRasterLines;
+
+    s.rasterIrqCompareMatch =
+        s.rasterIrqTargetInRange &&
+        static_cast<uint16_t>(raster) == s.rasterIrqTarget;
+
+    s.rasterIrqEnabled = (registers.interruptEnable & 0x01) != 0;
+    s.rasterIrqPending = (registers.interruptStatus & 0x01) != 0;
+    s.irqLineActiveNow = irqLineActive();
+
     s.badLine =
         (raster == registers.raster)
             ? vicState.badLineSampled

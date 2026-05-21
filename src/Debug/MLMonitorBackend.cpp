@@ -1235,7 +1235,16 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     }
 
     out << "Refresh: " << bit(slot.refresh) << "\n";
-    out << "Raster IRQ sample: " << bit(slot.rasterIrqSample) << "\n";
+    out << "Raster IRQ:"
+    << " sample=" << bit(slot.rasterIrqSample)
+    << " target=" << s.rasterIrqTarget
+    << " inRange=" << bit(s.rasterIrqTargetInRange)
+    << " match=" << bit(s.rasterIrqCompareMatch)
+    << " enabled=" << bit(s.rasterIrqEnabled)
+    << " pending=" << bit(s.rasterIrqPending)
+    << " line=" << bit(s.irqLineActiveNow)
+    << "\n";
+
     out << "Matrix fetch index: " << slot.matrixFetchIndex << "\n";
 
     out << "DEN seen on $30: " << (s.denSeenOn30 ? "Yes" : "No") << "\n";

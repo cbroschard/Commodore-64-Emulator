@@ -168,6 +168,13 @@ class Vic
             uint8_t fineY = 0;
             uint8_t fineX = 0;
 
+            uint16_t rasterIrqTarget = 0;
+            bool rasterIrqTargetInRange = false;
+            bool rasterIrqCompareMatch = false;
+            bool rasterIrqEnabled = false;
+            bool rasterIrqPending = false;
+            bool irqLineActiveNow = false;
+
             struct SpriteDebug
             {
                 bool valid = false;
