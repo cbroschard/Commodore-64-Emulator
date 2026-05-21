@@ -1943,10 +1943,19 @@ void Vic::beginSpriteLineOutput(int spr, int raster)
 
 void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 {
-    spriteUnits[sprIndex].outputBit = 0;
-    spriteUnits[sprIndex].outputRepeat = 0;
-    spriteUnits[sprIndex].outputXStart = spriteScreenXFor(sprIndex, raster);
-    spriteUnits[sprIndex].outputWidth =  SPRITE_OUTPUT_WIDTH_EXPANDED_MAX;
+    if (sprIndex < 0 || sprIndex >= 8)
+        return;
+
+    SpriteUnit& u = spriteUnits[sprIndex];
+
+    u.outputBit = 0;
+    u.outputRepeat = 0;
+    u.outputXStart = spriteScreenXFor(sprIndex, raster);
+
+    const int sampleX = std::clamp(u.outputXStart, 0, VISIBLE_WIDTH - 1);
+    const bool expanded = spriteXExpandedAtPixel(sprIndex, sampleX);
+
+    u.outputWidth = expanded ? SPRITE_OUTPUT_WIDTH_EXPANDED_MAX : 24;
 }
 
 void Vic::advanceSpriteOutputState(int sprIndex, int px)
