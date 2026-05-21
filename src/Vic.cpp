@@ -3435,25 +3435,6 @@ void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raste
     bgPipeline.ecm = true;
 }
 
-uint8_t Vic::fetchBackgroundPipelineTextRowBits() const
-{
-    if (!bgPipeline.valid || !mem)
-        return 0;
-
-    const int raster = bgPipeline.raster;
-
-    const uint16_t charBase =
-        charBaseForRasterPixelX(raster, bgPipeline.px);
-
-    const uint16_t glyphAddr = static_cast<uint16_t>(
-        charBase +
-        static_cast<uint16_t>(bgPipeline.charCode) * 8 +
-        static_cast<uint16_t>(bgPipeline.yInChar & 0x07)
-    );
-
-    return mem->vicRead(glyphAddr, raster);
-}
-
 void Vic::resetActiveMatrixRow()
 {
     activeMatrixRow.valid = false;
@@ -3524,94 +3505,6 @@ void Vic::resetBackgroundPipeline()
     bgPipeline.multicolor = false;
     bgPipeline.bitmap = false;
     bgPipeline.ecm = false;
-}
-
-void Vic::stampStandardTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1)
-{
-    const int startPx = std::max(pxBase, x0);
-    const int endPx   = std::min(pxBase + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - pxBase;
-        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
-
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
-    }
-}
-
-void Vic::stampStandardTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase)
-{
-    const int begin = std::max(0, startPhase);
-    const int end   = std::min(8, endPhase);
-
-    if (begin >= end)
-        return;
-
-    for (int phase = begin; phase < end; ++phase)
-    {
-        const int px = pxBase + phase;
-        if (px < x0 || px >= x1)
-            continue;
-
-        const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
-        stampBackgroundPixel(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn);
-    }
-}
-
-void Vic::stampStandardTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount)
-{
-    if (pixelCount <= 0)
-        return;
-
-    const int startPhase = std::clamp(phase, 0, 8);
-    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
-
-    stampStandardTextRowBitsFromPhase(pxBase, py, rowBits, fg, bg, x0, x1, startPhase, endPhase);
-
-    phase = endPhase;
-}
-
-void Vic::stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits,
-                                     uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
-                                     int x0, int x1)
-{
-    const int startPx = std::max(pxBase, x0);
-    const int endPx   = std::min(pxBase + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int localX = px - pxBase;
-        const int pairIndex = localX >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = bg0 & 0x0F;
-        bool opaque = false;
-        BackgroundSource source = multicolorTextSourceForBits(bits);
-
-        switch (bits)
-        {
-            case 0x00:
-                color = bg0 & 0x0F;
-                opaque = false;
-                break;
-            case 0x01:
-                color = bg1 & 0x0F;
-                opaque = true;
-                break;
-            case 0x02:
-                color = bg2 & 0x0F;
-                opaque = true;
-                break;
-            case 0x03:
-                color = cellColor & 0x0F;
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixelSource(px, py, color, opaque, source);
-    }
 }
 
 void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
@@ -3690,28 +3583,6 @@ Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits,
-                                     uint8_t fg, uint8_t bg,
-                                     int x0, int x1)
-{
-    const int startPx = std::max(pxBase, x0);
-    const int endPx   = std::min(pxBase + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - pxBase;
-        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
-
-        stampBackgroundPixelSource(
-            px,
-            py,
-            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
-            pixelOn,
-            BackgroundSource::Bitmap
-        );
-    }
-}
-
 void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
                                               uint8_t fg, uint8_t bg,
                                               int x0, int x1,
@@ -3753,47 +3624,6 @@ void Vic::stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, u
     stampStandardBitmapRowBitsFromPhase(pxBase, py, rowBits, fg, bg, x0, x1, startPhase, endPhase);
 
     phase = endPhase;
-}
-
-void Vic::stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits,
-                                       uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
-                                       int x0, int x1)
-{
-    const int startPx = std::max(pxBase, x0);
-    const int endPx   = std::min(pxBase + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int localX = px - pxBase;
-        const int pairIndex = localX >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = c00 & 0x0F;
-        bool opaque = false;
-
-        switch (bits)
-        {
-            case 0x00:
-                color = c00 & 0x0F;
-                opaque = false;
-                break;
-            case 0x01:
-                color = c01 & 0x0F;
-                opaque = true;
-                break;
-            case 0x02:
-                color = c10 & 0x0F;
-                opaque = true;
-                break;
-            case 0x03:
-                color = c11 & 0x0F;
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixelSource(px, py, color, opaque, multicolorBitmapSourceForBits(bits));
-    }
 }
 
 void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
@@ -3883,29 +3713,6 @@ Vic::BackgroundSource Vic::multicolorBitmapSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampECMRowBits(int pxBase, int py, uint8_t rowBits,
-                          uint8_t fg, uint8_t bg,
-                          BackgroundSource bgSource,
-                          int x0, int x1)
-{
-    const int startPx = std::max(pxBase, x0);
-    const int endPx   = std::min(pxBase + 8, x1);
-
-    for (int px = startPx; px < endPx; ++px)
-    {
-        const int bit = px - pxBase;
-        const bool pixelOn = ((rowBits >> (7 - bit)) & 0x01) != 0;
-
-        stampBackgroundPixelSource(
-            px,
-            py,
-            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
-            pixelOn,
-            pixelOn ? BackgroundSource::Foreground : bgSource
-        );
-    }
-}
-
 void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
                                    uint8_t fg, uint8_t bg,
                                    BackgroundSource bgSource,
@@ -3962,19 +3769,6 @@ void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
     );
 
     phase = endPhase;
-}
-
-Vic::BackgroundSource Vic::ecmBackgroundSourceForCharIndex(uint8_t charIndex) const
-{
-    switch ((charIndex >> 6) & 0x03)
-    {
-        case 0x00: return BackgroundSource::BG0; // $D021
-        case 0x01: return BackgroundSource::BG1; // $D022
-        case 0x02: return BackgroundSource::BG2; // $D023
-        case 0x03: return BackgroundSource::BG3; // $D024
-    }
-
-    return BackgroundSource::Unknown;
 }
 
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
@@ -5419,83 +5213,6 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     return computedRow >= 0 && computedRow < 21;
 }
 
-int Vic::firstSpriteSpriteCollisionXOnLine(int A, int B, int raster) const
-{
-    if (A < 0 || A >= 8 || B < 0 || B >= 8 || A == B)
-        return -1;
-
-    int ra = 0;
-    int rb = 0;
-    int fbLine = 0;
-
-    if (!spriteDisplayCoversRaster(A, raster, ra, fbLine))
-        return -1;
-
-    if (!spriteDisplayCoversRaster(B, raster, rb, fbLine))
-        return -1;
-
-    if (!spriteUnits[A].rowPrepared || !spriteUnits[B].rowPrepared)
-        return -1;
-
-    const int a0 = spriteUnits[A].outputXStart;
-    const int a1 = a0 + spriteUnits[A].outputWidth;
-
-    const int b0 = spriteUnits[B].outputXStart;
-    const int b1 = b0 + spriteUnits[B].outputWidth;
-
-    const int startX = std::max(a0, b0);
-    const int endX   = std::min(a1, b1);
-
-    if (startX >= endX)
-        return -1;
-
-    const int clippedStart = std::max(startX, 0);
-    const int clippedEnd   = std::min(endX, VISIBLE_WIDTH);
-
-    for (int px = clippedStart; px < clippedEnd; ++px)
-    {
-        if (spriteOpaqueLine[A][px] && spriteOpaqueLine[B][px])
-            return px;
-    }
-
-    return -1;
-}
-
-int Vic::firstSpriteBackgroundCollisionXOnLine(int spriteIndex, int raster) const
-{
-    if (spriteIndex < 0 || spriteIndex >= 8)
-        return -1;
-
-    int rowInSprite = 0;
-    int fbLine = 0;
-
-    if (!spriteDisplayCoversRaster(spriteIndex, raster, rowInSprite, fbLine))
-        return -1;
-
-    if (!spriteUnits[spriteIndex].rowPrepared)
-        return -1;
-
-    const int startX = spriteUnits[spriteIndex].outputXStart;
-    const int endX   = startX + spriteUnits[spriteIndex].outputWidth;
-
-    const int clippedStart = std::max(startX, 0);
-    const int clippedEnd   = std::min(endX, VISIBLE_WIDTH);
-
-    for (int px = clippedStart; px < clippedEnd; ++px)
-    {
-        if (!spriteOpaqueLine[spriteIndex][px])
-            continue;
-
-        // Collision is based on the current rendered background opacity line.
-        // This branch runs immediately after renderLine(), before the raster
-        // advances, so bgOpaqueLine is the relevant current line.
-        if (bgOpaqueLine[px] != 0)
-            return px;
-    }
-
-    return -1;
-}
-
 void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
 {
     bits &= 0xFF;
@@ -5623,22 +5340,6 @@ void Vic::latchSpriteBackgroundCollisionsAtPixel(int raster, int px)
         latchSpriteBackgroundCollision(bits, raster, px);
 }
 
-bool Vic::isBackgroundPixelOpaque(int x, int y)
-{
-    if (x < 0 || x >= 512)
-        return false;
-
-    const int currentLine = fbY(registers.raster);
-
-    if (y == currentLine)
-        return bgOpaqueLine[x] != 0;
-
-    if (y < 0 || y >= static_cast<int>(bgOpaque.size()))
-        return false;
-
-    return bgOpaque[y][x] != 0;
-}
-
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
 {
     const bool MCM = (d016 & 0x10) != 0;
@@ -5709,104 +5410,6 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 
     x0 = first;
     x1 = last;
-}
-
-void Vic::renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1)
-{
-    if (!mem)
-        return;
-
-    const uint16_t charBase =
-        charBaseForRasterPixelX(raster, x);
-
-    const uint16_t address =
-        static_cast<uint16_t>(
-            charBase +
-            static_cast<uint16_t>(c) * 8
-        );
-
-    const uint8_t row =
-        mem->vicRead(static_cast<uint16_t>(address + (yInChar & 0x07)), raster);
-
-    updateOpenBus(row);
-
-    for (int col = 0; col < 8; ++col)
-    {
-        const int pxRaw = x + col;
-        if (pxRaw < x0 || pxRaw >= x1)
-            continue;
-
-        const bool bit = ((row >> (7 - col)) & 0x01) != 0;
-
-        const uint8_t color = bit
-            ? static_cast<uint8_t>(fg & 0x0F)
-            : static_cast<uint8_t>(bg & 0x0F);
-
-        bgColorLine[pxRaw] = static_cast<uint8_t>(color & 0x0F);
-
-        if (bit)
-            markBGOpaque(y, pxRaw);
-    }
-}
-
-void Vic::renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1)
-{
-    if (!mem)
-        return;
-
-    const uint16_t charBase =
-        charBaseForRasterPixelX(raster, x);
-
-    const uint16_t address =
-        static_cast<uint16_t>(
-            charBase +
-            static_cast<uint16_t>(c) * 8
-        );
-
-    const uint8_t row =
-        mem->vicRead(static_cast<uint16_t>(address + (yInChar & 0x07)), raster);
-
-    updateOpenBus(row);
-
-    const uint8_t bg0 = static_cast<uint8_t>(bg & 0x0F);
-    const uint8_t bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-    const uint8_t bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-    const uint8_t colRAM = static_cast<uint8_t>(cellCol & 0x07);
-
-    for (int pair = 0; pair < 4; ++pair)
-    {
-        const uint8_t bits =
-            static_cast<uint8_t>((row >> ((3 - pair) * 2)) & 0x03);
-
-        const uint8_t color =
-            (bits == 0) ? bg0 :
-            (bits == 1) ? bg1 :
-            (bits == 2) ? bg2 :
-                          colRAM;
-
-        const int p0 = x + pair * 2;
-        const int p1 = p0 + 1;
-
-        if (p0 >= x1)
-            break;
-
-        if (p1 < x0)
-            continue;
-
-        if (p0 >= x0 && p0 < x1)
-        {
-            bgColorLine[p0] = static_cast<uint8_t>(color & 0x0F);
-            if (bits != 0)
-                markBGOpaque(y, p0);
-        }
-
-        if (p1 >= x0 && p1 < x1)
-        {
-            bgColorLine[p1] = static_cast<uint8_t>(color & 0x0F);
-            if (bits != 0)
-                markBGOpaque(y, p1);
-        }
-    }
 }
 
 uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
@@ -6030,20 +5633,6 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
     col = vc % 40;
 }
 
-bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
-{
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return true;
-
-    if (px < 0 || px >= VISIBLE_WIDTH)
-        return true;
-
-    if (borderVertical_per_raster[raster] != 0)
-        return true;
-
-    return borderMaskLine[px] != 0;
-}
-
 void Vic::updateVerticalBorderState(int raster)
 {
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
@@ -6149,16 +5738,6 @@ uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
 
     vicState.openBus = value;
     return value;
-}
-
-void Vic::markBGOpaque(int screenY, int px)
-{
-    (void)screenY;
-
-    if (px >= 0 && px < 512)
-    {
-        bgOpaqueLine[px] = 1;
-    }
 }
 
 void Vic::latchNextRasterDD00()
@@ -7840,63 +7419,4 @@ const char* Vic::busArbReason(int raster, int cycle) const
         return "refresh";
 
     return "none";
-}
-
-const char* Vic::busOwnerName(BusOwner owner) const
-{
-    switch(owner)
-    {
-        case Vic::BusOwner::BadLine:
-            return "BADLINE";
-        case Vic::BusOwner::CPU:
-            return "CPU";
-        case Vic::BusOwner::Idle:
-            return "IDLE";
-        case Vic::BusOwner::Refresh:
-            return "REFRESH";
-        case Vic::BusOwner::SpriteData:
-            return "SPRITE DATA";
-        case Vic::BusOwner::SpritePointer:
-            return "SPRITE POINTER";
-        default:
-            return "?";
-    }
-}
-
-bool Vic::fetchKindIsSpritePointer(Vic::FetchKind kind) const
-{
-    switch (kind)
-    {
-        case Vic::FetchKind::SpritePtr0:
-        case Vic::FetchKind::SpritePtr1:
-        case Vic::FetchKind::SpritePtr2:
-        case Vic::FetchKind::SpritePtr3:
-        case Vic::FetchKind::SpritePtr4:
-        case Vic::FetchKind::SpritePtr5:
-        case Vic::FetchKind::SpritePtr6:
-        case Vic::FetchKind::SpritePtr7:
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-bool Vic::fetchKindIsSpriteData(Vic::FetchKind kind) const
-{
-    switch (kind)
-    {
-        case Vic::FetchKind::SpriteData0:
-        case Vic::FetchKind::SpriteData1:
-        case Vic::FetchKind::SpriteData2:
-        case Vic::FetchKind::SpriteData3:
-        case Vic::FetchKind::SpriteData4:
-        case Vic::FetchKind::SpriteData5:
-        case Vic::FetchKind::SpriteData6:
-        case Vic::FetchKind::SpriteData7:
-            return true;
-
-        default:
-            return false;
-    }
 }

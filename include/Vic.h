@@ -666,7 +666,6 @@ class Vic
         inline int getSpriteIndex(uint16_t address) const { return (address - 0xD000) / 2; }
         inline int getSpriteColorIndex(uint16_t address) const { return (address - 0xD027); }
         inline bool isSpriteX(uint16_t address) const { return ((address - 0xD000) % 2) == 0; }
-        void markBGOpaque(int screenY, int px);
 
         // DD00 latch
         void latchNextRasterDD00();
@@ -781,9 +780,6 @@ class Vic
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
 
-        int firstSpriteSpriteCollisionXOnLine(int A, int B, int raster) const;
-        int firstSpriteBackgroundCollisionXOnLine(int spriteIndex, int raster) const;
-
         void latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX);
         void latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX);
         void latchSpriteBackgroundCollisionsAtPixel(int raster, int px);
@@ -824,8 +820,6 @@ class Vic
         void buildSpriteEnableLine(int raster);
         bool spriteEnabledAtPixel(int sprite, int px) const;
         bool spriteEnabledSomewhereOnLine(int sprite) const;
-
-        bool isBackgroundPixelOpaque(int x, int y);
 
         // Ensure graphics mode updates
         graphicsMode currentMode;
@@ -1139,39 +1133,27 @@ class Vic
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col);
-        uint8_t fetchBackgroundPipelineTextRowBits() const;
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
 
         void resetBackgroundPipeline();
 
-        void stampStandardTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
-        void stampStandardTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
-        void stampStandardTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
-
-        void stampMulticolorTextRowBits(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor, int x0, int x1);
         void stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
                                                  int x0, int x1, int startPhase, int endPhase);
         void stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
                                              int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
 
-        void stampStandardBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1);
         void stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
         void stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
 
-        void stampMulticolorBitmapRowBits(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11, int x0, int x1);
         void stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
                                            int x0, int x1, int startPhase, int endPhase);
         void stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
                                        int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorBitmapSourceForBits(uint8_t bits) const;
 
-        void stampECMRowBits(int pxBase, int py, uint8_t rowBits,
-                             uint8_t fg, uint8_t bg,
-                             BackgroundSource bgSource,
-                             int x0, int x1);
         void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
                                       uint8_t fg, uint8_t bg,
                                       BackgroundSource bgSource,
@@ -1182,7 +1164,6 @@ class Vic
                                   BackgroundSource bgSource,
                                   int x0, int x1,
                                   int& phase, int pixelCount);
-        BackgroundSource ecmBackgroundSourceForCharIndex(uint8_t charIndex) const;
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
@@ -1233,11 +1214,8 @@ class Vic
         void applySpriteColorEventsToLine(int raster);
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
-        bool horizontalBorderLatchedAtPixel(int raster, int px) const;
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         inline void getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const { innerWindowForRaster(raster, leftInner, rightInner); }
-        void renderChar(uint8_t c, int x, int y, uint8_t fg, uint8_t bg, int yInChar, int raster, int x0, int x1);
-        void renderCharMultiColor(uint8_t c, int x, int y, uint8_t cellCol, uint8_t bg, int yInChar, int raster, int x0, int x1);
         uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
 
@@ -1314,10 +1292,6 @@ class Vic
         // Bus helpers
         void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const;
         const char* busArbReason(int raster, int cycle) const;
-
-        const char* busOwnerName(BusOwner owner) const;
-        bool fetchKindIsSpritePointer(Vic::FetchKind kind) const;
-        bool fetchKindIsSpriteData(Vic::FetchKind kind) const;
 
         static int bit(bool v) { return v ? 1 : 0; }
 };
