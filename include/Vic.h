@@ -415,6 +415,8 @@ class Vic
 
         static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
 
+        static constexpr int SPRITE_OUTPUT_WIDTH_EXPANDED_MAX = 48;
+
         // Screen constants
         static constexpr int BORDER_SIZE = 32;
         static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
@@ -698,7 +700,6 @@ class Vic
         void handleCycle0Decisions();
         void handleCycle14Decisions();
         void handleCycle15Decisions();
-        void handleSpriteDmaStartDecisions();
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
         void runFetchPhase();
@@ -708,8 +709,6 @@ class Vic
         void finalizeFrameIfNeeded(int curRaster);
         void advanceToNextRaster();
         void traceRasterEnd();
-
-        void updatePerCycleState();
 
         // Address enable control
         void updateBusArbitration();
@@ -758,17 +757,14 @@ class Vic
         // Sprite DMA Helpers
         int spriteRowFromMCBase(int spr) const;
         bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
-        bool isSpriteDMAComplete(int spr) const;
         void resetSpriteDMAState(int spr);
         void performSpriteDataFetchForSprite(int sprite);
         int spritePointerFetchSpriteForKind(FetchKind kind) const;
         int spriteDataFetchSpriteForKind(FetchKind kind) const;
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
-        bool isSpritePointerFetchCycle(int sprite, int cycle) const;
         int spriteDataByteIndexForCycle(int sprite, int cycle) const;
         uint16_t spritePointerAddressForRaster(int sprite, int raster, int cycle) const;
-        bool spriteHasFetchedDisplayRow(int sprite) const;
         void clearSpriteFetchedRowState(int sprite);
 
         struct SpriteCollisionTimingSnapshot
@@ -781,8 +777,6 @@ class Vic
         };
 
         // Sprite collision Helpers
-        bool checkSpriteBackgroundOverlap(int spriteIndex, int raster);
-        bool checkSpriteSpriteOverlapOnLine(int A, int B, int raster);
         int spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const;
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
@@ -802,13 +796,11 @@ class Vic
         void fetchSpritePointer(int sprite, int raster);
         bool isSpriteDMAFetchCycle(int sprite, int cycle) const;
         int spriteFetchSlotStart(int sprite) const;
-        void syncSpriteCompatAddress(int sprite);
 
         void prepareSpriteOutputForRaster(int raster);
         bool spriteCanRenderThisRaster(int sprite) const;
         void resetSpriteLineOutputState(int sprite);
 
-        int spritePreparedOutputWidth(int sprIndex) const;
         void beginSpriteLineOutput(int sprIndex, int raster);
 
         void resetSpriteLineSequencer(int sprIndex, int raster);
@@ -1214,7 +1206,6 @@ class Vic
 
         void emitRasterLineInOrder(int raster);
         void emitActiveStandardTextPixels(int x0, int x1, int pixelBudget);
-        void emitStandardTextCyclePixels(int x0, int x1);
         void emitStandardTextCyclePixelsBudgeted(int x0, int x1, int pixelBudget);
 
         int rasterVisibleStartX(int raster) const;
@@ -1242,7 +1233,6 @@ class Vic
         void applySpriteColorEventsToLine(int raster);
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
-        bool verticalDisplayOpenForRaster(int raster) const;
         bool horizontalBorderLatchedAtPixel(int raster, int px) const;
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         inline void getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const { innerWindowForRaster(raster, leftInner, rightInner); }
@@ -1260,7 +1250,6 @@ class Vic
         bool shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const;
         bool fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& screenByte, uint8_t& colorByte) const;
 
-        void advanceVideoCountersEndOfLine(int raster);
         int currentCharacterRow() const;
         void currentDisplayRowCol(int displayCol, int& row, int& col) const;
 

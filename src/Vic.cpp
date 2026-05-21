@@ -1200,7 +1200,7 @@ void Vic::runCycleDecisionPhase()
 
         case 15:
             handleCycle15Decisions();
-            handleSpriteDmaStartDecisions();
+            updateSpriteDMAStartForCurrentLine(registers.raster);
             break;
 
         case 58:
@@ -1272,11 +1272,6 @@ void Vic::handleCycle15Decisions()
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, true);
         beginBadLineFetch();
     }
-}
-
-void Vic::handleSpriteDmaStartDecisions()
-{
-    updateSpriteDMAStartForCurrentLine(registers.raster);
 }
 
 void Vic::handleDmaStartCycleDecisions()
@@ -1454,7 +1449,7 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     snapshotRasterRowState(curRaster);
 
     updateSpriteDMAEndOfLine(curRaster);
-    advanceVideoCountersEndOfLine(curRaster);
+    advanceCharacterSequencerEndOfLine(curRaster);
 
     finalizeFrameIfNeeded(curRaster);
     advanceToNextRaster();
@@ -1504,12 +1499,6 @@ void Vic::traceRasterEnd()
                               registers.control,
                               registers.rasterInterruptLine & 0xFF,
                               stamp);
-}
-
-void Vic::updatePerCycleState()
-{
-    // Per-cycle bus arbitration
-    updateBusArbitration();
 }
 
 int Vic::spriteFetchSlotStart(int sprite) const
@@ -1587,16 +1576,6 @@ Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
     return w;
 }
 
-void Vic::syncSpriteCompatAddress(int sprite)
-{
-    sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
-}
-
-bool Vic::spriteHasFetchedDisplayRow(int sprite) const
-{
-    return spriteUnits[sprite].rowDataLatched;
-}
-
 bool Vic::spriteCanRenderThisRaster(int sprite) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -1608,7 +1587,7 @@ bool Vic::spriteCanRenderThisRaster(int sprite) const
     if (!spriteUnits[sprite].dmaActive)
         return false;
 
-    if (!spriteHasFetchedDisplayRow(sprite))
+    if (!spriteUnits[sprite].rowDataLatched)
         return false;
 
     return true;
@@ -1909,8 +1888,8 @@ void Vic::fetchSpritePointer(int sprite, int raster)
 
     spriteUnits[sprite].pointerByte = ptr;
     spriteUnits[sprite].dataBase = static_cast<uint16_t>(ptr) << 6;
+    sprPtrBase[sprite] = spriteUnits[sprite].dataBase;
 
-    syncSpriteCompatAddress(sprite);
     traceVicSpriteSlotEvent(sprite, "ptr", raster, currentCycle);
 }
 
@@ -1934,7 +1913,7 @@ void Vic::prepareSpriteOutputForRaster(int raster)
             continue;
         }
 
-        if (!spriteHasFetchedDisplayRow(i))
+        if (!spriteUnits[i].rowDataLatched)
         {
             traceVicSpriteSlotEvent(i, "prep-no-row", raster, currentCycle);
             continue;
@@ -1943,12 +1922,6 @@ void Vic::prepareSpriteOutputForRaster(int raster)
         traceVicSpriteSlotEvent(i, "prep-output", raster, currentCycle);
         beginSpriteLineOutput(i, raster);
     }
-}
-
-int Vic::spritePreparedOutputWidth(int sprIndex) const
-{
-    (void)sprIndex;
-    return 48;
 }
 
 void Vic::beginSpriteLineOutput(int spr, int raster)
@@ -1973,7 +1946,7 @@ void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
     spriteUnits[sprIndex].outputBit = 0;
     spriteUnits[sprIndex].outputRepeat = 0;
     spriteUnits[sprIndex].outputXStart = spriteScreenXFor(sprIndex, raster);
-    spriteUnits[sprIndex].outputWidth = spritePreparedOutputWidth(sprIndex);
+    spriteUnits[sprIndex].outputWidth =  SPRITE_OUTPUT_WIDTH_EXPANDED_MAX;
 }
 
 void Vic::advanceSpriteOutputState(int sprIndex, int px)
@@ -2084,7 +2057,7 @@ void Vic::beginSpriteRasterOutput(int raster)
         if (!spriteUnits[spr].rowPrepared)
             continue;
 
-        if (!spriteHasFetchedDisplayRow(spr))
+        if (!spriteUnits[spr].rowDataLatched)
             continue;
 
         traceVicSpriteSlotEvent(spr, "display-begin", raster, currentCycle);
@@ -2171,7 +2144,7 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
             spriteUnits[s].currentRow = spriteRowFromMCBase(s);
         }
 
-        if (isSpriteDMAComplete(s))
+        if (spriteUnits[s].mcBase >= 63)
         {
             traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
             clearSpriteFetchedRowState(s);
@@ -2199,11 +2172,6 @@ bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
     // currentRow starts at 0, so do not advance after the first line of a pair.
     // Advance after rows 1, 3, 5, etc.
     return (currentRow & 1) != 0;
-}
-
-bool Vic::isSpriteDMAComplete(int spr) const
-{
-    return spriteUnits[spr].mcBase >= 63;
 }
 
 void Vic::resetSpriteDMAState(int spr)
@@ -2312,11 +2280,6 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     spriteUnits[sprite].rowDataLatched = true;
 
     traceVicSpriteSlotEvent(sprite, "row-latched", registers.raster, currentCycle);
-}
-
-bool Vic::isSpritePointerFetchCycle(int sprite, int cycle) const
-{
-    return cycle == spriteFetchSlotStart(sprite);
 }
 
 void Vic::updateSpriteDMAStartForCurrentLine(int raster)
@@ -2503,7 +2466,7 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
 
         // Pointer fetches are tracked as fetch events, but they should not
         // be modeled as full CPU-steal cycles.
-        if (isSpritePointerFetchCycle(s, cycle))
+        if (cycle == cfg_->spriteFetchSlots[s])
             continue;
 
         if (isSpriteDataCpuStealCycle(s, cycle))
@@ -4607,11 +4570,6 @@ void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
     }
 }
 
-void Vic::emitStandardTextCyclePixels(int x0, int x1)
-{
-    emitStandardTextCyclePixelsBudgeted(x0, x1, 8);
-}
-
 void Vic::emitStandardTextCyclePixelsBudgeted(int x0, int x1, int pixelBudget)
 {
     emitActiveStandardTextPixels(x0, x1, pixelBudget);
@@ -5342,11 +5300,6 @@ bool Vic::isRasterIRQCompareCycle(int cycle) const
     return cycle == cfg_->cyclesPerLine - 1;
 }
 
-bool Vic::checkSpriteSpriteOverlapOnLine(int A, int B, int raster)
-{
-    return firstSpriteSpriteCollisionXOnLine(A, B, raster) >= 0;
-}
-
 int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
 {
     if (sprIndex < 0 || sprIndex >= 8)
@@ -5416,11 +5369,6 @@ int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
         x += 256;
 
     return x;
-}
-
-bool Vic::checkSpriteBackgroundOverlap(int spriteIndex, int raster)
-{
-    return firstSpriteBackgroundCollisionXOnLine(spriteIndex, raster) >= 0;
 }
 
 int Vic::spriteScreenXFor(int sprIndex, int raster) const
@@ -6017,11 +5965,6 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
     return static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
 }
 
-void Vic::advanceVideoCountersEndOfLine(int raster)
-{
-    advanceCharacterSequencerEndOfLine(raster);
-}
-
 void Vic::advanceCharacterSequencerEndOfLine(int raster)
 {
     if (!vicState.displayEnabledNext)
@@ -6085,12 +6028,6 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
     const int vc = currentDisplayRowBase() + displayCol;
     row = vc / 40;
     col = vc % 40;
-}
-
-bool Vic::verticalDisplayOpenForRaster(int raster) const
-{
-    const BorderWindow w = borderWindowForRaster(raster);
-    return !w.vertical;
 }
 
 bool Vic::horizontalBorderLatchedAtPixel(int raster, int px) const
