@@ -1117,8 +1117,6 @@ class Vic
 
         ActiveBackgroundPixelState activeBgPixel;
 
-        inline bool backgroundPipelineIsTextLike() const { return bgPipeline.valid && !bgPipeline.bitmap; }
-        inline bool backgroundPipelineIsBitmapLike() const { return bgPipeline.valid && bgPipeline.bitmap; }
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
 
         BackgroundPipelineState bgPipeline;
@@ -1215,7 +1213,6 @@ class Vic
 
         inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
-        inline void getInnerDisplayBounds(int raster, int& leftInner, int& rightInner) const { innerWindowForRaster(raster, leftInner, rightInner); }
         uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
 
@@ -1292,7 +1289,6 @@ class Vic
         // Bus helpers
         void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const;
         const char* busArbReason(int raster, int cycle) const;
-
-        static int bit(bool v) { return v ? 1 : 0; }
 };
+
 #endif // VIC_H
