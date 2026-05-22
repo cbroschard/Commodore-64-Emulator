@@ -260,6 +260,8 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         uint8_t currentTrackOnSide1Based() const;
         uint8_t currentImageTrack1Based() const;
         size_t currentRawCacheIndex() const;
+
+        void resetForMediaChange();
 };
 
 #endif // D1571_H

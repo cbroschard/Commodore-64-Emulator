@@ -858,6 +858,7 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 void D1571::loadDisk(const std::string& path)
 {
     diskWriteProtected = false;
+
     auto img = DiskFactory::create(path);
     if (!img)
     {
@@ -868,7 +869,6 @@ void D1571::loadDisk(const std::string& path)
         return;
     }
 
-    // Try to load the disk image from file
     if (!img->loadDisk(path))
     {
         diskImage.reset();
@@ -878,8 +878,8 @@ void D1571::loadDisk(const std::string& path)
         return;
     }
 
-    // Hard reset in case user switched disk
-    reset();
+    // Save old media before replacing it.
+    flushAndSaveDisk();
 
     auto lowerExt = [](const std::string& p) -> std::string
     {
@@ -896,12 +896,19 @@ void D1571::loadDisk(const std::string& path)
 
     const std::string ext = lowerExt(path);
 
+    MediaPath newMediaPath;
     if (ext == ".d71")
-        mediaPath = MediaPath::GCR_D71;
+        newMediaPath = MediaPath::GCR_D71;
     else if (ext == ".d64" || ext == ".g64")
-        mediaPath = MediaPath::GCR_D64;
+        newMediaPath = MediaPath::GCR_D64;
     else
-        mediaPath = MediaPath::FDC_MFM;
+        newMediaPath = MediaPath::FDC_MFM;
+
+    // Important: set mediaPath before resetForMediaChange(), because
+    // cache indexing and side behavior depend on mediaPath.
+    mediaPath = newMediaPath;
+
+    resetForMediaChange();
 
     #ifdef Debug
     std::cout << "[D1571:LOAD] path=" << path
@@ -912,14 +919,12 @@ void D1571::loadDisk(const std::string& path)
               << "\n";
     #endif
 
-    // Success load it
     diskImage      = std::move(img);
     diskLoaded     = true;
     loadedDiskName = path;
     lastError      = DriveError::NONE;
+    status         = DriveStatus::IDLE;
     gcrDirty       = true;
-
-    invalidateRawGcrCache();
 }
 
 void D1571::unloadDisk()
@@ -1639,4 +1644,100 @@ size_t D1571::currentRawCacheIndex() const
         return static_cast<size_t>(currentTrack + 35);
 
     return static_cast<size_t>(currentTrack);
+}
+
+void D1571::resetForMediaChange()
+{
+    // --- D1571-level IEC flags ---
+    atnLineLow                  = false;
+    clkLineLow                  = false;
+    dataLineLow                 = false;
+    srqAsserted                 = false;
+
+    iecListening                = false;
+    iecTalking                  = false;
+
+    presenceAckDone             = false;
+    expectingSecAddr            = false;
+    expectingDataByte           = false;
+
+    currentListenSA             = 0;
+    currentTalkSA               = 0;
+
+    iecRxActive                 = false;
+    iecRxBitCount               = 0;
+    iecRxByte                   = 0;
+
+    // --- Drive/Peripheral protocol abort ---
+    listening                   = false;
+    talking                     = false;
+
+    currentSecondaryAddress     = 0xFF;
+
+    shiftReg                    = 0;
+    bitsProcessed               = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+    status                      = DriveStatus::IDLE;
+
+    while (!talkQueue.empty())
+        talkQueue.pop();
+
+    currentDriveBusState = DriveBusState::IDLE;
+
+    // --- 1571 transient clears ---
+    d1571mem.getVIA2().clearMechBytePending();
+
+    // --- Release actual IEC line outputs ---
+    peripheralAssertClk(false);
+    peripheralAssertData(false);
+    peripheralAssertSrq(false);
+
+    // --- Drop bus associations ---
+    if (bus)
+    {
+        bus->unTalk(deviceNumber);
+        bus->unListen(deviceNumber);
+    }
+
+    // --- Media/GCR reset ---
+    gcrPos = 0;
+    gcrBitCounter = 0;
+    gcrDirty = true;
+
+    diskWriteGate = false;
+    pendingWritePos = 0;
+    pendingWritePosValid = false;
+    trackModifiedByWrite = false;
+
+    writeSyncRun = 0;
+    writeAfterSync = false;
+    writeGapRun = 0;
+
+    gcrTrackStream.clear();
+    gcrSync.clear();
+    gcrSectorAtPos.clear();
+    gcrWrittenMask.clear();
+    writeGcrBuffer.clear();
+
+    invalidateRawGcrCache();
+
+    // 1571-specific runtime cleanup.
+    busDriversEnabled = false;
+    twoMHzMode = false;
+
+    uint16_t pc = driveCPU.getPC();
+
+    if (!(pc < 0x0800))
+        driveCPU.reset();
+
+    forceSyncIEC();
 }
