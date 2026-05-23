@@ -30,45 +30,6 @@ class DriveVIA6522 : public DriveVIABase
         bool checkIRQActive() const override;
 
     protected:
-        // Port B IEC Bits
-        enum : uint8_t
-        {
-            IEC_DATA_IN_BIT  = 0,
-            IEC_DATA_OUT_BIT = 1,
-            IEC_CLK_IN_BIT   = 2,
-            IEC_CLK_OUT_BIT  = 3,
-            IEC_ATN_ACK_BIT  = 4,
-            IEC_DEV_BIT0     = 5, // device address switch bit 0
-            IEC_DEV_BIT1     = 6, // device address switch bit 1
-            IEC_ATN_IN_BIT   = 7
-        };
-
-        // Port A Hardware Setting Bits
-        enum : uint8_t
-        {
-            PORTA_TRACK0_SENSOR     = 0,
-            PORTA_FSM_DIRECTION     = 1,
-            PORTA_RWSIDE_SELECT     = 2,
-            PORTA_UNUSED3           = 3,
-            PORTA_UNUSED4           = 4,
-            PORTA_PHI2_CLKSEL       = 5,
-            PORTA_UNUSED6           = 6,
-            PORTA_BYTE_READY        = 7
-        };
-
-        // Port B Mechanical Bits
-        enum : uint8_t
-        {
-            MECH_STEPPER_PHASE0 = 0, // PB0: stepper phase bit 0 (output)
-            MECH_STEPPER_PHASE1 = 1, // PB1: stepper phase bit 1 (output)
-            MECH_SPINDLE_MOTOR  = 2, // PB2: spindle motor on/off (output, 1 = on)
-            MECH_LED            = 3, // PB3: drive LED (output, 1 = on)
-            MECH_WRITE_PROTECT  = 4, // PB4: write-protect sensor (input, 0 = write-protected)
-            MECH_DENSITY_BIT0   = 5, // PB5: density select bit 0 (output)
-            MECH_DENSITY_BIT1   = 6, // PB6: density select bit 1 (output)
-            MECH_SYNC_DETECTED  = 7  // PB7: sync detected (input, 0 = sync seen)
-        };
-
         // Interrupt Bits
         enum : uint8_t
         {
