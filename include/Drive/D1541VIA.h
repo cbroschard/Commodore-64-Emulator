@@ -15,8 +15,6 @@ class IECBUS;
 
 #include <cstdint>
 #include "Drive/DriveVIA6522.h"
-#include "Drive/GCRCodec.h"
-#include "Logging.h"
 
 class D1541VIA : public DriveVIA6522
 {

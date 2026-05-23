@@ -16,6 +16,7 @@
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
 #include "Drive/D1541VIA.h"
+#include "Drive/GCRCodec.h"
 #include <array>
 #include <vector>
 
