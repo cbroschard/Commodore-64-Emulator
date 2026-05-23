@@ -10,19 +10,35 @@
 
 #include <cstdint>
 #include "Drive/DriveChips.h"
+#include "Peripheral.h"
 
 class DriveVIA6522 : public DriveVIABase
 {
     public:
-        DriveVIA6522();
+        enum class VIARole
+        {
+            Unknown,
+            VIA1_IECBus,
+            VIA2_Mechanics
+        };
+
+        explicit DriveVIA6522(VIARole role = VIARole::Unknown);
         virtual ~DriveVIA6522();
+
+        // Pointers
+        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
         void reset();
         void tick(uint32_t cycles);
 
         bool checkIRQActive() const override;
 
+        inline VIARole getRole() const { return role_; }
+
     protected:
+        VIARole role_ = VIARole::Unknown;
+        Peripheral* parentPeripheral = nullptr;
+
         // Interrupt Bits
         enum : uint8_t
         {

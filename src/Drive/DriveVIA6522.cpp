@@ -7,15 +7,13 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveVIA6522.h"
 
-DriveVIA6522::DriveVIA6522()
+DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role)
+    : role_(role)
 {
 
 }
 
-DriveVIA6522::~DriveVIA6522()
-{
-
-}
+DriveVIA6522::~DriveVIA6522() = default;
 
 void DriveVIA6522::reset()
 {
