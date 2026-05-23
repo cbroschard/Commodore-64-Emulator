@@ -8,7 +8,7 @@
 #include "Drive/DriveVIA6522.h"
 
 DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
-    role(role),
+    viaRole(role),
     timer1Counter(0),
     timer1Latch(0),
     timer1Running(false),

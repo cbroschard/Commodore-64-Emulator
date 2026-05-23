@@ -22,7 +22,7 @@ class DriveVIA6522 : public DriveVIABase
             VIA2_Mechanics
         };
 
-        explicit DriveVIA6522(VIARole role = VIARole::Unknown);
+        explicit DriveVIA6522(VIARole viaRole = VIARole::Unknown);
         virtual ~DriveVIA6522();
 
         // Pointers
@@ -33,10 +33,10 @@ class DriveVIA6522 : public DriveVIABase
 
         bool checkIRQActive() const override;
 
-        inline VIARole getRole() const { return role; }
+        inline VIARole getRole() const { return viaRole; }
 
     protected:
-        VIARole role = VIARole::Unknown;
+        VIARole viaRole = VIARole::Unknown;
         Peripheral* parentPeripheral = nullptr;
 
         // Interrupt Bits
