@@ -5,14 +5,14 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "driveVIA6522.h"
+#include "Drive/DriveVIA6522.h"
 
-driveVIA6522::driveVIA6522()
+DriveVIA6522::DriveVIA6522()
 {
     //ctor
 }
 
-driveVIA6522::~driveVIA6522()
+DriveVIA6522::~DriveVIA6522()
 {
     //dtor
 }
