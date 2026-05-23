@@ -15,13 +15,7 @@ D1571VIA::D1571VIA() :
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
-    mechBytePending(false),
-    t1Counter(0),
-    t1Latch(0),
-    t1Running(false),
-    t2Counter(0),
-    t2Latch(0),
-    t2Running(false)
+    mechBytePending(false)
 {
     reset();
 }
@@ -69,6 +63,8 @@ bool D1571VIA::loadState(StateReader& rdr)
     if (!rdr.readBool(mechBytePending)) return false;
 
     // Post-restore fixups / derived state
+    applyPortAOutputs(registers.oraIRA);
+
     if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB();
 
@@ -83,35 +79,6 @@ bool D1571VIA::loadState(StateReader& rdr)
 void D1571VIA::reset()
 {
     DriveVIA6522::reset();
-
-    portAPins = 0x00;
-    portBPins = 0x00;
-
-    // Initialize registers
-    registers.orbIRB = 0x00;
-    registers.oraIRA = 0x00;
-    registers.ddrB = 0x00;
-    registers.ddrA = 0x00;
-    registers.timer1CounterLowByte = 0x00;
-    registers.timer1CounterHighByte = 0x00;
-    registers.timer1LowLatch = 0x00;
-    registers.timer1HighLatch = 0x00;
-    registers.timer2CounterLowByte = 0x00;
-    registers.timer2CounterHighByte = 0x00;
-    registers.serialShift = 0x00;
-    registers.auxControlRegister = 0x00;
-    registers.peripheralControlRegister = 0x00;
-    registers.interruptFlag = 0x00;
-    registers.interruptEnable = 0x00;
-    registers.oraIRANoHandshake = 0x00;
-
-    t1Counter = 0;
-    t1Latch   = 0;
-    t1Running = false;
-
-    t2Counter = 0;
-    t2Latch   = 0;
-    t2Running = false;
 
     // Mechanics
     ledOn            = false;
@@ -646,12 +613,6 @@ void D1571VIA::updateIECOutputsFromPortB()
     d1571->peripheralAssertClk(clkLow);
 }
 
-bool D1571VIA::checkIRQActive() const
-{
-    uint8_t active = registers.interruptEnable & registers.interruptFlag & 0x7F;
-    return active != 0;
-}
-
 void D1571VIA::onClkEdge(bool rising, bool falling)
 {
     if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus)
@@ -865,6 +826,17 @@ void D1571VIA::applyPortAOutputs(uint8_t value)
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
             drive->onVIA2PortAWrite(value, registers.ddrA);
     }
+}
+
+void D1571VIA::onAttachedToPeripheral()
+{
+    applyPortAOutputs(registers.oraIRA);
+
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
+        updateIECOutputsFromPortB();
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
 }
 
 void D1571VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)

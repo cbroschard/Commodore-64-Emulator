@@ -14,21 +14,13 @@ class D1571VIA : public DriveVIA6522
 {
     public:
         D1571VIA();
-        virtual ~D1571VIA();
-
-        // Allow VIA1 and VIA2 to define their role
-        enum class VIARole
-        {
-            Unknown,
-            VIA1_IECBus,
-            VIA2_Mechanics
-        };
+        ~D1571VIA() override;
 
         // State Management
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
 
-        void reset();
+        void reset() override;
 
         void resetShift();
 
@@ -47,40 +39,16 @@ class D1571VIA : public DriveVIA6522
         void setIECInputLines(bool atnLow, bool clkLow, bool dataLow);
 
         // Helpers
-        bool checkIRQActive() const override;
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
         inline void pulseCB2() { triggerInterrupt(IFR_CB2); }
         void clearMechBytePending();
         void pulseWriteByteReady();
 
-        // ML Monitor
-        inline viaRegsView getRegsView() const override
-        {
-            return
-            {
-                registers.orbIRB,
-                registers.oraIRA,
-                registers.ddrB,
-                registers.ddrA,
-                registers.timer1CounterLowByte,
-                registers.timer1CounterHighByte,
-                registers.timer1LowLatch,
-                registers.timer1HighLatch,
-                registers.timer2CounterLowByte,
-                registers.timer2CounterHighByte,
-                registers.serialShift,
-                registers.auxControlRegister,
-                registers.peripheralControlRegister,
-                registers.interruptFlag,
-                registers.interruptEnable,
-                registers.oraIRANoHandshake
-            };
-        }
-
         MechanicsInfo getMechanicsInfo() const override;
 
     protected:
+        void onAttachedToPeripheral() override;
         void onPCRChanged(uint8_t oldValue, uint8_t newValue) override;
 
     private:
@@ -133,14 +101,6 @@ class D1571VIA : public DriveVIA6522
         bool    syncDetected;
         uint8_t mechDataLatch;
         bool    mechBytePending;
-
-        // Timers
-        uint16_t t1Counter;
-        uint16_t t1Latch;
-        bool     t1Running;
-        uint16_t t2Counter;
-        uint16_t t2Latch;
-        bool     t2Running;
 
         // Helper
         void updateIECOutputsFromPortB();
