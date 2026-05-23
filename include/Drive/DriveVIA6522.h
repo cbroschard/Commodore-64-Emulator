@@ -123,6 +123,9 @@ class DriveVIA6522 : public DriveVIABase
         bool readInterruptRegister(uint16_t address, uint8_t& value);
         bool writeInterruptRegister(uint16_t address, uint8_t value);
 
+        bool readControlRegister(uint16_t address, uint8_t& value);
+        bool writeControlRegister(uint16_t address, uint8_t value);
+
     private:
         enum : uint8_t
         {

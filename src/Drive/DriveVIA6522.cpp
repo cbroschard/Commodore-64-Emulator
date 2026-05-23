@@ -382,6 +382,32 @@ bool DriveVIA6522::writeInterruptRegister(uint16_t address, uint8_t value)
     }
 }
 
+bool DriveVIA6522::readControlRegister(uint16_t address, uint8_t& value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0B: // ACR
+            value = registers.auxControlRegister;
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::writeControlRegister(uint16_t address, uint8_t value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0B: // ACR
+            registers.auxControlRegister = value;
+            return true;
+
+        default:
+            return false;
+    }
+}
+
 void DriveVIA6522::timer1Tick()
 {
     if (!timer1Running)

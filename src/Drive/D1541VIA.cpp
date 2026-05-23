@@ -193,6 +193,10 @@ uint8_t D1541VIA::readRegister(uint16_t address)
     if (readInterruptRegister(address, irqValue))
         return irqValue;
 
+    uint8_t controlValue = 0xFF;
+    if (readControlRegister(address, controlValue))
+        return controlValue;
+
     switch (address)
     {
         case 0x00: // ORB/IRB - Port B
@@ -358,9 +362,6 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             return registers.serialShift;
         }
 
-        case 0x0B: // ACR
-            return registers.auxControlRegister;
-
         case 0x0C: // PCR
             return registers.peripheralControlRegister;
 
@@ -388,6 +389,9 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         return;
 
     if (writeInterruptRegister(address, value))
+        return;
+
+    if (writeControlRegister(address, value))
         return;
 
     switch (address)
@@ -614,18 +618,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             registers.serialShift = value;
             clearIFR(IFR_SR);
             resetShift();
-            break;
-        }
-
-        case 0x0B: // ACR
-        {
-#ifdef Debug
-            std::cout << "Updated AUX Control Register with value: "
-                      << static_cast<int>(value)
-                      << "\n";
-#endif
-
-            registers.auxControlRegister = value;
             break;
         }
 
