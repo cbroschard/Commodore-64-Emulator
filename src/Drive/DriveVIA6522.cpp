@@ -7,8 +7,20 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveVIA6522.h"
 
-DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role)
-    : role_(role)
+DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
+    role(role),
+    timer1Counter(0),
+    timer1Latch(0),
+    timer1Running(false),
+    timer1JustLoaded(false),
+    timer1ReloadPending(false),
+    timer1InhibitIRQ(false),
+    timer1PB7Level(true),
+    timer2Counter(0),
+    timer2Latch(0),
+    timer2Running(false),
+    timer2JustLoaded(false),
+    timer2LowLatchByte(0x00)
 {
 
 }
@@ -17,6 +29,7 @@ DriveVIA6522::~DriveVIA6522() = default;
 
 void DriveVIA6522::reset()
 {
+    // Pin defaults
     portAPins                           = 0xFF;
     portBPins                           = 0xFF;
 
@@ -37,10 +50,30 @@ void DriveVIA6522::reset()
     registers.interruptFlag             = 0x00;
     registers.interruptEnable           = 0x00;
     registers.oraIRANoHandshake         = 0x00;
+
+    // Timer defaults
+    timer1Counter                       = 0;
+    timer1Latch                         = 0;
+    timer1Running                       = false;
+    timer1JustLoaded                    = false;
+    timer1InhibitIRQ                    = false;
+    timer1PB7Level                      = true;
+
+    timer2Counter                       = 0;
+    timer2Latch                         = 0;
+    timer2Running                       = false;
+    timer2JustLoaded                    = false;
+    timer2InhibitIRQ                    = false;
+    timer2LowLatchByte                  = 0x00;
 }
 
 void DriveVIA6522::tick(uint32_t cycles)
 {
+    while (cycles-- > 0)
+    {
+        timer1Tick();
+        timer2Tick();
+    }
 
 }
 
@@ -70,4 +103,89 @@ void DriveVIA6522::refreshMasterBit()
         registers.interruptFlag |= IFR_IRQ;
     else
         registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
+}
+
+void DriveVIA6522::timer1Tick()
+{
+    if (!timer1Running)
+        return;
+
+    if (timer1ReloadPending)
+    {
+        timer1Counter = timer1Latch;
+        timer1ReloadPending = false;
+        timer1JustLoaded = true;
+        syncTimer1Registers();
+    }
+
+    if (timer1JustLoaded)
+    {
+        timer1JustLoaded = false;
+        return;
+    }
+
+    timer1Counter = static_cast<uint16_t>(timer1Counter - 1);
+    syncTimer1Registers();
+
+    if (timer1Counter == 0x0000 && !timer1InhibitIRQ)
+    {
+        triggerInterrupt(IFR_TIMER1);
+
+        const bool freeRun =
+            (registers.auxControlRegister & ACR_T1_CONTINUOUS) != 0;
+
+        if (freeRun)
+        {
+            timer1ReloadPending = true;
+        }
+        else
+        {
+            timer1InhibitIRQ = true;
+        }
+    }
+}
+
+void DriveVIA6522::timer2Tick()
+{
+    if (!timer2Running)
+        return;
+
+    const bool pulseCountMode =
+        (registers.auxControlRegister & ACR_T2_PULSE_COUNT) != 0;
+
+    if (pulseCountMode)
+        return;
+
+    if (timer2JustLoaded)
+    {
+        timer2JustLoaded = false;
+        return;
+    }
+
+    timer2Counter = static_cast<uint16_t>(timer2Counter - 1);
+    syncTimer2Registers();
+
+    if (timer2Counter == 0x0000 && !timer2InhibitIRQ)
+    {
+        triggerInterrupt(IFR_TIMER2);
+        timer2InhibitIRQ = true;
+    }
+}
+
+void DriveVIA6522::syncTimer1Registers()
+{
+    registers.timer1CounterLowByte =
+        static_cast<uint8_t>(timer1Counter & 0xFF);
+
+    registers.timer1CounterHighByte =
+        static_cast<uint8_t>((timer1Counter >> 8) & 0xFF);
+}
+
+void DriveVIA6522::syncTimer2Registers()
+{
+    registers.timer2CounterLowByte =
+        static_cast<uint8_t>(timer2Counter & 0xFF);
+
+    registers.timer2CounterHighByte =
+        static_cast<uint8_t>((timer2Counter >> 8) & 0xFF);
 }

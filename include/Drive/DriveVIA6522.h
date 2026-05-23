@@ -33,10 +33,10 @@ class DriveVIA6522 : public DriveVIABase
 
         bool checkIRQActive() const override;
 
-        inline VIARole getRole() const { return role_; }
+        inline VIARole getRole() const { return role; }
 
     protected:
-        VIARole role_ = VIARole::Unknown;
+        VIARole role = VIARole::Unknown;
         Peripheral* parentPeripheral = nullptr;
 
         // Interrupt Bits
@@ -87,6 +87,40 @@ class DriveVIA6522 : public DriveVIABase
         void refreshMasterBit();
 
     private:
+        enum : uint8_t
+        {
+            ACR_T2_PULSE_COUNT = 0x20,
+            ACR_T1_CONTINUOUS  = 0x40,
+            ACR_T1_PB7_OUTPUT  = 0x80
+        };
+
+        // Timer 1 runtime state
+        uint16_t timer1Counter;
+        uint16_t timer1Latch;
+        bool timer1Running;
+
+        bool timer1JustLoaded;
+        bool timer1ReloadPending;
+        bool timer1InhibitIRQ;
+
+        // PB7 output behavior for Timer 1 ACR modes
+        bool timer1PB7Level;
+
+        // Timer 2 runtime state
+        uint16_t timer2Counter;
+        uint16_t timer2Latch;
+        bool timer2Running;
+
+        bool timer2JustLoaded;
+        bool timer2InhibitIRQ;
+
+        // T2 low byte is latched on write to $08, then combined when $09 is written
+        uint8_t timer2LowLatchByte;
+
+        void timer1Tick();
+        void timer2Tick();
+        void syncTimer1Registers();
+        void syncTimer2Registers();
 };
 
 #endif // DRIVEVIA6522_H
