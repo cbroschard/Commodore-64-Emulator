@@ -8,12 +8,6 @@
 #ifndef D1541VIA_H
 #define D1541VIA_H
 
-// Forward declaration
-class D1541;
-class Peripheral;
-class IECBUS;
-
-#include <cstdint>
 #include "Drive/DriveVIA6522.h"
 
 class D1541VIA : public DriveVIA6522
