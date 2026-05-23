@@ -24,11 +24,11 @@ class DriveVIA6522 : public DriveVIABase
             VIA2_Mechanics
         };
 
-        explicit DriveVIA6522(VIARole viaRole = VIARole::Unknown);
+        explicit DriveVIA6522();
         virtual ~DriveVIA6522();
 
         // Pointers
-        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+        void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
 
         void reset();
         void tick(uint32_t cycles);
@@ -149,7 +149,7 @@ class DriveVIA6522 : public DriveVIABase
         void timer1Tick();
         void timer2Tick();
         void syncTimer1Registers();
-        void syncTimer2Registers();
+        void syncTimer2Registers();rtB();
 };
 
 #endif // DRIVEVIA6522_H

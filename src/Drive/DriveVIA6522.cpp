@@ -7,8 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveVIA6522.h"
 
-DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
-    viaRole(role),
+DriveVIA6522::DriveVIA6522() :
+    viaRole(VIARole::Unknown),
     timer1Counter(0),
     timer1Latch(0),
     timer1Running(false),
@@ -27,6 +27,12 @@ DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
 }
 
 DriveVIA6522::~DriveVIA6522() = default;
+
+void DriveVIA6522::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role)
+{
+    this->parentPeripheral = parentPeripheral;
+    this->viaRole = role;
+}
 
 void DriveVIA6522::reset()
 {
