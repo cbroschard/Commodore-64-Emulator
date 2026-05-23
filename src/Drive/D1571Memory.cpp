@@ -55,8 +55,8 @@ void D1571Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
     this->parentPeripheral = parentPeripheral;
 
     // Attach the chips to the drive
-    via1.attachPeripheralInstance(parentPeripheral, D1571VIA::VIARole::VIA1_IECBus);
-    via2.attachPeripheralInstance(parentPeripheral, D1571VIA::VIARole::VIA2_Mechanics);
+    via1.attachPeripheralInstance(parentPeripheral, DriveVIA6522::VIARole::VIA1_IECBus);
+    via2.attachPeripheralInstance(parentPeripheral, DriveVIA6522::VIARole::VIA2_Mechanics);
     cia.attachPeripheralInstance(parentPeripheral);
     cia.setWiring(&kCIA1571Wiring);
     fdc.attachPeripheralInstance(parentPeripheral);

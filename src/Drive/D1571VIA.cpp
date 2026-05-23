@@ -9,11 +9,9 @@
 #include "Drive/D1571VIA.h"
 
 D1571VIA::D1571VIA() :
-    parentPeripheral(nullptr),
     srShiftReg(0),
     srBitCount(0),
     srShiftInMode(false),
-    viaRole(VIARole::Unknown),
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
@@ -30,53 +28,18 @@ D1571VIA::D1571VIA() :
 
 D1571VIA::~D1571VIA() = default;
 
-void D1571VIA::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole viaRole)
-{
-    this->parentPeripheral = parentPeripheral;
-    this->viaRole = viaRole;
-    if (viaRole == VIARole::VIA1_IECBus) updateIECOutputsFromPortB();
-}
-
 void D1571VIA::saveState(StateWriter& wrtr) const
 {
-    // Header
     wrtr.writeU32(1);
-    wrtr.writeU8(static_cast<uint8_t>(viaRole));
-    wrtr.writeU8(portAPins);
-    wrtr.writeU8(portBPins);
 
-    // Dump registers
-    wrtr.writeU8(registers.orbIRB);
-    wrtr.writeU8(registers.oraIRA);
-    wrtr.writeU8(registers.ddrA);
-    wrtr.writeU8(registers.ddrB);
-    wrtr.writeU8(registers.timer1CounterLowByte);
-    wrtr.writeU8(registers.timer1CounterHighByte);
-    wrtr.writeU8(registers.timer1LowLatch);
-    wrtr.writeU8(registers.timer1HighLatch);
-    wrtr.writeU8(registers.timer2CounterLowByte);
-    wrtr.writeU8(registers.timer2CounterHighByte);
-    wrtr.writeU8(registers.serialShift);
-    wrtr.writeU8(registers.auxControlRegister);
-    wrtr.writeU8(registers.peripheralControlRegister);
-    wrtr.writeU8(registers.interruptFlag);
-    wrtr.writeU8(registers.interruptEnable);
-    wrtr.writeU8(registers.oraIRANoHandshake);
+    saveVIAState(wrtr);
 
-    // Dump runtime state
-    wrtr.writeU16(t1Counter);
-    wrtr.writeU16(t1Latch);
-    wrtr.writeBool(t1Running);
-    wrtr.writeU16(t2Counter);
-    wrtr.writeU16(t2Latch);
-    wrtr.writeBool(t2Running);
-
-    // Dump serial shift state
+    // Serial shift runtime
     wrtr.writeU8(srShiftReg);
     wrtr.writeU8(srBitCount);
     wrtr.writeBool(srShiftInMode);
 
-    // Dump mechanical signals
+    // Mechanical signals
     wrtr.writeBool(ledOn);
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
@@ -85,47 +48,14 @@ void D1571VIA::saveState(StateWriter& wrtr) const
 
 bool D1571VIA::loadState(StateReader& rdr)
 {
-    // Header
     uint32_t ver = 0;
     if (!rdr.readU32(ver)) return false;
-    if (ver != 1) return false;
 
-    uint8_t roleU8 = 0;
-    if (!rdr.readU8(roleU8)) return false;
-    viaRole = static_cast<VIARole>(roleU8);
+    if (ver != 1)
+        return false;
 
-    if (!rdr.readU8(portAPins)) return false;
-    if (!rdr.readU8(portBPins)) return false;
-
-    // Registers
-    if (!rdr.readU8(registers.orbIRB)) return false;
-    if (!rdr.readU8(registers.oraIRA)) return false;
-    if (!rdr.readU8(registers.ddrA)) return false;
-    if (!rdr.readU8(registers.ddrB)) return false;
-
-    if (!rdr.readU8(registers.timer1CounterLowByte)) return false;
-    if (!rdr.readU8(registers.timer1CounterHighByte)) return false;
-    if (!rdr.readU8(registers.timer1LowLatch)) return false;
-    if (!rdr.readU8(registers.timer1HighLatch)) return false;
-
-    if (!rdr.readU8(registers.timer2CounterLowByte)) return false;
-    if (!rdr.readU8(registers.timer2CounterHighByte)) return false;
-
-    if (!rdr.readU8(registers.serialShift)) return false;
-    if (!rdr.readU8(registers.auxControlRegister)) return false;
-    if (!rdr.readU8(registers.peripheralControlRegister)) return false;
-    if (!rdr.readU8(registers.interruptFlag)) return false;
-    if (!rdr.readU8(registers.interruptEnable)) return false;
-    if (!rdr.readU8(registers.oraIRANoHandshake)) return false;
-
-    // Runtime timers
-    if (!rdr.readU16(t1Counter)) return false;
-    if (!rdr.readU16(t1Latch)) return false;
-    if (!rdr.readBool(t1Running)) return false;
-
-    if (!rdr.readU16(t2Counter)) return false;
-    if (!rdr.readU16(t2Latch)) return false;
-    if (!rdr.readBool(t2Running)) return false;
+    if (!loadVIAState(rdr))
+        return false;
 
     // Serial shift runtime
     if (!rdr.readU8(srShiftReg)) return false;
@@ -139,28 +69,21 @@ bool D1571VIA::loadState(StateReader& rdr)
     if (!rdr.readBool(mechBytePending)) return false;
 
     // Post-restore fixups / derived state
-
-    // Ensure IFR "master" bit (bit 7) matches pending enabled IRQ sources.
-    refreshMasterBit();
-
-    // Make sure the visible counter registers agree with the runtime counters we restored.
-    registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0x00FF);
-    registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
-    registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
-    registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
-
-    // If this is VIA1 (IEC), recompute outputs from ORB/DDRB and the ATN-ACK rules
-    // so the drive line-assert state matches the VIA state immediately after load.
-    if (viaRole == VIARole::VIA1_IECBus)
-    {
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB();
-    }
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
+
+    refreshMasterBit();
 
     return true;
 }
 
 void D1571VIA::reset()
 {
+    DriveVIA6522::reset();
+
     portAPins = 0x00;
     portBPins = 0x00;
 
@@ -201,7 +124,7 @@ void D1571VIA::reset()
     srBitCount    = 0;
     srShiftInMode = false;
 
-    if (viaRole == VIARole::VIA1_IECBus)
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
     {
         portBPins &= static_cast<uint8_t>(~(
             (1u << IEC_ATN_IN_BIT) |
@@ -210,468 +133,432 @@ void D1571VIA::reset()
         ));
     }
 
-    if (viaRole == VIARole::VIA1_IECBus)
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
-}
-
-void D1571VIA::tick(uint32_t cycles)
-{
-    while(cycles-- > 0)
-    {
-        // Timer 1
-        if (t1Running)
-        {
-            if (t1Counter > 0)
-            {
-                --t1Counter;
-
-                // Reflect back into the visible counter registers
-                registers.timer1CounterLowByte  = static_cast<uint8_t>(t1Counter & 0x00FF);
-                registers.timer1CounterHighByte = static_cast<uint8_t>((t1Counter >> 8) & 0x00FF);
-
-                if (t1Counter == 0)
-                {
-                    // Set IFR6
-                     triggerInterrupt(IFR_TIMER1);
-
-                    // Check ACR bit 6 to decide one-shot vs continuous
-                    bool t1Continuous = (registers.auxControlRegister & 0x40) != 0;
-
-                    if (t1Continuous)
-                    {
-                        // Free-run: reload from latch and keep going
-                        t1Counter = t1Latch;
-                    }
-                    else
-                    {
-                        // One-shot: stop the timer
-                        t1Running = false;
-                    }
-                }
-            }
-        }
-
-        // Timer 2
-        if (t2Running)
-        {
-            if (t2Counter > 0)
-            {
-                --t2Counter;
-
-                registers.timer2CounterLowByte  = static_cast<uint8_t>(t2Counter & 0x00FF);
-                registers.timer2CounterHighByte = static_cast<uint8_t>((t2Counter >> 8) & 0x00FF);
-
-                if (t2Counter == 0)
-                {
-                    // 6522 T2 interval mode is one-shot.
-                    // It sets IFR5 once per write to T2C-H.
-                    triggerInterrupt(IFR_TIMER2);
-
-                    // Do not reload. Do not keep generating IFR5.
-                    t2Running = false;
-                }
-            }
-        }
-    }
 }
 
 uint8_t D1571VIA::readRegister(uint16_t address)
 {
-    switch(address)
-    {
-        case 0x00:
-        {
-            const uint8_t ddrB  = registers.ddrB;
-            uint8_t value = static_cast<uint8_t>((registers.orbIRB & ddrB) | (portBPins & static_cast<uint8_t>(~ddrB)));
+    address &= 0x0F;
 
-            if (viaRole == VIARole::VIA1_IECBus)
+    uint8_t timerValue = 0xFF;
+    if (readTimerRegister(address, timerValue))
+        return timerValue;
+
+    uint8_t irqValue = 0xFF;
+    if (readInterruptRegister(address, irqValue))
+        return irqValue;
+
+    uint8_t controlValue = 0xFF;
+    if (readControlRegister(address, controlValue))
+        return controlValue;
+
+    switch (address)
+    {
+        case 0x00: // ORB/IRB - Port B
+        {
+            const uint8_t ddrB = registers.ddrB;
+
+            uint8_t value =
+                static_cast<uint8_t>(
+                    (registers.orbIRB & ddrB) |
+                    (portBPins & static_cast<uint8_t>(~ddrB))
+                );
+
+            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Device number DIP "switches" live on PB5/PB6 as inputs (only override if those bits are inputs)
+                    // Device number DIP switches live on PB5/PB6 as inputs.
                     int dev = drive->getDeviceNumber();
                     int offset = dev - 8;
-                    if (offset < 0 || offset > 3) offset = 0;
+
+                    if (offset < 0 || offset > 3)
+                        offset = 0;
 
                     if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)
                     {
-                        if (offset & 0x01) value |=  (1u << IEC_DEV_BIT0);
-                        else               value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
+                        if (offset & 0x01)
+                            value |= static_cast<uint8_t>(1u << IEC_DEV_BIT0);
+                        else
+                            value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
                     }
 
                     if ((ddrB & (1u << IEC_DEV_BIT1)) == 0)
                     {
-                        if (offset & 0x02) value |=  (1u << IEC_DEV_BIT1);
-                        else               value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT1));
+                        if (offset & 0x02)
+                            value |= static_cast<uint8_t>(1u << IEC_DEV_BIT1);
+                        else
+                            value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT1));
                     }
                 }
             }
-            else if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // WP input (active low)
+                    // Write protect input, active low.
                     if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
                     {
-                        bool wpLow = drive->fdcIsWriteProtected();
-                        if (wpLow) value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
-                        else       value |=  static_cast<uint8_t>( (1u << MECH_WRITE_PROTECT));
+                        const bool wpLow = drive->fdcIsWriteProtected();
+
+                        if (wpLow)
+                            value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
+                        else
+                            value |= static_cast<uint8_t>(1u << MECH_WRITE_PROTECT);
                     }
 
+                    // Sync detect input, active low.
                     if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
                     {
-                        bool sync = isSyncDetected();
-                        if (sync)   value &= ~(1u << MECH_SYNC_DETECTED); // active-low: SYNC => 0
-                        else        value |=  (1u << MECH_SYNC_DETECTED); // no sync => 1
+                        const bool sync = isSyncDetected();
+
+                        if (sync)
+                            value &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
+                        else
+                            value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
                     }
                 }
             }
 
             return value;
         }
-        case 0x01:
+
+        case 0x01: // ORA/IRA - Port A
         {
-            uint8_t ddrA  = registers.ddrA;
-            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
-            if (viaRole == VIARole::VIA1_IECBus)
+            const uint8_t ddrA = registers.ddrA;
+
+            uint8_t value =
+                static_cast<uint8_t>(
+                    (registers.oraIRA & ddrA) |
+                    (portAPins & static_cast<uint8_t>(~ddrA))
+                );
+
+            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Bit 0 Track 0
+                    // Track 0 sensor.
                     if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
                     {
-                        bool atTrack0 = drive->isTrack0();
-                        if (atTrack0) value &= (~(1u << PORTA_TRACK0_SENSOR));
-                        else          value |= (1u << PORTA_TRACK0_SENSOR);
+                        const bool atTrack0 = drive->isTrack0();
+
+                        if (atTrack0)
+                            value &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
+                        else
+                            value |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
                     }
 
-                    // Bits 3&4 unused/pulled high
+                    // Unused/pulled-high bits.
                     if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
-                    {
-                        value |= (1u << PORTA_UNUSED3);
-                    }
-                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
-                    {
-                        value |= (1u << PORTA_UNUSED4);
-                    }
+                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
 
-                    // Bit 7 BYTE READY
+                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
+                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
+
+                    // Byte ready input.
                     if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
                     {
-                        bool byteReadLow = drive->getByteReadyLow();
-                        if (byteReadLow) value &= (~(1u << PORTA_BYTE_READY));
-                        else             value |= (1u << PORTA_BYTE_READY);
+                        const bool byteReadyLow = drive->getByteReadyLow();
+
+                        if (byteReadyLow)
+                            value &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
+                        else
+                            value |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
                     }
                 }
             }
-            else if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
-                // Present disk byte on input pins (bits where DDR=0)
-                value = static_cast<uint8_t>((registers.oraIRA & ddrA) |
-                                             (mechDataLatch & static_cast<uint8_t>(~ddrA)));
-                // Reading Port A consumes "byte pending" and clears CA1 IFR
+                value =
+                    static_cast<uint8_t>(
+                        (registers.oraIRA & ddrA) |
+                        (mechDataLatch & static_cast<uint8_t>(~ddrA))
+                    );
+
+                // Reading Port A consumes pending disk byte.
                 if (mechBytePending)
-                    mechBytePending  = false;
+                    mechBytePending = false;
             }
+
             clearIFR(IFR_CA1);
             return value;
         }
-        case 0x02: return registers.ddrB;
-        case 0x03: return registers.ddrA;
-        case 0x04: return registers.timer1CounterLowByte;
-        case 0x05:
-        {
-            uint8_t value = registers.timer1CounterHighByte;
-            clearIFR(IFR_TIMER1);
-            return value;
-        }
-        case 0x06: return registers.timer1LowLatch;
-        case 0x07: return registers.timer1HighLatch;
-        case 0x08: return registers.timer2CounterLowByte;
-        case 0x09: return registers.timer2CounterHighByte;
-        case 0x0A:
+
+        case 0x02: // DDRB
+            return registers.ddrB;
+
+        case 0x03: // DDRA
+            return registers.ddrA;
+
+        case 0x0A: // SR
         {
             clearIFR(IFR_SR);
-            if (viaRole == VIARole::VIA2_Mechanics)
-            {
+
+            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
                 return mechDataLatch;
-            }
+
             return registers.serialShift;
         }
-        case 0x0B: return registers.auxControlRegister;
-        case 0x0C: return registers.peripheralControlRegister;
-        case 0x0D:
+
+        case 0x0F: // ORA/IRA no handshake
         {
-            refreshMasterBit();
-            return registers.interruptFlag;
-        }
-        case 0x0E: return registers.interruptEnable;
-        case 0x0F:
-        {
-            uint8_t ddrA  = registers.ddrA;
-            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
-            if (viaRole == VIARole::VIA1_IECBus)
+            const uint8_t ddrA = registers.ddrA;
+
+            uint8_t value =
+                static_cast<uint8_t>(
+                    (registers.oraIRA & ddrA) |
+                    (portAPins & static_cast<uint8_t>(~ddrA))
+                );
+
+            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Bit 0 Track 0
                     if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
                     {
-                        bool atTrack0 = drive->isTrack0();
-                        if (atTrack0) value &= (~(1u << PORTA_TRACK0_SENSOR));
-                        else          value |= (1u << PORTA_TRACK0_SENSOR);
+                        const bool atTrack0 = drive->isTrack0();
+
+                        if (atTrack0)
+                            value &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
+                        else
+                            value |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
                     }
 
-                    // Bits 3&4 unused/pulled high
                     if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
-                    {
-                        value |= (1u << PORTA_UNUSED3);
-                    }
-                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
-                    {
-                        value |= (1u << PORTA_UNUSED4);
-                    }
+                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
 
-                    // Bit 7 BYTE READY
+                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
+                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
+
                     if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
                     {
-                        bool byteReadLow = drive->getByteReadyLow();
-                        if (byteReadLow) value &= (~(1u << PORTA_BYTE_READY));
-                        else             value |= (1u << PORTA_BYTE_READY);
+                        const bool byteReadyLow = drive->getByteReadyLow();
+
+                        if (byteReadyLow)
+                            value &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
+                        else
+                            value |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
                     }
                 }
             }
-           else if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
-                // Port A without handshake.
-                // Return the current disk byte/input pins, but do NOT consume
-                // mechBytePending and do NOT clear CA1.
-                value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (mechDataLatch & static_cast<uint8_t>(~ddrA)));
+                // No handshake: do not consume mechBytePending and do not clear CA1.
+                value =
+                    static_cast<uint8_t>(
+                        (registers.oraIRA & ddrA) |
+                        (mechDataLatch & static_cast<uint8_t>(~ddrA))
+                    );
             }
+
             return value;
         }
-        default: return 0xFF; // open bus
+
+        default:
+            return 0xFF;
     }
-    return 0xFF;
 }
 
 void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 {
-    switch(address)
+    address &= 0x0F;
+
+    if (writeTimerRegister(address, value))
+        return;
+
+    if (writeInterruptRegister(address, value))
+        return;
+
+    if (writeControlRegister(address, value))
+        return;
+
+    switch (address)
     {
-        case 0x00:
+        case 0x00: // ORB/IRB - Port B
         {
-            uint8_t prevORB  = registers.orbIRB;
+            const uint8_t prevORB = registers.orbIRB;
             registers.orbIRB = value;
 
-            if (viaRole == VIARole::VIA1_IECBus)
+            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
-                // Recompute IEC outputs based on (ORB, DDRB)
                 updateIECOutputsFromPortB();
             }
-            if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    uint8_t ddrB = registers.ddrB;
+                    const uint8_t ddrB = registers.ddrB;
 
-                    // stepper phase (1541-style head move)
+                    // Stepper phase.
                     const uint8_t phaseMask = 0x03;
 
-                    const uint8_t oldPhase = prevORB & phaseMask;
-                    const uint8_t newPhase = registers.orbIRB & phaseMask;
+                    const uint8_t oldPhase =
+                        static_cast<uint8_t>(prevORB & phaseMask);
+
+                    const uint8_t newPhase =
+                        static_cast<uint8_t>(registers.orbIRB & phaseMask);
 
                     if (oldPhase != newPhase)
                     {
-                        #ifdef Debug
-                        std::cout << "[VIA2] step phase " << int(oldPhase) << " -> " << int(newPhase) << "\n";
-                        #endif
+#ifdef Debug
+                        std::cout << "[VIA2] step phase "
+                                  << int(oldPhase)
+                                  << " -> "
+                                  << int(newPhase)
+                                  << "\n";
+#endif
                         drive->onStepperPhaseChange(oldPhase, newPhase);
                     }
-                    // Bit 2: Motor Control
-                    if (ddrB & (1u << MECH_SPINDLE_MOTOR))
+
+                    // Motor.
+                    if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (registers.orbIRB & (1u << MECH_SPINDLE_MOTOR)) != 0;
-                        if (enable) drive->startMotor();
-                        else        drive->stopMotor();
+                        const bool enable =
+                            (registers.orbIRB &
+                             static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+
+                        if (enable)
+                            drive->startMotor();
+                        else
+                            drive->stopMotor();
                     }
 
-                    // Bit 3: LED
-                    if (ddrB & (1u << MECH_LED))
+                    // LED.
+                    if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        bool on = (registers.orbIRB & (1u << MECH_LED)) != 0;
+                        const bool on =
+                            (registers.orbIRB &
+                             static_cast<uint8_t>(1u << MECH_LED)) != 0;
+
                         setLed(on);
                     }
 
-                    // Bit 5 & 6: Density Code
-                    if (ddrB & ((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1)))
+                    // Density.
+                    const uint8_t densityMask =
+                        static_cast<uint8_t>(
+                            (1u << MECH_DENSITY_BIT0) |
+                            (1u << MECH_DENSITY_BIT1)
+                        );
+
+                    if (ddrB & densityMask)
                     {
-                        uint8_t orb  = registers.orbIRB;
-                        uint8_t code = ((orb >> MECH_DENSITY_BIT0) & 0x01) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1);
+                        const uint8_t orb = registers.orbIRB;
+
+                        const uint8_t code =
+                            static_cast<uint8_t>(
+                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
+                            );
+
                         drive->setDensityCode(code);
                     }
                 }
             }
+
             break;
         }
-        case 0x01:
+
+        case 0x01: // ORA/IRA - Port A
         {
             registers.oraIRA = value;
             applyPortAOutputs(value);
             break;
         }
-        case 0x02:
+
+        case 0x02: // DDRB
         {
             registers.ddrB = value;
-            uint8_t orb = registers.orbIRB;
 
-            if (viaRole == VIARole::VIA1_IECBus)
+            const uint8_t orb = registers.orbIRB;
+
+            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
-                // Direction changes can release or assert lines,
-                // so recompute outputs again.
                 updateIECOutputsFromPortB();
             }
-            if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Bit 2: Motor Control
-                    if (value & (1u << MECH_SPINDLE_MOTOR))
+                    // Motor.
+                    if (value & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        bool enable = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
-                        if (enable) drive->startMotor();
-                        else        drive->stopMotor();
+                        const bool enable =
+                            (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+
+                        if (enable)
+                            drive->startMotor();
+                        else
+                            drive->stopMotor();
                     }
 
-                    // Bit 3: LED
-                    if (value & (1u << MECH_LED))
+                    // LED.
+                    if (value & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        bool on = (orb & (1u << MECH_LED)) != 0;
+                        const bool on =
+                            (orb & static_cast<uint8_t>(1u << MECH_LED)) != 0;
+
                         setLed(on);
                     }
 
-                    // Bit 5 & 6: Density Code
-                    if (value & ((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1)))
+                    // Density.
+                    const uint8_t densityMask =
+                        static_cast<uint8_t>(
+                            (1u << MECH_DENSITY_BIT0) |
+                            (1u << MECH_DENSITY_BIT1)
+                        );
+
+                    if (value & densityMask)
                     {
-                        uint8_t code = (((orb >> MECH_DENSITY_BIT0) & 0x01)) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1);
-                        drive->setDensityCode(code); // 0...3
+                        const uint8_t code =
+                            static_cast<uint8_t>(
+                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
+                            );
+
+                        drive->setDensityCode(code);
                     }
                 }
             }
+
             break;
         }
-        case 0x03:
+
+        case 0x03: // DDRA
         {
             registers.ddrA = value;
 
             applyPortAOutputs(registers.oraIRA);
 
-            if (viaRole == VIARole::VIA2_Mechanics)
+            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
                 recomputeDiskWriteGate();
 
             break;
         }
-        case 0x04:
+
+        case 0x0A: // SR
         {
-            registers.timer1CounterLowByte = value;
-            t1Counter = (t1Counter & 0xFF00) | value;
+            registers.serialShift = value;
+            clearIFR(IFR_SR);
             break;
         }
-        case 0x05:
-        {
-            registers.timer1CounterHighByte = value;
-            t1Counter = static_cast<uint16_t>((registers.timer1CounterHighByte << 8)) | static_cast<uint16_t>(registers.timer1CounterLowByte);
 
-            // Start timer 1
-            t1Running = true;
-
-            // Clear T1 interrupt flag (IFR bit 6) when (re)loading the counter
-            clearIFR(IFR_TIMER1);
-            break;
-        }
-        case 0x06:
+        case 0x0F: // ORA/IRA no handshake
         {
-            registers.timer1LowLatch = value;
-
-            // Update latch
-            t1Latch = (t1Latch & 0xFF00) | value;
-            break;
-        }
-        case 0x07:
-        {
-            registers.timer1HighLatch = value;
-
-            // Update latch
-            t1Latch = static_cast<uint16_t>((registers.timer1HighLatch << 8)) | static_cast<uint16_t>(registers.timer1LowLatch);
-            break;
-        }
-        case 0x08:
-        {
-            registers.timer2CounterLowByte = value;
-            t2Counter = (t2Counter & 0xFF00) | value;
-            break;
-        }
-        case 0x09:
-        {
-            registers.timer2CounterHighByte = value;
-            t2Counter = static_cast<uint16_t>((registers.timer2CounterHighByte << 8)) | static_cast<uint16_t>(registers.timer2CounterLowByte);
-
-            // Free-running latch: keep a copy for reload
-            t2Latch = t2Counter;
-
-            // Start Timer 2 when high byte is written
-            t2Running = true;
-
-            // Clear T2 IFR bit (bit 5) on reload
-            clearIFR(IFR_TIMER2);
-            break;
-        }
-        case 0x0A: registers.serialShift = value; break;
-        case 0x0B: registers.auxControlRegister = value; break;
-        case 0x0C:
-        {
-            registers.peripheralControlRegister = value;
-
-            if (viaRole == VIARole::VIA2_Mechanics)
-                recomputeDiskWriteGate();
-
-            break;
-        }
-        case 0x0D:
-        {
-            uint8_t mask = value & 0x7F;
-            // Clear any bits where a 1 was written
-            clearIFR(mask);
-            break;
-        }
-        case 0x0E:
-        {
-            uint8_t mask = value & 0x7F;
-            if (value & 0x80)
-            {
-                registers.interruptEnable |= mask;
-            }
-            else
-            {
-                registers.interruptEnable &= static_cast<uint8_t>(~mask);
-            }
-            break;
-        }
-        case 0x0F:
-        {
-            // ORA without handshake. Still writes the real Port A output latch.
             registers.oraIRA = value;
             registers.oraIRANoHandshake = value;
             applyPortAOutputs(value);
             break;
         }
-        default: break;
+
+        default:
+            break;
     }
 }
 
 void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
-    if (viaRole != VIARole::VIA2_Mechanics)
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
         return;
 
     setSyncDetected(inSync);
@@ -718,13 +605,13 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 
     bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0); // Active is High at Pin
 
-    if (viaRole == VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
         updateIECOutputsFromPortB();
 }
 
 void D1571VIA::updateIECOutputsFromPortB()
 {
-    if (viaRole != VIARole::VIA1_IECBus) return;
+    if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus) return;
 
     auto* d1571 = dynamic_cast<D1571*>(parentPeripheral);
     if (!d1571) return;
@@ -765,31 +652,9 @@ bool D1571VIA::checkIRQActive() const
     return active != 0;
 }
 
-void D1571VIA::triggerInterrupt(uint8_t sourceMask)
-{
-    registers.interruptFlag |= sourceMask;
-    refreshMasterBit();
-}
-
-void D1571VIA::clearIFR(uint8_t sourceMask)
-{
-    registers.interruptFlag &= static_cast<uint8_t>(~sourceMask);
-    refreshMasterBit();
-}
-
-void D1571VIA::refreshMasterBit()
-{
-    const uint8_t pendingEnabled = registers.interruptFlag & registers.interruptEnable & 0x7F;
-
-    if (pendingEnabled)
-        registers.interruptFlag |= IFR_IRQ;
-    else
-        registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
-}
-
 void D1571VIA::onClkEdge(bool rising, bool falling)
 {
-    if (viaRole != VIARole::VIA1_IECBus)
+    if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus)
         return;
 
     // 6522: ACR bits 2..3 = 01 => shift-in under external clock
@@ -854,7 +719,7 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
     m.valid = false;          // assume not valid unless we know we're VIA2/mech
 
     // Only VIA2 in mechanics role has meaningful data
-    if (viaRole != VIARole::VIA2_Mechanics)
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
         return m;
 
     uint8_t orb  = registers.orbIRB;
@@ -900,7 +765,7 @@ void D1571VIA::clearMechBytePending()
 
 void D1571VIA::pulseWriteByteReady()
 {
-    if (viaRole != VIARole::VIA2_Mechanics)
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
         return;
 
     mechBytePending = true;
@@ -919,7 +784,7 @@ void D1571VIA::pulseWriteByteReady()
 
 void D1571VIA::recomputeDiskWriteGate()
 {
-    if (viaRole != VIARole::VIA2_Mechanics)
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
         return;
 
     auto* drive = dynamic_cast<D1571*>(parentPeripheral);
@@ -971,7 +836,7 @@ void D1571VIA::applyPortAOutputs(uint8_t value)
 {
     const uint8_t ddrA = registers.ddrA;
 
-    if (viaRole == VIARole::VIA1_IECBus)
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
     {
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
         {
@@ -995,7 +860,7 @@ void D1571VIA::applyPortAOutputs(uint8_t value)
             }
         }
     }
-    else if (viaRole == VIARole::VIA2_Mechanics)
+    else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
     {
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
             drive->onVIA2PortAWrite(value, registers.ddrA);
