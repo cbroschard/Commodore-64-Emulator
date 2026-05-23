@@ -116,7 +116,6 @@ bool D1541VIA::loadState(StateReader& rdr)
     if (viaRole == VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB();
 
-
     if (viaRole == VIARole::VIA2_Mechanics)
         recomputeDiskWriteGate();
 

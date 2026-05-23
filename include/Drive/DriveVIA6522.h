@@ -61,6 +61,8 @@ class DriveVIA6522 : public DriveVIABase
             };
         }
 
+        VIATimerDebugView getTimerDebugView() const override;
+
     protected:
         VIARole viaRole = VIARole::Unknown;
         Peripheral* parentPeripheral = nullptr;

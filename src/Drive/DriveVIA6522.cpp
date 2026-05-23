@@ -170,6 +170,28 @@ void DriveVIA6522::tick(uint32_t cycles)
 
 }
 
+DriveVIABase::VIATimerDebugView DriveVIA6522::getTimerDebugView() const
+{
+    VIATimerDebugView t{};
+
+    t.timer1Counter = timer1Counter;
+    t.timer1Latch = timer1Latch;
+    t.timer1Running = timer1Running;
+    t.timer1JustLoaded = timer1JustLoaded;
+    t.timer1ReloadPending = timer1ReloadPending;
+    t.timer1InhibitIRQ = timer1InhibitIRQ;
+    t.timer1PB7Level = timer1PB7Level;
+
+    t.timer2Counter = timer2Counter;
+    t.timer2Latch = timer2Latch;
+    t.timer2Running = timer2Running;
+    t.timer2JustLoaded = timer2JustLoaded;
+    t.timer2InhibitIRQ = timer2InhibitIRQ;
+    t.timer2LowLatchByte = timer2LowLatchByte;
+
+    return t;
+}
+
 bool DriveVIA6522::checkIRQActive() const
 {
     uint8_t active = registers.interruptEnable & registers.interruptFlag & 0x7F;
