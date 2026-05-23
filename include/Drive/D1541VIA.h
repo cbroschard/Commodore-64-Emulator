@@ -29,7 +29,7 @@ class D1541VIA : public DriveVIA6522
         bool loadState(StateReader& rdr);
 
         // Reset all
-        void reset();
+        void reset() override;
 
         void resetShift();
 

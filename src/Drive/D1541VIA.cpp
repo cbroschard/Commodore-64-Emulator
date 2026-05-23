@@ -39,30 +39,10 @@ D1541VIA::~D1541VIA() = default;
 
 void D1541VIA::saveState(StateWriter& wrtr) const
 {
-    // Header
-    wrtr.writeU32(1);
-    wrtr.writeU8(static_cast<uint8_t>(viaRole));
-    wrtr.writeU8(portBPins);
+    wrtr.writeU32(2);
 
-    // Dump registers
-    wrtr.writeU8(registers.orbIRB);
-    wrtr.writeU8(registers.oraIRA);
-    wrtr.writeU8(registers.ddrA);
-    wrtr.writeU8(registers.ddrB);
-    wrtr.writeU8(registers.timer1CounterLowByte);
-    wrtr.writeU8(registers.timer1CounterHighByte);
-    wrtr.writeU8(registers.timer1LowLatch);
-    wrtr.writeU8(registers.timer1HighLatch);
-    wrtr.writeU8(registers.timer2CounterLowByte);
-    wrtr.writeU8(registers.timer2CounterHighByte);
-    wrtr.writeU8(registers.serialShift);
-    wrtr.writeU8(registers.auxControlRegister);
-    wrtr.writeU8(registers.peripheralControlRegister);
-    wrtr.writeU8(registers.interruptFlag);
-    wrtr.writeU8(registers.interruptEnable);
-    wrtr.writeU8(registers.oraIRANoHandshake);
+    saveVIAState(wrtr);
 
-    // Dump IEC state
     wrtr.writeBool(iecInputPrimed);
     wrtr.writeBool(busAtnLow);
     wrtr.writeBool(busClkLow);
@@ -73,19 +53,16 @@ void D1541VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(iecRxPending);
     wrtr.writeU8(iecRxByte);
 
-    // Dump serial shift state
     wrtr.writeU8(srShiftReg);
     wrtr.writeU8(srBitCount);
     wrtr.writeI32(srCount);
     wrtr.writeBool(srShiftInMode);
 
-    // Dump mechanical signals
     wrtr.writeBool(ledOn);
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
 
-    // Dump CA/CB pin levels
     wrtr.writeBool(ca1Level);
     wrtr.writeBool(ca2Level);
     wrtr.writeBool(cb1Level);
@@ -94,37 +71,14 @@ void D1541VIA::saveState(StateWriter& wrtr) const
 
 bool D1541VIA::loadState(StateReader& rdr)
 {
-    // Header
     uint32_t ver = 0;
     if (!rdr.readU32(ver)) return false;
-    if (ver != 1) return false;
 
-    uint8_t roleU8 = 0;
-    if (!rdr.readU8(roleU8)) return false;
-    viaRole = static_cast<VIARole>(roleU8);
+    if (ver != 2)
+        return false;
 
-    if (!rdr.readU8(portBPins)) return false;
-
-    // Registers
-    if (!rdr.readU8(registers.orbIRB)) return false;
-    if (!rdr.readU8(registers.oraIRA)) return false;
-    if (!rdr.readU8(registers.ddrA)) return false;
-    if (!rdr.readU8(registers.ddrB)) return false;
-
-    if (!rdr.readU8(registers.timer1CounterLowByte)) return false;
-    if (!rdr.readU8(registers.timer1CounterHighByte)) return false;
-    if (!rdr.readU8(registers.timer1LowLatch)) return false;
-    if (!rdr.readU8(registers.timer1HighLatch)) return false;
-
-    if (!rdr.readU8(registers.timer2CounterLowByte)) return false;
-    if (!rdr.readU8(registers.timer2CounterHighByte)) return false;
-
-    if (!rdr.readU8(registers.serialShift)) return false;
-    if (!rdr.readU8(registers.auxControlRegister)) return false;
-    if (!rdr.readU8(registers.peripheralControlRegister)) return false;
-    if (!rdr.readU8(registers.interruptFlag)) return false;
-    if (!rdr.readU8(registers.interruptEnable)) return false;
-    if (!rdr.readU8(registers.oraIRANoHandshake)) return false;
+    if (!loadVIAState(rdr))
+        return false;
 
     // IEC state
     if (!rdr.readBool(iecInputPrimed)) return false;
