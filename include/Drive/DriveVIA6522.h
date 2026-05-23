@@ -24,18 +24,44 @@ class DriveVIA6522 : public DriveVIABase
             VIA2_Mechanics
         };
 
-        explicit DriveVIA6522(VIARole viaRole = VIARole::Unknown);
-        virtual ~DriveVIA6522();
+        DriveVIA6522();
+        ~DriveVIA6522() override;
 
         // Pointers
-        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+        void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
 
-        void reset();
-        void tick(uint32_t cycles);
+        virtual void reset();
+        virtual void tick(uint32_t cycles);
 
         bool checkIRQActive() const override;
 
         inline VIARole getRole() const { return viaRole; }
+
+        // ML Monitor
+        inline viaRegsView getRegsView() const override
+        {
+            return
+            {
+                registers.orbIRB,
+                registers.oraIRA,
+                registers.ddrB,
+                registers.ddrA,
+                registers.timer1CounterLowByte,
+                registers.timer1CounterHighByte,
+                registers.timer1LowLatch,
+                registers.timer1HighLatch,
+                registers.timer2CounterLowByte,
+                registers.timer2CounterHighByte,
+                registers.serialShift,
+                registers.auxControlRegister,
+                registers.peripheralControlRegister,
+                registers.interruptFlag,
+                registers.interruptEnable,
+                registers.oraIRANoHandshake
+            };
+        }
+
+        VIATimerDebugView getTimerDebugView() const override;
 
     protected:
         VIARole viaRole = VIARole::Unknown;
@@ -84,12 +110,24 @@ class DriveVIA6522 : public DriveVIABase
         uint8_t portBPins;
         uint8_t portAPins;
 
+        virtual void onAttachedToPeripheral() {}
+        virtual void onPCRChanged(uint8_t oldValue, uint8_t newValue) {}
+
+        void saveVIAState(StateWriter& wrtr) const;
+        bool loadVIAState(StateReader& rdr);
+
         void triggerInterrupt(uint8_t sourceMask);
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();
 
         bool readTimerRegister(uint16_t address, uint8_t& value);
         bool writeTimerRegister(uint16_t address, uint8_t value);
+
+        bool readInterruptRegister(uint16_t address, uint8_t& value);
+        bool writeInterruptRegister(uint16_t address, uint8_t value);
+
+        bool readControlRegister(uint16_t address, uint8_t& value);
+        bool writeControlRegister(uint16_t address, uint8_t value);
 
     private:
         enum : uint8_t

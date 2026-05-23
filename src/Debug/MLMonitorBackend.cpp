@@ -44,6 +44,44 @@ static int bit(bool v)
     return v ? 1 : 0;
 }
 
+static void appendVIATimerDebug(std::ostream& out,
+                                const DriveVIABase::VIATimerDebugView& t)
+{
+    out << "\n";
+    out << "Timer Runtime State\n";
+    out << "-------------------\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "T1 Counter: $"
+        << std::setw(4) << static_cast<int>(t.timer1Counter)
+        << "  Latch: $"
+        << std::setw(4) << static_cast<int>(t.timer1Latch)
+        << std::dec << std::setfill(' ')
+        << "  Running: " << (t.timer1Running ? 1 : 0)
+        << "  JustLoaded: " << (t.timer1JustLoaded ? 1 : 0)
+        << "  ReloadPending: " << (t.timer1ReloadPending ? 1 : 0)
+        << "  InhibitIRQ: " << (t.timer1InhibitIRQ ? 1 : 0)
+        << "  PB7: " << (t.timer1PB7Level ? 1 : 0)
+        << "\n";
+
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    out << "T2 Counter: $"
+        << std::setw(4) << static_cast<int>(t.timer2Counter)
+        << "  Latch: $"
+        << std::setw(4) << static_cast<int>(t.timer2Latch)
+        << std::dec << std::setfill(' ')
+        << "  Running: " << (t.timer2Running ? 1 : 0)
+        << "  JustLoaded: " << (t.timer2JustLoaded ? 1 : 0)
+        << "  InhibitIRQ: " << (t.timer2InhibitIRQ ? 1 : 0)
+        << "  LowLatchByte: $"
+        << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+        << static_cast<int>(t.timer2LowLatchByte)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+}
+
 static const Vic::RasterRowStateSnapshot* selectVicRowSnapshot(
     int raster,
     bool& usingPreviousFrame,
@@ -3166,6 +3204,9 @@ void MLMonitorBackend::dumpDriveVIA1(int id)
     bool irqActive = via1->checkIRQActive();
     oss << "  IRQ Active:   " << (irqActive ? "YES" : "NO") << "\n";
 
+    auto timers = via1->getTimerDebugView();
+    appendVIATimerDebug(oss, timers);
+
     std::cout << oss.str();
 }
 
@@ -3250,6 +3291,9 @@ void MLMonitorBackend::dumpDriveVIA2(int id)
 
     bool irqActive = via2->checkIRQActive();
     oss << "  IRQ Active: " << (irqActive ? "YES" : "NO") << "\n";
+
+    auto timers = via2->getTimerDebugView();
+    appendVIATimerDebug(oss, timers);
 
     std::cout << oss.str();
 }

@@ -7,8 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveVIA6522.h"
 
-DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
-    viaRole(role),
+DriveVIA6522::DriveVIA6522() :
+    viaRole(VIARole::Unknown),
     timer1Counter(0),
     timer1Latch(0),
     timer1Running(false),
@@ -27,6 +27,97 @@ DriveVIA6522::DriveVIA6522(DriveVIA6522::VIARole role) :
 }
 
 DriveVIA6522::~DriveVIA6522() = default;
+
+void DriveVIA6522::attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role)
+{
+    this->parentPeripheral = parentPeripheral;
+    this->viaRole = role;
+    onAttachedToPeripheral();
+}
+
+void DriveVIA6522::saveVIAState(StateWriter& wrtr) const
+{
+    wrtr.writeU8(static_cast<uint8_t>(viaRole));
+    wrtr.writeU8(portBPins);
+    wrtr.writeU8(portAPins);
+
+    wrtr.writeU8(registers.orbIRB);
+    wrtr.writeU8(registers.oraIRA);
+    wrtr.writeU8(registers.ddrA);
+    wrtr.writeU8(registers.ddrB);
+    wrtr.writeU8(registers.timer1CounterLowByte);
+    wrtr.writeU8(registers.timer1CounterHighByte);
+    wrtr.writeU8(registers.timer1LowLatch);
+    wrtr.writeU8(registers.timer1HighLatch);
+    wrtr.writeU8(registers.timer2CounterLowByte);
+    wrtr.writeU8(registers.timer2CounterHighByte);
+    wrtr.writeU8(registers.serialShift);
+    wrtr.writeU8(registers.auxControlRegister);
+    wrtr.writeU8(registers.peripheralControlRegister);
+    wrtr.writeU8(registers.interruptFlag);
+    wrtr.writeU8(registers.interruptEnable);
+    wrtr.writeU8(registers.oraIRANoHandshake);
+
+    wrtr.writeU16(timer1Counter);
+    wrtr.writeU16(timer1Latch);
+    wrtr.writeBool(timer1Running);
+    wrtr.writeBool(timer1JustLoaded);
+    wrtr.writeBool(timer1ReloadPending);
+    wrtr.writeBool(timer1InhibitIRQ);
+    wrtr.writeBool(timer1PB7Level);
+
+    wrtr.writeU16(timer2Counter);
+    wrtr.writeU16(timer2Latch);
+    wrtr.writeBool(timer2Running);
+    wrtr.writeBool(timer2JustLoaded);
+    wrtr.writeBool(timer2InhibitIRQ);
+    wrtr.writeU8(timer2LowLatchByte);
+}
+
+bool DriveVIA6522::loadVIAState(StateReader& rdr)
+{
+    uint8_t roleU8 = 0;
+    if (!rdr.readU8(roleU8)) return false;
+    viaRole = static_cast<VIARole>(roleU8);
+
+    if (!rdr.readU8(portBPins)) return false;
+    if (!rdr.readU8(portAPins)) return false;
+
+    if (!rdr.readU8(registers.orbIRB)) return false;
+    if (!rdr.readU8(registers.oraIRA)) return false;
+    if (!rdr.readU8(registers.ddrA)) return false;
+    if (!rdr.readU8(registers.ddrB)) return false;
+    if (!rdr.readU8(registers.timer1CounterLowByte)) return false;
+    if (!rdr.readU8(registers.timer1CounterHighByte)) return false;
+    if (!rdr.readU8(registers.timer1LowLatch)) return false;
+    if (!rdr.readU8(registers.timer1HighLatch)) return false;
+    if (!rdr.readU8(registers.timer2CounterLowByte)) return false;
+    if (!rdr.readU8(registers.timer2CounterHighByte)) return false;
+    if (!rdr.readU8(registers.serialShift)) return false;
+    if (!rdr.readU8(registers.auxControlRegister)) return false;
+    if (!rdr.readU8(registers.peripheralControlRegister)) return false;
+    if (!rdr.readU8(registers.interruptFlag)) return false;
+    if (!rdr.readU8(registers.interruptEnable)) return false;
+    if (!rdr.readU8(registers.oraIRANoHandshake)) return false;
+
+    if (!rdr.readU16(timer1Counter)) return false;
+    if (!rdr.readU16(timer1Latch)) return false;
+    if (!rdr.readBool(timer1Running)) return false;
+    if (!rdr.readBool(timer1JustLoaded)) return false;
+    if (!rdr.readBool(timer1ReloadPending)) return false;
+    if (!rdr.readBool(timer1InhibitIRQ)) return false;
+    if (!rdr.readBool(timer1PB7Level)) return false;
+
+    if (!rdr.readU16(timer2Counter)) return false;
+    if (!rdr.readU16(timer2Latch)) return false;
+    if (!rdr.readBool(timer2Running)) return false;
+    if (!rdr.readBool(timer2JustLoaded)) return false;
+    if (!rdr.readBool(timer2InhibitIRQ)) return false;
+    if (!rdr.readU8(timer2LowLatchByte)) return false;
+
+    refreshMasterBit();
+    return true;
+}
 
 void DriveVIA6522::reset()
 {
@@ -77,6 +168,28 @@ void DriveVIA6522::tick(uint32_t cycles)
         timer2Tick();
     }
 
+}
+
+DriveVIABase::VIATimerDebugView DriveVIA6522::getTimerDebugView() const
+{
+    VIATimerDebugView t{};
+
+    t.timer1Counter = timer1Counter;
+    t.timer1Latch = timer1Latch;
+    t.timer1Running = timer1Running;
+    t.timer1JustLoaded = timer1JustLoaded;
+    t.timer1ReloadPending = timer1ReloadPending;
+    t.timer1InhibitIRQ = timer1InhibitIRQ;
+    t.timer1PB7Level = timer1PB7Level;
+
+    t.timer2Counter = timer2Counter;
+    t.timer2Latch = timer2Latch;
+    t.timer2Running = timer2Running;
+    t.timer2JustLoaded = timer2JustLoaded;
+    t.timer2InhibitIRQ = timer2InhibitIRQ;
+    t.timer2LowLatchByte = timer2LowLatchByte;
+
+    return t;
 }
 
 bool DriveVIA6522::checkIRQActive() const
@@ -224,6 +337,103 @@ bool DriveVIA6522::writeTimerRegister(uint16_t address, uint8_t value)
 
             clearIFR(IFR_TIMER2);
             syncTimer2Registers();
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::readInterruptRegister(uint16_t address, uint8_t& value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0D: // IFR
+        {
+            refreshMasterBit();
+            value = registers.interruptFlag;
+            return true;
+        }
+
+        case 0x0E: // IER
+        {
+            value = registers.interruptEnable;
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::writeInterruptRegister(uint16_t address, uint8_t value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0D: // IFR
+        {
+            // Writing 1s clears matching IFR bits. Bit 7 is not directly cleared here.
+            const uint8_t mask = static_cast<uint8_t>(value & 0x7F);
+            clearIFR(mask);
+            return true;
+        }
+
+        case 0x0E: // IER
+        {
+            const bool set = (value & 0x80) != 0;
+            const uint8_t mask = static_cast<uint8_t>(value & 0x7F);
+
+            if (set)
+            {
+                registers.interruptEnable =
+                    static_cast<uint8_t>(registers.interruptEnable | mask);
+            }
+            else
+            {
+                registers.interruptEnable =
+                    static_cast<uint8_t>(registers.interruptEnable & static_cast<uint8_t>(~mask));
+            }
+
+            refreshMasterBit();
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::readControlRegister(uint16_t address, uint8_t& value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0B: // ACR
+            value = registers.auxControlRegister;
+            return true;
+
+        case 0x0C: // PCR
+            value = registers.peripheralControlRegister;
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::writeControlRegister(uint16_t address, uint8_t value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0B: // ACR
+            registers.auxControlRegister = value;
+            return true;
+
+        case 0x0C: // PCR
+        {
+            const uint8_t oldValue = registers.peripheralControlRegister;
+            registers.peripheralControlRegister = value;
+            onPCRChanged(oldValue, value);
             return true;
         }
 

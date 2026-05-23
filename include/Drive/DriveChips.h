@@ -71,6 +71,24 @@ class DriveVIABase
             const uint8_t& oraNoHS;
         };
 
+        struct VIATimerDebugView
+        {
+            uint16_t timer1Counter = 0;
+            uint16_t timer1Latch = 0;
+            bool timer1Running = false;
+            bool timer1JustLoaded = false;
+            bool timer1ReloadPending = false;
+            bool timer1InhibitIRQ = false;
+            bool timer1PB7Level = true;
+
+            uint16_t timer2Counter = 0;
+            uint16_t timer2Latch = 0;
+            bool timer2Running = false;
+            bool timer2JustLoaded = false;
+            bool timer2InhibitIRQ = false;
+            uint8_t timer2LowLatchByte = 0;
+        };
+
         struct MechanicsInfo
         {
             bool valid;          // false = this VIA doesn't have mechanics info
@@ -81,6 +99,7 @@ class DriveVIABase
 
         virtual bool checkIRQActive() const = 0;
         virtual viaRegsView getRegsView() const = 0;
+        virtual VIATimerDebugView getTimerDebugView() const { return {}; }
         virtual MechanicsInfo getMechanicsInfo() const
         {
             MechanicsInfo m{};
