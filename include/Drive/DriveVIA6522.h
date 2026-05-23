@@ -108,6 +108,8 @@ class DriveVIA6522 : public DriveVIABase
         uint8_t portBPins;
         uint8_t portAPins;
 
+        virtual void onAttachedToPeripheral() {}
+
         void saveVIAState(StateWriter& wrtr) const;
         bool loadVIAState(StateReader& rdr);
 

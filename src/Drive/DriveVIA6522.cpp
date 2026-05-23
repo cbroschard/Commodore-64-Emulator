@@ -32,6 +32,7 @@ void DriveVIA6522::attachPeripheralInstance(Peripheral* parentPeripheral, VIARol
 {
     this->parentPeripheral = parentPeripheral;
     this->viaRole = role;
+    onAttachedToPeripheral();
 }
 
 void DriveVIA6522::saveVIAState(StateWriter& wrtr) const

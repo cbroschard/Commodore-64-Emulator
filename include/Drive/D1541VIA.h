@@ -54,6 +54,7 @@ class D1541VIA : public DriveVIA6522
         MechanicsInfo getMechanicsInfo() const override;
 
     protected:
+        void onAttachedToPeripheral() override;
 
     private:
         // Serial shift
