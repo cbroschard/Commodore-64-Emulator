@@ -100,8 +100,13 @@ void D1571VIA::reset()
         ));
     }
 
+    applyPortAOutputs(registers.oraIRA);
+
     if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
-        updateIECOutputsFromPortB(); // forces bus release based on DDRB/ORB
+        updateIECOutputsFromPortB();
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
 }
 
 uint8_t D1571VIA::readRegister(uint16_t address)
