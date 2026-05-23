@@ -11,6 +11,8 @@
 #include <cstdint>
 #include "Drive/DriveChips.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class DriveVIA6522 : public DriveVIABase
 {
