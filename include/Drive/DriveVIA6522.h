@@ -17,13 +17,6 @@ class DriveVIA6522 : public DriveVIABase
         DriveVIA6522();
         virtual ~DriveVIA6522();
 
-        enum class VIARole
-        {
-            Unknown,
-            VIA1_IECBus,
-            VIA2_Mechanics
-        };
-
         void reset();
         void tick(uint32_t cycles);
 
