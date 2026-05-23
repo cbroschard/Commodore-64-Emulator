@@ -322,6 +322,65 @@ bool DriveVIA6522::writeTimerRegister(uint16_t address, uint8_t value)
     }
 }
 
+bool DriveVIA6522::readInterruptRegister(uint16_t address, uint8_t& value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0D: // IFR
+        {
+            refreshMasterBit();
+            value = registers.interruptFlag;
+            return true;
+        }
+
+        case 0x0E: // IER
+        {
+            value = registers.interruptEnable;
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
+bool DriveVIA6522::writeInterruptRegister(uint16_t address, uint8_t value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x0D: // IFR
+        {
+            // Writing 1s clears matching IFR bits. Bit 7 is not directly cleared here.
+            const uint8_t mask = static_cast<uint8_t>(value & 0x7F);
+            clearIFR(mask);
+            return true;
+        }
+
+        case 0x0E: // IER
+        {
+            const bool set = (value & 0x80) != 0;
+            const uint8_t mask = static_cast<uint8_t>(value & 0x7F);
+
+            if (set)
+            {
+                registers.interruptEnable =
+                    static_cast<uint8_t>(registers.interruptEnable | mask);
+            }
+            else
+            {
+                registers.interruptEnable =
+                    static_cast<uint8_t>(registers.interruptEnable & static_cast<uint8_t>(~mask));
+            }
+
+            refreshMasterBit();
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
 void DriveVIA6522::timer1Tick()
 {
     if (!timer1Running)
