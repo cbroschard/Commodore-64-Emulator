@@ -34,6 +34,90 @@ void DriveVIA6522::attachPeripheralInstance(Peripheral* parentPeripheral, VIARol
     this->viaRole = role;
 }
 
+void DriveVIA6522::saveVIAState(StateWriter& wrtr) const
+{
+    wrtr.writeU8(static_cast<uint8_t>(viaRole));
+    wrtr.writeU8(portBPins);
+    wrtr.writeU8(portAPins);
+
+    wrtr.writeU8(registers.orbIRB);
+    wrtr.writeU8(registers.oraIRA);
+    wrtr.writeU8(registers.ddrA);
+    wrtr.writeU8(registers.ddrB);
+    wrtr.writeU8(registers.timer1CounterLowByte);
+    wrtr.writeU8(registers.timer1CounterHighByte);
+    wrtr.writeU8(registers.timer1LowLatch);
+    wrtr.writeU8(registers.timer1HighLatch);
+    wrtr.writeU8(registers.timer2CounterLowByte);
+    wrtr.writeU8(registers.timer2CounterHighByte);
+    wrtr.writeU8(registers.serialShift);
+    wrtr.writeU8(registers.auxControlRegister);
+    wrtr.writeU8(registers.peripheralControlRegister);
+    wrtr.writeU8(registers.interruptFlag);
+    wrtr.writeU8(registers.interruptEnable);
+    wrtr.writeU8(registers.oraIRANoHandshake);
+
+    wrtr.writeU16(timer1Counter);
+    wrtr.writeU16(timer1Latch);
+    wrtr.writeBool(timer1Running);
+    wrtr.writeBool(timer1JustLoaded);
+    wrtr.writeBool(timer1ReloadPending);
+    wrtr.writeBool(timer1InhibitIRQ);
+    wrtr.writeBool(timer1PB7Level);
+
+    wrtr.writeU16(timer2Counter);
+    wrtr.writeU16(timer2Latch);
+    wrtr.writeBool(timer2Running);
+    wrtr.writeBool(timer2JustLoaded);
+    wrtr.writeBool(timer2InhibitIRQ);
+    wrtr.writeU8(timer2LowLatchByte);
+}
+
+bool DriveVIA6522::loadVIAState(StateReader& rdr)
+{
+    uint8_t roleU8 = 0;
+    if (!rdr.readU8(roleU8)) return false;
+    viaRole = static_cast<VIARole>(roleU8);
+
+    if (!rdr.readU8(portBPins)) return false;
+    if (!rdr.readU8(portAPins)) return false;
+
+    if (!rdr.readU8(registers.orbIRB)) return false;
+    if (!rdr.readU8(registers.oraIRA)) return false;
+    if (!rdr.readU8(registers.ddrA)) return false;
+    if (!rdr.readU8(registers.ddrB)) return false;
+    if (!rdr.readU8(registers.timer1CounterLowByte)) return false;
+    if (!rdr.readU8(registers.timer1CounterHighByte)) return false;
+    if (!rdr.readU8(registers.timer1LowLatch)) return false;
+    if (!rdr.readU8(registers.timer1HighLatch)) return false;
+    if (!rdr.readU8(registers.timer2CounterLowByte)) return false;
+    if (!rdr.readU8(registers.timer2CounterHighByte)) return false;
+    if (!rdr.readU8(registers.serialShift)) return false;
+    if (!rdr.readU8(registers.auxControlRegister)) return false;
+    if (!rdr.readU8(registers.peripheralControlRegister)) return false;
+    if (!rdr.readU8(registers.interruptFlag)) return false;
+    if (!rdr.readU8(registers.interruptEnable)) return false;
+    if (!rdr.readU8(registers.oraIRANoHandshake)) return false;
+
+    if (!rdr.readU16(timer1Counter)) return false;
+    if (!rdr.readU16(timer1Latch)) return false;
+    if (!rdr.readBool(timer1Running)) return false;
+    if (!rdr.readBool(timer1JustLoaded)) return false;
+    if (!rdr.readBool(timer1ReloadPending)) return false;
+    if (!rdr.readBool(timer1InhibitIRQ)) return false;
+    if (!rdr.readBool(timer1PB7Level)) return false;
+
+    if (!rdr.readU16(timer2Counter)) return false;
+    if (!rdr.readU16(timer2Latch)) return false;
+    if (!rdr.readBool(timer2Running)) return false;
+    if (!rdr.readBool(timer2JustLoaded)) return false;
+    if (!rdr.readBool(timer2InhibitIRQ)) return false;
+    if (!rdr.readU8(timer2LowLatchByte)) return false;
+
+    refreshMasterBit();
+    return true;
+}
+
 void DriveVIA6522::reset()
 {
     // Pin defaults
