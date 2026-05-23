@@ -24,8 +24,8 @@ class DriveVIA6522 : public DriveVIABase
             VIA2_Mechanics
         };
 
-        explicit DriveVIA6522();
-        virtual ~DriveVIA6522();
+        DriveVIA6522();
+        ~DriveVIA6522() override;
 
         // Pointers
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);

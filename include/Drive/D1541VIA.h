@@ -14,7 +14,7 @@ class D1541VIA : public DriveVIA6522
 {
     public:
         D1541VIA();
-        virtual ~D1541VIA();
+        ~D1541VIA() override;
 
         // State Management
         void saveState(StateWriter& wrtr) const;
