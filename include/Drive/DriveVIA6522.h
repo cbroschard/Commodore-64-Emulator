@@ -30,8 +30,8 @@ class DriveVIA6522 : public DriveVIABase
         // Pointers
         void attachPeripheralInstance(Peripheral* parentPeripheral, VIARole role);
 
-        void reset();
-        void tick(uint32_t cycles);
+        virtual void reset();
+        virtual void tick(uint32_t cycles);
 
         bool checkIRQActive() const override;
 
@@ -152,7 +152,7 @@ class DriveVIA6522 : public DriveVIABase
         void timer1Tick();
         void timer2Tick();
         void syncTimer1Registers();
-        void syncTimer2Registers();rtB();
+        void syncTimer2Registers();
 };
 
 #endif // DRIVEVIA6522_H
