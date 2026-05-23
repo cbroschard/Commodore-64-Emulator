@@ -1051,7 +1051,6 @@ void D1541VIA::clearIECTransientState()
     updateIECOutputsFromPortB();
 }
 
-
 void D1541VIA::pulseWriteByteReady()
 {
     if (viaRole != VIARole::VIA2_Mechanics)
