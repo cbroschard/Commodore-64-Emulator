@@ -55,6 +55,7 @@ class D1541VIA : public DriveVIA6522
 
     protected:
         void onAttachedToPeripheral() override;
+        void onPCRChanged(uint8_t oldValue, uint8_t newValue) override;
 
     private:
         // Serial shift

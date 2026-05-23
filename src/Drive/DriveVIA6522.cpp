@@ -390,6 +390,10 @@ bool DriveVIA6522::readControlRegister(uint16_t address, uint8_t& value)
             value = registers.auxControlRegister;
             return true;
 
+        case 0x0C: // PCR
+            value = registers.peripheralControlRegister;
+            return true;
+
         default:
             return false;
     }
@@ -402,6 +406,14 @@ bool DriveVIA6522::writeControlRegister(uint16_t address, uint8_t value)
         case 0x0B: // ACR
             registers.auxControlRegister = value;
             return true;
+
+        case 0x0C: // PCR
+        {
+            const uint8_t oldValue = registers.peripheralControlRegister;
+            registers.peripheralControlRegister = value;
+            onPCRChanged(oldValue, value);
+            return true;
+        }
 
         default:
             return false;

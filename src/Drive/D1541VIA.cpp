@@ -362,9 +362,6 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             return registers.serialShift;
         }
 
-        case 0x0C: // PCR
-            return registers.peripheralControlRegister;
-
         case 0x0F: // ORA/IRA no handshake
         {
             const uint8_t ddrA = registers.ddrA;
@@ -618,16 +615,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
             registers.serialShift = value;
             clearIFR(IFR_SR);
             resetShift();
-            break;
-        }
-
-        case 0x0C: // PCR
-        {
-            registers.peripheralControlRegister = value;
-
-            if (viaRole == VIARole::VIA2_Mechanics)
-                recomputeDiskWriteGate();
-
             break;
         }
 
@@ -1144,6 +1131,15 @@ void D1541VIA::onAttachedToPeripheral()
 {
     if (viaRole == VIARole::VIA1_IECBus)
         updateIECOutputsFromPortB();
+
+    if (viaRole == VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
+}
+
+void D1541VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+    (void)newValue;
 
     if (viaRole == VIARole::VIA2_Mechanics)
         recomputeDiskWriteGate();
