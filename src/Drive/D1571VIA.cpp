@@ -866,3 +866,12 @@ void D1571VIA::applyPortAOutputs(uint8_t value)
             drive->onVIA2PortAWrite(value, registers.ddrA);
     }
 }
+
+void D1571VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+    (void)newValue;
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
+}

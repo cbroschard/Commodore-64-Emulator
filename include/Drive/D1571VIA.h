@@ -81,6 +81,7 @@ class D1571VIA : public DriveVIA6522
         MechanicsInfo getMechanicsInfo() const override;
 
     protected:
+        void onPCRChanged(uint8_t oldValue, uint8_t newValue) override;
 
     private:
         // Serial shift
