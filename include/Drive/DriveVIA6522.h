@@ -11,6 +11,8 @@
 #include <cstdint>
 #include "Drive/DriveChips.h"
 #include "Peripheral.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class DriveVIA6522 : public DriveVIABase
 {
@@ -22,7 +24,7 @@ class DriveVIA6522 : public DriveVIABase
             VIA2_Mechanics
         };
 
-        explicit DriveVIA6522(VIARole role = VIARole::Unknown);
+        explicit DriveVIA6522(VIARole viaRole = VIARole::Unknown);
         virtual ~DriveVIA6522();
 
         // Pointers
@@ -33,10 +35,34 @@ class DriveVIA6522 : public DriveVIABase
 
         bool checkIRQActive() const override;
 
-        inline VIARole getRole() const { return role; }
+        inline VIARole getRole() const { return viaRole; }
+
+        // ML Monitor
+        inline viaRegsView getRegsView() const override
+        {
+            return
+            {
+                registers.orbIRB,
+                registers.oraIRA,
+                registers.ddrB,
+                registers.ddrA,
+                registers.timer1CounterLowByte,
+                registers.timer1CounterHighByte,
+                registers.timer1LowLatch,
+                registers.timer1HighLatch,
+                registers.timer2CounterLowByte,
+                registers.timer2CounterHighByte,
+                registers.serialShift,
+                registers.auxControlRegister,
+                registers.peripheralControlRegister,
+                registers.interruptFlag,
+                registers.interruptEnable,
+                registers.oraIRANoHandshake
+            };
+        }
 
     protected:
-        VIARole role = VIARole::Unknown;
+        VIARole viaRole = VIARole::Unknown;
         Peripheral* parentPeripheral = nullptr;
 
         // Interrupt Bits
