@@ -9,14 +9,25 @@
 #define DRIVEVIA6522_H
 
 #include <cstdint>
+#include "Drive/DriveChips.h"
 
-class DriveVIA6522
+class DriveVIA6522 : public DriveVIABase
 {
     public:
         DriveVIA6522();
         virtual ~DriveVIA6522();
 
-        bool checkIRQActive() const;
+        enum class VIARole
+        {
+            Unknown,
+            VIA1_IECBus,
+            VIA2_Mechanics
+        };
+
+        void reset();
+        void tick(uint32_t cycles);
+
+        bool checkIRQActive() const override;
 
     protected:
         // Port B IEC Bits
@@ -71,9 +82,6 @@ class DriveVIA6522
             IFR_IRQ    = 0x80  // Bit 7: Master Interrupt Flag
         };
 
-        uint8_t portBPins;
-        uint8_t portAPins;
-
         struct viaRegs
         {
             // Ports and data direction
@@ -100,6 +108,9 @@ class DriveVIA6522
             uint8_t interruptEnable;
             uint8_t oraIRANoHandshake;
         } registers;
+
+        uint8_t portBPins;
+        uint8_t portAPins;
 
         void triggerInterrupt(uint8_t sourceMask);
         void clearIFR(uint8_t sourceMask);
