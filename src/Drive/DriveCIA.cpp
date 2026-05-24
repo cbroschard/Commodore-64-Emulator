@@ -358,19 +358,7 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x09: return registers.todSeconds;
         case 0x0A: return registers.todMinutes;
         case 0x0B: return registers.todHours;
-        case 0x0C:
-        {
-            const uint8_t value = registers.serialData;
-
-            // Reading SDR consumes the completed byte. Reset the receive shifter so
-            // the next IEC byte starts cleanly at bit 0.
-            serialShiftRegister = 0x00;
-            serialBitCount = 0;
-            lastCntLevel = cntLevel;
-            lastSpLevel = spLevel;
-
-            return value;
-        }
+        case 0x0C: return registers.serialData;
         case 0x0D:
         {
             uint8_t pending = interruptStatus & 0x1F;
@@ -489,19 +477,10 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const uint8_t old = registers.controlRegisterA;
             registers.controlRegisterA = value;
 
-            const bool oldStart = (old & CRA_START) != 0;
+            const bool oldStart = (old   & CRA_START) != 0;
             const bool newStart = (value & CRA_START) != 0;
 
-            const bool oldSerialOutput = (old   & CRA_SPMODE) != 0;
-            const bool newSerialOutput = (value & CRA_SPMODE) != 0;
-
-            const bool enteringSerialOutput =
-                (!oldSerialOutput && newSerialOutput);
-
-            const bool enteringSerialInput =
-                (oldSerialOutput && !newSerialOutput);
-
-            // Start transition: load counter from latch.
+            // START transition: load counter from latch.
             if (!oldStart && newStart)
                 timerACounter = timerALatch;
 
@@ -512,22 +491,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             {
                 timerACounter = timerALatch;
                 registers.controlRegisterA &= static_cast<uint8_t>(~CRA_LOAD);
-            }
-
-            if (enteringSerialOutput)
-            {
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-                lastCntLevel = cntLevel;
-                lastSpLevel = spLevel;
-            }
-
-            if (enteringSerialInput)
-            {
-                serialShiftRegister = 0x00;
-                serialBitCount = 0;
-                lastCntLevel = cntLevel;
-                lastSpLevel = spLevel;
             }
 
             break;
@@ -586,15 +549,45 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     const bool cntRisingEdge = (newCntLevel && !oldCntLevel);
     const bool sdrInputMode  = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
+#ifdef Debug
+    static int serialEdgeLogCount = 0;
+
+    if (serialEdgeLogCount < 200)
+    {
+        std::cout << "[CIA SERIAL EDGE CHECK] "
+                  << "oldCNT=" << oldCntLevel
+                  << " newCNT=" << newCntLevel
+                  << " SP=" << newSpLevel
+                  << " rising=" << (cntRisingEdge ? 1 : 0)
+                  << " inputMode=" << (sdrInputMode ? 1 : 0)
+                  << " bitCount=" << int(serialBitCount)
+                  << " shift=$" << std::hex << int(serialShiftRegister)
+                  << " CRA=$" << int(registers.controlRegisterA)
+                  << std::dec << "\n";
+
+        ++serialEdgeLogCount;
+    }
+#endif
+
     if (!sdrInputMode || !cntRisingEdge)
         return;
 
     const bool serialBit = newSpLevel;
 
-    // IEC serial bytes are received LSB-first.
-    // Preserve the first sampled bit as bit 0, second as bit 1, etc.
+#ifdef Debug
+    std::cout << "[CIA SERIAL BIT] "
+              << "bitIndex=" << int(serialBitCount)
+              << " bit=" << serialBit
+              << " shiftBefore=$" << std::hex << int(serialShiftRegister)
+              << std::dec << "\n";
+#endif
+
+    // Hardware-style CIA serial input:
+    // On CNT rising edge, the 8520 shifts left and inserts SP into bit 0.
+    serialShiftRegister = static_cast<uint8_t>(serialShiftRegister << 1);
+
     if (serialBit)
-        serialShiftRegister |= static_cast<uint8_t>(1u << serialBitCount);
+        serialShiftRegister |= 0x01;
 
     ++serialBitCount;
 
@@ -602,14 +595,13 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     {
         registers.serialData = serialShiftRegister;
 
-    #ifdef Debug
+#ifdef Debug
         std::cout << "[CIA SERIAL COMPLETE IN] SDR=$"
                   << std::hex << int(registers.serialData)
                   << " IER=$" << int(registers.interruptEnable)
                   << " ICR_BEFORE=$" << int(interruptStatus)
-                  << std::dec
-                  << "\n";
-    #endif
+                  << std::dec << "\n";
+#endif
 
         triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
 
@@ -631,6 +623,19 @@ void DriveCIA::setPortBPins(uint8_t pins)
 void DriveCIA::setCNTLine(bool level)
 {
     const bool oldCntLevel = cntLevel;
+
+#ifdef Debug
+    if (oldCntLevel != level)
+    {
+        std::cout << "[CIA CNT LINE] "
+                  << "old=" << oldCntLevel
+                  << " new=" << level
+                  << " SP=" << spLevel
+                  << " bitCount=" << int(serialBitCount)
+                  << " CRA=$" << std::hex << int(registers.controlRegisterA)
+                  << std::dec << "\n";
+    }
+#endif
 
     cntLevel = level;
 
