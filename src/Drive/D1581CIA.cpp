@@ -106,6 +106,25 @@ void D1581CIA::updateInputPins()
 
         if (!d->isDiskLoaded())
             portA &= static_cast<uint8_t>(~PRA_DSKCH);
+
+        // Device address switches.
+        //
+        // Start with the common assumption:
+        // device 8 = both switches ON/grounded/0
+        // device 9 = DEVSW1 set
+        // device 10 = DEVSW2 set
+        // device 11 = both set
+        const int devOffset = d->getDeviceNumber() - 8;
+
+        if ((devOffset & 0x01) == 0)
+            portA &= static_cast<uint8_t>(~PRA_DEVSW1);
+        else
+            portA |= PRA_DEVSW1;
+
+        if ((devOffset & 0x02) == 0)
+            portA &= static_cast<uint8_t>(~PRA_DEVSW2);
+        else
+            portA |= PRA_DEVSW2;
     }
 
     setPortAPins(portA);
