@@ -50,8 +50,8 @@ class D1581Memory : public DriveMemoryBase
         bool initialize(const std::string& fileName);
 
               // Getters
-        inline DriveCIA& getCIA() { return cia; }
-        inline const DriveCIA& getCIA()  const { return cia; }
+        inline D1581CIA& getCIA() { return cia; }
+        inline const D1581CIA& getCIA()  const { return cia; }
 
         inline FDC177x& getFDC() { return fdc; }
         inline const FDC177x&  getFDC()  const { return fdc; }
