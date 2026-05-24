@@ -89,17 +89,43 @@ uint8_t D1581CIA::makePortBPins() const
 {
     uint8_t pins = 0xFF;
 
-    if (iecAtnInLow)
+    const uint8_t prb  = getPortBOutputRegister();
+    const uint8_t ddrb = getDDRB();
+
+    const bool busDirOutput =
+        ((ddrb & PRB_BUSDIR) != 0) &&
+        ((prb  & PRB_BUSDIR) != 0);
+
+    const bool atnAckDataLow =
+        iecAtnInLow &&
+        ((ddrb & PRB_ATNACK) != 0) &&
+        ((prb  & PRB_ATNACK) != 0);
+
+    const bool datOutAssertLow =
+        busDirOutput &&
+        ((ddrb & PRB_DATOUT) != 0) &&
+        ((prb  & PRB_DATOUT) != 0);
+
+    const bool clkOutAssertLow =
+        busDirOutput &&
+        ((ddrb & PRB_CLKOUT) != 0) &&
+        ((prb  & PRB_CLKOUT) != 0);
+
+    const bool resolvedAtnLow  = iecAtnInLow;
+    const bool resolvedClkLow  = iecClkInLow  || clkOutAssertLow;
+    const bool resolvedDataLow = iecDataInLow || atnAckDataLow || datOutAssertLow;
+
+    if (resolvedAtnLow)
         pins |= PRB_ATNIN;
     else
         pins &= static_cast<uint8_t>(~PRB_ATNIN);
 
-    if (iecClkInLow)
+    if (resolvedClkLow)
         pins |= PRB_CLKIN;
     else
         pins &= static_cast<uint8_t>(~PRB_CLKIN);
 
-    if (iecDataInLow)
+    if (resolvedDataLow)
         pins |= PRB_DATAIN;
     else
         pins &= static_cast<uint8_t>(~PRB_DATAIN);
