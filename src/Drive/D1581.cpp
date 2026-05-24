@@ -268,7 +268,7 @@ void D1581::forceSyncIEC()
     clkLineLow  = newClkLow;
     dataLineLow = newDataLow;
 
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
     d1581mem.getCIA().primeAtnLevel(atnLineLow);
 }
 
@@ -276,24 +276,54 @@ void D1581::atnChanged(bool atnLow)
 {
     if (atnLow == atnLineLow) return;
 
+    #ifdef Debug
+    std::cout << "[D1581 BUS IN] ATN "
+              << atnLineLow << " -> " << atnLow
+              << " CLK=" << clkLineLow
+              << " DATA=" << dataLineLow
+              << " SRQ=" << srqAsserted
+              << "\n";
+    #endif
+
     atnLineLow = atnLow;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
 }
 
 void D1581::clkChanged(bool clkLow)
 {
     if (clkLow == clkLineLow) return;
 
+    #ifdef Debug
+    std::cout << "[D1581 BUS IN] CLK "
+              << clkLineLow << " -> " << clkLow
+              << " ATN=" << atnLineLow
+              << " DATA=" << dataLineLow
+              << " SRQ=" << srqAsserted
+              << "\n";
+    #endif
+
     clkLineLow = clkLow;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
 }
 
 void D1581::dataChanged(bool dataLow)
 {
     if (dataLow == dataLineLow) return;
 
+    #ifdef Debug
+    std::cout << "[D1581 BUS IN] DATA "
+              << dataLineLow << " -> " << dataLow
+              << " ATN=" << atnLineLow
+              << " CLK=" << clkLineLow
+              << " SRQ=" << srqAsserted
+              << "\n";
+    #endif
+
     dataLineLow = dataLow;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
+    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
 }
 
 void D1581::onListen()

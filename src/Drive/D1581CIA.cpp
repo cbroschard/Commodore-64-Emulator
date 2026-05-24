@@ -9,7 +9,12 @@
 #include "Drive/D1581.h"
 
 D1581CIA::D1581CIA() :
-    parentPeripheral(nullptr)
+    parentPeripheral(nullptr),
+    iecAtnInLow(false),
+    iecClkInLow(false),
+    iecDataInLow(false),
+    iecSrqInLow(false),
+    lastAtnLow(false)
 {
 
 }
@@ -23,13 +28,14 @@ void D1581CIA::reset()
     iecAtnInLow  = false;
     iecClkInLow  = false;
     iecDataInLow = false;
+    iecSrqInLow  = false;
     lastAtnLow   = false;
 
     setPortAPins(0xFF);
     setPortBPins(makePortBPins());
 }
 
-void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
+void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow)
 {
     const bool oldAtnLow = iecAtnInLow;
     const bool atnChanged = (atnLow != oldAtnLow);
@@ -37,6 +43,7 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
     iecAtnInLow  = atnLow;
     iecClkInLow  = clkLow;
     iecDataInLow = dataLow;
+    iecSrqInLow  = srqLow;
 
     if (atnChanged)
     {
@@ -53,29 +60,32 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     updateInputPins();
 
-    #ifdef Debug
-static bool lastSp = true;
-static bool lastCnt = true;
+#ifdef Debug
+    static bool lastSp = true;
+    static bool lastCnt = true;
 
-const bool newSp  = !iecDataInLow;
-const bool newCnt = !iecClkInLow;
+    const bool newSp  = !iecDataInLow;
+    const bool newCnt = !iecSrqInLow;
 
-if (newSp != lastSp || newCnt != lastCnt)
-{
-    std::cout << "[1581 CIA SERIAL IN] "
-              << "DATA_LOW=" << iecDataInLow
-              << " CLK_LOW=" << iecClkInLow
-              << " SP=" << newSp
-              << " CNT=" << newCnt
-              << "\n";
+    if (newSp != lastSp || newCnt != lastCnt)
+    {
+        std::cout << "[1581 CIA SERIAL IN] "
+                  << "DATA_LOW=" << iecDataInLow
+                  << " SRQ_LOW=" << iecSrqInLow
+                  << " SP=" << newSp
+                  << " CNT=" << newCnt
+                  << "\n";
 
-    lastSp = newSp;
-    lastCnt = newCnt;
-}
+        lastSp = newSp;
+        lastCnt = newCnt;
+    }
 #endif
 
+    // SP is serial data.
     setSPLine(!iecDataInLow);
-    setCNTLine(!iecClkInLow);
+
+    // CNT is SRQ, not CLK.
+    setCNTLine(!iecSrqInLow);
 
     applyIECOutputs();
 }
@@ -94,7 +104,7 @@ uint8_t D1581CIA::makePortBPins() const
 
     const bool busDirOutput =
         ((ddrb & PRB_BUSDIR) != 0) &&
-        ((prb  & PRB_BUSDIR) != 0);
+        ((prb  & PRB_BUSDIR) == 0);
 
     const bool atnAckDataLow =
         ((ddrb & PRB_ATNACK) != 0) &&
@@ -191,7 +201,7 @@ void D1581CIA::applyIECOutputs()
     // Without this gate, DATOUT/CLKOUT can clamp the IEC bus.
     const bool busDirOutput =
         ((ddrb & PRB_BUSDIR) != 0) &&
-        ((prb  & PRB_BUSDIR) != 0);
+        ((prb  & PRB_BUSDIR) == 0);
 
     const bool atnAckDataLow =
         ((ddrb & PRB_ATNACK) != 0) &&

@@ -24,7 +24,7 @@ class D1581CIA : public DriveCIA
 
         void reset() override;
 
-        void setIECInputs(bool atnLow, bool clkLow, bool dataLow);
+        void setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow);
         void primeAtnLevel(bool atnLow);
 
     protected:
@@ -60,10 +60,11 @@ class D1581CIA : public DriveCIA
             PRB_ATNIN   = 1u << 7
         };
 
-        bool iecAtnInLow = false;
-        bool iecClkInLow = false;
-        bool iecDataInLow = false;
-        bool lastAtnLow = false;
+        bool iecAtnInLow;
+        bool iecClkInLow;
+        bool iecDataInLow ;
+        bool iecSrqInLow;
+        bool lastAtnLow ;
 
         uint8_t makePortBPins() const;
         void updateInputPins();
