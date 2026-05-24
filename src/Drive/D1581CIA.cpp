@@ -16,6 +16,21 @@ D1581CIA::D1581CIA() :
 
 D1581CIA::~D1581CIA() = default;
 
+void D1581CIA::reset()
+{
+    DriveCIA::reset();
+
+    iecAtnInLow = false;
+    iecClkInLow = false;
+    iecDataInLow = false;
+    lastAtnLow = false;
+
+    setPortAPins(0xFF);
+    setPortBPins(makePortBPins());
+
+    applyIECOutputs();
+}
+
 void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
     const bool atnChanged = (atnLow != iecAtnInLow);

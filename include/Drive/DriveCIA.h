@@ -25,7 +25,7 @@ class DriveCIA : public DriveCIABase
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
 
-        void reset();
+        virtual void reset();
         void tick(uint32_t cycles);
 
         // API access
