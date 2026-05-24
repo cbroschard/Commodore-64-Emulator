@@ -31,19 +31,12 @@ void D1581CIA::reset()
 
 void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
-    const bool atnChanged = (atnLow != iecAtnInLow);
+    const bool oldAtnLow = iecAtnInLow;
+    const bool atnChanged = (atnLow != oldAtnLow);
 
     iecAtnInLow  = atnLow;
     iecClkInLow  = clkLow;
     iecDataInLow = dataLow;
-
-    updateInputPins();
-
-    // Preserve the working polarity from your old DriveCIA:
-    // IEC CLK low  -> CIA CNT high
-    // IEC DATA low -> CIA SP low
-    setCNTLine(iecClkInLow);
-    setSPLine(!iecDataInLow);
 
     if (atnChanged)
     {
@@ -57,6 +50,11 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
         lastAtnLow = iecAtnInLow;
     }
+
+    updateInputPins();
+
+    setSPLine(!iecDataInLow);
+    setCNTLine(iecClkInLow);
 
     applyIECOutputs();
 }
