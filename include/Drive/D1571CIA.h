@@ -21,6 +21,8 @@ class D1571CIA : public DriveCIA
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
+        void reset() override;
+
         void setIECInputs(bool atnLow, bool clkLow, bool dataLow);
         void primeAtnLevel(bool atnLow);
 

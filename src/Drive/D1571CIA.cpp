@@ -16,16 +16,36 @@ D1571CIA::D1571CIA() :
 
 D1571CIA::~D1571CIA() = default;
 
+void D1571CIA::reset()
+{
+    DriveCIA::reset();
+
+    iecAtnInLow  = false;
+    iecClkInLow  = false;
+    iecDataInLow = false;
+    lastAtnLow   = false;
+
+    setPortAPins(0xFF);
+    setPortBPins(0xFF);
+}
+
 void D1571CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
-    (void)atnLow;
-    (void)clkLow;
-    (void)dataLow;
+    iecAtnInLow  = atnLow;
+    iecClkInLow  = clkLow;
+    iecDataInLow = dataLow;
+
+    updateInputPins();
 }
 
 void D1571CIA::primeAtnLevel(bool atnLow)
 {
-    (void)atnLow;
+    lastAtnLow = atnLow;
+}
+
+uint8_t D1571CIA::makePortBPins() const
+{
+    return 0xFF;
 }
 
 void D1571CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
@@ -43,11 +63,9 @@ void D1571CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 void D1571CIA::irqLineChanged(bool active)
 {
     (void)active;
-}
 
-uint8_t D1571CIA::makePortBPins() const
-{
-    return 0xFF;
+    if (auto* d = drive())
+        d->updateIRQ();
 }
 
 void D1571CIA::updateInputPins()
