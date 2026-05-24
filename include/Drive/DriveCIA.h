@@ -22,8 +22,6 @@ class DriveCIA : public DriveCIABase
         DriveCIA();
         ~DriveCIA() override;
 
-        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
-
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
 
@@ -81,9 +79,6 @@ class DriveCIA : public DriveCIABase
         virtual void irqLineChanged(bool active);
 
     private:
-        // Non-owning pointers
-        Peripheral* parentPeripheral;
-
         // CRA ($0E)
         static constexpr uint8_t CRA_START    = 1 << 0;
         static constexpr uint8_t CRA_RUNMODE  = 1 << 3; // 1=one-shot
