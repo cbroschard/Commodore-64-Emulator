@@ -323,7 +323,6 @@ void D1581::forceSyncIEC()
 
     // Update the CIA
     d1581mem.getCIA().setIECInputs(newAtnLow, newClkLow, newDataLow);
-    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::atnChanged(bool atnLow)
@@ -334,7 +333,6 @@ void D1581::atnChanged(bool atnLow)
 
     // Keep CIA informed
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
-    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::clkChanged(bool clkLow)
@@ -344,7 +342,6 @@ void D1581::clkChanged(bool clkLow)
     clkLineLow = clkLow;
 
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
-    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::dataChanged(bool dataLow)
@@ -354,7 +351,6 @@ void D1581::dataChanged(bool dataLow)
     dataLineLow = dataLow;
 
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
-    d1581mem.getCIA().linesChanged();
 }
 
 void D1581::onListen()

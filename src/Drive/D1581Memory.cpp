@@ -20,101 +20,11 @@ D1581Memory::D1581Memory() :
 
 D1581Memory::~D1581Memory() = default;
 
-namespace
-{
-    void sampleA_1581(DriveCIA&, Drive& drive, uint8_t& outPinsA)
-    {
-        outPinsA = 0xFF;
-
-        // Device number switches (typical mapping: both open=8, SW1 closed=9, SW2 closed=10, both=11)
-        const int dn = drive.getDeviceNumber();
-        const bool sw1Closed = (dn == 9 || dn == 11);
-        const bool sw2Closed = (dn == 10 || dn == 11);
-
-        if (sw1Closed) outPinsA &= ~DriveCIA::PRA_DEVSW1;
-        if (sw2Closed) outPinsA &= ~DriveCIA::PRA_DEVSW2;
-
-        // Disk present / ready (start simple: "loaded" => ready)
-        if (drive.isDiskLoaded()) outPinsA |=  DriveCIA::PRA_DRVRDY;
-        else                      outPinsA &= ~DriveCIA::PRA_DRVRDY;
-
-        if (drive.isDiskLoaded()) outPinsA |=  DriveCIA::PRA_DSKCH;
-        else                      outPinsA &= ~DriveCIA::PRA_DSKCH;
-    }
-
-    void applyA_1581(DriveCIA&, Drive& drive, uint8_t pra, uint8_t ddra)
-    {
-        auto& d = static_cast<D1581&>(drive);
-
-        // Motor control: active-low
-        if (ddra & DriveCIA::PRA_MOTOR)
-        {
-            if (pra & DriveCIA::PRA_MOTOR) d.stopMotor();
-            else                           d.startMotor();
-        }
-
-        // Side select
-        if (ddra & DriveCIA::PRA_SIDE)
-        {
-            uint8_t side = (pra & DriveCIA::PRA_SIDE) ? 1 : 0;
-            d.setCurrentSide(side);
-        }
-
-        // 1581 LED cathode outputs: low = on
-        if (ddra & DriveCIA::PRA_ERRLED)
-        {
-            const bool on = (pra & DriveCIA::PRA_ERRLED) == 0;
-            d.setPowerLed(on);
-        }
-
-        if (ddra & DriveCIA::PRA_ACTLED)
-        {
-            const bool on = (pra & DriveCIA::PRA_ACTLED) == 0;
-            d.setActivityLed(on);
-        }
-    }
-
-    void sampleB_1581(DriveCIA& cia, Drive& drive, uint8_t& outPinsB)
-    {
-        outPinsB = 0xFF;
-
-        const auto s = drive.snapshotIEC();
-
-        // Inputs are inverted by 74LS14: bus LOW => CIA pin reads '1'
-        if (s.dataLow) outPinsB |=  DriveCIA::PRB_DATAIN;
-        else           outPinsB &= ~DriveCIA::PRB_DATAIN;
-
-        if (s.clkLow)  outPinsB |=  DriveCIA::PRB_CLKIN;
-        else           outPinsB &= ~DriveCIA::PRB_CLKIN;
-
-        if (s.atnLow)  outPinsB |=  DriveCIA::PRB_ATNIN;
-        else           outPinsB &= ~DriveCIA::PRB_ATNIN;
-
-        if (auto* host = dynamic_cast<FloppyControllerHost*>(&drive))
-        {
-            if (host->fdcIsWriteProtected())
-                outPinsB &= ~DriveCIA::PRB_WRTPRO;  // "protected" reads low
-            else
-                outPinsB |=  DriveCIA::PRB_WRTPRO;
-        }
-    }
-
-    void applyB_1581(DriveCIA&, Drive&, uint8_t, uint8_t) {}
-
-    const DriveCIAWiring kCIA1581Wiring {
-        &sampleA_1581,
-        &sampleB_1581,
-        &applyA_1581,
-        &applyB_1581
-    };
-}
-
 void D1581Memory::attachPeripheralInstance(Peripheral* parentPeripheral)
 {
     this->parentPeripheral = parentPeripheral;
 
     cia.attachPeripheralInstance(parentPeripheral);
-    cia.setWiring(&kCIA1581Wiring);
     fdc.attachPeripheralInstance(parentPeripheral);
 
     auto* host = dynamic_cast<FloppyControllerHost*>(parentPeripheral);

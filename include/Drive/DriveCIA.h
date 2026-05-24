@@ -9,24 +9,12 @@
 #define DRIVECIA_H
 
 #include <cstdint>
-#include "Drive/Drive.h"
 #include "Drive/DriveChips.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-// Forward declaration for struct
-class DriveCIA;
-
-enum class DriveCIAType { D1571, D1581 };
-
-struct DriveCIAWiring
-{
-    void (*samplePortAPins)(DriveCIA& cia, Drive& drive, uint8_t& outPinsA) = nullptr;
-    void (*samplePortBPins)(DriveCIA& cia, Drive& drive, uint8_t& outPinsB) = nullptr;
-
-    void (*applyPortAOutputs)(DriveCIA& cia, Drive& drive, uint8_t pra, uint8_t ddra) = nullptr;
-    void (*applyPortBOutputs)(DriveCIA& cia, Drive& drive, uint8_t prb, uint8_t ddrb) = nullptr;
-};
+// Forward declarations
+class Peripheral;
 
 class DriveCIA : public DriveCIABase
 {
@@ -72,11 +60,8 @@ class DriveCIA : public DriveCIABase
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
         void setFlagLine(bool level);
-        inline void linesChanged() { updatePinsFromBus(); }
 
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x1F) != 0; }
-
-        void setWiring(const DriveCIAWiring* w) { wiring = w; }
 
         // ML Monitor
         inline ciaRegsView getRegsView() const override
@@ -112,9 +97,6 @@ class DriveCIA : public DriveCIABase
     protected:
 
     private:
-
-        const DriveCIAWiring* wiring = nullptr;
-
         // Non-owning pointers
         Peripheral* parentPeripheral;
 
@@ -226,11 +208,6 @@ class DriveCIA : public DriveCIABase
         void applyIECInputsToPortBPins();
 
         void handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel);
-
-        // Port updates
-        void updatePinsFromBus();
-        void applyIECOutputs();
-        void applyPortOutputs();
 };
 
 #endif // DRIVECIA_H

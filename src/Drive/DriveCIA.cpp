@@ -185,9 +185,6 @@ bool DriveCIA::loadState(StateReader& rdr)
     spLevel = !iecDataInLow;
     lastSpLevel = spLevel;
 
-    applyPortOutputs();
-    applyIECOutputs();
-
     return true;
 }
 
@@ -261,9 +258,6 @@ void DriveCIA::tick(uint32_t cycles)
 {
     while (cycles-- > 0)
     {
-        // Update CIA-visible input pins from external wiring/bus state.
-        updatePinsFromBus();
-
         bool timerAUnderflowThisCycle = false;
 
         // --- Timer A decrement decision ---
@@ -392,8 +386,6 @@ void DriveCIA::notifyAtnInput(bool atnLow)
         setFlagLine(true);
 
     lastAtnLow = atnLow;
-
-    applyIECOutputs();
 }
 
 uint8_t DriveCIA::readRegister(uint16_t address)
@@ -477,9 +469,6 @@ uint8_t DriveCIA::readRegister(uint16_t address)
             interruptStatus &= static_cast<uint8_t>(~pending);
             if ((interruptStatus & 0x1F) == 0) interruptStatus &= 0x7F;
 
-            if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
-                drive->updateIRQ();
-
             return result;
         }
         case 0x0E: return registers.controlRegisterA;
@@ -496,7 +485,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         case 0x00:
         {
             registers.portA = value;
-            applyPortOutputs();
             break;
         }
         case 0x01:
@@ -518,19 +506,16 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                       << std::dec << "\n";
             #endif
 
-            applyPortOutputs();
             break;
         }
         case 0x02:
         {
             registers.ddrA = value;
-            applyPortOutputs();
             break;
         }
         case 0x03:
         {
             registers.ddrB = value;
-            applyPortOutputs();
             break;
         }
         case 0x04:
@@ -607,9 +592,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 interruptStatus |= 0x80;
             else
                 interruptStatus &= 0x7F;
-
-            if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
-                drive->updateIRQ();
 
             #ifdef Debug
             std::cout << "[CIA] write ICR=$"
@@ -723,9 +705,6 @@ void DriveCIA::triggerInterrupt(InterruptBit bit)
         interruptStatus |= 0x80;
     else
         interruptStatus &= 0x7F;
-
-    if (auto* drive = dynamic_cast<Drive*>(parentPeripheral))
-        drive->updateIRQ();
 }
 
 void DriveCIA::setFlagLine(bool level)
@@ -737,127 +716,6 @@ void DriveCIA::setFlagLine(bool level)
         triggerInterrupt(INTERRUPT_FLAG_LINE);
 
     lastFlagLine = flagLine;
-}
-
-void DriveCIA::updatePinsFromBus()
-{
-    portAPins = 0xFF;
-    portBPins = 0xFF;
-
-    auto* drive = dynamic_cast<Drive*>(parentPeripheral);
-    if (!drive) return;
-
-    if (wiring && wiring->samplePortAPins)
-        wiring->samplePortAPins(*this, *drive, portAPins);
-
-    if (wiring && wiring->samplePortBPins)
-        wiring->samplePortBPins(*this, *drive, portBPins);
-
-    // Always overlay the real IEC input levels onto the ATN/CLK/DATA input bits
-    // so the ROM sees correct inputs regardless of wiring callbacks.
-    applyIECInputsToPortBPins();
-
-    // Dedicated CIA serial pins.
-    // Do not derive CNT from PRB_CLKIN now that PRB_CLKIN has board-specific polarity.
-    cntLevel = iecClkInLow;
-    spLevel  = !iecDataInLow;
-}
-
-void DriveCIA::applyIECOutputs()
-{
-    auto* drive = dynamic_cast<Drive*>(parentPeripheral);
-    if (!drive) return;
-
-    const uint8_t ddrB  = registers.ddrB;
-    const uint8_t portB = registers.portB;
-
-    // ATN ACK (PB4) + ATN IN (IEC ATN)
-    // Active HIGH: Hardware NAND gate pulls DATA low if PB4=1 and ATN=low
-    const bool atnAckDataLow =
-        iecAtnInLow &&
-        ((ddrB & PRB_ATNACK) != 0) &&
-        ((portB & PRB_ATNACK) != 0);
-
-    // PB1 / DATOUT:
-    // Hardware: PB1 -> 74LS38 NAND (pin 2 tied high) -> IEC DATA
-    // Active HIGH: If PB1 is 1, NAND outputs 0 (pulls IEC line low)
-    const bool datOutAssertLow =
-        ((ddrB & PRB_DATOUT) != 0) &&
-        ((portB & PRB_DATOUT) != 0);
-
-    // PB3 / CLKOUT:
-    // Hardware: PB3 -> 74LS38 NAND (pin 10 tied high) -> IEC CLK
-    // Active HIGH: If PB3 is 1, NAND outputs 0 (pulls IEC line low)
-    const bool clkOutAssertLow =
-        ((ddrB & PRB_CLKOUT) != 0) &&
-        ((portB & PRB_CLKOUT) != 0);
-
-    const bool driveDataLow = atnAckDataLow || datOutAssertLow;
-    const bool driveClkLow  = clkOutAssertLow;
-
-    drive->peripheralAssertData(driveDataLow);
-    drive->peripheralAssertClk(driveClkLow);
-
-#ifdef Debug
-    static bool firstOutLog = true;
-    static bool lastDataLow = false;
-    static bool lastClkLow = false;
-    static bool lastAtnLow = false;
-    static bool lastAck = false;
-    static bool lastDat = false;
-    static bool lastClk = false;
-    static uint8_t lastPortB = 0;
-    static uint8_t lastDdrB = 0;
-
-    if (firstOutLog ||
-        driveDataLow != lastDataLow ||
-        driveClkLow != lastClkLow ||
-        iecAtnInLow != lastAtnLow ||
-        atnAckDataLow != lastAck ||
-        datOutAssertLow != lastDat ||
-        clkOutAssertLow != lastClk ||
-        portB != lastPortB ||
-        ddrB != lastDdrB)
-    {
-        firstOutLog = false;
-        lastDataLow = driveDataLow;
-        lastClkLow = driveClkLow;
-        lastAtnLow = iecAtnInLow;
-        lastAck = atnAckDataLow;
-        lastDat = datOutAssertLow;
-        lastClk = clkOutAssertLow;
-        lastPortB = portB;
-        lastDdrB = ddrB;
-
-        std::cout << "[CIA OUT]"
-                  << " ATN=" << (iecAtnInLow ? 1 : 0)
-                  << " DATA=" << (driveDataLow ? 1 : 0)
-                  << " CLK=" << (driveClkLow ? 1 : 0)
-                  << " ack=" << (atnAckDataLow ? 1 : 0)
-                  << " dat=" << (datOutAssertLow ? 1 : 0)
-                  << " clk=" << (clkOutAssertLow ? 1 : 0)
-                  << " PRB=$" << std::hex << std::uppercase
-                  << std::setw(2) << std::setfill('0')
-                  << static_cast<int>(portB)
-                  << " DDRB=$" << std::setw(2)
-                  << static_cast<int>(ddrB)
-                  << std::dec << "\n";
-    }
-#endif
-}
-
-void DriveCIA::applyPortOutputs()
-{
-    auto* drive = dynamic_cast<Drive*>(parentPeripheral);
-    if (!drive || !wiring) return;
-
-    if (wiring->applyPortAOutputs)
-        wiring->applyPortAOutputs(*this, *drive, registers.portA, registers.ddrA);
-
-    if (wiring->applyPortBOutputs)
-        wiring->applyPortBOutputs(*this, *drive, registers.portB, registers.ddrB);
-
-    applyIECOutputs();
 }
 
 void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
@@ -895,8 +753,6 @@ void DriveCIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     if (atnChanged)
         notifyAtnInput(atnLow);
-
-    applyIECOutputs();
 }
 
 void DriveCIA::applyIECInputsToPortBPins()
