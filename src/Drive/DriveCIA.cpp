@@ -498,6 +498,9 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const bool enteringSerialOutput =
                 (!oldSerialOutput && newSerialOutput);
 
+            const bool enteringSerialInput =
+                (oldSerialOutput && !newSerialOutput);
+
             // Start transition: load counter from latch.
             if (!oldStart && newStart)
                 timerACounter = timerALatch;
@@ -518,12 +521,27 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 lastCntLevel = cntLevel;
                 lastSpLevel = spLevel;
 
-        #ifdef Debug
+                #ifdef Debug
                 std::cout << "[CIA SERIAL RESET] entering output mode "
-                          << "oldCRA=$" << std::hex << int(old)
-                          << " newCRA=$" << int(value)
-                          << std::dec << "\n";
-        #endif
+                            << "oldCRA=$" << std::hex << int(old)
+                            << " newCRA=$" << int(value)
+                            << std::dec << "\n";
+                #endif
+            }
+
+            if (enteringSerialInput)
+            {
+                serialShiftRegister = 0x00;
+                serialBitCount = 0;
+                lastCntLevel = cntLevel;
+                lastSpLevel = spLevel;
+
+                #ifdef Debug
+                std::cout << "[CIA SERIAL RESET] entering input mode "
+                            << "oldCRA=$" << std::hex << int(old)
+                            << " newCRA=$" << int(value)
+                            << std::dec << "\n";
+                #endif
             }
 
             break;
