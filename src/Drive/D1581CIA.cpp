@@ -87,11 +87,9 @@ uint8_t D1581CIA::makePortBPins() const
     else
         pins &= static_cast<uint8_t>(~PRB_DATAIN);
 
-    if (parentPeripheral)
+    if (auto* d = drive())
     {
-        auto* drive = static_cast<D1581*>(parentPeripheral);
-
-        if (drive->isDiskWriteProtected())
+        if (d->isDiskWriteProtected())
             pins |= PRB_WRTPRO;
         else
             pins &= static_cast<uint8_t>(~PRB_WRTPRO);
@@ -105,27 +103,24 @@ void D1581CIA::updateInputPins()
     uint8_t portA = 0xFF;
     uint8_t portB = makePortBPins();
 
-    if (parentPeripheral)
+    if (auto* d = drive())
     {
-        auto* drive = static_cast<D1581*>(parentPeripheral);
-
-        if (!drive->isDiskLoaded())
-
+        if (!d->isDiskLoaded())
             portA &= static_cast<uint8_t>(~PRA_DRVRDY);
 
-        if (!drive->isDiskLoaded())
+        if (!d->isDiskLoaded())
             portA &= static_cast<uint8_t>(~PRA_DSKCH);
     }
 
     setPortAPins(portA);
     setPortBPins(portB);
 }
+
 void D1581CIA::applyIECOutputs()
 {
-    if (!parentPeripheral)
+    auto* d = drive();
+    if (!d)
         return;
-
-    auto* drive = static_cast<D1581*>(parentPeripheral);
 
     const uint8_t prb  = getPortBOutputRegister();
     const uint8_t ddrb = getDDRB();
@@ -143,38 +138,34 @@ void D1581CIA::applyIECOutputs()
         ((ddrb & PRB_CLKOUT) != 0) &&
         ((prb  & PRB_CLKOUT) != 0);
 
-    const bool driveDataLow = atnAckDataLow || datOutAssertLow;
-    const bool driveClkLow  = clkOutAssertLow;
-
-    drive->peripheralAssertData(driveDataLow);
-    drive->peripheralAssertClk(driveClkLow);
+    d->peripheralAssertData(atnAckDataLow || datOutAssertLow);
+    d->peripheralAssertClk(clkOutAssertLow);
 }
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 {
-    if (!parentPeripheral)
+    auto* d = drive();
+    if (!d)
         return;
-
-    auto* drive = static_cast<D1581*>(parentPeripheral);
 
     if (ddra & PRA_SIDE)
     {
         const uint8_t side = (pra & PRA_SIDE) ? 1 : 0;
-        drive->setCurrentSide(side);
+        d->setCurrentSide(side);
     }
 
     if (ddra & PRA_MOTOR)
     {
         if ((pra & PRA_MOTOR) == 0)
-            drive->startMotor();
+            d->startMotor();
         else
-            drive->stopMotor();
+            d->stopMotor();
     }
 
     if (ddra & PRA_ACTLED)
     {
         const bool ledOn = (pra & PRA_ACTLED) != 0;
-        drive->setActivityLed(ledOn);
+        d->setActivityLed(ledOn);
     }
 }
 
@@ -190,9 +181,11 @@ void D1581CIA::irqLineChanged(bool active)
 {
     (void)active;
 
-    if (!parentPeripheral)
-        return;
+    if (auto* d = drive())
+        d->updateIRQ();
+}
 
-    auto* drive = static_cast<D1581*>(parentPeripheral);
-    drive->updateIRQ();
+D1581* D1581CIA::drive() const
+{
+    return parentPeripheral ? static_cast<D1581*>(parentPeripheral) : nullptr;
 }
