@@ -20,7 +20,7 @@ class D1581;
 #include "Drive/DriveChips.h"
 #include "Logging.h"
 #include "Peripheral.h"
-#include "Drive/DriveCIA.h"
+#include "Drive/D1581CIA.h"
 #include "Drive/FDC177x.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -61,7 +61,7 @@ class D1581Memory : public DriveMemoryBase
     private:
 
         // Chips
-        DriveCIA cia;
+        D1581CIA cia;
         FDC177x  fdc;
 
         // Non-owning pointers

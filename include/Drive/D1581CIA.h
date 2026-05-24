@@ -10,15 +10,29 @@
 
 #include "Drive/DriveCIA.h"
 
+// Forward declarations
+class Peripheral;
+
 class D1581CIA : public DriveCIA
 {
     public:
         D1581CIA();
         ~D1581CIA() override;
 
+        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
+        void setIECInputs(bool atnLow, bool clkLow, bool dataLow);
+        void primeAtnLevel(bool atnLow);
+
     protected:
+        void portAOutputChanged(uint8_t pra, uint8_t ddra) override;
+        void portBOutputChanged(uint8_t prb, uint8_t ddrb) override;
+        void irqLineChanged(bool active) override;
 
     private:
+        // Non-owning pointers
+        Peripheral* parentPeripheral;
+
         enum CIA_PRA : uint8_t
         {
             PRA_SIDE    = 1u << 0, // 0 = side 0, 1 = side 1
@@ -42,6 +56,15 @@ class D1581CIA : public DriveCIA
             PRB_WRTPRO  = 1u << 6,
             PRB_ATNIN   = 1u << 7
         };
+
+        bool iecAtnInLow = false;
+        bool iecClkInLow = false;
+        bool iecDataInLow = false;
+        bool lastAtnLow = false;
+
+        uint8_t makePortBPins() const;
+        void updateInputPins();
+        void applyIECOutputs();
 };
 
 #endif // D1581CIA_H

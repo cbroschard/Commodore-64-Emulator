@@ -8,7 +8,6 @@
 #include "Drive/DriveCIA.h"
 
 DriveCIA::DriveCIA() :
-    parentPeripheral(nullptr),
     portAPins(0xFF),
     portBPins(0xFF),
     cntLevel(true),
