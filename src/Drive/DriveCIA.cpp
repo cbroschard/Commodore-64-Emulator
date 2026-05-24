@@ -7,10 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/DriveCIA.h"
 
-#ifdef Debug
-#include "Drive/D1581.h"
-#endif
-
 DriveCIA::DriveCIA() :
     parentPeripheral(nullptr),
     portAPins(0xFF),
@@ -350,28 +346,6 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         {
             uint8_t result = (registers.portB & registers.ddrB) | (portBPins & ~registers.ddrB);
 
-            #ifdef Debug
-            const uint16_t pc = debugCurrentPC();
-
-            if (pc >= 0xAE80 && pc <= 0xAEB8)
-            {
-                std::cout << "[1581 RX-PRB]"
-                  << " cyc=" << debugDriveCycles()
-                  << " PC=$"
-                  << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
-                  << static_cast<int>(pc)
-                  << " PRB=$" << std::setw(2) << static_cast<int>(result)
-                  << std::dec
-                  << " ATNbit=" << ((result & PRB_ATNIN) ? 1 : 0)
-                  << " CLKbit=" << ((result & PRB_CLKIN) ? 1 : 0)
-                  << " DATbit=" << ((result & PRB_DATAIN) ? 1 : 0)
-                  << " rawATN=" << (iecAtnInLow ? 1 : 0)
-                  << " rawCLK=" << (iecClkInLow ? 1 : 0)
-                  << " rawDATA=" << (iecDataInLow ? 1 : 0)
-                  << "\n";
-            }
-            #endif
-
             return result;
         }
         case 0x02: return registers.ddrA;
@@ -386,27 +360,6 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x0B: return registers.todHours;
         case 0x0C:
         {
-        #ifdef Debug
-            const uint16_t pc = debugCurrentPC();
-
-            std::cout << "[CIA] read SDR PC=$"
-                      << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
-                      << static_cast<int>(pc)
-                      << " -> $" << std::setw(2)
-                      << static_cast<int>(registers.serialData)
-                      << " PRB=$" << std::setw(2)
-                      << static_cast<int>(registers.portB)
-                      << " DDRB=$" << std::setw(2)
-                      << static_cast<int>(registers.ddrB)
-                      << std::dec
-                      << " CNT=" << (cntLevel ? 1 : 0)
-                      << " SP=" << (spLevel ? 1 : 0)
-                      << " bitCount=" << static_cast<int>(serialBitCount)
-                      << " rawATN=" << (iecAtnInLow ? 1 : 0)
-                      << " rawCLK=" << (iecClkInLow ? 1 : 0)
-                      << " rawDATA=" << (iecDataInLow ? 1 : 0)
-                      << "\n";
-        #endif
             return registers.serialData;
         }
         case 0x0D:
@@ -417,6 +370,7 @@ uint8_t DriveCIA::readRegister(uint16_t address)
 
             interruptStatus &= static_cast<uint8_t>(~pending);
             if ((interruptStatus & 0x1F) == 0) interruptStatus &= 0x7F;
+            irqLineChanged(checkIRQActive());
 
             return result;
         }
@@ -434,37 +388,25 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         case 0x00:
         {
             registers.portA = value;
+            portAOutputChanged(registers.portA, registers.ddrA);
             break;
         }
         case 0x01:
         {
             registers.portB = value;
-
-            #ifdef Debug
-            const uint16_t pc = debugCurrentPC();
-
-            std::cout << "[CIA] write PRB PC=$"
-                      << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
-                      << static_cast<int>(pc)
-                      << " value=$"
-                      << std::setw(2)
-                      << static_cast<int>(value)
-                      << " ddrB=$"
-                      << std::setw(2)
-                      << static_cast<int>(registers.ddrB)
-                      << std::dec << "\n";
-            #endif
-
+            portBOutputChanged(registers.portB, registers.ddrB);
             break;
         }
         case 0x02:
         {
             registers.ddrA = value;
+            portAOutputChanged(registers.portA, registers.ddrA);
             break;
         }
         case 0x03:
         {
             registers.ddrB = value;
+            portBOutputChanged(registers.portB, registers.ddrB);
             break;
         }
         case 0x04:
@@ -509,19 +451,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0C:
         {
             registers.serialData = value;
-
-        #ifdef Debug
-            std::cout << "[CIA] write SDR=$"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(value)
-                      << " CRA=$" << std::setw(2) << static_cast<int>(registers.controlRegisterA)
-                      << " CRB=$" << std::setw(2) << static_cast<int>(registers.controlRegisterB)
-                      << " CNT=" << std::dec << (cntLevel ? 1 : 0)
-                      << " SP=" << (spLevel ? 1 : 0)
-                      << " bitCount=" << static_cast<int>(serialBitCount)
-                      << "\n";
-        #endif
-
             serialShiftRegister = value;
             serialBitCount = 0;
             lastCntLevel = cntLevel;
@@ -542,18 +471,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             else
                 interruptStatus &= 0x7F;
 
-            #ifdef Debug
-            std::cout << "[CIA] write ICR=$"
-                      << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                      << static_cast<int>(value)
-                      << " oldIE=$" << std::setw(2) << static_cast<int>(registers.interruptEnable)
-                      << " IFR=$" << std::setw(2) << static_cast<int>(interruptStatus)
-                      << std::dec
-                      << " CNT=" << (cntLevel ? 1 : 0)
-                      << " SP=" << (spLevel ? 1 : 0)
-                      << " bitCount=" << static_cast<int>(serialBitCount)
-                      << "\n";
-            #endif
+            irqLineChanged(checkIRQActive());
 
             break;
         }
@@ -665,4 +583,48 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
         serialShiftRegister = 0x00;
         serialBitCount = 0;
     }
+}
+
+void DriveCIA::setPortAPins(uint8_t pins)
+{
+    portAPins = pins;
+}
+
+void DriveCIA::setPortBPins(uint8_t pins)
+{
+    portBPins = pins;
+}
+
+void DriveCIA::setCNTLine(bool level)
+{
+    const bool oldCntLevel = cntLevel;
+
+    cntLevel = level;
+
+    handleSerialInputEdge(oldCntLevel, cntLevel, spLevel);
+
+    lastCntLevel = cntLevel;
+}
+
+void DriveCIA::setSPLine(bool level)
+{
+    spLevel = level;
+    lastSpLevel = spLevel;
+}
+
+void DriveCIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
+{
+    (void)pra;
+    (void)ddra;
+}
+
+void DriveCIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
+{
+    (void)prb;
+    (void)ddrb;
+}
+
+void DriveCIA::irqLineChanged(bool active)
+{
+    (void)active;
 }

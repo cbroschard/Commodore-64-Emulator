@@ -65,7 +65,20 @@ class DriveCIA : public DriveCIABase
                 };
         }
 
+        void setPortAPins(uint8_t pins);
+        void setPortBPins(uint8_t pins);
+        void setCNTLine(bool level);
+        void setSPLine(bool level);
+
+        uint8_t getPortAOutputRegister() const { return registers.portA; }
+        uint8_t getPortBOutputRegister() const { return registers.portB; }
+        uint8_t getDDRA() const { return registers.ddrA; }
+        uint8_t getDDRB() const { return registers.ddrB; }
+
     protected:
+        virtual void portAOutputChanged(uint8_t pra, uint8_t ddra);
+        virtual void portBOutputChanged(uint8_t prb, uint8_t ddrb);
+        virtual void irqLineChanged(bool active);
 
     private:
         // Non-owning pointers
@@ -154,7 +167,7 @@ class DriveCIA : public DriveCIABase
         uint8_t interruptStatus;
         void triggerInterrupt(InterruptBit bit);
 
-        // CIA serial input state (1581 IEC receive path)
+        // CIA serial shift state
         bool spLevel;
         bool lastSpLevel;
         uint8_t serialShiftRegister;
