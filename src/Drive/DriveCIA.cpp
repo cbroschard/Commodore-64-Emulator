@@ -495,11 +495,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const bool oldSerialOutput = (old   & CRA_SPMODE) != 0;
             const bool newSerialOutput = (value & CRA_SPMODE) != 0;
 
-            // Only reset the CIA serial shift state when entering serial output mode.
-            //
-            // The 1581 ROM toggles CRA between $01 and $41 during IEC handshaking.
-            // Resetting on the $41->$01 transition can wipe an in-progress receive
-            // byte when returning to serial input mode.
             const bool enteringSerialOutput =
                 (!oldSerialOutput && newSerialOutput);
 
