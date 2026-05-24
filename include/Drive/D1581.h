@@ -108,6 +108,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline bool getDataLineLow() const override  { return bus ? !bus->readDataLine() :dataLineLow; }
         inline bool getSRQAsserted() const override { return srqAsserted; }
 
+        // Helpers
+        uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
+
         // Drive Mechanics
         inline void startMotor() override { motorOn = true; }
         inline void stopMotor() override { motorOn = false; }
@@ -117,6 +120,7 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline uint8_t getCurrentTrack() const override { return currentTrack; }
         inline uint8_t getCurrentSector() const override { return currentSector; }
         inline void setDiskWriteProtected(bool on) { diskWriteProtected = on; }
+        inline bool isDiskWriteProtected() const { return diskWriteProtected; }
         inline bool isDiskLoaded() const override { return diskLoaded; }
         inline const std::string& getLoadedDiskName() const override { return loadedDiskName; }
 
@@ -191,9 +195,6 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool uiLedWasOn;
         bool powerLedOn;
         bool activityLedOn;
-
-        // Helpers
-        uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
 };
 
 #endif // D1581_H

@@ -5,8 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Drive/D1581.h"
 #include "Drive/D1581CIA.h"
+#include "Drive/D1581.h"
 
 D1581CIA::D1581CIA() :
     parentPeripheral(nullptr)
@@ -57,10 +57,6 @@ uint8_t D1581CIA::makePortBPins() const
 {
     uint8_t pins = 0xFF;
 
-    // Current working polarity from old DriveCIA:
-    // physical IEC LOW  => CIA PRB input bit 1
-    // physical IEC HIGH => CIA PRB input bit 0
-
     if (iecAtnInLow)
         pins |= PRB_ATNIN;
     else
@@ -76,6 +72,16 @@ uint8_t D1581CIA::makePortBPins() const
     else
         pins &= static_cast<uint8_t>(~PRB_DATAIN);
 
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1581*>(parentPeripheral);
+
+        if (drive->isDiskWriteProtected())
+            pins |= PRB_WRTPRO;
+        else
+            pins &= static_cast<uint8_t>(~PRB_WRTPRO);
+    }
+
     return pins;
 }
 
@@ -84,13 +90,21 @@ void D1581CIA::updateInputPins()
     uint8_t portA = 0xFF;
     uint8_t portB = makePortBPins();
 
-    // Later migrate old sampleA_1581 logic here:
-    // drive ready, disk change, device switches, etc.
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1581*>(parentPeripheral);
+
+        if (!drive->isDiskLoaded())
+
+            portA &= static_cast<uint8_t>(~PRA_DRVRDY);
+
+        if (!drive->isDiskLoaded())
+            portA &= static_cast<uint8_t>(~PRA_DSKCH);
+    }
 
     setPortAPins(portA);
     setPortBPins(portB);
 }
-
 void D1581CIA::applyIECOutputs()
 {
     if (!parentPeripheral)
@@ -123,10 +137,30 @@ void D1581CIA::applyIECOutputs()
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 {
-    (void)pra;
-    (void)ddra;
+    if (!parentPeripheral)
+        return;
 
-    // Later migrate old applyA_1581 logic here.
+    auto* drive = static_cast<D1581*>(parentPeripheral);
+
+    if (ddra & PRA_SIDE)
+    {
+        const uint8_t side = (pra & PRA_SIDE) ? 1 : 0;
+        drive->setCurrentSide(side);
+    }
+
+    if (ddra & PRA_MOTOR)
+    {
+        if ((pra & PRA_MOTOR) == 0)
+            drive->startMotor();
+        else
+            drive->stopMotor();
+    }
+
+    if (ddra & PRA_ACTLED)
+    {
+        const bool ledOn = (pra & PRA_ACTLED) != 0;
+        drive->setActivityLed(ledOn);
+    }
 }
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
