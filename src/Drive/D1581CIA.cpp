@@ -60,27 +60,6 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow)
 
     updateInputPins();
 
-#ifdef Debug
-    static bool lastSp = true;
-    static bool lastCnt = true;
-
-    const bool newSp  = !iecDataInLow;
-    const bool newCnt = !iecSrqInLow;
-
-    if (newSp != lastSp || newCnt != lastCnt)
-    {
-        std::cout << "[1581 CIA SERIAL IN] "
-                  << "DATA_LOW=" << iecDataInLow
-                  << " SRQ_LOW=" << iecSrqInLow
-                  << " SP=" << newSp
-                  << " CNT=" << newCnt
-                  << "\n";
-
-        lastSp = newSp;
-        lastCnt = newCnt;
-    }
-#endif
-
     // SP is serial data.
     setSPLine(!iecDataInLow);
 
@@ -220,19 +199,6 @@ void D1581CIA::applyIECOutputs()
 
     d->peripheralAssertData(atnAckDataLow || datOutAssertLow);
     d->peripheralAssertClk(clkOutAssertLow);
-
-    #ifdef Debug
-    std::cout << "[1581 CIA IEC OUT] "
-              << "ATN_LOW=" << iecAtnInLow
-              << " PRB=$" << std::hex << int(prb)
-              << " DDRB=$" << int(ddrb)
-              << " BUSDIR_OUT=" << busDirOutput
-              << " ATNACK_DATA_LOW=" << atnAckDataLow
-              << " DATOUT_LOW=" << datOutAssertLow
-              << " CLKOUT_LOW=" << clkOutAssertLow
-
-              << std::dec << "\n";
-    #endif
 }
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
@@ -264,22 +230,6 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 {
-#ifdef Debug
-    std::cout << "[1581 CIA PRB OUT] "
-              << "PRB=$" << std::hex << int(prb)
-              << " DDRB=$" << int(ddrb)
-              << std::dec
-              << " DATAIN_latch=" << ((prb & PRB_DATAIN) ? 1 : 0)
-              << " DATOUT=" << ((prb & PRB_DATOUT) ? 1 : 0)
-              << " CLKIN_latch=" << ((prb & PRB_CLKIN) ? 1 : 0)
-              << " CLKOUT=" << ((prb & PRB_CLKOUT) ? 1 : 0)
-              << " ATNACK=" << ((prb & PRB_ATNACK) ? 1 : 0)
-              << " BUSDIR=" << ((prb & PRB_BUSDIR) ? 1 : 0)
-              << " WRTPRO_latch=" << ((prb & PRB_WRTPRO) ? 1 : 0)
-              << " ATNIN_latch=" << ((prb & PRB_ATNIN) ? 1 : 0)
-              << "\n";
-#endif
-
     applyIECOutputs();
 }
 

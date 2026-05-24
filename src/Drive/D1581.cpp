@@ -276,15 +276,6 @@ void D1581::atnChanged(bool atnLow)
 {
     if (atnLow == atnLineLow) return;
 
-    #ifdef Debug
-    std::cout << "[D1581 BUS IN] ATN "
-              << atnLineLow << " -> " << atnLow
-              << " CLK=" << clkLineLow
-              << " DATA=" << dataLineLow
-              << " SRQ=" << srqAsserted
-              << "\n";
-    #endif
-
     atnLineLow = atnLow;
     const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
@@ -294,15 +285,6 @@ void D1581::clkChanged(bool clkLow)
 {
     if (clkLow == clkLineLow) return;
 
-    #ifdef Debug
-    std::cout << "[D1581 BUS IN] CLK "
-              << clkLineLow << " -> " << clkLow
-              << " ATN=" << atnLineLow
-              << " DATA=" << dataLineLow
-              << " SRQ=" << srqAsserted
-              << "\n";
-    #endif
-
     clkLineLow = clkLow;
     const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
@@ -311,15 +293,6 @@ void D1581::clkChanged(bool clkLow)
 void D1581::dataChanged(bool dataLow)
 {
     if (dataLow == dataLineLow) return;
-
-    #ifdef Debug
-    std::cout << "[D1581 BUS IN] DATA "
-              << dataLineLow << " -> " << dataLow
-              << " ATN=" << atnLineLow
-              << " CLK=" << clkLineLow
-              << " SRQ=" << srqAsserted
-              << "\n";
-    #endif
 
     dataLineLow = dataLow;
     const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
@@ -353,11 +326,6 @@ void D1581::onTalk()
     currentSecondaryAddress = 0xFF;
 
     peripheralAssertClk(false);
-
-    #ifdef Debug
-    std::cout << "[D1581] onTalk() device=" << int(deviceNumber)
-              << " talking=1 listening=0\n";
-    #endif
 }
 
 void D1581::onUnTalk()

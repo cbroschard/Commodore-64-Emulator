@@ -549,38 +549,10 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     const bool cntRisingEdge = (newCntLevel && !oldCntLevel);
     const bool sdrInputMode  = (registers.controlRegisterA & CRA_SPMODE) == 0;
 
-#ifdef Debug
-    static int serialEdgeLogCount = 0;
-
-    if (serialEdgeLogCount < 200)
-    {
-        std::cout << "[CIA SERIAL EDGE CHECK] "
-                  << "oldCNT=" << oldCntLevel
-                  << " newCNT=" << newCntLevel
-                  << " SP=" << newSpLevel
-                  << " rising=" << (cntRisingEdge ? 1 : 0)
-                  << " inputMode=" << (sdrInputMode ? 1 : 0)
-                  << " bitCount=" << int(serialBitCount)
-                  << " shift=$" << std::hex << int(serialShiftRegister)
-                  << " CRA=$" << int(registers.controlRegisterA)
-                  << std::dec << "\n";
-
-        ++serialEdgeLogCount;
-    }
-#endif
-
     if (!sdrInputMode || !cntRisingEdge)
         return;
 
     const bool serialBit = newSpLevel;
-
-#ifdef Debug
-    std::cout << "[CIA SERIAL BIT] "
-              << "bitIndex=" << int(serialBitCount)
-              << " bit=" << serialBit
-              << " shiftBefore=$" << std::hex << int(serialShiftRegister)
-              << std::dec << "\n";
-#endif
 
     // Hardware-style CIA serial input:
     // On CNT rising edge, the 8520 shifts left and inserts SP into bit 0.
@@ -594,14 +566,6 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     if (serialBitCount == 8)
     {
         registers.serialData = serialShiftRegister;
-
-#ifdef Debug
-        std::cout << "[CIA SERIAL COMPLETE IN] SDR=$"
-                  << std::hex << int(registers.serialData)
-                  << " IER=$" << int(registers.interruptEnable)
-                  << " ICR_BEFORE=$" << int(interruptStatus)
-                  << std::dec << "\n";
-#endif
 
         triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
 
@@ -623,19 +587,6 @@ void DriveCIA::setPortBPins(uint8_t pins)
 void DriveCIA::setCNTLine(bool level)
 {
     const bool oldCntLevel = cntLevel;
-
-#ifdef Debug
-    if (oldCntLevel != level)
-    {
-        std::cout << "[CIA CNT LINE] "
-                  << "old=" << oldCntLevel
-                  << " new=" << level
-                  << " SP=" << spLevel
-                  << " bitCount=" << int(serialBitCount)
-                  << " CRA=$" << std::hex << int(registers.controlRegisterA)
-                  << std::dec << "\n";
-    }
-#endif
 
     cntLevel = level;
 
