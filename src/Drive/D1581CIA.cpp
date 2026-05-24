@@ -20,15 +20,13 @@ void D1581CIA::reset()
 {
     DriveCIA::reset();
 
-    iecAtnInLow = false;
-    iecClkInLow = false;
+    iecAtnInLow  = false;
+    iecClkInLow  = false;
     iecDataInLow = false;
-    lastAtnLow = false;
+    lastAtnLow   = false;
 
     setPortAPins(0xFF);
     setPortBPins(makePortBPins());
-
-    applyIECOutputs();
 }
 
 void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
@@ -164,7 +162,7 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
     if (ddra & PRA_ACTLED)
     {
-        const bool ledOn = (pra & PRA_ACTLED) != 0;
+        const bool ledOn = (pra & PRA_ACTLED) == 0;
         d->setActivityLed(ledOn);
     }
 }

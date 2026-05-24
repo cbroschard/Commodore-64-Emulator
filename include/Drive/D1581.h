@@ -51,7 +51,7 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         // Compatibility check
         inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D81; }
         inline uint8_t getCurrentSide() const { return currentSide; }
-        inline void setCurrentSide(uint8_t side) { currentSide = side; }
+        inline void setCurrentSide(uint8_t side) { currentSide = side & 1; }
 
         // status
         inline DriveStatus getDriveStatus() const override { return currentDriveStatus; }
