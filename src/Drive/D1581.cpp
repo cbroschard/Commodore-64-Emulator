@@ -448,9 +448,11 @@ void D1581::loadDisk(const std::string& path)
 
 uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
 {
-    const uint16_t cyl  = uint16_t(fdcTrack);        // 0..79
+    const uint16_t cyl  = uint16_t(fdcTrack);             // 0..79
     const uint16_t side = uint16_t(getCurrentSide() & 1); // 0/1
-    return (side * 80) + (cyl + 1);                  // 1..160
+
+    // .d81 files are interleaved: Cyl 0 Side 0, Cyl 0 Side 1, Cyl 1 Side 0...
+    return (cyl * 2) + side + 1;                          // 1..160
 }
 
 void D1581::getDriveIndicators(std::vector<Indicator>& out) const
