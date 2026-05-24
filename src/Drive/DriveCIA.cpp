@@ -520,13 +520,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 serialBitCount = 0;
                 lastCntLevel = cntLevel;
                 lastSpLevel = spLevel;
-
-                #ifdef Debug
-                std::cout << "[CIA SERIAL RESET] entering output mode "
-                            << "oldCRA=$" << std::hex << int(old)
-                            << " newCRA=$" << int(value)
-                            << std::dec << "\n";
-                #endif
             }
 
             if (enteringSerialInput)
@@ -535,13 +528,6 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 serialBitCount = 0;
                 lastCntLevel = cntLevel;
                 lastSpLevel = spLevel;
-
-                #ifdef Debug
-                std::cout << "[CIA SERIAL RESET] entering input mode "
-                            << "oldCRA=$" << std::hex << int(old)
-                            << " newCRA=$" << int(value)
-                            << std::dec << "\n";
-                #endif
             }
 
             break;
@@ -614,15 +600,17 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
 
     if (serialBitCount == 8)
     {
-#ifdef Debug
-        std::cout << "[CIA SERIAL COMPLETE IN] "
-                  << "SDR=$" << std::hex << int(serialShiftRegister)
+        registers.serialData = serialShiftRegister;
+
+    #ifdef Debug
+        std::cout << "[CIA SERIAL COMPLETE IN] SDR=$"
+                  << std::hex << int(registers.serialData)
                   << " IER=$" << int(registers.interruptEnable)
                   << " ICR_BEFORE=$" << int(interruptStatus)
-                  << std::dec << "\n";
-#endif
+                  << std::dec
+                  << "\n";
+    #endif
 
-        registers.serialData = serialShiftRegister;
         triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
 
         serialShiftRegister = 0x00;

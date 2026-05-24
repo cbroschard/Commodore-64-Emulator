@@ -99,14 +99,7 @@ uint8_t D1581CIA::makePortBPins() const
     const bool atnAckDataLow =
         ((ddrb & PRB_ATNACK) != 0) &&
         ((prb  & PRB_ATNACK) != 0) &&
-        (
-            iecAtnInLow ||
-            (
-                busDirOutput &&
-                ((ddrb & PRB_DATOUT) != 0) &&
-                ((prb  & PRB_DATOUT) == 0)
-            )
-        );
+        iecAtnInLow;
 
     const bool datOutAssertLow =
         busDirOutput &&
@@ -203,14 +196,7 @@ void D1581CIA::applyIECOutputs()
     const bool atnAckDataLow =
         ((ddrb & PRB_ATNACK) != 0) &&
         ((prb  & PRB_ATNACK) != 0) &&
-        (
-            iecAtnInLow ||
-            (
-                busDirOutput &&
-                ((ddrb & PRB_DATOUT) != 0) &&
-                ((prb  & PRB_DATOUT) == 0)
-            )
-        );
+        iecAtnInLow;
 
     const bool datOutAssertLow =
         busDirOutput &&
