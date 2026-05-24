@@ -166,15 +166,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool srqAsserted;
         bool iecLinesPrimed;
         bool iecListening;
-        bool iecRxActive;
         bool iecTalking;
         bool expectingSecAddr;
         bool expectingDataByte;
-        uint8_t currentListenSA;
-        uint8_t currentTalkSA;
-
-        int iecRxBitCount;
-        uint8_t iecRxByte;
 
         // Floppy Image
         std::string loadedDiskName;

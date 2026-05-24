@@ -17,14 +17,9 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     srqAsserted(false),
     iecLinesPrimed(false),
     iecListening(false),
-    iecRxActive(false),
     iecTalking(false),
     expectingSecAddr(false),
     expectingDataByte(false),
-    currentListenSA(0),
-    currentTalkSA(0),
-    iecRxBitCount(0),
-    iecRxByte(0),
     diskLoaded(false),
     diskWriteProtected(false),
     lastError(DriveError::NONE),
@@ -94,14 +89,6 @@ void D1581::saveState(StateWriter& wrtr) const
     wrtr.writeBool(expectingSecAddr);
     wrtr.writeBool(expectingDataByte);
 
-    wrtr.writeU8(currentListenSA);
-    wrtr.writeU8(currentTalkSA);
-
-    // RX shifter
-    wrtr.writeBool(iecRxActive);
-    wrtr.writeU32(static_cast<uint32_t>(iecRxBitCount));
-    wrtr.writeU8(iecRxByte);
-
     // Memory + chips in memory map
     d1581mem.saveState(wrtr);
 
@@ -170,17 +157,6 @@ bool D1581::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readBool(expectingSecAddr)) return false;
     if (!rdr.readBool(expectingDataByte)) return false;
 
-    if (!rdr.readU8(currentListenSA)) return false;
-    if (!rdr.readU8(currentTalkSA)) return false;
-
-    if (!rdr.readBool(iecRxActive)) return false;
-
-    uint32_t tmp32 = 0;
-    if (!rdr.readU32(tmp32)) return false;
-    iecRxBitCount = static_cast<int>(tmp32);
-
-    if (!rdr.readU8(iecRxByte)) return false;
-
     // Memory + chips
     if (!d1581mem.loadState(rdr)) return false;
 
@@ -221,13 +197,8 @@ void D1581::reset()
     iecLinesPrimed      = false;
     iecTalking          = false;
     iecListening        = false;
-    iecRxActive         = false;
     expectingSecAddr    = false;
     expectingDataByte   = false;
-    currentListenSA     = 0;
-    currentTalkSA       = 0;
-    iecRxBitCount       = 0;
-    iecRxByte           = 0;
 
     // UI activity
     uiTrack             = currentTrack;
@@ -355,10 +326,6 @@ void D1581::onListen()
     expectingSecAddr  = true;
     expectingDataByte = false;
     currentSecondaryAddress = 0xFF;
-
-    iecRxActive = false;
-    iecRxBitCount = 0;
-    iecRxByte = 0;
 }
 
 void D1581::onUnListen()
@@ -381,9 +348,6 @@ void D1581::onTalk()
 
     talking   = true;
     listening = false;
-    iecRxActive = false;
-    iecRxBitCount = 0;
-    iecRxByte = 0;
 
     // After TALK, the next byte from the C64 is a secondary address
     expectingSecAddr  = true;
