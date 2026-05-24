@@ -592,17 +592,6 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     if (serialBit)
         serialShiftRegister |= static_cast<uint8_t>(1u << serialBitCount);
 
-#ifdef Debug
-    std::cout << "[CIA SERIAL BIT IN] "
-              << "bitIndex=" << int(serialBitCount)
-              << " bit=" << (serialBit ? 1 : 0)
-              << " shift=$" << std::hex << int(serialShiftRegister)
-              << " CRA=$" << int(registers.controlRegisterA)
-              << " IER=$" << int(registers.interruptEnable)
-              << " ICR=$" << int(interruptStatus)
-              << std::dec << "\n";
-#endif
-
     ++serialBitCount;
 
     if (serialBitCount == 8)

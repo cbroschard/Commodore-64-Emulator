@@ -97,9 +97,16 @@ uint8_t D1581CIA::makePortBPins() const
         ((prb  & PRB_BUSDIR) != 0);
 
     const bool atnAckDataLow =
-        iecAtnInLow &&
         ((ddrb & PRB_ATNACK) != 0) &&
-        ((prb  & PRB_ATNACK) != 0);
+        ((prb  & PRB_ATNACK) != 0) &&
+        (
+            iecAtnInLow ||
+            (
+                busDirOutput &&
+                ((ddrb & PRB_DATOUT) != 0) &&
+                ((prb  & PRB_DATOUT) == 0)
+            )
+        );
 
     const bool datOutAssertLow =
         busDirOutput &&
@@ -194,9 +201,16 @@ void D1581CIA::applyIECOutputs()
         ((prb  & PRB_BUSDIR) != 0);
 
     const bool atnAckDataLow =
-        iecAtnInLow &&
         ((ddrb & PRB_ATNACK) != 0) &&
-        ((prb  & PRB_ATNACK) != 0);
+        ((prb  & PRB_ATNACK) != 0) &&
+        (
+            iecAtnInLow ||
+            (
+                busDirOutput &&
+                ((ddrb & PRB_DATOUT) != 0) &&
+                ((prb  & PRB_DATOUT) == 0)
+            )
+        );
 
     const bool datOutAssertLow =
         busDirOutput &&
@@ -254,8 +268,21 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 {
-    (void)prb;
-    (void)ddrb;
+#ifdef Debug
+    std::cout << "[1581 CIA PRB OUT] "
+              << "PRB=$" << std::hex << int(prb)
+              << " DDRB=$" << int(ddrb)
+              << std::dec
+              << " DATAIN_latch=" << ((prb & PRB_DATAIN) ? 1 : 0)
+              << " DATOUT=" << ((prb & PRB_DATOUT) ? 1 : 0)
+              << " CLKIN_latch=" << ((prb & PRB_CLKIN) ? 1 : 0)
+              << " CLKOUT=" << ((prb & PRB_CLKOUT) ? 1 : 0)
+              << " ATNACK=" << ((prb & PRB_ATNACK) ? 1 : 0)
+              << " BUSDIR=" << ((prb & PRB_BUSDIR) ? 1 : 0)
+              << " WRTPRO_latch=" << ((prb & PRB_WRTPRO) ? 1 : 0)
+              << " ATNIN_latch=" << ((prb & PRB_ATNIN) ? 1 : 0)
+              << "\n";
+#endif
 
     applyIECOutputs();
 }
