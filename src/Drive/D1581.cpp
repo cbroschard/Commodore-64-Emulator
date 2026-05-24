@@ -436,10 +436,16 @@ void D1581::loadDisk(const std::string& path)
     reset();
 
     // Success load it
-    diskImage      = std::move(img);
-    diskLoaded     = true;
-    loadedDiskName = path;
-    lastError      = DriveError::NONE;
+    diskImage       = std::move(img);
+    diskLoaded      = true;
+    loadedDiskName  = path;
+    lastError       = DriveError::NONE;
+    activityLedOn   = false;
+    uiLedWasOn      = false;
+    uiTrack         = currentTrack;
+    uiSector        = currentSector;
+
+forceSyncIEC();
 }
 
 uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
