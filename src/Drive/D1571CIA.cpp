@@ -7,12 +7,54 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1571CIA.h"
 
-D1571CIA::D1571CIA()
+D1571CIA::D1571CIA() :
+    parentPeripheral(nullptr)
 {
-    //ctor
+
 }
 
-D1571CIA::~D1571CIA()
+D1571CIA::~D1571CIA() = default;
+
+void D1571CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
-    //dtor
+    (void)atnLow;
+    (void)clkLow;
+    (void)dataLow;
+}
+
+void D1571CIA::primeAtnLevel(bool atnLow)
+{
+    (void)atnLow;
+}
+
+void D1571CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
+{
+    (void)pra;
+    (void)ddra;
+}
+
+void D1571CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
+{
+    (void)prb;
+    (void)ddrb;
+}
+
+void D1571CIA::irqLineChanged(bool active)
+{
+    (void)active;
+}
+
+uint8_t D1571CIA::makePortBPins() const
+{
+    return 0xFF;
+}
+
+void D1571CIA::updateInputPins()
+{
+    setPortAPins(0xFF);
+    setPortBPins(0xFF);
+}
+
+void D1571CIA::applyIECOutputs()
+{
 }

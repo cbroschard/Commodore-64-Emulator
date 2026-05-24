@@ -16,9 +16,28 @@ class D1571CIA : public DriveCIA
         D1571CIA();
         ~D1571CIA() override;
 
+        inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
+
+        void setIECInputs(bool atnLow, bool clkLow, bool dataLow);
+        void primeAtnLevel(bool atnLow);
+
     protected:
+        void portAOutputChanged(uint8_t pra, uint8_t ddra) override;
+        void portBOutputChanged(uint8_t prb, uint8_t ddrb) override;
+        void irqLineChanged(bool active) override;
 
     private:
+        // Non-owning pointers
+        Peripheral* parentPeripheral;
+
+        bool iecAtnInLow = false;
+        bool iecClkInLow = false;
+        bool iecDataInLow = false;
+        bool lastAtnLow = false;
+
+        uint8_t makePortBPins() const;
+        void updateInputPins();
+        void applyIECOutputs();
 };
 
 #endif // D1571CIA_H

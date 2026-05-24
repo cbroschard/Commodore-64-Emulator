@@ -18,7 +18,7 @@ class D1571;
 #include <vector>
 #include "Logging.h"
 #include "Peripheral.h"
-#include "Drive/DriveCIA.h"
+#include "Drive/D1571CIA.h"
 #include "Drive/D1571VIA.h"
 #include "Drive/DriveChips.h"
 #include "Drive/FDC177x.h"
@@ -55,8 +55,8 @@ class D1571Memory : public DriveMemoryBase
         inline D1571VIA& getVIA2() { return via2; }
         inline const D1571VIA& getVIA2() const { return via2; }
 
-        inline DriveCIA& getCIA() { return cia; }
-        inline const DriveCIA& getCIA()  const { return cia; }
+        inline D1571CIA& getCIA() { return cia; }
+        inline const D1571CIA& getCIA()  const { return cia; }
 
         inline FDC177x& getFDC() { return fdc; }
         inline const FDC177x&  getFDC()  const { return fdc; }
@@ -68,7 +68,7 @@ class D1571Memory : public DriveMemoryBase
         // CHIPS
         D1571VIA via1;
         D1571VIA via2;
-        DriveCIA cia;
+        D1571CIA cia;
         FDC177x fdc;
 
         // Non-owning pointers
