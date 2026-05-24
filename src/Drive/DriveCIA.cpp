@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iostream>
 #include "Drive/DriveCIA.h"
 
 DriveCIA::DriveCIA() :
@@ -482,31 +483,43 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const bool oldStart = (old & CRA_START) != 0;
             const bool newStart = (value & CRA_START) != 0;
 
-            const bool oldSerialOutput = (old & CRA_SPMODE) != 0;
+            const bool oldSerialOutput = (old   & CRA_SPMODE) != 0;
             const bool newSerialOutput = (value & CRA_SPMODE) != 0;
 
-            const bool serialModeChanged = oldSerialOutput != newSerialOutput;
-            const bool serialStarted = (!oldStart && newStart);
+            // Only reset the CIA serial shift state when entering serial output mode.
+            //
+            // The 1581 ROM toggles CRA between $01 and $41 during IEC handshaking.
+            // Resetting on the $41->$01 transition can wipe an in-progress receive
+            // byte when returning to serial input mode.
+            const bool enteringSerialOutput =
+                (!oldSerialOutput && newSerialOutput);
 
-            // Start transition: load counter from latch
+            // Start transition: load counter from latch.
             if (!oldStart && newStart)
                 timerACounter = timerALatch;
 
             timerARunning = newStart;
 
-            // FORCE LOAD (strobe): load latch into counter, then clear the bit
+            // FORCE LOAD strobe: load latch into counter, then clear the bit.
             if (value & CRA_LOAD)
             {
                 timerACounter = timerALatch;
                 registers.controlRegisterA &= static_cast<uint8_t>(~CRA_LOAD);
             }
 
-            if (serialModeChanged || serialStarted)
+            if (enteringSerialOutput)
             {
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
                 lastCntLevel = cntLevel;
                 lastSpLevel = spLevel;
+
+        #ifdef Debug
+                std::cout << "[CIA SERIAL RESET] entering output mode "
+                          << "oldCRA=$" << std::hex << int(old)
+                          << " newCRA=$" << int(value)
+                          << std::dec << "\n";
+        #endif
             }
 
             break;
@@ -575,12 +588,32 @@ void DriveCIA::handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool ne
     if (serialBit)
         serialShiftRegister |= static_cast<uint8_t>(1u << serialBitCount);
 
+#ifdef Debug
+    std::cout << "[CIA SERIAL BIT IN] "
+              << "bitIndex=" << int(serialBitCount)
+              << " bit=" << (serialBit ? 1 : 0)
+              << " shift=$" << std::hex << int(serialShiftRegister)
+              << " CRA=$" << int(registers.controlRegisterA)
+              << " IER=$" << int(registers.interruptEnable)
+              << " ICR=$" << int(interruptStatus)
+              << std::dec << "\n";
+#endif
+
     ++serialBitCount;
 
     if (serialBitCount == 8)
     {
+#ifdef Debug
+        std::cout << "[CIA SERIAL COMPLETE IN] "
+                  << "SDR=$" << std::hex << int(serialShiftRegister)
+                  << " IER=$" << int(registers.interruptEnable)
+                  << " ICR_BEFORE=$" << int(interruptStatus)
+                  << std::dec << "\n";
+#endif
+
         registers.serialData = serialShiftRegister;
         triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+
         serialShiftRegister = 0x00;
         serialBitCount = 0;
     }
@@ -610,7 +643,6 @@ void DriveCIA::setCNTLine(bool level)
 void DriveCIA::setSPLine(bool level)
 {
     spLevel = level;
-    lastSpLevel = spLevel;
 }
 
 void DriveCIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
