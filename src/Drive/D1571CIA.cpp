@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1571CIA.h"
+#include "Drive/D1571.h"
 
 D1571CIA::D1571CIA() :
     parentPeripheral(nullptr)
@@ -57,4 +58,9 @@ void D1571CIA::updateInputPins()
 
 void D1571CIA::applyIECOutputs()
 {
+}
+
+D1571* D1571CIA::drive() const
+{
+    return parentPeripheral ? static_cast<D1571*>(parentPeripheral) : nullptr;
 }

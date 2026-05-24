@@ -79,6 +79,8 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline bool isPowerLedOn() const { return powerLedOn; }
         inline bool isActivityLedOn() const { return activityLedOn; }
 
+        inline int getDeviceNumber() const { return deviceNumber; }
+
         // FDC Sync
         void syncTrackFromFDC();
 
