@@ -16,10 +16,6 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     dataLineLow(false),
     srqAsserted(false),
     iecLinesPrimed(false),
-    iecListening(false),
-    iecTalking(false),
-    expectingSecAddr(false),
-    expectingDataByte(false),
     diskLoaded(false),
     diskWriteProtected(false),
     lastError(DriveError::NONE),
@@ -83,11 +79,6 @@ void D1581::saveState(StateWriter& wrtr) const
     wrtr.writeBool(srqAsserted);
 
     wrtr.writeBool(iecLinesPrimed);
-    wrtr.writeBool(iecListening);
-    wrtr.writeBool(iecTalking);
-
-    wrtr.writeBool(expectingSecAddr);
-    wrtr.writeBool(expectingDataByte);
 
     // Memory + chips in memory map
     d1581mem.saveState(wrtr);
@@ -151,11 +142,6 @@ bool D1581::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readBool(srqAsserted)) return false;
 
     if (!rdr.readBool(iecLinesPrimed)) return false;
-    if (!rdr.readBool(iecListening)) return false;
-    if (!rdr.readBool(iecTalking)) return false;
-
-    if (!rdr.readBool(expectingSecAddr)) return false;
-    if (!rdr.readBool(expectingDataByte)) return false;
 
     // Memory + chips
     if (!d1581mem.loadState(rdr)) return false;
@@ -195,10 +181,6 @@ void D1581::reset()
 
     // IEC Communication
     iecLinesPrimed      = false;
-    iecTalking          = false;
-    iecListening        = false;
-    expectingSecAddr    = false;
-    expectingDataByte   = false;
 
     // UI activity
     uiTrack             = currentTrack;
@@ -316,25 +298,16 @@ void D1581::dataChanged(bool dataLow)
 
 void D1581::onListen()
 {
-    iecListening = true;
-    iecTalking   = false;
-
     listening = true;
     talking   = false;
 
     // After LISTEN, next byte is also a secondary address
-    expectingSecAddr  = true;
-    expectingDataByte = false;
     currentSecondaryAddress = 0xFF;
 }
 
 void D1581::onUnListen()
 {
-    iecListening = false;
     listening    = false;
-
-    expectingSecAddr  = false;
-    expectingDataByte = false;
 
     peripheralAssertData(false);
     peripheralAssertClk(false);
@@ -343,15 +316,10 @@ void D1581::onUnListen()
 
 void D1581::onTalk()
 {
-    iecTalking   = true;
-    iecListening = false;
-
     talking   = true;
     listening = false;
 
     // After TALK, the next byte from the C64 is a secondary address
-    expectingSecAddr  = true;
-    expectingDataByte = false;
     currentSecondaryAddress = 0xFF;
 
     peripheralAssertClk(false);
@@ -364,11 +332,7 @@ void D1581::onTalk()
 
 void D1581::onUnTalk()
 {
-    iecTalking = false;
     talking    = false;
-
-    expectingSecAddr  = false;
-    expectingDataByte = false;
 
     peripheralAssertData(false);
     peripheralAssertClk(false);
@@ -378,10 +342,6 @@ void D1581::onUnTalk()
 void D1581::onSecondaryAddress(uint8_t sa)
 {
     currentSecondaryAddress = sa;
-
-    // We’ve now consumed the secondary address; next bytes are data/commands
-    expectingSecAddr  = false;
-    expectingDataByte = true;
 
     #ifdef Debug
     const char* meaning = "";
