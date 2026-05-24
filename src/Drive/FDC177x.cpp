@@ -41,7 +41,7 @@ void FDC177x::saveState(StateWriter& wrtr) const
     // Core runtime state
     wrtr.writeU8(static_cast<uint8_t>(currentType));
     wrtr.writeU16(currentSectorSize);
-    wrtr.writeU8(dataIndex);
+    wrtr.writeU16(dataIndex);
 
     wrtr.writeBool(readSectorInProgress);
     wrtr.writeBool(writeSectorInProgress);
@@ -81,7 +81,7 @@ bool FDC177x::loadState(StateReader& rdr)
     if (!rdr.readU16(currentSectorSize)) return false;
     if (currentSectorSize == 0 || currentSectorSize > MaxSectorSize) return false;
 
-    if (!rdr.readU8(dataIndex)) return false;
+    if (!rdr.readU16(dataIndex)) return false;
 
     if (!rdr.readBool(readSectorInProgress)) return false;
     if (!rdr.readBool(writeSectorInProgress)) return false;
@@ -113,7 +113,7 @@ bool FDC177x::loadState(StateReader& rdr)
 
     // Clamp dataIndex so a bad save doesn't explode later
     if (dataIndex > currentSectorSize)
-        dataIndex = static_cast<uint8_t>(currentSectorSize);
+        dataIndex = currentSectorSize;
 
     return true;
 }

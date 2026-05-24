@@ -125,7 +125,7 @@ class FDC177x : public DriveFDCBase
 
         uint8_t sectorBuffer[MaxSectorSize]{};
         uint16_t currentSectorSize;
-        uint8_t dataIndex;
+        uint16_t dataIndex;
         bool readSectorInProgress;
         bool writeSectorInProgress;
 
