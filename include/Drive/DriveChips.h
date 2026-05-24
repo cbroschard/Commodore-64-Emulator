@@ -129,7 +129,7 @@ class DriveFDCBase
             const bool&     intrq;
 
             const uint16_t& currentSectorSize;
-            const uint8_t&  dataIndex;
+            const uint16_t&  dataIndex;
 
             const bool&     readSectorInProgress;
             const bool&     writeSectorInProgress;
