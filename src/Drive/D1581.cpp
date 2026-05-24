@@ -445,7 +445,7 @@ void D1581::loadDisk(const std::string& path)
     uiTrack         = currentTrack;
     uiSector        = currentSector;
 
-forceSyncIEC();
+    forceSyncIEC();
 }
 
 uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
