@@ -53,8 +53,29 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 
     updateInputPins();
 
+    #ifdef Debug
+static bool lastSp = true;
+static bool lastCnt = true;
+
+const bool newSp  = !iecDataInLow;
+const bool newCnt = !iecClkInLow;
+
+if (newSp != lastSp || newCnt != lastCnt)
+{
+    std::cout << "[1581 CIA SERIAL IN] "
+              << "DATA_LOW=" << iecDataInLow
+              << " CLK_LOW=" << iecClkInLow
+              << " SP=" << newSp
+              << " CNT=" << newCnt
+              << "\n";
+
+    lastSp = newSp;
+    lastCnt = newCnt;
+}
+#endif
+
     setSPLine(!iecDataInLow);
-    setCNTLine(iecClkInLow);
+    setCNTLine(!iecClkInLow);
 
     applyIECOutputs();
 }
@@ -140,21 +161,41 @@ void D1581CIA::applyIECOutputs()
     const uint8_t prb  = getPortBOutputRegister();
     const uint8_t ddrb = getDDRB();
 
+    // PB5 appears to be the IEC output enable / direction control.
+    // Without this gate, DATOUT/CLKOUT can clamp the IEC bus.
+    const bool busDirOutput =
+        ((ddrb & PRB_BUSDIR) != 0) &&
+        ((prb  & PRB_BUSDIR) != 0);
+
     const bool atnAckDataLow =
         iecAtnInLow &&
         ((ddrb & PRB_ATNACK) != 0) &&
         ((prb  & PRB_ATNACK) != 0);
 
     const bool datOutAssertLow =
+        busDirOutput &&
         ((ddrb & PRB_DATOUT) != 0) &&
         ((prb  & PRB_DATOUT) != 0);
 
     const bool clkOutAssertLow =
+        busDirOutput &&
         ((ddrb & PRB_CLKOUT) != 0) &&
         ((prb  & PRB_CLKOUT) != 0);
 
     d->peripheralAssertData(atnAckDataLow || datOutAssertLow);
     d->peripheralAssertClk(clkOutAssertLow);
+
+#ifdef Debug
+    std::cout << "[1581 CIA IEC OUT] "
+              << "ATN_LOW=" << iecAtnInLow
+              << " PRB=$" << std::hex << int(prb)
+              << " DDRB=$" << int(ddrb)
+              << " BUSDIR_OUT=" << busDirOutput
+              << " ATNACK_DATA_LOW=" << atnAckDataLow
+              << " DATOUT_LOW=" << datOutAssertLow
+              << " CLKOUT_LOW=" << clkOutAssertLow
+              << std::dec << "\n";
+#endif
 }
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
