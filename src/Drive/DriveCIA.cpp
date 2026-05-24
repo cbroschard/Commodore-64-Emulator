@@ -546,6 +546,8 @@ void DriveCIA::triggerInterrupt(InterruptBit bit)
         interruptStatus |= 0x80;
     else
         interruptStatus &= 0x7F;
+
+    irqLineChanged(checkIRQActive());
 }
 
 void DriveCIA::setFlagLine(bool level)

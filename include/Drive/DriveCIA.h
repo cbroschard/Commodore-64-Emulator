@@ -20,7 +20,7 @@ class DriveCIA : public DriveCIABase
 {
     public:
         DriveCIA();
-        virtual ~DriveCIA();
+        ~DriveCIA() override;
 
         inline void attachPeripheralInstance(Peripheral* parentPeripheral) { this->parentPeripheral = parentPeripheral; }
 
