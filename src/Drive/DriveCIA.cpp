@@ -486,7 +486,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             const bool newSerialOutput = (value & CRA_SPMODE) != 0;
 
             const bool serialModeChanged = oldSerialOutput != newSerialOutput;
-            const bool serialStarted = (!oldStart && newStart);
+            //const bool serialStarted = (!oldStart && newStart);
 
             // Start transition: load counter from latch
             if (!oldStart && newStart)
@@ -501,7 +501,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
                 registers.controlRegisterA &= static_cast<uint8_t>(~CRA_LOAD);
             }
 
-            if (serialModeChanged || serialStarted)
+            if (serialModeChanged)
             {
                 serialShiftRegister = 0x00;
                 serialBitCount = 0;
