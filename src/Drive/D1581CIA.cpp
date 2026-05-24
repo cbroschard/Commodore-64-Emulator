@@ -211,7 +211,7 @@ void D1581CIA::applyIECOutputs()
     d->peripheralAssertData(atnAckDataLow || datOutAssertLow);
     d->peripheralAssertClk(clkOutAssertLow);
 
-#ifdef Debug
+    #ifdef Debug
     std::cout << "[1581 CIA IEC OUT] "
               << "ATN_LOW=" << iecAtnInLow
               << " PRB=$" << std::hex << int(prb)
@@ -220,8 +220,9 @@ void D1581CIA::applyIECOutputs()
               << " ATNACK_DATA_LOW=" << atnAckDataLow
               << " DATOUT_LOW=" << datOutAssertLow
               << " CLKOUT_LOW=" << clkOutAssertLow
+
               << std::dec << "\n";
-#endif
+    #endif
 }
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)

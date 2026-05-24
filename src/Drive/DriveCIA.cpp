@@ -360,7 +360,16 @@ uint8_t DriveCIA::readRegister(uint16_t address)
         case 0x0B: return registers.todHours;
         case 0x0C:
         {
-            return registers.serialData;
+            const uint8_t value = registers.serialData;
+
+            // Reading SDR consumes the completed byte. Reset the receive shifter so
+            // the next IEC byte starts cleanly at bit 0.
+            serialShiftRegister = 0x00;
+            serialBitCount = 0;
+            lastCntLevel = cntLevel;
+            lastSpLevel = spLevel;
+
+            return value;
         }
         case 0x0D:
         {
