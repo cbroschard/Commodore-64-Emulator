@@ -10,6 +10,9 @@
 
 #include "Drive/DriveCIA.h"
 
+// Forward declarations
+class D1571;
+
 class D1571CIA : public DriveCIA
 {
     public:
@@ -38,6 +41,8 @@ class D1571CIA : public DriveCIA
         uint8_t makePortBPins() const;
         void updateInputPins();
         void applyIECOutputs();
+
+        D1571* drive() const;
 };
 
 #endif // D1571CIA_H
