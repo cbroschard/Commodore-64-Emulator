@@ -258,12 +258,6 @@ void D1581::reset()
 
 void D1581::tick(uint32_t cycles)
 {
-    if (!iecLinesPrimed)
-    {
-        d1581mem.getCIA().primeAtnLevel(atnLineLow);
-        iecLinesPrimed = true;
-    }
-
     while (cycles-- > 0)
     {
         // CPU::tick() is already one external CPU cycle.
@@ -320,9 +314,6 @@ void D1581::forceSyncIEC()
     atnLineLow  = newAtnLow;
     clkLineLow  = newClkLow;
     dataLineLow = newDataLow;
-
-    // Update the CIA
-    d1581mem.getCIA().setIECInputs(newAtnLow, newClkLow, newDataLow);
 }
 
 void D1581::atnChanged(bool atnLow)
@@ -330,9 +321,6 @@ void D1581::atnChanged(bool atnLow)
     if (atnLow == atnLineLow) return;
 
     atnLineLow = atnLow;
-
-    // Keep CIA informed
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1581::clkChanged(bool clkLow)
@@ -340,8 +328,6 @@ void D1581::clkChanged(bool clkLow)
     if (clkLow == clkLineLow) return; // ignore no change
 
     clkLineLow = clkLow;
-
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1581::dataChanged(bool dataLow)
@@ -349,8 +335,6 @@ void D1581::dataChanged(bool dataLow)
     if (dataLow == dataLineLow) return; // ignore no change
 
     dataLineLow = dataLow;
-
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1581::onListen()
