@@ -19,7 +19,14 @@ class FloppyControllerHost
 
         virtual bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) = 0;
         virtual bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) = 0;
+
         virtual bool fdcIsWriteProtected() const = 0;
+
+        virtual uint8_t fdcGetCurrentSide() const { return 0; }
+
+        virtual uint8_t fdcGetCurrentTrackId() const { return 0; }
+
+        virtual void fdcSetCurrentTrackId(uint8_t trackId) {}
 
     protected:
 
