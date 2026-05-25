@@ -137,19 +137,15 @@ void D1581CIA::updateInputPins()
 
     if (auto* d = drive())
     {
-        if (!d->isDiskLoaded())
+        // PA1 /DRVRDY or /RDY: active low.
+        // Ready should assert low when disk is loaded and motor is on.
+        if (d->isDiskLoaded() && d->isMotorOn())
             portA &= static_cast<uint8_t>(~PRA_DRVRDY);
+        else
+            portA |= PRA_DRVRDY;
 
-        if (!d->isDiskLoaded())
-            portA &= static_cast<uint8_t>(~PRA_DSKCH);
+        portA |= PRA_DSKCH;
 
-        // Device address switches.
-        //
-        // Start with the common assumption:
-        // device 8 = both switches ON/grounded/0
-        // device 9 = DEVSW1 set
-        // device 10 = DEVSW2 set
-        // device 11 = both set
         const int devOffset = d->getDeviceNumber() - 8;
 
         if ((devOffset & 0x01) == 0)
