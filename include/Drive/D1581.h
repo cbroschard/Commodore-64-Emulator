@@ -81,8 +81,11 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         inline int getDeviceNumber() const { return deviceNumber; }
 
-        // FDC Sync
+        // FDC
         void syncTrackFromFDC();
+        uint8_t fdcGetCurrentSide() const override { return currentSide & 0x01; }
+        uint8_t fdcGetCurrentTrackId() const override { return currentTrack; }
+        void fdcSetCurrentTrackId(uint8_t trackId) override { currentTrack = trackId; }
 
         void unloadDisk() override;
         void forceSyncIEC() override;
