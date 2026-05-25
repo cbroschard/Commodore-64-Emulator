@@ -68,7 +68,7 @@ class Drive : public Peripheral
         virtual void forceSyncIEC() = 0;
 
         enum class DriveError { NONE, NO_DISK, BAD_SECTOR, READ_ERROR, WRITE_ERROR } currentDriveError;
-        enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING } currentDriveStatus;
+        enum class DriveStatus { IDLE, READY, READING, WRITING, SEEKING, ERROR } currentDriveStatus;
         enum class DriveBusState { IDLE, AWAITING_COMMAND, TALKING, LISTENING } currentDriveBusState;
 
         // Timing simulation.
