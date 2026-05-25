@@ -115,6 +115,10 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         // Helpers
         uint16_t mapFdcTrackToD81Track(uint8_t fdcTrack) const;
+        bool mapFdcSectorToD81Sectors(uint8_t side,
+                              uint8_t fdcSector,
+                              uint8_t& logicalSector0,
+                              uint8_t& logicalSector1) const;
 
         // Drive Mechanics
         inline void startMotor() override { motorOn = true; }
@@ -178,7 +182,6 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         // Status tracking
         DriveError lastError;
-        DriveStatus status;
 
         // Drive geometry
         uint8_t currentTrack;
