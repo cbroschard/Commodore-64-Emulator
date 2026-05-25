@@ -133,6 +133,13 @@ class FDC177x : public DriveFDCBase
         bool intrq;
         int32_t cyclesUntilEvent;
 
+        // Type III
+        uint8_t addressBuffer[6]{};
+        uint8_t addressIndex;
+        bool readAddressInProgress;
+        bool readAddressByteDelay;
+        uint8_t addressScanSector;
+
         CommandType decodeCommandType(uint8_t cmd) const;
 
         // Command execution
@@ -141,6 +148,9 @@ class FDC177x : public DriveFDCBase
         void setDRQ(bool on);
         void setBusy(bool on);
         void setINTRQ(bool on);
+
+        void updateTypeIStatusBits();
+        void clearCommandStatusBitsForType(CommandType type);
 };
 
 #endif // FDC177X_H
