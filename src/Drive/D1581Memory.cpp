@@ -94,7 +94,6 @@ void D1581Memory::tick(uint32_t cycles)
         if (parentPeripheral)
         {
             auto* drive = static_cast<D1581*>(parentPeripheral);
-            drive->syncTrackFromFDC();
             drive->updateIRQ();
         }
     }
@@ -121,54 +120,23 @@ uint8_t D1581Memory::read(uint16_t address)
     uint8_t value = lastBus;
 
     if (address >= RAM_START && address <= RAM_END)
-        value = D1581RAM[address - RAM_START];
-else if (address >= CIA_START && address <= CIA_END)
-{
-    const uint16_t reg = (address - CIA_START) & 0x000F;
-    value = cia.readRegister(reg);
-
-#ifdef Debug
-    if (reg == 0x01 || reg == 0x0C || reg == 0x0D)
     {
-        auto* drive = static_cast<D1581*>(parentPeripheral);
-        const uint16_t pc = drive ? drive->getDriveCPU()->getPC() : 0xFFFF;
-
-        const char* name = "";
-        switch (reg)
-        {
-            case 0x01: name = "PRB"; break;
-            case 0x0C: name = "SDR"; break;
-            case 0x0D: name = "ICR"; break;
-            default:   name = "CIA"; break;
-        }
-
-        std::cout << "[1581 CIA READ PC] "
-                  << "PC=$" << std::hex << std::uppercase
-                  << std::setw(4) << std::setfill('0') << int(pc)
-                  << " reg=$" << int(reg)
-                  << " " << name
-                  << " value=$" << int(value);
-
-        if (reg == 0x01)
-        {
-            std::cout << " DATAIN=" << ((value & 0x01) ? 1 : 0)
-                      << " DATOUT=" << ((value & 0x02) ? 1 : 0)
-                      << " CLKIN="  << ((value & 0x04) ? 1 : 0)
-                      << " CLKOUT=" << ((value & 0x08) ? 1 : 0)
-                      << " ATNACK=" << ((value & 0x10) ? 1 : 0)
-                      << " BUSDIR=" << ((value & 0x20) ? 1 : 0)
-                      << " WRTPRO=" << ((value & 0x40) ? 1 : 0)
-                      << " ATNIN="  << ((value & 0x80) ? 1 : 0);
-        }
-
-        std::cout << std::dec << "\n";
+        value = D1581RAM[address - RAM_START];
     }
-#endif
-}
+    else if (address >= CIA_START && address <= CIA_END)
+    {
+        const uint16_t reg = (address - CIA_START) & 0x000F;
+        value = cia.readRegister(reg);
+    }
     else if (address >= FDC_START && address <= FDC_END)
-        value = fdc.readRegister((address - FDC_START) & 0x0003);
+    {
+        const uint16_t reg = (address - FDC_START) & 0x0003;
+        value = fdc.readRegister(reg);
+    }
     else if (address >= ROM_START && address <= ROM_END)
+    {
         value = D1581ROM[address - ROM_START];
+    }
 
     lastBus = value;
     return value;
@@ -188,7 +156,8 @@ void D1581Memory::write(uint16_t address, uint8_t value)
     }
     else if (address >= FDC_START && address <= FDC_END)
     {
-        fdc.writeRegister((address - FDC_START) & 0x0003, value);
+        const uint16_t reg = (address - FDC_START) & 0x0003;
+        fdc.writeRegister(reg, value);
     }
 }
 
