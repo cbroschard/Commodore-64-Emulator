@@ -167,34 +167,57 @@ bool D1581::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 void D1581::reset()
 {
-    motorOn             = false;
+    motorOn = false;
 
     // Status
     lastError           = DriveError::NONE;
-    currentDriveStatus       = DriveStatus::IDLE;
+    currentDriveStatus  = DriveStatus::IDLE;
     currentTrack        = 17;
     currentSector       = 0;
 
-    // IEC BUS reset
+    // IEC BUS line state
     atnLineLow          = false;
     clkLineLow          = false;
     dataLineLow         = false;
     srqAsserted         = false;
 
-    // IEC Communication
+    // IEC communication
     iecLinesPrimed      = false;
 
-    // UI activity
-    uiTrack             = currentTrack;
-    uiSector            = currentSector;
-    uiLedWasOn          = false;
-    powerLedOn          = true;
-    activityLedOn       = false;
+    // Drive/Peripheral protocol state
+    listening = false;
+    talking   = false;
 
-    // Reset actual line states
-    peripheralAssertClk(false);  // Release Clock
-    peripheralAssertData(false); // Release Data
-    peripheralAssertSrq(false);  // Release SRQ
+    currentSecondaryAddress = 0xFF;
+
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+    while (!talkQueue.empty())
+        talkQueue.pop();
+
+    currentDriveBusState = DriveBusState::IDLE;
+
+    // UI activity
+    uiTrack       = currentTrack;
+    uiSector      = currentSector;
+    uiLedWasOn    = false;
+    powerLedOn    = true;
+    activityLedOn = false;
+
+    // Release actual IEC outputs
+    peripheralAssertClk(false);
+    peripheralAssertData(false);
+    peripheralAssertSrq(false);
 
     if (bus)
     {
@@ -202,13 +225,14 @@ void D1581::reset()
         bus->unListen(deviceNumber);
     }
 
-    // Set correct sector size for d81
+    // Set correct sector size for D81.
     d1581mem.getFDC().setSectorSize(512);
 
     d1581mem.reset();
     driveCPU.reset();
 
     forceSyncIEC();
+    updateIRQ();
 }
 
 void D1581::tick(uint32_t cycles)
@@ -306,22 +330,59 @@ void D1581::onListen()
     listening = true;
     talking   = false;
 
-    // After LISTEN, next byte is also a secondary address
+    // After LISTEN, next byte is also a secondary address.
     currentSecondaryAddress = 0xFF;
+
+    // Clear stale transfer/handshake state inherited from Peripheral/Drive.
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+#ifdef Debug
+    std::cout << "[D1581] onListen() device=" << int(deviceNumber)
+              << " listening=1 talking=0\n";
+#endif
 }
 
 void D1581::onUnListen()
 {
     listening = false;
 
+    // Do not carry old secondary address / partial serial state
+    // into the next IEC command.
+    currentSecondaryAddress = 0xFF;
+
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
     peripheralAssertData(false);
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
 
-    forceSyncIEC();
+    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveStatus   = DriveStatus::IDLE;
+    activityLedOn        = false;
 
-    currentDriveStatus = DriveStatus::IDLE;
-    activityLedOn = false;
+#ifdef Debug
+    std::cout << "[D1581] onUnListen() device=" << int(deviceNumber) << "\n";
+#endif
 }
 
 void D1581::onTalk()
@@ -329,31 +390,69 @@ void D1581::onTalk()
     talking   = true;
     listening = false;
 
-    // After TALK, the next byte from the C64 is a secondary address
+    // After TALK, the next byte from the C64 is a secondary address.
     currentSecondaryAddress = 0xFF;
 
+    // Clear stale receive state.
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
     peripheralAssertClk(false);
+
+#ifdef Debug
+    std::cout << "[D1581] onTalk() device=" << int(deviceNumber)
+              << " talking=1 listening=0\n";
+#endif
 }
 
 void D1581::onUnTalk()
 {
     talking = false;
 
+    currentSecondaryAddress = 0xFF;
+
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+    while (!talkQueue.empty())
+        talkQueue.pop();
+
     peripheralAssertData(false);
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
 
-    forceSyncIEC();
+    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveStatus   = DriveStatus::IDLE;
+    activityLedOn        = false;
 
-    currentDriveStatus = DriveStatus::IDLE;
-    activityLedOn = false;
+#ifdef Debug
+    std::cout << "[D1581] onUnTalk() device=" << int(deviceNumber) << "\n";
+#endif
 }
 
 void D1581::onSecondaryAddress(uint8_t sa)
 {
     currentSecondaryAddress = sa;
 
-    #ifdef Debug
+#ifdef Debug
     const char* meaning = "";
     if (sa == 0)
         meaning = " (LOAD channel)";
@@ -364,7 +463,7 @@ void D1581::onSecondaryAddress(uint8_t sa)
 
     std::cout << "[D1581] onSecondaryAddress() device=" << int(deviceNumber)
               << " sa=" << int(sa) << meaning << "\n";
-    #endif
+#endif
 }
 
 void D1581::updateIRQ()
@@ -508,6 +607,28 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
               << int(length > 3 ? buffer[3] : 0)
               << std::dec
               << "\n";
+#endif
+
+#ifdef Debug
+if (d81Track == 40 && sector == 2 && (getCurrentSide() & 1) == 0 && length >= 288)
+{
+    std::cout << "[D1581 DIR PHYSICAL READ CHECK] "
+              << "fdcTrack=" << int(track)
+              << " fdcSector=" << int(sector)
+              << " logicalSectors=" << int(logicalSector0)
+              << "," << int(logicalSector1)
+              << "\n";
+
+    std::cout << "  first half [0..31] = $";
+    for (int i = 0; i < 32; ++i)
+        std::cout << std::hex << int(buffer[i]) << " ";
+    std::cout << "\n";
+
+    std::cout << "  second half [256..287] = $";
+    for (int i = 256; i < 288; ++i)
+        std::cout << std::hex << int(buffer[i]) << " ";
+    std::cout << std::dec << "\n";
+}
 #endif
 
     return true;
@@ -663,8 +784,7 @@ void D1581::loadDisk(const std::string& path)
         return;
     }
 
-    // Hard reset in case user switched disk
-    reset();
+    resetForMediaChange();
 
     // Success load it
     diskImage       = std::move(img);
@@ -677,6 +797,7 @@ void D1581::loadDisk(const std::string& path)
     uiSector        = currentSector;
 
     forceSyncIEC();
+    updateIRQ();
 }
 
 uint16_t D1581::mapFdcTrackToD81Track(uint8_t fdcTrack) const
@@ -753,4 +874,64 @@ void D1581::flushAndSaveDisk()
                   << "\n";
 #endif
     }
+}
+
+void D1581::resetForMediaChange()
+{
+    // IEC line levels
+    atnLineLow      = false;
+    clkLineLow      = false;
+    dataLineLow     = false;
+    srqAsserted     = false;
+    iecLinesPrimed  = false;
+
+    // Drive/Peripheral protocol state
+    listening = false;
+    talking   = false;
+
+    currentSecondaryAddress = 0xFF;
+
+    shiftReg      = 0;
+    bitsProcessed = 0;
+
+    waitingForAck               = false;
+    ackEdgeCountdown            = 0;
+    swallowPostHandshakeFalling = false;
+    waitingForClkRelease        = false;
+    prevClkLevel                = true;
+    ackHold                     = false;
+    byteAckHold                 = false;
+    ackDelay                    = 0;
+
+    while (!talkQueue.empty())
+        talkQueue.pop();
+
+    currentDriveBusState = DriveBusState::IDLE;
+    currentDriveStatus   = DriveStatus::IDLE;
+    lastError            = DriveError::NONE;
+
+    // Runtime/UI
+    activityLedOn = false;
+    uiLedWasOn    = false;
+    uiTrack       = currentTrack;
+    uiSector      = currentSector;
+
+    // Release actual IEC outputs
+    peripheralAssertClk(false);
+    peripheralAssertData(false);
+    peripheralAssertSrq(false);
+
+    if (bus)
+    {
+        bus->unTalk(deviceNumber);
+        bus->unListen(deviceNumber);
+    }
+
+    // Reset 1581-local chips/CPU for a clean media transition.
+    d1581mem.getFDC().setSectorSize(512);
+    d1581mem.reset();
+    driveCPU.reset();
+
+    forceSyncIEC();
+    updateIRQ();
 }
