@@ -193,6 +193,8 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool uiLedWasOn;
         bool powerLedOn;
         bool activityLedOn;
+
+        void resetForMediaChange();
 };
 
 #endif // D1581_H
