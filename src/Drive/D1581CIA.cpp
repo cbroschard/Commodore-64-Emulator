@@ -230,8 +230,6 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 {
-    updating = false;
-
     if (updating)
         return;
 
