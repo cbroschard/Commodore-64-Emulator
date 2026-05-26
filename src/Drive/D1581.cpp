@@ -600,11 +600,13 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
         std::memcpy(buffer + 256, part1.data(), copy1);
     }
 
-    currentTrack  = track;
-    currentSector = sector;
-    uiTrack       = track;
-    uiSector      = sector;
-    lastError     = DriveError::NONE;
+    currentTrack        = track;
+    currentSector       = sector;
+    uiTrack             = track;
+    uiSector            = sector;
+    lastError           = DriveError::NONE;
+    currentDriveStatus  = DriveStatus::IDLE;
+    activityLedOn       = false;
 
 #ifdef Debug
     std::cout << "[D1581 FDC READ OK] "
@@ -764,11 +766,13 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
 
     if (ok0 && ok1)
     {
-        currentTrack  = track;
-        currentSector = sector;
-        uiTrack       = track;
-        uiSector      = sector;
-        lastError     = DriveError::NONE;
+        currentTrack        = track;
+        currentSector       = sector;
+        uiTrack             = track;
+        uiSector            = sector;
+        lastError           = DriveError::NONE;
+        currentDriveStatus  = DriveStatus::IDLE;
+        activityLedOn       = false;
         return true;
     }
 
