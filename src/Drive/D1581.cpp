@@ -294,8 +294,8 @@ void D1581::forceSyncIEC()
     clkLineLow  = newClkLow;
     dataLineLow = newDataLow;
 
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
     d1581mem.getCIA().primeAtnLevel(atnLineLow);
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
 }
 
 void D1581::atnChanged(bool atnLow)
