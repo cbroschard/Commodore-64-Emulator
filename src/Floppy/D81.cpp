@@ -294,17 +294,37 @@ bool D81::writeBlankBAM(const std::string& volumeName, const std::string& volume
     header[26] = 'D';
     header[27] = 0xA0;
 
+    const uint8_t diskId0 = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id0)));
+    const uint8_t diskId1 = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id1)));
+
     // BAM sector 1: tracks 1-40.
+    // Link to second BAM sector at 40/2.
     bam1[0] = 40;
     bam1[1] = 2;
     bam1[2] = 'D';
     bam1[3] = 0xBB; // complement of 'D'
+    bam1[4] = diskId0;
+    bam1[5] = diskId1;
+    bam1[6] = 0xC0; // I/O byte: verify off / header CRC behavior
+    bam1[7] = 0x00; // autoboot flag off
+
+    // Keep reserved header area deterministic.
+    for (int i = 8; i < 16; ++i)
+        bam1[i] = 0x00;
 
     // BAM sector 2: tracks 41-80.
-    bam2[0] = 0;
+    // End of BAM chain.
+    bam2[0] = 0x00;
     bam2[1] = 0xFF;
     bam2[2] = 'D';
     bam2[3] = 0xBB;
+    bam2[4] = diskId0;
+    bam2[5] = diskId1;
+    bam2[6] = 0xC0;
+    bam2[7] = 0x00;
+
+    for (int i = 8; i < 16; ++i)
+        bam2[i] = 0x00;
 
     auto fillBamRange = [&](std::vector<uint8_t>& bam, uint8_t firstTrack, uint8_t lastTrack)
     {
