@@ -66,6 +66,8 @@ class D1581CIA : public DriveCIA
         bool iecSrqInLow;
         bool lastAtnLow ;
 
+        bool updating;
+
         uint8_t makePortBPins() const;
         void updateInputPins();
         void applyIECOutputs();

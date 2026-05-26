@@ -14,7 +14,8 @@ D1581CIA::D1581CIA() :
     iecClkInLow(false),
     iecDataInLow(false),
     iecSrqInLow(false),
-    lastAtnLow(false)
+    lastAtnLow(false),
+    updating(false)
 {
 
 }
@@ -30,6 +31,8 @@ void D1581CIA::reset()
     iecDataInLow = false;
     iecSrqInLow  = false;
     lastAtnLow   = false;
+
+    updating     = false;
 
     setPortAPins(0xFF);
     setPortBPins(makePortBPins());
@@ -227,7 +230,7 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 {
-    static bool updating = false;
+    updating = false;
 
     if (updating)
         return;
