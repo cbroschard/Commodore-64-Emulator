@@ -25,7 +25,7 @@ FDC177x::FDC177x() :
     addressIndex(0),
     readAddressInProgress(false),
     readAddressByteDelay(false),
-    addressScanSector(1)
+    addressScanSector(0)
 {
     currentType = CommandType::None;
     std::memset(addressBuffer, 0x00, sizeof(addressBuffer));
@@ -581,27 +581,27 @@ void FDC177x::startCommand(uint8_t cmd)
             {
                 case CommandGroup::Restore:
                     registers.track = 0;
-                    addressScanSector = 1;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::Seek:
                     registers.track = registers.data;
-                    addressScanSector = 1;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::Step:
-                    addressScanSector = 1;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::StepIn:
                     ++registers.track;
-                    addressScanSector = 1;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::StepOut:
                     if (registers.track > 0)
                         --registers.track;
-                    addressScanSector = 1;
+                    addressScanSector = 0;
                     break;
 
                 default:
@@ -689,8 +689,8 @@ void FDC177x::startCommand(uint8_t cmd)
                 // The ROM then requests the following FDC sector number.
                 ++addressScanSector;
 
-                if (addressScanSector > 10)
-                    addressScanSector = 1;
+                if (addressScanSector >= 10)
+                    addressScanSector = 0;
 
                 addressBuffer[0] = trackId;
                 addressBuffer[1] = side;
