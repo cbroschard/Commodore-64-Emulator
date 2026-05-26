@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <iostream>
+#include <iomanip>
 #include "Drive/FDC177x.h"
 
 FDC177x::FDC177x() :
@@ -62,6 +64,32 @@ static uint16_t computeAddressFieldCRC(uint8_t c, uint8_t h, uint8_t r, uint8_t 
 
     return crc;
 }
+
+#ifdef Debug
+static const char* fdcCommandName(uint8_t cmd)
+{
+    switch (cmd & 0xF0)
+    {
+        case 0x00: return "RESTORE";
+        case 0x10: return "SEEK";
+        case 0x20: return "STEP";
+        case 0x30: return "STEP";
+        case 0x40: return "STEP IN";
+        case 0x50: return "STEP IN";
+        case 0x60: return "STEP OUT";
+        case 0x70: return "STEP OUT";
+        case 0x80: return "READ SECTOR";
+        case 0x90: return "READ SECTOR MULTI";
+        case 0xA0: return "WRITE SECTOR";
+        case 0xB0: return "WRITE SECTOR MULTI";
+        case 0xC0: return "READ ADDRESS";
+        case 0xD0: return "FORCE INTERRUPT";
+        case 0xE0: return "READ TRACK";
+        case 0xF0: return "WRITE TRACK";
+        default:   return "UNKNOWN";
+    }
+}
+#endif
 
 void FDC177x::saveState(StateWriter& wrtr) const
 {
@@ -171,8 +199,6 @@ void FDC177x::reset()
 
     cyclesUntilEvent        = 0;
 
-    currentSectorSize       = 256;
-
     addressIndex            = 0;
     readAddressInProgress   = false;
     readAddressByteDelay    = false;
@@ -185,81 +211,90 @@ void FDC177x::reset()
 
 void FDC177x::tick(uint32_t cycles)
 {
-    while(cycles-- > 0)
+    while (cycles-- > 0)
     {
-        if (cyclesUntilEvent > 0)
+        if (cyclesUntilEvent <= 0)
+            continue;
+
+        --cyclesUntilEvent;
+
+        if (cyclesUntilEvent != 0)
+            continue;
+
+        switch (currentType)
         {
-            --cyclesUntilEvent;
-            if (cyclesUntilEvent == 0)
+            case CommandType::TypeI:
             {
-                switch (currentType)
-                {
-                    case CommandType::TypeI:
-                    {
-                        setBusy(false);
-                        updateTypeIStatusBits();
-                        setINTRQ(true);
-                        break;
-                    }
-                    case CommandType::TypeII:
-                    {
-                        if (readSectorInProgress)
-                        {
-                            // READ SECTOR: first byte is now ready
-                            if (dataIndex < sizeof(sectorBuffer))
-                            {
-                                // Don't advance dataIndex yet; wait until CPU reads
-                                registers.data = sectorBuffer[dataIndex];
-                            }
-                            setDRQ(true);   // tell CPU "you can read a byte now"
-                        }
-                        else if (writeSectorInProgress)
-                        {
-                            // WRITE SECTOR: ready for first data byte
-                            setDRQ(true);   // tell CPU "write a byte now"
-                        }
-                        else
-                        {
-                            setBusy(false);
-                            setDRQ(false);
-                            setINTRQ(true);
-                        }
-                        break;
-                    }
-                    case CommandType::TypeIII:
-                    {
-                        if (readAddressInProgress)
-                        {
-                            if (readAddressByteDelay)
-                                readAddressByteDelay = false;
-
-                            if (addressIndex < sizeof(addressBuffer))
-                            {
-                                registers.data = addressBuffer[addressIndex];
-                                setBusy(true);
-                                setDRQ(true);
-                            }
-                            else
-                            {
-                                readAddressInProgress = false;
-                                setDRQ(false);
-                                setBusy(false);
-                                setINTRQ(true);
-                            }
-                        }
-                        else
-                        {
-                            setBusy(false);
-                            setDRQ(false);
-                            setINTRQ(true);
-                        }
-
-                        break;
-                    }
-                    default:
-                        break;
-                }
+                updateTypeIStatusBits();
+                finishCommand(true);
+                break;
             }
+
+            case CommandType::TypeII:
+            {
+                if (readSectorInProgress)
+                {
+                    if (dataIndex < currentSectorSize)
+                    {
+                        // Next read byte is now available.
+                        registers.data = sectorBuffer[dataIndex];
+                        setDRQ(true);
+                    }
+                    else
+                    {
+                        // Defensive completion path.
+                        finishCommand(true);
+                    }
+                }
+                else if (writeSectorInProgress)
+                {
+                    if (dataIndex < currentSectorSize)
+                    {
+                        // FDC is ready for the next byte from the CPU.
+                        setDRQ(true);
+                    }
+                    else
+                    {
+                        // Defensive completion path.
+                        finishCommand(true);
+                    }
+                }
+                else
+                {
+                    finishCommand(true);
+                }
+
+                break;
+            }
+
+            case CommandType::TypeIII:
+            {
+                if (readAddressInProgress)
+                {
+                    if (readAddressByteDelay)
+                        readAddressByteDelay = false;
+
+                    if (addressIndex < sizeof(addressBuffer))
+                    {
+                        registers.data = addressBuffer[addressIndex];
+                        setBusy(true);
+                        setDRQ(true);
+                    }
+                    else
+                    {
+                        finishCommand(true);
+                    }
+                }
+                else
+                {
+                    finishCommand(true);
+                }
+
+                break;
+            }
+
+            default:
+                break;
         }
     }
 }
@@ -308,11 +343,7 @@ uint8_t FDC177x::readRegister(uint16_t address)
 
                 if (addressIndex >= sizeof(addressBuffer))
                 {
-                    readAddressInProgress = false;
-                    readAddressByteDelay = false;
-
-                    setBusy(false);
-                    setINTRQ(true);
+                    finishCommand(true);
                 }
                 else
                 {
@@ -330,15 +361,17 @@ uint8_t FDC177x::readRegister(uint16_t address)
                 typeIIGroup == 0x80 &&
                 readSectorInProgress)
             {
+                // If DRQ is not active, the FDC data register still returns
+                // the last latched byte.
                 if (!drq)
                     return registers.data;
 
-                uint8_t value = 0xFF;
+                uint8_t value = registers.data;
 
                 if (dataIndex < currentSectorSize)
                 {
                     value = sectorBuffer[dataIndex];
-                   ++dataIndex;
+                    ++dataIndex;
                 }
 
                 registers.data = value;
@@ -346,18 +379,13 @@ uint8_t FDC177x::readRegister(uint16_t address)
 
                 if (dataIndex >= currentSectorSize)
                 {
-                    readSectorInProgress = false;
-                    dataIndex = 0;
-
-                    setDRQ(false);
-                    setBusy(false);
-                    setINTRQ(true);
+                    finishCommand(true);
                 }
                 else
                 {
-                    // Make the next byte available.
-                    registers.data = sectorBuffer[dataIndex];
-                    setDRQ(true);
+                    // Do NOT immediately assert DRQ again.
+                    // Schedule the next byte to become available shortly.
+                    cyclesUntilEvent = FDC_BYTE_DELAY_CYCLES;
                 }
 
                 return value;
@@ -401,22 +429,6 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
         case 2: // Sector reg
         {
             registers.sector = value;
-
-            // Important:
-            // Do NOT let the 1581 ROM's startup FDC register self-test seed
-            // the fake READ ADDRESS rotation. During that test currentType is
-            // usually None/currentCmd=$0, and it writes FF..01 into $6002.
-            //
-            // Only seed the scan from $6002 when the FDC is in an actual command
-            // context, not during idle register testing.
-            if (currentType != CommandType::None)
-            {
-                if (value >= 1 && value <= 10)
-                    addressScanSector = value;
-                else
-                    addressScanSector = 0;
-            }
-
             break;
         }
 
@@ -428,6 +440,15 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
                 typeIIGroup == 0xA0 &&
                 writeSectorInProgress)
             {
+                if (!drq)
+                {
+                    // CPU wrote when the FDC was not asking for data.
+                    // For now, just latch the value. Later you can set Lost Data
+                    // here if you want stricter timing.
+                    registers.data = value;
+                    return;
+                }
+
                 if (dataIndex < currentSectorSize)
                 {
                     sectorBuffer[dataIndex++] = value;
@@ -456,35 +477,24 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
                                                   currentSectorSize);
                     }
 
-                    writeSectorInProgress = false;
-                    dataIndex = 0;
-
-                    if (ok)
-                    {
-                        setBusy(false);
-                        setDRQ(false);
-                        setINTRQ(true);
-                    }
-                    else
+                    if (!ok)
                     {
                         if (!(registers.status & writeProtect))
                             registers.status |= recordNotFound;
-
-                        setBusy(false);
-                        setDRQ(false);
-                        setINTRQ(true);
                     }
 
+                    finishCommand(true);
                     return;
                 }
-                else
-                {
-                    setDRQ(true);
-                }
 
+                // More bytes still needed.
+                // Do NOT immediately reassert DRQ.
+                // Schedule the next write request.
+                cyclesUntilEvent = FDC_BYTE_DELAY_CYCLES;
                 return;
             }
 
+            // Normal idle/data register write.
             registers.data = value;
             break;
         }
@@ -534,6 +544,18 @@ FDC177x::CommandType FDC177x::decodeCommandType(uint8_t cmd) const
 
 void FDC177x::startCommand(uint8_t cmd)
 {
+    #ifdef Debug
+    std::cout << "[FDC CMD] $" << std::hex << std::setw(2) << std::setfill('0')
+              << int(cmd)
+              << " " << fdcCommandName(cmd)
+              << " TRK=" << std::dec << int(registers.track)
+              << " SEC=" << int(registers.sector)
+              << " DATA=$" << std::hex << int(registers.data)
+              << " STATUS=$" << int(registers.status)
+              << std::dec
+              << "\n";
+    #endif
+
     readSectorInProgress    = false;
     writeSectorInProgress   = false;
     readAddressInProgress   = false;
@@ -559,22 +581,27 @@ void FDC177x::startCommand(uint8_t cmd)
             {
                 case CommandGroup::Restore:
                     registers.track = 0;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::Seek:
                     registers.track = registers.data;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::Step:
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::StepIn:
                     ++registers.track;
+                    addressScanSector = 0;
                     break;
 
                 case CommandGroup::StepOut:
                     if (registers.track > 0)
                         --registers.track;
+                    addressScanSector = 0;
                     break;
 
                 default:
@@ -615,13 +642,13 @@ void FDC177x::startCommand(uint8_t cmd)
                     {
                         registers.status |= recordNotFound;
                         setBusy(false);
+                        setDRQ(false);
                         setINTRQ(true);
                         cyclesUntilEvent = 0;
                     }
 
                     break;
                 }
-
                 case 0xA0: // WRITE SECTOR, covers $A0/$B0
                 {
                     dataIndex = 0;
@@ -658,8 +685,11 @@ void FDC177x::startCommand(uint8_t cmd)
                 const uint8_t trackId = registers.track;
                 const uint8_t currentId = addressScanSector;
 
+                // For the 1581 ROM path, report rotating IDs as 0..9.
+                // The ROM then requests the following FDC sector number.
                 ++addressScanSector;
-                if (addressScanSector > 9)
+
+                if (addressScanSector >= 10)
                     addressScanSector = 0;
 
                 addressBuffer[0] = trackId;
@@ -678,6 +708,17 @@ void FDC177x::startCommand(uint8_t cmd)
                 addressBuffer[4] = static_cast<uint8_t>((crc >> 8) & 0xFF);
                 addressBuffer[5] = static_cast<uint8_t>(crc & 0xFF);
 
+                #ifdef Debug
+                std::cout << "[FDC READ ADDRESS RESULT] "
+                          << "C=" << int(addressBuffer[0])
+                          << " H=" << int(addressBuffer[1])
+                          << " R=" << int(addressBuffer[2])
+                          << " N=" << int(addressBuffer[3])
+                          << " currentSide=" << int(host ? (host->fdcGetCurrentSide() & 1) : 0)
+                          << " sectorReg=" << int(registers.sector)
+                          << "\n";
+                #endif
+
                 cyclesUntilEvent = 2000;
             }
             else
@@ -692,7 +733,19 @@ void FDC177x::startCommand(uint8_t cmd)
         {
             setBusy(false);
             setDRQ(false);
-            setINTRQ(true);
+
+            readSectorInProgress = false;
+            writeSectorInProgress = false;
+            readAddressInProgress = false;
+            readAddressByteDelay = false;
+
+            // $D0 with no condition bits is commonly used as a terminate/clear.
+            // Only assert INTRQ if one of I0-I3 is requested.
+            if (cmd & 0x0F)
+                setINTRQ(true);
+            else
+                setINTRQ(false);
+
             cyclesUntilEvent = 0;
             break;
         }
@@ -714,6 +767,26 @@ void FDC177x::startCommand(uint8_t cmd)
     {
         cyclesUntilEvent = 1;
     }
+}
+
+void FDC177x::finishCommand(bool interrupt)
+{
+    readSectorInProgress = false;
+    writeSectorInProgress = false;
+    readAddressInProgress = false;
+    readAddressByteDelay = false;
+
+    dataIndex = 0;
+    addressIndex = 0;
+    cyclesUntilEvent = 0;
+
+    setDRQ(false);
+    setBusy(false);
+
+    if (interrupt)
+        setINTRQ(true);
+
+    currentType = CommandType::None;
 }
 
 void FDC177x::setDRQ(bool on)

@@ -73,6 +73,7 @@ class FDC177x : public DriveFDCBase
         Peripheral* parentPeripheral;
 
         static constexpr size_t MaxSectorSize = 1024;
+        static constexpr int32_t FDC_BYTE_DELAY_CYCLES = 32;
 
         enum CommandType : uint8_t
         {
@@ -144,6 +145,7 @@ class FDC177x : public DriveFDCBase
 
         // Command execution
         void startCommand(uint8_t cmd);
+        void finishCommand(bool interrupt);
 
         void setDRQ(bool on);
         void setBusy(bool on);
