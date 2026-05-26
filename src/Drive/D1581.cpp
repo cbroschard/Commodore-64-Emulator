@@ -300,11 +300,28 @@ void D1581::forceSyncIEC()
 
 void D1581::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow) return;
+    if (atnLow == atnLineLow)
+        return;
 
+    const bool prevAtnLow = atnLineLow;
     atnLineLow = atnLow;
+
     const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
+
+    d1581mem.getCIA().setIECInputs(atnLineLow,
+                                   clkLineLow,
+                                   dataLineLow,
+                                   newSrqLow);
+
+    // ATN asserted: this is the start of a new IEC command phase.
+    // Prime/reset the D1581 CIA IEC receiver here, not during UNLISTEN/UNTALK.
+    if (!prevAtnLow && atnLineLow)
+    {
+        d1581mem.getCIA().primeAtnLevel(true);
+
+        shiftReg      = 0;
+        bitsProcessed = 0;
+    }
 }
 
 void D1581::clkChanged(bool clkLow)
