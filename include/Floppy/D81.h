@@ -42,6 +42,9 @@ class D81 : public CBMImage
 
         // Image validators
         bool validateDiskImage() override;
+
+        bool allocateSector(uint8_t& outTrack, uint8_t& outSector) override;
+        void freeSector(uint8_t track, uint8_t sector) override;
 };
 
 #endif // D81_H

@@ -40,7 +40,10 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     reset();
 }
 
-D1581::~D1581() = default;
+D1581::~D1581()
+{
+    flushAndSaveDisk();
+}
 
 void D1581::saveState(StateWriter& wrtr) const
 {
@@ -245,6 +248,8 @@ void D1581::syncTrackFromFDC()
 
 void D1581::unloadDisk()
 {
+    flushAndSaveDisk();
+
     diskImage.reset();
     diskLoaded = false;
     loadedDiskName.clear();
@@ -375,8 +380,28 @@ void D1581::updateIRQ()
 
 bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
 {
+#ifdef Debug
+    std::cout << "[D1581 FDC READ REQUEST] "
+              << "fdcTrack=" << int(track)
+              << " fdcSector=" << int(sector)
+              << " side=" << int(getCurrentSide() & 1)
+              << " size=" << length
+              << " diskLoaded=" << diskLoaded
+              << "\n";
+#endif
+
     if (!diskLoaded || !diskImage || !buffer || length == 0)
     {
+#ifdef Debug
+        std::cout << "[D1581 FDC READ FAIL] "
+                  << "reason=no-disk-or-bad-buffer "
+                  << "diskLoaded=" << diskLoaded
+                  << " diskImage=" << (diskImage ? 1 : 0)
+                  << " buffer=" << (buffer ? 1 : 0)
+                  << " length=" << length
+                  << "\n";
+#endif
+
         lastError = DriveError::NO_DISK;
         currentDriveStatus = DriveStatus::ERROR;
         activityLedOn = false;
@@ -392,21 +417,54 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     uint8_t logicalSector1 = 0;
 
     if (!mapFdcSectorToD81Sectors(getCurrentSide() & 1,
-                              sector,
-                              logicalSector0,
-                              logicalSector1))
+                                  sector,
+                                  logicalSector0,
+                                  logicalSector1))
     {
+#ifdef Debug
+        std::cout << "[D1581 FDC READ FAIL] "
+                  << "reason=bad-fdc-sector "
+                  << "fdcTrack=" << int(track)
+                  << " fdcSector=" << int(sector)
+                  << " side=" << int(getCurrentSide() & 1)
+                  << "\n";
+#endif
+
         lastError = DriveError::BAD_SECTOR;
         currentDriveStatus = DriveStatus::ERROR;
         activityLedOn = false;
         return false;
     }
 
+#ifdef Debug
+    std::cout << "[D1581 D81 MAP READ] "
+              << "fdcTrack=" << int(track)
+              << " -> d81Track=" << int(d81Track)
+              << " side=" << int(getCurrentSide() & 1)
+              << " fdcSector=" << int(sector)
+              << " -> d81Sectors="
+              << int(logicalSector0)
+              << ","
+              << int(logicalSector1)
+              << "\n";
+#endif
+
     auto part0 = diskImage->readSector(static_cast<uint8_t>(d81Track), logicalSector0);
     auto part1 = diskImage->readSector(static_cast<uint8_t>(d81Track), logicalSector1);
 
     if (part0.empty() || part1.empty())
     {
+#ifdef Debug
+        std::cout << "[D1581 FDC READ FAIL] "
+                  << "reason=d81-read-empty "
+                  << "d81Track=" << int(d81Track)
+                  << " logicalSector0=" << int(logicalSector0)
+                  << " size0=" << part0.size()
+                  << " logicalSector1=" << int(logicalSector1)
+                  << " size1=" << part1.size()
+                  << "\n";
+#endif
+
         lastError = DriveError::BAD_SECTOR;
         currentDriveStatus = DriveStatus::ERROR;
         activityLedOn = false;
@@ -418,9 +476,11 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     const size_t copy0 = std::min<size_t>(part0.size(), std::min<size_t>(256, length));
     std::memcpy(buffer, part0.data(), copy0);
 
+    size_t copy1 = 0;
+
     if (length > 256)
     {
-        const size_t copy1 = std::min<size_t>(part1.size(), std::min<size_t>(256, length - 256));
+        copy1 = std::min<size_t>(part1.size(), std::min<size_t>(256, length - 256));
         std::memcpy(buffer + 256, part1.data(), copy1);
     }
 
@@ -429,19 +489,72 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     uiTrack       = track;
     uiSector      = sector;
     lastError     = DriveError::NONE;
+
+#ifdef Debug
+    std::cout << "[D1581 FDC READ OK] "
+              << "fdcTrack=" << int(track)
+              << " fdcSector=" << int(sector)
+              << " side=" << int(getCurrentSide() & 1)
+              << " d81Track=" << int(d81Track)
+              << " d81Sectors=" << int(logicalSector0)
+              << "," << int(logicalSector1)
+              << " copy0=" << copy0
+              << " copy1=" << copy1
+              << " firstBytes=$"
+              << std::hex
+              << int(buffer[0]) << " "
+              << int(length > 1 ? buffer[1] : 0) << " "
+              << int(length > 2 ? buffer[2] : 0) << " "
+              << int(length > 3 ? buffer[3] : 0)
+              << std::dec
+              << "\n";
+#endif
+
     return true;
 }
 
 bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length)
 {
+#ifdef Debug
+    std::cout << "[D1581 FDC WRITE REQUEST] "
+              << "fdcTrack=" << int(track)
+              << " fdcSector=" << int(sector)
+              << " side=" << int(getCurrentSide() & 1)
+              << " size=" << length
+              << " diskLoaded=" << diskLoaded
+              << " writeProtected=" << fdcIsWriteProtected()
+              << "\n";
+#endif
+
     if (!diskLoaded || !diskImage || !buffer || length == 0)
     {
+#ifdef Debug
+        std::cout << "[D1581 FDC WRITE FAIL] "
+                  << "reason=no-disk-or-bad-buffer "
+                  << "diskLoaded=" << diskLoaded
+                  << " diskImage=" << (diskImage ? 1 : 0)
+                  << " buffer=" << (buffer ? 1 : 0)
+                  << " length=" << length
+                  << "\n";
+#endif
+
         lastError = DriveError::NO_DISK;
         return false;
     }
 
     if (fdcIsWriteProtected())
+    {
+#ifdef Debug
+        std::cout << "[D1581 FDC WRITE FAIL] "
+                  << "reason=write-protected "
+                  << "fdcTrack=" << int(track)
+                  << " fdcSector=" << int(sector)
+                  << " side=" << int(getCurrentSide() & 1)
+                  << "\n";
+#endif
+
         return false;
+    }
 
     const uint16_t d81Track = mapFdcTrackToD81Track(track);
 
@@ -453,9 +566,31 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
                                   logicalSector0,
                                   logicalSector1))
     {
+#ifdef Debug
+        std::cout << "[D1581 FDC WRITE FAIL] "
+                  << "reason=bad-fdc-sector "
+                  << "fdcTrack=" << int(track)
+                  << " fdcSector=" << int(sector)
+                  << " side=" << int(getCurrentSide() & 1)
+                  << "\n";
+#endif
+
         lastError = DriveError::BAD_SECTOR;
         return false;
     }
+
+#ifdef Debug
+    std::cout << "[D1581 D81 MAP WRITE] "
+              << "fdcTrack=" << int(track)
+              << " -> d81Track=" << int(d81Track)
+              << " side=" << int(getCurrentSide() & 1)
+              << " fdcSector=" << int(sector)
+              << " -> d81Sectors="
+              << int(logicalSector0)
+              << ","
+              << int(logicalSector1)
+              << "\n";
+#endif
 
     std::vector<uint8_t> part0(256, 0x00);
     std::vector<uint8_t> part1(256, 0x00);
@@ -463,20 +598,50 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
     const size_t copy0 = std::min<size_t>(256, length);
     std::memcpy(part0.data(), buffer, copy0);
 
+    size_t copy1 = 0;
+
     if (length > 256)
     {
-        const size_t copy1 = std::min<size_t>(256, length - 256);
+        copy1 = std::min<size_t>(256, length - 256);
         std::memcpy(part1.data(), buffer + 256, copy1);
     }
 
     const bool ok0 = diskImage->writeSector(static_cast<uint8_t>(d81Track), logicalSector0, part0);
     const bool ok1 = diskImage->writeSector(static_cast<uint8_t>(d81Track), logicalSector1, part1);
 
-    return ok0 && ok1;
+#ifdef Debug
+    std::cout << "[D1581 FDC WRITE RESULT] "
+              << "fdcTrack=" << int(track)
+              << " fdcSector=" << int(sector)
+              << " side=" << int(getCurrentSide() & 1)
+              << " d81Track=" << int(d81Track)
+              << " d81Sectors=" << int(logicalSector0)
+              << "," << int(logicalSector1)
+              << " copy0=" << copy0
+              << " copy1=" << copy1
+              << " ok0=" << ok0
+              << " ok1=" << ok1
+              << "\n";
+#endif
+
+    if (ok0 && ok1)
+    {
+        currentTrack  = track;
+        currentSector = sector;
+        uiTrack       = track;
+        uiSector      = sector;
+        lastError     = DriveError::NONE;
+        return true;
+    }
+
+    lastError = DriveError::BAD_SECTOR;
+    return false;
 }
 
 void D1581::loadDisk(const std::string& path)
 {
+    flushAndSaveDisk();
+
     diskWriteProtected = false;
     auto img = DiskFactory::create(path);
     if (!img)
@@ -525,21 +690,17 @@ bool D1581::mapFdcSectorToD81Sectors(uint8_t side,
                                      uint8_t& logicalSector0,
                                      uint8_t& logicalSector1) const
 {
-    (void)side;
-
-    // 1581 FDC sector IDs are treated as 1-based here.
-    //
-    // One physical FDC sector is 512 bytes.
-    // One D81 logical sector is 256 bytes.
-    //
-    // FDC sector 1  -> D81 sectors 0,1
-    // FDC sector 2  -> D81 sectors 2,3
-    // ...
-    // FDC sector 20 -> D81 sectors 38,39
-    if (fdcSector < 1 || fdcSector > 20)
+    // A 1581 uses 10 physical MFM sectors per track (1-10)
+    if (fdcSector < 1 || fdcSector > 10)
         return false;
 
-    const uint8_t base = static_cast<uint8_t>((fdcSector - 1) * 2);
+    uint8_t base = static_cast<uint8_t>((fdcSector - 1) * 2);
+
+    // If reading Side 1, shift into the upper 20 logical sectors of the D81 track
+    if (side != 0)
+    {
+        base += 20;
+    }
 
     logicalSector0 = base;
     logicalSector1 = static_cast<uint8_t>(base + 1);
@@ -565,5 +726,31 @@ void D1581::getDriveIndicators(std::vector<Indicator>& out) const
 
 void D1581::flushAndSaveDisk()
 {
-    // todo: add code to save to disk
+    if (!diskLoaded || !diskImage)
+        return;
+
+    if (loadedDiskName.empty())
+        return;
+
+    if (!diskImage->isDirty())
+        return;
+
+    if (diskImage->saveDisk(loadedDiskName))
+    {
+        diskImage->clearDirty();
+
+#ifdef Debug
+        std::cout << "[D1581] Saved dirty disk image: "
+                  << loadedDiskName
+                  << "\n";
+#endif
+    }
+    else
+    {
+#ifdef Debug
+        std::cerr << "[D1581] Failed to save dirty disk image: "
+                  << loadedDiskName
+                  << "\n";
+#endif
+    }
 }
