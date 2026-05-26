@@ -303,7 +303,6 @@ void D1581::atnChanged(bool atnLow)
     if (atnLow == atnLineLow)
         return;
 
-    const bool prevAtnLow = atnLineLow;
     atnLineLow = atnLow;
 
     const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
@@ -312,16 +311,6 @@ void D1581::atnChanged(bool atnLow)
                                    clkLineLow,
                                    dataLineLow,
                                    newSrqLow);
-
-    // ATN asserted: this is the start of a new IEC command phase.
-    // Prime/reset the D1581 CIA IEC receiver here, not during UNLISTEN/UNTALK.
-    if (!prevAtnLow && atnLineLow)
-    {
-        d1581mem.getCIA().primeAtnLevel(true);
-
-        shiftReg      = 0;
-        bitsProcessed = 0;
-    }
 }
 
 void D1581::clkChanged(bool clkLow)
@@ -372,10 +361,6 @@ void D1581::onListen()
 void D1581::onUnListen()
 {
     listening = false;
-
-    // Do not carry old secondary address / partial serial state
-    // into the next IEC command.
-    currentSecondaryAddress = 0xFF;
 
     shiftReg      = 0;
     bitsProcessed = 0;
@@ -435,8 +420,6 @@ void D1581::onUnTalk()
 {
     talking = false;
 
-    currentSecondaryAddress = 0xFF;
-
     shiftReg      = 0;
     bitsProcessed = 0;
 
@@ -448,9 +431,6 @@ void D1581::onUnTalk()
     ackHold                     = false;
     byteAckHold                 = false;
     ackDelay                    = 0;
-
-    while (!talkQueue.empty())
-        talkQueue.pop();
 
     peripheralAssertData(false);
     peripheralAssertClk(false);
