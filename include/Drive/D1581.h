@@ -193,6 +193,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool uiLedWasOn;
         bool powerLedOn;
         bool activityLedOn;
+        mutable uint32_t activityPulseFrames;
+
+        void pulseDiskActivity(uint8_t track, uint8_t sector);
 
         void resetForMediaChange();
         void syncLiveIECInputs();

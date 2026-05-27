@@ -25,7 +25,8 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     uiSector(0),
     uiLedWasOn(false),
     powerLedOn(false),
-    activityLedOn(false)
+    activityLedOn(false),
+    activityPulseFrames(0)
 {
     setDeviceNumber(deviceNumber);
     d1581mem.attachPeripheralInstance(this);
@@ -251,15 +252,15 @@ void D1581::tick(uint32_t cycles)
 
         Drive::tick(1);
 
-        const bool ledOn = activityLedOn;
+        const bool visibleActivity = activityLedOn || activityPulseFrames > 0;
 
-        if (ledOn)
-            uiTrack = currentTrack;
-
-        if (ledOn && !uiLedWasOn)
+        if (visibleActivity)
+        {
+            uiTrack  = currentTrack;
             uiSector = currentSector;
+        }
 
-        uiLedWasOn = ledOn;
+        uiLedWasOn = visibleActivity;
     }
 }
 
@@ -462,35 +463,13 @@ void D1581::updateIRQ()
 
 bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
 {
-#ifdef Debug
-    std::cout << "[D1581 FDC READ REQUEST] "
-              << "fdcTrack=" << int(track)
-              << " fdcSector=" << int(sector)
-              << " side=" << int(getCurrentSide() & 1)
-              << " size=" << length
-              << " diskLoaded=" << diskLoaded
-              << "\n";
-#endif
-
     if (!diskLoaded || !diskImage || !buffer || length == 0)
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC READ FAIL] "
-                  << "reason=no-disk-or-bad-buffer "
-                  << "diskLoaded=" << diskLoaded
-                  << " diskImage=" << (diskImage ? 1 : 0)
-                  << " buffer=" << (buffer ? 1 : 0)
-                  << " length=" << length
-                  << "\n";
-#endif
-
         lastError = DriveError::NO_DISK;
         currentDriveStatus = DriveStatus::ERROR;
-        activityLedOn = false;
         return false;
     }
 
-    activityLedOn = true;
     currentDriveStatus = DriveStatus::READING;
 
     const uint16_t d81Track = mapFdcTrackToD81Track(track);
@@ -503,53 +482,19 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
                                   logicalSector0,
                                   logicalSector1))
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC READ FAIL] "
-                  << "reason=bad-fdc-sector "
-                  << "fdcTrack=" << int(track)
-                  << " fdcSector=" << int(sector)
-                  << " side=" << int(getCurrentSide() & 1)
-                  << "\n";
-#endif
-
         lastError = DriveError::BAD_SECTOR;
         currentDriveStatus = DriveStatus::ERROR;
-        activityLedOn = false;
         return false;
     }
-
-#ifdef Debug
-    std::cout << "[D1581 D81 MAP READ] "
-              << "fdcTrack=" << int(track)
-              << " -> d81Track=" << int(d81Track)
-              << " side=" << int(getCurrentSide() & 1)
-              << " fdcSector=" << int(sector)
-              << " -> d81Sectors="
-              << int(logicalSector0)
-              << ","
-              << int(logicalSector1)
-              << "\n";
-#endif
 
     auto part0 = diskImage->readSector(static_cast<uint8_t>(d81Track), logicalSector0);
     auto part1 = diskImage->readSector(static_cast<uint8_t>(d81Track), logicalSector1);
 
     if (part0.empty() || part1.empty())
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC READ FAIL] "
-                  << "reason=d81-read-empty "
-                  << "d81Track=" << int(d81Track)
-                  << " logicalSector0=" << int(logicalSector0)
-                  << " size0=" << part0.size()
-                  << " logicalSector1=" << int(logicalSector1)
-                  << " size1=" << part1.size()
-                  << "\n";
-#endif
 
         lastError = DriveError::BAD_SECTOR;
         currentDriveStatus = DriveStatus::ERROR;
-        activityLedOn = false;
         return false;
     }
 
@@ -566,57 +511,24 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
         std::memcpy(buffer + 256, part1.data(), copy1);
     }
 
-    currentTrack        = track;
-    currentSector       = sector;
-    uiTrack             = track;
-    uiSector            = sector;
+    pulseDiskActivity(track, sector);
+
     lastError           = DriveError::NONE;
     currentDriveStatus  = DriveStatus::IDLE;
-    activityLedOn       = false;
 
     return true;
 }
 
 bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length)
 {
-#ifdef Debug
-    std::cout << "[D1581 FDC WRITE REQUEST] "
-              << "fdcTrack=" << int(track)
-              << " fdcSector=" << int(sector)
-              << " side=" << int(getCurrentSide() & 1)
-              << " size=" << length
-              << " diskLoaded=" << diskLoaded
-              << " writeProtected=" << fdcIsWriteProtected()
-              << "\n";
-#endif
-
     if (!diskLoaded || !diskImage || !buffer || length == 0)
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC WRITE FAIL] "
-                  << "reason=no-disk-or-bad-buffer "
-                  << "diskLoaded=" << diskLoaded
-                  << " diskImage=" << (diskImage ? 1 : 0)
-                  << " buffer=" << (buffer ? 1 : 0)
-                  << " length=" << length
-                  << "\n";
-#endif
-
         lastError = DriveError::NO_DISK;
         return false;
     }
 
     if (fdcIsWriteProtected())
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC WRITE FAIL] "
-                  << "reason=write-protected "
-                  << "fdcTrack=" << int(track)
-                  << " fdcSector=" << int(sector)
-                  << " side=" << int(getCurrentSide() & 1)
-                  << "\n";
-#endif
-
         return false;
     }
 
@@ -625,36 +537,11 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
     uint8_t logicalSector0 = 0;
     uint8_t logicalSector1 = 0;
 
-    if (!mapFdcSectorToD81Sectors(getCurrentSide() & 1,
-                                  sector,
-                                  logicalSector0,
-                                  logicalSector1))
+    if (!mapFdcSectorToD81Sectors(getCurrentSide() & 1, sector, logicalSector0, logicalSector1))
     {
-#ifdef Debug
-        std::cout << "[D1581 FDC WRITE FAIL] "
-                  << "reason=bad-fdc-sector "
-                  << "fdcTrack=" << int(track)
-                  << " fdcSector=" << int(sector)
-                  << " side=" << int(getCurrentSide() & 1)
-                  << "\n";
-#endif
-
         lastError = DriveError::BAD_SECTOR;
         return false;
     }
-
-#ifdef Debug
-    std::cout << "[D1581 D81 MAP WRITE] "
-              << "fdcTrack=" << int(track)
-              << " -> d81Track=" << int(d81Track)
-              << " side=" << int(getCurrentSide() & 1)
-              << " fdcSector=" << int(sector)
-              << " -> d81Sectors="
-              << int(logicalSector0)
-              << ","
-              << int(logicalSector1)
-              << "\n";
-#endif
 
     std::vector<uint8_t> part0(256, 0x00);
     std::vector<uint8_t> part1(256, 0x00);
@@ -673,30 +560,12 @@ bool D1581::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
     const bool ok0 = diskImage->writeSector(static_cast<uint8_t>(d81Track), logicalSector0, part0);
     const bool ok1 = diskImage->writeSector(static_cast<uint8_t>(d81Track), logicalSector1, part1);
 
-#ifdef Debug
-    std::cout << "[D1581 FDC WRITE RESULT] "
-              << "fdcTrack=" << int(track)
-              << " fdcSector=" << int(sector)
-              << " side=" << int(getCurrentSide() & 1)
-              << " d81Track=" << int(d81Track)
-              << " d81Sectors=" << int(logicalSector0)
-              << "," << int(logicalSector1)
-              << " copy0=" << copy0
-              << " copy1=" << copy1
-              << " ok0=" << ok0
-              << " ok1=" << ok1
-              << "\n";
-#endif
-
     if (ok0 && ok1)
     {
-        currentTrack        = track;
-        currentSector       = sector;
-        uiTrack             = track;
-        uiSector            = sector;
+        pulseDiskActivity(track, sector);
+
         lastError           = DriveError::NONE;
         currentDriveStatus  = DriveStatus::IDLE;
-        activityLedOn       = false;
         return true;
     }
 
@@ -732,14 +601,15 @@ void D1581::loadDisk(const std::string& path)
     resetForMediaChange();
 
     // Success load it
-    diskImage       = std::move(img);
-    diskLoaded      = true;
-    loadedDiskName  = path;
-    lastError       = DriveError::NONE;
-    activityLedOn   = false;
-    uiLedWasOn      = false;
-    uiTrack         = currentTrack;
-    uiSector        = currentSector;
+    diskImage           = std::move(img);
+    diskLoaded          = true;
+    loadedDiskName      = path;
+    lastError           = DriveError::NONE;
+    activityLedOn       = false;
+    activityPulseFrames = 0;
+    uiLedWasOn          = false;
+    uiTrack             = currentTrack;
+    uiSector            = currentSector;
 
     forceSyncIEC();
     updateIRQ();
@@ -785,9 +655,12 @@ void D1581::getDriveIndicators(std::vector<Indicator>& out) const
 
     Indicator act;
     act.name = "ACT";
-    act.on = isActivityLedOn();
+    act.on = activityLedOn || activityPulseFrames > 0;
     act.color = IDriveIndicatorView::DriveIndicatorColor::Green;
     out.push_back(std::move(act));
+
+    if (activityPulseFrames > 0)
+        --activityPulseFrames;
 }
 
 void D1581::flushAndSaveDisk()
@@ -821,6 +694,19 @@ void D1581::flushAndSaveDisk()
     }
 }
 
+void D1581::pulseDiskActivity(uint8_t track, uint8_t sector)
+{
+    currentTrack  = track;
+    currentSector = sector;
+
+    uiTrack  = track;
+    uiSector = sector;
+
+    // UI poll frames, not emulated drive cycles.
+    // 80 gives a visible activity lamp during 1581 loads.
+    activityPulseFrames = 80;
+}
+
 void D1581::resetForMediaChange()
 {
     // IEC line levels
@@ -851,15 +737,17 @@ void D1581::resetForMediaChange()
     while (!talkQueue.empty())
         talkQueue.pop();
 
-    currentDriveBusState = DriveBusState::IDLE;
-    currentDriveStatus   = DriveStatus::IDLE;
-    lastError            = DriveError::NONE;
+    currentDriveBusState        = DriveBusState::IDLE;
+    currentDriveStatus          = DriveStatus::IDLE;
+    lastError                   = DriveError::NONE;
 
     // Runtime/UI
-    activityLedOn = false;
-    uiLedWasOn    = false;
-    uiTrack       = currentTrack;
-    uiSector      = currentSector;
+    activityLedOn               = false;
+    activityPulseFrames         = 0;
+    uiLedWasOn                  = false;
+    uiTrack                     = currentTrack;
+    uiSector                    = currentSector;
+    activityPulseFrames         = 0;
 
     // Release actual IEC outputs
     peripheralAssertClk(false);
