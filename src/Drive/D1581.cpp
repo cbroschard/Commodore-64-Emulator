@@ -574,48 +574,6 @@ bool D1581::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     currentDriveStatus  = DriveStatus::IDLE;
     activityLedOn       = false;
 
-#ifdef Debug
-    std::cout << "[D1581 FDC READ OK] "
-              << "fdcTrack=" << int(track)
-              << " fdcSector=" << int(sector)
-              << " side=" << int(getCurrentSide() & 1)
-              << " d81Track=" << int(d81Track)
-              << " d81Sectors=" << int(logicalSector0)
-              << "," << int(logicalSector1)
-              << " copy0=" << copy0
-              << " copy1=" << copy1
-              << " firstBytes=$"
-              << std::hex
-              << int(buffer[0]) << " "
-              << int(length > 1 ? buffer[1] : 0) << " "
-              << int(length > 2 ? buffer[2] : 0) << " "
-              << int(length > 3 ? buffer[3] : 0)
-              << std::dec
-              << "\n";
-#endif
-
-#ifdef Debug
-if (d81Track == 40 && sector == 2 && (getCurrentSide() & 1) == 0 && length >= 288)
-{
-    std::cout << "[D1581 DIR PHYSICAL READ CHECK] "
-              << "fdcTrack=" << int(track)
-              << " fdcSector=" << int(sector)
-              << " logicalSectors=" << int(logicalSector0)
-              << "," << int(logicalSector1)
-              << "\n";
-
-    std::cout << "  first half [0..31] = $";
-    for (int i = 0; i < 32; ++i)
-        std::cout << std::hex << int(buffer[i]) << " ";
-    std::cout << "\n";
-
-    std::cout << "  second half [256..287] = $";
-    for (int i = 256; i < 288; ++i)
-        std::cout << std::hex << int(buffer[i]) << " ";
-    std::cout << std::dec << "\n";
-}
-#endif
-
     return true;
 }
 
