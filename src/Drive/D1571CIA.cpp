@@ -82,3 +82,11 @@ D1571* D1571CIA::drive() const
 {
     return parentPeripheral ? static_cast<D1571*>(parentPeripheral) : nullptr;
 }
+
+DriveCIABase::ciaIECDecodeView D1571CIA::getIECDecodeView() const
+{
+    DriveCIABase::ciaIECDecodeView v;
+    v.available = false;
+    v.modelName = "1571";
+    return v;
+}
