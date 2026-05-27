@@ -15,7 +15,10 @@ D1571VIA::D1571VIA() :
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
-    mechBytePending(false)
+    mechBytePending(false),
+    atnAckArmed(false),
+    atnAckLatch(false),
+    prevAtnAckClear(false)
 {
     reset();
 }
@@ -38,6 +41,11 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
+
+    // ATN Ack
+    wrtr.writeBool(atnAckArmed);
+    wrtr.writeBool(atnAckLatch);
+    wrtr.writeBool(prevAtnAckClear);
 }
 
 bool D1571VIA::loadState(StateReader& rdr)
@@ -61,6 +69,11 @@ bool D1571VIA::loadState(StateReader& rdr)
     if (!rdr.readBool(syncDetected)) return false;
     if (!rdr.readU8(mechDataLatch)) return false;
     if (!rdr.readBool(mechBytePending)) return false;
+
+    // ATN Ack
+    if (!rdr.readBool(atnAckArmed)) return false;
+    if (!rdr.readBool(atnAckLatch)) return false;
+    if (!rdr.readBool(prevAtnAckClear)) return false;
 
     // Post-restore fixups / derived state
     applyPortAOutputs(registers.oraIRA);
@@ -559,26 +572,74 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
-    // remember previous ATN state as seen on PB7
     bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    bool prevClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
 
     uint8_t pins = portBPins;
 
-    if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT); // Bus Low -> Pin High
-    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT); // Bus High -> Pin Low
+    if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT);
+    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT);
 
-    if (clkLow)  pins |= (uint8_t) (1u << IEC_CLK_IN_BIT);  // Bus Low -> Pin High
-    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);  // Bus High -> Pin Low
+    if (clkLow)  pins |= (uint8_t) (1u << IEC_CLK_IN_BIT);
+    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);
 
     if (atnLow)  pins |= (uint8_t) (1u << IEC_ATN_IN_BIT);
     else         pins &= (uint8_t)~(1u << IEC_ATN_IN_BIT);
 
     portBPins = pins;
 
-    bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0); // Active is High at Pin
+    bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    bool newClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
 
-    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus && (newAtnLow != prevAtnLow))
-        updateIECOutputsFromPortB();
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
+    {
+        const bool atnFallingEdge = !prevAtnLow && newAtnLow; // Host asserts ATN
+        const bool atnRisingEdge  = prevAtnLow && !newAtnLow; // Host releases ATN
+        const bool clkRisingEdge  = prevClkLow && !newClkLow; // Host releases CLK
+
+        if (atnFallingEdge)
+        {
+            if (!isAtnAckClearAsserted())
+            {
+                atnAckLatch = true;
+                atnAckArmed = true;
+            }
+            else
+            {
+                atnAckLatch = false;
+                atnAckArmed = false;
+            }
+        }
+
+        if (atnRisingEdge)
+        {
+            atnAckLatch = false;
+            atnAckArmed = false;
+        }
+
+        if (newAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
+        {
+            atnAckLatch = true;
+            atnAckArmed = false;
+        }
+
+        if (atnFallingEdge || atnRisingEdge || clkRisingEdge)
+        {
+            updateIECOutputsFromPortB();
+        }
+    }
+}
+
+bool D1571VIA::isAtnAckClearAsserted() const
+{
+    const uint8_t ddrB = registers.ddrB;
+    const uint8_t orb  = registers.orbIRB;
+
+    const bool pb4IsOutput = (ddrB & (1u << IEC_ATN_ACK_BIT)) != 0;
+    const bool pb4High     = (orb  & (1u << IEC_ATN_ACK_BIT)) != 0;
+
+    if (!pb4IsOutput) return true; // Input (Float High) -> Assert Clear
+    return pb4High;                // Output -> Assert Clear if High
 }
 
 void D1571VIA::updateIECOutputsFromPortB()
@@ -594,27 +655,28 @@ void D1571VIA::updateIECOutputsFromPortB()
     bool dataLow = false;
     bool clkLow  = false;
 
-    // Output logic: Inverted Open Collector buffers (7406).
-    // VIA Output '1' -> Buffer Input '1' -> Buffer Output '0' (Low/Active).
-    // VIA Output '0' -> Buffer Input '0' -> Buffer Output High-Z (Released).
-
     if (ddrB & (1u << IEC_DATA_OUT_BIT))
         dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
 
     if (ddrB & (1u << IEC_CLK_OUT_BIT))
         clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
 
-    // ATN Input bit (Bit 7, PB7 or similar)
-    bool atnAsserted = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    const bool atnAckClearActive = isAtnAckClearAsserted();
 
-    bool atnAckAuto = false;
-    if (ddrB & (1u << IEC_ATN_ACK_BIT))
-        atnAckAuto = ((orb & (1u << IEC_ATN_ACK_BIT)) == 0);
+    // LEVEL-SENSITIVE: if clear is asserted, latch cannot be set.
+    if (atnAckClearActive)
+    {
+        atnAckLatch = false;
+        atnAckArmed = false;
+    }
 
-    if (atnAsserted && atnAckAuto)
-        dataLow = true; // force DATA low as the acknowledge
+    prevAtnAckClear = atnAckClearActive;
 
-    d1571->peripheralAssertData(dataLow);
+    // DATA is LOW if either the ATN acknowledge latch is set,
+    // or the VIA is actively driving DATA low.
+    const bool finalDataLow = atnAckLatch || dataLow;
+
+    d1571->peripheralAssertData(finalDataLow);
     d1571->peripheralAssertClk(clkLow);
 }
 

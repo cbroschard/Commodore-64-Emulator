@@ -102,6 +102,12 @@ class D1571VIA : public DriveVIA6522
         uint8_t mechDataLatch;
         bool    mechBytePending;
 
+        bool atnAckArmed;
+        bool atnAckLatch;
+        bool prevAtnAckClear;
+
+        bool isAtnAckClearAsserted() const;
+
         // Helper
         void updateIECOutputsFromPortB();
         void recomputeDiskWriteGate();
