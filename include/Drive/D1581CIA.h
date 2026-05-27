@@ -27,6 +27,9 @@ class D1581CIA : public DriveCIA
         void setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow);
         void primeAtnLevel(bool atnLow);
 
+        // ML Monitor
+        ciaIECDecodeView getIECDecodeView() const override;
+
     protected:
         void portAOutputChanged(uint8_t pra, uint8_t ddra) override;
         void portBOutputChanged(uint8_t prb, uint8_t ddrb) override;
