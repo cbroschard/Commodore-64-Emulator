@@ -29,6 +29,7 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
 {
     setDeviceNumber(deviceNumber);
     d1581mem.attachPeripheralInstance(this);
+    d1581mem.attachCPUInstance(&driveCPU);
     driveCPU.attachMemoryInstance(&d1581mem);
     driveCPU.attachIRQLineInstance(&irq);
 
@@ -300,35 +301,20 @@ void D1581::forceSyncIEC()
 
 void D1581::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow)
-        return;
-
-    atnLineLow = atnLow;
-
-    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
-
-    d1581mem.getCIA().setIECInputs(atnLineLow,
-                                   clkLineLow,
-                                   dataLineLow,
-                                   newSrqLow);
+    (void)atnLow;
+    syncLiveIECInputs();
 }
 
 void D1581::clkChanged(bool clkLow)
 {
-    if (clkLow == clkLineLow) return;
-
-    clkLineLow = clkLow;
-    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
+    (void)clkLow;
+    syncLiveIECInputs();
 }
 
 void D1581::dataChanged(bool dataLow)
 {
-    if (dataLow == dataLineLow) return;
-
-    dataLineLow = dataLow;
-    const bool newSrqLow = bus ? !bus->readSrqLine() : srqAsserted;
-    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, newSrqLow);
+    (void)dataLow;
+    syncLiveIECInputs();
 }
 
 void D1581::onListen()
@@ -935,4 +921,17 @@ void D1581::resetForMediaChange()
 
     forceSyncIEC();
     updateIRQ();
+}
+
+void D1581::syncLiveIECInputs()
+{
+    if (!bus)
+        return;
+
+    atnLineLow  = !bus->readAtnLine();
+    clkLineLow  = !bus->readClkLine();
+    dataLineLow = !bus->readDataLine();
+    srqAsserted = !bus->readSrqLine();
+
+    d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
 }

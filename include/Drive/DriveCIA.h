@@ -36,6 +36,8 @@ class DriveCIA : public DriveCIABase
         inline bool checkIRQActive() const { return (interruptStatus & registers.interruptEnable & 0x1F) != 0; }
 
         // ML Monitor
+        inline uint8_t getPortAPinsDebug() const { return portAPins; }
+        inline uint8_t getPortBPinsDebug() const { return portBPins; }
         inline ciaRegsView getRegsView() const override
         {
             return
@@ -44,6 +46,7 @@ class DriveCIA : public DriveCIABase
                     registers.portB,
                     registers.ddrA,
                     registers.ddrB,
+                    interruptStatus,
                     registers.timerALowByte,
                     registers.timerAHighByte,
                     registers.timerBLowByte,
@@ -77,6 +80,9 @@ class DriveCIA : public DriveCIABase
         virtual void portAOutputChanged(uint8_t pra, uint8_t ddra);
         virtual void portBOutputChanged(uint8_t prb, uint8_t ddrb);
         virtual void irqLineChanged(bool active);
+        virtual void serialOutputBit(bool bit) { (void)bit; }
+        virtual void serialOutputClockPulse() {}
+        virtual void serialOutputFinished() {}
 
     private:
         // CRA ($0E)
@@ -167,6 +173,7 @@ class DriveCIA : public DriveCIABase
         bool lastSpLevel;
         uint8_t serialShiftRegister;
         uint8_t serialBitCount;
+        bool serialOutputLoaded;
 
         void handleSerialInputEdge(bool oldCntLevel, bool newCntLevel, bool newSpLevel);
 };

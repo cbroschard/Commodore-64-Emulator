@@ -9,6 +9,7 @@
 #define D1581MEMORY_H
 
 // Forward declarations
+class CPU;
 class D1581;
 
 #include <algorithm>
@@ -32,6 +33,8 @@ class D1581Memory : public DriveMemoryBase
         virtual ~D1581Memory();
 
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
+        inline void attachCPUInstance(CPU* driveCPU) { this->driveCPU = driveCPU; }
+        uint8_t debugPeekRAM(uint16_t address) const;
         void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         // State Management
@@ -59,6 +62,7 @@ class D1581Memory : public DriveMemoryBase
     protected:
 
     private:
+        CPU* driveCPU;
 
         // Chips
         D1581CIA cia;

@@ -35,7 +35,7 @@ void D1581CIA::reset()
     updating     = false;
 
     setPortAPins(0xFF);
-    setPortBPins(makePortBPins());
+    setPortBPins(0xFF);
 }
 
 void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow)
@@ -61,15 +61,23 @@ void D1581CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow)
         lastAtnLow = iecAtnInLow;
     }
 
-    updateInputPins();
-
-    // SP is serial data.
     setSPLine(!iecDataInLow);
-
-    // CNT is SRQ, not CLK.
     setCNTLine(!iecSrqInLow);
 
+    refreshIECPortState();
+}
+
+void D1581CIA::refreshIECPortState()
+{
+    if (updating)
+        return;
+
+    updating = true;
+
     applyIECOutputs();
+    updateInputPins();
+
+    updating = false;
 }
 
 void D1581CIA::primeAtnLevel(bool atnLow)
@@ -81,31 +89,11 @@ uint8_t D1581CIA::makePortBPins() const
 {
     uint8_t pins = 0xFF;
 
-    const uint8_t prb  = getPortBOutputRegister();
-    const uint8_t ddrb = getDDRB();
-
-    const bool busDirOutput =
-        ((ddrb & PRB_BUSDIR) != 0) &&
-        ((prb  & PRB_BUSDIR) == 0);
-
-    const bool atnAckDataLow =
-        ((ddrb & PRB_ATNACK) != 0) &&
-        ((prb  & PRB_ATNACK) != 0) &&
-        iecAtnInLow;
-
-    const bool datOutAssertLow =
-        busDirOutput &&
-        ((ddrb & PRB_DATOUT) != 0) &&
-        ((prb  & PRB_DATOUT) != 0);
-
-    const bool clkOutAssertLow =
-        busDirOutput &&
-        ((ddrb & PRB_CLKOUT) != 0) &&
-        ((prb  & PRB_CLKOUT) != 0);
+    const auto o = decodeIECOutputs();
 
     const bool resolvedAtnLow  = iecAtnInLow;
-    const bool resolvedClkLow  = iecClkInLow  || clkOutAssertLow;
-    const bool resolvedDataLow = iecDataInLow || atnAckDataLow || datOutAssertLow;
+    const bool resolvedClkLow  = iecClkInLow  || o.clkOutAssertLow;
+    const bool resolvedDataLow = iecDataInLow || o.atnAckDataLow || o.datOutAssertLow;
 
     if (resolvedAtnLow)
         pins |= PRB_ATNIN;
@@ -172,32 +160,10 @@ void D1581CIA::applyIECOutputs()
     if (!d)
         return;
 
-    const uint8_t prb  = getPortBOutputRegister();
-    const uint8_t ddrb = getDDRB();
+    const auto o = decodeIECOutputs();
 
-    // PB5 appears to be the IEC output enable / direction control.
-    // Without this gate, DATOUT/CLKOUT can clamp the IEC bus.
-    const bool busDirOutput =
-        ((ddrb & PRB_BUSDIR) != 0) &&
-        ((prb  & PRB_BUSDIR) == 0);
-
-    const bool atnAckDataLow =
-        ((ddrb & PRB_ATNACK) != 0) &&
-        ((prb  & PRB_ATNACK) != 0) &&
-        iecAtnInLow;
-
-    const bool datOutAssertLow =
-        busDirOutput &&
-        ((ddrb & PRB_DATOUT) != 0) &&
-        ((prb  & PRB_DATOUT) != 0);
-
-    const bool clkOutAssertLow =
-        busDirOutput &&
-        ((ddrb & PRB_CLKOUT) != 0) &&
-        ((prb  & PRB_CLKOUT) != 0);
-
-    d->peripheralAssertData(atnAckDataLow || datOutAssertLow);
-    d->peripheralAssertClk(clkOutAssertLow);
+    d->peripheralAssertData(o.finalDataLow);
+    d->peripheralAssertClk(o.finalClkLow);
 }
 
 void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
@@ -226,22 +192,16 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
         const bool ledOn = (pra & PRA_ACTLED) == 0;
         d->setActivityLed(ledOn);
     }
+
+    refreshIECPortState();
 }
 
 void D1581CIA::portBOutputChanged(uint8_t prb, uint8_t ddrb)
 {
-    if (updating)
-        return;
-
-    updating = true;
-
     (void)prb;
     (void)ddrb;
 
-    applyIECOutputs();
-    setPortBPins(makePortBPins());
-
-    updating = false;
+    refreshIECPortState();
 }
 
 void D1581CIA::irqLineChanged(bool active)
@@ -250,6 +210,33 @@ void D1581CIA::irqLineChanged(bool active)
 
     if (auto* d = drive())
         d->updateIRQ();
+}
+
+void D1581CIA::serialOutputBit(bool bit)
+{
+    // Diagnostic first:
+    // bit=true/false is the MSB-first byte from $400C.
+    // Do not drive lines yet until we verify polarity.
+#ifdef Debug
+    std::cout << "[1581 CIA SERIAL BIT] bit=" << (bit ? 1 : 0)
+              << " PR=$" << hex2(getPortBOutputRegister())
+              << " DDR=$" << hex2(getDDRB())
+              << "\n";
+#endif
+}
+
+void D1581CIA::serialOutputClockPulse()
+{
+#ifdef Debug
+    std::cout << "[1581 CIA SERIAL CLK]\n";
+#endif
+}
+
+void D1581CIA::serialOutputFinished()
+{
+#ifdef Debug
+    std::cout << "[1581 CIA SERIAL DONE]\n";
+#endif
 }
 
 D1581* D1581CIA::drive() const
@@ -267,29 +254,22 @@ DriveCIABase::ciaIECDecodeView D1581CIA::getIECDecodeView() const
     v.pr  = getPortBOutputRegister();
     v.ddr = getDDRB();
 
+    v.rawPortAPins = getPortAPinsDebug();
+    v.rawPortBPins = getPortBPinsDebug();
+
     v.atnInLow  = iecAtnInLow;
     v.clkInLow  = iecClkInLow;
     v.dataInLow = iecDataInLow;
     v.srqInLow  = iecSrqInLow;
 
-    v.busDirOutput =
-        ((v.ddr & PRB_BUSDIR) != 0) &&
-        ((v.pr  & PRB_BUSDIR) == 0);
+    const auto o = decodeIECOutputs();
 
-    v.atnAckDataLow =
-        ((v.ddr & PRB_ATNACK) != 0) &&
-        ((v.pr  & PRB_ATNACK) != 0) &&
-        iecAtnInLow;
-
-    v.datOutAssertLow =
-        v.busDirOutput &&
-        ((v.ddr & PRB_DATOUT) != 0) &&
-        ((v.pr  & PRB_DATOUT) != 0);
-
-    v.clkOutAssertLow =
-        v.busDirOutput &&
-        ((v.ddr & PRB_CLKOUT) != 0) &&
-        ((v.pr  & PRB_CLKOUT) != 0);
+    v.busDirOutput    = o.busDirOutput;
+    v.atnAckDataLow   = o.atnAckDataLow;
+    v.datOutAssertLow = o.datOutAssertLow;
+    v.clkOutAssertLow = o.clkOutAssertLow;
+    v.finalDataLow    = o.finalDataLow;
+    v.finalClkLow     = o.finalClkLow;
 
     v.resolvedAtnLow  = iecAtnInLow;
     v.resolvedClkLow  = iecClkInLow  || v.clkOutAssertLow;
@@ -298,5 +278,104 @@ DriveCIABase::ciaIECDecodeView D1581CIA::getIECDecodeView() const
     v.finalDataLow = v.atnAckDataLow || v.datOutAssertLow;
     v.finalClkLow  = v.clkOutAssertLow;
 
+    for (int i = 0; i < 8; ++i)
+    {
+        const int src = (iecWriteHistoryPos + i) & 7;
+
+        v.writeHistory[i].valid = iecWriteHistory[src].valid;
+        v.writeHistory[i].pc = iecWriteHistory[src].pc;
+        v.writeHistory[i].retTarget = iecWriteHistory[src].retTarget;
+        v.writeHistory[i].address = iecWriteHistory[src].address;
+        v.writeHistory[i].reg = iecWriteHistory[src].reg;
+        v.writeHistory[i].value = iecWriteHistory[src].value;
+        v.writeHistory[i].prAfter = iecWriteHistory[src].prAfter;
+        v.writeHistory[i].ddrAfter = iecWriteHistory[src].ddrAfter;
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const int src = (iecReadHistoryPos + i) & 7;
+
+        v.readHistory[i].valid = iecReadHistory[src].valid;
+        v.readHistory[i].address = iecReadHistory[src].address;
+        v.readHistory[i].reg = iecReadHistory[src].reg;
+        v.readHistory[i].value = iecReadHistory[src].value;
+        v.readHistory[i].pc = iecReadHistory[src].pc;
+        v.readHistory[i].retTarget = iecReadHistory[src].retTarget;
+    }
+
+    v.sameReadCount = sameReadCount;
+    v.lastReadValue = lastReadValue;
+
     return v;
+}
+
+D1581CIA::IECOutputDecode D1581CIA::decodeIECOutputs() const
+{
+    IECOutputDecode d{};
+
+    const uint8_t prb  = getPortBOutputRegister();
+    const uint8_t ddrb = getDDRB();
+
+    d.busDirOutput =
+        ((ddrb & PRB_BUSDIR) != 0) &&
+        ((prb  & PRB_BUSDIR) == 0);
+
+    d.atnAckDataLow =
+        ((ddrb & PRB_ATNACK) != 0) &&
+        ((prb  & PRB_ATNACK) != 0) &&
+        iecAtnInLow;
+
+    d.datOutAssertLow =
+        d.busDirOutput &&
+       ((ddrb & PRB_DATOUT) != 0) &&
+        ((prb  & PRB_DATOUT) != 0);
+
+    d.clkOutAssertLow =
+        d.busDirOutput &&
+        ((ddrb & PRB_CLKOUT) != 0) &&
+        ((prb  & PRB_CLKOUT) != 0);
+
+    d.finalDataLow = d.atnAckDataLow || d.datOutAssertLow;
+    d.finalClkLow  = d.clkOutAssertLow;
+
+    return d;
+}
+
+void D1581CIA::recordIECWrite(uint16_t pc, uint16_t retTarget, uint16_t address, uint8_t reg, uint8_t value)
+{
+    IECWriteTrace& e = iecWriteHistory[iecWriteHistoryPos];
+
+    e.valid = true;
+    e.pc = pc;
+    e.retTarget = retTarget;
+    e.address = address;
+    e.reg = reg;
+    e.value = value;
+    e.prAfter = getPortBOutputRegister();
+    e.ddrAfter = getDDRB();
+
+    iecWriteHistoryPos = static_cast<uint8_t>((iecWriteHistoryPos + 1) & 15);
+}
+
+void D1581CIA::recordDebugCIARead(uint16_t pc, uint16_t retTarget, uint16_t address, uint8_t reg, uint8_t value)
+{
+    if (value == lastReadValue)
+        ++sameReadCount;
+    else
+    {
+        lastReadValue = value;
+        sameReadCount = 0;
+    }
+
+    IECReadTrace& e = iecReadHistory[iecReadHistoryPos];
+
+    e.valid = true;
+    e.pc = pc;
+    e.retTarget = retTarget;
+    e.address = address;
+    e.reg = reg;
+    e.value = value;
+
+    iecReadHistoryPos = static_cast<uint8_t>((iecReadHistoryPos + 1) & 7);
 }

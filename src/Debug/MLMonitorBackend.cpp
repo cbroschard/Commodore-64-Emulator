@@ -2810,6 +2810,92 @@ void MLMonitorBackend::dumpDriveCIA(int id)
         << std::setw(6) << ""
         << "CRB:              $" << hex2(registers.crb) << "\n";
 
+    oss << "  IFR:              $" << hex2(registers.interruptStatus)
+        << std::setw(6) << ""
+        << "IER:              $" << hex2(registers.ier) << "\n";
+
+    auto iec = cia->getIECDecodeView();
+
+    if (iec.available)
+    {
+        oss << "\n";
+        oss << "CIA IEC Decode (" << iec.modelName << "):\n";
+
+        oss << "  PR:              $" << hex2(iec.pr)
+            << std::setw(6) << ""
+            << "DDR:             $" << hex2(iec.ddr) << "\n";
+
+        oss << "  Raw pins:        "
+            << "PA=$" << hex2(iec.rawPortAPins)
+            << "  PB=$" << hex2(iec.rawPortBPins)
+            << "\n";
+
+        oss << "  Cached inputs:   "
+            << "ATN="  << (iec.atnInLow  ? "L" : "H")
+            << "  CLK=" << (iec.clkInLow  ? "L" : "H")
+            << "  DATA=" << (iec.dataInLow ? "L" : "H")
+            << "  SRQ=" << (iec.srqInLow  ? "L" : "H")
+            << "\n";
+
+        oss << "  Output decode:   "
+            << "busDirOutput=" << iec.busDirOutput
+            << "  atnAckDataLow=" << iec.atnAckDataLow
+            << "  datOutLow=" << iec.datOutAssertLow
+            << "  clkOutLow=" << iec.clkOutAssertLow
+            << "\n";
+
+        oss << "  Resolved pins:   "
+            << "ATN="  << (iec.resolvedAtnLow  ? "L" : "H")
+            << "  CLK=" << (iec.resolvedClkLow  ? "L" : "H")
+            << "  DATA=" << (iec.resolvedDataLow ? "L" : "H")
+            << "\n";
+
+        oss << "  Final outputs:   "
+            << "DATA_low=" << iec.finalDataLow
+            << "  CLK_low=" << iec.finalClkLow
+            << "\n";
+    }
+
+    oss << "  Last IEC writes:\n";
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& w = iec.writeHistory[i];
+
+        if (!w.valid)
+            continue;
+
+        oss << "    PC=$" << hex4(w.pc)
+            << " return=$" << hex4(w.retTarget)
+            << " $" << hex4(w.address)
+            << " reg=" << int(w.reg)
+            << " value=$" << hex2(w.value)
+            << " -> PR=$" << hex2(w.prAfter)
+            << " DDR=$" << hex2(w.ddrAfter)
+            << "\n";
+    }
+
+    oss << "  Last IEC reads:\n";
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& r = iec.readHistory[i];
+
+        if (!r.valid)
+            continue;
+
+        oss << "    PC=$" << hex4(r.pc)
+            << " return=$" << hex4(r.retTarget)
+            << " $" << hex4(r.address)
+            << " reg=" << int(r.reg)
+            << " value=$" << hex2(r.value)
+            << "\n";
+    }
+
+    oss << "  Repeated read:   value=$" << hex2(iec.lastReadValue)
+        << " sameCount=" << iec.sameReadCount
+        << "\n";
+
     std::cout << oss.str();
 }
 

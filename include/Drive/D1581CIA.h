@@ -25,15 +25,23 @@ class D1581CIA : public DriveCIA
         void reset() override;
 
         void setIECInputs(bool atnLow, bool clkLow, bool dataLow, bool srqLow);
+        void refreshIECPortState();
+
         void primeAtnLevel(bool atnLow);
 
         // ML Monitor
         ciaIECDecodeView getIECDecodeView() const override;
+        inline void recordDebugCIAWrite(uint16_t pc, uint16_t retTarget, uint16_t address, uint8_t reg, uint8_t value)
+                                        { recordIECWrite(pc, retTarget, address, reg, value); }
+        void recordDebugCIARead(uint16_t pc, uint16_t retTarget, uint16_t address, uint8_t reg, uint8_t value);
 
     protected:
         void portAOutputChanged(uint8_t pra, uint8_t ddra) override;
         void portBOutputChanged(uint8_t prb, uint8_t ddrb) override;
         void irqLineChanged(bool active) override;
+        void serialOutputBit(bool bit) override;
+        void serialOutputClockPulse() override;
+        void serialOutputFinished() override;
 
     private:
         // Non-owning pointers
@@ -76,6 +84,51 @@ class D1581CIA : public DriveCIA
         void applyIECOutputs();
 
         D1581* drive() const;
+
+        struct IECWriteTrace
+        {
+            bool valid = false;
+            uint16_t pc = 0;
+            uint16_t retTarget = 0xFFFF;
+            uint16_t address = 0;
+            uint8_t reg = 0;
+            uint8_t value = 0;
+            uint8_t prAfter = 0;
+            uint8_t ddrAfter = 0;
+        };
+
+        struct IECReadTrace
+        {
+            bool valid = false;
+            uint16_t pc = 0;
+            uint16_t retTarget = 0;
+            uint16_t address = 0;
+            uint8_t reg = 0;
+            uint8_t value = 0;
+        };
+
+        struct IECOutputDecode
+        {
+            bool busDirOutput = false;
+            bool atnAckDataLow = false;
+            bool datOutAssertLow = false;
+            bool clkOutAssertLow = false;
+            bool finalDataLow = false;
+            bool finalClkLow = false;
+        };
+
+        IECOutputDecode decodeIECOutputs() const;
+
+        IECWriteTrace iecWriteHistory[16]{};
+        uint8_t iecWriteHistoryPos = 0;
+
+        IECReadTrace iecReadHistory[8]{};
+        uint8_t iecReadHistoryPos = 0;
+
+        uint8_t lastReadValue = 0xFF;
+        uint32_t sameReadCount = 0;
+
+        void recordIECWrite(uint16_t pc, uint16_t retTarget, uint16_t address, uint8_t reg, uint8_t value);
 };
 
 #endif // D1581CIA_H

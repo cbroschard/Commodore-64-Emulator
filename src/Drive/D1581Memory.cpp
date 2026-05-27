@@ -9,6 +9,7 @@
 #include "Drive/D1581Memory.h"
 
 D1581Memory::D1581Memory() :
+    driveCPU(nullptr),
     logger(nullptr),
     parentPeripheral(nullptr),
     setLogging(false),
@@ -115,6 +116,14 @@ bool D1581Memory::initialize(const std::string& fileName)
     return true;
 }
 
+uint8_t D1581Memory::debugPeekRAM(uint16_t address) const
+{
+    if (address >= RAM_START && address <= RAM_END)
+        return D1581RAM[address - RAM_START];
+
+    return 0xFF;
+}
+
 uint8_t D1581Memory::read(uint16_t address)
 {
     uint8_t value = lastBus;
@@ -127,6 +136,28 @@ uint8_t D1581Memory::read(uint16_t address)
     {
         const uint16_t reg = (address - CIA_START) & 0x000F;
         value = cia.readRegister(reg);
+
+        if (reg == 1)
+        {
+            const uint16_t pc = driveCPU ? driveCPU->getPC() : 0xFFFF;
+            uint16_t retTarget = 0xFFFF;
+
+            if (driveCPU)
+            {
+                const uint8_t sp = driveCPU->getSP();
+
+                const uint8_t retLo = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 1));
+                const uint8_t retHi = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 2));
+
+                const uint16_t pushedRet =
+                    static_cast<uint16_t>(retLo) |
+                    (static_cast<uint16_t>(retHi) << 8);
+
+                retTarget = static_cast<uint16_t>(pushedRet + 1);
+            }
+
+            cia.recordDebugCIARead(pc, retTarget, address, static_cast<uint8_t>(reg), value);
+        }
     }
     else if (address >= FDC_START && address <= FDC_END)
     {
@@ -152,7 +183,43 @@ void D1581Memory::write(uint16_t address, uint8_t value)
     }
     else if (address >= CIA_START && address <= CIA_END)
     {
-        cia.writeRegister((address - CIA_START) & 0x000F, value);
+        const uint16_t reg = (address - CIA_START) & 0x000F;
+
+        cia.writeRegister(reg, value);
+
+        if (reg == 1 || reg == 3 || reg == 0x0C || reg == 0x0D || reg == 0x0E)
+        {
+            const uint16_t pcAfter = driveCPU ? driveCPU->getPC() : 0xFFFF;
+            const uint16_t opPC =
+                (pcAfter != 0xFFFF)
+                    ? static_cast<uint16_t>(pcAfter - 3)
+                    : 0xFFFF;
+
+            uint16_t retTarget = 0xFFFF;
+
+            if (driveCPU)
+            {
+                const uint8_t sp = driveCPU->getSP();
+
+                const uint8_t retLo =
+                    debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 1));
+
+                const uint8_t retHi =
+                    debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 2));
+
+                const uint16_t pushedRet =
+                    static_cast<uint16_t>(retLo) |
+                    (static_cast<uint16_t>(retHi) << 8);
+
+                retTarget = static_cast<uint16_t>(pushedRet + 1);
+            }
+
+            cia.recordDebugCIAWrite(opPC,
+                                    retTarget,
+                                    address,
+                                    static_cast<uint8_t>(reg),
+                                    value);
+        }
     }
     else if (address >= FDC_START && address <= FDC_END)
     {

@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
 #include <iostream>
 #include "Drive/DriveCIA.h"
 
@@ -21,7 +22,8 @@ DriveCIA::DriveCIA() :
     spLevel(false),
     lastSpLevel(false),
     serialShiftRegister(0x00),
-    serialBitCount(0)
+    serialBitCount(0),
+    serialOutputLoaded(false)
 {
 
 }
@@ -81,6 +83,7 @@ void DriveCIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(lastSpLevel);
     wrtr.writeU8(serialShiftRegister);
     wrtr.writeU8(serialBitCount);
+    wrtr.writeBool(serialOutputLoaded);
 }
 
 bool DriveCIA::loadState(StateReader& rdr)
@@ -144,6 +147,7 @@ bool DriveCIA::loadState(StateReader& rdr)
     if (!rdr.readBool(lastSpLevel)) return false;
     if (!rdr.readU8(serialShiftRegister)) return false;
     if (!rdr.readU8(serialBitCount)) return false;
+    if (!rdr.readBool(serialOutputLoaded)) return false;
 
     // Post-restore fixups
 
@@ -215,6 +219,7 @@ void DriveCIA::reset()
     lastSpLevel                 = false;
     serialShiftRegister         = 0x00;
     serialBitCount              = 0;
+    serialOutputLoaded          = false;
 }
 
 void DriveCIA::tick(uint32_t cycles)
@@ -271,17 +276,22 @@ void DriveCIA::tick(uint32_t cycles)
         // after 8 bits.
         const bool sdrOutputMode = (registers.controlRegisterA & CRA_SPMODE) != 0;
 
-        if (sdrOutputMode && timerAUnderflowThisCycle)
+        if (sdrOutputMode && serialOutputLoaded && timerAUnderflowThisCycle)
         {
-            ++serialBitCount;
+            const bool outBit = (serialShiftRegister & 0x80) != 0;
 
-            // CIA serial output also shifts left.
+            serialOutputBit(outBit);
+            serialOutputClockPulse();
+
             serialShiftRegister = static_cast<uint8_t>(serialShiftRegister << 1);
+            ++serialBitCount;
 
             if (serialBitCount >= 8)
             {
+                serialOutputFinished();
                 triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
                 serialBitCount = 0;
+                serialOutputLoaded = false;
             }
         }
 
@@ -450,9 +460,9 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             registers.serialData = value;
             serialShiftRegister = value;
             serialBitCount = 0;
+            serialOutputLoaded = true;
             lastCntLevel = cntLevel;
             lastSpLevel = spLevel;
-            break;
         }
         case 0x0D:
         {

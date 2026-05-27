@@ -24,6 +24,7 @@ class DriveCIABase
                 const uint8_t& portB;
                 const uint8_t& ddrA;
                 const uint8_t& ddrB;
+                const uint8_t& interruptStatus;
                 const uint8_t& tAL;
                 const uint8_t& tAH;
                 const uint8_t& tBL;
@@ -42,7 +43,70 @@ class DriveCIABase
                 const uint16_t& tbLAT;
             };
 
+            struct ciaIECWriteHistoryEntry
+            {
+                bool valid = false;
+                uint16_t pc = 0xFFFF;
+                uint16_t retTarget = 0xFFFF;
+                uint16_t address = 0;
+                uint8_t reg = 0;
+                uint8_t value = 0;
+                uint8_t prAfter = 0;
+                uint8_t ddrAfter = 0;
+            };
+
+            struct ciaIECReadHistoryEntry
+            {
+                bool valid = false;
+                uint16_t pc = 0xFFFF;
+                uint16_t retTarget = 0xFFFF;
+                uint16_t address = 0;
+                uint8_t reg = 0;
+                uint8_t value = 0;
+            };
+
+            struct ciaIECDecodeView
+            {
+                bool available = false;
+                const char* modelName = "";
+
+                uint8_t pr = 0xFF;
+                uint8_t ddr = 0x00;
+
+                uint8_t rawPortAPins = 0xFF;
+                uint8_t rawPortBPins = 0xFF;
+
+                bool atnInLow = false;
+                bool clkInLow = false;
+                bool dataInLow = false;
+                bool srqInLow = false;
+
+                bool busDirOutput = false;
+                bool atnAckDataLow = false;
+                bool datOutAssertLow = false;
+                bool clkOutAssertLow = false;
+
+                bool resolvedAtnLow = false;
+                bool resolvedClkLow = false;
+                bool resolvedDataLow = false;
+
+                bool finalDataLow = false;
+                bool finalClkLow = false;
+
+                ciaIECWriteHistoryEntry writeHistory[8]{};
+                ciaIECReadHistoryEntry readHistory[8]{};
+
+                uint32_t sameReadCount = 0;
+                uint8_t lastReadValue = 0xFF;
+            };
+
             virtual ciaRegsView getRegsView() const = 0;
+
+            virtual ciaIECDecodeView getIECDecodeView() const
+            {
+                return {};
+            }
+
 };
 
 class DriveVIABase
