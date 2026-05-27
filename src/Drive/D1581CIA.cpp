@@ -256,3 +256,47 @@ D1581* D1581CIA::drive() const
 {
     return parentPeripheral ? static_cast<D1581*>(parentPeripheral) : nullptr;
 }
+
+DriveCIABase::ciaIECDecodeView D1581CIA::getIECDecodeView() const
+{
+    DriveCIABase::ciaIECDecodeView v;
+
+    v.available = true;
+    v.modelName = "1581";
+
+    v.pr  = getPortBOutputRegister();
+    v.ddr = getDDRB();
+
+    v.atnInLow  = iecAtnInLow;
+    v.clkInLow  = iecClkInLow;
+    v.dataInLow = iecDataInLow;
+    v.srqInLow  = iecSrqInLow;
+
+    v.busDirOutput =
+        ((v.ddr & PRB_BUSDIR) != 0) &&
+        ((v.pr  & PRB_BUSDIR) == 0);
+
+    v.atnAckDataLow =
+        ((v.ddr & PRB_ATNACK) != 0) &&
+        ((v.pr  & PRB_ATNACK) != 0) &&
+        iecAtnInLow;
+
+    v.datOutAssertLow =
+        v.busDirOutput &&
+        ((v.ddr & PRB_DATOUT) != 0) &&
+        ((v.pr  & PRB_DATOUT) != 0);
+
+    v.clkOutAssertLow =
+        v.busDirOutput &&
+        ((v.ddr & PRB_CLKOUT) != 0) &&
+        ((v.pr  & PRB_CLKOUT) != 0);
+
+    v.resolvedAtnLow  = iecAtnInLow;
+    v.resolvedClkLow  = iecClkInLow  || v.clkOutAssertLow;
+    v.resolvedDataLow = iecDataInLow || v.atnAckDataLow || v.datOutAssertLow;
+
+    v.finalDataLow = v.atnAckDataLow || v.datOutAssertLow;
+    v.finalClkLow  = v.clkOutAssertLow;
+
+    return v;
+}
