@@ -2211,7 +2211,7 @@ void Vic::performSpriteDataFetchForSprite(int sprite)
     if (!spriteUnits[sprite].dmaActive)
         return;
 
-    const int byteIndex = spriteDataByteIndexForCycle(sprite, currentCycle);
+    const int byteIndex = currentCycleSlot.spriteByteIndex;
 
     if (byteIndex < 0 || byteIndex >= 3)
         return;
