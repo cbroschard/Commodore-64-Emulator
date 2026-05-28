@@ -1390,14 +1390,14 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
         return;
 
-    if (vicState.vmliFetchIndex >= BACKGROUND_MATRIX_COLUMNS)
-        return;
+    const int fetchIndex = currentCycleSlot.matrixFetchIndex;
 
-    const int fetchIndex = vicState.vmliFetchIndex;
+    if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
+        return;
 
     fetchBadLineMatrixByte(fetchIndex, registers.raster);
 
-    ++vicState.vmliFetchIndex;
+    vicState.vmliFetchIndex = static_cast<uint8_t>(fetchIndex + 1);
 }
 
 void Vic::initializeFirstBadLineIfNeeded(int raster)
