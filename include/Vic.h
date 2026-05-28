@@ -140,6 +140,13 @@ class Vic
 
             bool rasterIrqSample = false;
 
+            // Phase 1: decision timing markers
+            bool latchRasterState = false;        // cycle 0
+            bool sampleBadline = false;           // cycle 14
+            bool startSpriteDmaCheck = false;     // cycle 15
+            bool transferDisplayState = false;    // cycle 58
+            bool startBadlineFetch = false;       // cfg_->DMAStartCycle
+
             int spriteIndex = -1;
             int spriteByteIndex = -1;
             int matrixFetchIndex = -1;

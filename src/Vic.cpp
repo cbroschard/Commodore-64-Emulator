@@ -2595,6 +2595,12 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 
+    slot.latchRasterState     = (cycle == 0);
+    slot.sampleBadline        = (cycle == 14);
+    slot.startSpriteDmaCheck  = (cycle == 15);
+    slot.transferDisplayState = (cycle == 58);
+    slot.startBadlineFetch    = (cycle == cfg_->DMAStartCycle);
+
     slot.busOwner = BusOwner::CPU;
 
     auto fallbackOwner = [&]() -> BusOwner
