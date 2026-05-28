@@ -1196,33 +1196,27 @@ void Vic::beginFrameIfNeeded()
 
 void Vic::runCycleDecisionPhase()
 {
-    if (isRasterIRQCompareCycle(currentCycle))
+    const VicCycleSlot& slot = currentCycleSlot;
+
+    if (slot.rasterIrqSample)
         sampleRasterIRQCompare("normal-sample");
 
-    switch (currentCycle)
+    if (slot.latchRasterState)
+        handleCycle0Decisions();
+
+    if (slot.sampleBadline)
+        handleCycle14Decisions();
+
+    if (slot.startSpriteDmaCheck)
     {
-        case 0:
-            handleCycle0Decisions();
-            break;
-
-        case 14:
-            handleCycle14Decisions();
-            break;
-
-        case 15:
-            handleCycle15Decisions();
-            updateSpriteDMAStartForCurrentLine(registers.raster);
-            break;
-
-        case 58:
-            handleCycle58Decisions();
-            break;
-
-        default:
-            break;
+        handleCycle15Decisions();
+        updateSpriteDMAStartForCurrentLine(registers.raster);
     }
 
-    if (currentCycle == cfg_->DMAStartCycle)
+    if (slot.transferDisplayState)
+        handleCycle58Decisions();
+
+    if (slot.startBadlineFetch)
         handleDmaStartCycleDecisions();
 }
 
