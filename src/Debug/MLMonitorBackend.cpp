@@ -82,6 +82,56 @@ static void appendVIATimerDebug(std::ostream& out,
         << "\n";
 }
 
+static std::string cycleSlotMarkers(const Vic::VicCycleSlot& slot)
+{
+    std::string flags;
+
+    auto add = [&](const char* name)
+    {
+        if (!flags.empty())
+            flags += " ";
+        flags += name;
+    };
+
+    if (slot.rasterIrqSample)
+        add("IRQ");
+
+    if (slot.latchRasterState)
+        add("LATCH");
+
+    if (slot.sampleBadline)
+        add("BADSMPL");
+
+    if (slot.startSpriteDmaCheck)
+        add("SPRDMA");
+
+    if (slot.transferDisplayState)
+        add("DISPXFER");
+
+    if (slot.startBadlineFetch)
+        add("DMASTART");
+
+    if (slot.refresh)
+        add("REFRESH");
+
+    return flags.empty() ? "-" : flags;
+}
+
+static const char* ownerName(Vic::BusOwner owner)
+{
+    switch (owner)
+    {
+        case Vic::BusOwner::CPU:           return "CPU";
+        case Vic::BusOwner::BadLine:       return "BADLINE";
+        case Vic::BusOwner::SpritePointer: return "SPRITEPTR";
+        case Vic::BusOwner::SpriteData:    return "SPRITEDATA";
+        case Vic::BusOwner::Refresh:       return "REFRESH";
+        case Vic::BusOwner::Idle:          return "IDLE";
+    }
+
+    return "?";
+}
+
 static const Vic::RasterRowStateSnapshot* selectVicRowSnapshot(
     int raster,
     bool& usingPreviousFrame,
@@ -1043,7 +1093,6 @@ std::string MLMonitorBackend::vicDumpRasterFetchMap(int raster) const
     std::ostringstream out;
 
     const int maxRaster = vic->getMaxRasterLinesForDebug();
-    const int cyclesPerLine = vic->getCyclesPerLineForDebug();
 
     if (raster < 0 || raster >= maxRaster)
     {
@@ -1057,12 +1106,63 @@ std::string MLMonitorBackend::vicDumpRasterFetchMap(int raster) const
     const bool badLine = vic->isBadLineForDebug(raster);
     out << "Badline: " << (badLine ? "Yes" : "No") << "\n\n";
 
-    for (int c = 0; c < cyclesPerLine; ++c)
+    out << "Cyc BA AEC Owner      Fetch        Mtx Spr Byt Flags\n";
+
+    for (int c = 0; c < vic->getCyclesPerLineForDebug(); ++c)
     {
         const auto slot = vic->cycleSlotFor(raster, c);
 
-        out << std::setw(2) << c << ": "
+        // Cycle number. Force right alignment and zero fill here so prior
+        // std::left formatting from text columns cannot leak into this field.
+        out << std::right
+            << std::setfill('0')
+            << std::setw(2)
+            << c
+            << std::setfill(' ')
+            << "  ";
+
+        // BA / AEC
+        out << (slot.baLow ? "L" : "H")
+            << "  "
+            << (slot.aecLow ? "L" : "H")
+            << "   ";
+
+        // Owner
+        out << std::left
+            << std::setw(10)
+            << ownerName(slot.busOwner)
+            << " ";
+
+        // Fetch kind
+        out << std::left
+            << std::setw(12)
             << vicFetchKindName(slot.fetchKind)
+            << " ";
+
+        // Matrix index
+        if (slot.matrixFetchIndex >= 0)
+            out << std::right << std::setw(3) << slot.matrixFetchIndex;
+        else
+            out << "  -";
+
+        out << " ";
+
+        // Sprite index
+        if (slot.spriteIndex >= 0)
+            out << std::right << std::setw(3) << slot.spriteIndex;
+        else
+            out << "  -";
+
+        out << " ";
+
+        // Sprite byte index
+        if (slot.spriteByteIndex >= 0)
+            out << std::right << std::setw(3) << slot.spriteByteIndex;
+        else
+            out << "  -";
+
+        out << " "
+            << cycleSlotMarkers(slot)
             << "\n";
     }
 
@@ -2917,7 +3017,7 @@ void MLMonitorBackend::dumpDriveCPU(int id)
 
     if (!dev->isDrive())
     {
-        std::cout << "Device is not a Floppy Drive\n";
+        std::cout << "Devicvice is not a Floppy Drive\n";
         return;
     }
 
