@@ -487,7 +487,7 @@ class CPU
         {
             bool valid = false;
 
-            bool useMicroOpsForTest = false;
+            bool useMicroOps = false;
             bool lastOpcodeUsedMicroOps = false;
             bool lastOpcodeMicroOpCapable = false;
 
@@ -530,7 +530,7 @@ class CPU
         CPUCycleDebugState getCycleDebugState() const;
         CPUState getState() const;
 
-        inline bool isAtInstructionBoundary() const { return useMicroOpsForTest ? !microInstructionActive : cycles <= 0; }
+        inline bool isAtInstructionBoundary() const { return useMicroOps ? !microInstructionActive : cycles <= 0; }
         inline void forceInstructionBoundaryForMonitor() { cycles = 0; }
         inline uint16_t getPC() const { return PC; }
         inline void setPC(uint16_t value) { PC = value; }
@@ -551,8 +551,8 @@ class CPU
         // Bus Arbitration
         inline void setVICBusArbitrationEnabled(bool enabled) { vicBusArbitrationEnabled = enabled; }
         inline bool isVICBusArbitrationEnabled() const { return vicBusArbitrationEnabled; }
-        inline void setUseMicroOpsForTest(bool enabled) { useMicroOpsForTest = enabled; }
-        inline bool getUseMicroOpsForTest() const { return useMicroOpsForTest; }
+        inline void setUseMicroOps(bool enabled) { useMicroOps = enabled; }
+        inline bool getUseMicroOps() const { return useMicroOps; }
 
         // ML Monitor
         inline void setLog(bool enable) { setLogging = enable; }
@@ -770,7 +770,7 @@ class CPU
         uint8_t activeOpcode;
         uint16_t activeOpcodePC;
 
-        bool useMicroOpsForTest;
+        bool useMicroOps;
         uint16_t microAddress;
         uint16_t microBaseAddress;
         bool microPageCrossed;

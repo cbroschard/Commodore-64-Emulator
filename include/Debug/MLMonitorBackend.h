@@ -81,7 +81,7 @@ class MLMonitorBackend
         inline bool cpuIsBusArbEnabled() const { return cpu->isVICBusArbitrationEnabled(); }
         inline void cpuSetBusArbEnabled(bool enabled) { cpu->setVICBusArbitrationEnabled(enabled); }
         inline std::string cpuMicroOpStatus() const { return cpu ? cpu->dumpMicroOpStatus() : "CPU not attached\n"; }
-        inline void cpuSetMicroOp(bool enable) { return cpu->setUseMicroOpsForTest(enable) ; }
+        inline void cpuSetMicroOp(bool enable) { return cpu->setUseMicroOps(enable) ; }
 
         void setPC(uint16_t address);
         void cpuStepInstruction();

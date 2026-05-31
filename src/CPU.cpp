@@ -24,7 +24,7 @@ CPU::CPU() :
     executingMicroOp(false),
     activeOpcode(0xEA),
     activeOpcodePC(0),
-    useMicroOpsForTest(false),
+    useMicroOps(false),
     microAddress(0),
     microBaseAddress(0),
     microPageCrossed(false),
@@ -1314,7 +1314,7 @@ void CPU::tick()
     }
 
     // New cycle-style micro-op CPU path
-    if (useMicroOpsForTest)
+    if (useMicroOps)
     {
         tickMicroOps();
         return;
@@ -7721,7 +7721,7 @@ CPU::CPUMicroOpDebugState CPU::getMicroOpDebugState() const
 
     s.valid = true;
 
-    s.useMicroOpsForTest = useMicroOpsForTest;
+    s.useMicroOps = useMicroOps;
     s.lastOpcodeUsedMicroOps = lastOpcodeUsedMicroOps;
     s.lastOpcodeMicroOpCapable = lastOpcodeMicroOpCapable;
 
@@ -7778,7 +7778,7 @@ std::string CPU::dumpMicroOpStatus() const
     out << "-------------------\n";
 
     out << "Micro-op test mode:      "
-        << (s.useMicroOpsForTest ? "ON" : "OFF") << "\n";
+        << (s.useMicroOps ? "ON" : "OFF") << "\n";
 
     out << "Last opcode PC:          $" << hex16(s.lastOpcodePC) << "\n";
     out << "Last opcode:             $" << hex8(s.lastOpcode) << "\n";

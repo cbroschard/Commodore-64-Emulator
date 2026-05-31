@@ -99,6 +99,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cpu->attachIRQLineInstance(components.irq.get());
     components.cpu->attachLogInstance(components.logger.get());
     components.cpu->attachTraceManagerInstance(&components.debug->trace());
+    components.cpu->setUseMicroOps(true);
     components.cpu->setVICBusArbitrationEnabled(true);
 
     components.sid->attachCPUInstance(components.cpu.get());
