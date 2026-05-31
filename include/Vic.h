@@ -790,6 +790,10 @@ class Vic
         void handleCycle58Decisions();
         void runFetchPhase();
 
+        // Pixel accurate helpers
+        void runPixelOutputPhase();
+        void outputPixel(int raster, int x);
+
         void advanceCycleAndFinalizeLineIfNeeded();
         void finalizeCurrentRasterLine(int curRaster);
         void finalizeFrameIfNeeded(int curRaster);

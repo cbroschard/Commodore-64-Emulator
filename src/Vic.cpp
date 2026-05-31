@@ -1136,6 +1136,8 @@ void Vic::tick(int cycles)
 
         runFetchPhase();
 
+        runPixelOutputPhase();
+
         advanceCycleAndFinalizeLineIfNeeded();
     }
 }
@@ -1348,6 +1350,31 @@ void Vic::runFetchPhase()
             performIdleFetchForCurrentCycle();
             break;
     }
+}
+
+void Vic::runPixelOutputPhase()
+{
+    const int raster = registers.raster;
+    const int baseX = currentCycle * 8;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const int x = baseX + i;
+
+        if (x < 0 || x >= VISIBLE_WIDTH)
+            continue;
+
+        outputPixel(raster, x);
+    }
+}
+
+void Vic::outputPixel(int raster, int x)
+{
+    if (raster < 0 || raster >= static_cast<int>(rasterPixelStates.size()))
+        return;
+
+    if (x < 0 || x >= VISIBLE_WIDTH)
+        return;
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
