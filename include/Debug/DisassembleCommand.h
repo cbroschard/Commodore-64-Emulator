@@ -8,7 +8,6 @@
 #ifndef DISASSEMBLECOMMAND_H
 #define DISASSEMBLECOMMAND_H
 
-#include "Debug/CommandUtils.h"
 #include "6502/Disassembler.h"
 #include "Debug/MonitorCommand.h"
 

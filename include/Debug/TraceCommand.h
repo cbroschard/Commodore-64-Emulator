@@ -8,7 +8,6 @@
 #ifndef TRACECOMMAND_H
 #define TRACECOMMAND_H
 
-#include "Debug/CommandUtils.h"
 #include "Debug/MonitorCommand.h"
 #include "Debug/TraceManager.h"
 

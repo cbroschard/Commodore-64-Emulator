@@ -8,7 +8,6 @@
 #ifndef VICCOMMAND_H
 #define VICCOMMAND_H
 
-#include "Debug/CommandUtils.h"
 #include "Debug/MonitorCommand.h"
 
 // Forward declaration
