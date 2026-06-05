@@ -44,6 +44,8 @@ class InputManager
         bool handleEvent(const SDL_Event& ev);
         void tick();
 
+        void resetInputState();
+
         void setJoystickAttached(int port, bool flag);
         void setJoystickConfig(int port, const JoystickMapping& cfg);
 
