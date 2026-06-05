@@ -268,15 +268,8 @@ void D1541::reset()
     uiSector                    = currentSector;
     uiLedWasOn                  = false;
 
-    bool atnLow=false, clkLow=false, dataLow=false;
-    if (bus)
-    {
-        // however your bus exposes the current resolved line states:
-        atnLow  = !bus->getAtnLine();
-        clkLow  = !bus->getClkLine();
-        dataLow = !bus->getDataLine();
-    }
-    d1541mem.getVIA1().setIECInputLines(atnLow, clkLow, dataLow);
+    forceSyncIEC();
+    updateIRQ();
 }
 
 void D1541::tick(uint32_t cycles)
@@ -1514,6 +1507,7 @@ void D1541::resetForMediaChange()
         driveCPU.reset();
 
     forceSyncIEC();
+    updateIRQ();
 }
 
 void D1541::rebuildSyncMapForCurrentTrack()
@@ -1743,9 +1737,17 @@ Drive::IECSnapshot D1541::snapshotIEC() const
 
 void D1541::forceSyncIEC()
 {
-    // Push current line states into VIA even if nothing changed
+    if (bus)
+    {
+        atnLineLow  = !bus->getAtnLine();
+        clkLineLow  = !bus->getClkLine();
+        dataLineLow = !bus->getDataLine();
+    }
+
     auto& via1 = d1541mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    iecLinesPrimed = true;
 }
 
 void D1541::flushAndSaveDisk()
