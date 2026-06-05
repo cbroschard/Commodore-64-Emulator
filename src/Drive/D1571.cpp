@@ -441,6 +441,13 @@ void D1571::setSRQAsserted(bool state)
 
 void D1571::forceSyncIEC()
 {
+    if (bus)
+    {
+        atnLineLow  = !bus->readAtnLine();
+        clkLineLow  = !bus->readClkLine();
+        dataLineLow = !bus->readDataLine();
+    }
+
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 }
@@ -1740,4 +1747,5 @@ void D1571::resetForMediaChange()
         driveCPU.reset();
 
     forceSyncIEC();
+    updateIRQ();
 }
