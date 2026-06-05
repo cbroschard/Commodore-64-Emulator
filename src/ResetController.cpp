@@ -10,6 +10,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "IECBUS.h"
+#include "InputManager.h"
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
@@ -26,6 +27,7 @@ ResetController::ResetController(
     Vic& vic,
     SID& sid,
     IECBUS& bus,
+    InputManager& inputMgr,
     Cartridge& cart,
     MediaManager* media,
     const std::string& basicRom,
@@ -42,6 +44,7 @@ ResetController::ResetController(
     , vic_(vic)
     , sid_(sid)
     , bus_(bus)
+    , inputMgr_(inputMgr)
     , cart_(cart)
     , media_(media)
     , basicRom_(basicRom)
@@ -103,6 +106,7 @@ void ResetController::warmReset()
     cia1_.reset();
     cia2_.reset();
     sid_.reset();
+    inputMgr_.resetInputState();
 
     cpu_.reset();
 }
@@ -140,6 +144,7 @@ void ResetController::coldReset()
     cia1_.reset();
     cia2_.reset();
     sid_.reset();
+    inputMgr_.resetInputState();
 
     cpu_.reset();
 }

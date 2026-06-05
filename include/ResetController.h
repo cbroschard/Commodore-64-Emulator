@@ -18,6 +18,7 @@ class CIA1;
 class CIA2;
 class CPU;
 class IECBUS;
+class InputManager;
 class MediaManager;
 class Memory;
 class PLA;
@@ -38,6 +39,7 @@ public:
         Vic& vic,
         SID& sid,
         IECBUS& bus,
+        InputManager& inputMgr,
         Cartridge& cart,
         MediaManager* media,
         const std::string& basicRom,
@@ -63,6 +65,7 @@ private:
     Vic& vic_;
     SID& sid_;
     IECBUS& bus_;
+    InputManager& inputMgr_;
     Cartridge& cart_;
     MediaManager* media_;
 

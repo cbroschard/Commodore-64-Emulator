@@ -187,6 +187,18 @@ void InputManager::tick()
     if (joystick2Attached) drivePort(2, joy2);
 }
 
+void InputManager::resetInputState()
+{
+    if (keyb)
+        keyb->resetKeyboard();
+
+    if (joy1)
+        joy1->setState(0xFF);
+
+    if (joy2)
+        joy2->setState(0xFF);
+}
+
 void InputManager::setJoystickAttached(int port, bool flag)
 {
     if (!cia1object) return;
