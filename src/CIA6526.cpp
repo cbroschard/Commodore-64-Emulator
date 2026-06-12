@@ -135,9 +135,9 @@ uint8_t CIA6526::readRegister(uint16_t address)
     switch (reg)
     {
         case 0x00:
-            return readPortAInputs();
+            return readPortA();
         case 0x01:
-            return readPortBInputs();
+            return readPortB();
         case 0x02:
             return ddrA;
         case 0x03:
