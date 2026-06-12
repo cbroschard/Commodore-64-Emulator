@@ -34,7 +34,8 @@ CIA6526::CIA6526() :
     cntLevel(true),
     lastCNT(true),
     shiftReg(0),
-    shiftCount(0)
+    shiftCount(0),
+    setLogging(false)
 {
     setMode(VideoMode::NTSC);
 }
@@ -95,6 +96,8 @@ void CIA6526::reset()
 
     shiftReg            = 0;
     shiftCount          = 0;
+
+    setLogging          = false;
 }
 
 void CIA6526::setMode(VideoMode mode)
@@ -116,6 +119,9 @@ void CIA6526::updateTimers(uint32_t cyclesElapsed)
         incrementTODClock(todTicks, todClock, todIncrementThreshold);
     }
     checkTODAlarm(todClock, todAlarm, todAlarmTriggered, interruptStatus, interruptEnable);
+
+    // Run chip specific processing
+    postTimerUpdates(cyclesElapsed);
 
     // Reflect master bit and shared IRQ line
     refreshMasterBit();

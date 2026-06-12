@@ -32,7 +32,22 @@ class CIA6526
 
         void setCNTLine(bool level);
 
+        // ML Monitor API
+        struct CIA1IRQSnapshot { uint8_t ier; };
+        std::string dumpRegisters(const std::string& group) const;
+        inline void setLog(bool enable) { setLogging = enable; }
+        void setIERExact(uint8_t mask);
+        inline void clearPendingIRQs() { (void)readRegister(0xDC0D); }
+        inline void disableAllIRQs() { setIERExact(0); }
+        inline uint8_t getIER() const { return interruptEnable & 0x1F; }
+        inline uint8_t getIFR() const { return interruptStatus & 0x1F; }
+        inline bool irqLineActive() const { return (interruptStatus & interruptEnable & 0x1F) != 0; }
+        inline CIA1IRQSnapshot snapshotIRQs() const { return CIA1IRQSnapshot{getIER()}; }
+        inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
+
     protected:
+        virtual postTimerUpdates(uint32_t elapsedCycles) = 0;
+
         inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA & ddrA); }
         inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB & ddrB); }
 
@@ -41,8 +56,10 @@ class CIA6526
 
         virtual uint8_t readPortAInputs() = 0;
         virtual uint8_t readPortBInputs() = 0;
+
         virtual void portAOutputChanged(uint8_t value) {}
         virtual void portBOutputChanged(uint8_t value) {}
+
         virtual void irqLineChanged(bool active) = 0;
 
         virtual TraceManager::Stamp makeCIAStamp() const = 0;
@@ -100,9 +117,11 @@ class CIA6526
         bool cntLevel;
         bool lastCNT;
 
-         // Serial-Shift Register state
+        // Serial-Shift Register state
         uint8_t shiftReg; // 8-bit shift accumulator
         uint8_t shiftCount; // how many bits we’ve shifted so far
+
+        bool setLogging;
 
         VideoMode mode_;
 
