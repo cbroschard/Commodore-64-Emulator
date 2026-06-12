@@ -11,6 +11,8 @@
 #include <cstdint>
 #include "Common/BCD.h"
 #include "Common/VideoMode.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "TraceManager.h"
 
 class CIA6526
@@ -46,7 +48,9 @@ class CIA6526
         inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
-        virtual postTimerUpdates(uint32_t elapsedCycles) = 0;
+        inline TraceManager* getTraceManager() const { return traceMgr; }
+
+        virtual void postTimerUpdates(uint32_t cyclesElapsed) = 0;
 
         inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA & ddrA); }
         inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB & ddrB); }
@@ -54,8 +58,8 @@ class CIA6526
         virtual int getCIANumber() const = 0;
         virtual const char* getCIAName() const = 0;
 
-        virtual uint8_t readPortAInputs() = 0;
-        virtual uint8_t readPortBInputs() = 0;
+        virtual uint8_t readPortA() = 0;
+        virtual uint8_t readPortB() = 0;
 
         virtual void portAOutputChanged(uint8_t value) {}
         virtual void portBOutputChanged(uint8_t value) {}
