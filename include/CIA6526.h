@@ -1,0 +1,124 @@
+// Copyright (c) 2025 Christopher Broschard
+// All rights reserved.
+//
+// This source code is provided for personal, educational, and
+// non-commercial use only. Redistribution, modification, or use
+// of this code in whole or in part for any other purpose is
+// strictly prohibited without the prior written consent of the author.
+#ifndef CIA6526_H
+#define CIA6526_H
+
+#include <cstdint>
+#include "Common/BCD.h"
+#include "Common/VideoMode.h"
+#include "TraceManager.h"
+
+class CIA6526
+{
+    public:
+        CIA6526();
+        virtual ~CIA6526();
+
+        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+
+        virtual void reset();
+
+        void updateTimers(uint32_t cyclesElapsed);
+
+        uint8_t readRegister(uint16_t address);
+        void writeRegister(uint16_t address, uint8_t value);
+
+        void setMode(VideoMode mode);
+
+        void setCNTLine(bool level);
+
+    protected:
+        inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA & ddrA); }
+        inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB & ddrB); }
+
+        virtual int getCIANumber() const = 0;
+        virtual const char* getCIAName() const = 0;
+
+        virtual uint8_t readPortAInputs() = 0;
+        virtual uint8_t readPortBInputs() = 0;
+        virtual void portAOutputChanged(uint8_t value) {}
+        virtual void portBOutputChanged(uint8_t value) {}
+        virtual void irqLineChanged(bool active) = 0;
+
+        virtual TraceManager::Stamp makeCIAStamp() const = 0;
+
+    private:
+        // Non-owning pointers
+        TraceManager* traceMgr;
+
+        enum InterruptBit : uint8_t
+        {
+            INTERRUPT_TIMER_A = 0x01,
+            INTERRUPT_TIMER_B = 0x02,
+            INTERRUPT_TOD_ALARM = 0x04,
+            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
+            INTERRUPT_FLAG_LINE = 0x10
+        };
+
+        uint8_t portA;
+        uint8_t portB;
+        uint8_t ddrA;
+        uint8_t ddrB;
+
+        uint16_t timerA;
+        uint16_t timerASnap;
+        bool timerALatched;
+
+        uint16_t timerB;
+        uint16_t timerBSnap;
+        bool timerBLatched;
+
+        uint8_t timerALowByte;
+        uint8_t timerAHighByte;
+        uint8_t timerBLowByte;
+        uint8_t timerBHighByte;
+
+        uint8_t timerAControl;
+        uint8_t timerBControl;
+
+        uint8_t interruptStatus;
+        uint8_t interruptEnable;
+
+        uint8_t serialDataRegister;
+
+        uint8_t todClock[4];
+        uint8_t todAlarm[4];
+        uint8_t todLatch[4];
+
+        uint32_t todTicks;
+        uint32_t todIncrementThreshold;
+
+        bool todLatched;
+        bool todAlarmSetMode;
+        bool todAlarmTriggered;
+
+        bool cntLevel;
+        bool lastCNT;
+
+         // Serial-Shift Register state
+        uint8_t shiftReg; // 8-bit shift accumulator
+        uint8_t shiftCount; // how many bits we’ve shifted so far
+
+        VideoMode mode_;
+
+        void updateTimerA(uint32_t cyclesElapsed);
+        void updateTimerB(uint32_t cyclesElapsed);
+        void handleTimerBCascade();
+
+        void latchTODClock();
+
+        void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
+        void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
+
+        void updateIRQLine();
+        void triggerInterrupt(InterruptBit interruptBit);
+        void clearIFR(InterruptBit interruptBit);
+        void refreshMasterBit();
+};
+
+#endif // CIA6526_H
