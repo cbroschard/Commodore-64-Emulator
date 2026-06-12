@@ -18,6 +18,7 @@ class Vic;
 #include <cstdint>
 #include <iostream>
 #include "Cassette.h"
+#include "CIA6526.h"
 #include "Common/HexFormat.h"
 #include "cpu.h"
 #include "IRQLine.h"
@@ -25,11 +26,8 @@ class Vic;
 #include "Keyboard.h"
 #include "Logging.h"
 #include "Memory.h"
-#include "StateReader.h"
-#include "StateWriter.h"
 
-
-class CIA1
+class CIA1 : public CIA6526
 {
     public:
         CIA1();
@@ -42,22 +40,18 @@ class CIA1
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
-        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
         void attachJoystickInstance(Joystick* joy);
 
         // Remove the Joystick(s)
         void detachJoystickInstance(Joystick* joy);
 
-        // Setter for NTSC/PAL
-        void setMode(VideoMode mode);
-
         // STate management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Reset everything to default
-        void reset();
+        void reset() override;
 
         // Register methods
         uint8_t readRegister(uint16_t address);
@@ -95,9 +89,22 @@ class CIA1
         inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
+        void postTimerUpdates(uint32_t cycleaElapsed) override;
+
+        inline int getCIANumber() const override { return 1; }
+        inline const char* getCIAName() const override { return "CIA1"; }
+
+        uint8_t readPortA() override;
+        uint8_t readPortB() override;
+
+        void portAOutputChanged(uint8_t value) override;
+        void portBOutputChanged(uint8_t value) override;
+
+        void irqLineChanged(bool active) override;
+
+        TraceManager::Stamp makeCIAStamp() const override;
 
     private:
-
         // Non-owning pointers
         Cassette* cass;
         CPU* cpu;
@@ -107,7 +114,6 @@ class CIA1
         Keyboard* keyb;
         Logging* logger;
         Memory* mem;
-        TraceManager* traceMgr;
         Vic* vic;
 
         // Video
@@ -208,8 +214,6 @@ class CIA1
         };
 
         InputMode inputMode;
-
-        TraceManager::Stamp makeCIAStamp() const;
 };
 
 #endif // CIA1_H

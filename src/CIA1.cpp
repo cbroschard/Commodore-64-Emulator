@@ -16,7 +16,6 @@ CIA1::CIA1() :
     keyb(nullptr),
     logger(nullptr),
     mem(nullptr),
-    traceMgr(nullptr),
     vic(nullptr)
 {
     setMode(VideoMode::NTSC);
@@ -55,12 +54,6 @@ void CIA1::detachJoystickInstance(Joystick* joy)
     {
         throw std::runtime_error("ERROR: No such Joystick!");
     }
-}
-
-void CIA1::setMode(VideoMode mode)
-{
-    mode_ = mode;
-    todIncrementThreshold = (mode_ == VideoMode::NTSC) ? 102273 : 98525;
 }
 
 void CIA1::saveState(StateWriter& wrtr) const
@@ -269,7 +262,8 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return false;
 }
 
-void CIA1::reset() {
+void CIA1::reset()
+{
     // Ports & DDRs
     portAValue = 0;
     portA = 0xFF;
@@ -530,60 +524,24 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
         {
             timerALowByte = value;
 
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] TA latch low write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerAHighByte) << 8) | timerALowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         case 0xDC05: // Timer A high
         {
             timerAHighByte = value;
 
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] TA latch high write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerAHighByte) << 8) | timerALowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         case 0xDC06: // Timer B low byte
         {
             timerBLowByte = value;
 
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] TB latch low write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerBHighByte) << 8) | timerBLowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         case 0xDC07: // Timer B High
         {
             timerBHighByte = value;
 
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] TB latch high write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerBHighByte) << 8) | timerBLowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         case 0xDC08: // TOD clock 1/10 seconds
@@ -592,38 +550,12 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 todAlarm[0] = bcdToBinary(value & 0x0F);
                 todAlarmTriggered = false;
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] alarm 1/10 write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             else // Writing to clock
             {
                 todClock[0] = bcdToBinary(value & 0x0F);
                 if (todLatched)
                     todLatch[0] = todClock[0];
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] clock 1/10 write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             break;
         }
@@ -633,38 +565,12 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 todAlarm[1] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] alarm seconds write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             else
             {
                 todClock[1] = bcdToBinary(value & 0x7F);
                 if (todLatched)
                     todLatch[1] = todClock[1];
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] clock seconds write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             break;
         }
@@ -674,38 +580,12 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 todAlarm[2] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] alarm minutes write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             else
             {
                 todClock[2] = bcdToBinary(value & 0x7F);
                 if (todLatched)
                     todLatch[2] = todClock[2];
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] clock minutes write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             break;
         }
@@ -715,38 +595,12 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 todAlarm[3] = bcdToBinary(value & 0x3F);
                 todAlarmTriggered = false;
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] alarm hours write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             else
             {
                 todClock[3] = bcdToBinary(value & 0x3F);
                 if (todLatched)
                     todLatch[3] = todClock[3];
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:TOD] clock hours write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
             }
             break;
         }
@@ -767,15 +621,6 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             if (value & 0x80)
             {
                 interruptEnable |= mask;
-
-                if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA1:IRQ] IER write value=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " newIER=$" << std::setw(2) << int(interruptEnable & 0x1F);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
                 if (logger && setLogging)
                 {
                     logger->WriteLog("[CIA1] IER |= $" + toHex(mask,2) +
@@ -820,15 +665,6 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 timerA = (timerAHighByte << 8) | timerALowByte;
             }
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] CRA write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latched=$" << std::setw(2) << int(timerAControl)
-                    << " timerA=$" << std::setw(4) << timerA;
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         case 0xDC0F:
@@ -852,15 +688,6 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             {
                 timerB = (timerBHighByte << 8) | timerBLowByte;
             }
-            if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA1:TIMER] CRB write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latched=$" << std::setw(2) << int(timerBControl)
-                    << " timerB=$" << std::setw(4) << timerB;
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
             break;
         }
         default:
@@ -872,6 +699,81 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             break;
         }
     }
+}
+
+uint8_t CIA1::readPortA()
+{
+    uint8_t pin = 0xFF;  // pulled-up bus
+
+    // Keyboard rows selected by PRB (only when a column is driven low)
+    if (keyb)
+    {
+        for (int r = 0; r < 8; ++r)
+            if ((getPortBOutput() & (1u << r)) == 0)
+                pin &= keyb->readRow(r);  // active-low
+    }
+
+    // JOY2 (PA0..PA4 active-low). Mask to 5 bits; keep PA5..PA7 high.
+    if (joy2)
+    {
+        uint8_t j2 = static_cast<uint8_t>((joy2->getState() & 0x1F) | 0xE0);
+        pin &= j2;
+    }
+
+    // Wire-AND cassette SENSE onto PA4 (low dominates)
+    const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+    if (senseLow) pin &= static_cast<uint8_t>(~0x10);
+
+    // Merge with output latch via DDRA…
+    uint8_t v = static_cast<uint8_t>(getPortAOutput() & pin);
+
+    portAValue = v;
+    return v;
+}
+
+uint8_t CIA1::readPortB()
+{
+    uint8_t pa = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
+    // Calculate the active row
+    if (pa == 0xFF)
+        rowState = 0xFF;
+    else
+    {
+        // Find the active rows so the keyboard keys work
+        uint8_t combinedRowState = 0xFF;
+        for (uint8_t i = 0; i < 8; i++)
+        {
+            if ((pa & (1 << i)) == 0 && keyb)
+            {
+                combinedRowState &= keyb->readRow(i);
+            }
+        }
+        rowState = combinedRowState;
+    }
+
+    // Add Joystick 1 state if attached
+    if (joy1)
+    {
+        rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0xE0);
+    }
+
+    // Combine PortB and row state
+    return getPortBOutput() & rowState;
+}
+
+void CIA1::portAOutputChanged(uint8_t value)
+{
+
+}
+
+void CIA1::portBOutputChanged(uint8_t value)
+{
+
+}
+
+void CIA1::irqLineChanged(bool active)
+{
+
 }
 
 void CIA1::latchTODClock()
@@ -947,6 +849,8 @@ void CIA1::cntChangedA()
         {
             // --- Underflow semantics (same as phi2 path) ---
             triggerInterrupt(INTERRUPT_TIMER_A);
+
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
             {
                 traceMgr->recordCiaTimer(1, 'A', timerA, true, makeCIAStamp());
@@ -999,6 +903,8 @@ void CIA1::cntChangedB()
     if (--current == 0)
     {
         triggerInterrupt(INTERRUPT_TIMER_B);
+
+        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
         {
             traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
@@ -1045,6 +951,7 @@ void CIA1::updateTimerA(uint32_t cyclesElapsed)
         // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_A);
 
+        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
         {
             traceMgr->recordCiaTimer(1, 'A', timerA, true, makeCIAStamp());
@@ -1108,6 +1015,7 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
         // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_B);
 
+        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
         {
             traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
@@ -1127,6 +1035,11 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
     }
 }
 
+void CIA1::postTimerUpdates(uint32_t cyclesElapsed)
+{
+
+}
+
 void CIA1::handleTimerBCascade()
 {
     if (!(timerBControl & 0x40) || !(timerBControl & 0x01))
@@ -1143,6 +1056,7 @@ void CIA1::handleTimerBCascade()
         // underflow
         triggerInterrupt(INTERRUPT_TIMER_B);
 
+        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
         {
             traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
@@ -1196,6 +1110,7 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
             todAlarmTriggered = true;
             triggerInterrupt(INTERRUPT_TOD_ALARM);
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
             {
                 traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
@@ -1208,6 +1123,7 @@ void CIA1::setCNTLine(bool level)
 {
     const bool falling = (lastCNT && !level);
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(1, TraceManager::TraceDetail::CIA_CNT))
     {
         std::ostringstream out;
@@ -1230,6 +1146,7 @@ void CIA1::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
     {
         traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
@@ -1258,6 +1175,7 @@ void CIA1::clearIFR(InterruptBit interruptBit)
 {
     interruptStatus &= ~interruptBit;
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
     {
         traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
@@ -1272,6 +1190,7 @@ void CIA1::refreshMasterBit()
     if ((interruptStatus & 0x1F) != 0) interruptStatus |= 0x80;
     else interruptStatus &= ~0x80;
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
     {
         traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
@@ -1429,8 +1348,7 @@ void CIA1::setIERExact(uint8_t mask)
 
 TraceManager::Stamp CIA1::makeCIAStamp() const
 {
-    if (!traceMgr)
-        return { 0, 0, 0 };
+    TraceManager* traceMgr = getTraceManager();
 
     return traceMgr->makeStamp(
         cpu ? cpu->getTotalCycles() : 0,
