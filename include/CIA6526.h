@@ -59,6 +59,14 @@ class CIA6526
 
         inline TraceManager* getTraceManager() const { return traceMgr; }
 
+        void saveBaseState(StateWriter& wrtr) const;
+        bool loadBaseState(StateReader& rdr);
+
+        void saveBaseRuntimeState(StateWriter& wrtr) const;
+        bool loadBaseRuntimeState(StateReader& rdr);
+
+        virtual void postLoadState();
+
         virtual void postTimerUpdates(uint32_t cyclesElapsed) = 0;
 
         inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA | ~ddrA); }

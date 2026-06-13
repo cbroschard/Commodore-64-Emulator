@@ -790,6 +790,130 @@ void CIA6526::updateIRQLine()
     irqLineChanged(active);
 }
 
+void CIA6526::saveBaseState(StateWriter& wrtr) const
+{
+    wrtr.writeU8(portA);
+    wrtr.writeU8(portB);
+    wrtr.writeU8(ddrA);
+    wrtr.writeU8(ddrB);
+
+    wrtr.writeU8(timerALowByte);
+    wrtr.writeU8(timerAHighByte);
+    wrtr.writeU8(timerBLowByte);
+    wrtr.writeU8(timerBHighByte);
+
+    wrtr.writeU8(timerAControl);
+    wrtr.writeU8(timerBControl);
+
+    wrtr.writeU8(interruptStatus);
+    wrtr.writeU8(interruptEnable);
+
+    wrtr.writeU8(serialDataRegister);
+
+    for (int i = 0; i < 4; ++i)
+        wrtr.writeU8(todClock[i]);
+
+    for (int i = 0; i < 4; ++i)
+        wrtr.writeU8(todAlarm[i]);
+}
+
+bool CIA6526::loadBaseState(StateReader& rdr)
+{
+    if (!rdr.readU8(portA))                 return false;
+    if (!rdr.readU8(portB))                 return false;
+    if (!rdr.readU8(ddrA))                  return false;
+    if (!rdr.readU8(ddrB))                  return false;
+
+    if (!rdr.readU8(timerALowByte))         return false;
+    if (!rdr.readU8(timerAHighByte))        return false;
+    if (!rdr.readU8(timerBLowByte))         return false;
+    if (!rdr.readU8(timerBHighByte))        return false;
+
+    if (!rdr.readU8(timerAControl))         return false;
+    if (!rdr.readU8(timerBControl))         return false;
+
+    if (!rdr.readU8(interruptStatus))       return false;
+    if (!rdr.readU8(interruptEnable))       return false;
+
+    if (!rdr.readU8(serialDataRegister))    return false;
+
+    for (int i = 0; i < 4; ++i)
+        if (!rdr.readU8(todClock[i]))       return false;
+
+    for (int i = 0; i < 4; ++i)
+        if (!rdr.readU8(todAlarm[i]))       return false;
+
+    return true;
+}
+
+void CIA6526::saveBaseRuntimeState(StateWriter& wrtr) const
+{
+    wrtr.writeU8(static_cast<uint8_t>(mode_));
+
+    wrtr.writeU16(timerA);
+    wrtr.writeU16(timerASnap);
+    wrtr.writeBool(timerALatched);
+
+    wrtr.writeU16(timerB);
+    wrtr.writeU16(timerBSnap);
+    wrtr.writeBool(timerBLatched);
+
+    for (int i = 0; i < 4; ++i)
+        wrtr.writeU8(todLatch[i]);
+
+    wrtr.writeBool(todLatched);
+    wrtr.writeU32(todTicks);
+
+    wrtr.writeBool(todAlarmSetMode);
+    wrtr.writeBool(todAlarmTriggered);
+
+    wrtr.writeBool(cntLevel);
+    wrtr.writeBool(lastCNT);
+
+    wrtr.writeU8(shiftReg);
+    wrtr.writeU8(shiftCount);
+}
+
+bool CIA6526::loadBaseRuntimeState(StateReader& rdr)
+{
+    uint8_t modeTemp = 0;
+    if (!rdr.readU8(modeTemp))              return false;
+    mode_ = static_cast<VideoMode>(modeTemp);
+
+    if (!rdr.readU16(timerA))               return false;
+    if (!rdr.readU16(timerASnap))           return false;
+    if (!rdr.readBool(timerALatched))       return false;
+
+    if (!rdr.readU16(timerB))               return false;
+    if (!rdr.readU16(timerBSnap))           return false;
+    if (!rdr.readBool(timerBLatched))       return false;
+
+    for (int i = 0; i < 4; ++i)
+        if (!rdr.readU8(todLatch[i]))       return false;
+
+    if (!rdr.readBool(todLatched))          return false;
+    if (!rdr.readU32(todTicks))             return false;
+
+    if (!rdr.readBool(todAlarmSetMode))     return false;
+    if (!rdr.readBool(todAlarmTriggered))   return false;
+
+    if (!rdr.readBool(cntLevel))            return false;
+    if (!rdr.readBool(lastCNT))             return false;
+
+    if (!rdr.readU8(shiftReg))              return false;
+    if (!rdr.readU8(shiftCount))            return false;
+
+    return true;
+}
+
+void CIA6526::postLoadState()
+{
+    setMode(mode_);
+
+    refreshMasterBit();
+    updateIRQLine();
+}
+
 void CIA6526::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
