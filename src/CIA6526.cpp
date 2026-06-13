@@ -660,12 +660,79 @@ void CIA6526::updateTimerA(uint32_t cyclesElapsed)
 
 void CIA6526::updateTimerB(uint32_t cyclesElapsed)
 {
+    const bool tbStarted = (timerBControl & 0x01);
+    const bool tbCNT     = (timerBControl & 0x20);
+    const bool tbCascade = (timerBControl & 0x40);
 
+    if (!tbStarted || tbCNT || tbCascade || cyclesElapsed == 0) return;
+
+    while (cyclesElapsed > 0)
+    {
+        uint32_t cur = (timerB == 0) ? 0x10000u : timerB;
+
+        if (cyclesElapsed < cur)
+        {
+            timerB = static_cast<uint16_t>(cur - cyclesElapsed);
+            break;
+        }
+
+        // Consume until underflow
+        cyclesElapsed -= cur;
+        timerB = 0;
+
+        // Underflow: latch IRQ
+        triggerInterrupt(INTERRUPT_TIMER_B);
+
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        {
+            traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
+        }
+
+        const bool continuous = !(timerBControl & 0x08);
+        if (continuous)
+        {
+            timerB = (timerBHighByte << 8) | timerBLowByte;
+        }
+        else
+        {
+            timerB = 0;
+            timerBControl &= ~0x01; // stop in one-shot
+            break;
+        }
+    }
 }
 
 void CIA6526::handleTimerBCascade()
 {
+    if (!(timerBControl & 0x40) || !(timerBControl & 0x01))
+        return;
 
+    // one “tick” of B
+    uint32_t current = timerB ? timerB : 0x10000;
+    if (current > 1)
+    {
+        timerB = static_cast<uint16_t>(current - 1);
+    }
+    else
+    {
+        // underflow
+        triggerInterrupt(INTERRUPT_TIMER_B);
+
+        TraceManager* traceMgr = getTraceManager();
+        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        {
+            traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
+        }
+
+        bool continuous = !(timerBControl & 0x08);
+        if (continuous)
+            timerB = (timerBHighByte << 8) | timerBLowByte;
+        else
+        {
+            timerB = 0;
+            timerBControl &= ~0x01;  // stop
+        }
+    }
 }
 
 void CIA6526::latchTODClock()

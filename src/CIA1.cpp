@@ -180,8 +180,8 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Normalize
         interruptStatus &= 0x1F;
         interruptEnable &= 0x1F;
-        refreshMasterBit();
-        updateIRQLine();
+        //refreshMasterBit();
+        //updateIRQLine();
 
         // Load Serial data register
         if (!rdr.readU8(serialDataRegister))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -264,6 +264,8 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 void CIA1::reset()
 {
+    CIA6526::reset();
+
     // Ports & DDRs
     portAValue = 0;
     portA = 0xFF;
@@ -324,14 +326,14 @@ void CIA1::reset()
     // Clear all IRQ's
     if (IRQ) IRQ->clearIRQ(IRQLine::CIA1);
 
-    refreshMasterBit();
-    updateIRQLine();
+    //refreshMasterBit();
+    //updateIRQLine();
 
     // ML Monitor logging disable by default
     setLogging = false;
 }
 
-uint8_t CIA1::readRegister(uint16_t address)
+/*uint8_t CIA1::readRegister(uint16_t address)
 {
     switch(address)
     {
@@ -699,7 +701,7 @@ void CIA1::writeRegister(uint16_t address, uint8_t value)
             break;
         }
     }
-}
+}*/
 
 uint8_t CIA1::readPortA()
 {
@@ -733,7 +735,7 @@ uint8_t CIA1::readPortA()
 
 uint8_t CIA1::readPortB()
 {
-    uint8_t pa = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
+    uint8_t pa = getPortAOutput();
     // Calculate the active row
     if (pa == 0xFF)
         rowState = 0xFF;
@@ -761,19 +763,52 @@ uint8_t CIA1::readPortB()
     return getPortBOutput() & rowState;
 }
 
-void CIA1::portAOutputChanged(uint8_t value)
+void CIA1::postTimerUpdates(uint32_t cyclesElapsed)
 {
+    // Cassette handler (FLAG falling-edge detection)
+    for (uint32_t i = 0; i < cyclesElapsed; ++i)
+    {
+        const bool motorOn  = mem ? mem->isCassetteMotorOn()
+                                  : (cass ? cass->motorOn() : false);
+        const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+        const bool allow    = motorOn && senseLow;
 
-}
+        if (allow && !gateWasOpenPrev)
+        {
+            prevReadLevel = true; // prime so the next low becomes a falling edge
+        }
+        gateWasOpenPrev = allow;
 
-void CIA1::portBOutputChanged(uint8_t value)
-{
+        if (allow && cass)
+        {
+            // Advance tape by one CPU cycle and sample READ
+            cass->tick();
+            const bool level = cass->getData(); // true = high (idle), false = low (pulse)
+            cassetteReadLineLevel = level;
 
+            if (prevReadLevel && !level)
+            {
+                triggerInterrupt(INTERRUPT_FLAG_LINE);
+            }
+
+            // Remember for next cycle (only when gate open)
+            prevReadLevel = level;
+        }
+        else
+        {
+            // Gate closed or no device: line is pulled up; DO NOT touch prevReadLevel
+            cassetteReadLineLevel = true;
+        }
+    }
 }
 
 void CIA1::irqLineChanged(bool active)
 {
-
+    if (!IRQ) return;
+    if (active)
+        IRQ->raiseIRQ(IRQLine::CIA1);
+    else
+        IRQ->clearIRQ(IRQLine::CIA1);
 }
 
 void CIA1::latchTODClock()
@@ -785,7 +820,7 @@ void CIA1::latchTODClock()
     todLatched = true;
 }
 
-void CIA1::updateTimers(uint32_t cyclesElapsed)
+/*void CIA1::updateTimers(uint32_t cyclesElapsed)
 {
     // Handle Timer A / B as before
     updateTimerA(cyclesElapsed);
@@ -838,7 +873,7 @@ void CIA1::updateTimers(uint32_t cyclesElapsed)
     // Reflect master bit and shared IRQ line
     refreshMasterBit();
     updateIRQLine();
-}
+}*/
 
 void CIA1::cntChangedA()
 {
@@ -1035,11 +1070,6 @@ void CIA1::updateTimerB(uint32_t cyclesElapsed)
     }
 }
 
-void CIA1::postTimerUpdates(uint32_t cyclesElapsed)
-{
-
-}
-
 void CIA1::handleTimerBCascade()
 {
     if (!(timerBControl & 0x40) || !(timerBControl & 0x01))
@@ -1142,7 +1172,7 @@ void CIA1::setCNTLine(bool level)
         cntChangedB();
 }
 
-void CIA1::triggerInterrupt(InterruptBit interruptBit)
+/*void CIA1::triggerInterrupt(InterruptBit interruptBit)
 {
     interruptStatus |= interruptBit; // Set the relevant bit in the status register
 
@@ -1195,7 +1225,7 @@ void CIA1::refreshMasterBit()
     {
         traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
     }
-}
+}*/
 
 std::string CIA1::dumpRegisters(const std::string& group) const
 {
@@ -1343,7 +1373,7 @@ void CIA1::setIERExact(uint8_t mask)
 {
     mask &= 0x1F;
     interruptEnable = mask;
-    updateIRQLine();
+    //*updateIRQLine();
 }
 
 TraceManager::Stamp CIA1::makeCIAStamp() const

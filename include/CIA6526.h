@@ -48,12 +48,21 @@ class CIA6526
         inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
+        enum InterruptBit : uint8_t
+        {
+            INTERRUPT_TIMER_A = 0x01,
+            INTERRUPT_TIMER_B = 0x02,
+            INTERRUPT_TOD_ALARM = 0x04,
+            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
+            INTERRUPT_FLAG_LINE = 0x10
+        };
+
         inline TraceManager* getTraceManager() const { return traceMgr; }
 
         virtual void postTimerUpdates(uint32_t cyclesElapsed) = 0;
 
-        inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA & ddrA); }
-        inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB & ddrB); }
+        inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA | ~ddrA); }
+        inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB | ~ddrB); }
 
         virtual int getCIANumber() const = 0;
         virtual const char* getCIAName() const = 0;
@@ -64,6 +73,7 @@ class CIA6526
         virtual void portAOutputChanged(uint8_t value) {}
         virtual void portBOutputChanged(uint8_t value) {}
 
+        void triggerInterrupt(InterruptBit interruptBit);
         virtual void irqLineChanged(bool active) = 0;
 
         virtual TraceManager::Stamp makeCIAStamp() const = 0;
@@ -71,15 +81,6 @@ class CIA6526
     private:
         // Non-owning pointers
         TraceManager* traceMgr;
-
-        enum InterruptBit : uint8_t
-        {
-            INTERRUPT_TIMER_A = 0x01,
-            INTERRUPT_TIMER_B = 0x02,
-            INTERRUPT_TOD_ALARM = 0x04,
-            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
-            INTERRUPT_FLAG_LINE = 0x10
-        };
 
         uint8_t portA;
         uint8_t portB;
@@ -139,7 +140,6 @@ class CIA6526
         void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
 
         void updateIRQLine();
-        void triggerInterrupt(InterruptBit interruptBit);
         void clearIFR(InterruptBit interruptBit);
         void refreshMasterBit();
 };

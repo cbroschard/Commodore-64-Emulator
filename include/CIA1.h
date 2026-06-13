@@ -54,24 +54,24 @@ class CIA1 : public CIA6526
         void reset() override;
 
         // Register methods
-        uint8_t readRegister(uint16_t address);
-        void writeRegister(uint16_t address, uint8_t value);
+        //uint8_t readRegister(uint16_t address);
+        //void writeRegister(uint16_t address, uint8_t value);
 
         // Main update timers method
-        void updateTimers(uint32_t cyclesElapsed);
+        //void updateTimers(uint32_t cyclesElapsed);
 
         // CNT handling
         void setCNTLine(bool level);
 
         //Interrupt handling
-        enum InterruptBit : uint8_t
+        /*enum InterruptBit : uint8_t
         {
             INTERRUPT_TIMER_A = 0x01,
             INTERRUPT_TIMER_B = 0x02,
             INTERRUPT_TOD_ALARM = 0x04,
             INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
             INTERRUPT_FLAG_LINE = 0x10
-        };
+        };*/
 
         void clearInterrupt(InterruptBit interruptBit);
 
@@ -96,9 +96,6 @@ class CIA1 : public CIA6526
 
         uint8_t readPortA() override;
         uint8_t readPortB() override;
-
-        void portAOutputChanged(uint8_t value) override;
-        void portBOutputChanged(uint8_t value) override;
 
         void irqLineChanged(bool active) override;
 
@@ -199,10 +196,10 @@ class CIA1 : public CIA6526
         void latchTODClock();
 
         // IFR Master bit handling
-        void triggerInterrupt(InterruptBit interruptBit);
-        void updateIRQLine();
-        void clearIFR(InterruptBit interruptBit);
-        void refreshMasterBit();
+        //void triggerInterrupt(InterruptBit interruptBit);
+        //void updateIRQLine();
+        //void clearIFR(InterruptBit interruptBit);
+        //void refreshMasterBit();
 
         // Mode
         enum InputMode : uint8_t
