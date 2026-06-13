@@ -908,6 +908,10 @@ bool CIA6526::loadBaseRuntimeState(StateReader& rdr)
 
 void CIA6526::postLoadState()
 {
+    // Normalize
+    timerAControl &= 0xEF;
+    timerBControl &= 0xEF;
+
     setMode(mode_);
 
     refreshMasterBit();
