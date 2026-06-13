@@ -426,7 +426,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
 
-        for (int i = 0; i < 8; ++i) {
+        for (int i = 0; i < 8; ++i)
+        {
             if (!rdr.readU8(registers.spriteX[i]))              { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(registers.spriteY[i]))              { rdr.exitChunkPayload(chunk); return false; }
         }
@@ -445,11 +446,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readU8(registers.borderColor))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(registers.backgroundColor0))            { rdr.exitChunkPayload(chunk); return false; }
+
         for (int i = 0; i < 3; ++i)
             if (!rdr.readU8(registers.backgroundColor[i]))      { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU8(registers.spriteMultiColor1))           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(registers.spriteMultiColor2))           { rdr.exitChunkPayload(chunk); return false; }
+
         for (int i = 0; i < 8; ++i)
             if (!rdr.readU8(registers.spriteColors[i]))         { rdr.exitChunkPayload(chunk); return false; }
 
@@ -465,21 +468,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU8(registers.spriteCollision))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(registers.spriteDataCollision))         { rdr.exitChunkPayload(chunk); return false; }
 
-        // Preserve the programmed 9-bit raster IRQ target.
-        registers.rasterInterruptLine &= 0x01FF;
-
-        // Mask colors to 4-bit (safer on corrupt/old states)
-        registers.borderColor &= 0x0F;
-        registers.backgroundColor0 &= 0x0F;
-        for (int i = 0; i < 3; ++i) registers.backgroundColor[i] &= 0x0F;
-        registers.spriteMultiColor1 &= 0x0F;
-        registers.spriteMultiColor2 &= 0x0F;
-        for (int i = 0; i < 8; ++i) registers.spriteColors[i] &= 0x0F;
-
-        // Re-sync anything derived from registers
-        updateGraphicsMode(registers.raster);
-        updateIRQLine();
-        updateMonitorCaches(registers.raster);
+        postLoadState();
 
         rdr.exitChunkPayload(chunk);
         return true;
@@ -495,14 +484,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (m != static_cast<uint8_t>(mode_))                   { rdr.exitChunkPayload(chunk); return false; }
+
+        mode_ = static_cast<VideoMode>(m);
+        cfg_ = (mode_ == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG);
 
         if (!rdr.readI32(currentCycle))                         { rdr.exitChunkPayload(chunk); return false; }
 
         for (int i = 0; i < 8; ++i)
             if (!rdr.readU16(sprPtrBase[i]))                    { rdr.exitChunkPayload(chunk); return false; }
+
         for (int i = 0; i < 40; ++i)
             if (!rdr.readU8(charPtrFIFO[i]))                    { rdr.exitChunkPayload(chunk); return false; }
+
         for (int i = 0; i < 40; ++i)
             if (!rdr.readU8(colorPtrFIFO[i]))                   { rdr.exitChunkPayload(chunk); return false; }
 
@@ -513,8 +506,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(vicState.vmliFetchIndex))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(vicState.vmliFetchIndex))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
+
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                    { rdr.exitChunkPayload(chunk); return false; }
@@ -575,88 +569,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(frameDone))                           { rdr.exitChunkPayload(chunk); return false; }
 
-        // --- sanitize restored values ---
-        if (registers.raster >= cfg_->maxRasterLines)
-            registers.raster %= cfg_->maxRasterLines;
-
-        if (currentCycle < 0) currentCycle = 0;
-        if (currentCycle >= cfg_->cyclesPerLine)
-            currentCycle %= cfg_->cyclesPerLine;
-
-        const int visibleRows = getRSEL(registers.raster) ? 25 : 24;
-        const uint16_t maxRowBase = static_cast<uint16_t>((visibleRows - 1) * 40);
-
-        vicState.vcBase   = static_cast<uint16_t>((vicState.vcBase   / 40) * 40);
-        vicState.vmliBase = static_cast<uint16_t>((vicState.vmliBase / 40) * 40);
-
-        if (vicState.vcBase > maxRowBase)
-            vicState.vcBase = maxRowBase;
-
-        if (vicState.vmliBase > maxRowBase)
-            vicState.vmliBase = vicState.vcBase;
-
-        if (vicState.vmliFetchIndex > 40)
-            vicState.vmliFetchIndex = 40;
-
-        vicState.rc &= 0x07;
-        vicState.openBus = static_cast<uint8_t>(vicState.openBus);
-
-        vicState.leftBorderOpenX = std::clamp(vicState.leftBorderOpenX, 0, VISIBLE_WIDTH);
-        vicState.rightBorderCloseX = std::clamp(vicState.rightBorderCloseX, 0, VISIBLE_WIDTH);
-
-        if (vicState.leftBorderOpenX > vicState.rightBorderCloseX)
-            std::swap(vicState.leftBorderOpenX, vicState.rightBorderCloseX);
-
-        vicState.topBorderOpenRaster =  std::clamp(vicState.topBorderOpenRaster, 0, int(cfg_->maxRasterLines));
-        vicState.bottomBorderCloseRaster =  std::clamp(vicState.bottomBorderCloseRaster, 0, int(cfg_->maxRasterLines));
-
-        if (vicState.topBorderOpenRaster > vicState.bottomBorderCloseRaster)
-            std::swap(vicState.topBorderOpenRaster, vicState.bottomBorderCloseRaster);
-
-        for (auto& s : spriteUnits)
-        {
-            s.mc &= 0x3F;
-            s.mcBase &= 0x3F;
-            s.pointerByte &= 0xFF;
-        }
-
-        auto fixSizeU8  = [&](std::vector<uint8_t>& v, uint8_t fill){
-            if (v.size() != (size_t)cfg_->maxRasterLines) v.assign(cfg_->maxRasterLines, fill);
-        };
-        auto fixSizeU16 = [&](std::vector<uint16_t>& v, uint16_t fill){
-            if (v.size() != (size_t)cfg_->maxRasterLines) v.assign(cfg_->maxRasterLines, fill);
-        };
-
-        fixSizeU8(d011_per_raster, 0x1B);
-        fixSizeU8(d016_per_raster, 0x08);
-        fixSizeU8(d018_per_raster, 0x14);
-
-        uint16_t defBank = cia2 ? cia2->getCurrentVICBank() : 0;
-        fixSizeU16(dd00_per_raster, defBank);
-
-        // Recompute mode/caches from restored latches
-        updateGraphicsMode(registers.raster);
-
-        // Prefer CIA2's current bank for *current raster* (optional but helps)
-        if (cia2)
-            dd00_per_raster[registers.raster] = cia2->getCurrentVICBank();
-
-        // Rebuild Border Latches
-        rebuildBorderRasterLatches();
-
-        updateMonitorCaches(registers.raster);
-
-        // Make sure CPU BA hold matches current DMA now
-        updateBusArbitration();
-
-        // IRQ line consistent with restored IER/ISR
-        updateIRQLine();
+        postLoadState();
 
         rdr.exitChunkPayload(chunk);
         return true;
     }
 
-    return false; // not our chunk
+    return false;
 }
 
 uint8_t Vic::readRegister(uint16_t address)
@@ -6632,4 +6551,100 @@ const char* Vic::busArbReason(int raster, int cycle) const
         return "refresh";
 
     return "none";
+}
+
+void Vic::postLoadState()
+{
+    // Reconnect config pointer from current/restored mode.
+    cfg_ = (mode_ == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG);
+
+    // Keep only basic range safety. Do NOT rewrite restored internal sequencer state.
+    if (registers.raster >= cfg_->maxRasterLines)
+        registers.raster %= cfg_->maxRasterLines;
+
+    if (currentCycle < 0)
+        currentCycle = 0;
+
+    if (currentCycle >= cfg_->cyclesPerLine)
+        currentCycle %= cfg_->cyclesPerLine;
+
+    // Normalize raw register-style values only.
+    registers.rasterInterruptLine &= 0x01FF;
+
+    registers.control &= 0x7F;
+    registers.control2 &= 0x1F;
+    registers.memory_pointer &= 0xFE;
+
+    registers.interruptStatus &= 0x0F;
+    registers.interruptEnable &= 0x0F;
+
+    registers.borderColor &= 0x0F;
+    registers.backgroundColor0 &= 0x0F;
+
+    for (int i = 0; i < 3; ++i)
+        registers.backgroundColor[i] &= 0x0F;
+
+    registers.spriteMultiColor1 &= 0x0F;
+    registers.spriteMultiColor2 &= 0x0F;
+
+    for (int i = 0; i < 8; ++i)
+        registers.spriteColors[i] &= 0x0F;
+
+    // Make sure vectors exist and are valid-sized, but do not overwrite valid restored contents.
+    auto fixSizeU8 = [&](std::vector<uint8_t>& v, uint8_t fill)
+    {
+        if (v.size() != static_cast<size_t>(cfg_->maxRasterLines))
+            v.assign(cfg_->maxRasterLines, fill);
+    };
+
+    auto fixSizeU16 = [&](std::vector<uint16_t>& v, uint16_t fill)
+    {
+        if (v.size() != static_cast<size_t>(cfg_->maxRasterLines))
+            v.assign(cfg_->maxRasterLines, fill);
+    };
+
+    fixSizeU8(d011_per_raster, registers.control & 0x7F);
+    fixSizeU8(d016_per_raster, registers.control2 & 0x1F);
+    fixSizeU8(d018_per_raster, registers.memory_pointer & 0xFE);
+
+    const uint16_t defaultBank = cia2 ? cia2->getCurrentVICBank() : 0;
+    fixSizeU16(dd00_per_raster, defaultBank);
+
+    fixSizeU8(borderVertical_per_raster, vicState.verticalBorder ? 1 : 0);
+
+    if (borderLeftOpenX_per_raster.size() != static_cast<size_t>(cfg_->maxRasterLines))
+        borderLeftOpenX_per_raster.assign(cfg_->maxRasterLines, vicState.leftBorderOpenX);
+
+    if (borderRightCloseX_per_raster.size() != static_cast<size_t>(cfg_->maxRasterLines))
+        borderRightCloseX_per_raster.assign(cfg_->maxRasterLines, vicState.rightBorderCloseX);
+
+    rasterRowStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
+
+    rasterPixelStates.resize(cfg_->maxRasterLines);
+    lastFrameRasterPixelStates.resize(cfg_->maxRasterLines);
+
+    bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
+    for (auto& row : bgOpaque)
+        row.fill(0);
+
+    // Keep sprite restored state, only mask fields that have known hardware ranges.
+    for (auto& s : spriteUnits)
+    {
+        s.mc &= 0x3F;
+        s.mcBase &= 0x3F;
+    }
+
+    // Recompute derived live state from restored values.
+    currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+
+    updateGraphicsMode(registers.raster);
+    updateBusArbitration();
+    updateIRQLine();
+
+    // Debug/monitor cache refresh only.
+    updateMonitorCaches(registers.raster);
+
+    // Treat this as diagnostic only unless behavior depends on it.
+    lastRasterIRQSample = {};
 }
