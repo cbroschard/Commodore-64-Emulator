@@ -53,10 +53,6 @@ class CIA1 : public CIA6526
         // Reset everything to default
         void reset() override;
 
-        // Register methods
-        //uint8_t readRegister(uint16_t address);
-        //void writeRegister(uint16_t address, uint8_t value);
-
         void clearInterrupt(InterruptBit interruptBit);
 
         // ML Monitor access
@@ -87,56 +83,17 @@ class CIA1 : public CIA6526
         Memory* mem;
         Vic* vic;
 
-        // Video
-        VideoMode mode_;
-
         // Data ports
         uint8_t portAValue;
-        uint8_t portA;
-        uint8_t portB;
 
         uint8_t rowState; // Keyboard row state (key(s) pressed)
         uint8_t activeRow; // Keyboard active row
         int rowIndex; // Active row index
 
-        // Data direction
-        uint8_t dataDirectionPortA;
-        uint8_t dataDirectionPortB;
-
-        // Serial-Shift Register state
-        uint8_t shiftReg; // 8-bit shift accumulator
-        uint8_t shiftCount; // how many bits we’ve shifted so far
-
-        // Timers
-        uint16_t timerA;
-        uint8_t timerALowByte;
-        uint8_t timerAHighByte;
-        uint16_t timerB;
-        uint8_t timerBLowByte;
-        uint8_t timerBHighByte;
-        uint32_t todTicks;
-
         // Cassette tape state
         bool prevReadLevel;
         bool cassetteReadLineLevel;
         bool gateWasOpenPrev;
-
-        // Timer A & B latch
-        uint16_t timerASnap;
-        bool timerALatched;
-        uint16_t timerBSnap;
-        bool timerBLatched;
-
-        // Timer control
-        uint8_t timerAControl;
-        uint8_t timerBControl;
-
-        // Serial
-        uint8_t serialDataRegister;
-
-        // Interrupt handling
-        uint8_t interruptStatus;
-        uint8_t interruptEnable;
 };
 
 #endif // CIA1_H
