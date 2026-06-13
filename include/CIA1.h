@@ -57,12 +57,6 @@ class CIA1 : public CIA6526
         //uint8_t readRegister(uint16_t address);
         //void writeRegister(uint16_t address, uint8_t value);
 
-        // Main update timers method
-        //void updateTimers(uint32_t cyclesElapsed);
-
-        // CNT handling
-        void setCNTLine(bool level);
-
         //Interrupt handling
         /*enum InterruptBit : uint8_t
         {
@@ -167,11 +161,6 @@ class CIA1 : public CIA6526
         uint8_t timerAControl;
         uint8_t timerBControl;
 
-        // Update Timers helpers
-        void updateTimerA(uint32_t cyclesElapsed);
-        void updateTimerB(uint32_t cyclesElapsed);
-        void handleTimerBCascade();
-
         // TOD registers
         uint8_t todAlarm[4];
         uint8_t todClock[4];
@@ -186,12 +175,6 @@ class CIA1 : public CIA6526
         // Interrupt handling
         uint8_t interruptStatus;
         uint8_t interruptEnable;
-
-        // Handle CNT mode
-        bool cntLevel;
-        bool lastCNT;
-        void cntChangedA();
-        void cntChangedB();
 
         void latchTODClock();
 
