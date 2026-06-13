@@ -187,8 +187,10 @@ bool EmulationSession::runFrame()
     }
 
     int frameCycles = 0;
+    const int targetCycles = runtime_.cpuCfg->cyclesPerFrame();
 
-    while (frameCycles < runtime_.cpuCfg->cyclesPerFrame())
+    while (frameCycles < targetCycles ||
+           (cpu_.getUseMicroOps() && !cpu_.isAtInstructionBoundary()))
     {
         uint32_t elapsedCycles = 0;
 
@@ -197,6 +199,7 @@ bool EmulationSession::runFrame()
             try
             {
                 uint16_t pc = cpu_.getPC();
+
                 if (!runtime_.uiPaused.load() && debug_.hasBreakpoint(pc))
                 {
                     runtime_.uiPaused = true;
@@ -239,6 +242,12 @@ bool EmulationSession::runFrame()
             mapper->tick(elapsedCycles);
 
         frameCycles += static_cast<int>(elapsedCycles);
+
+        // Safety valve: do not let a broken CPU state spin forever trying to reach boundary.
+        if (frameCycles > targetCycles + 32)
+        {
+            break;
+        }
     }
 
     return true;
