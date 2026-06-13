@@ -6,12 +6,10 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "cia1.h"
-#include <bitset>
 #include <cstring>
-#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include "Cassette.h"
-#include "Common/HexFormat.h"
 #include "CPU.h"
 #include "IRQLine.h"
 #include "Joystick.h"
