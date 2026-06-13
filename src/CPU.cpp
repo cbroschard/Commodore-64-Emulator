@@ -129,6 +129,9 @@ bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
         const bool ok = loadStateExtendedPayload(chunk, rdr);
         rdr.exitChunkPayload(chunk);
+
+        postLoadState();
+
         return ok;
     }
 
@@ -7823,4 +7826,81 @@ TraceManager::Stamp CPU::makeCpuStamp() const
         vic ? vic->getCurrentRaster() : 0,
         vic ? vic->getRasterDot() : 0
     );
+}
+
+void CPU::postLoadState()
+{
+    // Normalize status register.
+    SR = (SR | 0x20) & ~0x10;
+
+    // Reconnect timing config from restored mode.
+    setMode(mode_);
+
+    currentBusCycle = {};
+    busCycleActive = false;
+
+    pendingOpcodeFetch = false;
+    pendingOpcodeAddress = 0;
+
+    microOps = {};
+    microOpCount = 0;
+    microOpIndex = 0;
+    microInstructionActive = false;
+    executingMicroOp = false;
+
+    activeOpcode = 0xEA;
+    activeOpcodePC = PC;
+
+    microAddress = 0;
+    microBaseAddress = 0;
+    microPageCrossed = false;
+    microTemp = 0;
+    microZP = 0;
+    microPtrLow = 0;
+    microPtrHigh = 0;
+    microPointerAddress = 0;
+    microJmpLow = 0;
+    microJmpHigh = 0;
+    microBranchOffset = 0;
+    microBranchTaken = false;
+    microOldPC = 0;
+    microReturnAddress = 0;
+    microReturnLow = 0;
+    microReturnHigh = 0;
+    microStatus = 0;
+    microVectorLow = 0;
+    microVectorHigh = 0;
+    microRMWOldValue = 0;
+    microRMWNewValue = 0;
+
+    // Do not carry stale per-instruction diagnostic state into the restored run.
+    lastAddressDebug = {};
+    lastInterruptEntry = {};
+    lastBranch = {};
+    lastJMP = {};
+    lastJSR = {};
+    lastRTS = {};
+    lastRTI = {};
+    lastPHA = {};
+    lastPHP = {};
+    lastPLA = {};
+    lastPLP = {};
+
+    // Keep last opcode display sane.
+    lastOpcodePC = PC;
+    lastOpcode = 0xEA;
+    lastOpcodeUsedMicroOps = false;
+    lastOpcodeMicroOpCapable = false;
+    lastMicroOpCount = 0;
+    lastMicroOpIndexAtEnd = 0;
+
+    elapsedCycles = 0;
+
+    rdyLine = true;
+    aecLine = true;
+
+    if (vic)
+    {
+        aecLine = vic->getAEC();
+    }
 }

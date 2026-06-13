@@ -558,6 +558,8 @@ class CPU
         inline void setLog(bool enable) { setLogging = enable; }
         inline uint32_t getTotalCycles() const { return totalCycles; }
 
+        void postLoadState();
+
     protected:
 
     private:
