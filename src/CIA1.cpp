@@ -62,40 +62,14 @@ void CIA1::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CIA1");
     wrtr.writeU32(1); // version
 
-    // Dump ports
-    wrtr.writeU8(portA);
-    wrtr.writeU8(portB);
-    wrtr.writeU8(dataDirectionPortA);
-    wrtr.writeU8(dataDirectionPortB);
+    // Base save
+    saveBaseState(wrtr);
 
-    // Dump timers
-    wrtr.writeU8(timerALowByte);
-    wrtr.writeU8(timerAHighByte);
-    wrtr.writeU8(timerBLowByte);
-    wrtr.writeU8(timerBHighByte);
-
-    // Dump Control registers
-    wrtr.writeU8(timerAControl);
-    wrtr.writeU8(timerBControl);
-
-    // Dump Interrupt control
-    wrtr.writeU8(interruptStatus);
-    wrtr.writeU8(interruptEnable);
-
-    // Dump Serial data register
-    wrtr.writeU8(serialDataRegister);
-
-    // Dump TOD clock
-    wrtr.writeU8(todClock[0]); // 10ths
-    wrtr.writeU8(todClock[1]); // Seoonds
-    wrtr.writeU8(todClock[2]); // Minutes
-    wrtr.writeU8(todClock[3]); // Hours
-
-    // Dump TOD Alarms
-    wrtr.writeU8(todAlarm[0]); // 10ths
-    wrtr.writeU8(todAlarm[1]); // Seconds
-    wrtr.writeU8(todAlarm[2]); // Minutes
-    wrtr.writeU8(todAlarm[3]); // Hours
+    // CIA1-specific state
+    wrtr.writeU8(portAValue);
+    wrtr.writeU8(rowState);
+    wrtr.writeU8(activeRow);
+    wrtr.writeI32(rowIndex);
 
     // End the chunk for CIA1
     wrtr.endChunk();
@@ -104,42 +78,13 @@ void CIA1::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CI1X");
     wrtr.writeU32(1); // version
 
-    // Dump Video mode
-    wrtr.writeU8(static_cast<uint8_t>(mode_));
-
-    // Dump Timers
-    wrtr.writeU16(timerA);
-    wrtr.writeU16(timerASnap);
-    wrtr.writeBool(timerALatched);
-    wrtr.writeU16(timerB);
-    wrtr.writeU16(timerBSnap);
-    wrtr.writeBool(timerBLatched);
-
-    // Dump TOD state
-    wrtr.writeU8(todLatch[0]); // 10ths
-    wrtr.writeU8(todLatch[1]); // Seoonds
-    wrtr.writeU8(todLatch[2]); // Minutes
-    wrtr.writeU8(todLatch[3]); // Hours
-    wrtr.writeBool(todLatched);
-    wrtr.writeU32(todTicks);
-
-    // Dump TOD Alarm Mode/Triggered
-    wrtr.writeBool(todAlarmSetMode);
-    wrtr.writeBool(todAlarmTriggered);
+    // Base runtime state
+    saveBaseRuntimeState(wrtr);
 
     // Dump current cassette state
     wrtr.writeBool(prevReadLevel);
     wrtr.writeBool(cassetteReadLineLevel);
     wrtr.writeBool(gateWasOpenPrev);
-
-    // Dump CNT
-    wrtr.writeBool(cntLevel);
-    wrtr.writeBool(lastCNT);
-    wrtr.writeU8(inputMode);
-
-    // Dump shift register
-    wrtr.writeU8(shiftReg);
-    wrtr.writeU8(shiftCount);
 
     // End the chunk
     wrtr.endChunk();
@@ -155,48 +100,14 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load ports
-        if (!rdr.readU8(portA))                                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(portB))                                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(dataDirectionPortA))                            { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(dataDirectionPortB))                            { rdr.exitChunkPayload(chunk); return false; }
+        // Load base state
+        if (!loadBaseState(rdr))                                        { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load timers
-        if (!rdr.readU8(timerALowByte))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerAHighByte))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBLowByte))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBHighByte))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerAControl))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBControl))                                 { rdr.exitChunkPayload(chunk); return false; }
-
-        // Normalize
-        timerAControl &= 0xEF;
-        timerBControl &= 0xEF;
-
-        // Load Interrupt Control
-        if (!rdr.readU8(interruptStatus))                               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(interruptEnable))                               { rdr.exitChunkPayload(chunk); return false; }
-
-        // Normalize
-        interruptStatus &= 0x1F;
-        interruptEnable &= 0x1F;
-        //refreshMasterBit();
-        //updateIRQLine();
-
-        // Load Serial data register
-        if (!rdr.readU8(serialDataRegister))                            { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD clock
-        if (!rdr.readU8(todClock[0]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[1]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[2]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[3]))                                   { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD Alarm
-        if (!rdr.readU8(todAlarm[0]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[1]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[2]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[3]))                                   { rdr.exitChunkPayload(chunk); return false; }
+        // CIA1-specific state
+        if (!rdr.readU8(portAValue))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rowState))                                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(activeRow))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(rowIndex))                                     { rdr.exitChunkPayload(chunk); return false; }
 
         // End chunk
         rdr.exitChunkPayload(chunk);
@@ -211,50 +122,17 @@ bool CIA1::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load and activate the video mode
-        uint8_t vm = 0;
-        if (!rdr.readU8(vm))                                            { rdr.exitChunkPayload(chunk); return false; }
-        mode_ = static_cast<VideoMode>(vm);
-        setMode(mode_);
-
-        // Load Timers
-        if (!rdr.readU16(timerA))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerASnap))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(timerALatched))                               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerB))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerBSnap))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(timerBLatched))                               { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD
-        if (!rdr.readU8(todLatch[0]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[1]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[2]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[3]))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(todLatched))                                  { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU32(todTicks))                                     { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD Alarm/Trigged
-        if (!rdr.readBool(todAlarmSetMode))                             { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(todAlarmTriggered))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!loadBaseRuntimeState(rdr))                                 { rdr.exitChunkPayload(chunk); return false; }
 
         // Load current cassette state
         if (!rdr.readBool(prevReadLevel))                               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(cassetteReadLineLevel))                       { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(gateWasOpenPrev))                             { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load CNT
-        if (!rdr.readBool(cntLevel))                                    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(lastCNT))                                     { rdr.exitChunkPayload(chunk); return false; }
-
-        uint8_t im = 0;
-        if (!rdr.readU8(im))                                            { rdr.exitChunkPayload(chunk); return false; }
-        inputMode = static_cast<InputMode>(im);
-
-        // Load shift register
-        if (!rdr.readU8(shiftReg))                                      { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(shiftCount))                                    { rdr.exitChunkPayload(chunk); return false; }
-
         rdr.exitChunkPayload(chunk);
+
+        postLoadState();
+
         return true;
     }
 
@@ -266,41 +144,10 @@ void CIA1::reset()
 {
     CIA6526::reset();
 
-    // Ports & DDRs
     portAValue = 0;
-    portA = 0xFF;
-    portB = 0xFF;
-    dataDirectionPortA = 0x00;
-    dataDirectionPortB = 0x00;
     rowState = 0xFF;  // inputs float high
     activeRow = 0;
     rowIndex = 0;
-
-    // Timers
-    timerA = timerB = 0;
-    timerALowByte = timerAHighByte = 0;
-    timerBLowByte = timerBHighByte = 0;
-    timerAControl = timerBControl = 0;
-
-    // Timer Lathes
-    timerASnap = timerBSnap = 0;
-    timerALatched = timerBLatched = false;
-
-    // Serial shift register state
-    shiftCount = shiftReg = 0;
-
-    // TOD
-    std::fill(std::begin(todClock), std::end(todClock),0);
-    std::fill(std::begin(todAlarm), std::end(todAlarm),0xFF);
-    std::fill(std::begin(todLatch), std::end(todLatch),0);
-    todLatched = false;
-    todAlarmSetMode = false;
-    todAlarmTriggered = false;
-
-    // Serial / IRQ
-    serialDataRegister = 0;
-    interruptStatus = 0;
-    interruptEnable = 0;
 
     // Update the cassette
     prevReadLevel = true;
@@ -308,400 +155,16 @@ void CIA1::reset()
     gateWasOpenPrev = false;
 
     if (cass && cass->isCassetteLoaded())
-    {
         prevReadLevel = cass->getData(); // sample actual line level
-    }
     else
-    {
         prevReadLevel = true; // default pulled-up
-    }
-
-    // Mode
-    inputMode = InputMode::modeProcessor;
-
-    // CNT
-    cntLevel = true;
-    lastCNT = true;
 
     // Clear all IRQ's
     if (IRQ) IRQ->clearIRQ(IRQLine::CIA1);
 
-    //refreshMasterBit();
-    //updateIRQLine();
-
     // ML Monitor logging disable by default
     setLogging = false;
 }
-
-/*uint8_t CIA1::readRegister(uint16_t address)
-{
-    switch(address)
-    {
-        case 0xDC00: // CIA1 Port A read
-        {
-            const uint8_t ddra = dataDirectionPortA;
-            const uint8_t ddrb = dataDirectionPortB;
-            const uint8_t prb  = portB;
-
-            uint8_t pin = 0xFF;  // pulled-up bus
-
-            // Keyboard rows selected by PRB (only when a column is driven low)
-            if (keyb)
-            {
-                for (int r = 0; r < 8; ++r)
-                    if ((ddrb & (1u<<r)) && !(prb & (1u<<r)))
-                        pin &= keyb->readRow(r);  // active-low
-            }
-
-            // JOY2 (PA0..PA4 active-low). Mask to 5 bits; keep PA5..PA7 high.
-            if (joy2)
-            {
-                uint8_t j2 = static_cast<uint8_t>((joy2->getState() & 0x1F) | 0xE0);
-                pin &= j2;
-            }
-
-            // Wire-AND cassette SENSE onto PA4 (low dominates)
-            const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
-            if (senseLow) pin &= static_cast<uint8_t>(~0x10);
-
-            // Merge with output latch via DDRA…
-            uint8_t v = static_cast<uint8_t>((portA | ~ddra) & pin);
-
-            if ((v & 0x10) && !(pin & 0x10)) v &= static_cast<uint8_t>(~0x10);
-
-            portAValue = v;
-            return v;
-        }
-        case 0xDC01: // Port B
-        {
-            uint8_t pa = (portA & dataDirectionPortA) | (~dataDirectionPortA & 0xFF);
-            // Calculate the active row
-            if (pa == 0xFF)
-            {
-                rowState = 0xFF;
-            }
-            else
-            {
-                // Find the active rows so the keyboard keys work
-                uint8_t combinedRowState = 0xFF;
-                for (uint8_t i = 0; i < 8; i++)
-                {
-                    if ((pa & (1 << i)) == 0 && keyb)
-                    {
-                        combinedRowState &= keyb->readRow(i);
-                    }
-                }
-                rowState = combinedRowState;
-            }
-
-            // Add Joystick 1 state if attached
-            if (joy1)
-            {
-                rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0xE0);
-            }
-
-            // Combine PortB and row state
-            return (portB | ~dataDirectionPortB) & rowState;
-        }
-        case 0xDC02: // Data direction register for Port A
-            return dataDirectionPortA;
-        case 0xDC03: // Data direction port B
-            return dataDirectionPortB;
-        case 0xDC04: // Timer A low byte
-            timerASnap = timerA;
-            timerALatched = true;
-            return timerASnap & 0xFF;
-        case 0xDC05: // Timer A high byte
-        {
-            if (timerALatched)
-            {
-                timerALatched = false;
-                return timerASnap >> 8;
-            }
-            return timerA >> 8;
-        }
-        case 0xDC06: // Timer B low byte
-            timerBSnap = timerB;
-            timerBLatched = true;
-            return timerBSnap & 0xFF;
-        case 0xDC07: // Timer B high byte
-        {
-            if (timerBLatched)
-            {
-                timerBLatched = false;
-                return timerBSnap >> 8;
-            }
-            return timerB >> 8;
-        }
-        case 0xDC08: // TOD Clock 1/10 seconds
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
-            return binaryToBCD(todLatch[0]);
-        case 0xDC09: // TOD Clock seconds
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
-            return binaryToBCD(todLatch[1]);
-        case 0xDC0A: // TOD Clock minutes
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
-            return binaryToBCD(todLatch[2]);
-        case 0xDC0B: // TOD Clock hours and alarm control
-            if (!todLatched)
-            {
-                latchTODClock();
-            }
-            todLatched = false;
-            return binaryToBCD(todLatch[3]);
-        case 0xDC0C:
-        {
-            return serialDataRegister;
-        }
-        case 0xDC0D: // Interrupt control register
-        {
-            uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
-
-            // If any enabled source is active, set bit 7 in the *returned value*
-            if (result & interruptEnable) result |= 0x80;
-
-            // Clear the acknowledged sources (bits 0-4 that were set)
-            interruptStatus &= ~ (result & 0x1F);
-
-            // If TOD was included, unlock future matches
-            if (result & INTERRUPT_TOD_ALARM)
-            {
-                todAlarmTriggered = false;
-            }
-
-            // Recompute master bit and line state
-            refreshMasterBit();
-            updateIRQLine();
-
-            return result;
-        }
-        case 0xDC0E: // Timer A Control register
-            return timerAControl & 0x7F;
-        case 0xDC0F: // Timer B Control register
-            return timerBControl & 0x7F;
-        default:
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Unhandled address requested in CIA1 read register. Address requested = " + std::to_string(address));
-            }
-            return 0xFF;
-    }
-    return 0xFF; // default return value if not handled
-}
-
-void CIA1::writeRegister(uint16_t address, uint8_t value)
-{
-    switch(address)
-    {
-        case 0xDC00: // Port A
-        {
-            portA = value;
-            break;
-        }
-        case 0xDC01: // Port B
-        {
-            portB = value;
-            break;
-        }
-        case 0xDC02: // Data direction port A
-        {
-            dataDirectionPortA = value;
-            break;
-        }
-        case 0xDC03: // Data direction port B
-        {
-            dataDirectionPortB = value;
-            break;
-        }
-        case 0xDC04: // Timer A low byte
-        {
-            timerALowByte = value;
-
-            break;
-        }
-        case 0xDC05: // Timer A high
-        {
-            timerAHighByte = value;
-
-            break;
-        }
-        case 0xDC06: // Timer B low byte
-        {
-            timerBLowByte = value;
-
-            break;
-        }
-        case 0xDC07: // Timer B High
-        {
-            timerBHighByte = value;
-
-            break;
-        }
-        case 0xDC08: // TOD clock 1/10 seconds
-        {
-            if (todAlarmSetMode) // Writing to alarm
-            {
-                todAlarm[0] = bcdToBinary(value & 0x0F);
-                todAlarmTriggered = false;
-            }
-            else // Writing to clock
-            {
-                todClock[0] = bcdToBinary(value & 0x0F);
-                if (todLatched)
-                    todLatch[0] = todClock[0];
-            }
-            break;
-        }
-        case 0xDC09: // TOD clock seconds
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[1] = bcdToBinary(value & 0x7F);
-                todAlarmTriggered = false;
-            }
-            else
-            {
-                todClock[1] = bcdToBinary(value & 0x7F);
-                if (todLatched)
-                    todLatch[1] = todClock[1];
-            }
-            break;
-        }
-        case 0xDC0A: // TOD clock minutes
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[2] = bcdToBinary(value & 0x7F);
-                todAlarmTriggered = false;
-            }
-            else
-            {
-                todClock[2] = bcdToBinary(value & 0x7F);
-                if (todLatched)
-                    todLatch[2] = todClock[2];
-            }
-            break;
-        }
-        case 0xDC0B: // TOD clock hours and alarm control
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[3] = bcdToBinary(value & 0x3F);
-                todAlarmTriggered = false;
-            }
-            else
-            {
-                todClock[3] = bcdToBinary(value & 0x3F);
-                if (todLatched)
-                    todLatch[3] = todClock[3];
-            }
-            break;
-        }
-        case 0xDC0C: // Serial Data Register
-            {
-                if (logger && setLogging)
-                {
-                    logger->WriteLog("Serial Data Register Write: value = " + std::to_string(value));
-                }
-                serialDataRegister = value;
-            }
-
-            break;
-        case 0xDC0D: // Interrupt control register
-        {
-            uint8_t mask = value & 0x1F;
-
-            if (value & 0x80)
-            {
-                interruptEnable |= mask;
-                if (logger && setLogging)
-                {
-                    logger->WriteLog("[CIA1] IER |= $" + toHex(mask,2) +
-                             "  => IER now=$" + toHex(interruptEnable,2));
-                }
-            }
-            else
-            {
-                interruptEnable &= ~mask;
-                if (logger && setLogging)
-                {
-                    logger->WriteLog("[CIA1] IER &= ~$" + toHex(mask,2) +
-                             "  => IER now=$" + toHex(interruptEnable,2));
-                }
-            }
-
-            refreshMasterBit();
-            updateIRQLine();
-            break;
-        }
-        case 0xDC0E:
-        {
-            const uint8_t old = timerAControl;
-            const uint8_t cra = value & 0x7F;       // ignore bit7
-
-            inputMode = (cra & 0x20) ? InputMode::modeCNT : InputMode::modeProcessor;
-
-            // Bit4 = LOAD strobe
-            if (cra & 0x10)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-                clearInterrupt(INTERRUPT_TIMER_A);
-            }
-
-            // Store with bit4 cleared (strobe does not latch high)
-            timerAControl = static_cast<uint8_t>(cra & ~0x10);
-
-            // Rising edge of START -> reload from latch (6526 behavior)
-            const bool wasStarted = (old & 0x01) != 0;
-            const bool nowStarted = (timerAControl & 0x01) != 0;
-            if (nowStarted && !wasStarted)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
-            break;
-        }
-        case 0xDC0F:
-        {
-            const uint8_t old = timerBControl;
-            const uint8_t crb = value & 0x7F;       // ignore bit7
-
-            // Bit4 = LOAD strobe
-            if (crb & 0x10) {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-                clearInterrupt(INTERRUPT_TIMER_B);
-            }
-
-            // Store with bit4 cleared (strobe does not latch high)
-            timerBControl = static_cast<uint8_t>(crb & ~0x10);
-
-            // Rising edge of START -> reload from latch
-            const bool wasStarted = (old & 0x01) != 0;
-            const bool nowStarted = (timerBControl & 0x01) != 0;
-            if (nowStarted && !wasStarted)
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-            }
-            break;
-        }
-        default:
-        {
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Unhandled address requested in CIA1 write register. Address requested = " + std::to_string(address));
-            }
-            break;
-        }
-    }
-}*/
 
 uint8_t CIA1::readPortA()
 {
