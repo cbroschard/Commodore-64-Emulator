@@ -693,140 +693,31 @@ void CIA1::refreshMasterBit()
 std::string CIA1::dumpRegisters(const std::string& group) const
 {
     std::stringstream out;
-    out << std::hex << std::uppercase << std::setfill('0');
 
-    auto hex2 = [&](uint8_t v){ std::ostringstream s; s<<std::hex<<std::uppercase<<std::setfill('0')<<std::setw(2)<<int(v); return s.str(); };
-    auto hex4 = [&](uint16_t v){ std::ostringstream s; s<<std::hex<<std::uppercase<<std::setfill('0')<<std::setw(4)<<v; return s.str(); };
+    // First dump the generic 6526 registers from the base class.
+    out << CIA6526::dumpRegisters(group);
 
-    // Compute effective port values (pull-ups on inputs)
-    uint8_t invA = static_cast<uint8_t>(~dataDirectionPortA);
-    uint8_t invB = static_cast<uint8_t>(~dataDirectionPortB);
-    uint8_t effA = static_cast<uint8_t>((portA & dataDirectionPortA) | invA);
-    uint8_t effB = static_cast<uint8_t>((portB & dataDirectionPortB) | invB);
-
-    // Derive cassette bits
-    bool senseLow =  mem ? mem->getCassetteSenseLow() : false;
-    bool motorOn = mem ? mem->isCassetteMotorOn() : false;
-    bool readLevel = cassetteReadLineLevel;
-
-    // Ports
+    // Then append CIA1/C64-specific details.
     if (group == "port" || group == "all")
     {
-        out << "\nPort Registers \n\n";
-        out << "PORT A (latch)             = $" << hex2(portA) << "\n";
-        out << "PORT A DDR                 = $" << hex2(dataDirectionPortA) << "\n";
-        if ((dataDirectionPortA & 0x10) == 0)
-        {
-            out << "PORT A (effective)         = $" << hex2(effA)
-                << "   [PA4 SENSE:" << (senseLow ? "0" : "1") << "]\n";
-        }
-        else
-        {
-            out << "PORT A (effective)         = $" << hex2(effA)
-                << "   [PA4 output bit:" << (((portA >> 4) & 1) ? "1" : "0") << "]\n";
-        }
+        const bool senseLow  = mem ? mem->getCassetteSenseLow() : false;
+        const bool motorOn   = mem ? mem->isCassetteMotorOn() : false;
+        const bool readLevel = cassetteReadLineLevel;
 
-        out << "PORT B (latch)             = $" << hex2(portB) << "\n";
-        out << "PORT B DDR                 = $" << hex2(dataDirectionPortB) << "\n";
-        out << "PORT B (effective)         = $" << hex2(effB) << "\n";
-        out << "6510 $0001 motor           = " << (motorOn ? "ON" : "OFF") << "  (bit5 effective = "
+        out << "\nCIA1 C64-Specific Lines\n\n";
+
+        out << "Cassette SENSE / PA4       = "
+            << (senseLow ? "Low" : "High")
+            << "  (CIA sees bit as "
+            << (senseLow ? "0" : "1") << ")\n";
+
+        out << "Cassette READ line         = "
+            << (readLevel ? "High" : "Low") << "\n";
+
+        out << "6510 $0001 motor           = "
+            << (motorOn ? "ON" : "OFF")
+            << "  (bit5 effective = "
             << (motorOn ? "0" : "1") << ")\n";
-        out << "Cassette READ line         = " << (readLevel ? "High" : "Low") << "\n";
-    }
-
-    // Timers
-    if (group == "timer" || group == "all")
-    {
-        auto decodeCRA = [&](uint8_t cr)
-        {
-            std::ostringstream s;
-            s << "Start:" << ((cr&0x01)?"On":"Off")
-              << " PBON:" << ((cr&0x02)?"Yes":"No")
-              << " OUTMODE:" << ((cr&0x04)?"Toggle":"Pulse")
-              << " Mode:" << ((cr&0x08)?"One-shot":"Continuous")
-              << " Load:" << ((cr&0x10)?"Yes":"No")
-              << " Clock:" << ((cr&0x20)?"CNT":"φ2");
-            return s.str();
-        };
-        auto decodeCRB = [&](uint8_t cr)
-        {
-            std::ostringstream s;
-            s << "Start:" << ((cr&0x01)?"On":"Off")
-              << " PBON:" << ((cr&0x02)?"Yes":"No")
-              << " OUTMODE:" << ((cr&0x04)?"Toggle":"Pulse")
-              << " Mode:" << ((cr&0x08)?"One-shot":"Continuous")
-              << " Load:" << ((cr&0x10)?"Yes":"No")
-              << " Clock:" << ((cr&0x60)==0x00?"φ2": (cr&0x60)==0x20?"CNT": (cr&0x60)==0x40?"TimerA":"TimerA+CNT");
-            return s.str();
-        };
-
-        out << "\nTimer Registers \n\n";
-        out << "Timer A Latch Low          = $" << hex2(timerALowByte)  << "\n";
-        out << "Timer A Latch High         = $" << hex2(timerAHighByte) << "\n";
-        out << "Timer A Latched            = " << (timerALatched ? "Yes" : "No")
-            << "  Snapshot = $" << hex4(timerASnap) << " (High will return snapshot: "
-            << (timerALatched ? "Yes" : "No") << ")\n";
-        out << "Timer A Current            = $" << hex4(timerA) << "\n";
-        out << "Timer A Control Register   = $" << hex2(timerAControl) << "  [" << decodeCRA(timerAControl) << "]\n";
-
-        out << "Timer B Latch Low          = $" << hex2(timerBLowByte)  << "\n";
-        out << "Timer B Latch High         = $" << hex2(timerBHighByte) << "\n";
-        out << "Timer B Latched            = " << (timerBLatched ? "Yes" : "No")
-            << "  Snapshot = $" << hex4(timerBSnap) << " (High will return snapshot: "
-            << (timerBLatched ? "Yes" : "No") << ")\n";
-        out << "Timer B Current            = $" << hex4(timerB) << "\n";
-        out << "Timer B Control Register   = $" << hex2(timerBControl) << "  [" << decodeCRB(timerBControl) << "]\n";
-    }
-
-    // TOD
-    if (group == "tod" || group == "all")
-    {
-        out << "\nTOD Registers\n\n";
-        out << "Current TOD                = "
-            << hex2(todClock[3]) << ":" << hex2(todClock[2]) << ":" << hex2(todClock[1]) << "." << hex2(todClock[0]) << "\n";
-        out << "TOD Alarm                  = "
-            << hex2(todAlarm[3]) << ":" << hex2(todAlarm[2]) << ":" << hex2(todAlarm[1]) << "." << hex2(todAlarm[0]) << "\n";
-        out << "TOD Latch                  = "
-            << hex2(todLatch[3]) << ":" << hex2(todLatch[2]) << ":" << hex2(todLatch[1]) << "." << hex2(todLatch[0]) << "\n";
-        out << "TOD Alarm Set Mode         = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
-    }
-
-    // Interrupts
-    if (group == "icr" || group == "all")
-    {
-        uint8_t sources = static_cast<uint8_t>(interruptStatus & 0x1F);
-        bool masterPending = (sources & interruptEnable) != 0;
-        out << "\nInterrupt Registers\n\n";
-        out << "Interrupt Status (IFR)     = $" << hex2(interruptStatus) << "  [";
-        if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
-        if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
-        if (interruptStatus & INTERRUPT_TOD_ALARM) out << " TOD";
-        if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER) out << " SR";
-        if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
-        out << " ]  Master Pending: " << (masterPending ? "Yes" : "No") << "\n";
-        out << "Interrupt Enable (IER)     = $" << hex2(interruptEnable) << "\n";
-    }
-
-    // Serial
-    if (group == "serial" || group == "all")
-    {
-        out << "\nSerial Register\n\n";
-        out << "Serial Data Register       = $" << hex2(serialDataRegister) << "\n";
-    }
-
-    // Mode
-    if (group == "mode" || group == "all")
-    {
-        out << "\nControl Lines\n\n";
-        out << "CNT Input Mode             = ";
-        switch (inputMode)
-        {
-            case InputMode::modeProcessor: out << "Processor polling"; break;
-            case InputMode::modeCNT:       out << "CNT-driven"; break;
-            case InputMode::modeTimerA:    out << "Timer A-driven"; break;
-            case InputMode::modeTimerACNT: out << "Timer A + CNT"; break;
-        }
-        out << "\nPrevious FLAG state        = " << (prevReadLevel ? "High" : "Low") << "\n";
     }
 
     return out.str();
