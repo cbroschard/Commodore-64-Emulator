@@ -127,24 +127,9 @@ class CIA1 : public CIA6526
         uint16_t timerBSnap;
         bool timerBLatched;
 
-        // TOD Increment Threshold
-        uint32_t todIncrementThreshold;
-
-        //TOD Clock and Alarm helpers
-        void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
-        void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
-
         // Timer control
         uint8_t timerAControl;
         uint8_t timerBControl;
-
-        // TOD registers
-        uint8_t todAlarm[4];
-        uint8_t todClock[4];
-        uint8_t todLatch[4];  // Latched TOD values
-        bool todLatched; // Indicates if TOD values are latched
-        bool todAlarmSetMode;
-        bool todAlarmTriggered;
 
         // Serial
         uint8_t serialDataRegister;
@@ -152,8 +137,6 @@ class CIA1 : public CIA6526
         // Interrupt handling
         uint8_t interruptStatus;
         uint8_t interruptEnable;
-
-        void latchTODClock();
 };
 
 #endif // CIA1_H

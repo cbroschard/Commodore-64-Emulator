@@ -271,61 +271,6 @@ void CIA1::irqLineChanged(bool active)
         IRQ->clearIRQ(IRQLine::CIA1);
 }
 
-void CIA1::latchTODClock()
-{
-    todLatch[0] = todClock[0];
-    todLatch[1] = todClock[1];
-    todLatch[2] = todClock[2];
-    todLatch[3] = todClock[3];
-    todLatched = true;
-}
-
-void CIA1::incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold)
-{
-    todTicks -= todIncrementThreshold;
-
-    // Increment TOD clock
-    todClock[0]++; // Increment 1/10 seconds
-    if (todClock[0] >= 10)
-    {
-        todClock[0] = 0;
-        todClock[1]++; // Increment seconds
-        if (todClock[1] >= 60)
-        {
-            todClock[1] = 0;
-            todClock[2]++; // Increment minutes
-            if (todClock[2] >= 60)
-            {
-                todClock[2] = 0;
-                todClock[3]++; // Increment hours
-                if (todClock[3] >= 24)
-                {
-                    todClock[3] = 0; // Wrap around hours
-                }
-            }
-        }
-    }
-}
-
-void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable)
-{
-    if (todClock[0] == todAlarm[0] && todClock[1] == todAlarm[1] &&
-        todClock[2] == todAlarm[2] && todClock[3] == todAlarm[3])
-    {
-        if (!todAlarmTriggered)
-        {
-            todAlarmTriggered = true;
-            triggerInterrupt(INTERRUPT_TOD_ALARM);
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
-            {
-                traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
-            }
-        }
-    }
-}
-
 std::string CIA1::dumpRegisters(const std::string& group) const
 {
     std::stringstream out;
