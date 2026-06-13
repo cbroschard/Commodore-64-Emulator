@@ -161,9 +161,6 @@ void CIA1::reset()
 
     // Clear all IRQ's
     if (IRQ) IRQ->clearIRQ(IRQLine::CIA1);
-
-    // ML Monitor logging disable by default
-    setLogging = false;
 }
 
 uint8_t CIA1::readPortA()
@@ -415,13 +412,6 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     }
 
     return out.str();
-}
-
-void CIA1::setIERExact(uint8_t mask)
-{
-    mask &= 0x1F;
-    interruptEnable = mask;
-    //*updateIRQLine();
 }
 
 TraceManager::Stamp CIA1::makeCIAStamp() const
