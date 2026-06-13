@@ -90,6 +90,14 @@ class CIA6526
         // Non-owning pointers
         TraceManager* traceMgr;
 
+        enum class TimerBClockSource : uint8_t
+        {
+            Phi2,
+            CNT,
+            TimerA,
+            TimerAWithCNT
+        };
+
         uint8_t portA;
         uint8_t portB;
         uint8_t ddrA;
@@ -138,6 +146,8 @@ class CIA6526
 
         VideoMode mode_;
 
+        TimerBClockSource getTimerBClockSource() const;
+
         void updateTimerA(uint32_t cyclesElapsed);
         void updateTimerB(uint32_t cyclesElapsed);
         void handleTimerBCascade();
@@ -146,6 +156,9 @@ class CIA6526
 
         void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
         void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
+
+        void cntChangedA();
+        void cntChangedB();
 
         void updateIRQLine();
         void clearIFR(InterruptBit interruptBit);

@@ -106,6 +106,32 @@ void CIA6526::setMode(VideoMode mode)
     todIncrementThreshold = (mode_ == VideoMode::NTSC) ? 102273 : 98525;
 }
 
+void CIA6526::setCNTLine(bool level)
+{
+    const bool falling = cntLevel && !level;
+
+    TraceManager* traceMgr = getTraceManager();
+    if (traceMgr && traceMgr->ciaDetailOn(getCIANumber(), TraceManager::TraceDetail::CIA_CNT))
+    {
+        std::ostringstream out;
+        out << "[" << getCIAName() << ":CNT] level="
+            << (level ? "H" : "L")
+            << " falling="
+            << (falling ? "Y" : "N");
+
+        traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
+    }
+
+    lastCNT = cntLevel;
+    cntLevel = level;
+
+    if (!falling)
+        return;
+
+    cntChangedA();
+    cntChangedB();
+}
+
 void CIA6526::updateTimers(uint32_t cyclesElapsed)
 {
     // Handle Timer A / B as before
@@ -590,6 +616,19 @@ void CIA6526::writeRegister(uint16_t address, uint8_t value)
     }
 }
 
+CIA6526::TimerBClockSource CIA6526::getTimerBClockSource() const
+{
+    switch (timerBControl & 0x60)
+    {
+        case 0x00: return TimerBClockSource::Phi2;
+        case 0x20: return TimerBClockSource::CNT;
+        case 0x40: return TimerBClockSource::TimerA;
+        case 0x60: return TimerBClockSource::TimerAWithCNT;
+    }
+
+    return TimerBClockSource::Phi2;
+}
+
 void CIA6526::updateTimerA(uint32_t cyclesElapsed)
 {
     if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
@@ -784,6 +823,119 @@ void CIA6526::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& 
     }
 }
 
+void CIA6526::cntChangedA()
+{
+    const bool taStarted = (timerAControl & 0x01) != 0;
+    const bool taCNT     = (timerAControl & 0x20) != 0;
+
+    // Timer A counts CNT falling edges only when CRA bit5 selects CNT.
+    if (!taStarted || !taCNT)
+        return;
+
+    uint32_t current = timerA ? timerA : 0x10000;
+
+    if (--current == 0)
+    {
+        triggerInterrupt(INTERRUPT_TIMER_A);
+
+        TraceManager* traceMgr = getTraceManager();
+        if (traceMgr && traceMgr->isEnabled())
+        {
+            traceMgr->recordCiaTimer(
+                getCIANumber(),
+                'A',
+                timerA,
+                true,
+                makeCIAStamp()
+            );
+        }
+
+        // Serial shift on Timer A underflow if CRA bit6 is enabled.
+        if (timerAControl & 0x40)
+        {
+            const uint8_t bit = cntLevel ? 1u : 0u;
+
+            shiftReg = static_cast<uint8_t>((shiftReg << 1) | (bit & 1));
+
+            if (++shiftCount == 8)
+            {
+                serialDataRegister = shiftReg;
+                shiftCount = 0;
+                triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+            }
+        }
+
+        // Cascade Timer B if CRB bit6 selects Timer A underflows.
+        if (timerBControl & 0x40)
+        {
+            handleTimerBCascade();
+        }
+
+        const bool continuous = (timerAControl & 0x08) == 0;
+
+        if (continuous)
+        {
+            timerA = static_cast<uint16_t>((timerAHighByte << 8) | timerALowByte);
+        }
+        else
+        {
+            timerA = 0;
+            timerAControl &= static_cast<uint8_t>(~0x01);
+        }
+    }
+    else
+    {
+        timerA = static_cast<uint16_t>(current);
+    }
+}
+
+void CIA6526::cntChangedB()
+{
+    const bool tbStarted = (timerBControl & 0x01) != 0;
+    const bool tbCNT     = (timerBControl & 0x20) != 0;
+    const bool tbCascade = (timerBControl & 0x40) != 0;
+
+    // Timer B counts CNT falling edges only when CRB selects CNT,
+    // and not when CRB selects Timer A cascade.
+    if (!tbStarted || !tbCNT || tbCascade)
+        return;
+
+    uint32_t current = timerB ? timerB : 0x10000;
+
+    if (--current == 0)
+    {
+        triggerInterrupt(INTERRUPT_TIMER_B);
+
+        TraceManager* traceMgr = getTraceManager();
+        if (traceMgr && traceMgr->isEnabled())
+        {
+            traceMgr->recordCiaTimer(
+                getCIANumber(),
+                'B',
+                timerB,
+                true,
+                makeCIAStamp()
+            );
+        }
+
+        const bool continuous = (timerBControl & 0x08) == 0;
+
+        if (continuous)
+        {
+            timerB = static_cast<uint16_t>((timerBHighByte << 8) | timerBLowByte);
+        }
+        else
+        {
+            timerB = 0;
+            timerBControl &= static_cast<uint8_t>(~0x01);
+        }
+    }
+    else
+    {
+        timerB = static_cast<uint16_t>(current);
+    }
+}
+
 void CIA6526::updateIRQLine()
 {
     const bool active = (interruptStatus & interruptEnable & 0x1F) != 0;
@@ -970,4 +1122,180 @@ void CIA6526::refreshMasterBit()
             makeCIAStamp()
         );
     }
+}
+
+std::string CIA6526::dumpRegisters(const std::string& group) const
+{
+    std::stringstream out;
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    auto hex2 = [&](uint8_t v)
+    {
+        std::ostringstream s;
+        s << std::hex << std::uppercase << std::setfill('0')
+          << std::setw(2) << int(v);
+        return s.str();
+    };
+
+    auto hex4 = [&](uint16_t v)
+    {
+        std::ostringstream s;
+        s << std::hex << std::uppercase << std::setfill('0')
+          << std::setw(4) << v;
+        return s.str();
+    };
+
+    // Compute generic effective port values.
+    // CIA input bits read high unless externally driven by the derived chip.
+    uint8_t invA = static_cast<uint8_t>(~ddrA);
+    uint8_t invB = static_cast<uint8_t>(~ddrB);
+    uint8_t effA = static_cast<uint8_t>((portA & ddrA) | invA);
+    uint8_t effB = static_cast<uint8_t>((portB & ddrB) | invB);
+
+    // Ports
+    if (group == "port" || group == "all")
+    {
+        out << "\nPort Registers\n\n";
+
+        out << "PORT A (latch)             = $" << hex2(portA) << "\n";
+        out << "PORT A DDR                 = $" << hex2(ddrA) << "\n";
+        out << "PORT A (effective)         = $" << hex2(effA) << "\n";
+
+        out << "PORT B (latch)             = $" << hex2(portB) << "\n";
+        out << "PORT B DDR                 = $" << hex2(ddrB) << "\n";
+        out << "PORT B (effective)         = $" << hex2(effB) << "\n";
+    }
+
+    // Timers
+    if (group == "timer" || group == "all")
+    {
+        auto decodeCRA = [&](uint8_t cr)
+        {
+            std::ostringstream s;
+
+            s << "Start:" << ((cr & 0x01) ? "On" : "Off")
+              << " PBON:" << ((cr & 0x02) ? "Yes" : "No")
+              << " OUTMODE:" << ((cr & 0x04) ? "Toggle" : "Pulse")
+              << " Mode:" << ((cr & 0x08) ? "One-shot" : "Continuous")
+              << " Load:" << ((cr & 0x10) ? "Yes" : "No")
+              << " Clock:" << ((cr & 0x20) ? "CNT" : "PHI2");
+
+            return s.str();
+        };
+
+        auto decodeCRB = [&](uint8_t cr)
+        {
+            std::ostringstream s;
+
+            s << "Start:" << ((cr & 0x01) ? "On" : "Off")
+              << " PBON:" << ((cr & 0x02) ? "Yes" : "No")
+              << " OUTMODE:" << ((cr & 0x04) ? "Toggle" : "Pulse")
+              << " Mode:" << ((cr & 0x08) ? "One-shot" : "Continuous")
+              << " Load:" << ((cr & 0x10) ? "Yes" : "No")
+              << " Clock:" << (((cr & 0x60) == 0x00) ? "PHI2" :
+                                ((cr & 0x60) == 0x20) ? "CNT" :
+                                ((cr & 0x60) == 0x40) ? "TimerA" :
+                                                         "TimerA+CNT");
+
+            return s.str();
+        };
+
+        out << "\nTimer Registers\n\n";
+
+        out << "Timer A Latch Low          = $" << hex2(timerALowByte)  << "\n";
+        out << "Timer A Latch High         = $" << hex2(timerAHighByte) << "\n";
+        out << "Timer A Latched            = " << (timerALatched ? "Yes" : "No")
+            << "  Snapshot = $" << hex4(timerASnap)
+            << " (High will return snapshot: "
+            << (timerALatched ? "Yes" : "No") << ")\n";
+        out << "Timer A Current            = $" << hex4(timerA) << "\n";
+        out << "Timer A Control Register   = $" << hex2(timerAControl)
+            << "  [" << decodeCRA(timerAControl) << "]\n";
+
+        out << "Timer B Latch Low          = $" << hex2(timerBLowByte)  << "\n";
+        out << "Timer B Latch High         = $" << hex2(timerBHighByte) << "\n";
+        out << "Timer B Latched            = " << (timerBLatched ? "Yes" : "No")
+            << "  Snapshot = $" << hex4(timerBSnap)
+            << " (High will return snapshot: "
+            << (timerBLatched ? "Yes" : "No") << ")\n";
+        out << "Timer B Current            = $" << hex4(timerB) << "\n";
+        out << "Timer B Control Register   = $" << hex2(timerBControl)
+            << "  [" << decodeCRB(timerBControl) << "]\n";
+    }
+
+    // TOD
+    if (group == "tod" || group == "all")
+    {
+        out << "\nTOD Registers\n\n";
+
+        out << "Current TOD                = "
+            << hex2(todClock[3]) << ":"
+            << hex2(todClock[2]) << ":"
+            << hex2(todClock[1]) << "."
+            << hex2(todClock[0]) << "\n";
+
+        out << "TOD Alarm                  = "
+            << hex2(todAlarm[3]) << ":"
+            << hex2(todAlarm[2]) << ":"
+            << hex2(todAlarm[1]) << "."
+            << hex2(todAlarm[0]) << "\n";
+
+        out << "TOD Latch                  = "
+            << hex2(todLatch[3]) << ":"
+            << hex2(todLatch[2]) << ":"
+            << hex2(todLatch[1]) << "."
+            << hex2(todLatch[0]) << "\n";
+
+        out << "TOD Alarm Set Mode         = "
+            << (todAlarmSetMode ? "Yes" : "No") << "\n";
+    }
+
+    // Interrupts
+    if (group == "icr" || group == "all")
+    {
+        uint8_t sources = static_cast<uint8_t>(interruptStatus & 0x1F);
+        bool masterPending = (sources & interruptEnable) != 0;
+
+        out << "\nInterrupt Registers\n\n";
+
+        out << "Interrupt Status (IFR)     = $" << hex2(interruptStatus) << "  [";
+
+        if (interruptStatus & INTERRUPT_TIMER_A)
+            out << " TA";
+
+        if (interruptStatus & INTERRUPT_TIMER_B)
+            out << " TB";
+
+        if (interruptStatus & INTERRUPT_TOD_ALARM)
+            out << " TOD";
+
+        if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER)
+            out << " SR";
+
+        if (interruptStatus & INTERRUPT_FLAG_LINE)
+            out << " FLAG";
+
+        out << " ]  Master Pending: "
+            << (masterPending ? "Yes" : "No") << "\n";
+
+        out << "Interrupt Enable (IER)     = $"
+            << hex2(interruptEnable) << "\n";
+    }
+
+    // Serial
+    if (group == "serial" || group == "all")
+    {
+        out << "\nSerial Register\n\n";
+        out << "Serial Data Register       = $"
+            << hex2(serialDataRegister) << "\n";
+    }
+
+    return out.str();
+}
+
+void CIA6526::setIERExact(uint8_t mask)
+{
+    mask &= 0x1F;
+    interruptEnable = mask;
+    updateIRQLine();
 }
