@@ -326,61 +326,6 @@ void CIA1::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
     }
 }
 
-/*void CIA1::triggerInterrupt(InterruptBit interruptBit)
-{
-    interruptStatus |= interruptBit; // Set the relevant bit in the status register
-
-    TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
-    {
-        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
-    }
-
-    refreshMasterBit();
-    updateIRQLine();
-}
-
-void CIA1::updateIRQLine()
-{
-    if (!IRQ) return;
-    const bool any_pending = (interruptStatus & interruptEnable & 0x1F) != 0;
-    if (any_pending)
-        IRQ->raiseIRQ(IRQLine::CIA1);
-    else
-        IRQ->clearIRQ(IRQLine::CIA1);
-}
-
-void CIA1::clearInterrupt(InterruptBit interruptBit)
-{
-    clearIFR(interruptBit);
-}
-
-void CIA1::clearIFR(InterruptBit interruptBit)
-{
-    interruptStatus &= ~interruptBit;
-
-    TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
-    {
-        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
-    }
-
-    refreshMasterBit();
-    updateIRQLine();
-}
-
-void CIA1::refreshMasterBit()
-{
-    if ((interruptStatus & 0x1F) != 0) interruptStatus |= 0x80;
-    else interruptStatus &= ~0x80;
-
-    TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
-    {
-        traceMgr->recordCiaICR(1, interruptStatus, (interruptStatus & interruptEnable & 0x1F) != 0, makeCIAStamp());
-    }
-}*/
-
 std::string CIA1::dumpRegisters(const std::string& group) const
 {
     std::stringstream out;

@@ -57,16 +57,6 @@ class CIA1 : public CIA6526
         //uint8_t readRegister(uint16_t address);
         //void writeRegister(uint16_t address, uint8_t value);
 
-        //Interrupt handling
-        /*enum InterruptBit : uint8_t
-        {
-            INTERRUPT_TIMER_A = 0x01,
-            INTERRUPT_TIMER_B = 0x02,
-            INTERRUPT_TOD_ALARM = 0x04,
-            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
-            INTERRUPT_FLAG_LINE = 0x10
-        };*/
-
         void clearInterrupt(InterruptBit interruptBit);
 
         // ML Monitor access
@@ -164,23 +154,6 @@ class CIA1 : public CIA6526
         uint8_t interruptEnable;
 
         void latchTODClock();
-
-        // IFR Master bit handling
-        //void triggerInterrupt(InterruptBit interruptBit);
-        //void updateIRQLine();
-        //void clearIFR(InterruptBit interruptBit);
-        //void refreshMasterBit();
-
-        // Mode
-        enum InputMode : uint8_t
-        {
-            modeProcessor, // Direct cpu polling
-            modeCNT, // CNT signal-driven
-            modeTimerA, // Timer A driven
-            modeTimerACNT // Combined Timer A and CNT
-        };
-
-        InputMode inputMode;
 };
 
 #endif // CIA1_H
