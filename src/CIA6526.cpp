@@ -6,8 +6,12 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CIA6526.h"
+#include <iomanip>
+#include <sstream>
 
 CIA6526::CIA6526() :
+    logger(nullptr),
+    traceMgr(nullptr),
     portA(0xFF),
     portB(0xFF),
     ddrA(0x00),
@@ -110,7 +114,6 @@ void CIA6526::setCNTLine(bool level)
 {
     const bool falling = cntLevel && !level;
 
-    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(getCIANumber(), TraceManager::TraceDetail::CIA_CNT))
     {
         std::ostringstream out;
@@ -722,9 +725,15 @@ void CIA6526::updateTimerB(uint32_t cyclesElapsed)
         // Underflow: latch IRQ
         triggerInterrupt(INTERRUPT_TIMER_B);
 
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        if (traceMgr && traceMgr->isEnabled())
         {
-            traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
+            traceMgr->recordCiaTimer(
+                getCIANumber(),
+                'B',
+                timerB,
+                true,
+                makeCIAStamp()
+            );
         }
 
         const bool continuous = !(timerBControl & 0x08);
@@ -757,10 +766,15 @@ void CIA6526::handleTimerBCascade()
         // underflow
         triggerInterrupt(INTERRUPT_TIMER_B);
 
-        TraceManager* traceMgr = getTraceManager();
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA1))
+        if (traceMgr && traceMgr->isEnabled())
         {
-            traceMgr->recordCiaTimer(1, 'B', timerB, true, makeCIAStamp());
+            traceMgr->recordCiaTimer(
+                getCIANumber(),
+                'B',
+                timerB,
+                true,
+                makeCIAStamp()
+            );
         }
 
         bool continuous = !(timerBControl & 0x08);
@@ -838,7 +852,6 @@ void CIA6526::cntChangedA()
     {
         triggerInterrupt(INTERRUPT_TIMER_A);
 
-        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled())
         {
             traceMgr->recordCiaTimer(
@@ -906,7 +919,6 @@ void CIA6526::cntChangedB()
     {
         triggerInterrupt(INTERRUPT_TIMER_B);
 
-        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->isEnabled())
         {
             traceMgr->recordCiaTimer(
@@ -1288,6 +1300,40 @@ std::string CIA6526::dumpRegisters(const std::string& group) const
         out << "\nSerial Register\n\n";
         out << "Serial Data Register       = $"
             << hex2(serialDataRegister) << "\n";
+    }
+
+    if (group == "mode" || group == "all")
+    {
+        auto timerBClockSourceName = [&]()
+        {
+            switch (getTimerBClockSource())
+            {
+                case TimerBClockSource::Phi2:
+                    return "PHI2";
+
+                case TimerBClockSource::CNT:
+                    return "CNT";
+
+                case TimerBClockSource::TimerA:
+                    return "Timer A";
+
+                case TimerBClockSource::TimerAWithCNT:
+                    return "Timer A + CNT";
+            }
+
+            return "PHI2";
+        };
+
+        out << "\nControl / Clock Sources\n\n";
+
+        out << "Timer A Clock Source       = "
+            << ((timerAControl & 0x20) ? "CNT" : "PHI2") << "\n";
+
+        out << "Timer B Clock Source       = "
+            << timerBClockSourceName() << "\n";
+
+        out << "CNT Line Level             = "
+            << (cntLevel ? "High" : "Low") << "\n";
     }
 
     return out.str();

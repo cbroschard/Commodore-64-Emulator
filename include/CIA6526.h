@@ -9,8 +9,10 @@
 #define CIA6526_H
 
 #include <cstdint>
+#include <string>
 #include "Common/BCD.h"
 #include "Common/VideoMode.h"
+#include "Logging.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 #include "TraceManager.h"
@@ -21,6 +23,7 @@ class CIA6526
         CIA6526();
         virtual ~CIA6526();
 
+        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
         virtual void reset();
@@ -35,8 +38,8 @@ class CIA6526
         void setCNTLine(bool level);
 
         // ML Monitor API
-        struct CIA1IRQSnapshot { uint8_t ier; };
-        std::string dumpRegisters(const std::string& group) const;
+        struct CIAIRQSnapshot { uint8_t ier; };
+        virtual std::string dumpRegisters(const std::string& group) const;
         inline void setLog(bool enable) { setLogging = enable; }
         void setIERExact(uint8_t mask);
         inline void clearPendingIRQs() { (void)readRegister(0xDC0D); }
@@ -44,8 +47,8 @@ class CIA6526
         inline uint8_t getIER() const { return interruptEnable & 0x1F; }
         inline uint8_t getIFR() const { return interruptStatus & 0x1F; }
         inline bool irqLineActive() const { return (interruptStatus & interruptEnable & 0x1F) != 0; }
-        inline CIA1IRQSnapshot snapshotIRQs() const { return CIA1IRQSnapshot{getIER()}; }
-        inline void restoreIRQs(const CIA1IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
+        inline CIAIRQSnapshot snapshotIRQs() const { return CIAIRQSnapshot{getIER()}; }
+        inline void restoreIRQs(const CIAIRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
         enum InterruptBit : uint8_t
@@ -88,6 +91,7 @@ class CIA6526
 
     private:
         // Non-owning pointers
+        Logging* logger;
         TraceManager* traceMgr;
 
         enum class TimerBClockSource : uint8_t

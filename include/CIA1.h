@@ -10,22 +10,15 @@
 
 //Forward declarations
 class Cassette;
+class CPU;
+class IRQLine;
+class Joystick;
 class Keyboard;
-class TraceManager;
+class Memory;
 class Vic;
 
-#include <bitset>
 #include <cstdint>
-#include <iostream>
-#include "Cassette.h"
 #include "CIA6526.h"
-#include "Common/HexFormat.h"
-#include "cpu.h"
-#include "IRQLine.h"
-#include "Joystick.h"
-#include "Keyboard.h"
-#include "Logging.h"
-#include "Memory.h"
 
 class CIA1 : public CIA6526
 {
@@ -38,7 +31,6 @@ class CIA1 : public CIA6526
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
         void attachJoystickInstance(Joystick* joy);
@@ -53,13 +45,11 @@ class CIA1 : public CIA6526
         // Reset everything to default
         void reset() override;
 
-        void clearInterrupt(InterruptBit interruptBit);
-
         // ML Monitor access
-        std::string dumpRegisters(const std::string& group) const;
+        std::string dumpRegisters(const std::string& group) const override;
 
     protected:
-        void postTimerUpdates(uint32_t cycleaElapsed) override;
+        void postTimerUpdates(uint32_t cyclesElapsed) override;
 
         inline int getCIANumber() const override { return 1; }
         inline const char* getCIAName() const override { return "CIA1"; }
@@ -79,7 +69,6 @@ class CIA1 : public CIA6526
         Joystick* joy1;
         Joystick* joy2;
         Keyboard* keyb;
-        Logging* logger;
         Memory* mem;
         Vic* vic;
 

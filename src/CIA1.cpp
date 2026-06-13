@@ -6,6 +6,17 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "cia1.h"
+#include <bitset>
+#include <cstring>
+#include <iostream>
+#include <stdexcept>
+#include "Cassette.h"
+#include "Common/HexFormat.h"
+#include "CPU.h"
+#include "IRQLine.h"
+#include "Joystick.h"
+#include "Keyboard.h"
+#include "Memory.h"
 
 CIA1::CIA1() :
     cass(nullptr),
@@ -14,7 +25,6 @@ CIA1::CIA1() :
     joy1(nullptr),
     joy2(nullptr),
     keyb(nullptr),
-    logger(nullptr),
     mem(nullptr),
     vic(nullptr)
 {
@@ -307,6 +317,9 @@ std::string CIA1::dumpRegisters(const std::string& group) const
 TraceManager::Stamp CIA1::makeCIAStamp() const
 {
     TraceManager* traceMgr = getTraceManager();
+
+    if (!traceMgr)
+        return TraceManager::Stamp{};
 
     return traceMgr->makeStamp(
         cpu ? cpu->getTotalCycles() : 0,

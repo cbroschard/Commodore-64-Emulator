@@ -125,7 +125,7 @@ class MLMonitorBackend
         {
             bool has = false;
             Vic::VICIRQSnapshot  vic;
-            CIA1::CIA1IRQSnapshot cia1;
+            CIA1::CIAIRQSnapshot cia1;
             CIA2::CIA2IRQSnapshot cia2;
         };
 
