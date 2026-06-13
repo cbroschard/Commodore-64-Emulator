@@ -378,5 +378,7 @@ bool StateManager::load(const std::string& path)
         }
     }
 
+    processor_.postLoadState();
+
     return true;
 }

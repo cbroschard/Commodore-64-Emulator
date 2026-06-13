@@ -130,8 +130,6 @@ bool CPU::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         const bool ok = loadStateExtendedPayload(chunk, rdr);
         rdr.exitChunkPayload(chunk);
 
-        postLoadState();
-
         return ok;
     }
 
