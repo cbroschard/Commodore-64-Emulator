@@ -75,13 +75,23 @@ Examples:
 
 void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
+    // cia help
+    // cia ?
+    if (args.size() >= 2 && (args[1] == "help" || args[1] == "?"))
+    {
+        std::cout << help();
+        return;
+    }
+
     if (args.size() < 3)
     {
         std::cout << "Usage: cia <1|2> <subcommand>\n";
+        std::cout << "Try: cia help\n";
         return;
     }
 
     int chipNum = 0;
+
     try
     {
         chipNum = std::stoi(args[1]);
@@ -89,43 +99,110 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     catch (...)
     {
         std::cout << "Error: first argument must be 1 or 2\n";
+        std::cout << "Try: cia help\n";
         return;
     }
 
     const std::string& subcmd = args[2];
 
+    // cia 1 help
+    // cia 2 help
+    // cia 1 ?
+    // cia 2 ?
+    if (subcmd == "help" || subcmd == "?")
+    {
+        std::cout << help();
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
+
     if (chipNum == 1)
     {
-        if (subcmd == "regs" || subcmd == "all" ) std::cout << mon.mlmonitorbackend()->dumpCIA1Regs();
-        else if (subcmd == "ports") std::cout << mon.mlmonitorbackend()->dumpCIA1Ports();
-        else if (subcmd == "timers") std::cout << mon.mlmonitorbackend()->dumpCIA1Timers();
-        else if (subcmd == "tod") std::cout << mon.mlmonitorbackend()->dumpCIA1TOD();
-        else if (subcmd == "icr") std::cout << mon.mlmonitorbackend()->dumpCIA1ICR();
-        else if (subcmd == "serial") std::cout << mon.mlmonitorbackend()->dumpCIA1Serial();
-        else if (subcmd == "mode") std::cout << mon.mlmonitorbackend()->dumpCIA1Mode();
-        else if (subcmd == "help") std::cout << help();
-        else std::cout << help(); // default show help
+        if (subcmd == "regs" || subcmd == "all")
+        {
+            std::cout << backend->dumpCIA1Regs();
+        }
+        else if (subcmd == "ports")
+        {
+            std::cout << backend->dumpCIA1Ports();
+        }
+        else if (subcmd == "timers")
+        {
+            std::cout << backend->dumpCIA1Timers();
+        }
+        else if (subcmd == "tod")
+        {
+            std::cout << backend->dumpCIA1TOD();
+        }
+        else if (subcmd == "icr")
+        {
+            std::cout << backend->dumpCIA1ICR();
+        }
+        else if (subcmd == "serial")
+        {
+            std::cout << backend->dumpCIA1Serial();
+        }
+        else if (subcmd == "mode")
+        {
+            std::cout << backend->dumpCIA1Mode();
+        }
+        else
+        {
+            std::cout << "Unknown CIA1 subcommand: " << subcmd << "\n";
+            std::cout << "Try: cia help\n";
+        }
     }
     else if (chipNum == 2)
     {
-        if (subcmd == "regs" || subcmd == "all") std::cout << mon.mlmonitorbackend()->dumpCIA2Regs();
-        else if (subcmd == "ports") std::cout << mon.mlmonitorbackend()->dumpCIA2Ports();
-        else if (subcmd == "timers") std::cout << mon.mlmonitorbackend()->dumpCIA2Timers();
-        else if (subcmd == "tod") std::cout << mon.mlmonitorbackend()->dumpCIA2TOD();
-        else if (subcmd == "icr") std::cout << mon.mlmonitorbackend()->dumpCIA2ICR();
-        else if (subcmd == "serial") std::cout << mon.mlmonitorbackend()->dumpCIA2Serial();
-        else if (subcmd == "vic") std::cout << mon.mlmonitorbackend()->dumpCIA2VICBanks();
+        if (subcmd == "regs" || subcmd == "all")
+        {
+            std::cout << backend->dumpCIA2Regs();
+        }
+        else if (subcmd == "ports")
+        {
+            std::cout << backend->dumpCIA2Ports();
+        }
+        else if (subcmd == "timers")
+        {
+            std::cout << backend->dumpCIA2Timers();
+        }
+        else if (subcmd == "tod")
+        {
+            std::cout << backend->dumpCIA2TOD();
+        }
+        else if (subcmd == "icr")
+        {
+            std::cout << backend->dumpCIA2ICR();
+        }
+        else if (subcmd == "serial")
+        {
+            std::cout << backend->dumpCIA2Serial();
+        }
+        else if (subcmd == "vic")
+        {
+            std::cout << backend->dumpCIA2VICBanks();
+        }
         else if (subcmd == "iec")
         {
-            std::cout << mon.mlmonitorbackend()->dumpCIA2IECSnapshot();
-
-            std::cout << mon.mlmonitorbackend()->dumpCIA2IEC();
+            std::cout << backend->dumpCIA2IECSnapshot();
+            std::cout << backend->dumpCIA2IEC();
         }
-        else if (subcmd == "help") std::cout << help();
-        else std::cout << help(); // default show help
+        else
+        {
+            std::cout << "Unknown CIA2 subcommand: " << subcmd << "\n";
+            std::cout << "Try: cia help\n";
+        }
     }
     else
     {
         std::cout << "Error: CIA must be 1 or 2\n";
+        std::cout << "Try: cia help\n";
     }
 }
