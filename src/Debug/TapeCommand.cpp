@@ -30,32 +30,69 @@ std::string TapeCommand::category() const
 
 std::string TapeCommand::shortHelp() const
 {
-    return "tape      - Show current tape position and upcoming pulses";
+    return "tape [count] - Show current tape position and upcoming pulses";
 }
 
 std::string TapeCommand::help() const
 {
-    return "tape [count]\n"
-           "  Display current tape debug info. Shows the pulse index and the next [count] pulses.\n"
-           "  If count is omitted, defaults to 8.\n";
+    return
+        "tape - Show Datasette/tape debug information\n"
+        "\n"
+        "Usage:\n"
+        "    tape\n"
+        "    tape [count]\n"
+        "\n"
+        "Arguments:\n"
+        "    [count]    Number of upcoming pulses to show. Defaults to 8.\n"
+        "\n"
+        "Examples:\n"
+        "    tape       Show tape state and next 8 pulses\n"
+        "    tape 16    Show tape state and next 16 pulses\n";
 }
 
 void TapeCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    size_t count = 8; // default
+    if (args.size() > 1 && isHelp(args[1]))
+    {
+        std::cout << help();
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
+
+    size_t count = 8;
 
     if (args.size() > 1)
     {
         try
         {
             count = std::stoul(args[1]);
+
+            if (count == 0)
+            {
+                std::cout << "Invalid count. Count must be greater than 0.\n";
+                return;
+            }
+
+            if (count > 256)
+            {
+                std::cout << "Invalid count. Maximum supported count is 256.\n";
+                return;
+            }
         }
         catch (...)
         {
-            std::cout << "Invalid argument." << std::endl;
+            std::cout << "Invalid count: " << args[1] << "\n";
+            std::cout << "Usage: tape [count]\n";
             return;
         }
     }
 
-    std::cout << mon.mlmonitorbackend()->dumpTapeDebug(count);
+    std::cout << backend->dumpTapeDebug(count);
 }
