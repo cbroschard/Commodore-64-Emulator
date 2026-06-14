@@ -30,33 +30,55 @@ std::string CPUCommand::category() const
 
 std::string CPUCommand::shortHelp() const
 {
-    return "cpu       - CPU commands (regs, irq, cycles, stack, jam)";
+    return "cpu       - CPU commands (regs, irq, cycles, stack, jam, micro, busarb)";
 }
 
 std::string CPUCommand::help() const
 {
-    return R"(CPU commands
- Usage:
-  cpu addr                      - Show last indirect addressing details
-  cpu branch                    - Show last branch timing details
-  cpu busarb [status|on|off]    - Show or change bus arbitration
-  cpu cycles                    - Show CPU cycle counters and current timing state
-  cpu intr                      - Show the last BRK/IRQ/NMI entry details.
-  cpu irq                       - Show IRQ/NMI timing state
-  cpu jam                       - Show or set JAM/KIL opcode behavior
-  cpu jmp                       - Show last JMP target details
-  cpu jsr                       - Show last JSR stack details
-  cpu last                      - Show last executed opcode and timing position
-  cpu micro [status|on|off]     - Show or change experimental CPU micro-op execution
-  cpu pc <addr>                 - Set CPU program counter
-  cpu pha                       - Show last PHA stack push details
-  cpu php                       - Show last PHP status push details
-  cpu pla                       - Show last PLA stack pull details
-  cpu plp                       - Show last PLP status restore details
-  cpu regs                      - Show CPU registers
-  cpu rti                       - Show last RTI return details
-  cpu rts                       - Show last RTS return details
-  cpu stack [count]             - Show stack contents
+    return R"(cpu - Inspect and control CPU debug state
+
+Usage:
+  cpu <subcommand> [args]
+
+Subcommands:
+  addr                      Show last indirect addressing details
+  branch                    Show last branch timing details
+  busarb [status|on|off]    Show or change CPU/VIC bus arbitration
+  cycles                    Show CPU cycle counters and timing state
+  intr                      Show last BRK/IRQ/NMI entry details
+  irq                       Show IRQ/NMI timing state
+  jam [mode]                Show or set JAM/KIL opcode behavior
+  jmp                       Show last JMP target details
+  jsr                       Show last JSR stack details
+  last                      Show last executed opcode and timing position
+  micro [status|on|off]     Show or change CPU micro-op execution
+  pc <addr>                 Set CPU program counter
+  pha                       Show last PHA stack push details
+  php                       Show last PHP status push details
+  pla                       Show last PLA stack pull details
+  plp                       Show last PLP status restore details
+  regs                      Show CPU registers
+  rti                       Show last RTI return details
+  rts                       Show last RTS return details
+  stack [count]             Show stack contents
+
+Aliases:
+  address                   Alias for addr
+  br                        Alias for branch
+  interrupt                 Alias for intr
+
+Examples:
+  cpu regs
+  cpu cycles
+  cpu irq
+  cpu stack
+  cpu stack 32
+  cpu pc $C000
+  cpu micro status
+  cpu micro on
+  cpu busarb off
+  cpu jam
+  cpu jam freeze
 )";
 }
 
