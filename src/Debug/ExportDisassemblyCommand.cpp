@@ -36,21 +36,31 @@ std::string ExportDisassemblyCommand::shortHelp() const
 std::string ExportDisassemblyCommand::help() const
 {
     return
-        "exportdisasm <address> <count|endaddr> <file>\n"
-        "    Disassemble memory into 6502 assembly instructions starting\n"
-        "    at the specified address and write the output to a file.\n"
+        "exportdisasm - Export disassembly to a file\n"
+        "\n"
+        "Usage:\n"
+        "    exportdisasm <address> <count> <file>\n"
+        "    exportdisasm <address> <endaddr> <file>\n"
         "\n"
         "Arguments:\n"
-        "    <address>    Starting address (hex, e.g. $C000)\n"
-        "    <count>      Number of instructions to disassemble (decimal), OR\n"
-        "    <endaddr>    Ending address (hex, e.g. $C200)\n"
-        "    <file>       Output filename for the disassembly\n"
+        "    <address>    Starting address, such as $C000 or C000.\n"
+        "    <count>      Number of instructions to disassemble, usually decimal.\n"
+        "    <endaddr>    Ending address, such as $C200, 0xC200, or C200.\n"
+        "    <file>       Output filename for the disassembly.\n"
         "\n"
         "Examples:\n"
         "    exportdisasm $C000 50 disasm.txt\n"
-        "        Exports 50 instructions starting at $C000 into disasm.txt\n"
+        "        Export about 50 instructions starting at $C000.\n"
+        "\n"
         "    exportdisasm $C000 $C200 disasm.txt\n"
-        "        Exports instructions from $C000 up to (and including) $C200\n";
+        "        Export instructions from $C000 through $C200.\n"
+        "\n"
+        "    exportdisasm C000 C200 disasm.txt\n"
+        "        Same as above, using bare hex addresses.\n"
+        "\n"
+        "Notes:\n"
+        "    - If the second value looks like an address, it is treated as an end address.\n"
+        "    - If the second value is a small decimal number, it is treated as a count.\n";
 }
 
 void ExportDisassemblyCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -63,49 +73,93 @@ void ExportDisassemblyCommand::execute(MLMonitor& mon, const std::vector<std::st
 
     if (args.size() < 4)
     {
-        std::cout << "Error: Missing arguments.\n" << help() << std::endl;
+        std::cout << "Error: missing arguments.\n";
+        std::cout << "Usage: exportdisasm <address> <count|endaddr> <file>\n";
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
+
+    Memory* mem = backend->getMem();
+
+    if (mem == nullptr)
+    {
+        std::cout << "Memory is not attached.\n";
         return;
     }
 
     try
     {
-        Memory* mem = mon.mlmonitorbackend()->getMem();
-
-        uint16_t start = parseAddress(args[1]);
+        const uint16_t start = parseAddress(args[1]);
         uint16_t end = 0;
-        std::string filename = args[3];
+        uint16_t nextAddress = start;
 
-        // Try to detect if second arg is hex (end address) or decimal (count)
-        if (args[2].rfind("$", 0) == 0 || args[2].find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
+        const std::string& rangeOrCount = args[2];
+        const std::string& filename = args[3];
+
+        const bool explicitAddress =
+            rangeOrCount.rfind("$", 0) == 0 ||
+            rangeOrCount.rfind("0x", 0) == 0 ||
+            rangeOrCount.rfind("0X", 0) == 0;
+
+        const bool bareHexAddress =
+            rangeOrCount.size() > 2 &&
+            rangeOrCount.find_first_of("abcdefABCDEF") != std::string::npos;
+
+        const bool likelyAddress =
+            explicitAddress || bareHexAddress || rangeOrCount.size() == 4;
+
+        if (likelyAddress)
         {
-            // Treat as address
-            end = parseAddress(args[2]);
+            end = parseAddress(rangeOrCount);
+
+            if (end < start)
+            {
+                std::cout << "Error: end address is before start address.\n";
+                return;
+            }
         }
         else
         {
-            // Treat as count
-            int count = std::stoi(args[2], nullptr, 0);
-            end = start + (count * 3); // worst-case instruction length assumption
+            const int count = std::stoi(rangeOrCount, nullptr, 0);
+
+            if (count <= 0)
+            {
+                std::cout << "Error: count must be greater than 0.\n";
+                return;
+            }
+
+            const uint32_t tmpEnd =
+                static_cast<uint32_t>(start) +
+                static_cast<uint32_t>(count * 3);
+
+            end = static_cast<uint16_t>(std::min(tmpEnd, 0xFFFFu));
         }
 
-        // Perform the disassembly
-        std::string disAsm = Disassembler::disassembleRange(start, end, start, *mem);
+        const std::string disAsm =
+            Disassembler::disassembleRange(start, end, nextAddress, *mem);
 
-        // Write to file
         std::ofstream outFile(filename);
+
         if (!outFile)
         {
-            std::cout << "Error: Could not open file " << filename << " for writing." << std::endl;
+            std::cout << "Error: could not open file " << filename << " for writing.\n";
             return;
         }
 
         outFile << disAsm;
-        outFile.close();
 
-        std::cout << "Disassembly exported to " << filename << std::endl;
+        std::cout << "Disassembly exported to " << filename << "\n";
     }
-    catch(const std::exception& e)
+    catch (const std::exception& e)
     {
-        std::cout << "Error: Invalid arguments. Usage:\n" << help() << std::endl;
+        std::cout << "Error: invalid arguments: " << e.what() << "\n";
+        std::cout << "Usage: exportdisasm <address> <count|endaddr> <file>\n";
     }
 }
