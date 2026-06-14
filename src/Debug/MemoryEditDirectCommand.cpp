@@ -30,37 +30,87 @@ std::string MemoryEditDirectCommand::category() const
 
 std::string MemoryEditDirectCommand::shortHelp() const
 {
-    return "ed        - Direct RAM edit (bypass bus/PLA; no I/O side effects)";
+    return "ed <addr> <byte> - Direct RAM edit bypassing bus/PLA";
 }
 
 std::string MemoryEditDirectCommand::help() const
 {
     return
-        "ed <addr> [byte]\n"
-        "  Write directly to underlying RAM at <addr>, ignoring current mapping\n"
-        "  (PLA/$01, cartridges) and bypassing device side effects.\n"
-        "  - Use to modify RAM hidden under ROM/I/O\n"
-        "  - Does not touch VIC/SID/CIA registers or change border color, etc.\n"
+        "ed - Direct RAM edit\n"
+        "\n"
+        "Usage:\n"
+        "    ed <addr> <byte>\n"
+        "\n"
+        "Description:\n"
+        "    Writes directly to underlying RAM at <addr>, ignoring current memory\n"
+        "    mapping such as PLA/$01, ROMs, cartridges, and I/O devices.\n"
+        "\n"
+        "Arguments:\n"
+        "    <addr>     RAM address to write, such as $A000 or D020.\n"
+        "    <byte>     Byte value to write, such as $00, $EA, or 255.\n"
+        "\n"
+        "Notes:\n"
+        "    - Use this to modify RAM hidden under BASIC/KERNAL/character ROM or I/O.\n"
+        "    - This bypasses device side effects.\n"
+        "    - ed $D020 $00 writes RAM under I/O; it does not change the border color.\n"
+        "\n"
         "Examples:\n"
-        "  ed $A000 $01    ; write to RAM under BASIC ROM\n"
-        "  ed $D020 $00    ; writes RAM under I/O, not the border register\n";
+        "    ed $A000 $01    Write to RAM under BASIC ROM\n"
+        "    ed $D020 $00    Write RAM under I/O, not the VIC border register\n";
 }
 
 void MemoryEditDirectCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    if (args.size() < 3 || isHelp(args[1]))
+    if (args.size() < 2 || isHelp(args[1]))
     {
-        std::cout << "Usage: " << help() << std::endl;
+        std::cout << help() << std::endl;
         return;
     }
+
+    if (args.size() < 3)
+    {
+        std::cout << "Missing byte value.\n";
+        std::cout << "Usage: ed <addr> <byte>\n";
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
+
     try
     {
-        uint16_t address = parseAddress(args[1]);
-        uint8_t value = parseAddress(args[2]);
-        mon.mlmonitorbackend()->writeRAMDirect(address, value);
+        const uint16_t address = parseAddress(args[1]);
+        const uint16_t parsedValue = parseAddress(args[2]);
+
+        if (parsedValue > 0xFF)
+        {
+            std::cout << "Invalid byte value: " << args[2] << "\n";
+            std::cout << "Value must be in range $00-$FF.\n";
+            return;
+        }
+
+        const uint8_t value = static_cast<uint8_t>(parsedValue);
+
+        backend->writeRAMDirect(address, value);
+
+        std::cout << "Direct wrote $"
+                  << std::uppercase << std::hex
+                  << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(value)
+                  << " to RAM $"
+                  << std::setw(4) << std::setfill('0')
+                  << static_cast<int>(address)
+                  << std::dec << std::setfill(' ')
+                  << "\n";
     }
-    catch(const std::exception& e)
+    catch (const std::exception&)
     {
-        std::cout << "Error: Invalid address or value. Usage: " << help() << std::endl;
+        std::cout << "Error: invalid address or byte value.\n";
+        std::cout << "Usage: ed <addr> <byte>\n";
     }
 }
