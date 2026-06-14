@@ -35,80 +35,121 @@ std::string DriveCommand::shortHelp() const
 
 std::string DriveCommand::help() const
 {
-     return R"(
-drive - Inspect IEC disk drives
+    return R"(drive - Inspect and control IEC disk drives
 
 Usage:
+  drive
+  drive list
+  drive all
+  drive <id>
+  drive <id> <subcommand>
+
+General:
   drive                             Show all attached drives
-  drive <id>                        Show summary for drive (8,9,10…)
+  drive list                        Show all attached drives
+  drive all                         Show all attached drives
+  drive help                        Show this help text
+
+Drive summary:
+  drive <id>                        Show summary for drive ID, such as 8, 9, or 10
+
+Subcommands:
   drive <id> cpu                    Show drive CPU state
-  drive <id> mem address [count]    Dump memory range
-  drive <id> via1                   Show VIA1 state (1541/1571)
-  drive <id> via2                   Show VIA2 state
-  drive <id> cia                    Show CIA state (1571/1581)
-  drive <id> fdc                    Show FDC controller state
-  drive <id> state                  Show drive IEC physical and legacy/debug state
-  drive <id> step                   Tick drive once
+  drive <id> mem <addr> [count]     Dump drive memory from address
+  drive <id> mem <start>-<end>      Dump drive memory range
+  drive <id> via1                   Show VIA1 state, usually 1541/1571
+  drive <id> via2                   Show VIA2 state, usually 1541/1571
+  drive <id> cia                    Show CIA state, usually 1571/1581
+  drive <id> fdc                    Show FDC controller state, usually 1581/1571
+  drive <id> state                  Show IEC physical and debug state
+  drive <id> step                   Step/tick the drive CPU once
+  drive <id> help                   Show this help text
+
+Examples:
+  drive
+  drive list
+  drive 8
+  drive 8 cpu
+  drive 8 mem $0300
+  drive 8 mem $0300 64
+  drive 8 mem $0300-$03FF
+  drive 8 via1
+  drive 8 state
+  drive 8 step
 )";
 }
 
 void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    // No args or just "drive" => list all drives
-    if (args.empty())
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
     {
-        mon.mlmonitorbackend()->dumpDriveList();
+        std::cout << "Monitor backend is not attached.\n";
         return;
     }
 
-    // First token after "drive"
-    std::string first = args.size() >= 2 ? args[1] : std::string();
+    // No args or just "drive" => list all drives.
+    // args.empty() is defensive; usually args.size() == 1 for "drive".
+    if (args.empty() || args.size() == 1)
+    {
+        backend->dumpDriveList();
+        return;
+    }
 
-    // Help: "drive help" or "drive ?"
-    if (!first.empty() && isHelp(first))
+    const std::string& first = args[1];
+
+    // drive help / drive ?
+    if (isHelp(first))
     {
         std::cout << help();
         return;
     }
 
-    // "drive" or "drive list" / "drive all"
-    if (args.size() == 1 ||
-        (args.size() == 2 && (first == "all" || first == "list")))
+    // drive list / drive all
+    if (args.size() == 2 && (first == "all" || first == "list"))
     {
-        mon.mlmonitorbackend()->dumpDriveList();
+        backend->dumpDriveList();
         return;
     }
 
-    // At this point we expect a drive ID in args[1]
     int id = -1;
+
     try
     {
-        id = std::stoi(first);  // args[1] should be the numeric ID (e.g. "8")
+        id = std::stoi(first);
     }
     catch (...)
     {
         std::cout << "Error: drive ID must be numeric.\n";
+        std::cout << "Try: drive help\n";
         return;
     }
 
-    // "drive 8" => summary
+    // drive 8
     if (args.size() == 2)
     {
-        mon.mlmonitorbackend()->dumpDriveSummary(id);
+        backend->dumpDriveSummary(id);
         return;
     }
 
-    // Subcommand after ID: e.g. "drive 8 cpu"
-    std::string subcmd = args[2];
+    const std::string& subcmd = args[2];
+
+    // drive 8 help / drive 8 ?
+    if (isHelp(subcmd))
+    {
+        std::cout << help();
+        return;
+    }
 
     if (subcmd == "cpu")
     {
-        mon.mlmonitorbackend()->dumpDriveCPU(id);
+        backend->dumpDriveCPU(id);
         return;
     }
-    else if (subcmd == "mem")
-    {
 
+    if (subcmd == "mem")
+    {
         if (args.size() < 4)
         {
             std::cout << "Usage:\n";
@@ -118,7 +159,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         }
 
         uint16_t start = 0;
-        uint16_t count = 0; // 0 => backend default (your backend uses DEFAULT_COUNT when count==0)
+        uint16_t count = 0; // 0 means backend default.
 
         try
         {
@@ -132,9 +173,15 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (looksLikeRange)
             {
                 auto [a, b] = parseRangePair(spec);
+
+                if (b < a)
+                    throw std::runtime_error("Range end is before start");
+
                 start = a;
 
-                uint32_t len = static_cast<uint32_t>(b) - static_cast<uint32_t>(a) + 1u;
+                const uint32_t len =
+                    static_cast<uint32_t>(b) - static_cast<uint32_t>(a) + 1u;
+
                 if (len == 0 || len > 0xFFFFu)
                     throw std::runtime_error("Range too large");
 
@@ -142,11 +189,17 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
             else
             {
-                // Single address; optional count
                 start = parseAddress(spec);
 
                 if (args.size() >= 5)
-                    count = parseAddress(args[4]); // allows $40 / 0x40 / 64 etc.
+                {
+                    const uint16_t parsedCount = parseAddress(args[4]);
+
+                    if (parsedCount == 0)
+                        throw std::runtime_error("Count must be greater than 0");
+
+                    count = parsedCount;
+                }
             }
         }
         catch (const std::exception& e)
@@ -158,41 +211,46 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        mon.mlmonitorbackend()->dumpDriveMemory(id, start, count);
-        return;
-    }
-    else if (subcmd == "cia")
-    {
-        mon.mlmonitorbackend()->dumpDriveCIA(id);
-        return;
-    }
-    else if (subcmd == "fdc")
-    {
-        mon.mlmonitorbackend()->dumpDriveFDC(id);
-        return;
-    }
-    else if (subcmd == "state")
-    {
-        mon.mlmonitorbackend()->dumpDriveIECState(id);
-        return;
-    }
-    else if (subcmd == "step")
-    {
-        mon.mlmonitorbackend()->driveCPUStep(id);
-        return;
-    }
-    else if (subcmd == "via1")
-    {
-        mon.mlmonitorbackend()->dumpDriveVIA1(id);
-        return;
-    }
-    else if (subcmd == "via2")
-    {
-        mon.mlmonitorbackend()->dumpDriveVIA2(id);
+        backend->dumpDriveMemory(id, start, count);
         return;
     }
 
-    // If we get here, it's an unknown subcommand:
+    if (subcmd == "cia")
+    {
+        backend->dumpDriveCIA(id);
+        return;
+    }
+
+    if (subcmd == "fdc")
+    {
+        backend->dumpDriveFDC(id);
+        return;
+    }
+
+    if (subcmd == "state")
+    {
+        backend->dumpDriveIECState(id);
+        return;
+    }
+
+    if (subcmd == "step")
+    {
+        backend->driveCPUStep(id);
+        return;
+    }
+
+    if (subcmd == "via1")
+    {
+        backend->dumpDriveVIA1(id);
+        return;
+    }
+
+    if (subcmd == "via2")
+    {
+        backend->dumpDriveVIA2(id);
+        return;
+    }
+
     std::cout << "Unknown drive subcommand: " << subcmd << "\n";
-    std::cout << help();
+    std::cout << "Try: drive help\n";
 }
