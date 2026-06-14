@@ -35,40 +35,54 @@ std::string AssembleCommand::category() const
     return "Debugging";
 }
 
-
 std::string AssembleCommand::shortHelp() const
 {
-     return "a         - Assemble mnemonic and operand into memory";
+    return "a <addr> [mnemonic] - Assemble 6502 instruction(s) into memory";
 }
 
 std::string AssembleCommand::help() const
 {
-    return R"(a <address> <mnemonic> [operand]
+    return R"(a - Assemble 6502 instructions into memory
 
- Usage:
+Usage:
+    a <address>
+    a <address> <mnemonic> [operand]
+
+Modes:
+    a <address>
+        Starts interactive assembly mode at the given address.
+        Enter one instruction per line.
+        Press Enter on a blank line, or enter '.', to end assembly.
+
+    a <address> <mnemonic> [operand]
+        Assembles one instruction and writes it directly to memory.
+
+Examples:
+    a $C000
     a $C000 LDA #$01
     a $0800 JMP $1000
     a $2000 NOP
+    a $C000 STA $D020
+    a $C000 LDA ($FB),Y
 
- Description:
+Description:
     Assembles a 6502 instruction and writes the resulting opcode and
     operand bytes into memory at the given address.
 
- Arguments:
+Arguments:
     <address>   The memory location where the instruction will be written.
-    <mnemonic>  The 6502 instruction mnemonic (e.g., LDA, STA, JMP).
+    <mnemonic>  The 6502 instruction mnemonic, such as LDA, STA, JMP, or NOP.
     [operand]   Optional operand for the instruction. Accepts immediate
                 values (#$nn), zero page addresses ($nn), absolute
                 addresses ($nnnn), indirect syntax ((...)), and indexed
                 forms (,X or ,Y).
 
- Notes:
-    - The assembler determines the correct addressing mode based on
-      the operand syntax.
-    - After assembly, memory is updated immediately and execution can
-      continue or be inspected with the 'm' command.
-    - This command is for one-line assembly. For larger code blocks,
-      you can enter multiple 'a' commands or load a PRG/CRT file.)";
+Notes:
+    - The assembler determines the addressing mode from the operand syntax.
+    - Memory is updated immediately after each assembled instruction.
+    - In interactive mode, the prompt advances to the next instruction address.
+    - Use the 'm' command to inspect the bytes after assembly.
+)";
 }
 
 bool AssembleCommand::isInteractiveActive() const
@@ -159,7 +173,26 @@ void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
         return;
     }
 
-    uint16_t address = parseAddress(args[1]);
+    uint16_t address = 0;
+
+    try
+    {
+        address = parseAddress(args[1]);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "Invalid address: " << args[1] << "\n";
+        std::cout << "Usage: a <address> [mnemonic] [operand]\n";
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
 
     // Interactive mode:
     // a $C000
@@ -167,6 +200,14 @@ void AssembleCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
     {
         interactiveActive = true;
         interactiveAddress = address;
+
+        std::cout << "Assembly started at $"
+                  << std::uppercase << std::hex
+                  << std::setw(4) << std::setfill('0')
+                  << static_cast<int>(interactiveAddress)
+                  << std::dec << std::setfill(' ')
+                  << ". Enter blank line or '.' to finish.\n";
+
         return;
     }
 
