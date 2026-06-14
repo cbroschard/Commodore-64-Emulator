@@ -38,9 +38,6 @@ class CIA2 : public CIA6526
         inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
-        // Setter for NTSC/PAL
-        void setMode(VideoMode mode);
-
         // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
@@ -153,9 +150,6 @@ class CIA2 : public CIA6526
         static constexpr uint8_t RTS_MASK      = 0x02;  // Request To Send PB1
         static constexpr uint8_t TXD_MASK      = 0x04;  // Transmit Data PA2
         static constexpr uint8_t RXD_MASK      = 0x01;  // Receive Data PB0
-
-        // Video mode
-        VideoMode mode_; // NTSC or PAL
 
         // IECBUS
         uint8_t deviceNumber;

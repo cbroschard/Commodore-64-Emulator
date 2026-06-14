@@ -69,9 +69,6 @@ void CIA2::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CI2X");
     wrtr.writeU32(1); // version
 
-    // Dump Video mode
-    wrtr.writeU8(static_cast<uint8_t>(mode_));
-
     // Dump Timers
     wrtr.writeU16(timerA);
     wrtr.writeU16(timerASnap);
@@ -190,12 +187,6 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load and activate the video mode
-        uint8_t vm = 0;
-        if (!rdr.readU8(vm))                                                { rdr.exitChunkPayload(chunk); return false; }
-        mode_ = static_cast<VideoMode>(vm);
-        setMode(mode_);
 
         // Load Timers
         if (!rdr.readU16(timerA))                                           { rdr.exitChunkPayload(chunk); return false; }
@@ -322,12 +313,6 @@ void CIA2::reset() {
     std::fill(std::begin(todClock), std::end(todClock), 0);
     std::fill(std::begin(todAlarm), std::end(todAlarm), 0);
     std::fill(std::begin(todLatch), std::end(todLatch), 0);
-}
-
-void CIA2::setMode(VideoMode mode)
-{
-    mode_ = mode;
-    todIncrementThreshold = (mode_ == VideoMode::NTSC) ? 102273 : 98525;
 }
 
 uint8_t CIA2::readRegister(uint16_t address)
