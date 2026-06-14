@@ -30,7 +30,7 @@ std::string CIACommand::category() const
 
 std::string CIACommand::shortHelp() const
 {
-    return "cia <1|2> <subcmd> - Inspect CIA1 or CIA2 (regs, timers, tod, icr, mode/iec)";
+    return "cia <1|2> <subcmd> - Inspect CIA1/CIA2 (all, regs, ports, timers, tod, icr, serial, mode/vic/iec)";
 }
 
 std::string CIACommand::help() const
@@ -40,24 +40,36 @@ std::string CIACommand::help() const
 Usage:
     cia <1|2> <subcommand>
 
-Subcommands (common to CIA1 and CIA2):
-    ports     - Show all ports (A & B) along with Data Direction registers
-    regs      - Show all registers with decoded bit fields
-    timers    - Show Timer A and Timer B state (latch, counter, mode)
-    tod       - Show time-of-day clock (HH:MM:SS.tenth)
-    icr       - Show interrupt control and pending sources
+Common subcommands:
+    all       - Show the full decoded CIA register dump
+    regs      - Show the full decoded CIA register dump
+    ports     - Show Port A/B values, DDRs, inputs, and outputs
+    timers    - Show Timer A and Timer B state
+    tod       - Show time-of-day clock and alarm/latch state
+    icr       - Show interrupt control register, enable mask, and pending sources
+    serial    - Show serial data register / shift-register state
+    help      - Show this help text
 
 CIA1-only subcommands:
-    mode      - Show keyboard/joystick input mode state
+    mode      - Show CIA1 keyboard/joystick/cassette related mode state
 
 CIA2-only subcommands:
-    iec       - Show IEC bus state, VIC bank select bits, and NMI source
+    vic       - Show VIC-II bank select state from CIA2 Port A bits 0-1
+    iec       - Show IEC bus snapshot and decoded CIA2 IEC serial bus state
 
 Examples:
-    cia 1 regs       Show CIA1 registers
-    cia 2 timers     Display CIA2 Timer A/B values
-    cia 1 mode       Show CIA1 keyboard/joystick mode
-    cia 2 iec        Show CIA2 IEC serial bus lines
+    cia 1 all        Show full CIA1 decoded register dump
+    cia 1 ports      Show CIA1 Port A/B and DDR state
+    cia 1 timers     Show CIA1 Timer A/B values
+    cia 1 serial     Show CIA1 serial register state
+    cia 1 mode       Show CIA1 keyboard/joystick/cassette mode state
+
+    cia 2 all        Show full CIA2 decoded register dump
+    cia 2 ports      Show CIA2 Port A/B and DDR state
+    cia 2 timers     Show CIA2 Timer A/B values
+    cia 2 serial     Show CIA2 serial register state
+    cia 2 vic        Show CIA2 VIC-II bank select state
+    cia 2 iec        Show CIA2 IEC serial bus state
 )";
 }
 
