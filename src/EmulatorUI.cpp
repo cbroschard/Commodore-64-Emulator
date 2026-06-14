@@ -88,6 +88,7 @@ void EmulatorUI::pushSetREU(REUModel model)
 void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type)
 {
     fileDlg.title = title ? title : "";
+
     fileDlg.allowedExtensions.clear();
     for (auto e : exts)
         fileDlg.allowedExtensions.emplace_back(e);
@@ -95,9 +96,8 @@ void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const 
     fileDlg.selectedEntry.clear();
     fileDlg.fileName.clear();
     fileDlg.error.clear();
-    fileDlg.lastClickedEntry.clear();
-    fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
 
+    fileDlg.allowOverwrite = false;
     fileDlg.mode = FileDialog::Mode::OpenExisting;
     fileDlg.open = true;
 
@@ -107,6 +107,7 @@ void EmulatorUI::startFileDialog(const char* title, std::initializer_list<const 
 void EmulatorUI::startSaveFileDialog(const char* title, std::initializer_list<const char*> exts, UiCommand::Type type, bool allowOverwrite)
 {
     fileDlg.title = title ? title : "";
+
     fileDlg.allowedExtensions.clear();
     for (auto e : exts)
         fileDlg.allowedExtensions.emplace_back(e);
@@ -114,13 +115,11 @@ void EmulatorUI::startSaveFileDialog(const char* title, std::initializer_list<co
     fileDlg.selectedEntry.clear();
     fileDlg.fileName.clear();
     fileDlg.error.clear();
-    fileDlg.lastClickedEntry.clear();
-    fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
 
     fileDlg.allowOverwrite = allowOverwrite;
     fileDlg.mode = FileDialog::Mode::SaveAs;
-
     fileDlg.open = true;
+
     pendingType_ = type;
 }
 
@@ -201,14 +200,20 @@ void EmulatorUI::drawFileDialog()
     desired.x = std::min(desired.x, workSize.x - margin * 2.0f);
     desired.y = std::min(desired.y, workSize.y - margin * 2.0f);
 
-    ImVec2 center(workPos.x + workSize.x * 0.5f, workPos.y + workSize.y * 0.5f);
+    ImVec2 center(workPos.x + workSize.x * 0.5f,
+                  workPos.y + workSize.y * 0.5f);
 
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(desired, ImGuiCond_Appearing);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(420, 260),
-                                        ImVec2(workSize.x - margin * 2.0f, workSize.y - margin * 2.0f));
+    ImGui::SetNextWindowSizeConstraints(
+        ImVec2(420, 260),
+        ImVec2(workSize.x - margin * 2.0f,
+               workSize.y - margin * 2.0f)
+    );
 
-    const char* windowTitle = fileDlg.title.empty() ? "Select File" : fileDlg.title.c_str();
+    const char* windowTitle =
+        fileDlg.title.empty() ? "Select File" : fileDlg.title.c_str();
+
     if (!ImGui::Begin(windowTitle, &fileDlg.open))
     {
         ImGui::End();
@@ -225,15 +230,8 @@ void EmulatorUI::drawFileDialog()
             {
                 fileDlg.currentDir = path;
                 fileDlg.selectedEntry.clear();
+                fileDlg.fileName.clear();
                 fileDlg.error.clear();
-                fileDlg.lastClickedEntry.clear();
-                fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
-                return;
-            }
-
-            if (fileDlg.mode == FileDialog::Mode::SaveAs)
-            {
-                fileDlg.fileName = path.filename().string();
                 return;
             }
 
@@ -248,6 +246,46 @@ void EmulatorUI::drawFileDialog()
         catch (const std::exception& e)
         {
             fileDlg.error = e.what();
+        }
+    };
+
+    auto chooseSavePath = [this](const fs::path& path)
+    {
+        try
+        {
+            if (fs::is_directory(path))
+                return;
+
+            fileDlg.fileName = path.filename().string();
+            fileDlg.error.clear();
+
+            if (!isAllowedByExtension(path))
+            {
+                fileDlg.error = "File type not allowed for this action.";
+                return;
+            }
+
+            if (!fileDlg.allowOverwrite)
+                return;
+
+            emitChosenPath(path);
+        }
+        catch (const std::exception& e)
+        {
+            fileDlg.error = e.what();
+        }
+    };
+
+    auto goUp = [this]()
+    {
+        auto parent = fileDlg.currentDir.parent_path();
+
+        if (!parent.empty())
+        {
+            fileDlg.currentDir = parent;
+            fileDlg.selectedEntry.clear();
+            fileDlg.fileName.clear();
+            fileDlg.error.clear();
         }
     };
 
@@ -275,12 +313,17 @@ void EmulatorUI::drawFileDialog()
             entries.push_back(entry);
 
         std::sort(entries.begin(), entries.end(),
-                  [](const fs::directory_entry& a, const fs::directory_entry& b)
+                  [](const fs::directory_entry& a,
+                     const fs::directory_entry& b)
                   {
                       bool ad = a.is_directory();
                       bool bd = b.is_directory();
-                      if (ad != bd) return ad;
-                      return a.path().filename().string() < b.path().filename().string();
+
+                      if (ad != bd)
+                          return ad;
+
+                      return a.path().filename().string() <
+                             b.path().filename().string();
                   });
     }
     catch (const std::exception& e)
@@ -288,30 +331,22 @@ void EmulatorUI::drawFileDialog()
         fileDlg.error = e.what();
     }
 
-    if (ImGui::Selectable("..", false))
     {
-        const auto now = std::chrono::steady_clock::now();
-        const bool sameItem = (fileDlg.lastClickedEntry == "..");
-        const auto deltaMs =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now - fileDlg.lastClickTime).count();
+        ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowDoubleClick;
 
-        if (sameItem && deltaMs >= 0 && deltaMs <= 500)
+        bool clicked = ImGui::Selectable("..", false, flags);
+        bool doubleClicked =
+            ImGui::IsItemHovered() &&
+            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        if (clicked)
         {
-            auto parent = fileDlg.currentDir.parent_path();
-            if (!parent.empty())
-            {
-                fileDlg.currentDir = parent;
-                fileDlg.selectedEntry.clear();
-                fileDlg.error.clear();
-            }
-            fileDlg.lastClickedEntry.clear();
-            fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
+            fileDlg.selectedEntry.clear();
+            fileDlg.error.clear();
         }
-        else
-        {
-            fileDlg.lastClickedEntry = "..";
-            fileDlg.lastClickTime = now;
-        }
+
+        if (doubleClicked)
+            goUp();
     }
 
     for (const auto& entry : entries)
@@ -327,31 +362,40 @@ void EmulatorUI::drawFileDialog()
         }
 
         std::string label = isDir ? (name + "/") : name;
-        bool selected = (fileDlg.selectedEntry == name);
+        bool selected = fileDlg.selectedEntry == name;
 
-        if (ImGui::Selectable(label.c_str(), selected))
+        ImGuiSelectableFlags flags = ImGuiSelectableFlags_AllowDoubleClick;
+
+        bool clicked = ImGui::Selectable(label.c_str(), selected, flags);
+        bool doubleClicked =
+            ImGui::IsItemHovered() &&
+            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        if (clicked)
         {
-            const auto now = std::chrono::steady_clock::now();
-            const bool sameItem = (fileDlg.lastClickedEntry == name);
-            const auto deltaMs =
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - fileDlg.lastClickTime).count();
-
             fileDlg.selectedEntry = name;
             fileDlg.error.clear();
 
             if (fileDlg.mode == FileDialog::Mode::SaveAs && !isDir)
                 fileDlg.fileName = name;
+        }
 
-            if (sameItem && deltaMs >= 0 && deltaMs <= 500)
+        if (doubleClicked)
+        {
+            fileDlg.selectedEntry = name;
+            fileDlg.error.clear();
+
+            if (isDir)
             {
                 openPath(path);
-                fileDlg.lastClickedEntry.clear();
-                fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
+            }
+            else if (fileDlg.mode == FileDialog::Mode::SaveAs)
+            {
+                chooseSavePath(path);
             }
             else
             {
-                fileDlg.lastClickedEntry = name;
-                fileDlg.lastClickTime = now;
+                openPath(path);
             }
         }
     }
@@ -370,25 +414,17 @@ void EmulatorUI::drawFileDialog()
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", fileDlg.error.c_str());
 
     if (ImGui::Button("Up"))
-    {
-        auto parent = fileDlg.currentDir.parent_path();
-        if (!parent.empty())
-        {
-            fileDlg.currentDir = parent;
-            fileDlg.selectedEntry.clear();
-            fileDlg.error.clear();
-            fileDlg.lastClickedEntry.clear();
-            fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
-        }
-    }
+        goUp();
 
     ImGui::SameLine();
 
     if (ImGui::Button("Cancel"))
     {
         fileDlg.open = false;
-        fileDlg.lastClickedEntry.clear();
-        fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
+        fileDlg.selectedEntry.clear();
+        fileDlg.fileName.clear();
+        fileDlg.error.clear();
+
         ImGui::End();
         return;
     }
@@ -398,29 +434,16 @@ void EmulatorUI::drawFileDialog()
     if (fileDlg.mode == FileDialog::Mode::OpenExisting)
     {
         bool hasSelection = !fileDlg.selectedEntry.empty();
-        if (!hasSelection) ImGui::BeginDisabled();
+
+        if (!hasSelection)
+            ImGui::BeginDisabled();
 
         if (ImGui::Button("Open"))
         {
             try
             {
                 fs::path p = fileDlg.currentDir / fileDlg.selectedEntry;
-
-                if (fs::is_directory(p))
-                {
-                    fileDlg.currentDir = p;
-                    fileDlg.selectedEntry.clear();
-                    fileDlg.error.clear();
-                    fileDlg.lastClickedEntry.clear();
-                    fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
-                }
-                else
-                {
-                    if (!isAllowedByExtension(p))
-                        fileDlg.error = "File type not allowed for this action.";
-                    else
-                        emitChosenPath(p);
-                }
+                openPath(p);
             }
             catch (const std::exception& e)
             {
@@ -428,12 +451,15 @@ void EmulatorUI::drawFileDialog()
             }
         }
 
-        if (!hasSelection) ImGui::EndDisabled();
+        if (!hasSelection)
+            ImGui::EndDisabled();
     }
     else
     {
         bool hasName = !fileDlg.fileName.empty();
-        if (!hasName) ImGui::BeginDisabled();
+
+        if (!hasName)
+            ImGui::BeginDisabled();
 
         if (ImGui::Button("Save"))
         {
@@ -441,8 +467,11 @@ void EmulatorUI::drawFileDialog()
             {
                 fs::path outPath = fileDlg.currentDir / fileDlg.fileName;
 
-                if (!outPath.has_extension() && fileDlg.allowedExtensions.size() == 1)
+                if (!outPath.has_extension() &&
+                    fileDlg.allowedExtensions.size() == 1)
+                {
                     outPath += fileDlg.allowedExtensions[0];
+                }
 
                 if (!isAllowedByExtension(outPath))
                 {
@@ -463,7 +492,8 @@ void EmulatorUI::drawFileDialog()
             }
         }
 
-        if (!hasName) ImGui::EndDisabled();
+        if (!hasName)
+            ImGui::EndDisabled();
     }
 
     ImGui::End();
@@ -762,17 +792,20 @@ bool EmulatorUI::isAllowedByExtension(const std::filesystem::path& path) const
 
 void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
 {
-    if (pendingType_ == UiCommand::Type::AttachDisk || pendingType_ == UiCommand::Type::CreateBlankDisk)
+    if (pendingType_ == UiCommand::Type::AttachDisk ||
+        pendingType_ == UiCommand::Type::CreateBlankDisk)
+    {
         push(pendingType_, path.string(), pendingDevice_, pendingDriveType_);
+    }
     else
+    {
         push(pendingType_, path.string());
+    }
 
     fileDlg.open = false;
     fileDlg.selectedEntry.clear();
     fileDlg.fileName.clear();
     fileDlg.error.clear();
-    fileDlg.lastClickedEntry.clear();
-    fileDlg.lastClickTime = std::chrono::steady_clock::time_point{};
 }
 
 void EmulatorUI::drawDriveStatus(const MediaViewState& v)

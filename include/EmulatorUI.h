@@ -145,10 +145,6 @@ class EmulatorUI
             std::string selectedEntry;
             std::string fileName;
             std::string error;
-
-            // Manual double-click tracking
-            std::string lastClickedEntry;
-            std::chrono::steady_clock::time_point lastClickTime{};
         };
         FileDialog fileDlg;
 
