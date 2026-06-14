@@ -8,7 +8,10 @@
 #ifndef HEXFORMAT_H_INCLUDED
 #define HEXFORMAT_H_INCLUDED
 
+#include <cstdint>
+#include <iomanip>
 #include <string>
+#include <sstream>
 
 // Hex helpers
 inline std::string toHex(uint16_t value, int width = 4)
