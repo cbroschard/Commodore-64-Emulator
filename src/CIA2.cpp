@@ -13,7 +13,6 @@ CIA2::CIA2() :
     bus(nullptr),
     logger(nullptr),
     rs232dev(nullptr),
-    traceMgr(nullptr),
     vic(nullptr),
     iecProtocolEnabled(false)
 {
@@ -468,6 +467,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 logger->WriteLog(out.str());
             }
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
             {
                 std::ostringstream out;
@@ -489,6 +489,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             updateRS232Outputs();
             recomputeIEC();
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
             {
                 std::ostringstream out;
@@ -506,6 +507,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         {
             timerALowByte = value;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -521,6 +523,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         {
             timerAHighByte = value;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -536,6 +539,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         {
             timerBLowByte = value;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -551,6 +555,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
         {
             timerBHighByte = value;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -569,6 +574,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 todAlarm[0] = bcdToBinary(value & 0x0F);
                 todAlarmTriggered = false;
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -589,6 +595,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if (todLatched)
                     todLatch[0] = todClock[0];
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -611,6 +618,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 todAlarm[1] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -631,6 +639,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if (todLatched)
                     todLatch[1] = todClock[1];
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -653,6 +662,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 todAlarm[2] = bcdToBinary(value & 0x7F);
                 todAlarmTriggered = false;
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -673,6 +683,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if (todLatched)
                     todLatch[2] = todClock[2];
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -695,6 +706,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 todAlarm[3] = bcdToBinary(value & 0x3F);
                 todAlarmTriggered = false;
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -715,6 +727,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
                 if (todLatched)
                     todLatch[3] = todClock[3];
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
                 {
                     std::ostringstream out;
@@ -745,6 +758,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             }
             refreshNMI();
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
             {
                 std::ostringstream out;
@@ -773,6 +787,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             // Bit 4 always reads back zero
             timerAControl &= ~0x10;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -808,6 +823,7 @@ void CIA2::writeRegister(uint16_t address, uint8_t value)
             // Store without load bit
             timerBControl &= ~0x10;
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
             {
                 std::ostringstream out;
@@ -841,6 +857,7 @@ void CIA2::latchTODClock()
     todLatch[3] = todClock[3];
     todLatched = true;
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
     {
         std::ostringstream out;
@@ -895,6 +912,7 @@ void CIA2::updateTimerA(uint32_t cyclesElapsed)
             interruptStatus |= INTERRUPT_TIMER_A;
             refreshNMI();
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
             {
                 traceMgr->recordCiaTimer(2, 'A', timerA, true, makeCIAStamp());
@@ -984,6 +1002,7 @@ void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& tod
             interruptStatus |= INTERRUPT_TOD_ALARM;
             refreshNMI();
 
+            TraceManager* traceMgr = getTraceManager();
             if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
             {
                 std::ostringstream out;
@@ -1057,6 +1076,7 @@ void CIA2::clkChanged(bool level)
 
                 decodeIECCommand(cmd);
 
+                TraceManager* traceMgr = getTraceManager();
                 if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
                 {
                     std::ostringstream out;
@@ -1082,6 +1102,7 @@ void CIA2::dataChanged(bool state)
 {
     lastDataLevel = state;
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
     {
         std::ostringstream out;
@@ -1097,6 +1118,7 @@ void CIA2::atnChanged(bool assertedLow)
     atnLine = assertedLow;
     lastAtnLevel = assertedLow;
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
     {
         std::ostringstream out;
@@ -1139,6 +1161,7 @@ void CIA2::srqChanged(bool level)
 {
     const bool falling = (lastSrqLevel && !level);
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
     {
         std::ostringstream out;
@@ -1168,6 +1191,7 @@ void CIA2::decodeIECCommand(uint8_t cmd)
 
     auto traceIec = [&](const std::string& text)
     {
+        TraceManager* traceMgr = getTraceManager();
         if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
             traceMgr->recordCustomEvent(text, makeCIAStamp());
     };
@@ -1319,6 +1343,7 @@ void CIA2::setCNTLine(bool level)
 {
     const bool falling = (lastCNT && !level);
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_CNT))
     {
         std::ostringstream out;
@@ -1475,6 +1500,7 @@ void CIA2::handleTimerBUnderflow()
     interruptStatus |= INTERRUPT_TIMER_B;
     refreshNMI();
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
     {
         traceMgr->recordCiaTimer(2, 'B', timerB, true, makeCIAStamp());
@@ -1518,6 +1544,7 @@ void CIA2::recomputeIEC()
     bus->setClkLine(clkReleased);
     bus->setDataLine(dataReleased);
 
+    TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
     {
         std::ostringstream out;
@@ -1551,6 +1578,8 @@ void CIA2::updateRS232Outputs()
 
 TraceManager::Stamp CIA2::makeCIAStamp() const
 {
+    TraceManager* traceMgr = getTraceManager();
+
     if (!traceMgr)
         return { 0, 0, 0 };
 

@@ -16,6 +16,7 @@ class IECBUS;
 class Vic;
 
 #include <cstdint>
+#include "CIA6526.h"
 #include "Common/BCD.h"
 #include "Common/VideoMode.h"
 #include "IECBUS.h"
@@ -25,7 +26,7 @@ class Vic;
 #include "StateWriter.h"
 #include "Debug/TraceManager.h"
 
-class CIA2
+class CIA2 : public CIA6526
 {
     public:
         CIA2();
@@ -35,7 +36,6 @@ class CIA2
         inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; recomputeIEC(); }
         inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
-        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
         // Setter for NTSC/PAL
@@ -116,6 +116,17 @@ class CIA2
         inline void restoreIRQs(const CIA2IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
+         void postTimerUpdates(uint32_t cyclesElapsed) override;
+
+        inline int getCIANumber() const override { return 2; }
+        inline const char* getCIAName() const override { return "CIA2"; }
+
+        uint8_t readPortA() override;
+        uint8_t readPortB() override;
+
+        void irqLineChanged(bool active) override;
+
+        TraceManager::Stamp makeCIAStamp() const override;
 
     private:
 
@@ -124,7 +135,6 @@ class CIA2
         IECBUS* bus;
         Logging* logger;
         RS232Device* rs232dev;
-        TraceManager* traceMgr;
         Vic* vic;
 
         // Constants
@@ -241,8 +251,6 @@ class CIA2
 
         // RS232 helper
         void updateRS232Outputs();
-
-        TraceManager::Stamp makeCIAStamp() const;
 };
 
 #endif // CIA2_H
