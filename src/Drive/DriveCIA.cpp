@@ -463,6 +463,7 @@ void DriveCIA::writeRegister(uint16_t address, uint8_t value)
             serialOutputLoaded = true;
             lastCntLevel = cntLevel;
             lastSpLevel = spLevel;
+            break;
         }
         case 0x0D:
         {
