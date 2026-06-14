@@ -35,29 +35,57 @@ std::string GoCommand::category() const
 
 std::string GoCommand::shortHelp() const
 {
-    return "g [addr|force] - Start execution";
+    return "g [addr] [force|!] - Start execution";
 }
 
 std::string GoCommand::help() const
 {
     return
-        "g                - Start execution\n"
-        "g <addr>         - Start execution at $addr\n"
-        "g force          - Start execution even if monitor-forced IRQ is active\n"
-        "g <addr> force   - Start at $addr even if monitor-forced IRQ is active\n";
+        "g - Start execution\n"
+        "\n"
+        "Usage:\n"
+        "  g\n"
+        "      Start execution from the current PC.\n"
+        "\n"
+        "  g <addr>\n"
+        "      Set PC to <addr>, then start execution.\n"
+        "\n"
+        "  g force\n"
+        "  g !\n"
+        "      Start execution even if monitor-forced IRQ is active.\n"
+        "\n"
+        "  g <addr> force\n"
+        "  g <addr> !\n"
+        "      Set PC to <addr>, then start execution even if monitor-forced IRQ is active.\n"
+        "\n"
+        "Examples:\n"
+        "  g\n"
+        "  g $C000\n"
+        "  g force\n"
+        "  g $C000 force\n"
+        "  g $C000 !\n";
 }
 
 void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
     if (args.size() >= 2 && isHelp(args[1]))
     {
-        std::cout << "Usage:\n" << help();
+        std::cout << help();
         return;
     }
 
     if (args.size() > 3)
     {
-        std::cout << "Usage:\n" << help();
+        std::cout << "Invalid arguments.\n";
+        std::cout << "Usage: g [addr] [force|!]\n";
+        return;
+    }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
         return;
     }
 
@@ -69,13 +97,21 @@ void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         if (args[i] == "force" || args[i] == "!")
         {
+            if (forceRun)
+            {
+                std::cout << "Invalid argument: force specified more than once.\n";
+                std::cout << "Usage: g [addr] [force|!]\n";
+                return;
+            }
+
             forceRun = true;
             continue;
         }
 
         if (haveAddress)
         {
-            std::cout << "Usage:\n" << help();
+            std::cout << "Invalid arguments.\n";
+            std::cout << "Usage: g [addr] [force|!]\n";
             return;
         }
 
@@ -87,12 +123,12 @@ void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         catch (...)
         {
             std::cout << "Invalid argument: " << args[i] << "\n";
-            std::cout << "Usage:\n" << help();
+            std::cout << "Usage: g [addr] [force|!]\n";
             return;
         }
     }
 
-    if (mon.mlmonitorbackend()->irqForceActive() && !forceRun)
+    if (backend->irqForceActive() && !forceRun)
     {
         std::cout << "WARNING: monitor IRQ source is still forced active.\n";
         std::cout << "This can cause an IRQ storm, fast cursor flashing, and slow BASIC input.\n\n";
@@ -105,7 +141,7 @@ void GoCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
 
     if (haveAddress)
-        mon.mlmonitorbackend()->setPC(address);
+        backend->setPC(address);
 
     mon.setRunningFlag(false);
 }
