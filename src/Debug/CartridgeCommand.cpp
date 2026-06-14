@@ -25,27 +25,36 @@ std::string CartridgeCommand::category() const
 
 std::string CartridgeCommand::shortHelp() const
 {
-   return "cart      - Cartridge commands (info, banks, map, switch)";
+    return "cart      - Cartridge commands (info, banks, map, switch, unload)";
 }
 
 std::string CartridgeCommand::help() const
 {
     return
-        "cart <subcommand> [args]\n"
-        "    Inspect and control the attached cartridge.\n"
+        "cart - Inspect and control the attached cartridge\n"
+        "\n"
+        "Usage:\n"
+        "    cart <subcommand> [args]\n"
         "\n"
         "Subcommands:\n"
-        "    info              Show cartridge type, wiring mode, GAME/EXROM lines.\n"
-        "    banks             List available banks and indicate the active one.\n"
-        "    map               Show current $8000-$BFFF/$E000-$FFFF mapping.\n"
+        "    info              Show cartridge type, size, wiring mode, GAME/EXROM lines,\n"
+        "                      and current bank.\n"
+        "    banks             List available CHIP banks and indicate the active one.\n"
+        "    map               Show the current cartridge memory mapping.\n"
         "    switch <bank>     Force switch to the given bank number.\n"
-        "    unload            Detach the cartridge from memory.\n"
+        "    unload            Detach the cartridge, reset cartridge lines, and warm reset.\n"
+        "    help              Show this help text.\n"
         "\n"
         "Examples:\n"
-        "    cart info         Display cartridge type and wiring mode.\n"
-        "    cart banks        Show all banks and the current active bank.\n"
-        "    cart switch 3     Switch to bank 3.\n"
-        "    cart unload       Remove the cartridge.\n";
+        "    cart info         Display cartridge type and wiring mode\n"
+        "    cart banks        Show all banks and the current active bank\n"
+        "    cart map          Show current cartridge memory map\n"
+        "    cart switch 3     Switch to bank 3\n"
+        "    cart unload       Remove the cartridge and warm reset\n"
+        "\n"
+        "Notes:\n"
+        "    - Most subcommands require a cartridge to be loaded.\n"
+        "    - Bank switching only works for cartridge types that support banking.\n";
 }
 
 void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -56,46 +65,90 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
         return;
     }
 
-    // Get the pointer to the cart object first
-    Cartridge* cart = mon.mlmonitorbackend()->getCart();
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
 
-    if (!cart || !mon.mlmonitorbackend()->getCartridgeAttached())
+    if (backend == nullptr)
     {
-        std::cout << "Error: No cartridge loaded.\n";
+        std::cout << "Monitor backend is not attached.\n";
         return;
     }
 
     const std::string& subcmd = args[1];
 
+    Cartridge* cart = backend->getCart();
+    const bool cartridgeAttached = backend->getCartridgeAttached();
+
+    if (subcmd == "unload")
+    {
+        if (!cartridgeAttached || cart == nullptr)
+        {
+            std::cout << "No cartridge to unload.\n";
+            return;
+        }
+
+        cart->clearCartridge(cartLocation::LO);
+        cart->clearCartridge(cartLocation::HI);
+
+        // Reset PLA lines back to inactive.
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
+
+        backend->detachCartridge();
+
+        std::cout << "Cartridge unloaded.\n";
+
+        // Run a warm reset so the emulator does not keep executing from
+        // memory that was just unmapped.
+        backend->warmReset();
+        return;
+    }
+
+    if (!cartridgeAttached || cart == nullptr)
+    {
+        std::cout << "Error: No cartridge loaded.\n";
+        return;
+    }
+
     if (subcmd == "info")
     {
         std::ostringstream out;
-        out << "Cartridge: " << cart->getMapperName();
-        out << " (" << cart->getCartridgeSize() << " KB)\n";
+
+        out << "Cartridge: " << cart->getMapperName()
+            << " (" << cart->getCartridgeSize() << " KB)\n";
+
         out << "Wiring mode: ";
+
         switch (cart->getWiringMode())
         {
             case Cartridge::WiringMode::CART_8K:
-                out << "  Cartridge wiring mode: 8K\n";
+                out << "8K\n";
                 break;
+
             case Cartridge::WiringMode::CART_16K:
-                out << "  Cartridge wiring mode: 16K\n";
+                out << "16K\n";
                 break;
+
             case Cartridge::WiringMode::CART_ULTIMAX:
-                out << "  Cartridge wiring mode: Ultimax\n";
+                out << "Ultimax\n";
                 break;
+
             default:
-                out << "  Cartridge wiring mode: None\n";
+                out << "None\n";
                 break;
         }
-        out << "GAME=" << cart->getGameLine();
-        out << " EXROM=" << cart->getExROMLine();
-        out << " Current bank=" << cart->getCurrentBank() << "\n";
+
+        out << "GAME=" << cart->getGameLine() << "\n";
+        out << "EXROM=" << cart->getExROMLine() << "\n";
+        out << "Current bank=" << cart->getCurrentBank() << "\n";
+
         std::cout << out.str();
+        return;
     }
-    else if (subcmd == "banks")
+
+    if (subcmd == "banks")
     {
         const auto& sections = cart->getChipSections();
+
         if (sections.empty())
         {
             std::cout << "No banks available.\n";
@@ -103,13 +156,18 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
         }
 
         std::ostringstream out;
+
         out << "Banks found: " << cart->getNumberOfBanks() << "\n";
 
         for (const auto& section : sections)
         {
             out << "  Bank " << std::dec << static_cast<int>(section.bankNumber)
-                << " | LoadAddr=$" << std::hex << section.loadAddress
-                << " | Size=" << std::dec << (section.data.size() / 1024) << " KB";
+                << " | LoadAddr=$"
+                << std::uppercase << std::hex
+                << std::setw(4) << std::setfill('0')
+                << static_cast<int>(section.loadAddress)
+                << std::dec << std::setfill(' ')
+                << " | Size=" << (section.data.size() / 1024) << " KB";
 
             if (section.bankNumber == cart->getCurrentBank())
                 out << "  <-- Active";
@@ -118,40 +176,50 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
         }
 
         std::cout << out.str();
+        return;
     }
-    else if (subcmd == "map")
+
+    if (subcmd == "map")
     {
         std::ostringstream out;
+
         out << "Cartridge memory map:\n";
 
         switch (cart->getWiringMode())
         {
             case Cartridge::WiringMode::CART_8K:
-                out << "  $8000-$9FFF -> Cartridge LO (bank "
-                    << cart->getCurrentBank() << ")\n";
-                out << "  $A000-$BFFF -> RAM\n";
+                out << "  $8000-$9FFF -> Cartridge LO";
+                out << " (bank " << cart->getCurrentBank() << ")\n";
+                out << "  $A000-$BFFF -> RAM/BASIC depending on PLA state\n";
+                out << "  $E000-$FFFF -> KERNAL/ROM/RAM depending on PLA state\n";
                 break;
+
             case Cartridge::WiringMode::CART_16K:
-                out << "  $8000-$9FFF -> Cartridge LO (bank "
-                    << cart->getCurrentBank() << ")\n";
-                out << "  $A000-$BFFF -> Cartridge HI (bank "
-                    << cart->getCurrentBank() << ")\n";
+                out << "  $8000-$9FFF -> Cartridge LO";
+                out << " (bank " << cart->getCurrentBank() << ")\n";
+                out << "  $A000-$BFFF -> Cartridge HI";
+                out << " (bank " << cart->getCurrentBank() << ")\n";
+                out << "  $E000-$FFFF -> KERNAL/ROM/RAM depending on PLA state\n";
                 break;
+
             case Cartridge::WiringMode::CART_ULTIMAX:
-                out << "  $8000-$9FFF -> Cartridge LO (Ultimax bank "
-                    << cart->getCurrentBank() << ")\n";
-                out << "  $E000-$FFFF -> Cartridge HI (Ultimax bank "
-                    << cart->getCurrentBank() << ")\n";
-                out << "  $A000-$BFFF -> RAM\n";
+                out << "  $8000-$9FFF -> Cartridge LO";
+                out << " (Ultimax bank " << cart->getCurrentBank() << ")\n";
+                out << "  $A000-$BFFF -> Open/RAM depending on your PLA implementation\n";
+                out << "  $E000-$FFFF -> Cartridge HI";
+                out << " (Ultimax bank " << cart->getCurrentBank() << ")\n";
                 break;
+
             default:
                 out << "  No cartridge mapping active.\n";
                 break;
         }
 
-    std::cout << out.str();
+        std::cout << out.str();
+        return;
     }
-    else if (subcmd == "switch")
+
+    if (subcmd == "switch")
     {
         if (args.size() < 3)
         {
@@ -161,7 +229,13 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
 
         try
         {
-            int bank = std::stoi(args[2]);
+            const int bank = std::stoi(args[2]);
+
+            if (bank < 0 || bank > 255)
+            {
+                std::cout << "Invalid bank: " << bank << ".\n";
+                return;
+            }
 
             if (cart->setCurrentBank(static_cast<uint8_t>(bank)))
             {
@@ -172,36 +246,14 @@ void CartridgeCommand::execute(MLMonitor& mon, const std::vector<std::string>& a
                 std::cout << "Invalid bank: " << bank << ".\n";
             }
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
             std::cout << "Error: invalid bank number '" << args[2] << "'.\n";
         }
 
+        return;
     }
-    else if (subcmd == "unload")
-    {
-        if (!mon.mlmonitorbackend()->getCartridgeAttached())
-        {
-            std::cout << "No cartridge to unload.\n";
-            return;
-        }
-        if (cart)
-        {
-            // Clear cartridge memory regions
-            cart->clearCartridge(cartLocation::LO);
-            cart->clearCartridge(cartLocation::HI);
 
-            // Reset PLA lines
-            cart->setExROMLine(true);
-            cart->setGameLine(true);
-        }
-
-        // Detach from computer
-        mon.mlmonitorbackend()->detachCartridge();
-
-        std::cout << "Cartridge unloaded.\n";
-
-        // Run a warm reset so the emu doesn't crash with the rug pulled out from it
-        mon.mlmonitorbackend()->warmReset();
-    }
+    std::cout << "Unknown cartridge subcommand: " << subcmd << "\n";
+    std::cout << "Try: cart help\n";
 }
