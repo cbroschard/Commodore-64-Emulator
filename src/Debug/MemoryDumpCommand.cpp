@@ -25,60 +25,104 @@ std::string MemoryDumpCommand::category() const
 
 std::string MemoryDumpCommand::shortHelp() const
 {
-    return "m         - Hex dump memory";
+    return "m <addr> [count] - Hex dump memory";
 }
 
 std::string MemoryDumpCommand::help() const
 {
-    return "m <addr> [count]   - hex dump memory at $addr for [count] bytes";
-
+    return
+        "m - Hex dump memory\n"
+        "\n"
+        "Usage:\n"
+        "    m <addr>\n"
+        "    m <addr> [count]\n"
+        "\n"
+        "Arguments:\n"
+        "    <addr>     Starting memory address, such as $C000 or C000.\n"
+        "    [count]    Number of bytes to dump. Defaults to 16.\n"
+        "\n"
+        "Examples:\n"
+        "    m $0800\n"
+        "    m $C000 64\n"
+        "    m D000 128\n";
 }
 
 void MemoryDumpCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
     if (args.size() < 2 || isHelp(args[1]))
     {
-        std::cout << "Usage: " << help() << std::endl;
+        std::cout << help() << std::endl;
         return;
     }
+
+    MLMonitorBackend* backend = mon.mlmonitorbackend();
+
+    if (backend == nullptr)
+    {
+        std::cout << "Monitor backend is not attached.\n";
+        return;
+    }
+
     try
     {
-        uint16_t address = parseAddress(args[1]);
-        int count = args.size() >= 3 ? std::stoi(args[2]) : 16;
+        const uint16_t address = parseAddress(args[1]);
+        int count = 16;
+
+        if (args.size() >= 3)
+        {
+            count = std::stoi(args[2], nullptr, 0);
+
+            if (count <= 0)
+            {
+                std::cout << "Invalid count. Count must be greater than 0.\n";
+                return;
+            }
+        }
 
         for (int i = 0; i < count; i += 16)
         {
-            // print address
-            std::cout << std::hex << std::setw(4) << std::setfill('0') << (address + i) << ": ";
+            const uint16_t lineAddress = static_cast<uint16_t>(address + i);
 
-            // hex part
+            std::cout << std::uppercase << std::hex
+                      << std::setw(4) << std::setfill('0')
+                      << static_cast<int>(lineAddress)
+                      << ": ";
+
             std::string ascii;
+
             for (int j = 0; j < 16 && (i + j) < count; ++j)
             {
-                uint8_t v = mon.mlmonitorbackend()->readRAM(address + i + j);
-                std::cout << std::hex << std::setw(2) << std::setfill('0') << int(v) << ' ';
+                const uint16_t readAddress =
+                    static_cast<uint16_t>(address + i + j);
 
-                // build ASCII string: printable chars or '.'
+                const uint8_t v = backend->readRAM(readAddress);
+
+                std::cout << std::setw(2) << std::setfill('0')
+                          << static_cast<int>(v)
+                          << ' ';
+
                 if (v >= 32 && v <= 126)
                     ascii.push_back(static_cast<char>(v));
                 else
                     ascii.push_back('.');
             }
 
-            // pad hex column if not full 16
             if ((count - i) < 16)
             {
-                int remaining = 16 - (count - i);
+                const int remaining = 16 - (count - i);
+
                 for (int k = 0; k < remaining; ++k)
                     std::cout << "   ";
             }
 
-            // ascii part
             std::cout << " " << ascii << "\n";
         }
+
+        std::cout << std::dec << std::setfill(' ');
     }
     catch (const std::exception& e)
     {
-        std::cout << "Error: Invalid address or count. Usage: " << help() << std::endl;
+        std::cout << "Error: invalid address or count.\n";
+        std::cout << "Usage: m <addr> [count]\n";
     }
 }
