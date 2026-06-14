@@ -338,6 +338,27 @@ void DriveCIA::tick(uint32_t cycles)
             registers.timerBHighByte = static_cast<uint8_t>((timerBCounter >> 8) & 0xFF);
         }
 
+        if (!sdrOutputMode)
+        {
+            const bool cntRising = cntLevel && !lastCntLevel;
+
+            if (cntRising)
+            {
+                serialShiftRegister =
+                    static_cast<uint8_t>((serialShiftRegister << 1) | (spLevel ? 1 : 0));
+
+                ++serialBitCount;
+
+                if (serialBitCount >= 8)
+                {
+                    registers.serialData = serialShiftRegister;
+                    serialBitCount = 0;
+
+                    triggerInterrupt(INTERRUPT_SERIAL_SHIFT_REGISTER);
+                }
+            }
+        }
+
         lastCntLevel = cntLevel;
         lastSpLevel = spLevel;
     }
