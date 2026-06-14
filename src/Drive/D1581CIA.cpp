@@ -214,26 +214,50 @@ void D1581CIA::irqLineChanged(bool active)
 
 void D1581CIA::serialOutputBit(bool bit)
 {
-    // Diagnostic first:
-    // bit=true/false is the MSB-first byte from $400C.
-    // Do not drive lines yet until we verify polarity.
+    auto* d = drive();
+    if (!d)
+        return;
+
+    // IEC lines are active-low.
+    // For a serial data bit:
+    // bit 1 -> release DATA
+    // bit 0 -> pull DATA low
+    d->peripheralAssertData(!bit);
+
 #ifdef Debug
     std::cout << "[1581 CIA SERIAL BIT] bit=" << (bit ? 1 : 0)
-              << " PR=$" << hex2(getPortBOutputRegister())
-              << " DDR=$" << hex2(getDDRB())
+              << " DATA=" << (bit ? "H" : "L")
+              << " PRB=$" << hex2(getPortBOutputRegister())
+              << " DDRB=$" << hex2(getDDRB())
               << "\n";
 #endif
 }
 
 void D1581CIA::serialOutputClockPulse()
 {
+    auto* d = drive();
+    if (!d)
+        return;
+
+    // First simple test: pulse SRQ low.
+    // This may need timing/stretching later.
+    d->peripheralAssertSrq(true);
+    d->peripheralAssertSrq(false);
+
 #ifdef Debug
-    std::cout << "[1581 CIA SERIAL CLK]\n";
+    std::cout << "[1581 CIA SERIAL CLK SRQ PULSE]\n";
 #endif
 }
 
 void D1581CIA::serialOutputFinished()
 {
+    auto* d = drive();
+    if (d)
+    {
+        d->peripheralAssertData(false);
+        d->peripheralAssertSrq(false);
+    }
+
 #ifdef Debug
     std::cout << "[1581 CIA SERIAL DONE]\n";
 #endif
