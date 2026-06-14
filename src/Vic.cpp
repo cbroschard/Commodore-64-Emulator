@@ -252,6 +252,20 @@ void Vic::setMode(VideoMode mode)
     if (currentCycle >= cfg_->cyclesPerLine)
         currentCycle %= cfg_->cyclesPerLine;
 
+    clearBadLineFifo();
+    resetActiveMatrixRow();
+    resetActiveBackgroundPixelState();
+    resetBackgroundPipeline();
+
+    std::fill(finalColorLine.begin(), finalColorLine.end(), 0);
+    std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);
+
+    vicState.badLine = false;
+    vicState.badLineSampled = false;
+    vicState.displayEnabled = false;
+    vicState.displayEnabledNext = false;
+    vicState.vmliFetchIndex = 0;
+
     updateBusArbitration();
     updateMonitorCaches(registers.raster);
 
@@ -2560,7 +2574,8 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         {
             slot.busOwner = BusOwner::BadLine;
 
-            const int index = cycle - cfg_->DMAStartCycle;
+            const int index = cycle - cfg_->bgFetchStartCycle;
+
             slot.matrixFetchIndex =
                 (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS) ? index : -1;
 
@@ -5239,17 +5254,10 @@ bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& s
     if (!shouldUseFetchedMatrixForDisplayCol(displayCol, raster))
         return false;
 
-    // Prefer the active matrix row because it records whether this exact
-    // display column was fetched for the current badline/display row.
     if (activeMatrixRowByteForDisplayCol(displayCol, screenByte, colorByte))
         return true;
 
-    // Fallback to the existing FIFO path to preserve current behavior when
-    // activeMatrixRow is not populated but the badline FIFO is valid.
-    screenByte = charPtrFIFO[displayCol];
-    colorByte  = static_cast<uint8_t>(colorPtrFIFO[displayCol] & 0x0F);
-
-    return true;
+    return false;
 }
 
 uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster) const

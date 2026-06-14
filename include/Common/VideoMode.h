@@ -67,8 +67,8 @@ inline constexpr ModeConfig PAL_CONFIG =
     14,    // DMAStartCycle
     53,     // DMAEndCycle
     24,      // hardwareX
-    15,    // bgFetchStartCycle
-    54,     // bgFetchEndCycle
+    14,    // bgFetchStartCycle
+    53,     // bgFetchEndCycle
     54,     // refreshStartSlots
     {54,57,60,0,3,6,9,12} // spriteFetchCycle
 };
