@@ -84,7 +84,7 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (chipNum == 1)
     {
-        if (subcmd == "regs") std::cout << mon.mlmonitorbackend()->dumpCIA1Regs();
+        if (subcmd == "regs" || subcmd == "all" ) std::cout << mon.mlmonitorbackend()->dumpCIA1Regs();
         else if (subcmd == "ports") std::cout << mon.mlmonitorbackend()->dumpCIA1Ports();
         else if (subcmd == "timers") std::cout << mon.mlmonitorbackend()->dumpCIA1Timers();
         else if (subcmd == "tod") std::cout << mon.mlmonitorbackend()->dumpCIA1TOD();
@@ -96,7 +96,7 @@ void CIACommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
     else if (chipNum == 2)
     {
-        if (subcmd == "all") std::cout << mon.mlmonitorbackend()->dumpCIA2Regs();
+        if (subcmd == "regs" || subcmd == "all") std::cout << mon.mlmonitorbackend()->dumpCIA2Regs();
         else if (subcmd == "ports") std::cout << mon.mlmonitorbackend()->dumpCIA2Ports();
         else if (subcmd == "timers") std::cout << mon.mlmonitorbackend()->dumpCIA2Timers();
         else if (subcmd == "tod") std::cout << mon.mlmonitorbackend()->dumpCIA2TOD();
