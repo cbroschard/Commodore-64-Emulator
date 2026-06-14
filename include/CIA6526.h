@@ -41,6 +41,7 @@ class CIA6526
         struct CIAIRQSnapshot { uint8_t ier; };
         virtual std::string dumpRegisters(const std::string& group) const;
         inline void setLog(bool enable) { setLogging = enable; }
+        inline bool getSetLog() const { return setLogging; }
         void setIERExact(uint8_t mask);
         inline void clearPendingIRQs() { (void)readRegister(0xDC0D); }
         inline void disableAllIRQs() { setIERExact(0); }
@@ -72,8 +73,17 @@ class CIA6526
 
         virtual void postTimerUpdates(uint32_t cyclesElapsed) = 0;
 
-        inline uint8_t getPortAOutput() { return static_cast<uint8_t>(portA | ~ddrA); }
-        inline uint8_t getPortBOutput() { return static_cast<uint8_t>(portB | ~ddrB); }
+        inline uint8_t getPortAOutput() const { return static_cast<uint8_t>(portA | ~ddrA); }
+        inline uint8_t getPortBOutput() const { return static_cast<uint8_t>(portB | ~ddrB); }
+
+        inline bool isPortAOutput(uint8_t mask) const { return (ddrA & mask) != 0; }
+        inline bool isPortBOutput(uint8_t mask) const { return (ddrB & mask) != 0; }
+
+        inline bool getPortALatchBit(uint8_t mask) const { return (portA & mask) != 0; }
+        inline bool getPortBLatchBit(uint8_t mask) const { return (portB & mask) != 0; }
+
+        inline uint8_t getPortALatch() const { return portA; }
+        inline uint8_t getPortADDR() const { return ddrA; }
 
         virtual int getCIANumber() const = 0;
         virtual const char* getCIAName() const = 0;

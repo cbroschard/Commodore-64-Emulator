@@ -15,16 +15,11 @@ class CPU;
 class IECBUS;
 class Vic;
 
-#include <cstdint>
 #include "CIA6526.h"
 #include "Common/BCD.h"
-#include "Common/VideoMode.h"
 #include "IECBUS.h"
 #include "Logging.h"
 #include "RS232Device.h"
-#include "StateReader.h"
-#include "StateWriter.h"
-#include "Debug/TraceManager.h"
 
 class CIA2 : public CIA6526
 {
@@ -45,24 +40,8 @@ class CIA2 : public CIA6526
         // Reset all to defaults
         void reset();
 
-        uint8_t readRegister(uint16_t address);
-        void writeRegister(uint16_t address, uint8_t value);
-
         // Getter to find current VIC bank
         uint16_t getCurrentVICBank() const;
-
-        // Main function to update the timers
-        void updateTimers(uint32_t cyclesElapsed);
-
-        //Interrupt handling
-        enum InterruptBit : uint8_t
-        {
-            INTERRUPT_TIMER_A = 0x01,
-            INTERRUPT_TIMER_B = 0x02,
-            INTERRUPT_TOD_ALARM = 0x04,
-            INTERRUPT_SERIAL_SHIFT_REGISTER = 0x08,
-            INTERRUPT_FLAG_LINE = 0x10
-        };
 
         // IECBUS connectivity
         void clkChanged(bool level);
@@ -72,10 +51,6 @@ class CIA2 : public CIA6526
 
         // Setter for device number set by actual devices
         inline void setDeviceNumber(uint8_t number) { deviceNumber = number; }
-
-        // CNT getter/setter
-        inline bool getCNTLine() const { return cntLevel; }
-        void setCNTLine(bool level);
 
         // ML Monitor access
         struct IECSnapshot
@@ -101,25 +76,18 @@ class CIA2 : public CIA6526
         std::string debugIECSnapshotString() const;
 
         std::string dumpRegisters(const std::string& group) const;
-        inline void setLog(bool enable) { setLogging = enable; }
-        struct CIA2IRQSnapshot { uint8_t ier; };
-        void setIERExact(uint8_t mask);
-        inline void clearPendingIRQs() { (void)readRegister(0xDD0D); }
-        inline void disableAllIRQs() { setIERExact(0); }
-        inline uint8_t getIER() const { return interruptEnable & 0x1F; }
-        inline uint8_t getIFR() const { return interruptStatus & 0x1F; }
-        inline bool irqLineActive() const { return (interruptStatus & interruptEnable & 0x1F) != 0; }
-        inline CIA2IRQSnapshot snapshotIRQs() const { return CIA2IRQSnapshot{getIER()}; }
-        inline void restoreIRQs(const CIA2IRQSnapshot& snapshot) { setIERExact(snapshot.ier & 0x1F); }
 
     protected:
-         void postTimerUpdates(uint32_t cyclesElapsed) override;
+        void postTimerUpdates(uint32_t cyclesElapsed) override;
 
         inline int getCIANumber() const override { return 2; }
         inline const char* getCIAName() const override { return "CIA2"; }
 
         uint8_t readPortA() override;
         uint8_t readPortB() override;
+
+        void portAOutputChanged(uint8_t value) override;
+        void portBOutputChanged(uint8_t value) override;
 
         void irqLineChanged(bool active) override;
 
@@ -167,78 +135,11 @@ class CIA2 : public CIA6526
         int iecCmdBitCount;
         void decodeIECCommand(uint8_t cmd);
 
-        // Data ports
-        uint8_t portA;
-        uint8_t portB;
-
-        // Data direction
-        uint8_t dataDirectionPortA;
-        uint8_t dataDirectionPortB;
-
-        // Timers
-        uint8_t timerALowByte;
-        uint8_t timerAHighByte;
-        uint8_t timerBLowByte;
-        uint8_t timerBHighByte;
-        uint16_t timerA;
-        uint16_t timerB;
-
-        // TOD registers
-        uint8_t todAlarm[4];
-        uint8_t todClock[4];
-        uint8_t todLatch[4];
-        uint32_t todTicks;
-        uint32_t todIncrementThreshold;
-        bool todLatched;
-        bool todAlarmSetMode;
-        bool todAlarmTriggered;
-
-        uint32_t pendingTBCNTTicks;
-        uint32_t pendingTBCASTicks;
-
-        //TOD Clock and Alarm helpers
-        void incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold);
-        void checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable);
-
-        // Timer control
-        uint8_t timerAControl;
-        uint8_t timerBControl;
-        uint16_t timerASnap;
-        uint16_t timerBSnap;
-        bool timerALatched;
-        bool timerBLatched;
-
-        // Update Timers helpers
-        void updateTimerA(uint32_t cyclesElapsed);
-        void updateTimerB(uint32_t cyclesElapsed);
-
-        // Interrupts
-        uint8_t interruptEnable;
-        uint8_t interruptStatus;
+        // NMI Level
         bool nmiAsserted;
-
-        // Serial
-        uint8_t serialDataRegister;
-
-        // CNT
-        bool cntLevel;
-        bool lastCNT;
 
         // IEC Debugging flag
         bool iecProtocolEnabled;
-
-        // TOD Handling
-        void latchTODClock();
-
-        // ML Monitor logging
-        bool setLogging;
-
-        // NMI Handling
-        void refreshNMI();
-
-        // Timer B
-        void tickTimerBOnce();
-        void handleTimerBUnderflow();
 
         // IEC helper
         void recomputeIEC();

@@ -27,40 +27,8 @@ void CIA2::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CIA2");
     wrtr.writeU32(1); // version
 
-    // Dump ports
-    wrtr.writeU8(portA);
-    wrtr.writeU8(portB);
-    wrtr.writeU8(dataDirectionPortA);
-    wrtr.writeU8(dataDirectionPortB);
-
-    // Dump timers
-    wrtr.writeU8(timerALowByte);
-    wrtr.writeU8(timerAHighByte);
-    wrtr.writeU8(timerBLowByte);
-    wrtr.writeU8(timerBHighByte);
-
-    // Dump Control registers
-    wrtr.writeU8(timerAControl);
-    wrtr.writeU8(timerBControl);
-
-    // Dump Interrupt control
-    wrtr.writeU8(interruptStatus);
-    wrtr.writeU8(interruptEnable);
-
-    // Dump Serial data register
-    wrtr.writeU8(serialDataRegister);
-
-    // Dump TOD clock
-    wrtr.writeU8(todClock[0]); // 10ths
-    wrtr.writeU8(todClock[1]); // Seoonds
-    wrtr.writeU8(todClock[2]); // Minutes
-    wrtr.writeU8(todClock[3]); // Hours
-
-    // Dump TOD Alarms
-    wrtr.writeU8(todAlarm[0]); // 10ths
-    wrtr.writeU8(todAlarm[1]); // Seconds
-    wrtr.writeU8(todAlarm[2]); // Minutes
-    wrtr.writeU8(todAlarm[3]); // Hours
+    // Base save
+    saveBaseState(wrtr);
 
     // End the chunk for CIA1
     wrtr.endChunk();
@@ -69,29 +37,8 @@ void CIA2::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CI2X");
     wrtr.writeU32(1); // version
 
-    // Dump Timers
-    wrtr.writeU16(timerA);
-    wrtr.writeU16(timerASnap);
-    wrtr.writeBool(timerALatched);
-    wrtr.writeU16(timerB);
-    wrtr.writeU16(timerBSnap);
-    wrtr.writeBool(timerBLatched);
-
-    // Dump TOD state
-    wrtr.writeU8(todLatch[0]); // 10ths
-    wrtr.writeU8(todLatch[1]); // Seoonds
-    wrtr.writeU8(todLatch[2]); // Minutes
-    wrtr.writeU8(todLatch[3]); // Hours
-    wrtr.writeBool(todLatched);
-    wrtr.writeU32(todTicks);
-
-    // Dump TOD Alarm Mode/Triggered
-    wrtr.writeBool(todAlarmSetMode);
-    wrtr.writeBool(todAlarmTriggered);
-
-    // Dump CNT
-    wrtr.writeBool(cntLevel);
-    wrtr.writeBool(lastCNT);
+    // Base runtime state
+    saveBaseRuntimeState(wrtr);
 
     // Dump IEC
     wrtr.writeBool(iecProtocolEnabled);
@@ -109,10 +56,6 @@ void CIA2::saveState(StateWriter& wrtr) const
     wrtr.writeU8(iecCmdShiftReg);
     wrtr.writeI32(iecCmdBitCount);
 
-    // Dump Pending TB ticks
-    wrtr.writeU32(pendingTBCNTTicks);
-    wrtr.writeU32(pendingTBCASTicks);
-
     // End the chunk
     wrtr.endChunk();
 }
@@ -127,53 +70,14 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load ports
-        if (!rdr.readU8(portA))                                             { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(portB))                                             { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(dataDirectionPortA))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(dataDirectionPortB))                                { rdr.exitChunkPayload(chunk); return false; }
+        // Load base state
+        if (!loadBaseState(rdr))                                        { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
         if (rs232dev)
             updateRS232Outputs();
 
         recomputeIEC();
-
-        // Load timers
-        if (!rdr.readU8(timerALowByte))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerAHighByte))                                    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBLowByte))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBHighByte))                                    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerAControl))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(timerBControl))                                     { rdr.exitChunkPayload(chunk); return false; }
-
-        // Normalize
-        timerAControl &= 0xEF;
-        timerBControl &= 0xEF;
-
-        // Load Interrupt Control
-        if (!rdr.readU8(interruptStatus))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(interruptEnable))                                   { rdr.exitChunkPayload(chunk); return false; }
-
-        // Normalize
-        interruptStatus &= 0x1F;
-        interruptEnable &= 0x1F;
-        refreshNMI();
-
-        // Load Serial data register
-        if (!rdr.readU8(serialDataRegister))                                { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD clock
-        if (!rdr.readU8(todClock[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todClock[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD Alarm
-        if (!rdr.readU8(todAlarm[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todAlarm[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
 
         // End chunk
         rdr.exitChunkPayload(chunk);
@@ -188,31 +92,9 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(ver))                                              { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                                                       { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load Timers
-        if (!rdr.readU16(timerA))                                           { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerASnap))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(timerALatched))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerB))                                           { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(timerBSnap))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(timerBLatched))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!loadBaseRuntimeState(rdr))                                 { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load TOD
-        if (!rdr.readU8(todLatch[0]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[1]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[2]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(todLatch[3]))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(todLatched))                                      { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU32(todTicks))                                         { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load TOD Alarm/Trigged
-        if (!rdr.readBool(todAlarmSetMode))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(todAlarmTriggered))                               { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load CNT
-        if (!rdr.readBool(cntLevel))                                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(lastCNT))                                         { rdr.exitChunkPayload(chunk); return false; }
-
-        // oad IEC
+        // Load IEC
         if (!rdr.readBool(iecProtocolEnabled))                              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(deviceNumber))                                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(listening))                                       { rdr.exitChunkPayload(chunk); return false; }
@@ -233,10 +115,6 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (iecCmdBitCount > 8) iecCmdBitCount = 8;
         recomputeIEC();
 
-        // Load Pending TB ticks
-        if (!rdr.readU32(pendingTBCNTTicks))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU32(pendingTBCASTicks))                                { rdr.exitChunkPayload(chunk); return false; }
-
         rdr.exitChunkPayload(chunk);
         return true;
     }
@@ -245,42 +123,15 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return false;
 }
 
-void CIA2::reset() {
-    // Ports & DDRs
-    portA                       = 0x07;
-    portB                       = 0xFF;
-    dataDirectionPortA          = 0x00;
-    dataDirectionPortB          = 0x00;
+void CIA2::reset()
+{
+    CIA6526::reset();
 
-    // Timers & tick state
-    timerALowByte               = 0x00;
-    timerAHighByte              = 0x00;
-    timerBLowByte               = 0x00;
-    timerBHighByte              = 0x00;
-    timerA                      = 0;
-    timerB                      = 0;
-    timerASnap                  = 0;
-    timerBSnap                  = 0;
-    timerALatched               = false;
-    timerBLatched               = false;
-
-    // TOD
-    todTicks                    = 0;
-    todLatched                  = false;
-    todAlarmSetMode             = false;
-    todAlarmTriggered           = false;
-
-    // Timer control
-    timerAControl               = 0;
-    timerBControl               = 0;
-
-    // Interrupt / NMI
-    interruptEnable             = 0;
-    interruptStatus             = 0;
+    // Reset NMI status
     nmiAsserted                 = false;
 
-    // Serial
-    serialDataRegister          = 0xFF;
+    if (cpu)
+        cpu->setNMILine(false);
 
     // IEC
     deviceNumber                = 0xFF;
@@ -297,722 +148,93 @@ void CIA2::reset() {
     iecCmdShiftReg              = 0;
     iecCmdBitCount              = 0;
 
-    // CNT
-    cntLevel                    = true;
-    lastCNT                     = true;
-    pendingTBCNTTicks           = 0;
-    pendingTBCASTicks           = 0;
-
-    // IEC Bus
     recomputeIEC();
-
-    // ML Monitor logging disable by default
-    setLogging                  = false;
-
-    // TOD
-    std::fill(std::begin(todClock), std::end(todClock), 0);
-    std::fill(std::begin(todAlarm), std::end(todAlarm), 0);
-    std::fill(std::begin(todLatch), std::end(todLatch), 0);
-}
-
-uint8_t CIA2::readRegister(uint16_t address)
-{
-    switch(address)
-    {
-        case 0xDD00:
-        {
-            uint8_t result = uint8_t((portA & dataDirectionPortA) | (~dataDirectionPortA));
-
-            // Always sample IEC input wires for PA6/PA7 (BIT $DD00 polls these)
-            if (bus)
-            {
-                const bool clkHigh  = bus->readClkLine();   // true = wire high (released)
-                const bool dataHigh = bus->readDataLine();  // true = wire high (released)
-
-                if (clkHigh)  result |= MASK_CLK_IN;  else result &= ~MASK_CLK_IN;
-                if (dataHigh) result |= MASK_DATA_IN; else result &= ~MASK_DATA_IN;
-            }
-
-            return result;
-        }
-        case 0xDD01: // Port B
-        {
-            uint8_t result = (portB & dataDirectionPortB) | (~dataDirectionPortB & 0xFF);
-            // For each input bit override the tri-state
-            if (!(dataDirectionPortB & RXD_MASK))
-            {
-                bool rxd = rs232dev ? rs232dev->getRXD() : true;
-                result = rxd ? (result | RXD_MASK) : (result & ~RXD_MASK);
-            }
-            if (!(dataDirectionPortB & DSR_MASK))
-            {
-                bool dsr = rs232dev ? rs232dev->getDSR() : true;
-                result = dsr ? (result | DSR_MASK) : (result & ~DSR_MASK);
-            }
-            if (!(dataDirectionPortB & CTS_MASK))
-            {
-                bool cts = rs232dev ? rs232dev->getCTS() : true;
-                result = cts ? (result | CTS_MASK) : (result & ~CTS_MASK);
-            }
-            if (!(dataDirectionPortB & DCD_MASK))
-            {
-                bool dcd = rs232dev ? rs232dev->getDCD() : true;
-                result = dcd ? (result | DCD_MASK) : (result & ~DCD_MASK);
-            }
-            if (!(dataDirectionPortB & RI_MASK))
-            {
-                bool ri = rs232dev ? rs232dev->getRI() : true;
-                result = ri ? (result | RI_MASK) : (result & ~RI_MASK);
-            }
-            return result;
-        }
-        case 0xDD02: // Data direction Port A
-            return dataDirectionPortA;
-        case 0xDD03: // Data direction Port B
-            return dataDirectionPortB;
-        case 0xDD04: // Timer A low byte
-            //return timerALowByte;
-            timerASnap = timerA;
-            timerALatched = true;
-            return timerASnap & 0xFF;
-        case 0xDD05: // Timer A high byte
-            //return timerAHighByte;
-            if (timerALatched)
-            {
-                timerALatched = false;
-                return timerASnap >> 8;
-            }
-            return (timerA >> 8) & 0xFF;
-        case 0xDD06: // Timer B low byte
-            timerBSnap = timerB;
-            timerBLatched = true;
-            return timerBSnap & 0xFF;
-        case 0xDD07: // Timer B high byte
-            if (timerBLatched)
-            {
-                timerBLatched = false;
-                return timerBSnap >> 8;
-            }
-            return (timerB >> 8) & 0xFF;
-        case 0xDD08: // TOD Clock 1/10 seconds
-            if (!todLatched) latchTODClock();
-            return binaryToBCD(todLatch[0]);
-        case 0xDD09: // TOD Clock seconds
-            if (!todLatched) latchTODClock();
-            return binaryToBCD(todLatch[1]);
-        case 0xDD0A: // TOD Clock minutes
-            if (!todLatched) latchTODClock();
-            return binaryToBCD(todLatch[2]);
-        case 0xDD0B: // TOD Clock hours
-            if (!todLatched) latchTODClock();
-            todLatched = false; // Clear latch after reading hours
-            return binaryToBCD(todLatch[3]);
-        case 0xDD0C: // Serial data register
-            return serialDataRegister;
-        case 0xDD0D: // Interrupt control register
-        {
-            uint8_t result = interruptStatus & 0x1F; // IFR bits 0..4
-            if (result & interruptEnable) result |= 0x80; // bit7 = any pending (UNMASKED)
-
-            // Reading ICR *acks* currently-set IFR bits (0..4):
-            interruptStatus &= ~(result & 0x1F);
-
-            if (result & INTERRUPT_TOD_ALARM) todAlarmTriggered = false;
-            refreshNMI();
-            return result;
-        }
-        case 0xDD0E: // Timer A control
-            return timerAControl & 0x7F;
-        case 0xDD0F: // Timer B control
-            return timerBControl & ~0x10 & ~0x80;
-        default:
-            return 0xFF; // default return if not handled
-    }
-
-    return 0x00; // default return if not handled
-}
-
-void CIA2::writeRegister(uint16_t address, uint8_t value)
-{
-    switch(address)
-    {
-        case 0xDD00:
-        {  // Data Port A
-            portA = value;
-            updateRS232Outputs();
-            recomputeIEC();
-
-            if (logger && setLogging)
-            {
-                std::stringstream out;
-                out << "Updated Port A in CIA2 to: "
-                    << static_cast<int>(value)
-                    << " giving effective value: "
-                    << static_cast<int>(portA);
-                logger->WriteLog(out.str());
-            }
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
-            {
-                std::ostringstream out;
-                out << "[CIA2:IEC] PRA write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD01: // Data port B
-        {
-            portB = value;
-            updateRS232Outputs();
-            break;
-        }
-        case 0xDD02: // Data direction Port A
-        {
-            dataDirectionPortA = value;
-            updateRS232Outputs();
-            recomputeIEC();
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
-            {
-                std::ostringstream out;
-                out << "[CIA2:IEC] DDRA write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD03: // Data direction port B
-            dataDirectionPortB = value;
-            updateRS232Outputs();
-            break;
-        case 0xDD04: // Timer A low byte
-        {
-            timerALowByte = value;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] TA latch low write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerAHighByte) << 8) | timerALowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD05: // Timer A high byte
-        {
-            timerAHighByte = value;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] TA latch high write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerAHighByte) << 8) | timerALowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD06: // Timer B low byte
-        {
-            timerBLowByte = value;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] TB latch low write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerBHighByte) << 8) | timerBLowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD07: // Timer B high byte
-        {
-            timerBHighByte = value;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] TB latch high write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latch=$"
-                    << std::setw(4) << int((uint16_t(timerBHighByte) << 8) | timerBLowByte);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD08: // TOD clock 1/10 seconds
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[0] = bcdToBinary(value & 0x0F);
-                todAlarmTriggered = false;
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] alarm 1/10 write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            else
-            {
-                todClock[0] = bcdToBinary(value & 0x0F);
-
-                if (todLatched)
-                    todLatch[0] = todClock[0];
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] clock 1/10 write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            break;
-        }
-        case 0xDD09: // TOD clock seconds
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[1] = bcdToBinary(value & 0x7F);
-                todAlarmTriggered = false;
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] alarm seconds write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            else
-            {
-                todClock[1] = bcdToBinary(value & 0x7F);
-
-                if (todLatched)
-                    todLatch[1] = todClock[1];
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] clock seconds write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            break;
-        }
-        case 0xDD0A: // TOD clock minutes
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[2] = bcdToBinary(value & 0x7F);
-                todAlarmTriggered = false;
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] alarm minutes write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            else
-            {
-                todClock[2] = bcdToBinary(value & 0x7F);
-
-                if (todLatched)
-                    todLatch[2] = todClock[2];
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] clock minutes write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            break;
-        }
-        case 0xDD0B: // TOD clock hours and alarm clock
-        {
-            if (todAlarmSetMode)
-            {
-                todAlarm[3] = bcdToBinary(value & 0x3F);
-                todAlarmTriggered = false;
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] alarm hours write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " alarm="
-                        << std::dec << int(todAlarm[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todAlarm[2]) << ":"
-                        << std::setw(2) << int(todAlarm[1]) << "."
-                        << int(todAlarm[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            else
-            {
-                todClock[3] = bcdToBinary(value & 0x3F);
-
-                if (todLatched)
-                    todLatch[3] = todClock[3];
-
-                TraceManager* traceMgr = getTraceManager();
-                if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-                {
-                    std::ostringstream out;
-                    out << "[CIA2:TOD] clock hours write raw=$"
-                        << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                        << " clock="
-                        << std::dec << int(todClock[3]) << ":"
-                        << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                        << std::setw(2) << int(todClock[1]) << "."
-                        << int(todClock[0]);
-                    traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-                }
-            }
-            break;
-        }
-        case 0xDD0C: // Serial data register
-            serialDataRegister = value;
-            break;
-        case 0xDD0D: // Interrupt control register
-        {
-            if (value & 0x80)
-            {
-                interruptEnable |= (value & 0x1F);
-            }
-            else
-            {
-                interruptEnable &= ~(value & 0x1F);
-            }
-            refreshNMI();
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-            {
-                std::ostringstream out;
-                out << "[CIA2:IRQ] IER write value=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " newIER=$" << std::setw(2) << int(interruptEnable & 0x1F);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD0E: // Timer A Control
-        {
-            uint8_t oldValue = timerAControl;
-            timerAControl = value & 0x7F; // mask out last bit
-
-            // Force load strobe
-            if (value & 0x10)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
-            if ((value & 0x01) && !(oldValue & 0x01))
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-            }
-
-            // Bit 4 always reads back zero
-            timerAControl &= ~0x10;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] CRA write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latched=$" << std::setw(2) << int(timerAControl)
-                    << " timerA=$" << std::setw(4) << int(timerA);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        case 0xDD0F: // Timer B Control
-        {
-            uint8_t oldValue = timerBControl;
-            timerBControl = value;
-            bool alarm = (value & 0x80) != 0; // Bit 7 toggles alarm
-            todAlarmSetMode = alarm;
-            if (alarm)
-            {
-                todAlarmTriggered = false;
-            }
-
-            // Force load on bit 4
-            if (value & 0x10)
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-            }
-            // Start rising edge reload
-            if ((value & 0x01) && !(oldValue & 0x01))
-            {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-            }
-            // Store without load bit
-            timerBControl &= ~0x10;
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_TIMER))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TIMER] CRB write=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value)
-                    << " latched=$" << std::setw(2) << int(timerBControl)
-                    << " timerB=$" << std::setw(4) << int(timerB)
-                    << " alarmMode=" << (todAlarmSetMode ? "Y" : "N");
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-            break;
-        }
-        default:
-            break;
-    }
 }
 
 uint16_t CIA2::getCurrentVICBank() const
 {
-    // Inputs float high; outputs drive from portA latch.
-    uint8_t effectivePA = (portA & dataDirectionPortA) | (~dataDirectionPortA);
-    uint8_t bankBits    = (~effectivePA) & 0x03;    // PA1:PA0 inverted
+    // PA0/PA1 select VIC bank, inverted by CIA2 wiring.
+    // Inputs float high; outputs drive from the port A latch.
+    const uint8_t effectivePA = getPortAOutput();
+
+    const uint8_t bankBits = static_cast<uint8_t>((~effectivePA) & 0x03);
+
     return static_cast<uint16_t>(bankBits) * 0x4000;
 }
 
-void CIA2::latchTODClock()
+uint8_t CIA2::readPortA()
 {
-    todLatch[0] = todClock[0];
-    todLatch[1] = todClock[1];
-    todLatch[2] = todClock[2];
-    todLatch[3] = todClock[3];
-    todLatched = true;
+    uint8_t result = getPortAOutput();
+
+    // Always sample IEC input wires for PA6/PA7 (BIT $DD00 polls these)
+    if (bus)
+    {
+        const bool clkHigh  = bus->readClkLine();   // true = wire high (released)
+        const bool dataHigh = bus->readDataLine();  // true = wire high (released)
+
+        if (clkHigh)  result |= MASK_CLK_IN;  else result &= ~MASK_CLK_IN;
+        if (dataHigh) result |= MASK_DATA_IN; else result &= ~MASK_DATA_IN;
+    }
+
+    return result;
+}
+
+uint8_t CIA2::readPortB()
+{
+    uint8_t result = getPortBOutput();
+
+    auto applyInputBit = [&](uint8_t mask, bool high)
+    {
+        if (!isPortBOutput(mask))
+        {
+            if (high)
+                result |= mask;
+            else
+                result &= static_cast<uint8_t>(~mask);
+        }
+    };
+
+    applyInputBit(RXD_MASK, rs232dev ? rs232dev->getRXD() : true);
+    applyInputBit(DSR_MASK, rs232dev ? rs232dev->getDSR() : true);
+    applyInputBit(CTS_MASK, rs232dev ? rs232dev->getCTS() : true);
+    applyInputBit(DCD_MASK, rs232dev ? rs232dev->getDCD() : true);
+    applyInputBit(RI_MASK,  rs232dev ? rs232dev->getRI()  : true);
+
+    return result;
+}
+
+void CIA2::portAOutputChanged(uint8_t value)
+{
+    updateRS232Outputs();
+    recomputeIEC();
 
     TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
+    if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
     {
         std::ostringstream out;
-        out << "[CIA2:TOD] latch clock="
-            << std::dec << int(todLatch[3]) << ":"
-            << std::setw(2) << std::setfill('0') << int(todLatch[2]) << ":"
-            << std::setw(2) << int(todLatch[1]) << "."
-            << int(todLatch[0]);
+        out << "[CIA2:IEC] PRA write=$"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value);
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
 }
 
-void CIA2::updateTimers(uint32_t cyclesElapsed)
+void CIA2::portBOutputChanged(uint8_t value)
 {
-    // Handle Timer A
-    updateTimerA(cyclesElapsed);
+    updateRS232Outputs();
+}
 
-    // Handle Timer B
-    updateTimerB(cyclesElapsed);
-
-    // Update TOD Clock
-    todTicks += cyclesElapsed;
-    while (todTicks >= todIncrementThreshold)
-    {
-        incrementTODClock(todTicks, todClock, todIncrementThreshold);
-    }
-
-    // Check TOD Alarm
-    checkTODAlarm(todClock, todAlarm, todAlarmTriggered, interruptStatus, interruptEnable);
-
+void CIA2::postTimerUpdates(uint32_t cyclesElapsed)
+{
     // Update user-port RS232 device timing
     if (rs232dev)
         rs232dev->tick(cyclesElapsed);
 }
 
-void CIA2::updateTimerA(uint32_t cyclesElapsed)
+
+void CIA2::irqLineChanged(bool active)
 {
-    if (!(timerAControl & 0x01) || cyclesElapsed == 0) return;
-
-    const bool cntMode = (timerAControl & 0x20) != 0;
-    if (cntMode) return;
-
-    while (cyclesElapsed--)
-    {
-        uint32_t cur = timerA ? timerA : 0x10000;
-        if (--cur == 0)
-        {
-            timerA = (timerAHighByte << 8) | timerALowByte;
-            if (timerAControl & 0x08) timerAControl &= ~0x01; // one-shot stop
-
-            // IFR: TA always latches
-            interruptStatus |= INTERRUPT_TIMER_A;
-            refreshNMI();
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
-            {
-                traceMgr->recordCiaTimer(2, 'A', timerA, true, makeCIAStamp());
-                traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, makeCIAStamp());
-            }
-            if (timerBControl & 0x40) ++pendingTBCASTicks;
-        }
-        else
-        {
-            timerA = static_cast<uint16_t>(cur);
-        }
-    }
-}
-
-void CIA2::updateTimerB(uint32_t cyclesElapsed)
-{
-    // Not running?
-    if ((timerBControl & 0x01) == 0)
-        return;
-
-    // Decode sources (6526-accurate)
-    const bool cntSrc = (timerBControl & 0x20) != 0;  // CRB bit5: 1=CNT
-    const bool casc   = (timerBControl & 0x40) != 0;  // CRB bit6: 1=CASCADE (dominates)
-
-    if (casc) {
-        // CASCADE: TB ticks once per TA underflow (CRB6 dominates; ignore CRB5)
-        while (pendingTBCASTicks > 0)
-        {
-            --pendingTBCASTicks;
-            tickTimerBOnce();   // one decrement + underflow handling
-        }
-        return;
-    }
-
-    if (cntSrc) {
-        // CNT: TB ticks once per external CNT falling edge (when CRB5=1, CRB6=0)
-        while (pendingTBCNTTicks > 0)
-        {
-            --pendingTBCNTTicks;
-            tickTimerBOnce();
-        }
-        return;
-    }
-
-    // φ2: TB ticks once per CPU cycle (no prescaler on real 6526)
-    while (cyclesElapsed-- > 0)
-    {
-        tickTimerBOnce();
-    }
-}
-
-void CIA2::incrementTODClock(uint32_t& todTicks, uint8_t todClock[], uint32_t todIncrementThreshold)
-{
-    todTicks -= todIncrementThreshold;
-
-    // Increment TOD clock
-    todClock[0]++; // Increment 1/10 seconds
-    if (todClock[0] >= 10)
-    {
-        todClock[0] = 0;
-        todClock[1]++; // Increment seconds
-        if (todClock[1] >= 60)
-        {
-            todClock[1] = 0;
-            todClock[2]++; // Increment minutes
-            if (todClock[2] >= 60)
-            {
-                todClock[2] = 0;
-                todClock[3]++; // Increment hours
-                if (todClock[3] >= 24)
-                {
-                    todClock[3] = 0; // Wrap around hours
-                }
-            }
-        }
-    }
-}
-
-void CIA2::checkTODAlarm(uint8_t todClock[], const uint8_t todAlarm[], bool& todAlarmTriggered, uint8_t& interruptStatus, uint8_t interruptEnable)
-{
-    if (todClock[0] == todAlarm[0] && todClock[1] == todAlarm[1] &&
-        todClock[2] == todAlarm[2] && todClock[3] == todAlarm[3])
-    {
-        if (!todAlarmTriggered)
-        {
-            todAlarmTriggered = true;
-            interruptStatus |= INTERRUPT_TOD_ALARM;
-            refreshNMI();
-
-            TraceManager* traceMgr = getTraceManager();
-            if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IRQ))
-            {
-                std::ostringstream out;
-                out << "[CIA2:TOD] alarm hit clock="
-                    << std::dec << int(todClock[3]) << ":"
-                    << std::setw(2) << std::setfill('0') << int(todClock[2]) << ":"
-                    << std::setw(2) << int(todClock[1]) << "."
-                    << int(todClock[0]);
-                traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-            }
-
-            if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
-            {
-                traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, makeCIAStamp());
-            }
-        }
-    }
-}
-
-void CIA2::refreshNMI()
-{
-    // Drive the NMI line level based on (IFR & IER)
-    bool level = (interruptStatus & interruptEnable & 0x1F) != 0;
-    nmiAsserted = level;
-    if (cpu) cpu->setNMILine(level);
+    nmiAsserted = active;
+    if (cpu) cpu->setNMILine(active);
 }
 
 void CIA2::clkChanged(bool level)
@@ -1144,7 +366,7 @@ void CIA2::atnChanged(bool assertedLow)
 
 void CIA2::srqChanged(bool level)
 {
-    const bool falling = (lastSrqLevel && !level);
+    const bool falling = lastSrqLevel && !level;
 
     TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
@@ -1152,18 +374,13 @@ void CIA2::srqChanged(bool level)
         std::ostringstream out;
         out << "[CIA2:IEC] SRQ=" << (level ? "H" : "L")
             << " falling=" << (falling ? "Y" : "N");
+
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
 
     if (falling)
     {
-        interruptStatus |= INTERRUPT_FLAG_LINE;
-        refreshNMI();
-
-        if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
-        {
-            traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, makeCIAStamp());
-        }
+        triggerInterrupt(INTERRUPT_FLAG_LINE);
     }
 
     lastSrqLevel = level;
@@ -1324,115 +541,35 @@ void CIA2::decodeIECCommand(uint8_t cmd)
     }
 }
 
-void CIA2::setCNTLine(bool level)
-{
-    const bool falling = (lastCNT && !level);
-
-    TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_CNT))
-    {
-        std::ostringstream out;
-        out << "[CIA2:CNT] level=" << (level ? "H" : "L")
-            << " falling=" << (falling ? "Y" : "N");
-        traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
-    }
-
-    lastCNT = cntLevel = level;
-    if (!falling) return;
-
-    ++pendingTBCNTTicks;
-}
-
 std::string CIA2::dumpRegisters(const std::string& group) const
 {
     std::stringstream out;
-    out << std::hex << std::uppercase << std::setfill('0');
 
-    // Port registers
-    if (group == "port" || group == "all")
+    // First dump the generic 6526 registers from the base class.
+    out << CIA6526::dumpRegisters(group);
+
+    // CIA2-specific RS232 mapping
+    if (group == "rs232" || group == "serial" || group == "all")
     {
-        out << "\nPort Registers \n\n";
-        out << "PORT A = $" << std::setw(2) << int(portA) << "\n";
-        out << "PORT A Data Direction Register = $" << std::setw(2) << int(dataDirectionPortA) << "\n";
-        out << "PORT B = $" << std::setw(2) << int(portB) << "\n";
-        out << "PORT B Data Direction Register = $" << std::setw(2) << int(dataDirectionPortB) << "\n";
-    }
+        out << "\nCIA2 RS232 mapping\n\n";
 
-    // Timer registers
-    if (group == "timer" || group == "all")
-    {
-        out << "\nTimer Registers \n\n";
-        out << "Timer A Latch Low = $" << std::setw(2) << static_cast<int>(timerALowByte) << "\n";
-        out << "Timer A Latch High = $" << std::setw(2) << static_cast<int>(timerAHighByte) << "\n";
-        out << "Timer A Current = $" << std::setw(4) << timerA << "\n";
-        out << "Timer A Control Register = $" << std::setw(2) << static_cast<int>(timerAControl) <<  " Active: " << ((timerAControl & 0x01) ? "Yes" : "No")
-            << " Mode: " << ((timerAControl & 0x08) ? "One shot" : "Continuous") << "\n";
-        out << "Timer B Latch Low = $" << std::setw(2) << static_cast<int>(timerBLowByte) << "\n";
-        out << "Timer B Latch High = $" << std::setw(2) << static_cast<int>(timerBHighByte) << "\n";
-        out << "Timer B Current = $" << std::setw(4) << timerB << "\n";
-        out << "Timer B Control Register = $" << std::setw(2) << static_cast<int>(timerBControl) << " Active: " << ((timerBControl & 0x01) ? "Yes" : "No")
-            << " Mode: " << ((timerBControl & 0x08) ? "One shot" : "Continuous") << "\n";
-    }
+        out << "  PA2 TXD: "
+            << (isPortAOutput(TXD_MASK) ? "output" : "input")
+            << " latch="
+            << (getPortALatchBit(TXD_MASK) ? "H" : "L")
+            << "\n";
 
-    // TOD registers
-    if (group == "tod" || group == "all")
-    {
-        out << "\nTOD Registers\n\n";
+        out << "  PB1 RTS: "
+            << (isPortBOutput(RTS_MASK) ? "output" : "input")
+            << " latch="
+            << (getPortBLatchBit(RTS_MASK) ? "H" : "L")
+            << "\n";
 
-        out << "Current TOD = "
-            << std::setw(2) << static_cast<int>(todClock[3]) << ":"
-            << std::setw(2) << static_cast<int>(todClock[2]) << ":"
-            << std::setw(2) << static_cast<int>(todClock[1]) << "."
-            << std::setw(2) << static_cast<int>(todClock[0]) << "\n";
-
-        out << "TOD Alarm   = "
-            << std::setw(2) << static_cast<int>(todAlarm[3]) << ":"
-            << std::setw(2) << static_cast<int>(todAlarm[2]) << ":"
-            << std::setw(2) << static_cast<int>(todAlarm[1]) << "."
-            << std::setw(2) << static_cast<int>(todAlarm[0]) << "\n";
-
-        out << "TOD Latch   = "
-            << std::setw(2) << static_cast<int>(todLatch[3]) << ":"
-            << std::setw(2) << static_cast<int>(todLatch[2]) << ":"
-            << std::setw(2) << static_cast<int>(todLatch[1]) << "."
-            << std::setw(2) << static_cast<int>(todLatch[0]) << "\n";
-
-        out << "TOD Alarm Set Mode = " << (todAlarmSetMode ? "Yes" : "No") << "\n";
-    }
-
-    // Interrupt status
-    if (group == "icr" || group == "all")
-    {
-        out << "\nInterrupt Registers\n\n";
-        out << "Interrupt Status (IFR) = $" << std::setw(2) << static_cast<int>(interruptStatus)
-            << "  [";
-        if (interruptStatus & INTERRUPT_TIMER_A) out << " TA";
-        if (interruptStatus & INTERRUPT_TIMER_B) out << " TB";
-        if (interruptStatus & INTERRUPT_TOD_ALARM) out << " TOD";
-        if (interruptStatus & INTERRUPT_SERIAL_SHIFT_REGISTER) out << " SR";
-        if (interruptStatus & INTERRUPT_FLAG_LINE) out << " FLAG";
-        out << " ]\n";
-
-        out << "Interrupt Enable (IER) = $" << std::setw(2) << static_cast<int>(interruptEnable) << "\n";
-        out << "NMI Asserted = " << (nmiAsserted ? "Yes" : "No") << "\n";
-    }
-
-    // Serial
-    if (group == "serial" || group == "all")
-    {
-        out << "\nSerial Register\n\n";
-        out << "Serial Data Register = $"
-            << std::setw(2) << static_cast<int>(serialDataRegister) << "\n";
-
-        out << "\nCIA2 RS232 mapping:\n";
-        out << "  PA2 TXD: " << ((dataDirectionPortA & TXD_MASK) ? "output" : "input")
-            << " level=" << ((portA & TXD_MASK) ? "H" : "L") << "\n";
-
-        out << "  PB1 RTS: " << ((dataDirectionPortB & RTS_MASK) ? "output" : "input")
-            << " level=" << ((portB & RTS_MASK) ? "H" : "L") << "\n";
-
-        out << "  PB2 DTR: " << ((dataDirectionPortB & DTR_MASK) ? "output" : "input")
-            << " level=" << ((portB & DTR_MASK) ? "H" : "L") << "\n";
+        out << "  PB2 DTR: "
+            << (isPortBOutput(DTR_MASK) ? "output" : "input")
+            << " latch="
+            << (getPortBLatchBit(DTR_MASK) ? "H" : "L")
+            << "\n";
 
         if (rs232dev)
         {
@@ -1445,80 +582,114 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         }
     }
 
-    // VIC Bank
+    // CIA2-specific VIC bank info
     if (group == "vic" || group == "all")
     {
         out << "\nVIC-II Bank Control\n\n";
-        out << "Current VIC Bank = $" << std::setw(4) << getCurrentVICBank() << "\n";
+        out << "Current VIC Bank = $"
+            << std::setw(4) << getCurrentVICBank()
+            << "\n";
+
+        out << "PA0 Bank Bit 0 latch = "
+            << (getPortALatchBit(VIC_BANK0) ? "1" : "0")
+            << "  direction="
+            << (isPortAOutput(VIC_BANK0) ? "output" : "input")
+            << "\n";
+
+        out << "PA1 Bank Bit 1 latch = "
+            << (getPortALatchBit(VIC_BANK1) ? "1" : "0")
+            << "  direction="
+            << (isPortAOutput(VIC_BANK1) ? "output" : "input")
+            << "\n";
     }
 
-    // IEC
+    // CIA2-specific IEC state
     if (group == "iec" || group == "all")
     {
         out << "\nLegacy/software IEC state\n\n";
-        out << "Device Number = " << static_cast<int>(deviceNumber) << "\n";
 
-        // These flags are *C64 perspective*
-        out << "Legacy C64 talker flag   = " << (talking ? "Yes" : "No") << "\n";
-        out << "Legacy C64 listener flag = " << (listening ? "Yes" : "No") << "\n";
-        out << "ATN Line  = " << (atnLine ? "Asserted (low)" : "Released (high)") << "\n\n";
+        out << "Device Number = "
+            << std::dec << static_cast<int>(deviceNumber)
+            << std::hex << "\n";
+
+        out << "Legacy C64 talker flag   = "
+            << (talking ? "Yes" : "No") << "\n";
+
+        out << "Legacy C64 listener flag = "
+            << (listening ? "Yes" : "No") << "\n";
+
+        out << "ATN Line = "
+            << (atnLine ? "Asserted (low)" : "Released (high)")
+            << "\n";
+
+        out << "\nCIA2 IEC output mapping\n";
+        out << "  PA3 ATN out  latch="
+            << (getPortALatchBit(MASK_ATN_OUT) ? "H" : "L")
+            << " direction="
+            << (isPortAOutput(MASK_ATN_OUT) ? "output" : "input")
+            << "\n";
+
+        out << "  PA4 CLK out  latch="
+            << (getPortALatchBit(MASK_CLK_OUT) ? "H" : "L")
+            << " direction="
+            << (isPortAOutput(MASK_CLK_OUT) ? "output" : "input")
+            << "\n";
+
+        out << "  PA5 DATA out latch="
+            << (getPortALatchBit(MASK_DATA_OUT) ? "H" : "L")
+            << " direction="
+            << (isPortAOutput(MASK_DATA_OUT) ? "output" : "input")
+            << "\n";
+
+        if (bus)
+        {
+            out << "\nCIA2 IEC input lines\n";
+            out << "  PA6 CLK in  = "
+                << (bus->readClkLine() ? "High/released" : "Low/asserted")
+                << "\n";
+
+            out << "  PA7 DATA in = "
+                << (bus->readDataLine() ? "High/released" : "Low/asserted")
+                << "\n";
+
+            out << "  SRQ         = "
+                << (bus->readSrqLine() ? "High/released" : "Low/asserted")
+                << "\n";
+        }
+        else
+        {
+            out << "\nIEC Bus: none attached\n";
+        }
+    }
+
+    // CIA2-specific interrupt output line.
+    // The base owns IFR/IER. CIA2 only owns the cached NMI line level.
+    if (group == "irq" || group == "nmi" || group == "all")
+    {
+        out << "\nCIA2 NMI Output\n\n";
+        out << "NMI asserted = "
+            << (nmiAsserted ? "Yes" : "No")
+            << "\n";
     }
 
     return out.str();
 }
 
-void CIA2::tickTimerBOnce()
-{
-    uint32_t cur = timerB ? timerB : 0x10000;  // 0 represents 65536 in CIA timers
-    if (--cur != 0)
-    {
-        timerB = static_cast<uint16_t>(cur);
-        return;
-    }
-
-    handleTimerBUnderflow();
-}
-
-void CIA2::handleTimerBUnderflow()
-{
-    // Latch IFR regardless of IER; refresh NMI level from (IFR & IER)
-    interruptStatus |= INTERRUPT_TIMER_B;
-    refreshNMI();
-
-    TraceManager* traceMgr = getTraceManager();
-    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CIA2))
-    {
-        traceMgr->recordCiaTimer(2, 'B', timerB, true, makeCIAStamp());
-        traceMgr->recordCiaICR(2, interruptStatus, nmiAsserted, makeCIAStamp());
-    }
-
-    const bool oneShot = (timerBControl & 0x08) != 0;  // RUNMODE=1 => one-shot
-    if (oneShot)
-    {
-        timerB = 0;
-        timerBControl &= ~0x01; // clear START
-    }
-    else
-    {
-        timerB = static_cast<uint16_t>((timerBHighByte << 8) | timerBLowByte);
-    }
-}
-
-void CIA2::setIERExact(uint8_t mask)
-{
-    mask &= 0x1F;
-    interruptEnable = mask;
-    refreshNMI();
-}
-
 void CIA2::recomputeIEC()
 {
-    if (!bus) return;
+    if (!bus)
+        return;
 
     auto released = [&](uint8_t mask) -> bool
     {
-        if (!(dataDirectionPortA & mask)) return true;   // input = released
-        return (portA & mask) == 0;                      // output 0 = released, 1 = pull low
+        // Input means CIA is not driving the line.
+        if (!isPortAOutput(mask))
+            return true;
+
+        // CIA2 IEC output bits are inverted:
+        // latch 0 = released/high
+        // latch 1 = pulled low/asserted
+        return !getPortALatchBit(mask);
     };
 
     const bool atnReleased  = released(MASK_ATN_OUT);
@@ -1537,8 +708,10 @@ void CIA2::recomputeIEC()
             << "ATN=" << (atnReleased  ? "H" : "L") << " "
             << "CLK=" << (clkReleased  ? "H" : "L") << " "
             << "DATA=" << (dataReleased ? "H" : "L")
-            << " PRA=$" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(portA)
-            << " DDRA=$" << std::setw(2) << int(dataDirectionPortA);
+            << " PRA=$" << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0') << int(getPortALatch())
+            << " DDRA=$" << std::setw(2) << int(getPortADDR());
+
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
 }
@@ -1549,16 +722,16 @@ void CIA2::updateRS232Outputs()
         return;
 
     // PA2 = RS232 TXD
-    if (dataDirectionPortA & TXD_MASK)
-        rs232dev->setTXD((portA & TXD_MASK) != 0);
+    if (isPortAOutput(TXD_MASK))
+        rs232dev->setTXD(getPortALatchBit(TXD_MASK));
 
     // PB1 = RTS
-    if (dataDirectionPortB & RTS_MASK)
-        rs232dev->setRTS((portB & RTS_MASK) != 0);
+    if (isPortBOutput(RTS_MASK))
+        rs232dev->setRTS(getPortBLatchBit(RTS_MASK));
 
     // PB2 = DTR
-    if (dataDirectionPortB & DTR_MASK)
-        rs232dev->setDTR((portB & DTR_MASK) != 0);
+    if (isPortBOutput(DTR_MASK))
+        rs232dev->setDTR(getPortBLatchBit(DTR_MASK));
 }
 
 TraceManager::Stamp CIA2::makeCIAStamp() const
@@ -1578,15 +751,15 @@ CIA2::IECSnapshot CIA2::snapshotIEC() const
 {
     IECSnapshot s{};
 
-    s.pra  = portA;
-    s.ddra = dataDirectionPortA;
+    s.pra  = getPortALatch();
+    s.ddra = getPortADDR();
 
     auto released = [&](uint8_t mask) -> bool
     {
-        if (!(dataDirectionPortA & mask))
+        if (!isPortAOutput(mask))
             return true;              // input = released
 
-        return (portA & mask) == 0;   // output 0 = released, output 1 = pull low
+        return !getPortALatchBit(mask); // output 0 = released, output 1 = pull low
     };
 
     s.atnOutReleased  = released(MASK_ATN_OUT);

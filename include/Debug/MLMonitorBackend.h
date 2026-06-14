@@ -126,7 +126,7 @@ class MLMonitorBackend
             bool has = false;
             Vic::VICIRQSnapshot  vic;
             CIA1::CIAIRQSnapshot cia1;
-            CIA2::CIA2IRQSnapshot cia2;
+            CIA2::CIAIRQSnapshot cia2;
         };
 
         inline bool irqLineActive() const { return irq && irq->isIRQActive(); }
