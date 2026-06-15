@@ -696,9 +696,7 @@ void CIA2::recomputeIEC()
     const bool clkReleased  = released(MASK_CLK_OUT);
     const bool dataReleased = released(MASK_DATA_OUT);
 
-    bus->setAtnLine(atnReleased);
-    bus->setClkLine(clkReleased);
-    bus->setDataLine(dataReleased);
+    bus->setC64IECOutputs(atnReleased, clkReleased, dataReleased);
 
     TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))

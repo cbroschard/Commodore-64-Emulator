@@ -260,6 +260,17 @@ void IECBUS::setSrqLine(bool state)
     if (old != line_srqin && cia2) cia2->srqChanged(line_srqin);
 }
 
+void IECBUS::setC64IECOutputs(bool atnReleased, bool clkReleased, bool dataReleased)
+{
+    c64DrivesAtnLow  = !atnReleased;
+    c64DrivesClkLow  = !clkReleased;
+    c64DrivesDataLow = !dataReleased;
+
+    currentState = c64DrivesAtnLow ? State::ATTENTION : State::IDLE;
+
+    recalcAndNotify();
+}
+
 void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
 {
     if (!device) return;

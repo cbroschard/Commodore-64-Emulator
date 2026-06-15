@@ -74,11 +74,13 @@ class IECBUS
         inline bool getClkLine() const { return busLines.clk; }
         inline bool getDataLine() const { return busLines.data; }
 
-        // Line state management called by CIA1 and CIA2
+        // Line state management
         void setClkLine(bool state); // CLK line state (via CIA1 Port B bit 7)
         void setDataLine(bool state); // C64 drives DATA line state (via CIA1 Port B bit 6)
         void setAtnLine(bool state);  // C64 drives ATN line state (via CIA2 Port A bit 3)
         void setSrqLine(bool state); // C64 drives SRQ line state
+
+        void setC64IECOutputs(bool atnReleased, bool clkReleased, bool dataReleased);
 
         // Return value: true=high/released, false=low/asserted
         inline bool readDataLine() const { return busLines.data; } // Reads final DATA state (for CIA1 Port B bit 6 read)
