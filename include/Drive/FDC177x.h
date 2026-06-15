@@ -113,6 +113,15 @@ class FDC177x : public DriveFDCBase
             motorOn         = 0x80
         };
 
+        enum class TransferPhase
+        {
+            Idle,
+            InitialDelay,
+            ByteReady,
+            ByteGap,
+            FinishDelay
+        };
+
         struct FDCRegs
         {
             uint8_t status;
@@ -123,6 +132,7 @@ class FDC177x : public DriveFDCBase
         } registers;
 
         CommandType currentType;
+        TransferPhase transferPhase;
 
         uint8_t sectorBuffer[MaxSectorSize]{};
         uint16_t currentSectorSize;

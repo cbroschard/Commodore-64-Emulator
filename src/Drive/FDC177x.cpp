@@ -28,6 +28,7 @@ FDC177x::FDC177x() :
     addressScanSector(0)
 {
     currentType = CommandType::None;
+    transferPhase = TransferPhase::Idle;
     std::memset(addressBuffer, 0x00, sizeof(addressBuffer));
 }
 
@@ -205,6 +206,7 @@ void FDC177x::reset()
     addressScanSector       = 1;
 
     currentType = CommandType::None;
+    transferPhase = TransferPhase::Idle;
 
     std::memset(addressBuffer, 0x00, sizeof(addressBuffer));
 }
@@ -234,34 +236,26 @@ void FDC177x::tick(uint32_t cycles)
             {
                 if (readSectorInProgress)
                 {
-                    if (dataIndex < currentSectorSize)
+                    if (transferPhase == TransferPhase::InitialDelay ||
+                        transferPhase == TransferPhase::ByteGap)
                     {
-                        // Next read byte is now available.
-                        registers.data = sectorBuffer[dataIndex];
-                        setDRQ(true);
+                        if (dataIndex < currentSectorSize)
+                        {
+                            registers.data = sectorBuffer[dataIndex];
+                            setDRQ(true);
+                            transferPhase = TransferPhase::ByteReady;
+                        }
+                        else
+                        {
+                            transferPhase = TransferPhase::FinishDelay;
+                            cyclesUntilEvent = 16;
+                        }
                     }
-                    else
+                    else if (transferPhase == TransferPhase::FinishDelay)
                     {
-                        // Defensive completion path.
                         finishCommand(true);
+                        transferPhase = TransferPhase::Idle;
                     }
-                }
-                else if (writeSectorInProgress)
-                {
-                    if (dataIndex < currentSectorSize)
-                    {
-                        // FDC is ready for the next byte from the CPU.
-                        setDRQ(true);
-                    }
-                    else
-                    {
-                        // Defensive completion path.
-                        finishCommand(true);
-                    }
-                }
-                else
-                {
-                    finishCommand(true);
                 }
 
                 break;
@@ -361,30 +355,22 @@ uint8_t FDC177x::readRegister(uint16_t address)
                 typeIIGroup == 0x80 &&
                 readSectorInProgress)
             {
-                // If DRQ is not active, the FDC data register still returns
-                // the last latched byte.
                 if (!drq)
                     return registers.data;
 
-                uint8_t value = registers.data;
+                const uint8_t value = registers.data;
 
-                if (dataIndex < currentSectorSize)
-                {
-                    value = sectorBuffer[dataIndex];
-                    ++dataIndex;
-                }
-
-                registers.data = value;
                 setDRQ(false);
+                ++dataIndex;
 
                 if (dataIndex >= currentSectorSize)
                 {
-                    finishCommand(true);
+                    transferPhase = TransferPhase::FinishDelay;
+                    cyclesUntilEvent = 16;
                 }
                 else
                 {
-                    // Do NOT immediately assert DRQ again.
-                    // Schedule the next byte to become available shortly.
+                    transferPhase = TransferPhase::ByteGap;
                     cyclesUntilEvent = FDC_BYTE_DELAY_CYCLES;
                 }
 
@@ -636,11 +622,18 @@ void FDC177x::startCommand(uint8_t cmd)
                     {
                         dataIndex = 0;
                         readSectorInProgress = true;
-                        cyclesUntilEvent = 2000;
+
+                        setDRQ(false);
+                        setINTRQ(false);
+                        setBusy(true);
+
+                        transferPhase = TransferPhase::InitialDelay;
+                        cyclesUntilEvent = 2000;   // wait before first byte appears
                     }
                     else
                     {
                         registers.status |= recordNotFound;
+                        transferPhase = TransferPhase::Idle;
                         setBusy(false);
                         setDRQ(false);
                         setINTRQ(true);
