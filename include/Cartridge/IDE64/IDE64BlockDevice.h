@@ -36,7 +36,7 @@ class IDE64BlockDevice
         };
 
         virtual void reset() = 0;
-        virtual void flush() = 0;
+        virtual bool flush() = 0;
 
         virtual bool isReadOnly() const = 0;
         virtual bool isPresent() const = 0;
