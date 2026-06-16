@@ -14,6 +14,7 @@ IECBUS::IECBUS() :
     currentState(State::IDLE),
     cia2(nullptr),
     currentTalker(nullptr),
+    hostCpuHz(1022727.0),
     line_srqin(true),
     c64DrivesAtnLow(false),
     c64DrivesClkLow(false),
@@ -194,7 +195,7 @@ void IECBUS::reset()
     // Release SRQ (idle = HIGH)
     line_srqin = true;
 
-    // CRITICAL: clear *all* device pull-low contributions so nothing "sticks low"
+    // Clear *all* device pull-low contributions so nothing "sticks low"
     devDrivesClkLow.clear();
     devDrivesDataLow.clear();
     devDrivesAtnLow.clear();
@@ -227,6 +228,9 @@ void IECBUS::reset()
         dev->clkChanged(clkLow);
         dev->dataChanged(dataLow);
     }
+
+    for (auto& [dev, acc] : driveCycleAccumulators)
+        acc = 0.0;
 
     lastClk = busLines.clk;
 }
@@ -348,6 +352,7 @@ void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
 
     devices[deviceNumber] = device;
     device->attachBusInstance(this);
+    driveCycleAccumulators[device] = 0.0;
 
     recalcAndNotify();
 
@@ -366,6 +371,7 @@ void IECBUS::unregisterDevice(int deviceNumber)
     devDrivesClkLow.erase(device);
     devDrivesDataLow.erase(device);
     devDrivesAtnLow.erase(device);
+    driveCycleAccumulators.erase(device);
 
     if (currentTalker == device) currentTalker = nullptr;
 
@@ -445,27 +451,40 @@ void IECBUS::unTalk(int deviceNumber)
 
 void IECBUS::tick(uint64_t cyclesPassed)
 {
-    // Make sure SRQ + resolved lines are up to date before devices run
-    updateSrqLine();
-    recalcAndNotify();
-
-    // Tick all registered drives (device map is already populated via registerDevice()
-    // from MediaManager::attachDiskImage)
-    for (auto const& [num, dev] : devices)
+    for (uint64_t c = 0; c < cyclesPassed; ++c)
     {
-        auto* drive = dynamic_cast<Drive*>(dev);
-        if (!drive) continue;
+        updateSrqLine();
+        recalcAndNotify();
 
-        const uint64_t mul = static_cast<uint64_t>(drive->clockMultiplier());
-        const uint64_t driveCycles64 = cyclesPassed * mul;
+        for (auto const& [num, dev] : devices)
+        {
+            auto* drive = dynamic_cast<Drive*>(dev);
+            if (!drive)
+                continue;
 
-        // Drive::tick takes uint32_t; your cyclesPassed is tiny (per-instruction), so this is safe.
-        drive->tick(static_cast<uint32_t>(driveCycles64));
+            double& acc = driveCycleAccumulators[dev];
+
+            acc += drive->clockHz() / hostCpuHz;
+
+            while (acc >= 1.0)
+            {
+                drive->tick(1);
+                acc -= 1.0;
+
+                updateSrqLine();
+                recalcAndNotify();
+            }
+        }
     }
 
-    // Drives may have changed bus pull-downs during their tick, so resolve + notify again
     updateSrqLine();
     recalcAndNotify();
+}
+
+void IECBUS::setHostCpuHz(double hz)
+{
+    if (hz > 0.0)
+        hostCpuHz = hz;
 }
 
 void IECBUS::updateBusState()

@@ -31,6 +31,7 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         virtual ~D1581();
 
         inline uint32_t clockMultiplier() const override { return 2; }
+        inline double clockHz() const override { return 2000000.0; }
 
         // State Management
         void saveState(StateWriter& wrtr) const override;

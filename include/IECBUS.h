@@ -108,6 +108,8 @@ class IECBUS
         // Main emulation cycle
         void tick(uint64_t cyclesPassed);
 
+        void setHostCpuHz(double hz);
+
         // ML Monitor Functions
         inline IECBusLines getBusLines() const { return busLines; }
         inline bool getSRQLine() const { return line_srqin; }
@@ -136,6 +138,10 @@ class IECBUS
         CIA2* cia2;
         Logging* logger;
         Peripheral* currentTalker;
+
+        // Clock
+        double hostCpuHz;
+        std::map<Peripheral*, double> driveCycleAccumulators;
 
         // Internal state
         IECBusLines busLines;

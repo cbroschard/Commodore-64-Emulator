@@ -32,6 +32,7 @@ class Drive : public Peripheral
 
         // Clock multiplier
         virtual uint32_t clockMultiplier() const { return 1; }
+        virtual double clockHz() const { return 1000000.0; }
 
         // Pointers
         inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }

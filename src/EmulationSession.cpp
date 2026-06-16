@@ -97,6 +97,8 @@ bool EmulationSession::initializeMachine()
     cia2_.setMode(runtime_.videoMode);
     media_.setVideoMode(runtime_.videoMode);
 
+    bus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
+
     sid_.setSampleRate(io_.getSampleRate());
 
     // Process boot attachments
@@ -354,6 +356,8 @@ void EmulationSession::syncTimingFromRuntimeMode()
 
     lastVideoMode_ = runtime_.videoMode;
     lastCpuCfg_ = runtime_.cpuCfg;
+
+    bus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
 
     frameDuration_ = std::chrono::duration<double, std::milli>(
         1000.0 / runtime_.cpuCfg->frameRate
