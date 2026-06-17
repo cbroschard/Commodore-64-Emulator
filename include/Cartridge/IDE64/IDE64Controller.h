@@ -113,6 +113,12 @@ class IDE64Controller
         uint32_t currentLBA;
         uint16_t  sectorsRemaining;
 
+        uint16_t logicalCylinders;
+        uint8_t logicalHeads;
+        uint8_t logicalSectorsPerTrack;
+        uint16_t currentCylinder;
+        uint8_t currentHead;
+
         // Helpers
         inline static constexpr uint8_t regIndex(uint16_t address) { return static_cast<uint8_t>(address - TASKFILE_BASE); }
 

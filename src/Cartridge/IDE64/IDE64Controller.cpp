@@ -14,7 +14,12 @@ IDE64Controller::IDE64Controller() :
     bufferIndex(0),
     bufferSize(0),
     currentLBA(0),
-    sectorsRemaining(0)
+    sectorsRemaining(0),
+    logicalCylinders(0),
+    logicalHeads(16),
+    logicalSectorsPerTrack(63),
+    currentCylinder(0),
+    currentHead(0)
 {
     devices[0] = nullptr;
     devices[1] = nullptr;
@@ -33,20 +38,26 @@ void IDE64Controller::attachDevice(int index, IDE64BlockDevice* device)
 
 void IDE64Controller::reset()
 {
-    activeDevice        = nullptr;
+    activeDevice            = nullptr;
 
-    status              = 0x40;
-    error               = 0x00;
-    bufferIndex         = 0;
-    bufferSize          = 0;
-    currentLBA          = 0;
-    sectorsRemaining    = 0;
+    status                  = 0x40;
+    error                   = 0x00;
+    bufferIndex             = 0;
+    bufferSize              = 0;
+    currentLBA              = 0;
+    sectorsRemaining        = 0;
 
-    cmd                 = CurrentCommand::NONE;
-    direction           = TransferDirection::NONE;
+    logicalCylinders        = 0;
+    logicalHeads            = 16;
+    logicalSectorsPerTrack  = 63;
+    currentCylinder         = 0;
+    currentHead             = 0;
 
-    registers.dataLo    = 0x00;
-    registers.dataHi    = 0x00;
+    cmd                     = CurrentCommand::NONE;
+    direction               = TransferDirection::NONE;
+
+    registers.dataLo        = 0x00;
+    registers.dataHi        = 0x00;
 
     for (int i = 0; i < 16; i++)
         registers.taskFile[i] = 0x00;
@@ -252,26 +263,12 @@ void IDE64Controller::executeCommand(uint8_t value)
 {
     switch (value)
     {
-        case 0xEC:  // Identify Device
+        case 0x10: // Recalibrate
         {
-            activeDevice = getSelectedDevice();
-            if (!activeDevice || !activeDevice->isPresent())
-            {
-                failCommand(0x04);
-                return;
-            }
+            currentCylinder = 0;
+            currentHead = 0;
 
-            cmd = CurrentCommand::IDENTIFY_DEVICE;
-            direction = TransferDirection::TO_HOST;
-            error = 0x00;
-
-            IDE64BlockDevice::DeviceInfo info = activeDevice->getDeviceInfo();
-            prepareIdentifyData(info);
-
-            status = 0x48;
-            bufferIndex = 0;
-            bufferSize = 512;
-            sectorsRemaining = 0;
+            finishCommandSuccess();
             return;
         }
 
@@ -330,6 +327,97 @@ void IDE64Controller::executeCommand(uint8_t value)
             status = 0x48;
 
             std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
+            return;
+        }
+
+        case 0x70: // Seek
+        {
+            currentCylinder =
+                static_cast<uint16_t>(registers.taskFile[REG_LBA1]) |
+                static_cast<uint16_t>(registers.taskFile[REG_LBA2] << 8);
+
+            currentHead = registers.taskFile[REG_DEVICE_HEAD] & 0x0F;
+
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0x91: // INITIALIZE DEVICE PARAMETERS
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            const uint8_t sectorsPerTrack = registers.taskFile[REG_SECTOR_COUNT];
+            const uint8_t heads = static_cast<uint8_t>((registers.taskFile[REG_DEVICE_HEAD] & 0x0F) + 1);
+
+            if (sectorsPerTrack == 0 || heads == 0)
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            logicalSectorsPerTrack = sectorsPerTrack;
+            logicalHeads = heads;
+
+            const uint32_t sectorsPerCylinder =
+                static_cast<uint32_t>(logicalHeads) * logicalSectorsPerTrack;
+
+            logicalCylinders = static_cast<uint16_t>(
+                activeDevice->sectorCount() / sectorsPerCylinder
+            );
+
+            if (logicalCylinders == 0)
+                logicalCylinders = 1;
+
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0xE7:  // Flush cache
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            if (!activeDevice->flush())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0xEC:  // Identify Device
+        {
+            activeDevice = getSelectedDevice();
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            cmd = CurrentCommand::IDENTIFY_DEVICE;
+            direction = TransferDirection::TO_HOST;
+            error = 0x00;
+
+            IDE64BlockDevice::DeviceInfo info = activeDevice->getDeviceInfo();
+            prepareIdentifyData(info);
+
+            status = 0x48;
+            bufferIndex = 0;
+            bufferSize = 512;
+            sectorsRemaining = 0;
             return;
         }
 
