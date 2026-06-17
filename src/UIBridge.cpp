@@ -286,6 +286,22 @@ void UIBridge::processCommands()
                 if (media_) media_->setCartSwitch(cmd.switchIndex, cmd.switchPos);
                 break;
 
+            case UiCommand::Type::LoadIDE64Image:
+                if (media_) media_->loadIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64ReadOnly);
+                break;
+
+            case UiCommand::Type::CreateIDE64Image:
+                if (media_) media_->createIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64Sectors);
+                break;
+
+            case UiCommand::Type::SaveIDE64Image:
+                if (media_) media_->saveIDE64Image(cmd.ide64DeviceIndex);
+                break;
+
+            case UiCommand::Type::EjectIDE64Image:
+                if (media_) media_->ejectIDE64Image(cmd.ide64DeviceIndex);
+                break;
+
             case UiCommand::Type::PressButton:
                 if (media_) media_->pressButton(cmd.buttonIndex);
                 break;
