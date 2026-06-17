@@ -1,5 +1,6 @@
 #include <SDL2/sdl.h>
 #include "Cartridge/IHasButton.h"
+#include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
 #include "InputManager.h"
 #include "MediaManager.h"
@@ -287,19 +288,38 @@ void UIBridge::processCommands()
                 break;
 
             case UiCommand::Type::LoadIDE64Image:
-                if (media_) media_->loadIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64ReadOnly);
+                if (media_)
+                {
+                     const bool ok = media_->loadIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64ReadOnly);
+                     (void)ok;
+                }
                 break;
 
             case UiCommand::Type::CreateIDE64Image:
-                if (media_) media_->createIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64Sectors);
+                if (media_)
+                {
+                    const bool ok = media_->createIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64Sectors);
+                    (void)ok;
+                }
+
                 break;
 
             case UiCommand::Type::SaveIDE64Image:
-                if (media_) media_->saveIDE64Image(cmd.ide64DeviceIndex);
+                if (media_)
+                {
+                    const bool ok = media_->saveIDE64Image(cmd.ide64DeviceIndex);
+                    (void)ok;
+                }
+
                 break;
 
             case UiCommand::Type::EjectIDE64Image:
-                if (media_) media_->ejectIDE64Image(cmd.ide64DeviceIndex);
+                if (media_)
+                {
+                    const bool ok = media_->ejectIDE64Image(cmd.ide64DeviceIndex);
+                    (void)ok;
+                }
+
                 break;
 
             case UiCommand::Type::PressButton:

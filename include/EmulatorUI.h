@@ -81,6 +81,16 @@ class EmulatorUI
             bool enabled = true;
         };
 
+        struct IDE64DeviceView
+        {
+            uint32_t index = 0;
+            std::string name;
+            bool present = false;
+            bool readOnly = false;
+            bool dirty = false;
+            uint32_t sectors = 0;
+        };
+
         struct MediaViewState
         {
             bool diskAttached    = false;       std::string diskPath;
@@ -104,6 +114,9 @@ class EmulatorUI
 
             std::vector<CartSwitchView> cartSwitches;
             std::vector<CartButtonView> cartButtons;
+
+            bool ide64Available = false;
+            std::vector<IDE64DeviceView> ide64Devices;
         };
 
         void setMediaViewState(const MediaViewState& s);
@@ -114,9 +127,13 @@ class EmulatorUI
 
     private:
 
-        bool fileDialogOpen_ = false;
+        bool fileDialogOpen_;
         std::string pendingPath_;
         UiCommand::Type pendingType_;
+
+        uint32_t pendingIDE64DeviceIndex_;
+        bool pendingIDE64ReadOnly_;
+        uint32_t pendingIDE64Sectors_;
 
         int pendingDevice_;
         UiCommand::DriveType pendingDriveType_;
@@ -161,6 +178,10 @@ class EmulatorUI
         void startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType);
         void drawFileDialog();
 
+        void startIDE64LoadImageDialog(uint32_t deviceIndex, bool readOnly);
+        void startIDE64CreateImageDialog(uint32_t deviceIndex);
+        void drawIDE64Menu(const MediaViewState& v);
+
         bool driveHasDisk(const MediaViewState& v, int dev);
         void drawDriveDiskMenu(const MediaViewState& v, int dev);
         void pushEjectDisk(int deviceNum);
@@ -170,6 +191,11 @@ class EmulatorUI
 
         void pushSetCartSwitch(uint32_t switchIndex, uint32_t switchPos);
         void pushCartButton(uint32_t buttonIndex);
+
+        void pushLoadIDE64Image(uint32_t deviceIndex, const std::string path, bool readOnly);
+        void pushCreateIDE64Image(uint32_t deviceIndex, const std::string path, uint32_t sectors);
+        void pushSaveIDE64Image(uint32_t deviceIndex);
+        void pushEjectIDE64Image(uint32_t deviceIndex);
 
         void pushSetREU(REUModel model);
 

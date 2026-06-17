@@ -133,10 +133,10 @@ public:
     void detachREU();
 
     // IDE64 Specific
-    void loadIDE64Image(uint32_t deviceIndex, std::string path, bool readOnly);
-    void createIDE64Image(uint32_t deviceIndex, std::string path, uint32_t sectors);
-    void saveIDE64Image(uint32_t deviceIndex);
-    void ejectIDE64Image(uint32_t deviceIndex);
+    bool loadIDE64Image(uint32_t deviceIndex, const std::string& path, bool readOnly);
+    bool createIDE64Image(uint32_t deviceIndex, const std::string& path, uint32_t sectors);
+    bool saveIDE64Image(uint32_t deviceIndex);
+    bool ejectIDE64Image(uint32_t deviceIndex);
 
     // Load state effects
     inline const Cartridge* getCartridge() const { return cart_.get(); }

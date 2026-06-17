@@ -9,6 +9,10 @@
 #include "EmulatorUI.h"
 
 EmulatorUI::EmulatorUI() :
+    fileDialogOpen_(false),
+    pendingIDE64DeviceIndex_(0),
+    pendingIDE64ReadOnly_(false),
+    pendingIDE64Sectors_(0),
     pendingDevice_(8),
     pendingDriveType_(UiCommand::DriveType::D1541)
 {
@@ -71,6 +75,46 @@ void EmulatorUI::pushCartButton(uint32_t buttonIndex)
     UiCommand c;
     c.type = UiCommand::Type::PressButton;
     c.buttonIndex = buttonIndex;
+    out_.push_back(std::move(c));
+}
+
+void EmulatorUI::pushLoadIDE64Image(uint32_t deviceIndex, const std::string path, bool readOnly)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::LoadIDE64Image;
+    c.ide64DeviceIndex = deviceIndex;
+    c.path = path;
+    c.ide64ReadOnly = readOnly;
+    out_.push_back(std::move(c));
+}
+
+void EmulatorUI::pushCreateIDE64Image(uint32_t deviceIndex, const std::string path, uint32_t sectors)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::CreateIDE64Image;
+    c.ide64DeviceIndex = deviceIndex;
+    c.path = path;
+    c.ide64Sectors = sectors;
+    out_.push_back(std::move(c));
+}
+
+void EmulatorUI::pushSaveIDE64Image(uint32_t deviceIndex)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::SaveIDE64Image;
+    c.ide64DeviceIndex = deviceIndex;
+    out_.push_back(std::move(c));
+}
+
+void EmulatorUI::pushEjectIDE64Image(uint32_t deviceIndex)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+    UiCommand c;
+    c.type = UiCommand::Type::EjectIDE64Image;
+    c.ide64DeviceIndex = deviceIndex;
     out_.push_back(std::move(c));
 }
 
@@ -148,6 +192,22 @@ void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveTy
         default:
             return;
     }
+}
+
+void EmulatorUI::startIDE64LoadImageDialog(uint32_t deviceIndex, bool readOnly)
+{
+    pendingIDE64DeviceIndex_ = deviceIndex;
+    pendingIDE64ReadOnly_ = readOnly;
+
+    startFileDialog("Select IDE64 Image", { ".hdd", ".img", ".bin" }, UiCommand::Type::LoadIDE64Image);
+}
+
+void EmulatorUI::startIDE64CreateImageDialog(uint32_t deviceIndex)
+{
+    pendingIDE64DeviceIndex_ = deviceIndex;
+    pendingIDE64Sectors_ = 65536; // 32 MB at 512 bytes/sector
+
+    startSaveFileDialog("Create IDE64 Image", { ".hdd" }, UiCommand::Type::CreateIDE64Image, false);
 }
 
 void EmulatorUI::startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType)
@@ -702,6 +762,9 @@ void EmulatorUI::installMenu(const MediaViewState& v)
         {
             if (ImGui::BeginMenu("Cartridge"))
             {
+                // IDE 64 If attaached
+                drawIDE64Menu(v);
+
                 // Cartridge switches (dynamic)
                 if (!v.cartSwitches.empty())
                 {
@@ -797,6 +860,14 @@ void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
     {
         push(pendingType_, path.string(), pendingDevice_, pendingDriveType_);
     }
+    else if (pendingType_ == UiCommand::Type::LoadIDE64Image)
+    {
+        pushLoadIDE64Image(pendingIDE64DeviceIndex_, path.string(), pendingIDE64ReadOnly_);
+    }
+    else if (pendingType_ == UiCommand::Type::CreateIDE64Image)
+    {
+        pushCreateIDE64Image(pendingIDE64DeviceIndex_, path.string(), pendingIDE64Sectors_);
+    }
     else
     {
         push(pendingType_, path.string());
@@ -806,6 +877,42 @@ void EmulatorUI::emitChosenPath(const std::filesystem::path& path)
     fileDlg.selectedEntry.clear();
     fileDlg.fileName.clear();
     fileDlg.error.clear();
+}
+
+void EmulatorUI::drawIDE64Menu(const MediaViewState& v)
+{
+    if (!v.ide64Available)
+        return;
+
+    if (ImGui::BeginMenu("IDE64"))
+    {
+        for (const auto& dev : v.ide64Devices)
+        {
+            if (ImGui::BeginMenu(dev.name.c_str()))
+            {
+                if (ImGui::MenuItem("Load Image..."))
+                    startIDE64LoadImageDialog(dev.index, false);
+
+                if (ImGui::MenuItem("Load Image Read-only..."))
+                    startIDE64LoadImageDialog(dev.index, true);
+
+                if (ImGui::MenuItem("Create Blank Image..."))
+                    startIDE64CreateImageDialog(dev.index);
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Save Image", nullptr, false, dev.present && dev.dirty && !dev.readOnly))
+                    pushSaveIDE64Image(dev.index);
+
+                if (ImGui::MenuItem("Eject Image", nullptr, false, dev.present))
+                    pushEjectIDE64Image(dev.index);
+
+                ImGui::EndMenu();
+            }
+        }
+
+        ImGui::EndMenu();
+    }
 }
 
 void EmulatorUI::drawDriveStatus(const MediaViewState& v)

@@ -8,6 +8,8 @@
 #ifndef IHASIDE64STORAGE_H_INCLUDED
 #define IHASIDE64STORAGE_H_INCLUDED
 
+#include <string>
+
 class IHasIDE64Storage
 {
 public:

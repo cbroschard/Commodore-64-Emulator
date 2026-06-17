@@ -13,6 +13,7 @@
 #include "Cartridge.h"
 #include "Cartridge/ICartridgeHost.h"
 #include "Cartridge/IHasButton.h"
+#include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
 #include "cassette.h"
 #include "CPU.h"
@@ -599,24 +600,68 @@ void MediaManager::detachREU()
         coldReset_();
 }
 
-void MediaManager::loadIDE64Image(uint32_t deviceIndex, std::string path, bool readOnly)
+bool MediaManager::loadIDE64Image(uint32_t deviceIndex, const std::string& path, bool readOnly)
 {
+    if (!cart_)
+        return false;
 
+    CartridgeMapper* mapper = cart_->getMapper();
+    if (!mapper)
+        return false;
+
+    auto* ide64 = dynamic_cast<IHasIDE64Storage*>(mapper);
+    if (!ide64)
+        return false;
+
+    return ide64->loadIDE64Image(deviceIndex, path, readOnly);
 }
 
-void MediaManager::createIDE64Image(uint32_t deviceIndex, std::string path, uint32_t sectors)
+bool MediaManager::createIDE64Image(uint32_t deviceIndex, const std::string& path, uint32_t sectors)
 {
+    if (!cart_)
+        return false;
 
+    CartridgeMapper* mapper = cart_->getMapper();
+    if (!mapper)
+        return false;
+
+    auto* ide64 = dynamic_cast<IHasIDE64Storage*>(mapper);
+    if (!ide64)
+        return false;
+
+    return ide64->createIDE64Image(deviceIndex, path, sectors);
 }
 
-void MediaManager::saveIDE64Image(uint32_t deviceIndex)
+bool MediaManager::saveIDE64Image(uint32_t deviceIndex)
 {
+    if (!cart_)
+        return false;
 
+    CartridgeMapper* mapper = cart_->getMapper();
+    if (!mapper)
+        return false;
+
+    auto* ide64 = dynamic_cast<IHasIDE64Storage*>(mapper);
+    if (!ide64)
+        return false;
+
+    return ide64->saveIDE64Image(deviceIndex);
 }
 
-void MediaManager::ejectIDE64Image(uint32_t deviceIndex)
+bool MediaManager::ejectIDE64Image(uint32_t deviceIndex)
 {
+    if (!cart_)
+        return false;
 
+    CartridgeMapper* mapper = cart_->getMapper();
+    if (!mapper)
+        return false;
+
+    auto* ide64 = dynamic_cast<IHasIDE64Storage*>(mapper);
+    if (!ide64)
+        return false;
+
+    return ide64->ejectIDE64Image(deviceIndex);
 }
 
 void MediaManager::pressButton(uint32_t index)
