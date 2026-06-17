@@ -599,6 +599,26 @@ void MediaManager::detachREU()
         coldReset_();
 }
 
+void MediaManager::loadIDE64Image(uint32_t deviceIndex, std::string path, bool readOnly)
+{
+
+}
+
+void MediaManager::createIDE64Image(uint32_t deviceIndex, std::string path, uint32_t sectors)
+{
+
+}
+
+void MediaManager::saveIDE64Image(uint32_t deviceIndex)
+{
+
+}
+
+void MediaManager::ejectIDE64Image(uint32_t deviceIndex)
+{
+
+}
+
 void MediaManager::pressButton(uint32_t index)
 {
     if (!cart_) return;

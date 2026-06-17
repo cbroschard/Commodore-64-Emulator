@@ -132,6 +132,12 @@ public:
     void detachCRTImage();
     void detachREU();
 
+    // IDE64 Specific
+    void loadIDE64Image(uint32_t deviceIndex, std::string path, bool readOnly);
+    void createIDE64Image(uint32_t deviceIndex, std::string path, uint32_t sectors);
+    void saveIDE64Image(uint32_t deviceIndex);
+    void ejectIDE64Image(uint32_t deviceIndex);
+
     // Load state effects
     inline const Cartridge* getCartridge() const { return cart_.get(); }
     inline Cartridge* getCartridge() { return cart_.get(); }
