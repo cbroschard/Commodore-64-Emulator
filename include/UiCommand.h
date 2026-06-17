@@ -39,6 +39,11 @@ struct UiCommand
         PressButton,
         SetCartSwitch,
 
+        LoadIDE64Image,
+        CreateIDE64Image,
+        SaveIDE64Image,
+        EjectIDE64Image,
+
         CassPlay,
         CassStop,
         CassRewind,
@@ -77,11 +82,15 @@ struct UiCommand
     Type type;
     std::string path;
 
-    uint32_t buttonIndex = 0;
-    uint32_t switchIndex = 0;
-    uint32_t switchPos   = 0;
+    uint32_t ide64DeviceIndex   = 0;
+    uint32_t ide64Sectors       = 0;
+    bool ide64ReadOnly          = false;
 
-    REUModel reuModel = REUModel::None;
+    uint32_t buttonIndex        = 0;
+    uint32_t switchIndex        = 0;
+    uint32_t switchPos          = 0;
+
+    REUModel reuModel           = REUModel::None;
 };
 
 
