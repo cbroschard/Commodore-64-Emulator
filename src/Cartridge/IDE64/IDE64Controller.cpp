@@ -432,7 +432,7 @@ uint16_t IDE64Controller::getNormalizedSectorCount() const
 {
     const uint8_t raw = registers.taskFile[REG_SECTOR_COUNT];
 
-    return (raw == 0) ? 1 : raw;
+    return (raw == 0) ? 256 : raw;
 }
 
 void IDE64Controller::handleReadBufferComplete()
