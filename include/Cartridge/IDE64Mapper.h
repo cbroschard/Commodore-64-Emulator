@@ -11,6 +11,7 @@
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/IHasButton.h"
 #include "Cartridge/IDE64/IDE64Controller.h"
+#include "Cartridge/IDE64/IDE64ImageDevice.h"
 #include "Cartridge/IDE64/IDE64RTC.h"
 
 class IDE64Mapper : public CartridgeMapper, public IHasButton
@@ -30,6 +31,9 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool loadImage(int deviceIndex, const std::string& path, bool readOnly);
+        bool createImage(int deviceIndex, uint32_t sectors);
+
         bool hasPersistence() const override { return true; }
         bool savePersistence(const std::string& path) const override;
         bool loadPersistence(const std::string& path) override;
@@ -45,6 +49,8 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton
 
     private:
         IDE64Controller controller;
+        IDE64ImageDevice device0;
+        IDE64ImageDevice device1;
         IDE64RTC rtc;
 
         static const uint16_t IDE64_Controller_Start = 0xDE20;

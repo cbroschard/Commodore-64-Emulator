@@ -10,7 +10,8 @@
 
 IDE64Mapper::IDE64Mapper()
 {
-
+    controller.attachDevice(0, &device0);
+    controller.attachDevice(1, &device1);
 }
 
 IDE64Mapper::~IDE64Mapper() = default;
@@ -270,6 +271,28 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     }
 
     return true;
+}
+
+bool IDE64Mapper::loadImage(int deviceIndex, const std::string& path, bool readOnly)
+{
+    if (deviceIndex == 0)
+        return device0.loadImage(path, readOnly);
+
+    if (deviceIndex == 1)
+        return device1.loadImage(path, readOnly);
+
+    return false;
+}
+
+bool IDE64Mapper::createImage(int deviceIndex, uint32_t sectors)
+{
+    if (deviceIndex == 0)
+        return device0.createImage(sectors);
+
+    if (deviceIndex == 1)
+        return device1.createImage(sectors);
+
+    return false;
 }
 
 bool IDE64Mapper::savePersistence(const std::string& path) const
