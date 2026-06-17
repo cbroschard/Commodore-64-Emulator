@@ -273,24 +273,64 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     return true;
 }
 
-bool IDE64Mapper::loadImage(int deviceIndex, const std::string& path, bool readOnly)
+bool IDE64Mapper::loadIDE64Image(uint32_t index, const std::string& path, bool readOnly)
 {
-    if (deviceIndex == 0)
+    if (index == 0)
         return device0.loadImage(path, readOnly);
 
-    if (deviceIndex == 1)
+    if (index == 1)
         return device1.loadImage(path, readOnly);
 
     return false;
 }
 
-bool IDE64Mapper::createImage(int deviceIndex, uint32_t sectors)
+bool IDE64Mapper::createIDE64Image(uint32_t index, const std::string& path, uint32_t sectors)
 {
-    if (deviceIndex == 0)
-        return device0.createImage(sectors);
+    IDE64ImageDevice* dev = nullptr;
 
-    if (deviceIndex == 1)
-        return device1.createImage(sectors);
+    if (index == 0)
+        dev = &device0;
+    else if (index == 1)
+        dev = &device1;
+    else
+        return false;
+
+    if (!dev->createImage(sectors))
+        return false;
+
+    return dev->saveImage(path);
+}
+
+bool IDE64Mapper::saveIDE64Image(uint32_t index)
+{
+    if (index == 0)
+        return device0.flush();
+
+    if (index == 1)
+        return device1.flush();
+
+    return false;
+}
+
+bool IDE64Mapper::ejectIDE64Image(uint32_t index)
+{
+    if (index == 0)
+    {
+        if (!device0.flush())
+            return false;
+
+        device0.clear();
+        return true;
+    }
+
+    if (index == 1)
+    {
+        if (!device1.flush())
+            return false;
+
+        device1.clear();
+        return true;
+    }
 
     return false;
 }
@@ -303,6 +343,62 @@ bool IDE64Mapper::savePersistence(const std::string& path) const
 bool IDE64Mapper::loadPersistence(const std::string& path)
 {
     return true;
+}
+
+const char* IDE64Mapper::getIDE64DeviceName(uint32_t index) const
+{
+    switch(index)
+    {
+        case 0:
+            return "Device 0";
+        case 1:
+            return "Device 1";
+        default:
+            return "Invalid";
+    }
+}
+
+bool IDE64Mapper::isIDE64DevicePresent(uint32_t index) const
+{
+    switch (index)
+    {
+        case 0:
+            return device0.isPresent();
+        case 1:
+            return device1.isPresent();
+        default:
+            return false;
+    }
+}
+
+bool IDE64Mapper::isIDE64DeviceReadOnly(uint32_t index) const
+{
+    switch (index)
+    {
+        case 0: return device0.isReadOnly();
+        case 1: return device1.isReadOnly();
+        default: return false;
+    }
+}
+
+bool IDE64Mapper::isIDE64DeviceDirty(uint32_t index) const
+{
+    switch (index)
+    {
+        case 0: return device0.isDirty();
+        case 1: return device1.isDirty();
+        default: return false;
+    }
+}
+
+uint32_t IDE64Mapper::getIDE64DeviceSectorCount(uint32_t index) const
+{
+    switch (index)
+    {
+        case 0: return device0.getSectorCount();
+        case 1: return device1.getSectorCount();
+        default: return 0;
+    }
 }
 
 const char* IDE64Mapper::getButtonName(uint32_t buttonIndex) const

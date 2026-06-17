@@ -25,6 +25,7 @@ class IDE64ImageDevice : public IDE64BlockDevice
         inline uint16_t sectorSize() const override { return sectorSize_; }
 
         inline bool isReadOnly() const override { return readOnly_; }
+        inline uint32_t getSectorCount() const { return sectorCount_; }
         bool isPresent() const override;
 
         bool createImage(uint32_t sectors, uint8_t fillValue = 0x00);

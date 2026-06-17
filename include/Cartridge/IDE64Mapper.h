@@ -10,11 +10,12 @@
 
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/IHasButton.h"
+#include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IDE64/IDE64Controller.h"
 #include "Cartridge/IDE64/IDE64ImageDevice.h"
 #include "Cartridge/IDE64/IDE64RTC.h"
 
-class IDE64Mapper : public CartridgeMapper, public IHasButton
+class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64Storage
 {
     public:
         IDE64Mapper();
@@ -31,12 +32,23 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        bool loadImage(int deviceIndex, const std::string& path, bool readOnly);
-        bool createImage(int deviceIndex, uint32_t sectors);
-
         bool hasPersistence() const override { return true; }
         bool savePersistence(const std::string& path) const override;
         bool loadPersistence(const std::string& path) override;
+
+        // IDE64 Storage
+        inline uint32_t getIDE64DeviceCount() const override { return 2; }
+
+        const char* getIDE64DeviceName(uint32_t index) const override;
+        bool isIDE64DevicePresent(uint32_t index) const override;
+        bool isIDE64DeviceReadOnly(uint32_t index) const override;
+        bool isIDE64DeviceDirty(uint32_t index) const override;
+        uint32_t getIDE64DeviceSectorCount(uint32_t index) const override;
+
+        bool loadIDE64Image(uint32_t index, const std::string& path, bool readOnly) override;
+        bool createIDE64Image(uint32_t index, const std::string& path, uint32_t sectors) override;
+        bool saveIDE64Image(uint32_t index) override;
+        bool ejectIDE64Image(uint32_t index) override;
 
         // Reset button
         inline uint32_t getButtonCount() const override { return 1; }
