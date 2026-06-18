@@ -260,8 +260,7 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
         return;
     }
 
-    if (address >= IDE64_Ctrl_Cfg_Start &&
-        address <= IDE64_Ctrl_Cfg_End)
+    if (address >= IDE64_Ctrl_Cfg_Start && address <= IDE64_Ctrl_Cfg_End)
     {
         if (ctrl.killed)
             return;
@@ -270,53 +269,44 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
         {
             case 0xDEFB:
             {
-                ctrl.memCfg[0] = value;
+                // Preserve the full kill-port byte in existing state.
+                ctrl.memCfg[1] = value;
                 ctrl.killed = (value & 0x01) != 0;
 
+                // Bit 0 clear: latch only; mapping does not change.
                 if (!ctrl.killed)
                     return;
 
-                ctrl.game = true;
-                ctrl.exrom = true;
-
-                ctrl.composeDE32();
-                ctrl.romBankRegs[0] = ctrl.de32Raw;
-
-                (void)applyMappingAfterLoad();
-                return;
-            }
-
-            case 0xDEFC:
-            {
-                ctrl.memCfg[0] = 1;
-                ctrl.game = false;
-                ctrl.exrom = false;
-                break;
-            }
-
-            case 0xDEFD:
-            {
-                ctrl.memCfg[0] = 0;
-                ctrl.game = true;
-                ctrl.exrom = false;
-                break;
-            }
-
-            case 0xDEFE:
-            {
-                ctrl.memCfg[0] = 3;
-                ctrl.game = false;
-                ctrl.exrom = true;
-                break;
-            }
-
-            case 0xDEFF:
-            {
+                // Killing IDE64 selects standard/no-ROM configuration.
                 ctrl.memCfg[0] = 2;
                 ctrl.game = true;
                 ctrl.exrom = true;
                 break;
             }
+
+            case 0xDEFC:
+                ctrl.memCfg[0] = 1;
+                ctrl.game = false;
+                ctrl.exrom = false;
+                break;
+
+            case 0xDEFD:
+                ctrl.memCfg[0] = 0;
+                ctrl.game = true;
+                ctrl.exrom = false;
+                break;
+
+            case 0xDEFE:
+                ctrl.memCfg[0] = 3;
+                ctrl.game = false;
+                ctrl.exrom = true;
+                break;
+
+            case 0xDEFF:
+                ctrl.memCfg[0] = 2;
+                ctrl.game = true;
+                ctrl.exrom = true;
+                break;
 
             default:
                 return;
