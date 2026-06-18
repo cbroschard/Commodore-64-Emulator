@@ -126,9 +126,9 @@ void IDE64Mapper::reset()
 
 uint8_t IDE64Mapper::read(uint16_t address)
 {
-    // IDE64 internal RAM
-    if ((address >= 0x1000 && address <= 0x7FFF) ||
-        (address >= 0xC000 && address <= 0xCFFF))
+    if (!ctrl.game && ctrl.exrom &&
+        ((address >= 0x1000 && address <= 0x7FFF) ||
+         (address >= 0xC000 && address <= 0xCFFF)))
     {
         if (!cart)
             return 0xFF;
@@ -210,8 +210,9 @@ uint8_t IDE64Mapper::read(uint16_t address)
 void IDE64Mapper::write(uint16_t address, uint8_t value)
 {
     // IDE64 internal RAM
-    if ((address >= 0x1000 && address <= 0x7FFF) ||
-        (address >= 0xC000 && address <= 0xCFFF))
+    if (!ctrl.game && ctrl.exrom &&
+        ((address >= 0x1000 && address <= 0x7FFF) ||
+         (address >= 0xC000 && address <= 0xCFFF)))
     {
         if (cart)
             cart->writeRAM(address & 0x7FFF, value);
@@ -589,18 +590,20 @@ void IDE64Mapper::pressReset()
 
 bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
 {
-    // IDE64 internal RAM
-    if ((address >= 0x1000 && address <= 0x7FFF) ||
-        (address >= 0xC000 && address <= 0xCFFF))
-    {
-        return true;
-    }
+    if (ctrl.killed)
+        return false;
 
-    // IDE64 keeps its upper ROM half available during open/Ultimax mode.
-    if (!ctrl.game && ctrl.exrom &&
-        address >= 0xA000 && address <= 0xBFFF)
+    // These IDE64 mappings are only active in Ultimax mode.
+    if (!ctrl.game && ctrl.exrom)
     {
-        return true;
+        if ((address >= 0x1000 && address <= 0x7FFF) ||
+            (address >= 0xC000 && address <= 0xCFFF))
+        {
+            return true;
+        }
+
+        if (address >= 0xA000 && address <= 0xBFFF)
+            return true;
     }
 
     return false;
