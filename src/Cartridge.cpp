@@ -378,6 +378,11 @@ bool Cartridge::loadROM(const std::string& path)
             mapper->reset();
         }
 
+        if (mapperType == Cartridge::CartridgeType::IDE64)
+        {
+            mapper->reset();
+        }
+
         if (mapper && mapper->hasPersistence())
         {
             persistencePath = makePersistencePath(path);
