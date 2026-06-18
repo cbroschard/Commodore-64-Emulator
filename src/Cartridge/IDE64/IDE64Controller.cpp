@@ -215,8 +215,64 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
                 break;
 
             case REG_DEVICE_CTRL:
+            {
+                const uint8_t previous =
+                    registers.taskFile[REG_DEVICE_CTRL];
+
+                const bool resetWasAsserted =
+                    (previous & 0x04) != 0;
+
+                const bool resetIsAsserted =
+                    (value & 0x04) != 0;
+
                 registers.taskFile[REG_DEVICE_CTRL] = value;
+
+                if (resetIsAsserted)
+                {
+                    // Abort any active transfer while SRST is asserted.
+                    cmd = CurrentCommand::NONE;
+                    direction = TransferDirection::NONE;
+                    activeDevice = nullptr;
+
+                    bufferIndex = 0;
+                    bufferSize = 0;
+                    sectorsRemaining = 0;
+
+                    error = 0x00;
+                    status = 0x80; // BSY
+                }
+                else if (resetWasAsserted)
+                {
+                    // Falling edge of SRST establishes the ATA reset signature.
+                    cmd = CurrentCommand::NONE;
+                    direction = TransferDirection::NONE;
+
+                    bufferIndex = 0;
+                    bufferSize = 0;
+                    currentLBA = 0;
+                    sectorsRemaining = 0;
+
+                    registers.dataLo = 0x00;
+                    registers.dataHi = 0x00;
+
+                    registers.taskFile[REG_SECTOR_COUNT] = 0x01;
+                    registers.taskFile[REG_LBA0] = 0x01;
+                    registers.taskFile[REG_LBA1] = 0x00;
+                    registers.taskFile[REG_LBA2] = 0x00;
+                    registers.taskFile[REG_COMMAND] = 0x00;
+
+                    error = 0x01;
+
+                    activeDevice = getSelectedDevice();
+
+                    status =
+                        (activeDevice && activeDevice->isPresent())
+                            ? 0x40  // DRDY
+                            : 0x00;
+                }
+
                 break;
+            }
 
             case REG_DRIVE_ADDR:
                 registers.taskFile[REG_DRIVE_ADDR] = value;
