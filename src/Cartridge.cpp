@@ -350,6 +350,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
             configureRAM(32768);
             break;
+        case CartridgeType::IDE64: // IDE64 has 32K RAM
+            configureRAM(32768);
+            break;
         default:
             break;
     }
