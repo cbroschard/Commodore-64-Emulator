@@ -451,7 +451,7 @@ void IDE64Mapper::pressReset()
     rtc.reset();
 
     ctrl.killed = false;
-    ctrl.de32Raw = 0x13;
+    ctrl.de32Raw = 0x12;
     ctrl.decodeDE32();
     ctrl.romBankRegs[0] = ctrl.de32Raw;
 
