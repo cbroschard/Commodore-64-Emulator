@@ -943,7 +943,7 @@ void MediaManager::recreateCartridge()
     // Reuse the existing Cartridge object.
     // Do NOT replace the unique_ptr here, because other systems
     // (like StateManager) may still hold references to this object.
-    cart_->reset();
+    cart_->clear();
 
     // Reattach all host/system pointers in case reset/load expects them.
     cart_->attachHostInstance(host_);

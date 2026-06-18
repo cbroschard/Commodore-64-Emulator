@@ -204,7 +204,22 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 void Cartridge::reset()
 {
+    if (mapper)
+    {
+        // Reset cartridge hardware while preserving the attached image.
+        mapper->reset();
+    }
+    else if (!chipSections.empty())
+    {
+        // Restore a mapperless cartridge's initial mapping.
+        (void)loadIntoMemory();
+    }
+}
+
+void Cartridge::clear()
+{
     mapper.reset();
+
     chipSections.clear();
     romData.clear();
     ramData.clear();

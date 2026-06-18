@@ -117,11 +117,6 @@ void ResetController::coldReset()
     media_->tapeStop();
 
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
-    if (!cartAttachedNow)
-    {
-        cart_.setGameLine(true);
-        cart_.setExROMLine(true);
-    }
 
     if (!mem_.Initialize(basicRom_, kernalRom_, charRom_))
         throw std::runtime_error("Error: Problem encountered initializing memory!");
@@ -132,11 +127,18 @@ void ResetController::coldReset()
     {
         mem_.setCartridgeAttached(true);
         pla_.setCartridgeAttached(true);
+
+        // Memory initialization cleared cartridge mappings.
+        // Reset the mapper and restore its initial mapping.
+        cart_.reset();
     }
     else
     {
         mem_.setCartridgeAttached(false);
         pla_.setCartridgeAttached(false);
+
+        cart_.setGameLine(true);
+        cart_.setExROMLine(true);
     }
 
     bus_.reset();

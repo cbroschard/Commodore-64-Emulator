@@ -47,6 +47,7 @@ class Cartridge
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         void reset();
+        void clear();
 
         // Host interface
         void requestWarmReset();
