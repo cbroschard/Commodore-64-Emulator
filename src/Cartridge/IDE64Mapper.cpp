@@ -113,7 +113,7 @@ void IDE64Mapper::reset()
     rtc.reset();
 
     ctrl.killed             = false;
-    ctrl.de32Raw            = 0x13; // version + GAME + EXROM
+    ctrl.de32Raw            = 0x12; // version + GAME, EXROM low
     ctrl.decodeDE32();
     ctrl.romBankRegs[0]     = ctrl.de32Raw;
 
