@@ -202,72 +202,92 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     if (!mem || !cart)
         return false;
 
-    (void)bank;
+    (void)bank; // IDE64 control bits select the bank.
 
-    // Start from a clean cartridge mapping.
+    if (rom.empty() && !initializeROM())
+        return false;
+
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
     cart->clearCartridge(cartLocation::HI_E000);
 
     if (ctrl.killed)
+    {
+        cart->setGameLine(true);
+        cart->setExROMLine(true);
+        return true;
+    }
+
+    cart->setGameLine(ctrl.game);
+    cart->setExROMLine(ctrl.exrom);
+
+    const size_t bankNumber =
+        (ctrl.romAddr14 ? 1u : 0u) |
+        (ctrl.romAddr15 ? 2u : 0u);
+
+    const size_t romBase = bankNumber * 0x4000;
+
+    // No cartridge ROM.
+    if (ctrl.game && ctrl.exrom)
         return true;
 
-    const bool game  = ctrl.game;
-    const bool exrom = ctrl.exrom;
+    // ROML is visible in 8K, 16K, and Ultimax modes.
+    for (size_t i = 0; i < 0x2000; ++i)
+    {
+        mem->writeCartridge(
+            static_cast<uint16_t>(i),
+            rom[romBase + i],
+            cartLocation::LO);
+    }
 
-    size_t romBase = 0;
-    if (ctrl.romAddr14)
-        romBase |= (1u << 14);
-    if (ctrl.romAddr15)
-        romBase |= (1u << 15);
-
-    if (rom.empty())
-        return false;
-
-    // Standard mode: no visible cart ROM
-    if (game && exrom)
+    // 8K mode: ROML only.
+    if (ctrl.game && !ctrl.exrom)
         return true;
 
-    // 16K-style: LO + HI
-    if (!game && !exrom)
+    // 16K mode: second half at $A000.
+    if (!ctrl.game && !ctrl.exrom)
     {
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            uint8_t loVal = 0xFF;
-            uint8_t hiVal = 0xFF;
-
-            if (romBase + i < rom.size())
-                loVal = rom[romBase + i];
-
-            if (romBase + 0x2000 + i < rom.size())
-                hiVal = rom[romBase + 0x2000 + i];
-
-            mem->writeCartridge(static_cast<uint16_t>(i), loVal, cartLocation::LO);
-            mem->writeCartridge(static_cast<uint16_t>(i), hiVal, cartLocation::HI);
+            mem->writeCartridge(
+                static_cast<uint16_t>(i),
+                rom[romBase + 0x2000 + i],
+                cartLocation::HI);
         }
 
         return true;
     }
 
-    // Ultimax-style: LO + HI_E000
-    if (!game && exrom)
+    // Ultimax mode: second half at $E000.
+    if (!ctrl.game && ctrl.exrom)
     {
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            uint8_t loVal   = 0xFF;
-            uint8_t e000Val = 0xFF;
-
-            if (romBase + i < rom.size())
-                loVal = rom[romBase + i];
-
-            if (romBase + 0x2000 + i < rom.size())
-                e000Val = rom[romBase + 0x2000 + i];
-
-            mem->writeCartridge(static_cast<uint16_t>(i), loVal, cartLocation::LO);
-            mem->writeCartridge(static_cast<uint16_t>(i), e000Val, cartLocation::HI_E000);
+            mem->writeCartridge(
+                static_cast<uint16_t>(i),
+                rom[romBase + 0x2000 + i],
+                cartLocation::HI_E000);
         }
+    }
 
-        return true;
+    return true;
+}
+
+bool IDE64Mapper::initializeROM()
+{
+    rom.assign(0x10000, 0xFF);
+
+    for (const auto& section : cart->getChipSections())
+    {
+        const size_t offset =
+            static_cast<size_t>(section.bankNumber) * 0x4000;
+
+        if (offset + section.data.size() > rom.size())
+            return false;
+
+        std::copy(section.data.begin(),
+                  section.data.end(),
+                  rom.begin() + offset);
     }
 
     return true;

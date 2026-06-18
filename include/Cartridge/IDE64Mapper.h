@@ -99,6 +99,8 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
         uint8_t readControlRegister(uint16_t address) const;
         void writeControlRegister(uint16_t address, uint8_t value);
 
+        bool initializeROM();
+
         bool applyMappingAfterLoad() override;
 };
 
