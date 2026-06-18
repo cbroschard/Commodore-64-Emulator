@@ -26,6 +26,7 @@ struct UiCommand
 
         AttachDisk,
         AttachPRG,
+        AttachPRGWithCartridge,
         AttachCRT,
         AttachT64,
         AttachTAP,

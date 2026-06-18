@@ -339,20 +339,28 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
     state_.diskPath     =  "Drive " + std::to_string(deviceNum) + ": " + path;
 }
 
-void MediaManager::attachPRGImage()
+void MediaManager::attachPRGImage(PRGLoadMode mode)
 {
-    if (state_.prgPath.empty()) return;
+    if (state_.prgPath.empty())
+        return;
 
-    // Clear any previous state
-    state_.prgAttached = false;
-    state_.prgLoaded   = false;
-    state_.prgDelay    = 0;
+    prgLoadMode_        = mode;
 
-    // First check if CRT attached and detach it
-    if (state_.cartAttached)
+    state_.prgAttached  = false;
+    state_.prgLoaded    = false;
+    state_.prgDelay     = 0;
+
+    if (state_.cartAttached && mode == PRGLoadMode::Standalone)
+    {
+        // Existing behavior: detach cartridge and reset.
         detachCRTImage();
-    else if (coldReset_) // Perform cold reset if no cartridge since detaching will also do it
+    }
+    else if (coldReset_)
+    {
+        // Preserve and reset an attached cartridge, or reset normally
+        // when no cartridge is attached.
         coldReset_();
+    }
 
     state_.prgAttached = true;
     state_.prgLoaded   = false;
@@ -361,14 +369,17 @@ void MediaManager::attachPRGImage()
     if (!loadPrgImage())
     {
         #ifdef Debug
-        std::cout << "Unable to load program: " << state_.prgPath << "\n";
+        std::cout << "Unable to load program: "
+                  << state_.prgPath << "\n";
         #endif
+
         state_.prgAttached = false;
     }
     else
     {
         #ifdef Debug
-        std::cout << "Queued program: " << state_.prgPath << "\n";
+        std::cout << "Queued program: "
+                  << state_.prgPath << "\n";
         #endif
     }
 }
@@ -762,20 +773,32 @@ void MediaManager::applyBootAttachments()
     if (state_.cartAttached && !state_.cartPath.empty())
     {
         attachCRTImage();
+
+        if (state_.cartAttached &&
+            state_.prgAttached &&
+            !state_.prgPath.empty())
+        {
+            attachPRGImage(PRGLoadMode::KeepCartridge);
+        }
+
         return;
     }
 
     if (state_.tapeAttached && !state_.tapePath.empty())
     {
         const std::string ext = lowerExt(state_.tapePath);
-        if (ext == ".t64") attachT64Image();
-        else               attachTAPImage();
+
+        if (ext == ".t64")
+            attachT64Image();
+        else
+            attachTAPImage();
+
         return;
     }
 
     if (state_.prgAttached && !state_.prgPath.empty())
     {
-        attachPRGImage();
+        attachPRGImage(PRGLoadMode::Standalone);
         return;
     }
 }
@@ -904,7 +927,15 @@ void MediaManager::loadPrgIntoMem()
         throw std::runtime_error("Error: Program is too large for 64k RAM!");
 
     for (size_t i = 0; i < programData; ++i)
-        mem_.writeDirect(loadAddr + static_cast<uint16_t>(i), prgImage_[pos + i]);
+    {
+        const uint16_t address =
+            loadAddr + static_cast<uint16_t>(i);
+
+        if (prgLoadMode_ == PRGLoadMode::KeepCartridge)
+            mem_.write(address, prgImage_[pos + i]);
+        else
+            mem_.writeDirect(address, prgImage_[pos + i]);
+    }
 
     if (loadAddr == BASIC_PRG_START)
     {

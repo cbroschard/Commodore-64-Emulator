@@ -91,6 +91,12 @@ public:
         REUModel reuModel   = REUModel::None;
     };
 
+    enum class PRGLoadMode
+    {
+        Standalone,
+        KeepCartridge
+    };
+
     // State management
     void saveState(StateWriter& wrtr) const;
     bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
@@ -118,7 +124,7 @@ public:
 
     // Attachments
     void attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
-    void attachPRGImage();
+    void attachPRGImage(PRGLoadMode mode);
     void attachCRTImage();
     void attachT64Image();
     void attachTAPImage();
@@ -191,6 +197,8 @@ private:
 
     State state_;
     std::vector<uint8_t> prgImage_;
+
+    PRGLoadMode prgLoadMode_ = PRGLoadMode::Standalone;
 
     std::function<void()> requestBusPrime_;
     std::function<void()> coldReset_;

@@ -195,7 +195,15 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setPrgPath(cmd.path);
-                    media_->attachPRGImage();
+                    media_->attachPRGImage(MediaManager::PRGLoadMode::Standalone);
+                }
+                break;
+
+            case UiCommand::Type::AttachPRGWithCartridge:
+                if (media_)
+                {
+                    media_->setPrgPath(cmd.path);
+                    media_->attachPRGImage(MediaManager::PRGLoadMode::KeepCartridge);
                 }
                 break;
 

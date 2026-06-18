@@ -568,7 +568,24 @@ void EmulatorUI::installMenu(const MediaViewState& v)
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("Load Program..."))
-                startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRG);
+            {
+                startFileDialog(
+                    "Select PRG/P00 Image",
+                    { ".prg", ".p00" },
+                    UiCommand::Type::AttachPRG);
+            }
+
+            if (ImGui::MenuItem(
+                    "Load Program with Cartridge...",
+                    nullptr,
+                    false,
+                    v.cartAttached))
+            {
+                startFileDialog(
+                    "Select PRG/P00 Image",
+                    { ".prg", ".p00" },
+                    UiCommand::Type::AttachPRGWithCartridge);
+            }
 
             ImGui::Separator();
 
