@@ -74,7 +74,6 @@ void IDE64Mapper::saveState(StateWriter& wrtr) const
 
     ctrl.save(wrtr);
 
-    wrtr.writeVectorU8(ram);
     wrtr.writeVectorU8(rom);
     wrtr.writeVectorU8(flashCfg);
 
@@ -94,7 +93,6 @@ bool IDE64Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!ctrl.load(rdr))                { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readVectorU8(ram))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(rom))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(flashCfg))    { rdr.exitChunkPayload(chunk); return false; }
 
@@ -116,10 +114,6 @@ void IDE64Mapper::reset()
     ctrl.de32Raw            = 0x12; // version + GAME, EXROM low
     ctrl.decodeDE32();
     ctrl.romBankRegs[0]     = ctrl.de32Raw;
-
-    // Ensure the 32KB internal IDE64 RAM is allocated
-    if (ram.size() != 0x8000)
-        ram.assign(0x8000, 0x00);
 
     for (int i = 1; i < 4; i++)
         ctrl.romBankRegs[i] = 0x00;

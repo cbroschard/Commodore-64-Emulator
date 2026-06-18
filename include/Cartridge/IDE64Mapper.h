@@ -95,7 +95,6 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
 
         // Storage
         std::vector<uint8_t> rom;
-        std::vector<uint8_t> ram;
         std::vector<uint8_t> flashCfg;
 
         uint8_t readControlRegister(uint16_t address) const;
