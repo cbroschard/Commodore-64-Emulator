@@ -358,6 +358,9 @@ uint8_t Memory::readForDMA(uint16_t address)
         return value;
     }
 
+    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+        return cart->read(address);
+
     if (!pla)
         return lastBus;
 
@@ -742,6 +745,12 @@ void Memory::writeForDMA(uint16_t address, uint8_t value)
     {
         port1OutputLatch = value;
         applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
+        return;
+    }
+
+    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    {
+        cart->write(address, value);
         return;
     }
 
