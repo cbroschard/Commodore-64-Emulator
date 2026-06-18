@@ -9,8 +9,8 @@
 
 IDE64Controller::IDE64Controller() :
     activeDevice(nullptr),
-    status(0x40),
-    error(0x00),
+    status(0x00),
+    error(0x01),
     bufferIndex(0),
     bufferSize(0),
     currentLBA(0),
@@ -40,8 +40,8 @@ void IDE64Controller::reset()
 {
     activeDevice            = nullptr;
 
-    status                  = 0x40;
-    error                   = 0x00;
+    status                  = 0x00;
+    error                   = 0x01;
     bufferIndex             = 0;
     bufferSize              = 0;
     currentLBA              = 0;
@@ -61,6 +61,15 @@ void IDE64Controller::reset()
 
     for (int i = 0; i < 16; i++)
         registers.taskFile[i] = 0x00;
+
+    registers.taskFile[REG_SECTOR_COUNT] = 0x01;
+    registers.taskFile[REG_LBA0]         = 0x01;
+    registers.taskFile[REG_LBA1]         = 0x00;
+    registers.taskFile[REG_LBA2]         = 0x00;
+    registers.taskFile[REG_DEVICE_HEAD]  = 0xA0;
+
+    if (devices[0] && devices[0]->isPresent())
+        status = 0x50;
 
     std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0xFF);
 }
@@ -207,6 +216,15 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
 
             case REG_DEVICE_HEAD:
                 registers.taskFile[REG_DEVICE_HEAD] = value;
+
+                activeDevice = getSelectedDevice();
+
+                status =
+                    (activeDevice && activeDevice->isPresent())
+                        ? 0x50
+                        : 0x00;
+
+                activeDevice = nullptr;
                 break;
 
             case REG_COMMAND:
@@ -243,7 +261,6 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
                 }
                 else if (resetWasAsserted)
                 {
-                    // Falling edge of SRST establishes the ATA reset signature.
                     cmd = CurrentCommand::NONE;
                     direction = TransferDirection::NONE;
 
@@ -256,10 +273,11 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
                     registers.dataHi = 0x00;
 
                     registers.taskFile[REG_SECTOR_COUNT] = 0x01;
-                    registers.taskFile[REG_LBA0] = 0x01;
-                    registers.taskFile[REG_LBA1] = 0x00;
-                    registers.taskFile[REG_LBA2] = 0x00;
-                    registers.taskFile[REG_COMMAND] = 0x00;
+                    registers.taskFile[REG_LBA0]         = 0x01;
+                    registers.taskFile[REG_LBA1]         = 0x00;
+                    registers.taskFile[REG_LBA2]         = 0x00;
+                    registers.taskFile[REG_DEVICE_HEAD]  = 0xA0;
+                    registers.taskFile[REG_COMMAND]      = 0x00;
 
                     error = 0x01;
 
@@ -267,8 +285,10 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
 
                     status =
                         (activeDevice && activeDevice->isPresent())
-                            ? 0x40  // DRDY
+                            ? 0x50
                             : 0x00;
+
+                    activeDevice = nullptr;
                 }
 
                 break;
@@ -353,7 +373,7 @@ void IDE64Controller::executeCommand(uint8_t value)
             bufferIndex = 0;
             bufferSize = SECTOR_SIZE;
             error = 0x00;
-            status = 0x48;
+            status = 0x58;
             return;
         }
 
@@ -380,7 +400,7 @@ void IDE64Controller::executeCommand(uint8_t value)
             bufferIndex = 0;
             bufferSize = SECTOR_SIZE;
             error = 0x00;
-            status = 0x48;
+            status = 0x58;
 
             std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
             return;
@@ -470,7 +490,7 @@ void IDE64Controller::executeCommand(uint8_t value)
             IDE64BlockDevice::DeviceInfo info = activeDevice->getDeviceInfo();
             prepareIdentifyData(info);
 
-            status = 0x48;
+            status = 0x58;
             bufferIndex = 0;
             bufferSize = 512;
             sectorsRemaining = 0;
@@ -543,7 +563,7 @@ void IDE64Controller::finishCommandSuccess()
     bufferSize          = 0;
     sectorsRemaining    = 0;
     error               = 0x00;
-    status              = 0x40;
+    status              = 0x50;
 }
 
 void IDE64Controller::failCommand(uint8_t errorCode)
@@ -556,7 +576,7 @@ void IDE64Controller::failCommand(uint8_t errorCode)
     bufferSize          = 0;
     sectorsRemaining    = 0;
     error               = errorCode;
-    status              = 0x41;
+    status              = 0x51;
 }
 
 uint32_t IDE64Controller::getCurrentLBA() const
@@ -596,7 +616,7 @@ void IDE64Controller::handleReadBufferComplete()
         --sectorsRemaining;
         bufferIndex = 0;
         bufferSize = SECTOR_SIZE;
-        status = 0x48;
+        status = 0x58;
         error = 0x00;
         return;
     }
@@ -629,7 +649,7 @@ void IDE64Controller::handleWriteBufferComplete()
         ++currentLBA;
         bufferIndex = 0;
         bufferSize = SECTOR_SIZE;
-        status = 0x48;
+        status = 0x58;
         error = 0x00;
         std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
         return;
