@@ -163,6 +163,8 @@ class Cartridge
         // ML Monitor logging
         inline void setLog(bool enable) { setLogging = enable; }
 
+        inline bool cpuMemoryHandledByMapper(uint16_t address) const { return mapper ? mapper->cpuMemoryHandledByMapper(address) : false;}
+
     protected:
 
         // Cartridge LO/HI location constants

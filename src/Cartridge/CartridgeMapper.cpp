@@ -12,3 +12,9 @@
 CartridgeMapper::CartridgeMapper() = default;
 
 CartridgeMapper::~CartridgeMapper() = default;
+
+bool CartridgeMapper::cpuMemoryHandledByMapper(uint16_t address) const
+{
+    (void)address;
+    return false;
+}

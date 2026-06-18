@@ -59,6 +59,9 @@ class CartridgeMapper
         virtual bool romWriteEnabled(uint16_t address) const { return false; }
         virtual bool romReadHandledByMapper(uint16_t address) const { return false; }
 
+        // CPU RAM
+        virtual bool cpuMemoryHandledByMapper(uint16_t address) const;
+
     protected:
         Cartridge* cart = nullptr;
         Memory* mem = nullptr;
