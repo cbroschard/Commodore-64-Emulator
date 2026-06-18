@@ -117,6 +117,10 @@ void IDE64Mapper::reset()
     ctrl.decodeDE32();
     ctrl.romBankRegs[0]     = ctrl.de32Raw;
 
+    // Ensure the 32KB internal IDE64 RAM is allocated
+    if (ram.size() != 0x8000)
+        ram.assign(0x8000, 0x00);
+
     for (int i = 1; i < 4; i++)
         ctrl.romBankRegs[i] = 0x00;
 
@@ -128,72 +132,207 @@ void IDE64Mapper::reset()
 
 uint8_t IDE64Mapper::read(uint16_t address)
 {
-    if (address >= IDE64_Controller_Start && address <= IDE64_Controller_End)
+    // IDE64 internal RAM
+    if ((address >= 0x1000 && address <= 0x7FFF) ||
+        (address >= 0xC000 && address <= 0xCFFF))
+    {
+        if (!cart)
+            return 0xFF;
+
+        return cart->readRAM(address & 0x7FFF);
+    }
+
+    // Upper half of selected ROM during open/Ultimax configuration
+    if (!ctrl.game && ctrl.exrom &&
+        address >= 0xA000 && address <= 0xBFFF)
+    {
+        if (rom.empty())
+            return 0xFF;
+
+        const size_t bankNumber =
+            (ctrl.romAddr14 ? 1u : 0u) |
+            (ctrl.romAddr15 ? 2u : 0u);
+
+        const size_t offset =
+            bankNumber * 0x4000 +
+            static_cast<size_t>(address - 0x8000);
+
+        if (offset >= rom.size())
+            return 0xFF;
+
+        return rom[offset];
+    }
+
+    // IDE/ATA controller registers: $DE20-$DE2F
+    if (address >= IDE64_Controller_Start &&
+        address <= IDE64_Controller_End)
+    {
         return controller.readRegister(address);
+    }
 
     if (address == 0xDE32)
-        return ctrl.de32Raw;
-
-    if (address >= 0xDE33 && address <= 0xDE35)
-        return ctrl.romBankRegs[address - 0xDE32];
-
-    if (address == RTC_Address)
-        return rtc.readByte();
-
-    if (address >= IDE64_Ctrl_Cfg_Start && address <= IDE64_Ctrl_Cfg_End)
     {
-        switch (address)
-        {
-            case 0xDEFB:
-                return 0xFF;
-            case 0xDEFC:
-            case 0xDEFD:
-            case 0xDEFE:
-            case 0xDEFF:
-                return ctrl.memCfg[address - 0xDEFC];
-        }
+        ctrl.composeDE32();
+        ctrl.romBankRegs[0] = ctrl.de32Raw;
+        return ctrl.de32Raw;
     }
+
+    // $DE33-$DE35 are write-only bank-selection addresses.
+    if (address >= 0xDE33 && address <= 0xDE35)
+        return 0xFF;
+
+    // DS1302 RTC
+    if (address == RTC_Address)
+    {
+        if (ctrl.killed)
+            return 0xFF;
+
+        return rtc.readByte();
+    }
+
+    if (address >= 0xDE60 && address <= 0xDEFF)
+    {
+        if (ctrl.killed || rom.empty())
+            return 0xFF;
+
+        const size_t bankNumber =
+            (ctrl.romAddr14 ? 1u : 0u) |
+            (ctrl.romAddr15 ? 2u : 0u);
+
+        const size_t offset =
+            bankNumber * 0x4000 +
+            0x1E00 +
+            static_cast<size_t>(address & 0x00FF);
+
+        if (offset >= rom.size())
+            return 0xFF;
+
+        return rom[offset];
+    }
+
     return 0xFF;
 }
 
 void IDE64Mapper::write(uint16_t address, uint8_t value)
 {
-    if (address >= IDE64_Controller_Start && address <= IDE64_Controller_End)
+    // IDE64 internal RAM
+    if ((address >= 0x1000 && address <= 0x7FFF) ||
+        (address >= 0xC000 && address <= 0xCFFF))
+    {
+        if (cart)
+            cart->writeRAM(address & 0x7FFF, value);
+
+        return;
+    }
+
+    // ROM is read-only in this window
+    if (!ctrl.game && ctrl.exrom &&
+        address >= 0xA000 && address <= 0xBFFF)
+    {
+        return;
+    }
+
+    // IDE/ATA controller registers: $DE20-$DE2F
+    if (address >= IDE64_Controller_Start &&
+        address <= IDE64_Controller_End)
+    {
         controller.writeRegister(address, value);
-
-    else if (address == 0xDE32)
-    {
-        ctrl.de32Raw = value;
-        ctrl.decodeDE32();
-        ctrl.romBankRegs[0] = value;
-        (void)applyMappingAfterLoad();
-    }
-    else if (address >= 0xDE33 && address <= 0xDE35)
-    {
-        ctrl.romBankRegs[address - 0xDE32] = value;
-        (void)applyMappingAfterLoad();
+        return;
     }
 
-    else if (address == RTC_Address)
-        rtc.writeByte(value);
-
-    else if (address >= IDE64_Ctrl_Cfg_Start && address <= IDE64_Ctrl_Cfg_End)
+    if (address >= 0xDE32 && address <= 0xDE35)
     {
+        const uint8_t bank =
+            static_cast<uint8_t>(address - 0xDE32);
+
+        ctrl.romAddr14 = (bank & 0x01) != 0;
+        ctrl.romAddr15 = (bank & 0x02) != 0;
+
+        ctrl.romBankRegs[bank] = value;
+
+        ctrl.composeDE32();
+        ctrl.romBankRegs[0] = ctrl.de32Raw;
+
+        (void)applyMappingAfterLoad();
+        return;
+    }
+
+    // DS1302 RTC
+    if (address == RTC_Address)
+    {
+        if (!ctrl.killed)
+            rtc.writeByte(value);
+
+        return;
+    }
+
+    if (address >= IDE64_Ctrl_Cfg_Start &&
+        address <= IDE64_Ctrl_Cfg_End)
+    {
+        if (ctrl.killed)
+            return;
+
         switch (address)
         {
             case 0xDEFB:
-                rtc.reset();
-                ctrl.killed = true;
+            {
+                ctrl.memCfg[0] = value;
+                ctrl.killed = (value & 0x01) != 0;
+
+                if (!ctrl.killed)
+                    return;
+
+                ctrl.game = true;
+                ctrl.exrom = true;
+
+                ctrl.composeDE32();
+                ctrl.romBankRegs[0] = ctrl.de32Raw;
+
                 (void)applyMappingAfterLoad();
-                break;
+                return;
+            }
+
             case 0xDEFC:
-            case 0xDEFD:
-            case 0xDEFE:
-            case 0xDEFF:
-                ctrl.memCfg[address - 0xDEFC] = value;
-                (void)applyMappingAfterLoad();
+            {
+                ctrl.memCfg[0] = 1;
+                ctrl.game = false;
+                ctrl.exrom = false;
                 break;
+            }
+
+            case 0xDEFD:
+            {
+                ctrl.memCfg[0] = 0;
+                ctrl.game = true;
+                ctrl.exrom = false;
+                break;
+            }
+
+            case 0xDEFE:
+            {
+                ctrl.memCfg[0] = 3;
+                ctrl.game = false;
+                ctrl.exrom = true;
+                break;
+            }
+
+            case 0xDEFF:
+            {
+                ctrl.memCfg[0] = 2;
+                ctrl.game = true;
+                ctrl.exrom = true;
+                break;
+            }
+
+            default:
+                return;
         }
+
+        ctrl.composeDE32();
+        ctrl.romBankRegs[0] = ctrl.de32Raw;
+
+        (void)applyMappingAfterLoad();
+        return;
     }
 }
 
@@ -462,6 +601,25 @@ void IDE64Mapper::pressReset()
         ctrl.memCfg[i] = 0x00;
 
     applyMappingAfterLoad();
+}
+
+bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
+{
+    // IDE64 internal RAM
+    if ((address >= 0x1000 && address <= 0x7FFF) ||
+        (address >= 0xC000 && address <= 0xCFFF))
+    {
+        return true;
+    }
+
+    // IDE64 keeps its upper ROM half available during open/Ultimax mode.
+    if (!ctrl.game && ctrl.exrom &&
+        address >= 0xA000 && address <= 0xBFFF)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 bool IDE64Mapper::applyMappingAfterLoad()
