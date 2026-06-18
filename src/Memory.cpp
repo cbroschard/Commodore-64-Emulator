@@ -183,6 +183,9 @@ uint8_t Memory::read(uint16_t address)
         return RET(valueToReturn);
     }
 
+    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+        return RET(cart->read(address));
+
     if (!pla) throw std::runtime_error("Error: Missing PLA object!");
 
     PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
@@ -590,6 +593,16 @@ void Memory::write(uint16_t address, uint8_t value)
                 << " computed effective: " << static_cast<int>(effective);
             logger->WriteLog(out.str());
         }
+        return;
+    }
+
+    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    {
+        cart->write(address, value);
+
+        if (monitor && monitor->checkWatchWrite(address, value))
+            monitor->enterMonitor();
+
         return;
     }
 
