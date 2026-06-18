@@ -758,7 +758,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::EndMenu();
         }
 
-        if (!v.cartSwitches.empty() || !v.cartButtons.empty())
+        if (v.ide64Available || !v.cartSwitches.empty() || !v.cartButtons.empty())
         {
             if (ImGui::BeginMenu("Cartridge"))
             {

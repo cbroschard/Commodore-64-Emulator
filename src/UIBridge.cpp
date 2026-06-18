@@ -99,6 +99,9 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.cartSwitches.clear();
     s.cartButtons.clear();
 
+    s.ide64Available = false;
+    s.ide64Devices.clear();
+
     if (media_ && s.cartAttached)
     {
         if (auto* cart = media_->getCartridge())
@@ -140,6 +143,27 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
                     bu.enabled = true;
 
                     s.cartButtons.push_back(std::move(bu));
+                }
+            }
+            if (auto* ide64 = dynamic_cast<const IHasIDE64Storage*>(mapper))
+            {
+                s.ide64Available = true;
+
+                const uint32_t count = ide64->getIDE64DeviceCount();
+                s.ide64Devices.reserve(count);
+
+                for (uint32_t index = 0; index < count; ++index)
+                {
+                    EmulatorUI::IDE64DeviceView dev{};
+
+                    dev.index = index;
+                    dev.name = ide64->getIDE64DeviceName(index);
+                    dev.present = ide64->isIDE64DevicePresent(index);
+                    dev.readOnly = ide64->isIDE64DeviceReadOnly(index);
+                    dev.dirty = ide64->isIDE64DeviceDirty(index);
+                    dev.sectors = ide64->getIDE64DeviceSectorCount(index);
+
+                    s.ide64Devices.push_back(std::move(dev));
                 }
             }
         }
