@@ -663,7 +663,7 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
     }
 
     #ifdef Debug
-    std::cout << "Loaded ROM file: " << path << " (" << size << " bytes)" << std::endl;
+    std::cout << "Read ROM file: " << path << " (" << size << " bytes)" << std::endl;
     #endif // Debug
 
     return true;
