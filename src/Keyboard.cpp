@@ -146,10 +146,7 @@ void Keyboard::initKeyboard()
     keyMap[SDL_SCANCODE_F5] = std::make_pair(0,6);
     keyMap[SDL_SCANCODE_F7] = std::make_pair(0,3);
 
-    // ARROW & CONTROL KEYS
-    keyMap[SDL_SCANCODE_UP] = std::make_pair(6,6);      // UP ARROW
-    keyMap[SDL_SCANCODE_LEFT] = std::make_pair(7,2);    // LEFT ARROW
-    keyMap[SDL_SCANCODE_RIGHT] = std::make_pair(7,6);   // RIGHT ARROW
+    // CONTROL KEYS
     keyMap[SDL_SCANCODE_LSHIFT] = std::make_pair(1,7);  // LEFT SHIFT
     keyMap[SDL_SCANCODE_RSHIFT] = std::make_pair(6,4);  // RIGHT SHIFT
     keyMap[SDL_SCANCODE_GRAVE] = std::make_pair(7,1);   // LEFT ARROW
@@ -251,13 +248,42 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
             std::to_string(key));
     }
 
-    // C64 RESTORE is not part of the keyboard matrix.
-    // It directly asserts the CPU NMI line.
+    // C64 RESTORE directly asserts the CPU NMI line.
     if (key == SDL_SCANCODE_PAGEUP)
     {
         if (cpu)
             cpu->setNMILine(true);
 
+        return;
+    }
+
+    // C64 cursor-right key.
+    if (key == SDL_SCANCODE_RIGHT)
+    {
+        keyMatrix[0] &= ~(1 << 2);
+        return;
+    }
+
+    // C64 cursor-left is Shift + cursor-right.
+    if (key == SDL_SCANCODE_LEFT)
+    {
+        keyMatrix[0] &= ~(1 << 2);
+        keyMatrix[1] &= ~(1 << 7);
+        return;
+    }
+
+    // C64 cursor-down key.
+    if (key == SDL_SCANCODE_DOWN)
+    {
+        keyMatrix[0] &= ~(1 << 7);
+        return;
+    }
+
+    // C64 cursor-up is Shift + cursor-down.
+    if (key == SDL_SCANCODE_UP)
+    {
+        keyMatrix[0] &= ~(1 << 7);
+        keyMatrix[1] &= ~(1 << 7);
         return;
     }
 
@@ -296,6 +322,53 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
     {
         if (cpu)
             cpu->setNMILine(false);
+
+        return;
+    }
+
+    const uint8_t* keyboardState =
+        SDL_GetKeyboardState(nullptr);
+
+    if (key == SDL_SCANCODE_RIGHT ||
+        key == SDL_SCANCODE_LEFT)
+    {
+        // Release the C64 horizontal cursor key only when neither
+        // host horizontal-arrow key remains held.
+        if (!keyboardState[SDL_SCANCODE_RIGHT] &&
+            !keyboardState[SDL_SCANCODE_LEFT])
+        {
+            keyMatrix[0] |= (1 << 2);
+        }
+
+        // Release the virtual left shift only when no shifted cursor
+        // key or physical left shift remains held.
+        if (!keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT])
+        {
+            keyMatrix[1] |= (1 << 7);
+        }
+
+        return;
+    }
+
+    if (key == SDL_SCANCODE_DOWN ||
+        key == SDL_SCANCODE_UP)
+    {
+        // Release the C64 vertical cursor key only when neither
+        // host vertical-arrow key remains held.
+        if (!keyboardState[SDL_SCANCODE_DOWN] &&
+            !keyboardState[SDL_SCANCODE_UP])
+        {
+            keyMatrix[0] |= (1 << 7);
+        }
+
+        if (!keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT])
+        {
+            keyMatrix[1] |= (1 << 7);
+        }
 
         return;
     }
