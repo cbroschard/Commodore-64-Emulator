@@ -344,21 +344,29 @@ void MediaManager::attachPRGImage(PRGLoadMode mode)
     if (state_.prgPath.empty())
         return;
 
-    prgLoadMode_        = mode;
+    prgLoadMode_ = mode;
 
-    state_.prgAttached  = false;
-    state_.prgLoaded    = false;
-    state_.prgDelay     = 0;
+    state_.prgAttached = false;
+    state_.prgLoaded   = false;
+    state_.prgDelay    = 0;
 
-    if (state_.cartAttached && mode == PRGLoadMode::Standalone)
+    if (state_.cartAttached)
     {
-        // Existing behavior: detach cartridge and reset.
-        detachCRTImage();
+        if (mode == PRGLoadMode::Standalone)
+        {
+            // Standalone PRG loading removes the cartridge.
+            // detachCRTImage() handles the required reset.
+            detachCRTImage();
+        }
+        else
+        {
+            // KeepCartridge preserves the current cartridge and
+            // running IDEDOS session. Do not reset here.
+        }
     }
     else if (coldReset_)
     {
-        // Preserve and reset an attached cartridge, or reset normally
-        // when no cartridge is attached.
+        // No cartridge is attached, so start from a clean machine.
         coldReset_();
     }
 
