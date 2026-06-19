@@ -212,30 +212,65 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
     {
         const uint8_t reg = regIndex(address);
 
+        selectedRegister = reg;
+
+        // IDE64 stages the ATA low byte at $DE30 before accessing
+        // the selected task-file register.
+        const uint8_t registerValue = registers.dataLo;
+
         switch (reg)
         {
+            case REG_RESERVED0:
+            {
+                // $DE20 commits one staged 16-bit ATA data word.
+                if (direction == TransferDirection::FROM_HOST &&
+                    cmd == CurrentCommand::WRITE_SECTORS &&
+                    bufferIndex + 1 < bufferSize)
+                {
+                    sectorBuffer[bufferIndex] =
+                        registers.dataLo;
+
+                    sectorBuffer[bufferIndex + 1] =
+                        registers.dataHi;
+
+                    bufferIndex += 2;
+
+                    if (bufferIndex >= bufferSize)
+                        handleWriteBufferComplete();
+                }
+
+                break;
+            }
+
             case REG_FEATURES:
-                registers.taskFile[REG_FEATURES] = value;
+                registers.taskFile[REG_FEATURES] =
+                    registerValue;
                 break;
 
             case REG_SECTOR_COUNT:
-                registers.taskFile[REG_SECTOR_COUNT] = value;
+                registers.taskFile[REG_SECTOR_COUNT] =
+                    registerValue;
                 break;
 
             case REG_LBA0:
-                registers.taskFile[REG_LBA0] = value;
+                registers.taskFile[REG_LBA0] =
+                    registerValue;
                 break;
 
             case REG_LBA1:
-                registers.taskFile[REG_LBA1] = value;
+                registers.taskFile[REG_LBA1] =
+                    registerValue;
                 break;
 
             case REG_LBA2:
-                registers.taskFile[REG_LBA2] = value;
+                registers.taskFile[REG_LBA2] =
+                    registerValue;
                 break;
 
             case REG_DEVICE_HEAD:
-                registers.taskFile[REG_DEVICE_HEAD] = value;
+            {
+                registers.taskFile[REG_DEVICE_HEAD] =
+                    registerValue;
 
                 activeDevice = getSelectedDevice();
 
@@ -246,10 +281,13 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
 
                 activeDevice = nullptr;
                 break;
+            }
 
             case REG_COMMAND:
-                registers.taskFile[REG_COMMAND] = value;
-                executeCommand(value);
+                registers.taskFile[REG_COMMAND] =
+                    registerValue;
+
+                executeCommand(registerValue);
                 break;
 
             case REG_DEVICE_CTRL:
@@ -261,23 +299,24 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
                     (previous & 0x04) != 0;
 
                 const bool resetIsAsserted =
-                    (value & 0x04) != 0;
+                    (registerValue & 0x04) != 0;
 
-                registers.taskFile[REG_DEVICE_CTRL] = value;
+                registers.taskFile[REG_DEVICE_CTRL] =
+                    registerValue;
 
                 if (resetIsAsserted)
                 {
-                    // Abort any active transfer while SRST is asserted.
                     cmd = CurrentCommand::NONE;
                     direction = TransferDirection::NONE;
                     activeDevice = nullptr;
 
                     bufferIndex = 0;
                     bufferSize = 0;
+                    currentLBA = 0;
                     sectorsRemaining = 0;
 
                     error = 0x00;
-                    status = 0x80; // BSY
+                    status = 0x80;
                 }
                 else if (resetWasAsserted)
                 {
@@ -315,42 +354,28 @@ void IDE64Controller::writeRegister(uint16_t address, uint8_t value)
             }
 
             case REG_DRIVE_ADDR:
-                registers.taskFile[REG_DRIVE_ADDR] = value;
+                registers.taskFile[REG_DRIVE_ADDR] =
+                    registerValue;
                 break;
 
             default:
                 break;
         }
+
         return;
     }
-    else if (address == DATA_LO_ADDR)
+
+    if (address == DATA_LO_ADDR)
     {
+        // Stage the low ATA byte. Do not transfer it yet.
         registers.dataLo = value;
-
-        if (direction == TransferDirection::FROM_HOST &&
-            cmd == CurrentCommand::WRITE_SECTORS &&
-            bufferIndex < bufferSize)
-        {
-            sectorBuffer[bufferIndex] = value;
-        }
-
         return;
     }
-    else if (address == DATA_HI_ADDR)
+
+    if (address == DATA_HI_ADDR)
     {
+        // Stage the high ATA byte. The later $DE20 access commits it.
         registers.dataHi = value;
-
-        if (direction == TransferDirection::FROM_HOST &&
-            cmd == CurrentCommand::WRITE_SECTORS &&
-            (bufferIndex + 1) < bufferSize)
-        {
-            sectorBuffer[bufferIndex + 1] = value;
-            bufferIndex += 2;
-
-            if (bufferIndex >= bufferSize)
-                handleWriteBufferComplete();
-        }
-
         return;
     }
 }
