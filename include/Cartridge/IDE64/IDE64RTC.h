@@ -36,6 +36,14 @@ class IDE64RTC
 
         std::array<uint8_t, CMOS_RAM_SIZE> cmosRAM{};
 
+        enum class TransferPhase : uint8_t
+        {
+            Command,
+            ReadData,
+            WriteData,
+            Ignore
+        };
+
         struct RTCState
         {
             uint8_t seconds    = 0;
@@ -50,10 +58,26 @@ class IDE64RTC
         struct WireState
         {
             bool chipEnabled = false;
+
+            TransferPhase phase = TransferPhase::Command;
+
             uint8_t shiftRegister = 0;
+            uint8_t outputShiftRegister = 0;
             uint8_t bitCount = 0;
+
+            uint8_t transferIndex = 0;
+
+            uint8_t command = 0;
+            uint8_t address = 0;
+
+            bool ramSelected = false;
+            bool readOperation = false;
+            bool burstOperation = false;
+
             bool dataOut = true;
         } wireState;
+
+        void decodeCommand(uint8_t command);
 };
 
 #endif // IDE64RTC_H
