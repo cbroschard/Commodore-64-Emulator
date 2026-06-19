@@ -84,6 +84,9 @@ void IDE64RTC::saveState(StateWriter& wrtr) const
     wrtr.writeU16(rtcState.year);
     wrtr.writeU8(rtcState.writeProtect);
     wrtr.writeU8(rtcState.trickleCharger);
+    wrtr.writeBool(rtcState.clockHalted);
+    wrtr.writeBool(rtcState.hourMode12);
+    wrtr.writeBool(rtcState.hourPM);
 
     // Current serial transaction state
     wrtr.writeBool(wireState.chipEnabled);
@@ -107,77 +110,40 @@ void IDE64RTC::saveState(StateWriter& wrtr) const
 bool IDE64RTC::loadState(StateReader& rdr)
 {
     // Clock/calendar state
-    if (!rdr.readU8(rtcState.seconds))
-        return false;
-
-    if (!rdr.readU8(rtcState.minutes))
-        return false;
-
-    if (!rdr.readU8(rtcState.hours))
-        return false;
-
-    if (!rdr.readU8(rtcState.dayOfWeek))
-        return false;
-
-    if (!rdr.readU8(rtcState.dayOfMonth))
-        return false;
-
-    if (!rdr.readU8(rtcState.month))
-        return false;
-
-    if (!rdr.readU16(rtcState.year))
-        return false;
-
-    if (!rdr.readU8(rtcState.writeProtect))
-        return false;
-
-    if (!rdr.readU8(rtcState.trickleCharger))
-        return false;
+    if (!rdr.readU8(rtcState.seconds))                          return false;
+    if (!rdr.readU8(rtcState.minutes))                          return false;
+    if (!rdr.readU8(rtcState.hours))                            return false;
+    if (!rdr.readU8(rtcState.dayOfWeek))                        return false;
+    if (!rdr.readU8(rtcState.dayOfMonth))                       return false;
+    if (!rdr.readU8(rtcState.month))                            return false;
+    if (!rdr.readU16(rtcState.year))                            return false;
+    if (!rdr.readU8(rtcState.writeProtect))                     return false;
+    if (!rdr.readU8(rtcState.trickleCharger))                   return false;
+    if (!rdr.readBool(rtcState.clockHalted))                    return false;
+    if (!rdr.readBool(rtcState.hourMode12))                     return false;
+    if (!rdr.readBool(rtcState.hourPM))                         return false;
 
     // Current serial transaction state
-    if (!rdr.readBool(wireState.chipEnabled))
-        return false;
+    if (!rdr.readBool(wireState.chipEnabled))                   return false;
 
     uint8_t phase = 0;
 
-    if (!rdr.readU8(phase))
-        return false;
-
-    if (phase > static_cast<uint8_t>(TransferPhase::Ignore))
-        return false;
+    if (!rdr.readU8(phase))                                     return false;
+    if (phase > static_cast<uint8_t>(TransferPhase::Ignore))    return false;
 
     wireState.phase =
         static_cast<TransferPhase>(phase);
 
-    if (!rdr.readU8(wireState.shiftRegister))
-        return false;
-
-    if (!rdr.readU8(wireState.outputShiftRegister))
-        return false;
-
-    if (!rdr.readU8(wireState.bitCount))
-        return false;
-
-    if (!rdr.readU8(wireState.transferIndex))
-        return false;
-
-    if (!rdr.readU8(wireState.command))
-        return false;
-
-    if (!rdr.readU8(wireState.address))
-        return false;
-
-    if (!rdr.readBool(wireState.ramSelected))
-        return false;
-
-    if (!rdr.readBool(wireState.readOperation))
-        return false;
-
-    if (!rdr.readBool(wireState.burstOperation))
-        return false;
-
-    if (!rdr.readBool(wireState.dataOut))
-        return false;
+    if (!rdr.readU8(wireState.shiftRegister))                   return false;
+    if (!rdr.readU8(wireState.outputShiftRegister))             return false;
+    if (!rdr.readU8(wireState.bitCount))                        return false;
+    if (!rdr.readU8(wireState.transferIndex))                   return false;
+    if (!rdr.readU8(wireState.command))                         return false;
+    if (!rdr.readU8(wireState.address))                         return false;
+    if (!rdr.readBool(wireState.ramSelected))                   return false;
+    if (!rdr.readBool(wireState.readOperation))                 return false;
+    if (!rdr.readBool(wireState.burstOperation))                return false;
+    if (!rdr.readBool(wireState.dataOut))                       return false;
 
     // Battery-backed CMOS RAM
     for (uint8_t& value : cmosRAM)
@@ -307,16 +273,32 @@ void IDE64RTC::writeByte(uint8_t value)
             }
             else
             {
-                if (!wireState.burstOperation &&
-                    wireState.address <= 8)
+                if (wireState.burstOperation)
                 {
-                    writeClockRegister(
-                        wireState.address,
-                        wireState.shiftRegister);
-                }
+                    // Clock burst writes registers 0 through 7.
+                    if (wireState.transferIndex < 8)
+                    {
+                        writeClockRegister(
+                            wireState.transferIndex,
+                            wireState.shiftRegister);
 
-                // Clock-burst writes are implemented next.
-                wireState.phase = TransferPhase::Ignore;
+                        ++wireState.transferIndex;
+                    }
+
+                    if (wireState.transferIndex >= 8)
+                        wireState.phase = TransferPhase::Ignore;
+                }
+                else
+                {
+                    if (wireState.address <= 8)
+                    {
+                        writeClockRegister(
+                            wireState.address,
+                            wireState.shiftRegister);
+                    }
+
+                    wireState.phase = TransferPhase::Ignore;
+                }
             }
 
             wireState.shiftRegister = 0;
@@ -409,13 +391,26 @@ uint8_t IDE64RTC::readClockRegister(uint8_t address) const
     switch (address)
     {
         case 0:
-            return binaryToBCD(rtcState.seconds);
+            return static_cast<uint8_t>(
+                binaryToBCD(rtcState.seconds) |
+                (rtcState.clockHalted ? 0x80 : 0x00));
 
         case 1:
             return binaryToBCD(rtcState.minutes);
 
         case 2:
-            return binaryToBCD(rtcState.hours);
+        {
+            if (rtcState.hourMode12)
+            {
+                return static_cast<uint8_t>(
+                    0x80 |
+                    (rtcState.hourPM ? 0x20 : 0x00) |
+                    (binaryToBCD(rtcState.hours) & 0x1F));
+            }
+
+            return static_cast<uint8_t>(
+                binaryToBCD(rtcState.hours) & 0x3F);
+        }
 
         case 3:
             return binaryToBCD(rtcState.dayOfMonth);
@@ -458,20 +453,34 @@ void IDE64RTC::writeClockRegister(uint8_t address, uint8_t value)
     switch (address)
     {
         case 0:
+            rtcState.clockHalted = (value & 0x80) != 0;
             rtcState.seconds =
                 bcdToBinary(static_cast<uint8_t>(value & 0x7F));
             break;
-
         case 1:
             rtcState.minutes =
                 bcdToBinary(static_cast<uint8_t>(value & 0x7F));
             break;
 
         case 2:
-            // Initially support the DS1302's 24-hour representation.
-            rtcState.hours =
-                bcdToBinary(static_cast<uint8_t>(value & 0x3F));
+        {
+            rtcState.hourMode12 = (value & 0x80) != 0;
+
+            if (rtcState.hourMode12)
+            {
+                rtcState.hourPM = (value & 0x20) != 0;
+                rtcState.hours =
+                    bcdToBinary(static_cast<uint8_t>(value & 0x1F));
+            }
+            else
+            {
+                rtcState.hourPM = false;
+                rtcState.hours =
+                    bcdToBinary(static_cast<uint8_t>(value & 0x3F));
+            }
+
             break;
+        }
 
         case 3:
             rtcState.dayOfMonth =

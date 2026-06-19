@@ -47,16 +47,21 @@ class IDE64RTC
 
         struct RTCState
         {
-            uint8_t seconds       = 0;
-            uint8_t minutes       = 0;
-            uint8_t hours         = 0;
-            uint8_t dayOfWeek     = 1;
-            uint8_t dayOfMonth    = 1;
-            uint8_t month         = 1;
-            uint16_t year         = 2000;
+            uint8_t seconds         = 0;
+            uint8_t minutes         = 0;
+            uint8_t hours           = 0;
+            uint8_t dayOfWeek       = 1;
+            uint8_t dayOfMonth      = 1;
+            uint8_t month           = 1;
+            uint16_t year           = 2000;
 
-            uint8_t writeProtect  = 0;
-            uint8_t trickleCharger = 0;
+            uint8_t writeProtect    = 0;
+            uint8_t trickleCharger  = 0;
+
+            bool clockHalted        = false;
+
+            bool hourMode12 = false;
+            bool hourPM = false;
         } rtcState;
 
         struct WireState
