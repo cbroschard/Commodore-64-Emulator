@@ -586,6 +586,9 @@ void IDE64Mapper::pressReset()
         ctrl.memCfg[i] = 0x00;
 
     applyMappingAfterLoad();
+
+    if (cart)
+        cart->requestWarmReset();
 }
 
 bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
