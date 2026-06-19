@@ -9,6 +9,7 @@
 
 IDE64Controller::IDE64Controller() :
     activeDevice(nullptr),
+    selectedRegister(REG_RESERVED0),
     status(0x00),
     error(0x01),
     bufferIndex(0),
@@ -39,6 +40,8 @@ void IDE64Controller::attachDevice(int index, IDE64BlockDevice* device)
 void IDE64Controller::reset()
 {
     activeDevice            = nullptr;
+
+    selectedRegister        = REG_RESERVED0;
 
     status                  = 0x00;
     error                   = 0x01;
@@ -144,43 +147,60 @@ uint8_t IDE64Controller::readRegister(uint16_t address)
     if (address >= TASKFILE_BASE && address <= TASKFILE_END)
     {
         const uint8_t reg = regIndex(address);
+        selectedRegister = reg;
+
+        if (reg == REG_RESERVED0)
+        {
+            if (direction == TransferDirection::TO_HOST &&
+                bufferIndex + 1 < bufferSize)
+            {
+                registers.dataLo = sectorBuffer[bufferIndex];
+                registers.dataHi = sectorBuffer[bufferIndex + 1];
+            }
+
+            return registers.dataLo;
+        }
+
+        uint8_t value = 0xFF;
 
         switch (reg)
         {
             case REG_ERROR:
-                return error;
+                value = error;
+                break;
 
             case REG_STATUS:
             case REG_ALT_STATUS:
-                return status;
+                value = status;
+                break;
 
             default:
-                return registers.taskFile[reg];
+                value = registers.taskFile[reg];
+                break;
         }
+
+        registers.dataLo = value;
+        return value;
     }
 
-   if (address == DATA_LO_ADDR)
-    {
-        if (direction == TransferDirection::TO_HOST && bufferIndex + 1 < bufferSize)
-            return sectorBuffer[bufferIndex];
-
+    if (address == DATA_LO_ADDR)
         return registers.dataLo;
-    }
 
     if (address == DATA_HI_ADDR)
     {
-        if (direction == TransferDirection::TO_HOST && bufferIndex + 1 < bufferSize)
+        const uint8_t value = registers.dataHi;
+
+        if (selectedRegister == REG_RESERVED0 &&
+            direction == TransferDirection::TO_HOST &&
+            bufferIndex + 1 < bufferSize)
         {
-            uint8_t value = sectorBuffer[bufferIndex + 1];
             bufferIndex += 2;
 
             if (bufferIndex >= bufferSize)
                 handleReadBufferComplete();
-
-            return value;
         }
 
-        return registers.dataHi;
+        return value;
     }
 
     return 0xFF;

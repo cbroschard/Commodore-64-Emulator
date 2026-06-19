@@ -85,6 +85,8 @@ class IDE64Controller
             uint8_t dataHi         = 0;    // DE31
         } registers;
 
+        uint8_t selectedRegister;
+
         enum CurrentCommand : uint8_t
         {
             NONE,
