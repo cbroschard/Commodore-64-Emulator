@@ -65,6 +65,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.io->attachLogInstance(components.logger.get());
     components.io->setMonitorOpenCallback([&components]() -> bool { return components.debug && components.debug->monitorController().isOpen();});
 
+    components.keyb->attachCPUInstance(components.cpu.get());
     components.keyb->attachLogInstance(components.logger.get());
 
     components.mem->attachCPUInstance(components.cpu.get());

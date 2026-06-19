@@ -6,8 +6,11 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Keyboard.h"
+#include "CPU.h"
+#include "Logging.h"
 
 Keyboard::Keyboard() :
+    cpu(nullptr),
     logger(nullptr),
     setLogging(false),
     keyProcessed(false),
@@ -243,58 +246,79 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
 {
     if (logger && setLogging)
     {
-        logger->WriteLog("Key Down Event: SDL Scancode = " + std::to_string(key));
+        logger->WriteLog(
+            "Key Down Event: SDL Scancode = " +
+            std::to_string(key));
+    }
+
+    // C64 RESTORE is not part of the keyboard matrix.
+    // It directly asserts the CPU NMI line.
+    if (key == SDL_SCANCODE_PAGEUP)
+    {
+        if (cpu)
+            cpu->setNMILine(true);
+
+        return;
     }
 
     SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
 
-    if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
+    if (key == SDL_SCANCODE_LSHIFT ||
+        key == SDL_SCANCODE_RSHIFT)
     {
         shiftPressed = true;
+
         if (logger && setLogging)
-        {
             logger->WriteLog("Shift Key Pressed");
-        }
-        // Mark Shift key as pressed in the key matrix
-        //if (keyMap.find(SDL_SCANCODE_LSHIFT) != keyMap.end())
+
         if (keyMap.find(key) != keyMap.end())
         {
-            //auto [row, col] = keyMap[SDL_SCANCODE_LSHIFT];
             auto [row, col] = keyMap[key];
-            keyMatrix[row] &= ~(1 << col); // Press Shift
+            keyMatrix[row] &= ~(1 << col);
         }
+
         return;
     }
+
     processKey(keycode, key, true);
 }
 
 void Keyboard::handleKeyUp(SDL_Scancode key)
 {
-
     if (logger && setLogging)
     {
-        logger->WriteLog("Key Up Event: SDL Scancode = " + std::to_string(key));
+        logger->WriteLog(
+            "Key Up Event: SDL Scancode = " +
+            std::to_string(key));
+    }
+
+    if (key == SDL_SCANCODE_PAGEUP)
+    {
+        if (cpu)
+            cpu->setNMILine(false);
+
+        return;
     }
 
     SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
 
-    if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
+    if (key == SDL_SCANCODE_LSHIFT ||
+        key == SDL_SCANCODE_RSHIFT)
     {
         shiftPressed = false;
-        // Mark Shift key as released in the key matrix
-        //if (keyMap.find(SDL_SCANCODE_LSHIFT) != keyMap.end())
+
         if (keyMap.find(key) != keyMap.end())
         {
-            //auto [row, col] = keyMap[SDL_SCANCODE_LSHIFT];
             auto [row, col] = keyMap[key];
-            keyMatrix[row] |= (1 << col); // Release Shift
+            keyMatrix[row] |= (1 << col);
         }
+
         if (logger && setLogging)
-        {
             logger->WriteLog("Shift Key Released");
-        }
+
         return;
     }
+
     processKey(keycode, key, false);
 }
 

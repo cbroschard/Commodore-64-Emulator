@@ -16,13 +16,17 @@
 #include <bitset>
 #include <iostream>
 #include "CIA1.h"
-#include "Logging.h"
+
+class CPU;
 
 class Keyboard
 {
     public:
         Keyboard();
         virtual ~Keyboard();
+
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu;; }
+        inline void attachLogInstance(Logging* logger) { this->logger=logger; }
 
         // Define the 8x8 matrix to represent the keyboard (8 rows, 8 columns)
         uint8_t keyMatrix[8];
@@ -37,9 +41,6 @@ class Keyboard
         // temp debugging
         void simulateKeyPress(uint8_t row, uint8_t col);
 
-        // Pointers
-        inline void attachLogInstance(Logging* logger) { this->logger=logger; }
-
         void resetKeyboard();
         void handleKeyDown(SDL_Scancode key);
         void handleKeyUp(SDL_Scancode key);
@@ -50,8 +51,8 @@ class Keyboard
     protected:
 
     private:
-
         // non-owning pointers
+        CPU* cpu;
         Logging* logger;
 
         // ML Monitor logging
