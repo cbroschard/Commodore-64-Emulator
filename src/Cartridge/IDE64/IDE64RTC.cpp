@@ -9,7 +9,8 @@
 
 IDE64RTC::IDE64RTC()
 {
-
+    cmosRAM.fill(0xFF);
+    reset();
 }
 
 IDE64RTC::~IDE64RTC() = default;
@@ -34,6 +35,9 @@ void IDE64RTC::saveState(StateWriter& wrtr) const
     wrtr.writeU8(wireState.latch);
     wrtr.writeBool(wireState.clkSeen);
     wrtr.writeBool(wireState.dataIn);
+
+    for (uint8_t value : cmosRAM)
+        wrtr.writeU8(value);
 }
 
 bool IDE64RTC::loadState(StateReader& rdr)
@@ -49,6 +53,12 @@ bool IDE64RTC::loadState(StateReader& rdr)
     if (!rdr.readU8(wireState.latch))       return false;
     if (!rdr.readBool(wireState.clkSeen))   return false;
     if (!rdr.readBool(wireState.dataIn))    return false;
+
+    for (uint8_t& value : cmosRAM)
+    {
+        if (!rdr.readU8(value))
+            return false;
+    }
 
     return true;
 }

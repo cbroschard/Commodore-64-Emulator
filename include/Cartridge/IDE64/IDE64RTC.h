@@ -8,6 +8,7 @@
 #ifndef IDE64RTC_H
 #define IDE64RTC_H
 
+#include <array>
 #include <cstdint>
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -29,15 +30,19 @@ class IDE64RTC
     protected:
 
     private:
+        static constexpr size_t CMOS_RAM_SIZE = 31;
+
+        std::array<uint8_t, CMOS_RAM_SIZE> cmosRAM{};
+
         struct RTCState
         {
-            uint8_t seconds;
-            uint8_t minutes;
-            uint8_t hours;
-            uint8_t dayOfWeek;
-            uint8_t dayOfMonth;
-            uint8_t month;
-            uint16_t year;
+            uint8_t seconds    = 0;
+            uint8_t minutes    = 0;
+            uint8_t hours      = 0;
+            uint8_t dayOfWeek  = 1;
+            uint8_t dayOfMonth = 1;
+            uint8_t month      = 1;
+            uint16_t year      = 0;
         } rtcState;
 
         struct WireState
