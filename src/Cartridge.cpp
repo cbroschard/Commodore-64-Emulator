@@ -218,6 +218,10 @@ void Cartridge::reset()
 
 void Cartridge::clear()
 {
+    // Save battery-backed cartridge state before destroying the mapper.
+    saveCurrentPersistence();
+    persistencePath.clear();
+
     mapper.reset();
 
     chipSections.clear();
