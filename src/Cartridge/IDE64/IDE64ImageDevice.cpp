@@ -190,9 +190,47 @@ bool IDE64ImageDevice::writeSector(uint32_t lba, const uint8_t* buffer, size_t s
     if (lba >= sectorCount_)
         return false;
 
-    const size_t offset = static_cast<size_t>(lba) * sectorSize_;
-    std::memcpy(imageData.data() + offset, buffer, size);
-    dirty_ = true;
+    const size_t offset =
+        static_cast<size_t>(lba) * sectorSize_;
+
+    if (!backingPath_.empty())
+    {
+        std::fstream file(
+            backingPath_,
+            std::ios::binary |
+            std::ios::in |
+            std::ios::out);
+
+        if (!file.is_open())
+            return false;
+
+        file.seekp(
+            static_cast<std::streamoff>(offset),
+            std::ios::beg);
+
+        if (!file)
+            return false;
+
+        file.write(
+            reinterpret_cast<const char*>(buffer),
+            static_cast<std::streamsize>(size));
+
+        if (!file)
+            return false;
+
+        file.flush();
+
+        if (!file)
+            return false;
+    }
+
+    std::memcpy(
+        imageData.data() + offset,
+        buffer,
+        size);
+
+    dirty_ = backingPath_.empty();
+
     return true;
 }
 

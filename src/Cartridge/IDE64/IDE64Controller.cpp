@@ -626,15 +626,54 @@ void IDE64Controller::failCommand(uint8_t errorCode)
 
 uint32_t IDE64Controller::getCurrentLBA() const
 {
-    const uint8_t lba0 = registers.taskFile[REG_LBA0];
-    const uint8_t lba1 = registers.taskFile[REG_LBA1];
-    const uint8_t lba2 = registers.taskFile[REG_LBA2];
-    const uint8_t lba3 = registers.taskFile[REG_DEVICE_HEAD] & 0x0F;
+    const uint8_t sectorNumber =
+        registers.taskFile[REG_LBA0];
 
-    return static_cast<uint32_t>(lba0) |
-           (static_cast<uint32_t>(lba1) << 8) |
-           (static_cast<uint32_t>(lba2) << 16) |
-           (static_cast<uint32_t>(lba3) << 24);
+    const uint8_t cylinderLow =
+        registers.taskFile[REG_LBA1];
+
+    const uint8_t cylinderHigh =
+        registers.taskFile[REG_LBA2];
+
+    const uint8_t deviceHead =
+        registers.taskFile[REG_DEVICE_HEAD];
+
+    const bool lbaMode =
+        (deviceHead & 0x40) != 0;
+
+    if (lbaMode)
+    {
+        const uint8_t lba3 =
+            deviceHead & 0x0F;
+
+        return static_cast<uint32_t>(sectorNumber) |
+               (static_cast<uint32_t>(cylinderLow) << 8) |
+               (static_cast<uint32_t>(cylinderHigh) << 16) |
+               (static_cast<uint32_t>(lba3) << 24);
+    }
+
+    // CHS addressing uses a one-based sector number.
+    const uint16_t cylinder =
+        static_cast<uint16_t>(cylinderLow) |
+        static_cast<uint16_t>(
+            static_cast<uint16_t>(cylinderHigh) << 8);
+
+    const uint8_t head =
+        deviceHead & 0x0F;
+
+    if (sectorNumber == 0 ||
+        logicalHeads == 0 ||
+        logicalSectorsPerTrack == 0 ||
+        head >= logicalHeads ||
+        sectorNumber > logicalSectorsPerTrack)
+    {
+        return UINT32_MAX;
+    }
+
+    return
+        ((static_cast<uint32_t>(cylinder) * logicalHeads) + head) *
+        logicalSectorsPerTrack +
+        (sectorNumber - 1);
 }
 
 uint16_t IDE64Controller::getNormalizedSectorCount() const

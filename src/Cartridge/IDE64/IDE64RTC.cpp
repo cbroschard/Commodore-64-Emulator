@@ -247,12 +247,18 @@ void IDE64RTC::writeByte(uint8_t value)
         {
             if (wireState.ramSelected)
             {
+                const bool writesEnabled =
+                    (rtcState.writeProtect & 0x80) == 0;
+
                 if (wireState.burstOperation)
                 {
                     if (wireState.transferIndex < CMOS_RAM_SIZE)
                     {
-                        cmosRAM[wireState.transferIndex] =
-                            wireState.shiftRegister;
+                        if (writesEnabled)
+                        {
+                            cmosRAM[wireState.transferIndex] =
+                                wireState.shiftRegister;
+                        }
 
                         ++wireState.transferIndex;
                     }
@@ -262,7 +268,8 @@ void IDE64RTC::writeByte(uint8_t value)
                 }
                 else
                 {
-                    if (wireState.address < CMOS_RAM_SIZE)
+                    if (writesEnabled &&
+                        wireState.address < CMOS_RAM_SIZE)
                     {
                         cmosRAM[wireState.address] =
                             wireState.shiftRegister;
