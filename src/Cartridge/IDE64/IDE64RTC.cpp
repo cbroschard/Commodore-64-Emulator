@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <fstream>
+#include <string>
 #include "Cartridge/IDE64/IDE64RTC.h"
 
 IDE64RTC::IDE64RTC()
@@ -151,6 +153,158 @@ bool IDE64RTC::loadState(StateReader& rdr)
         if (!rdr.readU8(value))
             return false;
     }
+
+    return true;
+}
+
+bool IDE64RTC::savePersistence(const std::string& path) const
+{
+    std::ofstream file(
+        path,
+        std::ios::binary | std::ios::trunc);
+
+    if (!file.is_open())
+        return false;
+
+    const char magic[8] =
+    {
+        'I', 'D', 'E', '6', '4', 'R', 'T', 'C'
+    };
+
+    file.write(magic, sizeof(magic));
+
+    auto writeU8 = [&file](uint8_t value)
+    {
+        file.put(static_cast<char>(value));
+    };
+
+    writeU8(1); // Persistence format version
+
+    writeU8(rtcState.seconds);
+    writeU8(rtcState.minutes);
+    writeU8(rtcState.hours);
+    writeU8(rtcState.dayOfWeek);
+    writeU8(rtcState.dayOfMonth);
+    writeU8(rtcState.month);
+
+    writeU8(static_cast<uint8_t>(rtcState.year & 0xFF));
+    writeU8(static_cast<uint8_t>((rtcState.year >> 8) & 0xFF));
+
+    writeU8(rtcState.writeProtect);
+    writeU8(rtcState.trickleCharger);
+    writeU8(rtcState.clockHalted ? 1 : 0);
+    writeU8(rtcState.hourMode12 ? 1 : 0);
+    writeU8(rtcState.hourPM ? 1 : 0);
+
+    file.write(
+        reinterpret_cast<const char*>(cmosRAM.data()),
+        static_cast<std::streamsize>(cmosRAM.size()));
+
+    return static_cast<bool>(file);
+}
+
+bool IDE64RTC::loadPersistence(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary);
+
+    // No persistence file yet is a valid first-run condition.
+    if (!file.is_open())
+        return true;
+
+    char magic[8] = {};
+
+    if (!file.read(magic, sizeof(magic)))
+        return false;
+
+    const char expectedMagic[8] =
+    {
+        'I', 'D', 'E', '6', '4', 'R', 'T', 'C'
+    };
+
+    if (std::memcmp(
+            magic,
+            expectedMagic,
+            sizeof(expectedMagic)) != 0)
+    {
+        return false;
+    }
+
+    auto readU8 = [&file](uint8_t& value) -> bool
+    {
+        char byte = 0;
+
+        if (!file.get(byte))
+            return false;
+
+        value = static_cast<uint8_t>(
+            static_cast<unsigned char>(byte));
+
+        return true;
+    };
+
+    uint8_t version = 0;
+
+    if (!readU8(version))
+        return false;
+
+    if (version != 1)
+        return false;
+
+    RTCState loadedState = rtcState;
+    decltype(cmosRAM) loadedCMOS{};
+
+    if (!readU8(loadedState.seconds))         return false;
+    if (!readU8(loadedState.minutes))         return false;
+    if (!readU8(loadedState.hours))           return false;
+    if (!readU8(loadedState.dayOfWeek))       return false;
+    if (!readU8(loadedState.dayOfMonth))      return false;
+    if (!readU8(loadedState.month))           return false;
+
+    uint8_t yearLow = 0;
+    uint8_t yearHigh = 0;
+
+    if (!readU8(yearLow))                     return false;
+    if (!readU8(yearHigh))                    return false;
+
+    loadedState.year =
+        static_cast<uint16_t>(yearLow) |
+        static_cast<uint16_t>(
+            static_cast<uint16_t>(yearHigh) << 8);
+
+    if (!readU8(loadedState.writeProtect))    return false;
+    if (!readU8(loadedState.trickleCharger))  return false;
+
+    uint8_t clockHalted = 0;
+    uint8_t hourMode12 = 0;
+    uint8_t hourPM = 0;
+
+    if (!readU8(clockHalted))                 return false;
+    if (!readU8(hourMode12))                  return false;
+    if (!readU8(hourPM))                      return false;
+
+    if (clockHalted > 1 ||
+        hourMode12 > 1 ||
+        hourPM > 1)
+    {
+        return false;
+    }
+
+    loadedState.clockHalted = clockHalted != 0;
+    loadedState.hourMode12 = hourMode12 != 0;
+    loadedState.hourPM = hourPM != 0;
+
+    if (!file.read(
+            reinterpret_cast<char*>(loadedCMOS.data()),
+            static_cast<std::streamsize>(loadedCMOS.size())))
+    {
+        return false;
+    }
+
+    rtcState = loadedState;
+    cmosRAM = loadedCMOS;
+
+    // Persistence never restores a partially completed wire transfer.
+    reset();
 
     return true;
 }

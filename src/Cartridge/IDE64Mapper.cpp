@@ -483,12 +483,12 @@ bool IDE64Mapper::ejectIDE64Image(uint32_t index)
 
 bool IDE64Mapper::savePersistence(const std::string& path) const
 {
-    return true;
+    return rtc.savePersistence(path);
 }
 
 bool IDE64Mapper::loadPersistence(const std::string& path)
 {
-    return true;
+    return rtc.loadPersistence(path);
 }
 
 const char* IDE64Mapper::getIDE64DeviceName(uint32_t index) const

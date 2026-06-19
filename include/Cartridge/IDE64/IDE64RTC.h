@@ -30,6 +30,9 @@ class IDE64RTC
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
 
+        bool savePersistence(const std::string& path) const;
+        bool loadPersistence(const std::string& path);
+
     protected:
 
     private:
