@@ -270,6 +270,8 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
         {
             case 0xDEFB:
             {
+                rtc.setChipEnabled((value & 0x02) != 0);
+
                 // Preserve the full kill-port byte in existing state.
                 ctrl.memCfg[1] = value;
                 ctrl.killed = (value & 0x01) != 0;

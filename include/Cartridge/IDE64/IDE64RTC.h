@@ -21,7 +21,9 @@ class IDE64RTC
 
         void reset();
 
-        uint8_t readByte() const;
+        void setChipEnabled(bool enabled);
+
+        uint8_t readByte();
         void writeByte(uint8_t value);
 
         void saveState(StateWriter& wrtr) const;
@@ -47,9 +49,10 @@ class IDE64RTC
 
         struct WireState
         {
-            uint8_t latch = 0;
-            bool clkSeen = false;
-            bool dataIn = false;
+            bool chipEnabled = false;
+            uint8_t shiftRegister = 0;
+            uint8_t bitCount = 0;
+            bool dataOut = true;
         } wireState;
 };
 
