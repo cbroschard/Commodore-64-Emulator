@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cstdint>
+#include "Common/BCD.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -46,13 +47,16 @@ class IDE64RTC
 
         struct RTCState
         {
-            uint8_t seconds    = 0;
-            uint8_t minutes    = 0;
-            uint8_t hours      = 0;
-            uint8_t dayOfWeek  = 1;
-            uint8_t dayOfMonth = 1;
-            uint8_t month      = 1;
-            uint16_t year      = 0;
+            uint8_t seconds       = 0;
+            uint8_t minutes       = 0;
+            uint8_t hours         = 0;
+            uint8_t dayOfWeek     = 1;
+            uint8_t dayOfMonth    = 1;
+            uint8_t month         = 1;
+            uint16_t year         = 2000;
+
+            uint8_t writeProtect  = 0;
+            uint8_t trickleCharger = 0;
         } rtcState;
 
         struct WireState
@@ -78,6 +82,9 @@ class IDE64RTC
         } wireState;
 
         void decodeCommand(uint8_t command);
+
+        uint8_t readClockRegister(uint8_t address) const;
+        void writeClockRegister(uint8_t address, uint8_t value);
 };
 
 #endif // IDE64RTC_H

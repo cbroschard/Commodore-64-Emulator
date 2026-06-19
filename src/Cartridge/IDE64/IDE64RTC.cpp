@@ -82,6 +82,8 @@ void IDE64RTC::saveState(StateWriter& wrtr) const
     wrtr.writeU8(rtcState.dayOfMonth);
     wrtr.writeU8(rtcState.month);
     wrtr.writeU16(rtcState.year);
+    wrtr.writeU8(rtcState.writeProtect);
+    wrtr.writeU8(rtcState.trickleCharger);
 
     // Current serial transaction state
     wrtr.writeBool(wireState.chipEnabled);
@@ -124,6 +126,12 @@ bool IDE64RTC::loadState(StateReader& rdr)
         return false;
 
     if (!rdr.readU16(rtcState.year))
+        return false;
+
+    if (!rdr.readU8(rtcState.writeProtect))
+        return false;
+
+    if (!rdr.readU8(rtcState.trickleCharger))
         return false;
 
     // Current serial transaction state
@@ -199,20 +207,36 @@ uint8_t IDE64RTC::readByte()
     {
         wireState.bitCount = 0;
 
-        if (wireState.ramSelected &&
-            wireState.burstOperation)
+        if (wireState.burstOperation)
         {
             ++wireState.transferIndex;
 
-            if (wireState.transferIndex < CMOS_RAM_SIZE)
+            if (wireState.ramSelected)
             {
-                wireState.outputShiftRegister =
-                    cmosRAM[wireState.transferIndex];
+                if (wireState.transferIndex < CMOS_RAM_SIZE)
+                {
+                    wireState.outputShiftRegister =
+                        cmosRAM[wireState.transferIndex];
+                }
+                else
+                {
+                    wireState.phase = TransferPhase::Ignore;
+                    wireState.outputShiftRegister = 0xFF;
+                }
             }
             else
             {
-                wireState.phase = TransferPhase::Ignore;
-                wireState.outputShiftRegister = 0xFF;
+                // Clock burst contains registers 0 through 7.
+                if (wireState.transferIndex < 8)
+                {
+                    wireState.outputShiftRegister =
+                        readClockRegister(wireState.transferIndex);
+                }
+                else
+                {
+                    wireState.phase = TransferPhase::Ignore;
+                    wireState.outputShiftRegister = 0xFF;
+                }
             }
         }
         else
@@ -283,7 +307,15 @@ void IDE64RTC::writeByte(uint8_t value)
             }
             else
             {
-                // Clock-register writes come later.
+                if (!wireState.burstOperation &&
+                    wireState.address <= 8)
+                {
+                    writeClockRegister(
+                        wireState.address,
+                        wireState.shiftRegister);
+                }
+
+                // Clock-burst writes are implemented next.
                 wireState.phase = TransferPhase::Ignore;
             }
 
@@ -347,12 +379,131 @@ void IDE64RTC::decodeCommand(uint8_t command)
         }
         else
         {
-            // Clock-register and clock-burst reads come later.
-            wireState.outputShiftRegister = 0xFF;
+            if (wireState.burstOperation)
+            {
+                // $BF starts reading clock register zero.
+                wireState.outputShiftRegister =
+                    readClockRegister(wireState.transferIndex);
+            }
+            else if (wireState.address <= 8)
+            {
+                wireState.outputShiftRegister =
+                    readClockRegister(wireState.address);
+            }
+            else
+            {
+                wireState.outputShiftRegister = 0xFF;
+                wireState.phase = TransferPhase::Ignore;
+            }
         }
     }
     else
     {
+        // The following serial bits contain write data.
         wireState.phase = TransferPhase::WriteData;
+    }
+}
+
+uint8_t IDE64RTC::readClockRegister(uint8_t address) const
+{
+    switch (address)
+    {
+        case 0:
+            return binaryToBCD(rtcState.seconds);
+
+        case 1:
+            return binaryToBCD(rtcState.minutes);
+
+        case 2:
+            return binaryToBCD(rtcState.hours);
+
+        case 3:
+            return binaryToBCD(rtcState.dayOfMonth);
+
+        case 4:
+            return binaryToBCD(rtcState.month);
+
+        case 5:
+            return binaryToBCD(rtcState.dayOfWeek);
+
+        case 6:
+            return binaryToBCD(
+                static_cast<uint8_t>(rtcState.year % 100));
+
+        case 7:
+            return rtcState.writeProtect;
+
+        case 8:
+            return rtcState.trickleCharger;
+
+        default:
+            return 0xFF;
+    }
+}
+
+void IDE64RTC::writeClockRegister(uint8_t address, uint8_t value)
+{
+    // The write-protect register must remain writable so protection
+    // can be disabled.
+    if (address == 7)
+    {
+        rtcState.writeProtect =
+            static_cast<uint8_t>(value & 0x80);
+        return;
+    }
+
+    if ((rtcState.writeProtect & 0x80) != 0)
+        return;
+
+    switch (address)
+    {
+        case 0:
+            rtcState.seconds =
+                bcdToBinary(static_cast<uint8_t>(value & 0x7F));
+            break;
+
+        case 1:
+            rtcState.minutes =
+                bcdToBinary(static_cast<uint8_t>(value & 0x7F));
+            break;
+
+        case 2:
+            // Initially support the DS1302's 24-hour representation.
+            rtcState.hours =
+                bcdToBinary(static_cast<uint8_t>(value & 0x3F));
+            break;
+
+        case 3:
+            rtcState.dayOfMonth =
+                bcdToBinary(static_cast<uint8_t>(value & 0x3F));
+            break;
+
+        case 4:
+            rtcState.month =
+                bcdToBinary(static_cast<uint8_t>(value & 0x1F));
+            break;
+
+        case 5:
+            rtcState.dayOfWeek =
+                bcdToBinary(static_cast<uint8_t>(value & 0x07));
+            break;
+
+        case 6:
+        {
+            const uint16_t century =
+                static_cast<uint16_t>((rtcState.year / 100) * 100);
+
+            rtcState.year =
+                static_cast<uint16_t>(
+                    century + bcdToBinary(value));
+            break;
+        }
+
+        case 8:
+            rtcState.trickleCharger = value;
+            break;
+
+        default:
+            break;
     }
 }
