@@ -497,6 +497,9 @@ void IDE64RTC::decodeCommand(uint8_t command)
     wireState.bitCount = 0;
     wireState.transferIndex = 0;
 
+    if (wireState.readOperation && !wireState.ramSelected)
+        syncToHostTime();
+
     if (wireState.readOperation)
     {
         wireState.phase = TransferPhase::ReadData;
@@ -676,4 +679,24 @@ void IDE64RTC::writeClockRegister(uint8_t address, uint8_t value)
         default:
             break;
     }
+}
+
+void IDE64RTC::syncToHostTime()
+{
+    if (rtcState.clockHalted)
+        return;
+
+    const std::time_t now = std::time(nullptr);
+    const std::tm* local = std::localtime(&now);
+
+    if (!local)
+        return;
+
+    rtcState.seconds    = static_cast<uint8_t>(local->tm_sec);
+    rtcState.minutes    = static_cast<uint8_t>(local->tm_min);
+    rtcState.hours      = static_cast<uint8_t>(local->tm_hour);
+    rtcState.dayOfMonth = static_cast<uint8_t>(local->tm_mday);
+    rtcState.month      = static_cast<uint8_t>(local->tm_mon + 1);
+    rtcState.dayOfWeek  = static_cast<uint8_t>(local->tm_wday + 1);
+    rtcState.year       = static_cast<uint16_t>(local->tm_year + 1900);
 }

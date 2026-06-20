@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cstdint>
+#include <ctime>
 #include "Common/BCD.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -93,6 +94,8 @@ class IDE64RTC
 
         uint8_t readClockRegister(uint8_t address) const;
         void writeClockRegister(uint8_t address, uint8_t value);
+
+        void syncToHostTime();
 };
 
 #endif // IDE64RTC_H
