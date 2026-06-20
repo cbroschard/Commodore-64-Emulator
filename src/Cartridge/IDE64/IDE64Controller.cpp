@@ -87,8 +87,17 @@ void IDE64Controller::saveState(StateWriter& wrtr) const
     wrtr.writeU16(sectorsRemaining);
     wrtr.writeU8(registers.dataLo);
     wrtr.writeU8(registers.dataHi);
+
+    wrtr.writeU8(selectedRegister);
+
     wrtr.writeU8(static_cast<uint8_t>(cmd));
     wrtr.writeU8(static_cast<uint8_t>(direction));
+
+    wrtr.writeU16(logicalCylinders);
+    wrtr.writeU8(logicalHeads);
+    wrtr.writeU8(logicalSectorsPerTrack);
+    wrtr.writeU16(currentCylinder);
+    wrtr.writeU8(currentHead);
 
     // Dump registers
     for (int i = 0; i < 16; i++)
@@ -110,6 +119,8 @@ bool IDE64Controller::loadState(StateReader& rdr)
     if (!rdr.readU8(registers.dataLo))          return false;
     if (!rdr.readU8(registers.dataHi))          return false;
 
+    if (!rdr.readU8(selectedRegister))          return false;
+
     uint8_t tmpCmd = 0;
     if (!rdr.readU8(tmpCmd))                    return false;
     cmd = static_cast<CurrentCommand>(tmpCmd);
@@ -117,6 +128,12 @@ bool IDE64Controller::loadState(StateReader& rdr)
     uint8_t tmpDirection = 0;
     if (!rdr.readU8(tmpDirection))              return false;
     direction = static_cast<TransferDirection>(tmpDirection);
+
+    if (!rdr.readU16(logicalCylinders))         return false;
+    if (!rdr.readU8(logicalHeads))              return false;
+    if (!rdr.readU8(logicalSectorsPerTrack))    return false;
+    if (!rdr.readU16(currentCylinder))          return false;
+    if (!rdr.readU8(currentHead))               return false;
 
     for (int i = 0; i < 16; i++)
         if (!rdr.readU8(registers.taskFile[i])) return false;

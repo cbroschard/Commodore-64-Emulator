@@ -69,6 +69,14 @@ void IDE64Mapper::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("ID64");
     wrtr.writeU32(1); // version
 
+    wrtr.writeBool(device0.isPresent());
+    wrtr.writeBool(device0.isReadOnly());
+    wrtr.writeString(device0.getBackingPath());
+
+    wrtr.writeBool(device1.isPresent());
+    wrtr.writeBool(device1.isReadOnly());
+    wrtr.writeString(device1.getBackingPath());
+
     controller.saveState(wrtr);
     rtc.saveState(wrtr);
 
@@ -85,23 +93,62 @@ bool IDE64Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (std::memcmp(chunk.tag, "ID64", 4) == 0)
     {
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!controller.loadState(rdr))     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rtc.loadState(rdr))            { rdr.exitChunkPayload(chunk); return false; }
+        bool device0Present = false;
+        bool device0ReadOnly = false;
+        std::string device0Path;
 
-        if (!ctrl.load(rdr))                { rdr.exitChunkPayload(chunk); return false; }
+        bool device1Present = false;
+        bool device1ReadOnly = false;
+        std::string device1Path;
 
-        if (!rdr.readVectorU8(rom))         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU8(flashCfg))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(device0Present))      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(device0ReadOnly))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(device0Path))       { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!applyMappingAfterLoad())       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(device1Present))      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(device1ReadOnly))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readString(device1Path))       { rdr.exitChunkPayload(chunk); return false; }
+
+        device0.clear();
+        device1.clear();
+
+        if (device0Present)
+        {
+            if (device0Path.empty() ||
+                !device0.loadImage(device0Path, device0ReadOnly))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+        }
+
+        if (device1Present)
+        {
+            if (device1Path.empty() ||
+                !device1.loadImage(device1Path, device1ReadOnly))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+        }
+
+        if (!controller.loadState(rdr))         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rtc.loadState(rdr))                { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readVectorU8(rom))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(flashCfg))        { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
         return true;
     }
-    // not our chunk
+
     return false;
 }
 

@@ -28,6 +28,8 @@ class IDE64ImageDevice : public IDE64BlockDevice
         inline uint32_t getSectorCount() const { return sectorCount_; }
         bool isPresent() const override;
 
+        inline std::string getBackingPath() const { return backingPath_; }
+
         bool createImage(uint32_t sectors, uint8_t fillValue = 0x00);
 
         bool loadImage(const std::string& path, bool readOnly = false);
