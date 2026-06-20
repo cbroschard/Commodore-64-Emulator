@@ -9,6 +9,7 @@
 #define IDE64CONTROLLER_H
 
 #include <array>
+#include <climits>
 #include <cstdint>
 #include "Cartridge/IDE64/IDE64BlockDevice.h"
 #include "StateReader.h"

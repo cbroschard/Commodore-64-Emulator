@@ -413,6 +413,7 @@ void IDE64Controller::executeCommand(uint8_t value)
         case 0x20: // READ SECTORS
         {
             activeDevice = getSelectedDevice();
+
             if (!activeDevice || !activeDevice->isPresent())
             {
                 failCommand(0x04);
@@ -420,9 +421,19 @@ void IDE64Controller::executeCommand(uint8_t value)
             }
 
             currentLBA = getCurrentLBA();
+
+            if (currentLBA == UINT32_MAX)
+            {
+                failCommand(0x04);
+                return;
+            }
+
             sectorsRemaining = getNormalizedSectorCount();
 
-            if (!activeDevice->readSector(currentLBA, sectorBuffer.data(), SECTOR_SIZE))
+            if (!activeDevice->readSector(
+                    currentLBA,
+                    sectorBuffer.data(),
+                    SECTOR_SIZE))
             {
                 failCommand(0x04);
                 return;
@@ -435,13 +446,14 @@ void IDE64Controller::executeCommand(uint8_t value)
             bufferIndex = 0;
             bufferSize = SECTOR_SIZE;
             error = 0x00;
-            status = 0x58;
+            status = 0x58; // DRDY + DSC + DRQ
             return;
         }
 
         case 0x30: // WRITE SECTORS
         {
             activeDevice = getSelectedDevice();
+
             if (!activeDevice || !activeDevice->isPresent())
             {
                 failCommand(0x04);
@@ -455,6 +467,13 @@ void IDE64Controller::executeCommand(uint8_t value)
             }
 
             currentLBA = getCurrentLBA();
+
+            if (currentLBA == UINT32_MAX)
+            {
+                failCommand(0x04);
+                return;
+            }
+
             sectorsRemaining = getNormalizedSectorCount();
 
             cmd = CurrentCommand::WRITE_SECTORS;
@@ -462,9 +481,41 @@ void IDE64Controller::executeCommand(uint8_t value)
             bufferIndex = 0;
             bufferSize = SECTOR_SIZE;
             error = 0x00;
-            status = 0x58;
+            status = 0x58; // DRDY + DSC + DRQ
 
             std::fill(sectorBuffer.begin(), sectorBuffer.end(), 0x00);
+            return;
+        }
+
+        case 0x40: // READ VERIFY SECTORS
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            const uint32_t lba = getCurrentLBA();
+
+            if (lba == UINT32_MAX)
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            const uint16_t count = getNormalizedSectorCount();
+
+            if (lba >= activeDevice->sectorCount() ||
+                count == 0 ||
+                lba + count > activeDevice->sectorCount())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            finishCommandSuccess();
             return;
         }
 
@@ -472,10 +523,27 @@ void IDE64Controller::executeCommand(uint8_t value)
         {
             currentCylinder =
                 static_cast<uint16_t>(registers.taskFile[REG_LBA1]) |
-                static_cast<uint16_t>(registers.taskFile[REG_LBA2] << 8);
+                static_cast<uint16_t>(
+                    static_cast<uint16_t>(registers.taskFile[REG_LBA2]) << 8);
 
             currentHead = registers.taskFile[REG_DEVICE_HEAD] & 0x0F;
 
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0x90: // EXECUTE DEVICE DIAGNOSTIC
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            // ATA diagnostic code 0x01 commonly means device 0 passed.
+            error = 0x01;
             finishCommandSuccess();
             return;
         }
@@ -490,8 +558,12 @@ void IDE64Controller::executeCommand(uint8_t value)
                 return;
             }
 
-            const uint8_t sectorsPerTrack = registers.taskFile[REG_SECTOR_COUNT];
-            const uint8_t heads = static_cast<uint8_t>((registers.taskFile[REG_DEVICE_HEAD] & 0x0F) + 1);
+            const uint8_t sectorsPerTrack =
+                registers.taskFile[REG_SECTOR_COUNT];
+
+            const uint8_t heads =
+                static_cast<uint8_t>(
+                    (registers.taskFile[REG_DEVICE_HEAD] & 0x0F) + 1);
 
             if (sectorsPerTrack == 0 || heads == 0)
             {
@@ -503,11 +575,12 @@ void IDE64Controller::executeCommand(uint8_t value)
             logicalHeads = heads;
 
             const uint32_t sectorsPerCylinder =
-                static_cast<uint32_t>(logicalHeads) * logicalSectorsPerTrack;
+                static_cast<uint32_t>(logicalHeads) *
+                logicalSectorsPerTrack;
 
-            logicalCylinders = static_cast<uint16_t>(
-                activeDevice->sectorCount() / sectorsPerCylinder
-            );
+            logicalCylinders =
+                static_cast<uint16_t>(
+                    activeDevice->sectorCount() / sectorsPerCylinder);
 
             if (logicalCylinders == 0)
                 logicalCylinders = 1;
@@ -516,7 +589,39 @@ void IDE64Controller::executeCommand(uint8_t value)
             return;
         }
 
-        case 0xE7:  // Flush cache
+        case 0xE1: // IDLE IMMEDIATE
+        case 0xE3: // IDLE
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0xE5: // CHECK POWER MODE
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            // 0xFF generally means active/idle, not standby.
+            registers.taskFile[REG_SECTOR_COUNT] = 0xFF;
+
+            finishCommandSuccess();
+            return;
+        }
+
+        case 0xE7: // FLUSH CACHE
         {
             activeDevice = getSelectedDevice();
 
@@ -536,9 +641,10 @@ void IDE64Controller::executeCommand(uint8_t value)
             return;
         }
 
-        case 0xEC:  // Identify Device
+        case 0xEC: // IDENTIFY DEVICE
         {
             activeDevice = getSelectedDevice();
+
             if (!activeDevice || !activeDevice->isPresent())
             {
                 failCommand(0x04);
@@ -549,13 +655,30 @@ void IDE64Controller::executeCommand(uint8_t value)
             direction = TransferDirection::TO_HOST;
             error = 0x00;
 
-            IDE64BlockDevice::DeviceInfo info = activeDevice->getDeviceInfo();
+            IDE64BlockDevice::DeviceInfo info =
+                activeDevice->getDeviceInfo();
+
             prepareIdentifyData(info);
 
-            status = 0x58;
+            status = 0x58; // DRDY + DSC + DRQ
             bufferIndex = 0;
             bufferSize = 512;
             sectorsRemaining = 0;
+            return;
+        }
+
+        case 0xEF: // SET FEATURES
+        {
+            activeDevice = getSelectedDevice();
+
+            if (!activeDevice || !activeDevice->isPresent())
+            {
+                failCommand(0x04);
+                return;
+            }
+
+            // For now, accept feature changes as a compatibility no-op.
+            finishCommandSuccess();
             return;
         }
 
