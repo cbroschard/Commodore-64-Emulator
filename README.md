@@ -17,8 +17,8 @@ This project is actively under development; expect rough edges and incomplete fe
 - **PLA memory mapping** including cartridge line behavior (GAME/EXROM) and common mapper families.
 
 ### 💾 Media & peripherals
-- **Cartridges**: `.CRT` with mapper detection (8K/16K, Ultimax, Ocean, MagicDesk, Dinamic, and more).
-- **Disks**: disk image support is a major focus; IEC behavior and drive accuracy are being actively refined.
+- **Cartridges**: `.CRT` with mapper detection (8K/16K, Ultimax, Ocean, MagicDesk, Dinamic, IDE64, and more).
+- **Disks**: disk image support- D64, D71, D81
 - **Tapes / programs**: boot loading support for common tape/program image formats.
 
 > Note: Some formats/features may work better than others at any given time—this repo is very “work in progress.”
@@ -34,7 +34,6 @@ This project is actively under development; expect rough edges and incomplete fe
 
 If you want to understand where most development energy goes, it’s roughly:
 
-- **IEC / drive behavior correctness** (1541/1571/1581-style behavior, handshakes, timing, edge cases)
 - **Cycle/timing accuracy** (raster, badlines, interrupt timing, bus contention)
 - **SID correctness** (filter routing, modulation edge cases, sample playback quirks)
 - **Usability** (cleaner UI flows for selecting media/device numbers, better monitor UX, controller mapping)
@@ -56,7 +55,7 @@ Third‑party licenses are listed in the **Licenses/** folder.
 
 Run the emulator and use the UI/menu to load images (Cartridge, Disk, Tape, Program, etc.).
 
-### Command line options
+### Command line options - deprecated
 
 ```text
   --help                Produce the help message
@@ -99,7 +98,6 @@ Build steps depend on your environment. Common setups:
 - Build with your compiler/IDE toolchain
 
 If your repo includes project files or a build system (e.g., IDE project files or CMake), follow those instructions.
-If not, adding a simple CMake build is a great next step—happy to help wire that up cleanly.
 
 ---
 
