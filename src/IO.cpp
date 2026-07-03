@@ -271,28 +271,25 @@ SDL_Color IO::getColor(uint8_t colorCode)
 {
     static const SDL_Color colors[16] =
     {
-        {0, 0, 0},
-        {255, 255, 255},
-        {171, 49, 38},
-        {102, 218, 255},
-        {187, 63, 184},
-        {85, 206, 88},
-        {0, 0, 170},
-        {234, 245, 124},
-        {221, 136, 85},
-        {102, 68, 0},
-        {255, 119, 119},
-        {51, 51, 51},
-        {119, 119, 119},
-        {170, 255, 102},
-        {0, 136, 255},
-        {187, 187, 187}
+        {0x00, 0x00, 0x00}, // black
+        {0xFF, 0xFF, 0xFF}, // white
+        {0x88, 0x40, 0x00}, // red
+        {0x68, 0xD0, 0xA8}, // cyan
+        {0xA8, 0x38, 0xA0}, // purple
+        {0x50, 0xB8, 0x18}, // green
+        {0x18, 0x10, 0x90}, // blue
+        {0xF0, 0xE8, 0x58}, // yellow
+        {0xA0, 0x48, 0x00}, // orange
+        {0x47, 0x2B, 0x1B}, // brown
+        {0xC8, 0x78, 0x70}, // light red
+        {0x48, 0x48, 0x48}, // dark gray
+        {0x80, 0x80, 0x80}, // gray
+        {0x98, 0xFF, 0x98}, // light green
+        {0x50, 0x90, 0xD0}, // light blue
+        {0xB8, 0xB8, 0xB8}  // light gray
     };
 
-    if (colorCode > 15)
-        return colors[0];
-
-    return colors[colorCode];
+    return colors[colorCode & 0x0F];
 }
 
 void IO::finishFrameAndSignal()
