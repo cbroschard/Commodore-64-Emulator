@@ -38,7 +38,7 @@ class CIA1 : public CIA6526
         // Remove the Joystick(s)
         void detachJoystickInstance(Joystick* joy);
 
-        // STate management
+        // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
