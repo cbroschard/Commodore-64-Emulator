@@ -220,12 +220,6 @@ bool StateManager::load(const std::string& path)
             if (!rdr.readU8(model)) return false;
             if (!rdr.readU8(deviceNumber)) return false;
 
-            // TODO:
-            // If you later want SYS0 to recreate drive instances/configuration,
-            // use 'model' and 'deviceNumber' here.
-            //
-            // For now we intentionally just consume the bytes so the reader
-            // stays aligned with the saved format.
             (void)model;
             (void)deviceNumber;
         }
