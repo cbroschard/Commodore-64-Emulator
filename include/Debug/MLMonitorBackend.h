@@ -29,7 +29,6 @@ class MLMonitorBackend
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
         inline void attachIOInstance(IO* io) { this->io = io; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
@@ -224,7 +223,6 @@ class MLMonitorBackend
         IO* io;
         IRQLine* irq;
         Keyboard* keyb;
-        Logging* logger;
         Memory* mem;
         PLA* pla;
         REU* reu;

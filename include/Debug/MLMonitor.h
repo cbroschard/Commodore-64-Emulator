@@ -102,7 +102,6 @@ class MLMonitor
     protected:
 
     private:
-
         // Pointers
         MLMonitorBackend* monbackend;
 

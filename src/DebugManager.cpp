@@ -95,7 +95,6 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachIOInstance(io);
     backend_->attachIRQLineInstance(irq);
     backend_->attachKeyboardInstance(keyb);
-    backend_->attachLogInstance(log);
     backend_->attachMemoryInstance(mem);
     backend_->attachPLAInstance(pla);
     backend_->attachREUInstance(reu);
