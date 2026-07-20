@@ -53,7 +53,6 @@ Computer::Computer() :
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();
     components_.keyb = std::make_unique<Keyboard>();
-    components_.logger = std::make_unique<Logging>("debug.txt");
     components_.mem = std::make_unique<Memory>();
     components_.pla = std::make_unique<PLA>();
     components_.reu = std::make_unique<REU>();
@@ -81,8 +80,6 @@ Computer::~Computer() noexcept
             // Audio shutdown
             components_.io->stopAudio();
         }
-
-        if (components_.logger) components_.logger->flush();
     }
     catch(...)
     {
