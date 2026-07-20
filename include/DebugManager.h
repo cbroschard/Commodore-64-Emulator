@@ -27,7 +27,6 @@ class IECBUS;
 class IO;
 class IRQLine;
 class Keyboard;
-class Logging;
 class Memory;
 class PLA;
 class REU;
@@ -60,7 +59,6 @@ class DebugManager
                          IO* io,
                          IRQLine* irq,
                          Keyboard* keyb,
-                         Logging* log,
                          Memory* mem,
                          PLA* pla,
                          REU* reu,
