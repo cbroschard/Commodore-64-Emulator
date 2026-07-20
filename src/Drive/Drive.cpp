@@ -14,7 +14,6 @@ Drive::Drive() :
     currentDriveStatus(DriveStatus::IDLE),
     currentDriveBusState(DriveBusState::IDLE),
     diskImage(),
-    logger(nullptr),
     currentSecondaryAddress(-1),
     waitingForAck(false),
     ackEdgeCountdown(0),

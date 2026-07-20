@@ -18,7 +18,6 @@ class FDC177x;
 #include "Drive/DriveChips.h"
 #include "Floppy/DiskFactory.h"
 #include "Peripheral.h"
-#include "Logging.h"
 
 class Drive : public Peripheral
 {
@@ -33,9 +32,6 @@ class Drive : public Peripheral
         // Clock multiplier
         virtual uint32_t clockMultiplier() const { return 1; }
         virtual double clockHz() const { return 1000000.0; }
-
-        // Pointers
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
 
         virtual void driveControlClkLine(bool clkLow);
         virtual void driveControlDataLine(bool dataLow);
@@ -140,11 +136,7 @@ class Drive : public Peripheral
         virtual IECSnapshot snapshotIEC() const;
 
     protected:
-
         std::unique_ptr<Disk> diskImage;
-
-        // Non-owning pointers
-        Logging* logger = nullptr;
 
         // Talking state
         int currentSecondaryAddress;
@@ -163,7 +155,6 @@ class Drive : public Peripheral
         std::queue<uint8_t> talkQueue;
 
     private:
-
         // Serial receiver state (legacy bit-shift state)
         bool lastClkHigh;
 };
