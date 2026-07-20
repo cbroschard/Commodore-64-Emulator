@@ -16,8 +16,6 @@ class T64 : public TapeImage
         T64();
         virtual ~T64();
 
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
-
         bool loadTape(const std::string& filePath, VideoMode mode) override;
         void rewind() override;
         void simulateLoading() override;
@@ -35,10 +33,6 @@ class T64 : public TapeImage
         std::vector<uint8_t> tapeData; // Vector to store tape data
 
     private:
-
-        // Non-owning pointers
-        Logging* logger = nullptr;
-
         bool loadFile(const std::string& path, std::vector<uint8_t>& buffer) override;
         bool validateHeader() override;
 

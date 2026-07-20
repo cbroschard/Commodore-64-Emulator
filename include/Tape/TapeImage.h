@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 #include "Common/VideoMode.h"
-#include "Logging.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 

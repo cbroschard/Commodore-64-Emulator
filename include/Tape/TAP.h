@@ -20,8 +20,6 @@ class TAP : public TapeImage
         void simulateLoading() override;
         bool currentBit() const override;
 
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
-
         // State management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
@@ -40,10 +38,6 @@ class TAP : public TapeImage
         std::vector<uint8_t> tapeData; // vector to store the tape file
 
     private:
-
-        // Non-owning pointers
-        Logging* logger = nullptr;
-
         static constexpr double PAL_CLOCK = 985248.0;
         static constexpr double NTSC_CLOCK = 1022727.0;
 
