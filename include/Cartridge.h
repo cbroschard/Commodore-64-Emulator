@@ -25,7 +25,6 @@ class Vic;
 #include "Common/Endian.h"
 #include "cpu.h"
 #include "Memory.h"
-#include "Logging.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -37,7 +36,6 @@ class Cartridge
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
@@ -161,13 +159,9 @@ class Cartridge
         inline bool romWriteEnabled(uint16_t address) const { return mapper ? mapper->romWriteEnabled(address) : false; }
         inline bool romReadHandledByMapper(uint16_t address) const { return mapper ? mapper->romReadHandledByMapper(address) : false; }
 
-        // ML Monitor logging
-        inline void setLog(bool enable) { setLogging = enable; }
-
         inline bool cpuMemoryHandledByMapper(uint16_t address) const { return mapper ? mapper->cpuMemoryHandledByMapper(address) : false;}
 
     protected:
-
         // Cartridge LO/HI location constants
         static constexpr size_t CART_LO_START = 0x8000;
         static constexpr size_t CART_HI_START = 0xA000;
@@ -180,11 +174,9 @@ class Cartridge
         uint8_t currentBank;                    // Support bank switching
 
     private:
-
         // Non-owning pointers
         CPU* cpu;
         ICartridgeHost* host;
-        Logging* logger;
         Memory* mem;
         TraceManager* traceMgr;
         Vic* vic;
@@ -205,9 +197,6 @@ class Cartridge
         // Cartridge mapping
         CartridgeType mapperType;
         CartridgeType detectType(uint16_t hardwareType);
-
-        // ML Monitor logging
-        bool setLogging;
 
         // EEPROM persistence
         std::string persistencePath;

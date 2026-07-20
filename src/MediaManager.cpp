@@ -988,7 +988,6 @@ void MediaManager::recreateCartridge()
     cart_->attachHostInstance(host_);
     cart_->attachCPUInstance(&cpu_);
     cart_->attachMemoryInstance(&mem_);
-    cart_->attachLogInstance(&logger_);
     cart_->attachTraceManagerInstance(&traceMgr_);
     cart_->attachVicInstance(&vic_);
 

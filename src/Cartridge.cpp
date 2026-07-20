@@ -49,7 +49,6 @@ Cartridge::Cartridge() :
     currentBank(0),
     cpu(nullptr),
     host(nullptr),
-    logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
@@ -57,8 +56,7 @@ Cartridge::Cartridge() :
     cartSize(0),
     exROMLine(true),
     gameLine(true),
-    mapperType(CartridgeType::GENERIC),
-    setLogging(false)
+    mapperType(CartridgeType::GENERIC)
 {
     // defaults
     header.exROMLine = true;
@@ -237,7 +235,6 @@ void Cartridge::clear()
     gameLine = true;
 
     mapperType = CartridgeType::GENERIC;
-    setLogging = false;
 
     std::memset(&header, 0, sizeof(header));
     header.exROMLine = true;
@@ -284,20 +281,10 @@ bool Cartridge::loadROM(const std::string& path)
     gameLine = true;
 
     if (!(loadFile(path, romData)))
-    {
         throw std::runtime_error("Error: Unable to load the ROM file!");
-    }
 
     if (romData.size() < sizeof(header))
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Error: Cartridge:: file is not correct size!" << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     // Parse the header info
     std::memcpy(&header, romData.data(), sizeof(header));
@@ -307,38 +294,14 @@ bool Cartridge::loadROM(const std::string& path)
     setGameLine(header.gameLine ? true : false);
 
     if (std::strncmp(header.magic, "C64 CARTRIDGE   ", sizeof(header.magic)) != 0)
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Error: Cartridge:: file is not a C64 cartridge!" << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     if (!processChipSections())
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Error: Unable to read any chip sections in the ROM!" << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     // Make sure we found at least one chip section
     if (chipSections.empty())
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Error: Unable to find a CHIP section in the ROM!" << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     // Detect type of cartridge
     mapperType = detectType(swap16(header.CartridgeHardwareType));
@@ -612,28 +575,13 @@ bool Cartridge::setCurrentBank(uint8_t bank)
         }
     }
     if (!bankFound)
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Attempted to set invalid bank: " << bank << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
+
     currentBank = bank;
 
     // Refresh memory mapping after switching banks
     if (!loadIntoMemory())
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Error: Unable to reload cartridge data for bank " << bank << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     traceActiveWindows("Bank Switch");
 
@@ -664,30 +612,14 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open())
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Failed to open file: " << path << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
     buffer.resize(size);
     if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Failed to read file: " << path << std::endl;
-            logger->WriteLog(out.str());
-        }
         return false;
-    }
 
     #ifdef Debug
     std::cout << "Read ROM file: " << path << " (" << size << " bytes)" << std::endl;
@@ -851,15 +783,7 @@ bool Cartridge::processChipSections()
     while (offset < romData.size())
     {
         if (offset + sizeof(crtChipHeader) > romData.size())
-        {
-            if (logger && setLogging)
-            {
-                std::stringstream out;
-                out << "Error: not enough space in file to process chip header!" << std::endl;
-                logger->WriteLog(out.str());
-            }
             return false;
-        }
 
         // Read from the current offset
         crtChipHeader chipHdr;
@@ -873,15 +797,7 @@ bool Cartridge::processChipSections()
         chipHdr.romSize      = swap16(chipHdr.romSize);
 
         if (std::strncmp(chipHdr.signature, "CHIP", 4) != 0)
-        {
-            if (logger && setLogging)
-            {
-                std::stringstream out;
-                out << "Error: Invalid chip section signature!" << std::endl;
-                logger->WriteLog(out.str());
-            }
             return false;
-        }
 
         // Move past the CHIP header
         offset += sizeof(chipHdr);
@@ -906,32 +822,9 @@ bool Cartridge::processChipSections()
         const uint32_t expectedPacketLength =
             static_cast<uint32_t>(sizeof(crtChipHeader)) + static_cast<uint32_t>(chipHdr.romSize);
 
-        if (expectedPacketLength != chipHdr.packetLength)
-        {
-            if (logger && setLogging)
-            {
-                std::stringstream out;
-                out << "Warning: CHIP packetLength mismatch. Expected "
-                    << expectedPacketLength << " got " << chipHdr.packetLength
-                    << " (romSize=" << chipHdr.romSize
-                    << ", usingPayloadLen=" << payloadLen << ")"
-                    << std::endl;
-                logger->WriteLog(out.str());
-            }
-        }
-
         // Validate payload fits in file
         if (offset + payloadLen > romData.size())
-        {
-            if (logger && setLogging)
-            {
-                std::stringstream out;
-                out << "Error: Unable to load ROM CHIP as it's larger than ROM data size! "
-                    << "payloadLen=" << payloadLen << std::endl;
-                logger->WriteLog(out.str());
-            }
             return false;
-        }
 
         // Store the current bank of chip data
         chipSection section;
