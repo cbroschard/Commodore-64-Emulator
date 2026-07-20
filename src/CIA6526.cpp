@@ -10,7 +10,6 @@
 #include <sstream>
 
 CIA6526::CIA6526() :
-    logger(nullptr),
     traceMgr(nullptr),
     portA(0xFF),
     portB(0xFF),
@@ -38,8 +37,7 @@ CIA6526::CIA6526() :
     cntLevel(true),
     lastCNT(true),
     shiftReg(0),
-    shiftCount(0),
-    setLogging(false)
+    shiftCount(0)
 {
     setMode(VideoMode::NTSC);
 }
@@ -100,8 +98,6 @@ void CIA6526::reset()
 
     shiftReg            = 0;
     shiftCount          = 0;
-
-    setLogging          = false;
 }
 
 void CIA6526::setMode(VideoMode mode)

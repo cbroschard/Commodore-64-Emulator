@@ -12,7 +12,6 @@
 #include <string>
 #include "Common/BCD.h"
 #include "Common/VideoMode.h"
-#include "Logging.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 #include "TraceManager.h"
@@ -23,7 +22,6 @@ class CIA6526
         CIA6526();
         virtual ~CIA6526();
 
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
         virtual void reset();
@@ -40,8 +38,6 @@ class CIA6526
         // ML Monitor API
         struct CIAIRQSnapshot { uint8_t ier; };
         virtual std::string dumpRegisters(const std::string& group) const;
-        inline void setLog(bool enable) { setLogging = enable; }
-        inline bool getSetLog() const { return setLogging; }
         void setIERExact(uint8_t mask);
         inline void clearPendingIRQs() { (void)readRegister(0xDC0D); }
         inline void disableAllIRQs() { setIERExact(0); }
@@ -101,7 +97,6 @@ class CIA6526
 
     private:
         // Non-owning pointers
-        Logging* logger;
         TraceManager* traceMgr;
 
         enum class TimerBClockSource : uint8_t
@@ -155,8 +150,6 @@ class CIA6526
         // Serial-Shift Register state
         uint8_t shiftReg; // 8-bit shift accumulator
         uint8_t shiftCount; // how many bits we’ve shifted so far
-
-        bool setLogging;
 
         VideoMode mode_;
 
