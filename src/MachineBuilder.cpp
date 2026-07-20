@@ -101,7 +101,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.vic->attachMemoryInstance(components.mem.get());
     components.vic->attachCIA2Instance(components.cia2.get());
     components.vic->attachIRQLineInstance(components.irq.get());
-    components.vic->attachLogInstance(components.logger.get());
     components.vic->attachTraceManagerInstance(&components.debug->trace());
 
     components.media = std::make_unique<MediaManager>(components.cart, components.drives, host, *components.bus, *components.mem, *components.pla,

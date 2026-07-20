@@ -19,7 +19,6 @@
 #include "CPU.h"
 #include "IO.h"
 #include "IRQLine.h"
-#include "Logging.h"
 #include "Memory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -35,7 +34,6 @@ class Vic
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
@@ -451,7 +449,6 @@ class Vic
         VicCycleSlot cycleSlotFor(int raster, int cycle) const;
 
         struct VICIRQSnapshot { uint8_t ier = 0; };
-        inline void setLog(bool enable) { setLogging = enable; }
         inline uint8_t getIER() const { return registers.interruptEnable & 0x0F; }
         inline uint8_t getIFR() const { return registers.interruptStatus & 0x0F; }
         inline bool irqLineActive() const { return (registers.interruptStatus & registers.interruptEnable & 0x0F); }
@@ -494,7 +491,6 @@ class Vic
         CPU* cpu;
         IO* io;
         IRQLine* IRQ;
-        Logging* logger;
         Memory* mem;
         TraceManager* traceMgr;
 
@@ -728,9 +724,6 @@ class Vic
 
         // Cache background opaque pixels
         std::vector<std::array<uint8_t, 512>> bgOpaque;
-
-        // ML Monitor logging
-        bool setLogging;
 
         // Multicolor helper for readRegister
         inline uint8_t getBackgroundColor(int value) const { return registers.backgroundColor[value]; }

@@ -13,7 +13,6 @@ Vic::Vic(VideoMode mode) :
     cpu(nullptr),
     io(nullptr),
     IRQ(nullptr),
-    logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
     mode_(mode),
@@ -212,9 +211,6 @@ void Vic::reset()
     // Sprite collision latches
     lastSpriteSpriteCollision = {};
     lastSpriteBackgroundCollision = {};
-
-    // ML Monitor logging default disable
-    setLogging = false;
 }
 
 void Vic::setMode(VideoMode mode)
@@ -712,14 +708,7 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(getOpenBus());
 
         default:
-        {
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Attempt to read to unhandled VIC address = " +
-                                 std::to_string(static_cast<int>(address)));
-            }
             return latchOpenBus(getOpenBus());
-        }
     }
 }
 
@@ -903,26 +892,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t newPending = registers.interruptStatus & 0x0F;
             const uint8_t newD019 = d019Read();
 
-            if (logger && setLogging)
-            {
-                std::ostringstream oss;
-                oss << "[VIC:IRQ] write D019 clear"
-                    << " raster=" << registers.raster
-                    << " cycle=" << currentCycle
-                    << " value=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(value)
-                    << " clearMask=$" << std::setw(2) << static_cast<int>(clearMask)
-                    << " oldD019=$" << std::setw(2) << static_cast<int>(oldD019)
-                    << " newD019=$" << std::setw(2) << static_cast<int>(newD019)
-                    << " oldPending=$" << std::setw(2) << static_cast<int>(oldPending)
-                    << " newPending=$" << std::setw(2) << static_cast<int>(newPending)
-                    << " IER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable & 0x0F)
-                    << std::dec << std::nouppercase << std::setfill(' ');
-
-                logger->WriteLog(oss.str());
-            }
-
             traceVicRegWrite(address, oldPending, newPending);
             updateIRQLine();
             break;
@@ -933,25 +902,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.interruptEnable & 0x0F;
 
             registers.interruptEnable = value & 0x0F;
-
-            if (logger && setLogging)
-            {
-                std::ostringstream oss;
-                oss << "[VIC:IRQ] write D01A"
-                    << " raster=" << registers.raster
-                    << " cycle=" << currentCycle
-                    << " value=$"
-                    << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(value)
-                    << " oldIER=$" << std::setw(2) << static_cast<int>(oldValue)
-                    << " newIER=$" << std::setw(2) << static_cast<int>(registers.interruptEnable & 0x0F)
-                    << " D019=$" << std::setw(2) << static_cast<int>(d019Read())
-                    << " pending=$" << std::setw(2) << static_cast<int>(registers.interruptStatus & 0x0F)
-                    << std::dec << std::nouppercase << std::setfill(' ')
-                    << " irqLineActive=" << (irqLineActive() ? 1 : 0);
-
-                logger->WriteLog(oss.str());
-            }
 
             traceVicRegWrite(address, oldValue, static_cast<uint8_t>(registers.interruptEnable & 0x0F));
             updateIRQLine();
@@ -1033,14 +983,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             break;
 
         default:
-        {
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Attempt to write to unhandled vic area address = " +
-                                 std::to_string(static_cast<int>(address)));
-            }
             break;
-        }
     }
 }
 
@@ -4624,23 +4567,6 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
 
     registers.interruptStatus |= newlySet;
     updateIRQLine();
-
-    if (logger && setLogging)
-    {
-        std::ostringstream oss;
-        oss << "[VIC:IRQ] raise"
-            << " raster=" << registers.raster
-            << " cycle=" << currentCycle
-            << " source=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << int(masked)
-            << " oldIFR=$" << std::setw(2) << int(oldStatus)
-            << " newIFR=$" << std::setw(2) << int(registers.interruptStatus)
-            << " IER=$" << std::setw(2) << int(registers.interruptEnable)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-        logger->WriteLog(oss.str());
-    }
 }
 
 void Vic::noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine)
@@ -4656,46 +4582,11 @@ void Vic::noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine)
     if (newLine >= cfg_->maxRasterLines)
         return;
 
-    // With the current model the raster IRQ comparator samples at cycle 0.
-    // Any CPU write to D011/D012 during this raster occurs after that
-    // compare point, so it cannot create a same-line raster IRQ.
     if (rasterIrqSampledThisLine || currentCycle >= rasterIRQCompareCycle())
-    {
-        if (logger && setLogging)
-        {
-            std::ostringstream oss;
-            oss << "[VIC:IRQ] retarget ignored"
-                << " raster=" << registers.raster
-                << " cycle=" << currentCycle
-                << " oldTarget=" << oldLine
-                << " newTarget=" << newLine
-                << " compareCycle=" << rasterIRQCompareCycle()
-                << " reason=compare-point-passed";
-
-            logger->WriteLog(oss.str());
-        }
-
         return;
-    }
 
     if (visibleRasterForIRQCompare() != newLine)
         return;
-
-    // This path only matters if the compare cycle is later than the current
-    // cycle. With compareCycle=0 this normally will not be reachable, but it
-    // remains useful if the compare timing is tuned again later.
-    if (logger && setLogging)
-    {
-        std::ostringstream oss;
-        oss << "[VIC:IRQ] retarget armed"
-            << " raster=" << registers.raster
-            << " cycle=" << currentCycle
-            << " oldTarget=" << oldLine
-            << " newTarget=" << newLine
-            << " compareCycle=" << rasterIRQCompareCycle();
-
-        logger->WriteLog(oss.str());
-    }
 }
 
 void Vic::sampleRasterIRQCompare(const char* reason)
@@ -4764,30 +4655,7 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
 {
     const uint16_t oldLine = registers.rasterInterruptLine;
 
-    // Preserve the 9-bit programmed IRQ target.
-    // Do not modulo it to maxRasterLines. If the target is outside
-    // the machine's raster range, the normal compare simply will not match.
     registers.rasterInterruptLine = static_cast<uint16_t>(newLine & 0x01FF);
-
-    if (logger && setLogging)
-    {
-        std::ostringstream oss;
-        oss << "[VIC:IRQ] target update"
-            << " reason=" << (reason ? reason : "unknown")
-            << " raster=" << registers.raster
-            << " cycle=" << currentCycle
-            << " value=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(writtenValue)
-            << std::dec << std::nouppercase << std::setfill(' ')
-            << " oldTarget=" << oldLine
-            << " newTarget=" << registers.rasterInterruptLine
-            << " targetInRange=" << (rasterIRQTargetInRange() ? 1 : 0)
-            << " sampledThisLine=" << (rasterIrqSampledThisLine ? 1 : 0)
-            << " compareMatchNow=" << (rasterCompareMatchesNow() ? 1 : 0);
-
-        logger->WriteLog(oss.str());
-    }
 
     noteRasterIRQRetargetIfRelevant(oldLine, registers.rasterInterruptLine);
 }
@@ -4957,31 +4825,6 @@ void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
     lastSpriteSpriteCollision.cycle = rasterPixelToCycle(firstX);
     lastSpriteSpriteCollision.bits = newlySet;
 
-    if (logger && setLogging)
-    {
-        const int approxCycle = rasterPixelToCycle(firstX);
-        const int approxDot = firstX;
-
-        std::ostringstream oss;
-        oss << "[VIC:COLL] sprite-sprite"
-            << " raster=" << raster
-            << " firstX=" << firstX
-            << " approxCycle=" << approxCycle
-            << " approxDot=" << approxDot
-            << " bits=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(bits)
-            << " old=$" << std::setw(2)
-            << static_cast<int>(old)
-            << " new=$" << std::setw(2)
-            << static_cast<int>(registers.spriteCollision)
-            << " newlySet=$" << std::setw(2)
-            << static_cast<int>(newlySet)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-        logger->WriteLog(oss.str());
-    }
-
     raiseVicIRQSource(0x02);
 }
 
@@ -5007,31 +4850,6 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
     lastSpriteBackgroundCollision.x = firstX;
     lastSpriteBackgroundCollision.cycle = rasterPixelToCycle(firstX);
     lastSpriteBackgroundCollision.bits = newlySet;
-
-    if (logger && setLogging)
-    {
-        const int approxCycle = rasterPixelToCycle(firstX);
-        const int approxDot = firstX;
-
-        std::ostringstream oss;
-        oss << "[VIC:COLL] sprite-background"
-            << " raster=" << raster
-            << " firstX=" << firstX
-            << " approxCycle=" << approxCycle
-            << " approxDot=" << approxDot
-            << " bits=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-            << static_cast<int>(bits)
-            << " old=$" << std::setw(2)
-            << static_cast<int>(old)
-            << " new=$" << std::setw(2)
-            << static_cast<int>(registers.spriteDataCollision)
-            << " newlySet=$" << std::setw(2)
-            << static_cast<int>(newlySet)
-            << std::dec << std::nouppercase << std::setfill(' ');
-
-        logger->WriteLog(oss.str());
-    }
 
     raiseVicIRQSource(0x04);
 }
