@@ -12,10 +12,8 @@
 SID::SID(double sampleRate) :
     sidModel_(SIDModel::MOS6581),
     processor(nullptr),
-    logger(nullptr),
     traceMgr(nullptr),
     vicII(nullptr),
-    setLogging(false),
     mode_(VideoMode::NTSC), // default to NTSC
     hpPrevIn(0.0),
     hpPrevOut(0.0),

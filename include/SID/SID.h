@@ -18,7 +18,6 @@
 #include <queue>
 #include <sstream>
 #include "Common/VideoMode.h"
-#include "Logging.h"
 #include "Debug/TraceManager.h"
 #include "SID/Filter.h"
 #include "SID/Mixer.h"
@@ -39,7 +38,6 @@ class SID
         virtual ~SID();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
@@ -72,7 +70,6 @@ class SID
 
         // ML Monitor access
         std::string dumpRegisters(const std::string& group);
-        inline void setLog(bool enable) { setLogging = enable; }
         inline int getAudioBufferedSamples() const { return audioBufferedSamples.load(std::memory_order_relaxed); }
         std::string dumpAudioStats() const;
         std::string dumpCutoffTable() const;
@@ -85,7 +82,6 @@ class SID
 
         // Non owning pointers
         CPU* processor;
-        Logging* logger;
         TraceManager* traceMgr;
         Vic* vicII;
 
@@ -100,9 +96,6 @@ class SID
         };
 
         AnalogProfile getAnalogProfile() const;
-
-        // Monitor logging
-        bool setLogging;
 
         // buffer
         RingBuffer<8192> audioBuf;

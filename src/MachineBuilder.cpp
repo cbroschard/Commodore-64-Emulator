@@ -104,7 +104,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cpu->setVICBusArbitrationEnabled(true);
 
     components.sid->attachCPUInstance(components.cpu.get());
-    components.sid->attachLogInstance(components.logger.get());
     components.sid->attachTraceManagerInstance(&components.debug->trace());
     components.sid->attachVicInstance(components.vic.get());
 
