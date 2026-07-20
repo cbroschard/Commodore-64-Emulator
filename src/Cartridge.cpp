@@ -818,10 +818,6 @@ bool Cartridge::processChipSections()
             }
         }
 
-        // Warn (do not fail) on packet length mismatch
-        const uint32_t expectedPacketLength =
-            static_cast<uint32_t>(sizeof(crtChipHeader)) + static_cast<uint32_t>(chipHdr.romSize);
-
         // Validate payload fits in file
         if (offset + payloadLen > romData.size())
             return false;
