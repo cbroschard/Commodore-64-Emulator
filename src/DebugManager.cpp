@@ -23,7 +23,6 @@
 #include "IO.h"
 #include "IRQLine.h"
 #include "keyboard.h"
-#include "Logging.h"
 #include "Memory.h"
 #include "PLA.h"
 #include "REU.h"
