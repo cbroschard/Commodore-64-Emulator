@@ -1851,40 +1851,6 @@ void MLMonitorBackend::irqRestore()
     cia2->restoreIRQs(snapshot.cia2);
 }
 
-void MLMonitorBackend::setLogging(LogSet log, bool enabled)
-{
-    switch (log)
-    {
-        case LogSet::Cartridge: if (cart) cart->setLog(enabled); break;
-        case LogSet::Cassette: if (cass) cass->setLog(enabled); break;
-        case LogSet::CIA1: if (cia1) cia1->setLog(enabled); break;
-        case LogSet::CIA2: if (cia2) cia2->setLog(enabled); break;
-        case LogSet::CPU: if (cpu) cpu->setLog(enabled); break;
-        case LogSet::IO: if (io) io->setLog(enabled); break;
-        case LogSet::Joystick:
-        {
-            Joystick* joy1 = comp->getJoy1();
-            if (joy1)
-            {
-                joy1->attachLogInstance(logger);
-                joy1->setLog(enabled);
-            }
-
-            Joystick* joy2 = comp->getJoy2();
-            if (joy2)
-            {
-                joy2->attachLogInstance(logger);
-                joy2->setLog(enabled);
-            }
-            break;
-        }
-        case LogSet::Keyboard: if (keyb) keyb->setLog(enabled); break;
-        case LogSet::Memory: if (mem) mem->setLog(enabled); break;
-        case LogSet::PLA: if (pla) pla->setLog(enabled); break;
-        case LogSet::VIC: if (vic) vic->setLog(enabled); break;
-    }
-}
-
 void MLMonitorBackend::setPC(uint16_t value)
 {
     if (!cpu)

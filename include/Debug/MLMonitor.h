@@ -29,7 +29,6 @@
 #include "Debug/GoCommand.h"
 #include "Debug/IECCommand.h"
 #include "Debug/IRQCommand.h"
-#include "Debug/LogCommand.h"
 #include "Debug/MemoryDumpCommand.h"
 #include "Debug/MemoryEditCommand.h"
 #include "Debug/MemoryEditDirectCommand.h"

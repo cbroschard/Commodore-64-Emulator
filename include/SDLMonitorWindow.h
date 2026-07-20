@@ -9,9 +9,8 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "sdl2/SDL.h"
+#include "sdl2/sdl.h"
 
-// Struct to hold text and its specific color
 struct ConsoleLine
 {
     std::string text;

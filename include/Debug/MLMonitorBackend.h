@@ -152,9 +152,6 @@ class MLMonitorBackend
         inline void setCIA1IER(uint8_t m) { if (cia1) cia1->setIERExact(m & 0x1F); }
         inline void setCIA2IER(uint8_t m) { if (cia2) cia2->setIERExact(m & 0x1F); }
 
-        // ML Monitor Logging enable/disable
-        void setLogging(LogSet log, bool enabled);
-
         // ML Monitor Memory methods
         inline Memory* getMem() { return mem; }
         inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
