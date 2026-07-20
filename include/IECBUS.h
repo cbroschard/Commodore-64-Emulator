@@ -15,7 +15,6 @@ class CIA2;
 #include <vector>
 #include <map>
 #include "IECTypes.h"
-#include "Logging.h"
 #include "Peripheral.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -60,7 +59,6 @@ class IECBUS
 
         // Pointers
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -136,7 +134,6 @@ class IECBUS
 
         // Non-owning pointers
         CIA2* cia2;
-        Logging* logger;
         Peripheral* currentTalker;
 
         // Clock

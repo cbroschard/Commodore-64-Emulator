@@ -32,7 +32,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                  components.mem.get(), components.pla.get(), components.sid.get(), components.vic.get());
 
     components.bus->attachCIA2Instance(components.cia2.get());
-    components.bus->attachLogInstance(components.logger.get());
 
     components.cart->attachCPUInstance(components.cpu.get());
     components.cart->attachHostInstance(host);
