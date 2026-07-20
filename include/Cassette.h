@@ -14,7 +14,6 @@ class Memory;
 #include <iostream>
 #include "Common/C64MemoryMap.h"
 #include "Common/TapeTypes.h"
-#include "Logging.h"
 #include "Memory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -27,7 +26,6 @@ class Cassette
         virtual ~Cassette();
 
         // Pointers
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
         // State management
@@ -65,17 +63,13 @@ class Cassette
 
         // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;
-        inline void setLog(bool enable) { setLogging = enable; }
-
 
     protected:
 
     private:
-
         std::unique_ptr<TapeImage> tapeImage;
 
         // Non-owning pointers
-        Logging* logger;
         Memory* mem;
 
         // Cassette status
@@ -84,9 +78,6 @@ class Cassette
         bool motorStatus;
         size_t tapePosition;
         uint8_t data;
-
-        // ML Monitor logging
-        bool setLogging;
 };
 
 #endif // CASSETTE_H

@@ -42,7 +42,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cart->attachVicInstance(components.vic.get());
 
     components.cass->attachMemoryInstance(components.mem.get());
-    components.cass->attachLogInstance(components.logger.get());
 
     components.cia1->attachCassetteInstance(components.cass.get());
     components.cia1->attachCPUInstance(components.cpu.get());
