@@ -10,7 +10,6 @@
 PLA::PLA() :
     cart(nullptr),
     cpu(nullptr),
-    logger(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
     lastModeIndex(0xFF),
@@ -70,9 +69,6 @@ void PLA::reset()
 
     // Default memory control register state on power on
     updateMemoryControlRegister(0x37);
-
-    // ML Monitor logging default off
-    setLogging = false;
 }
 
 void PLA::updateMemoryControlRegister(uint8_t value)

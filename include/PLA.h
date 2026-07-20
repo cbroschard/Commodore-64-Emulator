@@ -16,7 +16,6 @@ class TraceManager;
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
-#include "Logging.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 #include "Vic.h"
@@ -48,7 +47,6 @@ class PLA
 
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -85,7 +83,6 @@ class PLA
         // ML Monitor API
         std::string describeAddress(uint16_t addr);
         std::string describeMode();
-        inline void setLog(bool enable) { setLogging = enable; }
 
     protected:
 
@@ -94,7 +91,6 @@ class PLA
         // Non-owning pointers
         Cartridge* cart;
         CPU* cpu;
-        Logging* logger;
         TraceManager* traceMgr;
         Vic* vic;
 
@@ -116,9 +112,6 @@ class PLA
 
         // Memory control register $0001
         uint8_t memoryControlRegister;
-
-        // ML Monitor logging
-        bool setLogging;
 
         // Tracing
         uint8_t lastModeIndex;
