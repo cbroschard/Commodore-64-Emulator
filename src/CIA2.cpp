@@ -11,7 +11,6 @@
 CIA2::CIA2() :
     cpu(nullptr),
     bus(nullptr),
-    logger(nullptr),
     rs232dev(nullptr),
     vic(nullptr),
     iecProtocolEnabled(false)

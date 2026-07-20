@@ -18,7 +18,6 @@ class Vic;
 #include "CIA6526.h"
 #include "Common/BCD.h"
 #include "IECBUS.h"
-#include "Logging.h"
 #include "RS232Device.h"
 
 class CIA2 : public CIA6526
@@ -28,7 +27,6 @@ class CIA2 : public CIA6526
         virtual ~CIA2();
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; recomputeIEC(); }
         inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
@@ -94,11 +92,9 @@ class CIA2 : public CIA6526
         TraceManager::Stamp makeCIAStamp() const override;
 
     private:
-
         // non-owning pointers
         CPU* cpu;
         IECBUS* bus;
-        Logging* logger;
         RS232Device* rs232dev;
         Vic* vic;
 
