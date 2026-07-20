@@ -20,7 +20,6 @@ class StateWriter;
 #include "Common/BCD.h"
 #include "CPUBus.h"
 #include "IRQLine.h"
-#include "Logging.h"
 #include "StateReader.h"
 #include "Vic.h"
 #include "Debug/TraceManager.h"
@@ -34,7 +33,6 @@ class CPU
 
         // Pointers
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
@@ -555,7 +553,6 @@ class CPU
         inline bool getUseMicroOps() const { return useMicroOps; }
 
         // ML Monitor
-        inline void setLog(bool enable) { setLogging = enable; }
         inline uint32_t getTotalCycles() const { return totalCycles; }
 
         void postLoadState();
@@ -567,7 +564,6 @@ class CPU
         // non-owning pointers
         CIA2* cia2;
         IRQLine* IRQ;
-        Logging* logger;
         CPUBus* mem;
         TraceManager* traceMgr;
         Vic* vic;
@@ -851,9 +847,6 @@ class CPU
         // Last executed instruction diagnostics
         uint16_t lastOpcodePC;
         uint8_t lastOpcode;
-
-        // ML Monitor logging
-        bool setLogging;
 
         // SO handling
         bool soLevel;

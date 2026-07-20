@@ -13,7 +13,6 @@ CPU::CPU() :
     // Initialize
     cia2(nullptr),
     IRQ(nullptr),
-    logger(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
@@ -65,7 +64,6 @@ CPU::CPU() :
     PC(0),
     lastOpcodePC(0),
     lastOpcode(0xEA),
-    setLogging(false),
     rdyLine(true),
     aecLine(true),
     vicBusArbitrationEnabled(false),
@@ -233,7 +231,6 @@ void CPU::reset()
     aecLine                     = true;
     pendingOpcodeFetch          = false;
     pendingOpcodeAddress        = 0;
-    setLogging                  = false;
     nmiPending                  = false;
     nmiLine                     = false;
     irqSuppressOne              = false;
@@ -1335,19 +1332,6 @@ void CPU::tick()
             lastOpcodePC = pcExec;
             lastOpcode = opcode;
 
-            if (logger && setLogging)
-            {
-                std::stringstream message;
-                message << "PC = " << std::hex << static_cast<int>(PC - 1)
-                        << ", OPCODE = " << std::hex << static_cast<int>(opcode)
-                        << ", A = " << std::hex << static_cast<int>(A)
-                        << ", X = " << std::hex << static_cast<int>(X)
-                        << ", Y= " << std::hex << static_cast<int>(Y)
-                        << ", SP = " << std::hex << static_cast<int>(SP);
-
-                logger->WriteLog(message.str());
-            }
-
             // This is debug/status only in legacy mode.
             lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
             lastOpcodeUsedMicroOps = false;
@@ -1403,16 +1387,7 @@ uint8_t CPU::fetchOperand()
 void CPU::decodeAndExecute(uint8_t opcode)
 {
     if (opcodeTable[opcode])
-    {
         opcodeTable[opcode]();
-    }
-    else
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Unhandled opcode: " + std::to_string(opcode));
-        }
-    }
 }
 
 void CPU::setFlag(flags flag, bool sc)
