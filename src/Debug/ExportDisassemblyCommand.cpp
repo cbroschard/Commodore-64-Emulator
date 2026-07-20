@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "6502/Disassembler.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"

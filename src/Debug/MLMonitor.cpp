@@ -6,8 +6,32 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Debug/AssembleCommand.h"
+#include "Debug/BreakpointCommand.h"
+#include "Debug/CartridgeCommand.h"
+#include "Debug/CIACommand.h"
+#include "Debug/CPUCommand.h"
+#include "Debug/DisassembleCommand.h"
+#include "Debug/DriveCommand.h"
+#include "Debug/ExportDisassemblyCommand.h"
+#include "Debug/GoCommand.h"
+#include "Debug/IECCommand.h"
+#include "Debug/IRQCommand.h"
+#include "Debug/MemoryDumpCommand.h"
+#include "Debug/MemoryEditCommand.h"
+#include "Debug/MemoryEditDirectCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
+#include "Debug/NextCommand.h"
+#include "Debug/PLACommand.h"
+#include "Debug/ResetCommand.h"
+#include "Debug/REUCommand.h"
+#include "Debug/SIDCommand.h"
+#include "Debug/StepCommand.h"
+#include "Debug/TapeCommand.h"
+#include "Debug/TraceCommand.h"
+#include "Debug/VICCommand.h"
+#include "Debug/WatchCommand.h"
+#include "Debug/MonitorCommand.h"
 
 MLMonitor::MLMonitor() :
     monbackend(nullptr),

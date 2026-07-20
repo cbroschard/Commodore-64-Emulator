@@ -18,36 +18,12 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "Debug/AssembleCommand.h"
-#include "Debug/BreakpointCommand.h"
-#include "Debug/CartridgeCommand.h"
-#include "Debug/CIACommand.h"
-#include "Debug/CPUCommand.h"
-#include "Debug/DisassembleCommand.h"
-#include "Debug/DriveCommand.h"
-#include "Debug/ExportDisassemblyCommand.h"
-#include "Debug/GoCommand.h"
-#include "Debug/IECCommand.h"
-#include "Debug/IRQCommand.h"
-#include "Debug/MemoryDumpCommand.h"
-#include "Debug/MemoryEditCommand.h"
-#include "Debug/MemoryEditDirectCommand.h"
-#include "Debug/NextCommand.h"
-#include "Debug/PLACommand.h"
-#include "Debug/ResetCommand.h"
-#include "Debug/REUCommand.h"
-#include "Debug/SIDCommand.h"
-#include "Debug/StepCommand.h"
-#include "Debug/TapeCommand.h"
-#include "Debug/TraceCommand.h"
-#include "Debug/VICCommand.h"
-#include "Debug/WatchCommand.h"
-#include "Debug/MonitorCommand.h"
 #include "imgui/imgui.h"
 
 // Forward declarations
 class Computer;
 class MLMonitorBackend;
+class MonitorCommand;
 
 class MLMonitor
 {

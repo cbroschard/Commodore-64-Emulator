@@ -1,4 +1,6 @@
 #include <SDL2/sdl.h>
+#include "Cartridge.h"
+#include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
