@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CIA1.h"
 #include "Memory.h"
 
 Memory::Memory() :
@@ -13,7 +14,6 @@ Memory::Memory() :
     cia2(nullptr),
     cass(nullptr),
     cpu(nullptr),
-    logger(nullptr),
     monitor(nullptr),
     pla(nullptr),
     reu(nullptr),
@@ -26,8 +26,7 @@ Memory::Memory() :
     cassetteSenseLow(false),
     dataDirectionRegister(0x2F),
     port1OutputLatch(0x37),
-    lastBus(0xFF),
-    setLogging(false)
+    lastBus(0xFF)
 {
     mem.resize(MAX_MEMORY,0);
     basicROM.resize(BASIC_ROM_SIZE,0);
@@ -288,19 +287,9 @@ uint8_t Memory::read(uint16_t address)
             return RET(readIO(accessInfo.offset));
         }
         case PLA::UNMAPPED:
-        {
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Attempt to read from unmapped address: " + std::to_string(address));
-            }
             return RET(lastBus); // Open Bus
-        }
     }
-    // Default for no match
-    if (logger && setLogging)
-    {
-        logger->WriteLog("Attempt to read from invalid address: " + std::to_string(address));
-    }
+
     return RET(0xFF); // invalid address
 }
 
@@ -511,15 +500,7 @@ uint8_t Memory::readIO(uint16_t address)
             return cart->read(address);
         return lastBus;
     }
-    else
-    {
-        if (logger && setLogging)
-        {
-            std::stringstream message;
-            message << "Unknown I/O read at address: " << std::hex << address << std::endl;
-            logger->WriteLog(message.str());
-        }
-    }
+
     return lastBus;
 }
 
@@ -561,13 +542,6 @@ void Memory::write(uint16_t address, uint8_t value)
 
         applyPort1SideEffects(effective);
 
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Updated DDR to value: " << static_cast<int>(value)
-                << " computed effective: " << static_cast<int>(effective);
-            logger->WriteLog(out.str());
-        }
         return;
     }
     else if (address == 0x0001)
@@ -589,13 +563,6 @@ void Memory::write(uint16_t address, uint8_t value)
 
         applyPort1SideEffects(effective);
 
-        if (logger && setLogging)
-        {
-            std::stringstream out;
-            out << "Updated MCR to value: " << static_cast<int>(value)
-                << " computed effective: " << static_cast<int>(effective);
-            logger->WriteLog(out.str());
-        }
         return;
     }
 
@@ -685,10 +652,6 @@ void Memory::write(uint16_t address, uint8_t value)
         }
         case PLA::UNMAPPED:
         {
-            if (logger && setLogging)
-            {
-                logger->WriteLog("Attempt to write to unmapped address: " + std::to_string(address));
-            }
             break;
         }
     }
@@ -871,11 +834,7 @@ void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation locati
             break;
         }
         default:
-        {
-            if (logger && setLogging)
-                logger->WriteLog("Attempt to write to unknown cartridge vector");
             break;
-        }
     }
 }
 
@@ -983,47 +942,21 @@ void Memory::writeIO(uint16_t address, uint8_t value)
             return;
         }
     }
-    else
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Unknown I/O write at address: " + std::to_string(address));
-        }
-    }
 }
 
 bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file.is_open())
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Unable to open " + romName + " ROM file: " + filename);
-        }
         return false;
-    }
 
     std::streamsize fileSize = file.tellg();
     if (static_cast<size_t>(fileSize) != expectedSize)
-    {
-        if (logger && setLogging)
-        {
-        logger->WriteLog("Error: " + romName + " ROM file is not correct size! Expected " +
-                         std::to_string(expectedSize) + " bytes, got " + std::to_string(fileSize) + " bytes.");
-        }
         return false;
-    }
 
     file.seekg(0, std::ios::beg);
     if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), expectedSize))
-    {
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Error: Failed to read " + romName + " ROM file: " + filename);
-        }
         return false;
-    }
 
     file.close();
     return true;

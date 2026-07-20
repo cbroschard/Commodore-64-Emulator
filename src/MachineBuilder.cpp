@@ -70,7 +70,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.mem->attachPLAInstance(components.pla.get());
     components.mem->attachREUInstance(components.reu.get());
     components.mem->attachMonitorInstance(&components.debug->monitor());
-    components.mem->attachLogInstance(components.logger.get());
     components.mem->attachTraceManagerInstance(&components.debug->trace());
 
     components.inputMgr->attachCIA1Instance(components.cia1.get());

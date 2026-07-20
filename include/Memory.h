@@ -23,12 +23,10 @@ class CIA1;
 #include <vector>
 #include "Cartridge.h"
 #include "Cassette.h"
-#include "CIA1.h"
 #include "CIA2.h"
 #include "Common/CartridgeTypes.h"
 #include "CPU.h"
 #include "CPUBus.h"
-#include "Logging.h"
 #include "Mlmonitor.h"
 #include "PLA.h"
 #include "REU.h"
@@ -51,7 +49,6 @@ class Memory : public CPUBus
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
@@ -97,20 +94,15 @@ class Memory : public CPUBus
         inline uint8_t getCartLOByte(uint16_t offset) const { return (offset < cart_lo.size()) ? cart_lo[offset] : 0xFF; }
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
 
-        // ML Monitor logging
-        inline void setLog(bool enable) { setLogging = enable; }
-
-    protected:
+        protected:
 
     private:
-
         // Non-owning pointers
         Cartridge* cart;
         CIA1* cia1;
         CIA2* cia2;
         Cassette* cass;
         CPU* cpu;
-        Logging* logger;
         MLMonitor* monitor;
         PLA* pla;
         REU* reu;
@@ -162,9 +154,6 @@ class Memory : public CPUBus
 
         // Open bus
         uint8_t lastBus;
-
-        // ML Monitor logging
-        bool setLogging;
 
         uint8_t readIO(uint16_t address);
         void writeIO(uint16_t address, uint8_t value);
