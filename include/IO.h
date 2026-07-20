@@ -21,7 +21,6 @@ class Vic;
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl2.h"
 #include "imgui/imgui_impl_sdlrenderer2.h"
-#include "Logging.h"
 #include "sdl2/sdl.h"
 #include "SDLMonitorWindow.h"
 #include "SID/SID.h"
@@ -41,7 +40,6 @@ class IO
 
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
-        inline void attachLogInstance(Logging* logger) { this->logger = logger; }
 
         // Functions to update the border and background colors called by the VIC class
         void renderBackgroundLine(int row, uint8_t color, int x0, int x1);
@@ -77,14 +75,10 @@ class IO
         inline void setGuiCallback(std::function<void()> fn) { guiCallback = std::move(fn); }
         inline void setInputCallback(std::function<void(const SDL_Event&)> cb) { inputCallback = std::move(cb); }
 
-        // ML Monitor logging
-        inline void setLog(bool enable) { setLogging = enable; }
-
         inline void setMonitorOpenCallback(std::function<bool()> fn) { monitorOpenCallback = std::move(fn); }
 
     private:
         // Non-owning pointers
-        Logging* logger;
         SID* sid;
         Vic* vic;
 
@@ -117,8 +111,6 @@ class IO
         uint32_t palette32[16];
 
         std::mutex renderMut;
-
-        bool setLogging;
 
         // Color helpers
         SDL_Color getColor(uint8_t colorCode);

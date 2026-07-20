@@ -26,15 +26,13 @@ IO::IO() :
     borderSize(32),
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
-    logger(nullptr),
     sid(nullptr),
     vic(nullptr),
     window(nullptr),
     renderer(nullptr),
     screenTexture(nullptr),
     dev(0),
-    readyBuffer(nullptr),
-    setLogging(false)
+    readyBuffer(nullptr)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
     {
