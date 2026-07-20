@@ -31,7 +31,6 @@ class D1581;
 class Drive;
 class ICartridgeHost;
 class IECBUS;
-class Logging;
 class Memory;
 class MLMonitorBackend;
 class PLA;
@@ -56,7 +55,6 @@ public:
                  MLMonitorBackend& monbackend,
                  TraceManager& traceMgr,
                  Cassette& cass,
-                 Logging& logger,
                  std::string D1541LoROM,
                  std::string D1541HiROM,
                  std::string D1571ROM,
@@ -186,7 +184,6 @@ private:
     MLMonitorBackend&   monbackend_;
     TraceManager&       traceMgr_;
     Cassette&           cass_;
-    Logging&            logger_;
 
     std::string D1541LoROM_;
     std::string D1541HiROM_;

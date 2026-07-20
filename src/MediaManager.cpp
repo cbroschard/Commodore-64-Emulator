@@ -25,7 +25,6 @@
 #include "Drive/IDrivePositionView.h"
 #include "Drive/IDriveUiView.h"
 #include "IECBUS.h"
-#include "Logging.h"
 #include "Memory.h"
 #include "Debug/MLMonitorBackend.h"
 #include "PLA.h"
@@ -45,7 +44,6 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
                            MLMonitorBackend& monbackend,
                            TraceManager& traceMgr,
                            Cassette& cass,
-                           Logging& logger,
                            std::string D1541LoROM,
                            std::string D1541HiROM,
                            std::string D1571ROM,
@@ -64,7 +62,6 @@ MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
       monbackend_(monbackend),
       traceMgr_(traceMgr),
       cass_(cass),
-      logger_(logger),
       D1541LoROM_(std::move(D1541LoROM)),
       D1541HiROM_(std::move(D1541HiROM)),
       D1571ROM_(std::move(D1571ROM)),
