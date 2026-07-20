@@ -7,12 +7,9 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Keyboard.h"
 #include "CPU.h"
-#include "Logging.h"
 
 Keyboard::Keyboard() :
     cpu(nullptr),
-    logger(nullptr),
-    setLogging(false),
     keyProcessed(false),
     shiftPressed(false)
 {
@@ -177,13 +174,7 @@ void Keyboard::initKeyboard()
 void Keyboard::processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown)
 {
     keyProcessed = false;
-    if (logger && setLogging)
-    {
-        logger->WriteLog("processKey called: keycode = " + std::to_string(keycode) +
-                         ", scancode = " + std::to_string(scancode) +
-                         ", isKeyDown = " + (isKeyDown ? "true" : "false") +
-                         ", shiftPressed = " + (shiftPressed ? "true" : "false"));
-    }
+
     if (shiftPressed)
     {
         // Get the shifted character variant.
@@ -241,13 +232,6 @@ void Keyboard::processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKey
 
 void Keyboard::handleKeyDown(SDL_Scancode key)
 {
-    if (logger && setLogging)
-    {
-        logger->WriteLog(
-            "Key Down Event: SDL Scancode = " +
-            std::to_string(key));
-    }
-
     // C64 RESTORE directly asserts the CPU NMI line.
     if (key == SDL_SCANCODE_PAGEUP)
     {
@@ -294,9 +278,6 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
     {
         shiftPressed = true;
 
-        if (logger && setLogging)
-            logger->WriteLog("Shift Key Pressed");
-
         if (keyMap.find(key) != keyMap.end())
         {
             auto [row, col] = keyMap[key];
@@ -311,13 +292,6 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
 
 void Keyboard::handleKeyUp(SDL_Scancode key)
 {
-    if (logger && setLogging)
-    {
-        logger->WriteLog(
-            "Key Up Event: SDL Scancode = " +
-            std::to_string(key));
-    }
-
     if (key == SDL_SCANCODE_PAGEUP)
     {
         if (cpu)
@@ -386,9 +360,6 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
             keyMatrix[row] |= (1 << col);
         }
 
-        if (logger && setLogging)
-            logger->WriteLog("Shift Key Released");
-
         return;
     }
 
@@ -400,11 +371,6 @@ uint8_t Keyboard::readRow(uint8_t rowIndex)
     if (rowIndex < 8)
     {
         uint8_t state = keyMatrix[rowIndex];
-        if (logger && setLogging)
-        {
-            logger->WriteLog("Keyboard readRow: rowIndex = " + std::to_string(rowIndex) +
-                 ", keyMatrix[rowIndex] = " + std::to_string(keyMatrix[rowIndex]));
-        }
         return state;
     }
     else
@@ -415,15 +381,7 @@ uint8_t Keyboard::readRow(uint8_t rowIndex)
 
 void Keyboard::simulateKeyPress(uint8_t row, uint8_t col)
 {
-    if (logger && setLogging)
-    {
-        logger->WriteLog("Before simulateKeyPress: keyMatrix[" + std::to_string(row) + "] = " + std::to_string(keyMatrix[row]));
-    }
     keyMatrix[row] &= ~(1 << col); // Simulate key press by clearing the bit
-    if (logger && setLogging)
-    {
-        logger->WriteLog("After simulateKeyPress: keyMatrix[" + std::to_string(row) + "] = " + std::to_string(keyMatrix[row]));
-    }
 }
 
 void Keyboard::resetKeyboard()
@@ -433,10 +391,6 @@ void Keyboard::resetKeyboard()
         keyMatrix[i] = 0xFF; // Reset all keys to unpressed
     }
     shiftPressed = false;
-    if (logger && setLogging)
-    {
-        logger->WriteLog("Keyboard state reset.");
-    }
 }
 
 char Keyboard::getShiftVariant(SDL_Keycode keycode)

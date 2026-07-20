@@ -47,14 +47,12 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cia1->attachCPUInstance(components.cpu.get());
     components.cia1->attachIRQLineInstance(components.irq.get());
     components.cia1->attachKeyboardInstance(components.keyb.get());
-    components.cia1->attachLogInstance(components.logger.get());
     components.cia1->attachMemoryInstance(components.mem.get());
     components.cia1->attachTraceManagerInstance(&components.debug->trace());
     components.cia1->attachVicInstance(components.vic.get());
 
     components.cia2->attachCPUInstance(components.cpu.get());
     components.cia2->attachIECBusInstance(components.bus.get());
-    components.cia2->attachLogInstance(components.logger.get());
     components.cia2->attachTraceManagerInstance(&components.debug->trace());
     components.cia2->attachVicInstance(components.vic.get());
 
@@ -64,7 +62,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.io->setMonitorOpenCallback([&components]() -> bool { return components.debug && components.debug->monitorController().isOpen();});
 
     components.keyb->attachCPUInstance(components.cpu.get());
-    components.keyb->attachLogInstance(components.logger.get());
 
     components.mem->attachCPUInstance(components.cpu.get());
     components.mem->attachVICInstance(components.vic.get());

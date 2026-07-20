@@ -26,7 +26,6 @@ class Keyboard
         virtual ~Keyboard();
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu;; }
-        inline void attachLogInstance(Logging* logger) { this->logger=logger; }
 
         // Define the 8x8 matrix to represent the keyboard (8 rows, 8 columns)
         uint8_t keyMatrix[8];
@@ -45,18 +44,11 @@ class Keyboard
         void handleKeyDown(SDL_Scancode key);
         void handleKeyUp(SDL_Scancode key);
 
-        // ML Monitor logging
-        inline void setLog(bool enable) { setLogging = enable; }
-
     protected:
 
     private:
         // non-owning pointers
         CPU* cpu;
-        Logging* logger;
-
-        // ML Monitor logging
-        bool setLogging;
 
         void initKeyboard();
         void processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown); // Helper for Key up and Key down methods
