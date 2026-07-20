@@ -24,7 +24,6 @@ class CPU;
 class Drive;
 class IECBUS;
 class InputManager;
-class Logging;
 class MediaManager;
 class Memory;
 class PLA;
@@ -43,7 +42,6 @@ class StateManager
                      CPU& processor,
                      IECBUS& bus,
                      InputManager& inputMgr,
-                     Logging& logger,
                      MediaManager& media,
                      Memory& mem,
                      PLA& pla,
@@ -73,7 +71,6 @@ class StateManager
         CPU& processor_;
         IECBUS& bus_;
         InputManager& inputMgr_;
-        Logging& logger_;
         MediaManager& media_;
         Memory& mem_;
         PLA& pla_;

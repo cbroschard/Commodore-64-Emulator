@@ -22,7 +22,6 @@
 #include "InputRouter.h"
 #include "IRQLine.h"
 #include "keyboard.h"
-#include "Logging.h"
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
@@ -51,7 +50,6 @@ struct MachineComponents
     std::unique_ptr<InputRouter> inputRouter;
     std::unique_ptr<IRQLine> irq;
     std::unique_ptr<Keyboard> keyb;
-    std::unique_ptr<Logging> logger;
     std::unique_ptr<MediaManager> media;
     std::unique_ptr<Memory> mem;
     std::unique_ptr<PLA> pla;

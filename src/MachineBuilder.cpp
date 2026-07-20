@@ -131,10 +131,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                       [&sidModel = runtime.sidModel]() -> bool { return sidModel == SIDModel::MOS8580; },
                                                       [&components]() -> bool {return components.debug && components.debug->monitorController().isOpen();});
 
-    components.stateMgr = std::make_unique<StateManager>(*components.cart, *components.cass, *components.cia1, *components.cia2,
-                                                          *components.cpu, *components.bus, *components.inputMgr, *components.logger,
-                                                          *components.media, *components.mem, *components.pla, *components.reu,
-                                                          *components.sid, *components.vic, runtime.uiPaused, runtime.videoMode,
-                                                          runtime.sidModel, runtime.cpuCfg, runtime.pendingBusPrime, runtime.busPrimedAfterBoot,
-                                                          components.drives);
+    components.stateMgr = std::make_unique<StateManager>(*components.cart, *components.cass, *components.cia1, *components.cia2, *components.cpu,
+                                                         *components.bus, *components.inputMgr, *components.media, *components.mem, *components.pla,
+                                                         *components.reu, *components.sid, *components.vic, runtime.uiPaused, runtime.videoMode,
+                                                         runtime.sidModel, runtime.cpuCfg, runtime.pendingBusPrime, runtime.busPrimedAfterBoot,
+                                                         components.drives);
 }

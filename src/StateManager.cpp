@@ -13,7 +13,6 @@
 #include "Drive/Drive.h"
 #include "IECBUS.h"
 #include "InputManager.h"
-#include "Logging.h"
 #include "MediaManager.h"
 #include "Memory.h"
 #include "PLA.h"
@@ -29,7 +28,6 @@ StateManager::StateManager(Cartridge& cart,
                      CPU& processor,
                      IECBUS& bus,
                      InputManager& inputMgr,
-                     Logging& logger,
                      MediaManager& media,
                      Memory& mem,
                      PLA& pla,
@@ -50,7 +48,6 @@ StateManager::StateManager(Cartridge& cart,
       processor_(processor),
       bus_(bus),
       inputMgr_(inputMgr),
-      logger_(logger),
       media_(media),
       mem_(mem),
       pla_(pla),
