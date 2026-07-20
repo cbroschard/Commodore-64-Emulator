@@ -24,7 +24,6 @@ class IECBUS;
 class InputManager;
 class InputRouter;
 class IO;
-class Logging;
 class MediaManager;
 class Memory;
 class PLA;
@@ -71,7 +70,6 @@ private:
     InputManager& inputMgr_;
     InputRouter& inputRouter_;
     IO& io_;
-    Logging& logger_;
     MediaManager& media_;
     Memory& mem_;
     PLA& pla_;

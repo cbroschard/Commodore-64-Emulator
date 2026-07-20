@@ -32,7 +32,6 @@ EmulationSession::EmulationSession(MachineComponents& components,
       inputMgr_(*components.inputMgr),
       inputRouter_(*components.inputRouter),
       io_(*components.io),
-      logger_(*components.logger),
       media_(*components.media),
       mem_(*components.mem),
       pla_(*components.pla),
@@ -218,7 +217,6 @@ bool EmulationSession::runFrame()
             catch (const std::exception& e)
             {
                 std::cerr << "Exception caught: " << e.what() << "\n";
-                logger_.flush();
                 return false;
             }
         }
