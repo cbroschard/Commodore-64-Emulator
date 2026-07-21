@@ -10,9 +10,7 @@
 
 D1581Memory::D1581Memory() :
     driveCPU(nullptr),
-    logger(nullptr),
     parentPeripheral(nullptr),
-    setLogging(false),
     lastBus(0xFF)
 {
     D1581RAM.resize(RAM_SIZE);
@@ -72,9 +70,6 @@ void D1581Memory::reset()
 {
     // Clear RAM
     std::fill(D1581RAM.begin(), D1581RAM.end(), 0x00);
-
-    // Disable ML Monitor logging
-    setLogging = false;
 
     // Default return for open bus
     lastBus = 0xFF;

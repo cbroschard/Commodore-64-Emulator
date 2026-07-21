@@ -19,7 +19,6 @@ class D1581;
 #include <vector>
 #include "CPUBus.h"
 #include "Drive/DriveChips.h"
-#include "Logging.h"
 #include "Peripheral.h"
 #include "Drive/D1581CIA.h"
 #include "Drive/FDC177x.h"
@@ -32,7 +31,6 @@ class D1581Memory : public DriveMemoryBase
         D1581Memory();
         virtual ~D1581Memory();
 
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         inline void attachCPUInstance(CPU* driveCPU) { this->driveCPU = driveCPU; }
         uint8_t debugPeekRAM(uint16_t address) const;
         void attachPeripheralInstance(Peripheral* parentPeripheral);
@@ -40,8 +38,6 @@ class D1581Memory : public DriveMemoryBase
         // State Management
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
-
-        inline void setLog(bool enable) { setLogging = enable; }
 
         // API access
         uint8_t read(uint16_t address);
@@ -69,7 +65,6 @@ class D1581Memory : public DriveMemoryBase
         FDC177x  fdc;
 
         // Non-owning pointers
-        Logging* logger;
         Peripheral* parentPeripheral;
 
         // Memory Constants
@@ -83,9 +78,6 @@ class D1581Memory : public DriveMemoryBase
         static constexpr uint16_t CIA_END   = 0x5FFF;
         static constexpr uint16_t FDC_START = 0x6000;
         static constexpr uint16_t FDC_END   = 0x7FFF;
-
-        // ML Monitor logging
-        bool setLogging;
 
         // Last Bus tracking
         uint8_t lastBus;

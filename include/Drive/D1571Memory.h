@@ -16,7 +16,6 @@ class D1571;
 #include <fstream>
 #include <string>
 #include <vector>
-#include "Logging.h"
 #include "Peripheral.h"
 #include "Drive/D1571CIA.h"
 #include "Drive/D1571VIA.h"
@@ -31,14 +30,11 @@ class D1571Memory : public DriveMemoryBase
         D1571Memory();
         virtual ~D1571Memory();
 
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(StateReader& rdr);
-
-        void setLog(bool enable) { setLogging = enable; }
 
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
@@ -64,7 +60,6 @@ class D1571Memory : public DriveMemoryBase
     protected:
 
     private:
-
         // CHIPS
         D1571VIA via1;
         D1571VIA via2;
@@ -72,11 +67,7 @@ class D1571Memory : public DriveMemoryBase
         FDC177x fdc;
 
         // Non-owning pointers
-        Logging* logger;
         Peripheral* parentPeripheral;
-
-        // Log enable/disable
-        bool setLogging;
 
         // Track last bus write
         uint8_t lastBus;

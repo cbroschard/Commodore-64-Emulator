@@ -114,13 +114,6 @@ void D1541Memory::write(uint16_t address, uint8_t value)
     {
         via2.writeRegister((address - VIA2_START) & 0x0F, value);
     }
-    else
-    {
-        if (logger)
-        {
-            logger->WriteLog("Attempt to write to invalid 1541 address: " + std::to_string(address));
-        }
-    }
 }
 
 bool D1541Memory::initialize(const std::string& D1541LoROM, const std::string& D1541HiROM)
@@ -145,34 +138,15 @@ bool D1541Memory::loadROM(const std::string& filename, std::vector<uint8_t>& tar
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file.is_open())
-    {
-        if (logger)
-        {
-            logger->WriteLog("Unable to open " + romName + " ROM file: " + filename);
-        }
         return false;
-    }
 
     std::streamsize fileSize = file.tellg();
     if (static_cast<size_t>(fileSize) != expectedSize)
-    {
-        if (logger)
-        {
-        logger->WriteLog("Error: " + romName + " ROM file is not correct size! Expected " +
-                         std::to_string(expectedSize) + " bytes, got " + std::to_string(fileSize) + " bytes.");
-        }
         return false;
-    }
 
     file.seekg(0, std::ios::beg);
     if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), expectedSize))
-    {
-        if (logger)
-        {
-            logger->WriteLog("Error: Failed to read " + romName + " ROM file: " + filename);
-        }
         return false;
-    }
 
     file.close();
     return true;

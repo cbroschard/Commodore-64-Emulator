@@ -16,7 +16,6 @@
 #include "Drive/D1541VIA.h"
 #include "Drive/DriveChips.h"
 #include "IRQLine.h"
-#include "Logging.h"
 #include "Peripheral.h"
 #include "StateReader.h"
 #include "StateWriter.h"
@@ -28,7 +27,6 @@ class D1541Memory : public DriveMemoryBase
         virtual ~D1541Memory();
 
         // Pointers
-        inline void attachLoggingInstance(Logging* logger) { this->logger = logger; }
         void attachPeripheralInstance(Peripheral* parentPeripheral);
 
         // Tick to advance the VIA chips
@@ -58,9 +56,7 @@ class D1541Memory : public DriveMemoryBase
     protected:
 
     private:
-
         // Non-owning pointers
-        Logging* logger = nullptr;
         Peripheral* parentPeripheral;
 
         // VIA objects

@@ -9,9 +9,7 @@
 #include "Drive/D1571Memory.h"
 
 D1571Memory::D1571Memory() :
-    logger(nullptr),
     parentPeripheral(nullptr),
-    setLogging(false),
     lastBus(0xFF)
 {
     D1571RAM.resize(RAM_SIZE,0);
@@ -68,9 +66,6 @@ void D1571Memory::reset()
     std::fill(D1571RAM.begin(), D1571RAM.end(), 0x00);
 
     lastBus = 0xFF;
-
-    // Disable MLMonitor logging by default
-    setLogging = false;
 
     // Reset all chips
     via1.reset();
