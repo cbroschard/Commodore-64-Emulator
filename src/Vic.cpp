@@ -883,14 +883,11 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD019:
         {
             const uint8_t oldPending = registers.interruptStatus & 0x0F;
-            const uint8_t oldD019 = d019Read();
-
             const uint8_t clearMask = value & 0x0F;
 
             registers.interruptStatus &= ~clearMask;
 
             const uint8_t newPending = registers.interruptStatus & 0x0F;
-            const uint8_t newD019 = d019Read();
 
             traceVicRegWrite(address, oldPending, newPending);
             updateIRQLine();
