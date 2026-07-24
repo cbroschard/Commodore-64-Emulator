@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1541.h"
+#include "IECBUS.h"
 
 D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom) :
     motorOn(false),
