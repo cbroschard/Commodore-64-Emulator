@@ -8,9 +8,6 @@
 #ifndef D1581_H
 #define D1581_H
 
-// Forward declarations
-class IECBUS;
-
 #include "CPU.h"
 #include "Drive/Drive.h"
 #include "Drive/D1581Memory.h"
@@ -20,6 +17,7 @@ class IECBUS;
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
+#include "IECBUS.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
