@@ -17,6 +17,12 @@ class AudioOutput
         AudioOutput();
         virtual ~AudioOutput();
 
+        AudioOutput(const AudioOutput&) = delete;
+        AudioOutput& operator=(const AudioOutput&) = delete;
+
+        AudioOutput(AudioOutput&&) = delete;
+        AudioOutput& operator=(AudioOutput&&) = delete;
+
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
 
         bool playAudio();
@@ -36,7 +42,6 @@ class AudioOutput
         static const int SAMPLE_RATE = 44100;
         static const int CHANNELS = 2;
         static const int BUFFER_SIZE = 2048;
-        static const int SCALE = 2;
 
         SDL_AudioSpec desired{};
         SDL_AudioSpec obtainedSpec{};

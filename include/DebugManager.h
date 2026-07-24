@@ -56,7 +56,6 @@ class DebugManager
                          CIA2* cia2,
                          CPU* cpu,
                          IECBUS* bus,
-                         IO* io,
                          IRQLine* irq,
                          Keyboard* keyb,
                          Memory* mem,

@@ -17,7 +17,9 @@ namespace
 }
 
 
-AudioOutput::AudioOutput()
+AudioOutput::AudioOutput() :
+    sid(nullptr),
+    dev(0)
 {
 
 }

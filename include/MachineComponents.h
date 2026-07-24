@@ -10,6 +10,7 @@
 
 #include <array>
 #include <memory>
+#include "AudioOutput.h"
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CIA1.h"
@@ -17,7 +18,6 @@
 #include "CPU.h"
 #include "EmulatorUI.h"
 #include "IECBUS.h"
-#include "IO.h"
 #include "InputManager.h"
 #include "InputRouter.h"
 #include "IRQLine.h"
@@ -26,8 +26,10 @@
 #include "Memory.h"
 #include "PLA.h"
 #include "REU.h"
+#include "SDLContext.h"
 #include "SID/SID.h"
 #include "Vic.h"
+#include "VideoOutput.h"
 
 class DebugManager;
 class Drive;
@@ -37,6 +39,9 @@ class UIBridge;
 
 struct MachineComponents
 {
+    std::unique_ptr<SDLContext> sdlContext;
+    std::unique_ptr<AudioOutput> audioOutput;
+    std::unique_ptr<VideoOutput> videoOutput;
     std::unique_ptr<Cartridge> cart;
     std::unique_ptr<Cassette> cass;
     std::unique_ptr<CIA1> cia1;
@@ -57,7 +62,6 @@ struct MachineComponents
     std::unique_ptr<REU> reu;
     std::unique_ptr<SID> sid;
     std::unique_ptr<StateManager> stateMgr;
-    std::unique_ptr<IO> io;
     std::unique_ptr<UIBridge> uiBridge;
     std::unique_ptr<Vic> vic;
 };

@@ -22,6 +22,7 @@ EmulationSession::EmulationSession(MachineComponents& components,
       runtime_(runtime),
       roms_(roms),
       uiQuit_(uiQuit),
+      audioOutput_(*components.audioOutput),
       cart_(*components.cart),
       cia1_(*components.cia1),
       cia2_(*components.cia2),
@@ -31,13 +32,13 @@ EmulationSession::EmulationSession(MachineComponents& components,
       bus_(*components.bus),
       inputMgr_(*components.inputMgr),
       inputRouter_(*components.inputRouter),
-      io_(*components.io),
       media_(*components.media),
       mem_(*components.mem),
       pla_(*components.pla),
       sid_(*components.sid),
       uiBridge_(*components.uiBridge),
       vic_(*components.vic),
+      videoOutput_(*components.videoOutput),
       frameDuration_(0.0),
       nextFrameTime_(),
       lastVideoMode_(runtime.videoMode),
@@ -98,26 +99,26 @@ bool EmulationSession::initializeMachine()
 
     bus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
 
-    sid_.setSampleRate(io_.getSampleRate());
+    sid_.setSampleRate(audioOutput_.getSampleRate());
 
     // Process boot attachments
     media_.applyBootAttachments();
 
-    io_.playAudio();
-    sid_.setSampleRate(io_.getSampleRate());
+    audioOutput_.playAudio();
+    sid_.setSampleRate(audioOutput_.getSampleRate());
 
     audioStarted_ = false;
     audioCatchupMode_ = true;
 
     // Show the ImGui menu
-    io_.setGuiCallback([this]()
+    videoOutput_.setGuiCallback([this]()
     {
         ui_.draw();
     });
 
     // Prime the renderer once up front
-    io_.finishFrameAndSignal();
-    io_.renderFrame(runtime_.running);
+    videoOutput_.finishFrameAndSignal();
+    videoOutput_.renderFrame(runtime_.running);
 
     frameDuration_ = std::chrono::duration<double, std::milli>(1000.0 / runtime_.cpuCfg->frameRate);
     nextFrameTime_ = std::chrono::steady_clock::now() +
@@ -133,12 +134,12 @@ void EmulationSession::processEvents()
 
     if (monitorOpen && !audioPausedForMonitor_)
     {
-        io_.pauseAudio();
+        audioOutput_.pauseAudio();
         audioPausedForMonitor_ = true;
     }
     else if (!monitorOpen && audioPausedForMonitor_)
     {
-        io_.resumeAudio();
+        audioOutput_.resumeAudio();
         audioPausedForMonitor_ = false;
     }
 
@@ -150,7 +151,7 @@ void EmulationSession::processEvents()
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
-        io_.handleEvent(e, runtime_.running);
+        videoOutput_.handleEvent(e, runtime_.running);
 
         if (inputRouter_.handleEvent(e))
             continue;
@@ -235,7 +236,7 @@ bool EmulationSession::runFrame()
         if (vic_.isFrameDone())
         {
             vic_.clearFrameFlag();
-            io_.finishFrameAndSignal();
+            videoOutput_.finishFrameAndSignal();
         }
 
         if (auto* mapper = cart_.getMapper())
@@ -275,7 +276,7 @@ bool EmulationSession::finalizeFrame()
     const auto frameStep =
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
 
-    const int blockSamples = std::max(1, io_.getBlockSamples());
+    const int blockSamples = std::max(1, audioOutput_.getBlockSamples());
 
     // Hysteresis thresholds.
     // Start/resume with 2 SDL blocks of cushion.
@@ -292,7 +293,7 @@ bool EmulationSession::finalizeFrame()
 
         if (audioBuffered >= highWatermark)
         {
-            io_.resumeAudio();
+            audioOutput_.resumeAudio();
             audioStarted_ = true;
             audioCatchupMode_ = false;
         }
@@ -329,7 +330,7 @@ bool EmulationSession::finalizeFrame()
     }
     while (nextFrameTime_ <= now);
 
-    io_.renderFrame(runtime_.running);
+    videoOutput_.renderFrame(runtime_.running);
 
     return true;
 }
@@ -340,8 +341,7 @@ void EmulationSession::shutdown()
 
     media_.flushAndSaveMedia();
 
-    io_.stopRenderThread(runtime_.running);
-    io_.setGuiCallback({});
+    videoOutput_.setGuiCallback({});
 }
 
 void EmulationSession::syncTimingFromRuntimeMode()

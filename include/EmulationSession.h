@@ -14,6 +14,7 @@
 #include "CPUTiming.h"
 #include "Common/VideoMode.h"
 
+class AudioOutput;
 class Cartridge;
 class CIA1;
 class CIA2;
@@ -23,13 +24,13 @@ class EmulatorUI;
 class IECBUS;
 class InputManager;
 class InputRouter;
-class IO;
 class MediaManager;
 class Memory;
 class PLA;
 class SID;
 class UIBridge;
 class Vic;
+class VideoOutput;
 
 struct MachineComponents;
 struct MachineRuntimeState;
@@ -60,6 +61,7 @@ private:
     std::atomic<bool>& uiQuit_;
 
     // Cached hot references for debug-build performance
+    AudioOutput& audioOutput_;
     Cartridge& cart_;
     CIA1& cia1_;
     CIA2& cia2_;
@@ -69,13 +71,13 @@ private:
     IECBUS& bus_;
     InputManager& inputMgr_;
     InputRouter& inputRouter_;
-    IO& io_;
     MediaManager& media_;
     Memory& mem_;
     PLA& pla_;
     SID& sid_;
     UIBridge& uiBridge_;
     Vic& vic_;
+    VideoOutput& videoOutput_;
 
     std::chrono::duration<double, std::milli> frameDuration_;
     std::chrono::steady_clock::time_point nextFrameTime_;

@@ -43,6 +43,9 @@ Computer::Computer() :
         busPrimedAfterBoot
     }
 {
+    components_.sdlContext = std::make_unique<SDLContext>();
+    components_.audioOutput = std::make_unique<AudioOutput>();
+    components_.videoOutput = std::make_unique<VideoOutput>();
     components_.cart = std::make_unique<Cartridge>();
     components_.cass = std::make_unique<Cassette>();
     components_.cia1 = std::make_unique<CIA1>();
@@ -57,7 +60,6 @@ Computer::Computer() :
     components_.pla = std::make_unique<PLA>();
     components_.reu = std::make_unique<REU>();
     components_.sid = std::make_unique<SID>(44100);
-    components_.io = std::make_unique<IO>();
     components_.vic = std::make_unique<Vic>();
 
     // Wire components
@@ -68,17 +70,16 @@ Computer::~Computer() noexcept
 {
     try
     {
-        if (components_.io)
+        if (components_.videoOutput)
         {
             // Ensure the render thread is down
             if (components_.debug) components_.debug->closeMonitor();
             running = false;
-            components_.io->stopRenderThread(running);
-            components_.io->setGuiCallback({});
-            components_.io->setInputCallback({});
+            components_.videoOutput->setGuiCallback({});
+            components_.videoOutput->setInputCallback({});
 
             // Audio shutdown
-            components_.io->stopAudio();
+            components_.audioOutput->stopAudio();
         }
     }
     catch(...)

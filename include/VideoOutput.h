@@ -43,7 +43,7 @@ class VideoOutput final : public IVideoSink
 
         void handleEvent(const SDL_Event& e, std::atomic<bool>& runningFlag);
 
-        void setScreenDimensions(int visibleW, int visibleH, int border);
+        void setScreenDimensions(int visibleW, int visibleH, int border) override;
 
         // imgui / UI wiring
         inline void setGuiCallback(std::function<void()> fn) { guiCallback = std::move(fn); }

@@ -23,6 +23,8 @@ class IVideoSink
 
         virtual void setPixel(int x, int y, uint8_t color, int hardwareX) = 0;
 
+        virtual void setScreenDimensions(int visibleW, int visibleH, int border) = 0;
+
     protected:
 
     private:

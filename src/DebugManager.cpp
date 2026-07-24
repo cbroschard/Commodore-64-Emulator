@@ -71,7 +71,6 @@ void DebugManager::wireBackend(Computer* computer,
                               CIA2* cia2,
                               CPU* cpu,
                               IECBUS* bus,
-                              IO* io,
                               IRQLine* irq,
                               Keyboard* keyb,
                               Memory* mem,
@@ -90,7 +89,6 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachComputerInstance(computer);
     backend_->attachProcessorInstance(cpu);
     backend_->attachIECBusInstance(bus);
-    backend_->attachIOInstance(io);
     backend_->attachIRQLineInstance(irq);
     backend_->attachKeyboardInstance(keyb);
     backend_->attachMemoryInstance(mem);

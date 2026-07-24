@@ -8,18 +8,20 @@
 #ifndef VIC_H
 #define VIC_H
 
+class CIA2;
+class CPU;
+class IRQLine;
+class IVideoSink;
+class Memory;
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include "Debug/TraceManager.h"
 #include "Common/VideoMode.h"
-#include "CIA2.h"
-#include "CPU.h"
-#include "IO.h"
-#include "IRQLine.h"
-#include "Memory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -30,8 +32,8 @@ class Vic
         virtual ~Vic();
 
         // Pointer functions
-        inline void attachIOInstance(IO* io) { this->io = io; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
+        inline void attachIVideoSinkInstance(IVideoSink* sink) { this->sink = sink; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
@@ -489,7 +491,7 @@ class Vic
         // Non-owning pointers
         CIA2* cia2;
         CPU* cpu;
-        IO* io;
+        IVideoSink* sink;
         IRQLine* IRQ;
         Memory* mem;
         TraceManager* traceMgr;

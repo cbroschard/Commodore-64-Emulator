@@ -25,7 +25,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
 
     components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),
-                                   components.cpu.get(), components.bus.get(), components.io.get(), components.irq.get(), components.keyb.get(),
+                                   components.cpu.get(), components.bus.get(), components.irq.get(), components.keyb.get(),
                                    components.mem.get(), components.pla.get(), components.reu.get(), components.sid.get(), components.vic.get());
 
     components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
@@ -54,9 +54,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cia2->attachTraceManagerInstance(&components.debug->trace());
     components.cia2->attachVicInstance(components.vic.get());
 
-    components.io->attachVICInstance(components.vic.get());
-    components.io->attachSIDInstance(components.sid.get());
-    components.io->setMonitorOpenCallback([&components]() -> bool { return components.debug && components.debug->monitorController().isOpen();});
+    components.audioOutput->attachSIDInstance(components.sid.get());
+    components.videoOutput->setMonitorOpenCallback([&components]() -> bool { return components.debug && components.debug->monitorController().isOpen();});
 
     components.keyb->attachCPUInstance(components.cpu.get());
 
@@ -96,8 +95,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.sid->attachTraceManagerInstance(&components.debug->trace());
     components.sid->attachVicInstance(components.vic.get());
 
-    components.vic->attachIOInstance(components.io.get());
     components.vic->attachCPUInstance(components.cpu.get());
+    components.vic->attachIVideoSinkInstance(components.videoOutput.get());
     components.vic->attachMemoryInstance(components.mem.get());
     components.vic->attachCIA2Instance(components.cia2.get());
     components.vic->attachIRQLineInstance(components.irq.get());

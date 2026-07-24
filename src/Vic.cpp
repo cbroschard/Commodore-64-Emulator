@@ -5,13 +5,17 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CIA2.h"
+#include "CPU.h"
+#include "IVideoSink.h"
+#include "IRQLine.h"
+#include "Memory.h"
 #include "Vic.h"
-#include "IO.h"
 
 Vic::Vic(VideoMode mode) :
     cia2(nullptr),
     cpu(nullptr),
-    io(nullptr),
+    sink(nullptr),
     IRQ(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
@@ -266,8 +270,8 @@ void Vic::setMode(VideoMode mode)
     updateMonitorCaches(registers.raster);
 
     // Notify IO of mode
-    if (io)
-        io->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
+    if (sink)
+        sink->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
 }
 
 void Vic::saveState(StateWriter& wrtr) const
@@ -1369,14 +1373,14 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
     {
         frameDone = true;
 
-        if (io)
+        if (sink)
         {
             const int lastFBY = fbY(curRaster);
             const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
 
             for (int y = lastFBY + 1; y < fbH; ++y)
             {
-                io->renderBorderLine(y, registers.borderColor, 0, 0);
+                sink->renderBorderLine(y, registers.borderColor, 0, 0);
             }
         }
     }
@@ -2615,7 +2619,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
 void Vic::renderLine(int raster)
 {
-    if (!io || !mem)
+    if (!sink || !mem)
         return;
 
     updateGraphicsMode(raster);
@@ -3993,7 +3997,7 @@ void Vic::generateBackgroundLine(int raster)
 
 void Vic::emitRasterLineInOrder(int raster)
 {
-    if (!io)
+    if (!sink)
         return;
 
     const int screenY = fbY(raster);
@@ -4003,7 +4007,7 @@ void Vic::emitRasterLineInOrder(int raster)
 
     for (int px = xStart; px < xEnd; ++px)
     {
-        io->setPixel(px, screenY, finalColorLine[px] & 0x0F);
+        sink->setPixel(px, screenY, finalColorLine[px] & 0x0F);
     }
 }
 

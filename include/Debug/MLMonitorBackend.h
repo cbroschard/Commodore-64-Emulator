@@ -27,7 +27,6 @@ class MLMonitorBackend
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachProcessorInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
-        inline void attachIOInstance(IO* io) { this->io = io; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -211,7 +210,6 @@ class MLMonitorBackend
     protected:
 
     private:
-
         // Non-owning pointers
         Cartridge* cart;
         Cassette* cass;
@@ -220,7 +218,6 @@ class MLMonitorBackend
         Computer* comp;
         CPU* cpu;
         IECBUS* bus;
-        IO* io;
         IRQLine* irq;
         Keyboard* keyb;
         Memory* mem;
