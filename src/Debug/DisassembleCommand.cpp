@@ -10,6 +10,7 @@
 #include "Debug/MLMonitorBackend.h"
 
 DisassembleCommand::DisassembleCommand() :
+    lastPC(0),
     hasLastPC(false)
 {
 
@@ -145,4 +146,10 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
         std::cout << "Error: invalid address or count.\n";
         std::cout << "Usage: d [address] [count]\n";
     }
+}
+
+void DisassembleCommand::resetPosition()
+{
+    lastPC = 0;
+    hasLastPC = false;
 }

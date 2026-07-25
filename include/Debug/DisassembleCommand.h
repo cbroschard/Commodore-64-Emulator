@@ -26,6 +26,8 @@ class DisassembleCommand : public MonitorCommand
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 
+        void resetPosition();
+
     protected:
 
     private:

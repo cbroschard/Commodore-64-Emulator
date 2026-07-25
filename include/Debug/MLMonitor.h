@@ -69,6 +69,8 @@ class MLMonitor
 
         // Monitor access
         void enterMonitor();
+        void leaveMonitor();
+
         std::string getPrompt() const;
 
         // std::cout queuing/draining
@@ -108,6 +110,7 @@ class MLMonitor
         void captureOutputAndExecute(const std::string& cmdLine);
         void handleOutputFileCommand(const std::vector<std::string>& args);
         void writeOutputFileBlock(const std::string& cmdLine, const std::string& output);
+        void resetDisassemblyPosition();
 };
 
 #endif // MLMONITOR_H

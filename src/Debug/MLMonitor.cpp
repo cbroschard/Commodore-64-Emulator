@@ -101,7 +101,14 @@ std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
 
 void MLMonitor::enterMonitor()
 {
-    if (monbackend) monbackend->enterMonitor();
+    resetDisassemblyPosition();
+    running = true;
+}
+
+void MLMonitor::leaveMonitor()
+{
+    resetDisassemblyPosition();
+    running = false;
 }
 
 std::string MLMonitor::getPrompt() const
@@ -369,7 +376,7 @@ void MLMonitor::handleCommand(const std::string& line)
 
     if (cmd == "exit" || cmd == "q" || cmd == "quit")
     {
-        running = false;
+        leaveMonitor();
         return;
     }
 
@@ -542,4 +549,15 @@ void MLMonitor::handleOutputFileCommand(const std::vector<std::string>& args)
     }
 
     std::cout << "Unknown out command: " << sub << "\n";
+}
+
+void MLMonitor::resetDisassemblyPosition()
+{
+    auto it = commands.find("d");
+
+    if (it == commands.end())
+        return;
+
+    if (auto* dc = dynamic_cast<DisassembleCommand*>(it->second.get()))
+        dc->resetPosition();
 }

@@ -38,27 +38,38 @@ void MonitorController::open()
 {
     ensureWindow();
 
+    // Do not restart the monitor session if it is already open.
+    if (win->isOpen())
+        return;
+
+    // Start a fresh monitor session. This resets the disassembly cursor.
+    if (monitor)
+        monitor->enterMonitor();
+
     uiPaused = true;
     pausedByThis = true;
 
-    if (monitor) monitor->setRunningFlag(true);
+    win->open(
+        "ML Monitor",
+        900,
+        550,
+        [this](const std::string& cmd) -> std::string
+        {
+            if (!monitor)
+                return "Monitor not available\n";
 
-    if (!win->isOpen())
-    {
-        win->open("ML Monitor", 900, 550,
-            [this](const std::string& cmd) -> std::string
-            {
-                if (!monitor) return "Monitor not available\n";
-                return monitor->executeAndCapture(cmd);
-            },
-            [this]() -> std::string
-            {
-                if (!monitor) return "> ";
-                return monitor->getPrompt();
-            });
-    }
+            return monitor->executeAndCapture(cmd);
+        },
+        [this]() -> std::string
+        {
+            if (!monitor)
+                return "> ";
 
-    // Show anything queued before the UI opened (watchpoints/breakpoints/etc.)
+            return monitor->getPrompt();
+        }
+    );
+
+    // Show anything queued before the UI opened.
     drainAsyncLines();
 }
 
@@ -78,7 +89,11 @@ void MonitorController::toggle()
 
 void MonitorController::onClosed()
 {
-    // Only resume if *we* were the thing that paused the emulator.
+    // End the monitor session and reset stateful commands such as "d".
+    if (monitor)
+        monitor->leaveMonitor();
+
+    // Only resume if this controller paused the emulator.
     if (pausedByThis.exchange(false))
         uiPaused = false;
 }

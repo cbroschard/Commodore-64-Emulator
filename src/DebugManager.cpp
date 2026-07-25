@@ -51,17 +51,20 @@ DebugManager::~DebugManager() = default;
 
 void DebugManager::openMonitor()
 {
-    if (monitorCtl_) monitorCtl_->open();
+    if (monitorCtl_)
+        monitorCtl_->open();
 }
 
 void DebugManager::toggleMonitor()
 {
-    if (monitorCtl_) monitorCtl_->toggle();
+    if (monitorCtl_)
+        monitorCtl_->toggle();
 }
 
 void DebugManager::closeMonitor()
 {
-    if (monitorCtl_) monitorCtl_->close();
+    if (monitorCtl_)
+        monitorCtl_->close();
 }
 
 void DebugManager::wireBackend(Computer* computer,
@@ -133,11 +136,10 @@ bool DebugManager::onBreakpoint(uint16_t pc)
     char msg[64];
     std::snprintf(msg, sizeof(msg), ">>> Breakpoint hit at $%04X", pc);
 
-    // Queue first, then open (open() drains queued lines)
+    // Queue first, then open so the message is available to the monitor.
     monitor_->queueAsyncLine(msg);
 
-    if (monitorCtl_)
-        monitorCtl_->open();
+    openMonitor();
 
     return true;
 }
