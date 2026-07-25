@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
 #include "Debug/AssembleCommand.h"
 #include "Debug/BreakpointCommand.h"
 #include "Debug/CartridgeCommand.h"
@@ -349,6 +350,7 @@ void MLMonitor::handleCommand(const std::string& line)
     // If the assembler command is in interactive mode, every submitted line
     // belongs to the assembler until it exits on blank line or ".".
     auto asmIt = commands.find("a");
+
     if (asmIt != commands.end())
     {
         if (auto* ac = dynamic_cast<AssembleCommand*>(asmIt->second.get()))
@@ -362,6 +364,7 @@ void MLMonitor::handleCommand(const std::string& line)
     }
 
     std::istringstream iss(line);
+
     std::string cmd;
     iss >> cmd;
 
@@ -369,10 +372,16 @@ void MLMonitor::handleCommand(const std::string& line)
     if (cmd.empty())
         return;
 
-    // Normalize to lowercase
-    std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
+    // Normalize the command name to lowercase.
+    std::transform(
+        cmd.begin(),
+        cmd.end(),
+        cmd.begin(),
+        [](unsigned char c)
+        {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
 
     if (cmd == "exit" || cmd == "q" || cmd == "quit")
     {
@@ -384,6 +393,7 @@ void MLMonitor::handleCommand(const std::string& line)
     args.push_back(cmd);
 
     std::string token;
+
     while (iss >> token)
         args.push_back(token);
 
@@ -402,14 +412,22 @@ void MLMonitor::handleCommand(const std::string& line)
         {
             std::string topic = args[1];
 
-            std::transform(topic.begin(), topic.end(), topic.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
+            std::transform(
+                topic.begin(),
+                topic.end(),
+                topic.begin(),
+                [](unsigned char c)
+                {
+                    return static_cast<char>(std::tolower(c));
+                }
+            );
 
             auto it = commands.find(topic);
+
             if (it != commands.end())
             {
                 const std::string txt = it->second->help();
+
                 std::cout << txt;
 
                 if (!txt.empty() && txt.back() != '\n')
@@ -423,26 +441,128 @@ void MLMonitor::handleCommand(const std::string& line)
             return;
         }
 
-        // plain help / h / ?
+        // Plain help / h / ?
         std::map<std::string, std::vector<std::string>> grouped;
 
-        for (const auto& kv : commands)
-            grouped[kv.second->category()].push_back(kv.second->shortHelp());
+        for (const auto& [commandName, command] : commands)
+        {
+            grouped[command->category()].push_back(
+                command->shortHelp()
+            );
+        }
 
         std::cout << "Available commands:\n";
 
-        for (auto& [cat, cmds] : grouped)
-        {
-            std::cout << "  " << cat << ":\n";
+        // Adjust these values if the monitor font or window size changes.
+        constexpr std::size_t commandWidth   = 42;
+        constexpr std::size_t totalWidth     = 105;
+        constexpr std::size_t leftIndent     = 4;
+        constexpr std::size_t separatorWidth = 3; // " - "
 
-            for (auto& helpLine : cmds)
-                std::cout << "    " << helpLine << "\n";
+        constexpr std::size_t descriptionWidth =
+            totalWidth -
+            leftIndent -
+            commandWidth -
+            separatorWidth;
+
+        for (const auto& [category, helpLines] : grouped)
+        {
+            std::cout << "  " << category << ":\n";
+
+            for (const auto& helpLine : helpLines)
+            {
+                const std::size_t separator =
+                    helpLine.find(" - ");
+
+                // Fall back to the original text if the command's short-help
+                // string does not follow "syntax - description".
+                if (separator == std::string::npos)
+                {
+                    std::cout << "    "
+                              << helpLine
+                              << "\n";
+
+                    continue;
+                }
+
+                const std::string commandSyntax =
+                    helpLine.substr(0, separator);
+
+                const std::string description =
+                    helpLine.substr(separator + 3);
+
+                std::size_t offset = 0;
+                bool firstLine = true;
+
+                // Always print at least one line, even if the description is
+                // empty.
+                do
+                {
+                    std::size_t length = std::min(
+                        descriptionWidth,
+                        description.size() - offset
+                    );
+
+                    // When more text remains, prefer wrapping at the final
+                    // space that fits on this line.
+                    if (offset + length < description.size())
+                    {
+                        const std::size_t searchEnd =
+                            offset + length;
+
+                        const std::size_t wrapPosition =
+                            description.rfind(' ', searchEnd);
+
+                        if (wrapPosition != std::string::npos &&
+                            wrapPosition >= offset)
+                        {
+                            length = wrapPosition - offset;
+                        }
+                    }
+
+                    if (firstLine)
+                    {
+                        std::cout << "    "
+                                  << std::left
+                                  << std::setw(
+                                         static_cast<int>(commandWidth)
+                                     )
+                                  << commandSyntax
+                                  << " - ";
+                    }
+                    else
+                    {
+                        std::cout << std::string(
+                            leftIndent +
+                            commandWidth +
+                            separatorWidth,
+                            ' '
+                        );
+                    }
+
+                    std::cout << description.substr(offset, length)
+                              << "\n";
+
+                    offset += length;
+
+                    // Skip spaces at the beginning of the wrapped line.
+                    while (offset < description.size() &&
+                           description[offset] == ' ')
+                    {
+                        ++offset;
+                    }
+
+                    firstLine = false;
+                }
+                while (offset < description.size());
+            }
         }
 
         return;
     }
 
     auto it = commands.find(cmd);
+
     if (it != commands.end())
     {
         it->second->execute(*this, args);
