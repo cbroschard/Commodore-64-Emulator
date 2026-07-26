@@ -750,6 +750,72 @@ void MediaManager::restoreTapeMountOnlyFromState()
     }
 }
 
+bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
+{
+    if (deviceNum < 8 || deviceNum > 11)
+        return false;
+
+    if (model == DriveModel::None)
+        return false;
+
+    if (drives_[deviceNum])
+    {
+        if (drives_[deviceNum]->getDriveModel() == model)
+            return true;
+
+        bus_.unregisterDevice(deviceNum);
+        drives_[deviceNum].reset();
+    }
+
+    switch (model)
+    {
+        case DriveModel::D1541:
+            drives_[deviceNum] = std::make_unique<D1541>
+            (
+                deviceNum,
+                D1541LoROM_,
+                D1541HiROM_
+            );
+            break;
+
+        case DriveModel::D1571:
+            drives_[deviceNum] = std::make_unique<D1571>
+            (
+                deviceNum,
+                D1571ROM_
+            );
+            break;
+
+        case DriveModel::D1581:
+            drives_[deviceNum] = std::make_unique<D1581>
+            (
+                deviceNum,
+                D1581ROM_
+            );
+            break;
+
+        case DriveModel::None:
+        default:
+            return false;
+    }
+
+    if (!drives_[deviceNum])
+        return false;
+
+    bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        if (drives_[dev])
+            drives_[dev]->forceSyncIEC();
+    }
+
+    if (requestBusPrime_)
+        requestBusPrime_();
+
+    return true;
+}
+
 void MediaManager::tapePlay()
 {
     cass_.play();

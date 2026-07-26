@@ -151,6 +151,7 @@ public:
     void setCartSwitch(uint32_t switchIndex, uint32_t switchPos);
     void restoreCartridgeFromState();
     void restoreTapeMountOnlyFromState();
+    bool ensureDriveExists(int deviceNum, DriveModel model);
 
     // Cassette control
     void tapePlay();

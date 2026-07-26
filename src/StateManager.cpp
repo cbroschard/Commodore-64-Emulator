@@ -205,9 +205,19 @@ bool StateManager::load(const std::string& path)
     if (!rdr.readBool(pendingBusPrime_)) return false;
     if (!rdr.readBool(busPrimedAfterBoot_)) return false;
 
-    // Restore / consume drive config from SYS0
+    // Restore drive config from SYS0
     uint8_t driveCount = 0;
     if (!rdr.readU8(driveCount)) return false;
+
+    // Remove the current drive configuration before recreating the saved one
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        if (!drives_[dev])
+            continue;
+
+        bus_.unregisterDevice(dev);
+        drives_[dev].reset();
+    }
 
     // Clamp to our fixed array size just in case
     const uint8_t maxDrives = (driveCount > 16) ? 16 : driveCount;
@@ -219,17 +229,31 @@ bool StateManager::load(const std::string& path)
 
         if (present)
         {
-            uint8_t model = 0;
+            uint8_t modelU8 = 0;
             uint8_t deviceNumber = 0;
-            if (!rdr.readU8(model)) return false;
-            if (!rdr.readU8(deviceNumber)) return false;
 
-            (void)model;
-            (void)deviceNumber;
+            if (!rdr.readU8(modelU8))                           return false;
+            if (!rdr.readU8(deviceNumber))                      return false;
+
+            if (deviceNumber >= drives_.size())                 return false;
+
+            const DriveModel driveModel =
+                static_cast<DriveModel>(modelU8);
+
+            if (driveModel == DriveModel::None)                 return false;
+
+            if (!media_.ensureDriveExists
+                (
+                    static_cast<int>(deviceNumber),
+                    driveModel
+                ))
+            {
+                return false;
+            }
         }
     }
 
-    // If a future file somehow stores more than 16 drives, consume the extras too
+    // Consume any unsupported records beyond our 16 drive slots
     for (uint8_t i = maxDrives; i < driveCount; ++i)
     {
         bool present = false;
@@ -237,14 +261,45 @@ bool StateManager::load(const std::string& path)
 
         if (present)
         {
-            uint8_t model = 0;
+            uint8_t modelU8 = 0;
             uint8_t deviceNumber = 0;
-            if (!rdr.readU8(model)) return false;
-            if (!rdr.readU8(deviceNumber)) return false;
+
+            if (!rdr.readU8(modelU8))                           return false;
+            if (!rdr.readU8(deviceNumber))                      return false;
         }
     }
 
     rdr.exitChunkPayload(chunk);
+
+    // Track which reconstructed drive slots have already consumed a state chunk.
+    // This allows multiple drives of the same model to restore correctly.
+    std::array<bool, 16> driveStateRestored{};
+    driveStateRestored.fill(false);
+
+    auto restoreDriveState =
+        [&](DriveModel expectedModel,
+            const StateReader::Chunk& driveChunk) -> bool
+    {
+        for (size_t i = 0; i < drives_.size(); ++i)
+        {
+            if (driveStateRestored[i])
+                continue;
+
+            if (!drives_[i])
+                continue;
+
+            if (drives_[i]->getDriveModel() != expectedModel)
+                continue;
+
+            if (!drives_[i]->loadState(driveChunk, rdr))
+                return false;
+
+            driveStateRestored[i] = true;
+            return true;
+        }
+
+        return false;
+    };
 
     while (rdr.nextChunk(chunk))
     {
@@ -372,81 +427,30 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "D541", 4) == 0)
         {
-            bool restored = false;
-
-            for (auto& drive : drives_)
-            {
-                if (!drive)
-                    continue;
-
-                if (drive->getDriveModel() != DriveModel::D1541)
-                    continue;
-
-                if (!drive->loadState(chunk, rdr))
-                    return false;
-
-                restored = true;
-                break;
-            }
-
-            if (!restored)
+            if (!restoreDriveState(DriveModel::D1541, chunk))
                 return false;
 
-        #ifdef Debug
+            #ifdef Debug
             std::cout << "Loaded 1541 drive\n";
-        #endif
+            #endif
         }
         else if (std::memcmp(chunk.tag, "D157", 4) == 0)
         {
-            bool restored = false;
-
-            for (auto& drive : drives_)
-            {
-                if (!drive)
-                    continue;
-
-                if (drive->getDriveModel() != DriveModel::D1571)
-                    continue;
-
-                if (!drive->loadState(chunk, rdr))
-                    return false;
-
-                restored = true;
-                break;
-            }
-
-            if (!restored)
+            if (!restoreDriveState(DriveModel::D1571, chunk))
                 return false;
 
-        #ifdef Debug
+            #ifdef Debug
             std::cout << "Loaded 1571 drive\n";
-        #endif
+            #endif
         }
         else if (std::memcmp(chunk.tag, "D158", 4) == 0)
         {
-            bool restored = false;
-
-            for (auto& drive : drives_)
-            {
-                if (!drive)
-                    continue;
-
-                if (drive->getDriveModel() != DriveModel::D1581)
-                    continue;
-
-                if (!drive->loadState(chunk, rdr))
-                    return false;
-
-                restored = true;
-                break;
-            }
-
-            if (!restored)
+            if (!restoreDriveState(DriveModel::D1581, chunk))
                 return false;
 
-        #ifdef Debug
+            #ifdef Debug
             std::cout << "Loaded 1581 drive\n";
-        #endif
+            #endif
         }
         else
         {
