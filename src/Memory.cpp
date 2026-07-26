@@ -293,6 +293,174 @@ uint8_t Memory::read(uint16_t address)
     return RET(0xFF); // invalid address
 }
 
+uint8_t Memory::peek(uint16_t address) const
+{
+    // CPU data-direction register.
+    if (address == 0x0000)
+        return dataDirectionRegister;
+
+    // CPU processor port.
+    if (address == 0x0001)
+    {
+        const uint8_t outputs =
+            static_cast<uint8_t>(port1OutputLatch & dataDirectionRegister);
+
+        uint8_t inputs =
+            static_cast<uint8_t>(~dataDirectionRegister);
+
+        if (cassetteSenseLow)
+            inputs = static_cast<uint8_t>(inputs & ~0x10);
+        else
+            inputs = static_cast<uint8_t>(inputs | 0x10);
+
+        // Bits 6 and 7 are not implemented and read high.
+        inputs = static_cast<uint8_t>(inputs | 0xC0);
+
+        return static_cast<uint8_t>(outputs | inputs);
+    }
+
+    // Mapper-controlled cartridge accesses must be checked before
+    // normal PLA decoding, matching the regular CPU read path.
+    if (cart != nullptr &&
+        cartridgeAttached &&
+        cart->cpuMemoryHandledByMapper(address))
+    {
+        return cart->read(address);
+    }
+
+    if (pla == nullptr)
+        return lastBus;
+
+    const PLA::memoryAccessInfo accessInfo =
+        pla->getMemoryAccess(address);
+
+    switch (accessInfo.bank)
+    {
+        case PLA::RAM:
+        {
+            if (accessInfo.offset >= mem.size())
+                return lastBus;
+
+            return mem[accessInfo.offset];
+        }
+
+        case PLA::KERNAL_ROM:
+        {
+            if (accessInfo.offset >= kernalROM.size())
+                return lastBus;
+
+            return kernalROM[accessInfo.offset];
+        }
+
+        case PLA::BASIC_ROM:
+        {
+            if (accessInfo.offset >= basicROM.size())
+                return lastBus;
+
+            return basicROM[accessInfo.offset];
+        }
+
+        case PLA::CHARACTER_ROM:
+        {
+            if (accessInfo.offset >= charROM.size())
+                return lastBus;
+
+            return charROM[accessInfo.offset];
+        }
+
+        case PLA::CARTRIDGE_LO:
+        {
+            if (romLOverlayIsRAM &&
+                cart != nullptr &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                // Prefer cart->peekRAM() when available.
+                return cart->readRAM(accessInfo.offset);
+            }
+
+            if (cart != nullptr &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                // Prefer cart->peek() when available.
+                return cart->read(address);
+            }
+
+            if (accessInfo.offset >= cart_lo.size())
+                return lastBus;
+
+            return cart_lo[accessInfo.offset];
+        }
+
+        case PLA::CARTRIDGE_HI:
+        {
+            if (romHOverLayIsRAM &&
+                cart != nullptr &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                return cart->readRAM(accessInfo.offset);
+            }
+
+            if (cart != nullptr &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                return cart->read(address);
+            }
+
+            if (accessInfo.offset >= cart_hi.size())
+                return lastBus;
+
+            return cart_hi[accessInfo.offset];
+        }
+
+        case PLA::CARTRIDGE_HI_E000:
+        {
+            if (romHOverLayIsRAM &&
+                cart != nullptr &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                return cart->readRAM(accessInfo.offset);
+            }
+
+            if (accessInfo.offset >= cart_hi_e000.size())
+                return lastBus;
+
+            return cart_hi_e000[accessInfo.offset];
+        }
+
+        case PLA::IO:
+        {
+            if (address >= COLOR_MEMORY_START &&
+                address <= COLOR_MEMORY_END)
+            {
+                const std::size_t index =
+                    static_cast<std::size_t>(address - COLOR_MEMORY_START);
+
+                if (index >= colorRAM.size())
+                    return lastBus;
+
+                return static_cast<uint8_t>(
+                    0xF0 | (colorRAM[index] & 0x0F));
+            }
+
+            return peekIO(accessInfo.offset);
+        }
+
+        case PLA::UNMAPPED:
+        default:
+            return lastBus;
+    }
+}
+
+uint8_t Memory::peekIO(uint16_t address) const
+{
+    return lastBus;
+}
+
 uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
 {
     // Enforce 14-bit address

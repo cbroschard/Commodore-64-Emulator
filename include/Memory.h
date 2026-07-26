@@ -60,12 +60,16 @@ class Memory : public CPUBus
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Public access to memory
-        uint8_t read(uint16_t address); // CPU access
-        uint16_t read16(uint16_t addr);
+        uint8_t read(uint16_t address) override; // CPU access
+        uint16_t read16(uint16_t address);
+        uint8_t peek(uint16_t address) const override;
+        uint8_t peekIO(uint16_t address) const;
         uint8_t readForDMA(uint16_t address);
+
         uint8_t vicRead(uint16_t vicAddress, uint16_t raster); // VIC access range
         uint8_t vicReadColor(uint16_t address) const;
-        void write(uint16_t address, uint8_t value); // CPU access
+
+        void write(uint16_t address, uint8_t value) override; // CPU access
         void write16(uint16_t address, uint16_t value);
         void writeDirect(uint16_t address, uint8_t value);
         void writeForDMA(uint16_t address, uint8_t value);
