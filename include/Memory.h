@@ -10,7 +10,16 @@
 
 // Forward declarations
 class Cartridge;
+class Cassette;
 class CIA1;
+class CIA2;
+class CPU;
+class MLMonitor;
+class PLA;
+class REU;
+class SID;
+class TraceManager;
+class Vic;
 
 #include <bitset>
 #include <cstdint>
@@ -21,19 +30,10 @@ class CIA1;
 #include <string>
 #include <sstream>
 #include <vector>
-#include "Cartridge.h"
-#include "Cassette.h"
-#include "CIA2.h"
 #include "Common/CartridgeTypes.h"
-#include "CPU.h"
 #include "CPUBus.h"
-#include "Mlmonitor.h"
-#include "PLA.h"
-#include "REU.h"
-#include "SID/SID.h"
 #include "StateReader.h"
 #include "StateWriter.h"
-#include "Vic.h"
 
 class Memory : public CPUBus
 {
