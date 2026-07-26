@@ -58,9 +58,17 @@ D1571::~D1571() = default;
 void D1571::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("D157");
-    wrtr.writeU32(1);
+    wrtr.writeU32(2);
     wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+
+    // Disk attachment info must come before CPU/chip state
+    wrtr.writeBool(diskLoaded);
+    wrtr.writeBool(diskWriteProtected);
+    wrtr.writeString(loadedDiskName);
+
     wrtr.writeU8(static_cast<uint8_t>(mediaPath));
+    wrtr.writeU8(static_cast<uint8_t>(lastError));
+    wrtr.writeU8(static_cast<uint8_t>(status));
 
     // Dump the CPU state
     driveCPU.saveStatePayload(wrtr);
@@ -68,21 +76,13 @@ void D1571::saveState(StateWriter& wrtr) const
 
     // Mechanics / runtime state
     wrtr.writeBool(motorOn);
-    wrtr.writeBool(diskLoaded);
-    wrtr.writeBool(diskWriteProtected);
-
-    wrtr.writeU8(static_cast<uint8_t>(lastError));
-    wrtr.writeU8(static_cast<uint8_t>(status));
 
     wrtr.writeU8(currentTrack);
     wrtr.writeU8(currentSector);
     wrtr.writeU8(densityCode);
 
     wrtr.writeBool(currentSide);
-    wrtr.writeU16(static_cast<uint16_t>(halfTrackPos));
-
-    // Disk attachment info
-    wrtr.writeString(loadedDiskName);
+    wrtr.writeI32(halfTrackPos);
 
     // Protocol state
     wrtr.writeBool(iecListening);
@@ -112,15 +112,13 @@ void D1571::saveState(StateWriter& wrtr) const
     wrtr.writeBool(dataLineLow);
     wrtr.writeBool(srqAsserted);
 
-    // GCR resume state (bit-exact)
-    wrtr.writeU32(static_cast<uint32_t>(gcrBitCounter));
+    // GCR resume state
+    wrtr.writeI32(gcrBitCounter);
     wrtr.writeU32(static_cast<uint32_t>(gcrPos));
-    wrtr.writeBool(gcrDirty);
 
     // UI Activity State
     wrtr.writeU8(uiTrack);
     wrtr.writeU8(uiSector);
-    wrtr.writeBool(uiLedWasOn);
 
     // Dump RAM
     d1571mem.saveState(wrtr);
@@ -148,15 +146,57 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     // Header / identity
     uint32_t ver = 0;
     if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 2)                                           { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t devU8 = 0;
     if (!rdr.readU8(devU8))                                 { rdr.exitChunkPayload(chunk); return false; }
     setDeviceNumber(static_cast<int>(devU8));
 
-    uint8_t mediaU8 = 0;
-    if (!rdr.readU8(mediaU8))                               { rdr.exitChunkPayload(chunk); return false; }
-    mediaPath = static_cast<MediaPath>(mediaU8);
+    // Disk attachment info
+    bool savedDiskLoaded = false;
+    bool savedWriteProtected = false;
+    std::string savedDiskName;
+
+    if (!rdr.readBool(savedDiskLoaded))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(savedWriteProtected))                 { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readString(savedDiskName))                     { rdr.exitChunkPayload(chunk); return false; }
+
+    uint8_t savedMediaPath = 0;
+    uint8_t savedLastError = 0;
+    uint8_t savedStatus = 0;
+
+    if (!rdr.readU8(savedMediaPath))                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(savedLastError))                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(savedStatus))                           { rdr.exitChunkPayload(chunk); return false; }
+
+    // Mount or remove media before restoring CPU and chip state because
+    // loadDisk() and resetForMediaChange() modify drive runtime state.
+    if (savedDiskLoaded)
+    {
+        if (savedDiskName.empty())                          { rdr.exitChunkPayload(chunk); return false; }
+
+        loadDisk(savedDiskName);
+
+        if (!diskLoaded || !diskImage)                      { rdr.exitChunkPayload(chunk); return false; }
+    }
+    else
+    {
+        resetForMediaChange();
+
+        diskImage.reset();
+        loadedDiskName.clear();
+        diskLoaded = false;
+        diskWriteProtected = false;
+    }
+
+    // Restore authoritative media and drive-status values
+    diskLoaded = savedDiskLoaded;
+    diskWriteProtected = savedWriteProtected;
+    loadedDiskName = savedDiskLoaded ? savedDiskName : std::string{};
+
+    mediaPath = static_cast<MediaPath>(savedMediaPath);
+    lastError = static_cast<DriveError>(savedLastError);
+    status = static_cast<DriveStatus>(savedStatus);
 
     // CPU state (must match save order)
     if (!driveCPU.loadStatePayload(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
@@ -164,16 +204,6 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Mechanics / runtime state
     if (!rdr.readBool(motorOn))                             { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(diskLoaded))                          { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(diskWriteProtected))                  { rdr.exitChunkPayload(chunk); return false; }
-
-    uint8_t u8 = 0;
-
-    if (!rdr.readU8(u8))                                    { rdr.exitChunkPayload(chunk); return false; }
-    lastError = static_cast<DriveError>(u8);
-
-    if (!rdr.readU8(u8))                                    { rdr.exitChunkPayload(chunk); return false; }
-    status = static_cast<DriveStatus>(u8);
 
     if (!rdr.readU8(currentTrack))                          { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(currentSector))                         { rdr.exitChunkPayload(chunk); return false; }
@@ -181,12 +211,7 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     if (!rdr.readBool(currentSide))                         { rdr.exitChunkPayload(chunk); return false; }
 
-    uint16_t ht = 0;
-    if (!rdr.readU16(ht))                                   { rdr.exitChunkPayload(chunk); return false; }
-    halfTrackPos = static_cast<int>(ht);
-
-    // Disk attachment info
-    if (!rdr.readString(loadedDiskName))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(halfTrackPos))                         { rdr.exitChunkPayload(chunk); return false; }
 
     // IEC protocol state (D1571-local)
     if (!rdr.readBool(iecListening))                        { rdr.exitChunkPayload(chunk); return false; }
@@ -217,37 +242,28 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readBool(srqAsserted))                         { rdr.exitChunkPayload(chunk); return false; }
 
     // GCR resume state
-    uint32_t tmp32 = 0;
+    uint32_t savedGcrPos = 0;
 
-    if (!rdr.readU32(tmp32))                                { rdr.exitChunkPayload(chunk); return false; }
-    gcrBitCounter = static_cast<int>(tmp32);
+    if (!rdr.readI32(gcrBitCounter))                        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(savedGcrPos))                          { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU32(tmp32))                                { rdr.exitChunkPayload(chunk); return false; }
-    gcrPos = static_cast<size_t>(tmp32);
-
-    if (!rdr.readBool(gcrDirty))                            { rdr.exitChunkPayload(chunk); return false; }
-
+    // UI activity state
     if (!rdr.readU8(uiTrack))                               { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(uiSector))                              { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(uiLedWasOn))                          { rdr.exitChunkPayload(chunk); return false; }
 
-    // Memory + VIAs (match save order)
     if (!d1571mem.loadState(rdr))                           { rdr.exitChunkPayload(chunk); return false; }
     if (!d1571mem.getVIA1().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
     if (!d1571mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
+    if (!d1571mem.getFDC().loadState(rdr))                  { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
 
     // Post-restore fixups (IMPORTANT for deterministic resume)
+    invalidateRawGcrCache();
+    gcrPos = static_cast<size_t>(savedGcrPos);
+    gcrDirty = true;
 
-    // We do NOT serialize gcrTrackStream/gcrSync (huge). Rebuild lazily.
-    gcrTrackStream.clear();
-    gcrSync.clear();
-    gcrSectorAtPos.clear();
-
-    // If a disk is expected, ensure rebuild will happen next gcrTick().
-    if (diskLoaded)
-        gcrDirty = true;
-
-    // Sync VIA1 input pins to the bus line levels we restored
+    // Sync VIA1 input pins to the bus line levels with the global restored IEC Bus state
     forceSyncIEC();
 
     // Bring SRQ output in sync with restored state
@@ -255,6 +271,9 @@ bool D1571::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // IRQ line derived from VIA/CIA/FDC state
     updateIRQ();
+
+    // Derived from the restored VIA2 state
+    uiLedWasOn = d1571mem.getVIA2().isLedOn();
 
     return true;
 }
