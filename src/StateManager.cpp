@@ -124,6 +124,13 @@ bool StateManager::save(const std::string& path)
     mem_.saveState(wrtr);
     bus_.saveState(wrtr);
 
+    // Save all installed disk drives
+    for (const auto& drive : drives_)
+    {
+        if (drive)
+            drive->saveState(wrtr);
+    }
+
     // Save joystick state
     inputMgr_.saveState(wrtr);
 
@@ -362,6 +369,84 @@ bool StateManager::load(const std::string& path)
             #ifdef Debug
             std::cout << "Loaded REU\n";
             #endif
+        }
+        else if (std::memcmp(chunk.tag, "D541", 4) == 0)
+        {
+            bool restored = false;
+
+            for (auto& drive : drives_)
+            {
+                if (!drive)
+                    continue;
+
+                if (drive->getDriveModel() != DriveModel::D1541)
+                    continue;
+
+                if (!drive->loadState(chunk, rdr))
+                    return false;
+
+                restored = true;
+                break;
+            }
+
+            if (!restored)
+                return false;
+
+        #ifdef Debug
+            std::cout << "Loaded 1541 drive\n";
+        #endif
+        }
+        else if (std::memcmp(chunk.tag, "D157", 4) == 0)
+        {
+            bool restored = false;
+
+            for (auto& drive : drives_)
+            {
+                if (!drive)
+                    continue;
+
+                if (drive->getDriveModel() != DriveModel::D1571)
+                    continue;
+
+                if (!drive->loadState(chunk, rdr))
+                    return false;
+
+                restored = true;
+                break;
+            }
+
+            if (!restored)
+                return false;
+
+        #ifdef Debug
+            std::cout << "Loaded 1571 drive\n";
+        #endif
+        }
+        else if (std::memcmp(chunk.tag, "D158", 4) == 0)
+        {
+            bool restored = false;
+
+            for (auto& drive : drives_)
+            {
+                if (!drive)
+                    continue;
+
+                if (drive->getDriveModel() != DriveModel::D1581)
+                    continue;
+
+                if (!drive->loadState(chunk, rdr))
+                    return false;
+
+                restored = true;
+                break;
+            }
+
+            if (!restored)
+                return false;
+
+        #ifdef Debug
+            std::cout << "Loaded 1581 drive\n";
+        #endif
         }
         else
         {
