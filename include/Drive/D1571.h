@@ -8,9 +8,6 @@
 #ifndef D1571_H
 #define D1571_H
 
-// Forward declarations
-class IECBUS;
-
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -23,7 +20,8 @@ class IECBUS;
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
-#include "IECBUS.h"
+#include "IECBus.h"
+#include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
