@@ -356,6 +356,8 @@ void EmulatorUI::drawFileDialog()
     reserve += ImGui::GetFrameHeightWithSpacing();
     reserve += ImGui::GetTextLineHeightWithSpacing();
 
+    bool saveRequestedByEnter = false;
+
     if (fileDlg.mode == FileDialog::Mode::SaveAs)
     {
         reserve += ImGui::GetTextLineHeightWithSpacing();
@@ -467,7 +469,8 @@ void EmulatorUI::drawFileDialog()
         ImGui::Separator();
         ImGui::TextUnformatted("File name:");
         ImGui::SetNextItemWidth(-1.0f);
-        ImGui::InputText("##save_name", &fileDlg.fileName);
+
+        saveRequestedByEnter = ImGui::InputText("##save_name", &fileDlg.fileName, ImGuiInputTextFlags_EnterReturnsTrue);
     }
 
     if (!fileDlg.error.empty())
@@ -516,16 +519,26 @@ void EmulatorUI::drawFileDialog()
     }
     else
     {
-        bool hasName = !fileDlg.fileName.empty();
+        const bool hasName = !fileDlg.fileName.empty();
 
         if (!hasName)
             ImGui::BeginDisabled();
 
-        if (ImGui::Button("Save"))
+        const bool saveButtonClicked = ImGui::Button("Save");
+
+        if (!hasName)
+            ImGui::EndDisabled();
+
+        const bool saveRequested =
+            hasName &&
+            (saveButtonClicked || saveRequestedByEnter);
+
+        if (saveRequested)
         {
             try
             {
-                fs::path outPath = fileDlg.currentDir / fileDlg.fileName;
+                fs::path outPath =
+                    fileDlg.currentDir / fileDlg.fileName;
 
                 if (!outPath.has_extension() &&
                     fileDlg.allowedExtensions.size() == 1)
@@ -535,11 +548,14 @@ void EmulatorUI::drawFileDialog()
 
                 if (!isAllowedByExtension(outPath))
                 {
-                    fileDlg.error = "File type not allowed for this action.";
+                    fileDlg.error =
+                        "File type not allowed for this action.";
                 }
-                else if (fs::exists(outPath) && !fileDlg.allowOverwrite)
+                else if (fs::exists(outPath) &&
+                         !fileDlg.allowOverwrite)
                 {
-                    fileDlg.error = "File already exists. Choose a different name.";
+                    fileDlg.error =
+                        "File already exists. Choose a different name.";
                 }
                 else
                 {
@@ -551,9 +567,6 @@ void EmulatorUI::drawFileDialog()
                 fileDlg.error = e.what();
             }
         }
-
-        if (!hasName)
-            ImGui::EndDisabled();
     }
 
     ImGui::End();
