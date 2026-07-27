@@ -355,7 +355,8 @@ void MLMonitor::handleCommand(const std::string& line)
 
     if (asmIt != commands.end())
     {
-        if (auto* ac = dynamic_cast<AssembleCommand*>(asmIt->second.get()))
+        if (auto* ac =
+                dynamic_cast<AssembleCommand*>(asmIt->second.get()))
         {
             if (ac->isInteractiveActive())
             {
@@ -437,25 +438,56 @@ void MLMonitor::handleCommand(const std::string& line)
             }
             else
             {
-                std::cout << "Unknown command: " << topic << "\n";
+                std::cout
+                    << "Unknown command: "
+                    << topic
+                    << "\n";
             }
 
             return;
         }
 
         // Plain help / h / ?
-        std::map<std::string, std::vector<std::string>> grouped;
+        //
+        // Keep the command objects here instead of storing only their
+        // short-help strings. That allows order() to control display order.
+        std::map<
+            std::string,
+            std::vector<const MonitorCommand*>
+        > grouped;
 
         for (const auto& [commandName, command] : commands)
         {
             grouped[command->category()].push_back(
-                command->shortHelp()
+                command.get()
+            );
+        }
+
+        // Sort the commands inside each category by order().
+        // Use name() as a stable secondary sort when two commands have
+        // the same order value.
+        for (auto& [category, categoryCommands] : grouped)
+        {
+            std::sort(
+                categoryCommands.begin(),
+                categoryCommands.end(),
+                [](const MonitorCommand* left,
+                   const MonitorCommand* right)
+                {
+                    if (left->order() != right->order())
+                    {
+                        return
+                            left->order() <
+                            right->order();
+                    }
+
+                    return left->name() < right->name();
+                }
             );
         }
 
         std::cout << "Available commands:\n";
 
-        // Adjust these values if the monitor font or window size changes.
         constexpr std::size_t commandWidth   = 42;
         constexpr std::size_t totalWidth     = 105;
         constexpr std::size_t leftIndent     = 4;
@@ -467,12 +499,18 @@ void MLMonitor::handleCommand(const std::string& line)
             commandWidth -
             separatorWidth;
 
-        for (const auto& [category, helpLines] : grouped)
+        for (const auto& [category, categoryCommands] : grouped)
         {
-            std::cout << "  " << category << ":\n";
+            std::cout
+                << "  "
+                << category
+                << ":\n";
 
-            for (const auto& helpLine : helpLines)
+            for (const MonitorCommand* command : categoryCommands)
             {
+                const std::string helpLine =
+                    command->shortHelp();
+
                 const std::size_t separator =
                     helpLine.find(" - ");
 
@@ -480,9 +518,10 @@ void MLMonitor::handleCommand(const std::string& line)
                 // string does not follow "syntax - description".
                 if (separator == std::string::npos)
                 {
-                    std::cout << "    "
-                              << helpLine
-                              << "\n";
+                    std::cout
+                        << "    "
+                        << helpLine
+                        << "\n";
 
                     continue;
                 }
@@ -500,10 +539,11 @@ void MLMonitor::handleCommand(const std::string& line)
                 // empty.
                 do
                 {
-                    std::size_t length = std::min(
-                        descriptionWidth,
-                        description.size() - offset
-                    );
+                    std::size_t length =
+                        std::min(
+                            descriptionWidth,
+                            description.size() - offset
+                        );
 
                     // When more text remains, prefer wrapping at the final
                     // space that fits on this line.
@@ -513,37 +553,49 @@ void MLMonitor::handleCommand(const std::string& line)
                             offset + length;
 
                         const std::size_t wrapPosition =
-                            description.rfind(' ', searchEnd);
+                            description.rfind(
+                                ' ',
+                                searchEnd
+                            );
 
                         if (wrapPosition != std::string::npos &&
                             wrapPosition >= offset)
                         {
-                            length = wrapPosition - offset;
+                            length =
+                                wrapPosition - offset;
                         }
                     }
 
                     if (firstLine)
                     {
-                        std::cout << "    "
-                                  << std::left
-                                  << std::setw(
-                                         static_cast<int>(commandWidth)
-                                     )
-                                  << commandSyntax
-                                  << " - ";
+                        std::cout
+                            << "    "
+                            << std::left
+                            << std::setw(
+                                static_cast<int>(
+                                    commandWidth
+                                )
+                            )
+                            << commandSyntax
+                            << " - ";
                     }
                     else
                     {
-                        std::cout << std::string(
-                            leftIndent +
-                            commandWidth +
-                            separatorWidth,
-                            ' '
-                        );
+                        std::cout
+                            << std::string(
+                                leftIndent +
+                                commandWidth +
+                                separatorWidth,
+                                ' '
+                            );
                     }
 
-                    std::cout << description.substr(offset, length)
-                              << "\n";
+                    std::cout
+                        << description.substr(
+                            offset,
+                            length
+                        )
+                        << "\n";
 
                     offset += length;
 
@@ -571,7 +623,10 @@ void MLMonitor::handleCommand(const std::string& line)
     }
     else
     {
-        std::cout << "Unknown command: " << cmd << "\n";
+        std::cout
+            << "Unknown command: "
+            << cmd
+            << "\n";
     }
 }
 
