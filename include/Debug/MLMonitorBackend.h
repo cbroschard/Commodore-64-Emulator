@@ -24,6 +24,7 @@ class MLMonitorBackend
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
+        inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachProcessorInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
@@ -217,6 +218,7 @@ class MLMonitorBackend
         CIA2* cia2;
         Computer* comp;
         CPU* cpu;
+        ExecutionHistory* executionHistory;
         IECBUS* bus;
         IRQLine* irq;
         Keyboard* keyb;

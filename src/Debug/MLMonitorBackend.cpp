@@ -394,6 +394,7 @@ MLMonitorBackend::MLMonitorBackend() :
     cia1(nullptr),
     cia2(nullptr),
     cpu(nullptr),
+    executionHistory(nullptr),
     bus(nullptr),
     pla(nullptr),
     sid(nullptr),
