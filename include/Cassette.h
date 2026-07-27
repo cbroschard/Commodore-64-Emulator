@@ -14,7 +14,6 @@ class Memory;
 #include <iostream>
 #include "Common/C64MemoryMap.h"
 #include "Common/TapeTypes.h"
-#include "Memory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 #include "Tape/TapeImageFactory.h"
