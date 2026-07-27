@@ -65,7 +65,7 @@ WatchCommand::~WatchCommand() = default;
 
 int WatchCommand::order() const
 {
-    return 20;
+    return 50;
 }
 
 std::string WatchCommand::name() const
