@@ -52,6 +52,7 @@ Computer::Computer() :
     components_.cia2 = std::make_unique<CIA2>();
     components_.cpu = std::make_unique<CPU>();
     components_.ui = std::make_unique<EmulatorUI>();
+    components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
     components_.bus = std::make_unique<IECBUS>();
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();
