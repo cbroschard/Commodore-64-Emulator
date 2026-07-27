@@ -13,6 +13,7 @@ class CIA2;
 class ExecutionHistory;
 class IRQLine;
 class StateWriter;
+class Vic;
 
 #include <array>
 #include <functional>
@@ -22,8 +23,8 @@ class StateWriter;
 #include "Common/BCD.h"
 #include "CPUBus.h"
 #include "StateReader.h"
-#include "Vic.h"
 #include "Debug/TraceManager.h"
+#include "Common/VideoMode.h"
 
 class CPU
 {

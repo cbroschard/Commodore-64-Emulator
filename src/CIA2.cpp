@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
 #include "CPU.h"
+#include "Vic.h"
 
 CIA2::CIA2() :
     cpu(nullptr),

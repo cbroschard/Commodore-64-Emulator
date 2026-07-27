@@ -15,6 +15,7 @@
 #include "Joystick.h"
 #include "Keyboard.h"
 #include "Memory.h"
+#include "Vic.h"
 
 CIA1::CIA1() :
     cass(nullptr),

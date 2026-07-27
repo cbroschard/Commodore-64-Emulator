@@ -43,6 +43,7 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
+#include "Vic.h"
 
 Cartridge::Cartridge() :
     hasRAM(false),

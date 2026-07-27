@@ -10,6 +10,7 @@
 #include "Common/ExecutionHistory.h"
 #include "IRQLine.h"
 #include "StateWriter.h"
+#include "Vic.h"
 
 CPU::CPU() :
     // Initialize
