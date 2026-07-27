@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RexUtilityMapper.h"
+#include "Memory.h"
 
 RexUtilityMapper::RexUtilityMapper() :
     romEnabled(true)

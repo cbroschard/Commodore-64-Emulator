@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RetroReplayMapper.h"
+#include "Memory.h"
 
 RetroReplayMapper::RetroReplayMapper() :
     freezeButtonPressed(false),

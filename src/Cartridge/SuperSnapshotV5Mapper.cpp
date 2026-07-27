@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV5Mapper.h"
+#include "Memory.h"
 
 SuperSnapshotV5Mapper::SuperSnapshotV5Mapper() :
     selectedBank(0xFF)

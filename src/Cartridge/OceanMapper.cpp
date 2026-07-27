@@ -9,6 +9,7 @@
 #include <cstring>
 #include "Cartridge.h"
 #include "Cartridge/OceanMapper.h"
+#include "Memory.h"
 
 OceanMapper::OceanMapper() :
     builtLists(false),

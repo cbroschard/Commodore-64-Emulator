@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/WarpSpeedMapper.h"
+#include "Memory.h"
 
 WarpSpeedMapper::WarpSpeedMapper() :
     enabled(true)

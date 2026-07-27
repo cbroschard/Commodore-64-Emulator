@@ -8,6 +8,7 @@
 #include <fstream>
 #include "Cartridge.h"
 #include "Cartridge/GMod2Mapper.h"
+#include "Memory.h"
 
 GMod2Mapper::GMod2Mapper() :
     flashData(FLASH_SIZE, 0xFF),

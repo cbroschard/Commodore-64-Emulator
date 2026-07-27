@@ -10,12 +10,13 @@
 
 // Forward declarations
 class CPU;
-class TraceManager;
+class Memory;
 class Vic;
 
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -23,10 +24,9 @@ class Vic;
 #include "Cartridge/ICartridgeHost.h"
 #include "Common/CartridgeTypes.h"
 #include "Common/Endian.h"
-#include "cpu.h"
-#include "Memory.h"
 #include "StateReader.h"
 #include "StateWriter.h"
+#include "TraceManager.h"
 
 class Cartridge
 {

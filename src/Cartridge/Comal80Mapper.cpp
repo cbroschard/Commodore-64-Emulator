@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/Comal80Mapper.h"
+#include "Memory.h"
 
 Comal80Mapper::Comal80Mapper() :
     selectedBank(0)

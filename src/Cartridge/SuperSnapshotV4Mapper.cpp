@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV4Mapper.h"
+#include "Memory.h"
 
 SuperSnapshotV4Mapper::SuperSnapshotV4Mapper() :
     freezeActive(false),

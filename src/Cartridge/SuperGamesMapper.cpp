@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperGamesMapper.h"
+#include "Memory.h"
 
 SuperGamesMapper::SuperGamesMapper() :
     selectedBank(0),

@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FreezeFrameMapper.h"
+#include "Memory.h"
 
 FreezeFrameMapper::FreezeFrameMapper() :
     mode(Mode::Normal)

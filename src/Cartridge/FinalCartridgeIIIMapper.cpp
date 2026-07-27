@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FinalCartridgeIIIMapper.h"
+#include "Memory.h"
 
 FinalCartridgeIIIMapper::FinalCartridgeIIIMapper() :
     freezeBank(0),

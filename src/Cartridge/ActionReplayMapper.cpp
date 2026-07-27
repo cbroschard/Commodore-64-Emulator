@@ -8,6 +8,7 @@
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
 #include "CPU.h"
+#include "Memory.h"
 
 ActionReplayMapper::ActionReplayMapper() :
     selectedBank(0),

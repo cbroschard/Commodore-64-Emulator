@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MagicFormelMapper.h"
+#include "Memory.h"
 
 MagicFormelMapper::MagicFormelMapper() :
     romEnabled(true),

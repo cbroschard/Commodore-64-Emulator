@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FinalCartridgePlusMapper.h"
+#include "Memory.h"
 
 FinalCartridgePlusMapper::FinalCartridgePlusMapper() :
     bit7Latch(0),

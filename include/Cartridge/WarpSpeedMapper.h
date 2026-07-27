@@ -8,6 +8,7 @@
 #ifndef WARPSPEEDMAPPER_H
 #define WARPSPEEDMAPPER_H
 
+#include <array>
 #include "Cartridge/CartridgeMapper.h"
 
 class WarpSpeedMapper : public CartridgeMapper

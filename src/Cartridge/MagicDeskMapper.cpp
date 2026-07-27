@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MagicDeskMapper.h"
+#include "Memory.h"
 
 MagicDeskMapper::MagicDeskMapper() :
     magicDeskBank(0),

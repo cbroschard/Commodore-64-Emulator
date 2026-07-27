@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ExpertMapper.h"
+#include "Memory.h"
 
 ExpertMapper::ExpertMapper() :
     sw(SwitchPos::OFF),

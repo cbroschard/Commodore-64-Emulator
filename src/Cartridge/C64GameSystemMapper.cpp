@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/C64GameSystemMapper.h"
+#include "Memory.h"
 
 C64GameSystemMapper::C64GameSystemMapper() :
     selectedBank(0)

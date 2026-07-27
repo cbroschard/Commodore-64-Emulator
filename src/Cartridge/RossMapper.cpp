@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RossMapper.h"
+#include "Memory.h"
 
 RossMapper::RossMapper() :
     selectedBank(0),

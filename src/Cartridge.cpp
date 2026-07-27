@@ -43,6 +43,8 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
+#include "CPU.h"
+#include "Memory.h"
 #include "Vic.h"
 
 Cartridge::Cartridge() :

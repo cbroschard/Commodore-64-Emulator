@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/DinamicMapper.h"
+#include "Memory.h"
 
 DinamicMapper::DinamicMapper() :
     dinamicBank(0)

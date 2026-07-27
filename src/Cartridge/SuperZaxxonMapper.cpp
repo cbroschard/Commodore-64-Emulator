@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperZaxxonMapper.h"
+#include "Memory.h"
 
 SuperZaxxonMapper::SuperZaxxonMapper() :
     currentBank(0)

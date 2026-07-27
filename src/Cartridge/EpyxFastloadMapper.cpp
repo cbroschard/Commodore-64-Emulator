@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/EpyxFastloadMapper.h"
+#include "Memory.h"
 
 EpyxFastloadMapper::EpyxFastloadMapper() :
     romEnabled(false),

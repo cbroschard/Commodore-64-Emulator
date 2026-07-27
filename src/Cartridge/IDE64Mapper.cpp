@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/IDE64Mapper.h"
+#include "Memory.h"
 
 IDE64Mapper::IDE64Mapper()
 {

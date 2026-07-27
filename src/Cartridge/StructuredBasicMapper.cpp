@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/StructuredBasicMapper.h"
+#include "Memory.h"
 
 StructuredBasicMapper::StructuredBasicMapper() :
     selectedBank(0)

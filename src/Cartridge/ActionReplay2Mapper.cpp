@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplay2Mapper.h"
+#include "Memory.h"
 
 ActionReplay2Mapper::ActionReplay2Mapper() :
     selectedBank(0),

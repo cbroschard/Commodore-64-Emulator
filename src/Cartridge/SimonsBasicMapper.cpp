@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SimonsBasicMapper.h"
+#include "Memory.h"
 
 SimonsBasicMapper::SimonsBasicMapper() :
     highROMEnabled(true)

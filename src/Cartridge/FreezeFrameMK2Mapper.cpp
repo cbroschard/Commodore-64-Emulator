@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FreezeFrameMK2Mapper.h"
+#include "Memory.h"
 
 FreezeFrameMK2Mapper::FreezeFrameMK2Mapper() :
     selectedBank(0)

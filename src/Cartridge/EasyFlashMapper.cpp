@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/EasyFlashMapper.h"
+#include "Memory.h"
 
 EasyFlashMapper::EasyFlashMapper() :
     selectedBank(0)
