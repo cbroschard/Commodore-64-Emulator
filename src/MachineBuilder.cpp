@@ -11,6 +11,7 @@
 #include "MachineRomConfig.h"
 #include "MachineComponents.h"
 #include "MachineRuntimeState.h"
+#include "MonitorController.h"
 #include "ResetController.h"
 #include "StateManager.h"
 #include "UIBridge.h"

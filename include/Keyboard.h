@@ -10,12 +10,13 @@
 
 #define SDL_MAIN_HANDLED
 
+class CIA1;
+
 #include <sdl2/sdl.h>
 #include <unordered_map>
 #include <vector>
 #include <bitset>
 #include <iostream>
-#include "CIA1.h"
 
 class CPU;
 

@@ -8,6 +8,10 @@
 #ifndef INPUTMANAGER_H
 #define INPUTMANAGER_H
 
+class CIA1;
+class Keyboard;
+class MonitorController;
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -15,11 +19,10 @@
 #include <memory>
 #include <sdl2/sdl.h>
 #include <unordered_map>
-#include "CIA1.h"
-#include "Common/JoystickMapping.h"
 #include "Joystick.h"
-#include "Keyboard.h"
-#include "MonitorController.h"
+#include "Common/JoystickMapping.h"
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class InputManager
 {

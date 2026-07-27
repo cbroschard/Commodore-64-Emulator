@@ -12,6 +12,7 @@
 #include "MachineComponents.h"
 #include "MachineRomConfig.h"
 #include "MachineRuntimeState.h"
+#include "MonitorController.h"
 #include "UIBridge.h"
 
 EmulationSession::EmulationSession(MachineComponents& components,
