@@ -10,6 +10,8 @@
 
 // forward declarations
 class CIA2;
+class ExecutionHistory;
+class IRQLine;
 class StateWriter;
 
 #include <array>
@@ -19,7 +21,6 @@ class StateWriter;
 #include <stdint.h>
 #include "Common/BCD.h"
 #include "CPUBus.h"
-#include "IRQLine.h"
 #include "StateReader.h"
 #include "Vic.h"
 #include "Debug/TraceManager.h"
@@ -34,6 +35,7 @@ class CPU
         // Pointers
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
+        inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
@@ -563,6 +565,7 @@ class CPU
 
         // non-owning pointers
         CIA2* cia2;
+        ExecutionHistory* executionHistory;
         IRQLine* IRQ;
         CPUBus* mem;
         TraceManager* traceMgr;
@@ -860,7 +863,6 @@ class CPU
         void executeIRQ();
         void executeNMI();
 
-
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
@@ -1077,6 +1079,9 @@ class CPU
         TraceManager::Stamp makeCpuStamp() const;
 
         uint8_t executedMicroOpsThisInstruction = 0;
+
+        // ML Monitor
+        void recordExecutionHistory(uint16_t instructionPC);
 };
 
 #endif // CPU_H

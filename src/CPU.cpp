@@ -7,11 +7,14 @@
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
 #include "CPU.h"
+#include "Common/ExecutionHistory.h"
+#include "IRQLine.h"
 #include "StateWriter.h"
 
 CPU::CPU() :
     // Initialize
     cia2(nullptr),
+    executionHistory(nullptr),
     IRQ(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
@@ -1327,6 +1330,9 @@ void CPU::tick()
         if (cycles <= 0)
         {
             const uint16_t pcExec = PC;
+
+            recordExecutionHistory(pcExec);
+
             const uint8_t opcode = fetchOpcode();
 
             lastOpcodePC = pcExec;
@@ -7350,6 +7356,9 @@ bool CPU::tickMicroOps()
         }
 
         const uint16_t opcodePC = PC;
+
+        recordExecutionHistory(opcodePC);
+
         const uint8_t opcode = fetchOpcode();
 
         activeOpcodePC = opcodePC;
@@ -7876,4 +7885,40 @@ void CPU::postLoadState()
     {
         aecLine = vic->getAEC();
     }
+}
+
+void CPU::recordExecutionHistory(uint16_t instructionPC)
+{
+    if (executionHistory == nullptr ||
+        !executionHistory->isEnabled() ||
+        mem == nullptr)
+    {
+        return;
+    }
+
+    ExecutionHistoryEntry entry;
+
+    entry.pc = instructionPC;
+
+    entry.opcode = mem->peek(instructionPC);
+    entry.operand1 =
+        mem->peek(static_cast<uint16_t>(instructionPC + 1));
+    entry.operand2 =
+        mem->peek(static_cast<uint16_t>(instructionPC + 2));
+
+    entry.a = A;
+    entry.x = X;
+    entry.y = Y;
+    entry.sp = SP;
+    entry.sr = SR;
+
+    entry.totalCycles = totalCycles;
+
+    if (vic != nullptr)
+    {
+        entry.rasterLine = vic->getCurrentRaster();
+        entry.rasterDot = vic->getRasterDot();
+    }
+
+    executionHistory->record(entry);
 }
