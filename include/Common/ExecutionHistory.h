@@ -95,7 +95,7 @@ class ExecutionHistory
         }
 
     private:
-        RingBuffer<ExecutionHistoryEntry> entries;
+        Common::RingBuffer<ExecutionHistoryEntry> entries;
         bool enabled;
 };
 
