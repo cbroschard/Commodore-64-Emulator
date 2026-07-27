@@ -17,6 +17,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "EmulatorUI.h"
+#include "Common/ExecutionHistory.h"
 #include "IECBUS.h"
 #include "InputManager.h"
 #include "InputRouter.h"
@@ -50,6 +51,7 @@ struct MachineComponents
     std::unique_ptr<DebugManager> debug;
     std::array<std::unique_ptr<Drive>, 16> drives;
     std::unique_ptr<EmulatorUI> ui;
+    std::unique_ptr<ExecutionHistory> executionHistory;
     std::unique_ptr<IECBUS> bus;
     std::unique_ptr<InputManager> inputMgr;
     std::unique_ptr<InputRouter> inputRouter;
