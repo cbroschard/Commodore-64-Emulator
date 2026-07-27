@@ -113,6 +113,17 @@ class MLMonitorBackend
         void dumpDriveVIA1(int id);
         void dumpDriveVIA2(int id);
 
+        // ML Monitor Execution History
+        inline bool hasExecutionHistory() const { return executionHistory != nullptr; }
+        inline bool isExecutionHistoryEnabled() const { return executionHistory != nullptr && executionHistory->isEnabled();}
+
+        void setExecutionHistoryEnabled(bool enabled);
+        void clearExecutionHistory();
+
+        std::size_t getExecutionHistorySize() const;
+        std::size_t getExecutionHistoryCapacity() const;
+        std::vector<ExecutionHistoryEntry> getExecutionHistory(std::size_t count) const;
+
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return bus; }
 

@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include "6502/Disassembler.h"
 #include "Drive/FDC177x.h"
 #include "IECBUS.h"
@@ -3562,6 +3563,70 @@ void MLMonitorBackend::dumpDriveFDC(int id)
         << " cyclesUntilEvent=" << registers.cyclesUntilEvent << "\n";
 
     std::cout << oss.str();
+}
+
+void MLMonitorBackend::setExecutionHistoryEnabled(bool enabled)
+{
+    if (executionHistory == nullptr)
+        return;
+
+    executionHistory->setEnabled(enabled);
+}
+
+void MLMonitorBackend::clearExecutionHistory()
+{
+    if (executionHistory == nullptr)
+        return;
+
+    executionHistory->clear();
+}
+
+std::size_t MLMonitorBackend::getExecutionHistorySize() const
+{
+    if (executionHistory == nullptr)
+        return 0;
+
+    return executionHistory->size();
+}
+
+std::size_t MLMonitorBackend::getExecutionHistoryCapacity() const
+{
+    if (executionHistory == nullptr)
+        return 0;
+
+    return executionHistory->capacity();
+}
+
+std::vector<ExecutionHistoryEntry> MLMonitorBackend::getExecutionHistory(std::size_t count) const
+{
+    std::vector<ExecutionHistoryEntry> result;
+
+    if (executionHistory == nullptr ||
+        executionHistory->empty() ||
+        count == 0)
+    {
+        return result;
+    }
+
+    const std::size_t available =
+        executionHistory->size();
+
+    const std::size_t numberToReturn =
+        std::min(count, available);
+
+    result.reserve(numberToReturn);
+
+    const std::size_t firstIndex =
+        available - numberToReturn;
+
+    for (std::size_t index = firstIndex;
+         index < available;
+         ++index)
+    {
+        result.push_back((*executionHistory)[index]);
+    }
+
+    return result;
 }
 
 std::string MLMonitorBackend::jamModeToString() const

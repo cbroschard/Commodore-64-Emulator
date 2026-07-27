@@ -15,6 +15,7 @@
 #include "Debug/DriveCommand.h"
 #include "Debug/ExportDisassemblyCommand.h"
 #include "Debug/GoCommand.h"
+#include "Debug/HistoryCommand.h"
 #include "Debug/IECCommand.h"
 #include "Debug/IRQCommand.h"
 #include "Debug/MemoryDumpCommand.h"
@@ -49,6 +50,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<DriveCommand>());
     registerCommand(std::make_unique<ExportDisassemblyCommand>());
     registerCommand(std::make_unique<GoCommand>());
+    registerCommand(std::make_unique<HistoryCommand>());
     registerCommand(std::make_unique<IECCommand>());
     registerCommand(std::make_unique<IRQCommand>());
     registerCommand(std::make_unique<MemoryDumpCommand>());
