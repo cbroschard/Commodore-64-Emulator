@@ -13,6 +13,11 @@ MemoryEditCommand::MemoryEditCommand() = default;
 
 MemoryEditCommand::~MemoryEditCommand() = default;
 
+int MemoryEditCommand::order() const
+{
+    return 14;
+}
+
 std::string MemoryEditCommand::name() const
 {
     return "e";

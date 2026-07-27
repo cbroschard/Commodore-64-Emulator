@@ -20,7 +20,7 @@ DisassembleCommand::~DisassembleCommand() = default;
 
 int DisassembleCommand::order() const
 {
-    return 4;
+    return 5;
 }
 
 std::string DisassembleCommand::name() const

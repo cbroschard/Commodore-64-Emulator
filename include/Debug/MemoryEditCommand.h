@@ -20,6 +20,8 @@ class MemoryEditCommand : public MonitorCommand
         MemoryEditCommand();
         virtual ~MemoryEditCommand();
 
+        int order() const override;
+
         std::string name() const override;
         std::string category() const override;
         std::string shortHelp() const override;

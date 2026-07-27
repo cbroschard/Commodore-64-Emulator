@@ -14,7 +14,7 @@ BreakpointCommand::~BreakpointCommand() = default;
 
 int BreakpointCommand::order() const
 {
-    return 5;
+    return 4;
 }
 
 std::string BreakpointCommand::name() const
