@@ -25,8 +25,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
 
     components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),
-                                   components.cpu.get(), components.bus.get(), components.irq.get(), components.keyb.get(),
-                                   components.mem.get(), components.pla.get(), components.reu.get(), components.sid.get(), components.vic.get());
+                                   components.cpu.get(), components.executionHistory.get(), components.bus.get(),
+                                   components.irq.get(), components.keyb.get(), components.mem.get(), components.pla.get(),
+                                   components.reu.get(), components.sid.get(), components.vic.get());
 
     components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
                                  components.mem.get(), components.pla.get(), components.sid.get(), components.vic.get());
@@ -85,6 +86,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.cpu->attachMemoryInstance(components.mem.get());
     components.cpu->attachCIA2Instance(components.cia2.get());
+    components.cpu->attachExecutionHistoryInstance(components.executionHistory.get());
     components.cpu->attachVICInstance(components.vic.get());
     components.cpu->attachIRQLineInstance(components.irq.get());
     components.cpu->attachTraceManagerInstance(&components.debug->trace());
@@ -96,6 +98,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.sid->attachVicInstance(components.vic.get());
 
     components.vic->attachCPUInstance(components.cpu.get());
+    components.vic->attachIVideoSinkInstance(components.videoOutput.get());
     components.vic->attachIVideoSinkInstance(components.videoOutput.get());
     components.vic->attachMemoryInstance(components.mem.get());
     components.vic->attachCIA2Instance(components.cia2.get());
