@@ -15,7 +15,7 @@ NextCommand::~NextCommand() = default;
 
 int NextCommand::order() const
 {
-    return 5;
+    return 7;
 }
 
 std::string NextCommand::name() const

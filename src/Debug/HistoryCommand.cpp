@@ -20,7 +20,7 @@ HistoryCommand::~HistoryCommand() = default;
 
 int HistoryCommand::order() const
 {
-    return 7;
+    return 6;
 }
 
 std::string HistoryCommand::name() const

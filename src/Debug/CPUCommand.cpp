@@ -15,7 +15,7 @@ CPUCommand::~CPUCommand() = default;
 
 int CPUCommand::order() const
 {
-    return 6;
+    return 1;
 }
 
 std::string CPUCommand::name() const

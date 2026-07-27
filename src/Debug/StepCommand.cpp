@@ -13,6 +13,11 @@ StepCommand::StepCommand() = default;
 
 StepCommand::~StepCommand() = default;
 
+int StepCommand::order() const
+{
+    return 9;
+}
+
 std::string StepCommand::name() const
 {
     return "t";
