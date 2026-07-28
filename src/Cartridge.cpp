@@ -31,6 +31,7 @@
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/Mach5Mapper.h"
 #include "Cartridge/MagicDeskMapper.h"
+#include "Cartridge/MagicDesk16Mapper.h"
 #include "Cartridge/MagicFormelMapper.h"
 #include "Cartridge/MikroAssemblerMapper.h"
 #include "Cartridge/OceanMapper.h"
@@ -374,6 +375,9 @@ bool Cartridge::loadROM(const std::string& path)
         if (mapperType == Cartridge::CartridgeType::RGCD)
             mapper->reset();
 
+        if (mapperType == Cartridge::CartridgeType::MAGICDESK_16)
+            mapper->reset();
+
         if (mapper && mapper->hasPersistence())
         {
             persistencePath = makePersistencePath(path);
@@ -431,6 +435,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x39:  return CartridgeType::RGCD;
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
+        case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
 }
@@ -478,6 +483,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
+        case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1069,6 +1075,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
+        case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping

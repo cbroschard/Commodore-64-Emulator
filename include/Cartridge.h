@@ -135,6 +135,7 @@ class Cartridge
             RGCD,
             GMOD2,
             FREEZE_FRAME_MK2,
+            MAGICDESK_16,
             UNKNOWN
         };
 
