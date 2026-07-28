@@ -130,6 +130,7 @@ class Cartridge
             SUPER_SNAPSHOT_V4,
             FREEZE_FRAME,
             ACTION_REPLAY_2,
+            MACH_5,
             GMOD2,
             FREEZE_FRAME_MK2,
             UNKNOWN
