@@ -124,6 +124,7 @@ class Cartridge
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,
             EASYFLASH,
+            CAPTURE,
             ACTION_REPLAY_3,
             RETRO_REPLAY,
             IDE64,

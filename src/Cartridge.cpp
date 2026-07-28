@@ -13,6 +13,7 @@
 #include "Cartridge/ActionReplay4Mapper.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
+#include "Cartridge/CaptureMapper.h"
 #include "Cartridge/Comal80Mapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
@@ -333,6 +334,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::ACTION_REPLAY_4: // Action Replay 4 has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::CAPTURE: // Capture has 8K RAM
+            configureRAM(8192);
+            break;
         case CartridgeType::RETRO_REPLAY: // Retro Replay has 32K RAM
             configureRAM(32768);
             break;
@@ -418,6 +422,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
         case 0x20:  return CartridgeType::EASYFLASH;
+        case 0x22:  return CartridgeType::CAPTURE;
         case 0x23:  return CartridgeType::ACTION_REPLAY_3;
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x27:  return CartridgeType::IDE64;
@@ -463,6 +468,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
+        case CartridgeType::CAPTURE:                return "Capture";
         case CartridgeType::ACTION_REPLAY_3:        return "Action Replay 3";
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::IDE64:                  return "IDE64";
@@ -1052,6 +1058,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
+        case CartridgeType::CAPTURE:                return std::make_unique<CaptureMapper>();
         case CartridgeType::ACTION_REPLAY_3:        return std::make_unique<ActionReplay3Mapper>();
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
