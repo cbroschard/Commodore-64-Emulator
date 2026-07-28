@@ -133,6 +133,7 @@ class Cartridge
             ACTION_REPLAY_2,
             MACH_5,
             RGCD,
+            EASYCALC,
             GMOD2,
             FREEZE_FRAME_MK2,
             MAGICDESK_16,

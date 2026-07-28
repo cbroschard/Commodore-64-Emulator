@@ -16,6 +16,7 @@
 #include "Cartridge/CaptureMapper.h"
 #include "Cartridge/Comal80Mapper.h"
 #include "Cartridge/DinamicMapper.h"
+#include "Cartridge/EasyCalcMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
 #include "Cartridge/ExpertMapper.h"
@@ -433,6 +434,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
         case 0x39:  return CartridgeType::RGCD;
+        case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x55:  return CartridgeType::MAGICDESK_16;
@@ -480,6 +482,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
         case CartridgeType::RGCD:                   return "RGCD";
+        case CartridgeType::EASYCALC:               return "EasyCalc";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
@@ -1073,6 +1076,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
+        case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
