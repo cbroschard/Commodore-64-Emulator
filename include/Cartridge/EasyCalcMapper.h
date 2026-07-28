@@ -25,6 +25,8 @@ class EasyCalcMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        void reset() override;
+
     protected:
 
     private:

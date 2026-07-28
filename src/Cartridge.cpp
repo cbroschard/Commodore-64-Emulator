@@ -376,6 +376,9 @@ bool Cartridge::loadROM(const std::string& path)
         if (mapperType == Cartridge::CartridgeType::RGCD)
             mapper->reset();
 
+        if (mapperType == Cartridge::CartridgeType::EASYCALC)
+            mapper->reset();
+
         if (mapperType == Cartridge::CartridgeType::MAGICDESK_16)
             mapper->reset();
 

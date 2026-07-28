@@ -118,6 +118,20 @@ bool EasyCalcMapper::loadIntoMemory(uint8_t bank)
     return true;
 }
 
+void EasyCalcMapper::reset()
+{
+    easyCalcBank = 0;
+
+    if (!cart || !mem)
+        return;
+
+    if (!loadIntoMemory(easyCalcBank))
+        return;
+
+    cart->setGameLine(false);
+    cart->setExROMLine(false);
+}
+
 bool EasyCalcMapper::applyMappingAfterLoad()
 {
     if (!cart || !mem)
