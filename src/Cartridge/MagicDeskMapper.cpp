@@ -9,6 +9,15 @@
 #include "Cartridge/MagicDeskMapper.h"
 #include "Memory.h"
 
+namespace
+{
+    constexpr bool isIO1(uint16_t address)
+    {
+        return address >= 0xDE00 &&
+               address <= 0xDEFF;
+    }
+}
+
 MagicDeskMapper::MagicDeskMapper() :
     magicDeskBank(0),
     disabled(false)
@@ -25,7 +34,6 @@ void MagicDeskMapper::saveState(StateWriter& wrtr) const
     wrtr.writeU8(magicDeskBank);
     wrtr.writeBool(disabled);
     wrtr.endChunk();
-
 }
 
 bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
@@ -72,8 +80,6 @@ uint8_t MagicDeskMapper::read(uint16_t address)
         return uint8_t((magicDeskBank & 0x7F) | (disabled ? 0x80 : 0x00));
     return 0xFF;
 }
-
-static inline bool isIO1(uint16_t a) { return (a & 0xFF00) == 0xDE00; }
 
 void MagicDeskMapper::write(uint16_t address, uint8_t value)
 {
