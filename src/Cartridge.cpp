@@ -36,6 +36,7 @@
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexUtilityMapper.h"
+#include "Cartridge/RGCDMapper.h"
 #include "Cartridge/RossMapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
@@ -362,19 +363,16 @@ bool Cartridge::loadROM(const std::string& path)
         mapper->attachMemoryInstance(mem);
 
         if (mapperType == Cartridge::CartridgeType::MAGICDESK)
-        {
             mapper->reset();
-        }
 
         if (mapperType == Cartridge::CartridgeType::RETRO_REPLAY)
-        {
             mapper->reset();
-        }
 
         if (mapperType == Cartridge::CartridgeType::IDE64)
-        {
             mapper->reset();
-        }
+
+        if (mapperType == Cartridge::CartridgeType::RGCD)
+            mapper->reset();
 
         if (mapper && mapper->hasPersistence())
         {
@@ -430,6 +428,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
+        case 0x39:  return CartridgeType::RGCD;
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         default:    return CartridgeType::UNKNOWN;
@@ -475,6 +474,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
+        case CartridgeType::RGCD:                   return "RGCD";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
@@ -1066,6 +1066,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
+        case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
 

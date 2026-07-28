@@ -132,15 +132,18 @@ class Cartridge
             FREEZE_FRAME,
             ACTION_REPLAY_2,
             MACH_5,
+            RGCD,
             GMOD2,
             FREEZE_FRAME_MK2,
             UNKNOWN
         };
 
-        // Type getters
-        CartridgeType getType() const;
+        // Getters
+        inline uint8_t getHardwareRevision() const { return header.revision; }
         inline CartridgeMapper* getMapper() { return mapper.get(); }
         inline const CartridgeMapper* getMapper() const { return mapper.get(); }
+
+        CartridgeType getType() const;
         std::string getMapperName() const;
 
         // Helpers
