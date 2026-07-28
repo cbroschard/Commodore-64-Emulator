@@ -122,198 +122,62 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t Memory::read(uint16_t address)
 {
-    // Wrap every return so read-watches can trigger exactly once per CPU read.
-    auto RET = [&](uint8_t v)->uint8_t
+    // Wrap every return so read watches trigger exactly once per CPU read.
+    auto RET = [&](uint8_t value) -> uint8_t
     {
-        lastBus = v; // Update Open Bus value
+        lastBus = value;
 
-        // Check for trace enabled
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) && traceMgr->memRangeContains(address))
+        if (traceMgr &&
+            traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) &&
+            traceMgr->memRangeContains(address))
         {
-            uint16_t PC = cpu ? cpu->getPC() : 0;
-            TraceManager::Stamp stamp = traceMgr->makeStamp(
-                cpu ? cpu->getTotalCycles() : 0,
-                vic ? vic->getCurrentRaster() : 0,
-                vic ? vic->getRasterDot() : 0);
+            const uint16_t pc = cpu ? cpu->getPC() : 0;
 
-            traceMgr->recordMemRead(address, v, PC, stamp);
+            const TraceManager::Stamp stamp =
+                traceMgr->makeStamp(
+                    cpu ? cpu->getTotalCycles() : 0,
+                    vic ? vic->getCurrentRaster() : 0,
+                    vic ? vic->getRasterDot() : 0);
+
+            traceMgr->recordMemRead(address, value, pc, stamp);
         }
 
-        // Check for watch hit and enter monitor
-        if (monitor && monitor->checkWatchRead(address, v))
-        {
+        if (monitor && monitor->checkWatchRead(address, value))
             monitor->enterMonitor();
-        }
-        return v;
+
+        return value;
     };
 
     if (address == 0x0000)
     {
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        if (traceMgr &&
+            traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
         {
             std::ostringstream out;
+
             out << "[MEM:PORT] read $0000 DDR=$"
-                << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+                << std::hex
+                << std::uppercase
+                << std::setw(2)
+                << std::setfill('0')
                 << int(dataDirectionRegister);
-            traceMgr->recordCustomEvent(out.str(),
-                traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
-                                    vic ? vic->getCurrentRaster() : 0,
-                                    vic ? vic->getRasterDot() : 0));
+
+            traceMgr->recordCustomEvent(
+                out.str(),
+                traceMgr->makeStamp(
+                    cpu ? cpu->getTotalCycles() : 0,
+                    vic ? vic->getCurrentRaster() : 0,
+                    vic ? vic->getRasterDot() : 0));
         }
 
         return RET(dataDirectionRegister);
     }
-    else if (address == 0x0001)
-    {
-        uint8_t outputs = (port1OutputLatch & dataDirectionRegister);
-        uint8_t inputs  = static_cast<uint8_t>(~dataDirectionRegister);
-        inputs = (cassetteSenseLow) ? static_cast<uint8_t>(inputs & ~0x10)
-                                    : static_cast<uint8_t>(inputs |  0x10);
 
-        // Bits 6-7 read as 1 (no hardware there)
-        inputs |= 0xC0;
-
-        uint8_t valueToReturn = static_cast<uint8_t>(outputs | inputs);
-
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
-        {
-            std::ostringstream out;
-            out << "[MEM:PORT] read $0001 value=$"
-                << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(valueToReturn)
-                << " DDR=$"   << std::setw(2) << int(dataDirectionRegister)
-                << " latch=$" << std::setw(2) << int(port1OutputLatch)
-                << " sense="  << (cassetteSenseLow ? "L" : "H");
-            traceMgr->recordCustomEvent(out.str(),
-                traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
-                                    vic ? vic->getCurrentRaster() : 0,
-                                    vic ? vic->getRasterDot() : 0));
-        }
-
-        return RET(valueToReturn);
-    }
-
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
-        return RET(cart->read(address));
-
-    if (!pla) throw std::runtime_error("Error: Missing PLA object!");
-
-    PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
-    switch(accessInfo.bank)
-    {
-        case PLA::RAM:
-        {
-            if (accessInfo.offset >= mem.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of RAM");
-            }
-            return RET(mem[accessInfo.offset]);
-        }
-        case PLA::KERNAL_ROM:
-        {
-            if (accessInfo.offset >= kernalROM.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of KERNAL ROM");
-            }
-            return RET(kernalROM[accessInfo.offset]);
-        }
-        case PLA::BASIC_ROM:
-        {
-            if (accessInfo.offset >= basicROM.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of BASIC ROM");
-            }
-            return RET(basicROM[accessInfo.offset]);
-        }
-        case PLA::CHARACTER_ROM:
-        {
-            if (accessInfo.offset >= charROM.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of CHARACTER ROM");
-            }
-            return RET(charROM[accessInfo.offset]);
-        }
-        case PLA::CARTRIDGE_LO:
-        {
-            // If the cartridge has RAM and it's active
-            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-            {
-                return RET(cart->readRAM(accessInfo.offset));
-            }
-
-            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-            {
-                return RET(cart->read(address));
-            }
-
-            if (accessInfo.offset >= cart_lo.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of cartridge lo RAM");
-            }
-
-            return RET(cart_lo[accessInfo.offset]);
-        }
-        case PLA::CARTRIDGE_HI:
-        {
-            // If the cartridge has RAM and it's active
-            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-            {
-                return RET(cart->readRAM(accessInfo.offset));
-            }
-
-            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-            {
-                return RET(cart->read(address));
-            }
-
-            if (accessInfo.offset >= cart_hi.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of cartridge hi RAM");
-            }
-            return RET(cart_hi[accessInfo.offset]);
-        }
-        case PLA::CARTRIDGE_HI_E000:
-        {
-            // If the cartridge has RAM and it's active
-            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-            {
-                return RET(cart->readRAM(accessInfo.offset));
-            }
-
-            if (accessInfo.offset >= cart_hi_e000.size())
-            {
-                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000 ROM");
-            }
-
-            return RET(cart_hi_e000[accessInfo.offset]);
-        }
-        case PLA::IO:
-        {
-            // Color RAM is visible to CPU only when IO is mapped (CHAREN=1)
-            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
-            {
-                const uint8_t nib = colorRAM[address - COLOR_MEMORY_START] & 0x0F;
-                return RET(uint8_t(0xF0 | nib));  // hi nibble = 1111 on real C64
-            }
-            return RET(readIO(accessInfo.offset));
-        }
-        case PLA::UNMAPPED:
-            return RET(lastBus); // Open Bus
-    }
-
-    return RET(0xFF); // invalid address
-}
-
-uint8_t Memory::peek(uint16_t address) const
-{
-    // CPU data-direction register.
-    if (address == 0x0000)
-        return dataDirectionRegister;
-
-    // CPU processor port.
     if (address == 0x0001)
     {
         const uint8_t outputs =
-            static_cast<uint8_t>(port1OutputLatch & dataDirectionRegister);
+            static_cast<uint8_t>(
+                port1OutputLatch & dataDirectionRegister);
 
         uint8_t inputs =
             static_cast<uint8_t>(~dataDirectionRegister);
@@ -323,22 +187,245 @@ uint8_t Memory::peek(uint16_t address) const
         else
             inputs = static_cast<uint8_t>(inputs | 0x10);
 
-        // Bits 6 and 7 are not implemented and read high.
+        // Bits 6 and 7 read high.
+        inputs = static_cast<uint8_t>(inputs | 0xC0);
+
+        const uint8_t value =
+            static_cast<uint8_t>(outputs | inputs);
+
+        if (traceMgr &&
+            traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
+        {
+            std::ostringstream out;
+
+            out << "[MEM:PORT] read $0001 value=$"
+                << std::hex
+                << std::uppercase
+                << std::setw(2)
+                << std::setfill('0')
+                << int(value)
+                << " DDR=$"
+                << std::setw(2)
+                << int(dataDirectionRegister)
+                << " latch=$"
+                << std::setw(2)
+                << int(port1OutputLatch)
+                << " sense="
+                << (cassetteSenseLow ? "L" : "H");
+
+            traceMgr->recordCustomEvent(
+                out.str(),
+                traceMgr->makeStamp(
+                    cpu ? cpu->getTotalCycles() : 0,
+                    vic ? vic->getCurrentRaster() : 0,
+                    vic ? vic->getRasterDot() : 0));
+        }
+
+        return RET(value);
+    }
+
+    // Mapper-controlled CPU accesses are checked before PLA decoding.
+    // Capture uses this for cartridge RAM at $6000-$7FFF and its
+    // control locations at $FFF7-$FFF8.
+    if (cart &&
+        cartridgeAttached &&
+        cart->cpuMemoryHandledByMapper(address))
+    {
+        return RET(cart->read(address));
+    }
+
+    if (!pla)
+        throw std::runtime_error("Error: Missing PLA object!");
+
+    const PLA::memoryAccessInfo accessInfo =
+        pla->getMemoryAccess(address);
+
+    switch (accessInfo.bank)
+    {
+        case PLA::RAM:
+        {
+            if (accessInfo.offset >= mem.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of RAM");
+            }
+
+            return RET(mem[accessInfo.offset]);
+        }
+
+        case PLA::KERNAL_ROM:
+        {
+            if (accessInfo.offset >= kernalROM.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of KERNAL ROM");
+            }
+
+            return RET(kernalROM[accessInfo.offset]);
+        }
+
+        case PLA::BASIC_ROM:
+        {
+            if (accessInfo.offset >= basicROM.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of BASIC ROM");
+            }
+
+            return RET(basicROM[accessInfo.offset]);
+        }
+
+        case PLA::CHARACTER_ROM:
+        {
+            if (accessInfo.offset >= charROM.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of CHARACTER ROM");
+            }
+
+            return RET(charROM[accessInfo.offset]);
+        }
+
+        case PLA::CARTRIDGE_LO:
+        {
+            if (romLOverlayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
+            if (cart &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                return RET(cart->read(address));
+            }
+
+            if (accessInfo.offset >= cart_lo.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of cartridge LO");
+            }
+
+            return RET(cart_lo[accessInfo.offset]);
+        }
+
+        case PLA::CARTRIDGE_HI:
+        {
+            if (romHOverLayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
+            if (cart &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                return RET(cart->read(address));
+            }
+
+            if (accessInfo.offset >= cart_hi.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of cartridge HI");
+            }
+
+            return RET(cart_hi[accessInfo.offset]);
+        }
+
+        case PLA::CARTRIDGE_HI_E000:
+        {
+            if (romHOverLayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                return RET(cart->readRAM(accessInfo.offset));
+            }
+
+            // Added for mapper-controlled Ultimax high ROM.
+            // Capture uses this so $FFF7 can hide ROMH and $FFF8
+            // can make ROMH visible again.
+            if (cart &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                return RET(cart->read(address));
+            }
+
+            if (accessInfo.offset >= cart_hi_e000.size())
+            {
+                throw std::runtime_error(
+                    "Error: Attempt to read past end of cartridge HI_E000");
+            }
+
+            return RET(cart_hi_e000[accessInfo.offset]);
+        }
+
+        case PLA::IO:
+        {
+            if (address >= COLOR_MEMORY_START &&
+                address <= COLOR_MEMORY_END)
+            {
+                const uint8_t nibble =
+                    static_cast<uint8_t>(
+                        colorRAM[address - COLOR_MEMORY_START] & 0x0F);
+
+                return RET(
+                    static_cast<uint8_t>(0xF0 | nibble));
+            }
+
+            return RET(readIO(accessInfo.offset));
+        }
+
+        case PLA::UNMAPPED:
+        {
+            return RET(lastBus);
+        }
+    }
+
+    return RET(0xFF);
+}
+
+uint8_t Memory::peek(uint16_t address) const
+{
+    if (address == 0x0000)
+        return dataDirectionRegister;
+
+    if (address == 0x0001)
+    {
+        const uint8_t outputs =
+            static_cast<uint8_t>(
+                port1OutputLatch & dataDirectionRegister);
+
+        uint8_t inputs =
+            static_cast<uint8_t>(~dataDirectionRegister);
+
+        if (cassetteSenseLow)
+            inputs = static_cast<uint8_t>(inputs & ~0x10);
+        else
+            inputs = static_cast<uint8_t>(inputs | 0x10);
+
         inputs = static_cast<uint8_t>(inputs | 0xC0);
 
         return static_cast<uint8_t>(outputs | inputs);
     }
 
-    // Mapper-controlled cartridge accesses must be checked before
-    // normal PLA decoding, matching the regular CPU read path.
-    if (cart != nullptr &&
+    if (cart &&
         cartridgeAttached &&
         cart->cpuMemoryHandledByMapper(address))
     {
+        // This may currently cause mapper side effects.
+        // Prefer cart->peek(address) once you add one.
         return cart->read(address);
     }
 
-    if (pla == nullptr)
+    if (!pla)
         return lastBus;
 
     const PLA::memoryAccessInfo accessInfo =
@@ -381,19 +468,17 @@ uint8_t Memory::peek(uint16_t address) const
         case PLA::CARTRIDGE_LO:
         {
             if (romLOverlayIsRAM &&
-                cart != nullptr &&
+                cart &&
                 cartridgeAttached &&
                 cart->hasCartridgeRAM())
             {
-                // Prefer cart->peekRAM() when available.
                 return cart->readRAM(accessInfo.offset);
             }
 
-            if (cart != nullptr &&
+            if (cart &&
                 cartridgeAttached &&
                 cart->romReadHandledByMapper(address))
             {
-                // Prefer cart->peek() when available.
                 return cart->read(address);
             }
 
@@ -406,14 +491,14 @@ uint8_t Memory::peek(uint16_t address) const
         case PLA::CARTRIDGE_HI:
         {
             if (romHOverLayIsRAM &&
-                cart != nullptr &&
+                cart &&
                 cartridgeAttached &&
                 cart->hasCartridgeRAM())
             {
                 return cart->readRAM(accessInfo.offset);
             }
 
-            if (cart != nullptr &&
+            if (cart &&
                 cartridgeAttached &&
                 cart->romReadHandledByMapper(address))
             {
@@ -429,11 +514,19 @@ uint8_t Memory::peek(uint16_t address) const
         case PLA::CARTRIDGE_HI_E000:
         {
             if (romHOverLayIsRAM &&
-                cart != nullptr &&
+                cart &&
                 cartridgeAttached &&
                 cart->hasCartridgeRAM())
             {
                 return cart->readRAM(accessInfo.offset);
+            }
+
+            // Added mapper hook for Ultimax ROMH.
+            if (cart &&
+                cartridgeAttached &&
+                cart->romReadHandledByMapper(address))
+            {
+                return cart->read(address);
             }
 
             if (accessInfo.offset >= cart_hi_e000.size())
@@ -447,8 +540,9 @@ uint8_t Memory::peek(uint16_t address) const
             if (address >= COLOR_MEMORY_START &&
                 address <= COLOR_MEMORY_END)
             {
-                const std::size_t index =
-                    static_cast<std::size_t>(address - COLOR_MEMORY_START);
+                const size_t index =
+                    static_cast<size_t>(
+                        address - COLOR_MEMORY_START);
 
                 if (index >= colorRAM.size())
                     return lastBus;
@@ -462,7 +556,9 @@ uint8_t Memory::peek(uint16_t address) const
 
         case PLA::UNMAPPED:
         default:
+        {
             return lastBus;
+        }
     }
 }
 
@@ -512,75 +608,181 @@ uint8_t Memory::readForDMA(uint16_t address)
 
     if (address == 0x0001)
     {
-        uint8_t outputs = port1OutputLatch & dataDirectionRegister;
-        uint8_t inputs  = static_cast<uint8_t>(~dataDirectionRegister);
+        const uint8_t outputs =
+            static_cast<uint8_t>(
+                port1OutputLatch & dataDirectionRegister);
 
-        inputs = cassetteSenseLow ? static_cast<uint8_t>(inputs & ~0x10)
-                                  : static_cast<uint8_t>(inputs |  0x10);
+        uint8_t inputs =
+            static_cast<uint8_t>(~dataDirectionRegister);
 
-        inputs |= 0xC0;
+        if (cassetteSenseLow)
+            inputs = static_cast<uint8_t>(inputs & ~0x10);
+        else
+            inputs = static_cast<uint8_t>(inputs | 0x10);
 
-        const uint8_t value = static_cast<uint8_t>(outputs | inputs);
+        inputs = static_cast<uint8_t>(inputs | 0xC0);
+
+        const uint8_t value =
+            static_cast<uint8_t>(outputs | inputs);
+
         lastBus = value;
         return value;
     }
 
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
-        return cart->read(address);
+    if (cart &&
+        cartridgeAttached &&
+        cart->cpuMemoryHandledByMapper(address))
+    {
+        const uint8_t value = cart->read(address);
+        lastBus = value;
+        return value;
+    }
 
     if (!pla)
         return lastBus;
 
-    PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
+    const PLA::memoryAccessInfo accessInfo =
+        pla->getMemoryAccess(address);
+
+    uint8_t value = lastBus;
 
     switch (accessInfo.bank)
     {
         case PLA::RAM:
-            return mem[accessInfo.offset];
+        {
+            if (accessInfo.offset < mem.size())
+                value = mem[accessInfo.offset];
+
+            break;
+        }
 
         case PLA::KERNAL_ROM:
-            return kernalROM[accessInfo.offset];
+        {
+            if (accessInfo.offset < kernalROM.size())
+                value = kernalROM[accessInfo.offset];
+
+            break;
+        }
 
         case PLA::BASIC_ROM:
-            return basicROM[accessInfo.offset];
+        {
+            if (accessInfo.offset < basicROM.size())
+                value = basicROM[accessInfo.offset];
+
+            break;
+        }
 
         case PLA::CHARACTER_ROM:
-            return charROM[accessInfo.offset];
+        {
+            if (accessInfo.offset < charROM.size())
+                value = charROM[accessInfo.offset];
+
+            break;
+        }
 
         case PLA::IO:
-            if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
-                return static_cast<uint8_t>(0xF0 | (colorRAM[address - COLOR_MEMORY_START] & 0x0F));
+        {
+            if (address >= COLOR_MEMORY_START &&
+                address <= COLOR_MEMORY_END)
+            {
+                const size_t offset =
+                    static_cast<size_t>(
+                        address - COLOR_MEMORY_START);
 
-            return readIO(accessInfo.offset);
+                if (offset < colorRAM.size())
+                {
+                    value = static_cast<uint8_t>(
+                        0xF0 | (colorRAM[offset] & 0x0F));
+                }
+            }
+            else
+            {
+                value = readIO(accessInfo.offset);
+            }
+
+            break;
+        }
 
         case PLA::CARTRIDGE_LO:
-            if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+        {
+            if (romLOverlayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                value = cart->readRAM(accessInfo.offset);
+            }
+            else if (cart &&
+                     cartridgeAttached &&
+                     cart->romReadHandledByMapper(address))
+            {
+                value = cart->read(address);
+            }
+            else if (accessInfo.offset < cart_lo.size())
+            {
+                value = cart_lo[accessInfo.offset];
+            }
 
-            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-                return cart->read(address);
-
-            return cart_lo[accessInfo.offset];
+            break;
+        }
 
         case PLA::CARTRIDGE_HI:
-            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+        {
+            if (romHOverLayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                value = cart->readRAM(accessInfo.offset);
+            }
+            else if (cart &&
+                     cartridgeAttached &&
+                     cart->romReadHandledByMapper(address))
+            {
+                value = cart->read(address);
+            }
+            else if (accessInfo.offset < cart_hi.size())
+            {
+                value = cart_hi[accessInfo.offset];
+            }
 
-            if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-                return cart->read(address);
-
-            return cart_hi[accessInfo.offset];
+            break;
+        }
 
         case PLA::CARTRIDGE_HI_E000:
-            if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+        {
+            if (romHOverLayIsRAM &&
+                cart &&
+                cartridgeAttached &&
+                cart->hasCartridgeRAM())
+            {
+                value = cart->readRAM(accessInfo.offset);
+            }
+            else if (cart &&
+                     cartridgeAttached &&
+                     cart->romReadHandledByMapper(address))
+            {
+                // Added mapper hook for Ultimax ROMH.
+                value = cart->read(address);
+            }
+            else if (accessInfo.offset < cart_hi_e000.size())
+            {
+                value = cart_hi_e000[accessInfo.offset];
+            }
 
-            return cart_hi_e000[accessInfo.offset];
+            break;
+        }
 
         case PLA::UNMAPPED:
         default:
-            return lastBus;
+        {
+            value = lastBus;
+            break;
+        }
     }
+
+    lastBus = value;
+    return value;
 }
 
 uint8_t Memory::readIO(uint16_t address)
