@@ -121,6 +121,7 @@ class Cartridge
             STRUCTURED_BASIC,
             ROSS,
             DELA_EP64,
+            DELA_EP7X8,
             MIKRO_ASSEMBLER,
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,
