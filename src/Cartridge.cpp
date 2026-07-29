@@ -40,10 +40,12 @@
 #include "Cartridge/MikroAssemblerMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/RetroReplayMapper.h"
+#include "Cartridge/RexEP256Mapper.h"
 #include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RGCDMapper.h"
 #include "Cartridge/RossMapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
+#include "Cartridge/StarDOSMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
 #include "Cartridge/SuperGamesMapper.h"
 #include "Cartridge/SuperSnapshotV4Mapper.h"
@@ -376,6 +378,9 @@ bool Cartridge::loadROM(const std::string& path)
         if (mapperType == Cartridge::CartridgeType::DELA_EP256)
             mapper->reset();
 
+        if (mapperType == Cartridge::CartridgeType::REX_EP256)
+            mapper->reset();
+
         if (mapperType == Cartridge::CartridgeType::MAGICDESK)
             mapper->reset();
 
@@ -439,9 +444,11 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x18:  return CartridgeType::DELA_EP64;
         case 0x19:  return CartridgeType::DELA_EP7X8;
         case 0x1A:  return CartridgeType::DELA_EP256;
+        case 0x1B:  return CartridgeType::REX_EP256;
         case 0x1C:  return CartridgeType::MIKRO_ASSEMBLER;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
+        case 0x1F:  return CartridgeType::STARDOS;
         case 0x20:  return CartridgeType::EASYFLASH;
         case 0x22:  return CartridgeType::CAPTURE;
         case 0x23:  return CartridgeType::ACTION_REPLAY_3;
@@ -491,9 +498,11 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::DELA_EP64:              return "Dela EP64";
         case CartridgeType::DELA_EP7X8:             return "Dela EP7x8";
         case CartridgeType::DELA_EP256:             return "Dela EP256";
+        case CartridgeType::REX_EP256:              return "Rex EP256";
         case CartridgeType::MIKRO_ASSEMBLER:        return "Mikro Assembler";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
+        case CartridgeType::STARDOS:                return "Star DOS";
         case CartridgeType::EASYFLASH:              return "EasyFlash";
         case CartridgeType::CAPTURE:                return "Capture";
         case CartridgeType::ACTION_REPLAY_3:        return "Action Replay 3";
@@ -1087,9 +1096,11 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::DELA_EP64:              return std::make_unique<DelaEP64Mapper>();
         case CartridgeType::DELA_EP7X8:             return std::make_unique<DelaEP7x8Mapper>();
         case CartridgeType::DELA_EP256:             return std::make_unique<DelaEP256Mapper>();
+        case CartridgeType::REX_EP256:              return std::make_unique<RexEP256Mapper>();
         case CartridgeType::MIKRO_ASSEMBLER:        return std::make_unique<MikroAssemblerMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
+        case CartridgeType::STARDOS:                return std::make_unique<StarDOSMapper>();
         case CartridgeType::EASYFLASH:              return std::make_unique<EasyFlashMapper>();
         case CartridgeType::CAPTURE:                return std::make_unique<CaptureMapper>();
         case CartridgeType::ACTION_REPLAY_3:        return std::make_unique<ActionReplay3Mapper>();
