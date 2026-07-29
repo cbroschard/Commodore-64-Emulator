@@ -122,6 +122,7 @@ class Cartridge
             ROSS,
             DELA_EP64,
             DELA_EP7X8,
+            DELA_EP256,
             MIKRO_ASSEMBLER,
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,

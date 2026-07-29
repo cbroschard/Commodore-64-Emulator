@@ -17,6 +17,7 @@
 #include "Cartridge/Comal80Mapper.h"
 #include "Cartridge/DelaEP64Mapper.h"
 #include "Cartridge/DelaEP7x8Mapper.h"
+#include "Cartridge/DelaEP256Mapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyCalcMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
@@ -372,6 +373,9 @@ bool Cartridge::loadROM(const std::string& path)
         if (mapperType == Cartridge::CartridgeType::DELA_EP7X8)
             mapper->reset();
 
+        if (mapperType == Cartridge::CartridgeType::DELA_EP256)
+            mapper->reset();
+
         if (mapperType == Cartridge::CartridgeType::MAGICDESK)
             mapper->reset();
 
@@ -434,6 +438,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x17:  return CartridgeType::ROSS;
         case 0x18:  return CartridgeType::DELA_EP64;
         case 0x19:  return CartridgeType::DELA_EP7X8;
+        case 0x1A:  return CartridgeType::DELA_EP256;
         case 0x1C:  return CartridgeType::MIKRO_ASSEMBLER;
         case 0x1D:  return CartridgeType::FINAL_CARTRIDGE_PLUS;
         case 0x1E:  return CartridgeType::ACTION_REPLAY_4;
@@ -485,6 +490,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ROSS:                   return "ROSS";
         case CartridgeType::DELA_EP64:              return "Dela EP64";
         case CartridgeType::DELA_EP7X8:             return "Dela EP7x8";
+        case CartridgeType::DELA_EP256:             return "Dela EP256";
         case CartridgeType::MIKRO_ASSEMBLER:        return "Mikro Assembler";
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return "Final Cartridge Plus";
         case CartridgeType::ACTION_REPLAY_4:        return "Action Replay 4";
@@ -1080,6 +1086,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::ROSS:                   return std::make_unique<RossMapper>();
         case CartridgeType::DELA_EP64:              return std::make_unique<DelaEP64Mapper>();
         case CartridgeType::DELA_EP7X8:             return std::make_unique<DelaEP7x8Mapper>();
+        case CartridgeType::DELA_EP256:             return std::make_unique<DelaEP256Mapper>();
         case CartridgeType::MIKRO_ASSEMBLER:        return std::make_unique<MikroAssemblerMapper>();
         case CartridgeType::FINAL_CARTRIDGE_PLUS:   return std::make_unique<FinalCartridgePlusMapper>();
         case CartridgeType::ACTION_REPLAY_4:        return std::make_unique<ActionReplay4Mapper>();
