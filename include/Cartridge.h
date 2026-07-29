@@ -120,6 +120,7 @@ class Cartridge
             COMAL_80,
             STRUCTURED_BASIC,
             ROSS,
+            DELA_EP64,
             MIKRO_ASSEMBLER,
             FINAL_CARTRIDGE_PLUS,
             ACTION_REPLAY_4,
