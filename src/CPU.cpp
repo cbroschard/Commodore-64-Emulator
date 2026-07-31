@@ -3284,7 +3284,8 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
         pendingOpcodeAddress = PC;
     }
 
-    currentBusCycle = {
+    currentBusCycle =
+    {
         CpuBusCycleType::OpcodeFetch,
         pendingOpcodeAddress,
         0
@@ -3292,29 +3293,33 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
 
     busCycleActive = true;
 
-    if (shouldRDYStallForBusCycle(CpuBusCycleType::OpcodeFetch))
+    /*
+     * Opcode fetch is a read cycle, so RDY low holds it.
+     *
+     * Do not check AEC here yet. Keep AEC ownership in the
+     * existing machine scheduler until RDY is stable.
+     */
+    if (vicBusArbitrationEnabled && !rdyLine)
     {
         if (traceMgr)
-            traceMgr->recordCPUBA("RDY/BA low stalls opcode fetch", makeCpuStamp());
+        {
+            traceMgr->recordCPUBA(
+                "RDY/BA low stalls opcode fetch",
+                makeCpuStamp()
+            );
+        }
 
         busCycleActive = false;
         currentBusCycle = {};
-        return false;
-    }
 
-    if (shouldAECBlockBusCycle(CpuBusCycleType::OpcodeFetch))
-    {
-        if (traceMgr)
-            traceMgr->recordCPUBA("AEC low blocks opcode fetch", makeCpuStamp());
-
-        busCycleActive = false;
-        currentBusCycle = {};
         return false;
     }
 
     opcode = mem->read(pendingOpcodeAddress);
 
-    PC = uint16_t((PC + 1) & 0xFFFF);
+    PC = static_cast<uint16_t>(
+        pendingOpcodeAddress + 1
+    );
 
     pendingOpcodeFetch = false;
     pendingOpcodeAddress = 0;
@@ -7401,40 +7406,83 @@ bool CPU::tickMicroOps()
 {
     if (!microInstructionActive)
     {
-        if (beginPendingInterruptMicroOps())
+        uint16_t opcodePC = 0;
+        uint8_t opcode = 0;
+
+        /*
+         * If an opcode fetch was already started but stalled by RDY,
+         * resume that exact fetch before checking IRQ or NMI again.
+         */
+        if (pendingOpcodeFetch)
         {
-            if (!executeCurrentMicroOp())
+            opcodePC = pendingOpcodeAddress;
+
+            if (!tryFetchOpcode(opcode))
             {
                 ++totalCycles;
                 return true;
             }
-
-            ++executedMicroOpsThisInstruction;
-
-            if (microOpIndex >= microOpCount)
+        }
+        else
+        {
+            /*
+             * Interrupts are sampled only before beginning a new
+             * opcode fetch.
+             */
+            if (beginPendingInterruptMicroOps())
             {
-                lastMicroOpIndexAtEnd =
-                    static_cast<uint8_t>(microOpIndex);
+                /*
+                 * Interrupt entry does not have a normal opcode-fetch
+                 * cycle, so execute its first micro-op immediately.
+                 */
+                if (!executeCurrentMicroOp())
+                {
+                    ++totalCycles;
+                    return true;
+                }
 
-                clearMicroOps();
+                ++executedMicroOpsThisInstruction;
+
+                if (microOpIndex >= microOpCount)
+                {
+                    lastMicroOpIndexAtEnd =
+                        static_cast<uint8_t>(microOpIndex);
+
+                    clearMicroOps();
+                }
+
+                ++totalCycles;
+                return true;
             }
 
-            ++totalCycles;
-            return true;
+            /*
+             * Legacy atomic instructions may still have remaining
+             * cycles to consume.
+             */
+            if (cycles > 0)
+            {
+                --cycles;
+                ++totalCycles;
+                return true;
+            }
+
+            opcodePC = PC;
+
+            /*
+             * Start a new opcode fetch. If RDY is low, the fetch
+             * remains pending and is retried on the next CPU tick.
+             */
+            if (!tryFetchOpcode(opcode))
+            {
+                ++totalCycles;
+                return true;
+            }
         }
 
-        if (cycles > 0)
-        {
-            --cycles;
-            ++totalCycles;
-            return true;
-        }
-
-        const uint16_t opcodePC = PC;
-
+        /*
+         * The opcode has now actually been fetched.
+         */
         recordExecutionHistory(opcodePC);
-
-        const uint8_t opcode = fetchOpcode();
 
         activeOpcodePC = opcodePC;
         activeOpcode   = opcode;
@@ -7442,8 +7490,13 @@ bool CPU::tickMicroOps()
         lastOpcodePC = opcodePC;
         lastOpcode   = opcode;
 
-        lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
+        lastOpcodeMicroOpCapable =
+            canExecuteOpcodeWithMicroOps(opcode);
 
+        /*
+         * Opcodes that have not yet been converted to micro-ops
+         * continue to use the legacy atomic execution path.
+         */
         if (!lastOpcodeMicroOpCapable)
         {
             lastOpcodeUsedMicroOps = false;
@@ -7451,47 +7504,69 @@ bool CPU::tickMicroOps()
             decodeAndExecute(opcode);
 
             cycles += CYCLE_COUNTS[opcode];
-            cycles--;
+            --cycles;
 
-            totalCycles++;
+            ++totalCycles;
             return true;
         }
 
+        /*
+         * Build the remaining cycles for a micro-op-capable opcode.
+         * The opcode-fetch cycle has already occurred during this tick.
+         */
         buildMicroOpsForOpcode(opcode);
+
+        microSequenceType =
+            CpuMicroSequenceType::Opcode;
 
         microInstructionActive = true;
         lastOpcodeUsedMicroOps = true;
-        lastMicroOpCount = static_cast<uint8_t>(microOpCount);
+
+        lastMicroOpCount =
+            static_cast<uint8_t>(microOpCount);
+
         executedMicroOpsThisInstruction = 0;
 
-        // Important:
-        // Do NOT execute the first micro-op in the same tick as opcode fetch.
-        // This tick was the opcode-fetch cycle.
-        totalCycles++;
+        /*
+         * Do not execute the first post-opcode micro-op now.
+         * This tick was the opcode-fetch cycle.
+         */
+        ++totalCycles;
         return true;
     }
 
-    // Execute exactly one post-opcode micro-op this tick.
+    /*
+     * Execute exactly one post-opcode micro-op during this tick.
+     *
+     * When RDY is low during a read-like operation,
+     * executeCurrentMicroOp() returns false without advancing
+     * microOpIndex. The same operation is retried next tick.
+     */
     if (!executeCurrentMicroOp())
     {
-        totalCycles++;
+        ++totalCycles;
         return true;
     }
 
-    executedMicroOpsThisInstruction++;
+    ++executedMicroOpsThisInstruction;
 
     if (microOpIndex >= microOpCount)
     {
-        lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
+        lastMicroOpIndexAtEnd =
+            static_cast<uint8_t>(microOpIndex);
+
         clearMicroOps();
     }
 
-    totalCycles++;
+    ++totalCycles;
     return true;
 }
 
 bool CPU::beginPendingInterruptMicroOps()
 {
+    if (pendingOpcodeFetch)
+        return false;
+
     /*
      * NMI has priority over IRQ.
      */
