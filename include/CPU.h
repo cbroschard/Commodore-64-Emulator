@@ -590,6 +590,14 @@ class CPU
         CpuBusCycle currentBusCycle {};
         bool busCycleActive;
 
+        enum class CpuMicroSequenceType : uint8_t
+        {
+            None,
+            Opcode,
+            IRQ,
+            NMI
+        };
+
         enum class CpuMicroOpKind : uint8_t
         {
             None,
@@ -753,7 +761,13 @@ class CPU
 
             AndImmediateThenCarryFromBit7,
             AndImmediateThenLsrA,
-            AndImmediateThenArrA
+            AndImmediateThenArrA,
+
+            PushInterruptReturnHigh,
+            PushInterruptReturnLow,
+            PushInterruptStatus,
+            ReadInterruptVectorLow,
+            ReadInterruptVectorHigh
         };
 
         enum class CpuIndexReg : uint8_t
@@ -776,6 +790,11 @@ class CPU
 
             CpuMicroAction action = CpuMicroAction::None;
         };
+
+        CpuMicroSequenceType microSequenceType;
+
+        uint16_t microInterruptVectorAddress;
+        uint8_t microInterruptSPBefore;
 
         std::array<CpuMicroOp, 32> microOps {};
         uint8_t microOpCount;
@@ -1082,6 +1101,9 @@ class CPU
         void buildRTI();
         bool canExecuteOpcodeWithMicroOps(uint8_t opcode) const;
         bool tickMicroOps();
+
+        bool beginPendingInterruptMicroOps();
+        void buildInterruptMicroOps(CpuMicroSequenceType type, uint16_t vectorAddress);
 
         // Micro Op Helpers
         uint8_t getIndexValue(CpuIndexReg index) const;

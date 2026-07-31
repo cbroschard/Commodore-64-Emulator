@@ -21,6 +21,9 @@ CPU::CPU() :
     traceMgr(nullptr),
     vic(nullptr),
     busCycleActive(false),
+    microSequenceType(CpuMicroSequenceType::None),
+    microInterruptVectorAddress(0),
+    microInterruptSPBefore(0),
     microOpCount(0),
     microOpIndex(0),
     microInstructionActive(false),
@@ -239,6 +242,9 @@ void CPU::reset()
     nmiLine                     = false;
     irqSuppressOne              = false;
     soLevel                     = true;
+    microSequenceType           = CpuMicroSequenceType::None;
+    microInterruptVectorAddress = 0;
+    microInterruptSPBefore      = 0;
     microOps                    = {};
     microOpCount                = 0;
     microOpIndex                = 0;
@@ -3355,6 +3361,7 @@ void CPU::clearMicroOps()
     microOpIndex = 0;
     microInstructionActive = false;
     executingMicroOp = false;
+    microSequenceType = CpuMicroSequenceType::None;
 }
 
 void CPU::pushMicroOp(const CpuMicroOp& op)
@@ -3896,6 +3903,28 @@ bool CPU::executeCurrentMicroOp()
                     break;
                 }
 
+                case CpuMicroAction::PushInterruptReturnHigh:
+                {
+                    value = static_cast<uint8_t>(
+                        (microReturnAddress >> 8) & 0xFF
+                    );
+                    break;
+                }
+
+                case CpuMicroAction::PushInterruptReturnLow:
+                {
+                    value = static_cast<uint8_t>(
+                        microReturnAddress & 0xFF
+                    );
+                    break;
+                }
+
+                case CpuMicroAction::PushInterruptStatus:
+                {
+                    value = microStatus;
+                    break;
+                }
+
                 default:
                     value = op.value;
                     break;
@@ -3903,6 +3932,9 @@ bool CPU::executeCurrentMicroOp()
 
             mem->write(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
+
+            if (op.action == CpuMicroAction::PushInterruptStatus)
+                setFlag(I, true);
             break;
         }
 
@@ -4399,6 +4431,31 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroAction::FinishBRK:
         {
             PC = uint16_t(microVectorLow) | (uint16_t(microVectorHigh) << 8);
+            break;
+        }
+
+        case CpuMicroAction::ReadInterruptVectorLow:
+        {
+            microVectorLow = mem->read(microInterruptVectorAddress);
+            break;
+        }
+
+        case CpuMicroAction::ReadInterruptVectorHigh:
+        {
+            microVectorHigh = mem->read(static_cast<uint16_t>(microInterruptVectorAddress + 1));
+
+            PC = static_cast<uint16_t>(microVectorLow) |static_cast<uint16_t>(static_cast<uint16_t>(microVectorHigh) << 8);
+
+            lastInterruptEntry.type = microSequenceType == CpuMicroSequenceType::NMI ? InterruptEntryType::NMI : InterruptEntryType::IRQ;
+            lastInterruptEntry.acceptedAtPC = microReturnAddress;
+            lastInterruptEntry.pushedReturnPC = microReturnAddress;
+            lastInterruptEntry.pushedSR = microStatus;
+            lastInterruptEntry.spBefore = microInterruptSPBefore;
+            lastInterruptEntry.spAfter = SP;
+            lastInterruptEntry.vectorAddress = microInterruptVectorAddress;
+            lastInterruptEntry.vectorTarget = PC;
+            lastInterruptEntry.totalCycles = totalCycles;
+
             break;
         }
 
@@ -7342,17 +7399,34 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 
 bool CPU::tickMicroOps()
 {
-    // If no micro-instruction is active, begin one.
-    // This tick represents the opcode-fetch cycle.
     if (!microInstructionActive)
     {
-        handleNMI();
-        handleIRQ();
+        if (beginPendingInterruptMicroOps())
+        {
+            if (!executeCurrentMicroOp())
+            {
+                ++totalCycles;
+                return true;
+            }
+
+            ++executedMicroOpsThisInstruction;
+
+            if (microOpIndex >= microOpCount)
+            {
+                lastMicroOpIndexAtEnd =
+                    static_cast<uint8_t>(microOpIndex);
+
+                clearMicroOps();
+            }
+
+            ++totalCycles;
+            return true;
+        }
 
         if (cycles > 0)
         {
-            cycles--;
-            totalCycles++;
+            --cycles;
+            ++totalCycles;
             return true;
         }
 
@@ -7414,6 +7488,129 @@ bool CPU::tickMicroOps()
 
     totalCycles++;
     return true;
+}
+
+bool CPU::beginPendingInterruptMicroOps()
+{
+    /*
+     * NMI has priority over IRQ.
+     */
+    if (nmiPending)
+    {
+        nmiPending = false;
+
+        if (traceMgr)
+            traceMgr->recordCPUNMI("NMI accepted into micro-op sequence", makeCpuStamp());
+
+        buildInterruptMicroOps(CpuMicroSequenceType::NMI, 0xFFFA);
+        return true;
+    }
+
+    /*
+     * Match the existing IRQ suppression behavior.
+     */
+    if (getFlag(I))
+    {
+        irqSuppressOne = false;
+        return false;
+    }
+
+    if (irqSuppressOne)
+    {
+        irqSuppressOne = false;
+        return false;
+    }
+
+    if (!IRQ || !IRQ->isIRQActive())
+        return false;
+
+    if (traceMgr)
+        traceMgr->recordCPUIRQ("IRQ accepted into micro-op sequence", makeCpuStamp());
+
+    buildInterruptMicroOps(CpuMicroSequenceType::IRQ,0xFFFE);
+    return true;
+}
+
+void CPU::buildInterruptMicroOps(CpuMicroSequenceType type, uint16_t vectorAddress)
+{
+    clearMicroOps();
+
+    microSequenceType = type;
+
+    microReturnAddress = PC;
+
+    microStatus = SR;
+    microStatus &= static_cast<uint8_t>(~B);
+    microStatus |= U;
+
+    microInterruptVectorAddress = vectorAddress;
+    microInterruptSPBefore = SP;
+
+    microVectorLow = 0;
+    microVectorHigh = 0;
+
+    /*
+     * Hardware IRQ/NMI entry is seven CPU cycles.
+     *
+     * 1. Dummy opcode read
+     * 2. Second dummy read
+     * 3. Push return PC high
+     * 4. Push return PC low
+     * 5. Push processor status
+     * 6. Read vector low
+     * 7. Read vector high and install PC
+     */
+
+    CpuMicroOp dummy1;
+    dummy1.kind         = CpuMicroOpKind::DummyRead;
+    dummy1.busType      = CpuBusCycleType::DummyRead;
+    dummy1.address      = PC;
+    dummy1.action       = CpuMicroAction::None;
+    pushMicroOp(dummy1);
+
+    CpuMicroOp dummy2;
+    dummy2.kind         = CpuMicroOpKind::DummyRead;
+    dummy2.busType      = CpuBusCycleType::DummyRead;
+    dummy2.address      = PC;
+    dummy2.action       = CpuMicroAction::None;
+    pushMicroOp(dummy2);
+
+    CpuMicroOp pushHigh;
+    pushHigh.kind       = CpuMicroOpKind::StackWrite;
+    pushHigh.busType    = CpuBusCycleType::StackWrite;
+    pushHigh.action     =  CpuMicroAction::PushInterruptReturnHigh;
+    pushMicroOp(pushHigh);
+
+    CpuMicroOp pushLow;
+    pushLow.kind        = CpuMicroOpKind::StackWrite;
+    pushLow.busType     = CpuBusCycleType::StackWrite;
+    pushLow.action      = CpuMicroAction::PushInterruptReturnLow;
+    pushMicroOp(pushLow);
+
+    CpuMicroOp pushStatus;
+    pushStatus.kind     = CpuMicroOpKind::StackWrite;
+    pushStatus.busType  = CpuBusCycleType::StackWrite;
+    pushStatus.action   = CpuMicroAction::PushInterruptStatus;
+    pushMicroOp(pushStatus);
+
+    CpuMicroOp readVectorLow;
+    readVectorLow.kind      = CpuMicroOpKind::Internal;
+    readVectorLow.busType   = CpuBusCycleType::Read;
+    readVectorLow.address   = vectorAddress;
+    readVectorLow.action    = CpuMicroAction::ReadInterruptVectorLow;
+    pushMicroOp(readVectorLow);
+
+    CpuMicroOp readVectorHigh;
+    readVectorHigh.kind     = CpuMicroOpKind::Internal;
+    readVectorHigh.busType  = CpuBusCycleType::Read;
+    readVectorHigh.address  = static_cast<uint16_t>(vectorAddress + 1);
+    readVectorHigh.action   = CpuMicroAction::ReadInterruptVectorHigh;
+    pushMicroOp(readVectorHigh);
+
+    microInstructionActive          = true;
+    executedMicroOpsThisInstruction = 0;
+
+    lastMicroOpCount = static_cast<uint8_t>(microOpCount);
 }
 
 uint8_t CPU::getIndexValue(CpuIndexReg index) const
