@@ -174,18 +174,12 @@ bool EmulationSession::runFrame()
 {
     syncTimingFromRuntimeMode();
 
-    const bool monitorOpen =
-        debug_.monitorController().isOpen();
+    const bool monitorOpen = debug_.monitorController().isOpen();
 
-    const bool paused =
-        runtime_.uiPaused.load() ||
-        monitorOpen ||
-        ui_.isFileDialogOpen();
+    const bool paused = runtime_.uiPaused.load() || monitorOpen || ui_.isFileDialogOpen();
 
     if (paused)
-    {
         return true;
-    }
 
     if (runtime_.pendingBusPrime)
     {
@@ -197,12 +191,9 @@ bool EmulationSession::runFrame()
 
     int frameCycles = 0;
 
-    const int targetCycles =
-        runtime_.cpuCfg->cyclesPerFrame();
+    const int targetCycles = runtime_.cpuCfg->cyclesPerFrame();
 
-    while (frameCycles < targetCycles ||
-           (cpu_.getUseMicroOps() &&
-            !cpu_.isAtInstructionBoundary()))
+    while (frameCycles < targetCycles || (cpu_.getUseMicroOps() && !cpu_.isAtInstructionBoundary()))
     {
         uint32_t elapsedCycles = 0;
 
@@ -221,8 +212,7 @@ bool EmulationSession::runFrame()
             {
                 const uint16_t pc = cpu_.getPC();
 
-                if (!runtime_.uiPaused.load() &&
-                    debug_.hasBreakpoint(pc))
+                if (!runtime_.uiPaused.load() && debug_.hasBreakpoint(pc))
                 {
                     runtime_.uiPaused = true;
                     debug_.onBreakpoint(pc);
@@ -249,9 +239,7 @@ bool EmulationSession::runFrame()
             elapsedCycles = cpu_.getElapsedCycles();
 
             if (runtime_.uiPaused.load())
-            {
                 break;
-            }
         }
         catch (const std::exception& e)
         {
@@ -273,9 +261,7 @@ bool EmulationSession::runFrame()
          * result causing an infinite loop.
          */
         if (elapsedCycles == 0)
-        {
             elapsedCycles = 1;
-        }
 
         /*
          * Advance the remaining machine components by the same
@@ -296,12 +282,9 @@ bool EmulationSession::runFrame()
         }
 
         if (auto* mapper = cart_.getMapper())
-        {
             mapper->tick(elapsedCycles);
-        }
 
-        frameCycles +=
-            static_cast<int>(elapsedCycles);
+        frameCycles += static_cast<int>(elapsedCycles);
 
         /*
          * Safety valve: do not spin forever if the CPU is unable
@@ -309,9 +292,7 @@ bool EmulationSession::runFrame()
          * arbitration state.
          */
         if (frameCycles > targetCycles + 32)
-        {
             break;
-        }
     }
 
     return true;

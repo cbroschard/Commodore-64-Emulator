@@ -3284,12 +3284,7 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
         pendingOpcodeAddress = PC;
     }
 
-    currentBusCycle =
-    {
-        CpuBusCycleType::OpcodeFetch,
-        pendingOpcodeAddress,
-        0
-    };
+    currentBusCycle = {CpuBusCycleType::OpcodeFetch, pendingOpcodeAddress, 0};
 
     busCycleActive = true;
 
@@ -3299,12 +3294,7 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
     if (vicBusArbitrationEnabled && !rdyLine)
     {
         if (traceMgr)
-        {
-            traceMgr->recordCPUBA(
-                "RDY low stalls opcode fetch",
-                makeCpuStamp()
-            );
-        }
+            traceMgr->recordCPUBA("RDY low stalls opcode fetch", makeCpuStamp());
 
         busCycleActive = false;
         currentBusCycle = {};
@@ -3317,12 +3307,7 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
     if (vicBusArbitrationEnabled && !aecLine)
     {
         if (traceMgr)
-        {
-            traceMgr->recordCPUBA(
-                "AEC low blocks opcode fetch",
-                makeCpuStamp()
-            );
-        }
+            traceMgr->recordCPUBA("AEC low blocks opcode fetch", makeCpuStamp());
 
         busCycleActive = false;
         currentBusCycle = {};
@@ -3331,9 +3316,7 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
 
     opcode = mem->read(pendingOpcodeAddress);
 
-    PC = static_cast<uint16_t>(
-        pendingOpcodeAddress + 1
-    );
+    PC = static_cast<uint16_t>(pendingOpcodeAddress + 1);
 
     pendingOpcodeFetch = false;
     pendingOpcodeAddress = 0;
@@ -7474,8 +7457,7 @@ bool CPU::tickMicroOps()
 
                 if (microOpIndex >= microOpCount)
                 {
-                    lastMicroOpIndexAtEnd =
-                        static_cast<uint8_t>(microOpIndex);
+                    lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
 
                     clearMicroOps();
                 }
@@ -7519,8 +7501,7 @@ bool CPU::tickMicroOps()
         lastOpcodePC = opcodePC;
         lastOpcode   = opcode;
 
-        lastOpcodeMicroOpCapable =
-            canExecuteOpcodeWithMicroOps(opcode);
+        lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
 
         /*
          * Opcodes that have not yet been converted to micro-ops
@@ -7545,14 +7526,12 @@ bool CPU::tickMicroOps()
          */
         buildMicroOpsForOpcode(opcode);
 
-        microSequenceType =
-            CpuMicroSequenceType::Opcode;
+        microSequenceType = CpuMicroSequenceType::Opcode;
 
         microInstructionActive = true;
         lastOpcodeUsedMicroOps = true;
 
-        lastMicroOpCount =
-            static_cast<uint8_t>(microOpCount);
+        lastMicroOpCount = static_cast<uint8_t>(microOpCount);
 
         executedMicroOpsThisInstruction = 0;
 
@@ -7581,8 +7560,7 @@ bool CPU::tickMicroOps()
 
     if (microOpIndex >= microOpCount)
     {
-        lastMicroOpIndexAtEnd =
-            static_cast<uint8_t>(microOpIndex);
+        lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
 
         clearMicroOps();
     }
