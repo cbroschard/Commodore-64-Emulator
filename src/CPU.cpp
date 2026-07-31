@@ -3294,24 +3294,38 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
     busCycleActive = true;
 
     /*
-     * Opcode fetch is a read cycle, so RDY low holds it.
-     *
-     * Do not check AEC here yet. Keep AEC ownership in the
-     * existing machine scheduler until RDY is stable.
+     * RDY only holds read cycles.
      */
     if (vicBusArbitrationEnabled && !rdyLine)
     {
         if (traceMgr)
         {
             traceMgr->recordCPUBA(
-                "RDY/BA low stalls opcode fetch",
+                "RDY low stalls opcode fetch",
                 makeCpuStamp()
             );
         }
 
         busCycleActive = false;
         currentBusCycle = {};
+        return false;
+    }
 
+    /*
+     * AEC low means the CPU does not own the external bus.
+     */
+    if (vicBusArbitrationEnabled && !aecLine)
+    {
+        if (traceMgr)
+        {
+            traceMgr->recordCPUBA(
+                "AEC low blocks opcode fetch",
+                makeCpuStamp()
+            );
+        }
+
+        busCycleActive = false;
+        currentBusCycle = {};
         return false;
     }
 
@@ -3420,7 +3434,22 @@ bool CPU::executeCurrentMicroOp()
     if (shouldAECBlockBusCycle(op.busType))
     {
         if (traceMgr)
-            traceMgr->recordCPUBA("AEC low during CPU micro-op", makeCpuStamp());
+        {
+            traceMgr->recordCPUBA(
+                "AEC low blocks CPU external bus cycle",
+                makeCpuStamp()
+            );
+        }
+
+        executingMicroOp = false;
+        busCycleActive = false;
+        currentBusCycle = {};
+
+        /*
+         * Do not advance microOpIndex.
+         * Retry this same bus cycle when AEC returns high.
+         */
+        return false;
     }
 
     switch (op.kind)
