@@ -512,6 +512,21 @@ class CPU
             bool microPageCrossed = false;
             uint8_t microTemp = 0;
 
+            // VIC/CPU bus arbitration
+            bool vicBusArbitrationEnabled = false;
+            bool rdyLine = true;
+            bool aecLine = true;
+
+            // Opcode-fetch state
+            bool pendingOpcodeFetch = false;
+            uint16_t pendingOpcodeAddress = 0;
+
+            // Current CPU bus cycle
+            bool busCycleActive = false;
+            CpuBusCycleType busCycleType = CpuBusCycleType::None;
+            uint16_t busAddress = 0;
+            uint8_t busValue = 0;
+
             uint32_t totalCycles = 0;
         };
 

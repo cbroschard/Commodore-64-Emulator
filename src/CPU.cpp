@@ -7703,7 +7703,7 @@ uint8_t CPU::debugRead(uint16_t address) const
 
 CPU::CPUMicroOpDebugState CPU::getMicroOpDebugState() const
 {
-    CPUMicroOpDebugState s;
+    CPUMicroOpDebugState s{};
 
     s.valid = true;
 
@@ -7720,8 +7720,8 @@ CPU::CPUMicroOpDebugState CPU::getMicroOpDebugState() const
     s.activeOpcodePC = activeOpcodePC;
     s.activeOpcode = activeOpcode;
 
-    s.currentMicroOpCount = static_cast<uint8_t>(microOpCount);
-    s.currentMicroOpIndex = static_cast<uint8_t>(microOpIndex);
+    s.currentMicroOpCount = microOpCount;
+    s.currentMicroOpIndex = microOpIndex;
 
     s.microInstructionActive = microInstructionActive;
     s.executingMicroOp = executingMicroOp;
@@ -7730,6 +7730,18 @@ CPU::CPUMicroOpDebugState CPU::getMicroOpDebugState() const
     s.microBaseAddress = microBaseAddress;
     s.microPageCrossed = microPageCrossed;
     s.microTemp = microTemp;
+
+    s.vicBusArbitrationEnabled = vicBusArbitrationEnabled;
+    s.rdyLine = rdyLine;
+    s.aecLine = aecLine;
+
+    s.pendingOpcodeFetch = pendingOpcodeFetch;
+    s.pendingOpcodeAddress = pendingOpcodeAddress;
+
+    s.busCycleActive = busCycleActive;
+    s.busCycleType = currentBusCycle.type;
+    s.busAddress = currentBusCycle.address;
+    s.busValue = currentBusCycle.value;
 
     s.totalCycles = totalCycles;
 
@@ -7754,6 +7766,38 @@ std::string CPU::dumpMicroOpStatus() const
             << std::setw(4) << std::setfill('0')
             << int(v);
         return oss.str();
+    };
+
+    auto busCycleName = [](CpuBusCycleType type) -> const char*
+    {
+        switch (type)
+        {
+            case CpuBusCycleType::None:
+                return "None";
+
+            case CpuBusCycleType::OpcodeFetch:
+                return "Opcode fetch";
+
+            case CpuBusCycleType::Read:
+                return "Read";
+
+            case CpuBusCycleType::Write:
+                return "Write";
+
+            case CpuBusCycleType::DummyRead:
+                return "Dummy read";
+
+            case CpuBusCycleType::DummyWrite:
+                return "Dummy write";
+
+            case CpuBusCycleType::StackRead:
+                return "Stack read";
+
+            case CpuBusCycleType::StackWrite:
+                return "Stack write";
+        }
+
+        return "Unknown";
     };
 
     const CPUMicroOpDebugState s = getMicroOpDebugState();
@@ -7795,6 +7839,18 @@ std::string CPU::dumpMicroOpStatus() const
     out << "microTemp:              $" << hex8(s.microTemp) << "\n";
 
     out << "\nTotal cycles:            " << s.totalCycles << "\n";
+
+    out << "\nBus arbitration / opcode fetch\n";
+    out << "------------------------------\n";
+    out << "VIC arbitration:         " << (s.vicBusArbitrationEnabled ? "enabled" : "disabled") << "\n";
+    out << "RDY line:                " << (s.rdyLine ? "high" : "low") << "\n";
+    out << "AEC line:                " << (s.aecLine ? "high" : "low") << "\n";
+    out << "Pending opcode fetch:    " << (s.pendingOpcodeFetch ? "yes" : "no") << "\n";
+    out << "Pending opcode address:  $" << hex16(s.pendingOpcodeAddress) << "\n";
+    out << "Bus cycle active:        " << (s.busCycleActive ? "yes" : "no") << "\n";
+    out << "Bus cycle type:          " << busCycleName(s.busCycleType) << "\n";
+    out << "Bus address:             $" << hex16(s.busAddress) << "\n";
+    out << "Bus value:               $" << hex8(s.busValue) << "\n";
 
     return out.str();
 }
