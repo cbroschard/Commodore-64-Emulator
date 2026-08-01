@@ -4582,22 +4582,15 @@ uint16_t Vic::visibleRasterForIRQCompare() const
     if (registers.raster >= cfg_->maxRasterLines)
         return 0;
 
-    if (currentCycle == cfg_->cyclesPerLine - 1)
-    {
-        return static_cast<uint16_t>(
-            (registers.raster + 1) % cfg_->maxRasterLines
-        );
-    }
-
     return static_cast<uint16_t>(registers.raster);
 }
 
 uint16_t Vic::visibleRasterForRead() const
 {
-    if (currentCycle == 0)
-        return static_cast<uint16_t>((registers.raster + 1) % cfg_->maxRasterLines);
+    if (registers.raster >= cfg_->maxRasterLines)
+        return 0;
 
-    return registers.raster;
+    return static_cast<uint16_t>(registers.raster);
 }
 
 void Vic::updateIRQLine()
@@ -4745,7 +4738,7 @@ int Vic::rasterIRQCompareCycle() const
 
 bool Vic::isRasterIRQCompareCycle(int cycle) const
 {
-    return cycle == cfg_->cyclesPerLine - 1;
+    return cycle == RASTER_IRQ_COMPARE_CYCLE;
 }
 
 int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
