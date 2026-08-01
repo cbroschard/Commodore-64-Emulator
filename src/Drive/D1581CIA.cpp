@@ -223,14 +223,6 @@ void D1581CIA::serialOutputBit(bool bit)
     // bit 1 -> release DATA
     // bit 0 -> pull DATA low
     d->peripheralAssertData(!bit);
-
-#ifdef Debug
-    std::cout << "[1581 CIA SERIAL BIT] bit=" << (bit ? 1 : 0)
-              << " DATA=" << (bit ? "H" : "L")
-              << " PRB=$" << hex2(getPortBOutputRegister())
-              << " DDRB=$" << hex2(getDDRB())
-              << "\n";
-#endif
 }
 
 void D1581CIA::serialOutputClockPulse()
@@ -239,8 +231,6 @@ void D1581CIA::serialOutputClockPulse()
     if (!d)
         return;
 
-    // First simple test: pulse SRQ low.
-    // This may need timing/stretching later.
     d->peripheralAssertSrq(true);
     d->peripheralAssertSrq(false);
 
