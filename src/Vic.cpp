@@ -87,6 +87,8 @@ void Vic::reset()
     vicState.vmliFetchIndex = 0;
     vicState.rc = 0;
 
+    vicState.matrixAdvancePending = false;
+
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
     vicState.badLine = false;
@@ -363,6 +365,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU16(vicState.vmliBase);
     wrtr.writeU8(vicState.vmliFetchIndex);
     wrtr.writeU8(vicState.rc);
+    wrtr.writeBool(vicState.matrixAdvancePending);
 
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.displayEnabledNext);
@@ -522,6 +525,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.vmliFetchIndex))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.rc))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.matrixAdvancePending))       { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.displayEnabled))             { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))         { rdr.exitChunkPayload(chunk); return false; }
@@ -1054,6 +1058,7 @@ void Vic::beginFrameIfNeeded()
         vicState.vmliBase = 0;
         vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
+        vicState.matrixAdvancePending = false;
         vicState.badLine = false;
         vicState.badLineSampled = false;
         vicState.displayEnabled = false;
@@ -2645,6 +2650,29 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
 void Vic::beginBadLineFetch()
 {
+    if (vicState.matrixAdvancePending)
+    {
+        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+
+        const int visibleRows = getLatchedRSEL(registers.raster) ? 25 : 24;
+
+        const int nextRow = static_cast<int>(nextVcBase / 40);
+
+        if (nextRow >= visibleRows)
+        {
+            vicState.displayEnabled = false;
+            vicState.displayEnabledNext = false;
+            vicState.matrixAdvancePending = false;
+
+            clearBadLineFifo();
+            return;
+        }
+
+        vicState.vcBase = nextVcBase;
+        vicState.vmliBase = nextVcBase;
+        vicState.matrixAdvancePending = false;
+    }
+
     vicState.rc = 0;
 
     vicState.displayEnabled = true;
@@ -2656,6 +2684,7 @@ void Vic::beginBadLineFetch()
     activeMatrixRow.valid = true;
     activeMatrixRow.vcBase = vicState.vmliBase;
     activeMatrixRow.row = static_cast<int>(vicState.vmliBase / 40);
+
     activeMatrixRow.screen.fill(0);
     activeMatrixRow.color.fill(0);
     activeMatrixRow.fetched.fill(0);
@@ -5172,18 +5201,22 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
     if (!vicState.displayEnabledNext)
     {
         vicState.displayEnabled = false;
+        vicState.matrixAdvancePending = false;
         return;
     }
 
     vicState.displayEnabled = true;
 
     const int visibleRows = getLatchedRSEL(raster) ? 25 : 24;
+
     const int currentRowBefore = currentCharacterRow();
 
     if (currentRowBefore < 0 || currentRowBefore >= visibleRows)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        vicState.matrixAdvancePending = false;
+
         clearBadLineFifo();
         return;
     }
@@ -5192,27 +5225,42 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
 
     if (vicState.rc == 0)
     {
-        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-        const int nextRow = nextVcBase / 40;
+        const int nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
-        if (nextRow >= visibleRows)
+        if (isBadLine(nextRaster))
         {
-            vicState.displayEnabled = false;
-            vicState.displayEnabledNext = false;
-            clearBadLineFifo();
-            return;
-        }
+            const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
 
-        vicState.vcBase = nextVcBase;
-        vicState.vmliBase = nextVcBase;
+            const int nextRow = static_cast<int>(nextVcBase / 40);
+
+            if (nextRow >= visibleRows)
+            {
+                vicState.displayEnabled = false;
+                vicState.displayEnabledNext = false;
+                vicState.matrixAdvancePending = false;
+
+                clearBadLineFifo();
+                return;
+            }
+
+            vicState.vcBase = nextVcBase;
+            vicState.vmliBase = nextVcBase;
+            vicState.matrixAdvancePending = false;
+        }
+        else
+            vicState.matrixAdvancePending = true;
+
     }
 
-    const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
+    const bool den =
+        (latchedD011ForRaster(raster) & 0x10) != 0;
 
     if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        vicState.matrixAdvancePending = false;
+
         clearBadLineFifo();
     }
 }

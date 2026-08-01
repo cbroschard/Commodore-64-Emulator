@@ -567,6 +567,8 @@ class Vic
             uint8_t vmliFetchIndex = 0;// progress through the 40 bad-line matrix fetches
             uint8_t rc = 0;          // row counter 0-7
 
+            bool matrixAdvancePending = false;
+
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;
