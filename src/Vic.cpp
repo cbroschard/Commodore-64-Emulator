@@ -1947,10 +1947,7 @@ void Vic::advanceSpriteOutputState(int sprIndex, int px)
     const bool expandX = spriteXExpandedAtPixel(sprIndex, px);
     const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
 
-    const int repeatsPerSourceUnit =
-        multClr ? (expandX ? 4 : 2)
-                : (expandX ? 2 : 1);
-
+    const int repeatsPerSourceUnit = multClr ? (expandX ? 4 : 2) : (expandX ? 2 : 1);
     spriteUnits[sprIndex].outputRepeat++;
 
     if (spriteUnits[sprIndex].outputRepeat >= repeatsPerSourceUnit)
@@ -1996,8 +1993,7 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
     if (srcPair < 0 || srcPair >= 12)
         return false;
 
-    const uint8_t bits =
-        static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
+    const uint8_t bits = static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
 
     if (bits == 0)
         return false;
@@ -2125,14 +2121,9 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
         if (spriteUnits[s].yExpandLatch)
-        {
-            // currentRow tracks physical raster lines of the expanded sprite.
             spriteUnits[s].currentRow += 1;
-        }
         else
-        {
             spriteUnits[s].currentRow = spriteRowFromMCBase(s);
-        }
 
         if (spriteUnits[s].mcBase >= 63)
         {
@@ -2552,15 +2543,9 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.refresh = isRefreshCycle(cycle);
 
-    slot.baLow =
-        slot.badlineWarning ||
-        slot.badlineBAHold ||
-        slot.spriteWarning ||
-        slot.spriteSteal;
+    slot.baLow = slot.badlineWarning || slot.badlineBAHold || slot.spriteWarning || slot.spriteSteal;
 
-    slot.aecLow =
-        slot.badlineSteal ||
-        slot.spriteAECSteal;
+    slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
 
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 
@@ -2588,12 +2573,8 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::CharMatrix:
         {
             slot.busOwner = BusOwner::BadLine;
-
             const int index = cycle - cfg_->bgFetchStartCycle;
-
-            slot.matrixFetchIndex =
-                (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS) ? index : -1;
-
+            slot.matrixFetchIndex = (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS) ? index : -1;
             break;
         }
         case FetchKind::SpritePtr0:
@@ -2720,8 +2701,7 @@ void Vic::renderLine(int raster)
     updateGraphicsMode(raster);
     buildBorderMaskLine(raster);
 
-    const graphicsMode lineMode =
-        graphicsModeForRaster(raster);
+    const graphicsMode lineMode = graphicsModeForRaster(raster);
 
     // Standard text was already generated during raster cycles.
     if (lineMode != graphicsMode::standard)
@@ -3588,28 +3568,17 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
-    const uint8_t bgColor =
-        static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+    const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
-    const uint8_t d016AtCell =
-        d016ForRasterPixelX(raster, px, false);
+    const uint8_t d016AtCell = d016ForRasterPixelX(raster, px, false);
 
-    const bool multicolor =
-        ((d016AtCell & 0x10) != 0) &&
-        ((colorByte & 0x08) != 0);
+    const bool multicolor = ((d016AtCell & 0x10) != 0) && ((colorByte & 0x08) != 0);
 
-    const uint8_t d018 =
-        d018ForRasterPixelX(raster, px, false) & 0xFE;
+    const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
 
-    const uint16_t charBase =
-        static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
+    const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
 
-    const uint16_t charAddr =
-        static_cast<uint16_t>(
-            charBase +
-            static_cast<uint16_t>(screenByte) * 8 +
-            static_cast<uint16_t>(yInChar & 0x07)
-        );
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(yInChar & 0x07));
 
     const uint8_t rowBits =
         mem ? mem->vicRead(charAddr, raster) : 0x00;
