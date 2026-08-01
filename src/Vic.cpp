@@ -1285,25 +1285,39 @@ void Vic::outputPixel(int raster, int x)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    TextCellSample cell {};
+    const int pixelInCharacter = relativeX & 0x07;
 
-    if (!sampleTextCell(raster, xScroll, column, cell))
+    // Latch the character data once at the first pixel.
+    if (pixelInCharacter == 0)
+    {
+        TextCellSample cell {};
+
+        if (!sampleTextCell(raster, xScroll, column, cell) || !cell.valid || cell.multicolor)
+        {
+            resetActiveBackgroundPixelState();
+            return;
+        }
+
+        loadActiveStandardTextPixelState(cell, raster);
+    }
+
+    if (!activeBgPixel.valid)
         return;
 
-    // Multicolor text remains on the existing line renderer.
-    if (!cell.valid || cell.multicolor)
+    const int expectedX = activeBgPixel.pxBase + activeBgPixel.phase;
+
+    if (x != expectedX)
+    {
+        resetActiveBackgroundPixelState();
         return;
+    }
 
-    const int pixelInCharacter = x - cell.px;
+    const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
 
-    if (pixelInCharacter < 0 || pixelInCharacter >= 8)
-        return;
+    stampBackgroundPixel(x, activeBgPixel.py, pixel.color, pixel.opaque);
 
-    const bool foreground = ((cell.rowBits >> (7 - pixelInCharacter)) & 0x01) != 0;
-
-    const uint8_t color = foreground ? static_cast<uint8_t>(cell.colorByte & 0x0F) : static_cast<uint8_t>(cell.bgColor & 0x0F);
-
-    stampBackgroundPixel(x, cell.py, color, foreground);
+    if (activeBgPixel.phase >= 8)
+        activeBgPixel.valid = false;
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
