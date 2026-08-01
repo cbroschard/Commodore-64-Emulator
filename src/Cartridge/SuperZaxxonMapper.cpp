@@ -51,13 +51,6 @@ uint8_t SuperZaxxonMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    /*
-     * The fixed 4 KB ROML chip is visible at $8000-$8FFF and mirrored at
-     * $9000-$9FFF.
-     *
-     * Reading the lower mirror selects ROMH bank 0.
-     * Reading the upper mirror selects ROMH bank 1.
-     */
     if (address >= 0x8000 && address <= 0x9FFF)
     {
         if (address <= 0x8FFF)
@@ -146,9 +139,8 @@ bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
         else if (section.loadAddress == CART_HI_START && section.bankNumber == 0)
         {
             for (size_t i = 0; i < section.data.size(); ++i)
-            {
                 mem->writeCartridge(i, section.data[i], cartLocation::HI);
-            }
+
             mapped = true;
         }
     }
@@ -156,9 +148,7 @@ bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
     return mapped;
 }
 
-bool SuperZaxxonMapper::romReadHandledByMapper(
-    uint16_t address) const
+bool SuperZaxxonMapper::romReadHandledByMapper(uint16_t address) const
 {
-    return address >= 0x8000 &&
-           address <= 0xBFFF;
+    return address >= 0x8000 && address <= 0xBFFF;
 }
