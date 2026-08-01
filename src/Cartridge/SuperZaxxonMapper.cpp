@@ -48,21 +48,66 @@ bool SuperZaxxonMapper::applyMappingAfterLoad()
 
 uint8_t SuperZaxxonMapper::read(uint16_t address)
 {
-    if (address >= 0x8000 && address <= 0x8FFF)
+    if (!cart)
+        return 0xFF;
+
+    /*
+     * The fixed 4 KB ROML chip is visible at $8000-$8FFF and mirrored at
+     * $9000-$9FFF.
+     *
+     * Reading the lower mirror selects ROMH bank 0.
+     * Reading the upper mirror selects ROMH bank 1.
+     */
+    if (address >= 0x8000 && address <= 0x9FFF)
     {
-        currentBank = 0;
-        loadIntoMemory(currentBank);
-        return mem->getCartLOByte(address - 0x8000);
+        if (address <= 0x8FFF)
+            currentBank = 0;
+        else
+            currentBank = 1;
+
+        const size_t offset =
+            static_cast<size_t>((address - 0x8000) & 0x0FFF);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (section.bankNumber != 0)
+                continue;
+
+            if (offset >= section.data.size())
+                return 0xFF;
+
+            return section.data[offset];
+        }
+
+        return 0xFF;
     }
-    else if (address >= 0x9000 && address <= 0x9FFF)
+
+    /*
+     * ROMH is selected by the most recent read from either ROML mirror.
+     */
+    if (address >= 0xA000 && address <= 0xBFFF)
     {
-        currentBank = 1;
-        loadIntoMemory(currentBank);
-        return mem->getCartLOByte(address - 0x8000); // mirror, same LO vector
-    }
-    else if (address >= 0xA000 && address <= 0xBFFF)
-    {
-        return mem->getCartHIByte(address - 0xA000);
+        const size_t offset =
+            static_cast<size_t>(address - 0xA000);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.loadAddress != 0xA000)
+                continue;
+
+            if (section.bankNumber != currentBank)
+                continue;
+
+            if (offset >= section.data.size())
+                return 0xFF;
+
+            return section.data[offset];
+        }
+
+        return 0xFF;
     }
 
     return 0xFF;
@@ -109,4 +154,11 @@ bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
     }
 
     return mapped;
+}
+
+bool SuperZaxxonMapper::romReadHandledByMapper(
+    uint16_t address) const
+{
+    return address >= 0x8000 &&
+           address <= 0xBFFF;
 }
