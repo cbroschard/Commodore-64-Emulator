@@ -1232,6 +1232,14 @@ void Vic::runFetchPhase()
 void Vic::runPixelOutputPhase()
 {
     const int raster = registers.raster;
+
+    if (currentCycle == 0)
+    {
+        clearBackgroundLineBuffers();
+        resetActiveBackgroundPixelState();
+        resetBackgroundPipeline();
+    }
+
     const int baseX = currentCycle * 8;
 
     for (int i = 0; i < 8; ++i)
@@ -1252,6 +1260,50 @@ void Vic::outputPixel(int raster, int x)
 
     if (x < 0 || x >= VISIBLE_WIDTH)
         return;
+
+    if (graphicsModeForRaster(raster) != graphicsMode::standard)
+        return;
+
+    const uint8_t d011 = effectiveD011ForRaster(raster);
+
+    if ((d011 & 0x10) == 0)
+        return;
+
+    const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
+
+    const int xScroll = static_cast<int>(d016 & 0x07);
+
+    const int firstCharacterX = BACKGROUND_40COL_X0 + xScroll;
+
+    const int relativeX = x - firstCharacterX;
+
+    if (relativeX < 0)
+        return;
+
+    const int column = relativeX / 8;
+
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    TextCellSample cell {};
+
+    if (!sampleTextCell(raster, xScroll, column, cell))
+        return;
+
+    // Multicolor text remains on the existing line renderer.
+    if (!cell.valid || cell.multicolor)
+        return;
+
+    const int pixelInCharacter = x - cell.px;
+
+    if (pixelInCharacter < 0 || pixelInCharacter >= 8)
+        return;
+
+    const bool foreground = ((cell.rowBits >> (7 - pixelInCharacter)) & 0x01) != 0;
+
+    const uint8_t color = foreground ? static_cast<uint8_t>(cell.colorByte & 0x0F) : static_cast<uint8_t>(cell.bgColor & 0x0F);
+
+    stampBackgroundPixel(x, cell.py, color, foreground);
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
@@ -2623,12 +2675,14 @@ void Vic::renderLine(int raster)
         return;
 
     updateGraphicsMode(raster);
-
-    // Build the pixel-aware border mask first so background generation,
-    // color-event replay, and final composition can all use the same
-    // CSEL-aware border state.
     buildBorderMaskLine(raster);
-    generateBackgroundLine(raster);
+
+    const graphicsMode lineMode =
+        graphicsModeForRaster(raster);
+
+    // Standard text was already generated during raster cycles.
+    if (lineMode != graphicsMode::standard)
+        generateBackgroundLine(raster);
 
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
