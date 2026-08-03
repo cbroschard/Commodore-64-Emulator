@@ -717,9 +717,6 @@ uint8_t Vic::readRegister(uint16_t address)
 
 void Vic::writeRegister(uint16_t address, uint8_t value)
 {
-    // Latch Open Bus
-    updateOpenBus(value);
-
     // Handle SpriteX and SpriteY registers with helper
     if (address >= 0xD000 && address <= 0xD00F)
     {
