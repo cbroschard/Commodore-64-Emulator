@@ -10,6 +10,7 @@
 
 class CIA2;
 class CPU;
+class DataBusLatch;
 class IRQLine;
 class IVideoSink;
 class Memory;
@@ -36,6 +37,7 @@ class Vic
         inline void attachIVideoSinkInstance(IVideoSink* sink) { this->sink = sink; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
+        inline void attachDataBusLatchInstance(DataBusLatch* databus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
@@ -491,6 +493,7 @@ class Vic
         // Non-owning pointers
         CIA2* cia2;
         CPU* cpu;
+        DataBusLatch* dataBus;
         IVideoSink* sink;
         IRQLine* IRQ;
         Memory* mem;

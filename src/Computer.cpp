@@ -51,6 +51,7 @@ Computer::Computer() :
     components_.cia1 = std::make_unique<CIA1>();
     components_.cia2 = std::make_unique<CIA2>();
     components_.cpu = std::make_unique<CPU>();
+    components_.dataBus = std::make_unique<DataBusLatch>();
     components_.ui = std::make_unique<EmulatorUI>();
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
     components_.bus = std::make_unique<IECBUS>();

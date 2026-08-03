@@ -15,6 +15,7 @@
 Vic::Vic(VideoMode mode) :
     cia2(nullptr),
     cpu(nullptr),
+    dataBus(nullptr),
     sink(nullptr),
     IRQ(nullptr),
     mem(nullptr),

@@ -99,6 +99,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.sid->attachVicInstance(components.vic.get());
 
     components.vic->attachCPUInstance(components.cpu.get());
+    components.vic->attachDataBusLatchInstance(components.dataBus.get());
     components.vic->attachIVideoSinkInstance(components.videoOutput.get());
     components.vic->attachIVideoSinkInstance(components.videoOutput.get());
     components.vic->attachMemoryInstance(components.mem.get());

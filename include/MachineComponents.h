@@ -16,6 +16,7 @@
 #include "CIA1.h"
 #include "CIA2.h"
 #include "CPU.h"
+#include "DataBusLatch.h"
 #include "EmulatorUI.h"
 #include "Common/ExecutionHistory.h"
 #include "IECBUS.h"
@@ -48,6 +49,7 @@ struct MachineComponents
     std::unique_ptr<CIA1> cia1;
     std::unique_ptr<CIA2> cia2;
     std::unique_ptr<CPU> cpu;
+    std::unique_ptr<DataBusLatch> dataBus;
     std::unique_ptr<DebugManager> debug;
     std::array<std::unique_ptr<Drive>, 16> drives;
     std::unique_ptr<EmulatorUI> ui;
