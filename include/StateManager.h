@@ -21,6 +21,7 @@ class Cassette;
 class CIA1;
 class CIA2;
 class CPU;
+class DataBusLatch;
 class Drive;
 class IECBUS;
 class InputManager;
@@ -37,9 +38,10 @@ class StateManager
     public:
         StateManager(Cartridge& cart,
                      Cassette& cass,
-                     CIA1& cia1object,
-                     CIA2& cia2object,
+                     CIA1& cia1,
+                     CIA2& cia2,
                      CPU& processor,
+                     DataBusLatch& dataBus,
                      IECBUS& bus,
                      InputManager& inputMgr,
                      MediaManager& media,
@@ -66,9 +68,10 @@ class StateManager
     private:
         Cartridge& cart_;
         Cassette& cass_;
-        CIA1& cia1object_;
-        CIA2& cia2object_;
+        CIA1& cia1_;
+        CIA2& cia2_;
         CPU& processor_;
+        DataBusLatch& dataBus_;
         IECBUS& bus_;
         InputManager& inputMgr_;
         MediaManager& media_;

@@ -10,6 +10,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "CPUTiming.h"
+#include "DataBusLatch.h"
 #include "Drive/Drive.h"
 #include "IECBUS.h"
 #include "InputManager.h"
@@ -23,9 +24,10 @@
 
 StateManager::StateManager(Cartridge& cart,
                      Cassette& cass,
-                     CIA1& cia1object,
-                     CIA2& cia2object,
+                     CIA1& cia1,
+                     CIA2& cia2,
                      CPU& processor,
+                     DataBusLatch& dataBus,
                      IECBUS& bus,
                      InputManager& inputMgr,
                      MediaManager& media,
@@ -43,9 +45,10 @@ StateManager::StateManager(Cartridge& cart,
                      std::array<std::unique_ptr<Drive>, 16>& drives) :
       cart_(cart),
       cass_(cass),
-      cia1object_(cia1object),
-      cia2object_(cia2object),
+      cia1_(cia1),
+      cia2_(cia2),
       processor_(processor),
+      dataBus_(dataBus),
       bus_(bus),
       inputMgr_(inputMgr),
       media_(media),
@@ -116,8 +119,9 @@ bool StateManager::save(const std::string& path)
     // Device chunks (next)
     // -------------------------
     processor_.saveState(wrtr);
-    cia1object_.saveState(wrtr);
-    cia2object_.saveState(wrtr);
+    cia1_.saveState(wrtr);
+    cia2_.saveState(wrtr);
+    dataBus_.saveState(wrtr);
     vicII_.saveState(wrtr);
     sidchip_.saveState(wrtr);
     pla_.saveState(wrtr);
@@ -312,6 +316,8 @@ bool StateManager::load(const std::string& path)
         const bool isCIA2 = (std::memcmp(chunk.tag, "CIA2", 4) == 0) ||
                             (std::memcmp(chunk.tag, "CI2X", 4) == 0);
 
+        const bool isDataBus = std::memcmp(chunk.tag, "OBUS", 4) == 0;
+
         const bool isVIC = (std::memcmp(chunk.tag, "VIC0", 4) == 0) ||
                            (std::memcmp(chunk.tag, "VICX", 4) == 0);
 
@@ -334,16 +340,23 @@ bool StateManager::load(const std::string& path)
         }
         else if (isCIA1)
         {
-            if (!cia1object_.loadState(chunk, rdr)) return false;
+            if (!cia1_.loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded CIA1\n";
             #endif
         }
         else if (isCIA2)
         {
-            if (!cia2object_.loadState(chunk, rdr)) return false;
+            if (!cia2_.loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded CIA2\n";
+            #endif
+        }
+        else if (isDataBus)
+        {
+            if (!dataBus_.loadState(chunk, rdr)) return false;
+            #ifdef Debug
+            std::cout << "Loaded DataBusLatch\n";
             #endif
         }
         else if (isVIC)
