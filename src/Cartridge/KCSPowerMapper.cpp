@@ -103,12 +103,13 @@ uint8_t KCSPowerMapper::read(uint16_t address)
         const bool exromHigh = cart ? cart->getExROMLine() : true;
         const bool gameHigh  = cart ? cart->getGameLine()  : true;
 
-        uint8_t value = open;
+        uint8_t value = open & 0x3F;
         if (exromHigh) value |= 0x80;
         if (gameHigh)  value |= 0x40;
         return value;
     }
-    return 0xFF;
+
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void KCSPowerMapper::write(uint16_t address, uint8_t value)
@@ -208,4 +209,21 @@ void KCSPowerMapper::pressReset()
 
     applyMappingAfterLoad();
     cart->requestWarmReset();
+}
+
+bool KCSPowerMapper::readDrivesBus(uint16_t address) const
+{
+    if (address >= 0xDE00 && address <= 0xDEFF)
+        return true;
+
+    if (address >= 0xDF00 && address <= 0xDF7F)
+    {
+        return cart &&
+               cart->hasCartridgeRAM();
+    }
+
+    if (address >= 0xDF80 && address <= 0xDFFF)
+        return true;
+
+    return false;
 }

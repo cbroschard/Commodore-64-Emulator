@@ -59,10 +59,7 @@ bool MagicDesk16Mapper::loadState(const StateReader::Chunk& chunk, StateReader& 
 uint8_t MagicDesk16Mapper::read(uint16_t address)
 {
     (void)address;
-
     return cart ? cart->sampleDataBus() : 0xFF;
-
-    return 0xFF;
 }
 
 void MagicDesk16Mapper::write(uint16_t address, uint8_t value)
@@ -180,4 +177,10 @@ void MagicDesk16Mapper::reset()
 
     cart->setGameLine(false);
     cart->setExROMLine(false);
+}
+
+bool MagicDesk16Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

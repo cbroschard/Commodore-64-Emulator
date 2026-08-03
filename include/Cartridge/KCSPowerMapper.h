@@ -30,6 +30,8 @@ class KCSPowerMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool readDrivesBus(uint16_t address) const;
+
     protected:
 
     private:
