@@ -432,7 +432,7 @@ uint8_t SID::readRegister(uint16_t address)
 
 void SID::writeRegister(uint16_t address, uint8_t value)
 {
-    if (traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::SID))
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::SID))
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
                 vicII ? vicII->getRasterDot() : 0);
