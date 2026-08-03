@@ -84,17 +84,18 @@ void FinalCartridgePlusMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t FinalCartridgePlusMapper::read(uint16_t address)
 {
-    // IO2: $DF00-$DFFF
+    if (!cart)
+        return 0xFF;
+
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        // Bit 7 can be read back *if the cartridge is enabled*.
         if (!cartDisabled)
-            return (bit7Latch ? 0x80 : 0x00) | 0x7F;
-        else
-            return 0xFF;
+            return static_cast<uint8_t>((bit7Latch ? 0x80 : 0x00) | 0x7F);
+
+        return cart->sampleDataBus();
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void FinalCartridgePlusMapper::write(uint16_t address, uint8_t value)
@@ -239,4 +240,12 @@ void FinalCartridgePlusMapper::pressReset()
 
     (void)applyMappingAfterLoad();
     cart->requestWarmReset();
+}
+
+bool FinalCartridgePlusMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    return !cartDisabled && address >= 0xDF00 && address <= 0xDFFF;
 }

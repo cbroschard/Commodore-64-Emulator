@@ -34,6 +34,8 @@ class FreezeFrameMK2Mapper : public CartridgeMapper, public IHasButton
 
         void pressFreeze();
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

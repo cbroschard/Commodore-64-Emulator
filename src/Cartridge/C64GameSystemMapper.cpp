@@ -69,7 +69,7 @@ uint8_t C64GameSystemMapper::read(uint16_t address)
     }
 
     // Open Bus
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void C64GameSystemMapper::write(uint16_t address, uint8_t value)
@@ -112,4 +112,10 @@ bool C64GameSystemMapper::loadIntoMemory(uint8_t bank)
     }
 
     return true;
+}
+
+bool C64GameSystemMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

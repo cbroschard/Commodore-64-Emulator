@@ -32,6 +32,8 @@ class FinalCartridgePlusMapper : public CartridgeMapper, public IHasButton
 
         bool isRegionEnabled(CartRegion region) const override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

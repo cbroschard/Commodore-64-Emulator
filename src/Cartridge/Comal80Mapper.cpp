@@ -49,8 +49,8 @@ bool Comal80Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t Comal80Mapper::read(uint16_t address)
 {
-    // Open bus
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void Comal80Mapper::write(uint16_t address, uint8_t value)
@@ -119,4 +119,10 @@ bool Comal80Mapper::applyMappingAfterLoad()
 {
     selectedBank &= 0x03;
     return loadIntoMemory(selectedBank);
+}
+
+bool Comal80Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

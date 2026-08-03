@@ -50,8 +50,8 @@ bool FunPlayMapper::applyMappingAfterLoad()
 
 uint8_t FunPlayMapper::read(uint16_t address)
 {
-    // Open Bus
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void FunPlayMapper::write(uint16_t address, uint8_t value)
@@ -61,10 +61,6 @@ void FunPlayMapper::write(uint16_t address, uint8_t value)
 
     // decode the bank
     selectedBank = static_cast<uint8_t>(((value & 0x38) >> 3) | ((value & 0x01) << 3));
-
-    // Optional safety (your switch only supports 0..15)
-    if (selectedBank > 15)
-        return;
 
     loadIntoMemory(selectedBank);
 }
@@ -88,5 +84,11 @@ bool FunPlayMapper::loadIntoMemory(uint8_t bank)
             return true;
         }
     }
+    return false;
+}
+
+bool FunPlayMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
     return false;
 }

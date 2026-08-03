@@ -16,18 +16,21 @@ GenericMapper::~GenericMapper() = default;
 void GenericMapper::saveState(StateWriter& wrtr) const
 {
     // No-op
+    (void)wrtr;
 }
 
 bool GenericMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
     // No-op
+    (void)chunk;
+    (void)rdr;
     return true;
 }
 
 uint8_t GenericMapper::read(uint16_t address)
 {
-    // Return default
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 bool GenericMapper::applyMappingAfterLoad()
@@ -95,4 +98,10 @@ bool GenericMapper::loadIntoMemory(uint8_t bank)
     }
 
     return mapped;
+}
+
+bool GenericMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

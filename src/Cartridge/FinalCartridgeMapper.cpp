@@ -78,47 +78,41 @@ void FinalCartridgeMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t FinalCartridgeMapper::read(uint16_t address)
 {
-    if (!cart || !mem)
+    if (!cart)
         return 0xFF;
 
-    auto mirror_io_rom = [&](uint16_t addr) -> uint8_t
+    if (!mem)
+        return cart->sampleDataBus();
+
+    auto mirrorIORom = [&](uint16_t addr) -> uint8_t
     {
-        // Mirror $9F00-$9FFF from ROML (offset 0x1F00)
-        uint16_t offset = 0x1F00 + (addr & 0x00FF);
+        const uint16_t offset = static_cast<uint16_t>(0x1F00 + (addr & 0x00FF));
         return mem->readCartridge(offset, cartLocation::LO);
-
-        return 0xFF;
     };
 
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        // Return ROM byte (mirror), THEN disable cart (IO1 => OFF)
-        uint8_t value = mirror_io_rom(address);
+        const uint8_t value = mirrorIORom(address);
 
-        if (cartEnabled)
-        {
-            // OFF: no cart mapped
-            cart->setExROMLine(true);
-            cart->setGameLine(true);
-            cartEnabled = false;
-        }
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
+        cartEnabled = false;
+
         return value;
     }
-    else if (address >= 0xDF00 && address <= 0xDFFF)
+
+    if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        // Return ROM byte (mirror), THEN enable cart (IO2 => ON)
-        uint8_t value = mirror_io_rom(address);
+        const uint8_t value = mirrorIORom(address);
 
-        if (!cartEnabled)
-        {
-            cart->setExROMLine(false);
-            cart->setGameLine(false);
-            cartEnabled = true;
-        }
+        cart->setExROMLine(false);
+        cart->setGameLine(false);
+        cartEnabled = true;
+
         return value;
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void FinalCartridgeMapper::write(uint16_t address, uint8_t value)
@@ -246,4 +240,12 @@ void FinalCartridgeMapper::pressReset()
 
     (void)applyMappingAfterLoad();
     cart->requestWarmReset();
+}
+
+bool FinalCartridgeMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem)
+        return false;
+
+    return address >= 0xDE00 && address <= 0xDFFF;
 }

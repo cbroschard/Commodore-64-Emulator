@@ -42,9 +42,12 @@ bool FreezeFrameMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
 
         mode = static_cast<Mode>(modeU8);
 
+        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+
         rdr.exitChunkPayload(chunk);
         return true;
     }
+
     // Not our chunk
     return false;
 }
@@ -52,12 +55,11 @@ bool FreezeFrameMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
 uint8_t FreezeFrameMapper::read(uint16_t address)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)
-        setMode(Mode::Normal);
+        (void)setMode(Mode::Normal);
     else if (address >= 0xDF00 && address <= 0xDFFF)
-        setMode(Mode::Disabled);
+        (void)setMode(Mode::Disabled);
 
-    // Open bus
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void FreezeFrameMapper::write(uint16_t address, uint8_t value)
@@ -163,5 +165,11 @@ bool FreezeFrameMapper::setMode(Mode newMode)
             return loadIntoMemory(0);
     }
 
+    return false;
+}
+
+bool FreezeFrameMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
     return false;
 }

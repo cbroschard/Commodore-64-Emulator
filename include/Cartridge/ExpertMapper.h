@@ -48,6 +48,8 @@ class ExpertMapper : public CartridgeMapper, public IHasButton, public IHasSwitc
 
         void tick(uint32_t elapsedCycles) override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

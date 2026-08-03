@@ -26,6 +26,8 @@ class EpyxFastloadMapper : public CartridgeMapper
         bool loadIntoMemory(uint8_t bank) override;
         void tick(uint32_t elapsedCycles) override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

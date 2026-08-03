@@ -119,24 +119,29 @@ void AtomicPowerMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t AtomicPowerMapper::read(uint16_t address)
 {
-    if (!cart || !mem) return 0xFF;
+    if (!cart)
+        return 0xFF;
 
-    // IO2 window: DF00-DFFF -> window into $9F00-$9FFF of currently selected thing
+    if (!mem || ctrl.cartDisable)
+        return cart->sampleDataBus();
+
+    // IO2 window: $DF00-$DFFF maps to $9F00-$9FFF.
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        const uint16_t offset = 0x1F00 | (address & 0x00FF);
+        const uint16_t offset = static_cast<uint16_t>(0x1F00 | (address & 0x00FF));
 
         if (ramEnabled)
         {
-            return cart->readRAM(offset);
+            if (cart->hasCartridgeRAM())
+                return cart->readRAM(offset);
+
+            return cart->sampleDataBus();
         }
-        else
-        {
-            return mem->readCartridge(offset, cartLocation::LO);
-        }
+
+        return mem->readCartridge(offset, cartLocation::LO);
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void AtomicPowerMapper::write(uint16_t address, uint8_t value)
@@ -305,4 +310,18 @@ void AtomicPowerMapper::pressReset()
 
     if (cart)
         cart->requestWarmReset();
+}
+
+bool AtomicPowerMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem || ctrl.cartDisable)
+        return false;
+
+    if (address < 0xDF00 || address > 0xDFFF)
+        return false;
+
+    if (ramEnabled)
+        return cart->hasCartridgeRAM();
+
+    return true;
 }

@@ -120,28 +120,29 @@ void FinalCartridgeIIIMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t FinalCartridgeIIIMapper::read(uint16_t address)
 {
-    if (!cart) return 0xFF;
+    if (!cart)
+        return 0xFF;
+
+    const bool cartridgeActive = freezeActive || ctrl.cartEnabled;
+
+    if (!cartridgeActive)
+        return cart->sampleDataBus();
 
     if (address >= 0xDE00 && address <= 0xDFFF)
     {
         const uint8_t activeBank = freezeActive ? freezeBank : ctrl.bank;
 
-        // Mirror last 512 bytes of the 16K bank: $3E00-$3FFF
-        const uint16_t idx = 0x3E00 + (address & 0x01FF);
+        // Mirror the final 512 bytes of the active 16K bank.
+        const uint16_t index = static_cast<uint16_t>(0x3E00 + (address & 0x01FF));
 
-        const auto& sections = cart->getChipSections();
-        for (const auto& s : sections)
+        for (const auto& section : cart->getChipSections())
         {
-            if (s.bankNumber == activeBank &&
-                s.loadAddress == 0x8000 &&
-                s.data.size() == 0x4000)
-            {
-                return s.data[idx];
-            }
+            if (section.bankNumber == activeBank && section.loadAddress == 0x8000 && section.data.size() == 0x4000)
+                return section.data[index];
         }
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void FinalCartridgeIIIMapper::write(uint16_t address, uint8_t value)
@@ -292,4 +293,26 @@ void FinalCartridgeIIIMapper::pressReset()
 
     if (cart)
         cart->requestWarmReset();
+}
+
+bool FinalCartridgeIIIMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    if (!freezeActive && !ctrl.cartEnabled)
+        return false;
+
+    if (address < 0xDE00 || address > 0xDFFF)
+        return false;
+
+    const uint8_t activeBank = freezeActive ? freezeBank : ctrl.bank;
+
+    for (const auto& section : cart->getChipSections())
+    {
+        if (section.bankNumber == activeBank && section.loadAddress == 0x8000 && section.data.size() == 0x4000)
+            return true;
+    }
+
+    return false;
 }

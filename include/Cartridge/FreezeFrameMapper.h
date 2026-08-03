@@ -30,6 +30,8 @@ class FreezeFrameMapper : public CartridgeMapper, public IHasButton
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

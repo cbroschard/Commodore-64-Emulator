@@ -39,6 +39,8 @@ bool FreezeFrameMK2Mapper::loadState(const StateReader::Chunk& chunk, StateReade
 
         if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
 
+        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+
         rdr.exitChunkPayload(chunk);
         return true;
     }
@@ -50,9 +52,9 @@ bool FreezeFrameMK2Mapper::loadState(const StateReader::Chunk& chunk, StateReade
 uint8_t FreezeFrameMK2Mapper::read(uint16_t address)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)
-        setBank(1);
+        (void)setBank(1);
 
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void FreezeFrameMK2Mapper::write(uint16_t address, uint8_t value)
@@ -151,4 +153,10 @@ bool FreezeFrameMK2Mapper::setBank(uint8_t bank)
 {
     selectedBank = bank & 0x01;
     return loadIntoMemory(selectedBank);
+}
+
+bool FreezeFrameMK2Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

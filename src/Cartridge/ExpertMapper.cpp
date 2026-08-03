@@ -126,7 +126,8 @@ void ExpertMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t ExpertMapper::read(uint16_t address)
 {
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void ExpertMapper::write(uint16_t address, uint8_t value)
@@ -230,4 +231,10 @@ void ExpertMapper::pressReset()
     (void)applyMappingAfterLoad();
 
     cart->requestWarmReset();
+}
+
+bool ExpertMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

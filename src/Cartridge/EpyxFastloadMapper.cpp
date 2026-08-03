@@ -60,17 +60,21 @@ bool EpyxFastloadMapper::loadState(const StateReader::Chunk& chunk, StateReader&
 
 uint8_t EpyxFastloadMapper::read(uint16_t address)
 {
-    if (!cart || !mem)
+    if (!cart)
         return 0xFF;
 
-    // IO1 read “charges the capacitor”: temporarily enable ROM
+    if (!mem)
+        return cart->sampleDataBus();
+
+    // IO1 read charges the capacitor and temporarily enables ROM.
     if ((address & 0xFF00) == 0xDE00)
     {
         romEnabled = true;
         capacitorCounter = 512;
         applyMappingAfterLoad();
     }
-    return 0xFF;
+
+    return cart->sampleDataBus();
 }
 
 void EpyxFastloadMapper::write(uint16_t address, uint8_t value)
@@ -151,7 +155,6 @@ void EpyxFastloadMapper::tick(uint32_t elapsedCycles)
 {
     if (!romEnabled || capacitorCounter == 0)
         return;
-
     if (elapsedCycles >= capacitorCounter)
     {
         capacitorCounter = 0;
@@ -162,4 +165,10 @@ void EpyxFastloadMapper::tick(uint32_t elapsedCycles)
     {
         capacitorCounter -= elapsedCycles;
     }
+}
+
+bool EpyxFastloadMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

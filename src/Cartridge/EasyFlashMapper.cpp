@@ -21,9 +21,14 @@ EasyFlashMapper::~EasyFlashMapper() = default;
 void EasyFlashMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("EF00");
-    wrtr.writeU32(2); // version
+    wrtr.writeU32(3); // version
     wrtr.writeU8(selectedBank);
     wrtr.writeU8(control.raw);
+
+    // Save RAM
+    for (size_t i = 0; i < dfRam.size(); ++i)
+        wrtr.writeU8(dfRam[i]);
+
     wrtr.endChunk();
 }
 
@@ -35,25 +40,21 @@ bool EasyFlashMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
 
-    if (ver == 1)
-    {
-        if (!rdr.readU8(selectedBank)) { rdr.exitChunkPayload(chunk); return false; }
-        control.raw = 0x05;
-    }
-    else if (ver == 2)
-    {
-        if (!rdr.readU8(selectedBank)) { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(control.raw))  { rdr.exitChunkPayload(chunk); return false; }
-    }
-    else
-    {
-        rdr.exitChunkPayload(chunk);
-        return false;
-    }
+    if (ver != 3)                       { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(selectedBank))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(control.raw))       { rdr.exitChunkPayload(chunk); return false; }
+
+    // Load RAM
+    for (size_t i = 0; i < dfRam.size(); ++i)
+        if (!rdr.readU8(dfRam[i]))      { rdr.exitChunkPayload(chunk); return false; }
 
     selectedBank &= 0x3F;
+
+    // Apply immediately
+    if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false;}
 
     rdr.exitChunkPayload(chunk);
     return true;
@@ -70,11 +71,14 @@ bool EasyFlashMapper::applyMappingAfterLoad()
 
 uint8_t EasyFlashMapper::read(uint16_t address)
 {
-    // EasyFlash RAM: $DF00-$DFFF, 256 bytes
+    if (!cart)
+        return 0xFF;
+
+    // EasyFlash RAM: $DF00-$DFFF.
     if (address >= 0xDF00 && address <= 0xDFFF)
         return dfRam[address & 0x00FF];
 
-    // EasyFlash control/status area
+    // EasyFlash control/status register.
     if (address == 0xDE02)
     {
         uint8_t value = 0xFF;
@@ -82,20 +86,20 @@ uint8_t EasyFlashMapper::read(uint16_t address)
         if (cart->getGameLine())
             value |= 0x01;
         else
-            value &= ~0x01;
+            value &= static_cast<uint8_t>(~0x01);
 
         if (cart->getExROMLine())
             value |= 0x02;
         else
-            value &= ~0x02;
+            value &= static_cast<uint8_t>(~0x02);
 
-        // MODE bit: EasyFlash mode = 0
-        value &= ~0x04;
+        // MODE bit: EasyFlash mode = 0.
+        value &= static_cast<uint8_t>(~0x04);
 
         return value;
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void EasyFlashMapper::write(uint16_t address, uint8_t value)
@@ -190,4 +194,18 @@ void EasyFlashMapper::applyControlRegister(uint8_t value)
     {
         cart->setExROMLine(!x);
     }
+}
+
+bool EasyFlashMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    if (address >= 0xDF00 && address <= 0xDFFF)
+        return true;
+
+    if (address == 0xDE02)
+        return true;
+
+    return false;
 }

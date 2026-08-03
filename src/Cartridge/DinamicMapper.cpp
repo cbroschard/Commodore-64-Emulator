@@ -55,14 +55,14 @@ uint8_t DinamicMapper::read(uint16_t address)
 {
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        uint8_t bank = static_cast<uint8_t>(address & 0x0F);
+        const uint8_t bank =
+            static_cast<uint8_t>(address & 0x0F);
 
         dinamicBank = bank;
         loadIntoMemory(dinamicBank);
-
-        return 0xFF;
     }
-    return 0xFF;
+
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void DinamicMapper::write(uint16_t address, uint8_t value)
@@ -86,5 +86,11 @@ bool DinamicMapper::loadIntoMemory(uint8_t bank)
             return true;
         }
     }
+    return false;
+}
+
+bool DinamicMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
     return false;
 }
