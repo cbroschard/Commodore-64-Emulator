@@ -19,6 +19,7 @@ class Cartridge;
 class CIA1;
 class CIA2;
 class CPU;
+class DataBusLatch;
 class DebugManager;
 class EmulatorUI;
 class IECBUS;
@@ -66,6 +67,7 @@ private:
     CIA1& cia1_;
     CIA2& cia2_;
     CPU& cpu_;
+    DataBusLatch& dataBus_;
     DebugManager& debug_;
     EmulatorUI& ui_;
     IECBUS& bus_;

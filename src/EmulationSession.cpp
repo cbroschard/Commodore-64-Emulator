@@ -28,6 +28,7 @@ EmulationSession::EmulationSession(MachineComponents& components,
       cia1_(*components.cia1),
       cia2_(*components.cia2),
       cpu_(*components.cpu),
+      dataBus_(*components.dataBus),
       debug_(*components.debug),
       ui_(*components.ui),
       bus_(*components.bus),
@@ -86,6 +87,7 @@ bool EmulationSession::initializeMachine()
     bus_.reset();
     pla_.reset();
     cpu_.reset();
+    dataBus_.reset();
     vic_.reset();
     cia1_.reset();
     cia2_.reset();
