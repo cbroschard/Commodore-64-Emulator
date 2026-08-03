@@ -709,13 +709,9 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(0xF0 | (registers.spriteMultiColor2 & 0x0F));
 
         case 0xD02F:
-            return latchOpenBus(getOpenBus());
-
         case 0xD030:
-            return latchOpenBus(getOpenBus());
-
         default:
-            return latchOpenBus(getOpenBus());
+            return getOpenBus();
     }
 }
 
