@@ -20,6 +20,7 @@
 #include "StateReader.h"
 #include "StateWriter.h"
 
+class DataBusLatch;
 class Memory;
 
 class REU
@@ -28,6 +29,7 @@ class REU
         REU();
         virtual ~REU();
 
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
@@ -58,6 +60,7 @@ class REU
 
     private:
         // Non-owning pointers
+        DataBusLatch* dataBus;
         IRQLine* irq;
         Memory* mem;
 

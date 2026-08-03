@@ -5,10 +5,12 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "DataBusLatch.h"
 #include "Memory.h"
 #include "REU.h"
 
 REU::REU() :
+    dataBus(nullptr),
     irq(nullptr),
     mem(nullptr),
     model(REUModel::None)
@@ -106,45 +108,58 @@ void REU::reset()
 
 uint8_t REU::readIO(uint16_t address)
 {
+    auto driveREU = [&](uint8_t value) -> uint8_t
+    {
+        if (dataBus)
+            dataBus->drive(value, DataBusLatch::Driver::REU);
+
+        return value;
+    };
+
+    auto sampleOpenBus = [&]() -> uint8_t
+    {
+        return dataBus ? dataBus->sample() : 0xFF;
+    };
+
     const uint8_t reg = static_cast<uint8_t>(address & 0x0F);
 
     switch (reg)
     {
         case 0x00: // Status Register $DF00
-            return regs.status;
+            return driveREU(regs.status);
 
         case 0x01: // Command Register $DF01
-            return regs.command;
+            return driveREU(regs.command);
 
         case 0x02: // C64 Address Low $DF02
-            return static_cast<uint8_t>(regs.c64Address & 0x00FF);
+            return driveREU(static_cast<uint8_t>(regs.c64Address & 0x00FF));
 
         case 0x03: // C64 Address High $DF03
-            return static_cast<uint8_t>((regs.c64Address >> 8) & 0x00FF);
+            return driveREU(static_cast<uint8_t>((regs.c64Address >> 8) & 0x00FF));
 
         case 0x04: // REU Address Low $DF04
-            return static_cast<uint8_t>(regs.reuAddressLo & 0x00FF);
+            return driveREU(static_cast<uint8_t>(regs.reuAddressLo & 0x00FF));
 
         case 0x05: // REU Address High $DF05
-            return static_cast<uint8_t>((regs.reuAddressLo >> 8) & 0x00FF);
+            return driveREU(static_cast<uint8_t>((regs.reuAddressLo >> 8) & 0x00FF));
 
         case 0x06: // REU Bank $DF06
-            return regs.reuBank;
+            return driveREU(regs.reuBank);
 
         case 0x07: // Transfer Length Low $DF07
-            return static_cast<uint8_t>(regs.transferLen & 0x00FF);
+            return driveREU(static_cast<uint8_t>(regs.transferLen & 0x00FF));
 
         case 0x08: // Transfer Length High $DF08
-            return static_cast<uint8_t>((regs.transferLen >> 8) & 0x00FF);
+            return driveREU(static_cast<uint8_t>((regs.transferLen >> 8) & 0x00FF));
 
         case 0x09: // IRQ Mask $DF09
-            return regs.irqMask | IRQ_UNUSED_MASK;
+            return driveREU(regs.irqMask | IRQ_UNUSED_MASK);
 
         case 0x0A: // Address Control $DF0A
-            return regs.addressControl | ACR_UNUSED_MASK;
+            return driveREU(regs.addressControl | ACR_UNUSED_MASK);
 
         default:
-            return 0xFF;
+            return sampleOpenBus();
     }
 }
 
@@ -364,6 +379,10 @@ void REU::startTransfer()
             case 0x01: // REU -> C64
             {
                 const uint8_t value = ram[reuAddr];
+
+                 if (dataBus)
+                    dataBus->drive(value, DataBusLatch::Driver::REU);
+
                 mem->writeForDMA(c64Addr, value);
                 break;
             }
@@ -372,6 +391,9 @@ void REU::startTransfer()
             {
                 const uint8_t c64Value = mem->readForDMA(c64Addr);
                 const uint8_t reuValue = ram[reuAddr];
+
+                if (dataBus)
+                    dataBus->drive(reuValue, DataBusLatch::Driver::REU);
 
                 mem->writeForDMA(c64Addr, reuValue);
                 ram[reuAddr] = c64Value;
