@@ -24,7 +24,8 @@ class DataBusLatch
             CIA2,
             CPU,
             Memory,
-            SID
+            SID,
+            VIC
         };
 
         void drive(uint8_t value, Driver driver);
