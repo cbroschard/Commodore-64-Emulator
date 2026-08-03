@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
 #include "CPU.h"
+#include "DataBusLatch.h"
 #include "Common/ExecutionHistory.h"
 #include "IRQLine.h"
 #include "StateWriter.h"
@@ -15,6 +16,7 @@
 CPU::CPU() :
     // Initialize
     cia2(nullptr),
+    dataBus(nullptr),
     executionHistory(nullptr),
     IRQ(nullptr),
     mem(nullptr),
@@ -557,6 +559,9 @@ void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
         if (traceMgr)
             traceMgr->recordCPUBA("AEC low during CPU write bus cycle", makeCpuStamp());
     }
+
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::CPU);
 
     mem->write(address, value);
 

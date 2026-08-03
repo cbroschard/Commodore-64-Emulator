@@ -10,6 +10,7 @@
 
 // forward declarations
 class CIA2;
+class DataBusLatch;
 class ExecutionHistory;
 class IRQLine;
 class StateWriter;
@@ -36,6 +37,7 @@ class CPU
         // Pointers
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
@@ -581,6 +583,7 @@ class CPU
 
         // non-owning pointers
         CIA2* cia2;
+        DataBusLatch* dataBus;
         ExecutionHistory* executionHistory;
         IRQLine* IRQ;
         CPUBus* mem;
