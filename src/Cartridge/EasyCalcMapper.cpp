@@ -148,3 +148,9 @@ bool EasyCalcMapper::applyMappingAfterLoad()
 
     return true;
 }
+
+bool EasyCalcMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
+}

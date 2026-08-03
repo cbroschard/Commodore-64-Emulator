@@ -192,3 +192,9 @@ void DelaEP64Mapper::reset()
     cart->setGameLine(true);
     cart->setExROMLine(false);
 }
+
+bool DelaEP64Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
+}

@@ -199,3 +199,9 @@ void DelaEP7x8Mapper::reset()
     cart->setGameLine(true);
     cart->setExROMLine(false);
 }
+
+bool DelaEP7x8Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
+}
