@@ -380,7 +380,7 @@ void REU::startTransfer()
             {
                 const uint8_t value = ram[reuAddr];
 
-                 if (dataBus)
+                if (dataBus)
                     dataBus->drive(value, DataBusLatch::Driver::REU);
 
                 mem->writeForDMA(c64Addr, value);
