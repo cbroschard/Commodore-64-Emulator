@@ -33,6 +33,10 @@ class GMod2Mapper : public CartridgeMapper
         bool loadPersistence(const std::string& path) override;
         bool romWriteEnabled(uint16_t address) const override;
 
+        bool romReadHandledByMapper(uint16_t address) const override;
+
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

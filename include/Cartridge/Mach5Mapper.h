@@ -27,6 +27,8 @@ class Mach5Mapper : public CartridgeMapper
 
         bool applyMappingAfterLoad() override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

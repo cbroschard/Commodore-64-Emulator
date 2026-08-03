@@ -93,6 +93,8 @@ bool IDE64Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
     if (std::memcmp(chunk.tag, "ID64", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
@@ -174,85 +176,83 @@ void IDE64Mapper::reset()
 
 uint8_t IDE64Mapper::read(uint16_t address)
 {
-    if (!ctrl.game && ctrl.exrom &&
-        ((address >= 0x1000 && address <= 0x7FFF) ||
-         (address >= 0xC000 && address <= 0xCFFF)))
-    {
-        if (!cart)
-            return 0xFF;
+    if (!cart)
+        return 0xFF;
 
-        return cart->readRAM(address & 0x7FFF);
+    // IDE64 internal RAM in Ultimax configuration.
+    if (!ctrl.killed && !ctrl.game && ctrl.exrom && ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF)))
+    {
+        if (cart->hasCartridgeRAM())
+            return cart->readRAM(address & 0x7FFF);
+
+        return cart->sampleDataBus();
     }
 
-    // Upper half of selected ROM during open/Ultimax configuration
-    if (!ctrl.game && ctrl.exrom &&
-        address >= 0xA000 && address <= 0xBFFF)
+    // Upper half of selected ROM during Ultimax configuration.
+    if (!ctrl.killed && !ctrl.game && ctrl.exrom && address >= 0xA000 && address <= 0xBFFF)
     {
         if (rom.empty())
-            return 0xFF;
+            return cart->sampleDataBus();
 
-        const size_t bankNumber =
-            (ctrl.romAddr14 ? 1u : 0u) |
-            (ctrl.romAddr15 ? 2u : 0u);
-
-        const size_t offset =
-            bankNumber * 0x4000 +
-            static_cast<size_t>(address - 0x8000);
+        const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) | (ctrl.romAddr15 ? 2u : 0u);
+        const size_t offset = bankNumber * 0x4000 + static_cast<size_t>(address - 0x8000);
 
         if (offset >= rom.size())
-            return 0xFF;
+            return cart->sampleDataBus();
 
         return rom[offset];
     }
 
-    // IDE/ATA controller registers: $DE20-$DE2F
-    if (address >= IDE64_Controller_Start &&
-        address <= IDE64_Controller_End)
+    // IDE/ATA controller registers.
+    if (address >= IDE64_Controller_Start && address <= IDE64_Controller_End)
     {
+        if (ctrl.killed)
+            return cart->sampleDataBus();
+
         return controller.readRegister(address);
     }
 
+    // IDE64 control register.
     if (address == 0xDE32)
     {
+        if (ctrl.killed)
+            return cart->sampleDataBus();
+
         ctrl.composeDE32();
         ctrl.romBankRegs[0] = ctrl.de32Raw;
+
         return ctrl.de32Raw;
     }
 
-    // $DE33-$DE35 are write-only bank-selection addresses.
+    // $DE33-$DE35 are write-only.
     if (address >= 0xDE33 && address <= 0xDE35)
-        return 0xFF;
+        return cart->sampleDataBus();
 
-    // DS1302 RTC
+    // DS1302 RTC.
     if (address == RTC_Address)
     {
         if (ctrl.killed)
-            return 0xFF;
+            return cart->sampleDataBus();
 
         return rtc.readByte();
     }
 
+    // IDE64 ROM mirror.
     if (address >= 0xDE60 && address <= 0xDEFF)
     {
         if (ctrl.killed || rom.empty())
-            return 0xFF;
+            return cart->sampleDataBus();
 
-        const size_t bankNumber =
-            (ctrl.romAddr14 ? 1u : 0u) |
-            (ctrl.romAddr15 ? 2u : 0u);
-
-        const size_t offset =
-            bankNumber * 0x4000 +
-            0x1E00 +
-            static_cast<size_t>(address & 0x00FF);
+        const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) | (ctrl.romAddr15 ? 2u : 0u);
+        const size_t offset = bankNumber * 0x4000 + 0x1E00 + static_cast<size_t>(address & 0x00FF);
 
         if (offset >= rom.size())
-            return 0xFF;
+            return cart->sampleDataBus();
 
         return rom[offset];
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void IDE64Mapper::write(uint16_t address, uint8_t value)
@@ -665,4 +665,56 @@ bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
 bool IDE64Mapper::applyMappingAfterLoad()
 {
     return loadIntoMemory(0);
+}
+
+bool IDE64Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || ctrl.killed)
+        return false;
+
+    // IDE64 RAM in Ultimax configuration.
+    if (!ctrl.game && ctrl.exrom && ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF)))
+        return cart->hasCartridgeRAM();
+
+    // Upper half of selected ROM in Ultimax configuration.
+    if (!ctrl.game && ctrl.exrom && address >= 0xA000 && address <= 0xBFFF)
+    {
+        if (rom.empty())
+            return false;
+
+        const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) |(ctrl.romAddr15 ? 2u : 0u);
+        const size_t offset = bankNumber * 0x4000 + static_cast<size_t>(address - 0x8000);
+
+        return offset < rom.size();
+    }
+
+    // IDE/ATA controller registers.
+    if (address >= IDE64_Controller_Start && address <= IDE64_Controller_End)
+        return true;
+
+    // Readable IDE64 control register.
+    if (address == 0xDE32)
+        return true;
+
+    // $DE33-$DE35 are write-only.
+    if (address >= 0xDE33 && address <= 0xDE35)
+        return false;
+
+    // RTC register.
+    if (address == RTC_Address)
+        return true;
+
+    // ROM mirror.
+    if (address >= 0xDE60 && address <= 0xDEFF)
+    {
+        if (rom.empty())
+            return false;
+
+        const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) | (ctrl.romAddr15 ? 2u : 0u);
+        const size_t offset = bankNumber * 0x4000 + 0x1E00 + static_cast<size_t>(address & 0x00FF);
+
+        return offset < rom.size();
+    }
+
+    return false;
 }

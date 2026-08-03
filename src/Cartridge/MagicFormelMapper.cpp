@@ -57,22 +57,24 @@ uint8_t MagicFormelMapper::read(uint16_t address)
         if (romEnabled)
         {
             romEnabled = false;
-            applyMappingAfterLoad();
+            (void)applyMappingAfterLoad();
         }
-        return 0xFF;
 
+        return cart ? cart->sampleDataBus() : 0xFF;
     }
-    else if (address >= 0xDF00 && address <= 0xDFFF)
+
+    if (address >= 0xDF00 && address <= 0xDFFF)
     {
         if (!romEnabled)
-        {
             romEnabled = true;
-        }
-        loadIntoMemory(selectedBank);
-        applyMappingAfterLoad();
-        return 0xFF;
+
+        (void)loadIntoMemory(selectedBank);
+        (void)applyMappingAfterLoad();
+
+        return cart ? cart->sampleDataBus() : 0xFF;
     }
-    return 0xFF;
+
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void MagicFormelMapper::write(uint16_t address, uint8_t value)
@@ -137,6 +139,10 @@ bool MagicFormelMapper::applyMappingAfterLoad()
         cart->setGameLine(true);
         return true;
     }
+}
 
-    return true;
+bool MagicFormelMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

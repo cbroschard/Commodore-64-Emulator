@@ -44,13 +44,19 @@ bool MikroAssemblerMapper::loadState(const StateReader::Chunk& chunk, StateReade
 
 uint8_t MikroAssemblerMapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
+    if (!mem)
+        return cart->sampleDataBus();
+
     if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        return mem->readCartridge(0x1E00 + (address - 0xDE00), cartLocation::LO);
+        const uint16_t offset = static_cast<uint16_t>(0x1E00 + (address - 0xDE00));
+        return mem->readCartridge(offset, cartLocation::LO);
     }
 
-    // Open Bus
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void MikroAssemblerMapper::write(uint16_t address, uint8_t value)
@@ -90,4 +96,12 @@ bool MikroAssemblerMapper::loadIntoMemory(uint8_t bank)
 bool MikroAssemblerMapper::applyMappingAfterLoad()
 {
     return loadIntoMemory(0);
+}
+
+bool MikroAssemblerMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem)
+        return false;
+
+    return address >= 0xDE00 && address <= 0xDFFF;
 }

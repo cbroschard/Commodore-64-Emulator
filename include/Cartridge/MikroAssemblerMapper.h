@@ -25,6 +25,8 @@ class MikroAssemblerMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

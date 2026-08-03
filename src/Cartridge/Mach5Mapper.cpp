@@ -54,28 +54,26 @@ bool Mach5Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t Mach5Mapper::read(uint16_t address)
 {
-    if (!mem)
+    if (!cart)
         return 0xFF;
+
+    if (!mem || !enabled || !loaded)
+        return cart->sampleDataBus();
 
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        // $DE00-$DEFF mirrors cartridge ROM $9E00-$9EFF.
-        const uint16_t offset =
-            static_cast<uint16_t>(0x1E00 + (address & 0x00FF));
-
-        return mem->readCartridge(offset, cartLocation::LO);
+        const uint16_t offset = static_cast<uint16_t>(0x1E00 + (address & 0x00FF));
+        return mem->readCartridge(offset, cartLocation::LO
+        );
     }
 
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        // $DF00-$DFFF mirrors cartridge ROM $9F00-$9FFF.
-        const uint16_t offset =
-            static_cast<uint16_t>(0x1F00 + (address & 0x00FF));
-
+        const uint16_t offset = static_cast<uint16_t>(0x1F00 + (address & 0x00FF));
         return mem->readCartridge(offset, cartLocation::LO);
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void Mach5Mapper::write(uint16_t address, uint8_t value)
@@ -150,4 +148,12 @@ bool Mach5Mapper::applyMappingAfterLoad()
     cart->setExROMLine(!enabled);
 
     return true;
+}
+
+bool Mach5Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem || !enabled || !loaded)
+        return false;
+
+    return address >= 0xDE00 && address <= 0xDFFF;
 }

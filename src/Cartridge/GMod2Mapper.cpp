@@ -113,14 +113,15 @@ bool GMod2Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t GMod2Mapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
     if (address == 0xDE00)
     {
-        uint8_t result = ctrl.raw & 0x7F;
+        uint8_t result = static_cast<uint8_t>(ctrl.raw & 0x7F);
 
         if (eeprom.getDO())
             result |= 0x80;
-        else
-            result &= 0x7F;
 
         return result;
     }
@@ -128,7 +129,7 @@ uint8_t GMod2Mapper::read(uint16_t address)
     if (address >= 0x8000 && address <= 0x9FFF)
         return readFlashByte(address);
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void GMod2Mapper::write(uint16_t address, uint8_t value)
@@ -534,4 +535,23 @@ void GMod2Mapper::handleFlashWrite(uint16_t address, uint8_t value)
     // Any unexpected sequence drops back to normal
     flashReadMode = FlashReadMode::ReadArray;
     resetFlashCommandState();
+}
+
+bool GMod2Mapper::romReadHandledByMapper(uint16_t address) const
+{
+    return address >= 0x8000 && address <= 0x9FFF;
+}
+
+bool GMod2Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    if (address == 0xDE00)
+        return true;
+
+    if (address >= 0x8000 && address <= 0x9FFF)
+        return true;
+
+    return false;
 }
