@@ -99,7 +99,7 @@ uint8_t CaptureMapper::read(uint16_t address)
         return mem->readCartridge(offset, cartLocation::HI_E000);
     }
 
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void CaptureMapper::write(uint16_t address, uint8_t value)
