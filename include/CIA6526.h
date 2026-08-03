@@ -8,6 +8,8 @@
 #ifndef CIA6526_H
 #define CIA6526_H
 
+class DataBusLatch;
+
 #include <cstdint>
 #include <string>
 #include "Common/BCD.h"
@@ -22,6 +24,7 @@ class CIA6526
         CIA6526();
         virtual ~CIA6526();
 
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
         virtual void reset();
@@ -65,6 +68,8 @@ class CIA6526
         void saveBaseRuntimeState(StateWriter& wrtr) const;
         bool loadBaseRuntimeState(StateReader& rdr);
 
+        uint8_t driveDataBus(uint8_t value);
+
         virtual void postLoadState();
 
         virtual void postTimerUpdates(uint32_t cyclesElapsed) = 0;
@@ -97,6 +102,7 @@ class CIA6526
 
     private:
         // Non-owning pointers
+        DataBusLatch* dataBus;
         TraceManager* traceMgr;
 
         enum class TimerBClockSource : uint8_t

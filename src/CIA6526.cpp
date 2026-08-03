@@ -6,10 +6,12 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CIA6526.h"
+#include "DataBusLatch.h"
 #include <iomanip>
 #include <sstream>
 
 CIA6526::CIA6526() :
+    dataBus(nullptr),
     traceMgr(nullptr),
     portA(0xFF),
     portB(0xFF),
@@ -155,108 +157,165 @@ void CIA6526::updateTimers(uint32_t cyclesElapsed)
 
 uint8_t CIA6526::readRegister(uint16_t address)
 {
-    uint8_t reg = address & 0x0F;
+    const uint8_t reg = static_cast<uint8_t>(address & 0x0F);
+    uint8_t result = 0xFF;
 
     switch (reg)
     {
         case 0x00:
-            return readPortA();
+        {
+            result = readPortA();
+            break;
+        }
+
         case 0x01:
-            return readPortB();
+        {
+            result = readPortB();
+            break;
+        }
+
         case 0x02:
-            return ddrA;
+        {
+            result = ddrA;
+            break;
+        }
+
         case 0x03:
-            return ddrB;
+        {
+            result = ddrB;
+            break;
+        }
+
         case 0x04:
         {
             timerASnap = timerA;
             timerALatched = true;
-            return static_cast<uint8_t>(timerASnap & 0xFF);
+
+            result = static_cast<uint8_t>(timerASnap & 0xFF);
+            break;
         }
+
         case 0x05:
         {
             if (timerALatched)
             {
                 timerALatched = false;
-                return static_cast<uint8_t>((timerASnap >> 8) & 0xFF);
+                result = static_cast<uint8_t>((timerASnap >> 8) & 0xFF);
             }
-            return static_cast<uint8_t>((timerA >> 8) & 0xFF);
+            else
+            {
+                result = static_cast<uint8_t>((timerA >> 8) & 0xFF);
+            }
+
+            break;
         }
+
         case 0x06:
         {
             timerBSnap = timerB;
             timerBLatched = true;
-            return static_cast<uint8_t>(timerBSnap & 0xFF);
+
+            result = static_cast<uint8_t>(timerBSnap & 0xFF);
+            break;
         }
+
         case 0x07:
         {
             if (timerBLatched)
             {
                 timerBLatched = false;
-                return static_cast<uint8_t>((timerBSnap >> 8) & 0xFF);
+                result = static_cast<uint8_t>((timerBSnap >> 8) & 0xFF);
             }
-            return static_cast<uint8_t>((timerB >> 8) & 0xFF);
+            else
+            {
+                result = static_cast<uint8_t>((timerB >> 8) & 0xFF);
+            }
+
+            break;
         }
+
         case 0x08:
         {
             if (!todLatched)
                 latchTODClock();
-            return binaryToBCD(todLatch[0]);
+
+            result = binaryToBCD(todLatch[0]);
+            break;
         }
+
         case 0x09:
         {
             if (!todLatched)
                 latchTODClock();
-            return binaryToBCD(todLatch[1]);
+
+            result = binaryToBCD(todLatch[1]);
+            break;
         }
+
         case 0x0A:
         {
             if (!todLatched)
                 latchTODClock();
-            return binaryToBCD(todLatch[2]);
+
+            result = binaryToBCD(todLatch[2]);
+            break;
         }
+
         case 0x0B:
         {
             if (!todLatched)
                 latchTODClock();
 
             todLatched = false;
-            return binaryToBCD(todLatch[3]);
+            result = binaryToBCD(todLatch[3]);
+            break;
         }
+
         case 0x0C:
-            return serialDataRegister;
+        {
+            result = serialDataRegister;
+            break;
+        }
+
         case 0x0D:
         {
-            uint8_t result = interruptStatus & 0x1F; // latch bits 0-4 only
+            result = interruptStatus & 0x1F;
 
-            // If any enabled source is active, set bit 7 in the *returned value*
-            if (result & interruptEnable) result |= 0x80;
+            // Bit 7 indicates at least one enabled pending source.
+            if (result & interruptEnable)
+                result |= 0x80;
 
-            // Clear the acknowledged sources (bits 0-4 that were set)
-            interruptStatus &= ~ (result & 0x1F);
+            // Reading ICR acknowledges pending source bits 0-4.
+            interruptStatus &= static_cast<uint8_t>(~(result & 0x1F));
 
-            // If TOD was included, unlock future matches
             if (result & INTERRUPT_TOD_ALARM)
-            {
                 todAlarmTriggered = false;
-            }
 
-            // Recompute master bit and line state
             refreshMasterBit();
             updateIRQLine();
-
-            return result;
+            break;
         }
+
         case 0x0E:
-            return timerAControl & 0x7F;
+        {
+            result = timerAControl & 0x7F;
+            break;
+        }
+
         case 0x0F:
-            return timerBControl & 0x7F;
+        {
+            result = timerBControl & 0x7F;
+            break;
+        }
+
         default:
-            return 0xFF;
+        {
+            result = 0xFF;
+            break;
+        }
     }
 
-    // Default
-    return 0xFF;
+    return driveDataBus(result);
 }
 
 void CIA6526::writeRegister(uint16_t address, uint8_t value)
@@ -1004,6 +1063,17 @@ bool CIA6526::loadBaseState(StateReader& rdr)
         if (!rdr.readU8(todAlarm[i]))       return false;
 
     return true;
+}
+
+uint8_t CIA6526::driveDataBus(uint8_t value)
+{
+    if (dataBus)
+    {
+        const DataBusLatch::Driver driver = getCIANumber() == 1 ? DataBusLatch::Driver::CIA1 : DataBusLatch::Driver::CIA2;
+        dataBus->drive(value, driver);
+    }
+
+    return value;
 }
 
 void CIA6526::saveBaseRuntimeState(StateWriter& wrtr) const
