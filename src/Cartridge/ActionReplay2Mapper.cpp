@@ -77,18 +77,16 @@ bool ActionReplay2Mapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 uint8_t ActionReplay2Mapper::read(uint16_t address)
 {
-    if (!mem || !cart || !ctrl.cartEnabled)
+    if (!cart)
         return 0xFF;
 
-    if ((address & 0xFF00) == 0xDF00)
-    {
-        return mem->readCartridge(
-            static_cast<uint16_t>(0x1F00 | (address & 0x00FF)),
-            cartLocation::LO
-        );
-    }
+    if (!mem || !ctrl.cartEnabled)
+        return cart->sampleDataBus();
 
-    return 0xFF;
+    if ((address & 0xFF00) == 0xDF00)
+        return mem->readCartridge(static_cast<uint16_t>(0x1F00 | (address & 0x00FF)), cartLocation::LO);
+
+    return cart->sampleDataBus();
 }
 
 void ActionReplay2Mapper::write(uint16_t address, uint8_t value)
@@ -224,4 +222,12 @@ void ActionReplay2Mapper::applyMappingFromControl()
     // AR2 normal mode = 8K game
     cart->setGameLine(true);
     cart->setExROMLine(false);
+}
+
+bool ActionReplay2Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem || !ctrl.cartEnabled)
+        return false;
+
+    return (address & 0xFF00) == 0xDF00;
 }

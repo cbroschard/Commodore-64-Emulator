@@ -67,6 +67,8 @@ bool ActionReplay4Mapper::loadState(const StateReader::Chunk& chunk, StateReader
 {
     if (std::memcmp(chunk.tag, "A4RP", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
@@ -90,20 +92,16 @@ bool ActionReplay4Mapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 uint8_t ActionReplay4Mapper::read(uint16_t address)
 {
-    if (!mem || !cart)
+    if (!cart)
         return 0xFF;
 
-    // If the cart is disabled, IO reads should behave like no cart there.
-    if (ctrl.cartDisabled)
-        return 0xFF;
+    if (!mem || ctrl.cartDisabled)
+        return cart->sampleDataBus();
 
-    // IO2 ($DF00-$DFFF): first page of the currently banked ROM block.
     if ((address & 0xFF00) == 0xDF00)
-    {
         return mem->readCartridge(static_cast<uint16_t>(address & 0x00FF), cartLocation::LO);
-    }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void ActionReplay4Mapper::write(uint16_t address, uint8_t value)
@@ -312,4 +310,12 @@ void ActionReplay4Mapper::pressReset()
 
     if (cart)
         cart->requestWarmReset();
+}
+
+bool ActionReplay4Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem || ctrl.cartDisabled)
+        return false;
+
+    return (address & 0xFF00) == 0xDF00;
 }

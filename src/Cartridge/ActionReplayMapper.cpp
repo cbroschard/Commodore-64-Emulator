@@ -92,31 +92,42 @@ bool ActionReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader&
 
 uint8_t ActionReplayMapper::read(uint16_t address)
 {
-    // If cartridge disabled, $DE00 shouldn't respond
-    if (ctrl.cartDisabled && address >= 0xDE00 && address <= 0xDEFF)
+    if (!cart)
         return 0xFF;
 
+    // A disabled cartridge does not respond to IO1 or IO2.
+    if (ctrl.cartDisabled)
+        return cart->sampleDataBus();
+
+    // IO1 control-register readback.
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (ctrl.cartDisabled || !io1Enabled) return 0xFF;
-        return ctrl.raw; // simple readback
+        if (!io1Enabled)
+            return cart->sampleDataBus();
+
+        return ctrl.raw;
     }
 
-    // IO2 RAM window when bit5 set:
-    // $DF00-$DFFF mirrors $9F00-$9FFF (top 256 bytes of ROML RAM window)
+    // IO2 maps the upper 256 bytes of the ROML window.
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
-        const size_t off = 0x1F00u + static_cast<size_t>((address - 0xDF00) & 0x00FF);
+        const size_t offset = 0x1F00u + static_cast<size_t>(address & 0x00FF);
 
-        if (io2RoutesToRam && cart && cart->hasCartridgeRAM())
-            return cart->readRAM(off);
+        if (io2RoutesToRam)
+        {
+            if (cart->hasCartridgeRAM())
+                return cart->readRAM(offset);
 
-        // Return Cartridge ROM if RAM disabled
+            return cart->sampleDataBus();
+        }
+
         if (mem)
-            return mem->readCartridge(static_cast<uint16_t>(off), cartLocation::LO);
+            return mem->readCartridge(static_cast<uint16_t>(offset), cartLocation::LO);
+
+        return cart->sampleDataBus();
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void ActionReplayMapper::write(uint16_t address, uint8_t value)
@@ -391,4 +402,25 @@ void ActionReplayMapper::pressReset()
     // Warm Reset
     if (cart)
         cart->requestWarmReset();
+}
+
+bool ActionReplayMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || ctrl.cartDisabled)
+        return false;
+
+    // IO1 returns the actual control register only while enabled.
+    if (address >= 0xDE00 && address <= 0xDEFF)
+        return io1Enabled;
+
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        if (io2RoutesToRam)
+            return cart->hasCartridgeRAM();
+
+        // IO2 returns cartridge ROM when not routed to RAM.
+        return mem != nullptr;
+    }
+
+    return false;
 }

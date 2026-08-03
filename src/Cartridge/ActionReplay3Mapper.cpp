@@ -82,7 +82,8 @@ bool ActionReplay3Mapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 uint8_t ActionReplay3Mapper::read(uint16_t address)
 {
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void ActionReplay3Mapper::write(uint16_t address, uint8_t value)
@@ -229,4 +230,10 @@ void ActionReplay3Mapper::applyMappingFromControl()
     // AR3 is an 8K cart at $8000-$9FFF
     cart->setGameLine(true);                 // GAME inactive/high
     cart->setExROMLine(ctrl.exromHigh);      // live line level
+}
+
+bool ActionReplay3Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }
