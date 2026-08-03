@@ -2693,11 +2693,7 @@ void Vic::renderLine(int raster)
     updateGraphicsMode(raster);
     buildBorderMaskLine(raster);
 
-    const graphicsMode lineMode = graphicsModeForRaster(raster);
-
-    // Standard text was already generated during raster cycles.
-    if (lineMode != graphicsMode::standard)
-        generateBackgroundLine(raster);
+    generateBackgroundLine(raster);
 
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
