@@ -13,6 +13,12 @@ CartridgeMapper::CartridgeMapper() = default;
 
 CartridgeMapper::~CartridgeMapper() = default;
 
+bool CartridgeMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return true;
+}
+
 bool CartridgeMapper::cpuMemoryHandledByMapper(uint16_t address) const
 {
     (void)address;

@@ -59,6 +59,9 @@ class CartridgeMapper
         virtual bool romWriteEnabled(uint16_t address) const { return false; }
         virtual bool romReadHandledByMapper(uint16_t address) const { return false; }
 
+        // Open Bus
+        virtual bool readDrivesBus(uint16_t address) const;
+
         // CPU RAM
         virtual bool cpuMemoryHandledByMapper(uint16_t address) const;
 

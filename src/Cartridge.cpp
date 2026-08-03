@@ -546,9 +546,10 @@ uint8_t Cartridge::read(uint16_t address)
         traceMgr->recordCartMem(out.str(), makeCartStamp());
     }
 
+    const bool drivesBus = mapper->readDrivesBus(address);
     const uint8_t value = mapper->read(address);
 
-    if (dataBus)
+    if (drivesBus && dataBus)
         dataBus->drive(value, DataBusLatch::Driver::Cartridge);
 
     return value;
