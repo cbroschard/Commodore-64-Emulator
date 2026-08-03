@@ -41,7 +41,8 @@ bool GenericMapper::applyMappingAfterLoad()
 
 void GenericMapper::write(uint16_t address, uint8_t value)
 {
-    // No-op
+    (void)address;
+    (void)value;
 }
 
 bool GenericMapper::loadIntoMemory(uint8_t bank)
