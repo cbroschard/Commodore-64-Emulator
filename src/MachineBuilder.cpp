@@ -65,6 +65,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.keyb->attachCPUInstance(components.cpu.get());
 
     components.mem->attachCPUInstance(components.cpu.get());
+    components.mem->attachDataBusLatchInstance(components.dataBus.get());
     components.mem->attachVICInstance(components.vic.get());
     components.mem->attachCIA1Instance(components.cia1.get());
     components.mem->attachCIA2Instance(components.cia2.get());
@@ -85,6 +86,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.pla->attachTraceManagerInstance(&components.debug->trace());
     components.pla->attachVICInstance(components.vic.get());
 
+    components.reu->attachDataBusLatchInstance(components.dataBus.get());
     components.reu->attachIRQLineInstance(components.irq.get());
     components.reu->attachMemoryInstance(components.mem.get());
 
