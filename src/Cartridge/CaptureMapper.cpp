@@ -78,7 +78,7 @@ uint8_t CaptureMapper::read(uint16_t address)
     if (registersEnabled && address == 0xFFF7)
     {
         romHEnabled = false;
-        return mem->getLastBus();
+        return cart ? cart->sampleDataBus() : 0xFF;
     }
 
     if (registersEnabled && address == 0xFFF8)
@@ -92,7 +92,7 @@ uint8_t CaptureMapper::read(uint16_t address)
     if (mode == Mode::Freeze && address >= 0xE000 && address <= 0xFFFF)
     {
         if (!romHEnabled)
-            return mem->getLastBus();
+            return cart ? cart->sampleDataBus() : 0xFF;
 
         const uint16_t offset = static_cast<uint16_t>(address - 0xE000);
 

@@ -65,6 +65,9 @@ class Cartridge
         void setExROMLine(bool level);
         void setGameLine(bool level);
 
+        // Open Bus sample
+        uint8_t sampleDataBus() const;
+
         // Getter for game name
         inline std::string getGameName() const { return std::string(header.gameName); }
 

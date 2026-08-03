@@ -49,7 +49,7 @@ bool DelaEP64Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr
 uint8_t DelaEP64Mapper::read(uint16_t address)
 {
     (void)address;
-    return mem ? mem->getLastBus() : 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void DelaEP64Mapper::write(uint16_t address, uint8_t value)

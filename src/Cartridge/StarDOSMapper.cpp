@@ -78,7 +78,7 @@ uint8_t StarDOSMapper::read(uint16_t address)
     else if (address >= 0xDF00 && address <= 0xDFFF)
         chargeIO2();
 
-    return mem->getLastBus();
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void StarDOSMapper::write(uint16_t address, uint8_t value)

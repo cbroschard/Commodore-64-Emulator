@@ -60,8 +60,7 @@ uint8_t MagicDesk16Mapper::read(uint16_t address)
 {
     (void)address;
 
-    if (mem)
-        return mem->getLastBus();
+    return cart ? cart->sampleDataBus() : 0xFF;
 
     return 0xFF;
 }

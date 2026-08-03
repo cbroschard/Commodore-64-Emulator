@@ -48,7 +48,7 @@ uint8_t EasyCalcMapper::read(uint16_t address)
 {
     (void)address;
 
-    return mem ? mem->getLastBus() : 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void EasyCalcMapper::write(uint16_t address, uint8_t value)

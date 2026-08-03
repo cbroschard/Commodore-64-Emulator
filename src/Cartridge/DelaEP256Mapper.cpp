@@ -51,7 +51,7 @@ bool DelaEP256Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
 uint8_t DelaEP256Mapper::read(uint16_t address)
 {
     (void) address;
-    return mem ? mem->getLastBus() : 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void DelaEP256Mapper::write(uint16_t address, uint8_t value)

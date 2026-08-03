@@ -98,7 +98,7 @@ uint8_t KCSPowerMapper::read(uint16_t address)
 
         // $DF80-$DFFF = open area, but bits 7/6 reflect EXROM/GAME.
         // bit7 = EXROM line level, bit6 = GAME line level, lower 6 bits = open bus.
-        uint8_t open = mem ? (mem->getLastBus() & 0x3F) : 0x3F;
+        uint8_t open = cart ? cart->sampleDataBus() : 0xFF;
 
         const bool exromHigh = cart ? cart->getExROMLine() : true;
         const bool gameHigh  = cart ? cart->getGameLine()  : true;
