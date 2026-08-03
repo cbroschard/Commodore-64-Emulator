@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
 #include "CPU.h"
+#include "DataBusLatch.h"
 #include "IVideoSink.h"
 #include "IRQLine.h"
 #include "Memory.h"
@@ -107,7 +108,6 @@ void Vic::reset()
 
     vicState.ba = true;
     vicState.aec = true;
-    vicState.openBus = 0xFF;
 
     for (auto& s : spriteUnits)
     {
@@ -385,7 +385,6 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
-    wrtr.writeU8(vicState.openBus);
 
     wrtr.writeBool(rasterIrqSampledThisLine);
 
@@ -545,7 +544,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(vicState.ba))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(vicState.openBus))                      { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(rasterIrqSampledThisLine))            { rdr.exitChunkPayload(chunk); return false; }
 
@@ -5331,22 +5329,26 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
 
 uint8_t Vic::latchOpenBus(uint8_t value)
 {
-    vicState.openBus = value;
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::VIC);
+
     return value;
 }
 
 uint8_t Vic::getOpenBus() const
 {
-    return vicState.openBus;
+    return dataBus ? dataBus->sample() : 0xFF;
 }
 
 uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
 {
-    const uint8_t value =
-        (getOpenBus() & static_cast<uint8_t>(~definedMask)) |
-        (definedBits & definedMask);
+    const uint8_t floatingBits = getOpenBus();
 
-    vicState.openBus = value;
+    const uint8_t value = static_cast<uint8_t>((floatingBits & static_cast<uint8_t>(~definedMask)) | (definedBits & definedMask));
+
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::VIC);
+
     return value;
 }
 
@@ -5356,6 +5358,12 @@ void Vic::latchNextRasterDD00()
     const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
     dd00_per_raster[nextRaster] = cia2 ? cia2->getCurrentVICBank() : 0;
+}
+
+void Vic::updateOpenBus(uint8_t value)
+{
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::VIC);
 }
 
 void Vic::performIdleFetchForCurrentCycle()

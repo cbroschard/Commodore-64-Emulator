@@ -37,7 +37,7 @@ class Vic
         inline void attachIVideoSinkInstance(IVideoSink* sink) { this->sink = sink; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
-        inline void attachDataBusLatchInstance(DataBusLatch* databus) { this->dataBus = dataBus; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
@@ -592,9 +592,6 @@ class Vic
             // Bus arbitration
             bool ba = true;
             bool aec = true;
-
-            // Open bus
-            uint8_t openBus = 0xFF;
         } vicState;
 
         struct SpriteUnit
@@ -757,7 +754,7 @@ class Vic
         void latchNextRasterDD00();
 
         // OpenBus helper
-        inline void updateOpenBus(uint8_t value) { vicState.openBus = value; }
+        void updateOpenBus(uint8_t value);
         void performIdleFetchForCurrentCycle();
 
         // Bus Arbitration Helpers
