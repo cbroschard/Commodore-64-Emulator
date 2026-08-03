@@ -14,6 +14,7 @@ class Cassette;
 class CIA1;
 class CIA2;
 class CPU;
+class DataBusLatch;
 class MLMonitor;
 class PLA;
 class REU;
@@ -48,6 +49,7 @@ class Memory : public CPUBus
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -78,9 +80,6 @@ class Memory : public CPUBus
         uint8_t readCartridge(uint16_t address, cartLocation location) const;
         void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
 
-        // Expose lastBus
-        inline uint8_t getLastBus() const { return lastBus; }
-
         // Setters for cartridge
         inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
         inline void setROMLOverlayIsRAM(bool flag) { romLOverlayIsRAM = flag; }
@@ -107,6 +106,7 @@ class Memory : public CPUBus
         CIA2* cia2;
         Cassette* cass;
         CPU* cpu;
+        DataBusLatch* dataBus;
         MLMonitor* monitor;
         PLA* pla;
         REU* reu;
@@ -155,9 +155,6 @@ class Memory : public CPUBus
         // MCR
         uint8_t dataDirectionRegister;
         uint8_t port1OutputLatch;
-
-        // Open bus
-        uint8_t lastBus;
 
         uint8_t readIO(uint16_t address);
         void writeIO(uint16_t address, uint8_t value);
