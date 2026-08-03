@@ -36,6 +36,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.bus->attachCIA2Instance(components.cia2.get());
 
     components.cart->attachCPUInstance(components.cpu.get());
+    components.cart->attachDataBusLatchInstance(components.dataBus.get());
     components.cart->attachHostInstance(host);
     components.cart->attachMemoryInstance(components.mem.get());
     components.cart->attachTraceManagerInstance(&components.debug->trace());

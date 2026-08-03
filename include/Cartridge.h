@@ -10,6 +10,7 @@
 
 // Forward declarations
 class CPU;
+class DataBusLatch;
 class Memory;
 class Vic;
 
@@ -35,6 +36,7 @@ class Cartridge
         virtual ~Cartridge();
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
@@ -188,6 +190,7 @@ class Cartridge
     private:
         // Non-owning pointers
         CPU* cpu;
+        DataBusLatch* dataBus;
         ICartridgeHost* host;
         Memory* mem;
         TraceManager* traceMgr;

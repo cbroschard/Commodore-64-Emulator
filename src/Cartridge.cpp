@@ -54,6 +54,7 @@
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
 #include "CPU.h"
+#include "DataBusLatch.h"
 #include "Memory.h"
 #include "Vic.h"
 
@@ -61,6 +62,7 @@ Cartridge::Cartridge() :
     hasRAM(false),
     currentBank(0),
     cpu(nullptr),
+    dataBus(nullptr),
     host(nullptr),
     mem(nullptr),
     traceMgr(nullptr),
@@ -525,48 +527,60 @@ std::string Cartridge::getMapperName() const
 
 uint8_t Cartridge::read(uint16_t address)
 {
-    if (mapper)
-    {
-        if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
-        {
-            std::ostringstream out;
-            out << "[CART:MEM] mapper read $"
-                << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(address)
-                << " mapper=" << getMapperName();
-            traceMgr->recordCartMem(out.str(), makeCartStamp());
-        }
+    if (!mapper)
+        return dataBus ? dataBus->sample() : 0xFF;
 
-        return mapper->read(address);
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
+    {
+        std::ostringstream out;
+
+        out << "[CART:MEM] mapper read $"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << int(address)
+            << " mapper="
+            << getMapperName();
+
+        traceMgr->recordCartMem(out.str(), makeCartStamp());
     }
 
-    switch(mapperType)
-    {
-        default:
-        {
-            break;
-        }
-    }
+    const uint8_t value = mapper->read(address);
 
-    return 0xFF; // Open bus
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+
+    return value;
 }
 
 uint8_t Cartridge::readRAM(size_t offset)
 {
     if (!hasRAM || offset >= ramData.size())
-        return 0xFF;
+        return dataBus ? dataBus->sample() : 0xFF;
 
-    const uint8_t v = ramData[offset];
+    const uint8_t value = ramData[offset];
 
     if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_MEM))
     {
         std::ostringstream out;
         out << "[CART:MEM] RAM read offset=$"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(offset)
-            << " value=$" << std::setw(2) << int(v);
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << int(offset)
+            << " value=$"
+            << std::setw(2)
+            << int(value);
+
         traceMgr->recordCartMem(out.str(), makeCartStamp());
     }
 
-    return v;
+    if (dataBus)
+       dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+
+    return value;
 }
 
 void Cartridge::write(uint16_t address, uint8_t value)
