@@ -29,6 +29,7 @@
 
 // Forward declarations
 class CPU;
+class DataBusLatch;
 class Vic;
 
 class SID
@@ -38,6 +39,7 @@ class SID
         virtual ~SID();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
 
@@ -82,6 +84,7 @@ class SID
 
         // Non owning pointers
         CPU* processor;
+        DataBusLatch* dataBus;
         TraceManager* traceMgr;
         Vic* vicII;
 

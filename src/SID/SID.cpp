@@ -6,12 +6,14 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CPU.h"
+#include "DataBusLatch.h"
 #include "Vic.h"
 #include "SID/SID.h"
 
 SID::SID(double sampleRate) :
     sidModel_(SIDModel::MOS6581),
     processor(nullptr),
+    dataBus(nullptr),
     traceMgr(nullptr),
     vicII(nullptr),
     mode_(VideoMode::NTSC), // default to NTSC
@@ -371,48 +373,61 @@ void SID::setSampleRate(double sample)
 
 uint8_t SID::readRegister(uint16_t address)
 {
-    switch(address)
+    switch (address)
     {
-        case 0xD400: return sidRegisters.voice1.frequencyLow;
-        case 0xD401: return sidRegisters.voice1.frequencyHigh;
-        case 0xD402: return sidRegisters.voice1.pulseWidthLow;
-        case 0xD403: return sidRegisters.voice1.pulseWidthHigh;
-        case 0xD404: return sidRegisters.voice1.control;
-        case 0xD405: return sidRegisters.voice1.attackDecay;
-        case 0xD406: return sidRegisters.voice1.sustainRelease;
-        case 0xD407: return sidRegisters.voice2.frequencyLow;
-        case 0xD408: return sidRegisters.voice2.frequencyHigh;
-        case 0xD409: return sidRegisters.voice2.pulseWidthLow;
-        case 0xD40A: return sidRegisters.voice2.pulseWidthHigh;
-        case 0xD40B: return sidRegisters.voice2.control;
-        case 0xD40C: return sidRegisters.voice2.attackDecay;
-        case 0xD40D: return sidRegisters.voice2.sustainRelease;
-        case 0xD40E: return sidRegisters.voice3.frequencyLow;
-        case 0xD40F: return sidRegisters.voice3.frequencyHigh;
-        case 0xD410: return sidRegisters.voice3.pulseWidthLow;
-        case 0xD411: return sidRegisters.voice3.pulseWidthHigh;
-        case 0xD412: return sidRegisters.voice3.control;
-        case 0xD413: return sidRegisters.voice3.attackDecay;
-        case 0xD414: return sidRegisters.voice3.sustainRelease;
-        case 0xD415: return sidRegisters.filter.cutoffLow;
-        case 0xD416: return sidRegisters.filter.cutoffHigh;
-        case 0xD417: return sidRegisters.filter.resonanceControl;
-        case 0xD418: return sidRegisters.filter.volume;
-        case 0xD419: return 0xFF;
-        case 0xD41A: return 0xFF;
+        // POTX
+        case 0xD419:
+        {
+            // Until paddle ADC support is implemented.
+            constexpr uint8_t value = 0xFF;
+
+            if (dataBus)
+                dataBus->drive(value, DataBusLatch::Driver::SID);
+
+            return value;
+        }
+
+        // POTY
+        case 0xD41A:
+        {
+            // Until paddle ADC support is implemented.
+            constexpr uint8_t value = 0xFF;
+
+            if (dataBus)
+                dataBus->drive(value, DataBusLatch::Driver::SID);
+
+            return value;
+        }
+
+        // OSC3
         case 0xD41B:
         {
-            // OSC3: read current voice 3 oscillator output.
-            return voice3.getOscillator().readOutput8();
+            const uint8_t value = voice3.getOscillator().readOutput8();
+
+            if (dataBus)
+                dataBus->drive(value, DataBusLatch::Driver::SID);
+
+            return value;
         }
+
+        // ENV3
         case 0xD41C:
         {
-            // ENV3: read current voice 3 envelope output.
-            return voice3.getEnvelope().readOutput8();
+            const uint8_t value =
+                voice3.getEnvelope().readOutput8();
+
+            if (dataBus)
+                dataBus->drive(value, DataBusLatch::Driver::SID);
+
+            return value;
+        }
+
+        default:
+        {
+            // $D400-$D418 and unused SID registers are not readable.
+            return dataBus ? dataBus->sample() : 0xFF;
         }
     }
-    // Default value
-    return 0xFF;
 }
 
 void SID::writeRegister(uint16_t address, uint8_t value)
