@@ -9,6 +9,8 @@
 #define DATABUSLATCH_H
 
 #include <cstdint>
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class DataBusLatch
 {
@@ -27,6 +29,10 @@ class DataBusLatch
             SID,
             VIC
         };
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         void drive(uint8_t value, Driver driver);
 
