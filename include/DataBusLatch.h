@@ -26,6 +26,7 @@ class DataBusLatch
             CIA2,
             CPU,
             Memory,
+            REU,
             SID,
             VIC
         };
