@@ -263,3 +263,20 @@ bool CaptureMapper::romReadHandledByMapper(uint16_t address) const
 {
     return mode == Mode::Freeze && address >= 0xE000 && address <= 0xFFFF;
 }
+
+bool CaptureMapper::readDrivesBus(uint16_t address) const
+{
+    if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
+        return true;
+
+    if (registersEnabled && address == 0xFFF7)
+        return false;
+
+    if (registersEnabled && address == 0xFFF8)
+        return true;
+
+    if (mode == Mode::Freeze && address >= 0xE000 && address <= 0xFFFF)
+        return romHEnabled;
+
+    return false;
+}
