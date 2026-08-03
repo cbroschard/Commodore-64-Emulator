@@ -165,38 +165,44 @@ void RetroReplayMapper::pressButton(uint32_t buttonIndex)
 
 uint8_t RetroReplayMapper::read(uint16_t address)
 {
-    if (address != 0xDE00 && address != 0xDE01)
+    if (!cart)
         return 0xFF;
+
+    if (!cartActive)
+        return cart->sampleDataBus();
+
+    if (address != 0xDE00 && address != 0xDE01)
+        return cart->sampleDataBus();
 
     ctrl.decode(flashMode);
 
-    uint8_t v = 0x00;
+    uint8_t value = 0x00;
 
-    // bit 0 = flash mode active
+    // Bit 0: flash mode active
     if (flashMode)
-        v |= 0x01;
+        value |= 0x01;
 
-    // bit 1 = AllowBank feedback
+    // Bit 1: AllowBank feedback
     if (ctrl.allowBank)
-        v |= 0x02;
+        value |= 0x02;
 
-    // bit 2 = Freeze button pressed
+    // Bit 2: freeze button pressed
     if (freezeButtonPressed)
-        v |= 0x04;
+        value |= 0x04;
 
-    // bits 3,4,7 = bank 13,14,15 feedback from rr_bank
-    v |= (ctrl.romBank & 0x03) << 3;   // bits 0-1 -> 3-4
-    v |= (ctrl.romBank & 0x04) << 5;   // bit 2 -> 7
+    // Bits 3, 4 and 7: ROM-bank feedback
+    value |= static_cast<uint8_t>((ctrl.romBank & 0x03) << 3);
+    value |= static_cast<uint8_t>((ctrl.romBank & 0x04) << 5);
 
-    // bit 5 = bank 16 feedback in flash mode
+    // Bit 5: fourth bank bit in flash mode
     if (flashMode && (ctrl.romBank & 0x08))
-        v |= 0x20;
+        value |= 0x20;
 
-    // bit 6 = REU mapping feedback
+    // Bit 6: REU compatibility feedback
     if (ctrl.reuCompat)
-        v |= 0x40;
+        value |= 0x40;
 
-    return v;
+    return value;
 }
 
 void RetroReplayMapper::write(uint16_t address, uint8_t value)
@@ -518,4 +524,12 @@ void RetroReplayMapper::reset()
     }
 
     (void)applyMappingAfterLoad();
+}
+
+bool RetroReplayMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !cartActive)
+        return false;
+
+    return address == 0xDE00 || address == 0xDE01;
 }

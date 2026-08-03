@@ -72,7 +72,7 @@ uint8_t RexEP256Mapper::read(uint16_t address)
         cart->setExROMLine(false);
     }
 
-    return cart ? cart->sampleDataBus() : 0xFF;
+    return cart->sampleDataBus();
 }
 
 void RexEP256Mapper::write(uint16_t address, uint8_t value)
@@ -204,4 +204,10 @@ void RexEP256Mapper::reset()
 
     cart->setGameLine(true);
     cart->setExROMLine(false);
+}
+
+bool RexEP256Mapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

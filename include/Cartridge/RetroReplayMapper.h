@@ -65,7 +65,9 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
 
         void tick(uint32_t elapsedCycles) override;
 
-        void reset();
+        void reset() override;
+
+        bool readDrivesBus(uint16_t address) const override;
 
     protected:
 

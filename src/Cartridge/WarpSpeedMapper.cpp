@@ -49,33 +49,37 @@ bool WarpSpeedMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
 
 uint8_t WarpSpeedMapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
+    if (!enabled)
+        return cart->sampleDataBus();
+
     if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        if (!mem) return 0xFF;
-
-        uint16_t idx = (address - 0xDE00) & 0x01FF;
-        return ioMirror[idx];
+        const uint16_t index = static_cast<uint16_t>((address - 0xDE00) & 0x01FF);
+        return ioMirror[index];
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void WarpSpeedMapper::write(uint16_t address, uint8_t value)
 {
+    (void)value;
+
+    if (!cart || !mem)
+        return;
+
     if ((address & 0xFF00) == 0xDE00)
     {
         enabled = true;
-        applyMappingAfterLoad();
+        (void)applyMappingAfterLoad();
     }
     else if ((address & 0xFF00) == 0xDF00)
     {
         enabled = false;
-
-        if (cart)
-        {
-            cart->clearCartridge(cartLocation::LO);
-            cart->clearCartridge(cartLocation::HI);
-        }
+        (void)applyMappingAfterLoad();
     }
 }
 
@@ -122,17 +126,31 @@ bool WarpSpeedMapper::loadIntoMemory(uint8_t /*bank*/)
 
 bool WarpSpeedMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem) return false;
+    if (!cart || !mem)
+        return false;
 
     if (enabled)
     {
+        // Warp Speed is a 16K cartridge.
+        cart->setExROMLine(false);
+        cart->setGameLine(false);
+
         return loadIntoMemory(0);
     }
-    else
-    {
-        // Ensure main ROM window is hidden after load-state too
-        cart->clearCartridge(cartLocation::LO);
-        cart->clearCartridge(cartLocation::HI);
-        return true;
-    }
+
+    cart->setExROMLine(true);
+    cart->setGameLine(true);
+
+    cart->clearCartridge(cartLocation::LO);
+    cart->clearCartridge(cartLocation::HI);
+
+    return true;
+}
+
+bool WarpSpeedMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !enabled)
+        return false;
+
+    return address >= 0xDE00 && address <= 0xDFFF;
 }

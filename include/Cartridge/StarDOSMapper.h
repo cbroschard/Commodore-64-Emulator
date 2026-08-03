@@ -27,6 +27,9 @@ class StarDOSMapper : public CartridgeMapper
 
         void tick(uint32_t elapsedCycles) override;
 
+        bool readDrivesBus(uint16_t address) const override;
+        bool romReadHandledByMapper(uint16_t address) const override;
+
     protected:
 
     private:

@@ -67,18 +67,30 @@ bool StarDOSMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t StarDOSMapper::read(uint16_t address)
 {
-    if (!cart || !mem)
+    if (!cart)
         return 0xFF;
 
     if (address >= 0xE000)
+    {
+        if (!mem || !loaded)
+            return cart->sampleDataBus();
+
         return mem->readCartridge(static_cast<uint16_t>(address - 0xE000), cartLocation::HI_E000);
+    }
 
     if (address >= 0xDE00 && address <= 0xDEFF)
+    {
         chargeIO1();
-    else if (address >= 0xDF00 && address <= 0xDFFF)
-        chargeIO2();
+        return cart->sampleDataBus();
+    }
 
-    return cart ? cart->sampleDataBus() : 0xFF;
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        chargeIO2();
+        return cart->sampleDataBus();
+    }
+
+    return cart->sampleDataBus();
 }
 
 void StarDOSMapper::write(uint16_t address, uint8_t value)
@@ -217,4 +229,17 @@ bool StarDOSMapper::applyMappingAfterLoad()
 
     applyLineState();
     return true;
+}
+
+bool StarDOSMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !mem || !loaded)
+        return false;
+
+    return address >= 0xE000;
+}
+
+bool StarDOSMapper::romReadHandledByMapper(uint16_t address) const
+{
+    return loaded && address >= 0xE000;
 }

@@ -4,7 +4,7 @@
 // This source code is provided for personal, educational, and
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
-// strictly prohibited without the prior written consent of the author.
+// strictly prohibited without the prior written consent of the author::
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV5Mapper.h"
 #include "Memory.h"
@@ -28,23 +28,24 @@ bool SuperSnapshotV5Mapper::SS5Control::load(StateReader& rdr)
     return true;
 }
 
-void  SuperSnapshotV5Mapper::SS5Control::decode()
+void SuperSnapshotV5Mapper::SS5Control::decode()
 {
-    // bit 3: snapshot memory/register enable (0 enabled, 1 disabled)
-    enabled = (raw & 0x08) == 0;
+    // Bit 5: bank bit 2
+    // Bit 4: bank bit 1
+    // Bit 2: bank bit 0
+    bank = 0;
+    bank |= static_cast<uint8_t>((raw >> 2) & 0x01);
+    bank |= static_cast<uint8_t>(((raw >> 4) & 0x01) << 1);
+    bank |= static_cast<uint8_t>(((raw >> 5) & 0x01) << 2);
 
-    // bit 1: controls EXROM line (INVERTED!)
-    // 0 -> EXROM=1 (high), 1 -> EXROM=0 (low/asserted)
+    // Bit 3: ROM enable
+    enabled = (raw & 0x08) != 0;
+
+    // Bit 1: RAM enable / EXROM control
     exromHigh = (raw & 0x02) == 0;
 
-    // bit 0: controls GAME line (0 -> GAME low, 1 -> GAME high)
+    // Bit 0: release freeze / inverted GAME
     gameLow = (raw & 0x01) == 0;
-
-    // Bank bits from SA14/SA15/(SA16)
-    bank = 0;
-    bank |= (raw >> 2) & 0x01;          // SA14
-    bank |= ((raw >> 4) & 0x01) << 1;   // SA15
-    bank |= ((raw >> 5) & 0x01) << 2;   // SA16
 }
 
 void SuperSnapshotV5Mapper::saveState(StateWriter& wrtr) const
@@ -111,23 +112,47 @@ void SuperSnapshotV5Mapper::pressButton(uint32_t buttonIndex)
 
 uint8_t SuperSnapshotV5Mapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (!ctrl.enabled) return 0xFF;
-        return ctrl.raw;
+        if (!ctrl.enabled)
+            return cart->sampleDataBus();
+
+        const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x07) : static_cast<uint8_t>(selectedBank & 0x07);
+        const uint16_t offset = static_cast<uint16_t>(address & 0x00FF);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.bankNumber != bank)
+                continue;
+
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (section.data.size() >= 0x0100)
+                return section.data[offset];
+        }
+
+        return cart->sampleDataBus();
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void SuperSnapshotV5Mapper::write(uint16_t address, uint8_t value)
 {
-    if (address >= 0xDE00 && address <= 0xDEFF)
-    {
-        ctrl.raw = value;
-        ctrl.decode();
-        (void)applyMappingAfterLoad();
-    }
+    if (!cart || !mem)
+        return;
+
+    if (address < 0xDE00 || address > 0xDEFF)
+        return;
+
+    ctrl.raw = value;
+    ctrl.decode();
+
+    (void)applyMappingAfterLoad();
 }
 
 bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
@@ -267,4 +292,29 @@ void SuperSnapshotV5Mapper::pressReset()
 
     (void)applyMappingAfterLoad();
     cart->requestWarmReset();
+}
+
+bool SuperSnapshotV5Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart || !ctrl.enabled)
+        return false;
+
+    if (address < 0xDE00 || address > 0xDEFF)
+        return false;
+
+    const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x07) : static_cast<uint8_t>(selectedBank & 0x07);
+
+    for (const auto& section : cart->getChipSections())
+    {
+        if (section.bankNumber != bank)
+            continue;
+
+        if (section.loadAddress != 0x8000)
+            continue;
+
+        if (section.data.size() >= 0x0100)
+            return true;
+    }
+
+    return false;
 }

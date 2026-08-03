@@ -66,24 +66,41 @@ bool SuperGamesMapper::applyMappingAfterLoad()
 
 uint8_t SuperGamesMapper::read(uint16_t address)
 {
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void SuperGamesMapper::write(uint16_t address, uint8_t value)
 {
+    if (!cart || !mem)
+        return;
+
     if (address != 0xDF00 || writeProtected)
         return;
 
-    selectedBank = value & 0x03;
-    disabled     = ((value >> 2) & 0x01) != 0;
-    bool wp      = ((value >> 3) & 0x01) != 0;
+    selectedBank = static_cast<uint8_t>(value & 0x03);
+    disabled = (value & 0x04) != 0;
 
-    cart->setExROMLine(disabled);
-    cart->setGameLine(disabled);
+    const bool lockWrites = (value & 0x08) != 0;
 
-    cart->setCurrentBank(selectedBank);
+    if (disabled)
+    {
+        cart->setExROMLine(true);
+        cart->setGameLine(true);
 
-    if (wp) writeProtected = true;
+        cart->clearCartridge(cartLocation::LO);
+        cart->clearCartridge(cartLocation::HI);
+    }
+    else
+    {
+        cart->setExROMLine(false);
+        cart->setGameLine(false);
+
+        (void)loadIntoMemory(selectedBank);
+    }
+
+    if (lockWrites)
+        writeProtected = true;
 }
 
 bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
@@ -92,7 +109,6 @@ bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
 
     bank &= 0x03;
     selectedBank = bank;
-    disabled = false; // mapping implies enabled
 
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
@@ -125,4 +141,10 @@ bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
         }
     }
     return loaded;
+}
+
+bool SuperGamesMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

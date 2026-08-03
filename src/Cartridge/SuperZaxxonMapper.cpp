@@ -53,13 +53,10 @@ uint8_t SuperZaxxonMapper::read(uint16_t address)
 
     if (address >= 0x8000 && address <= 0x9FFF)
     {
-        if (address <= 0x8FFF)
-            currentBank = 0;
-        else
-            currentBank = 1;
-
-        const size_t offset =
-            static_cast<size_t>((address - 0x8000) & 0x0FFF);
+        // $8000-$8FFF selects ROMH bank 0.
+        // $9000-$9FFF selects ROMH bank 1.
+        currentBank = address <= 0x8FFF ? 0 : 1;
+        const size_t offset = static_cast<size_t>((address - 0x8000) & 0x0FFF);
 
         for (const auto& section : cart->getChipSections())
         {
@@ -69,22 +66,16 @@ uint8_t SuperZaxxonMapper::read(uint16_t address)
             if (section.bankNumber != 0)
                 continue;
 
-            if (offset >= section.data.size())
-                return 0xFF;
-
-            return section.data[offset];
+            if (offset < section.data.size())
+                return section.data[offset];
         }
 
-        return 0xFF;
+        return cart->sampleDataBus();
     }
 
-    /*
-     * ROMH is selected by the most recent read from either ROML mirror.
-     */
     if (address >= 0xA000 && address <= 0xBFFF)
     {
-        const size_t offset =
-            static_cast<size_t>(address - 0xA000);
+        const size_t offset = static_cast<size_t>(address - 0xA000);
 
         for (const auto& section : cart->getChipSections())
         {
@@ -94,16 +85,14 @@ uint8_t SuperZaxxonMapper::read(uint16_t address)
             if (section.bankNumber != currentBank)
                 continue;
 
-            if (offset >= section.data.size())
-                return 0xFF;
-
-            return section.data[offset];
+            if (offset < section.data.size())
+                return section.data[offset];
         }
 
-        return 0xFF;
+        return cart->sampleDataBus();
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void SuperZaxxonMapper::write(uint16_t address, uint8_t value)
@@ -151,4 +140,48 @@ bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
 bool SuperZaxxonMapper::romReadHandledByMapper(uint16_t address) const
 {
     return address >= 0x8000 && address <= 0xBFFF;
+}
+
+bool SuperZaxxonMapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    if (address >= 0x8000 && address <= 0x9FFF)
+    {
+        const size_t offset = static_cast<size_t>((address - 0x8000) & 0x0FFF);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (section.bankNumber != 0)
+                continue;
+
+            return offset < section.data.size();
+        }
+
+        return false;
+    }
+
+    if (address >= 0xA000 && address <= 0xBFFF)
+    {
+        const size_t offset = static_cast<size_t>(address - 0xA000);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.loadAddress != 0xA000)
+                continue;
+
+            if (section.bankNumber != currentBank)
+                continue;
+
+            return offset < section.data.size();
+        }
+
+        return false;
+    }
+
+    return false;
 }

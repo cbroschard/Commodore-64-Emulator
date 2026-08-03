@@ -62,13 +62,16 @@ bool RossMapper::applyMappingAfterLoad()
 
 uint8_t RossMapper::read(uint16_t address)
 {
-    // Open Bus
-    return 0xFF;
+    (void)address;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void RossMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
+
+    if (!cart || !mem)
+        return;
 
     if (cart->getCartridgeSize() == 32768 && address == 0xDE00)
     {
@@ -124,4 +127,10 @@ bool RossMapper::loadIntoMemory(uint8_t bank)
     }
 
     return mapped;
+}
+
+bool RossMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

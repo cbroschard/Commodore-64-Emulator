@@ -51,41 +51,46 @@ bool StructuredBasicMapper::applyMappingAfterLoad()
 
 uint8_t StructuredBasicMapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
     if (address == 0xDE00 || address == 0xDE01)
     {
         selectedBank = 0;
-        loadIntoMemory(selectedBank);
+        (void)loadIntoMemory(selectedBank);
     }
     else if (address == 0xDE02)
     {
         selectedBank = 1;
-        loadIntoMemory(selectedBank);
+        (void)loadIntoMemory(selectedBank);
     }
     else if (address == 0xDE03)
-    {
         cart->setExROMLine(true);
-    }
-    return 0xFF;
+
+    return cart->sampleDataBus();
 }
 
 void StructuredBasicMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
+    if (!cart || !mem)
+        return;
+
     if (address == 0xDE00 || address == 0xDE01)
     {
         selectedBank = 0;
-        loadIntoMemory(selectedBank);
+        cart->setExROMLine(false);
+        (void)loadIntoMemory(selectedBank);
     }
     else if (address == 0xDE02)
     {
         selectedBank = 1;
-        loadIntoMemory(selectedBank);
+        cart->setExROMLine(false);
+        (void)loadIntoMemory(selectedBank);
     }
     else if (address == 0xDE03)
-    {
         cart->setExROMLine(true);
-    }
 }
 
 bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
@@ -116,3 +121,8 @@ bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
     return mapped;
 }
 
+bool StructuredBasicMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
+}

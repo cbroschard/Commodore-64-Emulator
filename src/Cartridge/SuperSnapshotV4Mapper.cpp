@@ -139,6 +139,7 @@ void SuperSnapshotV4Mapper::saveState(StateWriter& wrtr) const
     wrtr.writeU32(1); // version
     ctrl.save(wrtr);
     preFreezeCtrl.save(wrtr);
+    wrtr.writeBool(freezeActive);
     wrtr.endChunk();
 }
 
@@ -149,11 +150,13 @@ bool SuperSnapshotV4Mapper::loadState(const StateReader::Chunk& chunk, StateRead
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!ctrl.load(rdr))            { rdr.exitChunkPayload(chunk); return false; }
-        if (!preFreezeCtrl.load(rdr))   { rdr.exitChunkPayload(chunk); return false; }
+        if (!ctrl.load(rdr))                { rdr.exitChunkPayload(chunk); return false; }
+        if (!preFreezeCtrl.load(rdr))       { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(freezeActive))    { rdr.exitChunkPayload(chunk); return false;}
 
         // Apply immediately
         ctrl.rebuildFromSavedState();
@@ -199,47 +202,45 @@ void SuperSnapshotV4Mapper::pressButton(uint32_t buttonIndex)
 
 uint8_t SuperSnapshotV4Mapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
+    // IO1: mirror of the last 256 bytes of cartridge RAM.
     if ((address & 0xFF00) == 0xDE00)
     {
-        size_t offset = 0x1F00 + (address & 0xFF);
-        if (cart)
-            return cart->hasCartridgeRAM() ? cart->readRAM(offset) : 0xFF;
-        return 0xFF;
+        if (!cart->hasCartridgeRAM())
+            return cart->sampleDataBus();
+
+        const size_t offset = 0x1F00 + (address & 0x00FF);
+        return cart->readRAM(offset);
     }
 
-    // IO2: $DF01 is readable (mirrored)
-    if ((address & 0xFF00) == 0xDF00 && (address & 0x00FF) == 0x01)
+    // IO2 $DF01: readable control register.
+    if (address == 0xDF01)
         return ctrl.df01;
 
-    // IO2 mirror: $DF02-$DFFF holds last page of first 8K of current bank
+    // IO2 $DF02-$DFFF: ROM mirror.
     if (address >= 0xDF02 && address <= 0xDFFF)
     {
-        if (!cart) return 0xFF;
+        const uint16_t index = static_cast<uint16_t>(0x1F00 + (address & 0x00FF));
+        const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x01) : static_cast<uint8_t>(selectedBank & 0x01);
 
-        // Mirror last 256 bytes of the first 8K of the selected bank.
-        // "first 8K" corresponds to the $8000 half of the 16K bank image.
-        const uint16_t idx = 0x1F00u + (address & 0x00FFu); // 0x1F00..0x1FFF
-
-        const uint8_t bank = (selectedBank == 0xFF) ? (ctrl.bank & 0x01) : (selectedBank & 0x01);
-        const auto& sections = cart->getChipSections();
-
-        for (const auto& s : sections)
+        for (const auto& section : cart->getChipSections())
         {
-            if (s.bankNumber != bank) continue;
+            if (section.bankNumber != bank)
+                continue;
 
-            // 16K block at $8000
-            if (s.loadAddress == 0x8000 && s.data.size() == 0x4000)
-                return s.data[idx]; // idx is within 0..0x1FFF (first 8K)
+            if (section.loadAddress != 0x8000)
+                continue;
 
-            // If CRT is split into 8K chips, use the $8000 chip.
-            if (s.loadAddress == 0x8000 && s.data.size() == 0x2000)
-                return s.data[idx]; // idx within 0..0x1FFF for that chip
+            if (section.data.size() == 0x4000 || section.data.size() == 0x2000)
+                return section.data[index];
         }
 
-        return 0xFF;
+        return cart->sampleDataBus();
     }
 
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void SuperSnapshotV4Mapper::write(uint16_t address, uint8_t value)
@@ -441,4 +442,42 @@ void SuperSnapshotV4Mapper::pressReset()
     if (!cart) return;
 
     cart->requestWarmReset();
+}
+
+bool SuperSnapshotV4Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    // IO1 RAM mirror.
+    if ((address & 0xFF00) == 0xDE00)
+        return cart->hasCartridgeRAM();
+
+    // $DF00 is write-only.
+    if (address == 0xDF00)
+        return false;
+
+    // $DF01 is a readable register.
+    if (address == 0xDF01)
+        return true;
+
+    // $DF02-$DFFF is a ROM mirror.
+    if (address >= 0xDF02 && address <= 0xDFFF)
+    {
+        const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x01) : static_cast<uint8_t>(selectedBank & 0x01);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.bankNumber != bank)
+                continue;
+
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (section.data.size() == 0x2000 || section.data.size() == 0x4000)
+                return true;
+        }
+    }
+
+    return false;
 }

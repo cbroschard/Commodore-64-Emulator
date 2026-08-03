@@ -27,6 +27,8 @@ class RGCDMapper : public CartridgeMapper
 
         void reset() override;
 
+        bool readDrivesBus(uint16_t address) const override;
+
     protected:
 
     private:

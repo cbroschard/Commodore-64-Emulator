@@ -50,18 +50,25 @@ bool SimonsBasicMapper::applyMappingAfterLoad()
 
 uint8_t SimonsBasicMapper::read(uint16_t address)
 {
-    if (!cart) return 0xFF;
+    if (!cart)
+        return 0xFF;
 
     if (address == 0xDE00)
     {
-        // Return 0x00 on read to set 8k game cartridge
+        // Reading IO1 switches Simon's BASIC to 8K mode.
+        highROMEnabled = false;
+
         cart->setExROMLine(false);
         cart->setGameLine(true);
+
+        // Remove the no-longer-visible ROMH data.
+        if (mem)
+            cart->clearCartridge(cartLocation::HI);
+
         return 0x00;
     }
 
-    // Open Bus
-    return 0xFF;
+    return cart->sampleDataBus();
 }
 
 void SimonsBasicMapper::write(uint16_t address, uint8_t value)
@@ -129,12 +136,12 @@ bool SimonsBasicMapper::loadIntoMemory(uint8_t bank)
                     mapped = true;
                 }
             }
-            else
-            {
-                // Clear HI region to simulate RAM exposed instead of ROM
-                cart->clearCartridge(cartLocation::HI);
-            }
         }
     }
     return mapped;
+}
+
+bool SimonsBasicMapper::readDrivesBus(uint16_t address) const
+{
+    return cart != nullptr && address == 0xDE00;
 }

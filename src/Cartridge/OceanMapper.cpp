@@ -130,7 +130,7 @@ bool OceanMapper::mapSelectedBank()
 uint8_t OceanMapper::read(uint16_t address)
 {
     (void)address;
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void OceanMapper::write(uint16_t address, uint8_t value)
@@ -143,4 +143,10 @@ bool OceanMapper::loadIntoMemory(uint8_t bank)
 {
     sel = bank & 0x0F;
     return mapSelectedBank();
+}
+
+bool OceanMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }

@@ -59,7 +59,7 @@ bool RGCDMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 uint8_t RGCDMapper::read(uint16_t address)
 {
     (void)address;
-    return 0xFF;
+    return cart ? cart->sampleDataBus() : 0xFF;
 }
 
 void RGCDMapper::write(uint16_t address, uint8_t value)
@@ -166,7 +166,10 @@ void RGCDMapper::reset()
     disabled = false;
     rgcdBank = 0;
 
-    if (!cart)
+    if (!cart || !mem)
+        return;
+
+    if (!loadIntoMemory(rgcdBank))
         return;
 
     cart->setGameLine(true);
@@ -191,8 +194,13 @@ uint8_t RGCDMapper::resolvePhysicalBank(uint8_t requestedBank) const
         return 0;
 
     const uint8_t bankCount = static_cast<uint8_t>(std::min<uint16_t>(count, 8));
-
     const uint8_t logicalBank = static_cast<uint8_t>(requestedBank % bankCount);
 
     return static_cast<uint8_t>(bankCount - 1 - logicalBank);
+}
+
+bool RGCDMapper::readDrivesBus(uint16_t address) const
+{
+    (void)address;
+    return false;
 }
