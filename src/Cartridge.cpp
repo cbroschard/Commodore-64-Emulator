@@ -1202,6 +1202,11 @@ void Cartridge::setGameLine(bool level)
     }
 }
 
+uint8_t Cartridge::sampleDataBus() const
+{
+    return dataBus ? dataBus->sample() : 0xFF;
+}
+
 TraceManager::Stamp Cartridge::makeCartStamp() const
 {
      if (!traceMgr)
