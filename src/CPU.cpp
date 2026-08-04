@@ -3767,6 +3767,7 @@ bool CPU::executeCurrentMicroOp()
                 {
                     microReturnHigh = value;
                     microReturnAddress = uint16_t(microReturnLow) | (uint16_t(microReturnHigh) << 8);
+                    microAddress = microReturnAddress;
                     break;
                 }
 
@@ -6803,11 +6804,11 @@ void CPU::buildRTS()
     pushMicroOp(pullHi);
 
     CpuMicroOp finish;
-    finish.kind = CpuMicroOpKind::Internal;
-    finish.busType = CpuBusCycleType::None;
+    finish.kind = CpuMicroOpKind::DummyRead;
+    finish.busType = CpuBusCycleType::DummyRead;
     finish.address = 0;
     finish.value = 0;
-    finish.useMicroAddress = false;
+    finish.useMicroAddress = true;
     finish.index = CpuIndexReg::None;
     finish.action = CpuMicroAction::FinishRTS;
     pushMicroOp(finish);
