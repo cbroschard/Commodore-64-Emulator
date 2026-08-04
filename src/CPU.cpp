@@ -4681,12 +4681,12 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
-        case 0x1C: // NOP abs,X unofficial
-        case 0x3C: // NOP abs,X unofficial
-        case 0x5C: // NOP abs,X unofficial
-        case 0x7C: // NOP abs,X unofficial
-        case 0xDC: // NOP abs,X unofficial
-        case 0xFC: // NOP abs,X unofficial
+        case 0x1C:
+        case 0x3C:
+        case 0x5C:
+        case 0x7C:
+        case 0xDC:
+        case 0xFC:
         {
             CpuMicroOp readLo;
             readLo.kind = CpuMicroOpKind::OperandReadToAddress;
@@ -4698,32 +4698,23 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readLo.action = CpuMicroAction::None;
             pushMicroOp(readLo);
 
-            CpuMicroOp readHi;
-            readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
-            readHi.busType = CpuBusCycleType::Read;
-            readHi.address = 0;
-            readHi.value = 0;
-            readHi.useMicroAddress = false;
-            readHi.index = CpuIndexReg::None;
-            readHi.action = CpuMicroAction::None;
-            pushMicroOp(readHi);
-
-            CpuMicroOp applyX;
-            applyX.kind = CpuMicroOpKind::ApplyAbsoluteIndex;
-            applyX.busType = CpuBusCycleType::None;
-            applyX.address = 0;
-            applyX.value = 0;
-            applyX.useMicroAddress = false;
-            applyX.index = CpuIndexReg::X;
-            applyX.action = CpuMicroAction::None;
-            pushMicroOp(applyX);
+            CpuMicroOp readHiAndApplyX;
+            readHiAndApplyX.kind =
+                CpuMicroOpKind::OperandReadHighToAddressAndApplyAbsoluteIndex;
+            readHiAndApplyX.busType = CpuBusCycleType::Read;
+            readHiAndApplyX.address = PC;
+            readHiAndApplyX.value = 0;
+            readHiAndApplyX.useMicroAddress = false;
+            readHiAndApplyX.index = CpuIndexReg::X;
+            readHiAndApplyX.action = CpuMicroAction::None;
+            pushMicroOp(readHiAndApplyX);
 
             CpuMicroOp dummyRead;
             dummyRead.kind = CpuMicroOpKind::ConditionalPageCrossDummyRead;
             dummyRead.busType = CpuBusCycleType::DummyRead;
             dummyRead.address = 0;
             dummyRead.value = 0;
-            dummyRead.useMicroAddress = false;
+            dummyRead.useMicroAddress = true;
             dummyRead.index = CpuIndexReg::None;
             dummyRead.action = CpuMicroAction::None;
             pushMicroOp(dummyRead);
