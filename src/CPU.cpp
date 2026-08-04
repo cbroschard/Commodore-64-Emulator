@@ -6700,6 +6700,7 @@ void CPU::buildStackPull(CpuMicroAction action)
 
 void CPU::buildJSR()
 {
+    // Cycle 2: Read target low byte.
     CpuMicroOp readLo;
     readLo.kind = CpuMicroOpKind::OperandReadToAddress;
     readLo.busType = CpuBusCycleType::Read;
@@ -6710,18 +6711,22 @@ void CPU::buildJSR()
     readLo.action = CpuMicroAction::None;
     pushMicroOp(readLo);
 
-    // Keep this internal cycle. JSR has an internal/stack timing cycle here.
-    // After reading target low byte, PC points at the high operand byte.
+    /*
+     * Cycle 3:
+     * Dummy-read the current stack address and prepare the
+     * return address.
+     */
     CpuMicroOp prepReturn;
-    prepReturn.kind = CpuMicroOpKind::Internal;
-    prepReturn.busType = CpuBusCycleType::None;
-    prepReturn.address = 0;
+    prepReturn.kind = CpuMicroOpKind::DummyRead;
+    prepReturn.busType = CpuBusCycleType::DummyRead;
+    prepReturn.address = uint16_t(0x0100 | SP);
     prepReturn.value = 0;
     prepReturn.useMicroAddress = false;
     prepReturn.index = CpuIndexReg::None;
     prepReturn.action = CpuMicroAction::PrepareJSRReturnAddress;
     pushMicroOp(prepReturn);
 
+    // Cycle 4: Push return-address high byte.
     CpuMicroOp pushHi;
     pushHi.kind = CpuMicroOpKind::StackWrite;
     pushHi.busType = CpuBusCycleType::StackWrite;
@@ -6732,6 +6737,7 @@ void CPU::buildJSR()
     pushHi.action = CpuMicroAction::PushJSRReturnHigh;
     pushMicroOp(pushHi);
 
+    // Cycle 5: Push return-address low byte.
     CpuMicroOp pushLo;
     pushLo.kind = CpuMicroOpKind::StackWrite;
     pushLo.busType = CpuBusCycleType::StackWrite;
@@ -6742,6 +6748,7 @@ void CPU::buildJSR()
     pushLo.action = CpuMicroAction::PushJSRReturnLow;
     pushMicroOp(pushLo);
 
+    // Cycle 6: Read target high byte and jump.
     CpuMicroOp readHi;
     readHi.kind = CpuMicroOpKind::OperandReadHighToAddress;
     readHi.busType = CpuBusCycleType::Read;
@@ -6749,10 +6756,7 @@ void CPU::buildJSR()
     readHi.value = 0;
     readHi.useMicroAddress = false;
     readHi.index = CpuIndexReg::None;
-
-    // Fold only the final jump into the high-byte read.
     readHi.action = CpuMicroAction::JumpToMicroAddress;
-
     pushMicroOp(readHi);
 }
 
