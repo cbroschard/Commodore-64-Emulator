@@ -3877,8 +3877,9 @@ bool CPU::executeCurrentMicroOp()
             mem->write(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
 
-            if (op.action == CpuMicroAction::PushInterruptStatus)
+            if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)
                 setFlag(I, true);
+
             break;
         }
 
@@ -4350,6 +4351,7 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroAction::ReadBRKVectorHigh:
         {
             microVectorHigh = mem->read(0xFFFF);
+            PC = uint16_t(microVectorLow) |(uint16_t(microVectorHigh) << 8);
             break;
         }
 
@@ -6823,18 +6825,8 @@ void CPU::buildBRK()
     dummy.value = 0;
     dummy.useMicroAddress = false;
     dummy.index = CpuIndexReg::None;
-    dummy.action = CpuMicroAction::None;
+    dummy.action = CpuMicroAction::PrepareBRKReturnAddress;
     pushMicroOp(dummy);
-
-    CpuMicroOp prep;
-    prep.kind = CpuMicroOpKind::Internal;
-    prep.busType = CpuBusCycleType::None;
-    prep.address = 0;
-    prep.value = 0;
-    prep.useMicroAddress = false;
-    prep.index = CpuIndexReg::None;
-    prep.action = CpuMicroAction::PrepareBRKReturnAddress;
-    pushMicroOp(prep);
 
     CpuMicroOp pushHi;
     pushHi.kind = CpuMicroOpKind::StackWrite;
@@ -6866,16 +6858,6 @@ void CPU::buildBRK()
     pushStatus.action = CpuMicroAction::PushBRKStatus;
     pushMicroOp(pushStatus);
 
-    CpuMicroOp setI;
-    setI.kind = CpuMicroOpKind::Internal;
-    setI.busType = CpuBusCycleType::None;
-    setI.address = 0;
-    setI.value = 0;
-    setI.useMicroAddress = false;
-    setI.index = CpuIndexReg::None;
-    setI.action = CpuMicroAction::SetInterruptDisable;
-    pushMicroOp(setI);
-
     CpuMicroOp readVecLo;
     readVecLo.kind = CpuMicroOpKind::Internal;
     readVecLo.busType = CpuBusCycleType::Read;
@@ -6895,16 +6877,6 @@ void CPU::buildBRK()
     readVecHi.index = CpuIndexReg::None;
     readVecHi.action = CpuMicroAction::ReadBRKVectorHigh;
     pushMicroOp(readVecHi);
-
-    CpuMicroOp finish;
-    finish.kind = CpuMicroOpKind::Internal;
-    finish.busType = CpuBusCycleType::None;
-    finish.address = 0;
-    finish.value = 0;
-    finish.useMicroAddress = false;
-    finish.index = CpuIndexReg::None;
-    finish.action = CpuMicroAction::FinishBRK;
-    pushMicroOp(finish);
 }
 
 void CPU::buildRTI()
