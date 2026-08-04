@@ -4599,6 +4599,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
         case 0xD4: // NOP zp,X unofficial
         case 0xF4: // NOP zp,X unofficial
         {
+            /*
+             * Cycle 2: Read the zero-page operand.
+             */
             CpuMicroOp readZp;
             readZp.kind = CpuMicroOpKind::OperandReadToZP;
             readZp.busType = CpuBusCycleType::Read;
@@ -4609,16 +4612,27 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readZp.action = CpuMicroAction::None;
             pushMicroOp(readZp);
 
-            CpuMicroOp applyX;
-            applyX.kind = CpuMicroOpKind::ApplyZeroPageIndex;
-            applyX.busType = CpuBusCycleType::None;
-            applyX.address = 0;
-            applyX.value = 0;
-            applyX.useMicroAddress = false;
-            applyX.index = CpuIndexReg::X;
-            applyX.action = CpuMicroAction::None;
-            pushMicroOp(applyX);
+            /*
+             * Cycle 3: Dummy-read the unindexed zero-page address,
+             * then apply X with zero-page wrapping.
+             */
+            CpuMicroOp dummyAndIndex;
+            dummyAndIndex.kind =
+                CpuMicroOpKind::ApplyZeroPageIndexAndDummyRead;
 
+            dummyAndIndex.busType =
+                CpuBusCycleType::DummyRead;
+
+            dummyAndIndex.address = 0;
+            dummyAndIndex.value = 0;
+            dummyAndIndex.useMicroAddress = true;
+            dummyAndIndex.index = CpuIndexReg::X;
+            dummyAndIndex.action = CpuMicroAction::None;
+            pushMicroOp(dummyAndIndex);
+
+            /*
+             * Cycle 4: Read and discard the final indexed value.
+             */
             CpuMicroOp readIgnored;
             readIgnored.kind = CpuMicroOpKind::MemoryRead;
             readIgnored.busType = CpuBusCycleType::Read;
