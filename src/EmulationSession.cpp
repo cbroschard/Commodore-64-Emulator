@@ -192,29 +192,18 @@ bool EmulationSession::runFrame()
     }
 
     int frameCycles = 0;
-
     const int targetCycles = runtime_.cpuCfg->cyclesPerFrame();
 
     while (frameCycles < targetCycles || (cpu_.getUseMicroOps() && !cpu_.isAtInstructionBoundary()))
     {
-        uint32_t elapsedCycles = 0;
-
         try
         {
-            /*
-             * Only check for a breakpoint at an instruction
-             * boundary.
-             *
-             * RDY or AEC may hold the CPU on the same PC for
-             * multiple cycles. Checking only at the boundary
-             * prevents the same breakpoint from firing repeatedly
-             * during a stalled bus cycle.
-             */
             if (cpu_.isAtInstructionBoundary())
             {
                 const uint16_t pc = cpu_.getPC();
 
-                if (!runtime_.uiPaused.load() && debug_.hasBreakpoint(pc))
+                if (!runtime_.uiPaused.load() &&
+                    debug_.hasBreakpoint(pc))
                 {
                     runtime_.uiPaused = true;
                     debug_.onBreakpoint(pc);
@@ -222,26 +211,21 @@ bool EmulationSession::runFrame()
                 }
             }
 
-            /*
-             * Always tick the CPU, including while AEC is low.
-             *
-             * The CPU now decides whether its current operation
-             * can advance:
-             *
-             *   RDY low:
-             *     - read-like cycles stall
-             *     - write cycles may complete
-             *
-             *   AEC low:
-             *     - external-bus cycles stall
-             *     - internal micro-ops may continue
-             */
+            vic_.beginCycle();
+
             cpu_.tick();
 
-            elapsedCycles = cpu_.getElapsedCycles();
+            sid_.tick(1);
 
-            if (runtime_.uiPaused.load())
-                break;
+            cia1_.updateTimers(1);
+            cia2_.updateTimers(1);
+
+            bus_.tick(1);
+
+            if (auto* mapper = cart_.getMapper())
+                mapper->tick(1);
+
+            vic_.endCycle();
         }
         catch (const std::exception& e)
         {
@@ -253,46 +237,17 @@ bool EmulationSession::runFrame()
             return false;
         }
 
-        /*
-         * Each pass through this loop represents at least one
-         * machine cycle.
-         *
-         * Normally CPU::tick() increments totalCycles, including
-         * when an RDY/AEC stall prevents the operation from
-         * advancing. This fallback protects against a zero-cycle
-         * result causing an infinite loop.
-         */
-        if (elapsedCycles == 0)
-            elapsedCycles = 1;
-
-        /*
-         * Advance the remaining machine components by the same
-         * amount of elapsed machine time.
-         */
-        sid_.tick(elapsedCycles);
-
-        cia1_.updateTimers(elapsedCycles);
-        cia2_.updateTimers(elapsedCycles);
-
-        vic_.tick(elapsedCycles);
-        bus_.tick(elapsedCycles);
-
         if (vic_.isFrameDone())
         {
             vic_.clearFrameFlag();
             videoOutput_.finishFrameAndSignal();
         }
 
-        if (auto* mapper = cart_.getMapper())
-            mapper->tick(elapsedCycles);
+        ++frameCycles;
 
-        frameCycles += static_cast<int>(elapsedCycles);
+        if (runtime_.uiPaused.load())
+            break;
 
-        /*
-         * Safety valve: do not spin forever if the CPU is unable
-         * to reach an instruction boundary because of a broken
-         * arbitration state.
-         */
         if (frameCycles > targetCycles + 32)
             break;
     }

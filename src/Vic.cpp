@@ -1015,6 +1015,23 @@ void Vic::tick(int cycles)
     }
 }
 
+void Vic::beginCycle()
+{
+    beginFrameIfNeeded();
+    currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+    runCycleDecisionPhase();
+
+    // BA and AEC become visible before the CPU cycle.
+    updateBusArbitration();
+}
+
+void Vic::endCycle()
+{
+    runFetchPhase();
+    runPixelOutputPhase();
+    advanceCycleAndFinalizeLineIfNeeded();
+}
+
 void Vic::beginFrameIfNeeded()
 {
     // Clear frame-local badline/display qualifiers at the very start

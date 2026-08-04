@@ -57,6 +57,8 @@ class Vic
 
         // Tick method for cycle accurate updating of the raster, etc
         void tick(int cycles);
+        void beginCycle();
+        void endCycle();
 
         // Getter for AEC status
         inline bool getAEC() const { return AEC; }
