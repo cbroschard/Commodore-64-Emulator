@@ -3414,8 +3414,6 @@ bool CPU::executeCurrentMicroOp()
             traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
 
         executingMicroOp = false;
-        busCycleActive = false;
-        currentBusCycle = {};
         return false;
     }
 
@@ -3423,20 +3421,10 @@ bool CPU::executeCurrentMicroOp()
     {
         if (traceMgr)
         {
-            traceMgr->recordCPUBA(
-                "AEC low blocks CPU external bus cycle",
-                makeCpuStamp()
-            );
+            traceMgr->recordCPUBA("AEC low blocks CPU external bus cycle", makeCpuStamp());
         }
 
         executingMicroOp = false;
-        busCycleActive = false;
-        currentBusCycle = {};
-
-        /*
-         * Do not advance microOpIndex.
-         * Retry this same bus cycle when AEC returns high.
-         */
         return false;
     }
 
@@ -3462,11 +3450,8 @@ bool CPU::executeCurrentMicroOp()
         {
             microBaseAddress = microAddress;
 
-            const uint16_t indexed =
-                uint16_t(microBaseAddress + getIndexValue(op.index));
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+            const uint16_t indexed = uint16_t(microBaseAddress + getIndexValue(op.index));
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
 
             microAddress = indexed;
             break;
@@ -3476,10 +3461,7 @@ bool CPU::executeCurrentMicroOp()
         {
             if (microPageCrossed)
             {
-                const uint16_t dummy =
-                    uint16_t((microBaseAddress & 0xFF00) |
-                             (microAddress & 0x00FF));
-
+                const uint16_t dummy = uint16_t((microBaseAddress & 0xFF00) | (microAddress & 0x00FF));
                 (void)mem->read(dummy);
             }
 
@@ -3527,16 +3509,11 @@ bool CPU::executeCurrentMicroOp()
             const uint8_t hi = mem->read(PC);
             PC = uint16_t((PC + 1) & 0xFFFF);
 
-            const uint16_t base =
-                uint16_t((microAddress & 0x00FF) | (uint16_t(hi) << 8));
-
+            const uint16_t base = uint16_t((microAddress & 0x00FF) | (uint16_t(hi) << 8));
             microBaseAddress = base;
 
-            const uint16_t indexed =
-                uint16_t(microBaseAddress + getIndexValue(op.index));
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+            const uint16_t indexed = uint16_t(microBaseAddress + getIndexValue(op.index));
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
 
             microAddress = indexed;
 
@@ -3558,9 +3535,7 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::MemoryWrite:
         {
-            const uint16_t address =
-                op.useMicroAddress ? microAddress : op.address;
-
+            const uint16_t address = op.useMicroAddress ? microAddress : op.address;
             uint8_t value = op.value;
 
             switch (op.action)
@@ -3583,38 +3558,29 @@ bool CPU::executeCurrentMicroOp()
 
                 case CpuMicroAction::StoreYAndHighPlusOne:
                 {
-                    const uint16_t address =
-                        op.useMicroAddress ? microAddress : op.address;
-
+                    const uint16_t address = op.useMicroAddress ? microAddress : op.address;
                     value = uint8_t(Y & uint8_t(((address >> 8) + 1) & 0xFF));
                     break;
                 }
 
                 case CpuMicroAction::StoreXAndHighPlusOne:
                 {
-                    const uint16_t address =
-                        op.useMicroAddress ? microAddress : op.address;
-
+                    const uint16_t address = op.useMicroAddress ? microAddress : op.address;
                     value = uint8_t(X & uint8_t(((address >> 8) + 1) & 0xFF));
                     break;
                 }
 
                 case CpuMicroAction::StoreAAndXAndHighPlusOne:
                 {
-                    const uint16_t address =
-                        op.useMicroAddress ? microAddress : op.address;
-
+                    const uint16_t address = op.useMicroAddress ? microAddress : op.address;
                     value = uint8_t(A & X & uint8_t(((address >> 8) + 1) & 0xFF));
                     break;
                 }
 
                 case CpuMicroAction::StoreSPFromAAndXAndHighPlusOne:
                 {
-                    const uint16_t address =
-                        op.useMicroAddress ? microAddress : op.address;
-
+                    const uint16_t address = op.useMicroAddress ? microAddress : op.address;
                     SP = uint8_t(A & X);
-
                     value = uint8_t(SP & uint8_t(((address >> 8) + 1) & 0xFF));
                     break;
                 }
@@ -3629,9 +3595,7 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::MemoryRMWDummyWriteAndCompute:
         {
-            const uint16_t address =
-                op.useMicroAddress ? microAddress : op.address;
-
+            const uint16_t address = op.useMicroAddress ? microAddress : op.address;
             microRMWOldValue = microTemp;
             microRMWNewValue = applyRMWAction(op.action, microTemp);
 
@@ -3643,8 +3607,7 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::MemoryRMWFinalWrite:
         {
-            const uint16_t address =
-                op.useMicroAddress ? microAddress : op.address;
+            const uint16_t address = op.useMicroAddress ? microAddress : op.address;
 
             mem->write(address, microRMWNewValue);
             microTemp = microRMWNewValue;
@@ -3653,19 +3616,10 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::DummyRead:
         {
-            uint16_t address =
-                op.useMicroAddress ? microAddress : op.address;
+            uint16_t address = op.useMicroAddress ? microAddress : op.address;
 
-            // For absolute indexed stores, after ApplyAbsoluteIndex:
-            // microBaseAddress = original base
-            // microAddress     = final indexed address
-            //
-            // The dummy read is from old high byte + indexed low byte.
             if (!op.useMicroAddress && op.address == 0 && microBaseAddress != 0)
-            {
-                address = uint16_t((microBaseAddress & 0xFF00) |
-                                   (microAddress & 0x00FF));
-            }
+                address = uint16_t((microBaseAddress & 0xFF00) |(microAddress & 0x00FF));
 
             (void)mem->read(address);
             break;
@@ -3681,18 +3635,12 @@ bool CPU::executeCurrentMicroOp()
         {
             microBaseAddress = microAddress;
 
-            const uint16_t indexed =
-                uint16_t(microBaseAddress + getIndexValue(op.index));
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
+            const uint16_t indexed =  uint16_t(microBaseAddress + getIndexValue(op.index));
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
 
             microAddress = indexed;
 
-            const uint16_t dummy =
-                uint16_t((microBaseAddress & 0xFF00) |
-                         (microAddress & 0x00FF));
-
+            const uint16_t dummy = uint16_t((microBaseAddress & 0xFF00) |(microAddress & 0x00FF));
             (void)mem->read(dummy);
             break;
         }
@@ -3737,11 +3685,7 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::ReadPointerHighAndBuildPointerAddress:
         {
             microPtrHigh = mem->read(uint8_t(microZP + 1));
-
-            microAddress =
-                uint16_t(microPtrLow) |
-                (uint16_t(microPtrHigh) << 8);
-
+            microAddress = uint16_t(microPtrLow) |(uint16_t(microPtrHigh) << 8);
             break;
         }
 
@@ -3754,12 +3698,8 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::ApplyIndirectYIndex:
         {
             microBaseAddress = microAddress;
-
             const uint16_t indexed = uint16_t(microBaseAddress + Y);
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
-
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
             microAddress = indexed;
             break;
         }
@@ -3767,16 +3707,9 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::ReadPointerHighAndApplyIndirectYForRead:
         {
             microPtrHigh = mem->read(uint8_t(microZP + 1));
-
-            microBaseAddress =
-                uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
-
-            const uint16_t indexed =
-                uint16_t(microBaseAddress + Y);
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
-
+            microBaseAddress = uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
+            const uint16_t indexed = uint16_t(microBaseAddress + Y);
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
             microAddress = indexed;
 
             // For read/ALU ($zp),Y instructions, the dummy read only happens
@@ -3791,15 +3724,9 @@ bool CPU::executeCurrentMicroOp()
         {
             microPtrHigh = mem->read(uint8_t(microZP + 1));
 
-            microBaseAddress =
-                uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
-
-            const uint16_t indexed =
-                uint16_t(microBaseAddress + Y);
-
-            microPageCrossed =
-                (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
-
+            microBaseAddress = uint16_t(microPtrLow) | (uint16_t(microPtrHigh) << 8);
+            const uint16_t indexed = uint16_t(microBaseAddress + Y);
+            microPageCrossed = (microBaseAddress & 0xFF00) != (indexed & 0xFF00);
             microAddress = indexed;
             break;
         }
@@ -3807,9 +3734,7 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroOpKind::StackRead:
         {
             SP = uint8_t(SP + 1);
-
-            const uint8_t value =
-                mem->read(uint16_t(0x0100 | SP));
+            const uint8_t value = mem->read(uint16_t(0x0100 | SP));
 
             switch (op.action)
             {
@@ -3927,17 +3852,13 @@ bool CPU::executeCurrentMicroOp()
 
                 case CpuMicroAction::PushInterruptReturnHigh:
                 {
-                    value = static_cast<uint8_t>(
-                        (microReturnAddress >> 8) & 0xFF
-                    );
+                    value = static_cast<uint8_t>((microReturnAddress >> 8) & 0xFF);
                     break;
                 }
 
                 case CpuMicroAction::PushInterruptReturnLow:
                 {
-                    value = static_cast<uint8_t>(
-                        microReturnAddress & 0xFF
-                    );
+                    value = static_cast<uint8_t>(microReturnAddress & 0xFF);
                     break;
                 }
 
@@ -3969,16 +3890,9 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::ReadJmpIndirectHigh:
         {
-            const uint16_t highAddr =
-                uint16_t((microPointerAddress & 0xFF00) |
-                         ((microPointerAddress + 1) & 0x00FF));
-
+            const uint16_t highAddr = uint16_t((microPointerAddress & 0xFF00) | ((microPointerAddress + 1) & 0x00FF));
             microJmpHigh = mem->read(highAddr);
-
-            microAddress =
-                uint16_t(microJmpLow) |
-                (uint16_t(microJmpHigh) << 8);
-
+            microAddress = uint16_t(microJmpLow) |(uint16_t(microJmpHigh) << 8);
             break;
         }
 
@@ -4085,12 +3999,8 @@ bool CPU::executeCurrentMicroOp()
             (void)mem->read(PC);
 
             microOldPC = PC;
-
-            const uint16_t newPC =
-                uint16_t(PC + microBranchOffset);
-
-            microPageCrossed =
-                (PC & 0xFF00) != (newPC & 0xFF00);
+            const uint16_t newPC =  uint16_t(PC + microBranchOffset);
+            microPageCrossed = (PC & 0xFF00) != (newPC & 0xFF00);
 
             microAddress = newPC;
 
@@ -4111,10 +4021,7 @@ bool CPU::executeCurrentMicroOp()
             if (microBranchTaken)
             {
                 const uint16_t newPC = uint16_t(PC + microBranchOffset);
-
-                microPageCrossed =
-                    (PC & 0xFF00) != (newPC & 0xFF00);
-
+                microPageCrossed = (PC & 0xFF00) != (newPC & 0xFF00);
                 microAddress = newPC;
             }
 
@@ -4125,12 +4032,8 @@ bool CPU::executeCurrentMicroOp()
         {
             if (microBranchTaken && microPageCrossed)
             {
-                const uint16_t dummy =
-                    uint16_t((microOldPC & 0xFF00) |
-                             (microAddress & 0x00FF));
-
+                const uint16_t dummy = uint16_t((microOldPC & 0xFF00) |(microAddress & 0x00FF));
                 (void)mem->read(dummy);
-
                 PC = microAddress;
             }
 
@@ -4273,7 +4176,6 @@ bool CPU::executeCurrentMicroOp()
         case CpuMicroAction::ClearInterruptDisable:
             setFlag(I, false);
 
-            // Keep your existing CLI one-instruction IRQ suppression behavior.
             irqSuppressOne = true;
             break;
 
@@ -6380,9 +6282,6 @@ void CPU::buildIndirectYRMW(CpuMicroAction action)
     applyY.action = CpuMicroAction::None;
     pushMicroOp(applyY);
 
-    // RMW indexed addressing does a dummy read before the real read.
-    // Your DummyRead handler uses microBaseAddress/microAddress to form
-    // old-high-byte + indexed-low-byte when address is 0.
     CpuMicroOp dummyRead;
     dummyRead.kind = CpuMicroOpKind::DummyRead;
     dummyRead.busType = CpuBusCycleType::DummyRead;
