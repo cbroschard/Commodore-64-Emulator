@@ -7407,14 +7407,31 @@ bool CPU::tickMicroOps()
 
         lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
 
-        /*
-         * Opcodes that have not yet been converted to micro-ops
-         * continue to use the legacy atomic execution path.
-         */
         if (!lastOpcodeMicroOpCapable)
         {
             lastOpcodeUsedMicroOps = false;
 
+            if (vicBusArbitrationEnabled)
+            {
+                std::ostringstream oss;
+
+                oss << "Missing cycle-accurate micro-ops for opcode $"
+                    << std::hex
+                    << std::uppercase
+                    << std::setw(2)
+                    << std::setfill('0')
+                    << static_cast<int>(opcode)
+                    << " at PC=$"
+                    << std::setw(4)
+                    << opcodePC;
+
+                throw std::runtime_error(oss.str());
+            }
+
+            /*
+             * Legacy execution remains available when hardware-accurate
+             * VIC arbitration is disabled.
+             */
             decodeAndExecute(opcode);
 
             cycles += CYCLE_COUNTS[opcode];
