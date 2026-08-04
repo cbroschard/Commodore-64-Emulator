@@ -6142,7 +6142,6 @@ void CPU::buildIndirectYRead(CpuMicroAction action)
 
 void CPU::buildIndirectXRMW(CpuMicroAction action)
 {
-    // Read zero-page operand.
     CpuMicroOp readZp;
     readZp.kind = CpuMicroOpKind::OperandReadToZP;
     readZp.busType = CpuBusCycleType::Read;
@@ -6153,18 +6152,16 @@ void CPU::buildIndirectXRMW(CpuMicroAction action)
     readZp.action = CpuMicroAction::None;
     pushMicroOp(readZp);
 
-    // Apply X to zero-page pointer address.
-    CpuMicroOp applyX;
-    applyX.kind = CpuMicroOpKind::ApplyIndirectXIndex;
-    applyX.busType = CpuBusCycleType::None;
-    applyX.address = 0;
-    applyX.value = 0;
-    applyX.useMicroAddress = false;
-    applyX.index = CpuIndexReg::None;
-    applyX.action = CpuMicroAction::None;
-    pushMicroOp(applyX);
+    CpuMicroOp dummyAndApplyX;
+    dummyAndApplyX.kind = CpuMicroOpKind::ApplyIndirectXIndexAndDummyRead;
+    dummyAndApplyX.busType = CpuBusCycleType::DummyRead;
+    dummyAndApplyX.address = 0;
+    dummyAndApplyX.value = 0;
+    dummyAndApplyX.useMicroAddress = false;
+    dummyAndApplyX.index = CpuIndexReg::None;
+    dummyAndApplyX.action = CpuMicroAction::None;
+    pushMicroOp(dummyAndApplyX);
 
-    // Read pointer low byte from zero page.
     CpuMicroOp readPtrLo;
     readPtrLo.kind = CpuMicroOpKind::ReadPointerLow;
     readPtrLo.busType = CpuBusCycleType::Read;
@@ -6175,29 +6172,16 @@ void CPU::buildIndirectXRMW(CpuMicroAction action)
     readPtrLo.action = CpuMicroAction::None;
     pushMicroOp(readPtrLo);
 
-    // Read pointer high byte from zero page, wrapping at $FF.
-    CpuMicroOp readPtrHi;
-    readPtrHi.kind = CpuMicroOpKind::ReadPointerHigh;
-    readPtrHi.busType = CpuBusCycleType::Read;
-    readPtrHi.address = 0;
-    readPtrHi.value = 0;
-    readPtrHi.useMicroAddress = false;
-    readPtrHi.index = CpuIndexReg::None;
-    readPtrHi.action = CpuMicroAction::None;
-    pushMicroOp(readPtrHi);
+    CpuMicroOp readPtrHiAndBuildAddress;
+    readPtrHiAndBuildAddress.kind = CpuMicroOpKind::ReadPointerHighAndBuildPointerAddress;
+    readPtrHiAndBuildAddress.busType = CpuBusCycleType::Read;
+    readPtrHiAndBuildAddress.address = 0;
+    readPtrHiAndBuildAddress.value = 0;
+    readPtrHiAndBuildAddress.useMicroAddress = false;
+    readPtrHiAndBuildAddress.index = CpuIndexReg::None;
+    readPtrHiAndBuildAddress.action = CpuMicroAction::None;
+    pushMicroOp(readPtrHiAndBuildAddress);
 
-    // Build effective address.
-    CpuMicroOp buildAddress;
-    buildAddress.kind = CpuMicroOpKind::BuildPointerAddress;
-    buildAddress.busType = CpuBusCycleType::None;
-    buildAddress.address = 0;
-    buildAddress.value = 0;
-    buildAddress.useMicroAddress = false;
-    buildAddress.index = CpuIndexReg::None;
-    buildAddress.action = CpuMicroAction::None;
-    pushMicroOp(buildAddress);
-
-    // Read old memory value.
     CpuMicroOp readValue;
     readValue.kind = CpuMicroOpKind::MemoryRead;
     readValue.busType = CpuBusCycleType::Read;
@@ -6218,7 +6202,6 @@ void CPU::buildIndirectXRMW(CpuMicroAction action)
     dummyWriteAndCompute.action = action;
     pushMicroOp(dummyWriteAndCompute);
 
-    // Final write modified value.
     CpuMicroOp finalWrite;
     finalWrite.kind = CpuMicroOpKind::MemoryRMWFinalWrite;
     finalWrite.busType = CpuBusCycleType::Write;
