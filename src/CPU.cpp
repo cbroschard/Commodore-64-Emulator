@@ -8119,3 +8119,11 @@ void CPU::recordExecutionHistory(uint16_t instructionPC)
 
     executionHistory->record(entry);
 }
+
+void CPU::setVICBusArbitrationEnabled(bool enabled)
+{
+    vicBusArbitrationEnabled = enabled;
+
+    if (vicBusArbitrationEnabled)
+        useMicroOps = true;
+}

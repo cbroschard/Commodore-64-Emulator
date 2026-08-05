@@ -567,10 +567,10 @@ class CPU
         std::string dumpMicroOpStatus() const;
 
         // Bus Arbitration
-        inline void setVICBusArbitrationEnabled(bool enabled) { vicBusArbitrationEnabled = enabled; }
         inline bool isVICBusArbitrationEnabled() const { return vicBusArbitrationEnabled; }
         inline void setUseMicroOps(bool enabled) { useMicroOps = enabled; }
         inline bool getUseMicroOps() const { return useMicroOps; }
+        void setVICBusArbitrationEnabled(bool enabled);
 
         // ML Monitor
         inline uint32_t getTotalCycles() const { return totalCycles; }
