@@ -125,6 +125,15 @@ class Vic
             Idle
         };
 
+        enum class SpriteFetchPhase : uint8_t
+        {
+            None,
+            Pointer,
+            Data0,
+            Data1,
+            Data2
+        };
+
         struct VicCycleSlot
         {
             FetchKind fetchKind = FetchKind::None;
@@ -157,6 +166,8 @@ class Vic
             int spriteIndex = -1;
             int spriteByteIndex = -1;
             int matrixFetchIndex = -1;
+
+            SpriteFetchPhase spriteFetchPhase = SpriteFetchPhase::None;
         };
 
         struct VicCycleDebugSnapshot
@@ -1158,6 +1169,9 @@ class Vic
         void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
 
+        SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle) const;
+        bool spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const;
+
         ActiveBackgroundPixelState activeBgPixel;
 
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
@@ -1195,15 +1209,9 @@ class Vic
                                        int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorBitmapSourceForBits(uint8_t bits) const;
 
-        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
-                                      uint8_t fg, uint8_t bg,
-                                      BackgroundSource bgSource,
-                                      int x0, int x1,
+        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource, int x0, int x1,
                                       int startPhase, int endPhase);
-        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
-                                  uint8_t fg, uint8_t bg,
-                                  BackgroundSource bgSource,
-                                  int x0, int x1,
+        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource, int x0, int x1,
                                   int& phase, int pixelCount);
 
         void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);

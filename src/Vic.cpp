@@ -2470,24 +2470,12 @@ bool Vic::isSpriteDataCpuStealCycle(int sprite, int cycle) const
     if (sprite < 0 || sprite >= 8)
         return false;
 
-    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
-        return false;
-
     if (!spriteUnits[sprite].dmaActive)
         return false;
 
-    if (!isSpriteDMAFetchCycle(sprite, cycle))
-        return false;
+    const SpriteFetchPhase phase =  spriteFetchPhaseForCycle(sprite, cycle);
 
-    const int byteIndex = spriteDataByteIndexForCycle(sprite, cycle);
-
-    // Sprite row data is still fetched as 3 bytes, but only two of those
-    // occupy the CPU-visible bus phase in this full-cycle approximation.
-    //
-    // byte 0: CPU-phase steal
-    // byte 1: VIC-phase fetch, do not halt CPU in this model
-    // byte 2: CPU-phase steal
-    return byteIndex == 0 || byteIndex == 2;
+    return spriteFetchPhaseStealsCpu(phase);
 }
 
 bool Vic::isBadLine(int raster) const
@@ -2524,6 +2512,9 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         return slot;
 
     slot.fetchKind = getFetchKindForCycle(raster, cycle);
+
+    if (slot.spriteIndex >= 0)
+        slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle);
 
     slot.badlineWarning = isBadLineBusWarningCycle(raster, cycle);
     slot.badlineSteal   = isBadLineBusStealCycle(raster, cycle);
@@ -2938,6 +2929,48 @@ bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
     return spriteBehindLine[sprite][px] != 0;
 }
 
+Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return SpriteFetchPhase::None;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return SpriteFetchPhase::None;
+
+    const int lineCycles = cfg_->cyclesPerLine;
+    const int slotStart = spriteFetchSlotStart(sprite);
+
+    if (cycle == slotStart)
+        return SpriteFetchPhase::Pointer;
+
+    if (cycle == ((slotStart + 1) % lineCycles))
+        return SpriteFetchPhase::Data0;
+
+    if (cycle == ((slotStart + 2) % lineCycles))
+        return SpriteFetchPhase::Data1;
+
+    if (cycle == ((slotStart + 3) % lineCycles))
+        return SpriteFetchPhase::Data2;
+
+    return SpriteFetchPhase::None;
+}
+
+bool Vic::spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const
+{
+    switch (phase)
+    {
+        case SpriteFetchPhase::Data0:
+        case SpriteFetchPhase::Data2:
+            return true;
+
+        case SpriteFetchPhase::None:
+        case SpriteFetchPhase::Pointer:
+        case SpriteFetchPhase::Data1:
+        default:
+            return false;
+    }
+}
+
 Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const
 {
     BackgroundLineGeometry g {};
@@ -3238,8 +3271,7 @@ void Vic::resetBackgroundPipeline()
     bgPipeline.ecm = false;
 }
 
-void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
-                                              uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
+void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
                                               int x0, int x1, int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
@@ -3314,9 +3346,7 @@ Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
-                                              uint8_t fg, uint8_t bg,
-                                              int x0, int x1,
+void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1,
                                               int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
@@ -3357,10 +3387,8 @@ void Vic::stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, u
     phase = endPhase;
 }
 
-void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
-                                                uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
-                                                int x0, int x1,
-                                                int startPhase, int endPhase)
+void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                                int x0, int x1, int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
     const int end   = std::min(8, endPhase);
@@ -3404,20 +3432,13 @@ void Vic::stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowB
                 break;
         }
 
-        stampBackgroundPixelSource(
-            px,
-            py,
-            color,
-            opaque,
-            multicolorBitmapSourceForBits(bits)
+        stampBackgroundPixelSource(px, py, color, opaque, multicolorBitmapSourceForBits(bits)
         );
     }
 }
 
-void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits,
-                                            uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
-                                            int x0, int x1,
-                                            int& phase, int pixelCount)
+void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
+                                            int x0, int x1, int& phase, int pixelCount)
 {
     if (pixelCount <= 0)
         return;
@@ -3425,9 +3446,7 @@ void Vic::stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits,
     const int startPhase = std::clamp(phase, 0, 8);
     const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
 
-    stampMulticolorBitmapRowBitsFromPhase(pxBase, py, rowBits, c00, c01, c10, c11,
-                                          x0, x1, startPhase, endPhase);
-
+    stampMulticolorBitmapRowBitsFromPhase(pxBase, py, rowBits, c00, c01, c10, c11, x0, x1, startPhase, endPhase);
     phase = endPhase;
 }
 
@@ -3444,11 +3463,8 @@ Vic::BackgroundSource Vic::multicolorBitmapSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
-                                   uint8_t fg, uint8_t bg,
-                                   BackgroundSource bgSource,
-                                   int x0, int x1,
-                                   int startPhase, int endPhase)
+void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource,
+                                   int x0, int x1, int startPhase, int endPhase)
 {
     const int begin = std::max(0, startPhase);
     const int end   = std::min(8, endPhase);
@@ -3464,21 +3480,13 @@ void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits,
 
         const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
 
-        stampBackgroundPixelSource(
-            px,
-            py,
-            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
-            pixelOn,
-            pixelOn ? BackgroundSource::Foreground : bgSource
+        stampBackgroundPixelSource(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn, pixelOn ? BackgroundSource::Foreground : bgSource
         );
     }
 }
 
-void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
-                               uint8_t fg, uint8_t bg,
-                               BackgroundSource bgSource,
-                               int x0, int x1,
-                               int& phase, int pixelCount)
+void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource,
+                               int x0, int x1, int& phase, int pixelCount)
 {
     if (pixelCount <= 0)
         return;
@@ -3486,31 +3494,13 @@ void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits,
     const int startPhase = std::clamp(phase, 0, 8);
     const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
 
-    stampECMRowBitsFromPhase(
-        pxBase,
-        py,
-        rowBits,
-        fg,
-        bg,
-        bgSource,
-        x0,
-        x1,
-        startPhase,
-        endPhase
-    );
-
+    stampECMRowBitsFromPhase(pxBase, py, rowBits, fg, bg, bgSource, x0, x1, startPhase, endPhase);
     phase = endPhase;
 }
 
 void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
 {
-    stampBackgroundPixelSource(
-        px,
-        py,
-        color,
-        opaque,
-        opaque ? BackgroundSource::Foreground : BackgroundSource::BG0
-    );
+    stampBackgroundPixelSource(px, py, color, opaque, opaque ? BackgroundSource::Foreground : BackgroundSource::BG0);
 }
 
 void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
@@ -3569,8 +3559,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(yInChar & 0x07));
 
-    const uint8_t rowBits =
-        mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     out.valid = true;
     out.px = px;
@@ -3629,15 +3618,9 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
-    const uint16_t cellIndex =
-        static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
-
-    const uint16_t bitmapBase =
-        getLatchedBitmapBase(raster);
-
-    const uint16_t addr =
-        static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
-
+    const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
+    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
+    const uint16_t addr = static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
 
@@ -3667,8 +3650,7 @@ void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int rast
     const uint8_t cellColor = static_cast<uint8_t>(bgPipeline.fgColor & 0x07);
 
     int phase = 0;
-    stampMulticolorTextPipelineSpan(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor,
-                                    x0, x1, phase, 8);
+    stampMulticolorTextPipelineSpan(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1, phase, 8);
 }
 
 void Vic::renderTextLine(int raster, int xScroll)
@@ -3772,14 +3754,9 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
-    const uint16_t cellIndex =
-        static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
-
-    const uint16_t bitmapBase =
-        getLatchedBitmapBase(raster);
-
-    const uint16_t addr =
-        static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
+    const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
+    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
+    const uint16_t addr = static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
 
     const uint8_t bitmapByte = mem->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
@@ -3812,8 +3789,7 @@ void Vic::drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& 
     updateOpenBus(rowBits);
 
     int phase = 0;
-    stampMulticolorBitmapPipelineSpan(cell.px, cell.py, rowBits, c00, c01, c10, c11,
-                                      x0, x1, phase, 8);
+    stampMulticolorBitmapPipelineSpan(cell.px, cell.py, rowBits, c00, c01, c10, c11, x0, x1, phase, 8);
 }
 
 void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
@@ -3875,19 +3851,10 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
     const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
 
-    const uint16_t charBase =
-        charBaseForRasterPixelX(raster, px);
+    const uint16_t charBase = charBaseForRasterPixelX(raster, px);
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(yInChar & 0x07));
 
-    const uint16_t charAddr =
-        static_cast<uint16_t>(
-            charBase +
-            static_cast<uint16_t>(charIndex) * 8 +
-            static_cast<uint16_t>(yInChar & 0x07)
-        );
-
-    const uint8_t rowBits =
-        mem ? mem->vicRead(charAddr, raster) : 0x00;
-
+    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
     uint8_t bgColor = 0;
     BackgroundSource bgSource = BackgroundSource::BG0;
 
@@ -3945,18 +3912,7 @@ void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, 
 
     int phase = 0;
 
-    stampECMPipelineSpan(
-        cell.px,
-        cell.py,
-        rowBits,
-        fg,
-        bg,
-        bgPipeline.bgSource,
-        x0,
-        x1,
-        phase,
-        8
-    );
+    stampECMPipelineSpan(cell.px, cell.py, rowBits, fg, bg, bgPipeline.bgSource, x0, x1, phase,8);
 }
 
 void Vic::renderECMLine(int raster, int xScroll)
@@ -5468,18 +5424,13 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.rasterIrqTarget = registers.rasterInterruptLine & 0x01FF;
     s.rasterIrqTargetInRange = s.rasterIrqTarget < cfg_->maxRasterLines;
 
-    s.rasterIrqCompareMatch =
-        s.rasterIrqTargetInRange &&
-        static_cast<uint16_t>(raster) == s.rasterIrqTarget;
+    s.rasterIrqCompareMatch = s.rasterIrqTargetInRange && static_cast<uint16_t>(raster) == s.rasterIrqTarget;
 
     s.rasterIrqEnabled = (registers.interruptEnable & 0x01) != 0;
     s.rasterIrqPending = (registers.interruptStatus & 0x01) != 0;
     s.irqLineActiveNow = irqLineActive();
 
-    s.badLine =
-        (raster == registers.raster)
-            ? vicState.badLineSampled
-            : isBadLine(raster);
+    s.badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
 
     s.denAtRaster = (d011_per_raster[raster] & 0x10) != 0;
     s.denSeenOn30 = denSeenOn30;
