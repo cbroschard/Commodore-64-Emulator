@@ -3289,30 +3289,23 @@ bool CPU::tryFetchOpcode(uint8_t& opcode)
         pendingOpcodeAddress = PC;
     }
 
-    currentBusCycle = {CpuBusCycleType::OpcodeFetch, pendingOpcodeAddress, 0};
-
+    currentBusCycle = {CpuBusCycleType::OpcodeFetch, pendingOpcodeAddress,0};
     busCycleActive = true;
 
-    /*
-     * RDY only holds read cycles.
-     */
-    if (vicBusArbitrationEnabled && !rdyLine)
+    if (vicBusArbitrationEnabled && !aecLine)
     {
         if (traceMgr)
-            traceMgr->recordCPUBA("RDY low stalls opcode fetch", makeCpuStamp());
+            traceMgr->recordCPUBA("AEC low blocks opcode fetch", makeCpuStamp());
 
         busCycleActive = false;
         currentBusCycle = {};
         return false;
     }
 
-    /*
-     * AEC low means the CPU does not own the external bus.
-     */
-    if (vicBusArbitrationEnabled && !aecLine)
+    if (vicBusArbitrationEnabled && !rdyLine)
     {
         if (traceMgr)
-            traceMgr->recordCPUBA("AEC low blocks opcode fetch", makeCpuStamp());
+            traceMgr->recordCPUBA("RDY low stalls opcode fetch", makeCpuStamp());
 
         busCycleActive = false;
         currentBusCycle = {};
@@ -3395,36 +3388,30 @@ bool CPU::executeCurrentMicroOp()
 
     CpuMicroOp& op = microOps[microOpIndex];
 
-    const uint16_t effectiveAddress =
-        op.useMicroAddress ? microAddress : op.address;
+    const uint16_t effectiveAddress = op.useMicroAddress ? microAddress : op.address;
 
-    currentBusCycle =
-    {
-        op.busType,
-        effectiveAddress,
-        op.value
-    };
+    currentBusCycle = {op.busType, effectiveAddress, op.value};
 
     busCycleActive = (op.busType != CpuBusCycleType::None);
     executingMicroOp = true;
 
-    if (shouldRDYStallForBusCycle(op.busType))
-    {
-        if (traceMgr)
-            traceMgr->recordCPUBA("RDY/BA low stalls CPU micro-op", makeCpuStamp());
-
-        executingMicroOp = false;
-        return false;
-    }
-
     if (shouldAECBlockBusCycle(op.busType))
     {
         if (traceMgr)
-        {
             traceMgr->recordCPUBA("AEC low blocks CPU external bus cycle", makeCpuStamp());
-        }
 
         executingMicroOp = false;
+        busCycleActive = false;
+        return false;
+    }
+
+    if (shouldRDYStallForBusCycle(op.busType))
+    {
+        if (traceMgr)
+            traceMgr->recordCPUBA("RDY/BA low stalls CPU read-like micro-op", makeCpuStamp());
+
+        executingMicroOp = false;
+        busCycleActive = false;
         return false;
     }
 
@@ -7265,10 +7252,6 @@ bool CPU::tickMicroOps()
         uint16_t opcodePC = 0;
         uint8_t opcode = 0;
 
-        /*
-         * If an opcode fetch was already started but stalled by RDY,
-         * resume that exact fetch before checking IRQ or NMI again.
-         */
         if (pendingOpcodeFetch)
         {
             opcodePC = pendingOpcodeAddress;
@@ -7281,16 +7264,8 @@ bool CPU::tickMicroOps()
         }
         else
         {
-            /*
-             * Interrupts are sampled only before beginning a new
-             * opcode fetch.
-             */
             if (beginPendingInterruptMicroOps())
             {
-                /*
-                 * Interrupt entry does not have a normal opcode-fetch
-                 * cycle, so execute its first micro-op immediately.
-                 */
                 if (!executeCurrentMicroOp())
                 {
                     ++totalCycles;
@@ -7302,7 +7277,6 @@ bool CPU::tickMicroOps()
                 if (microOpIndex >= microOpCount)
                 {
                     lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
-
                     clearMicroOps();
                 }
 
@@ -7310,10 +7284,6 @@ bool CPU::tickMicroOps()
                 return true;
             }
 
-            /*
-             * Legacy atomic instructions may still have remaining
-             * cycles to consume.
-             */
             if (cycles > 0)
             {
                 --cycles;
@@ -7323,10 +7293,6 @@ bool CPU::tickMicroOps()
 
             opcodePC = PC;
 
-            /*
-             * Start a new opcode fetch. If RDY is low, the fetch
-             * remains pending and is retried on the next CPU tick.
-             */
             if (!tryFetchOpcode(opcode))
             {
                 ++totalCycles;
@@ -7334,9 +7300,6 @@ bool CPU::tickMicroOps()
             }
         }
 
-        /*
-         * The opcode has now actually been fetched.
-         */
         recordExecutionHistory(opcodePC);
 
         activeOpcodePC = opcodePC;
@@ -7368,10 +7331,6 @@ bool CPU::tickMicroOps()
                 throw std::runtime_error(oss.str());
             }
 
-            /*
-             * Legacy execution remains available when hardware-accurate
-             * VIC arbitration is disabled.
-             */
             decodeAndExecute(opcode);
 
             cycles += CYCLE_COUNTS[opcode];
@@ -7381,10 +7340,6 @@ bool CPU::tickMicroOps()
             return true;
         }
 
-        /*
-         * Build the remaining cycles for a micro-op-capable opcode.
-         * The opcode-fetch cycle has already occurred during this tick.
-         */
         buildMicroOpsForOpcode(opcode);
 
         microSequenceType = CpuMicroSequenceType::Opcode;
@@ -7396,21 +7351,10 @@ bool CPU::tickMicroOps()
 
         executedMicroOpsThisInstruction = 0;
 
-        /*
-         * Do not execute the first post-opcode micro-op now.
-         * This tick was the opcode-fetch cycle.
-         */
         ++totalCycles;
         return true;
     }
 
-    /*
-     * Execute exactly one post-opcode micro-op during this tick.
-     *
-     * When RDY is low during a read-like operation,
-     * executeCurrentMicroOp() returns false without advancing
-     * microOpIndex. The same operation is retried next tick.
-     */
     if (!executeCurrentMicroOp())
     {
         ++totalCycles;
@@ -7422,7 +7366,6 @@ bool CPU::tickMicroOps()
     if (microOpIndex >= microOpCount)
     {
         lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
-
         clearMicroOps();
     }
 
