@@ -1171,6 +1171,7 @@ class Vic
 
         SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle) const;
         bool spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const;
+        int firstSpriteCpuStealCycle(int sprite) const;
 
         ActiveBackgroundPixelState activeBgPixel;
 

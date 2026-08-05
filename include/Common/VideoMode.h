@@ -10,6 +10,11 @@
 
 #include <cstdint>
 
+static constexpr uint8_t SPRITE_STEAL_POINTER = 1u << 1;
+static constexpr uint8_t SPRITE_STEAL_DATA0   = 1u << 2;
+static constexpr uint8_t SPRITE_STEAL_DATA1   = 1u << 3;
+static constexpr uint8_t SPRITE_STEAL_DATA2   = 1u << 4;
+
 // Video mode
 enum class VideoMode { NTSC, PAL};
 
@@ -31,6 +36,7 @@ struct ModeConfig
     int      bgFetchEndCycle;
     int      refreshStartCycle;
     int      spriteFetchSlots[8];
+    uint8_t  spriteCpuStealPhaseMask;
 };
 
 inline constexpr ModeConfig NTSC_CONFIG =
@@ -50,7 +56,8 @@ inline constexpr ModeConfig NTSC_CONFIG =
     15,    // bgFetchStartCycle
     54,     // bgFetchEndCycle
     55,     // refreshStartSlots
-    {55,58,61,64,2,5,8,11} // spriteFetchCycle
+    {55,58,61,64,2,5,8,11}, // spriteFetchCycle
+    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2 // spriteCpuStealPhaseMask
 };
 
 inline constexpr ModeConfig PAL_CONFIG =
@@ -70,7 +77,8 @@ inline constexpr ModeConfig PAL_CONFIG =
     14,    // bgFetchStartCycle
     53,     // bgFetchEndCycle
     54,     // refreshStartSlots
-    {54,57,60,0,3,6,9,12} // spriteFetchCycle
+    {54,57,60,0,3,6,9,12}, // spriteFetchCycle
+    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2 // spriteCpuStealPhaseMask
 };
 
 #endif // VIDEOMODE_H_INCLUDED

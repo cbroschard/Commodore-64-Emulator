@@ -2412,10 +2412,10 @@ bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        const int slotStart = spriteFetchSlotStart(s);
+        const int firstCpuStealCycle = firstSpriteCpuStealCycle(s);
 
-        // Data byte 0 is the first CPU-visible sprite data steal in this model.
-        const int firstCpuStealCycle = (slotStart + 1) % lineCycles;
+        if (firstCpuStealCycle < 0)
+            continue;
 
         const int warn0 = (firstCpuStealCycle - 3 + lineCycles) % lineCycles;
         const int warn1 = (firstCpuStealCycle - 2 + lineCycles) % lineCycles;
@@ -2957,18 +2957,36 @@ Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle) const
 
 bool Vic::spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const
 {
-    switch (phase)
-    {
-        case SpriteFetchPhase::Data0:
-        case SpriteFetchPhase::Data2:
-            return true;
+    const auto phaseIndex = static_cast<uint8_t>(phase);
 
-        case SpriteFetchPhase::None:
-        case SpriteFetchPhase::Pointer:
-        case SpriteFetchPhase::Data1:
-        default:
-            return false;
+    if (phaseIndex >= 8)
+        return false;
+
+    const uint8_t phaseBit = static_cast<uint8_t>(1u << phaseIndex);
+
+    return (cfg_->spriteCpuStealPhaseMask & phaseBit) != 0;
+}
+
+int Vic::firstSpriteCpuStealCycle(int sprite) const
+{
+    const int lineCycles = cfg_->cyclesPerLine;
+    const int slotStart = spriteFetchSlotStart(sprite);
+
+    const std::array<std::pair<SpriteFetchPhase, int>, 4> phases =
+    {{
+        { SpriteFetchPhase::Pointer, 0 },
+        { SpriteFetchPhase::Data0,   1 },
+        { SpriteFetchPhase::Data1,   2 },
+        { SpriteFetchPhase::Data2,   3 }
+    }};
+
+    for (const auto& [phase, offset] : phases)
+    {
+        if (spriteFetchPhaseStealsCpu(phase))
+            return (slotStart + offset) % lineCycles;
     }
+
+    return -1;
 }
 
 Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const
