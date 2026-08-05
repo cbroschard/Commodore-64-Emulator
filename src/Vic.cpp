@@ -77,7 +77,6 @@ void Vic::reset()
 
     // AEC
     currentCycle = 0;
-    AEC = true;
 
     // Raster IRQ
     rasterIrqSampledThisLine = false;
@@ -358,9 +357,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(denSeenOn30);
     wrtr.writeI32(firstBadlineY);
 
-    // Dump AEC
-    wrtr.writeBool(AEC);
-
     // Dump State
     wrtr.writeU16(vicState.vcBase);
     wrtr.writeU16(vicState.vmliBase);
@@ -518,8 +514,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(denSeenOn30))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readI32(firstBadlineY))                        { rdr.exitChunkPayload(chunk); return false; }
-
-        if (!rdr.readBool(AEC))                                 { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU16(vicState.vcBase))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vmliBase))                    { rdr.exitChunkPayload(chunk); return false; }
@@ -2313,8 +2307,6 @@ void Vic::updateBusArbitration()
 
     vicState.ba  = !baLow;
     vicState.aec = !aecLow;
-
-    AEC = vicState.aec;
 
     if (cpu)
     {

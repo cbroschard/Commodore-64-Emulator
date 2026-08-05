@@ -12,7 +12,7 @@
 EasyFlashMapper::EasyFlashMapper() :
     selectedBank(0)
 {
-    control.raw = 0x05; // M=1, X=0, G=1 => /GAME low, /EXROM high, Ultimax boot
+    control.raw = 0x00;
     dfRam.fill(0x00);
 }
 
@@ -194,6 +194,20 @@ void EasyFlashMapper::applyControlRegister(uint8_t value)
     {
         cart->setExROMLine(!x);
     }
+}
+
+void EasyFlashMapper::reset()
+{
+    selectedBank = 0;
+    control.raw = 0x00;
+
+    if (!cart || !mem)
+        return;
+
+    cart->setGameLine(false);
+    cart->setExROMLine(true);
+
+    loadIntoMemory(0);
 }
 
 bool EasyFlashMapper::readDrivesBus(uint16_t address) const

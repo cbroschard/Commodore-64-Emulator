@@ -60,8 +60,9 @@ class Vic
         void beginCycle();
         void endCycle();
 
-        // Getter for AEC status
-        inline bool getAEC() const { return AEC; }
+        // Getter for BUS arb status
+        inline bool getBA() const { return vicState.ba; }
+        inline bool getAEC() const { return vicState.aec; }
 
         // Graphics mode determination
         enum class graphicsMode
@@ -801,7 +802,6 @@ class Vic
 
         // Address enable control
         void updateBusArbitration();
-        bool AEC;
         int currentCycle;
 
         struct RasterIRQSampleSnapshot

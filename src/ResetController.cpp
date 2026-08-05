@@ -90,11 +90,22 @@ void ResetController::setSIDModel(const std::string& model)
 void ResetController::warmReset()
 {
     // Stop the tape if playing
+    if (media_)
     media_->tapeStop();
 
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
-    if (!cartAttachedNow)
+    if (cartAttachedNow)
     {
+        mem_.setCartridgeAttached(true);
+        pla_.setCartridgeAttached(true);
+
+        cart_.reset();
+    }
+    else
+    {
+        mem_.setCartridgeAttached(false);
+        pla_.setCartridgeAttached(false);
+
         cart_.setGameLine(true);
         cart_.setExROMLine(true);
     }
@@ -109,12 +120,16 @@ void ResetController::warmReset()
     inputMgr_.resetInputState();
 
     cpu_.reset();
+
+    cpu_.setRDY(vic_.getBA());
+    cpu_.setAEC(vic_.getAEC());
 }
 
 void ResetController::coldReset()
 {
     // Stop the tape if playing
-    media_->tapeStop();
+    if (media_)
+        media_->tapeStop();
 
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
 
@@ -141,6 +156,8 @@ void ResetController::coldReset()
         cart_.setExROMLine(true);
     }
 
+    pla_.updateMemoryControlRegister(0x37);
+
     bus_.reset();
     vic_.reset();
     cia1_.reset();
@@ -149,4 +166,7 @@ void ResetController::coldReset()
     inputMgr_.resetInputState();
 
     cpu_.reset();
+
+    cpu_.setRDY(vic_.getBA());
+    cpu_.setAEC(vic_.getAEC());
 }
