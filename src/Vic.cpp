@@ -2494,13 +2494,13 @@ bool Vic::isSpriteBusBAHoldCycle(int raster, int cycle) const
 
         switch (phase)
         {
+            case SpriteFetchPhase::Pointer:
             case SpriteFetchPhase::Data0:
             case SpriteFetchPhase::Data1:
             case SpriteFetchPhase::Data2:
                 return true;
 
             case SpriteFetchPhase::None:
-            case SpriteFetchPhase::Pointer:
             default:
                 break;
         }
