@@ -8,6 +8,7 @@
 #ifndef SIDMODEL_H_INCLUDED
 #define SIDMODEL_H_INCLUDED
 
+#include <cstdint>
 #include <string>
 
 enum class SIDModel
@@ -15,6 +16,20 @@ enum class SIDModel
     MOS6581,
     MOS8580
 };
+
+constexpr uint32_t sidDataBusDecayCycles(SIDModel model)
+{
+    switch (model)
+    {
+        case SIDModel::MOS6581:
+            return 0x01D00;
+
+        case SIDModel::MOS8580:
+            return 0xA2000;
+    }
+
+    return 0x01D00;
+}
 
 inline const char* sidModelToString(SIDModel model)
 {

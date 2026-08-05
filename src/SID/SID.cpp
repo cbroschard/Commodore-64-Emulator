@@ -16,6 +16,8 @@ SID::SID(double sampleRate) :
     dataBus(nullptr),
     traceMgr(nullptr),
     vicII(nullptr),
+    sidBusLatch(0x00),
+    sidBusDecayCycles(0),
     mode_(VideoMode::NTSC), // default to NTSC
     hpPrevIn(0.0),
     hpPrevOut(0.0),
@@ -79,6 +81,9 @@ void SID::saveState(StateWriter& wrtr) const
 
     // SIDX = Runtime state
     wrtr.beginChunk("SIDX");
+
+    wrtr.writeU8(sidBusLatch);
+    wrtr.writeU32(sidBusDecayCycles);
 
     // Dump current video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -225,6 +230,9 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (std::memcmp(chunk.tag, "SIDX", 4) == 0)
     {
         rdr.enterChunkPayload(chunk);
+
+        if (!rdr.readU8(sidBusLatch))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(sidBusDecayCycles))                { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t modeU8 = 0;
         if (!rdr.readU8(modeU8))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -373,65 +381,61 @@ void SID::setSampleRate(double sample)
 
 uint8_t SID::readRegister(uint16_t address)
 {
+    uint8_t value = sidBusLatch;
+
     switch (address)
     {
         // POTX
         case 0xD419:
         {
             // Until paddle ADC support is implemented.
-            constexpr uint8_t value = 0xFF;
-
-            if (dataBus)
-                dataBus->drive(value, DataBusLatch::Driver::SID);
-
-            return value;
+            value = 0xFF;
+            break;
         }
 
         // POTY
         case 0xD41A:
         {
             // Until paddle ADC support is implemented.
-            constexpr uint8_t value = 0xFF;
-
-            if (dataBus)
-                dataBus->drive(value, DataBusLatch::Driver::SID);
-
-            return value;
+            value = 0xFF;
+            break;
         }
 
         // OSC3
         case 0xD41B:
         {
-            const uint8_t value = voice3.getOscillator().readOutput8();
-
-            if (dataBus)
-                dataBus->drive(value, DataBusLatch::Driver::SID);
-
-            return value;
+            value = voice3.getOscillator().readOutput8();
+            break;
         }
 
         // ENV3
         case 0xD41C:
         {
-            const uint8_t value =
-                voice3.getEnvelope().readOutput8();
-
-            if (dataBus)
-                dataBus->drive(value, DataBusLatch::Driver::SID);
-
-            return value;
+            value = voice3.getEnvelope().readOutput8();
+            break;
         }
 
         default:
         {
-            // $D400-$D418 and unused SID registers are not readable.
-            return dataBus ? dataBus->sample() : 0xFF;
+            value = sidBusLatch;
+            break;
         }
     }
+
+    sidBusLatch = value;
+    refreshDataBusDecay();
+
+    if (dataBus)
+        dataBus->drive(value, DataBusLatch::Driver::SID);
+
+    return value;
 }
 
 void SID::writeRegister(uint16_t address, uint8_t value)
 {
+    sidBusLatch = value;
+    refreshDataBusDecay();
+
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::SID))
     {
         TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
@@ -788,6 +792,14 @@ double SID::generateAudioSample()
 
 void SID::tick(uint32_t cycles)
 {
+    if (sidBusDecayCycles > cycles)
+        sidBusDecayCycles -= cycles;
+    else
+    {
+        sidBusDecayCycles = 0;
+        sidBusLatch = 0x00;
+    }
+
     const double sidCycles = static_cast<double>(cycles);
 
     voice1.clockEnvelope(sidCycles);
@@ -869,6 +881,9 @@ double SID::popSample()
 
 void SID::reset()
 {
+    sidBusLatch = 0x00;
+    sidBusDecayCycles = 0;
+
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
     sidRegisters.filter.volume = 0x00;
     sidCycleCounter = 0.0;
@@ -912,6 +927,11 @@ SID::AnalogProfile SID::getAnalogProfile() const
         profile.outputBias,
         profile.softClipDrive
     };
+}
+
+void SID::refreshDataBusDecay()
+{
+    sidBusDecayCycles = sidDataBusDecayCycles(sidModel_);
 }
 
 uint16_t SID::combineBytes(uint8_t high, uint8_t low)

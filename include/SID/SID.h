@@ -88,6 +88,9 @@ class SID
         TraceManager* traceMgr;
         Vic* vicII;
 
+        uint8_t sidBusLatch;
+        uint32_t sidBusDecayCycles;
+
         struct AnalogProfile
         {
             double directGain;
@@ -166,6 +169,7 @@ class SID
         } sidRegisters;
 
         // Helpers
+        void refreshDataBusDecay();
         uint16_t combineBytes(uint8_t high, uint8_t low);
         void updateEnvelopeParameters(Voice &voice, voiceRegisters &regs);
         void updateCutoffFromRegisters();
