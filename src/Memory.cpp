@@ -138,7 +138,12 @@ uint8_t Memory::read(uint16_t address)
         }
 
         if (monitor && monitor->checkWatchRead(address, value))
-            monitor->enterMonitor();
+        {
+            if (debugManager)
+                debugManager->onWatchpoint();
+            else
+                monitor->enterMonitor();
+        }
 
         return value;
     };
