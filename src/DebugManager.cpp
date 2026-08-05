@@ -146,6 +146,13 @@ bool DebugManager::onBreakpoint(uint16_t pc)
     return true;
 }
 
+bool DebugManager::onWatchpoint()
+{
+    uiPaused_ = true;
+    openMonitor();
+    return true;
+}
+
 void DebugManager::tick()
 {
     if (monitorCtl_)

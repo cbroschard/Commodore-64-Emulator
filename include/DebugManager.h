@@ -78,6 +78,8 @@ class DebugManager
         bool hasBreakpoint(uint16_t pc) const;
         bool onBreakpoint(uint16_t pc);   // queues message + opens monitor window
 
+        bool onWatchpoint();
+
         // UI forwarding helpers
         void tick();
         bool handleEvent(const SDL_Event& ev);

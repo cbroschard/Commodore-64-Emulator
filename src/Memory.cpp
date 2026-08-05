@@ -11,6 +11,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
+#include "DebugManager.h"
 #include "Memory.h"
 #include "MLMonitor.h"
 #include "PLA.h"
@@ -26,6 +27,7 @@ Memory::Memory() :
     cass(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
+    debugManager(nullptr),
     monitor(nullptr),
     pla(nullptr),
     reu(nullptr),
@@ -809,7 +811,12 @@ void Memory::write(uint16_t address, uint8_t value)
         cart->write(address, value);
 
         if (monitor && monitor->checkWatchWrite(address, value))
-            monitor->enterMonitor();
+        {
+            if (debugManager)
+                debugManager->onWatchpoint();
+            else
+                monitor->enterMonitor();
+        }
 
         return;
     }
@@ -895,8 +902,10 @@ void Memory::write(uint16_t address, uint8_t value)
     }
     if (monitor && monitor->checkWatchWrite(address, value))
     {
-        // Enter the monitor as we hit a watch point
-        monitor->enterMonitor();
+        if (debugManager)
+            debugManager->onWatchpoint();
+        else
+            monitor->enterMonitor();
     }
 }
 
@@ -924,7 +933,12 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
     }
 
     if (monitor && monitor->checkWatchWrite(address, value))
-        monitor->enterMonitor();
+    {
+        if (debugManager)
+            debugManager->onWatchpoint();
+        else
+            monitor->enterMonitor();
+    }
 }
 
 void Memory::writeForDMA(uint16_t address, uint8_t value)

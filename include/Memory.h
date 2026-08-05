@@ -15,6 +15,7 @@ class CIA1;
 class CIA2;
 class CPU;
 class DataBusLatch;
+class DebugManager;
 class MLMonitor;
 class PLA;
 class REU;
@@ -50,6 +51,7 @@ class Memory : public CPUBus
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
+        inline void attachDebugManagerInstance(DebugManager* debugManager) { this->debugManager = debugManager; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -107,6 +109,7 @@ class Memory : public CPUBus
         Cassette* cass;
         CPU* cpu;
         DataBusLatch* dataBus;
+        DebugManager* debugManager;
         MLMonitor* monitor;
         PLA* pla;
         REU* reu;
