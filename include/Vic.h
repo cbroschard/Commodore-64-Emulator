@@ -147,6 +147,8 @@ class Vic
             bool spriteWarning = false;
             bool spriteAECSteal = false;
 
+            uint8_t spriteDmaStartMask = 0;
+
             bool refresh = false;
 
             bool baLow = false;
@@ -891,7 +893,7 @@ class Vic
         SpriteCollisionTimingSnapshot lastSpriteSpriteCollision;
         SpriteCollisionTimingSnapshot lastSpriteBackgroundCollision;
 
-        void updateSpriteDMAStartForCurrentLine(int raster);
+        uint8_t updateSpriteDMAStartForCurrentLine(int raster);
         void updateSpriteDMAEndOfLine(int raster);
         void fetchSpritePointer(int sprite, int raster);
         bool isSpriteDMAFetchCycle(int sprite, int cycle) const;

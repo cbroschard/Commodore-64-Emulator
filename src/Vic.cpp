@@ -1012,13 +1012,18 @@ void Vic::tick(int cycles)
 void Vic::beginCycle()
 {
     beginFrameIfNeeded();
+
     currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+
     runCycleDecisionPhase();
 
-     if (currentCycleSlot.startSpriteDmaCheck)
-        currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+    if (currentCycleSlot.startSpriteDmaCheck)
+    {
+        const uint8_t startedMask           = currentCycleSlot.spriteDmaStartMask;
+        currentCycleSlot                    = cycleSlotFor(registers.raster, currentCycle);
+        currentCycleSlot.spriteDmaStartMask = startedMask;
+    }
 
-    // BA and AEC become visible before the CPU cycle.
     updateBusArbitration();
 }
 
@@ -1100,7 +1105,7 @@ void Vic::runCycleDecisionPhase()
     if (slot.startSpriteDmaCheck)
     {
         handleCycle15Decisions();
-        updateSpriteDMAStartForCurrentLine(registers.raster);
+        currentCycleSlot.spriteDmaStartMask = updateSpriteDMAStartForCurrentLine(registers.raster);
     }
 
     if (slot.transferDisplayState)
@@ -2269,35 +2274,43 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     traceVicSpriteSlotEvent(sprite, "row-latched", registers.raster, currentCycle);
 }
 
-void Vic::updateSpriteDMAStartForCurrentLine(int raster)
+uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
 {
-    for (int s = 0; s < 8; ++s)
+    uint8_t startedMask = 0;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
     {
-        const bool enabled = ((registers.spriteEnabled >> s) & 0x01) != 0;
-        const bool yExp = ((registers.spriteYExpansion >> s) & 0x01) != 0;
-        const bool rasterMatch = (raster == registers.spriteY[s]);
+        const uint8_t spriteBit     = static_cast<uint8_t>(1u << sprite);
+        const bool enabled          = (registers.spriteEnabled & spriteBit) != 0;
+        const bool yExpanded        = (registers.spriteYExpansion & spriteBit) != 0;
+        const bool rasterMatches    = raster == registers.spriteY[sprite];
+        const bool alreadyActive    = spriteUnits[sprite].dmaActive;
+        const bool shouldStart      = enabled && rasterMatches && !alreadyActive;
 
-        const bool alreadyActive = spriteUnits[s].dmaActive;
-        const bool willStart = enabled && rasterMatch && !alreadyActive;
+        traceVicSpriteStartCheck(sprite, raster, registers.spriteY[sprite], enabled, yExpanded, rasterMatches, shouldStart);
 
-        traceVicSpriteStartCheck(s, raster, registers.spriteY[s], enabled, yExp, rasterMatch, willStart);
-
-        if (!willStart)
+        if (!shouldStart)
             continue;
 
-        spriteUnits[s].dmaActive = true;
-        spriteUnits[s].yExpandLatch = yExp;
-        spriteUnits[s].currentRow = 0;
-        spriteUnits[s].mc = 0;
-        spriteUnits[s].mcBase = 0;
-        spriteUnits[s].startY = registers.spriteY[s];
+        SpriteUnit& unit = spriteUnits[sprite];
 
-        resetSpriteLineOutputState(s);
-        clearSpriteFetchedRowState(s);
+        unit.dmaActive = true;
+        unit.yExpandLatch = yExpanded;
+        unit.currentRow = 0;
+        unit.mc = 0;
+        unit.mcBase = 0;
+        unit.startY = registers.spriteY[sprite];
 
-        traceVicSpriteDmaStart(s);
-        traceVicSpriteSlotEvent(s, "dma-start", raster, currentCycle);
+        resetSpriteLineOutputState(sprite);
+        clearSpriteFetchedRowState(sprite);
+
+        startedMask |= spriteBit;
+
+        traceVicSpriteDmaStart(sprite);
+        traceVicSpriteSlotEvent(sprite, "dma-start", raster, currentCycle);
     }
+
+    return startedMask;
 }
 
 void Vic::updateBusArbitration()
