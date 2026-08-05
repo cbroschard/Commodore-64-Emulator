@@ -143,8 +143,8 @@ class Vic
             bool badlineSteal = false;
             bool badlineBAHold = false;
 
+            bool spriteBAHold = false;
             bool spriteWarning = false;
-            bool spriteSteal = false;
             bool spriteAECSteal = false;
 
             bool refresh = false;
@@ -785,6 +785,7 @@ class Vic
         bool isSpriteBusStealCycle(int raster, int cycle) const;
         bool isSpriteBusAECStealCycle(int raster, int cycle) const;
         bool isSpriteDataCpuStealCycle(int sprite, int cycle) const;
+        bool isSpriteBusBAHoldCycle(int raster, int cycle) const;
 
         // Bad line Helpers
         void initializeFirstBadLineIfNeeded(int raster);

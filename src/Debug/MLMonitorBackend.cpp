@@ -1354,9 +1354,9 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         << " index=" << slot.spriteIndex
         << " byte=" << slot.spriteByteIndex
         << " warning=" << bit(slot.spriteWarning)
-        << " steal=" << bit(slot.spriteSteal)
+        << " baHold=" << bit(slot.spriteBAHold)
         << " aecSteal=" << bit(slot.spriteAECSteal)
-        << "\n";
+        << "\n";;
 
     if (s.sprite.valid)
     {
@@ -1399,12 +1399,14 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         << (slot.badlineSteal   ? "badline-steal "   : "")
         << (slot.badlineBAHold  ? "badline-hold "    : "")
         << (slot.spriteWarning  ? "sprite-warning "  : "")
-        << (slot.spriteSteal    ? "sprite-steal "    : "")
+        << (slot.spriteBAHold   ? "sprite-hold "     : "")
+        << (slot.spriteAECSteal ? "sprite-aec-steal " : "")
         << ((!slot.badlineWarning &&
              !slot.badlineSteal &&
              !slot.badlineBAHold &&
              !slot.spriteWarning &&
-             !slot.spriteSteal) ? "none" : "")
+             !slot.spriteBAHold &&
+             !slot.spriteAECSteal) ? "none" : "")
         << "\n";
 
     out << "AEC src: "
