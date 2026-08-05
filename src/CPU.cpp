@@ -5911,11 +5911,12 @@ void CPU::buildImmediateAction(CpuMicroAction action)
 void CPU::buildInternalAction(CpuMicroAction action)
 {
     CpuMicroOp op;
-    op.kind = CpuMicroOpKind::Internal;
-    op.busType = CpuBusCycleType::None;
-    op.address = 0;
+    op.kind = CpuMicroOpKind::DummyRead;
+    op.busType = CpuBusCycleType::DummyRead;
+    op.address = PC;
     op.value = 0;
     op.useMicroAddress = false;
+    op.index = CpuIndexReg::None;
     op.action = action;
 
     pushMicroOp(op);
