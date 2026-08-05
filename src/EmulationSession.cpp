@@ -213,6 +213,8 @@ bool EmulationSession::runFrame()
 
             vic_.beginCycle();
 
+            cpu_.setRDY(vic_.getBA());
+            cpu_.setAEC(vic_.getAEC());
             cpu_.tick();
 
             sid_.tick(1);
