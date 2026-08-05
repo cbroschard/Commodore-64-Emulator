@@ -2302,14 +2302,11 @@ void Vic::updateSpriteDMAStartForCurrentLine(int raster)
 
 void Vic::updateBusArbitration()
 {
-    const bool baLow  = currentCycleSlot.baLow;
-    const bool aecLow = currentCycleSlot.aecLow;
-
-    const bool oldBA  = vicState.ba;
+    const bool oldBA = vicState.ba;
     const bool oldAEC = vicState.aec;
 
-    vicState.ba  = !baLow;
-    vicState.aec = !aecLow;
+    vicState.ba = !currentCycleSlot.baLow;
+    vicState.aec = !currentCycleSlot.cpuBusStolen;
 
     if (cpu)
     {
@@ -2318,17 +2315,8 @@ void Vic::updateBusArbitration()
     }
 
     if (oldBA != vicState.ba || oldAEC != vicState.aec)
-    {
-        traceVicBusArb(
-            oldBA,
-            oldAEC,
-            vicState.ba,
-            vicState.aec,
-            vicState.badLineSampled,
-            baLow,
-            aecLow
-        );
-    }
+        traceVicBusArb(oldBA, oldAEC, vicState.ba, vicState.aec, vicState.badLineSampled, currentCycleSlot.baLow,
+                       currentCycleSlot.cpuBusStolen);
 }
 
 bool Vic::isBadLineCandidateForBusWarning(int raster) const
@@ -2547,9 +2535,10 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.refresh = isRefreshCycle(cycle);
 
-    slot.baLow = slot.badlineWarning || slot.badlineBAHold || slot.spriteWarning || slot.spriteSteal;
+    slot.cpuBusStolen = slot. badlineSteal || slot.spriteAECSteal;
 
-    slot.aecLow = slot.badlineSteal || slot.spriteAECSteal;
+    slot.baLow = slot.badlineWarning || slot.badlineBAHold || slot.spriteWarning || slot.spriteSteal;
+    slot.aecLow = slot.cpuBusStolen;
 
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
 

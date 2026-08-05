@@ -143,6 +143,8 @@ class Vic
             bool baLow = false;
             bool aecLow = false;
 
+            bool cpuBusStolen = false;
+
             bool rasterIrqSample = false;
 
             // Phase 1: decision timing markers
