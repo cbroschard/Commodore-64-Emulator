@@ -1015,6 +1015,9 @@ void Vic::beginCycle()
     currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
     runCycleDecisionPhase();
 
+     if (currentCycleSlot.startSpriteDmaCheck)
+        currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+
     // BA and AEC become visible before the CPU cycle.
     updateBusArbitration();
 }
