@@ -5,15 +5,14 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "main.h"
-
+#include <SDL3/SDL_main.h>
 #include <boost/version.hpp>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-
 #include "Computer.h"
+#include "main.h"
 #include "Version.h"
 
 namespace po = boost::program_options;
@@ -166,13 +165,18 @@ int main(int argc, char* argv[])
                       << " built " << VersionInfo::BUILD_DATE
                       << " " << VersionInfo::BUILD_TIME << "\n";
 
-            SDL_version compiled;
-            SDL_VERSION(&compiled);
+            const int compiledVersion = SDL_VERSION;
+            const int linkedVersion = SDL_GetVersion();
 
-            std::cout << "SDL "
-                      << static_cast<int>(compiled.major) << "."
-                      << static_cast<int>(compiled.minor) << "."
-                      << static_cast<int>(compiled.patch) << "\n";
+            std::cout << "SDL compiled "
+                      << SDL_VERSIONNUM_MAJOR(compiledVersion) << "."
+                      << SDL_VERSIONNUM_MINOR(compiledVersion) << "."
+                      << SDL_VERSIONNUM_MICRO(compiledVersion) << "\n";
+
+            std::cout << "SDL linked "
+                      << SDL_VERSIONNUM_MAJOR(linkedVersion) << "."
+                      << SDL_VERSIONNUM_MINOR(linkedVersion) << "."
+                      << SDL_VERSIONNUM_MICRO(linkedVersion) << "\n";
 
             std::cout << "Boost "
                       << BOOST_VERSION / 100000 << "."

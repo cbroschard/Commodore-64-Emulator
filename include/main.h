@@ -7,10 +7,8 @@
 // strictly prohibited without the prior written consent of the author.
 #pragma once
 
-#define SDL_MAIN_HANDLED
-
 #include <boost/program_options.hpp>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <string>
 #include <vector>
 
