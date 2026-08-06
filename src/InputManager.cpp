@@ -140,7 +140,7 @@ bool InputManager::handleEvent(const SDL_Event& ev)
         auto mods = SDL_GetModState();
         const auto* ks = SDL_GetKeyboardState(nullptr);
 
-        if ((mods & KMOD_ALT) && (sc == SDL_SCANCODE_J || sc == SDL_SCANCODE_1 || sc == SDL_SCANCODE_2))
+        if ((mods & SDL_KMOD_ALT) && (sc == SDL_SCANCODE_J || sc == SDL_SCANCODE_1 || sc == SDL_SCANCODE_2))
         {
             if (down && ks[SDL_SCANCODE_J])  // only on key-down of 1 or 2
             {
