@@ -8,11 +8,9 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#define SDL_MAIN_HANDLED
-
 class CIA1;
 
-#include <sdl2/sdl.h>
+#include <SDL3/sdl.h>
 #include <unordered_map>
 #include <vector>
 #include <bitset>

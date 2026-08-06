@@ -272,7 +272,7 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
         return;
     }
 
-    SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
+    const SDL_Keycode keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
 
     if (key == SDL_SCANCODE_LSHIFT ||
         key == SDL_SCANCODE_RSHIFT)
@@ -301,28 +301,19 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
         return;
     }
 
-    const uint8_t* keyboardState =
-        SDL_GetKeyboardState(nullptr);
+    const bool* keyboardState = SDL_GetKeyboardState(nullptr);
 
-    if (key == SDL_SCANCODE_RIGHT ||
-        key == SDL_SCANCODE_LEFT)
+    if (key == SDL_SCANCODE_RIGHT || key == SDL_SCANCODE_LEFT)
     {
         // Release the C64 horizontal cursor key only when neither
         // host horizontal-arrow key remains held.
-        if (!keyboardState[SDL_SCANCODE_RIGHT] &&
-            !keyboardState[SDL_SCANCODE_LEFT])
-        {
-            keyMatrix[0] |= (1 << 2);
-        }
+        if (!keyboardState[SDL_SCANCODE_RIGHT] && !keyboardState[SDL_SCANCODE_LEFT])
+           keyMatrix[0] |= (1 << 2);
 
         // Release the virtual left shift only when no shifted cursor
         // key or physical left shift remains held.
-        if (!keyboardState[SDL_SCANCODE_LEFT] &&
-            !keyboardState[SDL_SCANCODE_UP] &&
-            !keyboardState[SDL_SCANCODE_LSHIFT])
-        {
+        if (!keyboardState[SDL_SCANCODE_LEFT] && !keyboardState[SDL_SCANCODE_UP] && !keyboardState[SDL_SCANCODE_LSHIFT])
             keyMatrix[1] |= (1 << 7);
-        }
 
         return;
     }
@@ -332,26 +323,18 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
     {
         // Release the C64 vertical cursor key only when neither
         // host vertical-arrow key remains held.
-        if (!keyboardState[SDL_SCANCODE_DOWN] &&
-            !keyboardState[SDL_SCANCODE_UP])
-        {
+        if (!keyboardState[SDL_SCANCODE_DOWN] && !keyboardState[SDL_SCANCODE_UP])
             keyMatrix[0] |= (1 << 7);
-        }
 
-        if (!keyboardState[SDL_SCANCODE_LEFT] &&
-            !keyboardState[SDL_SCANCODE_UP] &&
-            !keyboardState[SDL_SCANCODE_LSHIFT])
-        {
+        if (!keyboardState[SDL_SCANCODE_LEFT] && !keyboardState[SDL_SCANCODE_UP] && !keyboardState[SDL_SCANCODE_LSHIFT])
             keyMatrix[1] |= (1 << 7);
-        }
 
         return;
     }
 
-    SDL_Keycode keycode = SDL_GetKeyFromScancode(key);
+    const SDL_Keycode keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
 
-    if (key == SDL_SCANCODE_LSHIFT ||
-        key == SDL_SCANCODE_RSHIFT)
+    if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
     {
         shiftPressed = false;
 
