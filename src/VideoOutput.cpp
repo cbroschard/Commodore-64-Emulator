@@ -21,8 +21,6 @@ VideoOutput::VideoOutput() :
     screenHeightWithBorder(200 + 2 * 32),
     readyBuffer(nullptr)
 {
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-
     const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
     window = SDL_CreateWindow("Commodore 64 Emulator", screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE, windowFlags);
