@@ -254,6 +254,7 @@ The current Windows development environment uses:
 - Code::Blocks
 - MinGW-w64 / GCC
 - SDL3
+- Boost Program_options
 - Dear ImGui docking branch
 
 Third-party license files are provided in the `licenses/` directory.
