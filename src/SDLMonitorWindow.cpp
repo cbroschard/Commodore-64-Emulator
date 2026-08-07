@@ -155,40 +155,47 @@ SDLMonitorWindow::~SDLMonitorWindow()
 
 void SDLMonitorWindow::createFontTexture()
 {
-    if (!ren) return;
+    if (!ren)
+        return;
 
-    // Create a surface first to manipulate pixels easily
-    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormat(0, 96 * 8, 8, 32, SDL_PIXELFORMAT_RGBA32);
-    if (!surf) return;
+    SDL_Surface* surf = SDL_CreateSurface(96 * 8, 8, SDL_PIXELFORMAT_RGBA32);
 
-    SDL_LockSurface(surf);
-    uint32_t* pixels = (uint32_t*)surf->pixels;
+    if (!surf)
+        return;
+
+    if (!SDL_LockSurface(surf))
+    {
+        SDL_DestroySurface(surf);
+        return;
+    }
+
+    auto* pixels = static_cast<uint32_t*>(surf->pixels);
 
     for (int c = 0; c < 96; ++c)
     {
         for (int y = 0; y < 8; ++y)
         {
-            uint8_t row = font8x8_basic[c][y];
+            const uint8_t row = font8x8_basic[c][y];
+
             for (int x = 0; x < 8; ++x)
             {
-                // Check bit (most significant bit is left)
-                bool pixelOn = (row >> (7 - x)) & 1;
+                const bool pixelOn = ((row >> (7 - x)) & 1) != 0;
+                const int surfX = c * 8 + x;
+                const int surfY = y;
 
-                int surfX = c * 8 + x;
-                int surfY = y;
-
-                // White text, transparent background
                 pixels[surfY * (surf->pitch / 4) + surfX] = pixelOn ? 0xFFFFFFFF : 0x00000000;
             }
         }
     }
+
     SDL_UnlockSurface(surf);
 
-    // Convert to texture
     fontTex = SDL_CreateTextureFromSurface(ren, surf);
-    SDL_FreeSurface(surf);
+    SDL_DestroySurface(surf);
 
-    // Enable blending so transparency works
+    if (!fontTex)
+        return;
+
     SDL_SetTextureBlendMode(fontTex, SDL_BLENDMODE_BLEND);
 }
 
@@ -202,13 +209,10 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec, Prompt
     execFn = std::move(exec);
     promptFn = std::move(prompt);
 
-    win = SDL_CreateWindow(title,
-                           SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                           width, height,
-                           SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    win = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
     if (!win) return false;
 
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    ren = SDL_CreateRenderer(win, nullptr);
     if (!ren)
     {
         SDL_DestroyWindow(win);
@@ -216,7 +220,21 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec, Prompt
         return false;
     }
 
+    if (!SDL_SetRenderVSync(ren, 1)) SDL_Log("Unable to enable VSync: %s", SDL_GetError());
+
     createFontTexture();
+
+    if (!fontTex)
+    {
+        SDL_DestroyRenderer(ren);
+        SDL_DestroyWindow(win);
+
+        ren = nullptr;
+        win = nullptr;
+
+        return false;
+    }
+
     updateLayoutMetrics();
 
     opened = true;
@@ -224,15 +242,13 @@ bool SDLMonitorWindow::open(const char* title, int w, int h, ExecFn exec, Prompt
     input.clear();
     cursorPos = 0;
 
-    // Clear history or leave it for persistence?
-    // Usually convenient to keep history, but for simplicity we can clear or keep.
-    // Let's keep it but reset index.
     historyIndex = history.size();
 
     scrollOffset = 0;
 
-    // Enables SDL_TEXTINPUT events for typing
-    SDL_StartTextInput();
+    // Enables SDL_EVENT_TEXT_INPUT events for typing
+    if (!SDL_StartTextInput(win))
+        SDL_Log("Unable to start text input: %s", SDL_GetError());
 
     appendLine("ML Monitor - type 'help' and press Enter", COL_HEADER);
     appendLine("------------------------------------------", COL_HEADER);
@@ -244,7 +260,7 @@ void SDLMonitorWindow::close()
 {
     if (!opened) return;
 
-    SDL_StopTextInput();
+    SDL_StopTextInput(win);
 
     if (fontTex) SDL_DestroyTexture(fontTex);
     fontTex = nullptr;
@@ -399,43 +415,48 @@ void SDLMonitorWindow::submitCommand()
 
 void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 {
-    if (!opened) return;
+    if (!opened)
+        return;
 
-    // Handle window close / resize logic
-    if (e.type == SDL_WINDOWEVENT)
+    const SDL_WindowID myId = SDL_GetWindowID(win);
+
+    // Handle window close.
+    if (e.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && e.window.windowID == myId)
     {
-        if (e.window.windowID == SDL_GetWindowID(win))
-        {
-            if (e.window.event == SDL_WINDOWEVENT_CLOSE)
-            {
-                close();
-            }
-            else if (e.window.event == SDL_WINDOWEVENT_RESIZED || e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-                 e.window.event == SDL_WINDOWEVENT_MAXIMIZED)
-            {
-                SDL_GetWindowSize(win, &width, &height);
-                updateLayoutMetrics();
-
-                scrollOffset = clampScrollOffset(scrollOffset);
-                autoScroll   = (scrollOffset == 0);
-            }
-        }
+        close();
         return;
     }
 
-    // Filter events for THIS window only
-    const Uint32 myId = SDL_GetWindowID(win);
+    // Handle resize-related events.
+    if ((e.type == SDL_EVENT_WINDOW_RESIZED || e.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || e.type == SDL_EVENT_WINDOW_MAXIMIZED) &&
+        e.window.windowID == myId)
+    {
+        SDL_GetWindowSize(win, &width, &height);
+        updateLayoutMetrics();
 
-    if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID != myId) return;
-    if (e.type == SDL_TEXTINPUT && e.text.windowID != myId) return;
-    if (e.type == SDL_MOUSEWHEEL && e.wheel.windowID != myId) return;
+        scrollOffset = clampScrollOffset(scrollOffset);
+        autoScroll = (scrollOffset == 0);
+        return;
+    }
 
-    // IMPORTANT: mouse events must also be filtered or selection/drag will break
-    if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && e.button.windowID != myId) return;
-    if (e.type == SDL_MOUSEMOTION && e.motion.windowID != myId) return;
+    // Filter events so this monitor only handles events for its own window.
+    if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && e.key.windowID != myId)
+        return;
 
-    // Text input (typing)
-    if (e.type == SDL_TEXTINPUT)
+    if (e.type == SDL_EVENT_TEXT_INPUT && e.text.windowID != myId)
+        return;
+
+    if (e.type == SDL_EVENT_MOUSE_WHEEL && e.wheel.windowID != myId)
+        return;
+
+    if ((e.type == SDL_EVENT_MOUSE_BUTTON_DOWN || e.type == SDL_EVENT_MOUSE_BUTTON_UP) && e.button.windowID != myId)
+        return;
+
+    if (e.type == SDL_EVENT_MOUSE_MOTION && e.motion.windowID != myId)
+        return;
+
+    // Text input.
+    if (e.type == SDL_EVENT_TEXT_INPUT)
     {
         for (const char* p = e.text.text; *p; ++p)
             addChar(*p);
@@ -443,57 +464,57 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
         return;
     }
 
-    // Key down
-    if (e.type == SDL_KEYDOWN)
+    // Key down.
+    if (e.type == SDL_EVENT_KEY_DOWN)
     {
-        SDL_Keymod mods = SDL_GetModState();
-        bool ctrl = (mods & KMOD_CTRL) != 0;
+        const SDL_Keymod mods = SDL_GetModState();
+        const bool ctrl = (mods & SDL_KMOD_CTRL) != 0;
 
-        // Ctrl+V Paste
-        if (ctrl && e.key.keysym.sym == SDLK_v)
+        // Ctrl+V: paste.
+        if (ctrl && e.key.key == SDLK_V)
         {
             char* clip = SDL_GetClipboardText();
+
             if (clip)
             {
-                // Normalize CRLF -> LF by ignoring '\r'
+                // Normalize CRLF to LF by ignoring '\r'.
                 for (const char* p = clip; *p; ++p)
                 {
-                    char c = *p;
-                    if (c == '\r') continue;
+                    const char c = *p;
+
+                    if (c == '\r')
+                        continue;
 
                     if (c == '\n')
                     {
-                        // treat newline as Enter (submit current line)
                         submitCommand();
-                        clearSelection(); // optional
+                        clearSelection();
                     }
                     else
-                    {
-                        addChar(c); // respects printable filter
-                    }
+                        addChar(c);
                 }
 
                 SDL_free(clip);
             }
+
             return;
         }
 
-        // Ctrl+C Copy (selection if exists, otherwise input fallback)
-        if (ctrl && e.key.keysym.sym == SDLK_c)
+        // Ctrl+C: copy selected output or current input.
+        if (ctrl && e.key.key == SDLK_C)
         {
             if (hasSelection())
             {
-                std::string txt = getSelectedText();
-                SDL_SetClipboardText(txt.c_str());
+                const std::string text = getSelectedText();
+                SDL_SetClipboardText(text.c_str());
             }
             else
-            {
                 SDL_SetClipboardText(input.c_str());
-            }
+
             return;
         }
 
-        switch (e.key.keysym.sym)
+        switch (e.key.key)
         {
             case SDLK_BACKSPACE:
                 backspace();
@@ -521,10 +542,11 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 
             case SDLK_RETURN:
             case SDLK_KP_ENTER:
+            {
                 if (hasSelection())
                 {
-                    std::string txt = getSelectedText();
-                    SDL_SetClipboardText(txt.c_str());
+                    const std::string text = getSelectedText();
+                    SDL_SetClipboardText(text.c_str());
                     clearSelection();
                 }
                 else
@@ -532,7 +554,10 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
                     submitCommand();
                     clearSelection();
                 }
+
                 break;
+            }
+
             case SDLK_ESCAPE:
                 close();
                 break;
@@ -540,37 +565,44 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
             case SDLK_PAGEUP:
                 scrollOffset -= 10;
                 scrollOffset = clampScrollOffset(scrollOffset);
-                autoScroll   = (scrollOffset == 0);
+                autoScroll = (scrollOffset == 0);
                 break;
 
             case SDLK_PAGEDOWN:
                 scrollOffset += 10;
                 scrollOffset = clampScrollOffset(scrollOffset);
-                autoScroll   = (scrollOffset == 0);
+                autoScroll = (scrollOffset == 0);
                 break;
 
-            // Command history navigation (Up/Down)
+            // Command history navigation.
             case SDLK_UP:
+            {
                 if (historyIndex > 0)
                 {
                     historyIndex--;
                     input = history[historyIndex];
-                    cursorPos = (int)input.size();
+                    cursorPos = static_cast<int>(input.size());
                 }
+
                 break;
+            }
 
             case SDLK_DOWN:
-                if (historyIndex < (int)history.size())
+            {
+                if (historyIndex < static_cast<int>(history.size()))
                 {
                     historyIndex++;
-                    if (historyIndex == (int)history.size())
+
+                    if (historyIndex == static_cast<int>(history.size()))
                         input.clear();
                     else
                         input = history[historyIndex];
 
-                    cursorPos = (int)input.size();
+                    cursorPos = static_cast<int>(input.size());
                 }
+
                 break;
+            }
 
             default:
                 break;
@@ -579,78 +611,75 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
         return;
     }
 
-    // Mouse wheel scrolling
-    if (e.type == SDL_MOUSEWHEEL)
+    // Mouse-wheel scrolling.
+    if (e.type == SDL_EVENT_MOUSE_WHEEL)
     {
-        // Internal meaning:
-        //   scrollOffset == 0 => bottom/newest
-        //   larger offset      => farther up into older lines
-        //
-        // User wants:
-        //   wheel up   => content moves up
-        //   wheel down => content moves down
-        //
-        // So invert from the current behavior.
-        if (e.wheel.y > 0) scrollOffset -= 3;  // wheel up
-        if (e.wheel.y < 0) scrollOffset += 3;  // wheel down
+        if (e.wheel.y > 0.0f)
+            scrollOffset -= 3;
+
+        if (e.wheel.y < 0.0f)
+            scrollOffset += 3;
 
         scrollOffset = clampScrollOffset(scrollOffset);
-        autoScroll   = (scrollOffset == 0);
-
+        autoScroll = (scrollOffset == 0);
         return;
     }
 
-    // Mouse button down (selection or scrollbar interactions)
-    if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+    // Mouse button down: selection or scrollbar interaction.
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT)
     {
-        SDL_Point p{ e.button.x, e.button.y };
+        const int mouseX = static_cast<int>(e.button.x);
+        const int mouseY = static_cast<int>(e.button.y);
+        const SDL_Point point{mouseX, mouseY};
 
-        // If clicked thumb => drag scrollbar
+        // Begin dragging the scrollbar thumb.
         SDL_Rect thumb = getScrollbarThumbRect();
-        if (SDL_PointInRect(&p, &thumb))
+
+        if (SDL_PointInRect(&point, &thumb))
         {
             draggingThumb = true;
-            thumbDragGrabY = e.button.y - thumb.y;
+            thumbDragGrabY = mouseY - thumb.y;
             return;
         }
 
-        // If clicked track (but not thumb) => jump and begin thumb drag
+        // Clicked the scrollbar track.
         SDL_Rect track = getScrollbarTrackRect();
-        if (SDL_PointInRect(&p, &track))
-        {
-            setScrollFromThumbCenterY(e.button.y);
 
+        if (SDL_PointInRect(&point, &track))
+        {
+            setScrollFromThumbCenterY(mouseY);
             draggingThumb = true;
-            SDL_Rect thumb2 = getScrollbarThumbRect();
-            thumbDragGrabY = thumb2.h / 2; // grab center for smooth drag
+            const SDL_Rect newThumb = getScrollbarThumbRect();
+            thumbDragGrabY = newThumb.h / 2;
             return;
         }
 
-        // Start selecting lines
-        int idx = lineIndexFromMouseY(e.button.y);
-        if (idx >= 0)
+        // Begin selecting output lines.
+        const int index = lineIndexFromMouseY(mouseY);
+
+        if (index >= 0)
         {
             selecting = true;
-            selAnchor = idx;
-            selStart  = idx;
-            selEnd    = idx;
+            selAnchor = index;
+            selStart = index;
+            selEnd = index;
         }
         else
-        {
             clearSelection();
-        }
 
         return;
     }
 
-    // Mouse motion (drag thumb or update selection)
-    if (e.type == SDL_MOUSEMOTION)
+    // Mouse motion: drag scrollbar thumb or update selection.
+    if (e.type == SDL_EVENT_MOUSE_MOTION)
     {
+        const int motionY = static_cast<int>(e.motion.y);
+
         if (draggingThumb)
         {
-            SDL_Rect thumb = getScrollbarThumbRect();
-            int newThumbY = e.motion.y - thumbDragGrabY;
-            int thumbCenterY = newThumbY + thumb.h / 2;
+            const SDL_Rect thumb = getScrollbarThumbRect();
+            const int newThumbY = motionY - thumbDragGrabY;
+            const int thumbCenterY = newThumbY + thumb.h / 2;
 
             setScrollFromThumbCenterY(thumbCenterY);
             return;
@@ -658,45 +687,41 @@ void SDLMonitorWindow::handleEvent(const SDL_Event& e)
 
         if (selecting)
         {
-            int idx = lineIndexFromMouseY(e.motion.y);
+            int index = lineIndexFromMouseY(motionY);
 
-            if (idx < 0 && selAnchor >= 0 && !lines.empty())
+            if (index < 0 && selAnchor >= 0 && !lines.empty())
             {
                 const int inputY = height - padding - lineHeight;
-
-                // top of bottom history line:
                 const int historyBottomY = inputY - lineHeight;
-
-                // last pixel above the input line:
                 const int historyAreaBottom = inputY - 1;
 
-                int first, last;
+                int first;
+                int last;
+
                 visibleLineRange(first, last);
 
-                if (e.motion.y < 0)                         idx = first;
-                else if (e.motion.y > historyAreaBottom)    idx = last;
+                if (motionY < 0)
+                    index = first;
+                else if (motionY > historyAreaBottom)
+                    index = last;
                 else
-                {
-                    // inside history area but lineIndexFromMouseY returned -1 (rare)
-                    idx = (e.motion.y < historyBottomY / 2) ? first : last;
-                }
+                    index = (motionY < historyBottomY / 2) ? first : last;
             }
 
-            if (idx >= 0 && selAnchor >= 0)
+            if (index >= 0 && selAnchor >= 0)
             {
-                selStart = std::min(selAnchor, idx);
-                selEnd   = std::max(selAnchor, idx);
+                selStart = std::min(selAnchor, index);
+                selEnd = std::max(selAnchor, index);
             }
 
             return;
         }
 
-        return; // ignore other motion
-
+        return;
     }
 
-    // Mouse button up (stop drag/selection)
-    if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+    // Mouse button up: stop scrollbar drag or selection.
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_UP && e.button.button == SDL_BUTTON_LEFT)
     {
         selecting = false;
         draggingThumb = false;
@@ -710,86 +735,93 @@ void SDLMonitorWindow::drawString(int x, int y, const std::string& str, const SD
 
     SDL_SetTextureColorMod(fontTex, color.r, color.g, color.b);
 
-    SDL_Rect src{0, 0, 8, 8};
-    SDL_Rect dst{x, y, charWidth, charHeight};
+    SDL_FRect src{0.0f, 0.0f, 8.0f, 8.0f};
+    SDL_FRect dst{static_cast<float>(x), static_cast<float>(y), static_cast<float>(charWidth), static_cast<float>(charHeight)};
 
     for (char c : str)
     {
         int index = (unsigned char)c - 32;
         if (index < 0 || index >= 96) index = 95;
 
-        src.x = index * 8;
+        src.x = static_cast<float>(index * 8);
 
-        SDL_RenderCopy(ren, fontTex, &src, &dst);
-        dst.x += charWidth;
+        SDL_RenderTexture(ren, fontTex, &src, &dst);
+        dst.x += static_cast<float>(charWidth);
     }
 }
 
 void SDLMonitorWindow::render()
 {
-    if (!opened || !ren) return;
+    if (!opened || !ren)
+        return;
 
-    // Background Color (Deep Dark Grey/Black)
     SDL_SetRenderDrawColor(ren, 20, 20, 20, 255);
     SDL_RenderClear(ren);
 
-    // 1. Render Input Line at bottom
-    int inputY = height - padding - lineHeight;
+    const int inputY = height - padding - lineHeight;
+    const std::string prompt = currentPrompt();
 
-    std::string prompt = currentPrompt();
     drawString(padding, inputY, prompt, COL_PROMPT);
-    drawString(padding + (int(prompt.length()) * charWidth), inputY, input, COL_TEXT);
+    drawString(padding + static_cast<int>(prompt.length()) * charWidth, inputY, input, COL_TEXT);
 
-    // Blinking cursor
+    // Blinking cursor.
     if ((SDL_GetTicks() / 500) % 2 == 0)
     {
-        int cursorX = padding + (int(prompt.length() + cursorPos) * charWidth);
-        SDL_Rect cursorRect = { cursorX, inputY, charWidth, charHeight };
+        const int cursorX = padding + static_cast<int>(prompt.length() + cursorPos) * charWidth;
+
+        SDL_FRect cursorRect{static_cast<float>(cursorX), static_cast<float>(inputY), static_cast<float>(charWidth),
+            static_cast<float>(charHeight)};
+
         SDL_SetRenderDrawColor(ren, 200, 200, 200, 255);
         SDL_RenderFillRect(ren, &cursorRect);
     }
 
-    int historyBottomY = inputY - lineHeight;
-    int historyCount = lines.size();
-
-    // We iterate backwards from the end of the list minus scrollOffset
-    int startIdx = historyCount - 1 - scrollOffset;
-
+    const int historyBottomY = inputY - lineHeight;
+    const int historyCount = static_cast<int>(lines.size());
+    const int startIdx = historyCount - 1 - scrollOffset;
     int currentY = historyBottomY;
 
     for (int i = startIdx; i >= 0; --i)
     {
-        if (currentY < 0) break; // Off top of screen
+        if (currentY < 0)
+            break;
 
-        bool selected = hasSelection() && (i >= selStart && i <= selEnd);
+        const bool selected = hasSelection() && i >= selStart && i <= selEnd;
+
         if (selected)
         {
-            SDL_Rect bg{ padding - 2, currentY - 1, width - (padding * 2) - 12, lineHeight };
+            SDL_FRect background{static_cast<float>(padding - 2), static_cast<float>(currentY - 1),
+                static_cast<float>(width - (padding * 2) - 12), static_cast<float>(lineHeight)};
+
             SDL_SetRenderDrawColor(ren, 60, 60, 110, 255);
-            SDL_RenderFillRect(ren, &bg);
+            SDL_RenderFillRect(ren, &background);
         }
 
-        // Now passing the stored color for each line
         drawString(padding, currentY, lines[i].text, lines[i].color);
         currentY -= lineHeight;
     }
 
-    // Scrollbar indicator (simple)
-    int vis = visibleHistoryLines();
-    int total = (int)lines.size();
-    if (total > vis)
+    const int visible = visibleHistoryLines();
+    const int total = static_cast<int>(lines.size());
+
+    if (total > visible)
     {
-        SDL_Rect track = getScrollbarTrackRect();
-        SDL_Rect thumb = getScrollbarThumbRect();
+        const SDL_Rect track = getScrollbarTrackRect();
+        const SDL_Rect thumb = getScrollbarThumbRect();
+
+        const SDL_FRect trackF{static_cast<float>(track.x), static_cast<float>(track.y), static_cast<float>(track.w),
+            static_cast<float>(track.h)};
+
+        const SDL_FRect thumbF{static_cast<float>(thumb.x), static_cast<float>(thumb.y), static_cast<float>(thumb.w),
+            static_cast<float>(thumb.h)};
 
         SDL_SetRenderDrawColor(ren, 40, 40, 40, 255);
-        SDL_RenderFillRect(ren, &track);
-
+        SDL_RenderFillRect(ren, &trackF);
         SDL_SetRenderDrawColor(ren, 120, 120, 120, 255);
-        SDL_RenderFillRect(ren, &thumb);
+        SDL_RenderFillRect(ren, &thumbF);
     }
 
-        SDL_RenderPresent(ren);
+    SDL_RenderPresent(ren);
 }
 
 int SDLMonitorWindow::visibleHistoryLines() const

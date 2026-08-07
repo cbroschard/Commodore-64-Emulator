@@ -9,7 +9,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "sdl2/sdl.h"
+#include "SDL3/sdl.h"
 
 struct ConsoleLine
 {
