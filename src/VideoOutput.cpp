@@ -42,7 +42,17 @@ VideoOutput::VideoOutput() :
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiStyle& style = ImGui::GetStyle();
+
     ImGui::StyleColorsLight();
+
+    const float dpiScale = SDL_GetWindowDisplayScale(window);
+
+    style.FontSizeBase = 16.0f;
+    style.FontScaleDpi = dpiScale;
+    style.ScaleAllSizes(dpiScale);
 
     if (!ImGui_ImplSDL3_InitForSDLRenderer(window, renderer))
     {
