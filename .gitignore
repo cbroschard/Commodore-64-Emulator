@@ -4,7 +4,8 @@ include/imgui/
 src/imgui/
 obj/
 tape/
-!Licenses/*.txt
+!licenses/
+!licenses/*.txt
 !include/tape/
 !src/tape/
 PRG/
