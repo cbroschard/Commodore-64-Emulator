@@ -1,4 +1,4 @@
-#include <SDL2/sdl.h>
+#include <SDL3/SDL.h>
 #include "Cartridge.h"
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge/IHasButton.h"
@@ -80,11 +80,14 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         s.joy1Attached = input_->isJoy1Attached();
         s.joy2Attached = input_->isJoy2Attached();
 
-        auto p1 = input_->getPad1();
-        auto p2 = input_->getPad2();
+        auto* p1 = input_->getPad1();
+        auto* p2 = input_->getPad2();
 
-        s.pad1Name = p1 ? SDL_GameControllerName(p1) : "None";
-        s.pad2Name = p2 ? SDL_GameControllerName(p2) : "None";
+        const char* pad1Name = p1 ? SDL_GetGamepadName(p1) : nullptr;
+        const char* pad2Name = p2 ? SDL_GetGamepadName(p2) : nullptr;
+
+        s.pad1Name = pad1Name ? pad1Name : "None";
+        s.pad2Name = pad2Name ? pad2Name : "None";
     }
     else
     {
