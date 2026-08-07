@@ -4,8 +4,6 @@ include/imgui/
 src/imgui/
 obj/
 tape/
-!licenses/
-!licenses/*.txt
 !include/tape/
 !src/tape/
 PRG/
@@ -32,3 +30,5 @@ basic
 *.ini
 *.sav
 *.dll
+!licenses/
+!licenses/*.txt
