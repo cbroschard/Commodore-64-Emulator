@@ -21,7 +21,7 @@ VideoOutput::VideoOutput() :
     screenHeightWithBorder(200 + 2 * 32),
     readyBuffer(nullptr)
 {
-    const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE;
 
     window = SDL_CreateWindow("Commodore 64 Emulator", screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE, windowFlags);
 
@@ -43,7 +43,6 @@ VideoOutput::VideoOutput() :
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    ImGuiIO& io = ImGui::GetIO();
     ImGuiStyle& style = ImGui::GetStyle();
 
     ImGui::StyleColorsLight();
@@ -242,14 +241,6 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
 
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
-
-    const bool monitorOpen = monitorOpenCallback ? monitorOpenCallback() : sdlMon.isOpen();
-
-    if (monitorOpen)
-        SDL_StartTextInput(window);
-    else
-        SDL_StopTextInput(window);
-
     ImGui::NewFrame();
 
     if (guiCallback)

@@ -55,7 +55,7 @@ class VideoOutput final : public IVideoSink
     protected:
 
     private:
-        static constexpr int SCALE = 2;
+        static constexpr int SCALE = 3;
 
         SDL_Window* window;
         SDL_Renderer* renderer;
