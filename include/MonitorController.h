@@ -10,7 +10,7 @@
 
 #include <atomic>
 #include <memory>
-#include <sdl2/sdl.h>
+#include <SDL3/SDL.h>
 #include <string>
 #include "Debug/MLMonitor.h"
 #include "SDLMonitorWindow.h"

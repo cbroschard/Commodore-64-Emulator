@@ -49,25 +49,37 @@ void MonitorController::open()
     uiPaused = true;
     pausedByThis = true;
 
-    win->open(
-        "ML Monitor",
-        900,
-        550,
-        [this](const std::string& cmd) -> std::string
-        {
-            if (!monitor)
-                return "Monitor not available\n";
+    const bool opened =
+        win->open(
+            "ML Monitor",
+            900,
+            550,
+            [this](const std::string& cmd) -> std::string
+            {
+                if (!monitor)
+                    return "Monitor not available\n";
 
-            return monitor->executeAndCapture(cmd);
-        },
-        [this]() -> std::string
-        {
-            if (!monitor)
-                return "> ";
+                return monitor->executeAndCapture(cmd);
+            },
+            [this]() -> std::string
+            {
+                if (!monitor)
+                    return "> ";
 
-            return monitor->getPrompt();
-        }
-    );
+                return monitor->getPrompt();
+            }
+        );
+
+    if (!opened)
+    {
+        if (monitor)
+            monitor->leaveMonitor();
+
+        if (pausedByThis.exchange(false))
+            uiPaused = false;
+
+        return;
+    }
 
     // Show anything queued before the UI opened.
     drainAsyncLines();
@@ -129,9 +141,11 @@ bool MonitorController::handleEvent(const SDL_Event& ev)
         onClosed();
 
     // While monitor is open, swallow keyboard/text so it doesn't hit the emulator.
-    if (ev.type == SDL_TEXTINPUT || ev.type == SDL_TEXTEDITING ||
-        ev.type == SDL_KEYDOWN   || ev.type == SDL_KEYUP)
+    if (ev.type == SDL_EVENT_TEXT_INPUT || ev.type == SDL_EVENT_TEXT_EDITING || ev.type == SDL_EVENT_KEY_DOWN ||
+          ev.type == SDL_EVENT_KEY_UP)
+    {
         return true;
+    }
 
     return false;
 }
