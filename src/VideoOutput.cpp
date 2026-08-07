@@ -23,56 +23,30 @@ VideoOutput::VideoOutput() :
 {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
-    const Uint32 windowFlags =
-        SDL_WINDOW_SHOWN |
-        SDL_WINDOW_RESIZABLE |
-        SDL_WINDOW_ALLOW_HIGHDPI;
+    const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
-    window = SDL_CreateWindow(
-        "Commodore 64 Emulator",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        screenWidthWithBorder * SCALE,
-        screenHeightWithBorder * SCALE,
-        windowFlags
-    );
+    window = SDL_CreateWindow("Commodore 64 Emulator", screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE, windowFlags);
 
     if (!window)
-    {
-        throw std::runtime_error(
-            std::string("Unable to create SDL window: ") +
-            SDL_GetError()
-        );
-    }
+        throw std::runtime_error(std::string("Unable to create SDL window: ") + SDL_GetError());
 
-    SDL_SetWindowMinimumSize(
-        window,
-        screenWidthWithBorder,
-        screenHeightWithBorder
-    );
+    SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
 
-    renderer = SDL_CreateRenderer(
-        window,
-        -1,
-        SDL_RENDERER_ACCELERATED
-    );
+    renderer = SDL_CreateRenderer(window, nullptr);
 
     if (!renderer)
     {
         SDL_DestroyWindow(window);
         window = nullptr;
 
-        throw std::runtime_error(
-            std::string("Unable to create SDL renderer: ") +
-            SDL_GetError()
-        );
+        throw std::runtime_error(std::string("Unable to create SDL renderer: ") + SDL_GetError());
     }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsLight();
 
-    if (!ImGui_ImplSDL2_InitForSDLRenderer(window, renderer))
+    if (!ImGui_ImplSDL3_InitForSDLRenderer(window, renderer))
     {
         ImGui::DestroyContext();
         SDL_DestroyRenderer(renderer);
@@ -81,14 +55,12 @@ VideoOutput::VideoOutput() :
         renderer = nullptr;
         window = nullptr;
 
-        throw std::runtime_error(
-            "Unable to initialize ImGui SDL2 backend"
-        );
+        throw std::runtime_error("Unable to initialize ImGui SDL3 backend");
     }
 
-     if (!ImGui_ImplSDLRenderer2_Init(renderer))
+     if (!ImGui_ImplSDLRenderer3_Init(renderer))
     {
-        ImGui_ImplSDL2_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
 
         SDL_DestroyRenderer(renderer);
@@ -116,8 +88,8 @@ VideoOutput::VideoOutput() :
 
     if (!screenTexture)
     {
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
+        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
 
         SDL_DestroyRenderer(renderer);
@@ -126,51 +98,28 @@ VideoOutput::VideoOutput() :
         renderer = nullptr;
         window = nullptr;
 
-        throw std::runtime_error(
-            std::string("Unable to create screen texture: ") +
-            SDL_GetError()
-        );
+        throw std::runtime_error(std::string("Unable to create screen texture: ") + SDL_GetError());
     }
 
-    #if SDL_VERSION_ATLEAST(2, 0, 12)
-    SDL_SetTextureScaleMode(
-        screenTexture,
-        SDL_ScaleModeNearest
-    );
-#endif
+    if (!SDL_SetTextureScaleMode(screenTexture, SDL_SCALEMODE_NEAREST))
+        SDL_Log("Unable to set nearest texture filtering: %s", SDL_GetError());
 
-    SDL_PixelFormat* format =
-        SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888);
+    const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_RGBA8888);
 
     if (!format)
-    {
-        throw std::runtime_error(
-            std::string("Unable to allocate pixel format: ") +
-            SDL_GetError()
-        );
-    }
+        throw std::runtime_error(std::string("Unable to get pixel format details: ") + SDL_GetError());
 
     for (int i = 0; i < 16; ++i)
     {
-        const SDL_Color color =
-            getColor(static_cast<uint8_t>(i));
-
-        palette32[i] = SDL_MapRGBA(
-            format,
-            color.r,
-            color.g,
-            color.b,
-            0xFF
-        );
+        const SDL_Color color =  getColor(static_cast<uint8_t>(i));
+        palette32[i] = SDL_MapRGBA(format, nullptr, color.r, color.g, color.b, 0xFF);
     }
-
-    SDL_FreeFormat(format);
 }
 
 VideoOutput::~VideoOutput()
 {
-    ImGui_ImplSDLRenderer2_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDLRenderer3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
     if (screenTexture)
@@ -283,18 +232,15 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
 
     std::lock_guard<std::mutex> lock(renderMut);
 
-    ImGui_ImplSDLRenderer2_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
+    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
 
-    const bool monitorOpen =
-        monitorOpenCallback
-            ? monitorOpenCallback()
-            : sdlMon.isOpen();
+    const bool monitorOpen = monitorOpenCallback ? monitorOpenCallback() : sdlMon.isOpen();
 
     if (monitorOpen)
-        SDL_StartTextInput();
+        SDL_StartTextInput(window);
     else
-        SDL_StopTextInput();
+        SDL_StopTextInput(window);
 
     ImGui::NewFrame();
 
@@ -306,48 +252,25 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     int outputW = 0;
     int outputH = 0;
 
-    if (SDL_GetRendererOutputSize(
-            renderer,
-            &outputW,
-            &outputH) != 0)
+    if (!SDL_GetCurrentRenderOutputSize(renderer, &outputW, &outputH))
     {
+        SDL_Log("Unable to get renderer output size: %s", SDL_GetError());
         return;
     }
 
-    const SDL_Rect destination =
-        computeDestinationRect(outputW, outputH);
+    const SDL_FRect destination = computeDestinationRect(outputW, outputH);
+    const int pitch = screenWidthWithBorder * static_cast<int>(sizeof(uint32_t));
 
-    const int pitch =
-        screenWidthWithBorder *
-        static_cast<int>(sizeof(uint32_t));
-
-    if (SDL_UpdateTexture(
-            screenTexture,
-            nullptr,
-            lastBuf,
-            pitch) != 0)
-    {
-        SDL_Log(
-            "SDL_UpdateTexture failed: %s",
-            SDL_GetError()
-        );
-    }
+    if (!SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch))
+        SDL_Log("SDL_UpdateTexture failed: %s", SDL_GetError());
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    SDL_RenderCopy(
-        renderer,
-        screenTexture,
-        nullptr,
-        &destination
-    );
+    if (!SDL_RenderTexture(renderer, screenTexture, nullptr, &destination))
+        SDL_Log("SDL_RenderTexture failed: %s", SDL_GetError());
 
-    ImGui_ImplSDLRenderer2_RenderDrawData(
-        ImGui::GetDrawData(),
-        renderer
-    );
-
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);
 
     if (sdlMon.isOpen())
@@ -358,15 +281,11 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
 {
     sdlMon.handleEvent(event);
 
-    const bool monitorOpen =
-        monitorOpenCallback
-            ? monitorOpenCallback()
-            : sdlMon.isOpen();
+    const bool monitorOpen = monitorOpenCallback ? monitorOpenCallback() : sdlMon.isOpen();
 
-    SDL_Event mutableEvent = event;
-    ImGui_ImplSDL2_ProcessEvent(&mutableEvent);
+    ImGui_ImplSDL3_ProcessEvent(&event);
 
-    if (event.type == SDL_QUIT)
+    if (event.type == SDL_EVENT_QUIT)
     {
         running = false;
         return;
@@ -374,10 +293,10 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
 
     if (monitorOpen)
     {
-        if (event.type == SDL_TEXTINPUT ||
-            event.type == SDL_TEXTEDITING ||
-            event.type == SDL_KEYDOWN ||
-            event.type == SDL_KEYUP)
+        if (event.type == SDL_EVENT_TEXT_INPUT ||
+            event.type == SDL_EVENT_TEXT_EDITING ||
+            event.type == SDL_EVENT_KEY_DOWN ||
+            event.type == SDL_EVENT_KEY_UP)
         {
             return;
         }
@@ -387,18 +306,11 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
         return;
 
     const ImGuiIO& imguiIO = ImGui::GetIO();
+    const bool keyboardEvent = event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_TEXT_INPUT ||
+        event.type == SDL_EVENT_TEXT_EDITING;
 
-    const bool keyboardEvent =
-        event.type == SDL_KEYDOWN ||
-        event.type == SDL_KEYUP ||
-        event.type == SDL_TEXTINPUT ||
-        event.type == SDL_TEXTEDITING;
-
-    const bool mouseEvent =
-        event.type == SDL_MOUSEMOTION ||
-        event.type == SDL_MOUSEBUTTONDOWN ||
-        event.type == SDL_MOUSEBUTTONUP ||
-        event.type == SDL_MOUSEWHEEL;
+    const bool mouseEvent = event.type == SDL_EVENT_MOUSE_MOTION || event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+        event.type == SDL_EVENT_MOUSE_BUTTON_UP || event.type == SDL_EVENT_MOUSE_WHEEL;
 
     if (keyboardEvent && imguiIO.WantCaptureKeyboard)
         return;
@@ -442,9 +354,8 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
         throw std::runtime_error(std::string("Couldn't recreate texture: ") + SDL_GetError());
     }
 
-#if SDL_VERSION_ATLEAST(2,0,12)
-    SDL_SetTextureScaleMode(screenTexture, SDL_ScaleModeNearest);
-#endif
+    if (!SDL_SetTextureScaleMode(screenTexture, SDL_SCALEMODE_NEAREST))
+        SDL_Log("Unable to set nearest texture filtering: %s", SDL_GetError());
 
     SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
 }
@@ -474,22 +385,23 @@ SDL_Color VideoOutput::getColor(uint8_t colorCode)
     return colors[colorCode & 0x0F];
 }
 
-SDL_Rect VideoOutput::computeDestinationRect(int outputW, int outputH) const
+SDL_FRect VideoOutput::computeDestinationRect(int outputW, int outputH) const
 {
-    const float srcW = static_cast<float>(screenWidthWithBorder);
-    const float srcH = static_cast<float>(screenHeightWithBorder);
+    const float sourceWidth     = static_cast<float>(screenWidthWithBorder);
+    const float sourceHeight    = static_cast<float>(screenHeightWithBorder);
+    const float scaleX          = static_cast<float>(outputW) / sourceWidth;
+    const float scaleY          = static_cast<float>(outputH) / sourceHeight;
+    const float scale           = std::min(scaleX, scaleY);
+    const float drawWidth       = std::max(1.0f, sourceWidth * scale);
+    const float drawHeight      = std::max(1.0f, sourceHeight * scale);
 
-    const float scaleX = static_cast<float>(outputW) / srcW;
-    const float scaleY = static_cast<float>(outputH) / srcH;
-    const float scale  = std::min(scaleX, scaleY);
+    SDL_FRect destination{};
 
-    const int drawW = std::max(1, static_cast<int>(srcW * scale));
-    const int drawH = std::max(1, static_cast<int>(srcH * scale));
+    destination.w = drawWidth;
+    destination.h = drawHeight;
 
-    SDL_Rect dst;
-    dst.w = drawW;
-    dst.h = drawH;
-    dst.x = (outputW - drawW) / 2;
-    dst.y = (outputH - drawH) / 2;
-    return dst;
+    destination.x = (static_cast<float>(outputW) - drawWidth) / 2.0f;
+    destination.y = (static_cast<float>(outputH) - drawHeight) / 2.0f;
+
+    return destination;
 }

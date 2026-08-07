@@ -12,12 +12,13 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <SDL3/SDL.h>
+#include <utility>
 #include <vector>
 #include "imgui/imgui.h"
-#include "imgui/imgui_impl_sdl2.h"
-#include "imgui/imgui_impl_sdlrenderer2.h"
+#include "imgui/imgui_impl_sdl3.h"
+#include "imgui/imgui_impl_sdlrenderer3.h"
 #include "IVideoSink.h"
-#include "SDL2/SDL.h"
 #include "SDLMonitorWindow.h"
 
 class VideoOutput final : public IVideoSink
@@ -83,7 +84,7 @@ class VideoOutput final : public IVideoSink
 
         // Color helpers
         SDL_Color getColor(uint8_t colorCode);
-        SDL_Rect computeDestinationRect(int outputW, int outputH) const;
+        SDL_FRect computeDestinationRect(int outputW, int outputH) const;
 };
 
 #endif // VIDEOOUTPUT_H
