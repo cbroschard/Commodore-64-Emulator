@@ -55,15 +55,15 @@ bool InputRouter::handleControllerHotplug_(const SDL_Event& ev)
 {
     if (!input_) return false;
 
-    if (ev.type == SDL_CONTROLLERDEVICEADDED)
+    if (ev.type == SDL_EVENT_GAMEPAD_ADDED)
     {
-        input_->handleControllerDeviceAdded(ev.cdevice.which);
+        input_->handleGamepadDeviceAdded(ev.gdevice.which);
         return true;
     }
 
-    if (ev.type == SDL_CONTROLLERDEVICEREMOVED)
+    if (ev.type == SDL_EVENT_GAMEPAD_REMOVED)
     {
-        input_->handleControllerDeviceRemoved((SDL_JoystickID)ev.cdevice.which);
+        input_->handleGamepadDeviceRemoved((SDL_JoystickID)ev.gdevice.which);
         return true;
     }
 
@@ -73,11 +73,11 @@ bool InputRouter::handleControllerHotplug_(const SDL_Event& ev)
 bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
 {
     // Only act on first KEYDOWN, like your current code
-    if (ev.type != SDL_KEYDOWN || ev.key.repeat)
+    if (ev.type != SDL_EVENT_KEY_DOWN || ev.key.repeat)
         return false;
 
-    const SDL_Scancode sc = ev.key.keysym.scancode;
-    const SDL_Keymod mods = static_cast<SDL_Keymod>(ev.key.keysym.mod);
+    const SDL_Scancode sc = ev.key.scancode;
+    const SDL_Keymod mods = static_cast<SDL_Keymod>(ev.key.mod);
 
     // F12 global monitor toggle
     if (sc == SDL_SCANCODE_F12)
@@ -88,28 +88,28 @@ bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
     }
 
     // CTRL-SPACE pause
-    if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_SPACE)
+    if ((mods & SDL_KMOD_CTRL) && sc == SDL_SCANCODE_SPACE)
     {
         if (togglePause_) togglePause_();
         return true;
     }
 
     // CTRL+W warm reset
-    if ((mods & KMOD_CTRL) && sc == SDL_SCANCODE_W)
+    if ((mods & SDL_KMOD_CTRL) && sc == SDL_SCANCODE_W)
     {
         if (warmReset_) warmReset_();
         return true;
     }
 
     // CTRL+SHIFT+R cold reset
-    if ((mods & KMOD_CTRL) && (mods & KMOD_SHIFT) && sc == SDL_SCANCODE_R)
+    if ((mods & SDL_KMOD_CTRL) && (mods & SDL_KMOD_SHIFT) && sc == SDL_SCANCODE_R)
     {
         if (coldReset_) coldReset_();
         return true;
     }
 
     // ALT cassette controls (matches your current mappings)
-    if ((mods & KMOD_ALT) && media_)
+    if ((mods & SDL_KMOD_ALT) && media_)
     {
         if (sc == SDL_SCANCODE_P) { media_->tapePlay();   return true; }
         if (sc == SDL_SCANCODE_S) { media_->tapeStop();   return true; }

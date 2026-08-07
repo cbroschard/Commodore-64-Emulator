@@ -10,7 +10,7 @@
 
 #include <atomic>
 #include <functional>
-#include <sdl2/sdl.h>
+#include <SDL3/SDL.h>
 
 // Forward declarations
 class MonitorController;
