@@ -5,7 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include <SDL3/sdl.h>
+#include <SDL3/SDL.h>
 #include <stdexcept>
 #include <string>
 #include "SDLContext.h"

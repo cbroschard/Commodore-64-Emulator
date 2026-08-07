@@ -133,7 +133,6 @@ bool EmulationSession::initializeMachine()
 void EmulationSession::processEvents()
 {
     const bool monitorOpen = debug_.monitorController().isOpen();
-    const bool wantTextInput = monitorOpen || ui_.isFileDialogOpen();
 
     if (monitorOpen && !audioPausedForMonitor_)
     {
@@ -146,11 +145,6 @@ void EmulationSession::processEvents()
         audioPausedForMonitor_ = false;
     }
 
-    if (wantTextInput)
-        SDL_StartTextInput();
-    else
-        SDL_StopTextInput();
-
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
@@ -159,7 +153,7 @@ void EmulationSession::processEvents()
         if (inputRouter_.handleEvent(e))
             continue;
 
-        if (e.type == SDL_QUIT)
+        if (e.type == SDL_EVENT_QUIT)
         {
             runtime_.running = false;
             uiQuit_ = true;
