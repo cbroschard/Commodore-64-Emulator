@@ -8,17 +8,16 @@
 #ifndef PLA_H
 #define PLA_H
 
-
 // Forward declarations
 class CPU;
 class TraceManager;
+class Vic;
 
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
 #include "StateReader.h"
 #include "StateWriter.h"
-#include "Vic.h"
 
 class PLA
 {

@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CPU.h"
 #include "PLA.h"
+#include "Vic.h"
 
 PLA::PLA() :
     cart(nullptr),
