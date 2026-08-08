@@ -13,12 +13,12 @@
 class Cassette;
 class CPU;
 class IECBUS;
+class RS232Device;
 class Vic;
 
 #include "CIA6526.h"
 #include "Common/BCD.h"
 #include "IECBUS.h"
-#include "RS232Device.h"
 
 class CIA2 : public CIA6526
 {
