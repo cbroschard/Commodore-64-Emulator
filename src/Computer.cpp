@@ -169,11 +169,19 @@ void Computer::tickCycle()
 {
     components_.vic->beginCycle();
 
+    components_.cpu->setRDY(components_.vic->getBA());
+    components_.cpu->setAEC(components_.vic->getAEC());
     components_.cpu->tick();
+
+    components_.sid->tick(1);
 
     components_.cia1->updateTimers(1);
     components_.cia2->updateTimers(1);
-    components_.sid->tick(1);
+
+    components_.bus->tick(1);
+
+    if (auto* mapper = components_.cart->getMapper())
+        mapper->tick(1);
 
     components_.vic->endCycle();
 }
