@@ -81,6 +81,7 @@ void DebugManager::wireBackend(Computer* computer,
                               PLA* pla,
                               REU* reu,
                               SID* sid,
+                              UserPort* userPort,
                               Vic* vic)
 {
     if (backendWired_) return;
@@ -100,6 +101,7 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachPLAInstance(pla);
     backend_->attachREUInstance(reu);
     backend_->attachSIDInstance(sid);
+    backend_->attachUserPortInstance(userPort);
     backend_->attachVICInstance(vic);
 }
 

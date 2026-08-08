@@ -33,6 +33,7 @@ class MLMonitorBackend
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
+        inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
          using CPUState = CPU::CPUState;
@@ -193,6 +194,9 @@ class MLMonitorBackend
         inline std::string dumpSIDCutoffTable() const { return sid ? sid->dumpCutoffTable() : "SID not attached\n"; }
         inline void resetSIDAudioStats() { if (sid) sid->resetAudioStats(); }
 
+        // ML Monitor User Port
+        inline std::string dumpUserPort() const { return userPort ? userPort->debugString() : "User Port not attached\n";}
+
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
@@ -218,8 +222,6 @@ class MLMonitorBackend
         std::string vicDumpBorderState() const;
         void vicFFRaster(uint8_t targetRaster);
 
-    protected:
-
     private:
         // Non-owning pointers
         Cartridge* cart;
@@ -236,6 +238,7 @@ class MLMonitorBackend
         PLA* pla;
         REU* reu;
         SID* sid;
+        UserPort* userPort;
         Vic* vic;
 
         // ML Monitor IRQ snapshot

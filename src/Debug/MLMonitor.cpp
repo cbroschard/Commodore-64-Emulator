@@ -31,6 +31,7 @@
 #include "Debug/StepCommand.h"
 #include "Debug/TapeCommand.h"
 #include "Debug/TraceCommand.h"
+#include "Debug/UserPortCommand.h"
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
 #include "Debug/MonitorCommand.h"
@@ -64,6 +65,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<StepCommand>());
     registerCommand(std::make_unique<TapeCommand>());
     registerCommand(std::make_unique<TraceCommand>());
+    registerCommand(std::make_unique<UserPortCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());
 }

@@ -400,6 +400,7 @@ MLMonitorBackend::MLMonitorBackend() :
     bus(nullptr),
     pla(nullptr),
     sid(nullptr),
+    userPort(nullptr),
     vic(nullptr)
 {
 

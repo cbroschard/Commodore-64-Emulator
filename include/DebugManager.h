@@ -32,6 +32,7 @@ class Memory;
 class PLA;
 class REU;
 class SID;
+class UserPort;
 class Vic;
 
 class MLMonitor;
@@ -64,6 +65,7 @@ class DebugManager
                          PLA* pla,
                          REU* reu,
                          SID* sid,
+                         UserPort* userPort,
                          Vic* vic);
 
         void wireTrace(Cartridge* cart,
