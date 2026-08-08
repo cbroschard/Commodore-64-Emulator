@@ -989,26 +989,6 @@ void Vic::triggerLightPenLatch()
     raiseVicIRQSource(0x08);
 }
 
-void Vic::tick(int cycles)
-{
-    while (cycles-- > 0)
-    {
-        beginFrameIfNeeded();
-
-        currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
-
-        runCycleDecisionPhase();
-
-        updateBusArbitration();
-
-        runFetchPhase();
-
-        runPixelOutputPhase();
-
-        advanceCycleAndFinalizeLineIfNeeded();
-    }
-}
-
 void Vic::beginCycle()
 {
     beginFrameIfNeeded();

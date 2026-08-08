@@ -55,8 +55,7 @@ class Vic
         // Light pen latch
         void triggerLightPenLatch();
 
-        // Tick method for cycle accurate updating of the raster, etc
-        void tick(int cycles);
+        // Cycle accurate updating of the raster, etc
         void beginCycle();
         void endCycle();
 
