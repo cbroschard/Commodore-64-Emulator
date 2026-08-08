@@ -558,8 +558,8 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     out << CIA6526::dumpRegisters(group);
 
     // C64 User Port state.
-    // RS-232-specific details are provided by the attached UserPortDevice,
-    if (group == "userport" || group == "rs232" || group == "serial" || group == "all")
+    // Device-specific details are provided by the attached UserPortDevice.
+    if (group == "userport" || group == "rs232" || group == "all")
     {
         out << "\nC64 User Port\n\n";
 
@@ -666,7 +666,9 @@ std::string CIA2::dumpRegisters(const std::string& group) const
 
     // CIA2-specific interrupt output line.
     // The base owns IFR/IER. CIA2 only owns the cached NMI line level.
-    if (group == "irq" || group == "nmi" || group == "all")
+    if (group == "irq" ||
+        group == "nmi" ||
+        group == "all")
     {
         out << "\nCIA2 NMI Output\n\n";
 

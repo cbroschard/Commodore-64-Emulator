@@ -47,7 +47,7 @@ Common subcommands:
     timers    - Show Timer A and Timer B state
     tod       - Show time-of-day clock and alarm/latch state
     icr       - Show interrupt control register, enable mask, and pending sources
-    serial    - Show serial data register / shift-register state
+    serial    - Show CIA SDR / serial shift-register state
     help      - Show this help text
 
 CIA1-only subcommands:
@@ -61,13 +61,13 @@ Examples:
     cia 1 all        Show full CIA1 decoded register dump
     cia 1 ports      Show CIA1 Port A/B and DDR state
     cia 1 timers     Show CIA1 Timer A/B values
-    cia 1 serial     Show CIA1 serial register state
+    cia 1 serial     Show CIA1 SDR / serial shift-register state
     cia 1 mode       Show CIA1 keyboard/joystick/cassette mode state
 
     cia 2 all        Show full CIA2 decoded register dump
     cia 2 ports      Show CIA2 Port A/B and DDR state
     cia 2 timers     Show CIA2 Timer A/B values
-    cia 2 serial     Show CIA2 serial register state
+    cia 2 serial     Show CIA2 SDR / serial shift-register state
     cia 2 vic        Show CIA2 VIC-II bank select state
     cia 2 iec        Show CIA2 IEC serial bus state
 )";
