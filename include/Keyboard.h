@@ -8,8 +8,6 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-class CIA1;
-
 #include <SDL3/sdl.h>
 #include <unordered_map>
 #include <vector>
