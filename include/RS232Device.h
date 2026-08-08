@@ -19,11 +19,25 @@ class RS232Device
         RS232Device();
         virtual ~RS232Device();
 
+        enum class Parity : uint8_t
+        {
+            None,
+            Odd,
+            Even
+        };
+
+        enum class FlowControl
+        {
+            None,
+            RTS_CTS
+        };
+
         struct RS232Config
         {
             uint32_t baud = 300;
             uint8_t dataBits = 8;
             uint8_t stopBits = 1;
+            Parity parity = Parity::None;
         };
 
         // Pointer attachment
