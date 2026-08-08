@@ -23,6 +23,7 @@ class MediaManager;
 class Memory;
 class PLA;
 class SID;
+class UserPort;
 class Vic;
 
 enum class VideoMode;
@@ -41,6 +42,7 @@ public:
         IECBUS& bus,
         InputManager& inputMgr,
         Cartridge& cart,
+        UserPort& userPort,
         MediaManager* media,
         const std::string& basicRom,
         const std::string& kernalRom,
@@ -67,6 +69,7 @@ private:
     IECBUS& bus_;
     InputManager& inputMgr_;
     Cartridge& cart_;
+    UserPort& userPort_;
     MediaManager* media_;
 
     const std::string& basicRom_;

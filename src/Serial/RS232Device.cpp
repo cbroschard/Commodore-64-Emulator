@@ -35,6 +35,47 @@ RS232Device::RS232Device() :
 
 RS232Device::~RS232Device() = default;
 
+void RS232Device::reset()
+{
+    cycleAccumulator = 0;
+
+    rxBitIndex = 0;
+    rxShift = 0;
+    receiving = false;
+    lastRXD = true;
+
+    dtr = true;
+    dsr = true;
+    rts = true;
+    txd = true;
+    rxd = true;
+    cts = true;
+    dcd = true;
+    ri = true;
+
+    txState = TxState::Idle;
+    txCountdown = 0.0;
+    txShift = 0;
+    txBitIndex = 0;
+
+    rxCountdown = 0.0;
+    rxState = RxState::Idle;
+
+    while (!txBytes.empty())
+        txBytes.pop();
+
+    while (!rxBytes.empty())
+        rxBytes.pop();
+
+    if (peer)
+    {
+        peer->rxd = txd;
+        peer->dsr = dtr;
+        peer->dcd = dtr;
+        peer->cts = rts;
+    }
+}
+
 void RS232Device::tick(uint32_t cyclesElapsed)
 {
     if (cyclesElapsed == 0)

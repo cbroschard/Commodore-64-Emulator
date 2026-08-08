@@ -13,7 +13,7 @@
 class Cassette;
 class CPU;
 class IECBUS;
-class RS232Device;
+class UserPort;
 class Vic;
 
 #include "CIA6526.h"
@@ -28,7 +28,7 @@ class CIA2 : public CIA6526
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; recomputeIEC(); }
-        inline void attachRS232DeviceInstance(RS232Device* rs232dev) { this->rs232dev = rs232dev; }
+        inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
         // State management
@@ -95,7 +95,7 @@ class CIA2 : public CIA6526
         // non-owning pointers
         CPU* cpu;
         IECBUS* bus;
-        RS232Device* rs232dev;
+        UserPort* userPort;
         Vic* vic;
 
         // Constants
@@ -106,14 +106,6 @@ class CIA2 : public CIA6526
         static constexpr uint8_t MASK_DATA_OUT = 0x20; // PA5
         static constexpr uint8_t MASK_CLK_IN   = 0x40; // PA6
         static constexpr uint8_t MASK_DATA_IN  = 0x80; // PA7
-        static constexpr uint8_t DSR_MASK      = 0x80;  // Data Set Ready PB7
-        static constexpr uint8_t CTS_MASK      = 0x40;  // Clear To Send PB6
-        static constexpr uint8_t DCD_MASK      = 0x10;  // Data Carrier Detect PB4
-        static constexpr uint8_t RI_MASK       = 0x08;  // Ring Indicator PB3
-        static constexpr uint8_t DTR_MASK      = 0x04;  // Data Terminal Ready PB2
-        static constexpr uint8_t RTS_MASK      = 0x02;  // Request To Send PB1
-        static constexpr uint8_t TXD_MASK      = 0x04;  // Transmit Data PA2
-        static constexpr uint8_t RXD_MASK      = 0x01;  // Receive Data PB0
 
         // IECBUS
         uint8_t deviceNumber;
@@ -139,9 +131,6 @@ class CIA2 : public CIA6526
 
         // IEC helper
         void recomputeIEC();
-
-        // RS232 helper
-        void updateRS232Outputs();
 };
 
 #endif // CIA2_H

@@ -43,6 +43,8 @@ class RS232Device
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
 
+        void reset();
+
         // Setters
         inline void setCTS(bool state) { cts = state; }
         inline void setRXD(bool state) { rxd = state; }
@@ -80,7 +82,6 @@ class RS232Device
     protected:
 
     private:
-
         // Non-owning Pointers
         RS232Device* peer = nullptr;
 

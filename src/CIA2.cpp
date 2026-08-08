@@ -7,13 +7,13 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
 #include "CPU.h"
-#include "Serial/RS232Device.h"
+#include "UserPort/UserPort.h"
 #include "Vic.h"
 
 CIA2::CIA2() :
     cpu(nullptr),
     bus(nullptr),
-    rs232dev(nullptr),
+    userPort(nullptr),
     vic(nullptr),
     iecProtocolEnabled(false)
 {
@@ -75,8 +75,11 @@ bool CIA2::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!loadBaseState(rdr))                                        { rdr.exitChunkPayload(chunk); return false; }
 
         // Normalize
-        if (rs232dev)
-            updateRS232Outputs();
+        if (userPort)
+        {
+            userPort->portAChanged(getPortALatch(), getPortADDR());
+            userPort->portBChanged(getPortBLatch(), getPortBDDR());
+        }
 
         recomputeIEC();
 
@@ -184,29 +187,30 @@ uint8_t CIA2::readPortB()
 {
     uint8_t result = getPortBOutput();
 
-    auto applyInputBit = [&](uint8_t mask, bool high)
+    const uint8_t external = userPort ? userPort->readPortB() : 0xFF;
+
+    for (uint8_t bit = 0; bit < 8; ++bit)
     {
+        const uint8_t mask =
+            static_cast<uint8_t>(1u << bit);
+
         if (!isPortBOutput(mask))
         {
-            if (high)
+            if (external & mask)
                 result |= mask;
             else
                 result &= static_cast<uint8_t>(~mask);
         }
-    };
-
-    applyInputBit(RXD_MASK, rs232dev ? rs232dev->getRXD() : true);
-    applyInputBit(DSR_MASK, rs232dev ? rs232dev->getDSR() : true);
-    applyInputBit(CTS_MASK, rs232dev ? rs232dev->getCTS() : true);
-    applyInputBit(DCD_MASK, rs232dev ? rs232dev->getDCD() : true);
-    applyInputBit(RI_MASK,  rs232dev ? rs232dev->getRI()  : true);
+    }
 
     return result;
 }
 
 void CIA2::portAOutputChanged(uint8_t value)
 {
-    updateRS232Outputs();
+    if (userPort)
+        userPort->portAChanged(getPortALatch(), getPortADDR());
+
     recomputeIEC();
 
     TraceManager* traceMgr = getTraceManager();
@@ -214,21 +218,25 @@ void CIA2::portAOutputChanged(uint8_t value)
     {
         std::ostringstream out;
         out << "[CIA2:IEC] PRA write=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(value);
+            << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0')
+            << int(value);
+
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
 }
 
 void CIA2::portBOutputChanged(uint8_t value)
 {
-    updateRS232Outputs();
+    if (userPort)
+        userPort->portBChanged(getPortBLatch(), getPortBDDR());
 }
 
 void CIA2::postTimerUpdates(uint32_t cyclesElapsed)
 {
-    // Update user-port RS232 device timing
-    if (rs232dev)
-        rs232dev->tick(cyclesElapsed);
+    // Update user-port device timing
+    if (userPort)
+        userPort->tick(cyclesElapsed);
 }
 
 
@@ -549,46 +557,28 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     // First dump the generic 6526 registers from the base class.
     out << CIA6526::dumpRegisters(group);
 
-    // CIA2-specific RS232 mapping
-    if (group == "rs232" || group == "serial" || group == "all")
+    // C64 User Port state.
+    // RS-232-specific details are provided by the attached UserPortDevice,
+    if (group == "userport" || group == "rs232" || group == "serial" || group == "all")
     {
-        out << "\nCIA2 RS232 mapping\n\n";
+        out << "\nC64 User Port\n\n";
 
-        out << "  PA2 TXD: "
-            << (isPortAOutput(TXD_MASK) ? "output" : "input")
-            << " latch="
-            << (getPortALatchBit(TXD_MASK) ? "H" : "L")
-            << "\n";
-
-        out << "  PB1 RTS: "
-            << (isPortBOutput(RTS_MASK) ? "output" : "input")
-            << " latch="
-            << (getPortBLatchBit(RTS_MASK) ? "H" : "L")
-            << "\n";
-
-        out << "  PB2 DTR: "
-            << (isPortBOutput(DTR_MASK) ? "output" : "input")
-            << " latch="
-            << (getPortBLatchBit(DTR_MASK) ? "H" : "L")
-            << "\n";
-
-        if (rs232dev)
-        {
-            out << "\n";
-            out << rs232dev->debugString();
-        }
+        if (userPort)
+            out << userPort->debugString();
         else
-        {
-            out << "\nRS232 Device: none attached\n";
-        }
+            out << "User Port: none attached\n";
     }
 
-    // CIA2-specific VIC bank info
+    // CIA2-specific VIC bank info.
     if (group == "vic" || group == "all")
     {
         out << "\nVIC-II Bank Control\n\n";
+
         out << "Current VIC Bank = $"
-            << std::setw(4) << getCurrentVICBank()
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << getCurrentVICBank()
+            << std::dec
             << "\n";
 
         out << "PA0 Bank Bit 0 latch = "
@@ -604,26 +594,30 @@ std::string CIA2::dumpRegisters(const std::string& group) const
             << "\n";
     }
 
-    // CIA2-specific IEC state
+    // CIA2-specific IEC state.
     if (group == "iec" || group == "all")
     {
         out << "\nLegacy/software IEC state\n\n";
 
         out << "Device Number = "
-            << std::dec << static_cast<int>(deviceNumber)
-            << std::hex << "\n";
+            << std::dec
+            << static_cast<int>(deviceNumber)
+            << "\n";
 
         out << "Legacy C64 talker flag   = "
-            << (talking ? "Yes" : "No") << "\n";
+            << (talking ? "Yes" : "No")
+            << "\n";
 
         out << "Legacy C64 listener flag = "
-            << (listening ? "Yes" : "No") << "\n";
+            << (listening ? "Yes" : "No")
+            << "\n";
 
         out << "ATN Line = "
             << (atnLine ? "Asserted (low)" : "Released (high)")
             << "\n";
 
         out << "\nCIA2 IEC output mapping\n";
+
         out << "  PA3 ATN out  latch="
             << (getPortALatchBit(MASK_ATN_OUT) ? "H" : "L")
             << " direction="
@@ -645,16 +639,23 @@ std::string CIA2::dumpRegisters(const std::string& group) const
         if (bus)
         {
             out << "\nCIA2 IEC input lines\n";
+
             out << "  PA6 CLK in  = "
-                << (bus->readClkLine() ? "High/released" : "Low/asserted")
+                << (bus->readClkLine()
+                    ? "High/released"
+                    : "Low/asserted")
                 << "\n";
 
             out << "  PA7 DATA in = "
-                << (bus->readDataLine() ? "High/released" : "Low/asserted")
+                << (bus->readDataLine()
+                    ? "High/released"
+                    : "Low/asserted")
                 << "\n";
 
             out << "  SRQ         = "
-                << (bus->readSrqLine() ? "High/released" : "Low/asserted")
+                << (bus->readSrqLine()
+                    ? "High/released"
+                    : "Low/asserted")
                 << "\n";
         }
         else
@@ -668,6 +669,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
     if (group == "irq" || group == "nmi" || group == "all")
     {
         out << "\nCIA2 NMI Output\n\n";
+
         out << "NMI asserted = "
             << (nmiAsserted ? "Yes" : "No")
             << "\n";
@@ -713,24 +715,6 @@ void CIA2::recomputeIEC()
 
         traceMgr->recordCustomEvent(out.str(), makeCIAStamp());
     }
-}
-
-void CIA2::updateRS232Outputs()
-{
-    if (!rs232dev)
-        return;
-
-    // PA2 = RS232 TXD
-    if (isPortAOutput(TXD_MASK))
-        rs232dev->setTXD(getPortALatchBit(TXD_MASK));
-
-    // PB1 = RTS
-    if (isPortBOutput(RTS_MASK))
-        rs232dev->setRTS(getPortBLatchBit(RTS_MASK));
-
-    // PB2 = DTR
-    if (isPortBOutput(DTR_MASK))
-        rs232dev->setDTR(getPortBLatchBit(DTR_MASK));
 }
 
 TraceManager::Stamp CIA2::makeCIAStamp() const

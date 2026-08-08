@@ -62,6 +62,9 @@ Computer::Computer() :
     components_.pla = std::make_unique<PLA>();
     components_.reu = std::make_unique<REU>();
     components_.sid = std::make_unique<SID>(44100);
+    components_.userPort = std::make_unique<UserPort>();
+    components_.rs232Device = std::make_unique<RS232Device>();
+    components_.userPortRS232Adapter = std::make_unique<UserPortRS232Adapter>();
     components_.vic = std::make_unique<Vic>();
 
     // Wire components

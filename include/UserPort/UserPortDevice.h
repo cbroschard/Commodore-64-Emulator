@@ -8,15 +8,23 @@
 #ifndef USERPORTDEVICE_H
 #define USERPORTDEVICE_H
 
+#include <cstdint>
+#include <string>
+
 class UserPortDevice
 {
-    public:
-        UserPortDevice();
-        virtual ~UserPortDevice();
+public:
+    virtual ~UserPortDevice() = default;
 
-    protected:
+    virtual void reset() {}
+    virtual void tick(uint32_t cyclesElapsed) {}
 
-    private:
+    virtual void portAChanged(uint8_t value, uint8_t ddr) {}
+    virtual void portBChanged(uint8_t value, uint8_t ddr) {}
+
+    virtual uint8_t readPortB() const { return 0xFF; }
+
+    virtual std::string debugString() const { return "  Device: generic\n"; }
 };
 
 #endif // USERPORTDEVICE_H

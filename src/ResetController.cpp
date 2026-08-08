@@ -16,6 +16,7 @@
 #include "PLA.h"
 #include "ResetController.h"
 #include "SID/SID.h"
+#include "UserPort/UserPort.h"
 #include "Vic.h"
 
 ResetController::ResetController(
@@ -29,6 +30,7 @@ ResetController::ResetController(
     IECBUS& bus,
     InputManager& inputMgr,
     Cartridge& cart,
+    UserPort& userPort,
     MediaManager* media,
     const std::string& basicRom,
     const std::string& kernalRom,
@@ -46,6 +48,7 @@ ResetController::ResetController(
     , bus_(bus)
     , inputMgr_(inputMgr)
     , cart_(cart)
+    , userPort_(userPort)
     , media_(media)
     , basicRom_(basicRom)
     , kernalRom_(kernalRom)
@@ -116,6 +119,7 @@ void ResetController::warmReset()
     vic_.reset();
     cia1_.reset();
     cia2_.reset();
+    userPort_.reset();
     sid_.reset();
     inputMgr_.resetInputState();
 
@@ -162,6 +166,7 @@ void ResetController::coldReset()
     vic_.reset();
     cia1_.reset();
     cia2_.reset();
+    userPort_.reset();
     sid_.reset();
     inputMgr_.resetInputState();
 

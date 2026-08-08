@@ -86,6 +86,9 @@ class CIA6526
         inline uint8_t getPortALatch() const { return portA; }
         inline uint8_t getPortADDR() const { return ddrA; }
 
+        inline uint8_t getPortBLatch() const { return portB; }
+        inline uint8_t getPortBDDR() const { return ddrB; }
+
         virtual int getCIANumber() const = 0;
         virtual const char* getCIAName() const = 0;
 
