@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "DataBusLatch.h"
+#include "IRQLine.h"
 #include "Memory.h"
 #include "REU.h"
 

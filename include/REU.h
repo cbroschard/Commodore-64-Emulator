@@ -15,12 +15,12 @@
 #include <string>
 #include <iomanip>
 #include <vector>
-#include "IRQLine.h"
 #include "Common/REUModel.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
 class DataBusLatch;
+class IRQLine;
 class Memory;
 
 class REU
