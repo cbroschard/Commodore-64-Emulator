@@ -394,6 +394,7 @@ MLMonitorBackend::MLMonitorBackend() :
     cass(nullptr),
     cia1(nullptr),
     cia2(nullptr),
+    comp(nullptr),
     cpu(nullptr),
     executionHistory(nullptr),
     bus(nullptr),
@@ -1775,13 +1776,12 @@ std::string MLMonitorBackend::vicDumpBorderState() const
 
 void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
 {
-    while(vic->getCurrentRaster() != targetRaster)
+    if (!vic || !comp)
+        return;
+
+    while (vic->getCurrentRaster() != targetRaster)
     {
-        vic->tick(1);
-        cpu->tick();
-        cia1->updateTimers(1);
-        cia2->updateTimers(1);
-        sid->tick(1);
+        comp->tickCycle();
     }
 }
 
@@ -1866,18 +1866,22 @@ void MLMonitorBackend::setPC(uint16_t value)
 
 void MLMonitorBackend::cpuStepInstruction()
 {
-    if (!cpu)
+    if (!cpu || !comp)
         return;
 
-    // Start or continue the current instruction.
-    cpu->tick();
-
-    // Finish the instruction by consuming its remaining cycles.
     int guard = 128;
 
-    while (!cpu->isAtInstructionBoundary() && guard-- > 0)
+    do
     {
-        cpu->tick();
+        comp->tickCycle();
+    }
+    while (!cpu->isAtInstructionBoundary() && --guard > 0);
+
+    if (guard <= 0)
+    {
+        std::cerr
+            << "MLMonitorBackend::cpuStepInstruction(): "
+            << "CPU did not reach an instruction boundary.\n";
     }
 }
 

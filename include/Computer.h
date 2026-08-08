@@ -44,6 +44,8 @@ class Computer : public ICartridgeHost
         // Main emulation loop
         bool boot();
 
+        void tickCycle();
+
         // Reset methods
         void warmReset();
         void coldReset();

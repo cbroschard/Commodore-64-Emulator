@@ -56,50 +56,48 @@ void NextCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    uint16_t currentPC = mon.mlmonitorbackend()->getPC();
-    uint8_t opCode = mon.mlmonitorbackend()->readRAM(currentPC);
-    if (opCode == 0x20)
+    auto* backend = mon.mlmonitorbackend();
+
+    if (!backend)
+        return;
+
+    const uint16_t currentPC = backend->getPC();
+    const uint8_t opcode = backend->readRAM(currentPC);
+
+    if (opcode == 0x20) // JSR absolute
     {
-        // Computer the address of the instruction after the JSR
-        uint16_t targetPC = (currentPC + 3) & 0xFFFF;
+        const uint16_t targetPC = static_cast<uint16_t>(currentPC + 3);
+        int guard = 1000000;
 
-        // Set a temporary breakpoint
-        mon.addBreakpoint(targetPC);
-
-        // Run until hitting the breakpoint then stop
-        while (true)
+        do
         {
-            mon.mlmonitorbackend()->cpuStep();
-            if (mon.mlmonitorbackend()->getPC() == targetPC)
+            backend->cpuStepInstruction();
+
+            if (--guard <= 0)
             {
+                std::cout
+                    << "Step-over aborted: return address was not reached.\n";
                 break;
             }
+
         }
-
-        // Dump CPU registers
-        auto st = mon.mlmonitorbackend()->getCPUState();
-        std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
-            << "  A=$" << std::setw(2) << int(st.A)
-            << "  X=$" << std::setw(2) << int(st.X)
-            << "  Y=$" << std::setw(2) << int(st.Y)
-            << "  SP=$" << std::setw(2) << int(st.SP)
-            << "  P=$" << std::setw(2) << int(st.SR)
-            << "  (NV-BDIZC)\n";
-
-        // Clear the temporary breakpoing
-        mon.clearBreakpoint(targetPC);
+        while (backend->getPC() != targetPC);
     }
     else
-    {
-        mon.mlmonitorbackend()->cpuStep();
-        // Dump CPU registers
-        auto st = mon.mlmonitorbackend()->getCPUState();
-        std::cout << "PC=$" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << st.PC
-            << "  A=$" << std::setw(2) << int(st.A)
-            << "  X=$" << std::setw(2) << int(st.X)
-            << "  Y=$" << std::setw(2) << int(st.Y)
-            << "  SP=$" << std::setw(2) << int(st.SP)
-            << "  P=$" << std::setw(2) << int(st.SR)
-            << "  (NV-BDIZC)\n";
-    }
+        backend->cpuStepInstruction();
+
+    auto st = backend->getCPUState();
+
+    std::cout << "PC=$"
+              << std::setw(4)
+              << std::setfill('0')
+              << std::hex
+              << std::uppercase
+              << st.PC
+              << "  A=$" << std::setw(2) << int(st.A)
+              << "  X=$" << std::setw(2) << int(st.X)
+              << "  Y=$" << std::setw(2) << int(st.Y)
+              << "  SP=$" << std::setw(2) << int(st.SP)
+              << "  P=$" << std::setw(2) << int(st.SR)
+              << "  (NV-BDIZC)\n";
 }

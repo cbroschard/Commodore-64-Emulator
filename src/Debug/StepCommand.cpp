@@ -51,33 +51,49 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
+    auto* backend = mon.mlmonitorbackend();
+
+    if (!backend)
+        return;
+
+    Memory* mem = backend->getMem();
+
+    if (!mem)
+        return;
+
     // Determine current CPU PC
-    uint16_t pc = mon.mlmonitorbackend()->getPC();
-    Memory* mem = mon.mlmonitorbackend()->getMem();
+    uint16_t pc = backend->getPC();
 
     // Check for raster check loop, if so, fast forward to it
     uint8_t targetRaster;
+
     if (mon.isRasterWaitLoop(pc, targetRaster))
     {
-        if (mon.mlmonitorbackend()->getCurrentRaster() != targetRaster)
+        if (backend->getCurrentRaster() != targetRaster)
         {
             std::cout << "[Monitor] Raster wait detected at $"
-                  << std::hex << pc
-                  << ", fast-forwarding to line $"
-                  << int(targetRaster) << std::endl;
-            mon.mlmonitorbackend()->vicFFRaster(targetRaster);
+                      << std::hex << pc
+                      << ", fast-forwarding to line $"
+                      << int(targetRaster)
+                      << std::endl;
+
+            backend->vicFFRaster(targetRaster);
+
+            // Fast-forward advances the entire machine, including the CPU,
+            // so refresh PC before disassembling the instruction to step.
+            pc = backend->getPC();
         }
     }
 
-    // Output disassembly at PC
+    // Output the instruction we're actually about to execute
     std::string disASM = Disassembler::disassembleAt(pc, *mem);
     std::cout << disASM << std::endl;
 
-    // Execute OPCODE
-    mon.mlmonitorbackend()->cpuStepInstruction();
+    // Execute one complete CPU instruction while advancing the entire machine
+    backend->cpuStepInstruction();
 
     // Dump CPU registers
-    auto st = mon.mlmonitorbackend()->getCPUState();
+    auto st = backend->getCPUState();
     auto hex2 = [](uint32_t v){
         std::ostringstream s;
         s << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << (v & 0xFF);
@@ -88,7 +104,7 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         s << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << (v & 0xFFFF);
         return s.str();
     };
-    auto flagsBits = [&](uint8_t p){
+    auto flagsBits = [](uint8_t p){
         std::string b;
         b += (p & 0x80) ? '1' : '0'; // N
         b += (p & 0x40) ? '1' : '0'; // V

@@ -165,6 +165,19 @@ bool Computer::boot()
     return session.run();
 }
 
+void Computer::tickCycle()
+{
+    components_.vic->beginCycle();
+
+    components_.cpu->tick();
+
+    components_.cia1->updateTimers(1);
+    components_.cia2->updateTimers(1);
+    components_.sid->tick(1);
+
+    components_.vic->endCycle();
+}
+
 void Computer::warmReset()
 {
      if (components_.resetCtl) components_.resetCtl->warmReset();
