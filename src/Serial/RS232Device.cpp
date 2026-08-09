@@ -26,6 +26,7 @@ RS232Device::RS232Device() :
     txState(TxState::Idle),
     txCountdown(0.0),
     txShift(0),
+    txOriginalByte(0),
     txBitIndex(0),
     rxCountdown(0.0),
     rxState(RxState::Idle)
@@ -65,6 +66,7 @@ void RS232Device::saveState(StateWriter& wrtr) const
     wrtr.writeU8(static_cast<uint8_t>(txState));
     wrtr.writeF64(txCountdown);
     wrtr.writeU8(txShift);
+    wrtr.writeU8(txOriginalByte);
     wrtr.writeI32(txBitIndex);
 
     // RX Engine
@@ -102,58 +104,59 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
 
         // Configuration
-        if (!rdr.readU32(config.baud))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(config.dataBits))       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(config.stopBits))       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(config.baud))                          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.dataBits))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.stopBits))                       { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t parityTemp = 0;
-        if (!rdr.readU8(parityTemp))            { rdr.exitChunkPayload(chunk); return false; }
-        if (parityTemp > 2)                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(parityTemp))                            { rdr.exitChunkPayload(chunk); return false; }
+        if (parityTemp > static_cast<uint8_t>(Parity::Even))    { rdr.exitChunkPayload(chunk); return false; }
 
         config.parity = static_cast<Parity>(parityTemp);
 
         // Line State
-        if (!rdr.readBool(dtr))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(dsr))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(rts))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(cts))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(txd))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(rxd))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(dcd))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(ri))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dtr))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dsr))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rts))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(cts))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(txd))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rxd))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dcd))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(ri))                                  { rdr.exitChunkPayload(chunk); return false; }
 
         // Timing
-        if (!rdr.readF64(clockHz))              { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readF64(cyclesPerBit))         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU64(cycleAccumulator))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(clockHz))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(cyclesPerBit))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU64(cycleAccumulator))                     { rdr.exitChunkPayload(chunk); return false; }
 
         // TX Engine
         uint8_t txTemp = 0;
-        if (!rdr.readU8(txTemp))                { rdr.exitChunkPayload(chunk); return false; }
-        if (txTemp > 3)                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txTemp))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (txTemp > static_cast<uint8_t>(TxState::StopBit))    { rdr.exitChunkPayload(chunk); return false; }
 
         txState = static_cast<TxState>(txTemp);
 
-        if (!rdr.readF64(txCountdown))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(txShift))               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(txBitIndex))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(txCountdown))                          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txShift))                               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txOriginalByte))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(txBitIndex))                           { rdr.exitChunkPayload(chunk); return false; }
 
         // Rx Engine
         uint8_t rxTemp = 0;
-        if (!rdr.readU8(rxTemp))                { rdr.exitChunkPayload(chunk); return false; }
-        if (rxTemp > 2)                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rxTemp))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (rxTemp > static_cast<uint8_t>(RxState::StopBit))    { rdr.exitChunkPayload(chunk); return false; }
 
         rxState = static_cast<RxState>(rxTemp);
 
-        if (!rdr.readF64(rxCountdown))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(rxShift))               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(rxBitIndex))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(rxCountdown))                          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rxShift))                               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(rxBitIndex))                           { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(lastRXD))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastRXD))                             { rdr.exitChunkPayload(chunk); return false; }
 
         // Queues
         auto readByteQueue = [&](std::queue<uint8_t>& queue) -> bool
@@ -179,9 +182,9 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             return true;
         };
 
-        if (!readByteQueue(txBytes))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!readByteQueue(txBytes))                            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!readByteQueue(rxBytes))            { rdr.exitChunkPayload(chunk); return false; }
+        if (!readByteQueue(rxBytes))                            { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
 
@@ -193,28 +196,29 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 void RS232Device::reset()
 {
-    cycleAccumulator = 0;
+    cycleAccumulator    = 0;
 
-    rxBitIndex = 0;
-    rxShift = 0;
-    lastRXD = true;
+    rxBitIndex          = 0;
+    rxShift             = 0;
+    lastRXD             = true;
 
-    dtr = true;
-    dsr = true;
-    rts = true;
-    txd = true;
-    rxd = true;
-    cts = true;
-    dcd = true;
-    ri = true;
+    dtr                 = true;
+    dsr                 = true;
+    rts                 = true;
+    txd                 = true;
+    rxd                 = true;
+    cts                 = true;
+    dcd                 = true;
+    ri                  = true;
 
-    txState = TxState::Idle;
-    txCountdown = 0.0;
-    txShift = 0;
-    txBitIndex = 0;
+    txState             = TxState::Idle;
+    txCountdown         = 0.0;
+    txShift             = 0;
+    txOriginalByte      = 0;
+    txBitIndex          = 0;
 
-    rxCountdown = 0.0;
-    rxState = RxState::Idle;
+    rxCountdown         = 0.0;
+    rxState             = RxState::Idle;
 
     while (!txBytes.empty())
         txBytes.pop();
@@ -335,6 +339,7 @@ void RS232Device::tickTX(uint32_t cyclesElapsed)
             if (!txBytes.empty())
             {
                 txShift = txBytes.front();
+                txOriginalByte = txShift;
                 txBytes.pop();
 
                 txBitIndex = 0;
@@ -373,10 +378,23 @@ void RS232Device::tickTX(uint32_t cyclesElapsed)
             {
                 if (txBitIndex >= config.dataBits)
                 {
-                    // Stop bit is high.
-                    setTXD(true);
-                    txCountdown += cyclesPerBit * config.stopBits;
-                    txState = TxState::StopBit;
+                    if (config.parity != Parity::None)
+                    {
+                        const bool parityBit = calculateParity(txOriginalByte);
+
+                        setTXD(parityBit);
+
+                        txCountdown += cyclesPerBit;
+                        txState = TxState::ParityBit;
+                    }
+                    else
+                    {
+                        setTXD(true);
+
+                        txCountdown += cyclesPerBit * config.stopBits;
+                        txState = TxState::StopBit;
+                    }
+
                     break;
                 }
 
@@ -387,6 +405,21 @@ void RS232Device::tickTX(uint32_t cyclesElapsed)
                 ++txBitIndex;
                 txCountdown += cyclesPerBit;
             }
+            break;
+        }
+
+        case TxState::ParityBit:
+        {
+            txCountdown -= static_cast<double>(cyclesElapsed);
+
+            if (txCountdown <= 0.0)
+            {
+                setTXD(true);
+
+                txCountdown += cyclesPerBit * config.stopBits;
+                txState = TxState::StopBit;
+            }
+
             break;
         }
 
@@ -401,7 +434,9 @@ void RS232Device::tickTX(uint32_t cyclesElapsed)
                 txCountdown = 0.0;
                 txBitIndex = 0;
                 txShift = 0;
+                txOriginalByte = 0;
             }
+
             break;
         }
     }
@@ -437,13 +472,46 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
 
                 if (rxBitIndex >= config.dataBits)
                 {
-                    rxState = RxState::StopBit;
-                    rxCountdown += cyclesPerBit;
+                    if (config.parity != Parity::None)
+                    {
+                        rxState = RxState::ParityBit;
+                        rxCountdown += cyclesPerBit;
+                    }
+                    else
+                    {
+                        rxState = RxState::StopBit;
+                        rxCountdown += cyclesPerBit;
+                    }
+
+                    break;
+                }
+                rxCountdown += cyclesPerBit;
+            }
+            break;
+        }
+
+        case RxState::ParityBit:
+        {
+            rxCountdown -= static_cast<double>(cyclesElapsed);
+
+            if (rxCountdown <= 0.0)
+            {
+                const bool expectedParity = calculateParity(rxShift);
+                const bool receivedParity = rxd;
+
+                if (receivedParity != expectedParity)
+                {
+                    rxState = RxState::Idle;
+                    rxCountdown = 0.0;
+                    rxBitIndex = 0;
+                    rxShift = 0;
                     break;
                 }
 
+                rxState = RxState::StopBit;
                 rxCountdown += cyclesPerBit;
             }
+
             break;
         }
 
@@ -466,6 +534,25 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
     }
 
     lastRXD = rxd;
+}
+
+bool RS232Device::calculateParity(uint8_t value) const
+{
+    bool parity = false;
+
+    for (uint8_t bit = 0; bit < config.dataBits; ++bit)
+    {
+        if (value & static_cast<uint8_t>(1u << bit))
+            parity = !parity;
+    }
+
+    if (config.parity == Parity::Even)
+        return parity;
+
+    if (config.parity == Parity::Odd)
+        return !parity;
+
+    return false;
 }
 
 std::string RS232Device::debugString() const
@@ -495,6 +582,7 @@ std::string RS232Device::debugString() const
         case TxState::Idle:     out << "Idle"; break;
         case TxState::StartBit: out << "StartBit"; break;
         case TxState::DataBits: out << "DataBits"; break;
+        case TxState::ParityBit: out << "ParityBit"; break;
         case TxState::StopBit:  out << "StopBit"; break;
     }
 
@@ -511,6 +599,7 @@ std::string RS232Device::debugString() const
     {
         case RxState::Idle:     out << "Idle"; break;
         case RxState::DataBits: out << "DataBits"; break;
+        case RxState::ParityBit: out << "ParityBit"; break;
         case RxState::StopBit:  out << "StopBit"; break;
     }
 
@@ -548,15 +637,10 @@ std::string RS232Device::selfTest(uint8_t testByte)
     // Queue test byte.
     queueTransmitByte(testByte);
 
-    // Allow enough time for the complete serial frame.
-    // Start + data + stop bits, with some safety margin.
-    const uint32_t frameBits =
-        1u +
-        static_cast<uint32_t>(config.dataBits) +
-        static_cast<uint32_t>(config.stopBits);
+    const uint32_t parityBits = (config.parity == Parity::None) ? 0u : 1u;
 
-    const uint32_t maxCycles =
-        static_cast<uint32_t>(cyclesPerBit * frameBits * 2.0);
+    const uint32_t frameBits = 1u + static_cast<uint32_t>(config.dataBits) + parityBits + static_cast<uint32_t>(config.stopBits);
+    const uint32_t maxCycles = static_cast<uint32_t>(cyclesPerBit * frameBits * 2.0);
 
     uint8_t receivedByte = 0;
     bool received = false;

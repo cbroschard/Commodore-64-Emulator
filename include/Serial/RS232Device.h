@@ -98,6 +98,7 @@ class RS232Device
             Idle,
             StartBit,
             DataBits,
+            ParityBit,
             StopBit
         };
 
@@ -105,6 +106,7 @@ class RS232Device
         {
             Idle,
             DataBits,
+            ParityBit,
             StopBit
         };
 
@@ -132,6 +134,7 @@ class RS232Device
         std::queue<uint8_t> txBytes;
         double txCountdown;
         uint8_t txShift;
+        uint8_t txOriginalByte;
         int txBitIndex;
 
         double rxCountdown;
@@ -141,6 +144,7 @@ class RS232Device
         // Helpers
         void tickTX(uint32_t cyclesElapsed);
         void tickRX(uint32_t cyclesElapsed);
+        bool calculateParity(uint8_t value) const;
 };
 
 #endif // RS232DEVICE_H
