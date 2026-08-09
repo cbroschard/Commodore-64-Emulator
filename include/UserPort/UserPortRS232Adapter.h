@@ -8,6 +8,8 @@
 #ifndef USERPORTRS232ADAPTER_H
 #define USERPORTRS232ADAPTER_H
 
+#include "StateReader.h"
+#include "StateWriter.h"
 #include "UserPort/UserPortDevice.h"
 
 class RS232Device;
@@ -19,6 +21,10 @@ class UserPortRS232Adapter : public UserPortDevice
         virtual ~UserPortRS232Adapter();
 
         void attachRS232DeviceInstance(RS232Device* rs232Device) { this->rs232Device = rs232Device; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         void reset() override;
         void tick(uint32_t cyclesElapsed) override;

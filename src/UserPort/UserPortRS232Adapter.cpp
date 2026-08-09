@@ -14,9 +14,40 @@ UserPortRS232Adapter::UserPortRS232Adapter() :
 
 }
 
-UserPortRS232Adapter::~UserPortRS232Adapter()
-{
+UserPortRS232Adapter::~UserPortRS232Adapter() = default;
 
+void UserPortRS232Adapter::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("UR23");
+    wrtr.writeU32(1); // version
+
+    wrtr.writeU8(portAValue);
+    wrtr.writeU8(portADDR);
+    wrtr.writeU8(portBValue);
+    wrtr.writeU8(portBDDR);
+
+    wrtr.endChunk();
+}
+
+bool UserPortRS232Adapter::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "UR23", 4) == 0)
+    {
+        rdr.enterChunkPayload(chunk);
+
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU8(portAValue))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(portADDR))      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(portBValue))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(portBDDR))      { rdr.exitChunkPayload(chunk); return false; }
+
+        return true;
+    }
+
+    return false;
 }
 
 void UserPortRS232Adapter::reset()
