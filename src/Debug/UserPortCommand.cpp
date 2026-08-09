@@ -98,7 +98,7 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
     }
     else if (subcmd == "rs232")
     {
-        std::cout << backend->dumpUserPort();
+        std::cout << backend->dumpUserPortRS232();
     }
     else
     {

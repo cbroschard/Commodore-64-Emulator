@@ -29,6 +29,7 @@ class UserPortRS232Adapter : public UserPortDevice
         uint8_t readPortB() const override;
 
         std::string debugString() const override;
+        std::string debugRS232String() const override;
 
     private:
         RS232Device* rs232Device;

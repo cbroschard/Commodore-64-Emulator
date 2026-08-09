@@ -31,6 +31,7 @@ class UserPort
         uint8_t readPortB() const;
 
         std::string debugString() const;
+        std::string debugRS232String() const;
 
     private:
         UserPortDevice* device;

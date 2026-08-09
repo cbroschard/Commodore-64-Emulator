@@ -118,3 +118,11 @@ std::string UserPortRS232Adapter::debugString() const
 
     return out.str();
 }
+
+std::string UserPortRS232Adapter::debugRS232String() const
+{
+    if (!rs232Device)
+        return "RS232 Device: none attached\n";
+
+    return rs232Device->debugString();
+}

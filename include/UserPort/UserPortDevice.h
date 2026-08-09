@@ -25,6 +25,7 @@ public:
     virtual uint8_t readPortB() const { return 0xFF; }
 
     virtual std::string debugString() const { return "  Device: generic\n"; }
+    virtual std::string debugRS232String() const { return "RS-232 not supported by attached User Port device\n"; }
 };
 
 #endif // USERPORTDEVICE_H
