@@ -202,5 +202,13 @@ std::string UserPortRS232Adapter::selfTestRS232Multi()
     if (!rs232Device)
         return "RS-232 Device: none attached\n";
 
-    return rs232Device->selfTestRS232Multi();
+    return rs232Device->selfTestMulti();
+}
+
+std::string UserPortRS232Adapter::selfTestUserPortRS232Formats()
+{
+    if (!rs232Device)
+        return "RS-232 Device: none attached\n";
+
+    return rs232Device->selfTestFormats();
 }

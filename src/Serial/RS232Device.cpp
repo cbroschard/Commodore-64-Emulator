@@ -768,7 +768,7 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
     return out.str();
 }
 
-std::string RS232Device::selfTestRS232Multi()
+std::string RS232Device::selfTestMulti()
 {
     std::ostringstream out;
 
@@ -869,6 +869,126 @@ std::string RS232Device::selfTestRS232Multi()
     attachPeerDevice(oldPeer);
     testPeer.attachPeerDevice(nullptr);
 
+    setConfig(oldConfig);
+
+    return out.str();
+}
+
+std::string RS232Device::selfTestFormats()
+{
+    std::ostringstream out;
+
+    struct FormatTest
+    {
+        const char* name;
+        uint8_t dataBits;
+        Parity parity;
+        uint8_t stopBits;
+    };
+
+    const FormatTest tests[] =
+    {
+        { "8N1", 8, Parity::None, 1 },
+        { "8E1", 8, Parity::Even, 1 },
+        { "8O1", 8, Parity::Odd,  1 },
+        { "7E1", 7, Parity::Even, 1 },
+        { "7O1", 7, Parity::Odd,  1 },
+        { "8N2", 8, Parity::None, 2 }
+    };
+
+    const uint8_t testBytes[] =
+    {
+        0x55,
+        0x2A,
+        0x00,
+        0x7F
+    };
+
+    const RS232Config oldConfig = config;
+    RS232Device* oldPeer = peer;
+
+    out << "RS232 Format Test\n";
+    out << "-----------------\n";
+
+    bool allPassed = true;
+
+    for (const auto& test : tests)
+    {
+        RS232Device testPeer;
+
+        RS232Config testConfig = oldConfig;
+        testConfig.dataBits = test.dataBits;
+        testConfig.parity = test.parity;
+        testConfig.stopBits = test.stopBits;
+        testConfig.flowControl = FlowControl::None;
+
+        setConfig(testConfig);
+
+        testPeer.setClockRate(clockHz);
+        testPeer.setConfig(testConfig);
+
+        attachPeerDevice(&testPeer);
+        testPeer.attachPeerDevice(this);
+
+        reset();
+        testPeer.reset();
+
+        for (uint8_t value : testBytes)
+            queueTransmitByte(value);
+
+        const uint32_t parityBits = (testConfig.parity == Parity::None) ? 0u : 1u;
+        const uint32_t frameBits = 1u + static_cast<uint32_t>(testConfig.dataBits) + parityBits + static_cast<uint32_t>(testConfig.stopBits);
+        constexpr size_t testCount = sizeof(testBytes) / sizeof(testBytes[0]);
+        const uint32_t maxCycles = static_cast<uint32_t>(cyclesPerBit * frameBits * testCount * 2.0);
+        uint8_t received[testCount] = {};
+        size_t receivedCount = 0;
+
+        for (uint32_t cycle = 0;
+             cycle < maxCycles && receivedCount < testCount;
+             ++cycle)
+        {
+            tick(1);
+            testPeer.tick(1);
+
+            uint8_t value = 0;
+
+            while (testPeer.popReceivedByte(value))
+            {
+                if (receivedCount < testCount)
+                    received[receivedCount++] = value;
+            }
+        }
+
+        bool passed = receivedCount == testCount;
+
+        for (size_t i = 0; i < testCount && passed; ++i)
+        {
+            uint8_t expected = testBytes[i];
+
+            if (test.dataBits == 7)
+                expected &= 0x7F;
+
+            if (received[i] != expected)
+                passed = false;
+        }
+
+        out << test.name
+            << ": "
+            << (passed ? "PASS" : "FAIL")
+            << "\n";
+
+        if (!passed)
+            allPassed = false;
+
+        testPeer.detachPeerDevice();
+        detachPeerDevice();
+    }
+
+    out << "Overall: "
+        << (allPassed ? "PASS" : "FAIL")
+        << "\n";
+
+    attachPeerDevice(oldPeer);
     setConfig(oldConfig);
 
     return out.str();

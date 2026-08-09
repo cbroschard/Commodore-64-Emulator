@@ -51,7 +51,8 @@ Subcommands:
     rs232 test                     - Run RS-232 loopback self-test using $55 with no parity
     rs232 test <byte>              - Run RS-232 loopback self-test using a hex byte
     rs232 test <byte> <parity>     - Run RS-232 loopback test with none, odd, or even parity
-    rs232 test multi               - Run RS-232 loopback test
+    rs232 test multi               - Run RS-232 back-to-back multi-byte loopback test
+    rs232 test formats             - Test RS-232 loopback across supported serial formats
     help                           - Show this help text
 
 Examples:
@@ -138,6 +139,12 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
             if (args.size() >= 4 && args[3] == "multi")
             {
                 std::cout << backend->selfTestUserPortRS232Multi();
+                return;
+            }
+
+            if (args.size() >= 4 && args[3] == "formats")
+            {
+                std::cout << backend->selfTestUserPortRS232Formats();
                 return;
             }
 

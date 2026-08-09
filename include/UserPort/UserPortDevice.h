@@ -28,7 +28,8 @@ public:
     virtual std::string debugString() const { return "  Device: generic\n"; }
     virtual std::string debugRS232String() const { return "RS-232 not supported by attached User Port device\n"; }
     virtual std::string selfTestRS232(uint8_t value,  RS232Device::Parity parity) { return "RS-232 not supported by attached User Port device\n"; }
-    virtual std::string selfTestRS232Multi() { return "RS-232 not supported by attached User POrt device\n"; }
+    virtual std::string selfTestRS232Multi() { return "RS-232 not supported by attached User Port device\n"; }
+    virtual std::string selfTestUserPortRS232Formats() { return "RS-232 not supported by attached User Port device\n"; }
 };
 
 #endif // USERPORTDEVICE_H
