@@ -993,3 +993,148 @@ std::string RS232Device::selfTestFormats()
 
     return out.str();
 }
+
+std::string RS232Device::selfTestFlowControl()
+{
+    std::ostringstream out;
+
+    const RS232Config oldConfig = config;
+    RS232Device* oldPeer = peer;
+
+    RS232Device testPeer;
+
+    RS232Config testConfig = config;
+    testConfig.parity = Parity::None;
+    testConfig.flowControl = FlowControl::RTS_CTS;
+
+    setConfig(testConfig);
+
+    testPeer.setClockRate(clockHz);
+    testPeer.setConfig(testConfig);
+
+    attachPeerDevice(&testPeer);
+    testPeer.attachPeerDevice(this);
+
+    reset();
+    testPeer.reset();
+
+    constexpr uint8_t testByte = 0x55;
+
+    out << "RS232 Flow Control Test\n";
+    out << "-----------------------\n";
+
+    /*
+     * Peer lowers RTS.
+     *
+     * Because RTS on testPeer is connected to CTS on this
+     * device, our CTS should now become false.
+     */
+    testPeer.setRTS(false);
+
+    const bool ctsBlocked = !getCTS();
+
+    /*
+     * Queue a byte while CTS is low.
+     */
+    queueTransmitByte(testByte);
+
+    /*
+     * Tick long enough that the byte definitely would have
+     * transmitted if CTS were being ignored.
+     */
+    const uint32_t parityBits = (config.parity == Parity::None) ? 0u : 1u;
+    const uint32_t frameBits = 1u + static_cast<uint32_t>(config.dataBits) + parityBits + static_cast<uint32_t>(config.stopBits);
+    const uint32_t blockedCycles = static_cast<uint32_t>(cyclesPerBit * static_cast<double>(frameBits) * 2.0);
+
+    for (uint32_t cycle = 0; cycle < blockedCycles; ++cycle)
+    {
+        tick(1);
+        testPeer.tick(1);
+    }
+
+    /*
+     * No byte should have reached the peer.
+     */
+    uint8_t receivedValue = 0;
+
+    const bool receivedWhileBlocked = testPeer.popReceivedByte(receivedValue);
+    const bool transmitHeld = !receivedWhileBlocked && !isTransmitIdle();
+
+    /*
+     * Release CTS by raising peer RTS.
+     */
+    testPeer.setRTS(true);
+
+    const bool ctsReleased = getCTS();
+
+    /*
+     * Now allow enough time for the queued byte to transmit.
+     */
+    const uint32_t transmitCycles = static_cast<uint32_t>(cyclesPerBit * static_cast<double>(frameBits) * 2.0);
+    bool receivedAfterRelease = false;
+
+    for (uint32_t cycle = 0;
+         cycle < transmitCycles && !receivedAfterRelease;
+         ++cycle)
+    {
+        tick(1);
+        testPeer.tick(1);
+
+        if (testPeer.popReceivedByte(receivedValue))
+            receivedAfterRelease = true;
+    }
+
+    const bool correctByte = receivedAfterRelease && receivedValue == testByte;
+    const bool passed = ctsBlocked && transmitHeld && ctsReleased && correctByte;
+
+    out << "CTS low detected:       "
+        << (ctsBlocked ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "TX blocked by CTS:      "
+        << (transmitHeld ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "CTS high detected:      "
+        << (ctsReleased ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "Queued byte transmitted:"
+        << (correctByte ? " PASS" : " FAIL")
+        << "\n";
+
+    if (receivedAfterRelease)
+    {
+        out << "Received:              $"
+            << std::hex
+            << std::uppercase
+            << std::setw(2)
+            << std::setfill('0')
+            << static_cast<int>(receivedValue)
+            << "\n";
+    }
+    else
+    {
+        out << "Received:              none\n";
+    }
+
+    out << "Overall:                "
+        << (passed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << std::dec << std::setfill(' ');
+
+    /*
+     * Disconnect the temporary peer before it is destroyed.
+     */
+    testPeer.detachPeerDevice();
+    detachPeerDevice();
+
+    /*
+     * Restore the device's original connection/configuration.
+     */
+    attachPeerDevice(oldPeer);
+    setConfig(oldConfig);
+
+    return out.str();
+}

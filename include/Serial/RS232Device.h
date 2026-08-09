@@ -94,6 +94,7 @@ class RS232Device
         std::string selfTest(uint8_t testByte, Parity parity);
         std::string selfTestMulti();
         std::string selfTestFormats();
+        std::string selfTestFlowControl();
 
     protected:
 

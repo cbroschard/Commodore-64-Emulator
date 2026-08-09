@@ -53,6 +53,7 @@ Subcommands:
     rs232 test <byte> <parity>     - Run RS-232 loopback test with none, odd, or even parity
     rs232 test multi               - Run RS-232 back-to-back multi-byte loopback test
     rs232 test formats             - Test RS-232 loopback across supported serial formats
+    rs232 test flow                - Test RS-232 RTS/CTS hardware flow control
     help                           - Show this help text
 
 Examples:
@@ -145,6 +146,12 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
             if (args.size() >= 4 && args[3] == "formats")
             {
                 std::cout << backend->selfTestUserPortRS232Formats();
+                return;
+            }
+
+            if (args.size() >= 4 && args[3] == "flow")
+            {
+                std::cout << backend->selfTestUserPortRS232FlowControl();
                 return;
             }
 

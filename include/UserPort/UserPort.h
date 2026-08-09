@@ -36,6 +36,7 @@ class UserPort
         std::string selfTestRS232(uint8_t value, RS232Device::Parity parity);
         std::string selfTestRS232Multi();
         std::string selfTestUserPortRS232Formats();
+        std::string selfTestUserPortRS232FlowControl();
 
     private:
         UserPortDevice* device;
