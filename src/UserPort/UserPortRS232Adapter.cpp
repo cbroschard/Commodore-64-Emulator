@@ -9,7 +9,11 @@
 #include "Serial/RS232Device.h"
 
 UserPortRS232Adapter::UserPortRS232Adapter() :
-    rs232Device(nullptr)
+    rs232Device(nullptr),
+    portAValue(0xFF),
+    portADDR(0x00),
+    portBValue(0xFF),
+    portBDDR(0x00)
 {
 
 }
