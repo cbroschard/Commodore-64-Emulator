@@ -12,7 +12,6 @@ RS232Device::RS232Device() :
     cycleAccumulator(0),
     rxBitIndex(0),
     rxShift(0),
-    receiving(false),
     lastRXD(true),
     dtr(true),
     dsr(true),
@@ -194,7 +193,6 @@ void RS232Device::reset()
 
     rxBitIndex = 0;
     rxShift = 0;
-    receiving = false;
     lastRXD = true;
 
     dtr = true;

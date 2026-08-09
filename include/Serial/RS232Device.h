@@ -113,7 +113,6 @@ class RS232Device
         uint64_t cycleAccumulator;
         int rxBitIndex;
         uint8_t rxShift;
-        bool receiving;
         bool lastRXD;
 
         bool dtr;
