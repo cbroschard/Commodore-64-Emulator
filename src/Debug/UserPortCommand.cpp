@@ -65,8 +65,6 @@ Examples:
 
 void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    // userport help
-    // userport ?
     if (args.size() >= 2 &&
         (args[1] == "help" || args[1] == "?"))
     {
@@ -120,16 +118,12 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
 
         const std::string& rs232Cmd = args[2];
 
-        // userport rs232 help
-        // userport rs232 ?
         if (rs232Cmd == "help" || rs232Cmd == "?")
         {
             std::cout << help();
             return;
         }
 
-        // userport rs232 test
-        // userport rs232 test <hex byte>
         if (rs232Cmd == "test")
         {
             uint8_t testByte = 0x55;
@@ -138,8 +132,7 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
             {
                 try
                 {
-                    const unsigned long value =
-                        std::stoul(args[3], nullptr, 16);
+                    const unsigned long value = std::stoul(args[3], nullptr, 16);
 
                     if (value > 0xFF)
                     {
@@ -151,8 +144,7 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
                 }
                 catch (...)
                 {
-                    std::cout << "Error: invalid hexadecimal byte: "
-                              << args[3] << "\n";
+                    std::cout << "Error: invalid hexadecimal byte: "  << args[3] << "\n";
                     std::cout << "Example: userport rs232 test 55\n";
                     return;
                 }
@@ -162,13 +154,11 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
             return;
         }
 
-        std::cout << "Unknown RS-232 subcommand: "
-                  << rs232Cmd << "\n";
+        std::cout << "Unknown RS-232 subcommand: " << rs232Cmd << "\n";
         std::cout << "Try: userport help\n";
         return;
     }
 
-    std::cout << "Unknown User Port subcommand: "
-              << subcmd << "\n";
+    std::cout << "Unknown User Port subcommand: " << subcmd << "\n";
     std::cout << "Try: userport help\n";
 }
