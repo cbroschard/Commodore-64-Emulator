@@ -93,7 +93,7 @@ class RS232Device
         // Non-owning Pointers
         RS232Device* peer = nullptr;
 
-        enum class TxState
+        enum class TxState : uint8_t
         {
             Idle,
             StartBit,
@@ -101,7 +101,7 @@ class RS232Device
             StopBit
         };
 
-        enum class RxState
+        enum class RxState : uint8_t
         {
             Idle,
             DataBits,
