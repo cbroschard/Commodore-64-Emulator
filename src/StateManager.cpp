@@ -499,7 +499,7 @@ bool StateManager::load(const std::string& path)
     }
 
     processor_.postLoadState();
-    userPortRS232_.postLoadState();
+    userPortRS232Adapter_.postLoadState();
 
     return true;
 }
