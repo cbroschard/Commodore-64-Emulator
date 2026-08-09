@@ -24,9 +24,13 @@ bool D71::loadDisk(const std::string& filePath)
     const size_t sz = fileImageBuffer.size();
 
     uint8_t numTracks = 0;
-    if (sz == D71_STANDARD_SIZE_70 || sz == D71_STANDARD_SIZE_70_ERR)      numTracks = 70;
-    else if (sz == D71_EXTENDED_SIZE_80 || sz == D71_EXTENDED_SIZE_80_ERR) numTracks = 80;
-    else return false;
+
+    if (sz == D71_STANDARD_SIZE_70 || sz == D71_STANDARD_SIZE_70_ERR)
+            numTracks = 70;
+    else if (sz == D71_EXTENDED_SIZE_80 || sz == D71_EXTENDED_SIZE_80_ERR)
+        numTracks = 80;
+    else
+        return false;
 
     geom.sectorsPerTrack.resize(numTracks);
     for (int t = 1; t <= numTracks; ++t)
@@ -34,6 +38,7 @@ bool D71::loadDisk(const std::string& filePath)
 
     geom.trackOffsets.resize(numTracks);
     size_t offset = 0;
+
     for (int t = 1; t <= numTracks; ++t)
     {
         geom.trackOffsets[t-1] = offset;
@@ -50,12 +55,15 @@ bool D71::saveDisk(const std::string& filePath)
         std::cerr << "Error: No disk image loaded to save!\n";
         return false;
     }
+
     std::ofstream out(filePath, std::ios::binary);
+
     if (!out.is_open())
     {
         std::cerr << "Error opening " << filePath << " for writing\n";
         return false;
     }
+
     out.write(reinterpret_cast<const char*>(fileImageBuffer.data()), fileImageBuffer.size());
     return out.good();
 }
@@ -81,9 +89,15 @@ uint16_t D71::getSectorsForTrack(uint8_t track)
     if (track >= 36 && track <= 70)
         physicalTrack = static_cast<uint8_t>(track - 35);
 
-    if (physicalTrack <= 17) return 21;
-    if (physicalTrack <= 24) return 19;
-    if (physicalTrack <= 30) return 18;
+    if (physicalTrack <= 17)
+        return 21;
+
+    if (physicalTrack <= 24)
+        return 19;
+
+    if (physicalTrack <= 30)
+        return 18;
+
     return 17;
 }
 
@@ -111,6 +125,7 @@ void D71::initializeGeometryForBlankImage()
     geom.trackOffsets.resize(numTracks);
 
     size_t offset = 0;
+
     for (int t = 1; t <= numTracks; ++t)
     {
         geom.trackOffsets[t - 1] = offset;
@@ -174,18 +189,17 @@ bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volume
 
     auto fillBamRange = [&](std::vector<uint8_t>& bam, uint8_t firstTrack, uint8_t lastTrack)
     {
-        for (uint8_t track = firstTrack; track <= lastTrack; ++track)
+        for (uint8_t track = firstTrack;
+             track <= lastTrack;
+             ++track)
         {
             const uint8_t localTrack = static_cast<uint8_t>(track - firstTrack + 1);
             const uint8_t spt = static_cast<uint8_t>(getSectorsForTrack(track));
             const size_t entry = 4 + static_cast<size_t>(localTrack - 1) * 4;
-
             bam[entry + 0] = spt;
 
             for (uint8_t sector = 0; sector < spt; ++sector)
-            {
                 bam[entry + 1 + (sector / 8)] |= static_cast<uint8_t>(1u << (sector % 8));
-            }
         }
     };
 
@@ -211,17 +225,13 @@ bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volume
 
     // Reserve the entire directory/BAM track on side 0.
     // This matches the normal CBM DOS "664 blocks free" behavior for one side.
-    for (uint8_t sector = 0; sector < getSectorsForTrack(18); ++sector)
-    {
-        markUsed(bam0, 1, 18, sector);
-    }
+    for (uint16_t sector = 0; sector < getSectorsForTrack(18); ++sector)
+        markUsed(bam0, 1, 18, static_cast<uint8_t>(sector));
 
     // Reserve the entire BAM track on side 1.
     // This gives the second side another 664 free blocks.
-    for (uint8_t sector = 0; sector < getSectorsForTrack(53); ++sector)
-    {
-        markUsed(bam1, 36, 53, sector);
-    }
+    for (uint16_t sector = 0; sector < getSectorsForTrack(53); ++sector)
+        markUsed(bam1, 36, 53, static_cast<uint8_t>(sector));
 
     if (!writeSector(18, 0, bam0))
         return false;
