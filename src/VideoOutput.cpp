@@ -81,9 +81,10 @@ VideoOutput::VideoOutput() :
         );
     }
 
-    frontBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
+    const size_t bufferSize = static_cast<size_t>(screenWidthWithBorder) * static_cast<size_t>(screenHeightWithBorder);
 
-    backBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
+    frontBuffer.assign(bufferSize, 0);
+    backBuffer.assign(bufferSize, 0);
 
     screenTexture = SDL_CreateTexture(
         renderer,
@@ -330,8 +331,10 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
     screenWidthWithBorder = visibleW + 2 * borderSize;
     screenHeightWithBorder = visibleH + 2 * borderSize;
 
-    frontBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
-    backBuffer.assign(screenWidthWithBorder * screenHeightWithBorder, 0);
+    const size_t bufferSize = static_cast<size_t>(screenWidthWithBorder) * static_cast<size_t>(screenHeightWithBorder);
+
+    frontBuffer.assign(bufferSize, 0);
+    backBuffer.assign(bufferSize, 0);
     readyBuffer.store(nullptr, std::memory_order_release);
 
     if (screenTexture)
@@ -340,18 +343,11 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
         screenTexture = nullptr;
     }
 
-    screenTexture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        screenWidthWithBorder,
-        screenHeightWithBorder
-    );
+    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder,
+                                      screenHeightWithBorder);
 
     if (!screenTexture)
-    {
         throw std::runtime_error(std::string("Couldn't recreate texture: ") + SDL_GetError());
-    }
 
     if (!SDL_SetTextureScaleMode(screenTexture, SDL_SCALEMODE_NEAREST))
         SDL_Log("Unable to set nearest texture filtering: %s", SDL_GetError());
