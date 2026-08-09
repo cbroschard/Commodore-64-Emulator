@@ -338,6 +338,9 @@ void RS232Device::tickTX(uint32_t cyclesElapsed)
 
             if (!txBytes.empty())
             {
+                if (config.flowControl == FlowControl::RTS_CTS && !cts)
+                    break;
+
                 txShift = txBytes.front();
                 txOriginalByte = txShift;
                 txBytes.pop();

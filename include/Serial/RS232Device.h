@@ -40,6 +40,7 @@ class RS232Device
             uint8_t dataBits = 8;
             uint8_t stopBits = 1;
             Parity parity = Parity::None;
+            FlowControl flowControl = FlowControl::None;
         };
 
         // Pointer attachment
