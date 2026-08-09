@@ -45,7 +45,7 @@ class RS232Device
 
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
-        inline void detachPeerDeviee() { peer = nullptr; }
+        inline void detachPeerDevice() { peer = nullptr; }
 
         // State management
         void saveState(StateWriter& wrtr) const;

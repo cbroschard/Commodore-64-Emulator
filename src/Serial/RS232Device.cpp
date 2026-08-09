@@ -39,13 +39,14 @@ RS232Device::~RS232Device() = default;
 void RS232Device::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("RS23");
-    wrtr.writeU32(1); // version
+    wrtr.writeU32(2); // version
 
     // Configuration
     wrtr.writeU32(config.baud);
     wrtr.writeU8(config.dataBits);
     wrtr.writeU8(config.stopBits);
     wrtr.writeU8(static_cast<uint8_t>(config.parity));
+    wrtr.writeU8(static_cast<uint8_t>(config.flowControl));
 
     // Line State
     wrtr.writeBool(dtr);
@@ -104,59 +105,66 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(ver))                                      { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 2)                                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Configuration
-        if (!rdr.readU32(config.baud))                          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(config.dataBits))                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(config.stopBits))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(config.baud))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.dataBits))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.stopBits))                           { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t parityTemp = 0;
-        if (!rdr.readU8(parityTemp))                            { rdr.exitChunkPayload(chunk); return false; }
-        if (parityTemp > static_cast<uint8_t>(Parity::Even))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(parityTemp))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (parityTemp > static_cast<uint8_t>(Parity::Even))        { rdr.exitChunkPayload(chunk); return false; }
 
         config.parity = static_cast<Parity>(parityTemp);
 
+        uint8_t flowTemp = 0;
+
+        if (!rdr.readU8(flowTemp))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (flowTemp > static_cast<uint8_t>(FlowControl::RTS_CTS))  { rdr.exitChunkPayload(chunk); return false; }
+
+        config.flowControl = static_cast<FlowControl>(flowTemp);
+
         // Line State
-        if (!rdr.readBool(dtr))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(dsr))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(rts))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(cts))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(txd))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(rxd))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(dcd))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(ri))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dtr))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dsr))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rts))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(cts))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(txd))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rxd))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dcd))                                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(ri))                                      { rdr.exitChunkPayload(chunk); return false; }
 
         // Timing
-        if (!rdr.readF64(clockHz))                              { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readF64(cyclesPerBit))                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU64(cycleAccumulator))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(clockHz))                                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(cyclesPerBit))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU64(cycleAccumulator))                         { rdr.exitChunkPayload(chunk); return false; }
 
         // TX Engine
         uint8_t txTemp = 0;
-        if (!rdr.readU8(txTemp))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (txTemp > static_cast<uint8_t>(TxState::StopBit))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txTemp))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (txTemp > static_cast<uint8_t>(TxState::StopBit))        { rdr.exitChunkPayload(chunk); return false; }
 
         txState = static_cast<TxState>(txTemp);
 
-        if (!rdr.readF64(txCountdown))                          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(txShift))                               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(txOriginalByte))                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(txBitIndex))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(txCountdown))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txShift))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txOriginalByte))                            { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(txBitIndex))                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Rx Engine
         uint8_t rxTemp = 0;
-        if (!rdr.readU8(rxTemp))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (rxTemp > static_cast<uint8_t>(RxState::StopBit))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rxTemp))                                    { rdr.exitChunkPayload(chunk); return false; }
+        if (rxTemp > static_cast<uint8_t>(RxState::StopBit))        { rdr.exitChunkPayload(chunk); return false; }
 
         rxState = static_cast<RxState>(rxTemp);
 
-        if (!rdr.readF64(rxCountdown))                          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(rxShift))                               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(rxBitIndex))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(rxCountdown))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rxShift))                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(rxBitIndex))                               { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(lastRXD))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(lastRXD))                                 { rdr.exitChunkPayload(chunk); return false; }
 
         // Queues
         auto readByteQueue = [&](std::queue<uint8_t>& queue) -> bool
@@ -182,9 +190,8 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             return true;
         };
 
-        if (!readByteQueue(txBytes))                            { rdr.exitChunkPayload(chunk); return false; }
-
-        if (!readByteQueue(rxBytes))                            { rdr.exitChunkPayload(chunk); return false; }
+        if (!readByteQueue(txBytes))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (!readByteQueue(rxBytes))                                { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
 
@@ -622,6 +629,8 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
 
     RS232Device testPeer;
 
+    const RS232Config oldConfig = config;
+
     RS232Config testConfig = config;
     testConfig.parity = parity;
 
@@ -695,6 +704,8 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
     }
 
     out << std::dec << std::setfill(' ');
+
+    setConfig(oldConfig);
 
     return out.str();
 }
