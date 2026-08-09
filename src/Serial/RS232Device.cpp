@@ -100,6 +100,8 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
     if (std::memcmp(chunk.tag, "RS23", 4) == 0)
     {
+        rdr.enterChunkPayload(chunk);
+
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
         if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
