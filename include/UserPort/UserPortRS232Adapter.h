@@ -34,6 +34,8 @@ class UserPortRS232Adapter : public UserPortDevice
 
         uint8_t readPortB() const override;
 
+        void postLoadState();
+
         std::string debugString() const override;
         std::string debugRS232String() const override;
         std::string selfTestRS232(uint8_t value) override;
@@ -51,11 +53,15 @@ class UserPortRS232Adapter : public UserPortDevice
         static constexpr uint8_t CTS_MASK = 0x40; // PB6
         static constexpr uint8_t DSR_MASK = 0x80; // PB7
 
-        uint8_t portAValue = 0xFF;
-        uint8_t portADDR   = 0x00;
+        uint8_t portAValue;
+        uint8_t portADDR;
 
-        uint8_t portBValue = 0xFF;
-        uint8_t portBDDR   = 0x00;
+        uint8_t portBValue;
+        uint8_t portBDDR;
+
+        void updateTXD();
+        void updateRTS();
+        void updateDTR();
 };
 
 #endif // USERPORTRS232ADAPTER_H

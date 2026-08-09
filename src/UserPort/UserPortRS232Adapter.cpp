@@ -75,11 +75,7 @@ void UserPortRS232Adapter::portAChanged(uint8_t value, uint8_t ddr)
     portAValue = value;
     portADDR   = ddr;
 
-    if (!rs232Device)
-        return;
-
-    if (ddr & TXD_MASK)
-        rs232Device->setTXD((value & TXD_MASK) != 0);
+    updateTXD();
 }
 
 void UserPortRS232Adapter::portBChanged(uint8_t value, uint8_t ddr)
@@ -87,14 +83,43 @@ void UserPortRS232Adapter::portBChanged(uint8_t value, uint8_t ddr)
     portBValue = value;
     portBDDR   = ddr;
 
+    updateRTS();
+    updateDTR();
+}
+
+void UserPortRS232Adapter::postLoadState()
+{
+    updateTXD();
+
+    updateRTS();
+    updateDTR();
+}
+
+void UserPortRS232Adapter::updateTXD()
+{
     if (!rs232Device)
         return;
 
-    if (ddr & RTS_MASK)
-        rs232Device->setRTS((value & RTS_MASK) != 0);
+    if (portADDR & TXD_MASK)
+        rs232Device->setTXD((portAValue & TXD_MASK) != 0);
+}
 
-    if (ddr & DTR_MASK)
-        rs232Device->setDTR((value & DTR_MASK) != 0);
+void UserPortRS232Adapter::updateRTS()
+{
+    if (!rs232Device)
+        return;
+
+    if (portBDDR & RTS_MASK)
+        rs232Device->setRTS((portBValue & RTS_MASK) != 0);
+}
+
+void UserPortRS232Adapter::updateDTR()
+{
+    if (!rs232Device)
+        return;
+
+    if (portBDDR & DTR_MASK)
+        rs232Device->setDTR((portBValue & DTR_MASK) != 0);
 }
 
 uint8_t UserPortRS232Adapter::readPortB() const
