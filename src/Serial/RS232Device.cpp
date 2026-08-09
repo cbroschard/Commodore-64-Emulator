@@ -112,6 +112,8 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint8_t parityTemp = 0;
         if (!rdr.readU8(parityTemp))            { rdr.exitChunkPayload(chunk); return false; }
+        if (parityTemp > 2)                     { rdr.exitChunkPayload(chunk); return false; }
+
         config.parity = static_cast<Parity>(parityTemp);
 
         // Line State
@@ -133,6 +135,7 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint8_t txTemp = 0;
         if (!rdr.readU8(txTemp))                { rdr.exitChunkPayload(chunk); return false; }
         if (txTemp > 3)                         { rdr.exitChunkPayload(chunk); return false; }
+
         txState = static_cast<TxState>(txTemp);
 
         if (!rdr.readF64(txCountdown))          { rdr.exitChunkPayload(chunk); return false; }
@@ -143,6 +146,7 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint8_t rxTemp = 0;
         if (!rdr.readU8(rxTemp))                { rdr.exitChunkPayload(chunk); return false; }
         if (rxTemp > 2)                         { rdr.exitChunkPayload(chunk); return false; }
+
         rxState = static_cast<RxState>(rxTemp);
 
         if (!rdr.readF64(rxCountdown))          { rdr.exitChunkPayload(chunk); return false; }
