@@ -74,10 +74,10 @@ std::string UserPort::debugRS232String() const
     return device->debugRS232String();
 }
 
-std::string UserPort::selfTestRS232(uint8_t value)
+std::string UserPort::selfTestRS232(uint8_t value, RS232Device::Parity parity)
 {
     if (!device)
         return "User Port: no device attached\n";
 
-    return device->selfTestRS232(value);
+    return device->selfTestRS232(value, parity);
 }

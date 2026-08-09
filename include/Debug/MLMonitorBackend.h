@@ -197,7 +197,8 @@ class MLMonitorBackend
         // ML Monitor User Port
         inline std::string dumpUserPort() const { return userPort ? userPort->debugString() : "User Port not attached\n"; }
         inline std::string dumpUserPortRS232() const { return userPort ? userPort->debugRS232String() : "User Port not attached\n"; }
-        inline std::string selfTestUserPortRS232(uint8_t value) { return userPort ? userPort->selfTestRS232(value) : "User Port not attached\n"; }
+        inline std::string selfTestUserPortRS232(uint8_t value, RS232Device::Parity parity)
+                                                { return userPort ? userPort->selfTestRS232(value, parity) : "User Port not attached\n"; }
 
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }

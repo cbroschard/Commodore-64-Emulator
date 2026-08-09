@@ -613,15 +613,19 @@ std::string RS232Device::debugString() const
     return out.str();
 }
 
-std::string RS232Device::selfTest(uint8_t testByte)
+std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
 {
     std::ostringstream out;
 
     RS232Device testPeer;
 
-    // Match this device's current serial configuration and clock.
+    RS232Config testConfig = config;
+    testConfig.parity = parity;
+
+    setConfig(testConfig);
+
     testPeer.setClockRate(clockHz);
-    testPeer.setConfig(config);
+    testPeer.setConfig(testConfig);
 
     // Preserve the existing peer.
     RS232Device* oldPeer = peer;

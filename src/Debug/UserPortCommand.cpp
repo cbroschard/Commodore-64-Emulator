@@ -9,6 +9,7 @@
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
 #include "Debug/UserPortCommand.h"
+#include "Serial/RS232Device.h"
 
 UserPortCommand::UserPortCommand() = default;
 
@@ -43,13 +44,14 @@ Usage:
     userport rs232 [subcommand]
 
 Subcommands:
-    status              - Show User Port and attached device state
-    device              - Show the attached User Port device
-    lines               - Show C64-side User Port signal mapping and line state
-    rs232               - Show RS-232 adapter and serial device state
-    rs232 test          - Run RS-232 loopback self-test using $55
-    rs232 test <byte>   - Run RS-232 loopback self-test using a hex byte
-    help                - Show this help text
+    status                         - Show User Port and attached device state
+    device                         - Show the attached User Port device
+    lines                          - Show C64-side User Port signal mapping and line state
+    rs232                          - Show RS-232 adapter and serial device state
+    rs232 test                     - Run RS-232 loopback self-test using $55 with no parity
+    rs232 test <byte>              - Run RS-232 loopback self-test using a hex byte
+    rs232 test <byte> <parity>     - Run RS-232 loopback test with none, odd, or even parity
+    help                           - Show this help text
 
 Examples:
     userport
@@ -59,14 +61,16 @@ Examples:
     userport rs232
     userport rs232 test
     userport rs232 test 55
-    userport rs232 test AA
+    userport rs232 test 55 none
+    userport rs232 test 55 odd
+    userport rs232 test 55 even
+    userport rs232 test AA even
 )";
 }
 
 void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    if (args.size() >= 2 &&
-        (args[1] == "help" || args[1] == "?"))
+    if (args.size() >= 2 && (args[1] == "help" || args[1] == "?"))
     {
         std::cout << help();
         return;
@@ -127,7 +131,9 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
         if (rs232Cmd == "test")
         {
             uint8_t testByte = 0x55;
+            RS232Device::Parity parity = RS232Device::Parity::None;
 
+            // Optional test byte.
             if (args.size() >= 4)
             {
                 try
@@ -144,13 +150,37 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
                 }
                 catch (...)
                 {
-                    std::cout << "Error: invalid hexadecimal byte: "  << args[3] << "\n";
-                    std::cout << "Example: userport rs232 test 55\n";
+                    std::cout << "Error: invalid hexadecimal byte: " << args[3] << "\n";
+                    std::cout << "Example: userport rs232 test 55 even\n";
                     return;
                 }
             }
 
-            std::cout << backend->selfTestUserPortRS232(testByte);
+            // Optional parity mode.
+            if (args.size() >= 5)
+            {
+                const std::string& parityArg = args[4];
+
+                if (parityArg == "none")
+                    parity = RS232Device::Parity::None;
+                else if (parityArg == "odd")
+                    parity = RS232Device::Parity::Odd;
+                else if (parityArg == "even")
+                    parity = RS232Device::Parity::Even;
+                else
+                {
+                    std::cout << "Error: parity must be none, odd, or even.\n";
+                    return;
+                }
+            }
+
+            if (args.size() > 5)
+            {
+                std::cout << "Error: too many arguments.\n" << "Usage: userport rs232 test <byte> <parity>\n";
+                return;
+            }
+
+            std::cout << backend->selfTestUserPortRS232(testByte, parity);
             return;
         }
 
