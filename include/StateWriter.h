@@ -32,6 +32,7 @@ class StateWriter
         void writeU16(uint16_t value);
         void writeU32(uint32_t value);
         void writeI32(int32_t value);
+        void writeU64(uint64_t value);
         void writeF64(double value);
         void writeString(const std::string& s);
         void writeBool(bool value);

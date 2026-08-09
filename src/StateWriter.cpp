@@ -66,6 +66,12 @@ void StateWriter::writeI32(int32_t value)
     writeU32(static_cast<uint32_t>(value));
 }
 
+void StateWriter::writeU64(uint64_t value)
+{
+    writeU32(static_cast<uint32_t>(value & 0xFFFFFFFFULL));
+    writeU32(static_cast<uint32_t>((value >> 32) & 0xFFFFFFFFULL));
+}
+
 void StateWriter::writeF64(double value)
 {
     static_assert(sizeof(double) == 8, "Double must be 8 bytes");

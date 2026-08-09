@@ -34,6 +34,7 @@ class StateReader
         bool readU16(uint16_t& out);
         bool readU32(uint32_t& out);
         bool readI32(int32_t& out);
+        bool readU64(uint64_t& out);
         bool readF64(double& out);
         bool readString(std::string& out);
         bool readVectorU8(std::vector<uint8_t>& out);
