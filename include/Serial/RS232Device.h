@@ -59,6 +59,7 @@ class RS232Device
         inline void setDSR(bool state) { dsr = state; }
         inline void setDCD(bool state) { dcd = state; }
         inline void setRI(bool state) { ri = state; }
+
         void setTXD(bool state);
         void setDTR(bool state);
         void setRTS(bool state);
@@ -70,6 +71,10 @@ class RS232Device
         inline bool getCTS() const { return cts; }
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
+        inline bool hasParityError() const { return parityError; }
+        inline bool hasFramingError() const { return framingError; }
+
+        void clearReceiveErrors();
 
         void tick(uint32_t cyclesElapsed);
 
@@ -126,6 +131,9 @@ class RS232Device
         bool cts;
         bool dcd;
         bool ri;
+
+        bool parityError;
+        bool framingError;
 
         double clockHz;
         double cyclesPerBit;

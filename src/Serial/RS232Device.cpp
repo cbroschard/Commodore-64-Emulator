@@ -21,6 +21,8 @@ RS232Device::RS232Device() :
     cts(true),
     dcd(true),
     ri(true),
+    parityError(false),
+    framingError(false),
     clockHz(1022727.0),
     cyclesPerBit(1022727.0 / 300),
     txState(TxState::Idle),
@@ -39,7 +41,7 @@ RS232Device::~RS232Device() = default;
 void RS232Device::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("RS23");
-    wrtr.writeU32(2); // version
+    wrtr.writeU32(3); // version
 
     // Configuration
     wrtr.writeU32(config.baud);
@@ -77,6 +79,8 @@ void RS232Device::saveState(StateWriter& wrtr) const
     wrtr.writeI32(rxBitIndex);
 
     wrtr.writeBool(lastRXD);
+    wrtr.writeBool(parityError);
+    wrtr.writeBool(framingError);
 
     // Queues
     auto writeByteQueue = [&](const std::queue<uint8_t>& queue)
@@ -106,7 +110,7 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                      { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 2)                                               { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 3)                                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Configuration
         if (!rdr.readU32(config.baud))                              { rdr.exitChunkPayload(chunk); return false; }
@@ -165,6 +169,8 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readI32(rxBitIndex))                               { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(lastRXD))                                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(parityError))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(framingError))                            { rdr.exitChunkPayload(chunk); return false; }
 
         // Queues
         auto readByteQueue = [&](std::queue<uint8_t>& queue) -> bool
@@ -218,6 +224,9 @@ void RS232Device::reset()
     dcd                 = true;
     ri                  = true;
 
+    parityError         = false;
+    framingError        = false;
+
     txState             = TxState::Idle;
     txCountdown         = 0.0;
     txShift             = 0;
@@ -240,6 +249,12 @@ void RS232Device::reset()
         peer->dcd = dtr;
         peer->cts = rts;
     }
+}
+
+void RS232Device::clearReceiveErrors()
+{
+    parityError     = false;
+    framingError    = false;
 }
 
 void RS232Device::tick(uint32_t cyclesElapsed)
@@ -511,6 +526,8 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
 
                 if (receivedParity != expectedParity)
                 {
+                    parityError = true;
+
                     rxState = RxState::Idle;
                     rxCountdown = 0.0;
                     rxBitIndex = 0;
@@ -532,7 +549,13 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
             if (rxCountdown <= 0.0)
             {
                 if (rxd)
+                {
                     rxBytes.push(rxShift);
+                }
+                else
+                {
+                    framingError = true;
+                }
 
                 rxState = RxState::Idle;
                 rxCountdown = 0.0;
@@ -619,6 +642,11 @@ std::string RS232Device::debugString() const
         << " queued=" << rxBytes.size()
         << " baud=" << config.baud
         << "\n";
+
+    out << "  RX Errors: "
+    << "Parity=" << (parityError ? "Yes" : "No") << " "
+    << "Framing=" << (framingError ? "Yes" : "No")
+    << "\n";
 
     return out.str();
 }
