@@ -476,11 +476,40 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
             // Start bit = RXD falling from high to low.
             if (lastRXD && !rxd)
             {
-                rxState = RxState::DataBits;
-                rxCountdown = cyclesPerBit * 1.5;
+                rxState = RxState::StartBit;
+                rxCountdown = cyclesPerBit * 0.5;
+
                 rxShift = 0;
                 rxBitIndex = 0;
             }
+            break;
+        }
+
+        case RxState::StartBit:
+        {
+            rxCountdown -= static_cast<double>(cyclesElapsed);
+
+            if (rxCountdown <= 0.0)
+            {
+                // Valid start bit should still be low at its center.
+                if (!rxd)
+                {
+                    rxState = RxState::DataBits;
+
+                    // First data bit is one full bit-time after
+                    // the center of the start bit.
+                    rxCountdown += cyclesPerBit;
+                }
+                else
+                {
+                    // False start/glitch.
+                    rxState = RxState::Idle;
+                    rxCountdown = 0.0;
+                    rxShift = 0;
+                    rxBitIndex = 0;
+                }
+            }
+
             break;
         }
 
@@ -630,10 +659,11 @@ std::string RS232Device::debugString() const
 
     switch (rxState)
     {
-        case RxState::Idle:     out << "Idle"; break;
-        case RxState::DataBits: out << "DataBits"; break;
+        case RxState::Idle:      out << "Idle"; break;
+        case RxState::StartBit:  out << "StartBit"; break;
+        case RxState::DataBits:  out << "DataBits"; break;
         case RxState::ParityBit: out << "ParityBit"; break;
-        case RxState::StopBit:  out << "StopBit"; break;
+        case RxState::StopBit:   out << "StopBit"; break;
     }
 
     out << " bit=" << int(rxBitIndex)

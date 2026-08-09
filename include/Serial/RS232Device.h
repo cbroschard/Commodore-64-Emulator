@@ -111,6 +111,7 @@ class RS232Device
         enum class RxState : uint8_t
         {
             Idle,
+            StartBit,
             DataBits,
             ParityBit,
             StopBit
