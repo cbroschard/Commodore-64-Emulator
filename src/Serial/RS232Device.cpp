@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
 #include "Serial/RS232Device.h"
 
 RS232Device::RS232Device() :
@@ -365,6 +366,90 @@ std::string RS232Device::debugString() const
         << " queued=" << rxBytes.size()
         << " baud=" << config.baud
         << "\n";
+
+    return out.str();
+}
+
+std::string RS232Device::selfTest(uint8_t testByte)
+{
+    std::ostringstream out;
+
+    RS232Device testPeer;
+
+    // Match this device's current serial configuration and clock.
+    testPeer.setClockRate(clockHz);
+    testPeer.setConfig(config);
+
+    // Preserve the existing peer.
+    RS232Device* oldPeer = peer;
+
+    // Temporarily connect both devices.
+    attachPeerDevice(&testPeer);
+    testPeer.attachPeerDevice(this);
+
+    // Start from deterministic serial state.
+    reset();
+    testPeer.reset();
+
+    // Queue test byte.
+    queueTransmitByte(testByte);
+
+    // Allow enough time for the complete serial frame.
+    // Start + data + stop bits, with some safety margin.
+    const uint32_t frameBits =
+        1u +
+        static_cast<uint32_t>(config.dataBits) +
+        static_cast<uint32_t>(config.stopBits);
+
+    const uint32_t maxCycles =
+        static_cast<uint32_t>(cyclesPerBit * frameBits * 2.0);
+
+    uint8_t receivedByte = 0;
+    bool received = false;
+
+    for (uint32_t cycle = 0; cycle < maxCycles; ++cycle)
+    {
+        tick(1);
+        testPeer.tick(1);
+
+        if (testPeer.popReceivedByte(receivedByte))
+        {
+            received = true;
+            break;
+        }
+    }
+
+    // Disconnect temporary peer.
+    attachPeerDevice(oldPeer);
+    testPeer.attachPeerDevice(nullptr);
+
+    out << "RS232 Loopback Test\n";
+    out << "-------------------\n";
+
+    out << "Sent:     $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(testByte)
+        << "\n";
+
+    if (received)
+    {
+        out << "Received: $"
+            << std::setw(2)
+            << static_cast<int>(receivedByte)
+            << "\n";
+
+        out << "Result:   "
+            << (receivedByte == testByte ? "PASS" : "FAIL")
+            << "\n";
+    }
+    else
+    {
+        out << "Received: none\n";
+        out << "Result:   FAIL (timeout)\n";
+    }
+
+    out << std::dec << std::setfill(' ');
 
     return out.str();
 }

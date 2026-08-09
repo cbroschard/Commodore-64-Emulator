@@ -42,6 +42,7 @@ class RS232Device
 
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
+        inline void detachPeerDeviee() { peer = nullptr; }
 
         void reset();
 
@@ -78,6 +79,7 @@ class RS232Device
 
         // ML Monitor
         std::string debugString() const;
+        std::string selfTest(uint8_t testByte = 0x55);
 
     protected:
 
