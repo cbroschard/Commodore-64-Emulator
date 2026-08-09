@@ -92,6 +92,7 @@ class RS232Device
         // ML Monitor
         std::string debugString() const;
         std::string selfTest(uint8_t testByte, Parity parity);
+        std::string selfTestRS232Multi();
 
     protected:
 

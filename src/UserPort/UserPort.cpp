@@ -81,3 +81,11 @@ std::string UserPort::selfTestRS232(uint8_t value, RS232Device::Parity parity)
 
     return device->selfTestRS232(value, parity);
 }
+
+std::string UserPort::selfTestRS232Multi()
+{
+    if (!device)
+        return "User Port: no device attached\n";
+
+    return device->selfTestRS232Multi();
+}

@@ -767,3 +767,109 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
 
     return out.str();
 }
+
+std::string RS232Device::selfTestRS232Multi()
+{
+    std::ostringstream out;
+
+    RS232Device testPeer;
+
+    const RS232Config oldConfig = config;
+    RS232Device* oldPeer = peer;
+
+    RS232Config testConfig = config;
+    testConfig.parity = Parity::None;
+    testConfig.flowControl = FlowControl::None;
+
+    setConfig(testConfig);
+
+    testPeer.setClockRate(clockHz);
+    testPeer.setConfig(testConfig);
+
+    attachPeerDevice(&testPeer);
+    testPeer.attachPeerDevice(this);
+
+    reset();
+    testPeer.reset();
+
+    const uint8_t testBytes[] =
+    {
+        0x55,
+        0xAA,
+        0x00,
+        0xFF,
+        0x42
+    };
+
+    constexpr size_t testCount = sizeof(testBytes) / sizeof(testBytes[0]);
+
+    for (uint8_t value : testBytes)
+        queueTransmitByte(value);
+
+    const uint32_t parityBits = (config.parity == Parity::None) ? 0u : 1u;
+    const uint32_t frameBits = 1u + static_cast<uint32_t>(config.dataBits) + parityBits + static_cast<uint32_t>(config.stopBits);
+    const uint32_t maxCycles = static_cast<uint32_t>(cyclesPerBit * frameBits * testCount * 2.0);
+    uint8_t received[testCount] = {};
+    size_t receivedCount = 0;
+
+    for (uint32_t cycle = 0;
+         cycle < maxCycles && receivedCount < testCount;
+         ++cycle)
+    {
+        tick(1);
+        testPeer.tick(1);
+
+        uint8_t value = 0;
+
+        while (testPeer.popReceivedByte(value))
+        {
+            if (receivedCount < testCount)
+                received[receivedCount++] = value;
+        }
+    }
+
+    out << "RS232 Multi-Byte Test\n";
+    out << "---------------------\n";
+
+    bool passed = receivedCount == testCount;
+
+    for (size_t i = 0; i < testCount; ++i)
+    {
+        out << "Byte " << i << ": sent=$"
+            << std::hex
+            << std::uppercase
+            << std::setw(2)
+            << std::setfill('0')
+            << static_cast<int>(testBytes[i]);
+
+        if (i < receivedCount)
+        {
+            out << " received=$"
+                << std::setw(2)
+                << static_cast<int>(received[i]);
+
+            if (received[i] != testBytes[i])
+                passed = false;
+        }
+        else
+        {
+            out << " received=none";
+            passed = false;
+        }
+
+        out << "\n";
+    }
+
+    out << "Result: "
+        << (passed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << std::dec << std::setfill(' ');
+
+    attachPeerDevice(oldPeer);
+    testPeer.attachPeerDevice(nullptr);
+
+    setConfig(oldConfig);
+
+    return out.str();
+}

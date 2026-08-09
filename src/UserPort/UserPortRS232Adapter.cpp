@@ -192,7 +192,15 @@ std::string UserPortRS232Adapter::debugRS232String() const
 std::string UserPortRS232Adapter::selfTestRS232(uint8_t value,  RS232Device::Parity parity)
 {
     if (!rs232Device)
-        return "RS232 Device: none attached\n";
+        return "RS-232 Device: none attached\n";
 
     return rs232Device->selfTest(value, parity);
+}
+
+std::string UserPortRS232Adapter::selfTestRS232Multi()
+{
+    if (!rs232Device)
+        return "RS-232 Device: none attached\n";
+
+    return rs232Device->selfTestRS232Multi();
 }
