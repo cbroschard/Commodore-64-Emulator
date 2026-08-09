@@ -18,8 +18,10 @@
 #include "Memory.h"
 #include "PLA.h"
 #include "REU.h"
+#include "Serial/RS232Device.h"
 #include "SID/SID.h"
 #include "StateManager.h"
+#include "UserPort/UserPortRS232Adapter.h"
 #include "Vic.h"
 
 StateManager::StateManager(Cartridge& cart,
@@ -34,7 +36,9 @@ StateManager::StateManager(Cartridge& cart,
                      Memory& mem,
                      PLA& pla,
                      REU& reu,
+                     RS232Device& rs232Device,
                      SID& sidchip,
+                     UserPortRS232Adapter& userPortRS232Adapter,
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
                      VideoMode& videoMode,
@@ -55,7 +59,9 @@ StateManager::StateManager(Cartridge& cart,
       mem_(mem),
       pla_(pla),
       reu_(reu),
+      rs232Device_(rs232Device),
       sidchip_(sidchip),
+      userPortRS232Adapter_(userPortRS232Adapter),
       vicII_(vicII),
       uiPaused_(uiPaused),
       videoMode_(videoMode),
@@ -127,6 +133,9 @@ bool StateManager::save(const std::string& path)
     pla_.saveState(wrtr);
     mem_.saveState(wrtr);
     bus_.saveState(wrtr);
+
+    userPortRS232Adapter_.saveState(wrtr);
+    rs232Device_.saveState(wrtr);
 
     // Save all installed disk drives
     for (const auto& drive : drives_)
@@ -463,6 +472,24 @@ bool StateManager::load(const std::string& path)
 
             #ifdef Debug
             std::cout << "Loaded 1581 drive\n";
+            #endif
+        }
+        else if (std::memcmp(chunk.tag, "UR23", 4) == 0)
+        {
+            if (!userPortRS232Adapter_.loadState(chunk, rdr))
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded User Port RS232 Adapter\n";
+            #endif
+        }
+        else if (std::memcmp(chunk.tag, "RS23", 4) == 0)
+        {
+            if (!rs232Device_.loadState(chunk, rdr))
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded RS232 Device\n";
             #endif
         }
         else

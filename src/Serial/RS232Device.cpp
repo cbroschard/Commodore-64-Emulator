@@ -36,6 +36,154 @@ RS232Device::RS232Device() :
 
 RS232Device::~RS232Device() = default;
 
+void RS232Device::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("RS23");
+    wrtr.writeU32(1); // version
+
+    // Configuration
+    wrtr.writeU32(config.baud);
+    wrtr.writeU8(config.dataBits);
+    wrtr.writeU8(config.stopBits);
+    wrtr.writeU8(static_cast<uint8_t>(config.parity));
+
+    // Line State
+    wrtr.writeBool(dtr);
+    wrtr.writeBool(dsr);
+    wrtr.writeBool(rts);
+    wrtr.writeBool(cts);
+    wrtr.writeBool(txd);
+    wrtr.writeBool(rxd);
+    wrtr.writeBool(dcd);
+    wrtr.writeBool(ri);
+
+    // Timing
+    wrtr.writeF64(clockHz);
+    wrtr.writeF64(cyclesPerBit);
+    wrtr.writeU64(cycleAccumulator);
+
+    // TX Engine
+    wrtr.writeU8(static_cast<uint8_t>(txState));
+    wrtr.writeF64(txCountdown);
+    wrtr.writeU8(txShift);
+    wrtr.writeI32(txBitIndex);
+
+    // RX Engine
+    wrtr.writeU8(static_cast<uint8_t>(rxState));
+    wrtr.writeF64(rxCountdown);
+    wrtr.writeU8(rxShift);
+    wrtr.writeI32(rxBitIndex);
+
+    wrtr.writeBool(lastRXD);
+
+    // Queues
+    auto writeByteQueue = [&](const std::queue<uint8_t>& queue)
+    {
+        std::queue<uint8_t> copy = queue;
+
+        wrtr.writeU32(static_cast<uint32_t>(copy.size()));
+
+        while (!copy.empty())
+        {
+            wrtr.writeU8(copy.front());
+            copy.pop();
+        }
+    };
+
+    writeByteQueue(txBytes);
+    writeByteQueue(rxBytes);
+
+    wrtr.endChunk();
+}
+
+bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "RS23", 4) == 0)
+    {
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+
+        // Configuration
+        if (!rdr.readU32(config.baud))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.dataBits))       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(config.stopBits))       { rdr.exitChunkPayload(chunk); return false; }
+
+        uint8_t parityTemp = 0;
+        if (!rdr.readU8(parityTemp))            { rdr.exitChunkPayload(chunk); return false; }
+        config.parity = static_cast<Parity>(parityTemp);
+
+        // Line State
+        if (!rdr.readBool(dtr))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dsr))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rts))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(cts))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(txd))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(rxd))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(dcd))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(ri))                  { rdr.exitChunkPayload(chunk); return false; }
+
+        // Timing
+        if (!rdr.readF64(clockHz))              { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(cyclesPerBit))         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU64(cycleAccumulator))     { rdr.exitChunkPayload(chunk); return false; }
+
+        // TX Engine
+        uint8_t txTemp = 0;
+        if (!rdr.readU8(txTemp))                { rdr.exitChunkPayload(chunk); return false; }
+        txState = static_cast<TxState>(txTemp);
+
+        if (!rdr.readF64(txCountdown))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(txShift))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(txBitIndex))           { rdr.exitChunkPayload(chunk); return false; }
+
+        // Rx Engine
+        uint8_t rxTemp = 0;
+        if (!rdr.readU8(rxTemp))                { rdr.exitChunkPayload(chunk); return false; }
+        rxState = static_cast<RxState>(rxTemp);
+
+        if (!rdr.readF64(rxCountdown))          { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(rxShift))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(rxBitIndex))           { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(lastRXD))             { rdr.exitChunkPayload(chunk); return false; }
+
+        // Queues
+        auto readByteQueue = [&](std::queue<uint8_t>& queue) -> bool
+        {
+            uint32_t count = 0;
+
+            if (!rdr.readU32(count))
+                return false;
+
+            std::queue<uint8_t> temp;
+
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                uint8_t value = 0;
+
+                if (!rdr.readU8(value))
+                    return false;
+
+                temp.push(value);
+            }
+
+            queue = std::move(temp);
+            return true;
+        };
+
+        if (!readByteQueue(txBytes))            { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!readByteQueue(rxBytes))            { rdr.exitChunkPayload(chunk); return false; }
+
+        rdr.exitChunkPayload(chunk);
+
+        return true;
+    }
+
+    return false;
+}
+
 void RS232Device::reset()
 {
     cycleAccumulator = 0;

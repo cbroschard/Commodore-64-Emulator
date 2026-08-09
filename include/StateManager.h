@@ -28,7 +28,9 @@ class InputManager;
 class MediaManager;
 class Memory;
 class PLA;
+class RS232Device;
 class SID;
+class UserPortRS232Adapter;
 class Vic;
 
 struct CPUConfig;
@@ -48,7 +50,9 @@ class StateManager
                      Memory& mem,
                      PLA& pla,
                      REU& reu,
+                     RS232Device& rs232Device,
                      SID& sidchip,
+                     UserPortRS232Adapter& userPortRS232Adapter,
                      Vic& vicII,
                      std::atomic<bool>& uiPaused,
                      VideoMode& videoMode,
@@ -78,7 +82,9 @@ class StateManager
         Memory& mem_;
         PLA& pla_;
         REU& reu_;
+        RS232Device& rs232Device_;
         SID& sidchip_;
+        UserPortRS232Adapter& userPortRS232Adapter_;
         Vic& vicII_;
 
         static constexpr uint32_t kStateVersion = 1; // Save State file version

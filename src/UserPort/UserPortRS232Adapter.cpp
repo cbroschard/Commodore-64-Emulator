@@ -44,6 +44,8 @@ bool UserPortRS232Adapter::loadState(const StateReader::Chunk& chunk, StateReade
         if (!rdr.readU8(portBValue))    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(portBDDR))      { rdr.exitChunkPayload(chunk); return false; }
 
+        rdr.exitChunkPayload(chunk);
+
         return true;
     }
 

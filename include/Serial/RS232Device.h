@@ -12,6 +12,8 @@
 #include <queue>
 #include <sstream>
 #include <string>
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class RS232Device
 {
@@ -43,6 +45,10 @@ class RS232Device
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
         inline void detachPeerDeviee() { peer = nullptr; }
+
+        // State management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         void reset();
 
@@ -127,7 +133,7 @@ class RS232Device
         std::queue<uint8_t> txBytes;
         double txCountdown;
         uint8_t txShift;
-        uint8_t txBitIndex;
+        int txBitIndex;
 
         double rxCountdown;
         RxState rxState;
