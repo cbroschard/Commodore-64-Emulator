@@ -95,6 +95,7 @@ class RS232Device
         std::string selfTestMulti();
         std::string selfTestFormats();
         std::string selfTestFlowControl();
+        std::string selfTestErrors();
 
     protected:
 

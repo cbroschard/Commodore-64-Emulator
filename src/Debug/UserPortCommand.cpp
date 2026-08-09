@@ -54,6 +54,7 @@ Subcommands:
     rs232 test multi               - Run RS-232 back-to-back multi-byte loopback test
     rs232 test formats             - Test RS-232 loopback across supported serial formats
     rs232 test flow                - Test RS-232 RTS/CTS hardware flow control
+    rs232 test errors              - Test RS-232 parity and framing error handling
     help                           - Show this help text
 
 Examples:
@@ -155,16 +156,40 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
                 return;
             }
 
+            if (args.size() >= 4 && args[3] == "errors")
+            {
+                std::cout << backend->selfTestUserPortRS232Errors();
+                return;
+            }
+
             // Optional test byte.
             if (args.size() >= 4)
             {
                 try
                 {
-                    const unsigned long value = std::stoul(args[3], nullptr, 16);
+                    size_t pos = 0;
+
+                    const unsigned long value =
+                        std::stoul(args[3], &pos, 16);
+
+                    if (pos != args[3].size())
+                    {
+                        std::cout
+                            << "Error: invalid hexadecimal byte: "
+                            << args[3]
+                            << "\n";
+
+                        std::cout
+                            << "Example: userport rs232 test 55 even\n";
+
+                        return;
+                    }
 
                     if (value > 0xFF)
                     {
-                        std::cout << "Error: RS-232 test byte must be between 00 and FF.\n";
+                        std::cout
+                            << "Error: RS-232 test byte must be between 00 and FF.\n";
+
                         return;
                     }
 
@@ -172,8 +197,14 @@ void UserPortCommand::execute(MLMonitor& mon, const std::vector<std::string>& ar
                 }
                 catch (...)
                 {
-                    std::cout << "Error: invalid hexadecimal byte: " << args[3] << "\n";
-                    std::cout << "Example: userport rs232 test 55 even\n";
+                    std::cout
+                        << "Error: invalid hexadecimal byte: "
+                        << args[3]
+                        << "\n";
+
+                    std::cout
+                        << "Example: userport rs232 test 55 even\n";
+
                     return;
                 }
             }

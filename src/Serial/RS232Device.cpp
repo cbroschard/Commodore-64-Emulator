@@ -1138,3 +1138,200 @@ std::string RS232Device::selfTestFlowControl()
 
     return out.str();
 }
+
+std::string RS232Device::selfTestErrors()
+{
+    std::ostringstream out;
+
+    const RS232Config oldConfig = config;
+    RS232Device* oldPeer = peer;
+
+    RS232Device testPeer;
+
+    RS232Config testConfig = config;
+    testConfig.dataBits = 8;
+    testConfig.stopBits = 1;
+    testConfig.parity = Parity::Even;
+    testConfig.flowControl = FlowControl::None;
+
+    setConfig(testConfig);
+
+    testPeer.setClockRate(clockHz);
+    testPeer.setConfig(testConfig);
+
+    attachPeerDevice(&testPeer);
+    testPeer.attachPeerDevice(this);
+
+    reset();
+    testPeer.reset();
+
+    out << "RS232 Error Handling Test\n";
+    out << "-------------------------\n";
+
+    bool parityTestPassed = false;
+    bool framingTestPassed = false;
+    bool stickyTestPassed = false;
+    bool clearTestPassed = false;
+
+    /*
+     * ---------------------------------------------------------
+     * 1. PARITY ERROR TEST
+     * ---------------------------------------------------------
+     */
+
+    constexpr uint8_t parityByte = 0x55;
+
+    queueTransmitByte(parityByte);
+
+    bool parityBitCorrupted = false;
+
+    const uint32_t parityTimeout = static_cast<uint32_t>(cyclesPerBit * 20.0);
+
+    for (uint32_t cycle = 0; cycle < parityTimeout; ++cycle)
+    {
+        tick(1);
+
+        /*
+         * Once the transmitter enters its parity bit,
+         * deliberately force the receiver's RXD line to
+         * the opposite value.
+         */
+        if (txState == TxState::ParityBit && !parityBitCorrupted)
+        {
+            const bool correctParity = calculateParity(parityByte);
+            testPeer.setRXD(!correctParity);
+            parityBitCorrupted = true;
+        }
+
+        testPeer.tick(1);
+
+        if (testPeer.hasParityError())
+            break;
+    }
+
+    parityTestPassed = parityBitCorrupted && testPeer.hasParityError();
+
+    /*
+     * Clean up serial state before next test.
+     */
+    reset();
+    testPeer.reset();
+
+    /*
+     * ---------------------------------------------------------
+     * 2. FRAMING ERROR TEST
+     * ---------------------------------------------------------
+     */
+
+    constexpr uint8_t framingByte = 0xAA;
+
+    /*
+     * Disable parity so the stop-bit test is isolated.
+     */
+    testConfig.parity = Parity::None;
+
+    setConfig(testConfig);
+    testPeer.setConfig(testConfig);
+
+    queueTransmitByte(framingByte);
+
+    bool stopBitCorrupted = false;
+
+    const uint32_t framingTimeout = static_cast<uint32_t>(cyclesPerBit * 20.0);
+
+    for (uint32_t cycle = 0; cycle < framingTimeout; ++cycle)
+    {
+        tick(1);
+
+        if (txState == TxState::StopBit && !stopBitCorrupted)
+        {
+            /*
+             * Stop bit must be high.
+             * Force it low at the receiver.
+             */
+            testPeer.setRXD(false);
+            stopBitCorrupted = true;
+        }
+
+        testPeer.tick(1);
+
+        if (testPeer.hasFramingError())
+            break;
+    }
+
+    framingTestPassed = stopBitCorrupted && testPeer.hasFramingError();
+
+    /*
+     * ---------------------------------------------------------
+     * 3. STICKY ERROR TEST
+     * ---------------------------------------------------------
+     *
+     * Send a valid frame after the framing error.
+     * The framing flag should remain set.
+     */
+
+    testPeer.setRXD(true);
+
+    constexpr uint8_t validByte = 0x42;
+
+    queueTransmitByte(validByte);
+
+    const uint32_t validTimeout = static_cast<uint32_t>(cyclesPerBit * 20.0);
+
+    bool receivedValidByte = false;
+    uint8_t received = 0;
+
+    for (uint32_t cycle = 0; cycle < validTimeout; ++cycle)
+    {
+        tick(1);
+        testPeer.tick(1);
+
+        if (testPeer.popReceivedByte(received))
+        {
+            receivedValidByte = true;
+            break;
+        }
+    }
+
+    stickyTestPassed = receivedValidByte && received == validByte && testPeer.hasFramingError();
+
+    /*
+     * ---------------------------------------------------------
+     * 4. CLEAR ERROR TEST
+     * ---------------------------------------------------------
+     */
+
+    testPeer.clearReceiveErrors();
+
+    clearTestPassed = !testPeer.hasParityError() && !testPeer.hasFramingError();
+
+    const bool passed = parityTestPassed && framingTestPassed && stickyTestPassed && clearTestPassed;
+
+    out << "Parity error detected:  "
+        << (parityTestPassed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "Framing error detected: "
+        << (framingTestPassed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "Flags remain sticky:    "
+        << (stickyTestPassed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "Clear errors works:     "
+        << (clearTestPassed ? "PASS" : "FAIL")
+        << "\n";
+
+    out << "Overall:                "
+        << (passed ? "PASS" : "FAIL")
+        << "\n";
+
+    testPeer.detachPeerDevice();
+    detachPeerDevice();
+
+    attachPeerDevice(oldPeer);
+    setConfig(oldConfig);
+
+    return out.str();
+}

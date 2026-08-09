@@ -204,6 +204,7 @@ class MLMonitorBackend
                                                             : "User Port not attached\n"; }
         inline std::string selfTestUserPortRS232FlowControl() { return userPort ? userPort->selfTestUserPortRS232FlowControl()
                                                                 : "User Port not attached\n"; }
+        inline std::string selfTestUserPortRS232Errors() { return userPort ? userPort->selfTestUserPortRS232Errors() : "User Port not attached\n"; }
 
         // ML Monitor VIC-II methods
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }

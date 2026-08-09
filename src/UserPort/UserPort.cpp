@@ -105,3 +105,11 @@ std::string UserPort::selfTestUserPortRS232FlowControl()
 
     return device->selfTestUserPortRS232FlowControl();
 }
+
+std::string UserPort::selfTestUserPortRS232Errors()
+{
+    if (!device)
+        return "User Port: no device attached\n";
+
+    return device->selfTestUserPortRS232Errors();
+}

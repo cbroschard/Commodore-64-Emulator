@@ -42,6 +42,7 @@ class UserPortRS232Adapter : public UserPortDevice
         std::string selfTestRS232Multi() override;
         std::string selfTestUserPortRS232Formats() override;
         std::string selfTestUserPortRS232FlowControl() override;
+        std::string selfTestUserPortRS232Errors() override;
 
     private:
         RS232Device* rs232Device;

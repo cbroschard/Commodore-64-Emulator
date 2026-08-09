@@ -31,6 +31,7 @@ public:
     virtual std::string selfTestRS232Multi() { return "RS-232 not supported by attached User Port device\n"; }
     virtual std::string selfTestUserPortRS232Formats() { return "RS-232 not supported by attached User Port device\n"; }
     virtual std::string selfTestUserPortRS232FlowControl() { return "RS-232 not supported by attached User Port device\n"; }
+    virtual std::string selfTestUserPortRS232Errors() { return "RS-232 not supported by attached User Port device\n"; }
 };
 
 #endif // USERPORTDEVICE_H
