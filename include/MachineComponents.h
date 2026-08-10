@@ -30,6 +30,7 @@
 #include "REU.h"
 #include "SDLContext.h"
 #include "Serial/RS232Device.h"
+#include "Serial/VirtualModem.h"
 #include "SID/SID.h"
 #include "UserPort/UserPort.h"
 #include "UserPort/UserPortRS232Adapter.h"
@@ -74,6 +75,7 @@ struct MachineComponents
     std::unique_ptr<UserPort> userPort;
     std::unique_ptr<UserPortRS232Adapter> userPortRS232Adapter;
     std::unique_ptr<Vic> vic;
+    std::unique_ptr<VirtualModem> virtualModem;
 };
 
 #endif // MACHINE_COMPONENTS_H
