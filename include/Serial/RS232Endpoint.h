@@ -8,6 +8,8 @@
 #ifndef RS232ENDPOINT_H_INCLUDED
 #define RS232ENDPOINT_H_INCLUDED
 
+#include <cstdint>
+
 class RS232Endpoint
 {
 public:
