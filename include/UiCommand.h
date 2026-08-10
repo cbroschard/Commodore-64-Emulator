@@ -31,6 +31,9 @@ struct UiCommand
         AttachT64,
         AttachTAP,
 
+        AttachVirtualModem,
+        DetachVirtualModem,
+
         CreateBlankDisk,
 
         EjectDisk,
