@@ -1,6 +1,6 @@
 ﻿# 🎮 Commodore 64 Emulator
 
-A Commodore 64 emulator written in modern C++ using **SDL3** and **Dear ImGui**.
+A Commodore 64 emulator written in modern C++ using **SDL3**, **SDL3_net**, and the **Dear ImGui docking branch**.
 
 The project is built around two primary goals:
 
@@ -199,7 +199,6 @@ The graphical interface uses:
 
 - SDL3
 - SDL3 Renderer
-- Dear ImGui
 - Dear ImGui docking branch
 - SDL3 gamepad APIs
 
@@ -246,15 +245,17 @@ Current work is primarily focused on:
 
 - A C++17-compatible compiler
 - SDL3
-- Boost
-- Dear ImGui with the SDL3 and SDLRenderer3 backends
+- SDL3_net
+- Boost.Program_options
+- Dear ImGui docking branch with the SDL3 and SDLRenderer3 backends
 
 The current Windows development environment uses:
 
 - Code::Blocks
 - MinGW-w64 / GCC
 - SDL3
-- Boost Program_options
+- SDL3_net
+- Boost.Program_options
 - Dear ImGui docking branch
 
 Third-party license files are provided in the `licenses/` directory.
@@ -270,13 +271,14 @@ Build configuration currently depends on the development environment and project
 Typical requirements:
 
 - Install SDL3 development libraries
-- Install Boost
+- Install SDL3_net development libraries
+- Install Boost with the Program_options library
 - Add the Dear ImGui core source files
 - Add the SDL3 Dear ImGui platform backend
 - Add the SDLRenderer3 Dear ImGui renderer backend
 - Configure compiler include directories
-- Configure SDL3 and Boost library directories
-- Link against SDL3
+- Configure SDL3, SDL3_net, and Boost.Program_options library directories
+- Link against SDL3 and SDL3_net
 - Build using Code::Blocks, MinGW, MSVC, or another compatible toolchain
 
 The following Dear ImGui backend source files should be compiled:
@@ -290,7 +292,7 @@ The Dear ImGui core and backend files should all come from the same release and 
 
 ### Linux and macOS
 
-Install SDL3, Boost, Dear ImGui, and a C++17-compatible compiler using the appropriate package manager or development environment.
+Install SDL3, SDL3_net, Boost.Program_options, the Dear ImGui docking branch, and a C++17-compatible compiler using the appropriate package manager or development environment.
 
 Project-specific build instructions may be expanded as additional build systems are added.
 
@@ -379,9 +381,10 @@ Redistribution, modification, or use of this code, in whole or in part, for any 
 
 Third-party dependencies are licensed separately:
 
-- Boost — Boost Software License 1.0
+- Boost.Program_options — Boost Software License 1.0
 - SDL3 — zlib License
-- Dear ImGui — MIT License
+- SDL3_net — zlib License
+- Dear ImGui docking branch — MIT License
 
 See the `licenses/` directory for the complete third-party license texts.
 
@@ -398,5 +401,5 @@ This project benefits from documentation, testing material, and research produce
 - C64-Wiki
 - Codebase64
 - Lemon64
-- The developers and contributors behind SDL3, Boost, and Dear ImGui
+- The developers and contributors behind SDL3, SDL3_net, Boost.Program_options, and the Dear ImGui docking branch
 - The broader Commodore preservation and reverse-engineering community
