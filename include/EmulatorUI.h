@@ -100,6 +100,9 @@ class EmulatorUI
 
             bool reuEnabled      = false;       uint32_t reuSizeKB = 0;
 
+            bool virtualModemAttached = false;
+            bool virtualModemOnline = false;
+
             bool joy1Attached    = false;
             bool joy2Attached    = false;
 

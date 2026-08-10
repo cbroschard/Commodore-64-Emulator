@@ -671,6 +671,27 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Peripheral"))
+        {
+            if (ImGui::BeginMenu("User Port"))
+            {
+                if (!v.virtualModemAttached)
+                {
+                    if (ImGui::MenuItem("Attach Virtual Modem"))
+                        push(UiCommand::Type::AttachVirtualModem);
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Detach Virtual Modem"))
+                        push(UiCommand::Type::DetachVirtualModem);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Audio"))
         {
             if (ImGui::BeginMenu("SID Model"))
