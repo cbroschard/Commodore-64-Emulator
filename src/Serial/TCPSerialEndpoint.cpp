@@ -33,7 +33,58 @@ void TCPSerialEndpoint::reset()
 
 void TCPSerialEndpoint::tick()
 {
+    if (!socket)
+        return;
 
+    if (NET_GetConnectionStatus(socket) != NET_SUCCESS)
+    {
+        disconnect();
+        return;
+    }
+
+    //
+    // Receive incoming TCP data.
+    //
+    uint8_t buffer[256];
+
+    while (true)
+    {
+        const int bytesRead = NET_ReadFromStreamSocket(socket, buffer, static_cast<int>(sizeof(buffer)));
+
+        if (bytesRead > 0)
+        {
+            for (int i = 0; i < bytesRead; ++i)
+                receiveQueue.push(buffer[i]);
+
+            continue;
+        }
+
+        if (bytesRead == 0)
+        {
+            // Nothing else available right now.
+            break;
+        }
+
+        // -1 means the connection has failed.
+        disconnect();
+        return;
+    }
+
+    //
+    // Send queued outgoing bytes.
+    //
+    while (!transmitQueue.empty())
+    {
+        const uint8_t value = transmitQueue.front();
+
+        if (!NET_WriteToStreamSocket(socket, &value,  sizeof(value)))
+        {
+            disconnect();
+            return;
+        }
+
+        transmitQueue.pop();
+    }
 }
 
 bool TCPSerialEndpoint::connect(const std::string& host, uint16_t port)
@@ -81,6 +132,12 @@ void TCPSerialEndpoint::disconnect()
     {
         NET_DestroyStreamSocket(socket);
         socket = nullptr;
+    }
+
+    if (address)
+    {
+        NET_UnrefAddress(address);
+        address = nullptr;
     }
 }
 
