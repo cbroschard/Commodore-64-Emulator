@@ -7,8 +7,11 @@
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
 #include "Serial/RS232Device.h"
+#include "Serial/RS232Endpoint.h"
 
 RS232Device::RS232Device() :
+    peer(nullptr),
+    endpoint(nullptr),
     cycleAccumulator(0),
     rxBitIndex(0),
     rxShift(0),
@@ -264,6 +267,25 @@ void RS232Device::tick(uint32_t cyclesElapsed)
 
     tickRX(cyclesElapsed);
     tickTX(cyclesElapsed);
+
+    if (!endpoint)
+        return;
+
+    cycleAccumulator += cyclesElapsed;
+
+    constexpr uint64_t EndpointPollCycles = 512;
+
+    if (cycleAccumulator < EndpointPollCycles)
+        return;
+
+    cycleAccumulator %= EndpointPollCycles;
+
+    endpoint->tick();
+
+    uint8_t value = 0;
+
+    while (endpoint->readByte(value))
+        queueTransmitByte(value);
 }
 
 void RS232Device::setTXD(bool state)
@@ -580,6 +602,9 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
                 if (rxd)
                 {
                     rxBytes.push(rxShift);
+
+                    if (endpoint)
+                        endpoint->writeByte(rxShift);
                 }
                 else
                 {
@@ -678,7 +703,7 @@ std::string RS232Device::debugString() const
     << "Framing=" << (framingError ? "Yes" : "No")
     << "\n";
 
-    return out.str();
+   return out.str();
 }
 
 std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
@@ -688,6 +713,9 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
     RS232Device testPeer;
 
     const RS232Config oldConfig = config;
+
+    RS232Endpoint* oldEndpoint = endpoint;
+    detachEndpoint();
 
     RS232Config testConfig = config;
     testConfig.parity = parity;
@@ -764,6 +792,7 @@ std::string RS232Device::selfTest(uint8_t testByte, Parity parity)
     out << std::dec << std::setfill(' ');
 
     setConfig(oldConfig);
+    attachEndpoint(oldEndpoint);
 
     return out.str();
 }
@@ -776,6 +805,9 @@ std::string RS232Device::selfTestMulti()
 
     const RS232Config oldConfig = config;
     RS232Device* oldPeer = peer;
+
+    RS232Endpoint* oldEndpoint = endpoint;
+    detachEndpoint();
 
     RS232Config testConfig = config;
     testConfig.parity = Parity::None;
@@ -868,6 +900,7 @@ std::string RS232Device::selfTestMulti()
 
     attachPeerDevice(oldPeer);
     testPeer.attachPeerDevice(nullptr);
+    attachEndpoint(oldEndpoint);
 
     setConfig(oldConfig);
 
@@ -906,6 +939,9 @@ std::string RS232Device::selfTestFormats()
 
     const RS232Config oldConfig = config;
     RS232Device* oldPeer = peer;
+
+    RS232Endpoint* oldEndpoint = endpoint;
+    detachEndpoint();
 
     out << "RS232 Format Test\n";
     out << "-----------------\n";
@@ -990,6 +1026,7 @@ std::string RS232Device::selfTestFormats()
 
     attachPeerDevice(oldPeer);
     setConfig(oldConfig);
+    attachEndpoint(oldEndpoint);
 
     return out.str();
 }
@@ -1000,6 +1037,9 @@ std::string RS232Device::selfTestFlowControl()
 
     const RS232Config oldConfig = config;
     RS232Device* oldPeer = peer;
+
+    RS232Endpoint* oldEndpoint = endpoint;
+    detachEndpoint();
 
     RS232Device testPeer;
 
@@ -1135,6 +1175,7 @@ std::string RS232Device::selfTestFlowControl()
      */
     attachPeerDevice(oldPeer);
     setConfig(oldConfig);
+    attachEndpoint(oldEndpoint);
 
     return out.str();
 }
@@ -1145,6 +1186,9 @@ std::string RS232Device::selfTestErrors()
 
     const RS232Config oldConfig = config;
     RS232Device* oldPeer = peer;
+
+    RS232Endpoint* oldEndpoint = endpoint;
+    detachEndpoint();
 
     RS232Device testPeer;
 
@@ -1332,6 +1376,7 @@ std::string RS232Device::selfTestErrors()
 
     attachPeerDevice(oldPeer);
     setConfig(oldConfig);
+    attachEndpoint(oldEndpoint);
 
     return out.str();
 }

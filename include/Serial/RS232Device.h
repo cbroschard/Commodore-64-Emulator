@@ -15,6 +15,8 @@
 #include "StateReader.h"
 #include "StateWriter.h"
 
+class RS232Endpoint;
+
 class RS232Device
 {
     public:
@@ -46,6 +48,8 @@ class RS232Device
         // Pointer attachment
         inline void attachPeerDevice(RS232Device* peer) { this->peer = peer; }
         inline void detachPeerDevice() { peer = nullptr; }
+        inline void attachEndpoint(RS232Endpoint* endpoint) { this->endpoint = endpoint; }
+        inline void detachEndpoint() { endpoint = nullptr; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -101,7 +105,8 @@ class RS232Device
 
     private:
         // Non-owning Pointers
-        RS232Device* peer = nullptr;
+        RS232Device* peer;
+        RS232Endpoint* endpoint;
 
         enum class TxState : uint8_t
         {
