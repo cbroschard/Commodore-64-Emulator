@@ -51,6 +51,8 @@ class RS232Device
         inline void attachEndpoint(RS232Endpoint* endpoint) { this->endpoint = endpoint; }
         inline void detachEndpoint() { endpoint = nullptr; }
 
+        RS232Endpoint* getEndpoint() { return endpoint; }
+
         // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);

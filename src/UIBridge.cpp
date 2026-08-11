@@ -13,6 +13,10 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    InputManager* input,
                    std::atomic<bool>& uiPaused,
                    std::atomic<bool>& running,
+                   UIBridge::VoidFn attachVirtualModem,
+                   UIBridge::VoidFn detachVirtualModem,
+                   UIBridge::BoolFn isVirtualModemAttached,
+                   UIBridge::BoolFn isVirtualModemOnline,
                    UIBridge::StringFn saveState,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
@@ -28,6 +32,10 @@ UIBridge::UIBridge(EmulatorUI& ui,
       input_(input),
       uiPaused_(uiPaused),
       running_(running),
+      attachVirtualModem_(attachVirtualModem),
+      detachVirtualModem_(detachVirtualModem),
+      isVirtualModemAttached_(std::move(isVirtualModemAttached)),
+      isVirtualModemOnline_(std::move(isVirtualModemOnline)),
       saveState_(std::move(saveState)),
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
@@ -100,6 +108,9 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.paused = uiPaused_.load();
     s.pal    = isPal_ ? isPal_() : false;
     s.sid8580 = is8580_ ? is8580_() : false;
+
+    s.virtualModemAttached = isVirtualModemAttached_ ? isVirtualModemAttached_() : false;
+    s.virtualModemOnline = isVirtualModemOnline_ ? isVirtualModemOnline_() : false;
 
     s.cartSwitches.clear();
     s.cartButtons.clear();
@@ -235,6 +246,20 @@ void UIBridge::processCommands()
                     media_->attachTAPImage();
                 }
                 break;
+
+            case UiCommand::Type::AttachVirtualModem:
+            {
+                if (attachVirtualModem_)
+                    attachVirtualModem_();
+                break;
+            }
+
+            case UiCommand::Type::DetachVirtualModem:
+            {
+                if (detachVirtualModem_)
+                    detachVirtualModem_();
+                break;
+            }
 
             case UiCommand::Type::CreateBlankDisk:
                 if (media_)

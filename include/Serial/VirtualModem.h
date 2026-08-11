@@ -24,6 +24,7 @@ class VirtualModem : public RS232Endpoint
         bool readByte(uint8_t& value) override;
         void writeByte(uint8_t value) override;
 
+        bool isOnline() const { return mode == Mode::Online; }
 
     private:
         enum class Mode

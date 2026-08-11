@@ -138,7 +138,31 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                             runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
 
     components.uiBridge = std::make_unique<UIBridge>(*components.ui, components.media.get(), components.inputMgr.get(), runtime.uiPaused,
-                                                      runtime.running, [host](const std::string& p) { host->saveStateToFile(p); },
+                                                      runtime.running,
+                                                       [&components]()
+                                                        {
+                                                            if (components.rs232Device && components.virtualModem)
+                                                            {
+                                                                components.virtualModem->reset();
+                                                                components.rs232Device->attachEndpoint(
+                                                                    components.virtualModem.get());
+                                                            }
+                                                        },
+
+                                                        [&components]()
+                                                        {
+                                                            if (components.rs232Device)
+                                                                components.rs232Device->detachEndpoint();
+                                                        },
+                                                      [&components]() -> bool
+                                                      {
+                                                            return components.rs232Device && components.rs232Device->getEndpoint() ==
+                                                                   components.virtualModem.get();
+                                                      },
+                                                      [&components]() -> bool { return components.virtualModem &&
+                                                            components.virtualModem->isOnline();
+                                                      },
+                                                      [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
                                                       [host]() { host->coldReset(); }, [host](const std::string& model) { host->setSIDModel(model); },
                                                       [host](const std::string& mode) { host->setVideoMode(mode); },

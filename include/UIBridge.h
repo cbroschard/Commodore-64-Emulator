@@ -21,6 +21,10 @@ class UIBridge
          InputManager* input,
          std::atomic<bool>& uiPaused,
          std::atomic<bool>& running,
+         VoidFn attachVirtualModem,
+         VoidFn detachVirtualModem,
+         BoolFn isVirtualModemAttached,
+         BoolFn isVirtualModemOnline,
          StringFn saveState,
          StringFn loadState,
          VoidFn warmReset,
@@ -54,6 +58,10 @@ class UIBridge
         std::atomic<bool>& uiPaused_;
         std::atomic<bool>& running_;
 
+        VoidFn attachVirtualModem_;
+        VoidFn detachVirtualModem_;
+        BoolFn isVirtualModemAttached_;
+        BoolFn isVirtualModemOnline_;
         StringFn saveState_;
         StringFn loadState_;
         VoidFn warmReset_;
