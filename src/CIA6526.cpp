@@ -610,10 +610,7 @@ void CIA6526::writeRegister(uint16_t address, uint8_t value)
 
             // Bit4 = LOAD strobe
             if (cra & 0x10)
-            {
-                timerA = (timerAHighByte << 8) | timerALowByte;
-                clearIFR(INTERRUPT_TIMER_A);
-            }
+                timerA = static_cast<uint16_t>((static_cast<uint16_t>(timerAHighByte) << 8) |timerALowByte);
 
             // Store with bit4 cleared (strobe does not latch high)
             timerAControl = static_cast<uint8_t>(cra & ~0x10);
@@ -643,10 +640,8 @@ void CIA6526::writeRegister(uint16_t address, uint8_t value)
             const uint8_t crb = value & 0x7F;
 
             // Bit4 = LOAD strobe
-            if (crb & 0x10) {
-                timerB = (timerBHighByte << 8) | timerBLowByte;
-                clearIFR(INTERRUPT_TIMER_B);
-            }
+            if (crb & 0x10)
+                timerB = static_cast<uint16_t>((static_cast<uint16_t>(timerBHighByte) << 8) | timerBLowByte);
 
             // Store with bit4 cleared (strobe does not latch high)
             timerBControl = static_cast<uint8_t>(crb & ~0x10);
@@ -1186,7 +1181,7 @@ void CIA6526::clearIFR(InterruptBit interruptBit)
 
 void CIA6526::refreshMasterBit()
 {
-    if ((interruptStatus & 0x1F) != 0)
+    if ((interruptStatus & interruptEnable & 0x1F) != 0)
         interruptStatus |= 0x80;
     else
         interruptStatus &= static_cast<uint8_t>(~0x80);
