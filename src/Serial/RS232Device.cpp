@@ -346,6 +346,15 @@ void RS232Device::setConfig(const RS232Config& cfg)
     cyclesPerBit = clockHz / static_cast<double>(config.baud);
 }
 
+void RS232Device::setBaud(uint32_t baud)
+{
+    if (baud == 0)
+        return;
+
+    config.baud = baud;
+    cyclesPerBit = clockHz / static_cast<double>(config.baud);
+}
+
 void RS232Device::queueTransmitByte(uint8_t value)
 {
     txBytes.push(value);

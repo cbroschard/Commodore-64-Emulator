@@ -160,7 +160,16 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                                    components.virtualModem.get();
                                                       },
                                                       [&components]() -> bool { return components.virtualModem &&
-                                                            components.virtualModem->isOnline();
+                                                                                components.virtualModem->isOnline();
+                                                      },
+                                                      [&components](uint32_t baud)
+                                                      {
+                                                            if (components.rs232Device)
+                                                                components.rs232Device->setBaud(baud);
+                                                      },
+                                                      [&components]() -> uint32_t
+                                                      {
+                                                            return components.rs232Device ? components.rs232Device->getBaud() : 300;
                                                       },
                                                       [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },

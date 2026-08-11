@@ -15,6 +15,8 @@ class UIBridge
         using VoidFn            = std::function<void()>;
         using StringFn          = std::function<void(const std::string&)>;
         using BoolFn            = std::function<bool()>;
+        using UInt32Fn          = std::function<uint32_t()>;
+        using SetUInt32Fn       = std::function<void(uint32_t)>;
 
         UIBridge(EmulatorUI& ui,
          MediaManager* media,
@@ -25,6 +27,8 @@ class UIBridge
          VoidFn detachVirtualModem,
          BoolFn isVirtualModemAttached,
          BoolFn isVirtualModemOnline,
+         SetUInt32Fn setRS232Baud,
+         UInt32Fn getRS232Baud,
          StringFn saveState,
          StringFn loadState,
          VoidFn warmReset,
@@ -60,6 +64,8 @@ class UIBridge
 
         VoidFn attachVirtualModem_;
         VoidFn detachVirtualModem_;
+        SetUInt32Fn setRS232Baud_;
+        UInt32Fn getRS232Baud_;
         BoolFn isVirtualModemAttached_;
         BoolFn isVirtualModemOnline_;
         StringFn saveState_;

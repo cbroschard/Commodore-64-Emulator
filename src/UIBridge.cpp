@@ -17,6 +17,8 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    UIBridge::VoidFn detachVirtualModem,
                    UIBridge::BoolFn isVirtualModemAttached,
                    UIBridge::BoolFn isVirtualModemOnline,
+                   UIBridge::SetUInt32Fn setRS232Baud,
+                   UIBridge::UInt32Fn getRS232Baud,
                    UIBridge::StringFn saveState,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
@@ -36,6 +38,8 @@ UIBridge::UIBridge(EmulatorUI& ui,
       detachVirtualModem_(detachVirtualModem),
       isVirtualModemAttached_(std::move(isVirtualModemAttached)),
       isVirtualModemOnline_(std::move(isVirtualModemOnline)),
+      setRS232Baud_(std::move(setRS232Baud)),
+      getRS232Baud_(std::move(getRS232Baud)),
       saveState_(std::move(saveState)),
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
@@ -111,6 +115,7 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 
     s.virtualModemAttached = isVirtualModemAttached_ ? isVirtualModemAttached_() : false;
     s.virtualModemOnline = isVirtualModemOnline_ ? isVirtualModemOnline_() : false;
+    s.rs232Baud = getRS232Baud_ ? getRS232Baud_() : 300;
 
     s.cartSwitches.clear();
     s.cartButtons.clear();
@@ -258,6 +263,14 @@ void UIBridge::processCommands()
             {
                 if (detachVirtualModem_)
                     detachVirtualModem_();
+                break;
+            }
+
+            case UiCommand::Type::SetRS232Baud:
+            {
+                if (setRS232Baud_)
+                    setRS232Baud_(cmd.rs232Baud);
+
                 break;
             }
 

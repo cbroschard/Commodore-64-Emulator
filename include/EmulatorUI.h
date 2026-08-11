@@ -103,6 +103,8 @@ class EmulatorUI
             bool virtualModemAttached = false;
             bool virtualModemOnline = false;
 
+            uint32_t rs232Baud   = 300;
+
             bool joy1Attached    = false;
             bool joy2Attached    = false;
 
@@ -199,6 +201,8 @@ class EmulatorUI
         void pushCreateIDE64Image(uint32_t deviceIndex, const std::string path, uint32_t sectors);
         void pushSaveIDE64Image(uint32_t deviceIndex);
         void pushEjectIDE64Image(uint32_t deviceIndex);
+
+        void pushSetRS232Baud(uint32_t baud);
 
         void pushSetREU(REUModel model);
 

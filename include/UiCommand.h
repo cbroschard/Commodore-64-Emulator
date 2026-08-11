@@ -34,6 +34,8 @@ struct UiCommand
         AttachVirtualModem,
         DetachVirtualModem,
 
+        SetRS232Baud,
+
         CreateBlankDisk,
 
         EjectDisk,
@@ -93,6 +95,8 @@ struct UiCommand
     uint32_t buttonIndex        = 0;
     uint32_t switchIndex        = 0;
     uint32_t switchPos          = 0;
+
+    uint32_t rs232Baud          = 300;
 
     REUModel reuModel           = REUModel::None;
 };

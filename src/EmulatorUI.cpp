@@ -118,6 +118,17 @@ void EmulatorUI::pushEjectIDE64Image(uint32_t deviceIndex)
     out_.push_back(std::move(c));
 }
 
+void EmulatorUI::pushSetRS232Baud(uint32_t baud)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+
+    UiCommand c;
+    c.type = UiCommand::Type::SetRS232Baud;
+    c.rs232Baud = baud;
+
+    out_.push_back(std::move(c));
+}
+
 void EmulatorUI::pushSetREU(REUModel model)
 {
     std::lock_guard<std::mutex> lock(outMutex_);
@@ -684,6 +695,33 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 {
                     if (ImGui::MenuItem("Detach Virtual Modem"))
                         push(UiCommand::Type::DetachVirtualModem);
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Baud Rate", v.virtualModemAttached))
+                {
+                    static constexpr uint32_t baudRates[] =
+                    {
+                        300,
+                        600,
+                        1200,
+                        2400,
+                        4800,
+                        9600,
+                        19200
+                    };
+
+                    for (uint32_t baud : baudRates)
+                    {
+                        const bool selected = v.rs232Baud == baud;
+                        const std::string label = std::to_string(baud);
+
+                        if (ImGui::MenuItem(label.c_str(), nullptr, selected))
+                            pushSetRS232Baud(baud);
+                    }
+
+                    ImGui::EndMenu();
                 }
 
                 ImGui::EndMenu();

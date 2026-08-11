@@ -87,6 +87,9 @@ class RS232Device
         void setClockRate(double hz);
         void setConfig(const RS232Config& cfg);
 
+        void setBaud(uint32_t baud);
+        uint32_t getBaud() const { return config.baud; }
+
         // Transmit
         void queueTransmitByte(uint8_t value);
         bool isTransmitIdle() const;
