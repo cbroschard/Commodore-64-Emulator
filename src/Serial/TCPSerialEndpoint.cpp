@@ -91,7 +91,7 @@ bool TCPSerialEndpoint::connect(const std::string& host, uint16_t port)
 {
     disconnect();
 
-    address = NET_ResolveHostname(host.c_str());
+    NET_Address* address = NET_ResolveHostname(host.c_str());
 
     if (!address)
         return false;
@@ -101,14 +101,12 @@ bool TCPSerialEndpoint::connect(const std::string& host, uint16_t port)
     if (resolveStatus != NET_SUCCESS)
     {
         NET_UnrefAddress(address);
-        address = nullptr;
         return false;
     }
 
     NET_StreamSocket* newSocket = NET_CreateClient(address, port, 0);
 
     NET_UnrefAddress(address);
-    address = nullptr;
 
     if (!newSocket)
         return false;
