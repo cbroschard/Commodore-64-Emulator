@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
+#include <cctype>
 #include <charconv>
 #include "Serial/VirtualModem.h"
 
@@ -85,26 +87,72 @@ void VirtualModem::writeByte(uint8_t value)
 
 void VirtualModem::processCommand()
 {
-    if (commandBuffer == "AT")
+    // Keep the original command intact for arguments such as hostnames.
+    const std::string originalCommand = commandBuffer;
+
+    // Normalize a copy for case-insensitive Hayes command parsing.
+    std::string command = commandBuffer;
+
+    std::transform(command.begin(), command.end(), command.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c));} );
+
+    if (command == "AT")
     {
         sendResponse("OK");
         return;
     }
-    else if (commandBuffer == "ATH" || commandBuffer == "ATH0")
+    else if (command == "ATH" || command == "ATH0")
     {
         tcp.disconnect();
         mode = Mode::Command;
+
         sendResponse("OK");
         return;
     }
-    else if (commandBuffer == "ATI" || commandBuffer == "ATI0")
+    else if (command == "ATI" || command == "ATI0")
     {
         sendResponse("c64 emulator virtual modem by christopher broschard");
         return;
     }
-    else if (commandBuffer.starts_with("ATDT"))
+    else if (command == "ATE0")
     {
-        const std::string target = commandBuffer.substr(4);
+        echoEnabled = false;
+        sendResponse("OK");
+        return;
+    }
+    else if (command == "ATE1")
+    {
+        echoEnabled = true;
+        sendResponse("OK");
+        return;
+    }
+    else if (command == "ATM0" ||
+             command == "ATM1" ||
+             command == "ATM2" ||
+             command == "ATM3")
+    {
+        // Speaker commands are accepted but have no effect
+        // for the TCP-based virtual modem.
+        sendResponse("OK");
+        return;
+    }
+    else if (command == "ATT")
+    {
+        // Tone dialing. No behavioral difference for TCP.
+        sendResponse("OK");
+        return;
+    }
+    else if (command == "ATP")
+    {
+        // Pulse dialing. No behavioral difference for TCP.
+        sendResponse("OK");
+        return;
+    }
+    else if (command.starts_with("ATDT") || command.starts_with("ATDP"))
+    {
+        // Use the ORIGINAL command here so we don't unnecessarily
+        // modify the hostname or dial target.
+        const std::string target = originalCommand.substr(4);
+
         const size_t colonPos = target.rfind(':');
 
         if (colonPos == std::string::npos)
@@ -123,6 +171,7 @@ void VirtualModem::processCommand()
         }
 
         unsigned int parsedPort = 0;
+
         const auto [ptr, ec] = std::from_chars(portText.data(), portText.data() + portText.size(), parsedPort);
 
         if (ec != std::errc{} || ptr != portText.data() + portText.size() || parsedPort == 0 || parsedPort > 65535)
@@ -139,26 +188,10 @@ void VirtualModem::processCommand()
             sendResponse("CONNECT");
         }
         else
+        {
             sendResponse("NO CARRIER");
+        }
 
-        return;
-    }
-    else if (commandBuffer == "ATE0")
-    {
-        echoEnabled = false;
-        sendResponse("OK");
-        return;
-    }
-    else if (commandBuffer == "ATE1")
-    {
-        echoEnabled = true;
-        sendResponse("OK");
-        return;
-    }
-    else if (commandBuffer == "ATM0" || commandBuffer == "ATM1" || commandBuffer == "ATM2" || commandBuffer == "ATM3")
-    {
-        // Speaker mode has no effect for the virtual TCP modem. Added for compatibility with some programs
-        sendResponse("OK");
         return;
     }
 
