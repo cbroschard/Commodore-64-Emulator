@@ -90,11 +90,16 @@ void VirtualModem::processCommand()
         sendResponse("OK");
         return;
     }
-    else if (commandBuffer == "ATH")
+    else if (commandBuffer == "ATH" || commandBuffer == "ATH0")
     {
         tcp.disconnect();
         mode = Mode::Command;
         sendResponse("OK");
+        return;
+    }
+    else if (commandBuffer == "ATI" || commandBuffer == "ATI0")
+    {
+        sendResponse("c64 emulator virtual modem by christopher broschard");
         return;
     }
     else if (commandBuffer.starts_with("ATDT"))
@@ -147,6 +152,12 @@ void VirtualModem::processCommand()
     else if (commandBuffer == "ATE1")
     {
         echoEnabled = true;
+        sendResponse("OK");
+        return;
+    }
+    else if (commandBuffer == "ATM0" || commandBuffer == "ATM1" || commandBuffer == "ATM2" || commandBuffer == "ATM3")
+    {
+        // Speaker mode has no effect for the virtual TCP modem. Added for compatibility with some programs
         sendResponse("OK");
         return;
     }
