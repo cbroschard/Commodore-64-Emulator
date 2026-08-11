@@ -279,19 +279,17 @@ uint8_t CIA6526::readRegister(uint16_t address)
 
         case 0x0D:
         {
-            result = interruptStatus & 0x1F;
-
-            // Bit 7 indicates at least one enabled pending source.
-            if (result & interruptEnable)
-                result |= 0x80;
-
-            // Reading ICR acknowledges pending source bits 0-4.
-            interruptStatus &= static_cast<uint8_t>(~(result & 0x1F));
+            // Bits 0-4 are interrupt sources; bit 7 is the
+            // latched interrupt request.
+            result = interruptStatus & 0x9F;
 
             if (result & INTERRUPT_TOD_ALARM)
                 todAlarmTriggered = false;
 
-            refreshMasterBit();
+            // Reading ICR acknowledges all pending interrupt state,
+            // including the latched master bit.
+            interruptStatus = 0;
+
             updateIRQLine();
             break;
         }
@@ -1000,7 +998,7 @@ void CIA6526::cntChangedB()
 
 void CIA6526::updateIRQLine()
 {
-    const bool active = (interruptStatus & interruptEnable & 0x1F) != 0;
+    const bool active = (interruptStatus & 0x80) != 0;
     irqLineChanged(active);
 }
 
@@ -1145,19 +1143,23 @@ void CIA6526::postLoadState()
 
 void CIA6526::triggerInterrupt(InterruptBit interruptBit)
 {
-    interruptStatus |= interruptBit; // Set the relevant bit in the status register
+    interruptStatus |= interruptBit;
+
+    // If this source was enabled when it occurred, latch the
+    // master interrupt-request bit.
+    if (interruptEnable & interruptBit)
+        interruptStatus |= 0x80;
 
     if (traceMgr && traceMgr->isEnabled())
     {
         traceMgr->recordCiaICR(
             getCIANumber(),
             interruptStatus,
-            (interruptStatus & interruptEnable & 0x1F) != 0,
+            (interruptStatus & 0x80) != 0,
             makeCIAStamp()
         );
     }
 
-    refreshMasterBit();
     updateIRQLine();
 }
 
@@ -1181,20 +1183,8 @@ void CIA6526::clearIFR(InterruptBit interruptBit)
 
 void CIA6526::refreshMasterBit()
 {
-    if ((interruptStatus & interruptEnable & 0x1F) != 0)
-        interruptStatus |= 0x80;
-    else
-        interruptStatus &= static_cast<uint8_t>(~0x80);
-
-    if (traceMgr && traceMgr->isEnabled())
-    {
-        traceMgr->recordCiaICR(
-            getCIANumber(),
-            interruptStatus,
-            (interruptStatus & interruptEnable & 0x1F) != 0,
-            makeCIAStamp()
-        );
-    }
+    // Bit 7 is latched when an enabled interrupt occurs.
+    // Do not recompute it from the current IER.
 }
 
 std::string CIA6526::dumpRegisters(const std::string& group) const
