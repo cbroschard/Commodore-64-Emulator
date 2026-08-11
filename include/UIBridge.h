@@ -52,8 +52,6 @@ class UIBridge
         void setManualPause(bool paused);
         bool isManuallyPaused() const { return manualPaused_; }
 
-    protected:
-
     private:
         EmulatorUI& ui_;
         MediaManager* media_;
@@ -64,10 +62,10 @@ class UIBridge
 
         VoidFn attachVirtualModem_;
         VoidFn detachVirtualModem_;
-        SetUInt32Fn setRS232Baud_;
-        UInt32Fn getRS232Baud_;
         BoolFn isVirtualModemAttached_;
         BoolFn isVirtualModemOnline_;
+        SetUInt32Fn setRS232Baud_;
+        UInt32Fn getRS232Baud_;
         StringFn saveState_;
         StringFn loadState_;
         VoidFn warmReset_;
