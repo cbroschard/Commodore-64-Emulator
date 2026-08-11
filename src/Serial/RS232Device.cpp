@@ -24,6 +24,7 @@ RS232Device::RS232Device() :
     cts(true),
     dcd(true),
     ri(true),
+    rxStartPending(false),
     parityError(false),
     framingError(false),
     clockHz(1022727.0),
@@ -227,6 +228,8 @@ void RS232Device::reset()
     dcd                 = true;
     ri                  = true;
 
+    rxStartPending      = false;
+
     parityError         = false;
     framingError        = false;
 
@@ -296,6 +299,14 @@ void RS232Device::setTXD(bool state)
         return;
 
     peer->rxd = state;
+}
+
+void RS232Device::setRXD(bool state)
+{
+    if (rxd && !state)
+        rxStartPending = true;
+
+    rxd = state;
 }
 
 void RS232Device::setDTR(bool state)
@@ -504,15 +515,17 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
     {
         case RxState::Idle:
         {
-            // Start bit = RXD falling from high to low.
-            if (lastRXD && !rxd)
+            if (rxStartPending)
             {
+                rxStartPending = false;
+
                 rxState = RxState::StartBit;
                 rxCountdown = cyclesPerBit * 0.5;
 
                 rxShift = 0;
                 rxBitIndex = 0;
             }
+
             break;
         }
 

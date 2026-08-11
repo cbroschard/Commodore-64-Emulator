@@ -61,12 +61,12 @@ class RS232Device
 
         // Setters
         inline void setCTS(bool state) { cts = state; }
-        inline void setRXD(bool state) { rxd = state; }
         inline void setDSR(bool state) { dsr = state; }
         inline void setDCD(bool state) { dcd = state; }
         inline void setRI(bool state) { ri = state; }
 
         void setTXD(bool state);
+        void setRXD(bool state);
         void setDTR(bool state);
         void setRTS(bool state);
 
@@ -146,6 +146,8 @@ class RS232Device
         bool cts;
         bool dcd;
         bool ri;
+
+        bool rxStartPending;
 
         bool parityError;
         bool framingError;
