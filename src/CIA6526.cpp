@@ -150,8 +150,7 @@ void CIA6526::updateTimers(uint32_t cyclesElapsed)
     // Run chip specific processing
     postTimerUpdates(cyclesElapsed);
 
-    // Reflect master bit and shared IRQ line
-    refreshMasterBit();
+    // Reflect shared IRQ line
     updateIRQLine();
 }
 
@@ -597,7 +596,6 @@ void CIA6526::writeRegister(uint16_t address, uint8_t value)
                 interruptEnable &= ~mask;
             }
 
-            refreshMasterBit();
             updateIRQLine();
             break;
         }
@@ -1137,7 +1135,6 @@ void CIA6526::postLoadState()
 
     setMode(mode_);
 
-    refreshMasterBit();
     updateIRQLine();
 }
 
@@ -1177,14 +1174,7 @@ void CIA6526::clearIFR(InterruptBit interruptBit)
         );
     }
 
-    refreshMasterBit();
     updateIRQLine();
-}
-
-void CIA6526::refreshMasterBit()
-{
-    // Bit 7 is latched when an enabled interrupt occurs.
-    // Do not recompute it from the current IER.
 }
 
 std::string CIA6526::dumpRegisters(const std::string& group) const

@@ -178,7 +178,6 @@ class CIA6526
 
         void updateIRQLine();
         void clearIFR(InterruptBit interruptBit);
-        void refreshMasterBit();
 };
 
 #endif // CIA6526_H
