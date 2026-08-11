@@ -272,6 +272,35 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
         return;
     }
 
+    // C64 even function keys are Shift + preceding odd function key.
+    if (key == SDL_SCANCODE_F2)
+    {
+        keyMatrix[0] &= ~(1 << 4); // F1
+        keyMatrix[1] &= ~(1 << 7); // Left Shift
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F4)
+    {
+        keyMatrix[0] &= ~(1 << 5); // F3
+        keyMatrix[1] &= ~(1 << 7); // Left Shift
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F6)
+    {
+        keyMatrix[0] &= ~(1 << 6); // F5
+        keyMatrix[1] &= ~(1 << 7); // Left Shift
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F8)
+    {
+        keyMatrix[0] &= ~(1 << 3); // F7
+        keyMatrix[1] &= ~(1 << 7); // Left Shift
+        return;
+    }
+
     const SDL_Keycode keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
 
     if (key == SDL_SCANCODE_LSHIFT ||
@@ -302,6 +331,78 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
     }
 
     const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+
+    if (key == SDL_SCANCODE_F2)
+    {
+        keyMatrix[0] |= (1 << 4); // Release F1
+
+        if (!keyboardState[SDL_SCANCODE_F4] &&
+            !keyboardState[SDL_SCANCODE_F6] &&
+            !keyboardState[SDL_SCANCODE_F8] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT] &&
+            !keyboardState[SDL_SCANCODE_RSHIFT] &&
+            !keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP])
+        {
+            keyMatrix[1] |= (1 << 7); // Release Left Shift
+        }
+
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F4)
+    {
+        keyMatrix[0] |= (1 << 5); // Release F3
+
+        if (!keyboardState[SDL_SCANCODE_F2] &&
+            !keyboardState[SDL_SCANCODE_F6] &&
+            !keyboardState[SDL_SCANCODE_F8] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT] &&
+            !keyboardState[SDL_SCANCODE_RSHIFT] &&
+            !keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP])
+        {
+            keyMatrix[1] |= (1 << 7);
+        }
+
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F6)
+    {
+        keyMatrix[0] |= (1 << 6); // Release F5
+
+        if (!keyboardState[SDL_SCANCODE_F2] &&
+            !keyboardState[SDL_SCANCODE_F4] &&
+            !keyboardState[SDL_SCANCODE_F8] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT] &&
+            !keyboardState[SDL_SCANCODE_RSHIFT] &&
+            !keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP])
+        {
+            keyMatrix[1] |= (1 << 7);
+        }
+
+        return;
+    }
+
+    if (key == SDL_SCANCODE_F8)
+    {
+        keyMatrix[0] |= (1 << 3); // Release F7
+
+        if (!keyboardState[SDL_SCANCODE_F2] &&
+            !keyboardState[SDL_SCANCODE_F4] &&
+            !keyboardState[SDL_SCANCODE_F6] &&
+            !keyboardState[SDL_SCANCODE_LSHIFT] &&
+            !keyboardState[SDL_SCANCODE_RSHIFT] &&
+            !keyboardState[SDL_SCANCODE_LEFT] &&
+            !keyboardState[SDL_SCANCODE_UP])
+        {
+            keyMatrix[1] |= (1 << 7);
+        }
+
+        return;
+    }
 
     if (key == SDL_SCANCODE_RIGHT || key == SDL_SCANCODE_LEFT)
     {
