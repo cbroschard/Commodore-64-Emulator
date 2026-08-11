@@ -36,6 +36,8 @@ class UserPortRS232Adapter : public UserPortDevice
 
         void postLoadState();
 
+        bool getFlag2() const override;
+
         std::string debugString() const override;
         std::string debugRS232String() const override;
         std::string selfTestRS232(uint8_t value,  RS232Device::Parity parity) override;

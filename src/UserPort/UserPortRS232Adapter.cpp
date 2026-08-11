@@ -99,13 +99,24 @@ void UserPortRS232Adapter::postLoadState()
     updateDTR();
 }
 
+bool UserPortRS232Adapter::getFlag2() const
+{
+    if (!rs232Device)
+        return true;
+
+    return rs232Device->getTXD();
+}
+
 void UserPortRS232Adapter::updateTXD()
 {
     if (!rs232Device)
         return;
 
     if (portADDR & TXD_MASK)
-        rs232Device->setTXD((portAValue & TXD_MASK) != 0);
+    {
+        const bool c64Level = (portAValue & TXD_MASK) != 0;
+        rs232Device->setRXD(c64Level);
+    }
 }
 
 void UserPortRS232Adapter::updateRTS()
@@ -133,7 +144,9 @@ uint8_t UserPortRS232Adapter::readPortB() const
 
     uint8_t value = 0xFF;
 
-    if (!rs232Device->getRXD()) value &= ~RXD_MASK;
+    if (!rs232Device->getTXD())
+        value &= ~RXD_MASK;
+
     if (!rs232Device->getRI())  value &= ~RI_MASK;
     if (!rs232Device->getDCD()) value &= ~DCD_MASK;
     if (!rs232Device->getCTS()) value &= ~CTS_MASK;

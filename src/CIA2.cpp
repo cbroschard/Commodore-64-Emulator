@@ -149,6 +149,7 @@ void CIA2::reset()
     lastClk                     = false;
     lastSrqLevel                = false;
     lastDataLevel               = true;
+    lastFlag2Level              = true;
     iecCmdShiftReg              = 0;
     iecCmdBitCount              = 0;
 
@@ -234,11 +235,12 @@ void CIA2::portBOutputChanged(uint8_t value)
 
 void CIA2::postTimerUpdates(uint32_t cyclesElapsed)
 {
-    // Update user-port device timing
     if (userPort)
+    {
         userPort->tick(cyclesElapsed);
+        flag2Changed(userPort->getFlag2());
+    }
 }
-
 
 void CIA2::irqLineChanged(bool active)
 {
@@ -393,6 +395,16 @@ void CIA2::srqChanged(bool level)
     }
 
     lastSrqLevel = level;
+}
+
+void CIA2::flag2Changed(bool level)
+{
+    const bool falling = lastFlag2Level && !level;
+
+    if (falling)
+        triggerInterrupt(INTERRUPT_FLAG_LINE);
+
+    lastFlag2Level = level;
 }
 
 void CIA2::decodeIECCommand(uint8_t cmd)

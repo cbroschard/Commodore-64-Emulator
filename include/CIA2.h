@@ -47,6 +47,9 @@ class CIA2 : public CIA6526
         void atnChanged(bool asserted);
         void srqChanged(bool level);
 
+        // User Port /FLAG2
+        void flag2Changed(bool level);
+
         // Setter for device number set by actual devices
         inline void setDeviceNumber(uint8_t number) { deviceNumber = number; }
 
@@ -119,6 +122,7 @@ class CIA2 : public CIA6526
         bool lastSrqLevel;
         bool lastDataLevel;
         bool lastAtnLevel;
+        bool lastFlag2Level;
         uint8_t iecCmdShiftReg;
         int iecCmdBitCount;
         void decodeIECCommand(uint8_t cmd);

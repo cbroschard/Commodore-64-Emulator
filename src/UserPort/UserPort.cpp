@@ -49,6 +49,11 @@ uint8_t UserPort::readPortB() const
     return device ? device->readPortB() : 0xFF;
 }
 
+bool UserPort::getFlag2() const
+{
+    return device ? device->getFlag2() : true;
+}
+
 std::string UserPort::debugString() const
 {
     std::ostringstream out;

@@ -661,6 +661,8 @@ std::string RS232Device::debugString() const
 
     out << "  Peer: " << (peer ? "attached" : "none") << "\n";
 
+    out << "  Endpoint: " << (endpoint ? "attached" : "none") << "\n";
+
     out << "  TX Engine: "
     << "state=";
 

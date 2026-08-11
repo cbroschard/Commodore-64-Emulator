@@ -31,6 +31,8 @@ class UserPort
 
         uint8_t readPortB() const;
 
+        bool getFlag2() const;
+
         std::string debugString() const;
         std::string debugRS232String() const;
         std::string selfTestRS232(uint8_t value, RS232Device::Parity parity);

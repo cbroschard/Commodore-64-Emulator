@@ -32,6 +32,8 @@ public:
     virtual std::string selfTestUserPortRS232Formats() { return "RS-232 not supported by attached User Port device\n"; }
     virtual std::string selfTestUserPortRS232FlowControl() { return "RS-232 not supported by attached User Port device\n"; }
     virtual std::string selfTestUserPortRS232Errors() { return "RS-232 not supported by attached User Port device\n"; }
+
+    virtual bool getFlag2() const { return true; }
 };
 
 #endif // USERPORTDEVICE_H
