@@ -9,7 +9,8 @@
 #include "Serial/VirtualModem.h"
 
 VirtualModem::VirtualModem() :
-    mode(Mode::Command)
+    mode(Mode::Command),
+    echoEnabled(false)
 {
 
 }
@@ -22,6 +23,8 @@ void VirtualModem::reset()
 
     mode = Mode::Command;
     commandBuffer.clear();
+
+    echoEnabled = false;
 
     while (!receiveQueue.empty())
         receiveQueue.pop();
@@ -60,6 +63,9 @@ void VirtualModem::writeByte(uint8_t value)
 {
     if (mode == Mode::Command)
     {
+        if (echoEnabled)
+            receiveQueue.push(value);
+
         if (value == '\r')
         {
             processCommand();
@@ -130,6 +136,18 @@ void VirtualModem::processCommand()
         else
             sendResponse("NO CARRIER");
 
+        return;
+    }
+    else if (commandBuffer == "ATE0")
+    {
+        echoEnabled = false;
+        sendResponse("OK");
+        return;
+    }
+    else if (commandBuffer == "ATE1")
+    {
+        echoEnabled = true;
+        sendResponse("OK");
         return;
     }
 

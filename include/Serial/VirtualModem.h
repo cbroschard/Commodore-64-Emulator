@@ -33,9 +33,11 @@ class VirtualModem : public RS232Endpoint
             Online
         };
 
+        TCPSerialEndpoint tcp;
+
         Mode mode;
 
-        TCPSerialEndpoint tcp;
+        bool echoEnabled;
 
         std::string commandBuffer;
         std::queue<uint8_t> receiveQueue;
