@@ -77,6 +77,7 @@ class RS232Device
         inline bool getCTS() const { return cts; }
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
+        inline RS232Config getConfig() { return config; }
         inline bool hasParityError() const { return parityError; }
         inline bool hasFramingError() const { return framingError; }
 
