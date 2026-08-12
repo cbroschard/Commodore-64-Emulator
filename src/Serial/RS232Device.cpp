@@ -65,6 +65,8 @@ void RS232Device::saveState(StateWriter& wrtr) const
     wrtr.writeBool(dcd);
     wrtr.writeBool(ri);
 
+    wrtr.writeBool(breakActive);
+
     // Timing
     wrtr.writeF64(clockHz);
     wrtr.writeF64(cyclesPerBit);
@@ -144,6 +146,8 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(rxd))                                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(dcd))                                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(ri))                                      { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(breakActive))                             { rdr.exitChunkPayload(chunk); return false; }
 
         // Timing
         if (!rdr.readF64(clockHz))                                  { rdr.exitChunkPayload(chunk); return false; }
