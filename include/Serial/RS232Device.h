@@ -109,8 +109,6 @@ class RS232Device
         std::string selfTestFlowControl();
         std::string selfTestErrors();
 
-    protected:
-
     private:
         // Non-owning Pointers
         RS232Device* peer;
