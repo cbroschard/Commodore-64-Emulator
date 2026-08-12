@@ -80,6 +80,8 @@ class RS232Device
         inline bool hasParityError() const { return parityError; }
         inline bool hasFramingError() const { return framingError; }
 
+        inline bool canAcceptTransmitByte() const { return txBytes.empty(); }
+
         void clearReceiveErrors();
 
         void tick(uint32_t cyclesElapsed);
