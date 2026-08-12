@@ -50,7 +50,7 @@ void RS232Device::saveState(StateWriter& wrtr) const
     // Configuration
     wrtr.writeU32(config.baud);
     wrtr.writeU8(config.dataBits);
-    wrtr.writeU8(config.stopBits);
+    wrtr.writeF64(config.stopBits);
     wrtr.writeU8(static_cast<uint8_t>(config.parity));
     wrtr.writeU8(static_cast<uint8_t>(config.flowControl));
 
@@ -119,7 +119,7 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Configuration
         if (!rdr.readU32(config.baud))                              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(config.dataBits))                           { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(config.stopBits))                           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(config.stopBits))                           { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t parityTemp = 0;
         if (!rdr.readU8(parityTemp))                                { rdr.exitChunkPayload(chunk); return false; }

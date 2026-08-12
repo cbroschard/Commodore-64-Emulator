@@ -42,7 +42,7 @@ class RS232Device
         {
             uint32_t baud = 300;
             uint8_t dataBits = 8;
-            uint8_t stopBits = 1;
+            double stopBits = 1.0;
             Parity parity = Parity::None;
             FlowControl flowControl = FlowControl::None;
         };
