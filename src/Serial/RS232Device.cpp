@@ -123,7 +123,7 @@ bool RS232Device::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint8_t parityTemp = 0;
         if (!rdr.readU8(parityTemp))                                { rdr.exitChunkPayload(chunk); return false; }
-        if (parityTemp > static_cast<uint8_t>(Parity::Even))        { rdr.exitChunkPayload(chunk); return false; }
+        if (parityTemp > static_cast<uint8_t>(Parity::Space))       { rdr.exitChunkPayload(chunk); return false; }
 
         config.parity = static_cast<Parity>(parityTemp);
 
@@ -647,6 +647,12 @@ void RS232Device::tickRX(uint32_t cyclesElapsed)
 
 bool RS232Device::calculateParity(uint8_t value) const
 {
+    if (config.parity == Parity::Mark)
+        return true;
+
+    if (config.parity == Parity::Space)
+        return false;
+
     bool parity = false;
 
     for (uint8_t bit = 0; bit < config.dataBits; ++bit)

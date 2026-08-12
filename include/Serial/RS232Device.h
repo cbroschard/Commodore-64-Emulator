@@ -27,7 +27,9 @@ class RS232Device
         {
             None,
             Odd,
-            Even
+            Even,
+            Mark,
+            Space
         };
 
         enum class FlowControl
