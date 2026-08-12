@@ -334,7 +334,7 @@ void RS232Device::setRTS(bool state)
     peer->cts = state;
 }
 
-void RS232Devie::setBreak(bool state)
+void RS232Device::setBreak(bool state)
 {
     breakActive = state;
 
