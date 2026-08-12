@@ -110,7 +110,7 @@ void VirtualModem::processCommand()
     }
     else if (command == "ATI" || command == "ATI0")
     {
-        sendResponse("c64 emulator virtual modem by christopher broschard");
+        sendResponse("c64 emulator virtual modem by christopher croschard");
         return;
     }
     else if (command == "ATE0")
