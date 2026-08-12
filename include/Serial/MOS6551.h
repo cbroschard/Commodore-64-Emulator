@@ -82,6 +82,10 @@ class MOS6551
 
         bool modemStatusLatched;
 
+        bool echoPending;
+        bool echoLevel;
+        double echoCountdown;
+
         // Helpers
         void updateStatus();
         void updateCommand();

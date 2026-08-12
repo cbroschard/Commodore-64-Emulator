@@ -80,6 +80,8 @@ class RS232Device
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
 
+        inline double getCyclesPerBit() const { return cyclesPerBit; }
+
         inline bool getBreak() const { return breakActive; }
 
         inline RS232Config getConfig() { return config; }

@@ -44,7 +44,12 @@ void MOS6551::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(latchedDCD);
     wrtr.writeBool(latchedDSR);
+
     wrtr.writeBool(modemStatusLatched);
+
+    wrtr.writeBool(echoPending);
+    wrtr.writeBool(echoLevel);
+    wrtr.writeF64(echoCountdown);
 
     wrtr.endChunk();
 }
@@ -83,6 +88,10 @@ bool MOS6551::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(latchedDCD))          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(latchedDSR))          { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(modemStatusLatched))  { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(echoPending))         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(echoLevel))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readF64(echoCountdown))        { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
 
@@ -123,7 +132,12 @@ void MOS6551::reset()
 
     latchedDCD          = dcd;
     latchedDSR          = dsr;
+
     modemStatusLatched  = false;
+
+    echoPending         = false;
+    echoLevel           = true;
+    echoCountdown       = 0.0;
 
     updateStatus();
 }
@@ -131,6 +145,40 @@ void MOS6551::reset()
 void MOS6551::tick(uint32_t cycles)
 {
     serial.tick(cycles);
+
+    const bool newRXD = serial.getRXD();
+    const bool echoEnabled = (commandRegister & CMD_REM) != 0;
+
+    if (echoEnabled)
+    {
+        if (newRXD != rxd)
+        {
+            echoLevel = newRXD;
+            echoPending = true;
+            echoCountdown = serial.getCyclesPerBit() * 0.5;
+        }
+
+        if (echoPending)
+        {
+            echoCountdown -= static_cast<double>(cycles);
+
+            if (echoCountdown <= 0.0)
+            {
+                serial.setTXD(echoLevel);
+                txd = echoLevel;
+
+                echoPending = false;
+                echoCountdown = 0.0;
+            }
+        }
+    }
+    else
+    {
+        echoPending = false;
+        echoCountdown = 0.0;
+    }
+
+    rxd = newRXD;
 
     // ---------------------------------------------------------
     // Modem input lines
@@ -198,7 +246,9 @@ uint8_t MOS6551::read(uint16_t reg)
         {
             const uint8_t value = receiveData;
 
-            statusRegister &= static_cast<uint8_t>(~(STATUS_RDRF |STATUS_OVRN | STATUS_FE | STATUS_PE)); serial.clearReceiveErrors();
+            statusRegister &= static_cast<uint8_t>(~(STATUS_RDRF |STATUS_OVRN | STATUS_FE | STATUS_PE));
+
+            serial.clearReceiveErrors();
 
             updateIRQ();
             updateStatus();
@@ -251,10 +301,10 @@ void MOS6551::write(uint16_t reg, uint8_t value)
     {
         case 0x00:
         {
-             const uint8_t tic = commandRegister & CMD_TIC_MASK;
+            const bool echoEnabled = (commandRegister & CMD_REM) != 0;
+            const uint8_t tic = commandRegister & CMD_TIC_MASK;
 
-            // Transmitter disabled or BREAK mode.
-            if (tic == 0x00 || tic == 0x0C)
+            if (echoEnabled || tic == 0x00 || tic == 0x0C)
                 break;
 
             if (!serial.canAcceptTransmitByte())
@@ -327,26 +377,39 @@ void MOS6551::updateCommand()
     dtr = (commandRegister & CMD_DTR) == 0;
     serial.setDTR(dtr);
 
+    const bool echoEnabled = (commandRegister & CMD_REM) != 0;
+
     // RTS / transmitter control
     const uint8_t tic = commandRegister & CMD_TIC_MASK;
 
-    switch (tic)
+    if (echoEnabled)
     {
-        case 0x00:
-            rts = true;
-            serial.setBreak(false);
-            break;
+        // Receiver echo mode requires TIC = 00.
+        // RTSB is low in receiver echo mode.
+        rts = false;
 
-        case 0x04:
-        case 0x08:
-            rts = false;
-            serial.setBreak(false);
-            break;
+        serial.setBreak(false);
+    }
+    else
+    {
+        switch (tic)
+        {
+            case 0x00:
+                rts = true;
+                serial.setBreak(false);
+                break;
 
-        case 0x0C:
-            rts = false;
-            serial.setBreak(true);
-            break;
+            case 0x04:
+            case 0x08:
+                rts = false;
+                serial.setBreak(false);
+                break;
+
+            case 0x0C:
+                rts = false;
+                serial.setBreak(true);
+                break;
+        }
     }
 
     serial.setRTS(rts);
