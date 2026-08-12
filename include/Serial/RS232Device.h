@@ -79,7 +79,11 @@ class RS232Device
         inline bool getCTS() const { return cts; }
         inline bool getRI() const { return ri; }
         inline bool getDCD() const { return dcd; }
+
+        inline bool getBreak() const { return breakActive; }
+
         inline RS232Config getConfig() { return config; }
+
         inline bool hasParityError() const { return parityError; }
         inline bool hasFramingError() const { return framingError; }
 
@@ -88,6 +92,8 @@ class RS232Device
         void clearReceiveErrors();
 
         void tick(uint32_t cyclesElapsed);
+
+        void setBreak(bool state);
 
         void setClockRate(double hz);
         void setConfig(const RS232Config& cfg);
@@ -149,6 +155,8 @@ class RS232Device
         bool cts;
         bool dcd;
         bool ri;
+
+        bool breakActive;
 
         bool rxStartPending;
 

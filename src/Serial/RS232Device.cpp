@@ -24,6 +24,7 @@ RS232Device::RS232Device() :
     cts(true),
     dcd(true),
     ri(true),
+    breakActive(false),
     rxStartPending(false),
     parityError(false),
     framingError(false),
@@ -228,6 +229,8 @@ void RS232Device::reset()
     dcd                 = true;
     ri                  = true;
 
+    breakActive         = false;
+
     rxStartPending      = false;
 
     parityError         = false;
@@ -331,6 +334,14 @@ void RS232Device::setRTS(bool state)
     peer->cts = state;
 }
 
+void RS232Devie::setBreak(bool state)
+{
+    breakActive = state;
+
+    if (breakActive)
+        setTXD(false);
+}
+
 void RS232Device::setClockRate(double hz)
 {
     clockHz = hz;
@@ -393,6 +404,12 @@ bool RS232Device::popReceivedByte(uint8_t& value)
 
 void RS232Device::tickTX(uint32_t cyclesElapsed)
 {
+    if (breakActive)
+    {
+        setTXD(false);
+        return;
+    }
+
     switch (txState)
     {
         case TxState::Idle:
