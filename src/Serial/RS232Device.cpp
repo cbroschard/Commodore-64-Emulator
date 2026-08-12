@@ -262,6 +262,9 @@ void RS232Device::reset()
         peer->dcd = dtr;
         peer->cts = rts;
     }
+
+    if (endpoint)
+        endpoint->reset();
 }
 
 void RS232Device::clearReceiveErrors()

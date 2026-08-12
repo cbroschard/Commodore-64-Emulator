@@ -21,6 +21,7 @@ VirtualModem::~VirtualModem() = default;
 
 void VirtualModem::reset()
 {
+    tcp.disconnect();
     tcp.reset();
 
     mode = Mode::Command;
