@@ -20,6 +20,7 @@ class MLMonitor;
 class PLA;
 class REU;
 class SID;
+class SwiftLink;
 class TraceManager;
 class Vic;
 
@@ -52,10 +53,11 @@ class Memory : public CPUBus
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachDebugManagerInstance(DebugManager* debugManager) { this->debugManager = debugManager; }
-        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
+        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
+        inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -99,8 +101,6 @@ class Memory : public CPUBus
         inline uint8_t getCartLOByte(uint16_t offset) const { return (offset < cart_lo.size()) ? cart_lo[offset] : 0xFF; }
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
 
-        protected:
-
     private:
         // Non-owning pointers
         Cartridge* cart;
@@ -114,6 +114,7 @@ class Memory : public CPUBus
         PLA* pla;
         REU* reu;
         SID* sid;
+        SwiftLink* swiftLink;
         TraceManager* traceMgr;
         Vic* vic;
 

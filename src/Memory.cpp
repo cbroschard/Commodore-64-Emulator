@@ -17,6 +17,7 @@
 #include "PLA.h"
 #include "REU.h"
 #include "SID/SID.h"
+#include "Expansion/SwiftLink.h"
 #include "Debug/TraceManager.h"
 #include "Vic.h"
 
@@ -32,6 +33,7 @@ Memory::Memory() :
     pla(nullptr),
     reu(nullptr),
     sid(nullptr),
+    swiftLink(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
     cartridgeAttached(false),
@@ -745,13 +747,22 @@ uint8_t Memory::readIO(uint16_t address)
         }
 
         if (cia2)
-            return cia2->readRegister(mirroredAddress);            }
+            return cia2->readRegister(mirroredAddress);
+    }
     else if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        if (reu && reu->isEnabled() && address >= 0xDF00 && address <= 0xDF0A)
+        if (swiftLink && swiftLink->handlesAddress(address))
+            return swiftLink->read(address);
+
+        if (reu && reu->isEnabled() &&
+            address >= 0xDF00 && address <= 0xDF0A)
+        {
             return reu->readIO(address);
-        else if (cart && cartridgeAttached)
+        }
+
+        if (cart && cartridgeAttached)
             return cart->read(address);
+
         return dataBus ? dataBus->sample() : 0xFF;
     }
 
@@ -1157,7 +1168,6 @@ void Memory::writeIO(uint16_t address, uint8_t value)
             return;
         }
     }
-
     else if (address >= 0xDD00 && address <= 0xDDFF)
     {
         uint16_t mirroredAddress = (address & 0x000F) + 0xDD00;
@@ -1182,12 +1192,20 @@ void Memory::writeIO(uint16_t address, uint8_t value)
     }
     else if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        if (reu && reu->isEnabled() && address >= 0xDF00 && address <= 0xDF0A)
+        if (swiftLink && swiftLink->handlesAddress(address))
+        {
+            swiftLink->write(address, value);
+            return;
+        }
+
+        if (reu && reu->isEnabled() &&
+            address >= 0xDF00 && address <= 0xDF0A)
         {
             reu->writeIO(address, value);
             return;
         }
-        else if (cart && cartridgeAttached)
+
+        if (cart && cartridgeAttached)
         {
             cart->write(address, value);
             return;
