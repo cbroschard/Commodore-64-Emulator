@@ -727,6 +727,71 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("SwiftLink"))
+            {
+                if (!v.swiftLinkEnabled)
+                {
+                    if (ImGui::MenuItem("Enable SwiftLink"))
+                        push(UiCommand::Type::EnableSwiftLink);
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Disable SwiftLink"))
+                        push(UiCommand::Type::DisableSwiftLink);
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Base Address"))
+                {
+                    const bool de00 = v.swiftLinkBaseAddress == 0xDE00;
+                    const bool df00 = v.swiftLinkBaseAddress == 0xDF00;
+
+                    if (ImGui::MenuItem("$DE00", nullptr, de00))
+                    {
+                        UiCommand c;
+                        c.type = UiCommand::Type::SetSwiftLinkBaseAddress;
+                        c.swiftLinkBaseAddress = 0xDE00;
+
+                        std::lock_guard<std::mutex> lock(outMutex_);
+                        out_.push_back(std::move(c));
+                    }
+
+                    if (ImGui::MenuItem("$DF00", nullptr, df00))
+                    {
+                        UiCommand c;
+                        c.type = UiCommand::Type::SetSwiftLinkBaseAddress;
+                        c.swiftLinkBaseAddress = 0xDF00;
+
+                        std::lock_guard<std::mutex> lock(outMutex_);
+                        out_.push_back(std::move(c));
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+
+                if (!v.swiftLinkVirtualModemAttached)
+                {
+                    if (ImGui::MenuItem(
+                            "Attach Virtual Modem",
+                            nullptr,
+                            false,
+                            v.swiftLinkEnabled))
+                    {
+                        push(UiCommand::Type::AttachSwiftLinkVirtualModem);
+                    }
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Detach Virtual Modem"))
+                        push(UiCommand::Type::DetachSwiftLinkVirtualModem);
+                }
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 

@@ -179,6 +179,43 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                       {
                                                             return components.rs232Device ? components.rs232Device->getBaud() : 300;
                                                       },
+                                                      [host]()
+                                                      {
+                                                          host->enableSwiftLink();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->disableSwiftLink();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isSwiftLinkEnabled();
+                                                      },
+                                                      [host](uint32_t address)
+                                                      {
+                                                          host->setSwiftLinkBaseAddress(
+                                                              static_cast<uint16_t>(address));
+                                                      },
+                                                      [host]() -> uint32_t
+                                                      {
+                                                          return host->getSwiftLinkBaseAddress();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->attachSwiftLinkVirtualModem();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->detachSwiftLinkVirtualModem();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isSwiftLinkVirtualModemAttached();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isSwiftLinkVirtualModemOnline();
+                                                      },
                                                       [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
                                                       [host]() { host->coldReset(); }, [host](const std::string& model) { host->setSIDModel(model); },

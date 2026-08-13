@@ -19,6 +19,15 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    UIBridge::BoolFn isVirtualModemOnline,
                    UIBridge::SetUInt32Fn setRS232Baud,
                    UIBridge::UInt32Fn getRS232Baud,
+                   UIBridge::VoidFn enableSwiftLink,
+                   UIBridge::VoidFn disableSwiftLink,
+                   UIBridge::BoolFn isSwiftLinkEnabled,
+                   UIBridge::SetUInt32Fn setSwiftLinkBaseAddress,
+                   UIBridge::UInt32Fn getSwiftLinkBaseAddress,
+                   UIBridge::VoidFn attachSwiftLinkVirtualModem,
+                   UIBridge::VoidFn detachSwiftLinkVirtualModem,
+                   UIBridge::BoolFn isSwiftLinkVirtualModemAttached,
+                   UIBridge::BoolFn isSwiftLinkVirtualModemOnline,
                    UIBridge::StringFn saveState,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
@@ -40,6 +49,15 @@ UIBridge::UIBridge(EmulatorUI& ui,
       isVirtualModemOnline_(std::move(isVirtualModemOnline)),
       setRS232Baud_(std::move(setRS232Baud)),
       getRS232Baud_(std::move(getRS232Baud)),
+      enableSwiftLink_(std::move(enableSwiftLink)),
+      disableSwiftLink_(std::move(disableSwiftLink)),
+      isSwiftLinkEnabled_(std::move(isSwiftLinkEnabled)),
+      setSwiftLinkBaseAddress_(std::move(setSwiftLinkBaseAddress)),
+      getSwiftLinkBaseAddress_(std::move(getSwiftLinkBaseAddress)),
+      attachSwiftLinkVirtualModem_(std::move(attachSwiftLinkVirtualModem)),
+      detachSwiftLinkVirtualModem_(std::move(detachSwiftLinkVirtualModem)),
+      isSwiftLinkVirtualModemAttached_(std::move(isSwiftLinkVirtualModemAttached)),
+      isSwiftLinkVirtualModemOnline_(std::move(isSwiftLinkVirtualModemOnline)),
       saveState_(std::move(saveState)),
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
@@ -116,6 +134,11 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.virtualModemAttached = isVirtualModemAttached_ ? isVirtualModemAttached_() : false;
     s.virtualModemOnline = isVirtualModemOnline_ ? isVirtualModemOnline_() : false;
     s.rs232Baud = getRS232Baud_ ? getRS232Baud_() : 300;
+
+    s.swiftLinkEnabled = isSwiftLinkEnabled_ ? isSwiftLinkEnabled_() : false;
+    s.swiftLinkBaseAddress = static_cast<uint16_t>(getSwiftLinkBaseAddress_ ? getSwiftLinkBaseAddress_() : 0xDE00);
+    s.swiftLinkVirtualModemAttached = isSwiftLinkVirtualModemAttached_ ? isSwiftLinkVirtualModemAttached_() : false;
+    s.swiftLinkVirtualModemOnline = isSwiftLinkVirtualModemOnline_ ? isSwiftLinkVirtualModemOnline_() : false;
 
     s.cartSwitches.clear();
     s.cartButtons.clear();
@@ -273,6 +296,31 @@ void UIBridge::processCommands()
 
                 break;
             }
+
+            case UiCommand::Type::EnableSwiftLink:
+                if (enableSwiftLink_)
+                    enableSwiftLink_();
+                break;
+
+            case UiCommand::Type::DisableSwiftLink:
+                if (disableSwiftLink_)
+                    disableSwiftLink_();
+                break;
+
+            case UiCommand::Type::SetSwiftLinkBaseAddress:
+                if (setSwiftLinkBaseAddress_)
+                    setSwiftLinkBaseAddress_(cmd.swiftLinkBaseAddress);
+                break;
+
+            case UiCommand::Type::AttachSwiftLinkVirtualModem:
+                if (attachSwiftLinkVirtualModem_)
+                    attachSwiftLinkVirtualModem_();
+                break;
+
+            case UiCommand::Type::DetachSwiftLinkVirtualModem:
+                if (detachSwiftLinkVirtualModem_)
+                    detachSwiftLinkVirtualModem_();
+                break;
 
             case UiCommand::Type::CreateBlankDisk:
                 if (media_)

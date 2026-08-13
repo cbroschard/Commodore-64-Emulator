@@ -42,7 +42,8 @@ Computer::Computer() :
         pendingBusPrime,
         busPrimedAfterBoot
     },
-    cartridgeNMIPending(false)
+    cartridgeNMIPending(false),
+    swiftLinkBaseAddress(0xDE00)
 {
     components_.sdlContext = std::make_unique<SDLContext>();
     components_.audioOutput = std::make_unique<AudioOutput>();
@@ -181,6 +182,74 @@ void Computer::disableSwiftLink()
         components_.nmiLine->clearNMI(NMILine::SWIFTLINK);
 
     components_.swiftLink.reset();
+}
+
+void Computer::enableSwiftLink()
+{
+    enableSwiftLink(swiftLinkBaseAddress);
+}
+
+bool Computer::isSwiftLinkEnabled() const
+{
+    return components_.swiftLink != nullptr;
+}
+
+void Computer::setSwiftLinkBaseAddress(uint16_t address)
+{
+    if (address != 0xDE00 && address != 0xDF00)
+        return;
+
+    if (swiftLinkBaseAddress == address)
+        return;
+
+    const bool wasEnabled = components_.swiftLink != nullptr;
+
+    if (wasEnabled)
+        disableSwiftLink();
+
+    swiftLinkBaseAddress = address;
+
+    if (wasEnabled)
+        enableSwiftLink();
+}
+
+uint16_t Computer::getSwiftLinkBaseAddress() const
+{
+    return swiftLinkBaseAddress;
+}
+
+void Computer::attachSwiftLinkVirtualModem()
+{
+    if (!components_.swiftLink)
+        return;
+
+    if (!components_.swiftLinkVirtualModem)
+        components_.swiftLinkVirtualModem =
+            std::make_unique<VirtualModem>();
+
+    components_.swiftLinkVirtualModem->reset();
+
+    components_.swiftLink->getSerial().attachEndpoint(
+        components_.swiftLinkVirtualModem.get());
+}
+
+void Computer::detachSwiftLinkVirtualModem()
+{
+    if (components_.swiftLink)
+        components_.swiftLink->getSerial().detachEndpoint();
+
+    components_.swiftLinkVirtualModem.reset();
+}
+
+bool Computer::isSwiftLinkVirtualModemAttached() const
+{
+    return components_.swiftLink &&  components_.swiftLinkVirtualModem &&
+           components_.swiftLink->getSerial().getEndpoint() == components_.swiftLinkVirtualModem.get();
+}
+
+bool Computer::isSwiftLinkVirtualModemOnline() const
+{
+    return components_.swiftLinkVirtualModem && components_.swiftLinkVirtualModem->isOnline();
 }
 
 void Computer::enterMonitor()

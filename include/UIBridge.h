@@ -29,6 +29,15 @@ class UIBridge
          BoolFn isVirtualModemOnline,
          SetUInt32Fn setRS232Baud,
          UInt32Fn getRS232Baud,
+         VoidFn enableSwiftLink,
+         VoidFn disableSwiftLink,
+         BoolFn isSwiftLinkEnabled,
+         SetUInt32Fn setSwiftLinkBaseAddress,
+         UInt32Fn getSwiftLinkBaseAddress,
+         VoidFn attachSwiftLinkVirtualModem,
+         VoidFn detachSwiftLinkVirtualModem,
+         BoolFn isSwiftLinkVirtualModemAttached,
+         BoolFn isSwiftLinkVirtualModemOnline,
          StringFn saveState,
          StringFn loadState,
          VoidFn warmReset,
@@ -66,6 +75,19 @@ class UIBridge
         BoolFn isVirtualModemOnline_;
         SetUInt32Fn setRS232Baud_;
         UInt32Fn getRS232Baud_;
+
+        VoidFn enableSwiftLink_;
+        VoidFn disableSwiftLink_;
+        BoolFn isSwiftLinkEnabled_;
+
+        SetUInt32Fn setSwiftLinkBaseAddress_;
+        UInt32Fn getSwiftLinkBaseAddress_;
+
+        VoidFn attachSwiftLinkVirtualModem_;
+        VoidFn detachSwiftLinkVirtualModem_;
+        BoolFn isSwiftLinkVirtualModemAttached_;
+        BoolFn isSwiftLinkVirtualModemOnline_;
+
         StringFn saveState_;
         StringFn loadState_;
         VoidFn warmReset_;

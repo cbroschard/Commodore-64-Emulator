@@ -80,6 +80,7 @@ struct MachineComponents
     std::unique_ptr<UserPortRS232Adapter> userPortRS232Adapter;
     std::unique_ptr<Vic> vic;
     std::unique_ptr<VirtualModem> virtualModem;
+    std::unique_ptr<VirtualModem> swiftLinkVirtualModem;
 };
 
 #endif // MACHINE_COMPONENTS_H

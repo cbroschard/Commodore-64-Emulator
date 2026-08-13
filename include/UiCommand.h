@@ -34,6 +34,13 @@ struct UiCommand
         AttachVirtualModem,
         DetachVirtualModem,
 
+        EnableSwiftLink,
+        DisableSwiftLink,
+        SetSwiftLinkBaseAddress,
+
+        AttachSwiftLinkVirtualModem,
+        DetachSwiftLinkVirtualModem,
+
         SetRS232Baud,
 
         CreateBlankDisk,
@@ -82,23 +89,25 @@ struct UiCommand
         D1581
     };
 
-    int deviceNum = 8;
-    DriveType driveType = DriveType::D1541;
+    int deviceNum                   = 8;
+    DriveType driveType             = DriveType::D1541;
 
     Type type;
     std::string path;
 
-    uint32_t ide64DeviceIndex   = 0;
-    uint32_t ide64Sectors       = 0;
-    bool ide64ReadOnly          = false;
+    uint32_t ide64DeviceIndex       = 0;
+    uint32_t ide64Sectors           = 0;
+    bool ide64ReadOnly              = false;
 
-    uint32_t buttonIndex        = 0;
-    uint32_t switchIndex        = 0;
-    uint32_t switchPos          = 0;
+    uint32_t buttonIndex            = 0;
+    uint32_t switchIndex            = 0;
+    uint32_t switchPos              = 0;
 
-    uint32_t rs232Baud          = 300;
+    uint16_t swiftLinkBaseAddress   = 0xDE00;
 
-    REUModel reuModel           = REUModel::None;
+    uint32_t rs232Baud              = 300;
+
+    REUModel reuModel               = REUModel::None;
 };
 
 

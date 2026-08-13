@@ -85,6 +85,18 @@ class Computer : public ICartridgeHost
         void enableSwiftLink(uint16_t baseAddress);
         void disableSwiftLink();
 
+        void enableSwiftLink();
+        bool isSwiftLinkEnabled() const;
+
+        void setSwiftLinkBaseAddress(uint16_t address);
+        uint16_t getSwiftLinkBaseAddress() const;
+
+        void attachSwiftLinkVirtualModem();
+        void detachSwiftLinkVirtualModem();
+
+        bool isSwiftLinkVirtualModemAttached() const;
+        bool isSwiftLinkVirtualModemOnline() const;
+
         // ML Monitor
         void enterMonitor();
 
@@ -113,6 +125,9 @@ class Computer : public ICartridgeHost
 
         // Cartridge NMI
         bool cartridgeNMIPending;
+
+        // SwiftLink
+        uint16_t swiftLinkBaseAddress;
 
         // Joystick
         void setJoystickAttached(int port, bool flag);

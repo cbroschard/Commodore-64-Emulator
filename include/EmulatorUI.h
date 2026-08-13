@@ -93,34 +93,40 @@ class EmulatorUI
 
         struct MediaViewState
         {
-            bool diskAttached    = false;       std::string diskPath;
-            bool cartAttached    = false;       std::string cartPath;
-            bool tapeAttached    = false;       std::string tapePath;
-            bool prgAttached     = false;       std::string prgPath;
+            bool diskAttached                   = false;       std::string diskPath;
+            bool cartAttached                   = false;       std::string cartPath;
+            bool tapeAttached                   = false;       std::string tapePath;
+            bool prgAttached                    = false;       std::string prgPath;
 
-            bool reuEnabled      = false;       uint32_t reuSizeKB = 0;
+            bool reuEnabled                     = false;       uint32_t reuSizeKB = 0;
 
-            bool virtualModemAttached = false;
-            bool virtualModemOnline = false;
+            bool virtualModemAttached           = false;
+            bool virtualModemOnline             = false;
 
-            uint32_t rs232Baud   = 300;
+            uint32_t rs232Baud                  = 300;
 
-            bool joy1Attached    = false;
-            bool joy2Attached    = false;
+            bool swiftLinkEnabled               = false;
+            uint16_t swiftLinkBaseAddress       = 0xDE00;
 
-            std::string pad1Name = "None";
-            std::string pad2Name = "None";
+            bool swiftLinkVirtualModemAttached  = false;
+            bool swiftLinkVirtualModemOnline    = false;
 
-            bool paused          = false;
-            bool pal             = true;
-            bool sid8580         = true;
+            bool joy1Attached                   = false;
+            bool joy2Attached                   = false;
+
+            std::string pad1Name                = "None";
+            std::string pad2Name                = "None";
+
+            bool paused                         = false;
+            bool pal                            = true;
+            bool sid8580                        = true;
 
             std::vector<DriveStatusView> drives;
 
             std::vector<CartSwitchView> cartSwitches;
             std::vector<CartButtonView> cartButtons;
 
-            bool ide64Available = false;
+            bool ide64Available                 = false;
             std::vector<IDE64DeviceView> ide64Devices;
         };
 
