@@ -10,6 +10,7 @@
 #include "DataBusLatch.h"
 #include "Common/ExecutionHistory.h"
 #include "IRQLine.h"
+#include "NMILIne.h"
 #include "StateWriter.h"
 #include "Vic.h"
 
@@ -20,6 +21,7 @@ CPU::CPU() :
     executionHistory(nullptr),
     IRQ(nullptr),
     mem(nullptr),
+    nmiSourceLine(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
     busCycleActive(false),
@@ -1317,6 +1319,9 @@ void CPU::rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 
 void CPU::tick()
 {
+    if (nmiSourceLine)
+        setNMILine(nmiSourceLine->isNMIActive());
+
     if (halted)
     {
         if (traceMgr)

@@ -13,6 +13,7 @@ class CIA2;
 class DataBusLatch;
 class ExecutionHistory;
 class IRQLine;
+class NMILine;
 class StateWriter;
 class Vic;
 
@@ -40,6 +41,7 @@ class CPU
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
+        inline void attachNMILIneInstance(NMILine* nmiSourceLine) { this->nmiSourceLine = nmiSourceLine; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -577,8 +579,6 @@ class CPU
 
         void postLoadState();
 
-    protected:
-
     private:
 
         // non-owning pointers
@@ -587,6 +587,7 @@ class CPU
         ExecutionHistory* executionHistory;
         IRQLine* IRQ;
         CPUBus* mem;
+        NMILine* nmiSourceLine;
         TraceManager* traceMgr;
         Vic* vic;
 
