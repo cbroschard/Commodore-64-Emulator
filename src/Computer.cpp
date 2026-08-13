@@ -152,6 +152,34 @@ void Computer::set1581ROM(const std::string& rom)
     if (components_.media) components_.media->setD1581ROM(rom);
 }
 
+void Computer::enableSwiftLink(uint16_t baseAddress)
+{
+    if (components_.swiftLink)
+        return;
+
+    components_.swiftLink =
+        std::make_unique<SwiftLink>(baseAddress);
+
+    components_.swiftLink->attachNMILineInstance(
+        components_.nmiLine.get());
+
+    components_.mem->attachSwiftLinkInstance(
+        components_.swiftLink.get());
+}
+
+void Computer::disableSwiftLink()
+{
+    if (!components_.swiftLink)
+        return;
+
+    components_.mem->attachSwiftLinkInstance(nullptr);
+
+    if (components_.nmiLine)
+        components_.nmiLine->clearNMI(NMILine::SWIFTLINK);
+
+    components_.swiftLink.reset();
+}
+
 void Computer::enterMonitor()
 {
     if (components_.debug) components_.debug->openMonitor();
