@@ -26,12 +26,14 @@
 #include "keyboard.h"
 #include "MediaManager.h"
 #include "Memory.h"
+#include "NMILine.h"
 #include "PLA.h"
 #include "REU.h"
 #include "SDLContext.h"
 #include "Serial/RS232Device.h"
 #include "Serial/VirtualModem.h"
 #include "SID/SID.h"
+#include "Expansion/SwiftLink.h"
 #include "UserPort/UserPort.h"
 #include "UserPort/UserPortRS232Adapter.h"
 #include "Vic.h"
@@ -65,12 +67,14 @@ struct MachineComponents
     std::unique_ptr<Keyboard> keyb;
     std::unique_ptr<MediaManager> media;
     std::unique_ptr<Memory> mem;
+    std::unique_ptr<NMILine> nmiLine;
     std::unique_ptr<PLA> pla;
     std::unique_ptr<ResetController> resetCtl;
     std::unique_ptr<REU> reu;
     std::unique_ptr<RS232Device> rs232Device;
     std::unique_ptr<SID> sid;
     std::unique_ptr<StateManager> stateMgr;
+    std::unique_ptr<SwiftLink> swiftLink;
     std::unique_ptr<UIBridge> uiBridge;
     std::unique_ptr<UserPort> userPort;
     std::unique_ptr<UserPortRS232Adapter> userPortRS232Adapter;
