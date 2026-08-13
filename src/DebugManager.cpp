@@ -27,6 +27,7 @@
 #include "PLA.h"
 #include "REU.h"
 #include "SID/SID.h"
+#include "Expansion/SwiftLink.h"
 #include "Vic.h"
 #include "computer.h"
 
@@ -81,6 +82,7 @@ void DebugManager::wireBackend(Computer* computer,
                               PLA* pla,
                               REU* reu,
                               SID* sid,
+                              SwiftLink* swiftLink,
                               UserPort* userPort,
                               Vic* vic)
 {
@@ -101,6 +103,7 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachPLAInstance(pla);
     backend_->attachREUInstance(reu);
     backend_->attachSIDInstance(sid);
+    backend_->attachSwiftLinkInstance(swiftLink),
     backend_->attachUserPortInstance(userPort);
     backend_->attachVICInstance(vic);
 }

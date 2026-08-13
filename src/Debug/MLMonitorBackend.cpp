@@ -400,6 +400,7 @@ MLMonitorBackend::MLMonitorBackend() :
     bus(nullptr),
     pla(nullptr),
     sid(nullptr),
+    swiftLink(nullptr),
     userPort(nullptr),
     vic(nullptr)
 {

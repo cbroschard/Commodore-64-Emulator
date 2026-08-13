@@ -32,6 +32,7 @@ class Memory;
 class PLA;
 class REU;
 class SID;
+class SwiftLink;
 class UserPort;
 class Vic;
 
@@ -65,6 +66,7 @@ class DebugManager
                          PLA* pla,
                          REU* reu,
                          SID* sid,
+                         SwiftLink* swiftLink,
                          UserPort* userPort,
                          Vic* vic);
 

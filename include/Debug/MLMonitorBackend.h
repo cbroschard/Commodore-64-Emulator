@@ -33,6 +33,7 @@ class MLMonitorBackend
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
+        inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
         inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -247,6 +248,7 @@ class MLMonitorBackend
         PLA* pla;
         REU* reu;
         SID* sid;
+        SwiftLink* swiftLink;
         UserPort* userPort;
         Vic* vic;
 
