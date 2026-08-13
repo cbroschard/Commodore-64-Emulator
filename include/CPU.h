@@ -41,7 +41,7 @@ class CPU
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
-        inline void attachNMILIneInstance(NMILine* nmiSourceLine) { this->nmiSourceLine = nmiSourceLine; }
+        inline void attachNMILineInstance(NMILine* nmiSourceLine) { this->nmiSourceLine = nmiSourceLine; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
