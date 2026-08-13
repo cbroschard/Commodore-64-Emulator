@@ -41,7 +41,8 @@ Computer::Computer() :
         cpuCfg_,
         pendingBusPrime,
         busPrimedAfterBoot
-    }
+    },
+    cartridgeNMIPending(false)
 {
     components_.sdlContext = std::make_unique<SDLContext>();
     components_.audioOutput = std::make_unique<AudioOutput>();
@@ -118,8 +119,11 @@ void Computer::requestWarmReset()
 
 void Computer::requestCartridgeNMI()
 {
-    if (components_.cpu)
-        components_.cpu->pulseNMI();
+    if (!components_.nmiLine)
+        return;
+
+    components_.nmiLine->raiseNMI(NMILine::CARTRIDGE);
+    cartridgeNMIPending = true;
 }
 
 void Computer::setJoystickAttached(int port, bool flag)
@@ -204,6 +208,12 @@ void Computer::tickCycle()
     components_.cpu->setRDY(components_.vic->getBA());
     components_.cpu->setAEC(components_.vic->getAEC());
     components_.cpu->tick();
+
+    if (cartridgeNMIPending)
+    {
+        components_.nmiLine->clearNMI(NMILine::CARTRIDGE);
+        cartridgeNMIPending = false;
+    }
 
     components_.sid->tick(1);
 

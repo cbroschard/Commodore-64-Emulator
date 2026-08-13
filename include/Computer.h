@@ -111,6 +111,9 @@ class Computer : public ICartridgeHost
         MachineRomConfig roms_;
         MachineRuntimeState runtime_;
 
+        // Cartridge NMI
+        bool cartridgeNMIPending;
+
         // Joystick
         void setJoystickAttached(int port, bool flag);
 
