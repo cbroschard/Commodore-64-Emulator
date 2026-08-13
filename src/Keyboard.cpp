@@ -7,10 +7,10 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Keyboard.h"
 #include "CIA1.h"
-#include "CPU.h"
+#include "NMILine.h"
 
 Keyboard::Keyboard() :
-    cpu(nullptr),
+    nmiLine(nullptr),
     keyProcessed(false),
     shiftPressed(false)
 {
@@ -236,8 +236,8 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
     // C64 RESTORE directly asserts the CPU NMI line.
     if (key == SDL_SCANCODE_PAGEUP)
     {
-        if (cpu)
-            cpu->setNMILine(true);
+        if (nmiLine)
+            nmiLine->raiseNMI(NMILine::RESTORE);
 
         return;
     }
@@ -324,8 +324,8 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
 {
     if (key == SDL_SCANCODE_PAGEUP)
     {
-        if (cpu)
-            cpu->setNMILine(false);
+        if (nmiLine)
+            nmiLine->clearNMI(NMILine::RESTORE);
 
         return;
     }

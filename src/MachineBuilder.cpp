@@ -67,7 +67,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.audioOutput->attachSIDInstance(components.sid.get());
     components.videoOutput->setMonitorOpenCallback([&components]() -> bool { return components.debug && components.debug->monitorController().isOpen();});
 
-    components.keyb->attachCPUInstance(components.cpu.get());
+    components.keyb->attachNMILineInstance(components.nmiLine.get());
 
     components.mem->attachCPUInstance(components.cpu.get());
     components.mem->attachDataBusLatchInstance(components.dataBus.get());
