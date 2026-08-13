@@ -6,10 +6,12 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Expansion/SwiftLink.h"
+#include "NMILine.h"
 
 SwiftLink::SwiftLink(uint16_t baseAddress) :
     serial(),
     acia(serial),
+    nmiSourceLine(nullptr),
     baseAddress(baseAddress)
 {
     acia.setBaudMultiplier(2.0);

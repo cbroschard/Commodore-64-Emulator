@@ -12,11 +12,15 @@
 #include "Serial/MOS6551.h"
 #include "Serial/RS232Device.h"
 
+class NMILine;
+
 class SwiftLink
 {
     public:
         explicit SwiftLink(uint16_t baseAddress = 0xDE00);
         virtual ~SwiftLink();
+
+        inline void attachNMILineInstance(NMILine* nmiSourceLine) { this->nmiSourceLine = nmiSourceLine; }
 
         void reset();
         void tick(uint32_t cycles);
@@ -36,6 +40,7 @@ class SwiftLink
     private:
         RS232Device serial;
         MOS6551 acia;
+        NMILine* nmiSourceLine;
 
         uint16_t baseAddress;
 };
