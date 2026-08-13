@@ -29,6 +29,7 @@
 #include "Debug/REUCommand.h"
 #include "Debug/SIDCommand.h"
 #include "Debug/StepCommand.h"
+#include "Debug/SwiftLinkCommand.h"
 #include "Debug/TapeCommand.h"
 #include "Debug/TraceCommand.h"
 #include "Debug/UserPortCommand.h"
@@ -63,6 +64,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<REUCommand>());
     registerCommand(std::make_unique<SIDCommand>());
     registerCommand(std::make_unique<StepCommand>());
+    registerCommand(std::make_unique<SwiftLinkCommand>());
     registerCommand(std::make_unique<TapeCommand>());
     registerCommand(std::make_unique<TraceCommand>());
     registerCommand(std::make_unique<UserPortCommand>());

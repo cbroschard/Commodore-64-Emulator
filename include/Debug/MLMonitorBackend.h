@@ -195,6 +195,10 @@ class MLMonitorBackend
         inline std::string dumpSIDCutoffTable() const { return sid ? sid->dumpCutoffTable() : "SID not attached\n"; }
         inline void resetSIDAudioStats() { if (sid) sid->resetAudioStats(); }
 
+        // ML Monitor SwiftLink
+        inline std::string swiftLinkDebug(const std::string& subCommand) const
+            { return swiftLink ? swiftLink->dumpDebugOutput(subCommand) : "SwiftLink: Disabled"; }
+
         // ML Monitor User Port
         inline std::string dumpUserPort() const { return userPort ? userPort->debugString() : "User Port not attached\n"; }
         inline std::string dumpUserPortRS232() const { return userPort ? userPort->debugRS232String() : "User Port not attached\n"; }

@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
+#include <sstream>
 #include "Expansion/SwiftLink.h"
 #include "NMILine.h"
 
@@ -75,4 +77,82 @@ MOS6551& SwiftLink::getACIA()
 bool SwiftLink::handlesAddress(uint16_t address) const
 {
     return address >= baseAddress && address <= baseAddress + 3;
+}
+
+std::string SwiftLink::dumpDebugOutput(const std::string& subCommand) const
+{
+    if (subCommand.empty() || subCommand == "all")
+    {
+        std::ostringstream out;
+
+        out << dumpDebugGeneral()
+            << "\n"
+            << dumpDebugACIA()
+            << "\n"
+            << dumpDebugRS232();
+
+        return out.str();
+    }
+
+    if (subCommand == "general")
+        return dumpDebugGeneral();
+
+    if (subCommand == "acia")
+        return dumpDebugACIA();
+
+    if (subCommand == "rs232")
+        return dumpDebugRS232();
+
+    return "Usage: swiftlink [all|general|acia|rs232]";
+}
+
+std::string SwiftLink::dumpDebugGeneral() const
+{
+    std::ostringstream out;
+
+    out << "SwiftLink\n"
+        << "Base Address: $"
+        << std::hex
+        << std::uppercase
+        << std::setw(4)
+        << std::setfill('0')
+        << baseAddress
+        << std::dec
+        << "\n"
+        << "ACIA IRQ: "
+        << (acia.getIRQ() ? "Active" : "Inactive");
+
+    return out.str();
+}
+
+std::string SwiftLink::dumpDebugACIA() const
+{
+    std::ostringstream out;
+
+    out << "MOS6551 ACIA\n"
+        << "Status:  $"
+        << std::hex
+        << std::uppercase
+        << std::setw(2)
+        << std::setfill('0')
+        << static_cast<unsigned>(acia.getStatusRegister())
+        << "\n"
+        << "Command: $"
+        << std::setw(2)
+        << static_cast<unsigned>(acia.getCommandRegister())
+        << "\n"
+        << "Control: $"
+        << std::setw(2)
+        << static_cast<unsigned>(acia.getControlRegister())
+        << std::dec
+        << "\n"
+        << "IRQ: "
+        << (acia.getIRQ() ? "Active" : "Inactive");
+
+    return out.str();
+}
+
+std::string SwiftLink::dumpDebugRS232() const
+{
+    return serial.debugString();
 }

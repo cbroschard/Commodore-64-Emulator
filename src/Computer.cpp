@@ -19,6 +19,7 @@
 #include "Drive/Drive.h"
 #include "EmulationSession.h"
 #include "MachineBuilder.h"
+#include "Debug/MLMonitorBackend.h"
 #include "ResetController.h"
 #include "StateManager.h"
 #include "Tape/TapeImageFactory.h"
@@ -161,14 +162,13 @@ void Computer::enableSwiftLink(uint16_t baseAddress)
     if (components_.swiftLink)
         return;
 
-    components_.swiftLink =
-        std::make_unique<SwiftLink>(baseAddress);
+    components_.swiftLink = std::make_unique<SwiftLink>(baseAddress);
 
-    components_.swiftLink->attachNMILineInstance(
-        components_.nmiLine.get());
+    components_.swiftLink->attachNMILineInstance(components_.nmiLine.get());
+    components_.mem->attachSwiftLinkInstance(components_.swiftLink.get());
 
-    components_.mem->attachSwiftLinkInstance(
-        components_.swiftLink.get());
+    if (components_.debug)
+        components_.debug->backend().attachSwiftLinkInstance(components_.swiftLink.get());
 }
 
 void Computer::disableSwiftLink()
@@ -179,6 +179,9 @@ void Computer::disableSwiftLink()
     detachSwiftLinkVirtualModem();
 
     components_.mem->attachSwiftLinkInstance(nullptr);
+
+    if (components_.debug)
+        components_.debug->backend().attachSwiftLinkInstance(nullptr);
 
     if (components_.nmiLine)
         components_.nmiLine->clearNMI(NMILine::SWIFTLINK);

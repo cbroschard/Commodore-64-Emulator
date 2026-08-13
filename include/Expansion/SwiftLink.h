@@ -37,6 +37,12 @@ class SwiftLink
         // Helpers
         bool handlesAddress(uint16_t address) const;
 
+        // ML Monitor
+        std::string dumpDebugOutput(const std::string& subCommand) const;
+        std::string dumpDebugGeneral() const;
+        std::string dumpDebugACIA() const;
+        std::string dumpDebugRS232() const;
+
     private:
         RS232Device serial;
         MOS6551 acia;

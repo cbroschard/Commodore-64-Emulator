@@ -31,6 +31,9 @@ class MOS6551
 
         // Getters
         inline bool getIRQ() const { return irq; }
+        inline uint8_t getStatusRegister() const { return statusRegister; }
+        inline uint8_t getCommandRegister() const { return commandRegister; }
+        inline uint8_t getControlRegister() const { return controlRegister; }
 
         // Setters
         void setBaudMultiplier(double multiplier);
