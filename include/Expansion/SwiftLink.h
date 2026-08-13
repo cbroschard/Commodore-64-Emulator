@@ -13,6 +13,7 @@
 #include "Serial/RS232Device.h"
 
 class NMILine;
+class RS232Endpoint;
 
 class SwiftLink
 {
@@ -21,6 +22,10 @@ class SwiftLink
         virtual ~SwiftLink();
 
         inline void attachNMILineInstance(NMILine* nmiLine) { this->nmiLine = nmiLine; }
+        void attachEndpoint(RS232Endpoint* endpoint);
+        void detachEndpoint();
+
+        inline bool hasEndpoint() const { return acia.hasEndpoint(); }
 
         void reset();
         void tick(uint32_t cycles);

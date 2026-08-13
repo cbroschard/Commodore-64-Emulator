@@ -229,27 +229,26 @@ void Computer::attachSwiftLinkVirtualModem()
         return;
 
     if (!components_.swiftLinkVirtualModem)
+    {
         components_.swiftLinkVirtualModem =
             std::make_unique<VirtualModem>();
+    }
 
     components_.swiftLinkVirtualModem->reset();
-
-    components_.swiftLink->getSerial().attachEndpoint(
-        components_.swiftLinkVirtualModem.get());
+    components_.swiftLink->attachEndpoint(components_.swiftLinkVirtualModem.get());
 }
 
 void Computer::detachSwiftLinkVirtualModem()
 {
     if (components_.swiftLink)
-        components_.swiftLink->getSerial().detachEndpoint();
+        components_.swiftLink->detachEndpoint();
 
     components_.swiftLinkVirtualModem.reset();
 }
 
 bool Computer::isSwiftLinkVirtualModemAttached() const
 {
-    return components_.swiftLink &&  components_.swiftLinkVirtualModem &&
-           components_.swiftLink->getSerial().getEndpoint() == components_.swiftLinkVirtualModem.get();
+    return components_.swiftLink && components_.swiftLinkVirtualModem && components_.swiftLink->hasEndpoint();
 }
 
 bool Computer::isSwiftLinkVirtualModemOnline() const

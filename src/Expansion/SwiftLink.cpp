@@ -7,8 +7,9 @@
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
 #include <sstream>
-#include "Expansion/SwiftLink.h"
 #include "NMILine.h"
+#include "Serial/RS232Endpoint.h"
+#include "Expansion/SwiftLink.h"
 
 SwiftLink::SwiftLink(uint16_t baseAddress) :
     serial(),
@@ -20,6 +21,16 @@ SwiftLink::SwiftLink(uint16_t baseAddress) :
 }
 
 SwiftLink::~SwiftLink() = default;
+
+void SwiftLink::attachEndpoint(RS232Endpoint* endpoint)
+{
+    acia.attachEndpoint(endpoint);
+}
+
+void SwiftLink::detachEndpoint()
+{
+    acia.detachEndpoint();
+}
 
 void SwiftLink::reset()
 {
@@ -111,16 +122,19 @@ std::string SwiftLink::dumpDebugGeneral() const
     std::ostringstream out;
 
     out << "SwiftLink\n"
-        << "Base Address: $"
-        << std::hex
-        << std::uppercase
-        << std::setw(4)
-        << std::setfill('0')
-        << baseAddress
-        << std::dec
-        << "\n"
-        << "ACIA IRQ: "
-        << (acia.getIRQ() ? "Active" : "Inactive");
+    << "Base Address: $"
+    << std::hex
+    << std::uppercase
+    << std::setw(4)
+    << std::setfill('0')
+    << baseAddress
+    << std::dec
+    << "\n"
+    << "ACIA IRQ: "
+    << (acia.getIRQ() ? "Active" : "Inactive")
+    << "\n"
+    << "Endpoint: "
+    << (acia.hasEndpoint() ? "Attached" : "None");
 
     return out.str();
 }

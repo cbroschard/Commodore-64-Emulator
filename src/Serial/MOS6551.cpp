@@ -7,9 +7,11 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Serial/MOS6551.h"
 #include "Serial/RS232Device.h"
+#include "Serial/RS232Endpoint.h"
 
 MOS6551::MOS6551(RS232Device& serial) :
     serial(serial),
+    endpoint(nullptr),
     baudMultiplier(1.0)
 {
     reset();
@@ -144,12 +146,67 @@ void MOS6551::reset()
     echoLevel           = true;
     echoCountdown       = 0.0;
 
+    txBusy              = false;
+    txCountdown         = 0.0;
+
+    rxBusy              = false;
+    rxCountdown         = 0.0;
+    rxPendingByte       = 0;
+
     updateStatus();
 }
 
 void MOS6551::tick(uint32_t cycles)
 {
     serial.tick(cycles);
+
+    if (endpoint)
+    {
+        endpoint->tick();
+
+        if (!rxBusy)
+        {
+            uint8_t value = 0;
+
+            if (endpoint->readByte(value))
+            {
+                rxPendingByte = value;
+                rxCountdown = characterCycles();
+                rxBusy = true;
+            }
+        }
+    }
+
+    if (rxBusy)
+    {
+        rxCountdown -= static_cast<double>(cycles);
+
+        if (rxCountdown <= 0.0)
+        {
+            receiveByte(rxPendingByte);
+
+            rxBusy = false;
+            rxCountdown = 0.0;
+        }
+    }
+
+    if (txBusy)
+    {
+        txCountdown -= static_cast<double>(cycles);
+
+        if (txCountdown <= 0.0)
+        {
+            if (endpoint)
+                endpoint->writeByte(transmitData);
+            else
+                serial.queueTransmitByte(transmitData);
+
+            txBusy = false;
+            txCountdown = 0.0;
+
+            statusRegister |= STATUS_TDRE;
+        }
+    }
 
     const bool newRXD = serial.getRXD();
     const bool echoEnabled = (commandRegister & CMD_REM) != 0;
@@ -160,7 +217,8 @@ void MOS6551::tick(uint32_t cycles)
         {
             echoLevel = newRXD;
             echoPending = true;
-            echoCountdown = serial.getCyclesPerBit() * 0.5;
+            echoCountdown =
+                serial.getCyclesPerBit() * 0.5;
         }
 
         if (echoPending)
@@ -185,10 +243,6 @@ void MOS6551::tick(uint32_t cycles)
 
     rxd = newRXD;
 
-    // ---------------------------------------------------------
-    // Modem input lines
-    // ---------------------------------------------------------
-
     cts = serial.getCTS();
 
     const bool newDCD = serial.getDCD();
@@ -198,6 +252,7 @@ void MOS6551::tick(uint32_t cycles)
     const bool dsrChanged = newDSR != lastDSR;
 
     const bool dtrEnabled = (commandRegister & CMD_DTR) != 0;
+
     const bool receiverIRQEnabled = dtrEnabled && ((commandRegister & CMD_IRD) == 0);
 
     if (!modemStatusLatched && (dcdChanged || dsrChanged))
@@ -211,33 +266,30 @@ void MOS6551::tick(uint32_t cycles)
             irq = true;
     }
 
-    // Always keep track of the actual live pin levels.
     dcd = newDCD;
     dsr = newDSR;
 
     lastDCD = newDCD;
     lastDSR = newDSR;
 
-    if (serial.canAcceptTransmitByte())
-        statusRegister |= STATUS_TDRE;
-    else
-        statusRegister &= static_cast<uint8_t>(~STATUS_TDRE);
-
-    uint8_t value = 0;
-
-    while (serial.popReceivedByte(value))
+    if (!endpoint)
     {
-        if (statusRegister & STATUS_RDRF)
-            statusRegister |= STATUS_OVRN;
+        uint8_t value = 0;
 
-        receiveData = value;
-        statusRegister |= STATUS_RDRF;
+        while (serial.popReceivedByte(value))
+        {
+            if (statusRegister & STATUS_RDRF)
+                statusRegister |= STATUS_OVRN;
 
-        if (serial.hasParityError())
-            statusRegister |= STATUS_PE;
+            receiveData = value;
+            statusRegister |= STATUS_RDRF;
 
-        if (serial.hasFramingError())
-            statusRegister |= STATUS_FE;
+            if (serial.hasParityError())
+                statusRegister |= STATUS_PE;
+
+            if (serial.hasFramingError())
+                statusRegister |= STATUS_FE;
+        }
     }
 
     updateIRQ();
@@ -308,18 +360,21 @@ void MOS6551::write(uint16_t reg, uint8_t value)
         case 0x00:
         {
             const bool echoEnabled = (commandRegister & CMD_REM) != 0;
+
             const uint8_t tic = commandRegister & CMD_TIC_MASK;
 
             if (echoEnabled || tic == 0x00 || tic == 0x0C)
                 break;
 
-            if (!serial.canAcceptTransmitByte())
+            if (txBusy)
                 break;
 
             transmitData = value;
+
             statusRegister &= static_cast<uint8_t>(~STATUS_TDRE);
 
-            serial.queueTransmitByte(value);
+            txBusy = true;
+            txCountdown = characterCycles();
 
             updateIRQ();
             break;
@@ -346,6 +401,24 @@ void MOS6551::setBaudMultiplier(double multiplier)
 {
     baudMultiplier = multiplier;
     updateControl();
+}
+
+void MOS6551::receiveByte(uint8_t value)
+{
+    if (statusRegister & STATUS_RDRF)
+        statusRegister |= STATUS_OVRN;
+
+    receiveData = value;
+    statusRegister |= STATUS_RDRF;
+
+    const bool dtrEnabled = (commandRegister & CMD_DTR) != 0;
+
+    const bool receiverIRQEnabled = dtrEnabled && ((commandRegister & CMD_IRD) == 0);
+
+    if (receiverIRQEnabled)
+        irq = true;
+
+    updateStatus();
 }
 
 void MOS6551::updateStatus()
@@ -430,10 +503,6 @@ void MOS6551::updateCommand()
 void MOS6551::updateIRQ()
 {
     const bool dtrEnabled = (commandRegister & CMD_DTR) != 0;
-    const bool rxIRQEnabled = dtrEnabled && ((commandRegister & CMD_IRD) == 0);
-
-    if (rxIRQEnabled && (statusRegister & STATUS_RDRF))
-        irq = true;
 
     const uint8_t tic = commandRegister & CMD_TIC_MASK;
 
@@ -528,4 +597,19 @@ double MOS6551::decodeStopBits() const
         return 1.0;
 
     return 2.0;
+}
+
+double MOS6551::characterCycles() const
+{
+    const auto& config = serial.getConfig();
+
+    double bits = 1.0; // start bit
+    bits += static_cast<double>(config.dataBits);
+
+    if (config.parity != RS232Device::Parity::None)
+        bits += 1.0;
+
+    bits += config.stopBits;
+
+    return serial.getCyclesPerBit() * bits;
 }

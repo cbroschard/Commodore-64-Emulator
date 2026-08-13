@@ -13,6 +13,7 @@
 #include "StateWriter.h"
 
 class RS232Device;
+class RS232Endpoint;
 
 class MOS6551
 {
@@ -22,6 +23,9 @@ class MOS6551
 
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
+        inline void attachEndpoint(RS232Endpoint* endpoint) { this->endpoint = endpoint; }
+        inline void detachEndpoint() { endpoint = nullptr; }
 
         void reset();
         void tick(uint32_t cycles);
@@ -35,11 +39,14 @@ class MOS6551
         inline uint8_t getCommandRegister() const { return commandRegister; }
         inline uint8_t getControlRegister() const { return controlRegister; }
 
+        inline bool hasEndpoint() const { return endpoint != nullptr; }
+
         // Setters
         void setBaudMultiplier(double multiplier);
 
     private:
         RS232Device& serial;
+        RS232Endpoint* endpoint;
 
         // Status Register
         static constexpr uint8_t STATUS_IRQ  = 0x80;
@@ -97,6 +104,15 @@ class MOS6551
 
         double baudMultiplier;
 
+        bool txBusy;
+        double txCountdown;
+
+        bool rxBusy;
+        double rxCountdown;
+        uint8_t rxPendingByte;
+
+        void receiveByte(uint8_t value);
+
         // Helpers
         void updateStatus();
         void updateCommand();
@@ -108,6 +124,8 @@ class MOS6551
         uint32_t decodeBaudRate() const;
         uint8_t decodeWordLength() const;
         double decodeStopBits() const;
+
+        double characterCycles() const;
 };
 
 #endif // MOS6551_H
