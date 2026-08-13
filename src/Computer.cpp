@@ -208,6 +208,7 @@ void Computer::setSwiftLinkBaseAddress(uint16_t address)
         return;
 
     const bool wasEnabled = components_.swiftLink != nullptr;
+    const bool modemWasAttached = isSwiftLinkVirtualModemAttached();
 
     if (wasEnabled)
         disableSwiftLink();
@@ -215,7 +216,12 @@ void Computer::setSwiftLinkBaseAddress(uint16_t address)
     swiftLinkBaseAddress = address;
 
     if (wasEnabled)
+    {
         enableSwiftLink();
+
+        if (modemWasAttached)
+            attachSwiftLinkVirtualModem();
+    }
 }
 
 uint16_t Computer::getSwiftLinkBaseAddress() const
