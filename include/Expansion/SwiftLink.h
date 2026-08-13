@@ -20,7 +20,7 @@ class SwiftLink
         explicit SwiftLink(uint16_t baseAddress = 0xDE00);
         virtual ~SwiftLink();
 
-        inline void attachNMILineInstance(NMILine* nmiSourceLine) { this->nmiSourceLine = nmiSourceLine; }
+        inline void attachNMILineInstance(NMILine* nmiLine) { this->nmiLine = nmiLine; }
 
         void reset();
         void tick(uint32_t cycles);
@@ -40,7 +40,7 @@ class SwiftLink
     private:
         RS232Device serial;
         MOS6551 acia;
-        NMILine* nmiSourceLine;
+        NMILine* nmiLine;
 
         uint16_t baseAddress;
 };

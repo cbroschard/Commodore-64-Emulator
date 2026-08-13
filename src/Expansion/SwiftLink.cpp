@@ -11,7 +11,7 @@
 SwiftLink::SwiftLink(uint16_t baseAddress) :
     serial(),
     acia(serial),
-    nmiSourceLine(nullptr),
+    nmiLine(nullptr),
     baseAddress(baseAddress)
 {
     acia.setBaudMultiplier(2.0);
@@ -23,11 +23,22 @@ void SwiftLink::reset()
 {
     serial.reset();
     acia.reset();
+
+    if (nmiLine)
+        nmiLine->clearNMI(NMILine::SWIFTLINK);
 }
 
 void SwiftLink::tick(uint32_t cycles)
 {
      acia.tick(cycles);
+
+     if (nmiLine)
+     {
+        if (acia.getIRQ())
+            nmiLine->raiseNMI(NMILine::SWIFTLINK);
+        else
+            nmiLine->clearNMI(NMILine::SWIFTLINK);
+     }
 }
 
 uint8_t SwiftLink::read(uint16_t address)
