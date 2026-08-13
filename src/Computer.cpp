@@ -176,6 +176,8 @@ void Computer::disableSwiftLink()
     if (!components_.swiftLink)
         return;
 
+    detachSwiftLinkVirtualModem();
+
     components_.mem->attachSwiftLinkInstance(nullptr);
 
     if (components_.nmiLine)
