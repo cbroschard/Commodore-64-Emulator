@@ -9,7 +9,8 @@
 #include "Serial/RS232Device.h"
 
 MOS6551::MOS6551(RS232Device& serial) :
-    serial(serial)
+    serial(serial),
+    baudMultiplier(1.0)
 {
     reset();
 }
@@ -50,6 +51,8 @@ void MOS6551::saveState(StateWriter& wrtr) const
     wrtr.writeBool(echoPending);
     wrtr.writeBool(echoLevel);
     wrtr.writeF64(echoCountdown);
+
+    wrtr.writeF64(baudMultiplier);
 
     wrtr.endChunk();
 }
@@ -92,6 +95,8 @@ bool MOS6551::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(echoPending))         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(echoLevel))           { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readF64(echoCountdown))        { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readF64(baudMultiplier))       { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
 
@@ -336,6 +341,12 @@ void MOS6551::write(uint16_t reg, uint8_t value)
     }
 }
 
+void MOS6551::setBaudMultiplier(double multiplier)
+{
+    baudMultiplier = multiplier;
+    updateControl();
+}
+
 void MOS6551::updateStatus()
 {
     statusRegister &= static_cast<uint8_t>(STATUS_TDRE | STATUS_RDRF | STATUS_OVRN | STATUS_FE | STATUS_PE);
@@ -438,7 +449,7 @@ void MOS6551::updateControl()
     const uint32_t baud = decodeBaudRate();
 
     if (baud != 0)
-        config.baud = baud;
+        config.baud = static_cast<uint32_t>(static_cast<double>(baud) * baudMultiplier);
 
     config.dataBits = decodeWordLength();
     config.stopBits = decodeStopBits();

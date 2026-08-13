@@ -29,6 +29,12 @@ class MOS6551
         uint8_t read(uint16_t reg);
         void write(uint16_t reg, uint8_t value);
 
+        // Getters
+        inline bool getIRQ() const { return irq; }
+
+        // Setters
+        void setBaudMultiplier(double multiplier);
+
     private:
         RS232Device& serial;
 
@@ -85,6 +91,8 @@ class MOS6551
         bool echoPending;
         bool echoLevel;
         double echoCountdown;
+
+        double baudMultiplier;
 
         // Helpers
         void updateStatus();
