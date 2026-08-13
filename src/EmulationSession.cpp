@@ -216,6 +216,9 @@ bool EmulationSession::runFrame()
             cia1_.updateTimers(1);
             cia2_.updateTimers(1);
 
+            if (components_.swiftLink)
+                components_.swiftLink->tick(1);
+
             bus_.tick(1);
 
             if (auto* mapper = cart_.getMapper())
