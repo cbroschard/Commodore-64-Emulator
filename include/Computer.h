@@ -81,6 +81,10 @@ class Computer : public ICartridgeHost
         void set1571ROM(const std::string& rom);
         void set1581ROM(const std::string& rom);
 
+        // Expansion port devices
+        void enableSwiftLink(uint16_t baseAddress);
+        void disableSwiftLink();
+
         // ML Monitor
         void enterMonitor();
 
