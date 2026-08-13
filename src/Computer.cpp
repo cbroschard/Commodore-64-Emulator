@@ -289,6 +289,9 @@ void Computer::tickCycle()
     components_.cia1->updateTimers(1);
     components_.cia2->updateTimers(1);
 
+    if (components_.swiftLink)
+        components_.swiftLink->tick(1);
+
     components_.bus->tick(1);
 
     if (auto* mapper = components_.cart->getMapper())
