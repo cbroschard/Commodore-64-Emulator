@@ -60,6 +60,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cia2->attachCPUInstance(components.cpu.get());
     components.cia2->attachDataBusLatchInstance(components.dataBus.get());
     components.cia2->attachIECBusInstance(components.bus.get());
+    components.cia2->attachNMILineInstance(components.nmiLine.get());
     components.cia2->attachTraceManagerInstance(&components.debug->trace());
     components.cia2->attachUserPortInstance(components.userPort.get());
     components.cia2->attachVicInstance(components.vic.get());
@@ -140,25 +141,31 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.uiBridge = std::make_unique<UIBridge>(*components.ui, components.media.get(), components.inputMgr.get(), runtime.uiPaused,
                                                       runtime.running,
-                                                       [&components]()
-                                                        {
-                                                            if (components.rs232Device && components.virtualModem)
-                                                            {
-                                                                components.virtualModem->reset();
-                                                                components.rs232Device->attachEndpoint(
-                                                                    components.virtualModem.get());
-                                                            }
-                                                        },
+                                                      [&components]()
+                                                      {
+                                                            if (!components.rs232Device)
+                                                                return;
 
-                                                        [&components]()
-                                                        {
+                                                            if (!components.virtualModem)
+                                                                components.virtualModem = std::make_unique<VirtualModem>();
+
+                                                            components.virtualModem->reset();
+
+                                                            components.rs232Device->attachEndpoint(
+                                                                components.virtualModem.get());
+                                                      },
+                                                      [&components]()
+                                                      {
                                                             if (components.rs232Device)
                                                                 components.rs232Device->detachEndpoint();
-                                                        },
+
+                                                            components.virtualModem.reset();
+                                                      },
                                                       [&components]() -> bool
                                                       {
-                                                            return components.rs232Device && components.rs232Device->getEndpoint() ==
-                                                                   components.virtualModem.get();
+                                                            return components.rs232Device &&
+                                                                components.virtualModem &&
+                                                            components.rs232Device->getEndpoint() == components.virtualModem.get();
                                                       },
                                                       [&components]() -> bool { return components.virtualModem &&
                                                                                 components.virtualModem->isOnline();

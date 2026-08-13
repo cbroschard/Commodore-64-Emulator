@@ -67,7 +67,6 @@ Computer::Computer() :
     components_.rs232Device = std::make_unique<RS232Device>();
     components_.userPortRS232Adapter = std::make_unique<UserPortRS232Adapter>();
     components_.vic = std::make_unique<Vic>();
-    components_.virtualModem = std::make_unique<VirtualModem>();
 
     // Wire components
     wireUp();

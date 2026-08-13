@@ -7,12 +7,14 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
 #include "CPU.h"
+#include "NMILine.h"
 #include "UserPort/UserPort.h"
 #include "Vic.h"
 
 CIA2::CIA2() :
     cpu(nullptr),
     bus(nullptr),
+    nmiLine(nullptr),
     userPort(nullptr),
     vic(nullptr),
     iecProtocolEnabled(false)
@@ -134,8 +136,8 @@ void CIA2::reset()
     // Reset NMI status
     nmiAsserted                 = false;
 
-    if (cpu)
-        cpu->setNMILine(false);
+    if (nmiLine)
+        nmiLine->clearNMI(NMILine::CIA2);
 
     // IEC
     deviceNumber                = 0xFF;
@@ -241,11 +243,17 @@ void CIA2::postTimerUpdates(uint32_t cyclesElapsed)
         flag2Changed(userPort->getFlag2());
     }
 }
-
 void CIA2::irqLineChanged(bool active)
 {
     nmiAsserted = active;
-    if (cpu) cpu->setNMILine(active);
+
+    if (!nmiLine)
+        return;
+
+    if (active)
+        nmiLine->raiseNMI(NMILine::CIA2);
+    else
+        nmiLine->clearNMI(NMILine::CIA2);
 }
 
 void CIA2::clkChanged(bool level)
