@@ -686,9 +686,11 @@ void EmulatorUI::installMenu(const MediaViewState& v)
         {
             if (ImGui::BeginMenu("User Port"))
             {
+                const bool canAttachUserPortModem = !v.swiftLinkVirtualModemAttached;
+
                 if (!v.virtualModemAttached)
                 {
-                    if (ImGui::MenuItem("Attach Virtual Modem"))
+                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, canAttachUserPortModem))
                         push(UiCommand::Type::AttachVirtualModem);
                 }
                 else
@@ -772,16 +774,12 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
+                const bool canAttachSwiftLinkModem = v.swiftLinkEnabled && !v.virtualModemAttached;
+
                 if (!v.swiftLinkVirtualModemAttached)
                 {
-                    if (ImGui::MenuItem(
-                            "Attach Virtual Modem",
-                            nullptr,
-                            false,
-                            v.swiftLinkEnabled))
-                    {
+                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, canAttachSwiftLinkModem))
                         push(UiCommand::Type::AttachSwiftLinkVirtualModem);
-                    }
                 }
                 else
                 {
