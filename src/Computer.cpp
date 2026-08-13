@@ -59,6 +59,7 @@ Computer::Computer() :
     components_.irq = std::make_unique<IRQLine>();
     components_.keyb = std::make_unique<Keyboard>();
     components_.mem = std::make_unique<Memory>();
+    components_.nmiLine = std::make_unique<NMILine>();
     components_.pla = std::make_unique<PLA>();
     components_.reu = std::make_unique<REU>();
     components_.sid = std::make_unique<SID>(44100);
