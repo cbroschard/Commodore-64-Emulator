@@ -127,13 +127,13 @@ void MOS6551::reset()
     txd                 = true;
 
     rts                 = true;
-    cts                 = false;
     dtr                 = true;
-    dcd                 = false;
-    dsr                 = false;
+    cts                 = serial.getCTS();
+    dcd                 = serial.getDCD();
+    dsr                 = serial.getDSR();
 
-    lastDCD             = false;
-    lastDSR             = false;
+    lastDCD             = dcd;
+    lastDSR             = dsr;
 
     latchedDCD          = dcd;
     latchedDSR          = dsr;
@@ -197,6 +197,9 @@ void MOS6551::tick(uint32_t cycles)
     const bool dcdChanged = newDCD != lastDCD;
     const bool dsrChanged = newDSR != lastDSR;
 
+    const bool dtrEnabled = (commandRegister & CMD_DTR) != 0;
+    const bool receiverIRQEnabled = dtrEnabled && ((commandRegister & CMD_IRD) == 0);
+
     if (!modemStatusLatched && (dcdChanged || dsrChanged))
     {
         latchedDCD = newDCD;
@@ -204,9 +207,7 @@ void MOS6551::tick(uint32_t cycles)
 
         modemStatusLatched = true;
 
-        // IRD disables receiver-related IRQs including
-        // DCD/DSR change interrupts.
-        if ((commandRegister & CMD_IRD) == 0)
+        if (receiverIRQEnabled)
             irq = true;
     }
 
