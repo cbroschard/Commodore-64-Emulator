@@ -58,6 +58,7 @@ Computer::Computer() :
     components_.dataBus = std::make_unique<DataBusLatch>();
     components_.ui = std::make_unique<EmulatorUI>();
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
+    components_.expansionManager = std::make_unique<ExpansionManager>(*this);
     components_.bus = std::make_unique<IECBUS>();
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();
@@ -156,6 +157,51 @@ void Computer::set1581ROM(const std::string& rom)
 {
     roms_.d1581Rom = rom;
     if (components_.media) components_.media->setD1581ROM(rom);
+}
+
+void Computer::attachVirtualModem()
+{
+    if (!components_.rs232Device)
+        return;
+
+    if (!components_.virtualModem)
+        components_.virtualModem = std::make_unique<VirtualModem>();
+
+    components_.virtualModem->reset();
+
+    components_.rs232Device->attachEndpoint(
+        components_.virtualModem.get());
+}
+
+void Computer::detachVirtualModem()
+{
+    if (components_.rs232Device)
+        components_.rs232Device->detachEndpoint();
+
+    components_.virtualModem.reset();
+}
+
+bool Computer::isVirtualModemAttached() const
+{
+    return components_.rs232Device && components_.virtualModem && components_.rs232Device->getEndpoint() ==
+               components_.virtualModem.get();
+}
+
+bool Computer::isVirtualModemOnline() const
+{
+    return components_.virtualModem &&
+           components_.virtualModem->isOnline();
+}
+
+void Computer::setRS232Baud(uint32_t baud)
+{
+    if (components_.rs232Device)
+        components_.rs232Device->setBaud(baud);
+}
+
+uint32_t Computer::getRS232Baud() const
+{
+    return components_.rs232Device ? components_.rs232Device->getBaud() : 300;
 }
 
 void Computer::enableSwiftLink(uint16_t baseAddress)

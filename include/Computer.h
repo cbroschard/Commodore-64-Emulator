@@ -82,6 +82,15 @@ class Computer : public ICartridgeHost
         void set1581ROM(const std::string& rom);
 
         // Expansion port devices
+        void attachVirtualModem();
+        void detachVirtualModem();
+
+        bool isVirtualModemAttached() const;
+        bool isVirtualModemOnline() const;
+
+        void setRS232Baud(uint32_t baud);
+        uint32_t getRS232Baud() const;
+
         void enableSwiftLink(uint16_t baseAddress);
         void disableSwiftLink();
 
