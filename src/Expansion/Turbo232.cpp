@@ -238,8 +238,19 @@ std::string Turbo232::dumpDebugACIA() const
         << std::dec
         << "\n"
         << "IRQ: "
-        << (acia.getIRQ() ? "Active" : "Inactive");
-
+        << (acia.getIRQ() ? "Active" : "Inactive")
+        << "\n"
+        << "TX Busy: "
+        << (acia.isTxBusy() ? "Yes" : "No")
+        << "\n"
+        << "TX Countdown: "
+        << acia.getTxCountdown()
+        << "\n"
+        << "TX Data: $"
+        << std::hex
+        << std::setw(2)
+        << static_cast<unsigned>(acia.getTransmitData())
+        << std::dec;
     return out.str();
 }
 
