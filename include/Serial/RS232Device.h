@@ -84,7 +84,7 @@ class RS232Device
 
         inline bool getBreak() const { return breakActive; }
 
-        inline RS232Config getConfig() { return config; }
+        inline RS232Config getConfig() const { return config; }
 
         inline bool hasParityError() const { return parityError; }
         inline bool hasFramingError() const { return framingError; }
