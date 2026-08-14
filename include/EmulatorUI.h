@@ -108,6 +108,12 @@ class EmulatorUI
             bool swiftLinkEnabled               = false;
             uint16_t swiftLinkBaseAddress       = 0xDE00;
 
+            bool turbo232VirtualModemAttached   = false;
+            bool turbo232VirtualModemOnline     = false;
+
+            bool turbo232Enabled                = false;
+            uint16_t turbo232BaseAddress        = 0xDE00;
+
             bool swiftLinkVirtualModemAttached  = false;
             bool swiftLinkVirtualModemOnline    = false;
 

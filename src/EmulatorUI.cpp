@@ -792,6 +792,77 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Turbo232"))
+            {
+                if (!v.turbo232Enabled)
+                {
+                    if (ImGui::MenuItem("Enable Turbo232"))
+                        push(UiCommand::Type::EnableTurbo232);
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Disable Turbo232"))
+                        push(UiCommand::Type::DisableTurbo232);
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Base Address"))
+                {
+                    const bool de00 = v.turbo232BaseAddress == 0xDE00;
+                    const bool df00 = v.turbo232BaseAddress == 0xDF00;
+
+                    if (ImGui::MenuItem("$DE00", nullptr, de00))
+                    {
+                        UiCommand c;
+                        c.type = UiCommand::Type::SetTurbo232BaseAddress;
+                        c.turbo232BaseAddress = 0xDE00;
+
+                        std::lock_guard<std::mutex> lock(outMutex_);
+                        out_.push_back(std::move(c));
+                    }
+
+                    const bool df00Available = !v.reuEnabled;
+
+                    if (ImGui::MenuItem("$DF00", nullptr, df00, df00Available))
+                    {
+                        UiCommand c;
+                        c.type = UiCommand::Type::SetTurbo232BaseAddress;
+                        c.turbo232BaseAddress = 0xDF00;
+
+                        std::lock_guard<std::mutex> lock(outMutex_);
+                        out_.push_back(std::move(c));
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+
+                const bool canAttachTurbo232Modem = v.turbo232Enabled && !v.virtualModemAttached;
+
+                if (!v.turbo232VirtualModemAttached)
+                {
+                    if (ImGui::MenuItem(
+                            "Attach Virtual Modem",
+                            nullptr,
+                            false,
+                            canAttachTurbo232Modem))
+                    {
+                        push(UiCommand::Type::AttachTurbo232VirtualModem);
+                    }
+                }
+                else
+                {
+                    if (ImGui::MenuItem("Detach Virtual Modem"))
+                    {
+                        push(UiCommand::Type::DetachTurbo232VirtualModem);
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 
