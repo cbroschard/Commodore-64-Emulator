@@ -31,6 +31,8 @@ class Turbo232
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
 
+        bool handlesAddress(uint16_t address) const;
+
         // ML Monitor
         std::string dumpDebugOutput(const std::string& subCommand) const;
         std::string dumpDebugGeneral() const;
@@ -51,8 +53,6 @@ class Turbo232
         uint32_t decodeEnhancedBaud() const;
         bool enhancedModeEnabled() const;
         void updateBaudRate();
-
-        bool handlesAddress(uint16_t address) const;
 };
 
 #endif // TURBO232_H
