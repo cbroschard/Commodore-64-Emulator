@@ -216,6 +216,43 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                       {
                                                           return host->isSwiftLinkVirtualModemOnline();
                                                       },
+                                                      [host]()
+                                                      {
+                                                          host->enableTurbo232();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->disableTurbo232();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isTurbo232Enabled();
+                                                      },
+                                                      [host](uint32_t address)
+                                                      {
+                                                          host->setTurbo232BaseAddress(
+                                                              static_cast<uint16_t>(address));
+                                                      },
+                                                      [host]() -> uint32_t
+                                                      {
+                                                          return host->getTurbo232BaseAddress();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->attachTurbo232VirtualModem();
+                                                      },
+                                                      [host]()
+                                                      {
+                                                          host->detachTurbo232VirtualModem();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isTurbo232VirtualModemAttached();
+                                                      },
+                                                      [host]() -> bool
+                                                      {
+                                                          return host->isTurbo232VirtualModemOnline();
+                                                      },
                                                       [host](const std::string& p) { host->saveStateToFile(p); },
                                                       [host](const std::string& p) { host->loadStateFromFile(p); }, [host]() { host->warmReset(); },
                                                       [host]() { host->coldReset(); }, [host](const std::string& model) { host->setSIDModel(model); },
