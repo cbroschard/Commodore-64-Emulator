@@ -19,6 +19,7 @@
 #include "SID/SID.h"
 #include "Expansion/SwiftLink.h"
 #include "Debug/TraceManager.h"
+#include "Expansion/Turbo232.h"
 #include "Vic.h"
 
 Memory::Memory() :
@@ -35,6 +36,7 @@ Memory::Memory() :
     sid(nullptr),
     swiftLink(nullptr),
     traceMgr(nullptr),
+    turbo232(nullptr),
     vic(nullptr),
     cartridgeAttached(false),
     romLOverlayIsRAM(false),
@@ -754,11 +756,11 @@ uint8_t Memory::readIO(uint16_t address)
         if (swiftLink && swiftLink->handlesAddress(address))
             return swiftLink->read(address);
 
-        if (reu && reu->isEnabled() &&
-            address >= 0xDF00 && address <= 0xDF0A)
-        {
+        if (turbo232 && turbo232->handlesAddress(address))
+            return turbo232->read(address);
+
+        if (reu && reu->isEnabled() && address >= 0xDF00 && address <= 0xDF0A)
             return reu->readIO(address);
-        }
 
         if (cart && cartridgeAttached)
             return cart->read(address);
@@ -1195,6 +1197,12 @@ void Memory::writeIO(uint16_t address, uint8_t value)
         if (swiftLink && swiftLink->handlesAddress(address))
         {
             swiftLink->write(address, value);
+            return;
+        }
+
+        if (turbo232 && turbo232->handlesAddress(address))
+        {
+            turbo232->write(address, value);
             return;
         }
 

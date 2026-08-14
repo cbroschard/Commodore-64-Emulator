@@ -22,6 +22,7 @@ class REU;
 class SID;
 class SwiftLink;
 class TraceManager;
+class Turbo232;
 class Vic;
 
 #include <bitset>
@@ -59,6 +60,7 @@ class Memory : public CPUBus
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
+        inline void attachTurbo232Instance(Turbo232* turbo232) { this->turbo232 = turbo232; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
         // State management
@@ -116,6 +118,7 @@ class Memory : public CPUBus
         SID* sid;
         SwiftLink* swiftLink;
         TraceManager* traceMgr;
+        Turbo232* turbo232;
         Vic* vic;
 
         // RAM/ROM
