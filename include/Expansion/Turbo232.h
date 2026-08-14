@@ -25,6 +25,8 @@ class Turbo232
         void attachEndpoint(RS232Endpoint* endpoint);
         void detachEndpoint();
 
+        inline bool hasEndpoint() const { return acia.hasEndpoint(); }
+
         void reset();
         void tick(uint32_t cycles);
 
