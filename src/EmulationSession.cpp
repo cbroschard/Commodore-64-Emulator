@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <thread>
+#include "Computer.h"
 #include "CPUTiming.h"
 #include "DebugManager.h"
 #include "EmulationSession.h"
@@ -15,11 +16,12 @@
 #include "MonitorController.h"
 #include "UIBridge.h"
 
-EmulationSession::EmulationSession(MachineComponents& components,
+EmulationSession::EmulationSession(Computer& host, MachineComponents& components,
                                    MachineRuntimeState& runtime,
                                    MachineRomConfig& roms,
                                    std::atomic<bool>& uiQuit)
-    : components_(components),
+    : host_(host),
+      components_(components),
       runtime_(runtime),
       roms_(roms),
       uiQuit_(uiQuit),
@@ -205,26 +207,8 @@ bool EmulationSession::runFrame()
                 }
             }
 
-            vic_.beginCycle();
+            host_.tickCycle();
 
-            cpu_.setRDY(vic_.getBA());
-            cpu_.setAEC(vic_.getAEC());
-            cpu_.tick();
-
-            sid_.tick(1);
-
-            cia1_.updateTimers(1);
-            cia2_.updateTimers(1);
-
-            if (components_.swiftLink)
-                components_.swiftLink->tick(1);
-
-            bus_.tick(1);
-
-            if (auto* mapper = cart_.getMapper())
-                mapper->tick(1);
-
-            vic_.endCycle();
         }
         catch (const std::exception& e)
         {

@@ -18,6 +18,7 @@ class AudioOutput;
 class Cartridge;
 class CIA1;
 class CIA2;
+class Computer;
 class CPU;
 class DataBusLatch;
 class DebugManager;
@@ -40,7 +41,7 @@ struct MachineRomConfig;
 class EmulationSession
 {
 public:
-    EmulationSession(MachineComponents& components,
+    EmulationSession(Computer& host, MachineComponents& components,
                      MachineRuntimeState& runtime,
                      MachineRomConfig& roms,
                      std::atomic<bool>& uiQuit);
@@ -56,6 +57,7 @@ private:
     void shutdown();
 
 private:
+    Computer& host_;
     MachineComponents& components_;
     MachineRuntimeState& runtime_;
     MachineRomConfig& roms_;

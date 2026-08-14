@@ -375,7 +375,7 @@ void Computer::setJoystickConfig(int port, const JoystickMapping& cfg)
 
 bool Computer::boot()
 {
-    EmulationSession session(components_, runtime_, roms_, uiQuit);
+    EmulationSession session(*this, components_, runtime_, roms_, uiQuit);
 
     return session.run();
 }
