@@ -83,6 +83,7 @@ struct MachineComponents
     std::unique_ptr<Vic> vic;
     std::unique_ptr<VirtualModem> virtualModem;
     std::unique_ptr<VirtualModem> swiftLinkVirtualModem;
+    std::unique_ptr<VirtualModem> turbo232VirtualModem;
 };
 
 #endif // MACHINE_COMPONENTS_H
