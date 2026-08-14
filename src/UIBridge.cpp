@@ -157,6 +157,11 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.swiftLinkVirtualModemAttached = isSwiftLinkVirtualModemAttached_ ? isSwiftLinkVirtualModemAttached_() : false;
     s.swiftLinkVirtualModemOnline = isSwiftLinkVirtualModemOnline_ ? isSwiftLinkVirtualModemOnline_() : false;
 
+    s.turbo232Enabled = isTurbo232Enabled_ ? isTurbo232Enabled_() : false;
+    s.turbo232BaseAddress = static_cast<uint16_t>(getTurbo232BaseAddress_ ? getTurbo232BaseAddress_() : 0xDE00);
+    s.turbo232VirtualModemAttached = isTurbo232VirtualModemAttached_ ? isTurbo232VirtualModemAttached_() : false;
+    s.turbo232VirtualModemOnline = isTurbo232VirtualModemOnline_ ? isTurbo232VirtualModemOnline_() : false;
+
     s.cartSwitches.clear();
     s.cartButtons.clear();
 
