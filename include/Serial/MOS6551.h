@@ -40,7 +40,9 @@ class MOS6551
         inline uint8_t getStatusRegister() const { return statusRegister; }
         inline uint8_t getCommandRegister() const { return commandRegister; }
         inline uint8_t getControlRegister() const { return controlRegister; }
-
+        inline bool isTxBusy() const { return txBusy; }
+        inline double getTxCountdown() const { return txCountdown; }
+        inline uint8_t getTransmitData() const { return transmitData; }
         inline bool hasEndpoint() const { return endpoint != nullptr; }
 
         // Setters
