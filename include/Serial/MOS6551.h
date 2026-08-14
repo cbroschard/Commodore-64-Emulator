@@ -27,6 +27,8 @@ class MOS6551
         inline void attachEndpoint(RS232Endpoint* endpoint) { this->endpoint = endpoint; }
         inline void detachEndpoint() { endpoint = nullptr; }
 
+        inline bool isExternalBaudSelected() const { return (controlRegister & CTRL_SBR_MASK) == 0; }
+
         void reset();
         void tick(uint32_t cycles);
 
