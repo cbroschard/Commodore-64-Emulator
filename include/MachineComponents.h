@@ -18,6 +18,7 @@
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "EmulatorUI.h"
+#include "ExpansionManager.h"
 #include "Common/ExecutionHistory.h"
 #include "IECBUS.h"
 #include "InputManager.h"
@@ -61,6 +62,7 @@ struct MachineComponents
     std::array<std::unique_ptr<Drive>, 16> drives;
     std::unique_ptr<EmulatorUI> ui;
     std::unique_ptr<ExecutionHistory> executionHistory;
+    std::unique_ptr<ExpansionManager> expansionManager;
     std::unique_ptr<IECBUS> bus;
     std::unique_ptr<InputManager> inputMgr;
     std::unique_ptr<InputRouter> inputRouter;
