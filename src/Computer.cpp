@@ -44,7 +44,8 @@ Computer::Computer() :
         busPrimedAfterBoot
     },
     cartridgeNMIPending(false),
-    swiftLinkBaseAddress(0xDE00)
+    swiftLinkBaseAddress(0xDE00),
+    turbo232BaseAddress(0xDE00)
 {
     components_.sdlContext = std::make_unique<SDLContext>();
     components_.audioOutput = std::make_unique<AudioOutput>();
@@ -260,6 +261,111 @@ bool Computer::isSwiftLinkVirtualModemAttached() const
 bool Computer::isSwiftLinkVirtualModemOnline() const
 {
     return components_.swiftLinkVirtualModem && components_.swiftLinkVirtualModem->isOnline();
+}
+
+void Computer::enableTurbo232(uint16_t baseAddress)
+{
+    if (components_.turbo232)
+        return;
+
+    components_.turbo232 = std::make_unique<Turbo232>(baseAddress);
+
+    components_.turbo232->attachNMILineInstance(components_.nmiLine.get());
+    components_.mem->attachTurbo232Instance(components_.turbo232.get());
+
+    if (components_.debug)
+        components_.debug->backend().attachTurbo232Instance(components_.turbo232.get());
+}
+
+void Computer::disableTurbo232()
+{
+    if (!components_.turbo232)
+        return;
+
+    detachTurbo232VirtualModem();
+
+    components_.mem->attachTurbo232Instance(nullptr);
+
+    if (components_.debug)
+        components_.debug->backend().attachTurbo232Instance(nullptr);
+
+    if (components_.nmiLine)
+        components_.nmiLine->clearNMI(NMILine::TURBO232);
+
+    components_.turbo232.reset();
+}
+
+void Computer::enableTurbo232()
+{
+    enableTurbo232(turbo232BaseAddress);
+}
+
+bool Computer::isTurbo232Enabled() const
+{
+    return components_.turbo232 != nullptr;
+}
+
+void Computer::setTurbo232BaseAddress(uint16_t address)
+{
+    if (address != 0xDE00 && address != 0xDF00)
+        return;
+
+    if (turbo232BaseAddress == address)
+        return;
+
+    const bool wasEnabled = components_.turbo232 != nullptr;
+    const bool modemWasAttached = isTurbo232VirtualModemAttached();
+
+    if (wasEnabled)
+        disableSwiftLink();
+
+    turbo232BaseAddress = address;
+
+    if (wasEnabled)
+    {
+        enableTurbo232();
+
+        if (modemWasAttached)
+            attachTurbo232VirtualModem();
+    }
+}
+
+uint16_t Computer::getTurbo232BaseAddress() const
+{
+    return turbo232BaseAddress;
+}
+
+void Computer::attachTurbo232VirtualModem()
+{
+    if (!components_.turbo232)
+        return;
+
+    if (!components_.turbo232VirtualModem)
+    {
+        components_.turbo232VirtualModem =
+            std::make_unique<VirtualModem>();
+    }
+
+    components_.turbo232VirtualModem->reset();
+    components_.turbo232->attachEndpoint(components_.turbo232VirtualModem.get());
+}
+
+void Computer::detachTurbo232VirtualModem()
+{
+    if (components_.turbo232)
+        components_.turbo232->detachEndpoint();
+
+    components_.turbo232VirtualModem.reset();
+}
+
+bool Computer::isTurbo232VirtualModemAttached() const
+{
+    return components_.turbo232 && components_.turbo232VirtualModem && components_.turbo232->hasEndpoint();
+}
+
+bool Computer::isTurbo232VirtualModemOnline() const
+{
+    return components_.turbo232VirtualModem && components_.turbo232VirtualModem->isOnline();
 }
 
 void Computer::enterMonitor()

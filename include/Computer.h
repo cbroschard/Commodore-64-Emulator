@@ -97,6 +97,21 @@ class Computer : public ICartridgeHost
         bool isSwiftLinkVirtualModemAttached() const;
         bool isSwiftLinkVirtualModemOnline() const;
 
+        void enableTurbo232(uint16_t baseAddress);
+        void disableTurbo232();
+
+        void enableTurbo232();
+        bool isTurbo232Enabled() const;
+
+        void setTurbo232BaseAddress(uint16_t address);
+        uint16_t getTurbo232BaseAddress() const;
+
+        void attachTurbo232VirtualModem();
+        void detachTurbo232VirtualModem();
+
+        bool isTurbo232VirtualModemAttached() const;
+        bool isTurbo232VirtualModemOnline() const;
+
         // ML Monitor
         void enterMonitor();
 
@@ -126,8 +141,9 @@ class Computer : public ICartridgeHost
         // Cartridge NMI
         bool cartridgeNMIPending;
 
-        // SwiftLink
+        // Expansion port
         uint16_t swiftLinkBaseAddress;
+        uint16_t turbo232BaseAddress;
 
         // Joystick
         void setJoystickAttached(int port, bool flag);
