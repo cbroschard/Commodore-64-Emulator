@@ -38,6 +38,15 @@ class UIBridge
          VoidFn detachSwiftLinkVirtualModem,
          BoolFn isSwiftLinkVirtualModemAttached,
          BoolFn isSwiftLinkVirtualModemOnline,
+         VoidFn enableTurbo232,
+         VoidFn disableTurbo232,
+         BoolFn isTurbo232Enabled,
+         SetUInt32Fn setTurbo232BaseAddress,
+         UInt32Fn getTurbo232BaseAddress,
+         VoidFn attachTurbo232VirtualModem,
+         VoidFn detachTurbo232VirtualModem,
+         BoolFn isTurbo232VirtualModemAttached,
+         BoolFn isTurbo232VirtualModemOnline,
          StringFn saveState,
          StringFn loadState,
          VoidFn warmReset,
@@ -87,6 +96,18 @@ class UIBridge
         VoidFn detachSwiftLinkVirtualModem_;
         BoolFn isSwiftLinkVirtualModemAttached_;
         BoolFn isSwiftLinkVirtualModemOnline_;
+
+        VoidFn enableTurbo232_;
+        VoidFn disableTurbo232_;
+        BoolFn isTurbo232Enabled_;
+
+        SetUInt32Fn setTurbo232BaseAddress_;
+        UInt32Fn getTurbo232BaseAddress_;
+
+        VoidFn attachTurbo232VirtualModem_;
+        VoidFn detachTurbo232VirtualModem_;
+        BoolFn isTurbo232VirtualModemAttached_;
+        BoolFn isTurbo232VirtualModemOnline_;
 
         StringFn saveState_;
         StringFn loadState_;

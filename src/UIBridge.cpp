@@ -28,7 +28,15 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    UIBridge::VoidFn detachSwiftLinkVirtualModem,
                    UIBridge::BoolFn isSwiftLinkVirtualModemAttached,
                    UIBridge::BoolFn isSwiftLinkVirtualModemOnline,
-                   UIBridge::StringFn saveState,
+                   UIBridge::VoidFn enableTurbo232,
+                   UIBridge::VoidFn disableTurbo232,
+                   UIBridge::BoolFn isTurbo232Enabled,
+                   UIBridge::SetUInt32Fn setTurbo232BaseAddress,
+                   UIBridge::UInt32Fn getTurbo232BaseAddress,
+                   UIBridge::VoidFn attachTurbo232VirtualModem,
+                   UIBridge::VoidFn detachTurbo232VirtualModem,
+                   UIBridge::BoolFn isTurbo232VirtualModemAttached,
+                   UIBridge::BoolFn isTurbo232VirtualModemOnline,UIBridge::StringFn saveState,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
                    UIBridge::VoidFn coldReset,
@@ -58,6 +66,15 @@ UIBridge::UIBridge(EmulatorUI& ui,
       detachSwiftLinkVirtualModem_(std::move(detachSwiftLinkVirtualModem)),
       isSwiftLinkVirtualModemAttached_(std::move(isSwiftLinkVirtualModemAttached)),
       isSwiftLinkVirtualModemOnline_(std::move(isSwiftLinkVirtualModemOnline)),
+      enableTurbo232_(std::move(enableTurbo232)),
+      disableTurbo232_(std::move(disableTurbo232)),
+      isTurbo232Enabled_(std::move(isTurbo232Enabled)),
+      setTurbo232BaseAddress_(std::move(setTurbo232BaseAddress)),
+      getTurbo232BaseAddress_(std::move(getTurbo232BaseAddress)),
+      attachTurbo232VirtualModem_(std::move(attachTurbo232VirtualModem)),
+      detachTurbo232VirtualModem_(std::move(detachTurbo232VirtualModem)),
+      isTurbo232VirtualModemAttached_(std::move(isTurbo232VirtualModemAttached)),
+      isTurbo232VirtualModemOnline_(std::move(isTurbo232VirtualModemOnline)),
       saveState_(std::move(saveState)),
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
@@ -320,6 +337,31 @@ void UIBridge::processCommands()
             case UiCommand::Type::DetachSwiftLinkVirtualModem:
                 if (detachSwiftLinkVirtualModem_)
                     detachSwiftLinkVirtualModem_();
+                break;
+
+            case UiCommand::Type::EnableTurbo232:
+                if (enableTurbo232_)
+                    enableTurbo232_();
+                break;
+
+            case UiCommand::Type::DisableTurbo232:
+                if (disableTurbo232_)
+                    disableTurbo232_();
+                break;
+
+            case UiCommand::Type::SetTurbo232BaseAddress:
+                if (setTurbo232BaseAddress_)
+                    setTurbo232BaseAddress_(cmd.turbo232BaseAddress);
+                break;
+
+            case UiCommand::Type::AttachTurbo232VirtualModem:
+                if (attachTurbo232VirtualModem_)
+                    attachTurbo232VirtualModem_();
+                break;
+
+            case UiCommand::Type::DetachTurbo232VirtualModem:
+                if (detachTurbo232VirtualModem_)
+                    detachTurbo232VirtualModem_();
                 break;
 
             case UiCommand::Type::CreateBlankDisk:
