@@ -17,6 +17,7 @@ Turbo232::Turbo232(uint16_t baseAddress) :
     enhancedSpeedRegister(0x00)
 {
     acia.setBaudMultiplier(2.0);
+    reset();
 }
 
 Turbo232::~Turbo232() = default;
