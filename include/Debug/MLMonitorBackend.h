@@ -34,6 +34,7 @@ class MLMonitorBackend
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
+        inline void attachTurbo232Instance(Turbo232* turbo232) { this->turbo232 = turbo232; }
         inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -199,6 +200,10 @@ class MLMonitorBackend
         inline std::string swiftLinkDebug(const std::string& subCommand) const
             { return swiftLink ? swiftLink->dumpDebugOutput(subCommand) : "SwiftLink: Disabled"; }
 
+        // ML Monitor Turbo232
+        inline std::string turbo232Debug(const std::string& subCommand) const
+            { return turbo232 ? turbo232->dumpDebugOutput(subCommand) : "Turbo232: Disabled"; }
+
         // ML Monitor User Port
         inline std::string dumpUserPort() const { return userPort ? userPort->debugString() : "User Port not attached\n"; }
         inline std::string dumpUserPortRS232() const { return userPort ? userPort->debugRS232String() : "User Port not attached\n"; }
@@ -253,6 +258,7 @@ class MLMonitorBackend
         REU* reu;
         SID* sid;
         SwiftLink* swiftLink;
+        Turbo232* turbo232;
         UserPort* userPort;
         Vic* vic;
 

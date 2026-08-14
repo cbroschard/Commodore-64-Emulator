@@ -401,6 +401,7 @@ MLMonitorBackend::MLMonitorBackend() :
     pla(nullptr),
     sid(nullptr),
     swiftLink(nullptr),
+    turbo232(nullptr),
     userPort(nullptr),
     vic(nullptr)
 {
