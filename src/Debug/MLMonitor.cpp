@@ -32,6 +32,7 @@
 #include "Debug/SwiftLinkCommand.h"
 #include "Debug/TapeCommand.h"
 #include "Debug/TraceCommand.h"
+#include "Debug/Turbo232Command.h"
 #include "Debug/UserPortCommand.h"
 #include "Debug/VICCommand.h"
 #include "Debug/WatchCommand.h"
@@ -67,6 +68,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<SwiftLinkCommand>());
     registerCommand(std::make_unique<TapeCommand>());
     registerCommand(std::make_unique<TraceCommand>());
+    registerCommand(std::make_unique<Turbo232Command>());
     registerCommand(std::make_unique<UserPortCommand>());
     registerCommand(std::make_unique<VICCommand>());
     registerCommand(std::make_unique<WatchCommand>());

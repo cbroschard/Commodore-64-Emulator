@@ -77,8 +77,6 @@ class MLMonitor
         void queueAsyncLine(const std::string& s);
         std::vector<std::string> drainAsyncLines();
 
-    protected:
-
     private:
         // Pointers
         MLMonitorBackend* monbackend;
