@@ -10,13 +10,11 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-#include "Cartridge.h"
 #include "Cartridge/ICartridgeHost.h"
 #include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
-#include "cassette.h"
-#include "CPU.h"
+#include "DebugManager.h"
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
@@ -24,44 +22,19 @@
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
 #include "Drive/IDriveUiView.h"
-#include "IECBUS.h"
-#include "Memory.h"
+#include "MachineComponents.h"
 #include "Debug/MLMonitorBackend.h"
-#include "PLA.h"
-#include "REU.h"
-#include "Debug/TraceManager.h"
-#include "Vic.h"
 
-MediaManager::MediaManager(std::unique_ptr<Cartridge>& cartSlot,
-                           std::array<std::unique_ptr<Drive>, 16>& driveSlots,
+MediaManager::MediaManager(MachineComponents& components,
                            ICartridgeHost* host,
-                           IECBUS& bus,
-                           Memory& mem,
-                           PLA& pla,
-                           REU& reu,
-                           CPU& cpu,
-                           Vic& vic,
-                           MLMonitorBackend& monbackend,
-                           TraceManager& traceMgr,
-                           Cassette& cass,
                            std::string D1541LoROM,
                            std::string D1541HiROM,
                            std::string D1571ROM,
                            std::string D1581ROM,
                            std::function<void()> requestBusPrimeCallback,
                            std::function<void()> coldResetCallback)
-    : cart_(cartSlot),
-      drives_(driveSlots),
+    : components_(components),
       host_(host),
-      bus_(bus),
-      mem_(mem),
-      pla_(pla),
-      reu_(reu),
-      cpu_(cpu),
-      vic_(vic),
-      monbackend_(monbackend),
-      traceMgr_(traceMgr),
-      cass_(cass),
       D1541LoROM_(std::move(D1541LoROM)),
       D1541HiROM_(std::move(D1541HiROM)),
       D1571ROM_(std::move(D1571ROM)),
@@ -109,7 +82,7 @@ void MediaManager::saveState(StateWriter& wrtr) const
 
     for (uint8_t dev = kFirstDev; dev <= kLastDev; ++dev)
     {
-        const bool present = (drives_[dev] != nullptr);
+        const bool present = (components_.drives[dev] != nullptr);
         wrtr.writeBool(present);
 
         uint8_t modelId = 0;
@@ -118,9 +91,9 @@ void MediaManager::saveState(StateWriter& wrtr) const
 
         if (present)
         {
-            modelId = static_cast<uint8_t>(drives_[dev]->getDriveModel());
-            hasDisk = drives_[dev]->isDiskLoaded();
-            diskPath = hasDisk ? drives_[dev]->getCurrentDiskPath() : std::string{};
+            modelId = static_cast<uint8_t>(components_.drives[dev]->getDriveModel());
+            hasDisk = components_.drives[dev]->isDiskLoaded();
+            diskPath = hasDisk ? components_.drives[dev]->getCurrentDiskPath() : std::string{};
         }
 
         wrtr.writeU8(modelId);
@@ -278,32 +251,32 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
         return;
     }
 
-    if (!drives_[deviceNum])
+    if (!components_.drives[deviceNum])
     {
         switch (model)
         {
             case DriveModel::None:
                 return;
             case DriveModel::D1541:
-                drives_[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
+                components_.drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
                 break;
             case DriveModel::D1571:
-                drives_[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
+                components_.drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
                 break;
             case DriveModel::D1581:
-                drives_[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
+                components_.drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
                 break;
             default:
                 return;
         }
 
-        if (!drives_[deviceNum]) return;
-        bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+        if (!components_.drives[deviceNum]) return;
+        components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
         // Sync all existing devices so nobody has stale cached bus state
         for (int dev = 8; dev <= 11; ++dev)
         {
-            if (drives_[dev]) drives_[dev]->forceSyncIEC();
+            if (components_.drives[dev]) components_.drives[dev]->forceSyncIEC();
         }
 
         // Defer bus priming to the emulator (safe point)
@@ -311,19 +284,19 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
     }
 
     // Existing drive must match requested model.
-    if (drives_[deviceNum]->getDriveModel() != model)
+    if (components_.drives[deviceNum]->getDriveModel() != model)
     {
         #ifdef Debug
         std::cout << "Drive " << deviceNum
                   << " already exists as model "
-                  << static_cast<int>(drives_[deviceNum]->getDriveModel())
+                  << static_cast<int>(components_.drives[deviceNum]->getDriveModel())
                   << ". Eject/remove the drive before changing type.\n";
         #endif
 
         return;
     }
 
-    if (!drives_[deviceNum]->insert(path))
+    if (!components_.drives[deviceNum]->insert(path))
     {
         #ifdef Debug
         std::cout << "Disk insert failed: " << path << "\n";
@@ -397,7 +370,7 @@ void MediaManager::attachCRTImage()
 
     state_.cartAttached = true;
 
-    if (!cart_->loadROM(state_.cartPath))
+    if (!components_.cart->loadROM(state_.cartPath))
     {
         #ifdef Debug
         std::cout << "Unable to load cartridge: " << state_.cartPath << "\n";
@@ -406,8 +379,8 @@ void MediaManager::attachCRTImage()
         return;
     }
 
-    mem_.setCartridgeAttached(true);
-    pla_.setCartridgeAttached(true);
+    components_.mem->setCartridgeAttached(true);
+    components_.pla->setCartridgeAttached(true);
 
     if (coldReset_) coldReset_();
 
@@ -422,7 +395,7 @@ void MediaManager::attachT64Image()
 
     state_.tapeAttached = true;
 
-    if (!cass_.loadCassette(state_.tapePath, videoMode_))
+    if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
         #ifdef Debug
         std::cout << "Unable to load tape: " << state_.tapePath << "\n";
@@ -431,16 +404,16 @@ void MediaManager::attachT64Image()
         return;
     }
 
-    if (cass_.isT64())
+    if (components_.cass->isT64())
     {
-        T64LoadResult result = cass_.t64LoadPrgIntoMemory();
+        T64LoadResult result = components_.cass->t64LoadPrgIntoMemory();
         if (result.success)
         {
             uint16_t scan = 0x0801;
             uint16_t nextLine;
             do
             {
-                nextLine = mem_.read(scan) | (mem_.read(scan + 1) << 8);
+                nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
                 if (nextLine == 0) break;
                 scan = nextLine;
             }
@@ -448,14 +421,14 @@ void MediaManager::attachT64Image()
 
             uint16_t basicEnd = scan + 2;
 
-            mem_.writeDirect(0x2B, 0x01); mem_.writeDirect(0x2C, 0x08);
-            mem_.writeDirect(0x2D, basicEnd & 0xFF); mem_.writeDirect(0x2E, basicEnd >> 8);
-            mem_.writeDirect(0x2F, basicEnd & 0xFF); mem_.writeDirect(0x30, basicEnd >> 8);
-            mem_.writeDirect(0x31, basicEnd & 0xFF); mem_.writeDirect(0x32, basicEnd >> 8);
+            components_.mem->writeDirect(0x2B, 0x01); components_.mem->writeDirect(0x2C, 0x08);
+            components_.mem->writeDirect(0x2D, basicEnd & 0xFF); components_.mem->writeDirect(0x2E, basicEnd >> 8);
+            components_.mem->writeDirect(0x2F, basicEnd & 0xFF); components_.mem->writeDirect(0x30, basicEnd >> 8);
+            components_.mem->writeDirect(0x31, basicEnd & 0xFF); components_.mem->writeDirect(0x32, basicEnd >> 8);
 
             const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-            mem_.writeDirect(0xC6, 4);
-            for (int i = 0; i < 4; ++i) mem_.writeDirect(0x0277 + i, runKeys[i]);
+            components_.mem->writeDirect(0xC6, 4);
+            for (int i = 0; i < 4; ++i) components_.mem->writeDirect(0x0277 + i, runKeys[i]);
         }
     }
 }
@@ -466,7 +439,7 @@ void MediaManager::attachTAPImage()
 
     state_.tapeAttached = true;
 
-    if (!cass_.loadCassette(state_.tapePath, videoMode_))
+    if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
         #ifdef Debug
         std::cout << "Unable to load tape: " << state_.tapePath << "\n";
@@ -489,8 +462,8 @@ void MediaManager::attachREU(REUModel model)
     state_.reuEnabled = true;
     state_.reuModel   = model;
 
-    reu_.setModel(model);
-    mem_.attachREUInstance(&reu_);
+    components_.reu->setModel(model);
+    components_.mem->attachREUInstance(components_.reu.get());
 
     if (coldReset_)
         coldReset_();
@@ -512,32 +485,32 @@ void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::s
         return;
     }
 
-    if (!drives_[deviceNum])
+    if (!components_.drives[deviceNum])
     {
         switch (model)
         {
             case DriveModel::None:
                 return;
             case DriveModel::D1541:
-                drives_[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
+                components_.drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
                 break;
             case DriveModel::D1571:
-                drives_[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
+                components_.drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
                 break;
             case DriveModel::D1581:
-                drives_[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
+                components_.drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
                 break;
             default:
                 return;
         }
 
-        if (!drives_[deviceNum]) return;
-        bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+        if (!components_.drives[deviceNum]) return;
+        components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
         // Sync all existing devices so nobody has stale cached bus state
         for (int dev = 8; dev <= 11; ++dev)
         {
-            if (drives_[dev]) drives_[dev]->forceSyncIEC();
+            if (components_.drives[dev]) components_.drives[dev]->forceSyncIEC();
         }
 
         // Defer bus priming to the emulator (safe point)
@@ -545,12 +518,12 @@ void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::s
     }
 
     // Existing drive must match requested model.
-    if (drives_[deviceNum]->getDriveModel() != model)
+    if (components_.drives[deviceNum]->getDriveModel() != model)
     {
         #ifdef Debug
         std::cout << "Drive " << deviceNum
                   << " already exists as model "
-                  << static_cast<int>(drives_[deviceNum]->getDriveModel())
+                  << static_cast<int>(components_.drives[deviceNum]->getDriveModel())
                   << ". Eject/remove the drive before changing type.\n";
         #endif
 
@@ -569,13 +542,13 @@ void MediaManager::detachDiskImage(int dev)
 {
     if (dev < 8 || dev > 11) return;
 
-    if (!drives_[dev]) return;
+    if (!components_.drives[dev]) return;
 
-    drives_[dev]->unloadDisk();
+    components_.drives[dev]->unloadDisk();
 
-    bus_.unregisterDevice(dev);
+    components_.bus->unregisterDevice(dev);
 
-    drives_[dev].reset();
+    components_.drives[dev].reset();
 }
 
 void MediaManager::detachCRTImage()
@@ -586,8 +559,8 @@ void MediaManager::detachCRTImage()
     state_.cartAttached = false;
     state_.cartPath.clear();
 
-    mem_.setCartridgeAttached(false);
-    pla_.setCartridgeAttached(false);
+    components_.mem->setCartridgeAttached(false);
+    components_.pla->setCartridgeAttached(false);
 
     recreateCartridge();
 
@@ -607,7 +580,7 @@ void MediaManager::detachREU()
     state_.reuEnabled = false;
     state_.reuModel   = REUModel::None;
 
-    reu_.setModel(REUModel::None);
+    components_.reu->setModel(REUModel::None);
 
     // Leave Memory attached to the stable REU object.
     // The REU model/state tells Memory whether REU is active.
@@ -618,10 +591,10 @@ void MediaManager::detachREU()
 
 bool MediaManager::loadIDE64Image(uint32_t deviceIndex, const std::string& path, bool readOnly)
 {
-    if (!cart_)
+    if (!components_.cart)
         return false;
 
-    CartridgeMapper* mapper = cart_->getMapper();
+    CartridgeMapper* mapper = components_.cart->getMapper();
     if (!mapper)
         return false;
 
@@ -634,10 +607,10 @@ bool MediaManager::loadIDE64Image(uint32_t deviceIndex, const std::string& path,
 
 bool MediaManager::createIDE64Image(uint32_t deviceIndex, const std::string& path, uint32_t sectors)
 {
-    if (!cart_)
+    if (!components_.cart)
         return false;
 
-    CartridgeMapper* mapper = cart_->getMapper();
+    CartridgeMapper* mapper = components_.cart->getMapper();
     if (!mapper)
         return false;
 
@@ -650,10 +623,10 @@ bool MediaManager::createIDE64Image(uint32_t deviceIndex, const std::string& pat
 
 bool MediaManager::saveIDE64Image(uint32_t deviceIndex)
 {
-    if (!cart_)
+    if (!components_.cart)
         return false;
 
-    CartridgeMapper* mapper = cart_->getMapper();
+    CartridgeMapper* mapper = components_.cart->getMapper();
     if (!mapper)
         return false;
 
@@ -666,10 +639,10 @@ bool MediaManager::saveIDE64Image(uint32_t deviceIndex)
 
 bool MediaManager::ejectIDE64Image(uint32_t deviceIndex)
 {
-    if (!cart_)
+    if (!components_.cart)
         return false;
 
-    CartridgeMapper* mapper = cart_->getMapper();
+    CartridgeMapper* mapper = components_.cart->getMapper();
     if (!mapper)
         return false;
 
@@ -680,11 +653,21 @@ bool MediaManager::ejectIDE64Image(uint32_t deviceIndex)
     return ide64->ejectIDE64Image(deviceIndex);
 }
 
+const Cartridge* MediaManager::getCartridge() const
+{
+    return components_.cart.get();
+}
+
+Cartridge* MediaManager::getCartridge()
+{
+    return components_.cart.get();
+}
+
 void MediaManager::pressButton(uint32_t index)
 {
-    if (!cart_) return;
+    if (!components_.cart) return;
 
-    auto* mapper = cart_->getMapper();
+    auto* mapper = components_.cart->getMapper();
     if (auto* hb = dynamic_cast<IHasButton*>(mapper))
     {
         hb->pressButton(index);
@@ -710,15 +693,15 @@ void MediaManager::setCartSwitch(uint32_t switchIndex, uint32_t switchPos)
 void MediaManager::restoreCartridgeFromState()
 {
     // First, make sure "no cart" is the baseline
-    mem_.setCartridgeAttached(false);
-    pla_.setCartridgeAttached(false);
+    components_.mem->setCartridgeAttached(false);
+    components_.pla->setCartridgeAttached(false);
 
     if (!state_.cartAttached || state_.cartPath.empty())
         return;
 
     recreateCartridge();
 
-    if (!cart_->loadROM(state_.cartPath))
+    if (!components_.cart->loadROM(state_.cartPath))
     {
         #ifdef Debug
         std::cout << "Restore cartridge failed: " << state_.cartPath << "\n";
@@ -728,8 +711,8 @@ void MediaManager::restoreCartridgeFromState()
         return;
     }
 
-    mem_.setCartridgeAttached(true);
-    pla_.setCartridgeAttached(true);
+    components_.mem->setCartridgeAttached(true);
+    components_.pla->setCartridgeAttached(true);
 }
 
 void MediaManager::restoreTapeMountOnlyFromState()
@@ -739,10 +722,10 @@ void MediaManager::restoreTapeMountOnlyFromState()
         return;
 
     // Just mount tape image; DO NOT load PRG into RAM; DO NOT inject RUN
-    cass_.stop();
-    cass_.eject();
+    components_.cass->stop();
+    components_.cass->eject();
 
-    if (!cass_.loadCassette(state_.tapePath, videoMode_))
+    if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
         state_.tapeAttached = false;
         state_.tapePath.clear();
@@ -758,19 +741,19 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
     if (model == DriveModel::None)
         return false;
 
-    if (drives_[deviceNum])
+    if (components_.drives[deviceNum])
     {
-        if (drives_[deviceNum]->getDriveModel() == model)
+        if (components_.drives[deviceNum]->getDriveModel() == model)
             return true;
 
-        bus_.unregisterDevice(deviceNum);
-        drives_[deviceNum].reset();
+        components_.bus->unregisterDevice(deviceNum);
+        components_.drives[deviceNum].reset();
     }
 
     switch (model)
     {
         case DriveModel::D1541:
-            drives_[deviceNum] = std::make_unique<D1541>
+            components_.drives[deviceNum] = std::make_unique<D1541>
             (
                 deviceNum,
                 D1541LoROM_,
@@ -779,7 +762,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
             break;
 
         case DriveModel::D1571:
-            drives_[deviceNum] = std::make_unique<D1571>
+            components_.drives[deviceNum] = std::make_unique<D1571>
             (
                 deviceNum,
                 D1571ROM_
@@ -787,7 +770,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
             break;
 
         case DriveModel::D1581:
-            drives_[deviceNum] = std::make_unique<D1581>
+            components_.drives[deviceNum] = std::make_unique<D1581>
             (
                 deviceNum,
                 D1581ROM_
@@ -799,15 +782,15 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
             return false;
     }
 
-    if (!drives_[deviceNum])
+    if (!components_.drives[deviceNum])
         return false;
 
-    bus_.registerDevice(deviceNum, drives_[deviceNum].get());
+    components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
     for (int dev = 8; dev <= 11; ++dev)
     {
-        if (drives_[dev])
-            drives_[dev]->forceSyncIEC();
+        if (components_.drives[dev])
+            components_.drives[dev]->forceSyncIEC();
     }
 
     if (requestBusPrime_)
@@ -818,23 +801,23 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
 
 void MediaManager::tapePlay()
 {
-    cass_.play();
+    components_.cass->play();
 }
 
 void MediaManager::tapeStop()
 {
-    cass_.stop();
+    components_.cass->stop();
 }
 
 void MediaManager::tapeRewind()
 {
-    cass_.rewind();
+    components_.cass->rewind();
 }
 
 void MediaManager::tapeEject()
 {
-    cass_.stop();
-    cass_.eject();
+    components_.cass->stop();
+    components_.cass->eject();
     state_.tapeAttached = false;
     state_.tapePath.clear();
 }
@@ -896,7 +879,7 @@ void MediaManager::fillDriveStatusViews(std::vector<EmulatorUI::DriveStatusView>
         EmulatorUI::DriveStatusView ds;
         ds.deviceNum = dev;
 
-        Drive* drive = drives_[dev].get();
+        Drive* drive = components_.drives[dev].get();
         if (!drive)
         {
             out.push_back(std::move(ds));
@@ -1003,9 +986,9 @@ void MediaManager::loadPrgIntoMem()
             loadAddr + static_cast<uint16_t>(i);
 
         if (prgLoadMode_ == PRGLoadMode::KeepCartridge)
-            mem_.write(address, prgImage_[pos + i]);
+            components_.mem->write(address, prgImage_[pos + i]);
         else
-            mem_.writeDirect(address, prgImage_[pos + i]);
+            components_.mem->writeDirect(address, prgImage_[pos + i]);
     }
 
     if (loadAddr == BASIC_PRG_START)
@@ -1014,51 +997,48 @@ void MediaManager::loadPrgIntoMem()
         uint16_t nextLine;
         do
         {
-            nextLine = mem_.read(scan) | (mem_.read(scan + 1) << 8);
+            nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
             if (nextLine == 0) break;
             scan = nextLine;
         } while (true);
 
         const uint16_t basicEnd = scan + 2;
 
-        mem_.writeDirect(TXTAB,     loadAddr & 0xFF);
-        mem_.writeDirect(TXTAB + 1, (loadAddr >> 8));
-        mem_.writeDirect(VARTAB,     basicEnd & 0xFF);
-        mem_.writeDirect(VARTAB + 1, (basicEnd >> 8));
-        mem_.writeDirect(ARYTAB,     basicEnd & 0xFF);
-        mem_.writeDirect(ARYTAB + 1, (basicEnd >> 8));
-        mem_.writeDirect(STREND,     basicEnd & 0xFF);
-        mem_.writeDirect(STREND + 1, (basicEnd >> 8));
+        components_.mem->writeDirect(TXTAB,     loadAddr & 0xFF);
+        components_.mem->writeDirect(TXTAB + 1, (loadAddr >> 8));
+        components_.mem->writeDirect(VARTAB,     basicEnd & 0xFF);
+        components_.mem->writeDirect(VARTAB + 1, (basicEnd >> 8));
+        components_.mem->writeDirect(ARYTAB,     basicEnd & 0xFF);
+        components_.mem->writeDirect(ARYTAB + 1, (basicEnd >> 8));
+        components_.mem->writeDirect(STREND,     basicEnd & 0xFF);
+        components_.mem->writeDirect(STREND + 1, (basicEnd >> 8));
 
         const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-        mem_.writeDirect(0xC6, 4);
+        components_.mem->writeDirect(0xC6, 4);
         for (int i = 0; i < 4; ++i)
-            mem_.writeDirect(0x0277 + i, runKeys[i]);
+            components_.mem->writeDirect(0x0277 + i, runKeys[i]);
     }
 }
 
 void MediaManager::recreateCartridge()
 {
-    if (!cart_)
+    if (!components_.cart)
         return;
 
-    // Reuse the existing Cartridge object.
-    // Do NOT replace the unique_ptr here, because other systems
-    // (like StateManager) may still hold references to this object.
-    cart_->clear();
+   components_.cart->clear();
 
     // Reattach all host/system pointers in case reset/load expects them.
-    cart_->attachHostInstance(host_);
-    cart_->attachCPUInstance(&cpu_);
-    cart_->attachMemoryInstance(&mem_);
-    cart_->attachTraceManagerInstance(&traceMgr_);
-    cart_->attachVicInstance(&vic_);
+    components_.cart->attachHostInstance(host_);
+    components_.cart->attachCPUInstance(components_.cpu.get());
+    components_.cart->attachMemoryInstance(components_.mem.get());
+    components_.cart->attachTraceManagerInstance(&components_.debug->trace());
+    components_.cart->attachVicInstance(components_.vic.get());
 
     // Reattach the same cartridge object everywhere else.
-    mem_.attachCartridgeInstance(cart_.get());
-    pla_.attachCartridgeInstance(cart_.get());
-    traceMgr_.attachCartInstance(cart_.get());
-    monbackend_.attachCartridgeInstance(cart_.get());
+    components_.mem->attachCartridgeInstance(components_.cart.get());
+    components_.pla->attachCartridgeInstance(components_.cart.get());
+    components_.debug->trace().attachCartInstance(components_.cart.get());
+    components_.debug->backend().attachCartridgeInstance(components_.cart.get());
 }
 
 UiCommand::DriveType MediaManager::toUiDriveType(DriveModel model) const
@@ -1103,10 +1083,10 @@ void MediaManager::flushAndSaveMedia()
 {
     for (int dev = 8; dev <= 11; ++dev)
     {
-        if (!drives_[dev])
+        if (!components_.drives[dev])
             continue;
 
         // Best option if Drive base has/gets a virtual flush method:
-        drives_[dev]->flushAndSaveDisk();
+        components_.drives[dev]->flushAndSaveDisk();
     }
 }

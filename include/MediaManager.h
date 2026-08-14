@@ -8,10 +8,8 @@
 #ifndef MEDIAMANAGER_H
 #define MEDIAMANAGER_H
 
-#include <array>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <string>
 #include <vector>
 #include "Common/DriveTypes.h"
@@ -23,38 +21,17 @@
 
 // Forward declarations
 class Cartridge;
-class Cassette;
-class CPU;
-class D1541;
-class D1571;
-class D1581;
-class Drive;
 class ICartridgeHost;
-class IECBUS;
-class Memory;
-class MLMonitorBackend;
-class PLA;
-class REU;
-class TraceManager;
-class Vic;
 
 enum class VideoMode;
+
+struct MachineComponents;
 
 class MediaManager
 {
 public:
-    MediaManager(std::unique_ptr<Cartridge>& cartSlot,
-                 std::array<std::unique_ptr<Drive>, 16>& driveSlots,
+    MediaManager(MachineComponents& components,
                  ICartridgeHost* host,
-                 IECBUS& bus,
-                 Memory& mem,
-                 PLA& pla,
-                 REU& reu,
-                 CPU& cpu,
-                 Vic& vic,
-                 MLMonitorBackend& monbackend,
-                 TraceManager& traceMgr,
-                 Cassette& cass,
                  std::string D1541LoROM,
                  std::string D1541HiROM,
                  std::string D1571ROM,
@@ -143,10 +120,10 @@ public:
     bool ejectIDE64Image(uint32_t deviceIndex);
 
     // Load state effects
-    inline const Cartridge* getCartridge() const { return cart_.get(); }
-    inline Cartridge* getCartridge() { return cart_.get(); }
     inline bool isCartridgeAttached() const { return state_.cartAttached; }
     inline bool isTapeAttached() const { return state_.tapeAttached; }
+    const Cartridge* getCartridge() const;
+    Cartridge* getCartridge();
     void pressButton(uint32_t index);
     void setCartSwitch(uint32_t switchIndex, uint32_t switchPos);
     void restoreCartridgeFromState();
@@ -170,21 +147,10 @@ public:
     void flushAndSaveMedia();
 
 private:
-
-    std::unique_ptr<Cartridge>& cart_;
-    std::array<std::unique_ptr<Drive>, 16>& drives_;
+    MachineComponents& components_;
 
     // System references
     ICartridgeHost*     host_;
-    IECBUS&             bus_;
-    Memory&             mem_;
-    PLA&                pla_;
-    REU&                reu_;
-    CPU&                cpu_;
-    Vic&                vic_;
-    MLMonitorBackend&   monbackend_;
-    TraceManager&       traceMgr_;
-    Cassette&           cass_;
 
     std::string D1541LoROM_;
     std::string D1541HiROM_;

@@ -120,9 +120,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.vic->attachIRQLineInstance(components.irq.get());
     components.vic->attachTraceManagerInstance(&components.debug->trace());
 
-    components.media = std::make_unique<MediaManager>(components.cart, components.drives, host, *components.bus, *components.mem, *components.pla,
-                                                       *components.reu, *components.cpu, *components.vic, components.debug->backend(),
-                                                       components.debug->trace(), *components.cass, roms.d1541LoRom, roms.d1541HiRom,
+    components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoRom, roms.d1541HiRom,
                                                        roms.d1571Rom, roms.d1581Rom, [&pendingBusPrime = runtime.pendingBusPrime,
                                                        &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
                                                        { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [host]() { host->coldReset(); });
