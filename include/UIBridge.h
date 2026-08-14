@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include "EmulatorUI.h"
+#include "ExpansionManager.h"
 
 class MediaManager;
 class InputManager;
@@ -19,34 +20,11 @@ class UIBridge
         using SetUInt32Fn       = std::function<void(uint32_t)>;
 
         UIBridge(EmulatorUI& ui,
+         ExpansionManager& expansionManager,
          MediaManager* media,
          InputManager* input,
          std::atomic<bool>& uiPaused,
          std::atomic<bool>& running,
-         VoidFn attachVirtualModem,
-         VoidFn detachVirtualModem,
-         BoolFn isVirtualModemAttached,
-         BoolFn isVirtualModemOnline,
-         SetUInt32Fn setRS232Baud,
-         UInt32Fn getRS232Baud,
-         VoidFn enableSwiftLink,
-         VoidFn disableSwiftLink,
-         BoolFn isSwiftLinkEnabled,
-         SetUInt32Fn setSwiftLinkBaseAddress,
-         UInt32Fn getSwiftLinkBaseAddress,
-         VoidFn attachSwiftLinkVirtualModem,
-         VoidFn detachSwiftLinkVirtualModem,
-         BoolFn isSwiftLinkVirtualModemAttached,
-         BoolFn isSwiftLinkVirtualModemOnline,
-         VoidFn enableTurbo232,
-         VoidFn disableTurbo232,
-         BoolFn isTurbo232Enabled,
-         SetUInt32Fn setTurbo232BaseAddress,
-         UInt32Fn getTurbo232BaseAddress,
-         VoidFn attachTurbo232VirtualModem,
-         VoidFn detachTurbo232VirtualModem,
-         BoolFn isTurbo232VirtualModemAttached,
-         BoolFn isTurbo232VirtualModemOnline,
          StringFn saveState,
          StringFn loadState,
          VoidFn warmReset,
@@ -72,42 +50,12 @@ class UIBridge
 
     private:
         EmulatorUI& ui_;
+        ExpansionManager& expansionManager_;
         MediaManager* media_;
         InputManager* input_;
 
         std::atomic<bool>& uiPaused_;
         std::atomic<bool>& running_;
-
-        VoidFn attachVirtualModem_;
-        VoidFn detachVirtualModem_;
-        BoolFn isVirtualModemAttached_;
-        BoolFn isVirtualModemOnline_;
-        SetUInt32Fn setRS232Baud_;
-        UInt32Fn getRS232Baud_;
-
-        VoidFn enableSwiftLink_;
-        VoidFn disableSwiftLink_;
-        BoolFn isSwiftLinkEnabled_;
-
-        SetUInt32Fn setSwiftLinkBaseAddress_;
-        UInt32Fn getSwiftLinkBaseAddress_;
-
-        VoidFn attachSwiftLinkVirtualModem_;
-        VoidFn detachSwiftLinkVirtualModem_;
-        BoolFn isSwiftLinkVirtualModemAttached_;
-        BoolFn isSwiftLinkVirtualModemOnline_;
-
-        VoidFn enableTurbo232_;
-        VoidFn disableTurbo232_;
-        BoolFn isTurbo232Enabled_;
-
-        SetUInt32Fn setTurbo232BaseAddress_;
-        UInt32Fn getTurbo232BaseAddress_;
-
-        VoidFn attachTurbo232VirtualModem_;
-        VoidFn detachTurbo232VirtualModem_;
-        BoolFn isTurbo232VirtualModemAttached_;
-        BoolFn isTurbo232VirtualModemOnline_;
 
         StringFn saveState_;
         StringFn loadState_;

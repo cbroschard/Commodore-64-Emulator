@@ -9,34 +9,12 @@
 #include "UIBridge.h"
 
 UIBridge::UIBridge(EmulatorUI& ui,
+                   ExpansionManager& expansionManager,
                    MediaManager* media,
                    InputManager* input,
                    std::atomic<bool>& uiPaused,
                    std::atomic<bool>& running,
-                   UIBridge::VoidFn attachVirtualModem,
-                   UIBridge::VoidFn detachVirtualModem,
-                   UIBridge::BoolFn isVirtualModemAttached,
-                   UIBridge::BoolFn isVirtualModemOnline,
-                   UIBridge::SetUInt32Fn setRS232Baud,
-                   UIBridge::UInt32Fn getRS232Baud,
-                   UIBridge::VoidFn enableSwiftLink,
-                   UIBridge::VoidFn disableSwiftLink,
-                   UIBridge::BoolFn isSwiftLinkEnabled,
-                   UIBridge::SetUInt32Fn setSwiftLinkBaseAddress,
-                   UIBridge::UInt32Fn getSwiftLinkBaseAddress,
-                   UIBridge::VoidFn attachSwiftLinkVirtualModem,
-                   UIBridge::VoidFn detachSwiftLinkVirtualModem,
-                   UIBridge::BoolFn isSwiftLinkVirtualModemAttached,
-                   UIBridge::BoolFn isSwiftLinkVirtualModemOnline,
-                   UIBridge::VoidFn enableTurbo232,
-                   UIBridge::VoidFn disableTurbo232,
-                   UIBridge::BoolFn isTurbo232Enabled,
-                   UIBridge::SetUInt32Fn setTurbo232BaseAddress,
-                   UIBridge::UInt32Fn getTurbo232BaseAddress,
-                   UIBridge::VoidFn attachTurbo232VirtualModem,
-                   UIBridge::VoidFn detachTurbo232VirtualModem,
-                   UIBridge::BoolFn isTurbo232VirtualModemAttached,
-                   UIBridge::BoolFn isTurbo232VirtualModemOnline,UIBridge::StringFn saveState,
+                   UIBridge::StringFn saveState,
                    UIBridge::StringFn loadState,
                    UIBridge::VoidFn warmReset,
                    UIBridge::VoidFn coldReset,
@@ -47,34 +25,11 @@ UIBridge::UIBridge(EmulatorUI& ui,
                    UIBridge::BoolFn is8580,
                    UIBridge::BoolFn isMonitorOpen)
     : ui_(ui),
+      expansionManager_(expansionManager),
       media_(media),
       input_(input),
       uiPaused_(uiPaused),
       running_(running),
-      attachVirtualModem_(attachVirtualModem),
-      detachVirtualModem_(detachVirtualModem),
-      isVirtualModemAttached_(std::move(isVirtualModemAttached)),
-      isVirtualModemOnline_(std::move(isVirtualModemOnline)),
-      setRS232Baud_(std::move(setRS232Baud)),
-      getRS232Baud_(std::move(getRS232Baud)),
-      enableSwiftLink_(std::move(enableSwiftLink)),
-      disableSwiftLink_(std::move(disableSwiftLink)),
-      isSwiftLinkEnabled_(std::move(isSwiftLinkEnabled)),
-      setSwiftLinkBaseAddress_(std::move(setSwiftLinkBaseAddress)),
-      getSwiftLinkBaseAddress_(std::move(getSwiftLinkBaseAddress)),
-      attachSwiftLinkVirtualModem_(std::move(attachSwiftLinkVirtualModem)),
-      detachSwiftLinkVirtualModem_(std::move(detachSwiftLinkVirtualModem)),
-      isSwiftLinkVirtualModemAttached_(std::move(isSwiftLinkVirtualModemAttached)),
-      isSwiftLinkVirtualModemOnline_(std::move(isSwiftLinkVirtualModemOnline)),
-      enableTurbo232_(std::move(enableTurbo232)),
-      disableTurbo232_(std::move(disableTurbo232)),
-      isTurbo232Enabled_(std::move(isTurbo232Enabled)),
-      setTurbo232BaseAddress_(std::move(setTurbo232BaseAddress)),
-      getTurbo232BaseAddress_(std::move(getTurbo232BaseAddress)),
-      attachTurbo232VirtualModem_(std::move(attachTurbo232VirtualModem)),
-      detachTurbo232VirtualModem_(std::move(detachTurbo232VirtualModem)),
-      isTurbo232VirtualModemAttached_(std::move(isTurbo232VirtualModemAttached)),
-      isTurbo232VirtualModemOnline_(std::move(isTurbo232VirtualModemOnline)),
       saveState_(std::move(saveState)),
       loadState_(std::move(loadState)),
       warmReset_(std::move(warmReset)),
@@ -148,19 +103,19 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
     s.pal    = isPal_ ? isPal_() : false;
     s.sid8580 = is8580_ ? is8580_() : false;
 
-    s.virtualModemAttached = isVirtualModemAttached_ ? isVirtualModemAttached_() : false;
-    s.virtualModemOnline = isVirtualModemOnline_ ? isVirtualModemOnline_() : false;
-    s.rs232Baud = getRS232Baud_ ? getRS232Baud_() : 300;
+    s.virtualModemAttached = expansionManager_.isVirtualModemAttached();
+    s.virtualModemOnline = expansionManager_.isVirtualModemOnline();
+    s.rs232Baud = expansionManager_.getRS232Baud();
 
-    s.swiftLinkEnabled = isSwiftLinkEnabled_ ? isSwiftLinkEnabled_() : false;
-    s.swiftLinkBaseAddress = static_cast<uint16_t>(getSwiftLinkBaseAddress_ ? getSwiftLinkBaseAddress_() : 0xDE00);
-    s.swiftLinkVirtualModemAttached = isSwiftLinkVirtualModemAttached_ ? isSwiftLinkVirtualModemAttached_() : false;
-    s.swiftLinkVirtualModemOnline = isSwiftLinkVirtualModemOnline_ ? isSwiftLinkVirtualModemOnline_() : false;
+    s.swiftLinkEnabled = expansionManager_.isSwiftLinkEnabled();
+    s.swiftLinkBaseAddress = expansionManager_.getSwiftLinkBaseAddress();
+    s.swiftLinkVirtualModemAttached = expansionManager_.isSwiftLinkVirtualModemAttached();
+    s.swiftLinkVirtualModemOnline = expansionManager_.isSwiftLinkVirtualModemOnline();
 
-    s.turbo232Enabled = isTurbo232Enabled_ ? isTurbo232Enabled_() : false;
-    s.turbo232BaseAddress = static_cast<uint16_t>(getTurbo232BaseAddress_ ? getTurbo232BaseAddress_() : 0xDE00);
-    s.turbo232VirtualModemAttached = isTurbo232VirtualModemAttached_ ? isTurbo232VirtualModemAttached_() : false;
-    s.turbo232VirtualModemOnline = isTurbo232VirtualModemOnline_ ? isTurbo232VirtualModemOnline_() : false;
+    s.turbo232Enabled = expansionManager_.isTurbo232Enabled();
+    s.turbo232BaseAddress = expansionManager_.getTurbo232BaseAddress();
+    s.turbo232VirtualModemAttached = expansionManager_.isTurbo232VirtualModemAttached();
+    s.turbo232VirtualModemOnline = expansionManager_.isTurbo232VirtualModemOnline();
 
     s.cartSwitches.clear();
     s.cartButtons.clear();
@@ -299,74 +254,60 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::AttachVirtualModem:
             {
-                if (attachVirtualModem_)
-                    attachVirtualModem_();
+                expansionManager_.attachVirtualModem();
                 break;
             }
 
             case UiCommand::Type::DetachVirtualModem:
             {
-                if (detachVirtualModem_)
-                    detachVirtualModem_();
+                expansionManager_.detachVirtualModem();
                 break;
             }
 
             case UiCommand::Type::SetRS232Baud:
             {
-                if (setRS232Baud_)
-                    setRS232Baud_(cmd.rs232Baud);
-
+                expansionManager_.setRS232Baud(cmd.rs232Baud);
                 break;
             }
 
             case UiCommand::Type::EnableSwiftLink:
-                if (enableSwiftLink_)
-                    enableSwiftLink_();
+                    expansionManager_.enableSwiftLink();
                 break;
 
             case UiCommand::Type::DisableSwiftLink:
-                if (disableSwiftLink_)
-                    disableSwiftLink_();
+                    expansionManager_.disableSwiftLink();
                 break;
 
             case UiCommand::Type::SetSwiftLinkBaseAddress:
-                if (setSwiftLinkBaseAddress_)
-                    setSwiftLinkBaseAddress_(cmd.swiftLinkBaseAddress);
+                    expansionManager_.setSwiftLinkBaseAddress(cmd.swiftLinkBaseAddress);
                 break;
 
             case UiCommand::Type::AttachSwiftLinkVirtualModem:
-                if (attachSwiftLinkVirtualModem_)
-                    attachSwiftLinkVirtualModem_();
+                expansionManager_.attachSwiftLinkVirtualModem();
                 break;
 
             case UiCommand::Type::DetachSwiftLinkVirtualModem:
-                if (detachSwiftLinkVirtualModem_)
-                    detachSwiftLinkVirtualModem_();
+                    expansionManager_.detachSwiftLinkVirtualModem();
                 break;
 
             case UiCommand::Type::EnableTurbo232:
-                if (enableTurbo232_)
-                    enableTurbo232_();
+                    expansionManager_.enableTurbo232();
                 break;
 
             case UiCommand::Type::DisableTurbo232:
-                if (disableTurbo232_)
-                    disableTurbo232_();
+                    expansionManager_.disableTurbo232();
                 break;
 
             case UiCommand::Type::SetTurbo232BaseAddress:
-                if (setTurbo232BaseAddress_)
-                    setTurbo232BaseAddress_(cmd.turbo232BaseAddress);
+                    expansionManager_.setTurbo232BaseAddress(cmd.turbo232BaseAddress);
                 break;
 
             case UiCommand::Type::AttachTurbo232VirtualModem:
-                if (attachTurbo232VirtualModem_)
-                    attachTurbo232VirtualModem_();
+                    expansionManager_.attachTurbo232VirtualModem();
                 break;
 
             case UiCommand::Type::DetachTurbo232VirtualModem:
-                if (detachTurbo232VirtualModem_)
-                    detachTurbo232VirtualModem_();
+                    expansionManager_.detachTurbo232VirtualModem();
                 break;
 
             case UiCommand::Type::CreateBlankDisk:
