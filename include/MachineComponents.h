@@ -34,6 +34,7 @@
 #include "Serial/VirtualModem.h"
 #include "SID/SID.h"
 #include "Expansion/SwiftLink.h"
+#include "Expansion/Turbo232.h"
 #include "UserPort/UserPort.h"
 #include "UserPort/UserPortRS232Adapter.h"
 #include "Vic.h"
@@ -75,6 +76,7 @@ struct MachineComponents
     std::unique_ptr<SID> sid;
     std::unique_ptr<StateManager> stateMgr;
     std::unique_ptr<SwiftLink> swiftLink;
+    std::unique_ptr<Turbo232> turbo232;
     std::unique_ptr<UIBridge> uiBridge;
     std::unique_ptr<UserPort> userPort;
     std::unique_ptr<UserPortRS232Adapter> userPortRS232Adapter;
