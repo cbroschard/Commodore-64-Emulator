@@ -236,10 +236,7 @@ void Computer::attachSwiftLinkVirtualModem()
         return;
 
     if (!components_.swiftLinkVirtualModem)
-    {
-        components_.swiftLinkVirtualModem =
-            std::make_unique<VirtualModem>();
-    }
+        components_.swiftLinkVirtualModem = std::make_unique<VirtualModem>();
 
     components_.swiftLinkVirtualModem->reset();
     components_.swiftLink->attachEndpoint(components_.swiftLinkVirtualModem.get());
@@ -317,7 +314,7 @@ void Computer::setTurbo232BaseAddress(uint16_t address)
     const bool modemWasAttached = isTurbo232VirtualModemAttached();
 
     if (wasEnabled)
-        disableSwiftLink();
+        disableTurbo232();
 
     turbo232BaseAddress = address;
 
@@ -341,10 +338,7 @@ void Computer::attachTurbo232VirtualModem()
         return;
 
     if (!components_.turbo232VirtualModem)
-    {
-        components_.turbo232VirtualModem =
-            std::make_unique<VirtualModem>();
-    }
+        components_.turbo232VirtualModem = std::make_unique<VirtualModem>();
 
     components_.turbo232VirtualModem->reset();
     components_.turbo232->attachEndpoint(components_.turbo232VirtualModem.get());
@@ -407,6 +401,9 @@ void Computer::tickCycle()
 
     if (components_.swiftLink)
         components_.swiftLink->tick(1);
+
+    if (components_.turbo232)
+        components_.turbo232->tick(1);
 
     components_.bus->tick(1);
 
