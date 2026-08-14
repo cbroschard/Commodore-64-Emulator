@@ -684,13 +684,23 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
         if (ImGui::BeginMenu("Peripheral"))
         {
+            const bool userPortActive = v.virtualModemAttached;
+            const bool swiftLinkActive = v.swiftLinkEnabled;
+            const bool turbo232Active = v.turbo232Enabled;
+            const bool reuActive = v.reuEnabled;
+
+            const bool canUseUserPort = !swiftLinkActive && !turbo232Active && !reuActive;
+            const bool canUseSwiftLink = !userPortActive && !turbo232Active && !reuActive;
+            const bool canUseTurbo232 = !userPortActive && !swiftLinkActive && !reuActive;
+
+            //
+            // User Port
+            //
             if (ImGui::BeginMenu("User Port"))
             {
-                const bool canAttachUserPortModem = !v.swiftLinkVirtualModemAttached;
-
                 if (!v.virtualModemAttached)
                 {
-                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, canAttachUserPortModem))
+                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, canUseUserPort))
                         push(UiCommand::Type::AttachVirtualModem);
                 }
                 else
@@ -729,11 +739,14 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            //
+            // SwiftLink
+            //
             if (ImGui::BeginMenu("SwiftLink"))
             {
                 if (!v.swiftLinkEnabled)
                 {
-                    if (ImGui::MenuItem("Enable SwiftLink"))
+                    if (ImGui::MenuItem("Enable SwiftLink", nullptr, false, canUseSwiftLink))
                         push(UiCommand::Type::EnableSwiftLink);
                 }
                 else
@@ -744,7 +757,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
-                if (ImGui::BeginMenu("Base Address"))
+                if (ImGui::BeginMenu("Base Address", v.swiftLinkEnabled))
                 {
                     const bool de00 = v.swiftLinkBaseAddress == 0xDE00;
                     const bool df00 = v.swiftLinkBaseAddress == 0xDF00;
@@ -759,9 +772,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                         out_.push_back(std::move(c));
                     }
 
-                    const bool df00Available = !v.reuEnabled;
-
-                    if (ImGui::MenuItem("$DF00", nullptr, df00, df00Available))
+                    if (ImGui::MenuItem("$DF00", nullptr, df00))
                     {
                         UiCommand c;
                         c.type = UiCommand::Type::SetSwiftLinkBaseAddress;
@@ -776,11 +787,9 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
-                const bool canAttachSwiftLinkModem = v.swiftLinkEnabled && !v.virtualModemAttached;
-
                 if (!v.swiftLinkVirtualModemAttached)
                 {
-                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, canAttachSwiftLinkModem))
+                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, v.swiftLinkEnabled))
                         push(UiCommand::Type::AttachSwiftLinkVirtualModem);
                 }
                 else
@@ -792,11 +801,14 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            //
+            // Turbo232
+            //
             if (ImGui::BeginMenu("Turbo232"))
             {
                 if (!v.turbo232Enabled)
                 {
-                    if (ImGui::MenuItem("Enable Turbo232"))
+                    if (ImGui::MenuItem("Enable Turbo232", nullptr, false, canUseTurbo232))
                         push(UiCommand::Type::EnableTurbo232);
                 }
                 else
@@ -807,7 +819,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
-                if (ImGui::BeginMenu("Base Address"))
+                if (ImGui::BeginMenu("Base Address", v.turbo232Enabled))
                 {
                     const bool de00 = v.turbo232BaseAddress == 0xDE00;
                     const bool df00 = v.turbo232BaseAddress == 0xDF00;
@@ -822,9 +834,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                         out_.push_back(std::move(c));
                     }
 
-                    const bool df00Available = !v.reuEnabled;
-
-                    if (ImGui::MenuItem("$DF00", nullptr, df00, df00Available))
+                    if (ImGui::MenuItem("$DF00", nullptr, df00))
                     {
                         UiCommand c;
                         c.type = UiCommand::Type::SetTurbo232BaseAddress;
@@ -839,25 +849,15 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
-                const bool canAttachTurbo232Modem = v.turbo232Enabled && !v.virtualModemAttached;
-
                 if (!v.turbo232VirtualModemAttached)
                 {
-                    if (ImGui::MenuItem(
-                            "Attach Virtual Modem",
-                            nullptr,
-                            false,
-                            canAttachTurbo232Modem))
-                    {
+                    if (ImGui::MenuItem("Attach Virtual Modem", nullptr, false, v.turbo232Enabled))
                         push(UiCommand::Type::AttachTurbo232VirtualModem);
-                    }
                 }
                 else
                 {
                     if (ImGui::MenuItem("Detach Virtual Modem"))
-                    {
                         push(UiCommand::Type::DetachTurbo232VirtualModem);
-                    }
                 }
 
                 ImGui::EndMenu();
@@ -872,19 +872,11 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             {
                 const bool is8580 = v.sid8580;
 
-                if (ImGui::MenuItem("MOS 6581 - classic C64",
-                                    nullptr,
-                                    !is8580))
-                {
+                if (ImGui::MenuItem("MOS 6581 - classic C64", nullptr, !is8580))
                     push(UiCommand::Type::SetMOS6581);
-                }
 
-                if (ImGui::MenuItem("MOS 8580 - C64C / cleaner SID",
-                                    nullptr,
-                                    is8580))
-                {
+                if (ImGui::MenuItem("MOS 8580 - C64C / cleaner SID", nullptr, is8580))
                     push(UiCommand::Type::SetMOS8580);
-                }
 
                 ImGui::EndMenu();
             }
@@ -916,7 +908,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             {
                 if (ImGui::BeginMenu("REU"))
                 {
-                    const bool reuAvailable = !v.swiftLinkEnabled || v.swiftLinkBaseAddress != 0xDF00;
+                    const bool reuAvailable = !v.virtualModemAttached && !v.swiftLinkEnabled && !v.turbo232Enabled;
 
                     if (ImGui::MenuItem("Disabled", nullptr, !v.reuEnabled))
                         pushSetREU(REUModel::None);
