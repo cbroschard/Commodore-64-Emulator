@@ -25,8 +25,6 @@ class SwiftLinkCommand : public MonitorCommand
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args);
 
-    protected:
-
     private:
 };
 
