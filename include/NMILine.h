@@ -22,7 +22,8 @@ class NMILine
             CIA2        = 0x01,
             SWIFTLINK   = 0x02,
             CARTRIDGE   = 0x04,
-            RESTORE     = 0x08
+            RESTORE     = 0x08,
+            TURBO232    = 0x10
         };
 
         void raiseNMI(Source source);
