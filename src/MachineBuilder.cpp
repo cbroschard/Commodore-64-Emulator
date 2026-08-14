@@ -120,8 +120,8 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.vic->attachIRQLineInstance(components.irq.get());
     components.vic->attachTraceManagerInstance(&components.debug->trace());
 
-    components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoRom, roms.d1541HiRom,
-                                                       roms.d1571Rom, roms.d1581Rom, [&pendingBusPrime = runtime.pendingBusPrime,
+    components.media = std::make_unique<MediaManager>(components, host, roms.d1541LoRom, roms.d1541HiRom, roms.d1571Rom, roms.d1581Rom,
+                                                      [&pendingBusPrime = runtime.pendingBusPrime,
                                                        &busPrimedAfterBoot = runtime.busPrimedAfterBoot]()
                                                        { if (!busPrimedAfterBoot) pendingBusPrime = true; }, [host]() { host->coldReset(); });
 
@@ -148,10 +148,5 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                       [&sidModel = runtime.sidModel]() -> bool { return sidModel == SIDModel::MOS8580; },
                                                       [&components]() -> bool {return components.debug && components.debug->monitorController().isOpen();});
 
-    components.stateMgr = std::make_unique<StateManager>(*components.cart, *components.cass, *components.cia1, *components.cia2, *components.cpu,
-                                                         *components.dataBus, *components.bus, *components.inputMgr, *components.media,
-                                                         *components.mem, *components.pla, *components.reu, *components.rs232Device,
-                                                         *components.sid, *components.userPortRS232Adapter, *components.vic,
-                                                         runtime.uiPaused, runtime.videoMode, runtime.sidModel, runtime.cpuCfg,
-                                                         runtime.pendingBusPrime, runtime.busPrimedAfterBoot, components.drives);
+    components.stateMgr = std::make_unique<StateManager>(components, runtime);
 }

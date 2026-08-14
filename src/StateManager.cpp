@@ -5,71 +5,16 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Cassette.h"
-#include "CIA1.h"
-#include "CIA2.h"
-#include "CPU.h"
 #include "CPUTiming.h"
-#include "DataBusLatch.h"
 #include "Drive/Drive.h"
-#include "IECBUS.h"
-#include "InputManager.h"
-#include "MediaManager.h"
-#include "Memory.h"
-#include "PLA.h"
-#include "REU.h"
-#include "Serial/RS232Device.h"
-#include "SID/SID.h"
+#include "MachineComponents.h"
+#include "MachineRuntimeState.h"
 #include "StateManager.h"
-#include "UserPort/UserPortRS232Adapter.h"
-#include "Vic.h"
 
-StateManager::StateManager(Cartridge& cart,
-                     Cassette& cass,
-                     CIA1& cia1,
-                     CIA2& cia2,
-                     CPU& processor,
-                     DataBusLatch& dataBus,
-                     IECBUS& bus,
-                     InputManager& inputMgr,
-                     MediaManager& media,
-                     Memory& mem,
-                     PLA& pla,
-                     REU& reu,
-                     RS232Device& rs232Device,
-                     SID& sidchip,
-                     UserPortRS232Adapter& userPortRS232Adapter,
-                     Vic& vicII,
-                     std::atomic<bool>& uiPaused,
-                     VideoMode& videoMode,
-                     SIDModel& sidModel,
-                     const CPUConfig*& cpuCfg,
-                     bool& pendingBusPrime,
-                     bool& busPrimedAfterBoot,
-                     std::array<std::unique_ptr<Drive>, 16>& drives) :
-      cart_(cart),
-      cass_(cass),
-      cia1_(cia1),
-      cia2_(cia2),
-      processor_(processor),
-      dataBus_(dataBus),
-      bus_(bus),
-      inputMgr_(inputMgr),
-      media_(media),
-      mem_(mem),
-      pla_(pla),
-      reu_(reu),
-      rs232Device_(rs232Device),
-      sidchip_(sidchip),
-      userPortRS232Adapter_(userPortRS232Adapter),
-      vicII_(vicII),
-      uiPaused_(uiPaused),
-      videoMode_(videoMode),
-      sidModel_(sidModel),
-      cpuCfg_(cpuCfg),
-      pendingBusPrime_(pendingBusPrime),
-      busPrimedAfterBoot_(busPrimedAfterBoot),
-      drives_(drives)
+StateManager::StateManager(MachineComponents& components,
+                     MachineRuntimeState& runtime) :
+      components_(components),
+      runtime_(runtime)
 {
 
 }
@@ -89,33 +34,33 @@ bool StateManager::save(const std::string& path)
     wrtr.writeU32(1);
 
     // Dump Video mode
-    wrtr.writeU8(static_cast<uint8_t>(videoMode_));
+    wrtr.writeU8(static_cast<uint8_t>(runtime_.videoMode));
 
     // Dump SID model
-    wrtr.writeU8(static_cast<uint8_t>(sidModel_));
+    wrtr.writeU8(static_cast<uint8_t>(runtime_.sidModel));
 
     // Dump CPU timing ID
-    const uint8_t cpuTimingId = (videoMode_ == VideoMode::NTSC) ? 0 : 1;
+    const uint8_t cpuTimingId = (runtime_.videoMode == VideoMode::NTSC) ? 0 : 1;
     wrtr.writeU8(cpuTimingId);
 
     // Dump UI pause state
-    wrtr.writeBool(uiPaused_.load());
+    wrtr.writeBool(runtime_.uiPaused.load());
 
     // Dump Bus priming flags
-    wrtr.writeBool(pendingBusPrime_);
-    wrtr.writeBool(busPrimedAfterBoot_);
+    wrtr.writeBool(runtime_.pendingBusPrime);
+    wrtr.writeBool(runtime_.busPrimedAfterBoot);
 
     // Dump Drive config
     wrtr.writeU8(16);
     for (int i = 0; i < 16; ++i)
     {
-        const bool present = (drives_[i] != nullptr);
+        const bool present = (components_.drives[i] != nullptr);
         wrtr.writeBool(present);
 
         if (present)
         {
-            wrtr.writeU8(static_cast<uint8_t>(drives_[i]->getDriveModel()));
-            wrtr.writeU8(static_cast<uint8_t>(drives_[i]->getDeviceNumber()));
+            wrtr.writeU8(static_cast<uint8_t>(components_.drives[i]->getDriveModel()));
+            wrtr.writeU8(static_cast<uint8_t>(components_.drives[i]->getDeviceNumber()));
         }
     }
 
@@ -124,40 +69,40 @@ bool StateManager::save(const std::string& path)
     // -------------------------
     // Device chunks (next)
     // -------------------------
-    processor_.saveState(wrtr);
-    cia1_.saveState(wrtr);
-    cia2_.saveState(wrtr);
-    dataBus_.saveState(wrtr);
-    vicII_.saveState(wrtr);
-    sidchip_.saveState(wrtr);
-    pla_.saveState(wrtr);
-    mem_.saveState(wrtr);
-    bus_.saveState(wrtr);
+    components_.cpu->saveState(wrtr);
+    components_.cia1->saveState(wrtr);
+    components_.cia2->saveState(wrtr);
+    components_.dataBus->saveState(wrtr);
+    components_.vic->saveState(wrtr);
+    components_.sid->saveState(wrtr);
+    components_.pla->saveState(wrtr);
+    components_.mem->saveState(wrtr);
+    components_.bus->saveState(wrtr);
 
-    userPortRS232Adapter_.saveState(wrtr);
-    rs232Device_.saveState(wrtr);
+    components_.userPortRS232Adapter->saveState(wrtr);
+    components_.rs232Device->saveState(wrtr);
 
     // Save all installed disk drives
-    for (const auto& drive : drives_)
+    for (const auto& drive : components_.drives)
     {
         if (drive)
             drive->saveState(wrtr);
     }
 
     // Save joystick state
-    inputMgr_.saveState(wrtr);
+    components_.inputMgr->saveState(wrtr);
 
     // Save media state
-    media_.saveState(wrtr);
+    components_.media->saveState(wrtr);
 
     // Save cartridge state if attached
-    if (media_.getState().cartAttached) cart_.saveState(wrtr);
+    if (components_.media->getState().cartAttached) components_.cart->saveState(wrtr);
 
     // Save Cassette and tape state if attached
-    if (media_.getState().tapeAttached) cass_.saveState(wrtr);
+    if (components_.media->getState().tapeAttached) components_.cass->saveState(wrtr);
 
     // Save REU state if attached
-    if (media_.getState().reuEnabled) reu_.saveState(wrtr);
+    if (components_.media->getState().reuEnabled) components_.reu->saveState(wrtr);
 
     // Write file
     return wrtr.writeToFile(path);
@@ -197,26 +142,26 @@ bool StateManager::load(const std::string& path)
     // Restore Video Mode
     uint8_t mode = 0;
     if (!rdr.readU8(mode)) return false;
-    videoMode_ = static_cast<VideoMode>(mode);
+    runtime_.videoMode = static_cast<VideoMode>(mode);
 
     // Restore SID Model
     uint8_t model = 0;
     if (!rdr.readU8(model)) return false;
-    sidModel_ = static_cast<SIDModel>(model);
+    runtime_.sidModel = static_cast<SIDModel>(model);
 
     // Restore CPU timing
     uint8_t cpuTimingID = 0;
     if (!rdr.readU8(cpuTimingID)) return false;
-    cpuCfg_ = cpuTimingID ? &PAL_CPU : &NTSC_CPU;
+    runtime_.cpuCfg = cpuTimingID ? &PAL_CPU : &NTSC_CPU;
 
     // Restore uiPaused
     bool tmpPaused = false;
     if (!rdr.readBool(tmpPaused)) return false;
-    uiPaused_.store(tmpPaused);
+    runtime_.uiPaused.store(tmpPaused);
 
     // Restore bus pending status
-    if (!rdr.readBool(pendingBusPrime_)) return false;
-    if (!rdr.readBool(busPrimedAfterBoot_)) return false;
+    if (!rdr.readBool(runtime_.pendingBusPrime)) return false;
+    if (!rdr.readBool(runtime_.busPrimedAfterBoot)) return false;
 
     // Restore drive config from SYS0
     uint8_t driveCount = 0;
@@ -225,11 +170,11 @@ bool StateManager::load(const std::string& path)
     // Remove the current drive configuration before recreating the saved one
     for (int dev = 8; dev <= 11; ++dev)
     {
-        if (!drives_[dev])
+        if (!components_.drives[dev])
             continue;
 
-        bus_.unregisterDevice(dev);
-        drives_[dev].reset();
+        components_.bus->unregisterDevice(dev);
+        components_.drives[dev].reset();
     }
 
     // Clamp to our fixed array size just in case
@@ -248,14 +193,14 @@ bool StateManager::load(const std::string& path)
             if (!rdr.readU8(modelU8))                           return false;
             if (!rdr.readU8(deviceNumber))                      return false;
 
-            if (deviceNumber >= drives_.size())                 return false;
+            if (deviceNumber >= components_.drives.size())                 return false;
 
             const DriveModel driveModel =
                 static_cast<DriveModel>(modelU8);
 
             if (driveModel == DriveModel::None)                 return false;
 
-            if (!media_.ensureDriveExists
+            if (!components_.media->ensureDriveExists
                 (
                     static_cast<int>(deviceNumber),
                     driveModel
@@ -293,18 +238,18 @@ bool StateManager::load(const std::string& path)
         [&](DriveModel expectedModel,
             const StateReader::Chunk& driveChunk) -> bool
     {
-        for (size_t i = 0; i < drives_.size(); ++i)
+        for (size_t i = 0; i < components_.drives.size(); ++i)
         {
             if (driveStateRestored[i])
                 continue;
 
-            if (!drives_[i])
+            if (!components_.drives[i])
                 continue;
 
-            if (drives_[i]->getDriveModel() != expectedModel)
+            if (components_.drives[i]->getDriveModel() != expectedModel)
                 continue;
 
-            if (!drives_[i]->loadState(driveChunk, rdr))
+            if (!components_.drives[i]->loadState(driveChunk, rdr))
                 return false;
 
             driveStateRestored[i] = true;
@@ -342,87 +287,87 @@ bool StateManager::load(const std::string& path)
 
         if (isCPU)
         {
-            if (!processor_.loadState(chunk, rdr)) return false;
+            if (!components_.cpu->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded processor\n";
             #endif
         }
         else if (isCIA1)
         {
-            if (!cia1_.loadState(chunk, rdr)) return false;
+            if (!components_.cia1->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded CIA1\n";
             #endif
         }
         else if (isCIA2)
         {
-            if (!cia2_.loadState(chunk, rdr)) return false;
+            if (!components_.cia2->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded CIA2\n";
             #endif
         }
         else if (isDataBus)
         {
-            if (!dataBus_.loadState(chunk, rdr)) return false;
+            if (!components_.dataBus->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded DataBusLatch\n";
             #endif
         }
         else if (isVIC)
         {
-            if (!vicII_.loadState(chunk, rdr)) return false;
+            if (!components_.vic->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded VIC\n";
             #endif
         }
         else if (isSID)
         {
-            if (!sidchip_.loadState(chunk, rdr)) return false;
+            if (!components_.sid->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded SID\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
         {
-            if (!pla_.loadState(chunk, rdr)) return false;
+            if (!components_.pla->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded PLA\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)
         {
-            if (!mem_.loadState(chunk, rdr)) return false;
+            if (!components_.mem->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded memory\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "IEC0", 4) == 0)
         {
-            if (!bus_.loadState(chunk, rdr)) return false;
+            if (!components_.bus->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded IECBUS\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "INPT", 4) == 0)
         {
-            if (!inputMgr_.loadState(chunk, rdr)) return false;
+            if (!components_.inputMgr->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded Input\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "MED0", 4) == 0)
         {
-            if (!media_.loadState(chunk, rdr)) return false;
+            if (!components_.media->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded Media Manager\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "CART", 4) == 0)
         {
-            mem_.setCartridgeAttached(true);
-            pla_.setCartridgeAttached(true);
+            components_.mem->setCartridgeAttached(true);
+            components_.pla->setCartridgeAttached(true);
 
-            if (!cart_.loadState(chunk, rdr)) return false;
+            if (!components_.cart->loadState(chunk, rdr)) return false;
 
             #ifdef Debug
             std::cout << "Loaded Cartridge\n";
@@ -430,10 +375,10 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "CASS", 4) == 0)
         {
-            if (media_.isTapeAttached())
-                media_.restoreTapeMountOnlyFromState();
+            if (components_.media->isTapeAttached())
+                components_.media->restoreTapeMountOnlyFromState();
 
-            if (!cass_.loadState(chunk, rdr)) return false;
+            if (!components_.cass->loadState(chunk, rdr)) return false;
 
             #ifdef Debug
             std::cout << "Loaded Cassette\n";
@@ -441,7 +386,7 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "REU0", 4) == 0)
         {
-            if (!reu_.loadState(chunk, rdr)) return false;
+            if (!components_.reu->loadState(chunk, rdr)) return false;
 
             #ifdef Debug
             std::cout << "Loaded REU\n";
@@ -476,7 +421,7 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "UR23", 4) == 0)
         {
-            if (!userPortRS232Adapter_.loadState(chunk, rdr))
+            if (!components_.userPortRS232Adapter->loadState(chunk, rdr))
                 return false;
 
             #ifdef Debug
@@ -485,7 +430,7 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "RS23", 4) == 0)
         {
-            if (!rs232Device_.loadState(chunk, rdr))
+            if (!components_.rs232Device->loadState(chunk, rdr))
                 return false;
 
             #ifdef Debug
@@ -498,8 +443,8 @@ bool StateManager::load(const std::string& path)
         }
     }
 
-    processor_.postLoadState();
-    userPortRS232Adapter_.postLoadState();
+    components_.cpu->postLoadState();
+    components_.userPortRS232Adapter->postLoadState();
 
     return true;
 }

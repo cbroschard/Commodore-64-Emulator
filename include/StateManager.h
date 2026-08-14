@@ -16,89 +16,25 @@
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class Cartridge;
-class Cassette;
-class CIA1;
-class CIA2;
-class CPU;
-class DataBusLatch;
-class Drive;
-class IECBUS;
-class InputManager;
-class MediaManager;
-class Memory;
-class PLA;
-class RS232Device;
-class SID;
-class UserPortRS232Adapter;
-class Vic;
-
-struct CPUConfig;
+struct MachineComponents;
+struct MachineRuntimeState;
 
 class StateManager
 {
     public:
-        StateManager(Cartridge& cart,
-                     Cassette& cass,
-                     CIA1& cia1,
-                     CIA2& cia2,
-                     CPU& processor,
-                     DataBusLatch& dataBus,
-                     IECBUS& bus,
-                     InputManager& inputMgr,
-                     MediaManager& media,
-                     Memory& mem,
-                     PLA& pla,
-                     REU& reu,
-                     RS232Device& rs232Device,
-                     SID& sidchip,
-                     UserPortRS232Adapter& userPortRS232Adapter,
-                     Vic& vicII,
-                     std::atomic<bool>& uiPaused,
-                     VideoMode& videoMode,
-                     SIDModel& sidModel,
-                     const CPUConfig*& cpuCfg,
-                     bool& pendingBusPrime,
-                     bool& busPrimedAfterBoot,
-                     std::array<std::unique_ptr<Drive>, 16>& drives);
+        StateManager(MachineComponents& components,
+                     MachineRuntimeState& runtime);
 
         ~StateManager();
 
         bool save(const std::string& path);
         bool load(const std::string& path);
 
-    protected:
-
     private:
-        Cartridge& cart_;
-        Cassette& cass_;
-        CIA1& cia1_;
-        CIA2& cia2_;
-        CPU& processor_;
-        DataBusLatch& dataBus_;
-        IECBUS& bus_;
-        InputManager& inputMgr_;
-        MediaManager& media_;
-        Memory& mem_;
-        PLA& pla_;
-        REU& reu_;
-        RS232Device& rs232Device_;
-        SID& sidchip_;
-        UserPortRS232Adapter& userPortRS232Adapter_;
-        Vic& vicII_;
+        MachineComponents& components_;
+        MachineRuntimeState runtime_;
 
         static constexpr uint32_t kStateVersion = 1; // Save State file version
-
-        std::atomic<bool>& uiPaused_;
-
-        VideoMode& videoMode_;
-        SIDModel& sidModel_;
-        const CPUConfig*& cpuCfg_;
-
-        bool& pendingBusPrime_;
-        bool& busPrimedAfterBoot_;
-
-        std::array<std::unique_ptr<Drive>, 16>& drives_;
 };
 
 #endif // STATEMANAGER_H
