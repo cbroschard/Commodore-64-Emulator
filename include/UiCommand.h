@@ -41,6 +41,13 @@ struct UiCommand
         AttachSwiftLinkVirtualModem,
         DetachSwiftLinkVirtualModem,
 
+        EnableTurbo232,
+        DisableTurbo232,
+        SetTurbo232BaseAddress,
+
+        AttachTurbo232VirtualModem,
+        DetachTurbo232VirtualModem,
+
         SetRS232Baud,
 
         CreateBlankDisk,
@@ -104,6 +111,7 @@ struct UiCommand
     uint32_t switchPos              = 0;
 
     uint16_t swiftLinkBaseAddress   = 0xDE00;
+    uint16_t turbo232BaseAddress    = 0xDE00;
 
     uint32_t rs232Baud              = 300;
 
