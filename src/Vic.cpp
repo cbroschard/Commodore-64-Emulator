@@ -217,6 +217,8 @@ void Vic::reset()
     // Sprite collision latches
     lastSpriteSpriteCollision = {};
     lastSpriteBackgroundCollision = {};
+
+    resetActiveBackgroundPixelState();
 }
 
 void Vic::setMode(VideoMode mode)
@@ -1283,18 +1285,10 @@ void Vic::outputPixel(int raster, int x)
 
     const int pixelInCharacter = relativeX & 0x07;
 
-    // Latch the character data once at the first pixel.
     if (pixelInCharacter == 0)
     {
-        TextCellSample cell {};
-
-        if (!sampleTextCell(raster, xScroll, column, cell) || !cell.valid || cell.multicolor)
-        {
-            resetActiveBackgroundPixelState();
-            return;
-        }
-
-        loadActiveStandardTextPixelState(cell, raster);
+        fetchStandardTextGraphicsByte(raster, column);
+        loadActiveStandardTextPixelStateFromLatch(raster, column, x);
     }
 
     if (!activeBgPixel.valid)
@@ -2744,6 +2738,65 @@ void Vic::renderLine(int raster)
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
     emitRasterLineInOrder(raster);
+}
+
+void Vic::resetBackgroundGraphicsLatch()
+{
+    backgroundGraphicsLatch.valid = false;
+    backgroundGraphicsLatch.column = -1;
+
+    backgroundGraphicsLatch.screenByte = 0;
+    backgroundGraphicsLatch.colorByte = 0;
+    backgroundGraphicsLatch.graphicsByte = 0;
+
+    backgroundGraphicsLatch.graphicsAddress = 0;
+}
+
+void Vic::fetchStandardTextGraphicsByte(int raster, int column)
+{
+    resetBackgroundGraphicsLatch();
+
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
+
+    if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
+        return;
+
+    const uint8_t d018 = d018ForRasterPixelX(raster, 0, false) & 0xFE;
+    const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
+    const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
+
+    updateOpenBus(graphicsByte);
+
+    backgroundGraphicsLatch.valid = true;
+    backgroundGraphicsLatch.column = column;
+    backgroundGraphicsLatch.screenByte = screenByte;
+    backgroundGraphicsLatch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
+    backgroundGraphicsLatch.graphicsByte = graphicsByte;
+    backgroundGraphicsLatch.graphicsAddress = charAddr;
+}
+
+void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)
+{
+    resetActiveBackgroundPixelState();
+
+    if (!backgroundGraphicsLatch.valid)
+        return;
+
+    if (backgroundGraphicsLatch.column != column)
+        return;
+
+    activeBgPixel.valid = true;
+    activeBgPixel.rowBits = backgroundGraphicsLatch.graphicsByte;
+    activeBgPixel.fg = backgroundGraphicsLatch.colorByte & 0x0F;
+    activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+    activeBgPixel.pxBase = px;
+    activeBgPixel.py = fbY(raster);
+    activeBgPixel.phase = 0;
 }
 
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)

@@ -1143,6 +1143,21 @@ class Vic
             std::array<uint8_t, VISIBLE_WIDTH> spriteMask {};
         };
 
+        struct BackgroundGraphicsLatch
+        {
+            bool valid = false;
+
+            int column = -1;
+
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+            uint8_t graphicsByte = 0;
+
+            uint16_t graphicsAddress = 0;
+        };
+
+        BackgroundGraphicsLatch backgroundGraphicsLatch;
+
         std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;
         std::vector<RasterPixelCompositionSnapshot> lastFrameRasterPixelStates;
         std::vector<RasterRowStateSnapshot> rasterRowStates;
@@ -1155,6 +1170,10 @@ class Vic
         std::vector<RasterSpriteModeEvent> rasterSpriteModeEvents;
         std::vector<RasterPriorityEvent> rasterPriorityEvents;
         std::vector<RasterColorEvent> rasterColorEvents;
+
+        void resetBackgroundGraphicsLatch();
+        void fetchStandardTextGraphicsByte(int raster, int column);
+        void loadActiveStandardTextPixelStateFromLatch(int raster,  int column, int px);
 
         void recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
