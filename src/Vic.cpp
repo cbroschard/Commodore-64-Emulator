@@ -1340,10 +1340,14 @@ void Vic::outputPixel(int raster, int x)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const int pixelInCharacter = relativeX & 0x07;
+    if (currentCycleSlot.graphicsFetch)
+    {
+        const int fetchColumn = currentCycleSlot.graphicsFetchIndex;
+        const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
-    if (pixelInCharacter == 0)
-        loadActiveStandardTextPixelStateFromLatch(raster, column, x);
+        if (x == reloadX)
+            loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+    }
 
     if (!activeBgPixel.valid)
         return;
