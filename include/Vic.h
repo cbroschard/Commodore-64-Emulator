@@ -150,6 +150,10 @@ class Vic
             FetchKind fetchKind = FetchKind::None;
             BusOwner busOwner = BusOwner::CPU;
 
+            // Background graphics fetch (g-access)
+            bool graphicsFetch = false;
+            int graphicsFetchIndex = -1;
+
             bool badlineWarning = false;
             bool badlineSteal = false;
             bool badlineBAHold = false;

@@ -2532,6 +2532,17 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.fetchKind = getFetchKindForCycle(raster, cycle);
 
+    if (cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
+    {
+        const int index = cycle - cfg_->bgFetchStartCycle;
+
+        if (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS)
+        {
+            slot.graphicsFetch = true;
+            slot.graphicsFetchIndex = index;
+        }
+    }
+
     switch (slot.fetchKind)
     {
         case FetchKind::SpritePtr0:
