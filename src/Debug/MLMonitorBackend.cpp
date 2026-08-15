@@ -338,6 +338,7 @@ static const char* vicFetchKindName(Vic::FetchKind kind)
     switch (kind)
     {
         case Vic::FetchKind::None:        return "None";
+        case Vic::FetchKind::Graphics:    return "Graphics";
         case Vic::FetchKind::CharMatrix:  return "CharMatrix";
 
         case Vic::FetchKind::SpritePtr0:  return "SpritePtr0";
