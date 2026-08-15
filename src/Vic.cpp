@@ -1184,6 +1184,10 @@ void Vic::runFetchPhase()
 
     switch (currentCycleSlot.fetchKind)
     {
+
+        case FetchKind::Graphics:
+            break;
+
         case FetchKind::CharMatrix:
             performBadLineFetchesForCurrentCycle();
             break;
@@ -1286,10 +1290,7 @@ void Vic::outputPixel(int raster, int x)
     const int pixelInCharacter = relativeX & 0x07;
 
     if (pixelInCharacter == 0)
-    {
-        fetchStandardTextGraphicsByte(raster, column);
         loadActiveStandardTextPixelStateFromLatch(raster, column, x);
-    }
 
     if (!activeBgPixel.valid)
         return;
@@ -6010,6 +6011,7 @@ const char* Vic::fetchKindName(FetchKind kind) const
     switch (kind)
     {
         case FetchKind::None:        return "None";
+        case FetchKind::Graphics:    return "Graphics";
         case FetchKind::CharMatrix:  return "CharMatrix";
 
         case FetchKind::SpritePtr0:  return "SpritePtr0";

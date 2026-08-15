@@ -103,14 +103,26 @@ class Vic
         {
             None,
 
-
             CharMatrix,
+            Graphics,
 
-            SpritePtr0, SpritePtr1, SpritePtr2, SpritePtr3,
-            SpritePtr4, SpritePtr5, SpritePtr6, SpritePtr7,
+            SpritePtr0,
+            SpritePtr1,
+            SpritePtr2,
+            SpritePtr3,
+            SpritePtr4,
+            SpritePtr5,
+            SpritePtr6,
+            SpritePtr7,
 
-            SpriteData0, SpriteData1, SpriteData2, SpriteData3,
-            SpriteData4, SpriteData5, SpriteData6, SpriteData7
+            SpriteData0,
+            SpriteData1,
+            SpriteData2,
+            SpriteData3,
+            SpriteData4,
+            SpriteData5,
+            SpriteData6,
+            SpriteData7
         };
 
         // Bus arbitration reason
