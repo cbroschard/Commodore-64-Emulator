@@ -219,6 +219,7 @@ void Vic::reset()
     lastSpriteBackgroundCollision = {};
 
     resetActiveBackgroundPixelState();
+    resetBackgroundGraphicsLatches();
 }
 
 void Vic::setMode(VideoMode mode)
@@ -260,6 +261,7 @@ void Vic::setMode(VideoMode mode)
     resetActiveMatrixRow();
     resetActiveBackgroundPixelState();
     resetBackgroundPipeline();
+    resetBackgroundGraphicsLatches();
 
     std::fill(finalColorLine.begin(), finalColorLine.end(), 0);
     std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);
@@ -309,17 +311,13 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU8(registers.borderColor);
     wrtr.writeU8(registers.backgroundColor0);
     for (int i = 0; i < 3; ++i)
-    {
         wrtr.writeU8(registers.backgroundColor[i]);
-    }
 
     // Dump Sprite Color Registers
     wrtr.writeU8(registers.spriteMultiColor1);
     wrtr.writeU8(registers.spriteMultiColor2);
     for (int i = 0; i < 8; ++i)
-    {
         wrtr.writeU8(registers.spriteColors[i]);
-    }
 
     // Dump Raster
     wrtr.writeU16(registers.raster);
@@ -424,15 +422,18 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeVectorU8(d018_per_raster);
     wrtr.writeVectorU16(dd00_per_raster);
 
-    // Background graphics latch
-    wrtr.writeBool(backgroundGraphicsLatch.valid);
-    wrtr.writeI32(backgroundGraphicsLatch.column);
+    // Background graphics latches
+    for (const auto& latch : backgroundGraphicsLatches)
+    {
+        wrtr.writeBool(latch.valid);
+        wrtr.writeI32(latch.column);
 
-    wrtr.writeU8(backgroundGraphicsLatch.screenByte);
-    wrtr.writeU8(backgroundGraphicsLatch.colorByte);
-    wrtr.writeU8(backgroundGraphicsLatch.graphicsByte);
+        wrtr.writeU8(latch.screenByte);
+        wrtr.writeU8(latch.colorByte);
+        wrtr.writeU8(latch.graphicsByte);
 
-    wrtr.writeU16(backgroundGraphicsLatch.graphicsAddress);
+        wrtr.writeU16(latch.graphicsAddress);
+    }
 
     // Active standard-text pixel shifter
     wrtr.writeBool(activeBgPixel.valid);
@@ -603,25 +604,34 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (ver >= 2)
         {
-            if (!rdr.readBool(backgroundGraphicsLatch.valid))           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(backgroundGraphicsLatch.column))           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(backgroundGraphicsLatch.screenByte))        { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(backgroundGraphicsLatch.colorByte))         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(backgroundGraphicsLatch.graphicsByte))      { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU16(backgroundGraphicsLatch.graphicsAddress))  { rdr.exitChunkPayload(chunk); return false; }
+            // Background graphics latches
+            for (auto& latch : backgroundGraphicsLatches)
+            {
+                if (!rdr.readBool(latch.valid))             { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readI32(latch.column))             { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readBool(activeBgPixel.valid))                     { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(activeBgPixel.rowBits))                     { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(activeBgPixel.fg))                          { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(activeBgPixel.bg0))                         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeBgPixel.pxBase))                     { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeBgPixel.py))                         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeBgPixel.phase))                      { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.screenByte))          { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.colorByte))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.graphicsByte))        { rdr.exitChunkPayload(chunk); return false; }
+
+                if (!rdr.readU16(latch.graphicsAddress))    { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            // Active standard-text pixel shifter
+            if (!rdr.readBool(activeBgPixel.valid))         { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readU8(activeBgPixel.rowBits))         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.fg))              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.bg0))             { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(activeBgPixel.pxBase))         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.py))             { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.phase))          { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
-            // Old VICX v1 save states didn't contain this state.
-            resetBackgroundGraphicsLatch();
+            // VICX v1 did not contain graphics-latch or live pixel-shifter state.
+            resetBackgroundGraphicsLatches();
             resetActiveBackgroundPixelState();
         }
 
@@ -1282,6 +1292,7 @@ void Vic::runPixelOutputPhase()
         clearBackgroundLineBuffers();
         resetActiveBackgroundPixelState();
         resetBackgroundPipeline();
+        resetBackgroundGraphicsLatches();
     }
 
     const int baseX = currentCycle * 8;
@@ -2815,24 +2826,22 @@ void Vic::renderLine(int raster)
     emitRasterLineInOrder(raster);
 }
 
-void Vic::resetBackgroundGraphicsLatch()
+void Vic::resetBackgroundGraphicsLatches()
 {
-    backgroundGraphicsLatch.valid = false;
-    backgroundGraphicsLatch.column = -1;
-
-    backgroundGraphicsLatch.screenByte = 0;
-    backgroundGraphicsLatch.colorByte = 0;
-    backgroundGraphicsLatch.graphicsByte = 0;
-
-    backgroundGraphicsLatch.graphicsAddress = 0;
+    for (auto& latch : backgroundGraphicsLatches)
+        latch = {};
 }
 
 void Vic::fetchStandardTextGraphicsByte(int raster, int column)
 {
-    resetBackgroundGraphicsLatch();
-
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
+
+    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+
+    // Clear only this column before replacing it.
+    latch = {};
+    latch.column = column;
 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
@@ -2842,32 +2851,36 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column)
 
     const uint8_t d018 = d018ForRasterPixelX(raster, 0, false) & 0xFE;
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
+
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 +
+                                                     static_cast<uint16_t>(vicState.rc & 0x07));
+
     const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
 
-    backgroundGraphicsLatch.valid = true;
-    backgroundGraphicsLatch.column = column;
-    backgroundGraphicsLatch.screenByte = screenByte;
-    backgroundGraphicsLatch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
-    backgroundGraphicsLatch.graphicsByte = graphicsByte;
-    backgroundGraphicsLatch.graphicsAddress = charAddr;
+    latch.valid = true;
+    latch.screenByte = screenByte;
+    latch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
+    latch.graphicsByte = graphicsByte;
+    latch.graphicsAddress = charAddr;
 }
 
 void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)
 {
     resetActiveBackgroundPixelState();
 
-    if (!backgroundGraphicsLatch.valid)
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    if (backgroundGraphicsLatch.column != column)
+    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+
+    if (!latch.valid)
         return;
 
     activeBgPixel.valid = true;
-    activeBgPixel.rowBits = backgroundGraphicsLatch.graphicsByte;
-    activeBgPixel.fg = backgroundGraphicsLatch.colorByte & 0x0F;
+    activeBgPixel.rowBits = latch.graphicsByte;
+    activeBgPixel.fg = latch.colorByte & 0x0F;
     activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);

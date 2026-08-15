@@ -1174,7 +1174,7 @@ class Vic
             uint16_t graphicsAddress = 0;
         };
 
-        BackgroundGraphicsLatch backgroundGraphicsLatch;
+        std::array<BackgroundGraphicsLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};
 
         std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;
         std::vector<RasterPixelCompositionSnapshot> lastFrameRasterPixelStates;
@@ -1189,7 +1189,7 @@ class Vic
         std::vector<RasterPriorityEvent> rasterPriorityEvents;
         std::vector<RasterColorEvent> rasterColorEvents;
 
-        void resetBackgroundGraphicsLatch();
+        void resetBackgroundGraphicsLatches();
         void fetchStandardTextGraphicsByte(int raster, int column);
         void loadActiveStandardTextPixelStateFromLatch(int raster,  int column, int px);
 
