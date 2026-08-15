@@ -1372,9 +1372,10 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
     const int fetchPixelX = cyclePixelX(currentCycle);
     const int outputX = cycleFramebufferX(currentCycle);
+    const int fetchX = cycleFramebufferX(currentCycle);
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
-    fetchStandardTextGraphicsByte(registers.raster, column);
+    fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
@@ -2827,14 +2828,12 @@ void Vic::resetBackgroundGraphicsLatches()
         latch = {};
 }
 
-void Vic::fetchStandardTextGraphicsByte(int raster, int column)
+void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
 {
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
     BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
-
-    // Clear only this column before replacing it.
     latch = {};
     latch.column = column;
 
@@ -2844,21 +2843,18 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column)
     if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
         return;
 
-    const uint8_t d018 = d018ForRasterPixelX(raster, 0, false) & 0xFE;
+    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 +
-                                                     static_cast<uint16_t>(vicState.rc & 0x07));
-
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
     const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
 
-    latch.valid = true;
-    latch.screenByte = screenByte;
-    latch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
-    latch.graphicsByte = graphicsByte;
-    latch.graphicsAddress = charAddr;
+    latch.valid             = true;
+    latch.screenByte        = screenByte;
+    latch.colorByte         = static_cast<uint8_t>(colorByte & 0x0F);
+    latch.graphicsByte      = graphicsByte;
+    latch.graphicsAddress   = charAddr;
 }
 
 void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)

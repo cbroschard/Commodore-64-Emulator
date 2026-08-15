@@ -1190,7 +1190,7 @@ class Vic
         std::vector<RasterColorEvent> rasterColorEvents;
 
         void resetBackgroundGraphicsLatches();
-        void fetchStandardTextGraphicsByte(int raster, int column);
+        void fetchStandardTextGraphicsByte(int raster, int column, int fetchX);
         void loadActiveStandardTextPixelStateFromLatch(int raster,  int column, int px);
 
         void recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
