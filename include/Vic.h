@@ -1345,6 +1345,8 @@ class Vic
         bool vicTraceOn(TraceManager::TraceDetail d) const;
         TraceManager::Stamp makeVicStamp() const;
 
+        void traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fetchPixelX, int outputX) const;
+
         // Generic category helpers
         void traceVicEvent(const std::string& text) const;
         void traceVicRegEvent(const std::string& text) const;
@@ -1365,6 +1367,9 @@ class Vic
         void advanceCharacterSequencerEndOfLine(int raster);
 
         // Cycle helpers
+        int cyclePixelX(int cycle) const;
+        int cycleFramebufferX(int cycle) const;
+
         void traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const;
 
         // Sprite helpers

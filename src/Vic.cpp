@@ -1295,7 +1295,7 @@ void Vic::runPixelOutputPhase()
         resetBackgroundGraphicsLatches();
     }
 
-    const int baseX = currentCycle * 8;
+    const int baseX = cycleFramebufferX(currentCycle);
 
     for (int i = 0; i < 8; ++i)
     {
@@ -1380,9 +1380,11 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (graphicsModeForRaster(registers.raster) != graphicsMode::standard)
         return;
 
-    fetchStandardTextGraphicsByte(
-        registers.raster,
-        column);
+    const int fetchPixelX = cyclePixelX(currentCycle);
+    const int outputX = cycleFramebufferX(currentCycle);
+
+    traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
+    fetchStandardTextGraphicsByte(registers.raster, column);
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
@@ -4808,25 +4810,16 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     if (rasterIrqSampledThisLine)
         return;
 
-    const char* sampleReason =
-        reason ? reason : "normal-sample";
+    const char* sampleReason = reason ? reason : "normal-sample";
 
     // Capture everything used by the comparator at the sample point.
-    const uint16_t visibleRaster =
-        visibleRasterForIRQCompare();
-
-    const uint16_t targetRaster =
-        static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
-
-    const bool targetInRange =
-        targetRaster < cfg_->maxRasterLines;
-
-    const bool sampledBefore =
-        rasterIrqSampledThisLine;
+    const uint16_t visibleRaster = visibleRasterForIRQCompare();
+    const uint16_t targetRaster = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
+    const bool targetInRange = targetRaster < cfg_->maxRasterLines;
+    const bool sampledBefore = rasterIrqSampledThisLine;
 
     // Use the captured values, not a second helper call.
-    const bool matched =
-        targetInRange && (visibleRaster == targetRaster);
+    const bool matched = targetInRange && (visibleRaster == targetRaster);
 
     lastRasterIRQSample.valid = true;
     lastRasterIRQSample.raster = static_cast<int>(registers.raster);
@@ -4838,22 +4831,9 @@ void Vic::sampleRasterIRQCompare(const char* reason)
     lastRasterIRQSample.sampledBefore = sampledBefore;
     lastRasterIRQSample.reason = sampleReason;
 
-    traceVicCycleCheckpoint(
-        "raster-irq-sample",
-        registers.raster,
-        currentCycle
-    );
-
-    traceVicRasterRetargetTest(
-        sampleReason,
-        targetRaster,
-        targetRaster,
-        sampledBefore,
-        matched
-    );
-
+    traceVicCycleCheckpoint("raster-irq-sample", registers.raster, currentCycle);
+    traceVicRasterRetargetTest(sampleReason, targetRaster, targetRaster, sampledBefore, matched);
     rasterIrqSampledThisLine = true;
-
     triggerRasterIRQFromSample(matched);
 }
 
@@ -6260,10 +6240,28 @@ TraceManager::Stamp Vic::makeVicStamp() const
     if (!traceMgr)
         return TraceManager::Stamp{0, 0xFFFF, 0xFFFF};
 
-    return traceMgr->makeStamp(
-        cpu ? cpu->getTotalCycles() : 0,
-        registers.raster,
-        static_cast<uint16_t>(currentCycle * 8));
+    return traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, registers.raster, static_cast<uint16_t>(currentCycle * 8));
+}
+
+void Vic::traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fetchPixelX, int outputX) const
+{
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
+        return;
+
+    std::ostringstream out;
+
+    out << "[VIC:GACCESS] "
+    << "raster=" << raster
+    << " cycle=" << cycle
+    << " col=" << column
+    << " fetchX=" << fetchPixelX
+    << " displayX="
+    << (BACKGROUND_40COL_X0 +
+        (d016ForRasterPixelX(raster, fetchPixelX, false) & 0x07) +
+        column * 8)
+    << " outputX=" << outputX;
+
+    traceVicBusEvent(out.str());
 }
 
 void Vic::traceVicEvent(const std::string& text) const
@@ -6280,6 +6278,35 @@ void Vic::traceVicRegEvent(const std::string& text) const
         return;
 
     traceMgr->recordVicRegister(text, makeVicStamp());
+}
+
+int Vic::cyclePixelX(int cycle) const
+{
+    if (cycle < 0)
+        cycle = 0;
+
+    if (cycle >= cfg_->cyclesPerLine)
+        cycle %= cfg_->cyclesPerLine;
+
+    const int rasterWidth = cfg_->cyclesPerLine * 8;
+
+    int hardwareX = cfg_->hardware_X + cycle * 8;
+    hardwareX %= rasterWidth;
+
+    int framebufferX = hardwareX - cfg_->hardware_X + BORDER_SIZE;
+    framebufferX %= rasterWidth;
+
+    if (framebufferX < 0)
+        framebufferX += rasterWidth;
+
+    return framebufferX;
+}
+
+int Vic::cycleFramebufferX(int cycle) const
+{
+    constexpr int GRAPHICS_FIRST_CYCLE = 16;
+
+    return BACKGROUND_40COL_X0 + ((cycle - GRAPHICS_FIRST_CYCLE) * 8);
 }
 
 void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const
