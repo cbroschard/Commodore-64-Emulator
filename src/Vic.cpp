@@ -1169,18 +1169,15 @@ void Vic::handleDmaStartCycleDecisions()
 void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
-
-    const bool badLineCanCarry =
-        vicState.badLineSampled &&
-        rasterWithinVerticalDisplayWindow(registers.raster);
-
-    vicState.displayEnabledNext =
-        vicState.displayEnabled || badLineCanCarry;
+    const bool badLineCanCarry = vicState.badLineSampled && rasterWithinVerticalDisplayWindow(registers.raster);
+    vicState.displayEnabledNext =  vicState.displayEnabled || badLineCanCarry;
 }
 
 void Vic::runFetchPhase()
 {
     const int raster = registers.raster;
+
+    performBackgroundGraphicsFetchForCurrentCycle();
 
     switch (currentCycleSlot.fetchKind)
     {
@@ -1309,6 +1306,27 @@ void Vic::outputPixel(int raster, int x)
 
     if (activeBgPixel.phase >= 8)
         activeBgPixel.valid = false;
+}
+
+void Vic::performBackgroundGraphicsFetchForCurrentCycle()
+{
+    if (!currentCycleSlot.graphicsFetch)
+        return;
+
+    const int column = currentCycleSlot.graphicsFetchIndex;
+
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    if (!vicState.displayEnabled)
+        return;
+
+    if (graphicsModeForRaster(registers.raster) != graphicsMode::standard)
+        return;
+
+    fetchStandardTextGraphicsByte(
+        registers.raster,
+        column);
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const

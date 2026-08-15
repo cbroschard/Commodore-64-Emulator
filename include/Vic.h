@@ -825,6 +825,8 @@ class Vic
         void runPixelOutputPhase();
         void outputPixel(int raster, int x);
 
+        void performBackgroundGraphicsFetchForCurrentCycle();
+
         void advanceCycleAndFinalizeLineIfNeeded();
         void finalizeCurrentRasterLine(int curRaster);
         void finalizeFrameIfNeeded(int curRaster);
