@@ -2606,9 +2606,12 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.fetchKind = getFetchKindForCycle(raster, cycle);
 
-    if (cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
+    const int graphicsFetchStartCycle = cfg_->bgFetchStartCycle + 1;
+    const int graphicsFetchEndCycle = graphicsFetchStartCycle + BACKGROUND_MATRIX_COLUMNS - 1;
+
+    if (cycle >= graphicsFetchStartCycle && cycle <= graphicsFetchEndCycle)
     {
-        const int index = cycle - cfg_->bgFetchStartCycle;
+        const int index = cycle - graphicsFetchStartCycle;
 
         if (index >= 0 && index < BACKGROUND_MATRIX_COLUMNS)
         {
