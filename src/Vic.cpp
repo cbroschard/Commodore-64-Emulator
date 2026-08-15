@@ -434,6 +434,17 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeU16(backgroundGraphicsLatch.graphicsAddress);
 
+    // Active standard-text pixel shifter
+    wrtr.writeBool(activeBgPixel.valid);
+
+    wrtr.writeU8(activeBgPixel.rowBits);
+    wrtr.writeU8(activeBgPixel.fg);
+    wrtr.writeU8(activeBgPixel.bg0);
+
+    wrtr.writeI32(activeBgPixel.pxBase);
+    wrtr.writeI32(activeBgPixel.py);
+    wrtr.writeI32(activeBgPixel.phase);
+
     // Dump frameDone
     wrtr.writeBool(frameDone);
 
@@ -598,10 +609,21 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readU8(backgroundGraphicsLatch.colorByte))         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(backgroundGraphicsLatch.graphicsByte))      { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU16(backgroundGraphicsLatch.graphicsAddress))  { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readBool(activeBgPixel.valid))                     { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.rowBits))                     { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.fg))                          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.bg0))                         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.pxBase))                     { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.py))                         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.phase))                      { rdr.exitChunkPayload(chunk); return false; }
         }
         else
+        {
             // Old VICX v1 save states didn't contain this state.
             resetBackgroundGraphicsLatch();
+            resetActiveBackgroundPixelState();
+        }
 
         if (!rdr.readBool(frameDone))                                   { rdr.exitChunkPayload(chunk); return false; }
 
