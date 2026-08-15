@@ -1325,20 +1325,7 @@ void Vic::outputPixel(int raster, int x)
         return;
 
     const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
-
     const int xScroll = static_cast<int>(d016 & 0x07);
-
-    const int firstCharacterX = BACKGROUND_40COL_X0 + xScroll;
-
-    const int relativeX = x - firstCharacterX;
-
-    if (relativeX < 0)
-        return;
-
-    const int column = relativeX / 8;
-
-    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
-        return;
 
     if (currentCycleSlot.graphicsFetch)
     {
@@ -1361,7 +1348,6 @@ void Vic::outputPixel(int raster, int x)
     }
 
     const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
-
     stampBackgroundPixel(x, activeBgPixel.py, pixel.color, pixel.opaque);
 
     if (activeBgPixel.phase >= 8)
