@@ -1180,6 +1180,10 @@ void Vic::handleCycle0Decisions()
 void Vic::handleCycle14Decisions()
 {
     const int raster = registers.raster;
+
+    // VIC sequencer begins a new 40-column matrix/graphics scan here.
+    vicState.vmliFetchIndex = 0;
+
     const bool badNow = isBadLine(raster);
 
     vicState.badLineSampled = badNow;
@@ -1192,9 +1196,6 @@ void Vic::handleCycle14Decisions()
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
         initializeFirstBadLineIfNeeded(raster);
 
-        // First badline of the frame should immediately arm display
-        // progression for the following line, even before cycle 58
-        // later reaffirms it.
         if (firstBadlineThisFrame)
             vicState.displayEnabledNext = true;
     }
@@ -1293,8 +1294,6 @@ void Vic::runPixelOutputPhase()
         resetActiveBackgroundPixelState();
         resetBackgroundPipeline();
         resetBackgroundGraphicsLatches();
-
-        vicState.vmliFetchIndex = 0;
     }
 
     const int baseX = cycleFramebufferX(currentCycle);
@@ -2772,7 +2771,6 @@ void Vic::beginBadLineFetch()
     vicState.displayEnabledNext = true;
 
     vicState.vmliBase = vicState.vcBase;
-    vicState.vmliFetchIndex = 0;
 
     activeMatrixRow.valid = true;
     activeMatrixRow.vcBase = vicState.vmliBase;
