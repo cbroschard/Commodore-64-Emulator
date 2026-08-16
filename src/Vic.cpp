@@ -83,6 +83,7 @@ void Vic::reset()
     lastRasterIRQSample = {};
 
     // Internal VIC state
+    vicState.vc = 0;
     vicState.vcBase = 0;
     vicState.vmliBase = 0;
     vicState.vmliFetchIndex = 0;
@@ -270,6 +271,8 @@ void Vic::setMode(VideoMode mode)
     vicState.badLineSampled = false;
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
+
+    vicState.vc = vicState.vcBase;
     vicState.vmliFetchIndex = 0;
 
     updateBusArbitration();
@@ -340,7 +343,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(2); // version
+    wrtr.writeU32(3); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -358,6 +361,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeI32(firstBadlineY);
 
     // Dump State
+    wrtr.writeU16(vicState.vc);
     wrtr.writeU16(vicState.vcBase);
     wrtr.writeU16(vicState.vmliBase);
     wrtr.writeU8(vicState.vmliFetchIndex);
@@ -517,7 +521,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 2)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 3)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -538,6 +542,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(denSeenOn30))                                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readI32(firstBadlineY))                                { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver >= 3)
+            if (!rdr.readU16(vicState.vc))                              { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU16(vicState.vcBase))                              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vmliBase))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -636,6 +643,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         }
 
         if (!rdr.readBool(frameDone))                                   { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver < 3)
+            vicState.vc = vicState.vcBase;
 
         postLoadState();
 
@@ -1102,6 +1112,7 @@ void Vic::beginFrameIfNeeded()
         firstBadlineY = -1;
         denSeenOn30 = false;
 
+        vicState.vc = 0;
         vicState.vcBase = 0;
         vicState.vmliBase = 0;
         vicState.vmliFetchIndex = 0;
@@ -1182,6 +1193,7 @@ void Vic::handleCycle14Decisions()
     const int raster = registers.raster;
 
     // VIC sequencer begins a new 40-column matrix/graphics scan here.
+    vicState.vc = vicState.vcBase;
     vicState.vmliFetchIndex = 0;
 
     const bool badNow = isBadLine(raster);
@@ -1378,8 +1390,11 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
     fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
 
-    if (vicState.vmliFetchIndex <  BACKGROUND_MATRIX_COLUMNS)
+    if (vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
+    {
         ++vicState.vmliFetchIndex;
+        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
+    }
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const

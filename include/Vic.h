@@ -598,10 +598,11 @@ class Vic
         struct InternalState
         {
             // Character matrix / raster engine
-            uint16_t vcBase = 0;     // base video counter
-            uint16_t vmliBase = 0;   // bad-line matrix fetch base for current row
-            uint8_t vmliFetchIndex = 0;// progress through the 40 bad-line matrix fetches
-            uint8_t rc = 0;          // row counter 0-7
+            uint16_t vc = 0;          // live video counter
+            uint16_t vcBase = 0;      // video counter base
+            uint16_t vmliBase = 0;
+            uint8_t vmliFetchIndex = 0;
+            uint8_t rc = 0;
 
             bool matrixAdvancePending = false;
 
