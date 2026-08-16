@@ -1099,6 +1099,8 @@ class Vic
             uint8_t bg1 = 0;
             uint8_t bg2 = 0;
 
+            BackgroundSource bg0Source = BackgroundSource::BG0;
+
             int pxBase = 0;
             int py = 0;
             int phase = 0;

@@ -2986,23 +2986,30 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
         {
             case 0:
                 activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+                activeBgPixel.bg0Source = BackgroundSource::BG0;
                 break;
 
             case 1:
                 activeBgPixel.bg0 = registers.backgroundColor[0] & 0x0F;
+                activeBgPixel.bg0Source = BackgroundSource::BG1;
                 break;
 
             case 2:
                 activeBgPixel.bg0 = registers.backgroundColor[1] & 0x0F;
+                activeBgPixel.bg0Source = BackgroundSource::BG2;
                 break;
 
             case 3:
                 activeBgPixel.bg0 = registers.backgroundColor[2] & 0x0F;
+                activeBgPixel.bg0Source = BackgroundSource::BG3;
                 break;
         }
     }
     else
+    {
         activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+        activeBgPixel.bg0Source = BackgroundSource::BG0;
+    }
 
     activeBgPixel.bg1 = registers.backgroundColor[0] & 0x0F;
     activeBgPixel.bg2 = registers.backgroundColor[1] & 0x0F;
