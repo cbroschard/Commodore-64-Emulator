@@ -1773,10 +1773,28 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
     if (sprite < 0 || sprite >= 8)
         return false;
 
-    if (px < 0 || px >= 512)
+    if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    return spriteMulticolorModeLine[sprite][px] != 0;
+    uint8_t activeMode = registers.spriteMultiColor;
+
+    if (initialSpriteMulticolorModeForRaster(registers.raster, activeMode))
+    {
+        for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
+        {
+            if (e.raster != registers.raster)
+                continue;
+
+            const int eventX = rasterEventPixelX(e.cycle);
+
+            if (eventX > px)
+                continue;
+
+            activeMode = e.newValue;
+        }
+    }
+
+    return (activeMode & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
 bool Vic::initialSpriteXExpansionForRaster(int raster, uint8_t& value) const
