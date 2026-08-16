@@ -1414,7 +1414,7 @@ void Vic::outputPixel(int raster, int x)
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
 
-    stampBackgroundPixel(x, activeBgPixel.py, pixel.color, pixel.opaque);
+    stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
 
     if (activeBgPixel.phase >= 8)
         activeBgPixel.valid = false;
