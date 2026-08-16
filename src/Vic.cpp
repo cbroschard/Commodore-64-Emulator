@@ -209,9 +209,6 @@ void Vic::reset()
     // Clear SPrite Raster Line arrays
     for (auto& line : spriteColorSourceLine)    line.fill(SpriteColorSource::None);
     for (auto& line : spriteBehindLine)         line.fill(0);
-    for (auto& line : spriteMulticolorModeLine) line.fill(0);
-    for (auto& line : spriteXExpansionLine)     line.fill(0);
-    for (auto& line : spriteEnableLine)         line.fill(0);
 
     resetActiveMatrixRow();
 
@@ -1561,9 +1558,6 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
-    buildSpriteMulticolorModeLine(curRaster);
-    buildSpriteXExpansionLine(curRaster);
-
     renderLine(curRaster);
 
     snapshotRasterPixelComposition(curRaster);
@@ -1827,112 +1821,6 @@ bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
     }
 
     return (activeExpansion & static_cast<uint8_t>(1u << sprite)) != 0;
-}
-
-void Vic::buildSpriteXExpansionLine(int raster)
-{
-    const int xStart = rasterVisibleStartX(raster);
-    const int xEnd   = rasterVisibleEndX(raster);
-
-    for (auto& line : spriteXExpansionLine)
-        line.fill(0);
-
-    uint8_t activeExpansion = registers.spriteXExpansion;
-
-    if (!initialSpriteXExpansionForRaster(raster, activeExpansion))
-    {
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = xStart; px < xEnd; ++px)
-                spriteXExpansionLine[spr][px] = expanded;
-        }
-
-        return;
-    }
-
-    int startX = xStart;
-
-    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
-
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = startX; px < eventX; ++px)
-                spriteXExpansionLine[spr][px] = expanded;
-        }
-
-        activeExpansion = e.newValue;
-        startX = eventX;
-    }
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        const uint8_t expanded = ((activeExpansion >> spr) & 0x01) ? 1 : 0;
-
-        for (int px = startX; px < xEnd; ++px)
-            spriteXExpansionLine[spr][px] = expanded;
-    }
-}
-
-void Vic::buildSpriteMulticolorModeLine(int raster)
-{
-    const int xStart = rasterVisibleStartX(raster);
-    const int xEnd   = rasterVisibleEndX(raster);
-
-    for (auto& line : spriteMulticolorModeLine)
-        line.fill(0);
-
-    uint8_t activeMode = registers.spriteMultiColor;
-
-    if (!initialSpriteMulticolorModeForRaster(raster, activeMode))
-    {
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = xStart; px < xEnd; ++px)
-                spriteMulticolorModeLine[spr][px] = multicolor;
-        }
-
-        return;
-    }
-
-    int startX = xStart;
-
-    for (const RasterSpriteModeEvent& e : rasterSpriteModeEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
-
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = startX; px < eventX; ++px)
-                spriteMulticolorModeLine[spr][px] = multicolor;
-        }
-
-        activeMode = e.newValue;
-        startX = eventX;
-    }
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        const uint8_t multicolor = ((activeMode >> spr) & 0x01) ? 1 : 0;
-
-        for (int px = startX; px < xEnd; ++px)
-            spriteMulticolorModeLine[spr][px] = multicolor;
-    }
 }
 
 bool Vic::firstRasterSpriteEnableEventValue(int raster, uint8_t& value) const
@@ -6022,12 +5910,6 @@ Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
         d.outputWidth = s.outputWidth;
         d.outputBit = s.outputBit;
         d.outputRepeat = s.outputRepeat;
-
-        const int sampleX = std::clamp(s.outputXStart, 0, 511);
-
-        d.multicolorAtX = spriteMulticolorModeLine[i][sampleX] != 0;
-        d.xExpandedAtX = spriteXExpansionLine[i][sampleX] != 0;
-        d.enabledAtX = spriteEnableLine[i][sampleX] != 0;
     }
 
     snap.spriteSpriteCollision.valid = lastSpriteSpriteCollision.valid;
