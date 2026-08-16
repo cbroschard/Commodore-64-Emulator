@@ -343,7 +343,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(3); // version
+    wrtr.writeU32(4); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -439,12 +439,16 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU16(latch.graphicsAddress);
     }
 
-    // Active standard-text pixel shifter
+    // Active background pixel shifter
     wrtr.writeBool(activeBgPixel.valid);
+    wrtr.writeBool(activeBgPixel.multicolorText);
 
     wrtr.writeU8(activeBgPixel.rowBits);
+
     wrtr.writeU8(activeBgPixel.fg);
     wrtr.writeU8(activeBgPixel.bg0);
+    wrtr.writeU8(activeBgPixel.bg1);
+    wrtr.writeU8(activeBgPixel.bg2);
 
     wrtr.writeI32(activeBgPixel.pxBase);
     wrtr.writeI32(activeBgPixel.py);
@@ -521,7 +525,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 3)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 4)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -627,9 +631,25 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             // Active standard-text pixel shifter
             if (!rdr.readBool(activeBgPixel.valid))         { rdr.exitChunkPayload(chunk); return false; }
 
+            if (ver >= 4)
+                if (!rdr.readBool(activeBgPixel.multicolorText)) {rdr.exitChunkPayload(chunk); return false; }
+            else
+                activeBgPixel.multicolorText = false;
+
             if (!rdr.readU8(activeBgPixel.rowBits))         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(activeBgPixel.fg))              { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(activeBgPixel.bg0))             { rdr.exitChunkPayload(chunk); return false; }
+
+            if (ver >= 4)
+            {
+                if (!rdr.readU8(activeBgPixel.bg1))         { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.bg2))         { rdr.exitChunkPayload(chunk); return false; }
+            }
+            else
+            {
+                activeBgPixel.bg1 = 0;
+                activeBgPixel.bg2 = 0;
+            }
 
             if (!rdr.readI32(activeBgPixel.pxBase))         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(activeBgPixel.py))             { rdr.exitChunkPayload(chunk); return false; }
