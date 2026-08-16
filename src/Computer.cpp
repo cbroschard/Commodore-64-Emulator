@@ -81,21 +81,27 @@ Computer::~Computer() noexcept
 {
     try
     {
+        detachVirtualModem();
+        detachSwiftLinkVirtualModem();
+        detachTurbo232VirtualModem();
+
         if (components_.videoOutput)
         {
-            // Ensure the render thread is down
-            if (components_.debug) components_.debug->closeMonitor();
+            if (components_.debug)
+                components_.debug->closeMonitor();
+
             running = false;
+
             components_.videoOutput->setGuiCallback({});
             components_.videoOutput->setInputCallback({});
+            components_.videoOutput->setMonitorOpenCallback({});
 
-            // Audio shutdown
-            components_.audioOutput->stopAudio();
+            if (components_.audioOutput)
+                components_.audioOutput->stopAudio();
         }
     }
-    catch(...)
+    catch (...)
     {
-
     }
 }
 
