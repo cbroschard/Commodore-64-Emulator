@@ -2082,13 +2082,6 @@ void Vic::prepareSpriteOutputForRaster(int raster)
     {
         resetSpriteLineOutputState(i);
 
-        if (!spriteEnabledSomewhereOnLine(i))
-        {
-            traceVicSpriteSlotEvent(i, "prep-disabled", raster, currentCycle);
-            clearSpriteFetchedRowState(i);
-            continue;
-        }
-
         if (!spriteUnits[i].dmaActive)
         {
             traceVicSpriteSlotEvent(i, "prep-inactive", raster, currentCycle);
