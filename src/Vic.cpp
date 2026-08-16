@@ -1347,6 +1347,8 @@ void Vic::runPixelOutputPhase()
         resetActiveBackgroundPixelState();
         resetBackgroundPipeline();
         resetBackgroundGraphicsLatches();
+
+        prepareSpriteOutputForRaster(raster);
     }
 
     const int baseX = cycleFramebufferX(currentCycle);
@@ -1558,8 +1560,6 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
     buildSpriteEnableLine(curRaster);
-
-    prepareSpriteOutputForRaster(curRaster);
 
     buildSpriteMulticolorModeLine(curRaster);
     buildSpriteXExpansionLine(curRaster);
