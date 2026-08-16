@@ -3989,11 +3989,6 @@ void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, 
     phase = endPhase;
 }
 
-void Vic::stampBackgroundPixel(int px, int py, uint8_t color, bool opaque)
-{
-    stampBackgroundPixelSource(px, py, color, opaque, opaque ? BackgroundSource::Foreground : BackgroundSource::BG0);
-}
-
 void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
 {
     (void)py;
@@ -4576,7 +4571,7 @@ void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
         const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
 
         if (px >= x0 && px < x1)
-            stampBackgroundPixel(px, activeBgPixel.py, pixel.color, pixel.opaque);
+            stampBackgroundPixelSource(px, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
     }
 }
 

@@ -1265,7 +1265,6 @@ class Vic
         void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource, int x0, int x1,
                                   int& phase, int pixelCount);
 
-        void stampBackgroundPixel(int px, int py, uint8_t color, bool opaque);
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
         bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
