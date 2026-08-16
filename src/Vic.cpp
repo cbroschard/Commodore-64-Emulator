@@ -1348,11 +1348,15 @@ void Vic::outputPixel(int raster, int x)
 
     if (currentCycleSlot.graphicsFetch)
     {
-        const int fetchColumn = currentCycleSlot.graphicsFetchIndex;
-        const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
+        const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
 
-        if (x == reloadX)
-            loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+        if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+        {
+            const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
+
+            if (x == reloadX)
+                loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+        }
     }
 
     if (!activeBgPixel.valid)
