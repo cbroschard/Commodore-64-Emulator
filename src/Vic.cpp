@@ -1247,6 +1247,12 @@ void Vic::runFetchPhase()
 
     performBackgroundGraphicsFetchForCurrentCycle();
 
+    if (currentCycleSlot.graphicsFetch && vicState.displayEnabled && vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
+    {
+        ++vicState.vmliFetchIndex;
+        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
+    }
+
     switch (currentCycleSlot.fetchKind)
     {
 
@@ -1293,12 +1299,6 @@ void Vic::runFetchPhase()
         default:
             performIdleFetchForCurrentCycle();
             break;
-    }
-
-    if (currentCycleSlot.graphicsFetch && vicState.displayEnabled && vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
-    {
-        ++vicState.vmliFetchIndex;
-        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
     }
 }
 
@@ -6255,15 +6255,24 @@ void Vic::traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fe
     std::ostringstream out;
 
     out << "[VIC:GACCESS] "
-    << "raster=" << raster
-    << " cycle=" << cycle
-    << " col=" << column
-    << " fetchX=" << fetchPixelX
-    << " displayX="
-    << (BACKGROUND_40COL_X0 +
-        (d016ForRasterPixelX(raster, fetchPixelX, false) & 0x07) +
-        column * 8)
-    << " outputX=" << outputX;
+        << "raster=" << raster
+        << " cycle=" << cycle
+        << " col=" << column
+        << " liveVC=$"
+        << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0')
+        << vicState.vc
+        << " VMLI=" << std::dec
+        << int(vicState.vmliFetchIndex)
+        << " fetchX=" << fetchPixelX
+        << " displayX="
+        << (BACKGROUND_40COL_X0 +
+            (d016ForRasterPixelX(
+                raster,
+                fetchPixelX,
+                false) & 0x07) +
+            column * 8)
+        << " outputX=" << outputX;
 
     traceVicBusEvent(out.str());
 }
@@ -6432,23 +6441,37 @@ void Vic::traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t r
 }
 
 void Vic::traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col,
-    uint8_t screenByte, uint8_t colorByte) const
+                               uint8_t screenByte, uint8_t colorByte) const
 {
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
         return;
 
     std::ostringstream out;
-    out << "[VIC:BADLINE] fetch"
+
+    out << "[VIC:CACCESS] "
         << " raster=" << std::dec << raster
         << " cycle=" << cycle
         << " idx=" << fetchIndex
-        << " vc=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << vc
-        << " row=" << std::dec << row
+        << " addrVC=$"
+        << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0')
+        << vc
+        << " liveVC=$"
+        << std::setw(4)
+        << vicState.vc
+        << " VMLI=" << std::dec
+        << int(vicState.vmliFetchIndex)
+        << " row=" << row
         << " col=" << col
-        << " screen=$" << std::hex << std::uppercase << std::setw(2) << int(screenByte)
-        << " color=$" << std::setw(2) << int(colorByte);
+        << " screen=$"
+        << std::hex << std::uppercase
+        << std::setw(2)
+        << int(screenByte)
+        << " color=$"
+        << std::setw(2)
+        << int(colorByte);
 
-    traceMgr->recordVicBadline(out.str(), makeVicStamp());
+    traceVicBusEvent(out.str());
 }
 
 void Vic::traceVicSpriteDmaStart(int sprite) const
