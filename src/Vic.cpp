@@ -2894,7 +2894,18 @@ void Vic::renderLine(int raster)
     updateGraphicsMode(raster);
     buildBorderMaskLine(raster);
 
-    generateBackgroundLine(raster);
+    const graphicsMode mode =
+        graphicsModeForRaster(raster);
+
+    const bool liveBackgroundMode =
+        mode == graphicsMode::standard ||
+        mode == graphicsMode::multicolor ||
+        mode == graphicsMode::bitmap ||
+        mode == graphicsMode::multicolorBitmap ||
+        mode == graphicsMode::extendedColorText;
+
+    if (!liveBackgroundMode)
+        generateBackgroundLine(raster);
 
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
@@ -5631,28 +5642,28 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
     {
         const int nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
+        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
+
+        const int nextRow = static_cast<int>(nextVcBase / 40);
+
+        if (nextRow >= visibleRows)
+        {
+            vicState.displayEnabled = false;
+            vicState.displayEnabledNext = false;
+            vicState.matrixAdvancePending = false;
+
+            clearBadLineFifo();
+            return;
+        }
+
         if (isBadLine(nextRaster))
         {
-            const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
-            const int nextRow = static_cast<int>(nextVcBase / 40);
-
-            if (nextRow >= visibleRows)
-            {
-                vicState.displayEnabled = false;
-                vicState.displayEnabledNext = false;
-                vicState.matrixAdvancePending = false;
-
-                clearBadLineFifo();
-                return;
-            }
-
             vicState.vcBase = nextVcBase;
             vicState.vmliBase = nextVcBase;
             vicState.matrixAdvancePending = false;
         }
         else
             vicState.matrixAdvancePending = true;
-
     }
 
     const bool den =
