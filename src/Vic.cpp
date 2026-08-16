@@ -1704,9 +1704,6 @@ bool Vic::spriteCanRenderThisRaster(int sprite) const
     if (sprite < 0 || sprite >= 8)
         return false;
 
-    if (!spriteEnabledSomewhereOnLine(sprite))
-        return false;
-
     if (!spriteUnits[sprite].dmaActive)
         return false;
 
