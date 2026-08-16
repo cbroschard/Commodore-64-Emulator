@@ -1337,7 +1337,7 @@ void Vic::outputPixel(int raster, int x)
 
     const graphicsMode mode = graphicsModeForRaster(raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multiColor && mode != graphicsMode::bitmap)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap)
         return;
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
@@ -1410,7 +1410,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
     const graphicsMode mode = graphicsModeForRaster(registers.raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multiColor)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor)
         return;
 
     const int fetchPixelX   = cyclePixelX(currentCycle);
@@ -1422,7 +1422,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     switch (mode)
     {
         case graphicsMode::standard:
-        case graphicsMode::multiColor:
+        case graphicsMode::multicolor:
             fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
             break;
 
@@ -4367,7 +4367,7 @@ void Vic::generateBackgroundLine(int raster)
     // Fill the interior with background color first for non-bitmap modes.
     const graphicsMode lineMode = graphicsModeForRaster(raster);
 
-    if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multiColorBitmap))
+    if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multicolorBitmap))
     {
         const uint8_t bg = registers.backgroundColor0 & 0x0F;
 
@@ -4387,13 +4387,13 @@ void Vic::generateBackgroundLine(int raster)
     switch (lineMode)
     {
         case graphicsMode::standard:
-        case graphicsMode::multiColor:
+        case graphicsMode::multicolor:
             renderTextLine(raster, lineXScroll);
             break;
         case graphicsMode::bitmap:
             renderBitmapLine(raster, lineXScroll);
             break;
-        case graphicsMode::multiColorBitmap:
+        case graphicsMode::multicolorBitmap:
             renderBitmapMulticolorLine(raster, lineXScroll);
             break;
         case graphicsMode::extendedColorText:
@@ -5268,7 +5268,7 @@ Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) con
         return graphicsMode::standard;
 
     if (!BMM && MCM && !ECM)
-        return graphicsMode::multiColor;
+        return graphicsMode::multicolor;
 
     if (!BMM && !MCM && ECM)
         return graphicsMode::extendedColorText;
@@ -5277,7 +5277,7 @@ Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) con
         return graphicsMode::bitmap;
 
     if (BMM && MCM && !ECM)
-        return graphicsMode::multiColorBitmap;
+        return graphicsMode::multicolorBitmap;
 
     return graphicsMode::invalid;
 }

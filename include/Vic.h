@@ -67,9 +67,9 @@ class Vic
         enum class graphicsMode
         {
             standard,
-            multiColor,
+            multicolor,
             bitmap,
-            multiColorBitmap,
+            multicolorBitmap,
             extendedColorText,
             invalid
         };
