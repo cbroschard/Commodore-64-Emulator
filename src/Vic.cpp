@@ -3018,8 +3018,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false);
-    const uint16_t bitmapBase = (d018 & 0x08) ? 0x2000 : 0x0000;
+    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
     const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
     const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
     const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) +  rc);
