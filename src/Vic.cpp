@@ -2798,24 +2798,26 @@ void Vic::beginBadLineFetch()
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 {
+    if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
     const uint16_t vc = static_cast<uint16_t>(vicState.vmliBase + fetchIndex);
+
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
 
     const uint8_t screenByte = fetchScreenByte(row, col, raster);
-    const uint8_t colorByte  = fetchColorByte(row, col, raster) & 0x0F;
+    const uint8_t colorByte = fetchColorByte(row, col, raster) & 0x0F;
 
-    charPtrFIFO[fetchIndex]  = screenByte;
+    charPtrFIFO[fetchIndex] = screenByte;
     colorPtrFIFO[fetchIndex] = colorByte;
 
-    if (fetchIndex >= 0 && fetchIndex < BACKGROUND_MATRIX_COLUMNS && activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
+    if (activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
     {
         activeMatrixRow.screen[fetchIndex] = screenByte;
         activeMatrixRow.color[fetchIndex] = static_cast<uint8_t>(colorByte & 0x0F);
         activeMatrixRow.fetched[fetchIndex] = 1;
     }
-
-    traceVicBadLineFetch(raster, currentCycle, fetchIndex, vc, row, col, screenByte, colorByte);
 }
 
 void Vic::renderLine(int raster)
