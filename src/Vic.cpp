@@ -1294,6 +1294,12 @@ void Vic::runFetchPhase()
             performIdleFetchForCurrentCycle();
             break;
     }
+
+    if (currentCycleSlot.graphicsFetch && vicState.displayEnabled && vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
+    {
+        ++vicState.vmliFetchIndex;
+        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
+    }
 }
 
 void Vic::runPixelOutputPhase()
@@ -1389,12 +1395,6 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
     fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
-
-    if (vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
-    {
-        ++vicState.vmliFetchIndex;
-        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
-    }
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
