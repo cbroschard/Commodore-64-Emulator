@@ -1293,6 +1293,8 @@ void Vic::runPixelOutputPhase()
         resetActiveBackgroundPixelState();
         resetBackgroundPipeline();
         resetBackgroundGraphicsLatches();
+
+        vicState.vmliFetchIndex = 0;
     }
 
     const int baseX = cycleFramebufferX(currentCycle);
@@ -1359,10 +1361,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!currentCycleSlot.graphicsFetch)
         return;
 
-    int column = currentCycleSlot.graphicsFetchIndex;
-
-    if (vicState.vmliFetchIndex > 0)
-        column = static_cast<int>(vicState.vmliFetchIndex) - 1;
+    const int column = static_cast<int>(vicState.vmliFetchIndex);
 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
@@ -1373,12 +1372,15 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (graphicsModeForRaster(registers.raster) != graphicsMode::standard)
         return;
 
-    const int fetchPixelX = cyclePixelX(currentCycle);
-    const int outputX = cycleFramebufferX(currentCycle);
-    const int fetchX = cycleFramebufferX(currentCycle);
+    const int fetchPixelX   = cyclePixelX(currentCycle);
+    const int outputX       = cycleFramebufferX(currentCycle);
+    const int fetchX        = cycleFramebufferX(currentCycle);
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
     fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
+
+    if (vicState.vmliFetchIndex <  BACKGROUND_MATRIX_COLUMNS)
+        ++vicState.vmliFetchIndex;
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
@@ -1427,8 +1429,6 @@ void Vic::performBadLineFetchesForCurrentCycle()
         return;
 
     fetchBadLineMatrixByte(fetchIndex, registers.raster);
-
-    vicState.vmliFetchIndex = static_cast<uint8_t>(fetchIndex + 1);
 }
 
 void Vic::initializeFirstBadLineIfNeeded(int raster)
