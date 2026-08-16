@@ -1561,8 +1561,6 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
-    buildSpriteEnableLine(curRaster);
-
     buildSpriteMulticolorModeLine(curRaster);
     buildSpriteXExpansionLine(curRaster);
 
@@ -1978,73 +1976,6 @@ bool Vic::spriteEnabledAtPixel(int sprite, int px) const
     }
 
     return (activeEnable & static_cast<uint8_t>(1u << sprite)) != 0;
-}
-
-bool Vic::spriteEnabledSomewhereOnLine(int sprite) const
-{
-    if (sprite < 0 || sprite >= 8)
-        return false;
-
-    for (int px = 0; px < VISIBLE_WIDTH; ++px)
-    {
-        if (spriteEnableLine[sprite][px])
-            return true;
-    }
-
-    return false;
-}
-
-void Vic::buildSpriteEnableLine(int raster)
-{
-    const int xStart = rasterVisibleStartX(raster);
-    const int xEnd   = rasterVisibleEndX(raster);
-
-    for (auto& line : spriteEnableLine)
-        line.fill(0);
-
-    uint8_t activeEnable = registers.spriteEnabled;
-
-    if (!firstRasterSpriteEnableEventValue(raster, activeEnable))
-    {
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = xStart; px < xEnd; ++px)
-                spriteEnableLine[spr][px] = enabled;
-        }
-
-        return;
-    }
-
-    int startX = xStart;
-
-    for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
-
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = startX; px < eventX; ++px)
-                spriteEnableLine[spr][px] = enabled;
-        }
-
-        activeEnable = e.newValue;
-        startX = eventX;
-    }
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        const uint8_t enabled = ((activeEnable >> spr) & 0x01) ? 1 : 0;
-
-        for (int px = startX; px < xEnd; ++px)
-            spriteEnableLine[spr][px] = enabled;
-    }
 }
 
 void Vic::fetchSpritePointer(int sprite, int raster)
