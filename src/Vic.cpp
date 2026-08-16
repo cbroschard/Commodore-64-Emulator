@@ -1362,6 +1362,7 @@ void Vic::runPixelOutputPhase()
             continue;
 
         outputPixel(raster, x);
+        outputSpritePixel(raster, x);
     }
 }
 
@@ -1564,12 +1565,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
 
     buildSpriteMulticolorModeLine(curRaster);
     buildSpriteXExpansionLine(curRaster);
-
-    int sx0, sx1;
-    spriteVisibleXRange(sx0, sx1);
-
-    for (int px = sx0; px < sx1; ++px)
-        outputSpritePixel(curRaster, px);
 
     renderLine(curRaster);
 
