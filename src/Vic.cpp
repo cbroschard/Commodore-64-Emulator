@@ -1816,10 +1816,28 @@ bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
     if (sprite < 0 || sprite >= 8)
         return false;
 
-    if (px < 0 || px >= 512)
+    if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    return spriteXExpansionLine[sprite][px] != 0;
+    uint8_t activeExpansion = registers.spriteXExpansion;
+
+    if (initialSpriteXExpansionForRaster(registers.raster, activeExpansion))
+    {
+        for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
+        {
+            if (e.raster != registers.raster)
+                continue;
+
+            const int eventX = rasterEventPixelX(e.cycle);
+
+            if (eventX > px)
+                continue;
+
+            activeExpansion = e.newValue;
+        }
+    }
+
+    return (activeExpansion & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
 void Vic::buildSpriteXExpansionLine(int raster)
