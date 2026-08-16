@@ -85,6 +85,9 @@ Computer::~Computer() noexcept
         detachSwiftLinkVirtualModem();
         detachTurbo232VirtualModem();
 
+        if (components_.userPort)
+            components_.userPort->detachDevice();
+
         if (components_.videoOutput)
         {
             if (components_.debug)
