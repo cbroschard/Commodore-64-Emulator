@@ -632,7 +632,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (!rdr.readBool(activeBgPixel.valid))         { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 4)
+            {
                 if (!rdr.readBool(activeBgPixel.multicolorText)) {rdr.exitChunkPayload(chunk); return false; }
+            }
             else
                 activeBgPixel.multicolorText = false;
 
@@ -1357,7 +1359,8 @@ void Vic::outputPixel(int raster, int x)
 
     const graphicsMode mode = graphicsModeForRaster(raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap && mode != graphicsMode::multicolorBitmap)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap
+        && mode != graphicsMode::multicolorBitmap && mode != graphicsMode::extendedColorText)
         return;
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
