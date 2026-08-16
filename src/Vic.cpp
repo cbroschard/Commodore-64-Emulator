@@ -2801,7 +2801,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const uint16_t vc = static_cast<uint16_t>(vicState.vmliBase + fetchIndex);
+    const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
 
     const int row = static_cast<int>(vc / 40);
     const int col = static_cast<int>(vc % 40);
