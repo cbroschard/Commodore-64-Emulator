@@ -3420,6 +3420,7 @@ void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raste
     activeBgPixel.rowBits = cell.rowBits;
     activeBgPixel.fg = static_cast<uint8_t>(cell.colorByte & 0x0F);
     activeBgPixel.bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
+    activeBgPixel.bg0Source = BackgroundSource::BG0;
     activeBgPixel.pxBase = cell.px;
     activeBgPixel.py = cell.py;
     activeBgPixel.phase = 0;
@@ -3430,7 +3431,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     BackgroundPixel out {};
     out.color = activeBgPixel.bg0 & 0x0F;
     out.opaque = false;
-    out.source = out.opaque ? BackgroundSource::Foreground : BackgroundSource::BG0;
+    out.source = out.opaque ? BackgroundSource::Foreground : activeBgPixel.bg0Source;
 
     if (!activeBgPixel.valid)
         return out;
@@ -3441,8 +3442,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
 
     const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
 
-    out.color = pixelOn ? (activeBgPixel.fg & 0x0F)
-                        : (activeBgPixel.bg0 & 0x0F);
+    out.color = pixelOn ? (activeBgPixel.fg & 0x0F) : (activeBgPixel.bg0 & 0x0F);
     out.opaque = pixelOn;
 
     activeBgPixel.phase++;
