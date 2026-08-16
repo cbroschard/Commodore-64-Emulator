@@ -3410,6 +3410,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     BackgroundPixel out {};
     out.color = activeBgPixel.bg0 & 0x0F;
     out.opaque = false;
+    out.source = out.opaque ? BackgroundSource::Foreground : BackgroundSource::BG0;
 
     if (!activeBgPixel.valid)
         return out;
@@ -3492,6 +3493,8 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
         out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
         out.opaque = false;
     }
+
+    out.source = out.opaque ? BackgroundSource::Bitmap : BackgroundSource::BG0;
 
     ++activeBgPixel.phase;
 
@@ -4089,21 +4092,25 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
         case 0:
             out.color = activeBgPixel.bg0;
             out.opaque = false;
+            out.source = BackgroundSource::BG0;
             break;
 
         case 1:
             out.color = activeBgPixel.bg1;
             out.opaque = true;
+            out.source = BackgroundSource::BG1;
             break;
 
         case 2:
             out.color = activeBgPixel.bg2;
             out.opaque = true;
+            out.source = BackgroundSource::BG2;
             break;
 
         case 3:
             out.color = activeBgPixel.fg & 0x07;
             out.opaque = true;
+            out.source = BackgroundSource::Foreground;
             break;
     }
 
