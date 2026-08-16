@@ -208,7 +208,6 @@ void Vic::reset()
 
     // Clear SPrite Raster Line arrays
     for (auto& line : spriteColorSourceLine)    line.fill(SpriteColorSource::None);
-    for (auto& line : spriteBehindLine)         line.fill(0);
 
     resetActiveMatrixRow();
 
@@ -2788,7 +2787,6 @@ void Vic::renderLine(int raster)
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
     applySpriteColorEventsToLine(raster);
-    buildSpritePriorityLine(raster);
 
     composeFinalRasterLine(raster);
     applyBorderColorEventsToFinalLine(raster);
@@ -3093,59 +3091,6 @@ bool Vic::initialSpritePriorityForRaster(int raster, uint8_t& value) const
     }
 
     return false;
-}
-
-void Vic::buildSpritePriorityLine(int raster)
-{
-    const int xStart = rasterVisibleStartX(raster);
-    const int xEnd   = rasterVisibleEndX(raster);
-
-    for (auto& line : spriteBehindLine)
-        line.fill(0);
-
-    uint8_t activePriority = registers.spritePriority;
-
-    if (!initialSpritePriorityForRaster(raster, activePriority))
-    {
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = xStart; px < xEnd; ++px)
-                spriteBehindLine[spr][px] = behind;
-        }
-
-        return;
-    }
-
-    int startX = xStart;
-
-    for (const RasterPriorityEvent& e : rasterPriorityEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        const int eventX = std::clamp(rasterEventPixelX(e.cycle), startX, xEnd);
-
-        for (int spr = 0; spr < 8; ++spr)
-        {
-            const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
-
-            for (int px = startX; px < eventX; ++px)
-                spriteBehindLine[spr][px] = behind;
-        }
-
-        activePriority = e.newValue;
-        startX = eventX;
-    }
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        const uint8_t behind = ((activePriority >> spr) & 0x01) ? 1 : 0;
-
-        for (int px = startX; px < xEnd; ++px)
-            spriteBehindLine[spr][px] = behind;
-    }
 }
 
 bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const

@@ -729,7 +729,6 @@ class Vic
         std::array<std::array<uint8_t, 512>, 8> spriteOpaqueLine{};
         std::array<std::array<uint8_t, 512>, 8> spriteColorLine{};
         std::array<std::array<SpriteColorSource, 512>, 8> spriteColorSourceLine{};
-        std::array<std::array<uint8_t, 512>, 8> spriteBehindLine{};
 
         std::array<uint8_t, 512> bgColorLine{};
         std::array<uint8_t, 512> bgOpaqueLine{};
@@ -1209,7 +1208,6 @@ class Vic
         void snapshotRasterRowState(int raster);
 
         bool initialSpritePriorityForRaster(int raster, uint8_t& value) const;
-        void buildSpritePriorityLine(int raster);
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
 
         SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle) const;
