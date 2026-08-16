@@ -3398,6 +3398,8 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.bg1 = 0;
     activeBgPixel.bg2 = 0;
 
+    activeBgPixel.bg0Source = BackgroundSource::BG0;
+
     activeBgPixel.pxBase = 0;
     activeBgPixel.py = 0;
     activeBgPixel.phase = 0;
