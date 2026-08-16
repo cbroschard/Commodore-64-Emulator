@@ -5335,8 +5335,7 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
 
         if (isBadLine(nextRaster))
         {
-            const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
-
+            const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
             const int nextRow = static_cast<int>(nextVcBase / 40);
 
             if (nextRow >= visibleRows)
