@@ -3514,7 +3514,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
         out.opaque = false;
     }
 
-    out.source = out.opaque ? BackgroundSource::Bitmap : BackgroundSource::BG0;
+    out.source = BackgroundSource::Bitmap;
 
     ++activeBgPixel.phase;
 
