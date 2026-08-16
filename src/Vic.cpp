@@ -1337,7 +1337,7 @@ void Vic::outputPixel(int raster, int x)
 
     const graphicsMode mode = graphicsModeForRaster(raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap && mode != graphicsMode::multicolorBitmap)
         return;
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
@@ -1361,7 +1361,7 @@ void Vic::outputPixel(int raster, int x)
 
             if (x == reloadX)
             {
-                if (mode == graphicsMode::bitmap)
+                if (mode == graphicsMode::bitmap || mode == graphicsMode::multicolorBitmap)
                     loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
                 else
                     loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
@@ -1382,7 +1382,9 @@ void Vic::outputPixel(int raster, int x)
 
     BackgroundPixel pixel {};
 
-    if (mode == graphicsMode::bitmap)
+    if (mode == graphicsMode::multicolorBitmap)
+        pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
+    else if (mode == graphicsMode::bitmap)
         pixel = sampleAndAdvanceActiveStandardBitmapPixel();
     else if (multicolorMode && activeBgPixel.multicolorText)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
@@ -1410,7 +1412,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
     const graphicsMode mode = graphicsModeForRaster(registers.raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap && mode != graphicsMode::multicolorBitmap)
         return;
 
     const int fetchPixelX   = cyclePixelX(currentCycle);
@@ -1427,6 +1429,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
             break;
 
         case graphicsMode::bitmap:
+        case graphicsMode::multicolorBitmap:
             fetchStandardBitmapGraphicsByte(registers.raster, column, fetchX);
             break;
 
@@ -3377,6 +3380,13 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
 
+    activeBgPixel.rowBits = latch.graphicsByte;
+
+    activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
+    activeBgPixel.bg2 = static_cast<uint8_t>(latch.colorByte & 0x0F);
+
+    activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
     activeBgPixel.phase = 0;
@@ -3405,6 +3415,51 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     {
         out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
         out.opaque = false;
+    }
+
+    ++activeBgPixel.phase;
+
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
+{
+    BackgroundPixel out {};
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    const int phase = activeBgPixel.phase;
+
+    if (phase < 0 || phase >= 8)
+        return out;
+
+    const int pairIndex = phase / 2;
+    const int shift = 6 - (pairIndex * 2);
+
+    const uint8_t value = static_cast<uint8_t>((activeBgPixel.rowBits >> shift) & 0x03);
+
+    switch (value)
+    {
+        case 0:
+            out.color = activeBgPixel.bg0 & 0x0F;
+            out.opaque = false;
+            break;
+
+        case 1:
+            out.color = activeBgPixel.fg & 0x0F;
+            out.opaque = true;
+            break;
+
+        case 2:
+            out.color = activeBgPixel.bg1 & 0x0F;
+            out.opaque = true;
+            break;
+
+        case 3:
+            out.color = activeBgPixel.bg2 & 0x0F;
+            out.opaque = true;
+            break;
     }
 
     ++activeBgPixel.phase;
