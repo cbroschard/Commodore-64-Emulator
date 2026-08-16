@@ -3520,21 +3520,25 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
         case 0:
             out.color = activeBgPixel.bg0 & 0x0F;
             out.opaque = false;
+            out.source = BackgroundSource::BG0;
             break;
 
         case 1:
             out.color = activeBgPixel.fg & 0x0F;
             out.opaque = true;
+            out.source = BackgroundSource::Foreground;
             break;
 
         case 2:
             out.color = activeBgPixel.bg1 & 0x0F;
             out.opaque = true;
+            out.source = BackgroundSource::BG1;
             break;
 
         case 3:
             out.color = activeBgPixel.bg2 & 0x0F;
             out.opaque = true;
+            out.source = BackgroundSource::BG2;
             break;
     }
 
