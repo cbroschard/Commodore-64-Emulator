@@ -985,6 +985,7 @@ class Vic
         {
             uint8_t color = 0;
             bool opaque = false;
+            BackgroundSource source = BackgroundSource::Unknown;
         };
 
         struct BitmapCellSample
