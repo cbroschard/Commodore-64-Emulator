@@ -1198,6 +1198,8 @@ class Vic
         void fetchStandardTextGraphicsByte(int raster, int column, int fetchX);
         void loadActiveStandardTextPixelStateFromLatch(int raster,  int column, int px);
 
+        void fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX);
+
         void recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue);

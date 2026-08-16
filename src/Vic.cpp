@@ -1407,7 +1407,21 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     const int fetchX        = cycleFramebufferX(currentCycle);
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
-    fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
+
+    switch (mode)
+    {
+        case graphicsMode::standard:
+        case graphicsMode::multiColor:
+            fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
+            break;
+
+        case graphicsMode::bitmap:
+            fetchStandardBitmapGraphicsByte(registers.raster, column, fetchX);
+            break;
+
+        default:
+            break;
+    }
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
@@ -2916,6 +2930,33 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.py = fbY(raster);
 
     activeBgPixel.phase = 0;
+}
+
+void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
+{
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false);
+
+    const uint16_t bitmapBase = (d018 & 0x08) ? 0x2000 : 0x0000;
+
+    const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
+
+    const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
+
+    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) +  rc);
+
+    const uint8_t graphicsByte =  mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
+
+    updateOpenBus(graphicsByte);
+
+    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+
+    latch.valid = true;
+    latch.column = column;
+    latch.graphicsByte = graphicsByte;
+    latch.graphicsAddress = bitmapAddress;
 }
 
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
