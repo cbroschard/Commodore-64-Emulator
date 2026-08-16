@@ -1089,10 +1089,14 @@ class Vic
         struct ActiveBackgroundPixelState
         {
             bool valid = false;
+            bool multicolorText = false;
 
             uint8_t rowBits = 0;
+
             uint8_t fg = 0;
             uint8_t bg0 = 0;
+            uint8_t bg1 = 0;
+            uint8_t bg2 = 0;
 
             int pxBase = 0;
             int py = 0;
@@ -1268,6 +1272,7 @@ class Vic
         void drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
+        BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
         void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers

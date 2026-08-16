@@ -1345,6 +1345,7 @@ void Vic::outputPixel(int raster, int x)
 
     const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
     const int xScroll = static_cast<int>(d016 & 0x07);
+    const bool multicolorMode = (d016 & 0x10) != 0;
 
     if (currentCycleSlot.graphicsFetch)
     {
@@ -1370,7 +1371,13 @@ void Vic::outputPixel(int raster, int x)
         return;
     }
 
-    const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
+    BackgroundPixel pixel {};
+
+    if (multicolorMode && activeBgPixel.multicolorText)
+        pixel = sampleAndAdvanceActiveMulticolorTextPixel();
+    else
+        pixel = sampleAndAdvanceActiveStandardTextPixel();
+
     stampBackgroundPixel(x, activeBgPixel.py, pixel.color, pixel.opaque);
 
     if (activeBgPixel.phase >= 8)
@@ -2892,11 +2899,20 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
         return;
 
     activeBgPixel.valid = true;
+
+    activeBgPixel.multicolorText = (latch.colorByte & 0x08) != 0;
+
     activeBgPixel.rowBits = latch.graphicsByte;
+
     activeBgPixel.fg = latch.colorByte & 0x0F;
+
     activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+    activeBgPixel.bg1 = registers.backgroundColor[1] & 0x0F;
+    activeBgPixel.bg2 = registers.backgroundColor[2] & 0x0F;
+
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
+
     activeBgPixel.phase = 0;
 }
 
@@ -3798,6 +3814,51 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
     out.rowBits = rowBits;
 
     return true;
+}
+
+Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
+{
+    BackgroundPixel out {};
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    const int phase = activeBgPixel.phase;
+
+    if (phase < 0 || phase >= 8)
+        return out;
+
+    const int pairIndex = phase / 2;
+    const int shift = 6 - (pairIndex * 2);
+
+    const uint8_t value = static_cast<uint8_t>((activeBgPixel.rowBits >> shift) & 0x03);
+
+    switch (value)
+    {
+        case 0:
+            out.color = activeBgPixel.bg0;
+            out.opaque = false;
+            break;
+
+        case 1:
+            out.color = activeBgPixel.bg1;
+            out.opaque = true;
+            break;
+
+        case 2:
+            out.color = activeBgPixel.bg2;
+            out.opaque = true;
+            break;
+
+        case 3:
+            out.color = activeBgPixel.fg & 0x07;
+            out.opaque = true;
+            break;
+    }
+
+    ++activeBgPixel.phase;
+
+    return out;
 }
 
 bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const
