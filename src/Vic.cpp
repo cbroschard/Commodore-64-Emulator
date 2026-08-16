@@ -1342,6 +1342,8 @@ void Vic::runPixelOutputPhase()
     if (currentCycle == 0)
     {
         clearBackgroundLineBuffers();
+        clearSpriteLineBuffers();
+
         resetActiveBackgroundPixelState();
         resetBackgroundPipeline();
         resetBackgroundGraphicsLatches();
@@ -1566,10 +1568,9 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
 
     int sx0, sx1;
     spriteVisibleXRange(sx0, sx1);
+
     for (int px = sx0; px < sx1; ++px)
-    {
-        stepSpriteSequencersAtX(curRaster, px);
-    }
+        outputSpritePixel(curRaster, px);
 
     renderLine(curRaster);
 
@@ -2234,6 +2235,12 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
             spriteColorLine[spr][px] = static_cast<uint8_t>(color & 0x0F);
             spriteColorSourceLine[spr][px] = source;
 
+            if (bgOpaqueLine[px])
+            {
+                const uint8_t bit = static_cast<uint8_t>(1u << spr);
+                latchSpriteBackgroundCollision(bit, raster, px);
+            }
+
             for (int other = 0; other < spr; ++other)
             {
                 if (!spriteOpaqueLine[other][px])
@@ -2248,6 +2255,11 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         advanceSpriteOutputState(spr, px);
     }
+}
+
+void Vic::outputSpritePixel(int raster, int px)
+{
+    stepSpriteSequencersAtX(raster, px);
 }
 
 void Vic::updateSpriteDMAEndOfLine(int raster)
@@ -4670,10 +4682,7 @@ void Vic::composeFinalRasterLine(int raster)
     const int xEnd   = rasterVisibleEndX(raster);
 
     for (int px = xStart; px < xEnd; ++px)
-    {
-        latchSpriteBackgroundCollisionsAtPixel(raster, px);
         finalColorLine[px] = compositePixelAtX(raster, px);
-    }
 }
 
 Vic::BackgroundPixel Vic::sampleBackgroundPixelAtX(int raster, int px) const

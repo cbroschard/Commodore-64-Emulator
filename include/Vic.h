@@ -931,6 +931,7 @@ class Vic
 
         void beginSpriteRasterOutput(int raster);
         void stepSpriteSequencersAtX(int raster, int px);
+        void outputSpritePixel(int raster, int px);
 
         uint32_t getLatchedSpriteBits(int sprite) const;
 
