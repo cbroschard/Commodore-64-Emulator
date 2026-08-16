@@ -1412,7 +1412,8 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
     const graphicsMode mode = graphicsModeForRaster(registers.raster);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap && mode != graphicsMode::multicolorBitmap)
+    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap
+        && mode != graphicsMode::multicolorBitmap && mode != graphicsMode::extendedColorText)
         return;
 
     const int fetchPixelX   = cyclePixelX(currentCycle);
@@ -1425,6 +1426,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     {
         case graphicsMode::standard:
         case graphicsMode::multicolor:
+        case graphicsMode::extendedColorText:
             fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
             break;
 
@@ -2903,8 +2905,14 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
         return;
 
     const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
+
+    uint8_t charIndex = screenByte;
+
+    if (graphicsModeForRaster(raster) == graphicsMode::extendedColorText)
+        charIndex &= 0x3F;
+
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
     const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
@@ -2936,9 +2944,34 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     activeBgPixel.fg = latch.colorByte & 0x0F;
 
-    activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
-    activeBgPixel.bg1 = registers.backgroundColor[1] & 0x0F;
-    activeBgPixel.bg2 = registers.backgroundColor[2] & 0x0F;
+    if (graphicsModeForRaster(raster) == graphicsMode::extendedColorText)
+    {
+        const uint8_t bgSelect = static_cast<uint8_t>((latch.screenByte >> 6) & 0x03);
+
+        switch (bgSelect)
+        {
+            case 0:
+                activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+                break;
+
+            case 1:
+                activeBgPixel.bg0 = registers.backgroundColor[0] & 0x0F;
+                break;
+
+            case 2:
+                activeBgPixel.bg0 = registers.backgroundColor[1] & 0x0F;
+                break;
+
+            case 3:
+                activeBgPixel.bg0 = registers.backgroundColor[2] & 0x0F;
+                break;
+        }
+    }
+    else
+        activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+
+    activeBgPixel.bg1 = registers.backgroundColor[0] & 0x0F;
+    activeBgPixel.bg2 = registers.backgroundColor[1] & 0x0F;
 
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
@@ -3305,9 +3338,15 @@ Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int x
 void Vic::resetActiveBackgroundPixelState()
 {
     activeBgPixel.valid = false;
+    activeBgPixel.multicolorText = false;
+
     activeBgPixel.rowBits = 0;
+
     activeBgPixel.fg = 0;
     activeBgPixel.bg0 = 0;
+    activeBgPixel.bg1 = 0;
+    activeBgPixel.bg2 = 0;
+
     activeBgPixel.pxBase = 0;
     activeBgPixel.py = 0;
     activeBgPixel.phase = 0;
@@ -3373,19 +3412,23 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     activeBgPixel.rowBits = latch.graphicsByte;
 
-    // Standard bitmap:
-    // screen RAM high nibble = foreground
-    // screen RAM low nibble  = background
     activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
 
-    activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
+    const graphicsMode mode = graphicsModeForRaster(raster);
 
-    activeBgPixel.rowBits = latch.graphicsByte;
+    if (mode == graphicsMode::multicolorBitmap)
+    {
+        activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+        activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
+        activeBgPixel.bg2 = static_cast<uint8_t>(latch.colorByte & 0x0F);
+    }
+    else
+    {
+        activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
 
-    activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
-    activeBgPixel.bg2 = static_cast<uint8_t>(latch.colorByte & 0x0F);
-
-    activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+        activeBgPixel.bg1 = 0;
+        activeBgPixel.bg2 = 0;
+    }
 
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
