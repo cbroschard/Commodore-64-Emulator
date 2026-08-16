@@ -1230,6 +1230,8 @@ class Vic
         void resetActiveBackgroundPixelState();
         void loadActiveStandardTextPixelState(const TextCellSample& cell, int raster);
         BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
+        void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
+        BackgroundPixel sampleAndAdvanceActiveStandardBitmapPixel();
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);

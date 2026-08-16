@@ -1335,7 +1335,9 @@ void Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return;
 
-    if (graphicsModeForRaster(raster) != graphicsMode::standard)
+    const graphicsMode mode = graphicsModeForRaster(raster);
+
+    if (mode != graphicsMode::standard && mode != graphicsMode::multiColor && mode != graphicsMode::bitmap)
         return;
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
@@ -1344,7 +1346,9 @@ void Vic::outputPixel(int raster, int x)
         return;
 
     const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
+
     const int xScroll = static_cast<int>(d016 & 0x07);
+
     const bool multicolorMode = (d016 & 0x10) != 0;
 
     if (currentCycleSlot.graphicsFetch)
@@ -1356,7 +1360,12 @@ void Vic::outputPixel(int raster, int x)
             const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
             if (x == reloadX)
-                loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+            {
+                if (mode == graphicsMode::bitmap)
+                    loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                else
+                    loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+            }
         }
     }
 
@@ -1373,7 +1382,9 @@ void Vic::outputPixel(int raster, int x)
 
     BackgroundPixel pixel {};
 
-    if (multicolorMode && activeBgPixel.multicolorText)
+    if (mode == graphicsMode::bitmap)
+        pixel = sampleAndAdvanceActiveStandardBitmapPixel();
+    else if (multicolorMode && activeBgPixel.multicolorText)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
@@ -2938,16 +2949,17 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
         return;
 
     const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false);
-
     const uint16_t bitmapBase = (d018 & 0x08) ? 0x2000 : 0x0000;
-
     const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
-
     const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
-
     const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) +  rc);
-
     const uint8_t graphicsByte =  mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
+
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
+
+    if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
+        return;
 
     updateOpenBus(graphicsByte);
 
@@ -2955,6 +2967,8 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
 
     latch.valid = true;
     latch.column = column;
+    latch.screenByte = screenByte;
+    latch.colorByte = colorByte & 0x0F;
     latch.graphicsByte = graphicsByte;
     latch.graphicsAddress = bitmapAddress;
 }
@@ -3336,6 +3350,65 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     out.opaque = pixelOn;
 
     activeBgPixel.phase++;
+    return out;
+}
+
+void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
+{
+    resetActiveBackgroundPixelState();
+
+    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+
+    if (!latch.valid)
+        return;
+
+    activeBgPixel.valid = true;
+    activeBgPixel.multicolorText = false;
+
+    activeBgPixel.rowBits = latch.graphicsByte;
+
+    // Standard bitmap:
+    // screen RAM high nibble = foreground
+    // screen RAM low nibble  = background
+    activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
+
+    activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
+
+    activeBgPixel.pxBase = px;
+    activeBgPixel.py = fbY(raster);
+    activeBgPixel.phase = 0;
+}
+
+Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
+{
+    BackgroundPixel out {};
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    const int phase = activeBgPixel.phase;
+
+    if (phase < 0 || phase >= 8)
+        return out;
+
+    const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
+
+    if (pixelOn)
+    {
+        out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x0F);
+        out.opaque = true;
+    }
+    else
+    {
+        out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
+        out.opaque = false;
+    }
+
+    ++activeBgPixel.phase;
+
     return out;
 }
 
