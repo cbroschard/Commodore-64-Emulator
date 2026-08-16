@@ -343,7 +343,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(4); // version
+    wrtr.writeU32(5); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -450,6 +450,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU8(activeBgPixel.bg1);
     wrtr.writeU8(activeBgPixel.bg2);
 
+    wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.bg0Source));
+
     wrtr.writeI32(activeBgPixel.pxBase);
     wrtr.writeI32(activeBgPixel.py);
     wrtr.writeI32(activeBgPixel.phase);
@@ -525,7 +527,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 4)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 5)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -652,6 +654,15 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 activeBgPixel.bg1 = 0;
                 activeBgPixel.bg2 = 0;
             }
+
+            if (ver >= 5)
+            {
+                uint8_t source = 0;
+                if (!rdr.readU8(source))                    { rdr.exitChunkPayload(chunk); return false; }
+                activeBgPixel.bg0Source = static_cast<BackgroundSource>(source);
+            }
+            else
+                activeBgPixel.bg0Source = BackgroundSource::BG0;
 
             if (!rdr.readI32(activeBgPixel.pxBase))         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(activeBgPixel.py))             { rdr.exitChunkPayload(chunk); return false; }
