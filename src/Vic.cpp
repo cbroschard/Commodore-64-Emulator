@@ -1397,7 +1397,9 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!vicState.displayEnabled)
         return;
 
-    if (graphicsModeForRaster(registers.raster) != graphicsMode::standard)
+    const graphicsMode mode = graphicsModeForRaster(registers.raster);
+
+    if (mode != graphicsMode::standard && mode != graphicsMode::multiColor)
         return;
 
     const int fetchPixelX   = cyclePixelX(currentCycle);
