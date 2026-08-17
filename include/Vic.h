@@ -1175,6 +1175,13 @@ class Vic
             uint8_t graphicsByte = 0;
 
             uint16_t graphicsAddress = 0;
+
+            // VIC register state at the actual graphics fetch.
+            uint8_t d011 = 0;
+            uint8_t d016 = 0;
+            uint8_t d018 = 0;
+
+            graphicsMode mode = graphicsMode::standard;
         };
 
         std::array<BackgroundGraphicsLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};

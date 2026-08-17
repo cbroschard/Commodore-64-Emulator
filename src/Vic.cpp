@@ -2830,11 +2830,13 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
 
     const uint8_t colorByte = fetchDisplayColorByte(column, raster);
 
+    const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
+    const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
     const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
 
-    uint8_t charIndex = screenByte;
+    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
 
-    const graphicsMode mode = graphicsModeForRasterPixel(raster, fetchX, false);
+    uint8_t charIndex = screenByte;
 
     if (mode == graphicsMode::extendedColorText)
         charIndex &= 0x3F;
@@ -2846,11 +2848,16 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
 
     updateOpenBus(graphicsByte);
 
-    latch.valid             = true;
-    latch.screenByte        = screenByte;
-    latch.colorByte         = static_cast<uint8_t>(colorByte & 0x0F);
-    latch.graphicsByte      = graphicsByte;
-    latch.graphicsAddress   = charAddr;
+    latch.valid           = true;
+    latch.screenByte      = screenByte;
+    latch.colorByte       = static_cast<uint8_t>(colorByte & 0x0F);
+    latch.graphicsByte    = graphicsByte;
+    latch.graphicsAddress = charAddr;
+
+    latch.d011 = d011;
+    latch.d016 = d016;
+    latch.d018 = d018;
+    latch.mode = mode;
 }
 
 void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)
@@ -2920,11 +2927,19 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
+    const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
+    const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
+    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
+
+    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
+
+    const uint16_t bitmapBase = static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
     const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
     const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
-    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) +  rc);
-    const uint8_t graphicsByte =  mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
+
+    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
+
+    const uint8_t graphicsByte = mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
@@ -2938,10 +2953,17 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
 
     latch.valid = true;
     latch.column = column;
+
     latch.screenByte = screenByte;
-    latch.colorByte = colorByte & 0x0F;
+    latch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
+
     latch.graphicsByte = graphicsByte;
     latch.graphicsAddress = bitmapAddress;
+
+    latch.d011 = d011;
+    latch.d016 = d016;
+    latch.d018 = d018;
+    latch.mode = mode;
 }
 
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
