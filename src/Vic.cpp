@@ -1733,8 +1733,8 @@ Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
 
     const bool rsel25 = getLatchedRSEL(raster);
 
-    w.topOpen = rsel25 ? 51 : 55;
-    w.bottomClose = rsel25 ? 250 : 246;
+    w.topOpen = verticalBorderOpenCompareRaster(rsel25);
+    w.bottomClose = verticalBorderCloseCompareRaster(rsel25) - 1;
 
     return w;
 }
@@ -1768,6 +1768,16 @@ int Vic::horizontalBorderOpenCompareX(bool csel40) const
 int Vic::horizontalBorderCloseCompareX(bool csel40) const
 {
     return horizontalBorderWindowForCSEL(csel40).closeX;
+}
+
+int Vic::verticalBorderOpenCompareRaster(bool rsel25) const
+{
+    return rsel25 ? 51 : 55;
+}
+
+int Vic::verticalBorderCloseCompareRaster(bool rsel25) const
+{
+    return rsel25 ? 251 : 247;
 }
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const

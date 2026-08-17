@@ -727,6 +727,8 @@ class Vic
         BorderWindow borderWindowForRaster(int raster) const;
         int horizontalBorderOpenCompareX(bool csel40) const;
         int horizontalBorderCloseCompareX(bool csel40) const;
+        int verticalBorderOpenCompareRaster(bool rsel25) const;
+        int verticalBorderCloseCompareRaster(bool rsel25) const;
 
         std::array<SpriteUnit, 8> spriteUnits;
 
