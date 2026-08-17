@@ -934,7 +934,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const int raster = registers.raster;
 
             updateGraphicsMode(raster);
-            updateVerticalBorderState(raster);
             updateMonitorCaches(raster);
 
             traceVicRegWrite(address, oldValue, registers.control);
@@ -1238,6 +1237,9 @@ void Vic::runCycleDecisionPhase()
 
     if (slot.startBadlineFetch)
         handleDmaStartCycleDecisions();
+
+    if (currentCycle == cfg_->cyclesPerLine - 1)
+        updateVerticalBorderState(registers.raster);
 }
 
 void Vic::handleCycle0Decisions()
@@ -1252,7 +1254,6 @@ void Vic::handleCycle0Decisions()
 
     latchNextRasterDD00();
 
-    updateVerticalBorderState(raster);
     updateHorizontalBorderState(raster);
 
     borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
@@ -5716,41 +5717,39 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    if (raster < 0 ||
+        raster >= static_cast<int>(cfg_->maxRasterLines))
     {
         vicState.verticalBorder = true;
         return;
     }
 
-    const uint8_t d011 = latchedD011ForRaster(raster);
+    // Vertical-border comparisons use the live D011 state
+    // present at the comparison cycle.
+    const uint8_t d011 = registers.control;
+
     const bool den = (d011 & 0x10) != 0;
+    const bool rsel25 = (d011 & 0x08) != 0;
 
-    if (!den || !denSeenOn30)
+    const int openCompareRaster = verticalBorderOpenCompareRaster(rsel25);
+    const int closeCompareRaster = verticalBorderCloseCompareRaster(rsel25);
+
+    // Bottom comparison sets the vertical border flip-flop.
+    if (raster == closeCompareRaster)
     {
         vicState.verticalBorder = true;
-        return;
+        vicState.bottomBorderCloseRaster = raster;
     }
 
-    const VerticalBorderWindow w = verticalBorderWindowForRaster(raster);
-
-    if (raster == w.topOpen)
+    // Top comparison clears the vertical border flip-flop,
+    // but only when DEN is set.
+    if (raster == openCompareRaster && den)
     {
         vicState.verticalBorder = false;
 
         if (vicState.topBorderOpenRaster < 0)
             vicState.topBorderOpenRaster = raster;
     }
-
-    const int closeRaster = w.bottomClose + 1;
-
-    if (raster == closeRaster)
-    {
-        vicState.verticalBorder = true;
-        vicState.bottomBorderCloseRaster = raster;
-    }
-
-    if (raster < w.topOpen || raster > closeRaster)
-        vicState.verticalBorder = true;
 }
 
 void Vic::updateHorizontalBorderState(int raster)
