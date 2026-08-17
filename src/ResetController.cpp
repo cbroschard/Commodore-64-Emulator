@@ -147,10 +147,8 @@ void ResetController::coldReset()
     if (!audioWasPaused)
         audioOutput_.pauseAudio();
 
-sid_.reset();
+    sid_.reset();
 
-if (!audioWasPaused)
-    audioOutput_.resumeAudio();
     // Stop the tape if playing
     if (media_)
         media_->tapeStop();
