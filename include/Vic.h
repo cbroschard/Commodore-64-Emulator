@@ -614,6 +614,8 @@ class Vic
 
             // Border flip-flops
             bool verticalBorder = true;
+            bool horizontalBorder = true;
+
             bool leftBorder = true;
             bool rightBorder = true;
 

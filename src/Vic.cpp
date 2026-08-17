@@ -97,6 +97,8 @@ void Vic::reset()
     vicState.badLineSampled = false;
 
     vicState.verticalBorder = true;
+    vicState.horizontalBorder = true;
+
     vicState.leftBorder = true;
     vicState.rightBorder = true;
 
@@ -4580,7 +4582,7 @@ void Vic::buildBorderMaskLine(int raster)
     if (!rasterWithinVerticalDisplayWindow(raster))
         return;
 
-    bool inBorder = true;
+    bool inBorder = vicState.horizontalBorder;
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
@@ -4602,6 +4604,9 @@ void Vic::buildBorderMaskLine(int raster)
 
         borderMaskLine[px] = inBorder ? 1 : 0;
     }
+
+    // Carry the flip-flop into the next raster line.
+    vicState.horizontalBorder = inBorder;
 }
 
 void Vic::composeFinalRasterLine(int raster)
