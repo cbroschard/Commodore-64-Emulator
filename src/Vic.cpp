@@ -2802,13 +2802,27 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const uint16_t vc = static_cast<uint16_t>(vicState.vmliBase + fetchIndex);
+    if (!mem)
+        return;
 
-    const int row = static_cast<int>(vc / 40);
-    const int col = static_cast<int>(vc % 40);
+    // VC for this actual matrix fetch.
+    const uint16_t vc = static_cast<uint16_t>((vicState.vmliBase + fetchIndex) & 0x03FF);
 
-    const uint8_t screenByte = fetchScreenByte(row, col, raster);
-    const uint8_t colorByte = fetchColorByte(row, col, raster) & 0x0F;
+    // Use the register state that is active at this exact c-access.
+    // rasterEventPixelX() uses the same coordinate system as the
+    // D018 raster-event reconstruction.
+    const int fetchX = rasterEventPixelX(currentCycle);
+
+    const uint16_t screenBase = screenBaseForRasterPixelX(raster, fetchX);
+
+    const uint16_t screenAddress = static_cast<uint16_t>(screenBase + vc);
+
+    const uint8_t screenByte = mem->vicRead(screenAddress, raster);
+
+    // Color RAM is selected independently of D018.
+    const uint16_t colorAddress = static_cast<uint16_t>(COLOR_MEMORY_START + vc);
+
+    const uint8_t colorByte = static_cast<uint8_t>(mem->vicReadColor(colorAddress) & 0x0F);
 
     charPtrFIFO[fetchIndex] = screenByte;
     colorPtrFIFO[fetchIndex] = colorByte;
@@ -2816,7 +2830,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     if (activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
     {
         activeMatrixRow.screen[fetchIndex] = screenByte;
-        activeMatrixRow.color[fetchIndex] = static_cast<uint8_t>(colorByte & 0x0F);
+        activeMatrixRow.color[fetchIndex] = colorByte;
         activeMatrixRow.fetched[fetchIndex] = 1;
     }
 }
