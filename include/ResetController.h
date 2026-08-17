@@ -13,6 +13,7 @@
 #include "Common/SIDModel.h"
 
 // forward declares
+class AudioOutput;
 class Cartridge;
 class CIA1;
 class CIA2;
@@ -32,6 +33,7 @@ class ResetController
 {
 public:
     ResetController(
+        AudioOutput& audioOutput,
         CPU& cpu,
         Memory& mem,
         PLA& pla,
@@ -59,6 +61,7 @@ public:
     void setSIDModel(const std::string& model);
 
 private:
+    AudioOutput& audioOutput_;
     CPU& cpu_;
     Memory& mem_;
     PLA& pla_;

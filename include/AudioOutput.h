@@ -33,6 +33,8 @@ class AudioOutput
         inline int getSampleRate() const { return SAMPLE_RATE; }
         void fillAudioBuffer(Uint8* buffer, int len);
 
+        inline bool isPaused() const { return stream && SDL_AudioStreamDevicePaused(stream); }
+
     protected:
 
     private:

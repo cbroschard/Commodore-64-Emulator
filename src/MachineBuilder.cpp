@@ -131,9 +131,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                             components.media.get(), [host]() { host->warmReset(); }, [host]() { host->coldReset(); },
                                                             [&components]() { if (components.uiBridge) components.uiBridge->toggleManualPause(); });
 
-    components.resetCtl = std::make_unique<ResetController>(*components.cpu, *components.mem, *components.pla, *components.cia1,
-                                                            *components.cia2, *components.vic, *components.sid, *components.bus,
-                                                            *components.inputMgr, *components.cart, *components.userPort,
+    components.resetCtl = std::make_unique<ResetController>(*components.audioOutput, *components.cpu, *components.mem, *components.pla,
+                                                            *components.cia1, *components.cia2, *components.vic, *components.sid,
+                                                            *components.bus, *components.inputMgr, *components.cart, *components.userPort,
                                                              components.media.get(), roms.basicRom, roms.kernalRom, roms.charRom,
                                                             runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
 

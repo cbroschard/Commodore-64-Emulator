@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "AudioOutput.h"
 #include "Cartridge.h"
 #include "CIA1.h"
 #include "CIA2.h"
@@ -20,6 +21,7 @@
 #include "Vic.h"
 
 ResetController::ResetController(
+    AudioOutput& audioOutput,
     CPU& cpu,
     Memory& mem,
     PLA& pla,
@@ -38,7 +40,8 @@ ResetController::ResetController(
     VideoMode& videoMode,
     SIDModel& sidModel,
     const CPUConfig*& cpuCfg)
-    : cpu_(cpu)
+    : audioOutput_(audioOutput)
+    , cpu_(cpu)
     , mem_(mem)
     , pla_(pla)
     , cia1_(cia1)
@@ -92,6 +95,11 @@ void ResetController::setSIDModel(const std::string& model)
 
 void ResetController::warmReset()
 {
+    const bool audioWasPaused = audioOutput_.isPaused();
+
+    if (!audioWasPaused)
+        audioOutput_.pauseAudio();
+
     // Stop the tape if playing
     if (media_)
     media_->tapeStop();
@@ -127,10 +135,22 @@ void ResetController::warmReset()
 
     cpu_.setRDY(vic_.getBA());
     cpu_.setAEC(vic_.getAEC());
+
+    if (!audioWasPaused)
+        audioOutput_.resumeAudio();
 }
 
 void ResetController::coldReset()
 {
+    const bool audioWasPaused = audioOutput_.isPaused();
+
+    if (!audioWasPaused)
+        audioOutput_.pauseAudio();
+
+sid_.reset();
+
+if (!audioWasPaused)
+    audioOutput_.resumeAudio();
     // Stop the tape if playing
     if (media_)
         media_->tapeStop();
@@ -174,4 +194,7 @@ void ResetController::coldReset()
 
     cpu_.setRDY(vic_.getBA());
     cpu_.setAEC(vic_.getAEC());
+
+    if (!audioWasPaused)
+        audioOutput_.resumeAudio();
 }
