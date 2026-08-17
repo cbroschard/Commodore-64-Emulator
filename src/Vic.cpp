@@ -96,6 +96,7 @@ void Vic::reset()
     vicState.displayEnabledNext = false;
     vicState.badLine = false;
     vicState.badLineSampled = false;
+    vicState.badLineDmaStartCycle = -1;
 
     vicState.verticalBorder = true;
     vicState.horizontalBorder = true;
@@ -1618,13 +1619,11 @@ void Vic::updateLiveBadLineCondition()
     if (!vicState.badLine)
     {
         vicState.badLine = true;
+        vicState.badLineDmaStartCycle = currentCycle;
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
-        // A late-created bad line begins c-accesses from the
-        // current matrix position. Do not reset RC here;
-        // RC reset is specific to a bad-line condition at cycle 14.
         vicState.vmliBase = vicState.vcBase;
 
         activeMatrixRow.valid = true;

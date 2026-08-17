@@ -611,6 +611,7 @@ class Vic
             bool displayEnabledNext = false;
             bool badLine = false;
             bool badLineSampled = false;
+            int badLineDmaStartCycle = -1;
 
             // Border flip-flops
             bool verticalBorder = true;
