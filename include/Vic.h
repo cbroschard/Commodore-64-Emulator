@@ -1324,9 +1324,9 @@ class Vic
         uint8_t fetchColorByte (int row,int col, int raster) const;
 
         int currentDisplayRowBase() const;
-        uint8_t fetchDisplayScreenByte(int col, int raster) const;
+        uint8_t fetchDisplayScreenByte(int col, int raster, int px) const;
         uint8_t fetchDisplayColorByte(int col, int raster) const;
-        uint8_t resolveDisplayScreenByte(int displayCol, int raster) const;
+        uint8_t resolveDisplayScreenByte(int displayCol, int raster, int px) const;
         uint8_t resolveDisplayColorByte(int displayCol, int raster) const;
 
         bool shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const;

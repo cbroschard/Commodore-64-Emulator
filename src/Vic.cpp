@@ -2879,7 +2879,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
     latch = {};
     latch.column = column;
 
-    const uint8_t screenByte = fetchDisplayScreenByte(column, raster);
+    const uint8_t screenByte = fetchDisplayScreenByte(column, raster, fetchX);
 
     const uint8_t colorByte = fetchDisplayColorByte(column, raster);
 
@@ -3997,7 +3997,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const int displayCol = col;
 
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster, px);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
     const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
@@ -4117,7 +4117,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
 
     const int displayCol = col;
 
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster, px);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
     const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
@@ -4253,7 +4253,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
 
     const int displayCol = col;
 
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster, px);
     const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
 
     const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
@@ -4344,7 +4344,7 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
 
     const int displayCol = col;
 
-    const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster);
+    const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster, px);
     const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
 
     // ECM:
@@ -5491,13 +5491,14 @@ int Vic::currentDisplayRowBase() const
     return static_cast<int>(vicState.vcBase);
 }
 
-uint8_t Vic::fetchDisplayScreenByte(int col, int raster) const
+uint8_t Vic::fetchDisplayScreenByte(int col, int raster, int px) const
 {
     if (!mem)
         return 0x00;
 
     int row = 0;
     int c = 0;
+
     currentDisplayRowCol(col, row, c);
 
     if (c < 0)
@@ -5506,20 +5507,18 @@ uint8_t Vic::fetchDisplayScreenByte(int col, int raster) const
     if (c >= BACKGROUND_MATRIX_COLUMNS)
         c = BACKGROUND_MATRIX_COLUMNS - 1;
 
-    const int fine =
-        latchedD016ForRaster(raster) & 0x07;
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = registers.raster;
 
-    const int px =
-        BACKGROUND_40COL_X0 + fine + c * 8;
+    if (px < 0 || px >= VISIBLE_WIDTH)
+    {
+        const uint8_t d016 = d016ForRasterPixelX(raster, 0, false);
+        const int fine = static_cast<int>(d016 & 0x07);
+        px = BACKGROUND_40COL_X0 + fine + c * 8;
+    }
 
-    const uint16_t screenBase =
-        screenBaseForRasterPixelX(raster, px);
-
-    const uint16_t address =
-        static_cast<uint16_t>(
-            screenBase +
-            static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + c)
-        );
+    const uint16_t screenBase = screenBaseForRasterPixelX(raster, px);
+    const uint16_t address = static_cast<uint16_t>(screenBase + static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + c));
 
     return mem->vicRead(address, raster);
 }
@@ -5567,7 +5566,7 @@ bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& s
     return false;
 }
 
-uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster) const
+uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster, int px) const
 {
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
@@ -5575,7 +5574,7 @@ uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster) const
     if (fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
         return screenByte;
 
-    return fetchDisplayScreenByte(displayCol, raster);
+    return fetchDisplayScreenByte(displayCol, raster, px);
 }
 
 uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
