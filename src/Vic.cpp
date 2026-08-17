@@ -4594,21 +4594,32 @@ void Vic::buildBorderMaskLine(int raster)
 
     bool inBorder = vicState.horizontalBorder;
 
+    const int open40X = horizontalBorderOpenCompareX(true);
+    const int open38X = horizontalBorderOpenCompareX(false);
+
     const int close40X = horizontalBorderCloseCompareX(true);
     const int close38X = horizontalBorderCloseCompareX(false);
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
-        const uint8_t d016 = d016ForRasterPixelX(raster, px, false);
+        if (inBorder)
+        {
+            if (px == open38X)
+            {
+                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
 
-        const bool csel40 = (d016 & 0x08) != 0;
+                if ((d016AtCompare & 0x08) == 0)
+                    inBorder = false;
+            }
 
-        const HorizontalBorderWindow w = horizontalBorderWindowForCSEL(csel40);
+            if (px == open40X)
+            {
+                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
 
-        // Open transition: only happens when the current pixel reaches
-        // the active CSEL opening comparison point.
-        if (inBorder && px == w.openX)
-            inBorder = false;
+                if ((d016AtCompare & 0x08) != 0)
+                    inBorder = false;
+            }
+        }
 
         if (!inBorder)
         {
