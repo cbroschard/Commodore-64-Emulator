@@ -1383,13 +1383,13 @@ void Vic::outputPixel(int raster, int x)
     const uint8_t d011 = d011ForRasterPixelX(raster, x, false);
     const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
 
-    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
+    const graphicsMode liveMode = graphicsModeFromRegisters(d011, d016);
 
-    if (mode != graphicsMode::standard &&
-        mode != graphicsMode::multicolor &&
-        mode != graphicsMode::bitmap &&
-        mode != graphicsMode::multicolorBitmap &&
-        mode != graphicsMode::extendedColorText)
+    if (liveMode != graphicsMode::standard &&
+        liveMode != graphicsMode::multicolor &&
+        liveMode != graphicsMode::bitmap &&
+        liveMode != graphicsMode::multicolorBitmap &&
+        liveMode != graphicsMode::extendedColorText)
     {
         return;
     }
@@ -1398,8 +1398,6 @@ void Vic::outputPixel(int raster, int x)
         return;
 
     const int xScroll = static_cast<int>(d016 & 0x07);
-
-    const bool multicolorMode = (d016 & 0x10) != 0;
 
     if (currentCycleSlot.graphicsFetch)
     {
@@ -1411,10 +1409,15 @@ void Vic::outputPixel(int raster, int x)
 
             if (x == reloadX)
             {
-                if (mode == graphicsMode::bitmap || mode == graphicsMode::multicolorBitmap)
-                    loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
-                else
-                    loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+
+                if (latch.valid)
+                {
+                    if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap)
+                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                    else
+                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                }
             }
         }
     }
@@ -1430,13 +1433,15 @@ void Vic::outputPixel(int raster, int x)
         return;
     }
 
+    const graphicsMode outputMode = activeBgPixel.mode;
+
     BackgroundPixel pixel {};
 
-    if (mode == graphicsMode::multicolorBitmap)
+    if (outputMode == graphicsMode::multicolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
-    else if (mode == graphicsMode::bitmap)
+    else if (outputMode == graphicsMode::bitmap)
         pixel = sampleAndAdvanceActiveStandardBitmapPixel();
-    else if (multicolorMode && activeBgPixel.multicolorText)
+    else if (outputMode == graphicsMode::multicolor && activeBgPixel.multicolorText)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
