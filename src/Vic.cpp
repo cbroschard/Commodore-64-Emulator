@@ -2771,8 +2771,7 @@ void Vic::renderLine(int raster)
     updateGraphicsMode(raster);
     buildBorderMaskLine(raster);
 
-    const graphicsMode mode =
-        graphicsModeForRaster(raster);
+    const graphicsMode mode = graphicsModeForRaster(raster);
 
     const bool liveBackgroundMode =
         mode == graphicsMode::standard ||
@@ -3261,21 +3260,33 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     BackgroundPixel out {};
     out.color = activeBgPixel.bg0 & 0x0F;
     out.opaque = false;
-    out.source = out.opaque ? BackgroundSource::Foreground : activeBgPixel.bg0Source;
+    out.source = activeBgPixel.bg0Source;
 
     if (!activeBgPixel.valid)
         return out;
 
     const int phase = activeBgPixel.phase;
+
     if (phase < 0 || phase >= 8)
         return out;
 
     const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
 
-    out.color = pixelOn ? (activeBgPixel.fg & 0x0F) : (activeBgPixel.bg0 & 0x0F);
-    out.opaque = pixelOn;
+    if (pixelOn)
+    {
+        out.color = activeBgPixel.fg & 0x0F;
+        out.opaque = true;
+        out.source = BackgroundSource::Foreground;
+    }
+    else
+    {
+        out.color = activeBgPixel.bg0 & 0x0F;
+        out.opaque = false;
+        out.source = activeBgPixel.bg0Source;
+    }
 
-    activeBgPixel.phase++;
+    ++activeBgPixel.phase;
+
     return out;
 }
 
