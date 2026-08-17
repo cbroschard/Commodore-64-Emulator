@@ -323,9 +323,11 @@ void EmulationSession::shutdown()
 {
     runtime_.running = false;
 
-    media_.flushAndSaveMedia();
+    audioOutput_.stopAudio();
 
     videoOutput_.setGuiCallback({});
+
+    media_.flushAndSaveMedia();
 }
 
 void EmulationSession::syncTimingFromRuntimeMode()

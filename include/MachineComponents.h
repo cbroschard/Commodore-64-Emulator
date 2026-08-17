@@ -50,7 +50,6 @@ class UIBridge;
 struct MachineComponents
 {
     std::unique_ptr<SDLContext> sdlContext;
-    std::unique_ptr<AudioOutput> audioOutput;
     std::unique_ptr<VideoOutput> videoOutput;
     std::unique_ptr<Cartridge> cart;
     std::unique_ptr<Cassette> cass;
@@ -76,6 +75,7 @@ struct MachineComponents
     std::unique_ptr<REU> reu;
     std::unique_ptr<RS232Device> rs232Device;
     std::unique_ptr<SID> sid;
+    std::unique_ptr<AudioOutput> audioOutput;
     std::unique_ptr<StateManager> stateMgr;
     std::unique_ptr<SwiftLink> swiftLink;
     std::unique_ptr<Turbo232> turbo232;

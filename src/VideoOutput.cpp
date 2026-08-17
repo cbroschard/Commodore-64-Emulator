@@ -175,23 +175,30 @@ void VideoOutput::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 void VideoOutput::renderBorderLine(int row, uint8_t color, int x0, int x1)
 {
     const int W = screenWidthWithBorder;
-    if (row < 0 || row >= screenHeightWithBorder) return;
+
+    if (row < 0 || row >= screenHeightWithBorder)
+        return;
 
     const int y0 = borderSize;
     const int y1 = y0 + visibleScreenHeight;
 
     uint32_t* dst = backBuffer.data() + row * W;
-    uint32_t pix = palette32[color & 0x0F];
+    const uint32_t pix = palette32[color & 0x0F];
 
     if (row < y0 || row >= y1)
     {
         std::fill(dst, dst + W, pix);
+        return;
     }
-    else
-    {
-        std::fill(dst, dst + x0, pix);
-        std::fill(dst + x1, dst + W, pix);
-    }
+
+    x0 = std::clamp(x0, 0, W);
+    x1 = std::clamp(x1, 0, W);
+
+    if (x0 > x1)
+        std::swap(x0, x1);
+
+    std::fill(dst, dst + x0, pix);
+    std::fill(dst + x1, dst + W, pix);
 }
 
 void VideoOutput::setPixel(int x, int y, uint8_t colorIndex)
@@ -226,19 +233,18 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
 {
     (void)runningFlag;
 
+    std::lock_guard<std::mutex> lock(renderMut);
+
     if (!renderer || !screenTexture)
         return;
 
-    uint32_t* lastBuf =
-        readyBuffer.exchange(
-            nullptr,
-            std::memory_order_acquire
-        );
+    uint32_t* lastBuf = readyBuffer.exchange(nullptr, std::memory_order_acquire);
 
     if (!lastBuf)
         lastBuf = frontBuffer.data();
 
-    std::lock_guard<std::mutex> lock(renderMut);
+    if (!lastBuf || frontBuffer.empty())
+        return;
 
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -259,6 +265,7 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     }
 
     const SDL_FRect destination = computeDestinationRect(outputW, outputH);
+
     const int pitch = screenWidthWithBorder * static_cast<int>(sizeof(uint32_t));
 
     if (!SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch))
@@ -271,6 +278,7 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
         SDL_Log("SDL_RenderTexture failed: %s", SDL_GetError());
 
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+
     SDL_RenderPresent(renderer);
 
     if (sdlMon.isOpen())
