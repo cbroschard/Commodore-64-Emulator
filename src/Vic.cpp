@@ -4584,9 +4584,7 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
 
 void Vic::buildBorderMaskLine(int raster)
 {
-    std::fill(borderMaskLine.begin(),
-              borderMaskLine.begin() + VISIBLE_WIDTH,
-              1);
+    std::fill(borderMaskLine.begin(), borderMaskLine.begin() + VISIBLE_WIDTH, 1);
 
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
@@ -4595,6 +4593,9 @@ void Vic::buildBorderMaskLine(int raster)
         return;
 
     bool inBorder = vicState.horizontalBorder;
+
+    const int close40X = horizontalBorderCloseCompareX(true);
+    const int close38X = horizontalBorderCloseCompareX(false);
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
@@ -4609,10 +4610,24 @@ void Vic::buildBorderMaskLine(int raster)
         if (inBorder && px == w.openX)
             inBorder = false;
 
-        // Close transition: only happens when the current pixel reaches
-        // the active CSEL closing comparison point.
-        if (!inBorder && px == w.closeX)
-            inBorder = true;
+        if (!inBorder)
+        {
+            if (px == close38X)
+            {
+                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
+
+                if ((d016AtCompare & 0x08) == 0)
+                    inBorder = true;
+            }
+
+            if (px == close40X)
+            {
+                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
+
+                if ((d016AtCompare & 0x08) != 0)
+                    inBorder = true;
+            }
+        }
 
         borderMaskLine[px] = inBorder ? 1 : 0;
     }
