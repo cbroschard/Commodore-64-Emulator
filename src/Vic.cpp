@@ -339,7 +339,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(5); // version
+    wrtr.writeU32(6); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -433,11 +433,17 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU8(latch.graphicsByte);
 
         wrtr.writeU16(latch.graphicsAddress);
+
+        wrtr.writeU8(latch.d011);
+        wrtr.writeU8(latch.d016);
+        wrtr.writeU8(latch.d018);
+        wrtr.writeU8(static_cast<uint8_t>(latch.mode));
     }
 
     // Active background pixel shifter
     wrtr.writeBool(activeBgPixel.valid);
     wrtr.writeBool(activeBgPixel.multicolorText);
+    wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.mode));
 
     wrtr.writeU8(activeBgPixel.rowBits);
 
@@ -523,7 +529,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 5)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 6)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -624,6 +630,25 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readU8(latch.graphicsByte))        { rdr.exitChunkPayload(chunk); return false; }
 
                 if (!rdr.readU16(latch.graphicsAddress))    { rdr.exitChunkPayload(chunk); return false; }
+
+                if (ver >= 6)
+                {
+                    uint8_t mode = 0;
+
+                    if (!rdr.readU8(latch.d011))            { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(latch.d016))            { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(latch.d018))            { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(mode))                  { rdr.exitChunkPayload(chunk); return false; }
+
+                    latch.mode = static_cast<graphicsMode>(mode);
+                }
+                else
+                {
+                    latch.d011 = 0;
+                    latch.d016 = 0;
+                    latch.d018 = 0;
+                    latch.mode = graphicsMode::standard;
+                }
             }
 
             // Active standard-text pixel shifter
@@ -635,6 +660,15 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             }
             else
                 activeBgPixel.multicolorText = false;
+
+            if (ver >= 6)
+            {
+                uint8_t mode = 0;
+                if (!rdr.readU8(mode))                     { rdr.exitChunkPayload(chunk); return false; }
+                activeBgPixel.mode = static_cast<graphicsMode>(mode);
+            }
+            else
+                activeBgPixel.mode = graphicsMode::standard;
 
             if (!rdr.readU8(activeBgPixel.rowBits))         { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(activeBgPixel.fg))              { rdr.exitChunkPayload(chunk); return false; }
