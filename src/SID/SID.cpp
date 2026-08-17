@@ -821,10 +821,12 @@ void SID::tick(uint32_t cycles)
     for (size_t i = 0; i < samplesToPush; ++i)
     {
         double sample = generateAudioSample();
-        audioBuf.push(sample);
 
-        audioGeneratedSamples.fetch_add(1, std::memory_order_relaxed);
-        audioBufferedSamples.fetch_add(1, std::memory_order_relaxed);
+        if (audioBuf.push(sample))
+        {
+            audioGeneratedSamples.fetch_add(1, std::memory_order_relaxed);
+            audioBufferedSamples.fetch_add(1, std::memory_order_relaxed);
+        }
     }
 }
 
@@ -907,6 +909,8 @@ void SID::reset()
 
     hpPrevIn = 0.0;
     hpPrevOut = 0.0;
+
+    audioBuf.clear();
 
     audioGeneratedSamples.store(0, std::memory_order_relaxed);
     audioConsumedSamples.store(0, std::memory_order_relaxed);

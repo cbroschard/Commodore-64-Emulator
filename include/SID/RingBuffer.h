@@ -54,6 +54,11 @@ public:
     }
 
     std::size_t capacity() const noexcept { return N - 1; }
+
+    void clear() noexcept
+    {
+        tail.store(head.load(std::memory_order_acquire), std::memory_order_release);
+    }
 };
 
 #endif
