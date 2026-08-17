@@ -723,6 +723,8 @@ class Vic
         HorizontalBorderWindow horizontalBorderWindowForCSEL(bool csel40) const;
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
+        int horizontalBorderOpenCompareX(bool csel40) const;
+        int horizontalBorderCloseCompareX(bool csel40) const;
 
         std::array<SpriteUnit, 8> spriteUnits;
 

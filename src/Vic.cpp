@@ -1685,26 +1685,6 @@ bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
            cycle == ((slotStart + 3) % lineCycles);
 }
 
-Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
-{
-    BorderWindow w {};
-
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return w;
-
-    w.vertical = borderVertical_per_raster[raster] != 0;
-    w.openX = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    w.closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
-
-    if (w.openX >= w.closeX)
-    {
-        w.vertical = true;
-        w.openX = 0;
-        w.closeX = VISIBLE_WIDTH;
-    }
-
-    return w;
-}
 
 Vic::HorizontalBorderWindow Vic::horizontalBorderWindowForCSEL(bool csel40) const
 {
@@ -1743,6 +1723,37 @@ Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
     w.bottomClose = rsel25 ? 250 : 246;
 
     return w;
+}
+
+Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
+{
+    BorderWindow w {};
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+        return w;
+
+    w.vertical = borderVertical_per_raster[raster] != 0;
+    w.openX = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
+    w.closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
+
+    if (w.openX >= w.closeX)
+    {
+        w.vertical = true;
+        w.openX = 0;
+        w.closeX = VISIBLE_WIDTH;
+    }
+
+    return w;
+}
+
+int Vic::horizontalBorderOpenCompareX(bool csel40) const
+{
+    return horizontalBorderWindowForCSEL(csel40).openX;
+}
+
+int Vic::horizontalBorderCloseCompareX(bool csel40) const
+{
+    return horizontalBorderWindowForCSEL(csel40).closeX;
 }
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const
