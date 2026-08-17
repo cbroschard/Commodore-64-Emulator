@@ -1143,12 +1143,13 @@ void Vic::beginCycle()
 
     runCycleDecisionPhase();
 
-    if (currentCycleSlot.startSpriteDmaCheck)
-    {
-        const uint8_t startedMask           = currentCycleSlot.spriteDmaStartMask;
-        currentCycleSlot                    = cycleSlotFor(registers.raster, currentCycle);
-        currentCycleSlot.spriteDmaStartMask = startedMask;
-    }
+    const uint8_t startedMask = currentCycleSlot.spriteDmaStartMask;
+
+    // Decisions made this cycle can change bad-line and sprite DMA
+    // state, so rebuild the slot before applying BA/AEC.
+    currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
+
+    currentCycleSlot.spriteDmaStartMask = startedMask;
 
     updateBusArbitration();
 }
@@ -2529,7 +2530,10 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 {
-    if (!isBadLine(raster))
+    if (raster != registers.raster)
+        return false;
+
+    if (!vicState.badLine)
         return false;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
@@ -2540,14 +2544,16 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
 {
-    if (!isBadLine(raster))
+    if (raster != registers.raster)
+        return false;
+
+    if (!vicState.badLine)
         return false;
 
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
-    return cycle >= cfg_->DMAStartCycle &&
-           cycle <= cfg_->DMAEndCycle;
+    return cycle >= cfg_->DMAStartCycle && cycle <= cfg_->DMAEndCycle;
 }
 
 bool Vic::isRefreshCycle(int cycle) const
