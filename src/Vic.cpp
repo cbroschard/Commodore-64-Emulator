@@ -2758,39 +2758,26 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
 void Vic::beginBadLineFetch()
 {
-    if (vicState.matrixAdvancePending)
-    {
-        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vcBase + 40);
+    // VCBASE is advanced when RC wraps from 7 -> 0.
+    // Therefore a bad line uses the row already selected by VCBASE
+    // instead of advancing VCBASE again here.
+    vicState.matrixAdvancePending = false;
 
-        const int visibleRows = getLatchedRSEL(registers.raster) ? 25 : 24;
-
-        const int nextRow = static_cast<int>(nextVcBase / 40);
-
-        if (nextRow >= visibleRows)
-        {
-            vicState.displayEnabled = false;
-            vicState.displayEnabledNext = false;
-            vicState.matrixAdvancePending = false;
-
-            clearBadLineFifo();
-            return;
-        }
-
-        vicState.vcBase = nextVcBase;
-        vicState.vmliBase = nextVcBase;
-        vicState.matrixAdvancePending = false;
-    }
-
+    // A bad line resets the row counter.
     vicState.rc = 0;
 
+    // A valid bad line starts/continues display state.
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
 
+    // The matrix line index starts from the current VCBASE.
     vicState.vmliBase = vicState.vcBase;
 
+    // Begin a fresh 40-column matrix row. Each c-access on this
+    // bad line will populate the corresponding entry.
     activeMatrixRow.valid = true;
     activeMatrixRow.vcBase = vicState.vmliBase;
-    activeMatrixRow.row = static_cast<int>(vicState.vmliBase / 40);
+    activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
 
     activeMatrixRow.screen.fill(0);
     activeMatrixRow.color.fill(0);
@@ -5617,11 +5604,8 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
 
     if (vicState.rc == 0)
     {
-        const int nextRaster = (raster + 1) % cfg_->maxRasterLines;
-
         const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
-
-        const int nextRow = static_cast<int>(nextVcBase / 40);
+        const int nextRow = static_cast<int>(nextVcBase / BACKGROUND_MATRIX_COLUMNS);
 
         if (nextRow >= visibleRows)
         {
@@ -5633,14 +5617,13 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
             return;
         }
 
-        if (isBadLine(nextRaster))
-        {
-            vicState.vcBase = nextVcBase;
-            vicState.vmliBase = nextVcBase;
-            vicState.matrixAdvancePending = false;
-        }
-        else
-            vicState.matrixAdvancePending = true;
+        // VC after the final g-access points at the start of the
+        // next character row. Make that the new VCBASE immediately.
+        vicState.vcBase = nextVcBase;
+
+        // The cached matrix row still belongs to the old character row.
+        // A future bad line will populate a new one.
+        vicState.matrixAdvancePending = true;
     }
 
     const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
