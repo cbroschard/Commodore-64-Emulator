@@ -4632,9 +4632,6 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    if (borderVertical_per_raster[raster] != 0)
-        return false;
-
     return borderMaskLine[px] == 0;
 }
 
