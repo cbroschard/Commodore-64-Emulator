@@ -1208,12 +1208,8 @@ void Vic::beginFrameIfNeeded()
         clearBadLineFifo();
     }
 
-    // Latch the "DEN was seen on raster $30" qualifier exactly once,
-    // at the beginning of raster line $30, from the live D011 register.
-    if (currentCycle == 0 && registers.raster == 0x30)
-    {
-        denSeenOn30 = (registers.control & 0x10) != 0;
-    }
+    if (registers.raster == 0x30 && (registers.control & 0x10) != 0)
+        denSeenOn30 = true;
 }
 
 void Vic::runCycleDecisionPhase()
