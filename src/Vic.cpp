@@ -1586,7 +1586,7 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
 
 void Vic::performBadLineFetchesForCurrentCycle()
 {
-    if (!vicState.badLineSampled)
+    if (!vicState.badLine)
         return;
 
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
@@ -1618,10 +1618,21 @@ void Vic::updateLiveBadLineCondition()
     {
         vicState.badLine = true;
 
-        // Enter display state immediately when a Bad Line Condition
-        // appears, including late-created bad lines.
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
+
+        // A late-created bad line begins c-accesses from the
+        // current matrix position. Do not reset RC here;
+        // RC reset is specific to a bad-line condition at cycle 14.
+        vicState.vmliBase = vicState.vcBase;
+
+        activeMatrixRow.valid = true;
+        activeMatrixRow.vcBase = vicState.vmliBase;
+        activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
+
+        activeMatrixRow.screen.fill(0);
+        activeMatrixRow.color.fill(0);
+        activeMatrixRow.fetched.fill(0);
     }
 }
 
