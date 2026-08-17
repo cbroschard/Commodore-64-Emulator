@@ -1796,34 +1796,18 @@ void Vic::updateVerticalBorderStateAtLeftCompare(int raster, int px)
     if (px < 0 || px >= VISIBLE_WIDTH)
         return;
 
-    const uint8_t d011 = d011ForRasterPixelX(raster, px, false);
     const uint8_t d016 = d016ForRasterPixelX(raster, px, false);
 
-    const bool den = (d011 & 0x10) != 0;
-    const bool rsel25 = (d011 & 0x08) != 0;
     const bool csel40 = (d016 & 0x08) != 0;
 
-    const int leftCompareX = horizontalBorderOpenCompareX(csel40);
+    const int compareX = horizontalBorderOpenCompareX(csel40);
 
-    if (px != leftCompareX)
+    if (px != compareX)
         return;
 
-    const int topCompareRaster = verticalBorderOpenCompareRaster(rsel25);
-    const int bottomCompareRaster = verticalBorderCloseCompareRaster(rsel25);
+    const uint8_t d011 = d011ForRasterPixelX(raster, px, false);
 
-    if (raster == bottomCompareRaster)
-    {
-        vicState.verticalBorder = true;
-        vicState.bottomBorderCloseRaster = raster;
-    }
-
-    if (raster == topCompareRaster && den)
-    {
-        vicState.verticalBorder = false;
-
-        if (vicState.topBorderOpenRaster < 0)
-            vicState.topBorderOpenRaster = raster;
-    }
+    applyVerticalBorderCompare(raster, d011);
 }
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const
@@ -5774,39 +5758,7 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
 
 void Vic::updateVerticalBorderState(int raster)
 {
-    if (raster < 0 ||
-        raster >= static_cast<int>(cfg_->maxRasterLines))
-    {
-        vicState.verticalBorder = true;
-        return;
-    }
-
-    // Vertical-border comparisons use the live D011 state
-    // present at the comparison cycle.
-    const uint8_t d011 = registers.control;
-
-    const bool den = (d011 & 0x10) != 0;
-    const bool rsel25 = (d011 & 0x08) != 0;
-
-    const int openCompareRaster = verticalBorderOpenCompareRaster(rsel25);
-    const int closeCompareRaster = verticalBorderCloseCompareRaster(rsel25);
-
-    // Bottom comparison sets the vertical border flip-flop.
-    if (raster == closeCompareRaster)
-    {
-        vicState.verticalBorder = true;
-        vicState.bottomBorderCloseRaster = raster;
-    }
-
-    // Top comparison clears the vertical border flip-flop,
-    // but only when DEN is set.
-    if (raster == openCompareRaster && den)
-    {
-        vicState.verticalBorder = false;
-
-        if (vicState.topBorderOpenRaster < 0)
-            vicState.topBorderOpenRaster = raster;
-    }
+    applyVerticalBorderCompare(raster, registers.control);
 }
 
 void Vic::updateHorizontalBorderState(int raster)
@@ -5848,6 +5800,33 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
         return true;
 
     return borderMaskLine[px] != 0;
+}
+
+void Vic::applyVerticalBorderCompare(int raster, uint8_t d011)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    const bool den = (d011 & 0x10) != 0;
+
+    const bool rsel25 = (d011 & 0x08) != 0;
+
+    const int openCompareRaster = verticalBorderOpenCompareRaster(rsel25);
+    const int closeCompareRaster = verticalBorderCloseCompareRaster(rsel25);
+
+    if (raster == closeCompareRaster)
+    {
+        vicState.verticalBorder = true;
+        vicState.bottomBorderCloseRaster = raster;
+    }
+
+    if (raster == openCompareRaster && den)
+    {
+        vicState.verticalBorder = false;
+
+        if (vicState.topBorderOpenRaster < 0)
+            vicState.topBorderOpenRaster = raster;
+    }
 }
 
 uint8_t Vic::latchOpenBus(uint8_t value)

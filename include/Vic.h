@@ -1347,6 +1347,7 @@ class Vic
         void updateHorizontalBorderState(int raster);
         bool rasterWithinVerticalDisplayWindow(int raster) const;
         bool borderActiveAtPixel(int raster, int px) const;
+        void applyVerticalBorderCompare(int raster, uint8_t d011);
 
         // OpenBus Helpers
         uint8_t latchOpenBus(uint8_t value);
