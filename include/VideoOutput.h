@@ -76,7 +76,8 @@ class VideoOutput final : public IVideoSink
 
         std::vector<uint32_t> frontBuffer;
         std::vector<uint32_t> backBuffer;
-        std::atomic<uint32_t*> readyBuffer;
+
+        bool frameReady;
 
         uint32_t palette32[16];
 

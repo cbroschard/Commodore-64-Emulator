@@ -19,7 +19,7 @@ VideoOutput::VideoOutput() :
     borderSize(32),
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
-    readyBuffer(nullptr)
+    frameReady(false)
 {
     const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE;
 
@@ -224,9 +224,10 @@ void VideoOutput::setPixel(int x, int y, uint8_t colorIndex, int hardwareX)
 
 void VideoOutput::finishFrameAndSignal()
 {
-    std::lock_guard<std::mutex> lk(renderMut);
+    std::lock_guard<std::mutex> lock(renderMut);
+
     backBuffer.swap(frontBuffer);
-    readyBuffer.store(frontBuffer.data(), std::memory_order_release);
+    frameReady = true;
 }
 
 void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
@@ -238,7 +239,12 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     if (!renderer || !screenTexture)
         return;
 
-    uint32_t* lastBuf = readyBuffer.exchange(nullptr, std::memory_order_acquire);
+    if (frontBuffer.empty())
+        return;
+
+    frameReady = false;
+
+    const uint32_t* lastBuf = frontBuffer.data();
 
     if (!lastBuf)
         lastBuf = frontBuffer.data();
@@ -343,7 +349,7 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
 
     frontBuffer.assign(bufferSize, 0);
     backBuffer.assign(bufferSize, 0);
-    readyBuffer.store(nullptr, std::memory_order_release);
+    frameReady = false;
 
     if (screenTexture)
     {
