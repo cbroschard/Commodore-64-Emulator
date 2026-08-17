@@ -36,6 +36,7 @@ Vic::Vic(VideoMode mode) :
     lastFrameRasterPixelStates.resize(cfg_->maxRasterLines);
 
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
+    borderVerticalStart_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
 }
@@ -179,6 +180,7 @@ void Vic::reset()
     std::fill(std::begin(d018_per_raster), std::end(d018_per_raster), 0x14);
 
     std::fill(borderVertical_per_raster.begin(), borderVertical_per_raster.end(), 1);
+    std::fill(borderVerticalStart_per_raster.begin(), borderVerticalStart_per_raster.end(), 1);
     std::fill(borderLeftOpenX_per_raster.begin(), borderLeftOpenX_per_raster.end(), 0);
     std::fill(borderRightCloseX_per_raster.begin(), borderRightCloseX_per_raster.end(), VISIBLE_WIDTH);
 
@@ -233,6 +235,7 @@ void Vic::setMode(VideoMode mode)
     dd00_per_raster.resize(cfg_->maxRasterLines);
 
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
+    borderVerticalStart_per_raster.resize(cfg_->maxRasterLines);
     borderLeftOpenX_per_raster.resize(cfg_->maxRasterLines);
     borderRightCloseX_per_raster.resize(cfg_->maxRasterLines);
 
@@ -1246,21 +1249,24 @@ void Vic::handleCycle0Decisions()
 {
     const int raster = registers.raster;
 
-    // Latch the register state used by completed-raster rendering.
-    // Do this once at the start of the raster, not on every register write.
     d011_per_raster[raster] = registers.control & 0x7F;
     d016_per_raster[raster] = registers.control2 & 0x1F;
     d018_per_raster[raster] = registers.memory_pointer & 0xFE;
 
     latchNextRasterDD00();
 
+    borderVerticalStart_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
+
     updateHorizontalBorderState(raster);
 
     borderVertical_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
+
     borderLeftOpenX_per_raster[raster] = static_cast<int16_t>(vicState.leftBorderOpenX);
+
     borderRightCloseX_per_raster[raster] = static_cast<int16_t>(vicState.rightBorderCloseX);
 
     const uint16_t nextRaster = (registers.raster + 1) % cfg_->maxRasterLines;
+
     updateMonitorCaches(nextRaster);
 
     traceVicCycleCheckpoint("cycle-0", raster, currentCycle);
@@ -4639,14 +4645,15 @@ void Vic::buildBorderMaskLine(int raster)
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    if (!rasterWithinVerticalDisplayWindow(raster))
-        return;
+    // Use the vertical border flip-flop state that existed at the
+    // beginning of this raster instead of a calculated rectangular
+    // display window.
+    const bool verticalBorder = borderVerticalStart_per_raster[raster] != 0;
 
     bool inBorder = vicState.horizontalBorder;
 
     const int open40X = horizontalBorderOpenCompareX(true);
     const int open38X = horizontalBorderOpenCompareX(false);
-
     const int close40X = horizontalBorderCloseCompareX(true);
     const int close38X = horizontalBorderCloseCompareX(false);
 
@@ -4664,7 +4671,7 @@ void Vic::buildBorderMaskLine(int raster)
 
             if (px == open40X)
             {
-                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
+                const uint8_t d016AtCompare =  d016ForRasterPixelX(raster, px, false);
 
                 if ((d016AtCompare & 0x08) != 0)
                     inBorder = false;
@@ -4683,17 +4690,18 @@ void Vic::buildBorderMaskLine(int raster)
 
             if (px == close40X)
             {
-                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
+                const uint8_t d016AtCompare =  d016ForRasterPixelX(raster, px, false);
 
                 if ((d016AtCompare & 0x08) != 0)
                     inBorder = true;
             }
         }
 
-        borderMaskLine[px] = inBorder ? 1 : 0;
+        // Vertical border overrides horizontal border visibility.
+        borderMaskLine[px] = (verticalBorder || inBorder) ? 1 : 0;
     }
 
-    // Carry the flip-flop into the next raster line.
+    // Carry the horizontal border flip-flop into the next raster.
     vicState.horizontalBorder = inBorder;
 }
 
@@ -6217,17 +6225,39 @@ void Vic::rebuildBorderRasterLatches()
 {
     if ((int)borderVertical_per_raster.size() != cfg_->maxRasterLines)
         borderVertical_per_raster.assign(cfg_->maxRasterLines, 1);
+
+    if ((int)borderVerticalStart_per_raster.size() != cfg_->maxRasterLines)
+        borderVerticalStart_per_raster.assign(cfg_->maxRasterLines, 1);
+
     if ((int)borderLeftOpenX_per_raster.size() != cfg_->maxRasterLines)
         borderLeftOpenX_per_raster.assign(cfg_->maxRasterLines, 0);
+
     if ((int)borderRightCloseX_per_raster.size() != cfg_->maxRasterLines)
         borderRightCloseX_per_raster.assign(cfg_->maxRasterLines, VISIBLE_WIDTH);
 
+    bool verticalBorder = true;
+
     for (int r = 0; r < cfg_->maxRasterLines; ++r)
     {
-        updateVerticalBorderState(r);
+        borderVerticalStart_per_raster[r] = verticalBorder ? 1 : 0;
+
+        const uint8_t d011 = latchedD011ForRaster(r);
+        const bool den = (d011 & 0x10) != 0;
+        const bool rsel25 = (d011 & 0x08) != 0;
+
+        const int openCompareRaster = verticalBorderOpenCompareRaster(rsel25);
+        const int closeCompareRaster = verticalBorderCloseCompareRaster(rsel25);
+
+        if (r == closeCompareRaster)
+            verticalBorder = true;
+
+        if (r == openCompareRaster && den)
+            verticalBorder = false;
+
+        borderVertical_per_raster[r] = verticalBorder ? 1 : 0;
+
         updateHorizontalBorderState(r);
 
-        borderVertical_per_raster[r] = vicState.verticalBorder ? 1 : 0;
         borderLeftOpenX_per_raster[r] = static_cast<int16_t>(vicState.leftBorderOpenX);
         borderRightCloseX_per_raster[r] = static_cast<int16_t>(vicState.rightBorderCloseX);
     }
@@ -7112,6 +7142,7 @@ void Vic::postLoadState()
     fixSizeU16(dd00_per_raster, defaultBank);
 
     fixSizeU8(borderVertical_per_raster, vicState.verticalBorder ? 1 : 0);
+    fixSizeU8(borderVerticalStart_per_raster, vicState.verticalBorder ? 1 : 0);
 
     if (borderLeftOpenX_per_raster.size() != static_cast<size_t>(cfg_->maxRasterLines))
         borderLeftOpenX_per_raster.assign(cfg_->maxRasterLines, vicState.leftBorderOpenX);
