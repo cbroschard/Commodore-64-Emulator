@@ -3353,6 +3353,8 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     if (!latch.valid)
         return;
 
+    const graphicsMode mode = latch.mode;
+
     activeBgPixel.valid = true;
     activeBgPixel.multicolorText = false;
 
@@ -3360,18 +3362,15 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
 
-    const graphicsMode mode = graphicsModeForRaster(raster);
-
     if (mode == graphicsMode::multicolorBitmap)
     {
-        activeBgPixel.bg0 = registers.backgroundColor0 & 0x0F;
+        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
         activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
         activeBgPixel.bg2 = static_cast<uint8_t>(latch.colorByte & 0x0F);
     }
     else
     {
         activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
-
         activeBgPixel.bg1 = 0;
         activeBgPixel.bg2 = 0;
     }
