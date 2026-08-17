@@ -2883,6 +2883,8 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     activeBgPixel.valid = true;
 
+    activeBgPixel.mode = mode;
+
     // Multicolor text applies only when the fetch occurred in
     // multicolor text mode and color RAM bit 3 is set.
     activeBgPixel.multicolorText = (mode == graphicsMode::multicolor) && ((latch.colorByte & 0x08) != 0);
@@ -3361,6 +3363,7 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     const graphicsMode mode = latch.mode;
 
     activeBgPixel.valid = true;
+    activeBgPixel.mode = mode;
     activeBgPixel.multicolorText = false;
 
     activeBgPixel.rowBits = latch.graphicsByte;
