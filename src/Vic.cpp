@@ -1416,6 +1416,7 @@ void Vic::runPixelOutputPhase()
         if (x < 0 || x >= VISIBLE_WIDTH)
             continue;
 
+        updateVerticalBorderStateAtLeftCompare(raster, x);
         outputPixel(raster, x);
         outputSpritePixel(raster, x);
     }
@@ -1779,6 +1780,44 @@ int Vic::verticalBorderOpenCompareRaster(bool rsel25) const
 int Vic::verticalBorderCloseCompareRaster(bool rsel25) const
 {
     return rsel25 ? 251 : 247;
+}
+
+void Vic::updateVerticalBorderStateAtLeftCompare(int raster, int px)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return;
+
+    const uint8_t d011 = d011ForRasterPixelX(raster, px, false);
+    const uint8_t d016 = d016ForRasterPixelX(raster, px, false);
+
+    const bool den = (d011 & 0x10) != 0;
+    const bool rsel25 = (d011 & 0x08) != 0;
+    const bool csel40 = (d016 & 0x08) != 0;
+
+    const int leftCompareX = horizontalBorderOpenCompareX(csel40);
+
+    if (px != leftCompareX)
+        return;
+
+    const int topCompareRaster = verticalBorderOpenCompareRaster(rsel25);
+    const int bottomCompareRaster = verticalBorderCloseCompareRaster(rsel25);
+
+    if (raster == bottomCompareRaster)
+    {
+        vicState.verticalBorder = true;
+        vicState.bottomBorderCloseRaster = raster;
+    }
+
+    if (raster == topCompareRaster && den)
+    {
+        vicState.verticalBorder = false;
+
+        if (vicState.topBorderOpenRaster < 0)
+            vicState.topBorderOpenRaster = raster;
+    }
 }
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const
