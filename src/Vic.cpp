@@ -4525,15 +4525,10 @@ void Vic::generateBackgroundLine(int raster)
 
     const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
 
-    const BorderWindow w = borderWindowForRaster(raster);
-
-    // If display is effectively closed, leave border-filled line buffer.
-    if (!DEN || w.vertical)
-    {
+    // Border visibility is handled by borderMaskLine.
+    if (!DEN)
         return;
-    }
 
-    // Fill the interior with background color first for non-bitmap modes.
     const graphicsMode lineMode = graphicsModeForRaster(raster);
 
     if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multicolorBitmap))
@@ -4559,15 +4554,19 @@ void Vic::generateBackgroundLine(int raster)
         case graphicsMode::multicolor:
             renderTextLine(raster, lineXScroll);
             break;
+
         case graphicsMode::bitmap:
             renderBitmapLine(raster, lineXScroll);
             break;
+
         case graphicsMode::multicolorBitmap:
             renderBitmapMulticolorLine(raster, lineXScroll);
             break;
+
         case graphicsMode::extendedColorText:
             renderECMLine(raster, lineXScroll);
             break;
+
         default:
             break;
     }
