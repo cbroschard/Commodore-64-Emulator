@@ -1428,9 +1428,6 @@ void Vic::outputPixel(int raster, int x)
         return;
     }
 
-    if ((d011 & 0x10) == 0)
-        return;
-
     const int xScroll = static_cast<int>(d016 & 0x07);
 
     if (currentCycleSlot.graphicsFetch)
