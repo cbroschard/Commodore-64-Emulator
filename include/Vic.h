@@ -772,6 +772,7 @@ class Vic
         uint8_t effectiveD016ForRaster(int raster) const;
         uint8_t effectiveD018ForRaster(int raster) const;
 
+        uint8_t d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
         uint8_t d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
         uint8_t d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
 
@@ -943,6 +944,7 @@ class Vic
 
         graphicsMode graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const;
         graphicsMode graphicsModeForRaster(int raster) const;
+        graphicsMode graphicsModeForRasterPixel(int raster, int px, bool preferPreviousFrame = false) const;
 
         void updateGraphicsMode(int raster);
 

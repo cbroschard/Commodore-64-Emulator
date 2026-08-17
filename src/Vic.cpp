@@ -1380,18 +1380,22 @@ void Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return;
 
-    const graphicsMode mode = graphicsModeForRaster(raster);
+    const uint8_t d011 = d011ForRasterPixelX(raster, x, false);
+    const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap
-        && mode != graphicsMode::multicolorBitmap && mode != graphicsMode::extendedColorText)
+    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
+
+    if (mode != graphicsMode::standard &&
+        mode != graphicsMode::multicolor &&
+        mode != graphicsMode::bitmap &&
+        mode != graphicsMode::multicolorBitmap &&
+        mode != graphicsMode::extendedColorText)
+    {
         return;
-
-    const uint8_t d011 = effectiveD011ForRaster(raster);
+    }
 
     if ((d011 & 0x10) == 0)
         return;
-
-    const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
 
     const int xScroll = static_cast<int>(d016 & 0x07);
 
@@ -5295,6 +5299,17 @@ Vic::graphicsMode Vic::graphicsModeForRaster(int raster) const
     return graphicsModeFromRegisters(d011, d016);
 }
 
+Vic::graphicsMode Vic::graphicsModeForRasterPixel(int raster, int px, bool preferPreviousFrame) const
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return currentMode;
+
+    const uint8_t d011 = d011ForRasterPixelX(raster, px, preferPreviousFrame);
+    const uint8_t d016 = d016ForRasterPixelX(raster, px, preferPreviousFrame);
+
+    return graphicsModeFromRegisters(d011, d016);
+}
+
 void Vic::updateGraphicsMode(int raster)
 {
     currentMode = graphicsModeForRaster(raster);
@@ -6137,6 +6152,32 @@ uint8_t Vic::effectiveD018ForRaster(int raster) const
     return d018_per_raster[raster] & 0xFE;        // latched for other rasters
 }
 
+uint8_t Vic::d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return registers.control & 0x7F;
+
+    uint8_t active = latchedD011ForRaster(raster) & 0x7F;
+
+    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+
+    for (const RasterEventRecord& e : events)
+    {
+        if (e.raster != raster)
+            continue;
+
+        if (e.kind != RasterEventKind::Control)
+            continue;
+
+        const int eventX = rasterEventPixelX(e.cycle);
+
+        if (px >= eventX)
+            active = e.newValue & 0x7F;
+    }
+
+    return active;
+}
+
 uint8_t Vic::d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
 {
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
@@ -6144,8 +6185,7 @@ uint8_t Vic::d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
 
     uint8_t active = latchedD016ForRaster(raster) & 0x1F;
 
-    const std::vector<RasterEventRecord>& events =
-        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
 
     for (const RasterEventRecord& e : events)
     {
@@ -6171,11 +6211,7 @@ uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
 
     uint8_t active = latchedD018ForRaster(raster) & 0xFE;
 
-    // Rendering must only use the current frame's events.
-    // Previous-frame events are useful for monitor diagnostics, but they
-    // should never leak into current-frame rendering.
-    const std::vector<RasterEventRecord>& events =
-        preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
 
     for (const RasterEventRecord& e : events)
     {
