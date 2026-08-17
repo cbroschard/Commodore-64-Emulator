@@ -6739,9 +6739,9 @@ int Vic::cyclePixelX(int cycle) const
 
 int Vic::cycleFramebufferX(int cycle) const
 {
-    constexpr int GRAPHICS_FIRST_CYCLE = 16;
+    const int graphicsFirstCycle = cfg_->bgFetchStartCycle + 1;
 
-    return BACKGROUND_40COL_X0 + ((cycle - GRAPHICS_FIRST_CYCLE) * 8);
+    return BACKGROUND_40COL_X0 + ((cycle - graphicsFirstCycle) * 8);
 }
 
 void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const
