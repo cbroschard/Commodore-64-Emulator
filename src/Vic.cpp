@@ -4645,12 +4645,8 @@ void Vic::buildBorderMaskLine(int raster)
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    // Use the vertical border flip-flop state that existed at the
-    // beginning of this raster instead of a calculated rectangular
-    // display window.
-    const bool verticalBorder = borderVerticalStart_per_raster[raster] != 0;
-
-    bool inBorder = vicState.horizontalBorder;
+    bool verticalBorder = borderVerticalStart_per_raster[raster] != 0;
+    bool horizontalBorder = vicState.horizontalBorder;
 
     const int open40X = horizontalBorderOpenCompareX(true);
     const int open38X = horizontalBorderOpenCompareX(false);
@@ -4659,50 +4655,68 @@ void Vic::buildBorderMaskLine(int raster)
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
-        if (inBorder)
+        const uint8_t d011AtPixel = d011ForRasterPixelX(raster, px, false);
+        const uint8_t d016AtPixel = d016ForRasterPixelX(raster, px, false);
+
+        const bool den = (d011AtPixel & 0x10) != 0;
+        const bool rsel25 = (d011AtPixel & 0x08) != 0;
+        const bool csel40 = (d016AtPixel & 0x08) != 0;
+
+        const int verticalCompareX = horizontalBorderOpenCompareX(csel40);
+
+        /*
+         * Replay the vertical-border comparison that occurs
+         * at the left horizontal border comparison.
+         */
+        if (px == verticalCompareX)
+        {
+            const int openRaster = verticalBorderOpenCompareRaster(rsel25);
+            const int closeRaster = verticalBorderCloseCompareRaster(rsel25);
+
+            if (raster == closeRaster)
+                verticalBorder = true;
+
+            if (raster == openRaster && den)
+                verticalBorder = false;
+        }
+
+        /*
+         * Horizontal border flip-flop.
+         */
+        if (horizontalBorder)
         {
             if (px == open38X)
             {
-                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
-
-                if ((d016AtCompare & 0x08) == 0)
-                    inBorder = false;
+                if ((d016AtPixel & 0x08) == 0)
+                    horizontalBorder = false;
             }
 
             if (px == open40X)
             {
-                const uint8_t d016AtCompare =  d016ForRasterPixelX(raster, px, false);
-
-                if ((d016AtCompare & 0x08) != 0)
-                    inBorder = false;
+                if ((d016AtPixel & 0x08) != 0)
+                    horizontalBorder = false;
             }
         }
 
-        if (!inBorder)
+        if (!horizontalBorder)
         {
             if (px == close38X)
             {
-                const uint8_t d016AtCompare = d016ForRasterPixelX(raster, px, false);
-
-                if ((d016AtCompare & 0x08) == 0)
-                    inBorder = true;
+                if ((d016AtPixel & 0x08) == 0)
+                    horizontalBorder = true;
             }
 
             if (px == close40X)
             {
-                const uint8_t d016AtCompare =  d016ForRasterPixelX(raster, px, false);
-
-                if ((d016AtCompare & 0x08) != 0)
-                    inBorder = true;
+                if ((d016AtPixel & 0x08) != 0)
+                    horizontalBorder = true;
             }
         }
 
-        // Vertical border overrides horizontal border visibility.
-        borderMaskLine[px] = (verticalBorder || inBorder) ? 1 : 0;
+        borderMaskLine[px] = (verticalBorder || horizontalBorder) ? 1 : 0;
     }
 
-    // Carry the horizontal border flip-flop into the next raster.
-    vicState.horizontalBorder = inBorder;
+    vicState.horizontalBorder = horizontalBorder;
 }
 
 void Vic::composeFinalRasterLine(int raster)
@@ -5835,9 +5849,6 @@ bool Vic::borderActiveAtPixel(int raster, int px) const
         return true;
 
     if (px < 0 || px >= VISIBLE_WIDTH)
-        return true;
-
-    if (borderVertical_per_raster[raster] != 0)
         return true;
 
     return borderMaskLine[px] != 0;
