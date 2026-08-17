@@ -1460,15 +1460,20 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!vicState.displayEnabled)
         return;
 
-    const graphicsMode mode = graphicsModeForRaster(registers.raster);
+    const int fetchPixelX = cyclePixelX(currentCycle);
+    const int outputX     = cycleFramebufferX(currentCycle);
+    const int fetchX      = cycleFramebufferX(currentCycle);
 
-    if (mode != graphicsMode::standard && mode != graphicsMode::multicolor && mode != graphicsMode::bitmap
-        && mode != graphicsMode::multicolorBitmap && mode != graphicsMode::extendedColorText)
+    const graphicsMode mode = graphicsModeForRasterPixel(registers.raster, fetchX, false);
+
+    if (mode != graphicsMode::standard &&
+        mode != graphicsMode::multicolor &&
+        mode != graphicsMode::bitmap &&
+        mode != graphicsMode::multicolorBitmap &&
+        mode != graphicsMode::extendedColorText)
+    {
         return;
-
-    const int fetchPixelX   = cyclePixelX(currentCycle);
-    const int outputX       = cycleFramebufferX(currentCycle);
-    const int fetchX        = cycleFramebufferX(currentCycle);
+    }
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
 
@@ -2829,7 +2834,9 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
 
     uint8_t charIndex = screenByte;
 
-    if (graphicsModeForRaster(raster) == graphicsMode::extendedColorText)
+    const graphicsMode mode = graphicsModeForRasterPixel(raster, fetchX, false);
+
+    if (mode == graphicsMode::extendedColorText)
         charIndex &= 0x3F;
 
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
