@@ -372,6 +372,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.badLineSampled);
 
     wrtr.writeBool(vicState.verticalBorder);
+    wrtr.writeBool(vicState.horizontalBorder);
+
     wrtr.writeBool(vicState.leftBorder);
     wrtr.writeBool(vicState.rightBorder);
 
@@ -568,6 +570,16 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.badLineSampled))                     { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.verticalBorder))                     { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver >= 6)
+        {
+            if (!rdr.readBool(vicState.horizontalBorder))               { rdr.exitChunkPayload(chunk); return false; }
+        }
+        else
+        {
+            vicState.horizontalBorder = true;
+        }
+
         if (!rdr.readBool(vicState.leftBorder))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.rightBorder))                        { rdr.exitChunkPayload(chunk); return false; }
 
