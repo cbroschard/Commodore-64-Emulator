@@ -1338,6 +1338,16 @@ void Vic::runPixelOutputPhase()
     if (currentCycle == 0)
     {
         clearBackgroundLineBuffers();
+
+        const graphicsMode mode = graphicsModeForRaster(raster);
+
+        if (mode == graphicsMode::standard || mode == graphicsMode::multicolor || mode == graphicsMode::extendedColorText)
+        {
+            bgColorLine.fill(registers.backgroundColor0 & 0x0F);
+            bgOpaqueLine.fill(0);
+            bgSourceLine.fill(BackgroundSource::BG0);
+        }
+
         clearSpriteLineBuffers();
 
         resetActiveBackgroundPixelState();
@@ -2807,11 +2817,9 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
     latch = {};
     latch.column = column;
 
-    uint8_t screenByte = 0;
-    uint8_t colorByte = 0;
+    const uint8_t screenByte = fetchDisplayScreenByte(column, raster);
 
-    if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
-        return;
+    const uint8_t colorByte = fetchDisplayColorByte(column, raster);
 
     const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
 
@@ -2821,7 +2829,8 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
         charIndex &= 0x3F;
 
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(vicState.rc & 0x07));
+    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8
+                                + static_cast<uint16_t>(vicState.rc & 0x07));
     const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
@@ -4476,20 +4485,18 @@ void Vic::buildBorderMaskLine(int raster)
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         return;
 
-    if (borderVertical_per_raster[raster] != 0)
+    if (!rasterWithinVerticalDisplayWindow(raster))
         return;
 
     bool inBorder = true;
 
     for (int px = 0; px < VISIBLE_WIDTH; ++px)
     {
-        const uint8_t d016 =
-            d016ForRasterPixelX(raster, px, false);
+        const uint8_t d016 = d016ForRasterPixelX(raster, px, false);
 
         const bool csel40 = (d016 & 0x08) != 0;
 
-        const HorizontalBorderWindow w =
-            horizontalBorderWindowForCSEL(csel40);
+        const HorizontalBorderWindow w = horizontalBorderWindowForCSEL(csel40);
 
         // Open transition: only happens when the current pixel reaches
         // the active CSEL opening comparison point.
@@ -5529,8 +5536,7 @@ void Vic::advanceCharacterSequencerEndOfLine(int raster)
             vicState.matrixAdvancePending = true;
     }
 
-    const bool den =
-        (latchedD011ForRaster(raster) & 0x10) != 0;
+    const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
 
     if (!denSeenOn30 || firstBadlineY < 0 || !den)
     {
@@ -5574,8 +5580,7 @@ void Vic::updateVerticalBorderState(int raster)
         return;
     }
 
-    const VerticalBorderWindow w =
-        verticalBorderWindowForRaster(raster);
+    const VerticalBorderWindow w = verticalBorderWindowForRaster(raster);
 
     if (raster == w.topOpen)
     {
@@ -5594,9 +5599,7 @@ void Vic::updateVerticalBorderState(int raster)
     }
 
     if (raster < w.topOpen || raster > closeRaster)
-    {
         vicState.verticalBorder = true;
-    }
 }
 
 void Vic::updateHorizontalBorderState(int raster)
