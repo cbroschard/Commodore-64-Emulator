@@ -816,6 +816,7 @@ class Vic
         void beginBadLineFetch();
         void fetchBadLineMatrixByte(int fetchIndex, int raster);
         void performBadLineFetchesForCurrentCycle();
+        void updateLiveBadLineCondition();
 
         // Tick() Helpers
         void beginFrameIfNeeded();

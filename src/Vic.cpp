@@ -1222,6 +1222,8 @@ void Vic::runCycleDecisionPhase()
     if (slot.latchRasterState)
         handleCycle0Decisions();
 
+    updateLiveBadLineCondition();
+
     if (slot.sampleBadline)
         handleCycle14Decisions();
 
@@ -1272,20 +1274,21 @@ void Vic::handleCycle14Decisions()
 {
     const int raster = registers.raster;
 
-    // VIC sequencer begins a new 40-column matrix/graphics scan here.
     vicState.vc = vicState.vcBase;
     vicState.vmliFetchIndex = 0;
 
-    const bool badNow = isBadLine(raster);
+    const bool badAtCycle14 = isBadLine(raster);
 
-    vicState.badLineSampled = badNow;
-    vicState.badLine = badNow;
+    vicState.badLineSampled = badAtCycle14;
 
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
-    if (badNow)
+    if (badAtCycle14)
     {
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
+
+        vicState.rc = 0;
+
         initializeFirstBadLineIfNeeded(raster);
 
         if (firstBadlineThisFrame)
@@ -1595,6 +1598,31 @@ void Vic::performBadLineFetchesForCurrentCycle()
         return;
 
     fetchBadLineMatrixByte(fetchIndex, registers.raster);
+}
+
+void Vic::updateLiveBadLineCondition()
+{
+    const int raster = registers.raster;
+
+    if (currentCycle < 12 || currentCycle > 54)
+        return;
+
+    const bool badNow = isBadLine(raster);
+
+    if (!badNow)
+        return;
+
+    // Once DMA/c-accesses have begun for this raster,
+    // they continue through the remainder of the access window.
+    if (!vicState.badLine)
+    {
+        vicState.badLine = true;
+
+        // Enter display state immediately when a Bad Line Condition
+        // appears, including late-created bad lines.
+        vicState.displayEnabled = true;
+        vicState.displayEnabledNext = true;
+    }
 }
 
 void Vic::initializeFirstBadLineIfNeeded(int raster)
