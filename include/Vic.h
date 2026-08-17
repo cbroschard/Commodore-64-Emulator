@@ -1087,6 +1087,8 @@ class Vic
             bool valid = false;
             bool multicolorText = false;
 
+            graphicsMode mode = graphicsMode::standard;
+
             uint8_t rowBits = 0;
 
             uint8_t fg = 0;
