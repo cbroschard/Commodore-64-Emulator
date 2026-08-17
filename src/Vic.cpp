@@ -4630,6 +4630,7 @@ void Vic::buildBorderMaskLine(int raster)
 
     const int open40X = horizontalBorderOpenCompareX(true);
     const int open38X = horizontalBorderOpenCompareX(false);
+
     const int close40X = horizontalBorderCloseCompareX(true);
     const int close38X = horizontalBorderCloseCompareX(false);
 
@@ -4639,15 +4640,12 @@ void Vic::buildBorderMaskLine(int raster)
         const uint8_t d016AtPixel = d016ForRasterPixelX(raster, px, false);
 
         const bool den = (d011AtPixel & 0x10) != 0;
+
         const bool rsel25 = (d011AtPixel & 0x08) != 0;
         const bool csel40 = (d016AtPixel & 0x08) != 0;
 
         const int verticalCompareX = horizontalBorderOpenCompareX(csel40);
 
-        /*
-         * Replay the vertical-border comparison that occurs
-         * at the left horizontal border comparison.
-         */
         if (px == verticalCompareX)
         {
             const int openRaster = verticalBorderOpenCompareRaster(rsel25);
@@ -4660,37 +4658,22 @@ void Vic::buildBorderMaskLine(int raster)
                 verticalBorder = false;
         }
 
-        /*
-         * Horizontal border flip-flop.
-         */
         if (horizontalBorder)
         {
-            if (px == open38X)
-            {
-                if ((d016AtPixel & 0x08) == 0)
-                    horizontalBorder = false;
-            }
+            if (px == open38X && !csel40)
+                horizontalBorder = false;
 
-            if (px == open40X)
-            {
-                if ((d016AtPixel & 0x08) != 0)
-                    horizontalBorder = false;
-            }
+            if (px == open40X && csel40)
+                horizontalBorder = false;
         }
 
         if (!horizontalBorder)
         {
-            if (px == close38X)
-            {
-                if ((d016AtPixel & 0x08) == 0)
-                    horizontalBorder = true;
-            }
+            if (px == close38X && !csel40)
+                horizontalBorder = true;
 
-            if (px == close40X)
-            {
-                if ((d016AtPixel & 0x08) != 0)
-                    horizontalBorder = true;
-            }
+            if (px == close40X && csel40)
+                horizontalBorder = true;
         }
 
         borderMaskLine[px] = (verticalBorder || horizontalBorder) ? 1 : 0;
