@@ -1431,8 +1431,32 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    const bool badLineCanCarry = isBadLine(registers.raster) && rasterWithinVerticalDisplayWindow(registers.raster);
-    vicState.displayEnabledNext = vicState.displayEnabled || badLineCanCarry;
+    advanceCharacterSequencerAtCycle58();
+}
+
+void Vic::advanceCharacterSequencerAtCycle58()
+{
+    // At cycle 58, RC=7 completes the current character row.
+    // VC already points one entry beyond the final g-access, so it
+    // becomes the base for the next matrix row.
+    if (vicState.rc == 7)
+    {
+        vicState.vcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
+        vicState.matrixAdvancePending = true;
+
+        // Finishing RC=7 normally leaves display state.
+        vicState.displayEnabledNext = false;
+    }
+
+    // A bad-line condition present at cycle 58 forces display state on.
+    const bool badLineAt58 = isBadLine(registers.raster) && rasterWithinVerticalDisplayWindow(registers.raster);
+
+    if (badLineAt58)
+        vicState.displayEnabledNext = true;
+
+    // RC advances only while the display sequencer is active.
+    if (vicState.displayEnabled)
+        vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 }
 
 void Vic::runFetchPhase()
@@ -1838,7 +1862,6 @@ void Vic::finalizeCurrentRasterLine(int curRaster)
     snapshotRasterRowState(curRaster);
 
     updateSpriteDMAEndOfLine(curRaster);
-    advanceCharacterSequencerEndOfLine(curRaster);
 
     finalizeFrameIfNeeded(curRaster);
     advanceToNextRaster();
@@ -5907,69 +5930,6 @@ uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
         return static_cast<uint8_t>(colorByte & 0x0F);
 
     return static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
-}
-
-void Vic::advanceCharacterSequencerEndOfLine(int raster)
-{
-    if (!vicState.displayEnabledNext)
-    {
-        vicState.displayEnabled = false;
-        vicState.matrixAdvancePending = false;
-        return;
-    }
-
-    vicState.displayEnabled = true;
-
-    const int visibleRows = getLatchedRSEL(raster) ? 25 : 24;
-
-    const int currentRowBefore = currentCharacterRow();
-
-    if (currentRowBefore < 0 || currentRowBefore >= visibleRows)
-    {
-        vicState.displayEnabled = false;
-        vicState.displayEnabledNext = false;
-        vicState.matrixAdvancePending = false;
-
-        clearBadLineFifo();
-        return;
-    }
-
-    vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
-
-    if (vicState.rc == 0)
-    {
-        const uint16_t nextVcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
-        const int nextRow = static_cast<int>(nextVcBase / BACKGROUND_MATRIX_COLUMNS);
-
-        if (nextRow >= visibleRows)
-        {
-            vicState.displayEnabled = false;
-            vicState.displayEnabledNext = false;
-            vicState.matrixAdvancePending = false;
-
-            clearBadLineFifo();
-            return;
-        }
-
-        // VC after the final g-access points at the start of the
-        // next character row. Make that the new VCBASE immediately.
-        vicState.vcBase = nextVcBase;
-
-        // The cached matrix row still belongs to the old character row.
-        // A future bad line will populate a new one.
-        vicState.matrixAdvancePending = true;
-    }
-
-    const bool den = (latchedD011ForRaster(raster) & 0x10) != 0;
-
-    if (!denSeenOn30 || firstBadlineY < 0 || !den)
-    {
-        vicState.displayEnabled = false;
-        vicState.displayEnabledNext = false;
-        vicState.matrixAdvancePending = false;
-
-        clearBadLineFifo();
-    }
 }
 
 int Vic::currentCharacterRow() const

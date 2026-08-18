@@ -848,6 +848,7 @@ class Vic
         void handleCycle15Decisions();
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
+        void advanceCharacterSequencerAtCycle58();
         void runFetchPhase();
 
         // Pixel accurate helpers
@@ -1414,7 +1415,6 @@ class Vic
         // Badline helpers
         void traceVicBadLineStart(int raster, int cycle, uint16_t vcBase, uint8_t rc, bool den) const;
         void traceVicBadLineFetch(int raster, int cycle, int fetchIndex, uint16_t vc, int row, int col, uint8_t screenByte, uint8_t colorByte) const;
-        void advanceCharacterSequencerEndOfLine(int raster);
 
         // Cycle helpers
         int cyclePixelX(int cycle) const;
