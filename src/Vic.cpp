@@ -3282,6 +3282,10 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
+    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    latch = {};
+    latch.column = column;
+
     const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
     const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
     const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
@@ -3316,10 +3320,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
 
     updateOpenBus(graphicsByte);
 
-    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
-
     latch.valid = true;
-    latch.column = column;
 
     latch.screenByte = screenByte;
     latch.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
