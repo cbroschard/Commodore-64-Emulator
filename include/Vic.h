@@ -209,6 +209,11 @@ class Vic
             int badLineDmaStartCycle = -1;
             uint8_t badLineFetchIndex = 0;
 
+            uint8_t cAccessScreenLatch = 0;
+            uint8_t cAccessColorLatch = 0;
+            bool cAccessLatchValid = false;
+            int cAccessLatchIndex = -1;
+
             uint16_t liveVc = 0;
             uint16_t liveVcBase = 0;
             uint8_t liveVmliFetchIndex = 0;
@@ -737,6 +742,7 @@ class Vic
         uint8_t cAccessScreenLatch;
         uint8_t cAccessColorLatch;
         bool cAccessLatchValid;
+        int cAccessLatchIndex;
 
         HorizontalBorderWindow horizontalBorderWindowForCSEL(bool csel40) const;
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;

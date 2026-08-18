@@ -1345,6 +1345,26 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     out << "Badline DMA start cycle: " << s.badLineDmaStartCycle << "\n";
     out << "Badline fetch index    : " << int(s.badLineFetchIndex) << "\n";
 
+    out << "C-access latch valid   : "
+    << (s.cAccessLatchValid ? "Yes" : "No") << "\n";
+
+    out << "C-access latch index   : "
+        << s.cAccessLatchIndex << "\n";
+
+    out << "C-access screen latch  : $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.cAccessScreenLatch)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    out << "C-access color latch   : $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.cAccessColorLatch)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
     out << "Live VC    : " << s.liveVc << "\n";
     out << "Live VCBASE: " << s.liveVcBase << "\n";
     out << "Live VMLI  : " << int(s.liveVmliFetchIndex) << "\n";

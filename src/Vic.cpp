@@ -1687,8 +1687,7 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
 
     const int px = rasterEventPixelX(cycle);
 
-    const uint16_t screenBase =
-        screenBaseForRasterPixelX(raster, px);
+    const uint16_t screenBase = screenBaseForRasterPixelX(raster, px);
 
     return static_cast<uint16_t>(screenBase + 0x03F8 + sprite);
 }
@@ -1721,6 +1720,7 @@ void Vic::performBadLineFetchesForCurrentCycle()
         cAccessScreenLatch = 0xFF;
         cAccessColorLatch = static_cast<uint8_t>(cpuBusValue & 0x0F);
         cAccessLatchValid = true;
+        cAccessLatchIndex = fetchIndex;
 
         if (activeMatrixRow.valid)
         {
@@ -3083,6 +3083,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     cAccessScreenLatch = screenByte;
     cAccessColorLatch = colorByte;
     cAccessLatchValid = true;
+    cAccessLatchIndex = fetchIndex;
 
     charPtrFIFO[fetchIndex] = screenByte;
     colorPtrFIFO[fetchIndex] = colorByte;
@@ -3963,6 +3964,7 @@ void Vic::resetCAccessLatch()
     cAccessScreenLatch = 0;
     cAccessColorLatch = 0;
     cAccessLatchValid = false;
+    cAccessLatchIndex = -1;
 }
 
 void Vic::resetBackgroundPipeline()
@@ -6198,6 +6200,11 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.liveBadLine = vicState.badLine;
     s.badLineDmaStartCycle = vicState.badLineDmaStartCycle;
     s.badLineFetchIndex = vicState.badLineFetchIndex;
+
+    s.cAccessScreenLatch = cAccessScreenLatch;
+    s.cAccessColorLatch = cAccessColorLatch;
+    s.cAccessLatchValid = cAccessLatchValid;
+    s.cAccessLatchIndex = cAccessLatchIndex;
 
     s.liveVcBase = vicState.vcBase;
     s.liveVmliFetchIndex = vicState.vmliFetchIndex;
