@@ -1673,11 +1673,10 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!vicState.displayEnabled)
         return;
 
-    const int fetchPixelX = cyclePixelX(currentCycle);
-    const int outputX     = cycleFramebufferX(currentCycle);
-    const int fetchX      = cycleFramebufferX(currentCycle);
-
-    const graphicsMode mode = graphicsModeForRasterPixel(registers.raster, fetchX, false);
+    const int hardwareFetchX = cyclePixelX(currentCycle);
+    const int outputX = cycleFramebufferX(currentCycle);
+    const int registerSampleX = outputX;
+    const graphicsMode mode = graphicsModeForRasterPixel(registers.raster, registerSampleX, false);
 
     if (mode != graphicsMode::standard &&
         mode != graphicsMode::multicolor &&
@@ -1688,19 +1687,19 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         return;
     }
 
-    traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
+    traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, hardwareFetchX, outputX);
 
     switch (mode)
     {
         case graphicsMode::standard:
         case graphicsMode::multicolor:
         case graphicsMode::extendedColorText:
-            fetchStandardTextGraphicsByte(registers.raster, column, fetchX);
+            fetchStandardTextGraphicsByte(registers.raster, column, registerSampleX);
             break;
 
         case graphicsMode::bitmap:
         case graphicsMode::multicolorBitmap:
-            fetchStandardBitmapGraphicsByte(registers.raster, column, fetchX);
+            fetchStandardBitmapGraphicsByte(registers.raster, column, registerSampleX);
             break;
 
         default:
