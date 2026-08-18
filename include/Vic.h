@@ -218,6 +218,7 @@ class Vic
             bool graphicsLatchValid = false;
             int graphicsLatchIndex = -1;
             uint16_t graphicsLatchAddress = 0;
+            uint8_t graphicsLatchD016 = 0;
             uint8_t graphicsLatchD018 = 0;
 
             uint16_t liveVc = 0;

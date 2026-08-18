@@ -1374,6 +1374,13 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         << std::dec << std::nouppercase << std::setfill(' ')
         << "\n";
 
+    out << "G-access D016          : $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.graphicsLatchD016)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
     out << "G-access D018          : $"
         << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0')
