@@ -2549,14 +2549,8 @@ bool Vic::isBadLineCandidateForBusWarning(int raster) const
         return false;
 
     const uint8_t d011 = effectiveD011ForRaster(raster);
-
-    if ((d011 & 0x10) == 0)   // DEN
-        return false;
-
     const int yScroll = d011 & 0x07;
 
-    // VIC-II bad lines are only possible in the fixed display window.
-    // The window itself does not move with YSCROLL or RSEL.
     if (raster < 0x30 || raster > 0xF7)
         return false;
 
@@ -2751,18 +2745,13 @@ bool Vic::isBadLine(int raster) const
     if (raster < 0 || raster >= cfg_->maxRasterLines)
         return false;
 
-    const uint8_t d011 = effectiveD011ForRaster(raster);
-
     if (!denSeenOn30)
         return false;
 
-    if ((d011 & 0x10) == 0)   // DEN
-        return false;
-
+    const uint8_t d011 = effectiveD011ForRaster(raster);
     const int yScroll = d011 & 0x07;
 
     // VIC-II bad lines are only possible in the fixed display window.
-    // The window itself does not move with YSCROLL or RSEL.
     if (raster < 0x30 || raster > 0xF7)
         return false;
 
