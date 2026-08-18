@@ -1352,8 +1352,9 @@ void Vic::handleDmaStartCycleDecisions()
 void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
-    const bool badLineCanCarry = vicState.badLineSampled && rasterWithinVerticalDisplayWindow(registers.raster);
-    vicState.displayEnabledNext =  vicState.displayEnabled || badLineCanCarry;
+
+    const bool badLineCanCarry = vicState.badLine && rasterWithinVerticalDisplayWindow(registers.raster);
+    vicState.displayEnabledNext = vicState.displayEnabled || badLineCanCarry;
 }
 
 void Vic::runFetchPhase()
