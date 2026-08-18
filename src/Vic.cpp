@@ -1287,6 +1287,12 @@ void Vic::handleCycle14Decisions()
 
     if (badAtCycle14)
     {
+        vicState.badLine = true;
+
+        // BA begins warning now, but AEC cannot be taken until
+        // the three takeover cycles have elapsed.
+        vicState.badLineDmaStartCycle = currentCycle + 3;
+
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
         vicState.rc = 0;
@@ -1592,6 +1598,12 @@ void Vic::performBadLineFetchesForCurrentCycle()
         return;
 
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
+        return;
+
+    // A late-created bad line has three takeover cycles during
+    // which BA is low but AEC is still high. The VIC cannot
+    // perform the c-access until it actually owns the bus.
+    if (!currentCycleSlot.cpuBusStolen)
         return;
 
     const int fetchIndex = currentCycleSlot.matrixFetchIndex;
@@ -2535,8 +2547,14 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
     if (!vicState.badLine)
         return false;
 
-    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+    if (vicState.badLineDmaStartCycle < 0)
         return false;
+
+    if (cycle < vicState.badLineDmaStartCycle ||
+        cycle > cfg_->DMAEndCycle)
+    {
+        return false;
+    }
 
     return getFetchKindForCycle(raster, cycle) == FetchKind::CharMatrix;
 }
@@ -2549,10 +2567,15 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     if (!vicState.badLine)
         return false;
 
+    if (vicState.badLineDmaStartCycle < 0)
+        return false;
+
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
-    return cycle >= cfg_->DMAStartCycle && cycle <= cfg_->DMAEndCycle;
+    const int baStart = std::max(0, vicState.badLineDmaStartCycle - 3);
+
+    return cycle >= baStart && cycle <= cfg_->DMAEndCycle;
 }
 
 bool Vic::isRefreshCycle(int cycle) const
