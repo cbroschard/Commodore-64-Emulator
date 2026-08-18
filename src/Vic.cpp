@@ -3313,16 +3313,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     latch = {};
     latch.column = column;
 
-    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
-
-    const uint16_t bitmapBase = static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
-    const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
-    const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
-
-    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
-
-    const uint8_t graphicsByte = mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
-
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
@@ -3340,6 +3330,17 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
             return;
         }
     }
+
+    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
+
+    const uint16_t bitmapBase = static_cast<uint16_t>(((d018 >> 3) & 0x01) * 0x2000);
+    const uint16_t vc = static_cast<uint16_t>(vicState.vc & 0x03FF);
+
+    const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
+
+    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
+
+    const uint8_t graphicsByte = mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
 
