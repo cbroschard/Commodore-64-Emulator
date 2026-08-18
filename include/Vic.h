@@ -614,8 +614,6 @@ class Vic
             uint8_t vmliFetchIndex = 0;
             uint8_t rc = 0;
 
-            bool matrixAdvancePending = false;
-
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;

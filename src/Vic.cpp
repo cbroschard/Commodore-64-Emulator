@@ -90,8 +90,6 @@ void Vic::reset()
     vicState.vmliFetchIndex = 0;
     vicState.rc = 0;
 
-    vicState.matrixAdvancePending = false;
-
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
     vicState.badLine = false;
@@ -379,7 +377,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeI32(vicState.badLineDmaStartCycle);
 
     wrtr.writeU8(vicState.rc);
-    wrtr.writeBool(vicState.matrixAdvancePending);
 
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.displayEnabledNext);
@@ -612,7 +609,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         }
 
         if (!rdr.readU8(vicState.rc))                                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.matrixAdvancePending))               { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(vicState.displayEnabled))                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))                 { rdr.exitChunkPayload(chunk); return false; }
@@ -1295,7 +1291,6 @@ void Vic::beginFrameIfNeeded()
         vicState.vmliBase = 0;
         vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
-        vicState.matrixAdvancePending = false;
 
         vicState.badLine = false;
         vicState.badLineSampled = false;
@@ -1442,7 +1437,6 @@ void Vic::advanceCharacterSequencerAtCycle58()
     if (vicState.rc == 7)
     {
         vicState.vcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
-        vicState.matrixAdvancePending = true;
 
         // Finishing RC=7 normally leaves display state.
         vicState.displayEnabledNext = false;
@@ -3048,11 +3042,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
 void Vic::beginBadLineFetch()
 {
-    // VCBASE is advanced when RC wraps from 7 -> 0.
-    // Therefore a bad line uses the row already selected by VCBASE
-    // instead of advancing VCBASE again here.
-    vicState.matrixAdvancePending = false;
-
     // A bad line resets the row counter.
     vicState.rc = 0;
 
