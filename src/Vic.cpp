@@ -1664,7 +1664,11 @@ void Vic::updateLiveBadLineCondition()
     if (!vicState.badLine)
     {
         vicState.badLine = true;
-        vicState.badLineDmaStartCycle = currentCycle;
+
+        // A late-created Bad Line asserts BA beginning on the
+        // following cycle. AEC can remain high for three more
+        // cycles before the VIC actually owns the CPU half-cycle.
+        vicState.badLineDmaStartCycle = currentCycle + 4;
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
