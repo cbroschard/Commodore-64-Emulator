@@ -1443,17 +1443,14 @@ void Vic::advanceCharacterSequencerAtCycle58()
     // becomes the base for the next matrix row.
     if (vicState.rc == 7)
     {
-        vicState.vcBase =
-            static_cast<uint16_t>(vicState.vc & 0x03FF);
+        vicState.vcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
 
         // Finishing RC=7 normally leaves display state.
         vicState.displayEnabledNext = false;
     }
 
     // A bad-line condition present at cycle 58 forces display state on.
-    const bool badLineAt58 =
-        isBadLine(registers.raster) &&
-        rasterWithinVerticalDisplayWindow(registers.raster);
+    const bool badLineAt58 = isBadLine(registers.raster) && rasterWithinVerticalDisplayWindow(registers.raster);
 
     if (badLineAt58)
         vicState.displayEnabledNext = true;
@@ -1461,10 +1458,7 @@ void Vic::advanceCharacterSequencerAtCycle58()
     // RC advances according to the display state that was active
     // during the current line.
     if (vicState.displayEnabled)
-    {
-        vicState.rc =
-            static_cast<uint8_t>((vicState.rc + 1) & 0x07);
-    }
+        vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 }
 
 void Vic::runFetchPhase()
