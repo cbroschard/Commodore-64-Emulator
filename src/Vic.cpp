@@ -3283,8 +3283,20 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
-        return;
+    const bool useCAccessLatch = cAccessLatchValid && cAccessLatchIndex == column && vicState.badLine;
+
+    if (useCAccessLatch)
+    {
+        screenByte = cAccessScreenLatch;
+        colorByte = static_cast<uint8_t>(cAccessColorLatch & 0x0F);
+    }
+    else
+    {
+        if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
+        {
+            return;
+        }
+    }
 
     updateOpenBus(graphicsByte);
 
