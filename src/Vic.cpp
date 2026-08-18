@@ -3025,12 +3025,13 @@ void Vic::beginBadLineFetch()
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
 
+    // Matrix state has now definitely been initialized for this raster.
+    vicState.badLineInitializedThisRaster = true;
+
     // The matrix line index starts from the current VCBASE.
     vicState.vmliBase = vicState.vcBase;
     vicState.badLineFetchIndex = 0;
 
-    // Begin a fresh 40-column matrix row. Each c-access on this
-    // bad line will populate the corresponding entry.
     activeMatrixRow.valid = true;
     activeMatrixRow.vcBase = vicState.vmliBase;
     activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
