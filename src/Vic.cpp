@@ -6225,6 +6225,7 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
         if (latch.valid)
         {
             s.graphicsLatchAddress = latch.graphicsAddress;
+            s.graphicsLatchD011 = latch.d011;
             s.graphicsLatchD016 = latch.d016;
             s.graphicsLatchD018 = latch.d018;
         }
