@@ -98,6 +98,7 @@ void Vic::reset()
     vicState.badLineSampled = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
+    vicState.badLineInitializedThisRaster = false;
 
     vicState.verticalBorder = true;
     vicState.horizontalBorder = true;
@@ -274,6 +275,7 @@ void Vic::setMode(VideoMode mode)
     vicState.badLineSampled = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
+    vicState.badLineInitializedThisRaster = false;
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
@@ -1223,6 +1225,7 @@ void Vic::beginFrameIfNeeded()
         vicState.badLineSampled = false;
         vicState.badLineDmaStartCycle = -1;
         vicState.badLineFetchIndex = 0;
+        vicState.badLineInitializedThisRaster = false;
 
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
@@ -1682,27 +1685,33 @@ void Vic::updateLiveBadLineCondition()
     {
         vicState.badLine = true;
 
-        // A late-created Bad Line asserts BA beginning on the
-        // following cycle. AEC can remain high for three more
-        // cycles before the VIC actually owns the CPU half-cycle.
+        // A newly asserted Bad Line starts a new BA/AEC takeover
+        // sequence from this point.
         vicState.badLineDmaStartCycle = currentCycle + 4;
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
-        vicState.vmliBase = vicState.vcBase;
-        vicState.badLineFetchIndex = 0;
+        // Only initialize matrix-fetch state the first time the
+        // Bad Line Condition becomes true on this raster.
+        if (!vicState.badLineInitializedThisRaster)
+        {
+            vicState.badLineInitializedThisRaster = true;
 
-        activeMatrixRow.valid = true;
-        activeMatrixRow.vcBase = vicState.vmliBase;
-        activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
+            vicState.vmliBase = vicState.vcBase;
+            vicState.badLineFetchIndex = 0;
 
-        activeMatrixRow.screen.fill(0);
-        activeMatrixRow.color.fill(0);
-        activeMatrixRow.fetched.fill(0);
-        activeMatrixRow.invalid.fill(0);
-        activeMatrixRow.invalidScreen.fill(0);
-        activeMatrixRow.invalidColor.fill(0);
+            activeMatrixRow.valid = true;
+            activeMatrixRow.vcBase = vicState.vmliBase;
+            activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
+
+            activeMatrixRow.screen.fill(0);
+            activeMatrixRow.color.fill(0);
+            activeMatrixRow.fetched.fill(0);
+            activeMatrixRow.invalid.fill(0);
+            activeMatrixRow.invalidScreen.fill(0);
+            activeMatrixRow.invalidColor.fill(0);
+        }
     }
 }
 
@@ -1777,6 +1786,8 @@ void Vic::advanceToNextRaster()
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
 
     vicState.badLineSampled = false;
+    vicState.badLineInitializedThisRaster = false;
+
     rasterIrqSampledThisLine = false;
 }
 
