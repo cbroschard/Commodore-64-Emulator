@@ -46,7 +46,8 @@ Computer::Computer() :
     },
     cartridgeNMIPending(false),
     swiftLinkBaseAddress(0xDE00),
-    turbo232BaseAddress(0xDE00)
+    turbo232BaseAddress(0xDE00),
+    resumeAfterVicCycleBreakpoint(false)
 {
     components_.sdlContext = std::make_unique<SDLContext>();
     components_.audioOutput = std::make_unique<AudioOutput>();
@@ -438,13 +439,24 @@ bool Computer::boot()
 
 void Computer::tickCycle()
 {
-    components_.vic->beginCycle();
-
-    if (components_.debug && components_.debug->monitor().checkVicCycleBreakpoint())
+    if (!resumeAfterVicCycleBreakpoint)
     {
-        runtime_.uiPaused = true;
-        components_.debug->openMonitor();
-        return;
+        components_.vic->beginCycle();
+
+        if (components_.debug &&
+            components_.debug->monitor().checkVicCycleBreakpoint())
+        {
+            resumeAfterVicCycleBreakpoint = true;
+
+            runtime_.uiPaused = true;
+            components_.debug->openMonitor();
+            return;
+        }
+    }
+    else
+    {
+        // beginCycle() already ran before the VIC breakpoint stopped us.
+        resumeAfterVicCycleBreakpoint = false;
     }
 
     components_.cpu->setRDY(components_.vic->getBA());

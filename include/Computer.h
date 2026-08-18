@@ -154,6 +154,8 @@ class Computer : public ICartridgeHost
         uint16_t swiftLinkBaseAddress;
         uint16_t turbo232BaseAddress;
 
+        bool resumeAfterVicCycleBreakpoint;
+
         // Joystick
         void setJoystickAttached(int port, bool flag);
 
