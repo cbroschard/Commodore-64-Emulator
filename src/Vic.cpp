@@ -29,6 +29,9 @@ Vic::Vic(VideoMode mode) :
     d018_per_raster.resize(cfg_->maxRasterLines);
     dd00_per_raster.resize(cfg_->maxRasterLines);
 
+    rasterEventsByRaster.resize(cfg_->maxRasterLines);
+    lastFrameRasterEventsByRaster.resize(cfg_->maxRasterLines);
+
     rasterRowStates.resize(cfg_->maxRasterLines);
     lastFrameRasterRowStates.resize(cfg_->maxRasterLines);
 
@@ -235,6 +238,9 @@ void Vic::setMode(VideoMode mode)
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
     dd00_per_raster.resize(cfg_->maxRasterLines);
+
+    rasterEventsByRaster.resize(cfg_->maxRasterLines);
+    lastFrameRasterEventsByRaster.resize(cfg_->maxRasterLines);
 
     borderVertical_per_raster.resize(cfg_->maxRasterLines);
     borderVerticalStart_per_raster.resize(cfg_->maxRasterLines);
@@ -1264,11 +1270,16 @@ void Vic::beginFrameIfNeeded()
         if (!rasterEventLog.empty())
             lastFrameRasterEventLog = rasterEventLog;
 
+        lastFrameRasterEventsByRaster = rasterEventsByRaster;
+
         // Preserve completed-frame diagnostics before clearing current-frame state.
         lastFrameRasterRowStates = rasterRowStates;
         lastFrameRasterPixelStates = rasterPixelStates;
 
         rasterEventLog.clear();
+
+        for (auto& events : rasterEventsByRaster)
+            events.clear();
 
         for (auto& s : rasterRowStates)
             s = {};
@@ -3455,6 +3466,9 @@ void Vic::recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t o
     e.newValue = newValue;
 
     rasterEventLog.push_back(e);
+
+    if (e.raster >= 0 && e.raster < static_cast<int>(rasterEventsByRaster.size()))
+        rasterEventsByRaster[e.raster].push_back(e);
 }
 
 void Vic::snapshotRasterPixelComposition(int raster)
@@ -6587,13 +6601,15 @@ uint8_t Vic::d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
 
     uint8_t active = latchedD011ForRaster(raster) & 0x7F;
 
-    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+    const auto& eventTable = preferPreviousFrame ? lastFrameRasterEventsByRaster : rasterEventsByRaster;
+
+    if (raster >= static_cast<int>(eventTable.size()))
+        return active;
+
+    const auto& events = eventTable[raster];
 
     for (const RasterEventRecord& e : events)
     {
-        if (e.raster != raster)
-            continue;
-
         if (e.kind != RasterEventKind::Control)
             continue;
 
@@ -6613,13 +6629,15 @@ uint8_t Vic::d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
 
     uint8_t active = latchedD016ForRaster(raster) & 0x1F;
 
-    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+    const auto& eventTable = preferPreviousFrame ? lastFrameRasterEventsByRaster : rasterEventsByRaster;
+
+    if (raster >= static_cast<int>(eventTable.size()))
+        return active;
+
+    const auto& events = eventTable[raster];
 
     for (const RasterEventRecord& e : events)
     {
-        if (e.raster != raster)
-            continue;
-
         if (e.kind != RasterEventKind::Control2)
             continue;
 
@@ -6639,13 +6657,15 @@ uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
 
     uint8_t active = latchedD018ForRaster(raster) & 0xFE;
 
-    const std::vector<RasterEventRecord>& events = preferPreviousFrame ? lastFrameRasterEventLog : rasterEventLog;
+    const auto& eventTable = preferPreviousFrame ? lastFrameRasterEventsByRaster : rasterEventsByRaster;
+
+    if (raster >= static_cast<int>(eventTable.size()))
+        return active;
+
+    const auto& events = eventTable[raster];
 
     for (const RasterEventRecord& e : events)
     {
-        if (e.raster != raster)
-            continue;
-
         if (e.kind != RasterEventKind::MemoryPointer)
             continue;
 
