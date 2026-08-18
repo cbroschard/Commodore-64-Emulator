@@ -6237,6 +6237,22 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
         }
     }
 
+    if (s.slot.graphicsFetch)
+    {
+        const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
+
+        if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+        {
+            const int registerSampleX = rasterEventPixelX(cycle);
+            const uint8_t d016 = d016ForRasterPixelX(raster, registerSampleX, false);
+            const int xScroll =  static_cast<int>(d016 & 0x07);
+
+            s.graphicsReloadColumn = fetchColumn;
+
+            s.graphicsReloadX = cycleFramebufferX(cycle) + xScroll;
+        }
+    }
+
     s.liveVcBase = vicState.vcBase;
     s.liveVmliFetchIndex = vicState.vmliFetchIndex;
     s.liveRc = vicState.rc;

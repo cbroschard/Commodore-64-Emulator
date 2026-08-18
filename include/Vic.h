@@ -222,6 +222,9 @@ class Vic
             uint8_t graphicsLatchD016 = 0;
             uint8_t graphicsLatchD018 = 0;
 
+            int graphicsReloadColumn = -1;
+            int graphicsReloadX = -1;
+
             uint16_t liveVc = 0;
             uint16_t liveVcBase = 0;
             uint8_t liveVmliFetchIndex = 0;

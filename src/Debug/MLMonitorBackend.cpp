@@ -1395,6 +1395,9 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         << std::dec << std::nouppercase << std::setfill(' ')
         << "\n";
 
+    out << "Graphics reload column : " << s.graphicsReloadColumn << "\n";
+    out << "Graphics reload X      : " << s.graphicsReloadX << "\n";
+
     out << "Live VC    : " << s.liveVc << "\n";
     out << "Live VCBASE: " << s.liveVcBase << "\n";
     out << "Live VMLI  : " << int(s.liveVmliFetchIndex) << "\n";
