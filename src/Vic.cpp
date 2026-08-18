@@ -1666,7 +1666,16 @@ void Vic::updateLiveBadLineCondition()
     const bool badNow = isBadLine(raster);
 
     if (!badNow)
+    {
+        if (currentCycle < 14 && vicState.badLine)
+        {
+            vicState.badLine = false;
+            vicState.badLineDmaStartCycle = -1;
+            vicState.badLineFetchIndex = 0;
+        }
+
         return;
+    }
 
     if (!vicState.badLine)
     {
