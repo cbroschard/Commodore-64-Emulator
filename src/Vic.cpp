@@ -1600,16 +1600,31 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
         return;
 
-    // A late-created bad line has three takeover cycles during
-    // which BA is low but AEC is still high. The VIC cannot
-    // perform the c-access until it actually owns the bus.
-    if (!currentCycleSlot.cpuBusStolen)
-        return;
-
     const int fetchIndex = currentCycleSlot.matrixFetchIndex;
 
     if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
+    {
         return;
+    }
+
+    // VIC is attempting a c-access, but AEC has not yet
+    // transferred bus ownership. Mark the matrix entry as
+    // invalid instead of silently falling back to RAM later.
+    if (!currentCycleSlot.cpuBusStolen)
+    {
+        if (activeMatrixRow.valid)
+        {
+            activeMatrixRow.screen[fetchIndex] = 0xFF;
+            activeMatrixRow.color[fetchIndex] = 0x0F; // temporary approximation
+            activeMatrixRow.fetched[fetchIndex] = 1;
+            activeMatrixRow.invalid[fetchIndex] = 1;
+        }
+
+        charPtrFIFO[fetchIndex] = 0xFF;
+        colorPtrFIFO[fetchIndex] = 0x0F;
+
+        return;
+    }
 
     fetchBadLineMatrixByte(fetchIndex, registers.raster);
 }
@@ -2944,6 +2959,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
         activeMatrixRow.screen[fetchIndex] = screenByte;
         activeMatrixRow.color[fetchIndex] = colorByte;
         activeMatrixRow.fetched[fetchIndex] = 1;
+        activeMatrixRow.invalid[fetchIndex] = 0;
     }
 }
 
@@ -3778,11 +3794,10 @@ void Vic::resetActiveMatrixRow()
     activeMatrixRow.screen.fill(0);
     activeMatrixRow.color.fill(0);
     activeMatrixRow.fetched.fill(0);
+    activeMatrixRow.invalid.fill(0);
 }
 
-bool Vic::activeMatrixRowByteForDisplayCol(int displayCol,
-                                           uint8_t& screenByte,
-                                           uint8_t& colorByte) const
+bool Vic::activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const
 {
     if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)
         return false;
@@ -3793,8 +3808,7 @@ bool Vic::activeMatrixRowByteForDisplayCol(int displayCol,
     if (!activeMatrixRow.valid)
         return false;
 
-    const uint16_t expectedBase =
-        static_cast<uint16_t>(currentDisplayRowBase());
+    const uint16_t expectedBase = static_cast<uint16_t>(currentDisplayRowBase());
 
     if (activeMatrixRow.vcBase != expectedBase)
         return false;
