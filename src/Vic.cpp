@@ -3142,9 +3142,21 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
     latch = {};
     latch.column = column;
 
-    const uint8_t screenByte = fetchDisplayScreenByte(column, raster, fetchX);
+    uint8_t screenByte = 0;
+    uint8_t colorByte = 0;
 
-    const uint8_t colorByte = fetchDisplayColorByte(column, raster);
+    const bool useCAccessLatch = cAccessLatchValid && cAccessLatchIndex == column && vicState.badLine;
+
+    if (useCAccessLatch)
+    {
+        screenByte = cAccessScreenLatch;
+        colorByte = static_cast<uint8_t>(cAccessColorLatch & 0x0F);
+    }
+    else
+    {
+        screenByte = fetchDisplayScreenByte(column, raster, fetchX);
+        colorByte = fetchDisplayColorByte(column, raster);
+    }
 
     const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
     const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
