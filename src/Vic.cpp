@@ -1662,11 +1662,17 @@ void Vic::updateLiveBadLineCondition()
 
     if (!badNow)
     {
-        if (currentCycle < 14 && vicState.badLine)
+        if (vicState.badLine)
         {
             vicState.badLine = false;
-            vicState.badLineDmaStartCycle = -1;
-            vicState.badLineFetchIndex = 0;
+
+            // Before cycle 14, nothing has committed yet, so the
+            // pending DMA setup can be discarded completely.
+            if (currentCycle < 14)
+            {
+                vicState.badLineDmaStartCycle = -1;
+                vicState.badLineFetchIndex = 0;
+            }
         }
 
         return;
