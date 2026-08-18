@@ -1375,10 +1375,9 @@ void Vic::handleCycle14Decisions()
 {
     const int raster = registers.raster;
 
-    vicState.vc = vicState.vcBase;
-    vicState.vmliFetchIndex = 0;
-
     const bool badAtCycle14 = isBadLine(raster);
+
+    reloadGraphicsSequencerAtCycle14(badAtCycle14);
 
     vicState.badLineSampled = badAtCycle14;
 
@@ -1387,12 +1386,9 @@ void Vic::handleCycle14Decisions()
     if (badAtCycle14)
     {
         vicState.badLine = true;
-
         vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
-
-        vicState.rc = 0;
 
         initializeFirstBadLineIfNeeded(raster);
 
@@ -1516,6 +1512,20 @@ void Vic::runFetchPhase()
             performIdleFetchForCurrentCycle();
             break;
     }
+}
+
+void Vic::reloadGraphicsSequencerAtCycle14(bool badLineAt14)
+{
+    // VIC-II cycle 14:
+    // VCBASE -> VC and VMLI is cleared on every raster line.
+    vicState.vc = static_cast<uint16_t>(vicState.vcBase & 0x03FF);
+
+    vicState.vmliFetchIndex = 0;
+
+    // RC is cleared only if the Bad Line Condition is active
+    // at the cycle-14 sample point.
+    if (badLineAt14)
+        vicState.rc = 0;
 }
 
 void Vic::advanceGraphicsSequencerAfterGAccess()
