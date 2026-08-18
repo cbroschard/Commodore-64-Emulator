@@ -3168,8 +3168,10 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
     }
     else
     {
-        screenByte = fetchDisplayScreenByte(column, raster, fetchX);
-        colorByte = fetchDisplayColorByte(column, raster);
+        if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
+        {
+            return;
+        }
     }
 
     const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
