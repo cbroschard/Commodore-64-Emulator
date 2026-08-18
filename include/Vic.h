@@ -733,6 +733,11 @@ class Vic
 
         MatrixRowCache activeMatrixRow;
 
+        // Most recent character-matrix c-access observed by the VIC.
+        uint8_t cAccessScreenLatch;
+        uint8_t cAccessColorLatch;
+        bool cAccessLatchValid;
+
         HorizontalBorderWindow horizontalBorderWindowForCSEL(bool csel40) const;
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
         BorderWindow borderWindowForRaster(int raster) const;
@@ -1267,6 +1272,8 @@ class Vic
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
+
+        void resetCAccessLatch();
 
         void resetBackgroundPipeline();
 

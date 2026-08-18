@@ -217,6 +217,7 @@ void Vic::reset()
     for (auto& line : spriteColorSourceLine)    line.fill(SpriteColorSource::None);
 
     resetActiveMatrixRow();
+    resetCAccessLatch();
 
     // Sprite collision latches
     lastSpriteSpriteCollision = {};
@@ -264,6 +265,7 @@ void Vic::setMode(VideoMode mode)
 
     clearBadLineFifo();
     resetActiveMatrixRow();
+    resetCAccessLatch();
     resetActiveBackgroundPixelState();
     resetBackgroundPipeline();
     resetBackgroundGraphicsLatches();
@@ -690,6 +692,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         else
         {
             resetActiveMatrixRow();
+            resetCAccessLatch();
         }
 
         for (auto& s : spriteUnits)
@@ -1710,13 +1713,20 @@ void Vic::performBadLineFetchesForCurrentCycle()
 
     if (!currentCycleSlot.cpuBusStolen)
     {
+        const uint8_t cpuBusValue = getOpenBus();
+
+        // Invalid late c-access:
+        // character byte reads as $FF while the color nibble is
+        // sourced from the shared/open data bus.
+        cAccessScreenLatch = 0xFF;
+        cAccessColorLatch = static_cast<uint8_t>(cpuBusValue & 0x0F);
+        cAccessLatchValid = true;
+
         if (activeMatrixRow.valid)
         {
-            const uint8_t cpuBusValue = getOpenBus();
-
             activeMatrixRow.invalid[fetchIndex] = 1;
-            activeMatrixRow.invalidScreen[fetchIndex] = 0xFF;
-            activeMatrixRow.invalidColor[fetchIndex] = static_cast<uint8_t>(cpuBusValue & 0x0F);
+            activeMatrixRow.invalidScreen[fetchIndex] = cAccessScreenLatch;
+            activeMatrixRow.invalidColor[fetchIndex] = cAccessColorLatch;
         }
     }
     else
@@ -3056,8 +3066,6 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     const uint16_t vc = static_cast<uint16_t>((vicState.vmliBase + fetchIndex) & 0x03FF);
 
     // Use the register state that is active at this exact c-access.
-    // rasterEventPixelX() uses the same coordinate system as the
-    // D018 raster-event reconstruction.
     const int fetchX = rasterEventPixelX(currentCycle);
 
     const uint16_t screenBase = screenBaseForRasterPixelX(raster, fetchX);
@@ -3071,10 +3079,16 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     const uint8_t colorByte = static_cast<uint8_t>(mem->vicReadColor(colorAddress) & 0x0F);
 
+    // Successful c-access becomes the current VIC matrix latch.
+    cAccessScreenLatch = screenByte;
+    cAccessColorLatch = colorByte;
+    cAccessLatchValid = true;
+
     charPtrFIFO[fetchIndex] = screenByte;
     colorPtrFIFO[fetchIndex] = colorByte;
 
-    if (activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
+    if (activeMatrixRow.valid &&
+        activeMatrixRow.vcBase == vicState.vmliBase)
     {
         activeMatrixRow.screen[fetchIndex] = screenByte;
         activeMatrixRow.color[fetchIndex] = colorByte;
@@ -3942,6 +3956,13 @@ bool Vic::activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, 
     colorByte  = static_cast<uint8_t>(activeMatrixRow.color[displayCol] & 0x0F);
 
     return true;
+}
+
+void Vic::resetCAccessLatch()
+{
+    cAccessScreenLatch = 0;
+    cAccessColorLatch = 0;
+    cAccessLatchValid = false;
 }
 
 void Vic::resetBackgroundPipeline()
