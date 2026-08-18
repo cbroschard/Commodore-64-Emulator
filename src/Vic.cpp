@@ -1610,21 +1610,20 @@ void Vic::outputPixel(int raster, int x)
         return;
     }
 
-    const int xScroll = static_cast<int>(d016 & 0x07);
-
     if (currentCycleSlot.graphicsFetch)
     {
         const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
 
         if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
         {
-            const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
+            const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
 
-            if (x == reloadX)
+            if (latch.valid)
             {
-                const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+                const int xScroll = static_cast<int>(latch.d016 & 0x07);
+                const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
-                if (latch.valid)
+                if (x == reloadX)
                 {
                     if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap)
                         loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
