@@ -1415,6 +1415,7 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     << " line=" << bit(s.irqLineActiveNow)
     << "\n";
 
+    out << "Graphics fetch index: " << slot.graphicsFetchIndex << "\n";
     out << "Matrix fetch index: " << slot.matrixFetchIndex << "\n";
 
     out << "DEN seen on $30: " << (s.denSeenOn30 ? "Yes" : "No") << "\n";
