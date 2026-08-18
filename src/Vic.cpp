@@ -402,6 +402,28 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(rasterIrqSampledThisLine);
 
+    wrtr.writeBool(activeMatrixRow.valid);
+    wrtr.writeU16(activeMatrixRow.vcBase);
+    wrtr.writeI32(activeMatrixRow.row);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.screen[i]);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.color[i]);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.fetched[i]);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.invalid[i]);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.invalidScreen[i]);
+
+    for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+        wrtr.writeU8(activeMatrixRow.invalidColor[i]);
+
     for (const auto& s : spriteUnits)
     {
         wrtr.writeBool(s.dmaActive);
@@ -628,6 +650,47 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.aec))                                { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readBool(rasterIrqSampledThisLine))                    { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver >= 8)
+        {
+            if (!rdr.readBool(activeMatrixRow.valid))                   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU16(activeMatrixRow.vcBase))                   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeMatrixRow.row))                      { rdr.exitChunkPayload(chunk); return false; }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.screen[i]))             { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.color[i]))              { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.fetched[i]))            { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.invalid[i]))            { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.invalidScreen[i]))      { rdr.exitChunkPayload(chunk); return false; }
+            }
+
+            for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
+            {
+                if (!rdr.readU8(activeMatrixRow.invalidColor[i]))       { rdr.exitChunkPayload(chunk); return false; }
+            }
+        }
+        else
+        {
+            resetActiveMatrixRow();
+        }
 
         for (auto& s : spriteUnits)
         {
