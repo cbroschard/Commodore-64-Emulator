@@ -1647,8 +1647,6 @@ void Vic::performBadLineFetchesForCurrentCycle()
 
     if (vicState.badLineFetchIndex < BACKGROUND_MATRIX_COLUMNS)
         ++vicState.badLineFetchIndex;
-
-    fetchBadLineMatrixByte(fetchIndex, registers.raster);
 }
 
 void Vic::updateLiveBadLineCondition()
@@ -1663,8 +1661,6 @@ void Vic::updateLiveBadLineCondition()
     if (!badNow)
         return;
 
-    // Once DMA/c-accesses have begun for this raster,
-    // they continue through the remainder of the access window.
     if (!vicState.badLine)
     {
         vicState.badLine = true;
@@ -1674,6 +1670,7 @@ void Vic::updateLiveBadLineCondition()
         vicState.displayEnabledNext = true;
 
         vicState.vmliBase = vicState.vcBase;
+        vicState.badLineFetchIndex = 0;
 
         activeMatrixRow.valid = true;
         activeMatrixRow.vcBase = vicState.vmliBase;
@@ -1682,6 +1679,7 @@ void Vic::updateLiveBadLineCondition()
         activeMatrixRow.screen.fill(0);
         activeMatrixRow.color.fill(0);
         activeMatrixRow.fetched.fill(0);
+        activeMatrixRow.invalid.fill(0);
     }
 }
 
@@ -2934,6 +2932,7 @@ void Vic::beginBadLineFetch()
 
     // The matrix line index starts from the current VCBASE.
     vicState.vmliBase = vicState.vcBase;
+    vicState.badLineFetchIndex = 0;
 
     // Begin a fresh 40-column matrix row. Each c-access on this
     // bad line will populate the corresponding entry.
