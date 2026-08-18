@@ -6210,6 +6210,25 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.cAccessLatchValid = cAccessLatchValid;
     s.cAccessLatchIndex = cAccessLatchIndex;
 
+    // The monitor breakpoint samples after beginCycle() but before
+    // the current cycle's fetch phase has completed. Therefore VMLI - 1
+    // identifies the most recently completed g-access.
+    const int lastGraphicsColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
+
+    if (lastGraphicsColumn >= 0 && lastGraphicsColumn < BACKGROUND_MATRIX_COLUMNS)
+    {
+        const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[lastGraphicsColumn];
+
+        s.graphicsLatchIndex = lastGraphicsColumn;
+        s.graphicsLatchValid = latch.valid;
+
+        if (latch.valid)
+        {
+            s.graphicsLatchAddress = latch.graphicsAddress;
+            s.graphicsLatchD018 = latch.d018;
+        }
+    }
+
     s.liveVcBase = vicState.vcBase;
     s.liveVmliFetchIndex = vicState.vmliFetchIndex;
     s.liveRc = vicState.rc;

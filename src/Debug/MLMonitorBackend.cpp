@@ -1345,11 +1345,9 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     out << "Badline DMA start cycle: " << s.badLineDmaStartCycle << "\n";
     out << "Badline fetch index    : " << int(s.badLineFetchIndex) << "\n";
 
-    out << "C-access latch valid   : "
-    << (s.cAccessLatchValid ? "Yes" : "No") << "\n";
+    out << "C-access latch valid   : " << (s.cAccessLatchValid ? "Yes" : "No") << "\n";
 
-    out << "C-access latch index   : "
-        << s.cAccessLatchIndex << "\n";
+    out << "C-access latch index   : " << s.cAccessLatchIndex << "\n";
 
     out << "C-access screen latch  : $"
         << std::hex << std::uppercase
@@ -1362,6 +1360,24 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
         << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0')
         << static_cast<int>(s.cAccessColorLatch)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    out << "G-access latch valid   : " << (s.graphicsLatchValid ? "Yes" : "No") << "\n";
+
+    out << "G-access latch index   : " << s.graphicsLatchIndex << "\n";
+
+    out << "G-access address       : $"
+        << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0')
+        << static_cast<int>(s.graphicsLatchAddress)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    out << "G-access D018          : $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.graphicsLatchD018)
         << std::dec << std::nouppercase << std::setfill(' ')
         << "\n";
 
