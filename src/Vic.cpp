@@ -1612,16 +1612,20 @@ void Vic::performBadLineFetchesForCurrentCycle()
     // invalid instead of silently falling back to RAM later.
     if (!currentCycleSlot.cpuBusStolen)
     {
+        const uint8_t cpuBusValue = getOpenBus();
+        const uint8_t invalidColor =
+            static_cast<uint8_t>(cpuBusValue & 0x0F);
+
         if (activeMatrixRow.valid)
         {
             activeMatrixRow.screen[fetchIndex] = 0xFF;
-            activeMatrixRow.color[fetchIndex] = 0x0F; // temporary approximation
+            activeMatrixRow.color[fetchIndex] = invalidColor;
             activeMatrixRow.fetched[fetchIndex] = 1;
             activeMatrixRow.invalid[fetchIndex] = 1;
         }
 
         charPtrFIFO[fetchIndex] = 0xFF;
-        colorPtrFIFO[fetchIndex] = 0x0F;
+        colorPtrFIFO[fetchIndex] = invalidColor;
 
         return;
     }
@@ -2922,6 +2926,7 @@ void Vic::beginBadLineFetch()
     activeMatrixRow.screen.fill(0);
     activeMatrixRow.color.fill(0);
     activeMatrixRow.fetched.fill(0);
+    activeMatrixRow.invalid.fill(0);
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
