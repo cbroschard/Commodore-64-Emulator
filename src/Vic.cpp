@@ -1466,11 +1466,8 @@ void Vic::runFetchPhase()
 
     performBackgroundGraphicsFetchForCurrentCycle();
 
-    if (currentCycleSlot.graphicsFetch && vicState.displayEnabled && vicState.vmliFetchIndex < BACKGROUND_MATRIX_COLUMNS)
-    {
-        ++vicState.vmliFetchIndex;
-        vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
-    }
+    if (currentCycleSlot.graphicsFetch)
+        advanceGraphicsSequencerAfterGAccess();
 
     switch (currentCycleSlot.fetchKind)
     {
@@ -1519,6 +1516,19 @@ void Vic::runFetchPhase()
             performIdleFetchForCurrentCycle();
             break;
     }
+}
+
+void Vic::advanceGraphicsSequencerAfterGAccess()
+{
+    if (!vicState.displayEnabled)
+        return;
+
+    if (vicState.vmliFetchIndex >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    ++vicState.vmliFetchIndex;
+
+    vicState.vc = static_cast<uint16_t>((vicState.vc + 1) & 0x03FF);
 }
 
 void Vic::runPixelOutputPhase()

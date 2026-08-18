@@ -848,6 +848,7 @@ class Vic
         void handleCycle58Decisions();
         void advanceCharacterSequencerAtCycle58();
         void runFetchPhase();
+        void advanceGraphicsSequencerAfterGAccess();
 
         // Pixel accurate helpers
         void runPixelOutputPhase();
