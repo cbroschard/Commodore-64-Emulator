@@ -97,6 +97,7 @@ void Vic::reset()
     vicState.badLine = false;
     vicState.badLineSampled = false;
     vicState.badLineDmaStartCycle = -1;
+    vicState.badLineFetchIndex = 0;
 
     vicState.verticalBorder = true;
     vicState.horizontalBorder = true;
@@ -345,7 +346,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(6); // version
+    wrtr.writeU32(7); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -367,6 +368,9 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU16(vicState.vcBase);
     wrtr.writeU16(vicState.vmliBase);
     wrtr.writeU8(vicState.vmliFetchIndex);
+    wrtr.writeU8(vicState.badLineFetchIndex);
+    wrtr.writeI32(vicState.badLineDmaStartCycle);
+
     wrtr.writeU8(vicState.rc);
     wrtr.writeBool(vicState.matrixAdvancePending);
 
@@ -537,7 +541,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 6)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 7)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -565,6 +569,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU16(vicState.vcBase))                              { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(vicState.vmliBase))                            { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(vicState.vmliFetchIndex))                       { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver >= 7)
+        {
+            if (!rdr.readU8(vicState.badLineFetchIndex))                { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(vicState.badLineDmaStartCycle))            { rdr.exitChunkPayload(chunk); return false; }
+        }
+        else
+        {
+            vicState.badLineFetchIndex = 0;
+            vicState.badLineDmaStartCycle = -1;
+        }
+
         if (!rdr.readU8(vicState.rc))                                   { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.matrixAdvancePending))               { rdr.exitChunkPayload(chunk); return false; }
 
@@ -1600,21 +1616,20 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
         return;
 
-    const int fetchIndex = currentCycleSlot.matrixFetchIndex;
+    const int physicalIndex = currentCycleSlot.matrixFetchIndex;
+
+    if (physicalIndex < 0 || physicalIndex >= BACKGROUND_MATRIX_COLUMNS)
+        return;
+
+    const int fetchIndex = static_cast<int>(vicState.badLineFetchIndex);
 
     if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
-    {
         return;
-    }
 
-    // VIC is attempting a c-access, but AEC has not yet
-    // transferred bus ownership. Mark the matrix entry as
-    // invalid instead of silently falling back to RAM later.
     if (!currentCycleSlot.cpuBusStolen)
     {
         const uint8_t cpuBusValue = getOpenBus();
-        const uint8_t invalidColor =
-            static_cast<uint8_t>(cpuBusValue & 0x0F);
+        const uint8_t invalidColor = static_cast<uint8_t>(cpuBusValue & 0x0F);
 
         if (activeMatrixRow.valid)
         {
@@ -1626,9 +1641,12 @@ void Vic::performBadLineFetchesForCurrentCycle()
 
         charPtrFIFO[fetchIndex] = 0xFF;
         colorPtrFIFO[fetchIndex] = invalidColor;
-
-        return;
     }
+    else
+        fetchBadLineMatrixByte(fetchIndex, registers.raster);
+
+    if (vicState.badLineFetchIndex < BACKGROUND_MATRIX_COLUMNS)
+        ++vicState.badLineFetchIndex;
 
     fetchBadLineMatrixByte(fetchIndex, registers.raster);
 }

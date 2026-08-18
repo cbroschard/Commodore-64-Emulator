@@ -612,6 +612,7 @@ class Vic
             bool badLine = false;
             bool badLineSampled = false;
             int badLineDmaStartCycle = -1;
+            uint8_t badLineFetchIndex = 0;
 
             // Border flip-flops
             bool verticalBorder = true;
