@@ -1673,9 +1673,9 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!vicState.displayEnabled)
         return;
 
-    const int hardwareFetchX = cyclePixelX(currentCycle);
+    const int fetchPixelX = cyclePixelX(currentCycle);
     const int outputX = cycleFramebufferX(currentCycle);
-    const int registerSampleX = outputX;
+    const int registerSampleX = rasterEventPixelX(currentCycle);
     const graphicsMode mode = graphicsModeForRasterPixel(registers.raster, registerSampleX, false);
 
     if (mode != graphicsMode::standard &&
@@ -1687,7 +1687,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         return;
     }
 
-    traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, hardwareFetchX, outputX);
+    traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
 
     switch (mode)
     {
