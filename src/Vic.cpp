@@ -1676,7 +1676,12 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     const int fetchPixelX = cyclePixelX(currentCycle);
     const int outputX = cycleFramebufferX(currentCycle);
     const int registerSampleX = rasterEventPixelX(currentCycle);
-    const graphicsMode mode = graphicsModeForRasterPixel(registers.raster, registerSampleX, false);
+
+    const uint8_t d011 = d011ForRasterPixelX(registers.raster, registerSampleX, false);
+    const uint8_t d016 = d016ForRasterPixelX(registers.raster, registerSampleX, false);
+    const uint8_t d018 = d018ForRasterPixelX(registers.raster, registerSampleX, false) & 0xFE;
+
+    const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
 
     if (mode != graphicsMode::standard &&
         mode != graphicsMode::multicolor &&
@@ -1694,12 +1699,12 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         case graphicsMode::standard:
         case graphicsMode::multicolor:
         case graphicsMode::extendedColorText:
-            fetchStandardTextGraphicsByte(registers.raster, column, registerSampleX);
+            fetchStandardTextGraphicsByte(registers.raster, column, d011, d016, d018);
             break;
 
         case graphicsMode::bitmap:
         case graphicsMode::multicolorBitmap:
-            fetchStandardBitmapGraphicsByte(registers.raster, column, registerSampleX);
+            fetchStandardBitmapGraphicsByte(registers.raster, column, d011, d016, d018);
             break;
 
         default:
@@ -3173,7 +3178,7 @@ void Vic::resetBackgroundGraphicsLatches()
         latch = {};
 }
 
-void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
+void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018)
 {
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
@@ -3199,10 +3204,6 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, int fetchX)
             return;
         }
     }
-
-    const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
-    const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
-    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
 
     const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
 
@@ -3303,7 +3304,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.phase = 0;
 }
 
-void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
+void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018)
 {
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
@@ -3311,10 +3312,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, int fetchX)
     BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
     latch = {};
     latch.column = column;
-
-    const uint8_t d011 = d011ForRasterPixelX(raster, fetchX, false);
-    const uint8_t d016 = d016ForRasterPixelX(raster, fetchX, false);
-    const uint8_t d018 = d018ForRasterPixelX(raster, fetchX, false) & 0xFE;
 
     const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
 
