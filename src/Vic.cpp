@@ -1353,7 +1353,7 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    const bool badLineCanCarry = vicState.badLine && rasterWithinVerticalDisplayWindow(registers.raster);
+    const bool badLineCanCarry = isBadLine(registers.raster) && rasterWithinVerticalDisplayWindow(registers.raster);
     vicState.displayEnabledNext = vicState.displayEnabled || badLineCanCarry;
 }
 
