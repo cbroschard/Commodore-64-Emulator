@@ -1315,9 +1315,7 @@ void Vic::handleCycle14Decisions()
     {
         vicState.badLine = true;
 
-        // BA begins warning now, but AEC cannot be taken until
-        // the three takeover cycles have elapsed.
-        vicState.badLineDmaStartCycle = currentCycle + 3;
+        vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
