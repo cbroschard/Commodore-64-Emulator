@@ -1351,6 +1351,8 @@ void Vic::handleCycle0Decisions()
 {
     const int raster = registers.raster;
 
+    resetCAccessLatch();
+
     d011_per_raster[raster] = registers.control & 0x7F;
     d016_per_raster[raster] = registers.control2 & 0x1F;
     d018_per_raster[raster] = registers.memory_pointer & 0xFE;
