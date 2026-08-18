@@ -1637,7 +1637,11 @@ void Vic::performBadLineFetchesForCurrentCycle()
     {
         if (activeMatrixRow.valid)
         {
+            const uint8_t cpuBusValue = getOpenBus();
+
             activeMatrixRow.invalid[fetchIndex] = 1;
+            activeMatrixRow.invalidScreen[fetchIndex] = 0xFF;
+            activeMatrixRow.invalidColor[fetchIndex] = static_cast<uint8_t>(cpuBusValue & 0x0F);
         }
     }
     else
@@ -1691,6 +1695,8 @@ void Vic::updateLiveBadLineCondition()
         activeMatrixRow.color.fill(0);
         activeMatrixRow.fetched.fill(0);
         activeMatrixRow.invalid.fill(0);
+        activeMatrixRow.invalidScreen.fill(0);
+        activeMatrixRow.invalidColor.fill(0);
     }
 }
 
@@ -2944,6 +2950,8 @@ void Vic::beginBadLineFetch()
     activeMatrixRow.color.fill(0);
     activeMatrixRow.fetched.fill(0);
     activeMatrixRow.invalid.fill(0);
+    activeMatrixRow.invalidScreen.fill(0);
+    activeMatrixRow.invalidColor.fill(0);
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
@@ -3817,6 +3825,8 @@ void Vic::resetActiveMatrixRow()
     activeMatrixRow.color.fill(0);
     activeMatrixRow.fetched.fill(0);
     activeMatrixRow.invalid.fill(0);
+    activeMatrixRow.invalidScreen.fill(0);
+    activeMatrixRow.invalidColor.fill(0);
 }
 
 bool Vic::activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const

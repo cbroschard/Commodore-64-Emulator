@@ -726,6 +726,8 @@ class Vic
             std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> color {};
             std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> fetched {};
             std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> invalid {};
+            std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> invalidScreen {};
+            std::array<uint8_t, BACKGROUND_MATRIX_COLUMNS> invalidColor {};
         };
 
         MatrixRowCache activeMatrixRow;
