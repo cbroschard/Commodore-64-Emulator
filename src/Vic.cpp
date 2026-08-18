@@ -272,6 +272,9 @@ void Vic::setMode(VideoMode mode)
 
     vicState.badLine = false;
     vicState.badLineSampled = false;
+    vicState.badLineDmaStartCycle = -1;
+    vicState.badLineFetchIndex = 0;
+
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
 
@@ -1215,8 +1218,12 @@ void Vic::beginFrameIfNeeded()
         vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
         vicState.matrixAdvancePending = false;
+
         vicState.badLine = false;
         vicState.badLineSampled = false;
+        vicState.badLineDmaStartCycle = -1;
+        vicState.badLineFetchIndex = 0;
+
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
 
