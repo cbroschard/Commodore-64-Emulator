@@ -351,7 +351,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(7); // version
+    wrtr.writeU32(8); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -383,6 +383,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLine);
     wrtr.writeBool(vicState.badLineSampled);
+    wrtr.writeBool(vicState.badLineInitializedThisRaster);
 
     wrtr.writeBool(vicState.verticalBorder);
     wrtr.writeBool(vicState.horizontalBorder);
@@ -546,7 +547,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 7)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 8)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -593,6 +594,15 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.displayEnabledNext))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                            { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLineSampled))                     { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver >= 8)
+        {
+            if (!rdr.readBool(vicState.badLineInitializedThisRaster))   { rdr.exitChunkPayload(chunk); return false; }
+        }
+        else
+        {
+            vicState.badLineInitializedThisRaster = false;
+        }
 
         if (!rdr.readBool(vicState.verticalBorder))                     { rdr.exitChunkPayload(chunk); return false; }
 
