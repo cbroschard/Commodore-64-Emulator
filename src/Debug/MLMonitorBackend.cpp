@@ -1341,13 +1341,18 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     out << "Fetch : " << vicFetchKindName(slot.fetchKind) << "\n";
     out << "Owner : " << vicBusOwnerName(slot.busOwner) << "\n";
     out << "Badline active: " << (s.badLine ? "Yes" : "No") << "\n";
+    out << "Badline live  : " << (s.liveBadLine ? "Yes" : "No") << "\n";
+    out << "Badline DMA start cycle: " << s.badLineDmaStartCycle << "\n";
+    out << "Badline fetch index    : " << int(s.badLineFetchIndex) << "\n";
 
+    out << "Live VC    : " << s.liveVc << "\n";
     out << "Live VCBASE: " << s.liveVcBase << "\n";
     out << "Live VMLI  : " << int(s.liveVmliFetchIndex) << "\n";
     out << "Live RC    : " << int(s.liveRc) << "\n";
 
     out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
     out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
+    out << "CPU bus stolen: " << (slot.cpuBusStolen ? "Yes" : "No") << "\n";
 
     out << "Badline:"
         << " warning=" << bit(slot.badlineWarning)

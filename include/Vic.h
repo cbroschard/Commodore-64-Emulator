@@ -205,6 +205,11 @@ class Vic
             bool denAtRaster = false;
             bool denSeenOn30 = false;
 
+            bool liveBadLine = false;
+            int badLineDmaStartCycle = -1;
+            uint8_t badLineFetchIndex = 0;
+
+            uint16_t liveVc = 0;
             uint16_t liveVcBase = 0;
             uint8_t liveVmliFetchIndex = 0;
             uint8_t liveRc = 0;

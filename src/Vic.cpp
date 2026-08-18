@@ -6082,6 +6082,11 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.denAtRaster = (d011_per_raster[raster] & 0x10) != 0;
     s.denSeenOn30 = denSeenOn30;
 
+    s.liveVc = vicState.vc;
+    s.liveBadLine = vicState.badLine;
+    s.badLineDmaStartCycle = vicState.badLineDmaStartCycle;
+    s.badLineFetchIndex = vicState.badLineFetchIndex;
+
     s.liveVcBase = vicState.vcBase;
     s.liveVmliFetchIndex = vicState.vmliFetchIndex;
     s.liveRc = vicState.rc;
