@@ -1635,19 +1635,10 @@ void Vic::performBadLineFetchesForCurrentCycle()
 
     if (!currentCycleSlot.cpuBusStolen)
     {
-        const uint8_t cpuBusValue = getOpenBus();
-        const uint8_t invalidColor = static_cast<uint8_t>(cpuBusValue & 0x0F);
-
         if (activeMatrixRow.valid)
         {
-            activeMatrixRow.screen[fetchIndex] = 0xFF;
-            activeMatrixRow.color[fetchIndex] = invalidColor;
-            activeMatrixRow.fetched[fetchIndex] = 1;
             activeMatrixRow.invalid[fetchIndex] = 1;
         }
-
-        charPtrFIFO[fetchIndex] = 0xFF;
-        colorPtrFIFO[fetchIndex] = invalidColor;
     }
     else
         fetchBadLineMatrixByte(fetchIndex, registers.raster);
