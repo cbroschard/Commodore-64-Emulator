@@ -2861,7 +2861,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
     slot.refresh = isRefreshCycle(cycle);
 
-    slot.baLow = slot.badlineWarning || slot.badlineBAHold || slot.spriteWarning || slot.spriteBAHold;
+    slot.baLow = slot.badlineBAHold || slot.spriteWarning || slot.spriteBAHold;
 
     slot.cpuBusStolen = slot.badlineSteal || slot.spriteAECSteal;
     slot.aecLow = slot.cpuBusStolen;
