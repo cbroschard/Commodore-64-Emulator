@@ -39,6 +39,9 @@ std::string VICCommand::help() const
         "    bgrow <raster>         Dump all background cells for one raster\n"
         "    border                 Dump current border state\n"
         "    border edge [raster]   Show vertical/horizontal border window around raster\n"
+        "    break                  Show VIC raster/cycle breakpoint\n"
+        "    break <r> <c>          Break at VIC raster/cycle\n"
+        "    break clear            Clear VIC raster/cycle breakpoint\n"
         "    regs <group>           Dump VIC-II registers\n"
         "    cycle                  Show debug info for current raster/cycle\n"
         "    cycle live             Show debug info for current live raster/cycle\n"
@@ -223,6 +226,88 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << borderUsage();
             return;
         }
+    }
+    else if (sub == "break")
+    {
+        // vic break
+        //
+        // Show the currently configured VIC raster/cycle breakpoint.
+        if (args.size() == 2)
+        {
+            if (!mon.hasVicCycleBreakpoint())
+            {
+                std::cout << "VIC cycle breakpoint: none\n";
+            }
+            else
+            {
+                std::cout
+                    << "VIC cycle breakpoint: raster "
+                    << mon.getVicCycleBreakpointRaster()
+                    << ", cycle "
+                    << mon.getVicCycleBreakpointCycle()
+                    << "\n";
+            }
+
+            return;
+        }
+
+        // vic break clear
+        if (args.size() == 3 && args[2] == "clear")
+        {
+            mon.clearVicCycleBreakpoint();
+
+            std::cout << "VIC cycle breakpoint cleared\n";
+            return;
+        }
+
+        // vic break <raster> <cycle>
+        if (args.size() == 4)
+        {
+            try
+            {
+                const int raster = std::stoi(args[2]);
+                const int cycle  = std::stoi(args[3]);
+
+                if (!mon.setVicCycleBreakpoint(raster, cycle))
+                {
+                    std::cout
+                        << "Invalid VIC raster/cycle breakpoint: "
+                        << raster
+                        << ", "
+                        << cycle
+                        << "\n";
+
+                    return;
+                }
+
+                std::cout
+                    << "VIC cycle breakpoint set: raster "
+                    << raster
+                    << ", cycle "
+                    << cycle
+                    << "\n";
+
+                return;
+            }
+            catch (const std::exception&)
+            {
+                std::cout
+                    << "Usage:\n"
+                    << "  vic break\n"
+                    << "  vic break <raster> <cycle>\n"
+                    << "  vic break clear\n";
+
+                return;
+            }
+        }
+
+        std::cout
+            << "Usage:\n"
+            << "  vic break\n"
+            << "  vic break <raster> <cycle>\n"
+            << "  vic break clear\n";
+
+        return;
     }
     else if (sub == "cycle")
     {

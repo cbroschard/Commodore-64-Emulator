@@ -41,7 +41,10 @@
 MLMonitor::MLMonitor() :
     monbackend(nullptr),
     running(false),
-    outputFileEnabled(false)
+    outputFileEnabled(false),
+    vicCycleBreakpointEnabled(false),
+    vicCycleBreakpointRaster(-1),
+    vicCycleBreakpointCycle(-1)
 {
     // Register all commands
     registerCommand(std::make_unique<AssembleCommand>());
@@ -743,4 +746,79 @@ void MLMonitor::resetDisassemblyPosition()
 
     if (auto* dc = dynamic_cast<DisassembleCommand*>(it->second.get()))
         dc->resetPosition();
+}
+
+bool MLMonitor::setVicCycleBreakpoint(int raster, int cycle)
+{
+    if (!monbackend)
+        return false;
+
+    auto* vic = monbackend->getVic();
+    if (!vic)
+        return false;
+
+    if (raster < 0 || raster >= vic->getMaxRasterLinesForDebug())
+        return false;
+
+    if (cycle < 0 || cycle >= vic->getCyclesPerLineForDebug())
+        return false;
+
+    vicCycleBreakpointRaster = raster;
+    vicCycleBreakpointCycle = cycle;
+    vicCycleBreakpointEnabled = true;
+
+    return true;
+}
+
+void MLMonitor::clearVicCycleBreakpoint()
+{
+    vicCycleBreakpointEnabled = false;
+    vicCycleBreakpointRaster = -1;
+    vicCycleBreakpointCycle = -1;
+}
+
+bool MLMonitor::hasVicCycleBreakpoint() const
+{
+    return vicCycleBreakpointEnabled;
+}
+
+bool MLMonitor::checkVicCycleBreakpoint()
+{
+    if (!vicCycleBreakpointEnabled || !monbackend)
+        return false;
+
+    auto* vic = monbackend->getVic();
+    if (!vic)
+        return false;
+
+    if (static_cast<int>(vic->getCurrentRaster()) != vicCycleBreakpointRaster)
+        return false;
+
+    if (vic->getCurrentCycleForDebug() != vicCycleBreakpointCycle)
+        return false;
+
+    const int hitRaster = vicCycleBreakpointRaster;
+    const int hitCycle = vicCycleBreakpointCycle;
+
+    vicCycleBreakpointEnabled = false;
+
+    std::ostringstream oss;
+    oss << ">>> VIC cycle breakpoint hit at raster "
+        << hitRaster
+        << ", cycle "
+        << hitCycle;
+
+    queueAsyncLine(oss.str());
+
+    return true;
+}
+
+int MLMonitor::getVicCycleBreakpointRaster() const
+{
+    return vicCycleBreakpointRaster;
+}
+
+int MLMonitor::getVicCycleBreakpointCycle() const
+{
+    return vicCycleBreakpointCycle;
 }

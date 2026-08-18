@@ -77,6 +77,15 @@ class MLMonitor
         void queueAsyncLine(const std::string& s);
         std::vector<std::string> drainAsyncLines();
 
+        bool setVicCycleBreakpoint(int raster, int cycle);
+        void clearVicCycleBreakpoint();
+
+        bool hasVicCycleBreakpoint() const;
+        bool checkVicCycleBreakpoint();
+
+        int getVicCycleBreakpointRaster() const;
+        int getVicCycleBreakpointCycle() const;
+
     private:
         // Pointers
         MLMonitorBackend* monbackend;
@@ -97,6 +106,10 @@ class MLMonitor
         std::ofstream outputFile;
         std::string outputFilePath;
         bool outputFileEnabled;
+
+        bool vicCycleBreakpointEnabled;
+        int vicCycleBreakpointRaster;
+        int vicCycleBreakpointCycle;
 
         // Unordered list to hold any watches set
         std::unordered_map<uint16_t, uint8_t> writeWatches; // addr -> last value

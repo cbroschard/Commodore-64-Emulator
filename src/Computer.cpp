@@ -19,6 +19,7 @@
 #include "Drive/Drive.h"
 #include "EmulationSession.h"
 #include "MachineBuilder.h"
+#include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
 #include "ResetController.h"
 #include "StateManager.h"
@@ -438,6 +439,13 @@ bool Computer::boot()
 void Computer::tickCycle()
 {
     components_.vic->beginCycle();
+
+    if (components_.debug && components_.debug->monitor().checkVicCycleBreakpoint())
+    {
+        runtime_.uiPaused = true;
+        components_.debug->openMonitor();
+        return;
+    }
 
     components_.cpu->setRDY(components_.vic->getBA());
     components_.cpu->setAEC(components_.vic->getAEC());
