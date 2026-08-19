@@ -770,6 +770,7 @@ class Vic
         int verticalBorderOpenCompareRaster(bool rsel25) const;
         int verticalBorderCloseCompareRaster(bool rsel25) const;
         void updateVerticalBorderStateAtLeftCompare(int raster, int px);
+        void updateHorizontalBorderStateAtPixel(int raster, int px);
 
         std::array<SpriteUnit, 8> spriteUnits;
 

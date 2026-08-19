@@ -1589,6 +1589,8 @@ void Vic::runPixelOutputPhase()
             continue;
 
         updateVerticalBorderStateAtLeftCompare(raster, x);
+        updateHorizontalBorderStateAtPixel(raster, x);
+
         outputPixel(raster, x);
         outputSpritePixel(raster, x);
     }
@@ -2046,6 +2048,34 @@ void Vic::updateVerticalBorderStateAtLeftCompare(int raster, int px)
     const uint8_t d011 = d011ForRasterPixelX(raster, px, false);
 
     applyVerticalBorderCompare(raster, d011);
+}
+
+void Vic::updateHorizontalBorderStateAtPixel(int raster, int px)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    if (px < 0 || px >= VISIBLE_WIDTH)
+        return;
+
+    const uint8_t d016 = d016ForRasterPixelX(raster, px, false);
+    const bool csel40 = d016CSEL(d016);
+
+    const int openX = horizontalBorderOpenCompareX(csel40);
+    const int closeX = horizontalBorderCloseCompareX(csel40);
+
+    if (vicState.horizontalBorder)
+    {
+        if (px == openX)
+            vicState.horizontalBorder = false;
+    }
+    else
+    {
+        if (px == closeX)
+            vicState.horizontalBorder = true;
+    }
+
+    borderMaskLine[px] = (vicState.verticalBorder || vicState.horizontalBorder) ? 1 : 0;
 }
 
 bool Vic::spriteCanRenderThisRaster(int sprite) const
@@ -3147,7 +3177,6 @@ void Vic::renderLine(int raster)
         return;
 
     updateGraphicsMode(raster);
-    buildBorderMaskLine(raster);
 
     const graphicsMode mode = graphicsModeForRaster(raster);
 
