@@ -5072,7 +5072,7 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
     // Sprites in front of background.
     for (int spr = 0; spr < 8; ++spr)
     {
-        const bool behind = (registers.spritePriority & (1 << spr)) != 0;
+        const bool behind = spriteBehindBackgroundAtPixel(spr, px);
 
         if (behind)
             continue;
