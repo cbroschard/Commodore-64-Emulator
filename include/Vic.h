@@ -296,6 +296,10 @@ class Vic
                 uint8_t shift1 = 0;
                 uint8_t shift2 = 0;
 
+                uint16_t lastFetchAddr0 = 0;
+                uint16_t lastFetchAddr1 = 0;
+                uint16_t lastFetchAddr2 = 0;
+
                 bool rowPrepared = false;
 
                 int outputXStart = 0;
@@ -690,6 +694,10 @@ class Vic
             uint8_t fetched0 = 0;
             uint8_t fetched1 = 0;
             uint8_t fetched2 = 0;
+
+            uint16_t lastFetchAddr0 = 0;
+            uint16_t lastFetchAddr1 = 0;
+            uint16_t lastFetchAddr2 = 0;
         };
 
         struct BorderWindow

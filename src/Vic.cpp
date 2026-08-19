@@ -147,6 +147,10 @@ void Vic::reset()
         s.fetched0 = 0;
         s.fetched1 = 0;
         s.fetched2 = 0;
+
+        s.lastFetchAddr0 = 0;
+        s.lastFetchAddr1 = 0;
+        s.lastFetchAddr2 = 0;
     }
 
     std::fill(std::begin(sprPtrBase), std::end(sprPtrBase), 0);
@@ -2612,6 +2616,14 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
         return;
 
     const uint16_t addr = spriteUnits[sprite].dataBase + rowInSprite * 3 + byteIndex;
+
+    if (byteIndex == 0)
+        spriteUnits[sprite].lastFetchAddr0 = addr;
+    else if (byteIndex == 1)
+        spriteUnits[sprite].lastFetchAddr1 = addr;
+    else if (byteIndex == 2)
+        spriteUnits[sprite].lastFetchAddr2 = addr;
+
     const uint8_t value = mem->vicRead(addr, raster);
 
     // Latch Open Bus
@@ -6325,6 +6337,10 @@ Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
         d.shift0 = s.shift0;
         d.shift1 = s.shift1;
         d.shift2 = s.shift2;
+
+        d.lastFetchAddr0 = s.lastFetchAddr0;
+        d.lastFetchAddr1 = s.lastFetchAddr1;
+        d.lastFetchAddr2 = s.lastFetchAddr2;
 
         d.rowPrepared = s.rowPrepared;
 

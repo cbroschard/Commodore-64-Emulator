@@ -1199,7 +1199,7 @@ std::string MLMonitorBackend::vicDumpSpriteDmaState() const
         << "\n\n";
 
     oss << "Spr En  Y    X    DMA RowLat YExp MC MCBase Row CurRow Ptr  DataBase "
-           "ShiftBytes RowPrep XStart Width OutBit Rep Mode@X Exp@X En@X\n";
+           "ShiftBytes       FetchAddr             RowPrep XStart Width OutBit Rep Mode@X Exp@X En@X\n";
 
     for (int i = 0; i < 8; ++i)
     {
@@ -1226,6 +1226,12 @@ std::string MLMonitorBackend::vicDumpSpriteDmaState() const
             << std::setw(2) << static_cast<int>(sp.shift1)
             << " $"
             << std::setw(2) << static_cast<int>(sp.shift2)
+            << "   $"
+            << std::setw(4) << static_cast<int>(sp.lastFetchAddr0)
+            << " $"
+            << std::setw(4) << static_cast<int>(sp.lastFetchAddr1)
+            << " $"
+            << std::setw(4) << static_cast<int>(sp.lastFetchAddr2)
             << std::dec << std::nouppercase << std::setfill(' ')
             << "      "
             << (sp.rowPrepared ? 1 : 0) << "      "
@@ -1244,6 +1250,7 @@ std::string MLMonitorBackend::vicDumpSpriteDmaState() const
     oss << "  RowLat means rowDataLatched: a 3-byte sprite row is available for output.\n";
     oss << "  Mode@X / Exp@X / En@X are sampled at the sprite's current X start.\n";
     oss << "  ShiftBytes are the currently latched 3-byte sprite row.\n";
+    oss << "  FetchAddr shows the VIC-relative addresses used for the three row-byte fetches.\n";
 
     oss << "\nLast collision timing:\n";
 
