@@ -1098,7 +1098,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             recordRasterEventLog(RasterEventKind::Control2, 0xD016, oldValue, registers.control2);
 
             const int raster = registers.raster;
-            updateHorizontalBorderState(raster);
             updateGraphicsMode(raster);
 
             traceVicRegWrite(address, oldValue, registers.control2);
@@ -4932,7 +4931,7 @@ void Vic::buildBorderMaskLine(int raster)
         const bool den = (d011AtPixel & 0x10) != 0;
 
         const bool rsel25 = (d011AtPixel & 0x08) != 0;
-        const bool csel40 = (d016AtPixel & 0x08) != 0;
+        const bool csel40 = d016CSEL(d016AtPixel);
 
         const int verticalCompareX = horizontalBorderOpenCompareX(csel40);
 
