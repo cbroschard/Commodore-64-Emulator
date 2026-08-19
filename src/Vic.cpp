@@ -2006,27 +2006,6 @@ Vic::VerticalBorderWindow Vic::verticalBorderWindowForRaster(int raster) const
     return w;
 }
 
-Vic::BorderWindow Vic::borderWindowForRaster(int raster) const
-{
-    BorderWindow w {};
-
-    if (raster < 0 || raster >= cfg_->maxRasterLines)
-        return w;
-
-    w.vertical = borderVertical_per_raster[raster] != 0;
-    w.openX = std::clamp<int>(borderLeftOpenX_per_raster[raster], 0, VISIBLE_WIDTH);
-    w.closeX = std::clamp<int>(borderRightCloseX_per_raster[raster], 0, VISIBLE_WIDTH);
-
-    if (w.openX >= w.closeX)
-    {
-        w.vertical = true;
-        w.openX = 0;
-        w.closeX = VISIBLE_WIDTH;
-    }
-
-    return w;
-}
-
 int Vic::horizontalBorderOpenCompareX(bool csel40) const
 {
     return horizontalBorderWindowForCSEL(csel40).openX;
@@ -5715,31 +5694,6 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
     raiseVicIRQSource(0x04);
 }
 
-void Vic::latchSpriteBackgroundCollisionsAtPixel(int raster, int px)
-{
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return;
-
-    if (px < 0 || px >= VISIBLE_WIDTH)
-        return;
-
-    if (bgOpaqueLine[px] == 0)
-        return;
-
-    uint8_t bits = 0;
-
-    for (int spr = 0; spr < 8; ++spr)
-    {
-        if (!spriteOpaqueLine[spr][px])
-            continue;
-
-        bits = static_cast<uint8_t>(bits | (1 << spr));
-    }
-
-    if (bits != 0)
-        latchSpriteBackgroundCollision(bits, raster, px);
-}
-
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
 {
     const bool MCM = (d016 & 0x10) != 0;
@@ -5771,17 +5725,6 @@ Vic::graphicsMode Vic::graphicsModeForRaster(int raster) const
 
     const uint8_t d011 = latchedD011ForRaster(raster);
     const uint8_t d016 = latchedD016ForRaster(raster);
-
-    return graphicsModeFromRegisters(d011, d016);
-}
-
-Vic::graphicsMode Vic::graphicsModeForRasterPixel(int raster, int px, bool preferPreviousFrame) const
-{
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return currentMode;
-
-    const uint8_t d011 = d011ForRasterPixelX(raster, px, preferPreviousFrame);
-    const uint8_t d016 = d016ForRasterPixelX(raster, px, preferPreviousFrame);
 
     return graphicsModeFromRegisters(d011, d016);
 }
@@ -5821,29 +5764,6 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 
     x0 = first;
     x1 = last;
-}
-
-uint8_t Vic::fetchScreenByte(int row, int col, int raster) const
-{
-    if (!mem)
-        return 0x00;
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        raster = registers.raster;
-
-    row = std::clamp(row, 0, 24);
-    col = std::clamp(col, 0, BACKGROUND_MATRIX_COLUMNS - 1);
-
-    // Legacy helper:
-    // Display rendering should prefer resolveDisplayScreenByte() /
-    // fetchDisplayScreenByte(), because those can use D018 pixel-event timing.
-    const uint16_t address =
-        static_cast<uint16_t>(
-            getLatchedScreenBase(raster) +
-            static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + col)
-        );
-
-    return mem->vicRead(address, raster);
 }
 
 uint8_t Vic::fetchColorByte(int row, int col, int raster) const
@@ -6625,13 +6545,6 @@ uint8_t Vic::effectiveD016ForRaster(int raster) const
     if (raster == registers.raster)
         return registers.control2 & 0x1F;   // live current-raster value
     return d016_per_raster[raster] & 0x1F;  // latched for other rasters
-}
-
-uint8_t Vic::effectiveD018ForRaster(int raster) const
-{
-    if (raster == registers.raster)
-        return registers.memory_pointer & 0xFE;   // live current-raster value
-    return d018_per_raster[raster] & 0xFE;        // latched for other rasters
 }
 
 uint8_t Vic::d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const

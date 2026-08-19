@@ -700,13 +700,6 @@ class Vic
             uint16_t lastFetchAddr2 = 0;
         };
 
-        struct BorderWindow
-        {
-            bool vertical = true;
-            int openX = 0;
-            int closeX = VISIBLE_WIDTH;
-        };
-
         struct HorizontalBorderWindow
         {
             int openX = 0;
@@ -763,7 +756,6 @@ class Vic
 
         HorizontalBorderWindow horizontalBorderWindowForCSEL(bool csel40) const;
         VerticalBorderWindow verticalBorderWindowForRaster(int raster) const;
-        BorderWindow borderWindowForRaster(int raster) const;
         int horizontalBorderOpenCompareX(bool csel40) const;
         int horizontalBorderCloseCompareX(bool csel40) const;
         int verticalBorderOpenCompareRaster(bool rsel25) const;
@@ -817,7 +809,6 @@ class Vic
         inline uint8_t latchedD018ForRaster(int raster) const { return d018_per_raster[raster] & 0xFE; }
         uint8_t effectiveD011ForRaster(int raster) const;
         uint8_t effectiveD016ForRaster(int raster) const;
-        uint8_t effectiveD018ForRaster(int raster) const;
 
         uint8_t d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
         uint8_t d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
@@ -955,7 +946,6 @@ class Vic
 
         void latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX);
         void latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX);
-        void latchSpriteBackgroundCollisionsAtPixel(int raster, int px);
 
         SpriteCollisionTimingSnapshot lastSpriteSpriteCollision;
         SpriteCollisionTimingSnapshot lastSpriteBackgroundCollision;
@@ -996,7 +986,6 @@ class Vic
 
         graphicsMode graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const;
         graphicsMode graphicsModeForRaster(int raster) const;
-        graphicsMode graphicsModeForRasterPixel(int raster, int px, bool preferPreviousFrame = false) const;
 
         void updateGraphicsMode(int raster);
 
@@ -1374,7 +1363,6 @@ class Vic
 
         void applySpriteColorEventsToLine(int raster);
 
-        inline void spriteVisibleXRange(int& x0, int& x1) const { x0 = 0; x1 = 320 + 2 * BORDER_SIZE; }
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
