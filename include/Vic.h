@@ -71,7 +71,10 @@ class Vic
             bitmap,
             multicolorBitmap,
             extendedColorText,
-            invalid
+
+            illegalText,
+            illegalBitmap,
+            illegalMulticolorBitmap
         };
 
         // Getter for current graphics mode

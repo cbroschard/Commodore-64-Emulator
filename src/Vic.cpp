@@ -5742,26 +5742,32 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
 
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
 {
-    const bool MCM = (d016 & 0x10) != 0;
-    const bool BMM = (d011 & 0x20) != 0;
-    const bool ECM = (d011 & 0x40) != 0;
+    const bool ecm = (d011 & 0x40) != 0;
+    const bool bmm = (d011 & 0x20) != 0;
+    const bool mcm = d016MCM(d016);
 
-    if (!BMM && !MCM && !ECM)
+    if (!ecm && !bmm && !mcm)
         return graphicsMode::standard;
 
-    if (!BMM && MCM && !ECM)
+    if (!ecm && !bmm && mcm)
         return graphicsMode::multicolor;
 
-    if (!BMM && !MCM && ECM)
-        return graphicsMode::extendedColorText;
-
-    if (BMM && !MCM && !ECM)
+    if (!ecm && bmm && !mcm)
         return graphicsMode::bitmap;
 
-    if (BMM && MCM && !ECM)
+    if (!ecm && bmm && mcm)
         return graphicsMode::multicolorBitmap;
 
-    return graphicsMode::invalid;
+    if (ecm && !bmm && !mcm)
+        return graphicsMode::extendedColorText;
+
+    if (ecm && !bmm && mcm)
+        return graphicsMode::illegalText;
+
+    if (ecm && bmm && !mcm)
+        return graphicsMode::illegalBitmap;
+
+    return graphicsMode::illegalMulticolorBitmap;
 }
 
 Vic::graphicsMode Vic::graphicsModeForRaster(int raster) const
@@ -6091,12 +6097,14 @@ std::string Vic::decodeModeName() const
     const bool bmm = (d011 & 0x20) != 0;
     const bool mcm = (d016 & 0x10) != 0;
 
-    if (!bmm && !mcm && !ecm) return "Text";
-    if (ecm && !bmm && !mcm)  return "ECM (Extended Color Mode)";
-    if (!bmm && mcm)          return "Multicolor Text";
-    if (bmm && !mcm)          return "Bitmap";
-    if (bmm && mcm)           return "Multicolor Bitmap";
-    return "Unknown";
+    if (!ecm && !bmm && !mcm) return "Text";
+    if (!ecm && !bmm &&  mcm) return "Multicolor Text";
+    if (!ecm &&  bmm && !mcm) return "Bitmap";
+    if (!ecm &&  bmm &&  mcm) return "Multicolor Bitmap";
+    if ( ecm && !bmm && !mcm) return "ECM (Extended Color Mode)";
+    if ( ecm && !bmm &&  mcm) return "Illegal Text";
+    if ( ecm &&  bmm && !mcm) return "Illegal Bitmap";
+    return "Illegal Multicolor Bitmap";
 }
 
 std::string Vic::getVICBanks() const
