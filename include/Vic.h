@@ -1002,6 +1002,7 @@ class Vic
 
         graphicsMode graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const;
         graphicsMode graphicsModeForRaster(int raster) const;
+        bool isIllegalGraphicsMode(graphicsMode mode) const;
 
         void updateGraphicsMode(int raster);
 

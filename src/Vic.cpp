@@ -1613,7 +1613,8 @@ void Vic::outputPixel(int raster, int x)
         liveMode != graphicsMode::multicolor &&
         liveMode != graphicsMode::bitmap &&
         liveMode != graphicsMode::multicolorBitmap &&
-        liveMode != graphicsMode::extendedColorText)
+        liveMode != graphicsMode::extendedColorText &&
+        !isIllegalGraphicsMode(liveMode))
     {
         return;
     }
@@ -1662,10 +1663,13 @@ void Vic::outputPixel(int raster, int x)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
     else if (outputMode == graphicsMode::bitmap)
         pixel = sampleAndAdvanceActiveStandardBitmapPixel();
-    else if (outputMode == graphicsMode::multicolor && activeBgPixel.multicolorText)
+    else if ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) && activeBgPixel.multicolorText)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
+
+    if (outputMode == graphicsMode::illegalText)
+        pixel.color = 0x00;
 
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
 
@@ -1700,7 +1704,8 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         mode != graphicsMode::multicolor &&
         mode != graphicsMode::bitmap &&
         mode != graphicsMode::multicolorBitmap &&
-        mode != graphicsMode::extendedColorText)
+        mode != graphicsMode::extendedColorText &&
+        mode != graphicsMode::illegalText)
     {
         return;
     }
@@ -1712,6 +1717,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         case graphicsMode::standard:
         case graphicsMode::multicolor:
         case graphicsMode::extendedColorText:
+        case graphicsMode::illegalText:
             fetchStandardTextGraphicsByte(registers.raster, column, d011, d016, d018);
             break;
 
@@ -3236,7 +3242,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
 
     uint8_t charIndex = screenByte;
 
-    if (mode == graphicsMode::extendedColorText)
+    if (mode == graphicsMode::extendedColorText || mode == graphicsMode::illegalText)
         charIndex &= 0x3F;
 
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
@@ -3280,7 +3286,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     // Multicolor text applies only when the fetch occurred in
     // multicolor text mode and color RAM bit 3 is set.
-    activeBgPixel.multicolorText = (mode == graphicsMode::multicolor) && ((latch.colorByte & 0x08) != 0);
+    activeBgPixel.multicolorText = (mode == graphicsMode::multicolor || mode == graphicsMode::illegalText) && ((latch.colorByte & 0x08) != 0);
 
     // Graphics data and foreground color come from the fetch latch.
     activeBgPixel.rowBits = latch.graphicsByte;
@@ -5779,6 +5785,13 @@ Vic::graphicsMode Vic::graphicsModeForRaster(int raster) const
     const uint8_t d016 = latchedD016ForRaster(raster);
 
     return graphicsModeFromRegisters(d011, d016);
+}
+
+bool Vic::isIllegalGraphicsMode(graphicsMode mode) const
+{
+    return mode == graphicsMode::illegalText ||
+           mode == graphicsMode::illegalBitmap ||
+           mode == graphicsMode::illegalMulticolorBitmap;
 }
 
 void Vic::updateGraphicsMode(int raster)
