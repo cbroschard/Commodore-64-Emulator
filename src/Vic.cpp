@@ -2351,12 +2351,16 @@ void Vic::advanceSpriteOutputState(int sprIndex, int px)
     const bool multClr = spriteMulticolorAtPixel(sprIndex, px);
 
     const int repeatsPerSourceUnit = multClr ? (expandX ? 4 : 2) : (expandX ? 2 : 1);
+
     spriteUnits[sprIndex].outputRepeat++;
 
     if (spriteUnits[sprIndex].outputRepeat >= repeatsPerSourceUnit)
     {
         spriteUnits[sprIndex].outputRepeat = 0;
-        spriteUnits[sprIndex].outputBit++;
+
+        // outputBit is always a bit position in the 24-bit sprite
+        // shift register. Multicolor consumes two bits at a time.
+        spriteUnits[sprIndex].outputBit += multClr ? 2 : 1;
     }
 }
 
@@ -2392,11 +2396,14 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
         return true;
     }
 
-    const int srcPair = spriteUnits[sprIndex].outputBit;
-    if (srcPair < 0 || srcPair >= 12)
+    const int srcBit = spriteUnits[sprIndex].outputBit;
+
+    if (srcBit < 0 || srcBit > 22)
         return false;
 
-    const uint8_t bits = static_cast<uint8_t>((rowBits >> (22 - srcPair * 2)) & 0x03);
+    const int shift = 22 - srcBit;
+
+    const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
 
     if (bits == 0)
         return false;
