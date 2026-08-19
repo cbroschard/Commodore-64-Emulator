@@ -5004,6 +5004,10 @@ Vic::BackgroundPixel Vic::sampleBackgroundPixelAtX(int raster, int px) const
 
 uint8_t Vic::compositePixelAtX(int raster, int px) const
 {
+    // VIC-II border is in front of both background graphics and sprites.
+    if (borderActiveAtPixel(raster, px))
+        return registers.borderColor & 0x0F;
+
     const BackgroundPixel bg = sampleBackgroundPixelAtX(raster, px);
 
     uint8_t color = bg.color;
@@ -5013,6 +5017,7 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
     for (int spr = 0; spr < 8; ++spr)
     {
         const bool behind = spriteBehindBackgroundAtPixel(spr, px);
+
         if (!behind)
             continue;
 
@@ -5027,6 +5032,7 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
     for (int spr = 0; spr < 8; ++spr)
     {
         const bool behind = (registers.spritePriority & (1 << spr)) != 0;
+
         if (behind)
             continue;
 
@@ -5604,16 +5610,11 @@ int Vic::spriteScreenXFor(int sprIndex, int raster) const
     if (sprIndex < 0 || sprIndex >= 8)
         return 0;
 
-    // Use the beginning of the visible sprite test as the sample point.
-    // This prevents end-of-line live X register values from moving the
-    // whole sprite after the raster has already been processed.
     const int samplePx = 0;
 
-    const int x =
-        spriteRegisterXForRasterPixel(sprIndex, raster, samplePx);
+    const int x = spriteRegisterXForRasterPixel(sprIndex, raster, samplePx);
 
-    // Apply VIC-II hardware offset + border.
-    return (x - cfg_->hardware_X) + BORDER_SIZE;
+    return (x - cfg_->hardware_X) + BORDER_SIZE - 1;
 }
 
 bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
