@@ -1661,14 +1661,14 @@ void Vic::outputPixel(int raster, int x)
 
     if (outputMode == graphicsMode::multicolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
-    else if (outputMode == graphicsMode::bitmap)
+    else if (outputMode == graphicsMode::bitmap || outputMode == graphicsMode::illegalBitmap)
         pixel = sampleAndAdvanceActiveStandardBitmapPixel();
     else if ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) && activeBgPixel.multicolorText)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
 
-    if (outputMode == graphicsMode::illegalText)
+    if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap)
         pixel.color = 0x00;
 
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
@@ -1705,7 +1705,8 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         mode != graphicsMode::bitmap &&
         mode != graphicsMode::multicolorBitmap &&
         mode != graphicsMode::extendedColorText &&
-        mode != graphicsMode::illegalText)
+        mode != graphicsMode::illegalText &&
+        mode != graphicsMode::illegalBitmap)
     {
         return;
     }
@@ -1723,6 +1724,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
 
         case graphicsMode::bitmap:
         case graphicsMode::multicolorBitmap:
+        case graphicsMode::illegalBitmap:
             fetchStandardBitmapGraphicsByte(registers.raster, column, d011, d016, d018);
             break;
 
@@ -3371,7 +3373,13 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
     const uint8_t rc = static_cast<uint8_t>(vicState.rc & 0x07);
 
-    const uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
+    uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
+
+    if (mode == graphicsMode::illegalBitmap)
+    {
+        // ECM forces VIC g-access address lines A9 and A10 low.
+        bitmapAddress &= static_cast<uint16_t>(~0x0600);
+    }
 
     const uint8_t graphicsByte = mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
 
