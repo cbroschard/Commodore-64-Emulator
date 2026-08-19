@@ -1360,6 +1360,7 @@ class Vic
 
         int rasterPixelToCycle(int px) const;
         int rasterEventPixelX(int cycle) const;
+        int rasterRegisterEventPixelX(const RasterEventRecord& e) const;
         int rasterColorEventPixelX(const RasterColorEvent& e) const;
         bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;
         void applyBorderColorEventsToFinalLine(int raster);

@@ -5064,6 +5064,22 @@ int Vic::rasterEventPixelX(int cycle) const
     return x;
 }
 
+int Vic::rasterRegisterEventPixelX(const RasterEventRecord& e) const
+{
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (e.phase == VicBusPhase::Phi2)
+        x += 4;
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
+}
+
 int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
 {
     return rasterEventPixelX(e.cycle);
@@ -6595,7 +6611,7 @@ uint8_t Vic::d016ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
         if (e.kind != RasterEventKind::Control2)
             continue;
 
-        const int eventX = rasterEventPixelX(e.cycle);
+        const int eventX = rasterRegisterEventPixelX(e);
 
         if (px >= eventX)
             active = e.newValue & 0x1F;
