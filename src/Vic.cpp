@@ -3448,6 +3448,7 @@ void Vic::recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t o
     e.kind = kind;
     e.raster = registers.raster;
     e.cycle = currentCycle;
+    e.phase = VicBusPhase::Phi2;
     e.address = address;
     e.oldValue = oldValue;
     e.newValue = newValue;
