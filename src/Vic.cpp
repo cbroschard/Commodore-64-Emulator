@@ -3424,6 +3424,7 @@ void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
     RasterPriorityEvent e;
     e.raster = registers.raster;
     e.cycle = currentCycle;
+    e.phase = VicBusPhase::Phi2;
     e.oldValue = oldValue;
     e.newValue = newValue;
 
@@ -3591,7 +3592,7 @@ bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
             if (e.raster != registers.raster)
                 continue;
 
-            const int eventX = rasterEventPixelX(e.cycle);
+            const int eventX = rasterPriorityEventPixelX(e);
 
             if (eventX > px)
                 continue;
@@ -5129,6 +5130,22 @@ int Vic::rasterRegisterEventPixelX(const RasterEventRecord& e) const
 int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
 {
     return rasterEventPixelX(e.cycle);
+}
+
+int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
+{
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (e.phase == VicBusPhase::Phi2)
+        x += 4;
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
 }
 
 bool Vic::firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const
