@@ -473,6 +473,7 @@ class Vic
             SpritePriority,
             SpriteMode,
             SpriteXExpansion,
+            SpriteYExpansion,
             SpriteEnable,
             SpriteX
         };
@@ -534,6 +535,7 @@ class Vic
         inline uint8_t d018ForRasterPixelXForDebug ( int raster, int px, bool preferPreviousFrame) const
                                                    { return d018ForRasterPixelX(raster, px, preferPreviousFrame); }
 
+        uint8_t vicReadForDebug(uint16_t address, int raster) const;
         bool isBadLineForDebug(int raster) const;
         void setIERExact(uint8_t mask);
         void clearPendingIRQs();
@@ -544,8 +546,6 @@ class Vic
         VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
         VicBadlineDebugSnapshot getBadlineDebugSnapshot() const;
         std::string dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const;
-
-    protected:
 
     private:
         // Non-owning pointers

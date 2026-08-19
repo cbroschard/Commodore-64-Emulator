@@ -230,6 +230,7 @@ static const char* vicRasterEventKindName(Vic::RasterEventKind kind)
         case Vic::RasterEventKind::SpritePriority:    return "Sprite priority";
         case Vic::RasterEventKind::SpriteMode:        return "Sprite mode";
         case Vic::RasterEventKind::SpriteXExpansion:  return "Sprite X expansion";
+        case Vic::RasterEventKind::SpriteYExpansion:  return "Sprite Y expansion";
         case Vic::RasterEventKind::SpriteEnable:      return "Sprite enable";
         case Vic::RasterEventKind::SpriteX:           return "Sprite X position";
     }
@@ -319,6 +320,10 @@ static std::string vicRasterEventDetail(const Vic::RasterEventRecord& e)
 
         case Vic::RasterEventKind::SpriteXExpansion:
             out << "$D01D sprite X expansion";
+            return out.str();
+
+        case Vic::RasterEventKind::SpriteYExpansion:
+            out << "$D017 sprite Y expansion";
             return out.str();
 
         case Vic::RasterEventKind::SpriteEnable:
@@ -809,6 +814,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
         int priority = 0;
         int mode = 0;
         int xexp = 0;
+        int yexp = 0;
         int enable = 0;
         int spriteX = 0;
 
@@ -826,6 +832,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
                 case Vic::RasterEventKind::SpritePriority:   ++priority; break;
                 case Vic::RasterEventKind::SpriteMode:       ++mode; break;
                 case Vic::RasterEventKind::SpriteXExpansion: ++xexp; break;
+                case Vic::RasterEventKind::SpriteYExpansion: ++yexp; break;
                 case Vic::RasterEventKind::SpriteEnable:     ++enable; break;
                 case Vic::RasterEventKind::SpriteX:          ++spriteX; break;
             }
@@ -839,6 +846,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
         out << "  Sprite priority: " << priority << "\n";
         out << "  Sprite mode: " << mode << "\n";
         out << "  Sprite X expansion: " << xexp << "\n";
+        out << "  Sprite Y expansion: " << yexp << "\n";
         out << "  Sprite enable: " << enable << "\n";
         out << "  Sprite X position: " << spriteX << "\n";
     };
@@ -1842,6 +1850,54 @@ std::string MLMonitorBackend::vicDumpBorderState() const
         << "\n";
 
     return oss.str();
+}
+
+std::string MLMonitorBackend::vicDumpMemory(uint16_t address, int count) const
+{
+    if (!vic)
+        return "VIC not available\n";
+
+    if (count <= 0)
+        count = 16;
+
+    std::ostringstream out;
+
+    const int raster = static_cast<int>(vic->getCurrentRaster());
+
+    for (int offset = 0; offset < count; offset += 16)
+    {
+        const uint16_t lineAddr =
+            static_cast<uint16_t>(address + offset);
+
+        out << "$"
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << lineAddr
+            << ": ";
+
+        const int lineCount = std::min(16, count - offset);
+
+        for (int i = 0; i < lineCount; ++i)
+        {
+            const uint16_t a =
+                static_cast<uint16_t>(lineAddr + i);
+
+            const uint8_t value =
+                vic->vicReadForDebug(a, raster);
+
+            out << std::setw(2)
+                << static_cast<int>(value)
+                << " ";
+        }
+
+        out << "\n";
+    }
+
+    out << std::dec
+        << std::nouppercase
+        << std::setfill(' ');
+
+    return out.str();
 }
 
 void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)

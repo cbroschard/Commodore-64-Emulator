@@ -48,6 +48,7 @@ std::string VICCommand::help() const
         "    cycle <r> <c>          Show debug info for specific raster/cycle\n"
         "    events <r>             Show recorded raster register events\n"
         "    map <r>                Show fetch map for one raster line\n"
+        "    mem <addr> [count]     Dump VIC-relative memory\n"
         "    pixels <r> <x0> <x1>   Dump pixel composition state for one raster range\n"
         "    row                    Show badline row sequencer\n"
         "    sprite                 Show sprite DMA state\n";
@@ -438,6 +439,57 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         catch (const std::exception&)
         {
             std::cout << mapUsage();
+            return;
+        }
+    }
+    else if (sub == "mem")
+    {
+        if (args.size() != 3 && args.size() != 4)
+        {
+            std::cout << "Usage: vic mem <addr> [count]\n";
+            return;
+        }
+
+        try
+        {
+            auto parseAddress = [](const std::string& text) -> uint16_t
+            {
+                if (!text.empty() && text[0] == '$')
+                {
+                    return static_cast<uint16_t>(
+                        std::stoul(text.substr(1), nullptr, 16)
+                    );
+                }
+
+                return static_cast<uint16_t>(
+                    std::stoul(text, nullptr, 0)
+                );
+            };
+
+            const uint16_t address = parseAddress(args[2]);
+
+            int count = 16;
+
+            if (args.size() == 4)
+                count = std::stoi(args[3]);
+
+            if (count <= 0)
+            {
+                std::cout << "Count must be greater than zero\n";
+                return;
+            }
+
+            std::cout
+                << mon.mlmonitorbackend()->vicDumpMemory(
+                    address,
+                    count
+                );
+
+            return;
+        }
+        catch (const std::exception&)
+        {
+            std::cout << "Usage: vic mem <addr> [count]\n";
             return;
         }
     }

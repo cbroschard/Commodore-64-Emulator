@@ -240,6 +240,7 @@ class MLMonitorBackend
         std::string vicDumpRegs(const std::string& group) const;
         std::string vicDumpBadlineState() const;
         std::string vicDumpBorderState() const;
+        std::string vicDumpMemory(uint16_t address, int count) const;
         void vicFFRaster(uint8_t targetRaster);
 
     private:

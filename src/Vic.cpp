@@ -1109,6 +1109,9 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteYExpansion;
             registers.spriteYExpansion = value;
+
+            recordRasterEventLog(RasterEventKind::SpriteYExpansion, 0xD017, oldValue, registers.spriteYExpansion);
+
             traceVicRegWrite(address, oldValue, registers.spriteYExpansion);
             break;
         }
@@ -6348,6 +6351,12 @@ Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
         d.outputWidth = s.outputWidth;
         d.outputBit = s.outputBit;
         d.outputRepeat = s.outputRepeat;
+
+        const int sampleX = std::clamp(s.outputXStart, 0, VISIBLE_WIDTH - 1);
+
+        d.multicolorAtX = spriteMulticolorAtPixel(i, sampleX);
+        d.xExpandedAtX = spriteXExpandedAtPixel(i, sampleX);
+        d.enabledAtX = spriteEnabledAtPixel(i, sampleX);
     }
 
     snap.spriteSpriteCollision.valid = lastSpriteSpriteCollision.valid;
@@ -6547,6 +6556,11 @@ void Vic::updateMonitorCaches(int raster)
     screenBaseCache = static_cast<uint16_t>(screenBaseForRasterPixelX(raster, samplePx) + currentVICBank);
 
     bitmapBaseCache = static_cast<uint16_t>(bitmapBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+}
+
+uint8_t Vic::vicReadForDebug(uint16_t address, int raster) const
+{
+    return mem ? mem->vicRead(address, raster) : 0;
 }
 
 bool Vic::isBadLineForDebug(int raster) const
@@ -6806,17 +6820,15 @@ std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) con
     const RasterPixelCompositionSnapshot* snap = nullptr;
     const char* snapSource = "none";
 
-    if (raster < static_cast<int>(lastFrameRasterPixelStates.size()) &&
-        lastFrameRasterPixelStates[raster].valid)
-    {
-        snap = &lastFrameRasterPixelStates[raster];
-        snapSource = "previous frame";
-    }
-    else if (raster < static_cast<int>(rasterPixelStates.size()) &&
-             rasterPixelStates[raster].valid)
+    if (raster < static_cast<int>(rasterPixelStates.size()) &&  rasterPixelStates[raster].valid)
     {
         snap = &rasterPixelStates[raster];
         snapSource = "current frame";
+    }
+    else if (raster < static_cast<int>(lastFrameRasterPixelStates.size()) && lastFrameRasterPixelStates[raster].valid)
+    {
+        snap = &lastFrameRasterPixelStates[raster];
+        snapSource = "previous frame";
     }
 
     if (!snap)
