@@ -2166,7 +2166,7 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
             if (e.raster != registers.raster)
                 continue;
 
-            const int eventX = rasterEventPixelX(e.cycle);
+            const int eventX = rasterSpriteModeEventPixelX(e);
 
             if (eventX > px)
                 continue;
@@ -3436,8 +3436,11 @@ void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
 void Vic::recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue)
 {
     RasterSpriteModeEvent e;
+
     e.raster = registers.raster;
     e.cycle = currentCycle;
+    e.phase = VicBusPhase::Phi2;
+
     e.oldValue = oldValue;
     e.newValue = newValue;
 
@@ -5133,6 +5136,22 @@ int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
 }
 
 int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
+{
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (e.phase == VicBusPhase::Phi2)
+        x += 4;
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
+}
+
+int Vic::rasterSpriteModeEventPixelX(const RasterSpriteModeEvent& e) const
 {
     int x = cfg_->hardware_X + (e.cycle * 8);
 
