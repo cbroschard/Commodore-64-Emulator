@@ -1659,7 +1659,7 @@ void Vic::outputPixel(int raster, int x)
 
     BackgroundPixel pixel {};
 
-    if (outputMode == graphicsMode::multicolorBitmap)
+    if (outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
     else if (outputMode == graphicsMode::bitmap || outputMode == graphicsMode::illegalBitmap)
         pixel = sampleAndAdvanceActiveStandardBitmapPixel();
@@ -1668,7 +1668,8 @@ void Vic::outputPixel(int raster, int x)
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
 
-    if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap)
+    if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap ||
+        outputMode == graphicsMode::illegalMulticolorBitmap)
         pixel.color = 0x00;
 
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
@@ -1706,7 +1707,8 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         mode != graphicsMode::multicolorBitmap &&
         mode != graphicsMode::extendedColorText &&
         mode != graphicsMode::illegalText &&
-        mode != graphicsMode::illegalBitmap)
+        mode != graphicsMode::illegalBitmap &&
+        mode != graphicsMode::illegalMulticolorBitmap)
     {
         return;
     }
@@ -1725,6 +1727,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         case graphicsMode::bitmap:
         case graphicsMode::multicolorBitmap:
         case graphicsMode::illegalBitmap:
+        case graphicsMode::illegalMulticolorBitmap:
             fetchStandardBitmapGraphicsByte(registers.raster, column, d011, d016, d018);
             break;
 
@@ -3375,7 +3378,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
     uint16_t bitmapAddress = static_cast<uint16_t>(bitmapBase + ((vc & 0x03FF) << 3) + rc);
 
-    if (mode == graphicsMode::illegalBitmap)
+    if (mode == graphicsMode::illegalBitmap || mode == graphicsMode::illegalMulticolorBitmap)
     {
         // ECM forces VIC g-access address lines A9 and A10 low.
         bitmapAddress &= static_cast<uint16_t>(~0x0600);
@@ -3791,7 +3794,7 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
 
-    if (mode == graphicsMode::multicolorBitmap)
+    if (mode == graphicsMode::multicolorBitmap || mode == graphicsMode::illegalMulticolorBitmap)
     {
         activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
         activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
