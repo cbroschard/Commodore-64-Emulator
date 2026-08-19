@@ -1628,7 +1628,7 @@ void Vic::outputPixel(int raster, int x)
             if (latch.valid)
             {
                 const uint8_t liveD016 = d016ForRasterPixelX(raster, x, false);
-                const int xScroll = static_cast<int>(liveD016 & 0x07);
+                const int xScroll = static_cast<int>(d016XScroll(liveD016));
                 const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
                 if (x == reloadX)

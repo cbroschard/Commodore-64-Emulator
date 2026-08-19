@@ -816,6 +816,9 @@ class Vic
         inline uint8_t latchedD011ForRaster(int raster) const { return d011_per_raster[raster] & 0x7F; }
         inline uint8_t latchedD016ForRaster(int raster) const { return d016_per_raster[raster] & 0x1F; }
         inline uint8_t latchedD018ForRaster(int raster) const { return d018_per_raster[raster] & 0xFE; }
+        inline uint8_t d016XScroll(uint8_t value) const { return value & 0x07; }
+        inline bool d016CSEL(uint8_t value) const { return (value & 0x08) != 0; }
+        inline bool d016MCM(uint8_t value) const { return (value & 0x10) != 0; }
         uint8_t effectiveD011ForRaster(int raster) const;
         uint8_t effectiveD016ForRaster(int raster) const;
 
