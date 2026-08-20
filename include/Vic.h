@@ -937,7 +937,6 @@ class Vic
 
         // Sprite DMA Helpers
         int spriteRowFromMCBase(int spr) const;
-        bool shouldAdvanceSpriteMCBaseThisLine(int spr) const;
         void resetSpriteDMAState(int spr);
         void performSpriteDataFetchForSprite(int sprite);
         int spritePointerFetchSpriteForKind(FetchKind kind) const;

@@ -2622,14 +2622,6 @@ int Vic::spriteRowFromMCBase(int spr) const
     return spriteUnits[spr].mcBase / 3;
 }
 
-bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
-{
-    if (spr < 0 || spr >= 8)
-        return false;
-
-    return spriteUnits[spr].yExpandFlipFlop;
-}
-
 void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
