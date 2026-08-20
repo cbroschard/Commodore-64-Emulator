@@ -5806,7 +5806,7 @@ int Vic::spriteScreenXFor(int sprIndex, int raster) const
     return (x - cfg_->hardware_X) + BORDER_SIZE - 1;
 }
 
-bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const
+bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int& rowInSprite, int& fbLine) const
 {
     rowInSprite = 0;
     fbLine = fbY(raster);
@@ -5817,24 +5817,14 @@ bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, 
     if (!spriteUnits[sprIndex].dmaActive)
         return false;
 
-    const int startY = spriteUnits[sprIndex].startY;
-    const bool yExp  = spriteUnits[sprIndex].yExpandLatch;
+    const int currentRow = spriteUnits[sprIndex].currentRow;
 
-    int rasterDelta = raster - startY;
-    if (rasterDelta < 0)
-        rasterDelta += cfg_->maxRasterLines;
-
-    const int spriteHeight = yExp ? 42 : 21;
-    if (rasterDelta >= spriteHeight)
+    if (currentRow < 0 || currentRow >= 21)
         return false;
 
-    const int computedRow = yExp ? (rasterDelta / 2) : rasterDelta;
-    rowInSprite = computedRow;
+    rowInSprite = currentRow;
 
-    if (computedRow != spriteUnits[sprIndex].currentRow)
-        traceVicSpriteRowMismatch(sprIndex, raster, computedRow);
-
-    return computedRow >= 0 && computedRow < 21;
+    return true;
 }
 
 void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
