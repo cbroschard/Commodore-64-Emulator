@@ -2051,7 +2051,16 @@ void Vic::advanceSpriteMCBaseSecondStep()
         if (!unit.dmaActive)
             continue;
 
-        if (unit.yExpandFlipFlop)
+        if (unit.yCrunchPending)
+        {
+            const uint8_t mc = static_cast<uint8_t>(unit.mc & 0x3F);
+
+            const uint8_t mcBase = static_cast<uint8_t>(unit.mcBase & 0x3F);
+            unit.mcBase = static_cast<uint8_t>((((mc | mcBase) & 0x15) |((mc & mcBase) & 0x2A)) & 0x3F);
+
+            unit.yCrunchPending = false;
+        }
+        else if (unit.yExpandFlipFlop)
             unit.mcBase = static_cast<uint8_t>((unit.mcBase + 1) & 0x3F);
 
         unit.mc = unit.mcBase;
