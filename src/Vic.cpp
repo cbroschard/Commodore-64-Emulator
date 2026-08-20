@@ -439,6 +439,7 @@ void Vic::saveState(StateWriter& wrtr) const
     {
         wrtr.writeBool(s.dmaActive);
         wrtr.writeBool(s.yExpandFlipFlop);
+        wrtr.writeBool(s.yCrunchPending);
 
         wrtr.writeU8(s.mc);
         wrtr.writeU8(s.mcBase);
@@ -709,7 +710,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             if (ver >= 9)
             {
-                if (!rdr.readBool(s.yExpandFlipFlop))                  { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(s.yExpandFlipFlop))                   { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(s.yCrunchPending))                    { rdr.exitChunkPayload(chunk); return false; }
             }
             else
             {
