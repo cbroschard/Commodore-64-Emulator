@@ -1344,6 +1344,9 @@ void Vic::runCycleDecisionPhase()
     if (slot.sampleBadline)
         handleCycle14Decisions();
 
+    if (currentCycle == cfg_->spriteYExpansionToggleCycle)
+        updateSpriteYExpansionFlipFlops();
+
     if (currentCycle == cfg_->DMAStartCycle)
          handleBadLineFetchStartDecisions();
 
@@ -1968,6 +1971,22 @@ void Vic::traceRasterEnd()
 int Vic::spriteFetchSlotStart(int sprite) const
 {
     return cfg_->spriteFetchSlots[sprite];
+}
+
+void Vic::updateSpriteYExpansionFlipFlops()
+{
+    const int raster = registers.raster;
+    const int px = rasterEventPixelX(currentCycle);
+
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        const bool yExpanded = spriteYExpandedAtPixel(sprite, raster, px);
+
+        if (!yExpanded)
+            spriteUnits[sprite].yExpandFlipFlop = true;
+        else
+            spriteUnits[sprite].yExpandFlipFlop = !spriteUnits[sprite].yExpandFlipFlop;
+    }
 }
 
 bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
