@@ -1382,7 +1382,10 @@ class Vic
         int rasterSpriteModeEventPixelX(const RasterSpriteModeEvent& e) const;
         int rasterSpriteXExpansionEventPixelX(const RasterSpriteXExpansionEvent& e) const;
         int rasterSpriteEnableEventPixelX(const RasterSpriteEnableEvent& e) const;
+        uint8_t spriteYExpansionForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
+        bool spriteYExpandedAtPixel(int sprite, int raster, int px) const;
         bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;
+
         void applyBorderColorEventsToFinalLine(int raster);
         void applyExtendedBackgroundColorEventsToLine(int raster);
         void applyBackgroundColorEventsToLine(int raster);

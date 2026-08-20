@@ -5213,6 +5213,38 @@ int Vic::rasterSpriteEnableEventPixelX(const RasterSpriteEnableEvent& e) const
     return x;
 }
 
+uint8_t Vic::spriteYExpansionForRasterPixelX(int raster, int px, bool preferPreviousFrame) const
+{
+    uint8_t value = registers.spriteYExpansion;
+
+    const auto& events = preferPreviousFrame ? lastFrameRasterEventsByRaster[raster] : rasterEventsByRaster[raster];
+
+    for (const auto& e : events)
+    {
+        if (e.kind != RasterEventKind::SpriteYExpansion)
+            continue;
+
+        const int eventX = rasterRegisterEventPixelX(e);
+
+        if (eventX > px)
+            break;
+
+        value = e.newValue;
+    }
+
+    return value;
+}
+
+bool Vic::spriteYExpandedAtPixel(int sprite, int raster, int px) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return false;
+
+    const uint8_t d017 = spriteYExpansionForRasterPixelX(raster, px, false);
+
+    return (d017 & (1u << sprite)) != 0;
+}
+
 bool Vic::firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const
 {
     for (const RasterColorEvent& e : rasterColorEvents)
