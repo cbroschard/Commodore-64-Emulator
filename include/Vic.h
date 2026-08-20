@@ -675,6 +675,10 @@ class Vic
 
             bool yExpandLatch = false;
 
+            // VIC-II vertical-expansion flip-flop.
+            // This is distinct from the live $D017 register state.
+            bool yExpandFlipFlop = true;
+
             uint8_t mc = 0;
             uint8_t mcBase = 0;
 

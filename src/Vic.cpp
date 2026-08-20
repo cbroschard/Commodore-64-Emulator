@@ -120,6 +120,7 @@ void Vic::reset()
     {
         s.dmaActive = false;
         s.yExpandLatch = false;
+        s.yExpandFlipFlop = true;
 
         s.mc = 0;
         s.mcBase = 0;
@@ -2581,6 +2582,7 @@ void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
     spriteUnits[spr].yExpandLatch = false;
+    spriteUnits[spr].yExpandFlipFlop = true;
 
     spriteUnits[spr].currentRow = 0;
     spriteUnits[spr].mc = 0;
@@ -2715,6 +2717,11 @@ uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
 
         unit.dmaActive = true;
         unit.yExpandLatch = yExpanded;
+        // When sprite DMA begins:
+        // normal-height sprite -> expansion flip-flop is set
+        // Y-expanded sprite   -> expansion flip-flop starts cleared
+        unit.yExpandFlipFlop = !yExpanded;
+
         unit.currentRow = 0;
         unit.mc = 0;
         unit.mcBase = 0;
