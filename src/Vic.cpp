@@ -2586,15 +2586,10 @@ int Vic::spriteRowFromMCBase(int spr) const
 
 bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
 {
-    if (!spriteUnits[spr].yExpandLatch)
-        return true;
+    if (spr < 0 || spr >= 8)
+        return false;
 
-    const int currentRow = spriteUnits[spr].currentRow;
-
-    // In expanded Y mode, each sprite row is used for two raster lines.
-    // currentRow starts at 0, so do not advance after the first line of a pair.
-    // Advance after rows 1, 3, 5, etc.
-    return (currentRow & 1) != 0;
+    return spriteUnits[spr].yExpandFlipFlop;
 }
 
 void Vic::resetSpriteDMAState(int spr)
