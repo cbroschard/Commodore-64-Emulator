@@ -2562,10 +2562,7 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
 
         spriteUnits[s].mc = spriteUnits[s].mcBase;
 
-        if (spriteUnits[s].yExpandLatch)
-            spriteUnits[s].currentRow += 1;
-        else
-            spriteUnits[s].currentRow = spriteRowFromMCBase(s);
+        spriteUnits[s].currentRow = spriteRowFromMCBase(s);
 
         if (spriteUnits[s].mcBase >= 63)
         {
