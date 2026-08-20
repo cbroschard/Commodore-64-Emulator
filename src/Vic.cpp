@@ -2707,41 +2707,36 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
     if (!mem)
         return;
 
-    const int rowInSprite = spriteRowFromMCBase(sprite);
-    if (rowInSprite < 0 || rowInSprite >= 21)
-        return;
-
-    const uint16_t addr = spriteUnits[sprite].dataBase + rowInSprite * 3 + byteIndex;
+    SpriteUnit& unit = spriteUnits[sprite];
+    const uint8_t mc = static_cast<uint8_t>(unit.mc & 0x3F);
+    const uint16_t addr = static_cast<uint16_t>(unit.dataBase + mc);
 
     if (byteIndex == 0)
-        spriteUnits[sprite].lastFetchAddr0 = addr;
+        unit.lastFetchAddr0 = addr;
     else if (byteIndex == 1)
-        spriteUnits[sprite].lastFetchAddr1 = addr;
+        unit.lastFetchAddr1 = addr;
     else if (byteIndex == 2)
-        spriteUnits[sprite].lastFetchAddr2 = addr;
+        unit.lastFetchAddr2 = addr;
 
     const uint8_t value = mem->vicRead(addr, raster);
 
-    // Latch Open Bus
     updateOpenBus(value);
 
     traceVicSpriteDataFetch(sprite, raster, byteIndex, addr, value);
 
     if (byteIndex == 0)
-    {
-        spriteUnits[sprite].fetched0 = value;
-    }
+        unit.fetched0 = value;
     else if (byteIndex == 1)
     {
-        spriteUnits[sprite].fetched1 = value;
+        unit.fetched1 = value;
     }
     else if (byteIndex == 2)
     {
-        spriteUnits[sprite].fetched2 = value;
-
-        // Sprite row data becomes live when the 3rd byte arrives.
+        unit.fetched2 = value;
         latchSpriteShiftersFromFetchedBytes(sprite);
     }
+
+    unit.mc = static_cast<uint8_t>((unit.mc + 1) & 0x3F);
 
     traceVicSpriteSlotEvent(sprite, "data", raster, currentCycle, byteIndex);
 }
