@@ -1343,11 +1343,11 @@ void Vic::runCycleDecisionPhase()
     if (slot.sampleBadline)
         handleCycle14Decisions();
 
-    if (slot.startSpriteDmaCheck)
-    {
+    if (currentCycle == 15)
         handleCycle15Decisions();
+
+    if (slot.startSpriteDmaCheck)
         currentCycleSlot.spriteDmaStartMask = updateSpriteDMAStartForCurrentLine(registers.raster);
-    }
 
     if (slot.transferDisplayState)
         handleCycle58Decisions();
@@ -3050,7 +3050,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     slot.latchRasterState = cycle == 0;
     slot.sampleBadline = cycle == 14;
-    slot.startSpriteDmaCheck =  cycle == 15;
+    slot.startSpriteDmaCheck = cycle == cfg_->spriteDmaCheckCycle1 || cycle == cfg_->spriteDmaCheckCycle2;
     slot.transferDisplayState = cycle == 58;
     slot.startBadlineFetch = cycle == cfg_->DMAStartCycle;
     slot.busOwner = BusOwner::CPU;

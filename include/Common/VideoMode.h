@@ -35,50 +35,59 @@ struct ModeConfig
     int      bgFetchStartCycle;
     int      bgFetchEndCycle;
     int      refreshStartCycle;
+    int      spriteDmaCheckCycle1;
+    int      spriteDmaCheckCycle2;
     int      spriteFetchSlots[8];
     uint8_t  spriteCpuStealPhaseMask;
 };
 
 inline constexpr ModeConfig NTSC_CONFIG =
 {
-    262,   // maxRasterLines
-    65,   // cyclesPerLine
-    60,   // frameRate
+    263,   // maxRasterLines - 6567R8
+    65,    // cyclesPerLine
+    60,    // frameRate
     251,   // vblankStartLine
-    21,   // vblankEndLine
+    21,    // vblankEndLine
     200,   // visibleLines
-    40,   // badLineCycles
-    51,   // firstVisibleLine
+    40,    // badLineCycles
+    51,    // firstVisibleLine
     250,   // lastVisibleLine
     15,    // DMAStartCycle
-    54,     // DMAEndCycle
-    24,     // hardwareX
+    54,    // DMAEndCycle
+    24,    // hardware_X
     15,    // bgFetchStartCycle
-    54,     // bgFetchEndCycle
-    55,     // refreshStartSlots
-    {55,58,61,64,2,5,8,11}, // spriteFetchCycle
-    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2 // spriteCpuStealPhaseMask
+    54,    // bgFetchEndCycle
+    55,    // refreshStartCycle
+
+    55,    // spriteDmaCheckCycle1
+    56,    // spriteDmaCheckCycle2
+
+    {55,58,61,64,2,5,8,11}, // spriteFetchSlots
+    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
 };
 
 inline constexpr ModeConfig PAL_CONFIG =
 {
     312,   // maxRasterLines
-    63,   // cyclesPerLine
-    50,   // frameRate
+    63,    // cyclesPerLine
+    50,    // frameRate
     251,   // vblankStartLine
-    50,   // vblankEndLine
+    50,    // vblankEndLine
     200,   // visibleLines
-    40,   // badLineCycles
-    51,   // firstVisibleLine
+    40,    // badLineCycles
+    51,    // firstVisibleLine
     250,   // lastVisibleLine
     14,    // DMAStartCycle
-    53,     // DMAEndCycle
-    24,      // hardwareX
+    53,    // DMAEndCycle
+    24,    // hardware_X
     14,    // bgFetchStartCycle
-    53,     // bgFetchEndCycle
-    54,     // refreshStartSlots
-    {54,57,60,0,3,6,9,12}, // spriteFetchCycle
-    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2 // spriteCpuStealPhaseMask
-};
+    53,    // bgFetchEndCycle
+    54,    // refreshStartCycle
 
+    54,    // spriteDmaCheckCycle1
+    55,    // spriteDmaCheckCycle2
+
+    {54,57,60,0,3,6,9,12}, // spriteFetchSlots
+    SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
+};
 #endif // VIDEOMODE_H_INCLUDED
