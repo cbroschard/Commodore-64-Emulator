@@ -144,6 +144,8 @@ void Vic::reset()
         s.rowPrepared = false;
         s.rowDataLatched = false;
 
+        s.yCrunchPending = false;
+
         s.fetched0 = 0;
         s.fetched1 = 0;
         s.fetched2 = 0;
@@ -1124,7 +1126,21 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteYExpansion;
             registers.spriteYExpansion = value;
 
-            recordRasterEventLog(RasterEventKind::SpriteYExpansion, 0xD017, oldValue, registers.spriteYExpansion);
+            recordRasterEventLog(RasterEventKind::SpriteYExpansion, 0xD017, oldValue, registers.spriteYExpansion
+            );
+
+            const uint8_t falling = static_cast<uint8_t>(oldValue & ~registers.spriteYExpansion);
+
+            if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1)
+            {
+                for (int sprite = 0; sprite < 8; ++sprite)
+                {
+                    const uint8_t bit = static_cast<uint8_t>(1u << sprite);
+
+                    if ((falling & bit) != 0 && spriteUnits[sprite].dmaActive)
+                        spriteUnits[sprite].yCrunchPending = true;
+                }
+            }
 
             traceVicRegWrite(address, oldValue, registers.spriteYExpansion);
             break;
@@ -2004,13 +2020,9 @@ void Vic::updateSpriteYExpansionFlipFlops()
         const bool yExpanded = spriteYExpandedAtPixel(sprite, raster, px);
 
         if (!yExpanded)
-        {
             spriteUnits[sprite].yExpandFlipFlop = true;
-        }
         else
-        {
             spriteUnits[sprite].yExpandFlipFlop = !spriteUnits[sprite].yExpandFlipFlop;
-        }
     }
 }
 
@@ -2631,6 +2643,7 @@ void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
     spriteUnits[spr].yExpandFlipFlop = true;
+    spriteUnits[spr].yCrunchPending = false;
 
     spriteUnits[spr].currentRow = 0;
     spriteUnits[spr].mc = 0;
@@ -2768,6 +2781,7 @@ uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
         // normal-height sprite -> expansion flip-flop is set
         // Y-expanded sprite   -> expansion flip-flop starts cleared
         unit.yExpandFlipFlop = !yExpanded;
+        unit.yCrunchPending = false;
 
         unit.currentRow = 0;
         unit.mc = 0;
