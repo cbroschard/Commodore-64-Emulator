@@ -1204,6 +1204,8 @@ class Vic
         {
             int raster = 0;
             int cycle = 0;
+            VicBusPhase phase = VicBusPhase::Phi2;
+
             uint8_t oldValue = 0;
             uint8_t newValue = 0;
         };
@@ -1379,6 +1381,7 @@ class Vic
         int rasterPriorityEventPixelX(const RasterPriorityEvent& e) const;
         int rasterSpriteModeEventPixelX(const RasterSpriteModeEvent& e) const;
         int rasterSpriteXExpansionEventPixelX(const RasterSpriteXExpansionEvent& e) const;
+        int rasterSpriteEnableEventPixelX(const RasterSpriteEnableEvent& e) const;
         bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;
         void applyBorderColorEventsToFinalLine(int raster);
         void applyExtendedBackgroundColorEventsToLine(int raster);
