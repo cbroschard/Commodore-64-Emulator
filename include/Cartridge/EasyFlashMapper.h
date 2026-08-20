@@ -31,8 +31,6 @@ class EasyFlashMapper : public CartridgeMapper
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
 
         struct EasyFlashControl

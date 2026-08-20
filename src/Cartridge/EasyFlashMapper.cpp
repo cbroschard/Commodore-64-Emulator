@@ -74,30 +74,12 @@ uint8_t EasyFlashMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    // EasyFlash RAM: $DF00-$DFFF.
     if (address >= 0xDF00 && address <= 0xDFFF)
         return dfRam[address & 0x00FF];
 
-    // EasyFlash control/status register.
-    if (address == 0xDE02)
-    {
-        uint8_t value = 0xFF;
-
-        if (cart->getGameLine())
-            value |= 0x01;
-        else
-            value &= static_cast<uint8_t>(~0x01);
-
-        if (cart->getExROMLine())
-            value |= 0x02;
-        else
-            value &= static_cast<uint8_t>(~0x02);
-
-        // MODE bit: EasyFlash mode = 0.
-        value &= static_cast<uint8_t>(~0x04);
-
-        return value;
-    }
+    // EasyFlash IO1 registers are write-only.
+    if (address == 0xDE00 || address == 0xDE02)
+        return cart->sampleDataBus();
 
     return cart->sampleDataBus();
 }
@@ -141,6 +123,7 @@ bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
 
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
+    cart->clearCartridge(cartLocation::HI_E000);
 
     bool loadedAny = false;
 
@@ -187,11 +170,17 @@ void EasyFlashMapper::applyControlRegister(uint8_t value)
 
     if (m)
     {
+        // M = 1:
+        // bit 0 controls GAME directly.
         cart->setGameLine(!g);
         cart->setExROMLine(!x);
     }
     else
     {
+        // M = 0:
+        // GAME comes from the EasyFlash boot jumper.
+        // Normal EasyFlash CRT behavior boots in Ultimax.
+        cart->setGameLine(false);
         cart->setExROMLine(!x);
     }
 }
@@ -218,8 +207,6 @@ bool EasyFlashMapper::readDrivesBus(uint16_t address) const
     if (address >= 0xDF00 && address <= 0xDFFF)
         return true;
 
-    if (address == 0xDE02)
-        return true;
-
+    // $DE00/$DE02 are write-only and do not drive CPU reads.
     return false;
 }
