@@ -356,7 +356,7 @@ class Vic
             uint8_t interruptStatus = 0;  // D019 raw/internal
             uint8_t interruptEnable = 0;  // D01A
             bool irqLineActive = false;
-            bool rasterIrqSampledThisLine = false;
+            bool rasterIrqCompareMatched = false;
             int rasterIrqCompareCycle = 0;
             bool rasterCompareMatchesNow = false;
             bool rasterIrqTargetInRange = false;
@@ -599,8 +599,10 @@ class Vic
         // Keep track of frame completion
         bool frameDone;
 
-        // IRQ
-        bool rasterIrqSampledThisLine;
+        // Raster IRQ comparator edge state.
+        // True while the current 9-bit raster counter matches the
+        // programmed $D011/$D012 raster IRQ target.
+        bool rasterIrqCompareMatched;
 
         struct Registers
         {
@@ -923,10 +925,7 @@ class Vic
         uint16_t visibleRasterForRead() const;
         void updateIRQLine();
         void raiseVicIRQSource(uint8_t sourceBitMask);
-        void noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine);
-
-        void sampleRasterIRQCompare(const char* reason);
-        void triggerRasterIRQFromSample(bool matched);
+        void evaluateRasterIRQCompare(const char* reason);
         void setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue);
         bool rasterIRQTargetInRange() const;
 

@@ -83,7 +83,7 @@ void Vic::reset()
     currentCycle = 0;
 
     // Raster IRQ
-    rasterIrqSampledThisLine = false;
+    rasterIrqCompareMatched = false;
     lastRasterIRQSample = {};
 
     // Internal VIC state
@@ -411,7 +411,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
 
-    wrtr.writeBool(rasterIrqSampledThisLine);
+    wrtr.writeBool(rasterIrqCompareMatched);
 
     wrtr.writeBool(activeMatrixRow.valid);
     wrtr.writeU16(activeMatrixRow.vcBase);
@@ -660,7 +660,20 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.ba))                                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                                { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(rasterIrqSampledThisLine))                    { rdr.exitChunkPayload(chunk); return false; }
+        if (ver >= 9)
+        {
+            if (!rdr.readBool(rasterIrqCompareMatched))                 { rdr.exitChunkPayload(chunk); return false; }
+        }
+        else
+        {
+            // VICX v1-v9 stored rasterIrqSampledThisLine here.
+            bool legacyRasterIrqSampledThisLine = false;
+
+            if (!rdr.readBool(legacyRasterIrqSampledThisLine))          { rdr.exitChunkPayload(chunk); return false; }
+
+            // Preserve the most sensible equivalent state from an old save.
+            rasterIrqCompareMatched = legacyRasterIrqSampledThisLine && rasterIRQTargetMatchesVisibleRaster();
+        }
 
         if (ver >= 8)
         {
@@ -1366,7 +1379,7 @@ void Vic::runCycleDecisionPhase()
     const VicCycleSlot& slot = currentCycleSlot;
 
     if (slot.rasterIrqSample)
-        sampleRasterIRQCompare("normal-sample");
+        evaluateRasterIRQCompare("normal-compare");
 
     if (slot.latchRasterState)
         handleCycle0Decisions();
@@ -1984,8 +1997,6 @@ void Vic::advanceToNextRaster()
 
     vicState.badLineSampled = false;
     vicState.badLineInitializedThisRaster = false;
-
-    rasterIrqSampledThisLine = false;
 }
 
 void Vic::traceRasterEnd()
@@ -5699,73 +5710,47 @@ void Vic::raiseVicIRQSource(uint8_t sourceBitMask)
     updateIRQLine();
 }
 
-void Vic::noteRasterIRQRetargetIfRelevant(uint16_t oldLine, uint16_t newLine)
+void Vic::evaluateRasterIRQCompare(const char* reason)
 {
-    oldLine &= 0x01FF;
-    newLine &= 0x01FF;
-
-    if (oldLine == newLine)
-        return;
-
-    // If the new target is outside the current video mode's raster range,
-    // it cannot match the current raster.
-    if (newLine >= cfg_->maxRasterLines)
-        return;
-
-    if (rasterIrqSampledThisLine || currentCycle >= rasterIRQCompareCycle())
-        return;
-
-    if (visibleRasterForIRQCompare() != newLine)
-        return;
-}
-
-void Vic::sampleRasterIRQCompare(const char* reason)
-{
-    if (rasterIrqSampledThisLine)
-        return;
-
-    const char* sampleReason = reason ? reason : "normal-sample";
-
-    // Capture everything used by the comparator at the sample point.
+    const char* compareReason = reason ? reason : "raster-compare";
     const uint16_t visibleRaster = visibleRasterForIRQCompare();
     const uint16_t targetRaster = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
+
     const bool targetInRange = targetRaster < cfg_->maxRasterLines;
-    const bool sampledBefore = rasterIrqSampledThisLine;
+    const bool matchNow = targetInRange && visibleRaster == targetRaster;
+    const bool matchedBefore = rasterIrqCompareMatched;
 
-    // Use the captured values, not a second helper call.
-    const bool matched = targetInRange && (visibleRaster == targetRaster);
-
+    // Preserve your existing debug snapshot information.
     lastRasterIRQSample.valid = true;
     lastRasterIRQSample.raster = static_cast<int>(registers.raster);
+
     lastRasterIRQSample.cycle = currentCycle;
     lastRasterIRQSample.visibleRaster = visibleRaster;
     lastRasterIRQSample.targetRaster = targetRaster;
     lastRasterIRQSample.targetInRange = targetInRange;
-    lastRasterIRQSample.matched = matched;
-    lastRasterIRQSample.sampledBefore = sampledBefore;
-    lastRasterIRQSample.reason = sampleReason;
+    lastRasterIRQSample.matched = matchNow;
+    lastRasterIRQSample.sampledBefore = matchedBefore;
+    lastRasterIRQSample.reason = compareReason;
 
-    traceVicCycleCheckpoint("raster-irq-sample", registers.raster, currentCycle);
-    traceVicRasterRetargetTest(sampleReason, targetRaster, targetRaster, sampledBefore, matched);
-    rasterIrqSampledThisLine = true;
-    triggerRasterIRQFromSample(matched);
-}
+    traceVicCycleCheckpoint("raster-irq-compare", registers.raster, currentCycle);
+    traceVicRasterRetargetTest(compareReason, targetRaster, targetRaster, matchedBefore, matchNow);
 
-void Vic::triggerRasterIRQFromSample(bool matched)
-{
-    if (!matched)
-        return;
+    // VIC-II raster IRQ is generated when the raster comparator
+    // transitions from non-match to match.
+    if (matchNow && !matchedBefore)
+        raiseVicIRQSource(0x01);
 
-    raiseVicIRQSource(0x01);
+    // Remember comparator level, independently of $D019 IRQ status.
+    rasterIrqCompareMatched = matchNow;
 }
 
 void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue)
 {
-    const uint16_t oldLine = registers.rasterInterruptLine;
-
     registers.rasterInterruptLine = static_cast<uint16_t>(newLine & 0x01FF);
 
-    noteRasterIRQRetargetIfRelevant(oldLine, registers.rasterInterruptLine);
+    // $D011/$D012 can change comparator state immediately.
+    evaluateRasterIRQCompare(reason ? reason : "raster-target-write");
+    (void)writtenValue;
 }
 
 bool Vic::rasterIRQTargetInRange() const
@@ -6592,7 +6577,7 @@ Vic::VicRegisterDebugSnapshot Vic::getRegisterDebugSnapshot() const
     s.interruptStatus = registers.interruptStatus;
     s.interruptEnable = registers.interruptEnable;
     s.irqLineActive = irqLineActive();
-    s.rasterIrqSampledThisLine = rasterIrqSampledThisLine;
+    s.rasterIrqCompareMatched = rasterIrqCompareMatched;
     s.rasterIrqCompareCycle = rasterIRQCompareCycle();
     s.rasterCompareMatchesNow = rasterCompareMatchesNow();
     s.rasterIrqTargetInRange = rasterIRQTargetInRange();

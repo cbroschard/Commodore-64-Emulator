@@ -1607,7 +1607,7 @@ std::string MLMonitorBackend::vicDumpRegs(const std::string& group) const
 
         out << "IRQ line active = " << (s.irqLineActive ? "Yes" : "No") << "\n";
         out << "Compare cycle   = " << s.rasterIrqCompareCycle
-            << "   Sampled this line=" << (s.rasterIrqSampledThisLine ? "Yes" : "No")
+            << "   Compare matched=" << (s.rasterIrqCompareMatched ? "Yes" : "No")
             << "\n";
 
         out << "Compare match   = " << (s.rasterCompareMatchesNow ? "Yes" : "No")
