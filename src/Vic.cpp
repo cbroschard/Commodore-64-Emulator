@@ -1996,16 +1996,21 @@ int Vic::spriteFetchSlotStart(int sprite) const
 void Vic::updateSpriteYExpansionFlipFlops()
 {
     const int raster = registers.raster;
-    const int px = rasterEventPixelX(currentCycle);
+
+    const int px = std::clamp(cfg_->hardware_X + (currentCycle * 8) + 4, 0, VISIBLE_WIDTH);
 
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const bool yExpanded = spriteYExpandedAtPixel(sprite, raster, px);
 
         if (!yExpanded)
+        {
             spriteUnits[sprite].yExpandFlipFlop = true;
+        }
         else
+        {
             spriteUnits[sprite].yExpandFlipFlop = !spriteUnits[sprite].yExpandFlipFlop;
+        }
     }
 }
 
