@@ -2473,7 +2473,10 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
         if (px < u.outputXStart)
             continue;
 
-        if (px >= u.outputXStart + u.outputWidth)
+        // The sprite is finished once all 24 source bits have been consumed.
+        // X expansion affects how many output pixels each source bit occupies,
+        // so a fixed outputWidth cannot correctly handle mid-sprite D01D writes.
+        if (u.outputBit >= 24)
             continue;
 
         // Event-aware D015 gate:
