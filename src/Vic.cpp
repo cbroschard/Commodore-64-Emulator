@@ -923,7 +923,7 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBusMasked(registers.spriteYExpansion, 0xFF);
 
         case 0xD018:
-             return latchOpenBusMasked(registers.memory_pointer, 0xFE);
+            return latchOpenBus(static_cast<uint8_t>(registers.memory_pointer | 0x01));
 
         case 0xD019:
         {
