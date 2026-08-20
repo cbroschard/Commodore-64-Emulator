@@ -1171,6 +1171,8 @@ class Vic
         {
             int raster = 0;
             int cycle = 0;
+            VicBusPhase phase = VicBusPhase::Phi2;
+
             uint16_t address = 0;
             uint8_t oldValue = 0;
             uint8_t newValue = 0;

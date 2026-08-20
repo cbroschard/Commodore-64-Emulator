@@ -3494,6 +3494,8 @@ void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t new
     RasterColorEvent e;
     e.raster = registers.raster;
     e.cycle = currentCycle;
+    e.phase = VicBusPhase::Phi2;
+
     e.address = address;
     e.oldValue = oldValue & 0x0F;
     e.newValue = newValue & 0x0F;
@@ -5220,7 +5222,18 @@ int Vic::rasterRegisterEventPixelX(const RasterEventRecord& e) const
 
 int Vic::rasterColorEventPixelX(const RasterColorEvent& e) const
 {
-    return rasterEventPixelX(e.cycle);
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (e.phase == VicBusPhase::Phi2)
+        x += 4;
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
 }
 
 int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
