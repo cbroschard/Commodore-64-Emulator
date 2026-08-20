@@ -119,7 +119,6 @@ void Vic::reset()
     for (auto& s : spriteUnits)
     {
         s.dmaActive = false;
-        s.yExpandLatch = false;
         s.yExpandFlipFlop = true;
 
         s.mc = 0;
@@ -362,7 +361,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(8); // version
+    wrtr.writeU32(9); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -437,7 +436,7 @@ void Vic::saveState(StateWriter& wrtr) const
     for (const auto& s : spriteUnits)
     {
         wrtr.writeBool(s.dmaActive);
-        wrtr.writeBool(s.yExpandLatch);
+        wrtr.writeBool(s.yExpandFlipFlop);
 
         wrtr.writeU8(s.mc);
         wrtr.writeU8(s.mcBase);
@@ -579,7 +578,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 8)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 1 || ver > 9)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -705,7 +704,22 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         for (auto& s : spriteUnits)
         {
             if (!rdr.readBool(s.dmaActive))                             { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(s.yExpandLatch))                          { rdr.exitChunkPayload(chunk); return false; }
+
+            if (ver >= 9)
+            {
+                if (!rdr.readBool(s.yExpandFlipFlop))                  { rdr.exitChunkPayload(chunk); return false; }
+            }
+            else
+            {
+                // VICX versions 1-8 stored the obsolete yExpandLatch
+                // boolean in this position. Consume it to preserve the
+                // old chunk layout, then derive a reasonable flip-flop state.
+                bool legacyYExpandLatch = false;
+
+                if (!rdr.readBool(legacyYExpandLatch))                  { rdr.exitChunkPayload(chunk); return false; }
+
+                s.yExpandFlipFlop = !legacyYExpandLatch;
+            }
 
             if (!rdr.readU8(s.mc))                                      { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readU8(s.mcBase))                                  { rdr.exitChunkPayload(chunk); return false; }
@@ -2592,7 +2606,6 @@ bool Vic::shouldAdvanceSpriteMCBaseThisLine(int spr) const
 void Vic::resetSpriteDMAState(int spr)
 {
     spriteUnits[spr].dmaActive = false;
-    spriteUnits[spr].yExpandLatch = false;
     spriteUnits[spr].yExpandFlipFlop = true;
 
     spriteUnits[spr].currentRow = 0;
@@ -2727,7 +2740,6 @@ uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
         SpriteUnit& unit = spriteUnits[sprite];
 
         unit.dmaActive = true;
-        unit.yExpandLatch = yExpanded;
         // When sprite DMA begins:
         // normal-height sprite -> expansion flip-flop is set
         // Y-expanded sprite   -> expansion flip-flop starts cleared
@@ -6446,7 +6458,7 @@ Vic::VicSpriteDebugSnapshot Vic::getSpriteDebugSnapshot() const
 
         d.dmaActive = s.dmaActive;
         d.rowDataLatched = s.rowDataLatched;
-        d.yExpandLatch = s.yExpandLatch;
+        d.yExpandFlipFlop = s.yExpandFlipFlop;
 
         d.mc = s.mc;
         d.mcBase = s.mcBase;
@@ -7333,6 +7345,8 @@ void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int
 
     const SpriteUnit& su = spriteUnits[sprite];
 
+    const bool yExpanded = (registers.spriteYExpansion & (1u << sprite)) != 0;
+
     std::ostringstream out;
     out << "[VIC:SPR] "
         << "s=" << sprite
@@ -7343,7 +7357,7 @@ void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int
         << " slot=$" << std::hex << std::uppercase << std::setw(2) << spriteFetchSlotStart(sprite)
         << " dma=" << std::dec << (su.dmaActive ? 1 : 0)
         << " rowlat=" << (su.rowDataLatched ? 1 : 0)
-        << " yexp=" << (su.yExpandLatch ? 1 : 0)
+        << " yexp=" << (yExpanded ? 1 : 0) << " yff=" << (su.yExpandFlipFlop ? 1 : 0)
         << " mc=" << int(su.mc)
         << " mcbase=" << int(su.mcBase)
         << " row=" << su.currentRow
@@ -7380,7 +7394,8 @@ void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance
         << " willAdvance=" << (willAdvance ? 1 : 0)
         << " dma=" << (spriteUnits[sprite].dmaActive ? 1 : 0)
         << " rowlat=" << (spriteUnits[sprite].rowDataLatched ? 1 : 0)
-        << " yexp=" << (spriteUnits[sprite].yExpandLatch ? 1 : 0)
+        << " yexp=" << ((registers.spriteYExpansion & (1u << sprite)) ? 1 : 0) << " yff="
+        << (spriteUnits[sprite].yExpandFlipFlop ? 1 : 0)
         << " mc=" << int(spriteUnits[sprite].mc)
         << " mcbase=" << int(spriteUnits[sprite].mcBase)
         << " row=" << spriteUnits[sprite].currentRow;
@@ -7431,7 +7446,7 @@ void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) con
         << " mcBase=" << int(spriteUnits[sprite].mcBase)
         << " dma=" << int(spriteUnits[sprite].dmaActive)
         << " rowlat=" << int(spriteUnits[sprite].rowDataLatched)
-        << " yExp=" << int(spriteUnits[sprite].yExpandLatch)
+        << " yFF=" << int(spriteUnits[sprite].yExpandFlipFlop)
         << " startY=" << spriteUnits[sprite].startY;
 
     traceMgr->recordVicEvent(out.str(), makeVicStamp());

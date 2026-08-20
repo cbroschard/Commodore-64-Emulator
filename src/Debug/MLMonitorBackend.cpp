@@ -1219,7 +1219,7 @@ std::string MLMonitorBackend::vicDumpSpriteDmaState() const
             << std::setw(4) << sp.x << "   "
             << (sp.dmaActive ? 1 : 0) << "     "
             << (sp.rowDataLatched ? 1 : 0) << "     "
-            << (sp.yExpandLatch ? 1 : 0) << "   "
+            << (sp.yExpandFlipFlop ? 1 : 0) << "   "
             << std::setw(2) << static_cast<int>(sp.mc) << "   "
             << std::setw(2) << static_cast<int>(sp.mcBase) << "     "
             << std::setw(2) << sp.row << "    "
