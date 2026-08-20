@@ -2209,7 +2209,7 @@ bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
             if (e.raster != registers.raster)
                 continue;
 
-            const int eventX = rasterEventPixelX(e.cycle);
+            const int eventX = rasterSpriteXExpansionEventPixelX(e);
 
             if (eventX > px)
                 continue;
@@ -3460,6 +3460,8 @@ void Vic::recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue)
 {
     RasterSpriteXExpansionEvent e;
     e.raster = registers.raster;
+    e.phase = VicBusPhase::Phi2;
+
     e.cycle = currentCycle;
     e.oldValue = oldValue;
     e.newValue = newValue;
@@ -5159,6 +5161,22 @@ int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
 }
 
 int Vic::rasterSpriteModeEventPixelX(const RasterSpriteModeEvent& e) const
+{
+    int x = cfg_->hardware_X + (e.cycle * 8);
+
+    if (e.phase == VicBusPhase::Phi2)
+        x += 4;
+
+    if (x < 0)
+        x = 0;
+
+    if (x > VISIBLE_WIDTH)
+        x = VISIBLE_WIDTH;
+
+    return x;
+}
+
+int Vic::rasterSpriteXExpansionEventPixelX(const RasterSpriteXExpansionEvent& e) const
 {
     int x = cfg_->hardware_X + (e.cycle * 8);
 
