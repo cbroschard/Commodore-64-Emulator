@@ -1361,6 +1361,12 @@ void Vic::runCycleDecisionPhase()
     if (currentCycle == cfg_->spriteYExpansionToggleCycle)
         updateSpriteYExpansionFlipFlops();
 
+    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1)
+        advanceSpriteMCBaseFirstStep();
+
+    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
+        advanceSpriteMCBaseSecondStep();
+
     if (currentCycle == cfg_->DMAStartCycle)
          handleBadLineFetchStartDecisions();
 
@@ -2003,6 +2009,47 @@ void Vic::updateSpriteYExpansionFlipFlops()
     }
 }
 
+void Vic::advanceSpriteMCBaseFirstStep()
+{
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        SpriteUnit& unit = spriteUnits[sprite];
+
+        if (!unit.dmaActive)
+            continue;
+
+        if (!unit.yExpandFlipFlop)
+            continue;
+
+        unit.mcBase = static_cast<uint8_t>((unit.mcBase + 2) & 0x3F);
+    }
+}
+
+void Vic::advanceSpriteMCBaseSecondStep()
+{
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        SpriteUnit& unit = spriteUnits[sprite];
+
+        if (!unit.dmaActive)
+            continue;
+
+        if (unit.yExpandFlipFlop)
+            unit.mcBase = static_cast<uint8_t>((unit.mcBase + 1) & 0x3F);
+
+        unit.mc = unit.mcBase;
+        unit.currentRow = spriteRowFromMCBase(sprite);
+
+        if (unit.mcBase == 63)
+        {
+            traceVicSpriteSlotEvent(sprite, "dma-stop", registers.raster, currentCycle);
+
+            clearSpriteFetchedRowState(sprite);
+            resetSpriteDMAState(sprite);
+        }
+    }
+}
+
 bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
 {
     const int slotStart = spriteFetchSlotStart(sprite);
@@ -2566,27 +2613,7 @@ void Vic::updateSpriteDMAEndOfLine(int raster)
         if (!spriteUnits[s].dmaActive)
             continue;
 
-        traceVicSpriteSlotEvent(s, "eol-before", raster, currentCycle);
-
-        const bool willAdvance = shouldAdvanceSpriteMCBaseThisLine(s);
-        traceVicSpriteAdvanceDecision(s, raster, willAdvance);
-
-        if (willAdvance)
-            spriteUnits[s].mcBase = static_cast<uint8_t>(spriteUnits[s].mcBase + 3);
-
-        spriteUnits[s].mc = spriteUnits[s].mcBase;
-
-        spriteUnits[s].currentRow = spriteRowFromMCBase(s);
-
-        if (spriteUnits[s].mcBase >= 63)
-        {
-            traceVicSpriteSlotEvent(s, "dma-stop", raster, currentCycle);
-            clearSpriteFetchedRowState(s);
-            resetSpriteDMAState(s);
-            continue;
-        }
-
-        traceVicSpriteSlotEvent(s, "eol-after", raster, currentCycle);
+        traceVicSpriteSlotEvent(s, "eol", raster, currentCycle);
     }
 }
 

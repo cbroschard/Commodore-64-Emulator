@@ -38,6 +38,8 @@ struct ModeConfig
     int      spriteDmaCheckCycle1;
     int      spriteDmaCheckCycle2;
     int      spriteYExpansionToggleCycle;
+    int      spriteMcBaseAdvanceCycle1;
+    int      spriteMcBaseAdvanceCycle2;
     int      spriteFetchSlots[8];
     uint8_t  spriteCpuStealPhaseMask;
 };
@@ -63,6 +65,8 @@ inline constexpr ModeConfig NTSC_CONFIG =
     55,    // spriteDmaCheckCycle1
     56,    // spriteDmaCheckCycle2
     54,    // spriteYExpansionToggleCycle
+    14,    // spriteMcBaseAdvanceCycle1
+    15,    // spriteMcBaseAdvanceCycle2
 
     {55,58,61,64,2,5,8,11}, // spriteFetchSlots
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
@@ -89,6 +93,8 @@ inline constexpr ModeConfig PAL_CONFIG =
     54,    // spriteDmaCheckCycle1
     55,    // spriteDmaCheckCycle2
     54,    // spriteYExpansionToggleCycle
+    14,    // spriteMcBaseAdvanceCycle1
+    15,    // spriteMcBaseAdvanceCycle2
 
     {54,57,60,0,3,6,9,12}, // spriteFetchSlots
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2

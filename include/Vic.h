@@ -975,6 +975,9 @@ class Vic
         int spriteFetchSlotStart(int sprite) const;
         void updateSpriteYExpansionFlipFlops();
 
+        void advanceSpriteMCBaseFirstStep();
+        void advanceSpriteMCBaseSecondStep();
+
         void prepareSpriteOutputForRaster(int raster);
         bool spriteCanRenderThisRaster(int sprite) const;
         void resetSpriteLineOutputState(int sprite);
