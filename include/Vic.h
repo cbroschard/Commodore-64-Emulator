@@ -869,7 +869,7 @@ class Vic
         void runCycleDecisionPhase();
         void handleCycle0Decisions();
         void handleCycle14Decisions();
-        void handleCycle15Decisions();
+        void handleBadLineFetchStartDecisions();;
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
         void advanceCharacterSequencerAtCycle58();

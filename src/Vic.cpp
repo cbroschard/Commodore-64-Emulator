@@ -1343,8 +1343,8 @@ void Vic::runCycleDecisionPhase()
     if (slot.sampleBadline)
         handleCycle14Decisions();
 
-    if (currentCycle == 15)
-        handleCycle15Decisions();
+    if (currentCycle == cfg_->DMAStartCycle)
+         handleBadLineFetchStartDecisions();
 
     if (slot.startSpriteDmaCheck)
         currentCycleSlot.spriteDmaStartMask = updateSpriteDMAStartForCurrentLine(registers.raster);
@@ -1414,7 +1414,7 @@ void Vic::handleCycle14Decisions()
     }
 }
 
-void Vic::handleCycle15Decisions()
+void Vic:: handleBadLineFetchStartDecisions()
 {
     const int raster = registers.raster;
 
