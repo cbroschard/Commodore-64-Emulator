@@ -6822,7 +6822,7 @@ uint8_t Vic::d011ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
         if (e.kind != RasterEventKind::Control)
             continue;
 
-        const int eventX = rasterEventPixelX(e.cycle);
+        const int eventX = rasterRegisterEventPixelX(e);
 
         if (px >= eventX)
             active = e.newValue & 0x7F;
@@ -6878,7 +6878,7 @@ uint8_t Vic::d018ForRasterPixelX(int raster, int px, bool preferPreviousFrame) c
         if (e.kind != RasterEventKind::MemoryPointer)
             continue;
 
-        const int eventX = rasterEventPixelX(e.cycle);
+        const int eventX = rasterRegisterEventPixelX(e);
 
         if (px >= eventX)
             active = e.newValue & 0xFE;
