@@ -3974,7 +3974,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
 
         case 1:
             out.color = activeBgPixel.fg & 0x0F;
-            out.opaque = true;
+            out.opaque = false;
             out.source = BackgroundSource::Bitmap;
             break;
 
@@ -4546,7 +4546,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
 
         case 1:
             out.color = activeBgPixel.bg1;
-            out.opaque = true;
+            out.opaque = false;
             out.source = BackgroundSource::BG1;
             break;
 
