@@ -666,7 +666,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         }
         else
         {
-            // VICX v1-v9 stored rasterIrqSampledThisLine here.
             bool legacyRasterIrqSampledThisLine = false;
 
             if (!rdr.readBool(legacyRasterIrqSampledThisLine))          { rdr.exitChunkPayload(chunk); return false; }
@@ -5733,7 +5732,6 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
     lastRasterIRQSample.reason = compareReason;
 
     traceVicCycleCheckpoint("raster-irq-compare", registers.raster, currentCycle);
-    traceVicRasterRetargetTest(compareReason, targetRaster, targetRaster, matchedBefore, matchNow);
 
     // VIC-II raster IRQ is generated when the raster comparator
     // transitions from non-match to match.
@@ -5746,10 +5744,21 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
 
 void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue)
 {
-    registers.rasterInterruptLine = static_cast<uint16_t>(newLine & 0x01FF);
+    const uint16_t oldLine = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
+
+    const bool matchedBefore = rasterIrqCompareMatched;
+
+    const uint16_t storedNewLine = static_cast<uint16_t>(newLine & 0x01FF);
+
+    registers.rasterInterruptLine = storedNewLine;
 
     // $D011/$D012 can change comparator state immediately.
     evaluateRasterIRQCompare(reason ? reason : "raster-target-write");
+
+    const bool matchedAfter = rasterIrqCompareMatched;
+
+    traceVicRasterRetargetTest(reason ? reason : "raster-target-write", oldLine, storedNewLine, matchedBefore, matchedAfter);
+
     (void)writtenValue;
 }
 
@@ -7245,22 +7254,46 @@ void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t n
 }
 
 
-void Vic::traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16_t newLine, bool sampled, bool matched) const
+void Vic::traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16_t newLine, bool matchedBefore, bool matchedAfter) const
 {
     if (!traceMgr || !vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
         return;
 
     std::ostringstream out;
+
     out << "[VIC:IRQTEST] "
         << phase
-        << " curRaster=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << registers.raster
-        << " cycle=" << std::dec << currentCycle
-        << " old=$" << std::hex << std::uppercase << std::setw(3) << oldLine
-        << " new=$" << std::setw(3) << newLine
-        << " sampled=" << std::dec << (sampled ? 1 : 0)
-        << " matched=" << (matched ? 1 : 0)
-        << " ISR=$" << std::hex << std::uppercase << std::setw(2) << int(registers.interruptStatus & 0x0F)
-        << " IER=$" << std::setw(2) << int(registers.interruptEnable & 0x0F);
+        << " curRaster=$"
+        << std::hex << std::uppercase
+        << std::setw(3) << std::setfill('0')
+        << registers.raster
+
+        << " cycle="
+        << std::dec << currentCycle
+
+        << " old=$"
+        << std::hex << std::uppercase
+        << std::setw(3)
+        << oldLine
+
+        << " new=$"
+        << std::setw(3)
+        << newLine
+
+        << " matchedBefore="
+        << std::dec << (matchedBefore ? 1 : 0)
+
+        << " matchedAfter="
+        << (matchedAfter ? 1 : 0)
+
+        << " ISR=$"
+        << std::hex << std::uppercase
+        << std::setw(2)
+        << int(registers.interruptStatus & 0x0F)
+
+        << " IER=$"
+        << std::setw(2)
+        << int(registers.interruptEnable & 0x0F);
 
     traceMgr->recordVicEvent(out.str(), makeVicStamp());
 }
