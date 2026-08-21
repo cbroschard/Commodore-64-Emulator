@@ -1140,23 +1140,25 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteYExpansion;
             registers.spriteYExpansion = value;
 
-            recordRasterEventLog(RasterEventKind::SpriteYExpansion, 0xD017, oldValue, registers.spriteYExpansion
-            );
+            recordRasterEventLog(RasterEventKind::SpriteYExpansion, 0xD017, oldValue, registers.spriteYExpansion);
 
             const uint8_t falling = static_cast<uint8_t>(oldValue & ~registers.spriteYExpansion);
 
-            if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1)
+            for (int sprite = 0; sprite < 8; ++sprite)
             {
-                for (int sprite = 0; sprite < 8; ++sprite)
-                {
-                    const uint8_t bit = static_cast<uint8_t>(1u << sprite);
+                const uint8_t bit = static_cast<uint8_t>(1u << sprite);
 
-                    if ((falling & bit) != 0 && spriteUnits[sprite].dmaActive)
-                        spriteUnits[sprite].yCrunchPending = true;
-                }
+                if ((falling & bit) == 0)
+                    continue;
+
+                spriteUnits[sprite].yExpandFlipFlop = true;
+
+                if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1 && spriteUnits[sprite].dmaActive)
+                    spriteUnits[sprite].yCrunchPending = true;
             }
 
             traceVicRegWrite(address, oldValue, registers.spriteYExpansion);
+
             break;
         }
 
