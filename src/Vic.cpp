@@ -5789,6 +5789,11 @@ int Vic::rasterIRQCompareCycle() const
 
 bool Vic::isRasterIRQCompareCycle(int cycle) const
 {
+    // VIC-II raster line 0 performs the raster compare one cycle
+    // later than the other raster lines.
+    if (registers.raster == 0)
+        return cycle == 1;
+
     return cycle == RASTER_IRQ_COMPARE_CYCLE;
 }
 
