@@ -2860,8 +2860,6 @@ void CPU::RTI()
 
     const uint8_t spAfter = SP;
 
-    const bool suppress = oldI && !newI;
-
     lastRTI.valid = true;
     lastRTI.rtiOpcodePC = rtiPC;
     lastRTI.pulledSR = pulledStatus;
@@ -2873,7 +2871,7 @@ void CPU::RTI()
     lastRTI.spAfter = spAfter;
     lastRTI.oldI = oldI;
     lastRTI.newI = newI;
-    lastRTI.irqSuppressSet = suppress;
+    lastRTI.irqSuppressSet = false;
     lastRTI.totalCycles = totalCycles;
 
     if (traceMgr)
@@ -2889,10 +2887,6 @@ void CPU::RTI()
             << "->$" << std::setw(2) << int(spAfter);
         traceMgr->recordCPUIRQ(oss.str(), makeCpuStamp());
     }
-
-    // Only suppress one IRQ check if RTI changed I from set to clear.
-    if (suppress)
-        irqSuppressOne = true;
 }
 
 void CPU::RTS()
@@ -3765,14 +3759,7 @@ bool CPU::executeCurrentMicroOp()
 
                 case CpuMicroAction::PullRTIStatus:
                 {
-                    const bool oldI = getFlag(I);
-
                     SR = (value | 0x20) & ~0x10; // force U high, clear internal B
-
-                    const bool newI = getFlag(I);
-                    if (oldI && !newI)
-                        irqSuppressOne = true;
-
                     break;
                 }
 
