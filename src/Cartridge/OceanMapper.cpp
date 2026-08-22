@@ -127,6 +127,17 @@ bool OceanMapper::mapSelectedBank()
     return wroteLo || wroteHi;
 }
 
+void OceanMapper::reset()
+{
+    builtLists = false;
+    banks.clear();
+
+    sel = 0;
+
+    if (cart)
+        cart->setCurrentBank(0);
+}
+
 uint8_t OceanMapper::read(uint16_t address)
 {
     (void)address;
