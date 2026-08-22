@@ -1180,15 +1180,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             registers.interruptStatus &= ~clearMask;
 
-            // If raster IRQ is acknowledged while the raster comparator
-            // is still matching, allow the comparator condition to
-            // generate the still-active raster IRQ condition again.
-            if ((clearMask & 0x01) != 0 && rasterIRQTargetMatchesVisibleRaster())
-            {
-                rasterIrqCompareMatched = false;
-                evaluateRasterIRQCompare("D019-raster-ack");
-            }
-
             const uint8_t newPending = registers.interruptStatus & 0x0F;
 
             traceVicRegWrite(address, oldPending, newPending);
