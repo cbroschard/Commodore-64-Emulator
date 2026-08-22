@@ -453,6 +453,7 @@ class Vic
             int firstBadlineY = -1;
 
             uint8_t rc = 0;
+            uint8_t displayRc = 0;
             uint16_t vcBase = 0;
             uint16_t vmliBase = 0;
             uint8_t vmliFetchIndex = 0;

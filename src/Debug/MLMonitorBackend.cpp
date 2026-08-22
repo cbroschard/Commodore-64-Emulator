@@ -435,13 +435,8 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
 
     bool usingPreviousFrame = false;
 
-    const auto* snap =
-        selectVicRowSnapshot(
-            raster,
-            usingPreviousFrame,
-            vic->getCurrentRasterRowsForDebug(),
-            vic->getLastFrameRasterRowsForDebug()
-        );
+    const auto* snap = selectVicRowSnapshot(raster, usingPreviousFrame, vic->getCurrentRasterRowsForDebug(),
+            vic->getLastFrameRasterRowsForDebug());
 
     if (!snap)
     {
@@ -463,7 +458,7 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
     const int fineX = d016 & 0x07;
     const int matrixRow = snap->vcBase / 40;
     const int vmliRow = snap->vmliBase / 40;
-    const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
+    const uint8_t yInChar = static_cast<uint8_t>(snap->displayRc & 0x07);
 
     out << "Background Row Debug\n";
     out << "--------------------\n";

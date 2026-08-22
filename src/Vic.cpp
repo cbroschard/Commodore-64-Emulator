@@ -1504,6 +1504,10 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
+    // Preserve the RC actually used to render this raster line.
+    if (registers.raster >= 0 && registers.raster < static_cast<int>(rasterRowStates.size()))
+        rasterRowStates[registers.raster].displayRc = vicState.rc;
+
     advanceCharacterSequencerAtCycle58();
 }
 
