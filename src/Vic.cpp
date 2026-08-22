@@ -1307,18 +1307,19 @@ void Vic::beginCycle()
 
     const uint8_t startedMask = currentCycleSlot.spriteDmaStartMask;
 
-    // Decisions made this cycle can change bad-line and sprite DMA
-    // state, so rebuild the slot before applying BA/AEC.
     currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
-
     currentCycleSlot.spriteDmaStartMask = startedMask;
 
     updateBusArbitration();
 }
 
-void Vic::endCycle()
+void Vic::busPhase()
 {
     runFetchPhase();
+}
+
+void Vic::endCycle()
+{
     runPixelOutputPhase();
     advanceCycleAndFinalizeLineIfNeeded();
 }
@@ -5233,7 +5234,7 @@ int Vic::rasterRegisterEventPixelX(const RasterEventRecord& e) const
     int x = cfg_->hardware_X + (e.cycle * 8);
 
     if (e.phase == VicBusPhase::Phi2)
-        x += 4;
+        x += 8;
 
     if (x < 0)
         x = 0;

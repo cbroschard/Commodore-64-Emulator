@@ -455,9 +455,11 @@ void Computer::tickCycle()
     }
     else
     {
-        // beginCycle() already ran before the VIC breakpoint stopped us.
         resumeAfterVicCycleBreakpoint = false;
     }
+
+    // VIC performs its memory/bus fetch before the CPU's Phi2 bus cycle.
+    components_.vic->busPhase();
 
     components_.cpu->setRDY(components_.vic->getBA());
     components_.cpu->setAEC(components_.vic->getAEC());
@@ -485,6 +487,7 @@ void Computer::tickCycle()
     if (auto* mapper = components_.cart->getMapper())
         mapper->tick(1);
 
+    // Pixel composition and raster advancement happen after Phi2.
     components_.vic->endCycle();
 }
 

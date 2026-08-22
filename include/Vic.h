@@ -57,6 +57,7 @@ class Vic
 
         // Cycle accurate updating of the raster, etc
         void beginCycle();
+        void busPhase();
         void endCycle();
 
         // Getter for BUS arb status
