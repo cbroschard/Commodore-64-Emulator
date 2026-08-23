@@ -105,17 +105,42 @@ Computer::~Computer() noexcept
         if (components_.audioOutput)
             components_.audioOutput->stopAudio();
 
-        // Tear down objects containing references/callbacks first.
+        // Detach anything that points into DebugManager.
+        if (components_.cart)
+            components_.cart->attachTraceManagerInstance(nullptr);
+
+        if (components_.cia1)
+            components_.cia1->attachTraceManagerInstance(nullptr);
+
+        if (components_.cia2)
+            components_.cia2->attachTraceManagerInstance(nullptr);
+
+        if (components_.cpu)
+            components_.cpu->attachTraceManagerInstance(nullptr);
+
+        if (components_.pla)
+            components_.pla->attachTraceManagerInstance(nullptr);
+
+        if (components_.sid)
+            components_.sid->attachTraceManagerInstance(nullptr);
+
+        if (components_.vic)
+            components_.vic->attachTraceManagerInstance(nullptr);
+
+        if (components_.mem)
+        {
+            components_.mem->attachDebugManagerInstance(nullptr);
+            components_.mem->attachMonitorInstance(nullptr);
+            components_.mem->attachTraceManagerInstance(nullptr);
+        }
+
+        // Tear down objects that hold references/callbacks
+        // to the rest of the machine.
         components_.stateMgr.reset();
         components_.uiBridge.reset();
         components_.inputRouter.reset();
         components_.resetCtl.reset();
-
-        if (components_.media)
-        {
-            components_.media->flushAndSaveMedia();
-            components_.media.reset();
-        }
+        components_.media.reset();
     }
     catch (...)
     {
