@@ -63,8 +63,9 @@ class Cassette
         bool selectT64Entry(size_t index);
         size_t getSelectedT64Entry() const;
 
+        inline uint64_t getTapePosition() const { return tapePosition; }
+
         // Monitor helpers
-        inline size_t debugTapePosition() const { return tapePosition; }
         std::string dumpPulses(size_t count = 10) const;
 
     private:
