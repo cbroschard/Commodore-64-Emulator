@@ -64,6 +64,7 @@ class Cassette
         size_t getSelectedT64Entry() const;
 
         inline uint64_t getTapePosition() const { return tapePosition; }
+        uint64_t getTotalTapeCycles() const;
 
         // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;

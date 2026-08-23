@@ -277,6 +277,11 @@ size_t Cassette::getSelectedT64Entry() const
     return t64->getSelectedEntry();
 }
 
+uint64_t Cassette::getTotalTapeCycles() const
+{
+    return tapeImage ? tapeImage->totalCycles() : 0;
+}
+
 std::string Cassette::dumpPulses(size_t count) const
 {
     std::ostringstream out;

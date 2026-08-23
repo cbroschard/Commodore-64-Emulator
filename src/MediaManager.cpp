@@ -931,6 +931,11 @@ uint64_t MediaManager::getTapePosition() const
     return components_.cass->getTapePosition();
 }
 
+uint64_t MediaManager::getTotalTapeCycles() const
+{
+    return components_.cass->getTotalTapeCycles();
+}
+
 void MediaManager::applyBootAttachments()
 {
     if (state_.cartAttached && !state_.cartPath.empty())

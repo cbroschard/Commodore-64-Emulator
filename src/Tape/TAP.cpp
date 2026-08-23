@@ -401,6 +401,16 @@ uint64_t TAP::fastForwardCycles(uint64_t cyclesToSkip)
     return skippedCycles;
 }
 
+uint64_t TAP::totalCycles() const
+{
+    uint64_t total = 0;
+
+    for (const auto& pulse : pulses)
+        total += pulse.duration;
+
+    return total;
+}
+
 uint32_t TAP::debugCurrentPulse() const
 {
     if (pulseIndex < pulses.size()) return pulses[pulseIndex].duration;

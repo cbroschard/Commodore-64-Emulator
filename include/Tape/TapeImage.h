@@ -31,6 +31,8 @@ class TapeImage
         virtual bool currentBit() const = 0;
         virtual bool isT64() const;
 
+        virtual uint64_t totalCycles() const { return 0; }
+
         // Debug API (default no-op)
         virtual uint8_t debugTapeVersion() const { return 0; }
         virtual size_t debugPulseIndex() const { return 0; }

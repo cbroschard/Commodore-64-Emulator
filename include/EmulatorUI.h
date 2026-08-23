@@ -138,6 +138,7 @@ class EmulatorUI
             bool t64Attached                    = false;
             size_t selectedT64Entry             = 0;
             uint64_t tapePosition               = 0;
+            uint64_t tapeTotalCycles            = 0;
 
             bool tapePlaying                    = false;
             bool tapeMotorOn                    = false;

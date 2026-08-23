@@ -682,11 +682,21 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::Text("Motor: %s", v.tapeMotorOn ? "On" : "Off");
 
                 const double tapeClock = v.pal ? 985248.0 : 1022727.0;
+
                 const double tapeSeconds = static_cast<double>(v.tapePosition) / tapeClock;
+                const double totalTapeSeconds = static_cast<double>(v.tapeTotalCycles) / tapeClock;
+
                 const int minutes = static_cast<int>(tapeSeconds) / 60;
                 const double seconds = std::fmod(tapeSeconds, 60.0);
+                const int totalMinutes = static_cast<int>(totalTapeSeconds) / 60;
+                const double totalSeconds = std::fmod(totalTapeSeconds, 60.0);
 
-                ImGui::Text("Position: %02d:%04.1f", minutes, seconds);
+                const double progress = (v.tapeTotalCycles > 0) ? (static_cast<double>(v.tapePosition) /
+                           static_cast<double>(v.tapeTotalCycles)) * 100.0 : 0.0;
+
+                ImGui::Text("Position: %02d:%04.1f / %02d:%04.1f", minutes, seconds, totalMinutes, totalSeconds);
+
+                ImGui::Text("Progress: %.1f%%", progress);
 
                 ImGui::EndMenu();
             }

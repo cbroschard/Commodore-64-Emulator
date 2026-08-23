@@ -147,6 +147,7 @@ public:
     bool isTapePlaying() const;
     bool isTapeMotorOn() const;
     uint64_t getTapePosition() const;
+    uint64_t getTotalTapeCycles() const;
 
     // Command line autostart
     void applyBootAttachments();
