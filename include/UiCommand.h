@@ -31,6 +31,9 @@ struct UiCommand
         AttachT64,
         AttachTAP,
 
+        SelectT64Entry,
+        LoadT64Entry,
+
         AttachVirtualModem,
         DetachVirtualModem,
 
@@ -116,6 +119,8 @@ struct UiCommand
     uint32_t rs232Baud              = 300;
 
     REUModel reuModel               = REUModel::None;
+
+    size_t t64EntryIndex            = 0;
 };
 
 
