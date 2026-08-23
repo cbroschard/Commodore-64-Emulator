@@ -24,24 +24,28 @@ bool T64::loadTape(const std::string& filePath, VideoMode mode)
 {
     // Attempt to load the file
     if (!loadFile(filePath, tapeData))
-    {
         return false;
-    }
 
     // Validate size
     if (tapeData.size() < sizeof(header))
-    {
         throw std::runtime_error("Error: File too small to contain a valid header.");
-    }
 
     // Copy header bytes from tapeData into header
     std::memcpy(&header, tapeData.data(), sizeof(header));
 
     if (!validateHeader())
+        return false;
+
+    int entryOffset = 0x40;
+
+    const size_t directoryStart = 0x40;
+    const size_t directorySize = static_cast<size_t>(header.maxEntries) * 32;
+
+    if (directoryStart + directorySize > tapeData.size())
     {
+        std::cerr << "Error: T64 directory exceeds file size!\n";
         return false;
     }
-    int entryOffset = 0x40;
 
     // Validate there's at least one entry
     bool found = false;
@@ -51,7 +55,7 @@ bool T64::loadTape(const std::string& filePath, VideoMode mode)
         if (entry[0] == 1) { // Used entry
             prgStart = entry[0x02] | (entry[0x03] << 8);
             prgEnd   = entry[0x04] | (entry[0x05] << 8);
-            prgPtr   = entry[0x08] | (entry[0x09] << 8) | (entry[0x0A] << 8) | (entry[0x0B] << 8);
+            prgPtr   = entry[0x08] | (entry[0x09] << 8) | (entry[0x0A] << 16) | (entry[0x0B] << 24);
             prgLen   = prgEnd - prgStart + 1;
             found = true;
             break;
