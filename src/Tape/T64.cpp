@@ -7,21 +7,35 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Tape/T64.h"
 
-T64::T64() :
-    fileLoaded(false),
-    prgStart(0),
-    prgEnd(0),
-    prgPtr(0),
-    prgLen(0),
-    curByte(0)
+T64::T64()
 {
-
+    reset();
 }
 
 T64::~T64() = default;
 
+void T64::reset()
+{
+    entries.clear();
+
+    selectedEntry = 0;
+    fileLoaded = false;
+
+    prgStart = 0;
+    prgEnd = 0;
+    prgPtr = 0;
+    prgLen = 0;
+
+    tapeData.clear();
+    std::memset(&header, 0, sizeof(header));
+}
+
 bool T64::loadTape(const std::string& filePath, VideoMode mode)
 {
+    (void)mode;
+
+    reset();
+
     // Attempt to load the file
     if (!loadFile(filePath, tapeData))
         return false;
@@ -36,8 +50,6 @@ bool T64::loadTape(const std::string& filePath, VideoMode mode)
     if (!validateHeader())
         return false;
 
-    int entryOffset = 0x40;
-
     const size_t directoryStart = 0x40;
     const size_t directorySize = static_cast<size_t>(header.maxEntries) * 32;
 
@@ -47,26 +59,79 @@ bool T64::loadTape(const std::string& filePath, VideoMode mode)
         return false;
     }
 
-    // Validate there's at least one entry
-    bool found = false;
-    for (int i = 0; i < header.maxEntries; ++i)
+    for (size_t i = 0; i < header.maxEntries; ++i)
     {
-        const uint8_t* entry = &tapeData[entryOffset + i * 32];
-        if (entry[0] == 1) { // Used entry
-            prgStart = entry[0x02] | (entry[0x03] << 8);
-            prgEnd   = entry[0x04] | (entry[0x05] << 8);
-            prgPtr   = entry[0x08] | (entry[0x09] << 8) | (entry[0x0A] << 16) | (entry[0x0B] << 24);
-            prgLen   = prgEnd - prgStart + 1;
-            found = true;
-            break;
+        const size_t offset = directoryStart + (i * 32);
+        const uint8_t* entry = &tapeData[offset];
+
+        // VICE only meaningfully supports entry type 1 for normal T64 files.
+        if (entry[0] != 1)
+            continue;
+
+        T64Entry parsedEntry;
+
+        parsedEntry.entryType = entry[0];
+        parsedEntry.fileType  = entry[1];
+
+        parsedEntry.startAddress = static_cast<uint16_t>(entry[0x02]) | (static_cast<uint16_t>(entry[0x03]) << 8);
+
+        parsedEntry.endAddress = static_cast<uint16_t>(entry[0x04]) | (static_cast<uint16_t>(entry[0x05]) << 8);
+
+        parsedEntry.dataOffset =
+              static_cast<uint32_t>(entry[0x08])
+            | (static_cast<uint32_t>(entry[0x09]) << 8)
+            | (static_cast<uint32_t>(entry[0x0A]) << 16)
+            | (static_cast<uint32_t>(entry[0x0B]) << 24);
+
+        if (parsedEntry.endAddress < parsedEntry.startAddress)
+        {
+            std::cerr << "Warning: Invalid T64 entry address range.\n";
+            continue;
         }
+
+        parsedEntry.dataLength = static_cast<uint32_t>(parsedEntry.endAddress) - static_cast<uint32_t>(parsedEntry.startAddress) + 1;
+
+        if (parsedEntry.dataOffset >= tapeData.size() || parsedEntry.dataLength > tapeData.size() - parsedEntry.dataOffset)
+        {
+            std::cerr << "Warning: T64 entry data exceeds file size.\n";
+            continue;
+        }
+
+        // Filename occupies bytes $10-$1F.
+        parsedEntry.filename.clear();
+
+        for (size_t c = 0; c < 16; ++c)
+        {
+            const uint8_t ch = entry[0x10 + c];
+
+            if (ch == 0)
+                break;
+
+            parsedEntry.filename.push_back(static_cast<char>(ch));
+        }
+
+        while (!parsedEntry.filename.empty())
+        {
+            const uint8_t ch = static_cast<uint8_t>(parsedEntry.filename.back());
+
+            if (ch != 0x20 && ch != 0xA0)
+                break;
+
+            parsedEntry.filename.pop_back();
+        }
+
+        entries.push_back(std::move(parsedEntry));
     }
 
-    if (!found)
+    if (entries.empty())
     {
-        std::cerr << "No valid file entry in T64!\n";
+        std::cerr << "No valid file entries in T64!\n";
         return false;
     }
+
+    if (!selectEntry(0))
+        return false;
+
     fileLoaded = true;
     return true;
 }
@@ -159,10 +224,39 @@ uint16_t T64::getPrgEnd() const
 
 const uint8_t* T64::getPrgData() const
 {
+    if (!fileLoaded || prgPtr >= tapeData.size())
+        return nullptr;
+
     return tapeData.data() + prgPtr;
 }
 
 bool T64::isT64() const
 {
     return true;
+}
+
+bool T64::selectEntry(size_t index)
+{
+    if (index >= entries.size())
+        return false;
+
+    const auto& entry = entries[index];
+
+    selectedEntry = index;
+    prgStart = entry.startAddress;
+    prgEnd = entry.endAddress;
+    prgPtr = entry.dataOffset;
+    prgLen = entry.dataLength;
+
+    return true;
+}
+
+const std::vector<T64::T64Entry>& T64::getEntries() const
+{
+    return entries;
+}
+
+size_t T64::getSelectedEntry() const
+{
+    return selectedEntry;
 }
