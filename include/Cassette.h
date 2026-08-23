@@ -63,8 +63,6 @@ class Cassette
         // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;
 
-    protected:
-
     private:
         std::unique_ptr<TapeImage> tapeImage;
 
