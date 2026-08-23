@@ -495,10 +495,7 @@ bool MediaManager::loadSelectedT64Entry()
     components_.mem->writeDirect(0x31, basicEnd & 0xFF);
     components_.mem->writeDirect(0x32, basicEnd >> 8);
 
-    const uint8_t runKeys[4] =
-    {
-        0x52, 0x55, 0x4E, 0x0D
-    };
+    const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
 
     components_.mem->writeDirect(0xC6, 4);
 
@@ -506,6 +503,33 @@ bool MediaManager::loadSelectedT64Entry()
         components_.mem->writeDirect(0x0277 + i, runKeys[i]);
 
     return true;
+}
+
+void MediaManager::fillT64EntryViews(std::vector<EmulatorUI::T64EntryView>& out, size_t& selected) const
+{
+    out.clear();
+    selected = 0;
+
+    if (!components_.cass || !components_.cass->isT64())
+        return;
+
+    const auto& entries = components_.cass->getT64Entries();
+
+    out.reserve(entries.size());
+
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        EmulatorUI::T64EntryView view;
+
+        view.index = i;
+        view.filename = entries[i].filename;
+        view.startAddress = entries[i].startAddress;
+        view.endAddress = entries[i].endAddress;
+
+        out.push_back(std::move(view));
+    }
+
+    selected = components_.cass->getSelectedT64Entry();
 }
 
 void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)

@@ -91,6 +91,14 @@ class EmulatorUI
             uint32_t sectors = 0;
         };
 
+        struct T64EntryView
+        {
+            size_t index = 0;
+            std::string filename;
+            uint16_t startAddress = 0;
+            uint16_t endAddress = 0;
+        };
+
         struct MediaViewState
         {
             bool diskAttached                   = false;       std::string diskPath;
@@ -126,6 +134,11 @@ class EmulatorUI
             bool paused                         = false;
             bool pal                            = true;
             bool sid8580                        = true;
+
+            bool t64Attached                    = false;
+            size_t selectedT64Entry             = 0;
+
+            std::vector<T64EntryView> t64Entries;
 
             std::vector<DriveStatusView> drives;
 

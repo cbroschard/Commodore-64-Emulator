@@ -107,6 +107,7 @@ public:
 
     // Allow user to select entry to load if T64
     bool loadSelectedT64Entry();
+    void fillT64EntryViews(std::vector<EmulatorUI::T64EntryView>& out, size_t& selected) const;
 
     // Blank disk creation
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);

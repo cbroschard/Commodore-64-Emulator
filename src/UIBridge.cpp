@@ -61,18 +61,29 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 
     if (media_)
     {
-        const auto& m = media_->getState();
-        s.diskAttached = m.diskAttached;
-        s.diskPath     = m.diskPath;
-        s.cartAttached = m.cartAttached;
-        s.cartPath     = m.cartPath;
-        s.tapeAttached = m.tapeAttached;
-        s.tapePath     = m.tapePath;
-        s.prgAttached  = m.prgAttached;
-        s.prgPath      = m.prgPath;
+        const auto& m       = media_->getState();
+        s.diskAttached      = m.diskAttached;
+        s.diskPath          = m.diskPath;
+        s.cartAttached      = m.cartAttached;
+        s.cartPath          = m.cartPath;
+        s.tapeAttached      = m.tapeAttached;
+        s.tapePath          = m.tapePath;
+        s.t64Attached       = false;
+        s.selectedT64Entry  = 0;
 
-        s.reuEnabled = m.reuEnabled;
-        s.reuSizeKB  = static_cast<uint32_t>(bytesForREUModel(m.reuModel) / 1024);
+        s.t64Entries.clear();
+
+        if (m.tapeAttached)
+        {
+            media_->fillT64EntryViews(s.t64Entries, s.selectedT64Entry);
+            s.t64Attached   = !s.t64Entries.empty();
+        }
+
+        s.prgAttached       = m.prgAttached;
+        s.prgPath           = m.prgPath;
+
+        s.reuEnabled        = m.reuEnabled;
+        s.reuSizeKB         = static_cast<uint32_t>(bytesForREUModel(m.reuModel) / 1024);
 
         media_->fillDriveStatusViews(s.drives);
     }
