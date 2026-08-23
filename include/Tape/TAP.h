@@ -24,7 +24,7 @@ class TAP : public TapeImage
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
-        uint64_t fastForward(size_t pulsesToSkip) override;
+        uint64_t fastForwardCycles(uint64_t cyclesToSkip) override;
 
         // Monitor helpers
         inline uint8_t debugTapeVersion() const override { return header.tapeVersion; }

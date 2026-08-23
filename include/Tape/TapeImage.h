@@ -26,7 +26,7 @@ class TapeImage
 
         virtual bool loadTape(const std::string& filePath, VideoMode mode) = 0;
         virtual void rewind() = 0;
-        virtual uint64_t fastForward(size_t pulsesToSkip) { return 0; }
+        virtual uint64_t fastForwardCycles(uint64_t cyclesToSkip) { return 0; }
         virtual void simulateLoading() = 0;
         virtual bool currentBit() const = 0;
         virtual bool isT64() const;

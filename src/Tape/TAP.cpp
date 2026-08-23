@@ -346,24 +346,57 @@ bool TAP::currentBit() const
     return currentLevel;
 }
 
-uint64_t TAP::fastForward(size_t pulsesToSkip)
+uint64_t TAP::fastForwardCycles(uint64_t cyclesToSkip)
 {
     if (pulses.empty() || pulseIndex >= pulses.size())
         return 0;
 
-    const size_t target = std::min(pulseIndex + pulsesToSkip, pulses.size());
-    uint64_t skippedCycles = pulseRemaining;
+    uint64_t skippedCycles = 0;
 
-    for (size_t i = pulseIndex + 1; i < target; ++i)
-        skippedCycles += pulses[i].duration;
+    // First consume whatever remains in the current pulse.
+    if (pulseRemaining > 0)
+    {
+        const uint64_t consume = std::min<uint64_t>(pulseRemaining, cyclesToSkip);
+        pulseRemaining -= static_cast<uint32_t>(consume);
+        skippedCycles += consume;
+        cyclesToSkip -= consume;
 
-    pulseIndex = target;
-    pulseRemaining = 0;
+        if (cyclesToSkip == 0)
+        {
+            blipCountdown = 0;
+            currentLevel = true;
+            return skippedCycles;
+        }
+
+        if (pulseRemaining == 0)
+            ++pulseIndex;
+    }
+
+    while (pulseIndex < pulses.size() && cyclesToSkip > 0)
+    {
+        const uint64_t duration = pulses[pulseIndex].duration;
+
+        if (duration > cyclesToSkip)
+        {
+            pulseRemaining = static_cast<uint32_t>(duration - cyclesToSkip);
+            skippedCycles += cyclesToSkip;
+            cyclesToSkip = 0;
+            break;
+        }
+
+        skippedCycles += duration;
+        cyclesToSkip -= duration;
+
+        ++pulseIndex;
+    }
+
+    if (pulseIndex >= pulses.size())
+        pulseRemaining = 0;
+    else if (pulseRemaining == 0)
+        pulseRemaining = pulses[pulseIndex].duration;
+
     blipCountdown = 0;
     currentLevel = true;
-
-    if (pulseIndex < pulses.size())
-        pulseRemaining = pulses[pulseIndex].duration;
 
     return skippedCycles;
 }

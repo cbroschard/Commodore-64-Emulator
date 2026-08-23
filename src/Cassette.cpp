@@ -149,8 +149,10 @@ void Cassette::fastForward()
     if (!tapeImage)
         return;
 
-    constexpr size_t pulsesToSkip = 5000;
-    const uint64_t skippedCycles = tapeImage->fastForward(pulsesToSkip);
+    constexpr uint64_t cyclesToSkip = 5000000;
+
+    const uint64_t skippedCycles = tapeImage->fastForwardCycles(cyclesToSkip);
+
     tapePosition += skippedCycles;
 
     setData(true);
