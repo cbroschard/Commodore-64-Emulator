@@ -153,8 +153,6 @@ class EmulatorUI
 
         inline bool isFileDialogOpen() const { return fileDlg.open; }
 
-    protected:
-
     private:
 
         bool fileDialogOpen_;
