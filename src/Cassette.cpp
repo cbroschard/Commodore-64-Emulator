@@ -166,6 +166,8 @@ void Cassette::tick()
     // Advance one cycle of tape simulation
     tapeImage->simulateLoading();
     setData(tapeImage->currentBit());
+
+    ++tapePosition;
 }
 
 T64LoadResult Cassette::t64LoadPrgIntoMemory()
@@ -273,5 +275,8 @@ std::string Cassette::dumpPulses(size_t count) const
         if (dur > 1000000) out << " (gap)";
         out << "\n";
     }
+
+    out << "Tape position: " << tapePosition << " cycles\n";
+
     return out.str();
 }
