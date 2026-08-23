@@ -123,23 +123,6 @@ class CPU
             2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7
         }};
 
-        //CPU Flags
-        enum flags : uint8_t
-        {
-            N = (1<<7), // Negative
-            V = (1<<6), // Overflow
-            U = (1<<5), // Unused
-            B = (1<<4), // Break
-            D = (1<<3), // Decimal
-            I = (1<<2), // Disable interrupts
-            Z = (1<<1), // Zero
-            C = (1<<0), // Carry bit
-        };
-
-        // Flag operatons
-        inline bool getFlag(flags flag) const { return (SR & flag) != 0; }
-        void setFlag(flags flag, bool sc);
-
         // Access for IRQ handling
         inline void requestNMI() { nmiPending = true; }
         void setNMILine(bool asserted);
@@ -794,6 +777,23 @@ class CPU
 
             CpuMicroAction action = CpuMicroAction::None;
         };
+
+        //CPU Flags
+        enum flags : uint8_t
+        {
+            N = (1<<7), // Negative
+            V = (1<<6), // Overflow
+            U = (1<<5), // Unused
+            B = (1<<4), // Break
+            D = (1<<3), // Decimal
+            I = (1<<2), // Disable interrupts
+            Z = (1<<1), // Zero
+            C = (1<<0), // Carry bit
+        };
+
+        // Flag operatons
+        inline bool getFlag(flags flag) const { return (SR & flag) != 0; }
+        void setFlag(flags flag, bool sc);
 
         CpuMicroSequenceType microSequenceType;
 
