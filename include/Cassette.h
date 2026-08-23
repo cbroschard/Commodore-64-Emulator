@@ -59,6 +59,9 @@ class Cassette
 
         bool isT64() const;
         T64LoadResult t64LoadPrgIntoMemory();
+        const std::vector<T64::T64Entry>& getT64Entries() const;
+        bool selectT64Entry(size_t index);
+        size_t getSelectedT64Entry() const;
 
         // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;

@@ -171,39 +171,83 @@ void Cassette::tick()
 T64LoadResult Cassette::t64LoadPrgIntoMemory()
 {
     T64LoadResult result;
-    T64* t64 = static_cast<T64*>(tapeImage.get());
-    if (t64->isT64() && t64->hasLoadedFile() && mem)
-    {
-        result.prgStart = t64->getPrgStart();
-        result.prgEnd = t64->getPrgEnd();
 
-        // Update $AE and $AF with location
-        mem->write(0xAE, result.prgStart & 0xFF);
-        mem->write(0xAF, result.prgStart >> 8);
-
-        uint16_t prgLen = result.prgEnd - result.prgStart + 1; // Determine the size
-        const uint8_t* prgData = t64->getPrgData();
-        for (size_t i = 0; i < prgLen; ++i)
-        {
-            mem->write(result.prgStart + i, prgData[i]);
-        }
-        if (result.prgStart == 0x0801)
-        {
-            uint16_t basicEnd = result.prgEnd + 1;
-            // Update BASIC pointers
-            mem->write16(TXTAB, result.prgStart); //start of BASIC text
-            mem->write16(VARTAB, basicEnd); // start of variables
-            mem->write16(ARYTAB, basicEnd); //start of arrays
-            mem->write16(STREND, basicEnd); //end of strings
-        }
-    }
-    else
+    // Must have a loaded T64 image and valid memory instance
+    if (!tapeImage || !tapeImage->isT64() || !mem)
     {
         result.success = false;
         return result;
     }
+
+    T64* t64 = static_cast<T64*>(tapeImage.get());
+
+    if (!t64->hasLoadedFile())
+    {
+        result.success = false;
+        return result;
+    }
+
+    result.prgStart = t64->getPrgStart();
+    result.prgEnd   = t64->getPrgEnd();
+
+    const uint8_t* prgData = t64->getPrgData();
+    if (!prgData)
+    {
+        result.success = false;
+        return result;
+    }
+
+    // Update $AE/$AF with load address
+    mem->write(0xAE, result.prgStart & 0xFF);
+    mem->write(0xAF, result.prgStart >> 8);
+
+    const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart) + 1;
+
+    for (uint32_t i = 0; i < prgLen; ++i)
+        mem->write(static_cast<uint16_t>(result.prgStart + i), prgData[i]);
+
+    if (result.prgStart == 0x0801)
+    {
+        const uint16_t basicEnd = static_cast<uint16_t>(result.prgEnd + 1);
+
+        // Update BASIC pointers
+        mem->write16(TXTAB,  result.prgStart);
+        mem->write16(VARTAB, basicEnd);
+        mem->write16(ARYTAB, basicEnd);
+        mem->write16(STREND, basicEnd);
+    }
+
     result.success = true;
     return result;
+}
+
+const std::vector<T64::T64Entry>& Cassette::getT64Entries() const
+{
+    static const std::vector<T64::T64Entry> empty;
+
+    if (!tapeImage || !tapeImage->isT64())
+        return empty;
+
+    const T64* t64 = static_cast<const T64*>(tapeImage.get());
+    return t64->getEntries();
+}
+
+bool Cassette::selectT64Entry(size_t index)
+{
+    if (!tapeImage || !tapeImage->isT64())
+        return false;
+
+    T64* t64 = static_cast<T64*>(tapeImage.get());
+    return t64->selectEntry(index);
+}
+
+size_t Cassette::getSelectedT64Entry() const
+{
+    if (!tapeImage || !tapeImage->isT64())
+        return 0;
+
+    const T64* t64 = static_cast<const T64*>(tapeImage.get());
+    return t64->getSelectedEntry();
 }
 
 std::string Cassette::dumpPulses(size_t count) const
