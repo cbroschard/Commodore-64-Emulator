@@ -744,6 +744,7 @@ uint8_t Memory::readIO(uint16_t address)
             out << "[MEM:IO] read CIA2 $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address;
+
             traceMgr->recordCustomEvent(out.str(), traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
                                     vic ? vic->getRasterDot() : 0));
         }

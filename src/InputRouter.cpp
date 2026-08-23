@@ -114,6 +114,7 @@ bool InputRouter::handleGlobalHotkeys_(const SDL_Event& ev)
         if (sc == SDL_SCANCODE_P) { media_->tapePlay();   return true; }
         if (sc == SDL_SCANCODE_S) { media_->tapeStop();   return true; }
         if (sc == SDL_SCANCODE_R) { media_->tapeRewind(); return true; }
+        if (sc == SDL_SCANCODE_F) { media_->tapeFastForward(); return true; }
         if (sc == SDL_SCANCODE_E) { media_->tapeEject();  return true; }
     }
 
