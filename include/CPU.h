@@ -860,7 +860,6 @@ class CPU
         // Clock Cycle timing
         uint32_t cycles;
         uint32_t totalCycles;
-        uint32_t elapsedCycles;
         uint32_t lastCycleCount;
 
         // CPU Registers
@@ -1102,8 +1101,6 @@ class CPU
 
         // Tracing
         TraceManager::Stamp makeCpuStamp() const;
-
-        uint8_t executedMicroOpsThisInstruction = 0;
 
         // ML Monitor
         void recordExecutionHistory(uint16_t instructionPC);

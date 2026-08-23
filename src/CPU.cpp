@@ -65,7 +65,6 @@ CPU::CPU() :
     pendingOpcodeAddress(0),
     cycles(0),
     totalCycles(0),
-    elapsedCycles(0),
     lastCycleCount(0),
     A(0),
     X(0),
@@ -234,7 +233,6 @@ void CPU::reset()
     lastOpcode                  = 0xEA;
     cycles                      = 0;
     totalCycles                 = 0;
-    elapsedCycles               = 0;
     lastCycleCount              = 0;
     currentBusCycle             = {};
     busCycleActive              = false;
@@ -1370,9 +1368,9 @@ void CPU::tick()
 
 uint32_t CPU::getElapsedCycles()
 {
-    elapsedCycles = totalCycles - lastCycleCount;
-    lastCycleCount = totalCycles; // Update lastCycleCount for the next call
-    return elapsedCycles;
+    const uint32_t elapsed = totalCycles - lastCycleCount;
+    lastCycleCount = totalCycles;
+    return elapsed;
 }
 
 uint8_t CPU::fetchOpcode()
@@ -7246,8 +7244,6 @@ bool CPU::tickMicroOps()
                     return true;
                 }
 
-                ++executedMicroOpsThisInstruction;
-
                 if (microOpIndex >= microOpCount)
                 {
                     lastMicroOpIndexAtEnd = static_cast<uint8_t>(microOpIndex);
@@ -7323,8 +7319,6 @@ bool CPU::tickMicroOps()
 
         lastMicroOpCount = static_cast<uint8_t>(microOpCount);
 
-        executedMicroOpsThisInstruction = 0;
-
         ++totalCycles;
         return true;
     }
@@ -7334,8 +7328,6 @@ bool CPU::tickMicroOps()
         ++totalCycles;
         return true;
     }
-
-    ++executedMicroOpsThisInstruction;
 
     if (microOpIndex >= microOpCount)
     {
@@ -7468,7 +7460,6 @@ void CPU::buildInterruptMicroOps(CpuMicroSequenceType type, uint16_t vectorAddre
     pushMicroOp(readVectorHigh);
 
     microInstructionActive          = true;
-    executedMicroOpsThisInstruction = 0;
 
     lastMicroOpCount = static_cast<uint8_t>(microOpCount);
 }
@@ -7989,8 +7980,6 @@ void CPU::postLoadState()
     lastOpcodeMicroOpCapable = false;
     lastMicroOpCount = 0;
     lastMicroOpIndexAtEnd = 0;
-
-    elapsedCycles = 0;
 
     rdyLine = true;
     aecLine = true;
