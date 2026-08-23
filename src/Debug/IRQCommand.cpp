@@ -77,8 +77,8 @@ void IRQCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         uint8_t sr = mon.mlmonitorbackend()->cpuGetSR();
         std::cout << "CPU : SR=$";  printHex2(sr);
-        std::cout << " I=" << ((sr & CPU::I) ? "1" : "0") << " ("
-                  << ((sr & CPU::I) ? "disabled" : "enabled") << ")\n";
+        std::cout << " I=" << ((sr & 0x04) ? "1" : "0") << " ("
+                  << (((sr & 0x04)) ? "disabled" : "enabled") << ")\n";
     };
 
     if (args.size() == 1) { showStatus(); std::cout << shortHelp() << "\n"; return; }
