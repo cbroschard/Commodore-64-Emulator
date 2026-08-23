@@ -691,17 +691,17 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 const int totalMinutes = static_cast<int>(totalTapeSeconds) / 60;
                 const double totalSeconds = std::fmod(totalTapeSeconds, 60.0);
 
-                const double progress = (v.tapeTotalCycles > 0) ? (static_cast<double>(v.tapePosition) /
-                           static_cast<double>(v.tapeTotalCycles)) * 100.0 : 0.0;
-
                 ImGui::Text("Position: %02d:%04.1f / %02d:%04.1f", minutes, seconds, totalMinutes, totalSeconds);
-
-                ImGui::Text("Progress: %.1f%%", progress);
 
                 const float progressFraction = (v.tapeTotalCycles > 0) ? static_cast<float>(static_cast<double>(v.tapePosition) /
                             static_cast<double>(v.tapeTotalCycles)) : 0.0f;
 
-                ImGui::ProgressBar(progressFraction, ImVec2(-1.0f, 0.0f));
+                const float clampedProgress = std::clamp(progressFraction, 0.0f, 1.0f);
+                char progressLabel[32];
+
+                std::snprintf(progressLabel, sizeof(progressLabel), "%.1f%%", clampedProgress * 100.0f);
+
+                ImGui::ProgressBar(clampedProgress, ImVec2(-1.0f, 0.0f), progressLabel);
 
                 ImGui::EndMenu();
             }
