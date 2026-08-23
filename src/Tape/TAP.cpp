@@ -139,49 +139,48 @@ void TAP::simulateLoading()
 {
     if (pulseIndex >= pulses.size())
     {
-        currentLevel = true; // idle high
+        currentLevel = true;
+        blipCountdown = 0;
         return;
     }
 
-    // Consume the *current* phase
+    // Allow an active read-line blip to expire without stopping
+    // the underlying tape timing.
     if (blipCountdown > 0)
     {
-        blipCountdown--;
-        if (blipCountdown == 0) currentLevel = true;  // return to idle high after the blip ends
-        return;
+        --blipCountdown;
+
+        if (blipCountdown == 0)
+            currentLevel = true;
     }
 
-    // Consume one cycle
+    // Count down to the next TAP pulse.
     if (pulseRemaining > 0)
     {
-        pulseRemaining--;
-        return; // still inside this pulse
+        --pulseRemaining;
+
+        // The pulse occurs on the cycle the countdown reaches zero.
+        if (pulseRemaining > 0)
+            return;
     }
 
-    // Pulse finished
-    const auto &pulse = pulses[pulseIndex];
+    const auto& pulse = pulses[pulseIndex];
 
     if (pulse.isGap)
-    {
-        // Gap = silence, just stay high
         currentLevel = true;
-    }
     else
     {
+        // Datasette READ pulses active low.
         currentLevel = false;
         blipCountdown = blipWidth;
     }
 
-    // Advance to next
-    pulseIndex++;
+    ++pulseIndex;
+
     if (pulseIndex < pulses.size())
-    {
         pulseRemaining = pulses[pulseIndex].duration;
-    }
     else
-    {
-        currentLevel = true; // end of tape
-    }
+        pulseRemaining = 0;
 }
 
 bool TAP::validateHeader()
