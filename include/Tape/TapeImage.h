@@ -42,8 +42,6 @@ class TapeImage
         virtual void saveState(StateWriter&) const {}
         virtual bool loadState(const StateReader::Chunk&, StateReader&) { return false; }
 
-    protected:
-
     private:
         virtual bool loadFile(const std::string& path, std::vector<uint8_t>& buffer) = 0;
         virtual bool validateHeader() = 0;
