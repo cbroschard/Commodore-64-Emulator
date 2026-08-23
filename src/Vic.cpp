@@ -5069,70 +5069,6 @@ bool Vic::isInnerDisplayPixel(int raster, int px) const
     return borderMaskLine[px] == 0;
 }
 
-void Vic::buildBorderMaskLine(int raster)
-{
-    std::fill(borderMaskLine.begin(), borderMaskLine.begin() + VISIBLE_WIDTH, 1);
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return;
-
-    bool verticalBorder = borderVerticalStart_per_raster[raster] != 0;
-    bool horizontalBorder = vicState.horizontalBorder;
-
-    const int open40X = horizontalBorderOpenCompareX(true);
-    const int open38X = horizontalBorderOpenCompareX(false);
-
-    const int close40X = horizontalBorderCloseCompareX(true);
-    const int close38X = horizontalBorderCloseCompareX(false);
-
-    for (int px = 0; px < VISIBLE_WIDTH; ++px)
-    {
-        const uint8_t d011AtPixel = d011ForRasterPixelX(raster, px, false);
-        const uint8_t d016AtPixel = d016ForRasterPixelX(raster, px, false);
-
-        const bool den = (d011AtPixel & 0x10) != 0;
-
-        const bool rsel25 = (d011AtPixel & 0x08) != 0;
-        const bool csel40 = d016CSEL(d016AtPixel);
-
-        const int verticalCompareX = horizontalBorderOpenCompareX(csel40);
-
-        if (px == verticalCompareX)
-        {
-            const int openRaster = verticalBorderOpenCompareRaster(rsel25);
-            const int closeRaster = verticalBorderCloseCompareRaster(rsel25);
-
-            if (raster == closeRaster)
-                verticalBorder = true;
-
-            if (raster == openRaster && den)
-                verticalBorder = false;
-        }
-
-        if (horizontalBorder)
-        {
-            if (px == open38X && !csel40)
-                horizontalBorder = false;
-
-            if (px == open40X && csel40)
-                horizontalBorder = false;
-        }
-
-        if (!horizontalBorder)
-        {
-            if (px == close38X && !csel40)
-                horizontalBorder = true;
-
-            if (px == close40X && csel40)
-                horizontalBorder = true;
-        }
-
-        borderMaskLine[px] = (verticalBorder || horizontalBorder) ? 1 : 0;
-    }
-
-    vicState.horizontalBorder = horizontalBorder;
-}
-
 void Vic::composeFinalRasterLine(int raster)
 {
     const int xStart = rasterVisibleStartX(raster);
@@ -6961,36 +6897,6 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     }
 
     return FetchKind::None;
-}
-
-const char* Vic::fetchKindName(FetchKind kind) const
-{
-    switch (kind)
-    {
-        case FetchKind::None:        return "None";
-        case FetchKind::Graphics:    return "Graphics";
-        case FetchKind::CharMatrix:  return "CharMatrix";
-
-        case FetchKind::SpritePtr0:  return "SpritePtr0";
-        case FetchKind::SpritePtr1:  return "SpritePtr1";
-        case FetchKind::SpritePtr2:  return "SpritePtr2";
-        case FetchKind::SpritePtr3:  return "SpritePtr3";
-        case FetchKind::SpritePtr4:  return "SpritePtr4";
-        case FetchKind::SpritePtr5:  return "SpritePtr5";
-        case FetchKind::SpritePtr6:  return "SpritePtr6";
-        case FetchKind::SpritePtr7:  return "SpritePtr7";
-
-        case FetchKind::SpriteData0: return "SpriteData0";
-        case FetchKind::SpriteData1: return "SpriteData1";
-        case FetchKind::SpriteData2: return "SpriteData2";
-        case FetchKind::SpriteData3: return "SpriteData3";
-        case FetchKind::SpriteData4: return "SpriteData4";
-        case FetchKind::SpriteData5: return "SpriteData5";
-        case FetchKind::SpriteData6: return "SpriteData6";
-        case FetchKind::SpriteData7: return "SpriteData7";
-    }
-
-    return "Unknown";
 }
 
 std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const

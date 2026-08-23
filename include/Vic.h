@@ -1407,7 +1407,6 @@ class Vic
         void applySpriteColorEventsToLine(int raster);
 
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
-        uint8_t fetchScreenByte(int row,int col, int raster) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
 
         int currentDisplayRowBase() const;
@@ -1443,7 +1442,6 @@ class Vic
         void updateMonitorCaches(int raster);
 
         FetchKind getFetchKindForCycle(int raster, int cycle) const;
-        const char* fetchKindName(FetchKind kind) const;
 
         // Trace helpers
         bool vicTraceOn(TraceManager::TraceDetail d) const;
