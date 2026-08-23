@@ -73,6 +73,7 @@ class CPU
             FreezePC, // PC stays on JAM
             NopCompat // Treat as Noop
         };
+
         void setJamMode(JamMode mode);
         JamMode getJamMode() const;
 
@@ -89,8 +90,6 @@ class CPU
         // Access for IRQ handling
         inline void requestNMI() { nmiPending = true; }
         void setNMILine(bool asserted);
-        void handleIRQ();
-        void handleNMI();
         void pulseNMI();
 
         // 1541/1571 SO
@@ -946,6 +945,10 @@ class CPU
             uint8_t value;
             bool crossed;
         };
+
+        // Interrupt handling
+        void handleIRQ();
+        void handleNMI();
 
         // RMW helper
         void rmwWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
