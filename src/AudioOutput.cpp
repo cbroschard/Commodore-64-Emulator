@@ -106,11 +106,18 @@ void AudioOutput::stopAudio()
     if (stream)
     {
         SDL_PauseAudioStreamDevice(stream);
+
+        SDL_SetAudioStreamGetCallback(stream, nullptr, nullptr);
+
+        sid = nullptr;
+
         SDL_DestroyAudioStream(stream);
         stream = nullptr;
     }
-
-    sid = nullptr;
+    else
+    {
+        sid = nullptr;
+    }
 }
 
 void AudioOutput::resumeAudio()
