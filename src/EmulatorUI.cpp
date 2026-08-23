@@ -926,6 +926,72 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 ImGui::EndMenu();
             }
 
+            // REU
+            if (ImGui::BeginMenu("REU"))
+            {
+                const bool reuAvailable =
+                    !v.virtualModemAttached &&
+                    !v.swiftLinkEnabled &&
+                    !v.turbo232Enabled;
+
+                if (ImGui::MenuItem("Disabled", nullptr, !v.reuEnabled))
+                    pushSetREU(REUModel::None);
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Commodore 1700 - 128 KB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 128,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Commodore1700);
+
+                if (ImGui::MenuItem("Commodore 1764 - 256 KB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 256,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Commodore1764);
+
+                if (ImGui::MenuItem("Commodore 1750 - 512 KB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 512,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Commodore1750);
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Custom 1 MB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 1024,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Custom1M);
+
+                if (ImGui::MenuItem("Custom 2 MB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 2048,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Custom2M);
+
+                if (ImGui::MenuItem("Custom 4 MB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 4096,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Custom4M);
+
+                if (ImGui::MenuItem("Custom 8 MB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 8192,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Custom8M);
+
+                if (ImGui::MenuItem("Custom 16 MB",
+                                    nullptr,
+                                    v.reuEnabled && v.reuSizeKB == 16384,
+                                    reuAvailable))
+                    pushSetREU(REUModel::Custom16M);
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 
@@ -966,49 +1032,6 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             if (ImGui::MenuItem("PAL",  nullptr,  isPAL)) push(UiCommand::Type::SetPAL);
 
             ImGui::Separator();
-
-            if (ImGui::BeginMenu("Expansion"))
-            {
-                if (ImGui::BeginMenu("REU"))
-                {
-                    const bool reuAvailable = !v.virtualModemAttached && !v.swiftLinkEnabled && !v.turbo232Enabled;
-
-                    if (ImGui::MenuItem("Disabled", nullptr, !v.reuEnabled))
-                        pushSetREU(REUModel::None);
-
-                    ImGui::Separator();
-
-                    if (ImGui::MenuItem("Commodore 1700 - 128 KB", nullptr, v.reuEnabled && v.reuSizeKB == 128, reuAvailable))
-                        pushSetREU(REUModel::Commodore1700);
-
-                    if (ImGui::MenuItem("Commodore 1764 - 256 KB", nullptr, v.reuEnabled && v.reuSizeKB == 256, reuAvailable))
-                        pushSetREU(REUModel::Commodore1764);
-
-                    if (ImGui::MenuItem("Commodore 1750 - 512 KB", nullptr, v.reuEnabled && v.reuSizeKB == 512, reuAvailable))
-                        pushSetREU(REUModel::Commodore1750);
-
-                    ImGui::Separator();
-
-                    if (ImGui::MenuItem("Custom 1 MB", nullptr, v.reuEnabled && v.reuSizeKB == 1024, reuAvailable))
-                        pushSetREU(REUModel::Custom1M);
-
-                    if (ImGui::MenuItem("Custom 2 MB", nullptr, v.reuEnabled && v.reuSizeKB == 2048, reuAvailable))
-                        pushSetREU(REUModel::Custom2M);
-
-                    if (ImGui::MenuItem("Custom 4 MB", nullptr, v.reuEnabled && v.reuSizeKB == 4096, reuAvailable))
-                        pushSetREU(REUModel::Custom4M);
-
-                    if (ImGui::MenuItem("Custom 8 MB", nullptr, v.reuEnabled && v.reuSizeKB == 8192, reuAvailable))
-                        pushSetREU(REUModel::Custom8M);
-
-                    if (ImGui::MenuItem("Custom 16 MB", nullptr, v.reuEnabled && v.reuSizeKB == 16384, reuAvailable))
-                        pushSetREU(REUModel::Custom16M);
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenu();
-            }
 
             bool paused = v.paused;
             if (ImGui::MenuItem(paused ? "Resume" : "Pause", "Ctrl+Space")) push(UiCommand::Type::TogglePause);
