@@ -263,6 +263,16 @@ void UIBridge::processCommands()
                 }
                 break;
 
+            case UiCommand::Type::SelectT64Entry:
+                if (media_)
+                    media_->selectT64Entry(cmd.t64EntryIndex);
+                break;
+
+            case UiCommand::Type::LoadT64Entry:
+                if (media_)
+                    media_->queueSelectedT64Entry();
+                break;
+
             case UiCommand::Type::AttachVirtualModem:
             {
                 expansionManager_.attachVirtualModem();

@@ -227,6 +227,8 @@ class EmulatorUI
         void pushSaveIDE64Image(uint32_t deviceIndex);
         void pushEjectIDE64Image(uint32_t deviceIndex);
 
+        void pushSelectT64Entry(size_t index);
+
         void pushSetRS232Baud(uint32_t baud);
 
         void pushSetREU(REUModel model);

@@ -532,6 +532,32 @@ void MediaManager::fillT64EntryViews(std::vector<EmulatorUI::T64EntryView>& out,
     selected = components_.cass->getSelectedT64Entry();
 }
 
+bool MediaManager::selectT64Entry(size_t index)
+{
+    if (!components_.cass || !components_.cass->isT64())
+        return false;
+
+    return components_.cass->selectT64Entry(index);
+}
+
+bool MediaManager::queueSelectedT64Entry()
+{
+    if (!components_.cass || !components_.cass->isT64())
+        return false;
+
+    state_.tapeAttached = false;
+
+    if (coldReset_)
+        coldReset_();
+
+    state_.tapeAttached = true;
+
+    t64LoadPending_ = true;
+    t64LoadDelay_ = 140;
+
+    return true;
+}
+
 void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)
 {
     if (path.empty()) return;

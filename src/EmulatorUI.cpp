@@ -118,6 +118,17 @@ void EmulatorUI::pushEjectIDE64Image(uint32_t deviceIndex)
     out_.push_back(std::move(c));
 }
 
+void EmulatorUI::pushSelectT64Entry(size_t index)
+{
+    std::lock_guard<std::mutex> lock(outMutex_);
+
+    UiCommand c;
+    c.type = UiCommand::Type::SelectT64Entry;
+    c.t64EntryIndex = index;
+
+    out_.push_back(std::move(c));
+}
+
 void EmulatorUI::pushSetRS232Baud(uint32_t baud)
 {
     std::lock_guard<std::mutex> lock(outMutex_);
@@ -599,17 +610,8 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                     UiCommand::Type::AttachPRG);
             }
 
-            if (ImGui::MenuItem(
-                    "Load Program with Cartridge...",
-                    nullptr,
-                    false,
-                    v.cartAttached))
-            {
-                startFileDialog(
-                    "Select PRG/P00 Image",
-                    { ".prg", ".p00" },
-                    UiCommand::Type::AttachPRGWithCartridge);
-            }
+            if (ImGui::MenuItem("Load Program with Cartridge...", nullptr, false, v.cartAttached))
+                startFileDialog("Select PRG/P00 Image", { ".prg", ".p00" }, UiCommand::Type::AttachPRGWithCartridge);
 
             ImGui::Separator();
 
@@ -631,12 +633,42 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 if (ImGui::MenuItem("Insert TAP image..."))
                     startFileDialog("Select TAP image", { ".tap" }, UiCommand::Type::AttachTAP);
 
+                if (v.t64Attached && !v.t64Entries.empty())
+                {
+                    ImGui::Separator();
+
+                    if (ImGui::BeginMenu("T64 Entries"))
+                    {
+                        for (const auto& entry : v.t64Entries)
+                        {
+                            const bool selected = entry.index == v.selectedT64Entry;
+                            std::string label = std::to_string(entry.index) + ": " + entry.filename;
+
+                            if (ImGui::MenuItem(label.c_str(), nullptr, selected))
+                            {
+                                pushSelectT64Entry(entry.index);
+                                push(UiCommand::Type::LoadT64Entry);
+                            }
+                        }
+
+                        ImGui::EndMenu();
+                    }
+                }
+
                 if (ImGui::BeginMenu("Cassette Control"))
                 {
-                    if (ImGui::MenuItem("Play", "Alt+P"))   push(UiCommand::Type::CassPlay);
-                    if (ImGui::MenuItem("Stop", "Alt+S"))   push(UiCommand::Type::CassStop);
-                    if (ImGui::MenuItem("Rewind", "Alt+R")) push(UiCommand::Type::CassRewind);
-                    if (ImGui::MenuItem("Eject", "Alt+E"))  push(UiCommand::Type::CassEject);
+                    if (ImGui::MenuItem("Play", "Alt+P"))
+                        push(UiCommand::Type::CassPlay);
+
+                    if (ImGui::MenuItem("Stop", "Alt+S"))
+                        push(UiCommand::Type::CassStop);
+
+                    if (ImGui::MenuItem("Rewind", "Alt+R"))
+                        push(UiCommand::Type::CassRewind);
+
+                    if (ImGui::MenuItem("Eject", "Alt+E"))
+                        push(UiCommand::Type::CassEject);
+
                     ImGui::EndMenu();
                 }
 

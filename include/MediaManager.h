@@ -109,6 +109,9 @@ public:
     bool loadSelectedT64Entry();
     void fillT64EntryViews(std::vector<EmulatorUI::T64EntryView>& out, size_t& selected) const;
 
+    bool selectT64Entry(size_t index);
+    bool queueSelectedT64Entry();
+
     // Blank disk creation
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
 
