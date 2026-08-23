@@ -657,19 +657,19 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 if (ImGui::BeginMenu("Cassette Control"))
                 {
-                    if (ImGui::MenuItem("Play", "Alt+P"))
+                    if (ImGui::MenuItem("Play", "Alt+P", false, v.tapeAttached))
                         push(UiCommand::Type::CassPlay);
 
-                    if (ImGui::MenuItem("Stop", "Alt+S"))
+                    if (ImGui::MenuItem("Stop", "Alt+S", false, v.tapeAttached))
                         push(UiCommand::Type::CassStop);
 
-                    if (ImGui::MenuItem("Rewind", "Alt+R"))
+                    if (ImGui::MenuItem("Rewind", "Alt+R", false, v.tapeAttached))
                         push(UiCommand::Type::CassRewind);
 
-                    if (ImGui::MenuItem("Fast Forward", "Alt+F"))
+                    if (ImGui::MenuItem("Fast Forward", "Alt+F", false, v.tapeAttached))
                         push(UiCommand::Type::CassFastForward);
 
-                    if (ImGui::MenuItem("Eject", "Alt+E"))
+                    if (ImGui::MenuItem("Eject", "Alt+E", false, v.tapeAttached))
                         push(UiCommand::Type::CassEject);
 
                     ImGui::EndMenu();
