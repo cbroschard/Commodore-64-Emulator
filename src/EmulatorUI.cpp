@@ -698,6 +698,11 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Text("Progress: %.1f%%", progress);
 
+                const float progressFraction = (v.tapeTotalCycles > 0) ? static_cast<float>(static_cast<double>(v.tapePosition) /
+                            static_cast<double>(v.tapeTotalCycles)) : 0.0f;
+
+                ImGui::ProgressBar(progressFraction, ImVec2(-1.0f, 0.0f));
+
                 ImGui::EndMenu();
             }
 
