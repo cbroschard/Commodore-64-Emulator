@@ -667,7 +667,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                     if (ImGui::MenuItem("Rewind", "Alt+R", false, v.tapeAttached))
                         push(UiCommand::Type::CassRewind);
 
-                    if (ImGui::MenuItem("Fast Forward", "Alt+F", false, v.tapeAttached))
+                    if (ImGui::MenuItem("Skip Forward 5s", "Alt+F", false, v.tapeAttached))
                         push(UiCommand::Type::CassFastForward);
 
                     if (ImGui::MenuItem("Eject", "Alt+E", false, v.tapeAttached))
