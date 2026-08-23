@@ -139,6 +139,9 @@ class EmulatorUI
             size_t selectedT64Entry             = 0;
             uint64_t tapePosition               = 0;
 
+            bool tapePlaying                    = false;
+            bool tapeMotorOn                    = false;
+
             std::vector<T64EntryView> t64Entries;
 
             std::vector<DriveStatusView> drives;

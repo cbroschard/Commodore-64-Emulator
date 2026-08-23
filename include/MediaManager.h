@@ -144,6 +144,8 @@ public:
     void tapeFastForward();
     void tapeEject();
 
+    bool isTapePlaying() const;
+    bool isTapeMotorOn() const;
     uint64_t getTapePosition() const;
 
     // Command line autostart

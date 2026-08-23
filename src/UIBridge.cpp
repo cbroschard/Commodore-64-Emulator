@@ -68,6 +68,8 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         s.cartPath          = m.cartPath;
         s.tapeAttached      = m.tapeAttached;
         s.tapePosition      = media_->getTapePosition();
+        s.tapePlaying       = media_->isTapePlaying();
+        s.tapeMotorOn       = media_->isTapeMotorOn();
         s.tapePath          = m.tapePath;
         s.t64Attached       = false;
         s.selectedT64Entry  = 0;

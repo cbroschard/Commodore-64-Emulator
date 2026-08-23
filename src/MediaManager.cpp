@@ -916,6 +916,16 @@ void MediaManager::tapeEject()
     state_.tapePath.clear();
 }
 
+bool MediaManager::isTapePlaying() const
+{
+    return components_.cass->isPlayPressed();
+}
+
+bool MediaManager::isTapeMotorOn() const
+{
+    return components_.cass->motorOn();
+}
+
 uint64_t MediaManager::getTapePosition() const
 {
     return components_.cass->getTapePosition();

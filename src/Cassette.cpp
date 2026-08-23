@@ -109,12 +109,18 @@ bool Cassette::loadCassette(const std::string& path, VideoMode mode)
     return true;
 }
 
-void Cassette::unloadCassette() {
+void Cassette::unloadCassette()
+{
     cassetteLoaded = false;
     playPressed = false;
     motorStatus = false;
-    setData(true); // idle high
-    if (mem) mem->setCassetteSenseLow(false);
+    tapePosition = 0;
+
+    setData(true);
+
+    if (mem)
+        mem->setCassetteSenseLow(false);
+
     tapeImage.reset();
 }
 
@@ -126,8 +132,13 @@ bool Cassette::isT64() const
 
 void Cassette::play()
 {
+    if (!cassetteLoaded || !tapeImage)
+        return;
+
     playPressed = true;
-    if (mem) mem->setCassetteSenseLow(true);
+
+    if (mem)
+        mem->setCassetteSenseLow(true);
 }
 
 void Cassette::stop()

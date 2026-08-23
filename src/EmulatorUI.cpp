@@ -677,6 +677,8 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Separator();
 
+                ImGui::Text("Transport: %s", v.tapePlaying ? "Play" : "Stop");
+                ImGui::Text("Motor: %s", v.tapeMotorOn ? "On" : "Off");
                 ImGui::Text("Position: %llu cycles", static_cast<unsigned long long>(v.tapePosition));
 
                 ImGui::EndMenu();
