@@ -418,6 +418,58 @@ bool MLMonitorBackend::getCartridgeAttached()
     else return false;
 }
 
+std::string MLMonitorBackend::dumpT64Entries() const
+{
+    if (!cass)
+        return "CASSETTE not attached\n";
+
+    if (!cass->isT64())
+        return "Loaded tape is not a T64 image.\n";
+
+    const auto& entries = cass->getT64Entries();
+
+    if (entries.empty())
+        return "T64 contains no valid entries.\n";
+
+    const size_t selected = cass->getSelectedT64Entry();
+
+    std::ostringstream out;
+
+    out << "T64 entries:\n";
+
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        const auto& entry = entries[i];
+
+        out << (i == selected ? "> " : "  ")
+            << i << ": "
+            << entry.filename
+            << "  $"
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << entry.startAddress
+            << "-$"
+            << std::setw(4)
+            << entry.endAddress
+            << std::dec
+            << "\n";
+    }
+
+    return out.str();
+}
+
+bool MLMonitorBackend::loadSelectedT64Entry()
+{
+    if (!cass)
+        return false;
+
+    if (!cass->isT64())
+        return false;
+
+    const T64LoadResult result = cass->t64LoadPrgIntoMemory();
+    return result.success;
+}
+
 std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
 {
     if (!vic)

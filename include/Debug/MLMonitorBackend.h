@@ -47,6 +47,9 @@ class MLMonitorBackend
 
         // ML Monitor Cassette methods
         inline std::string dumpTapeDebug(size_t count) const { return cass ? cass->dumpPulses(count) : "CASSETTE not attached\n"; }
+        inline bool selectT64Entry(size_t index) { return cass && cass->isT64() ? cass->selectT64Entry(index) : false; }
+        std::string dumpT64Entries() const;
+        bool loadSelectedT64Entry();
 
         // ML Monitor CIA1 Register Dumps
         inline std::string dumpCIA1Regs() const { return cia1 ? cia1->dumpRegisters("all") : "CIA1 not attached\n"; }

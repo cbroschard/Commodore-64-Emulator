@@ -30,24 +30,36 @@ std::string TapeCommand::category() const
 
 std::string TapeCommand::shortHelp() const
 {
-    return "tape [count] - Show current tape position and upcoming pulses";
+    return "tape [pulses|list|select|load] - Inspect and control tape media";
 }
 
 std::string TapeCommand::help() const
 {
     return
-        "tape - Show Datasette/tape debug information\n"
+        "tape - Inspect and control Datasette/tape media\n"
         "\n"
         "Usage:\n"
         "    tape\n"
         "    tape [count]\n"
+        "    tape pulses [count]\n"
+        "    tape list\n"
+        "    tape select <index>\n"
+        "    tape load\n"
         "\n"
-        "Arguments:\n"
-        "    [count]    Number of upcoming pulses to show. Defaults to 8.\n"
+        "Commands:\n"
+        "    pulses [count]   Show current pulse state and upcoming pulses.\n"
+        "                     Defaults to 8 pulses.\n"
+        "    list             List files contained in the loaded T64 image.\n"
+        "    select <index>   Select a T64 directory entry.\n"
+        "    load             Load the currently selected T64 entry into memory.\n"
         "\n"
         "Examples:\n"
-        "    tape       Show tape state and next 8 pulses\n"
-        "    tape 16    Show tape state and next 16 pulses\n";
+        "    tape             Show general tape state\n"
+        "    tape 16          Show the next 16 pulses\n"
+        "    tape pulses 16   Show the next 16 pulses\n"
+        "    tape list        List T64 entries\n"
+        "    tape select 2    Select T64 entry 2\n"
+        "    tape load        Load the selected T64 entry\n";
 }
 
 void TapeCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
@@ -66,33 +78,106 @@ void TapeCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    size_t count = 8;
-
-    if (args.size() > 1)
+    if (args.size() == 1)
     {
+        std::cout << backend->dumpTapeDebug(8);
+        return;
+    }
+
+    const std::string& command = args[1];
+
+    if (command == "pulses")
+    {
+        size_t count = 8;
+
+        if (args.size() > 2)
+        {
+            try
+            {
+                count = std::stoul(args[2]);
+
+                if (count == 0 || count > 256)
+                {
+                    std::cout << "Invalid count. Valid range is 1-256.\n";
+                    return;
+                }
+            }
+            catch (...)
+            {
+                std::cout << "Invalid count: " << args[2] << "\n";
+                return;
+            }
+        }
+
+        std::cout << backend->dumpTapeDebug(count);
+        return;
+    }
+
+    if (command == "list")
+    {
+        std::cout << backend->dumpT64Entries();
+        return;
+    }
+
+    if (command == "select")
+    {
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: tape select <index>\n";
+            return;
+        }
+
         try
         {
-            count = std::stoul(args[1]);
+            const size_t index = std::stoul(args[2]);
 
-            if (count == 0)
+            if (!backend->selectT64Entry(index))
             {
-                std::cout << "Invalid count. Count must be greater than 0.\n";
+                std::cout << "Unable to select T64 entry " << index << ".\n";
                 return;
             }
 
-            if (count > 256)
-            {
-                std::cout << "Invalid count. Maximum supported count is 256.\n";
-                return;
-            }
+            std::cout << "Selected T64 entry " << index << ".\n";
         }
         catch (...)
         {
-            std::cout << "Invalid count: " << args[1] << "\n";
-            std::cout << "Usage: tape [count]\n";
-            return;
+           std::cout << "Invalid T64 entry index: " << args[2] << "\n";
         }
+
+        return;
     }
 
-    std::cout << backend->dumpTapeDebug(count);
+    if (command == "load")
+    {
+        if (!backend->loadSelectedT64Entry())
+        {
+            std::cout << "Unable to load selected T64 entry.\n";
+            return;
+        }
+
+        std::cout << "T64 entry loaded.\n";
+        return;
+    }
+
+    // Backward-compatible shorthand: tape <count>
+    try
+    {
+        const size_t count = std::stoul(command);
+
+        if (count == 0 || count > 256)
+        {
+            std::cout << "Invalid count. Valid range is 1-256.\n";
+            return;
+        }
+
+        std::cout << backend->dumpTapeDebug(count);
+        return;
+    }
+    catch (...)
+    {
+
+    }
+
+    std::cout << "Unknown tape command: " << command << "\n";
+    std::cout << "Use 'tape help' for usage.\n";
 }
