@@ -265,22 +265,61 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
         uint32_t raw = 0;
         uint32_t duration = 0;
 
-        if (header.tapeVersion == 0 || header.tapeVersion == 1)
+        if (header.tapeVersion == 0)
         {
             if (tapeData[pos] != 0)
             {
-                raw = tapeData[pos];
-                duration = raw * 8; // units = 8 cycles
-                pos += 1;
+                raw = tapeData[pos++];
+                duration = raw * 8;
             }
             else
             {
-                if (pos + 3 >= tapeData.size()) break;
+                ++pos;
+
+                duration = 256 * 8;
+            }
+        }
+        else if (header.tapeVersion == 1)
+        {
+            if (tapeData[pos] != 0)
+            {
+                raw = tapeData[pos++];
+                duration = raw * 8;
+            }
+            else
+            {
+                // TAP v1: zero is followed by a 24-bit exact cycle count.
+                if (pos + 3 >= tapeData.size())
+                    break;
+
                 uint32_t lo  = tapeData[pos + 1];
                 uint32_t mid = tapeData[pos + 2];
                 uint32_t hi  = tapeData[pos + 3];
-                raw = (lo | (mid << 8) | (hi << 16));
-                duration = raw * 8; // still 8 cycles
+
+                raw = lo | (mid << 8) | (hi << 16);
+
+                duration = raw;
+                pos += 4;
+            }
+        }
+        else if (header.tapeVersion == 2)
+        {
+            if (tapeData[pos] != 0)
+            {
+                raw = tapeData[pos++];
+                duration = raw;
+            }
+            else
+            {
+                if (pos + 3 >= tapeData.size())
+                    break;
+
+                uint32_t lo  = tapeData[pos + 1];
+                uint32_t mid = tapeData[pos + 2];
+                uint32_t hi  = tapeData[pos + 3];
+
+                raw = lo | (mid << 8) | (hi << 16);
+                duration = raw;
                 pos += 4;
             }
         }
