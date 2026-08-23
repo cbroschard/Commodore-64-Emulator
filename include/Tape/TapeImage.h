@@ -32,6 +32,7 @@ class TapeImage
         virtual bool isT64() const;
 
         virtual uint64_t totalCycles() const { return 0; }
+        virtual uint64_t currentCycles() const { return 0; }
 
         virtual bool atEnd() const { return false; }
 

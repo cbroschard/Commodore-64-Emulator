@@ -27,6 +27,7 @@ class TAP : public TapeImage
         uint64_t fastForwardCycles(uint64_t cyclesToSkip) override;
 
         uint64_t totalCycles() const override;
+        uint64_t currentCycles() const override;
 
         bool atEnd() const override;
 

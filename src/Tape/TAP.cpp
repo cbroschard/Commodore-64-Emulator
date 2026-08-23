@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include "Tape/TAP.h"
 
 TAP::TAP() :
@@ -408,6 +409,30 @@ uint64_t TAP::totalCycles() const
         total += pulse.duration;
 
     return total;
+}
+
+uint64_t TAP::currentCycles() const
+{
+    if (pulses.empty())
+        return 0;
+
+    uint64_t elapsed = 0;
+
+    const size_t count =
+        std::min(pulseIndex, pulses.size());
+
+    for (size_t i = 0; i < count; ++i)
+        elapsed += pulses[i].duration;
+
+    if (pulseIndex < pulses.size())
+    {
+        const uint32_t duration = pulses[pulseIndex].duration;
+
+        if (duration >= pulseRemaining)
+            elapsed += duration - pulseRemaining;
+    }
+
+    return elapsed;
 }
 
 bool TAP::atEnd() const

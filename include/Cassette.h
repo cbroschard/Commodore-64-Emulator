@@ -65,6 +65,7 @@ class Cassette
 
         inline uint64_t getTapePosition() const { return tapePosition; }
         uint64_t getTotalTapeCycles() const;
+        uint64_t getCurrentTapeCycles() const;
 
         // Monitor helpers
         std::string dumpPulses(size_t count = 10) const;
@@ -81,6 +82,8 @@ class Cassette
         bool motorStatus;
         size_t tapePosition;
         uint8_t data;
+
+        bool restoreTapePositionFromImage;
 };
 
 #endif // CASSETTE_H

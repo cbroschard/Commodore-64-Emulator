@@ -14,7 +14,8 @@ Cassette::Cassette() :
     playPressed(false),
     motorStatus(false),
     tapePosition(0),
-    data(1)
+    data(1),
+    restoreTapePositionFromImage(false)
 {
 
 }
@@ -34,14 +35,12 @@ void Cassette::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("CASS");
     wrtr.writeU32(2); // version
 
-    // Dump state
     wrtr.writeBool(cassetteLoaded);
     wrtr.writeBool(playPressed);
     wrtr.writeBool(motorStatus);
     wrtr.writeU8(data);
     wrtr.writeU64(static_cast<uint64_t>(tapePosition));
 
-    // End
     wrtr.endChunk();
 
     if (tapeImage)
@@ -50,48 +49,71 @@ void Cassette::saveState(StateWriter& wrtr) const
 
 bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    // Load state
     if (std::memcmp(chunk.tag, "CASS", 4) == 0)
     {
         rdr.enterChunkPayload(chunk);
 
         uint32_t ver = 0;
-        if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 2)                                                   { rdr.exitChunkPayload(chunk); return false; }
 
-        bool loaded = false, play = false, motor = false;
+        if (!rdr.readU32(ver))        { rdr.exitChunkPayload(chunk); return false; }
+
+        if (ver < 1 || ver > 2)       { rdr.exitChunkPayload(chunk); return false; }
+
+        bool loaded = false;
+        bool play = false;
+        bool motor = false;
         uint8_t outData = 1;
 
-        if (!rdr.readBool(loaded))                                      { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(play))                                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(motor))                                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(outData))                                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(loaded))   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(play))     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(motor))    { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(outData))    { rdr.exitChunkPayload(chunk); return false; }
 
         uint64_t restoredTapePosition = 0;
 
         if (ver >= 2)
-            if (!rdr.readU64(restoredTapePosition))                     { rdr.exitChunkPayload(chunk); return false; }
+        {
+            if (!rdr.readU64(restoredTapePosition)) {rdr.exitChunkPayload(chunk); return false; }
+
+            restoreTapePositionFromImage = false;
+        }
+        else
+        {
+            // CASS version 1 did not store tapePosition.
+            // Recover it after the TAP state chunk restores
+            // pulseIndex and pulseRemaining.
+            restoreTapePositionFromImage = true;
+        }
 
         cassetteLoaded = loaded;
         playPressed    = play;
         motorStatus    = motor;
         data           = outData;
-        tapePosition   = static_cast<size_t>(restoredTapePosition);
 
-        // Re-assert sense line to match restored state
+        if (ver >= 2)
+            tapePosition = restoredTapePosition;
+        else
+            tapePosition = 0;
+
         if (mem)
             mem->setCassetteSenseLow(cassetteLoaded && playPressed);
 
         rdr.exitChunkPayload(chunk);
-
         return true;
     }
 
-    // Forward tape chunks to the tape image (e.g., TAP0)
     if (tapeImage)
     {
         if (tapeImage->loadState(chunk, rdr))
+        {
+            if (restoreTapePositionFromImage)
+            {
+                tapePosition = tapeImage->currentCycles();
+                restoreTapePositionFromImage = false;
+            }
+
             return true;
+        }
     }
 
     return false;
@@ -315,6 +337,11 @@ size_t Cassette::getSelectedT64Entry() const
 uint64_t Cassette::getTotalTapeCycles() const
 {
     return tapeImage ? tapeImage->totalCycles() : 0;
+}
+
+uint64_t Cassette::getCurrentTapeCycles() const
+{
+    return tapeImage ? tapeImage->currentCycles() : 0;
 }
 
 std::string Cassette::dumpPulses(size_t count) const
