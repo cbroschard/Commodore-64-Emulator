@@ -198,8 +198,8 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     }
 
     // Update $AE/$AF with load address
-    mem->write(0xAE, result.prgStart & 0xFF);
-    mem->write(0xAF, result.prgStart >> 8);
+    mem->write(0xAE, result.prgEnd & 0xFF);
+    mem->write(0xAF, result.prgEnd >> 8);
 
     const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart);
 
@@ -208,7 +208,7 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
 
     if (result.prgStart == 0x0801)
     {
-        const uint16_t basicEnd = static_cast<uint16_t>(result.prgEnd + 1);
+        const uint16_t basicEnd = result.prgEnd;
 
         // Update BASIC pointers
         mem->write16(TXTAB,  result.prgStart);
