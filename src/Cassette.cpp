@@ -32,13 +32,14 @@ Cassette::~Cassette() noexcept
 void Cassette::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("CASS");
-    wrtr.writeU32(1); // version
+    wrtr.writeU32(2); // version
 
     // Dump state
     wrtr.writeBool(cassetteLoaded);
     wrtr.writeBool(playPressed);
     wrtr.writeBool(motorStatus);
     wrtr.writeU8(data);
+    wrtr.writeU64(static_cast<uint64_t>(tapePosition));
 
     // End
     wrtr.endChunk();
@@ -56,7 +57,7 @@ bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 2)                                                   { rdr.exitChunkPayload(chunk); return false; }
 
         bool loaded = false, play = false, motor = false;
         uint8_t outData = 1;
@@ -66,10 +67,16 @@ bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(motor))                                       { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(outData))                                       { rdr.exitChunkPayload(chunk); return false; }
 
+        uint64_t restoredTapePosition = 0;
+
+        if (ver >= 2)
+            if (!rdr.readU64(restoredTapePosition))                     { rdr.exitChunkPayload(chunk); return false; }
+
         cassetteLoaded = loaded;
         playPressed    = play;
         motorStatus    = motor;
         data           = outData;
+        tapePosition   = static_cast<size_t>(restoredTapePosition);
 
         // Re-assert sense line to match restored state
         if (mem)
