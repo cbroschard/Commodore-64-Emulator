@@ -151,8 +151,11 @@ void Cassette::play()
 void Cassette::stop()
 {
     playPressed = false;
-    motorStatus = false;
-    if (mem) mem->setCassetteSenseLow(false);
+
+    if (mem)
+        mem->setCassetteSenseLow(false);
+
+    setData(true);
 }
 
 void Cassette::rewind()
