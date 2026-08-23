@@ -28,6 +28,8 @@ class TAP : public TapeImage
 
         uint64_t totalCycles() const override;
 
+        bool atEnd() const override;
+
         // Monitor helpers
         inline uint8_t debugTapeVersion() const override { return header.tapeVersion; }
         inline size_t debugPulseIndex() const override { return pulseIndex; }

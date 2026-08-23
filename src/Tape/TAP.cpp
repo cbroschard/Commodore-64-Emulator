@@ -411,6 +411,11 @@ uint64_t TAP::totalCycles() const
     return total;
 }
 
+bool TAP::atEnd() const
+{
+    return pulseIndex >= pulses.size();
+}
+
 uint32_t TAP::debugCurrentPulse() const
 {
     if (pulseIndex < pulses.size()) return pulses[pulseIndex].duration;

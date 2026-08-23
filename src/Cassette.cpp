@@ -184,12 +184,14 @@ void Cassette::fastForward()
 
     constexpr uint64_t cyclesToSkip = 5000000;
 
-    const uint64_t skippedCycles =
-        tapeImage->fastForwardCycles(cyclesToSkip);
+    const uint64_t skippedCycles = tapeImage->fastForwardCycles(cyclesToSkip);
 
     tapePosition += skippedCycles;
 
     setData(true);
+
+    if (tapeImage->atEnd())
+        tapePosition = tapeImage->totalCycles();
 }
 
 void Cassette::eject()
@@ -216,6 +218,16 @@ void Cassette::tick()
     setData(tapeImage->currentBit());
 
     ++tapePosition;
+
+    if (tapeImage->atEnd())
+    {
+        playPressed = false;
+
+        if (mem)
+            mem->setCassetteSenseLow(false);
+
+        setData(true);
+    }
 }
 
 T64LoadResult Cassette::t64LoadPrgIntoMemory()
