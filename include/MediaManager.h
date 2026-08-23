@@ -141,6 +141,7 @@ public:
     void tapePlay();
     void tapeStop();
     void tapeRewind();
+    void tapeFastForward();
     void tapeEject();
 
     // Command line autostart

@@ -70,6 +70,7 @@ struct UiCommand
         CassPlay,
         CassStop,
         CassRewind,
+        CassFastForward,
         CassEject,
 
         AssignPad1ToPort1,

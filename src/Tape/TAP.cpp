@@ -346,6 +346,28 @@ bool TAP::currentBit() const
     return currentLevel;
 }
 
+uint64_t TAP::fastForward(size_t pulsesToSkip)
+{
+    if (pulses.empty() || pulseIndex >= pulses.size())
+        return 0;
+
+    const size_t target = std::min(pulseIndex + pulsesToSkip, pulses.size());
+    uint64_t skippedCycles = pulseRemaining;
+
+    for (size_t i = pulseIndex + 1; i < target; ++i)
+        skippedCycles += pulses[i].duration;
+
+    pulseIndex = target;
+    pulseRemaining = 0;
+    blipCountdown = 0;
+    currentLevel = true;
+
+    if (pulseIndex < pulses.size())
+        pulseRemaining = pulses[pulseIndex].duration;
+
+    return skippedCycles;
+}
+
 uint32_t TAP::debugCurrentPulse() const
 {
     if (pulseIndex < pulses.size()) return pulses[pulseIndex].duration;

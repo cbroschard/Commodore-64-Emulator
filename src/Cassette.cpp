@@ -144,6 +144,18 @@ void Cassette::rewind()
     tapePosition = 0;
 }
 
+void Cassette::fastForward()
+{
+    if (!tapeImage)
+        return;
+
+    constexpr size_t pulsesToSkip = 5000;
+    const uint64_t skippedCycles = tapeImage->fastForward(pulsesToSkip);
+    tapePosition += skippedCycles;
+
+    setData(true);
+}
+
 void Cassette::eject()
 {
     // Simply call our unload method

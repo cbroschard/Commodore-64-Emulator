@@ -482,6 +482,11 @@ void UIBridge::processCommands()
                 if (media_) media_->tapeRewind();
                 break;
 
+            case UiCommand::Type::CassFastForward:
+                if (media_)
+                    media_->tapeFastForward();
+                break;
+
             case UiCommand::Type::CassEject:
                 if (media_) media_->tapeEject();
                 break;

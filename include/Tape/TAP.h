@@ -24,6 +24,8 @@ class TAP : public TapeImage
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
 
+        uint64_t fastForward(size_t pulsesToSkip) override;
+
         // Monitor helpers
         inline uint8_t debugTapeVersion() const override { return header.tapeVersion; }
         inline size_t debugPulseIndex() const override { return pulseIndex; }
@@ -31,8 +33,6 @@ class TAP : public TapeImage
         inline uint32_t debugPulseRemaining() const override { return pulseRemaining; }
         uint32_t debugCurrentPulse() const;
         uint32_t debugNextPulse(size_t lookahead = 1) const override;
-
-
 
     protected:
         std::vector<uint8_t> tapeData; // vector to store the tape file

@@ -903,6 +903,11 @@ void MediaManager::tapeRewind()
     components_.cass->rewind();
 }
 
+void MediaManager::tapeFastForward()
+{
+    components_.cass->fastForward();
+}
+
 void MediaManager::tapeEject()
 {
     components_.cass->stop();
