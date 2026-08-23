@@ -61,17 +61,21 @@ bool EmulationSession::run()
     if (!initializeMachine())
         return false;
 
-    while (true)
+    while (runtime_.running)
     {
         processEvents();
+
+        // Quit events must stop execution immediately.
+        if (!runtime_.running)
+            break;
 
         if (!runFrame())
             break;
 
-        if (!finalizeFrame())
+        if (!runtime_.running)
             break;
 
-        if (!runtime_.running)
+        if (!finalizeFrame())
             break;
     }
 

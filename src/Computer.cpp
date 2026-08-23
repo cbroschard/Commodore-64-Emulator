@@ -141,9 +141,24 @@ Computer::~Computer() noexcept
         components_.inputRouter.reset();
         components_.resetCtl.reset();
         components_.media.reset();
+
+        // Nothing should point into DebugManager anymore.
+        components_.debug.reset();
+
+        // VIC must not retain a pointer to VideoOutput.
+        if (components_.vic)
+            components_.vic->attachIVideoSinkInstance(nullptr);
+
+        // SDL-dependent objects must die before SDLContext.
+        components_.audioOutput.reset();
+        components_.videoOutput.reset();
+
+        // SDL itself is last.
+        components_.sdlContext.reset();
     }
     catch (...)
     {
+
     }
 }
 
