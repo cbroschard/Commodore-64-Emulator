@@ -84,6 +84,7 @@ void Vic::reset()
 
     // Raster IRQ
     rasterIrqCompareMatched = false;
+    rasterIrqTriggeredThisLine = false;
     lastRasterIRQSample = {};
 
     // Internal VIC state
@@ -412,6 +413,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.aec);
 
     wrtr.writeBool(rasterIrqCompareMatched);
+    wrtr.writeBool(rasterIrqTriggeredThisLine);
 
     wrtr.writeBool(activeMatrixRow.valid);
     wrtr.writeU16(activeMatrixRow.vcBase);
@@ -663,6 +665,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (ver >= 9)
         {
             if (!rdr.readBool(rasterIrqCompareMatched))                 { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(rasterIrqTriggeredThisLine))              { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
@@ -672,6 +675,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             // Preserve the most sensible equivalent state from an old save.
             rasterIrqCompareMatched = legacyRasterIrqSampledThisLine && rasterIRQTargetMatchesVisibleRaster();
+            rasterIrqTriggeredThisLine = false;
         }
 
         if (ver >= 8)
@@ -2000,6 +2004,8 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 void Vic::advanceToNextRaster()
 {
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+    rasterIrqTriggeredThisLine = false;
 
     vicState.badLineSampled = false;
     vicState.badLineInitializedThisRaster = false;
@@ -5742,8 +5748,11 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
 
     // VIC-II raster IRQ is generated when the raster comparator
     // transitions from non-match to match.
-    if (matchNow && !matchedBefore)
+    if (matchNow && !matchedBefore && !rasterIrqTriggeredThisLine)
+    {
         raiseVicIRQSource(0x01);
+        rasterIrqTriggeredThisLine = true;
+    }
 
     // Remember comparator level, independently of $D019 IRQ status.
     rasterIrqCompareMatched = matchNow;
