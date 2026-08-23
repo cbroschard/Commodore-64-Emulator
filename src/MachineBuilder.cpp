@@ -98,7 +98,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.reu->attachMemoryInstance(components.mem.get());
 
     components.cpu->attachMemoryInstance(components.mem.get());
-    components.cpu->attachCIA2Instance(components.cia2.get());
     components.cpu->attachDataBusLatchInstance(components.dataBus.get());
     components.cpu->attachExecutionHistoryInstance(components.executionHistory.get());
     components.cpu->attachVICInstance(components.vic.get());
