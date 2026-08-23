@@ -168,9 +168,8 @@ void TAP::simulateLoading()
     }
     else
     {
+        currentLevel = false;
         blipCountdown = blipWidth;
-        // Normal pulse = toggle
-        currentLevel = !currentLevel;
     }
 
     // Advance to next
@@ -320,25 +319,6 @@ std::vector<TAP::tapePulse> TAP::parsePulses(VideoMode mode)
 
                 raw = lo | (mid << 8) | (hi << 16);
                 duration = raw;
-                pos += 4;
-            }
-        }
-        else if (header.tapeVersion == 2)
-        {
-            if (tapeData[pos] != 0)
-            {
-                raw = tapeData[pos];
-                duration = raw; // already cycles
-                pos += 1;
-            }
-            else
-            {
-                if (pos + 3 >= tapeData.size()) break;
-                uint32_t lo  = tapeData[pos + 1];
-                uint32_t mid = tapeData[pos + 2];
-                uint32_t hi  = tapeData[pos + 3];
-                raw = (lo | (mid << 8) | (hi << 16));
-                duration = raw; // already cycles
                 pos += 4;
             }
         }
