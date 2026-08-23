@@ -5909,11 +5909,9 @@ void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
 
     const uint8_t old = registers.spriteCollision;
 
-    registers.spriteCollision =
-        static_cast<uint8_t>(registers.spriteCollision | bits);
+    registers.spriteCollision = static_cast<uint8_t>(registers.spriteCollision | bits);
 
-    const uint8_t newlySet =
-        static_cast<uint8_t>(registers.spriteCollision & ~old);
+    const uint8_t newlySet = static_cast<uint8_t>(registers.spriteCollision & ~old);
 
     if (newlySet == 0)
         return;
@@ -5924,7 +5922,7 @@ void Vic::latchSpriteSpriteCollision(uint8_t bits, int raster, int firstX)
     lastSpriteSpriteCollision.cycle = rasterPixelToCycle(firstX);
     lastSpriteSpriteCollision.bits = newlySet;
 
-    raiseVicIRQSource(0x02);
+    raiseVicIRQSource(0x04);
 }
 
 void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
@@ -5935,11 +5933,9 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
 
     const uint8_t old = registers.spriteDataCollision;
 
-    registers.spriteDataCollision =
-        static_cast<uint8_t>(registers.spriteDataCollision | bits);
+    registers.spriteDataCollision = static_cast<uint8_t>(registers.spriteDataCollision | bits);
 
-    const uint8_t newlySet =
-        static_cast<uint8_t>(registers.spriteDataCollision & ~old);
+    const uint8_t newlySet = static_cast<uint8_t>(registers.spriteDataCollision & ~old);
 
     if (newlySet == 0)
         return;
@@ -5950,7 +5946,7 @@ void Vic::latchSpriteBackgroundCollision(uint8_t bits, int raster, int firstX)
     lastSpriteBackgroundCollision.cycle = rasterPixelToCycle(firstX);
     lastSpriteBackgroundCollision.bits = newlySet;
 
-    raiseVicIRQSource(0x04);
+    raiseVicIRQSource(0x02);
 }
 
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
