@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <cmath>
 #include <fstream>
 #include "EmulatorUI.h"
 
@@ -679,7 +680,13 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
                 ImGui::Text("Transport: %s", v.tapePlaying ? "Play" : "Stop");
                 ImGui::Text("Motor: %s", v.tapeMotorOn ? "On" : "Off");
-                ImGui::Text("Position: %llu cycles", static_cast<unsigned long long>(v.tapePosition));
+
+                const double tapeClock = v.pal ? 985248.0 : 1022727.0;
+                const double tapeSeconds = static_cast<double>(v.tapePosition) / tapeClock;
+                const int minutes = static_cast<int>(tapeSeconds) / 60;
+                const double seconds = std::fmod(tapeSeconds, 60.0);
+
+                ImGui::Text("Position: %02d:%04.1f", minutes, seconds);
 
                 ImGui::EndMenu();
             }
