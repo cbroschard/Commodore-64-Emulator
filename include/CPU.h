@@ -9,7 +9,6 @@
 #define CPU_H
 
 // forward declarations
-class CIA2;
 class DataBusLatch;
 class ExecutionHistory;
 class IRQLine;
@@ -19,10 +18,7 @@ class Vic;
 
 #include <array>
 #include <functional>
-#include <sstream>
-#include <stdexcept>
 #include <stdint.h>
-#include "Common/BCD.h"
 #include "CPUBus.h"
 #include "StateReader.h"
 #include "Debug/TraceManager.h"
@@ -37,7 +33,6 @@ class CPU
 
         // Pointers
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
-        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
@@ -88,7 +83,6 @@ class CPU
         uint32_t getElapsedCycles();
 
         // Access for IRQ handling
-        inline void requestNMI() { nmiPending = true; }
         void setNMILine(bool asserted);
         void pulseNMI();
 
@@ -527,7 +521,6 @@ class CPU
     private:
 
         // non-owning pointers
-        CIA2* cia2;
         DataBusLatch* dataBus;
         ExecutionHistory* executionHistory;
         IRQLine* IRQ;
@@ -864,18 +857,11 @@ class CPU
         uint8_t fetchOperand();
         void decodeAndExecute(uint8_t opcode);
 
-        // Reset vector
-        uint16_t resetVectorLow;
-        uint16_t resetVectorHigh;
-        uint16_t resetAddress;
-
         // Clock Cycle timing
         uint32_t cycles;
         uint32_t totalCycles;
         uint32_t elapsedCycles;
         uint32_t lastCycleCount;
-        inline bool isPhi2Low() { return (totalCycles & 1) == 0; } // Check if we can temp allow I/O access while CHAR ROM is enabled
-        inline bool frameComplete() { return totalCycles >= CYCLES_PER_FRAME; }
 
         // CPU Registers
         uint8_t A;
@@ -897,7 +883,6 @@ class CPU
         VideoMode mode_;
 
         // IRQ handling
-        uint8_t activeSource;
         void executeIRQ();
         void executeNMI();
 
@@ -919,11 +904,8 @@ class CPU
 
         //Helper functions
         uint8_t readABS();
-        uint8_t readABSX();
-        uint8_t readABSY();
         uint8_t readImmediate();
         uint8_t readIndirectX();
-        uint8_t readIndirectY();
         uint8_t readZP();
         uint8_t readZPX();
         uint8_t readZPY();
@@ -1066,8 +1048,6 @@ class CPU
         void NOP(uint8_t opcode);
 
         // Bus Arbitration
-        bool shouldRDYStallForCurrentBusCycle() const;
-        bool shouldAECBlockCurrentBusCycle() const;
         bool isReadLikeBusCycle(CpuBusCycleType type) const;
         bool isWriteLikeBusCycle(CpuBusCycleType type) const;
         bool shouldRDYStallForBusCycle(CpuBusCycleType type) const;

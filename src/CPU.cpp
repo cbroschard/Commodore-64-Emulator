@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
+#include <sstream>
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "Common/ExecutionHistory.h"
@@ -16,7 +17,6 @@
 
 CPU::CPU() :
     // Initialize
-    cia2(nullptr),
     dataBus(nullptr),
     executionHistory(nullptr),
     IRQ(nullptr),
@@ -904,18 +904,6 @@ uint8_t CPU::readABS()
     return cpuRead(address, CpuBusCycleType::Read);
 }
 
-uint8_t CPU::readABSX()
-{
-    uint16_t address = absXAddress();
-    return cpuRead(address, CpuBusCycleType::Read);
-}
-
-uint8_t CPU::readABSY()
-{
-    uint16_t address = absYAddress();
-    return cpuRead(address, CpuBusCycleType::Read);
-}
-
 uint8_t CPU::readImmediate()
 {
     return fetchOperand();
@@ -924,12 +912,6 @@ uint8_t CPU::readImmediate()
 uint8_t CPU::readIndirectX()
 {
     const uint16_t address = indirectXAddress();
-    return cpuRead(address, CpuBusCycleType::Read);
-}
-
-uint8_t CPU::readIndirectY()
-{
-    const uint16_t address = indirectYAddress();
     return cpuRead(address, CpuBusCycleType::Read);
 }
 
