@@ -144,6 +144,8 @@ public:
     void tapeFastForward();
     void tapeEject();
 
+    uint64_t getTapePosition() const;
+
     // Command line autostart
     void applyBootAttachments();
 

@@ -916,6 +916,11 @@ void MediaManager::tapeEject()
     state_.tapePath.clear();
 }
 
+uint64_t MediaManager::getTapePosition() const
+{
+    return components_.cass->getTapePosition();
+}
+
 void MediaManager::applyBootAttachments()
 {
     if (state_.cartAttached && !state_.cartPath.empty())

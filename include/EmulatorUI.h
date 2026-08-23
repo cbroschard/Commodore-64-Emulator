@@ -137,6 +137,7 @@ class EmulatorUI
 
             bool t64Attached                    = false;
             size_t selectedT64Entry             = 0;
+            uint64_t tapePosition               = 0;
 
             std::vector<T64EntryView> t64Entries;
 

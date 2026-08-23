@@ -675,6 +675,10 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                     ImGui::EndMenu();
                 }
 
+                ImGui::Separator();
+
+                ImGui::Text("Position: %llu cycles", static_cast<unsigned long long>(v.tapePosition));
+
                 ImGui::EndMenu();
             }
 
