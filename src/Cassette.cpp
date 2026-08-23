@@ -201,7 +201,7 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     mem->write(0xAE, result.prgStart & 0xFF);
     mem->write(0xAF, result.prgStart >> 8);
 
-    const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart) + 1;
+    const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart);
 
     for (uint32_t i = 0; i < prgLen; ++i)
         mem->write(static_cast<uint16_t>(result.prgStart + i), prgData[i]);

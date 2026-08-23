@@ -89,7 +89,7 @@ bool T64::loadTape(const std::string& filePath, VideoMode mode)
             continue;
         }
 
-        parsedEntry.dataLength = static_cast<uint32_t>(parsedEntry.endAddress) - static_cast<uint32_t>(parsedEntry.startAddress) + 1;
+        parsedEntry.dataLength = static_cast<uint32_t>(parsedEntry.endAddress) - static_cast<uint32_t>(parsedEntry.startAddress);
 
         if (parsedEntry.dataOffset >= tapeData.size() || parsedEntry.dataLength > tapeData.size() - parsedEntry.dataOffset)
         {
