@@ -83,6 +83,8 @@ Computer::~Computer() noexcept
 {
     try
     {
+        running = false;
+
         detachVirtualModem();
         detachSwiftLinkVirtualModem();
         detachTurbo232VirtualModem();
@@ -90,19 +92,29 @@ Computer::~Computer() noexcept
         if (components_.userPort)
             components_.userPort->detachDevice();
 
+        if (components_.debug)
+            components_.debug->closeMonitor();
+
         if (components_.videoOutput)
         {
-            if (components_.debug)
-                components_.debug->closeMonitor();
-
-            running = false;
-
             components_.videoOutput->setGuiCallback({});
             components_.videoOutput->setInputCallback({});
             components_.videoOutput->setMonitorOpenCallback({});
+        }
 
-            if (components_.audioOutput)
-                components_.audioOutput->stopAudio();
+        if (components_.audioOutput)
+            components_.audioOutput->stopAudio();
+
+        // Tear down objects containing references/callbacks first.
+        components_.stateMgr.reset();
+        components_.uiBridge.reset();
+        components_.inputRouter.reset();
+        components_.resetCtl.reset();
+
+        if (components_.media)
+        {
+            components_.media->flushAndSaveMedia();
+            components_.media.reset();
         }
     }
     catch (...)
