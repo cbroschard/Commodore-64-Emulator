@@ -160,8 +160,15 @@ void Cassette::stop()
 
 void Cassette::rewind()
 {
-    if (tapeImage) tapeImage->rewind();
-    setData(true);  // idle-high after rewind
+    playPressed = false;
+
+    if (mem)
+        mem->setCassetteSenseLow(false);
+
+    if (tapeImage)
+        tapeImage->rewind();
+
+    setData(true);
     tapePosition = 0;
 }
 
@@ -170,9 +177,15 @@ void Cassette::fastForward()
     if (!tapeImage)
         return;
 
+    playPressed = false;
+
+    if (mem)
+        mem->setCassetteSenseLow(false);
+
     constexpr uint64_t cyclesToSkip = 5000000;
 
-    const uint64_t skippedCycles = tapeImage->fastForwardCycles(cyclesToSkip);
+    const uint64_t skippedCycles =
+        tapeImage->fastForwardCycles(cyclesToSkip);
 
     tapePosition += skippedCycles;
 
