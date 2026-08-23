@@ -105,6 +105,9 @@ public:
     void attachTAPImage();
     void attachREU(REUModel model);
 
+    // Allow user to select entry to load if T64
+    bool loadSelectedT64Entry();
+
     // Blank disk creation
     void createBlankDisk(int deviceNum, DriveModel model, const std::string& path);
 
@@ -161,6 +164,9 @@ private:
 
     State state_;
     std::vector<uint8_t> prgImage_;
+
+    bool t64LoadPending_;
+    int t64LoadDelay_;
 
     PRGLoadMode prgLoadMode_ = PRGLoadMode::Standalone;
 

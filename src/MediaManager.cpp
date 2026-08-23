@@ -39,6 +39,8 @@ MediaManager::MediaManager(MachineComponents& components,
       D1541HiROM_(std::move(D1541HiROM)),
       D1571ROM_(std::move(D1571ROM)),
       D1581ROM_(std::move(D1581ROM)),
+      t64LoadPending_(false),
+      t64LoadDelay_(0),
       requestBusPrime_(std::move(requestBusPrimeCallback)),
       coldReset_(std::move(coldResetCallback))
 {
@@ -391,46 +393,32 @@ void MediaManager::attachCRTImage()
 
 void MediaManager::attachT64Image()
 {
-    if (state_.tapePath.empty()) return;
+    if (state_.tapePath.empty())
+        return;
 
-    state_.tapeAttached = true;
+    components_.cass->stop();
+    components_.cass->eject();
 
     if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
-        #ifdef Debug
-        std::cout << "Unable to load tape: " << state_.tapePath << "\n";
-        #endif
         state_.tapeAttached = false;
         return;
     }
 
-    if (components_.cass->isT64())
-    {
-        T64LoadResult result = components_.cass->t64LoadPrgIntoMemory();
-        if (result.success)
-        {
-            uint16_t scan = 0x0801;
-            uint16_t nextLine;
-            do
-            {
-                nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
-                if (nextLine == 0) break;
-                scan = nextLine;
-            }
-            while (true);
+    if (!components_.cass->isT64())
+        return;
 
-            uint16_t basicEnd = scan + 2;
+    // Prevent cold reset from trying to re-attach this T64.
+    state_.tapeAttached = false;
 
-            components_.mem->writeDirect(0x2B, 0x01); components_.mem->writeDirect(0x2C, 0x08);
-            components_.mem->writeDirect(0x2D, basicEnd & 0xFF); components_.mem->writeDirect(0x2E, basicEnd >> 8);
-            components_.mem->writeDirect(0x2F, basicEnd & 0xFF); components_.mem->writeDirect(0x30, basicEnd >> 8);
-            components_.mem->writeDirect(0x31, basicEnd & 0xFF); components_.mem->writeDirect(0x32, basicEnd >> 8);
+    if (coldReset_)
+        coldReset_();
 
-            const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-            components_.mem->writeDirect(0xC6, 4);
-            for (int i = 0; i < 4; ++i) components_.mem->writeDirect(0x0277 + i, runKeys[i]);
-        }
-    }
+    // The T64 is still mounted in Cassette; restore MediaManager state.
+    state_.tapeAttached = true;
+
+    t64LoadPending_ = true;
+    t64LoadDelay_ = 140;
 }
 
 void MediaManager::attachTAPImage()
@@ -467,6 +455,57 @@ void MediaManager::attachREU(REUModel model)
 
     if (coldReset_)
         coldReset_();
+}
+
+bool MediaManager::loadSelectedT64Entry()
+{
+    if (!components_.cass || !components_.cass->isT64())
+        return false;
+
+    T64LoadResult result = components_.cass->t64LoadPrgIntoMemory();
+
+    if (!result.success)
+        return false;
+
+    uint16_t scan = 0x0801;
+    uint16_t nextLine;
+
+    do
+    {
+        nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
+
+        if (nextLine == 0)
+            break;
+
+        scan = nextLine;
+    }
+    while (true);
+
+    const uint16_t basicEnd = scan + 2;
+
+    components_.mem->writeDirect(0x2B, 0x01);
+    components_.mem->writeDirect(0x2C, 0x08);
+
+    components_.mem->writeDirect(0x2D, basicEnd & 0xFF);
+    components_.mem->writeDirect(0x2E, basicEnd >> 8);
+
+    components_.mem->writeDirect(0x2F, basicEnd & 0xFF);
+    components_.mem->writeDirect(0x30, basicEnd >> 8);
+
+    components_.mem->writeDirect(0x31, basicEnd & 0xFF);
+    components_.mem->writeDirect(0x32, basicEnd >> 8);
+
+    const uint8_t runKeys[4] =
+    {
+        0x52, 0x55, 0x4E, 0x0D
+    };
+
+    components_.mem->writeDirect(0xC6, 4);
+
+    for (int i = 0; i < 4; ++i)
+        components_.mem->writeDirect(0x0277 + i, runKeys[i]);
+
+    return true;
 }
 
 void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::string& path)
@@ -865,8 +904,19 @@ void MediaManager::tick()
         state_.prgLoaded = true;
     }
     else if (state_.prgAttached && !state_.prgLoaded && state_.prgDelay > 0)
-    {
         --state_.prgDelay;
+
+    if (t64LoadPending_)
+    {
+        if (t64LoadDelay_ > 0)
+        {
+            --t64LoadDelay_;
+        }
+        else
+        {
+            loadSelectedT64Entry();
+            t64LoadPending_ = false;
+        }
     }
 }
 
