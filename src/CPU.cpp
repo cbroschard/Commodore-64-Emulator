@@ -4476,6 +4476,28 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
 
     switch (opcode)
     {
+
+        case 0x02: // JAM/KIL
+        case 0x12:
+        case 0x22:
+        case 0x32:
+        case 0x42:
+        case 0x52:
+        case 0x62:
+        case 0x72:
+        case 0x92:
+        case 0xB2:
+        case 0xD2:
+        case 0xF2:
+        {
+            CpuMicroOp op;
+            op.kind = CpuMicroOpKind::Internal;
+            op.busType = CpuBusCycleType::None;
+            op.action = CpuMicroAction::None;
+            pushMicroOp(op);
+            break;
+        }
+
         case 0xEA: // NOP implied
         {
             CpuMicroOp op;
@@ -6899,6 +6921,19 @@ bool CPU::canExecuteOpcodeWithMicroOps(uint8_t opcode) const
 {
     switch (opcode)
     {
+        case 0x02: // jAM/KIL
+        case 0x12:
+        case 0x22:
+        case 0x32:
+        case 0x42:
+        case 0x52:
+        case 0x62:
+        case 0x72:
+        case 0x92:
+        case 0xB2:
+        case 0xD2:
+        case 0xF2:
+
         case 0xEA: // NOP implied
         case 0x1A:
         case 0x3A:
@@ -7277,6 +7312,30 @@ bool CPU::tickMicroOps()
 
         lastOpcodePC = opcodePC;
         lastOpcode   = opcode;
+
+        // JAM/KIL opcodes already exist in the legacy CPU path.
+        // Handle them here so the micro-op capability check does not throw.
+        switch (opcode)
+        {
+            case 0x02:
+            case 0x12:
+            case 0x22:
+            case 0x32:
+            case 0x42:
+            case 0x52:
+            case 0x62:
+            case 0x72:
+            case 0x92:
+            case 0xB2:
+            case 0xD2:
+            case 0xF2:
+                JAM();
+                ++totalCycles;
+                return true;
+
+            default:
+                break;
+        }
 
         lastOpcodeMicroOpCapable = canExecuteOpcodeWithMicroOps(opcode);
 
