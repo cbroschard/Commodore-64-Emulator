@@ -1534,12 +1534,21 @@ void Vic::advanceCharacterSequencerAtCycle58()
 
 void Vic::runFetchPhase()
 {
-    const int raster = registers.raster;
-
     performBackgroundGraphicsFetchForCurrentCycle();
 
     if (currentCycleSlot.graphicsFetch)
         advanceGraphicsSequencerAfterGAccess();
+
+    // Sprite pointer fetches can share a cycle with the previous
+    // sprite's Data2 fetch, so handle pointers independently of FetchKind.
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        if (currentCycle == spriteFetchSlotStart(sprite))
+        {
+            fetchSpritePointer(sprite, registers.raster);
+            break;
+        }
+    }
 
     switch (currentCycleSlot.fetchKind)
     {
@@ -1559,13 +1568,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
-        {
-            const int sprite = currentCycleSlot.spriteIndex;
-            if (sprite >= 0)
-                fetchSpritePointer(sprite, raster);
-
             break;
-        }
 
         case FetchKind::SpriteData0:
         case FetchKind::SpriteData1:
