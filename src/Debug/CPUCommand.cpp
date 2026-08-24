@@ -257,8 +257,17 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             const uint16_t addr = parseAddress(args[2]);
             mon.mlmonitorbackend()->setPC(addr);
-            std::cout << "PC set to $" << std::uppercase << std::hex
-                      << std::setw(4) << std::setfill('0') << int(addr) << "\n";
+
+            std::ostringstream out;
+            out << "PC set to $"
+                << std::uppercase
+                << std::hex
+                << std::setw(4)
+                << std::setfill('0')
+                << int(addr)
+                << "\n";
+
+            std::cout << out.str();
         }
         catch (...)
         {
