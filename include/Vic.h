@@ -473,6 +473,7 @@ class Vic
         {
             Color,
             Control,
+            RasterIRQTarget,
             Control2,
             MemoryPointer,
             SpritePriority,

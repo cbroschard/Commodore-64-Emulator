@@ -1061,15 +1061,19 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.control;
 
+            const uint8_t oldRasterHigh = static_cast<uint8_t>((registers.rasterInterruptLine >> 8) & 0x01);
+
             registers.control = value & 0x7F;
 
             recordRasterEventLog(RasterEventKind::Control, 0xD011, oldValue, registers.control);
 
-            const uint16_t newLine =
-                static_cast<uint16_t>(
-                    (registers.rasterInterruptLine & 0x00FF) |
-                    (static_cast<uint16_t>(value & 0x80) << 1)
-                );
+            const uint8_t newRasterHigh = static_cast<uint8_t>((value >> 7) & 0x01);
+
+            if (oldRasterHigh != newRasterHigh)
+                recordRasterEventLog(RasterEventKind::RasterIRQTarget, 0xD011, oldRasterHigh, newRasterHigh);
+
+            const uint16_t newLine = static_cast<uint16_t>((registers.rasterInterruptLine & 0x00FF) |
+                (static_cast<uint16_t>(value & 0x80) << 1));
 
             setRasterIRQTarget(newLine, "D011", value);
 
@@ -1084,16 +1088,13 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         case 0xD012:
         {
-            const uint8_t oldLow =
-                static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
+            const uint8_t oldLow = static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
 
-            const uint16_t newLine =
-                static_cast<uint16_t>(
-                    (registers.rasterInterruptLine & 0x0100) |
-                    static_cast<uint16_t>(value)
-                );
+            const uint16_t newLine = static_cast<uint16_t>((registers.rasterInterruptLine & 0x0100) |static_cast<uint16_t>(value));
 
             setRasterIRQTarget(newLine, "D012", value);
+
+            recordRasterEventLog(RasterEventKind::RasterIRQTarget, 0xD012, oldLow, value);
 
             traceVicRegWrite(address, oldLow, value);
             break;

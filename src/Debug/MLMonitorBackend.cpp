@@ -216,6 +216,7 @@ static const char* vicRasterEventKindName(Vic::RasterEventKind kind)
     {
         case Vic::RasterEventKind::Color:             return "Color";
         case Vic::RasterEventKind::Control:           return "Control $D011";
+        case Vic::RasterEventKind::RasterIRQTarget:   return "Raster IRQ $D012";
         case Vic::RasterEventKind::Control2:          return "Control2 $D016";
         case Vic::RasterEventKind::MemoryPointer:     return "Memory ptr $D018";
         case Vic::RasterEventKind::SpritePriority:    return "Sprite priority";
@@ -261,6 +262,20 @@ static std::string vicRasterEventDetail(const Vic::RasterEventRecord& e)
                 << " DEN " << ((oldVal & 0x10) ? 1 : 0) << "->" << ((newVal & 0x10) ? 1 : 0)
                 << " BMM " << ((oldVal & 0x20) ? 1 : 0) << "->" << ((newVal & 0x20) ? 1 : 0)
                 << " ECM " << ((oldVal & 0x40) ? 1 : 0) << "->" << ((newVal & 0x40) ? 1 : 0);
+
+            return out.str();
+        }
+
+        case Vic::RasterEventKind::RasterIRQTarget:
+        {
+            out << "$D012 raster IRQ target low byte $"
+                << std::hex << std::uppercase
+                << std::setw(2) << std::setfill('0')
+                << static_cast<int>(e.oldValue)
+                << "->$"
+                << std::setw(2)
+                << static_cast<int>(e.newValue)
+                << std::dec << std::nouppercase << std::setfill(' ');
 
             return out.str();
         }
@@ -804,6 +819,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
 
         int color = 0;
         int control = 0;
+        int rasterIrqTarget = 0;
         int control2 = 0;
         int memoryPointer = 0;
         int priority = 0;
@@ -822,6 +838,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
             {
                 case Vic::RasterEventKind::Color:            ++color; break;
                 case Vic::RasterEventKind::Control:          ++control; break;
+                case Vic::RasterEventKind::RasterIRQTarget:  ++rasterIrqTarget; break;
                 case Vic::RasterEventKind::Control2:         ++control2; break;
                 case Vic::RasterEventKind::MemoryPointer:    ++memoryPointer; break;
                 case Vic::RasterEventKind::SpritePriority:   ++priority; break;
