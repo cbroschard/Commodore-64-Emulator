@@ -44,6 +44,7 @@ Subcommands:
   addr                      Show last indirect addressing details
   branch                    Show last branch timing details
   busarb [status|on|off]    Show or change CPU/VIC bus arbitration
+  cycle                     Step one cycle
   cycles                    Show CPU cycle counters and timing state
   intr                      Show last BRK/IRQ/NMI entry details
   irq                       Show IRQ/NMI timing state
@@ -148,6 +149,15 @@ void CPUCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << help();
             return;
         }
+    }
+    else if (sub == "cycle")
+    {
+        mon.mlmonitorbackend()->cpuStepCycle();
+
+        std::cout << mon.mlmonitorbackend()->cpuCycleStatus();
+        std::cout << mon.mlmonitorbackend()->cpuMicroOpStatus();
+
+        return;
     }
     else if (sub == "cycles")
     {

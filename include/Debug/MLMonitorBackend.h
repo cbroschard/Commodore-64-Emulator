@@ -77,6 +77,7 @@ class MLMonitorBackend
         void warmReset();
 
         // ML Monitor CPU Methods
+        inline void cpuStepCycle() { comp->tickCycle(); }
         inline CPUState getCPUState() const { return cpu ? cpu->getState() : CPUState{}; }
         inline uint8_t cpuGetSR() { return cpu->getSR(); }
         inline std::string getJamMode() const { return cpu ? jamModeToString() : "CPU not attached\n"; }
