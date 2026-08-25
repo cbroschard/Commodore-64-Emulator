@@ -70,17 +70,33 @@ void BreakpointCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
     }
 
     // Convenience: "bp <addr>" means "bp set <addr>"
-    if (args.size() == 2 && args[1] != "set" && args[1] != "list" && args[1] != "clear")
+    if (args.size() == 2 &&
+        args[1] != "set" &&
+        args[1] != "list" &&
+        args[1] != "clear")
     {
-        try {
-            uint16_t address = parseAddress(args[1]);
+        try
+        {
+            const uint16_t address = parseAddress(args[1]);
+
             mon.addBreakpoint(address);
-            std::cout << "Breakpoint set at $"
-                      << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-                      << address << std::dec << "\n";
-        } catch (...) {
+
+            std::ostringstream out;
+            out << "Breakpoint set at $"
+                << std::uppercase
+                << std::hex
+                << std::setw(4)
+                << std::setfill('0')
+                << address
+                << "\n";
+
+            std::cout << out.str();
+        }
+        catch (...)
+        {
             std::cout << "Error: invalid address.\n" << help();
         }
+
         return;
     }
 
@@ -88,21 +104,44 @@ void BreakpointCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
 
     if (sub == "set")
     {
-        if (args.size() < 3) { std::cout << "Usage: bp set <address>\n"; return; }
-        try {
-            uint16_t address = parseAddress(args[2]);
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: bp set <address>\n";
+            return;
+        }
+
+        try
+        {
+            const uint16_t address = parseAddress(args[2]);
+
             mon.addBreakpoint(address);
-            std::cout << "Breakpoint set at $"
-                      << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-                      << address << std::dec << "\n";
-        } catch (...) {
+
+            std::ostringstream out;
+            out << "Breakpoint set at $"
+                << std::uppercase
+                << std::hex
+                << std::setw(4)
+                << std::setfill('0')
+                << address
+                << "\n";
+
+            std::cout << out.str();
+        }
+        catch (...)
+        {
             std::cout << "Error: invalid address.\n";
         }
     }
     else if (sub == "clear")
     {
-        // Forms: bp clear <address>  |  bp clear all
-        if (args.size() < 3) { std::cout << "Usage: bp clear <address>|all\n"; return; }
+        // Forms:
+        // bp clear <address>
+        // bp clear all
+        if (args.size() < 3)
+        {
+            std::cout << "Usage: bp clear <address>|all\n";
+            return;
+        }
 
         if (args[2] == "all")
         {
@@ -111,13 +150,25 @@ void BreakpointCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
             return;
         }
 
-        try {
-            uint16_t addr = parseAddress(args[2]);
-            mon.clearBreakpoint(addr);
-            std::cout << "Breakpoint cleared at $"
-                      << std::uppercase << std::hex << std::setw(4) << std::setfill('0')
-                      << addr << std::dec << "\n";
-        } catch (...) {
+        try
+        {
+            const uint16_t address = parseAddress(args[2]);
+
+            mon.clearBreakpoint(address);
+
+            std::ostringstream out;
+            out << "Breakpoint cleared at $"
+                << std::uppercase
+                << std::hex
+                << std::setw(4)
+                << std::setfill('0')
+                << address
+                << "\n";
+
+            std::cout << out.str();
+        }
+        catch (...)
+        {
             std::cout << "Error: invalid address.\n";
         }
     }
@@ -128,6 +179,7 @@ void BreakpointCommand::execute(MLMonitor& mon, const std::vector<std::string>& 
             std::cout << "No active breakpoints.\n";
             return;
         }
+
         std::cout << "Active breakpoints:\n";
         mon.listBreakpoints();
     }
