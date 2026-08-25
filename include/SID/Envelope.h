@@ -67,8 +67,6 @@ class Envelope
         // ML Monitor
         std::string dumpDebug() const;
 
-    protected:
-
     private:
         double sidClockFrequency;
 
