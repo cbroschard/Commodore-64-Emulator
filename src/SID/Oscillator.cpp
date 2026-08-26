@@ -388,8 +388,10 @@ void Oscillator::clock(double sidCycles)
 
     if (control & 0x08)
     {
-        resetPhase();
-        noiseLFSR = 0x7FFFFF;
+        accumulator24 = 0;
+        phase = 0.0;
+        phaseOverflow = false;
+        msbRising = false;
         return;
     }
 
