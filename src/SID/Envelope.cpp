@@ -46,22 +46,24 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
-    nextState = State::Attack;
-    statePipeline = 1;
-
-    holdZero = false;
-
     if (envelopePipeline > 0)
         envelopeStepPendingAcrossStateChange = true;
+
+    nextState = State::Attack;
+    statePipeline = 2;
 }
 
 void Envelope::release()
 {
-    nextState = State::Release;
-    statePipeline = 1;
-
     if (envelopePipeline > 0)
         envelopeStepPendingAcrossStateChange = true;
+
+    nextState = State::Release;
+
+    if (state == State::Attack)
+        statePipeline = 2;
+    else
+        statePipeline = 1;
 }
 
 void Envelope::reset()
@@ -85,6 +87,8 @@ void Envelope::reset()
     resetRateCounter    = false;
 
     holdZero            = true;
+
+    envelopeStepPendingAcrossStateChange = false;
 }
 
 void Envelope::setSIDClockFrequency(double frequency)
@@ -139,26 +143,36 @@ void Envelope::clock(double sidCycles)
         {
             --statePipeline;
 
-            if (statePipeline == 0)
+            switch (nextState)
             {
-                state = nextState;
-
-                switch (state)
+                case State::Attack:
                 {
-                    case State::Attack:
+                    if (statePipeline == 0)
+                    {
+                        state = State::Attack;
                         ratePeriod = getRatePeriod(attackRate);
-                        break;
+                        holdZero = false;
+                    }
 
-                    case State::Decay:
-                    case State::Sustain:
-                        ratePeriod = getRatePeriod(decayRate);
-                        break;
-
-                    case State::Release:
-                    case State::Idle:
-                        ratePeriod = getRatePeriod(releaseRate);
-                        break;
+                    break;
                 }
+
+                case State::Release:
+                {
+                    if ((state == State::Attack && statePipeline == 0) ||
+                        ((state == State::Decay ||
+                          state == State::Sustain) &&
+                         statePipeline == 0))
+                    {
+                        state = State::Release;
+                        ratePeriod = getRatePeriod(releaseRate);
+                    }
+
+                    break;
+                }
+
+                default:
+                    break;
             }
         }
 
@@ -212,6 +226,21 @@ void Envelope::clock(double sidCycles)
                 }
 
                 case State::Sustain:
+                {
+                    //
+                    // Sustain is not really a separate stopped state in the SID.
+                    // If the sustain register changes so that the current envelope
+                    // value no longer matches it, decay resumes.
+                    //
+                    if (envCounter != sustainCounter)
+                    {
+                        state = State::Decay;
+                        nextState = State::Decay;
+                    }
+
+                    break;
+                }
+
                 case State::Idle:
                     break;
             }
@@ -237,12 +266,6 @@ void Envelope::clock(double sidCycles)
                 break;
         }
 
-        //
-        // SID ADSR rate counter is 15-bit.
-        //
-        rateCounter =
-            static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
-
         if (rateCounter != ratePeriod)
         {
             ++rateCounter;
@@ -254,85 +277,6 @@ void Envelope::clock(double sidCycles)
         }
         else
             resetRateCounter = true;
-
-        switch (state)
-        {
-            case State::Idle:
-            {
-                break;
-            }
-
-            case State::Attack:
-            {
-                if (envelopePipeline == 0)
-                    envelopePipeline = 1;
-
-                break;
-            }
-
-            case State::Decay:
-            {
-                //
-                // Don't start another exponential operation while
-                // one is already travelling through the pipeline.
-                //
-                if (exponentialPipeline == 0 &&
-                    envelopePipeline == 0)
-                {
-                    ++exponentialCounter;
-
-                    if (exponentialCounter >= exponentialPeriod)
-                    {
-                        exponentialCounter = 0;
-                        exponentialPipeline = 1;
-                    }
-                }
-
-                break;
-            }
-
-            case State::Sustain:
-            {
-                //
-                // Hold the current envelope level for now.
-                //
-                // Dynamic sustain-level behavior is another accuracy
-                // refinement we should handle separately.
-                //
-                break;
-            }
-
-            case State::Release:
-            {
-                if (envCounter == 0)
-                {
-                    holdZero = true;
-                    state = State::Idle;
-                    nextState = State::Idle;
-
-                    exponentialCounter = 0;
-                    exponentialPeriod = 1;
-                    exponentialPipeline = 0;
-                    envelopePipeline = 0;
-
-                    break;
-                }
-
-                if (exponentialPipeline == 0 &&
-                    envelopePipeline == 0)
-                {
-                    ++exponentialCounter;
-
-                    if (exponentialCounter >= exponentialPeriod)
-                    {
-                        exponentialCounter = 0;
-                        exponentialPipeline = 1;
-                    }
-                }
-
-                break;
-            }
-        }
     }
 
     syncLevelFromCounter();
@@ -461,7 +405,13 @@ void Envelope::stepDecayRelease()
 
     if (state == State::Decay)
     {
-        if (envCounter <= sustainCounter)
+        //
+        // Decay/sustain is equality based on the SID.
+        //
+        // When the envelope counter exactly matches the selected
+        // sustain level, decay stops.
+        //
+        if (envCounter == sustainCounter)
         {
             state = State::Sustain;
             nextState = State::Sustain;
@@ -475,9 +425,8 @@ void Envelope::stepDecayRelease()
 
         updateExponentialPeriod();
 
-        if (envCounter <= sustainCounter)
+        if (envCounter == sustainCounter)
         {
-            envCounter = sustainCounter;
             state = State::Sustain;
             nextState = State::Sustain;
         }
