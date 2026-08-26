@@ -21,7 +21,6 @@ class Envelope
         // Define the different states for the envelope.
         enum class State
         {
-            Idle,
             Attack,
             Decay,
             Sustain,

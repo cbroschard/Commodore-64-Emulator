@@ -127,7 +127,7 @@ double Envelope::processSample()
 
 bool Envelope::isIdle() const
 {
-    return state == State::Idle;
+    return state == State::Release && holdZero && envCounter == 0;
 }
 
 void Envelope::clock(double sidCycles)
@@ -242,10 +242,7 @@ void Envelope::clock(double sidCycles)
 
                     break;
                 }
-
-                case State::Idle:
-                    break;
-            }
+           }
         }
 
         //
@@ -263,7 +260,6 @@ void Envelope::clock(double sidCycles)
                 break;
 
             case State::Release:
-            case State::Idle:
                 ratePeriod = getRatePeriod(releaseRate);
                 break;
         }
@@ -323,7 +319,6 @@ void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t r
 std::string Envelope::stateToString(State s) {
     switch (s)
     {
-        case State::Idle:    return "Idle";
         case State::Attack:  return "Attack";
         case State::Decay:   return "Decay";
         case State::Sustain: return "Sustain";
