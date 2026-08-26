@@ -52,7 +52,6 @@ class Envelope
         inline uint16_t getRatePeriod() const { return ratePeriod; }
         inline bool getResetRateCounter() const { return resetRateCounter; }
         inline bool getHoldZero() const { return holdZero; }
-        inline bool getenvelopeStepPendingAcrossStateChange() const { return envelopeStepPendingAcrossStateChange; }
 
         uint8_t readOutput8() const;
 
@@ -75,7 +74,6 @@ class Envelope
         void setSIDClockFrequency(double frequency);
         void setLevel(double newLevel);
         void setEnvelopeCounter(uint8_t value);
-        void setenvelopeStepPendingAcrossStateChange(bool state) { envelopeStepPendingAcrossStateChange = state; }
 
         // Helpers
         static std::string stateToString(State s);
@@ -120,8 +118,6 @@ class Envelope
         bool resetRateCounter;
 
         bool holdZero;
-
-        bool envelopeStepPendingAcrossStateChange;
 
         // Helpers
         void syncLevelFromCounter();

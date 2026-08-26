@@ -36,8 +36,7 @@ Envelope::Envelope(double sampleRate) :
     rateCounter(0),
     ratePeriod(9),
     resetRateCounter(false),
-    holdZero(true),
-    envelopeStepPendingAcrossStateChange(false)
+    holdZero(true)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
 }
@@ -67,7 +66,6 @@ void Envelope::trigger()
 void Envelope::release()
 {
     nextState = State::Release;
-
     statePipeline = (envelopePipeline > 0) ? 3 : 2;
 }
 
@@ -433,27 +431,6 @@ void Envelope::stepDecayRelease()
 
 void Envelope::stepEnvelopeCounter()
 {
-    if (envelopeStepPendingAcrossStateChange)
-    {
-        envelopeStepPendingAcrossStateChange = false;
-
-        if (state == State::Attack)
-        {
-            envCounter = static_cast<uint8_t>(envCounter + 1);
-        }
-        else
-        {
-            envCounter = static_cast<uint8_t>(envCounter - 1);
-        }
-
-        updateExponentialPeriod();
-
-        if (envCounter == 0)
-            holdZero = true;
-
-        return;
-    }
-
     if (state == State::Attack)
     {
         envCounter =static_cast<uint8_t>(envCounter + 1);
@@ -524,7 +501,6 @@ std::string Envelope::dumpDebug() const
     out << "  Rate period:        " << ratePeriod << "\n";
     out << "  Rate reset pending:  " << (resetRateCounter ? "Y" : "N") << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
-    out << "  Boundary step:       " << (envelopeStepPendingAcrossStateChange ? "Y" : "N") << "\n";
 
     out << "  SID clock:          " << sidClockFrequency << " Hz\n";
     out << "  Sample rate:        " << sampleRate << " Hz\n";
