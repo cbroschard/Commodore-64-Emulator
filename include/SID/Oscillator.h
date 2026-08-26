@@ -90,6 +90,8 @@ class Oscillator
 
         bool msbRising;
 
+        uint32_t noiseShiftPipeline;
+
         uint32_t accumulator24;
         uint16_t frequencyReg;
 

@@ -35,6 +35,7 @@ Oscillator::Oscillator(double sampleRate) :
     phaseOverflow(false),
     control(0),
     msbRising(false),
+    noiseShiftPipeline(0),
     accumulator24(0),
     frequencyReg(0)
 {
@@ -261,6 +262,7 @@ void Oscillator::reset()
     accumulator24 = 0;
     noiseLFSR = 0x7FFFFF;
     phaseOverflow = false;
+    noiseShiftPipeline = 0;
 }
 
 uint16_t Oscillator::getAccumulatorSaw12() const
@@ -410,6 +412,16 @@ void Oscillator::clock(double sidCycles)
 
     for (uint32_t i = 0; i < fullCycles; ++i)
     {
+        if (noiseShiftPipeline > 0)
+        {
+            --noiseShiftPipeline;
+
+            if (noiseShiftPipeline == 0)
+            {
+                clockNoiseLFSR();
+            }
+        }
+
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
         const bool oldMSB = (oldAcc & 0x00800000) != 0;
         const bool oldBit19 = (oldAcc & 0x00080000) != 0;
@@ -426,7 +438,7 @@ void Oscillator::clock(double sidCycles)
             phaseOverflow = true;
 
         if (!oldBit19 && newBit19)
-            clockNoiseLFSR();
+            noiseShiftPipeline = 2;
     }
 
     if (fractionalCycles > 0.0)
