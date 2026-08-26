@@ -120,6 +120,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice1.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice1.getEnvelope().getRateCounter());
     wrtr.writeU16(voice1.getEnvelope().getRatePeriod());
+    wrtr.writeBool(voice1.getEnvelope().getResetRateCounter());
     wrtr.writeBool(voice1.getEnvelope().getHoldZero());
     wrtr.writeU8(voice1.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice1.getEnvelope().getEnvelopePipeline());
@@ -143,6 +144,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice2.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice2.getEnvelope().getRateCounter());
     wrtr.writeU16(voice2.getEnvelope().getRatePeriod());
+    wrtr.writeBool(voice2.getEnvelope().getResetRateCounter());
     wrtr.writeBool(voice2.getEnvelope().getHoldZero());
     wrtr.writeU8(voice2.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice2.getEnvelope().getEnvelopePipeline());
@@ -166,6 +168,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice3.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice3.getEnvelope().getRateCounter());
     wrtr.writeU16(voice3.getEnvelope().getRatePeriod());
+    wrtr.writeBool(voice3.getEnvelope().getResetRateCounter());
     wrtr.writeBool(voice3.getEnvelope().getHoldZero());
     wrtr.writeU8(voice3.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice3.getEnvelope().getEnvelopePipeline());
@@ -307,6 +310,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint16_t rateCounter = 0;
         uint16_t ratePeriod = 9;
+        bool resetRateCounter = false;
         bool holdZero = true;
         uint8_t exponentialPipeline = 0;
         uint8_t envelopePipeline = 0;
@@ -332,6 +336,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readU16(rateCounter))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(ratePeriod))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(resetRateCounter))                { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(holdZero))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(exponentialPipeline))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(envelopePipeline))                  { rdr.exitChunkPayload(chunk); return false; }
@@ -354,6 +359,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         v.getEnvelope().setExponentialPeriod(exponentialPeriod);
         v.getEnvelope().setRateCounter(rateCounter);
         v.getEnvelope().setRatePeriod(ratePeriod);
+        v.getEnvelope().setResetRateCounter(resetRateCounter);
         v.getEnvelope().setHoldZero(holdZero);
         v.getEnvelope().setExponentialPipeline(exponentialPipeline);
         v.getEnvelope().setEnvelopePipeline(envelopePipeline);

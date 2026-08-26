@@ -35,6 +35,7 @@ Envelope::Envelope(double sampleRate) :
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
+    resetRateCounter(false),
     holdZero(true)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
@@ -74,6 +75,7 @@ void Envelope::reset()
 
     rateCounter         = 0;
     ratePeriod          = 9;
+    resetRateCounter    = false;
 
     holdZero            = true;
 }
@@ -169,6 +171,45 @@ void Envelope::clock(double sidCycles)
                 envelopePipeline = 1;
         }
 
+        if (resetRateCounter)
+        {
+            rateCounter = 0;
+            resetRateCounter = false;
+
+            switch (state)
+            {
+                case State::Attack:
+                {
+                    // First attack envelope step is delayed through
+                    // the envelope counter pipeline.
+                    exponentialCounter = 0;
+
+                    if (envelopePipeline == 0)
+                        envelopePipeline = 2;
+
+                    break;
+                }
+
+                case State::Decay:
+                case State::Release:
+                {
+                    if (!holdZero)
+                    {
+                        ++exponentialCounter;
+
+                        if (exponentialCounter == exponentialPeriod)
+                            exponentialPipeline = (exponentialPeriod != 1) ? 2 : 1;
+                    }
+
+                    break;
+                }
+
+                case State::Sustain:
+                case State::Idle:
+                    break;
+            }
+        }
+
         //
         // Select the rate period for the currently active state.
         //
@@ -195,18 +236,17 @@ void Envelope::clock(double sidCycles)
         rateCounter =
             static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
 
-        //
-        // Equality is intentional.
-        //
-        // Do NOT change this to >=. If the ADSR period is changed
-        // to a value below the current counter, the counter must
-        // wrap before it can hit the new period. This produces the
-        // SID ADSR delay behavior.
-        //
         if (rateCounter != ratePeriod)
-            continue;
+        {
+            ++rateCounter;
 
-        rateCounter = 0;
+            // SID ADSR rate counter is 15-bit, but its wrap behavior
+            // has an intentional extra step.
+            if (rateCounter & 0x8000)
+                rateCounter =  static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+        }
+        else
+            resetRateCounter = true;
 
         switch (state)
         {
@@ -532,6 +572,7 @@ std::string Envelope::dumpDebug() const
     out << "  Next state:         "  << stateToString(nextState) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";
+    out << "  Rate reset pending:  " << (resetRateCounter ? "Y" : "N") << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
 
     out << "  SID clock:          " << sidClockFrequency << " Hz\n";
