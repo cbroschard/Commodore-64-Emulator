@@ -49,6 +49,7 @@ class Envelope
         inline uint8_t getExponentialPipeline() const { return exponentialPipeline; }
         inline uint16_t getRateCounter() const { return rateCounter; }
         inline uint16_t getRatePeriod() const { return ratePeriod; }
+        inline bool getHoldZero() const { return holdZero; }
 
         uint8_t readOutput8() const;
 
@@ -59,6 +60,7 @@ class Envelope
         inline void setState(Envelope::State value) { state = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
         inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
+        inline void setHoldZero(bool state) { holdZero = state; }
 
         void setSampleRate(double sample);
         void setParameters(double attack, double decay, double sustain, double release);
