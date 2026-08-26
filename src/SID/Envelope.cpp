@@ -193,7 +193,12 @@ void Envelope::clock(double sidCycles)
             --exponentialPipeline;
 
             if (exponentialPipeline == 0)
-                envelopePipeline = 1;
+            {
+                exponentialCounter = 0;
+
+                if ((state == State::DecaySustain && envCounter != sustainCounter) || state == State::Release)
+                    envelopePipeline = 1;
+            }
         }
 
         if (resetRateCounter)
