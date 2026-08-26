@@ -292,20 +292,40 @@ void Envelope::syncLevelFromCounter()
 
 void Envelope::updateExponentialPeriod()
 {
-    if (envCounter == 0x00)
-        exponentialPeriod = 1;
-    else if (envCounter <= 0x06)
-        exponentialPeriod = 30;
-    else if (envCounter <= 0x0E)
-        exponentialPeriod = 16;
-    else if (envCounter <= 0x1A)
-        exponentialPeriod = 8;
-    else if (envCounter <= 0x36)
-        exponentialPeriod = 4;
-    else if (envCounter <= 0x5D)
-        exponentialPeriod = 2;
-    else
-        exponentialPeriod = 1;
+    switch (envCounter)
+    {
+        case 0xFF:
+            exponentialPeriod = 1;
+            break;
+
+        case 0x5D:
+            exponentialPeriod = 2;
+            break;
+
+        case 0x36:
+            exponentialPeriod = 4;
+            break;
+
+        case 0x1A:
+            exponentialPeriod = 8;
+            break;
+
+        case 0x0E:
+            exponentialPeriod = 16;
+            break;
+
+        case 0x06:
+            exponentialPeriod = 30;
+            break;
+
+        case 0x00:
+            exponentialPeriod = 1;
+            break;
+
+        default:
+            // Important: retain the current period.
+            break;
+    }
 }
 
 uint16_t Envelope::getRatePeriod(uint8_t rate) const
