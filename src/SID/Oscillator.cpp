@@ -360,8 +360,25 @@ void Oscillator::updatePhase()
 
 void Oscillator::applyHardSync()
 {
-    if ((control & 0x02) && syncSource && syncSource->getMSBRising())
-        resetPhase();
+    if (!(control & 0x02))
+        return;
+
+    if (!syncSource)
+        return;
+
+    if (!syncSource->msbRising)
+        return;
+
+    // Special SID hard-sync case:
+    //
+    // If our sync source is itself being synchronized on this same
+    // cycle, its MSB rising edge does not propagate another sync.
+    const bool sourceIsBeingSynced = (syncSource->control & 0x02) && syncSource->syncSource && syncSource->syncSource->msbRising;
+
+    if (sourceIsBeingSynced)
+        return;
+
+    resetPhase();
 }
 
 void Oscillator::clock(double sidCycles)
