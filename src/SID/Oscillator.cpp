@@ -292,7 +292,7 @@ uint16_t Oscillator::getAccumulatorPulse12() const
     const uint32_t pw24 =
         static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
 
-    return ((accumulator24 & 0x00FFFFFF) < pw24) ? 0x0FFF : 0x0000;
+    return ((accumulator24 & 0x00FFFFFF) >= pw24) ? 0x0FFF : 0x0000;
 }
 
 uint8_t Oscillator::getNoiseOutput8() const
