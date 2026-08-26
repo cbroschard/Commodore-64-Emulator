@@ -70,8 +70,6 @@ class Oscillator
         double getAccumulatorPhase() const;
         std::string dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const;
 
-    protected:
-
     private:
 
         Oscillator* syncSource = nullptr;

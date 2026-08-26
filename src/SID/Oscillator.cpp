@@ -375,55 +375,52 @@ void Oscillator::clock(double sidCycles)
 
     phaseOverflow = false;
 
-    const uint32_t fullCycles =
-        static_cast<uint32_t>(std::floor(sidCycles));
+    const uint32_t fullCycles = static_cast<uint32_t>(std::floor(sidCycles));
 
-    const double fractionalCycles =
-        sidCycles - static_cast<double>(fullCycles);
+    const double fractionalCycles = sidCycles - static_cast<double>(fullCycles);
 
     for (uint32_t i = 0; i < fullCycles; ++i)
     {
         if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
-        {
             resetPhase();
-        }
 
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
+
+        const bool oldBit19 = (oldAcc & 0x00080000) != 0;
+
         accumulator24 = (accumulator24 + frequencyReg) & 0x00FFFFFF;
+
+        const bool newBit19 = (accumulator24 & 0x00080000) != 0;
 
         const bool overflow = accumulator24 < oldAcc;
 
         if (overflow)
-        {
             phaseOverflow = true;
 
-            if (control & 0x80)
-                clockNoiseLFSR();
-        }
+        if (!oldBit19 && newBit19)
+            clockNoiseLFSR();
     }
 
     if (fractionalCycles > 0.0)
     {
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
 
-        const double next =
-            static_cast<double>(oldAcc) +
-            (static_cast<double>(frequencyReg) * fractionalCycles);
+        const bool oldBit19 = (oldAcc & 0x00080000) != 0;
 
-        accumulator24 =
-            static_cast<uint32_t>(std::fmod(next, 16777216.0)) & 0x00FFFFFF;
+        const double next = static_cast<double>(oldAcc) + (static_cast<double>(frequencyReg) * fractionalCycles);
+
+        accumulator24 = static_cast<uint32_t>(std::fmod(next, 16777216.0)) & 0x00FFFFFF;
+
+        const bool newBit19 = (accumulator24 & 0x00080000) != 0;
 
         if (accumulator24 < oldAcc)
-        {
             phaseOverflow = true;
 
-            if (control & 0x80)
-                clockNoiseLFSR();
-        }
+        if (!oldBit19 && newBit19)
+            clockNoiseLFSR();
     }
 
-    phase =
-        static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
+    phase = static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
 double Oscillator::outputSample()
