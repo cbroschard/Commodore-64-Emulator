@@ -299,23 +299,29 @@ uint8_t Oscillator::getNoiseOutput8() const
 {
     // SID noise output uses selected LFSR bits:
     // output bits from LFSR bits 20, 18, 14, 11, 9, 5, 2, 0.
-    return
-        static_cast<uint8_t>((((noiseLFSR >> 20) & 1) << 7) |
-                             (((noiseLFSR >> 18) & 1) << 6) |
-                             (((noiseLFSR >> 14) & 1) << 5) |
-                             (((noiseLFSR >> 11) & 1) << 4) |
-                             (((noiseLFSR >>  9) & 1) << 3) |
-                             (((noiseLFSR >>  5) & 1) << 2) |
-                             (((noiseLFSR >>  2) & 1) << 1) |
-                             (((noiseLFSR >>  0) & 1) << 0));
+    return static_cast<uint8_t>(
+        (((noiseLFSR >> 20) & 1) << 7) |
+        (((noiseLFSR >> 18) & 1) << 6) |
+        (((noiseLFSR >> 14) & 1) << 5) |
+        (((noiseLFSR >> 11) & 1) << 4) |
+        (((noiseLFSR >>  9) & 1) << 3) |
+        (((noiseLFSR >>  5) & 1) << 2) |
+        (((noiseLFSR >>  2) & 1) << 1) |
+        (((noiseLFSR >>  0) & 1) << 0));
 }
 
 uint16_t Oscillator::getNoiseOutput12() const
 {
-    const uint8_t noise8 = getNoiseOutput8();
-
-    // Expand 8-bit SID noise output into the existing 12-bit waveform DAC path.
-    return static_cast<uint16_t>((noise8 << 4) | (noise8 >> 4));
+    return static_cast<uint16_t>(
+        (((noiseLFSR >> 20) & 1) << 11) |
+        (((noiseLFSR >> 18) & 1) << 10) |
+        (((noiseLFSR >> 14) & 1) <<  9) |
+        (((noiseLFSR >> 11) & 1) <<  8) |
+        (((noiseLFSR >>  9) & 1) <<  7) |
+        (((noiseLFSR >>  5) & 1) <<  6) |
+        (((noiseLFSR >>  2) & 1) <<  5) |
+        (((noiseLFSR >>  0) & 1) <<  4)
+    );
 }
 
 uint16_t Oscillator::getNoiseOutputBits() const
