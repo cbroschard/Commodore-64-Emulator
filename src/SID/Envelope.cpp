@@ -26,15 +26,12 @@ Envelope::Envelope(double sampleRate) :
     sustainRate(0),
     releaseRate(0),
     envCounter(0),
-    stepAccumulator(0.0),
-    attackStepCycles(1.0),
-    decayStepCycles(1.0),
-    releaseStepCycles(1.0),
     exponentialCounter(0),
     exponentialPeriod(1),
     sustainCounter(0),
     rateCounter(0),
-    ratePeriod(9)
+    ratePeriod(9),
+    holdZero(true)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
 }
@@ -44,7 +41,9 @@ Envelope::~Envelope() = default;
 void Envelope::trigger()
 {
     state               = State::Attack;
-    stepAccumulator     = 0.0;
+
+    holdZero            = false;
+
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
 }
@@ -52,7 +51,6 @@ void Envelope::trigger()
 void Envelope::release()
 {
     state               = State::Release;
-    stepAccumulator     = 0.0;
     exponentialCounter  = 0;
     updateExponentialPeriod();
 }
@@ -64,13 +62,13 @@ void Envelope::reset()
 
     envCounter          = 0;
 
-    stepAccumulator     = 0.0;
-
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
 
     rateCounter         = 0;
     ratePeriod          = 9;
+
+    holdZero            = true;
 }
 
 void Envelope::setSIDClockFrequency(double frequency)
@@ -167,25 +165,19 @@ void Envelope::clock(double sidCycles)
 
             case State::Decay:
             {
-                if (envCounter <= sustainCounter)
-                {
-                    envCounter = sustainCounter;
-                    state = State::Sustain;
-
-                    exponentialCounter = 0;
-                    updateExponentialPeriod();
-                    break;
-                }
-
                 ++exponentialCounter;
 
                 if (exponentialCounter >= exponentialPeriod)
                 {
                     exponentialCounter = 0;
 
-                    if (envCounter > sustainCounter)
+                    if (!holdZero && envCounter > sustainCounter)
                     {
                         --envCounter;
+
+                        if (envCounter == 0)
+                            holdZero = true;
+
                         updateExponentialPeriod();
 
                         if (envCounter <= sustainCounter)
@@ -212,6 +204,7 @@ void Envelope::clock(double sidCycles)
             {
                 if (envCounter == 0)
                 {
+                    holdZero = true;
                     state = State::Idle;
                     exponentialCounter = 0;
                     exponentialPeriod = 1;
@@ -224,9 +217,13 @@ void Envelope::clock(double sidCycles)
                 {
                     exponentialCounter = 0;
 
-                    if (envCounter > 0)
+                    if (!holdZero && envCounter > 0)
                     {
                         --envCounter;
+
+                        if (envCounter == 0)
+                            holdZero = true;
+
                         updateExponentialPeriod();
 
                         if (envCounter == 0)
@@ -264,12 +261,6 @@ void Envelope::setParameters(double attack, double decay, double sustain, double
     releaseTime = release;
 
     sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
-
-    // Convert ADSR times into SID-cycle intervals per 8-bit envelope step.
-    // This keeps timing tied to the SID clock instead of directly to audio sample count.
-    attackStepCycles  = std::max(1.0, (attackTime  * sidClockFrequency) / 255.0);
-    decayStepCycles   = std::max(1.0, (decayTime   * sidClockFrequency) / 255.0);
-    releaseStepCycles = std::max(1.0, (releaseTime * sidClockFrequency) / 255.0);
 }
 
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
@@ -279,22 +270,13 @@ void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t r
     sustainRate = sustain & 0x0F;
     releaseRate = release & 0x0F;
 
-    sustainLevel =
-        static_cast<double>(sustainRate) / 15.0;
+    sustainLevel = static_cast<double>(sustainRate) / 15.0;
 
     sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
 
     attackTime  = SID_ATTACK_S[attackRate];
     decayTime   = SID_DECAY_RELEASE_S[decayRate];
     releaseTime = SID_DECAY_RELEASE_S[releaseRate];
-
-    // SID envelope rates are measured in SID clock cycles.
-    // Do not compensate these periods for PAL/NTSC clock frequency.
-    attackStepCycles = std::max(1.0, SID_ATTACK_STEP_CYCLES_NTSC[attackRate]);
-
-    decayStepCycles = std::max(1.0, SID_DECAY_RELEASE_STEP_CYCLES_NTSC[decayRate]);
-
-    releaseStepCycles = std::max(1.0, SID_DECAY_RELEASE_STEP_CYCLES_NTSC[releaseRate]);
 }
 
 std::string Envelope::stateToString(State s) {
@@ -394,12 +376,11 @@ std::string Envelope::dumpDebug() const
         << " (" << static_cast<int>(sustainCounter) << "/255)\n";
 
     out << std::fixed << std::setprecision(3);
-    out << "  Step accumulator:   " << stepAccumulator << "\n";
     out << "  Exponential count:  " << exponentialCounter << "\n";
     out << "  Exponential period: " << exponentialPeriod << "\n";
-    out << "  Attack step cycles: " << attackStepCycles << "\n";
-    out << "  Decay step cycles:  " << decayStepCycles << "\n";
-    out << "  Release step cycles:" << releaseStepCycles << "\n";
+    out << "  Rate counter:       " << rateCounter << "\n";
+    out << "  Rate period:        " << ratePeriod << "\n";
+    out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
 
     out << "  SID clock:          " << sidClockFrequency << " Hz\n";
     out << "  Sample rate:        " << sampleRate << " Hz\n";

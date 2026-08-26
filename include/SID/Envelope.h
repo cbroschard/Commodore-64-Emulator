@@ -46,17 +46,23 @@ class Envelope
         inline uint8_t getReleaseRate() const { return releaseRate; }
         inline uint32_t getExponentialCounter() const { return exponentialCounter; }
         inline uint32_t getExponentialPeriod() const { return exponentialPeriod; }
+        inline uint16_t getRateCounter() const { return rateCounter; }
+        inline uint16_t getRatePeriod() const { return ratePeriod; }
+
         uint8_t readOutput8() const;
 
         // Setters
         inline void setExponentialCounter(uint32_t value) { exponentialCounter = value; }
         inline void setExponentialPeriod(uint32_t value) { exponentialPeriod = std::max<uint32_t>(1, value); }
-        void setSIDClockFrequency(double frequency);
-        void setLevel(double newLevel);
         inline void setState(Envelope::State value) { state = value; }
+        inline void setRateCounter(uint16_t value) { rateCounter = value; }
+        inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
+
         void setSampleRate(double sample);
         void setParameters(double attack, double decay, double sustain, double release);
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
+        void setSIDClockFrequency(double frequency);
+        void setLevel(double newLevel);
 
         // Helpers
         static std::string stateToString(State s);
@@ -86,11 +92,6 @@ class Envelope
         uint8_t releaseRate;
 
         uint8_t envCounter;
-        double stepAccumulator;
-
-        double attackStepCycles;
-        double decayStepCycles;
-        double releaseStepCycles;
 
         uint32_t exponentialCounter;
         uint32_t exponentialPeriod;
@@ -99,6 +100,8 @@ class Envelope
 
         uint16_t rateCounter;
         uint16_t ratePeriod;
+
+        bool holdZero;
 
         // Helpers
         void syncLevelFromCounter();
