@@ -32,7 +32,9 @@ Envelope::Envelope(double sampleRate) :
     releaseStepCycles(1.0),
     exponentialCounter(0),
     exponentialPeriod(1),
-    sustainCounter(0)
+    sustainCounter(0),
+    rateCounter(0),
+    ratePeriod(0)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
 }
@@ -344,6 +346,31 @@ void Envelope::updateExponentialPeriod()
         exponentialPeriod = 2;
     else
         exponentialPeriod = 1;
+}
+
+uint16_t Envelope::getRatePeriod(uint8_t rate) const
+{
+    static constexpr uint16_t periods[16] =
+    {
+        9,
+        32,
+        63,
+        95,
+        149,
+        220,
+        267,
+        313,
+        392,
+        977,
+        1954,
+        3126,
+        3907,
+        11720,
+        19532,
+        31251
+    };
+
+    return periods[rate & 0x0F];
 }
 
 std::string Envelope::dumpDebug() const

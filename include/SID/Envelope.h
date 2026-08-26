@@ -97,9 +97,13 @@ class Envelope
 
         uint8_t sustainCounter;
 
+        uint16_t rateCounter;
+        uint16_t ratePeriod;
+
         // Helpers
         void syncLevelFromCounter();
         void updateExponentialPeriod();
+        uint16_t getRatePeriod(uint8_t rate) const;
 };
 
 #endif // ENVELOPE_H
