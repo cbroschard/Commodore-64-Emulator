@@ -46,6 +46,7 @@ class Envelope
         inline uint8_t getReleaseRate() const { return releaseRate; }
         inline uint32_t getExponentialCounter() const { return exponentialCounter; }
         inline uint32_t getExponentialPeriod() const { return exponentialPeriod; }
+        inline uint8_t getExponentialPipeline() const { return exponentialPipeline; }
         inline uint16_t getRateCounter() const { return rateCounter; }
         inline uint16_t getRatePeriod() const { return ratePeriod; }
 
@@ -54,6 +55,7 @@ class Envelope
         // Setters
         inline void setExponentialCounter(uint32_t value) { exponentialCounter = value; }
         inline void setExponentialPeriod(uint32_t value) { exponentialPeriod = std::max<uint32_t>(1, value); }
+        inline void setExponentialPipeline(uint8_t value) { exponentialPipeline = value; }
         inline void setState(Envelope::State value) { state = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
         inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
@@ -95,6 +97,7 @@ class Envelope
 
         uint32_t exponentialCounter;
         uint32_t exponentialPeriod;
+        uint8_t exponentialPipeline;
 
         uint8_t sustainCounter;
 
@@ -107,6 +110,7 @@ class Envelope
         void syncLevelFromCounter();
         void updateExponentialPeriod();
         uint16_t getRatePeriod(uint8_t rate) const;
+        void stepDecayRelease();
 };
 
 #endif // ENVELOPE_H

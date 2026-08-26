@@ -28,6 +28,7 @@ Envelope::Envelope(double sampleRate) :
     envCounter(0),
     exponentialCounter(0),
     exponentialPeriod(1),
+    exponentialPipeline(0),
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
@@ -60,6 +61,7 @@ void Envelope::reset()
 
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
+    exponentialPipeline = 0;
 
     rateCounter         = 0;
     ratePeriod          = 9;
@@ -109,6 +111,14 @@ void Envelope::clock(double sidCycles)
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
+        if (exponentialPipeline > 0)
+        {
+            --exponentialPipeline;
+
+            if (exponentialPipeline == 0)
+                stepDecayRelease();
+        }
+
         switch (state)
         {
             case State::Attack:
@@ -161,29 +171,14 @@ void Envelope::clock(double sidCycles)
 
             case State::Decay:
             {
-                ++exponentialCounter;
-
-                if (exponentialCounter >= exponentialPeriod)
+                if (exponentialPipeline == 0)
                 {
-                    exponentialCounter = 0;
+                    ++exponentialCounter;
 
-                    if (!holdZero && envCounter > sustainCounter)
+                    if (exponentialCounter >= exponentialPeriod)
                     {
-                        --envCounter;
-
-                        if (envCounter == 0)
-                            holdZero = true;
-
-                        updateExponentialPeriod();
-
-                        if (envCounter <= sustainCounter)
-                        {
-                            envCounter = sustainCounter;
-                            state = State::Sustain;
-
-                            exponentialCounter = 0;
-                            updateExponentialPeriod();
-                        }
+                        exponentialCounter = 0;
+                        exponentialPipeline = 1;
                     }
                 }
 
@@ -204,28 +199,18 @@ void Envelope::clock(double sidCycles)
                     state = State::Idle;
                     exponentialCounter = 0;
                     exponentialPeriod = 1;
+                    exponentialPipeline = 0;
                     break;
                 }
 
-                ++exponentialCounter;
-
-                if (exponentialCounter >= exponentialPeriod)
+                if (exponentialPipeline == 0)
                 {
-                    exponentialCounter = 0;
+                    ++exponentialCounter;
 
-                    if (!holdZero && envCounter > 0)
+                    if (exponentialCounter >= exponentialPeriod)
                     {
-                        --envCounter;
-
-                        if (envCounter == 0)
-                            holdZero = true;
-
-                        if (envCounter == 0)
-                        {
-                            state = State::Idle;
-                            exponentialCounter = 0;
-                            exponentialPeriod = 1;
-                        }
+                        exponentialCounter = 0;
+                        exponentialPipeline = 1;
                     }
                 }
 
@@ -353,6 +338,56 @@ uint16_t Envelope::getRatePeriod(uint8_t rate) const
     return periods[rate & 0x0F];
 }
 
+void Envelope::stepDecayRelease()
+{
+    if (holdZero)
+        return;
+
+    if (state == State::Decay)
+    {
+        if (envCounter <= sustainCounter)
+        {
+            state = State::Sustain;
+            return;
+        }
+
+        --envCounter;
+
+        if (envCounter == 0)
+            holdZero = true;
+
+        updateExponentialPeriod();
+
+        if (envCounter <= sustainCounter)
+        {
+            envCounter = sustainCounter;
+            state = State::Sustain;
+        }
+
+        return;
+    }
+
+    if (state == State::Release)
+    {
+        if (envCounter == 0)
+        {
+            holdZero = true;
+            state = State::Idle;
+            return;
+        }
+
+        --envCounter;
+
+        if (envCounter == 0)
+        {
+            holdZero = true;
+            state = State::Idle;
+        }
+
+        updateExponentialPeriod();
+    }
+}
+
 std::string Envelope::dumpDebug() const
 {
     std::ostringstream out;
@@ -392,6 +427,7 @@ std::string Envelope::dumpDebug() const
     out << std::fixed << std::setprecision(3);
     out << "  Exponential count:  " << exponentialCounter << "\n";
     out << "  Exponential period: " << exponentialPeriod << "\n";
+    out << "  Exponential pipe:   " << static_cast<int>(exponentialPipeline) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
