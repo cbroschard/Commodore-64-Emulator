@@ -384,7 +384,7 @@ void Oscillator::clock(double sidCycles)
 
     for (uint32_t i = 0; i < fullCycles; ++i)
     {
-        if ((control & 0x02) && syncSource && syncSource->getPhaseOverflow())
+        if ((control & 0x02) && syncSource && syncSource->getMSBRising())
             resetPhase();
 
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
