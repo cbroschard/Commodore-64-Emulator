@@ -219,9 +219,11 @@ void Envelope::clock(double sidCycles)
                         ++exponentialCounter;
 
                         if (exponentialCounter == exponentialPeriod)
+                        {
+                            exponentialCounter = 0;
                             exponentialPipeline = (exponentialPeriod != 1) ? 2 : 1;
+                        }
                     }
-
                     break;
                 }
 
