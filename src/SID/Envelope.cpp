@@ -49,6 +49,11 @@ void Envelope::trigger()
     if (envelopePipeline > 0)
         envelopeStepPendingAcrossStateChange = true;
 
+    //
+    // Entering Attack flushes any pending exponential divider work.
+    //
+    exponentialPipeline = 0;
+
     nextState = State::Attack;
     statePipeline = 2;
 }
@@ -152,6 +157,8 @@ void Envelope::clock(double sidCycles)
                         state = State::Attack;
                         ratePeriod = getRatePeriod(attackRate);
                         holdZero = false;
+
+                        exponentialCounter = 0;
                     }
 
                     break;
