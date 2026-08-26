@@ -29,6 +29,7 @@ Envelope::Envelope(double sampleRate) :
     exponentialCounter(0),
     exponentialPeriod(1),
     exponentialPipeline(0),
+    envelopePipeline(0),
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
@@ -62,6 +63,8 @@ void Envelope::reset()
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
     exponentialPipeline = 0;
+
+    envelopePipeline    = 0;
 
     rateCounter         = 0;
     ratePeriod          = 9;

@@ -121,6 +121,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU16(voice1.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice1.getEnvelope().getHoldZero());
     wrtr.writeU8(voice1.getEnvelope().getExponentialPipeline());
+    wrtr.writeU8(voice1.getEnvelope().getEnvelopePipeline());
 
     // Dump Voice2 runtime status
     wrtr.writeF64(voice2.getOscillator().getPhase());
@@ -141,6 +142,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU16(voice2.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice2.getEnvelope().getHoldZero());
     wrtr.writeU8(voice2.getEnvelope().getExponentialPipeline());
+    wrtr.writeU8(voice2.getEnvelope().getEnvelopePipeline());
 
     // Dump Voice3 runtime state
     wrtr.writeF64(voice3.getOscillator().getPhase());
@@ -161,6 +163,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU16(voice3.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice3.getEnvelope().getHoldZero());
     wrtr.writeU8(voice3.getEnvelope().getExponentialPipeline());
+    wrtr.writeU8(voice3.getEnvelope().getEnvelopePipeline());
 
     // Dump Filter runtime state
     wrtr.writeF64(filterobj.getLowPassOut());
