@@ -46,16 +46,22 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
-    if (envelopePipeline > 0)
-        envelopeStepPendingAcrossStateChange = true;
-
-    //
-    // Entering Attack flushes any pending exponential divider work.
-    //
-    exponentialPipeline = 0;
-
     nextState = State::Attack;
+
+    //
+    // First cycle of gate-on briefly activates Decay/Sustain.
+    //
+    state = State::DecaySustain;
+    ratePeriod = getRatePeriod(decayRate);
+
     statePipeline = 2;
+
+    if (resetRateCounter || exponentialPipeline == 2)
+        envelopePipeline = (exponentialPeriod == 1 || exponentialPipeline == 2) ? 2 : 4;
+    else if (exponentialPipeline == 1)
+        statePipeline = 3;
+
+    exponentialPipeline = 0;
 }
 
 void Envelope::release()
@@ -64,11 +70,7 @@ void Envelope::release()
         envelopeStepPendingAcrossStateChange = true;
 
     nextState = State::Release;
-
-    if (state == State::Attack)
-        statePipeline = 2;
-    else
-        statePipeline = 1;
+    statePipeline = 2;
 }
 
 void Envelope::reset()
