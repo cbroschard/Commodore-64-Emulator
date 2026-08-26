@@ -159,10 +159,7 @@ void Envelope::clock(double sidCycles)
 
                 case State::Release:
                 {
-                    if ((state == State::Attack && statePipeline == 0) ||
-                        ((state == State::Decay ||
-                          state == State::Sustain) &&
-                         statePipeline == 0))
+                    if ((state == State::Attack && statePipeline == 0) || (state == State::DecaySustain && statePipeline == 0))
                     {
                         state = State::Release;
                         ratePeriod = getRatePeriod(releaseRate);
@@ -211,7 +208,7 @@ void Envelope::clock(double sidCycles)
                     break;
                 }
 
-                case State::Decay:
+                case State::DecaySustain:
                 case State::Release:
                 {
                     if (!holdZero)
@@ -226,22 +223,6 @@ void Envelope::clock(double sidCycles)
                     }
                     break;
                 }
-
-                case State::Sustain:
-                {
-                    //
-                    // Sustain is not really a separate stopped state in the SID.
-                    // If the sustain register changes so that the current envelope
-                    // value no longer matches it, decay resumes.
-                    //
-                    if (envCounter != sustainCounter)
-                    {
-                        state = State::Decay;
-                        nextState = State::Decay;
-                    }
-
-                    break;
-                }
            }
         }
 
@@ -254,8 +235,7 @@ void Envelope::clock(double sidCycles)
                 ratePeriod = getRatePeriod(attackRate);
                 break;
 
-            case State::Decay:
-            case State::Sustain:
+            case State::DecaySustain:
                 ratePeriod = getRatePeriod(decayRate);
                 break;
 
@@ -316,14 +296,20 @@ void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t r
     releaseTime = SID_DECAY_RELEASE_S[releaseRate];
 }
 
-std::string Envelope::stateToString(State s) {
+std::string Envelope::stateToString(State s)
+{
     switch (s)
     {
-        case State::Attack:  return "Attack";
-        case State::Decay:   return "Decay";
-        case State::Sustain: return "Sustain";
-        case State::Release: return "Release";
+        case State::Attack:
+            return "Attack";
+
+        case State::DecaySustain:
+            return "Decay/Sustain";
+
+        case State::Release:
+            return "Release";
     }
+
     return "Unknown";
 }
 
@@ -400,20 +386,14 @@ void Envelope::stepDecayRelease()
     if (holdZero)
         return;
 
-    if (state == State::Decay)
+    if (state == State::DecaySustain)
     {
         //
-        // Decay/sustain is equality based on the SID.
-        //
-        // When the envelope counter exactly matches the selected
-        // sustain level, decay stops.
+        // Sustain is simply the point where the envelope counter
+        // equals the selected sustain level.
         //
         if (envCounter == sustainCounter)
-        {
-            state = State::Sustain;
-            nextState = State::Sustain;
             return;
-        }
 
         envCounter = static_cast<uint8_t>(envCounter - 1);
 
@@ -421,13 +401,6 @@ void Envelope::stepDecayRelease()
             holdZero = true;
 
         updateExponentialPeriod();
-
-        if (envCounter == sustainCounter)
-        {
-            state = State::Sustain;
-            nextState = State::Sustain;
-        }
-
         return;
     }
 
@@ -477,8 +450,8 @@ void Envelope::stepEnvelopeCounter()
 
         if (envCounter == 0xFF)
         {
-            state = State::Decay;
-            nextState = State::Decay;
+            state = State::DecaySustain;
+            nextState = State::DecaySustain;
 
             exponentialCounter = 0;
             updateExponentialPeriod();
@@ -487,8 +460,7 @@ void Envelope::stepEnvelopeCounter()
         return;
     }
 
-    if (state == State::Decay ||
-        state == State::Release)
+    if (state == State::DecaySustain || state == State::Release)
     {
         stepDecayRelease();
         return;

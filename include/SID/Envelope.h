@@ -19,12 +19,11 @@ class Envelope
         virtual ~Envelope();
 
         // Define the different states for the envelope.
-        enum class State
+        enum class State : uint8_t
         {
-            Attack,
-            Decay,
-            Sustain,
-            Release
+            Attack       = 0,
+            DecaySustain = 1,
+            Release      = 2
         };
 
         void trigger(); // Trigger the envelope (key pressed), attack phase
