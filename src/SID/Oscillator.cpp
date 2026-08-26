@@ -116,7 +116,6 @@ void Oscillator::resetPhase()
     phase = 0.0;
     accumulator24 = 0;
     phaseOverflow = false;
-    msbRising = false;
 }
 
 void Oscillator::setControl(uint8_t controlValue)
@@ -355,12 +354,14 @@ uint16_t Oscillator::getNoiseBits()
 
 void Oscillator::updatePhase()
 {
-    const double sidCyclesThisSample =
-        (sampleRate > 0.0 && sidClockFrequency > 0.0)
-            ? (sidClockFrequency / sampleRate)
-            : 1.0;
-
+    const double sidCyclesThisSample = (sampleRate > 0.0 && sidClockFrequency > 0.0) ? (sidClockFrequency / sampleRate) : 1.0;
     clock(sidCyclesThisSample);
+}
+
+void Oscillator::applyHardSync()
+{
+    if ((control & 0x02) && syncSource && syncSource->getMSBRising())
+        resetPhase();
 }
 
 void Oscillator::clock(double sidCycles)
@@ -384,9 +385,6 @@ void Oscillator::clock(double sidCycles)
 
     for (uint32_t i = 0; i < fullCycles; ++i)
     {
-        if ((control & 0x02) && syncSource && syncSource->getMSBRising())
-            resetPhase();
-
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
         const bool oldMSB = (oldAcc & 0x00800000) != 0;
         const bool oldBit19 = (oldAcc & 0x00080000) != 0;

@@ -77,8 +77,6 @@ class SID
         std::string dumpCutoffTable() const;
         void resetAudioStats();
 
-    protected:
-
     private:
         SIDModel sidModel_;
 

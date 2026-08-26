@@ -123,3 +123,8 @@ void Voice::reset()
     osc.reset();            // Reset phase, noise state
     env.reset();            // Reset ADSR to idle, level = 0
 }
+
+void Voice::applyHardSync()
+{
+    osc.applyHardSync();
+}

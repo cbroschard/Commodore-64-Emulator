@@ -57,6 +57,8 @@ class Oscillator
         // Reset the phase
         void resetPhase();
 
+        void applyHardSync();
+
         // Update the phase accumulator for the next cycle
         void updatePhase();
 

@@ -806,9 +806,15 @@ void SID::tick(uint32_t cycles)
     voice2.clockEnvelope(sidCycles);
     voice3.clockEnvelope(sidCycles);
 
+    // Advance all three oscillators first.
     voice1.clockOscillator(sidCycles);
     voice2.clockOscillator(sidCycles);
     voice3.clockOscillator(sidCycles);
+
+    // Then resolve hard sync using the MSB events generated above.
+    voice1.applyHardSync();
+    voice2.applyHardSync();
+    voice3.applyHardSync();
 
     sidCycleCounter += sidCycles;
 
