@@ -166,7 +166,7 @@ void Envelope::clock(double sidCycles)
 
                 case State::Release:
                 {
-                    if ((state == State::Attack && statePipeline == 0) || (state == State::DecaySustain && statePipeline == 0))
+                    if ((state == State::Attack && statePipeline == 0) || (state == State::DecaySustain && statePipeline == 1))
                     {
                         state = State::Release;
                         ratePeriod = getRatePeriod(releaseRate);
