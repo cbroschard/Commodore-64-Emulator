@@ -110,7 +110,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice1.getOscillator().getAccumulator24());
     wrtr.writeU16(voice1.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
-    wrtr.writeF64(voice1.getEnvelope().getLevel());
+    wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getNextState()));
+    wrtr.writeU8(voice1.getEnvelope().readOutput8());
     wrtr.writeU8(voice1.getEnvelope().getAttackRate());
     wrtr.writeU8(voice1.getEnvelope().getDecayRate());
     wrtr.writeU8(voice1.getEnvelope().getSustainRate());
@@ -122,6 +123,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice1.getEnvelope().getHoldZero());
     wrtr.writeU8(voice1.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice1.getEnvelope().getEnvelopePipeline());
+    wrtr.writeU8(voice1.getEnvelope().getStatePipeline());
 
     // Dump Voice2 runtime status
     wrtr.writeF64(voice2.getOscillator().getPhase());
@@ -131,7 +133,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice2.getOscillator().getAccumulator24());
     wrtr.writeU16(voice2.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
-    wrtr.writeF64(voice2.getEnvelope().getLevel());
+    wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getNextState()));
+    wrtr.writeU8(voice2.getEnvelope().readOutput8());
     wrtr.writeU8(voice2.getEnvelope().getAttackRate());
     wrtr.writeU8(voice2.getEnvelope().getDecayRate());
     wrtr.writeU8(voice2.getEnvelope().getSustainRate());
@@ -143,6 +146,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice2.getEnvelope().getHoldZero());
     wrtr.writeU8(voice2.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice2.getEnvelope().getEnvelopePipeline());
+    wrtr.writeU8(voice2.getEnvelope().getStatePipeline());
 
     // Dump Voice3 runtime state
     wrtr.writeF64(voice3.getOscillator().getPhase());
@@ -152,7 +156,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice3.getOscillator().getAccumulator24());
     wrtr.writeU16(voice3.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
-    wrtr.writeF64(voice3.getEnvelope().getLevel());
+    wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getNextState()));
+    wrtr.writeU8(voice3.getEnvelope().readOutput8());
     wrtr.writeU8(voice3.getEnvelope().getAttackRate());
     wrtr.writeU8(voice3.getEnvelope().getDecayRate());
     wrtr.writeU8(voice3.getEnvelope().getSustainRate());
@@ -164,6 +169,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice3.getEnvelope().getHoldZero());
     wrtr.writeU8(voice3.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice3.getEnvelope().getEnvelopePipeline());
+    wrtr.writeU8(voice3.getEnvelope().getStatePipeline());
 
     // Dump Filter runtime state
     wrtr.writeF64(filterobj.getLowPassOut());
@@ -288,7 +294,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint16_t frequencyReg = 0;
 
         uint8_t envStateU8 = 0;
-        double envLevel = 0.0;
+        uint8_t nextStateU8 = 0;
+        uint8_t envCounter = 0;
 
         uint8_t attackRate = 0;
         uint8_t decayRate = 0;
@@ -302,6 +309,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint16_t ratePeriod = 9;
         bool holdZero = true;
         uint8_t exponentialPipeline = 0;
+        uint8_t envelopePipeline = 0;
+        uint8_t statePipeline = 0;
 
         if (!rdr.readF64(phase))                            { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(overflow))                        { rdr.exitChunkPayload(chunk); return false; }
@@ -311,7 +320,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU16(frequencyReg))                     { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU8(envStateU8))                        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readF64(envLevel))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(nextStateU8))                       { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(envCounter))                        { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU8(attackRate))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(decayRate))                         { rdr.exitChunkPayload(chunk); return false; }
@@ -324,6 +334,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU16(ratePeriod))                       { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(holdZero))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(exponentialPipeline))               { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(envelopePipeline))                  { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU8(statePipeline))                     { rdr.exitChunkPayload(chunk); return false; }
 
         // Oscillator runtime state.
         v.getOscillator().setFrequency(frequencyReg);
@@ -336,13 +348,16 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Envelope rate/state.
         v.getEnvelope().setADSR(attackRate, decayRate, sustainRate, releaseRate);
         v.getEnvelope().setState(static_cast<Envelope::State>(envStateU8));
-        v.getEnvelope().setLevel(envLevel);
+        v.getEnvelope().setNextState(static_cast<Envelope::State>(nextStateU8));
+        v.getEnvelope().setEnvelopeCounter(envCounter);
         v.getEnvelope().setExponentialCounter(exponentialCounter);
         v.getEnvelope().setExponentialPeriod(exponentialPeriod);
         v.getEnvelope().setRateCounter(rateCounter);
         v.getEnvelope().setRatePeriod(ratePeriod);
         v.getEnvelope().setHoldZero(holdZero);
         v.getEnvelope().setExponentialPipeline(exponentialPipeline);
+        v.getEnvelope().setEnvelopePipeline(envelopePipeline);
+        v.getEnvelope().setStatePipeline(statePipeline);
 
         return true;
     };
