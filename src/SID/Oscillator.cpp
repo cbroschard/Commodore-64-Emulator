@@ -36,6 +36,7 @@ Oscillator::Oscillator(double sampleRate) :
     control(0),
     msbRising(false),
     noiseShiftPipeline(0),
+    pulseOutput(0),
     accumulator24(0),
     frequencyReg(0)
 {
@@ -258,11 +259,13 @@ double Oscillator::generateMixedSample()
 
 void Oscillator::reset()
 {
-    phase = 0.0;
-    accumulator24 = 0;
-    noiseLFSR = 0x7FFFFF;
-    phaseOverflow = false;
-    noiseShiftPipeline = 0;
+    phase               = 0.0;
+    accumulator24       = 0;
+    noiseLFSR           = 0x7FFFFF;
+    phaseOverflow       = false;
+    msbRising           = false;
+    noiseShiftPipeline  = 0;
+    pulseOutput         = 0;
 }
 
 uint16_t Oscillator::getAccumulatorSaw12() const
@@ -291,10 +294,7 @@ uint16_t Oscillator::getAccumulatorTriangle12() const
 
 uint16_t Oscillator::getAccumulatorPulse12() const
 {
-    const uint32_t pw24 =
-        static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
-
-    return ((accumulator24 & 0x00FFFFFF) >= pw24) ? 0x0FFF : 0x0000;
+    return pulseOutput;
 }
 
 uint8_t Oscillator::getNoiseOutput8() const
@@ -439,6 +439,10 @@ void Oscillator::clock(double sidCycles)
 
         if (!oldBit19 && newBit19)
             noiseShiftPipeline = 2;
+
+        const uint32_t pw24 = static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
+
+        pulseOutput = (accumulator24 >= pw24) ? 0x0FFF : 0x0000;
     }
 
     if (fractionalCycles > 0.0)
