@@ -34,7 +34,7 @@ Envelope::Envelope(double sampleRate) :
     exponentialPeriod(1),
     sustainCounter(0),
     rateCounter(0),
-    ratePeriod(0)
+    ratePeriod(9)
 {
     setParameters(attackTime, decayTime, sustainLevel, releaseTime);
 }
@@ -61,10 +61,16 @@ void Envelope::reset()
 {
     state               = State::Idle;
     level               = 0.0;
+
     envCounter          = 0;
+
     stepAccumulator     = 0.0;
+
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
+
+    rateCounter         = 0;
+    ratePeriod          = 9;
 }
 
 void Envelope::setSIDClockFrequency(double frequency)
@@ -105,69 +111,66 @@ void Envelope::clock(double sidCycles)
     if (sidCycles <= 0.0)
         return;
 
-    switch (state)
-    {
-        case State::Idle:
-        {
-            envCounter = 0;
-            syncLevelFromCounter();
+    const uint32_t cycles = static_cast<uint32_t>(std::floor(sidCycles));
 
-            exponentialCounter = 0;
-            exponentialPeriod = 1;
-            break;
+    for (uint32_t i = 0; i < cycles; ++i)
+    {
+        switch (state)
+        {
+            case State::Attack:
+                ratePeriod = getRatePeriod(attackRate);
+                break;
+
+            case State::Decay:
+            case State::Sustain:
+                ratePeriod = getRatePeriod(decayRate);
+                break;
+
+            case State::Release:
+            case State::Idle:
+                ratePeriod = getRatePeriod(releaseRate);
+                break;
         }
 
-        case State::Attack:
+        // SID rate counter is 15-bit.
+        rateCounter =
+            static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+
+        // Equality is intentional. Do NOT use >=.
+        if (rateCounter != ratePeriod)
+            continue;
+
+        rateCounter = 0;
+
+        switch (state)
         {
-            stepAccumulator += sidCycles;
-
-            while (stepAccumulator >= attackStepCycles)
+            case State::Idle:
             {
-                stepAccumulator -= attackStepCycles;
+                break;
+            }
 
+            case State::Attack:
+            {
                 if (envCounter < 0xFF)
-                {
                     ++envCounter;
 
-                    if (envCounter == 0xFF)
-                    {
-                        state = State::Decay;
-                        stepAccumulator = 0.0;
-
-                        exponentialCounter = 0;
-                        updateExponentialPeriod();
-                        break;
-                    }
-                }
-                else
+                if (envCounter == 0xFF)
                 {
-                    envCounter = 0xFF;
                     state = State::Decay;
-                    stepAccumulator = 0.0;
 
                     exponentialCounter = 0;
                     updateExponentialPeriod();
-                    break;
                 }
+
+                break;
             }
 
-            syncLevelFromCounter();
-            break;
-        }
-
-        case State::Decay:
-        {
-            stepAccumulator += sidCycles;
-
-            while (stepAccumulator >= decayStepCycles)
+            case State::Decay:
             {
-                stepAccumulator -= decayStepCycles;
-
                 if (envCounter <= sustainCounter)
                 {
                     envCounter = sustainCounter;
                     state = State::Sustain;
-                    stepAccumulator = 0.0;
 
                     exponentialCounter = 0;
                     updateExponentialPeriod();
@@ -189,44 +192,27 @@ void Envelope::clock(double sidCycles)
                         {
                             envCounter = sustainCounter;
                             state = State::Sustain;
-                            stepAccumulator = 0.0;
 
                             exponentialCounter = 0;
                             updateExponentialPeriod();
-                            break;
                         }
                     }
                 }
+
+                break;
             }
 
-            syncLevelFromCounter();
-            break;
-        }
-
-        case State::Sustain:
-        {
-            envCounter = sustainCounter;
-            syncLevelFromCounter();
-
-            exponentialCounter = 0;
-            updateExponentialPeriod();
-            break;
-        }
-
-        case State::Release:
-        {
-            stepAccumulator += sidCycles;
-
-            while (stepAccumulator >= releaseStepCycles)
+            case State::Sustain:
             {
-                stepAccumulator -= releaseStepCycles;
+                // Hold current envelope level.
+                break;
+            }
 
+            case State::Release:
+            {
                 if (envCounter == 0)
                 {
-                    envCounter = 0;
                     state = State::Idle;
-                    stepAccumulator = 0.0;
-
                     exponentialCounter = 0;
                     exponentialPeriod = 1;
                     break;
@@ -246,20 +232,18 @@ void Envelope::clock(double sidCycles)
                         if (envCounter == 0)
                         {
                             state = State::Idle;
-                            stepAccumulator = 0.0;
-
                             exponentialCounter = 0;
                             exponentialPeriod = 1;
-                            break;
                         }
                     }
                 }
-            }
 
-            syncLevelFromCounter();
-            break;
+                break;
+            }
         }
     }
+
+    syncLevelFromCounter();
 }
 
 double Envelope::output() const
