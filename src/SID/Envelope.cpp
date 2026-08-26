@@ -171,8 +171,7 @@ void Envelope::clock(double sidCycles)
 
             case State::Attack:
             {
-                if (envCounter < 0xFF)
-                    ++envCounter;
+                envCounter = static_cast<uint8_t>(envCounter + 1);
 
                 if (envCounter == 0xFF)
                 {
@@ -367,7 +366,7 @@ void Envelope::stepDecayRelease()
             return;
         }
 
-        --envCounter;
+        envCounter = static_cast<uint8_t>(envCounter - 1);
 
         if (envCounter == 0)
             holdZero = true;
@@ -392,7 +391,7 @@ void Envelope::stepDecayRelease()
             return;
         }
 
-        --envCounter;
+        envCounter = static_cast<uint8_t>(envCounter - 1);
 
         if (envCounter == 0)
         {
