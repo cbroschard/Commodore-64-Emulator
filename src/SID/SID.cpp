@@ -49,6 +49,8 @@ void SID::saveState(StateWriter& wrtr) const
     // SID0 = "core" and registers
     wrtr.beginChunk("SID0");
 
+    wrtr.writeU32(1); // Version
+
     // Dump Registers
     wrtr.writeU8(sidRegisters.voice1.frequencyLow);
     wrtr.writeU8(sidRegisters.voice1.frequencyHigh);
@@ -82,6 +84,8 @@ void SID::saveState(StateWriter& wrtr) const
     // SIDX = Runtime state
     wrtr.beginChunk("SIDX");
 
+    wrtr.writeU32(1); // Version
+
     wrtr.writeU8(sidBusLatch);
     wrtr.writeU32(sidBusDecayCycles);
 
@@ -102,6 +106,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeF64(voice1.getOscillator().getPhase());
     wrtr.writeBool(voice1.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice1.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice1.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice1.getOscillator().getAccumulator24());
     wrtr.writeU16(voice1.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
@@ -117,6 +122,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeF64(voice2.getOscillator().getPhase());
     wrtr.writeBool(voice2.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice2.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice2.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice2.getOscillator().getAccumulator24());
     wrtr.writeU16(voice2.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
@@ -132,6 +138,7 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeF64(voice3.getOscillator().getPhase());
     wrtr.writeBool(voice3.getOscillator().getPhaseOverflow());
     wrtr.writeU32(voice3.getOscillator().getNoiseLFSR());
+    wrtr.writeU32(voice3.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice3.getOscillator().getAccumulator24());
     wrtr.writeU16(voice3.getOscillator().getFrequencyReg());
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
@@ -158,6 +165,10 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (std::memcmp(chunk.tag, "SID0", 4) == 0)
     {
         rdr.enterChunkPayload(chunk);
+
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
 
         // Read registers in the exact order we wrote them.
         if (!rdr.readU8(sidRegisters.voice1.frequencyLow))              { rdr.exitChunkPayload(chunk); return false; }
@@ -231,6 +242,10 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         rdr.enterChunkPayload(chunk);
 
+        uint32_t ver = 0;
+        if (!rdr.readU32(ver))                              { rdr.exitChunkPayload(chunk); return false; }
+        if (ver != 1)                                       { rdr.exitChunkPayload(chunk); return false; }
+
         if (!rdr.readU8(sidBusLatch))                       { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU32(sidBusDecayCycles))                { rdr.exitChunkPayload(chunk); return false; }
 
@@ -253,6 +268,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         double phase = 0.0;
         bool overflow = false;
         uint32_t lfsr = 0;
+        uint32_t noiseShiftPipeline = 0;
         uint32_t accumulator24 = 0;
         uint16_t frequencyReg = 0;
 
@@ -270,6 +286,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readF64(phase))                            { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(overflow))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU32(lfsr))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU32(noiseShiftPipeline))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU32(accumulator24))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(frequencyReg))                     { rdr.exitChunkPayload(chunk); return false; }
 
@@ -289,6 +306,7 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         v.getOscillator().setAccumulator24(accumulator24);
         v.getOscillator().setPhaseOverflow(overflow);
         v.getOscillator().setNoiseLFSR(lfsr);
+        v.getOscillator().setNoiseShiftPipeline(noiseShiftPipeline);
 
         // Envelope rate/state.
         v.getEnvelope().setADSR(attackRate, decayRate, sustainRate, releaseRate);
