@@ -15,8 +15,8 @@
 Envelope::Envelope(double sampleRate) :
     sidClockFrequency(1022727.0), // NTSC default; SID::setMode will correct it
     sampleRate(sampleRate),
-    state(State::Idle),
-    nextState(State::Idle),
+    state(State::Release),
+    nextState(State::Release),
     level(0.0),
     attackTime(0.1),
     decayTime(0.1),
@@ -68,8 +68,8 @@ void Envelope::release()
 
 void Envelope::reset()
 {
-    state               = State::Idle;
-    nextState           = State::Idle;
+    state               = State::Release;
+    nextState           = State::Release;
     level               = 0.0;
 
     envCounter          = 0;
@@ -439,19 +439,13 @@ void Envelope::stepDecayRelease()
         if (envCounter == 0)
         {
             holdZero = true;
-            state = State::Idle;
-            nextState = State::Idle;
             return;
         }
 
         envCounter = static_cast<uint8_t>(envCounter - 1);
 
         if (envCounter == 0)
-        {
             holdZero = true;
-            state = State::Idle;
-            nextState = State::Idle;
-        }
 
         updateExponentialPeriod();
     }
