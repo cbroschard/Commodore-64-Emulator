@@ -125,6 +125,7 @@ class Envelope
         void updateExponentialPeriod();
         uint16_t getRatePeriod(uint8_t rate) const;
         void stepDecayRelease();
+        void stepEnvelopeCounter();
 };
 
 #endif // ENVELOPE_H

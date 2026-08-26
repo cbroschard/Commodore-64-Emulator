@@ -126,12 +126,6 @@ void Envelope::clock(double sidCycles)
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
-        //
-        // State transition pipeline.
-        //
-        // Gate changes schedule a new state rather than changing
-        // the envelope state immediately.
-        //
         if (statePipeline > 0)
         {
             --statePipeline;
@@ -159,27 +153,14 @@ void Envelope::clock(double sidCycles)
             }
         }
 
-        //
-        // Complete a pending envelope-counter update.
-        //
-        // This must be processed before exponentialPipeline so an
-        // exponential pipeline completing on this cycle does not
-        // immediately consume the envelope pipeline it just created.
-        //
         if (envelopePipeline > 0)
         {
             --envelopePipeline;
 
             if (envelopePipeline == 0)
-                stepDecayRelease();
+                stepEnvelopeCounter();
         }
 
-        //
-        // Complete a pending exponential-divider operation.
-        //
-        // When this expires, schedule an envelope-counter update
-        // for the following SID cycle.
-        //
         if (exponentialPipeline > 0)
         {
             --exponentialPipeline;
@@ -236,20 +217,8 @@ void Envelope::clock(double sidCycles)
 
             case State::Attack:
             {
-                //
-                // The SID envelope counter is 8-bit. Allow natural
-                // wrapping rather than clamping the arithmetic.
-                //
-                envCounter = static_cast<uint8_t>(envCounter + 1);
-
-                if (envCounter == 0xFF)
-                {
-                    state = State::Decay;
-                    nextState = State::Decay;
-
-                    exponentialCounter = 0;
-                    updateExponentialPeriod();
-                }
+                if (envelopePipeline == 0)
+                    envelopePipeline = 1;
 
                 break;
             }
@@ -489,6 +458,32 @@ void Envelope::stepDecayRelease()
         }
 
         updateExponentialPeriod();
+    }
+}
+
+void Envelope::stepEnvelopeCounter()
+{
+    if (state == State::Attack)
+    {
+        envCounter = static_cast<uint8_t>(envCounter + 1);
+
+        if (envCounter == 0xFF)
+        {
+            state = State::Decay;
+            nextState = State::Decay;
+
+            exponentialCounter = 0;
+            updateExponentialPeriod();
+        }
+
+        return;
+    }
+
+    if (state == State::Decay ||
+        state == State::Release)
+    {
+        stepDecayRelease();
+        return;
     }
 }
 
