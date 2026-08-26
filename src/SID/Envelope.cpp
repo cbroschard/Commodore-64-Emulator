@@ -41,18 +41,14 @@ Envelope::~Envelope() = default;
 void Envelope::trigger()
 {
     state               = State::Attack;
-
     holdZero            = false;
-
-    exponentialCounter  = 0;
-    exponentialPeriod   = 1;
+    ratePeriod          = getRatePeriod(attackRate);
 }
 
 void Envelope::release()
 {
     state               = State::Release;
-    exponentialCounter  = 0;
-    updateExponentialPeriod();
+    ratePeriod          = getRatePeriod(releaseRate);
 }
 
 void Envelope::reset()
@@ -223,8 +219,6 @@ void Envelope::clock(double sidCycles)
 
                         if (envCounter == 0)
                             holdZero = true;
-
-                        updateExponentialPeriod();
 
                         if (envCounter == 0)
                         {
