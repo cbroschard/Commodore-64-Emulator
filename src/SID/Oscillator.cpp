@@ -34,6 +34,7 @@ Oscillator::Oscillator(double sampleRate) :
     pulseWidth(0.5),
     phaseOverflow(false),
     control(0),
+    msbRising(false),
     accumulator24(0),
     frequencyReg(0)
 {
@@ -115,6 +116,7 @@ void Oscillator::resetPhase()
     phase = 0.0;
     accumulator24 = 0;
     phaseOverflow = false;
+    msbRising = false;
 }
 
 void Oscillator::setControl(uint8_t controlValue)
@@ -374,6 +376,7 @@ void Oscillator::clock(double sidCycles)
     }
 
     phaseOverflow = false;
+    msbRising = false;
 
     const uint32_t fullCycles = static_cast<uint32_t>(std::floor(sidCycles));
 
@@ -385,16 +388,18 @@ void Oscillator::clock(double sidCycles)
             resetPhase();
 
         const uint32_t oldAcc = accumulator24 & 0x00FFFFFF;
-
+        const bool oldMSB = (oldAcc & 0x00800000) != 0;
         const bool oldBit19 = (oldAcc & 0x00080000) != 0;
 
         accumulator24 = (accumulator24 + frequencyReg) & 0x00FFFFFF;
 
+        const bool newMSB = (accumulator24 & 0x00800000) != 0;
         const bool newBit19 = (accumulator24 & 0x00080000) != 0;
 
-        const bool overflow = accumulator24 < oldAcc;
+        if (!oldMSB && newMSB)
+            msbRising = true;
 
-        if (overflow)
+        if (accumulator24 < oldAcc)
             phaseOverflow = true;
 
         if (!oldBit19 && newBit19)

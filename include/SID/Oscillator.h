@@ -86,8 +86,12 @@ class Oscillator
         bool phaseOverflow;
         uint8_t control; // Control value from relevant voice
 
+        bool msbRising;
+
         uint32_t accumulator24;
         uint16_t frequencyReg;
+
+        inline bool getMSBRising() const { return msbRising; }
 
         uint16_t getAccumulatorSaw12() const;
         uint16_t getAccumulatorTriangle12() const;
