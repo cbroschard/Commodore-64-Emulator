@@ -42,9 +42,11 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
-    state               = State::Attack;
-    holdZero            = false;
-    ratePeriod          = getRatePeriod(attackRate);
+    state = State::Attack;
+    holdZero = false;
+    ratePeriod = getRatePeriod(attackRate);
+
+    envelopePipeline = 0;
 }
 
 void Envelope::release()
@@ -114,12 +116,23 @@ void Envelope::clock(double sidCycles)
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
+        // Complete a pending envelope-counter update.
+        if (envelopePipeline > 0)
+        {
+            --envelopePipeline;
+
+            if (envelopePipeline == 0)
+                stepDecayRelease();
+        }
+
+        // Exponential divider completion schedules the
+        // envelope update for the following cycle.
         if (exponentialPipeline > 0)
         {
             --exponentialPipeline;
 
             if (exponentialPipeline == 0)
-                stepDecayRelease();
+                envelopePipeline = 1;
         }
 
         switch (state)
