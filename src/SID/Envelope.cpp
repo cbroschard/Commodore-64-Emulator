@@ -66,11 +66,9 @@ void Envelope::trigger()
 
 void Envelope::release()
 {
-    if (envelopePipeline > 0)
-        envelopeStepPendingAcrossStateChange = true;
-
     nextState = State::Release;
-    statePipeline = 2;
+
+    statePipeline = (envelopePipeline > 0) ? 3 : 2;
 }
 
 void Envelope::reset()
@@ -94,8 +92,6 @@ void Envelope::reset()
     resetRateCounter    = false;
 
     holdZero            = true;
-
-    envelopeStepPendingAcrossStateChange = false;
 }
 
 void Envelope::setSIDClockFrequency(double frequency)
