@@ -458,7 +458,7 @@ void Envelope::stepEnvelopeCounter()
 
     if (state == State::Attack)
     {
-        envCounter = static_cast<uint8_t>(envCounter + 1);
+        envCounter =static_cast<uint8_t>(envCounter + 1);
 
         if (envCounter == 0xFF)
         {
@@ -466,7 +466,7 @@ void Envelope::stepEnvelopeCounter()
             nextState = State::DecaySustain;
 
             exponentialCounter = 0;
-            updateExponentialPeriod();
+            exponentialPeriod = 1;
         }
 
         return;
