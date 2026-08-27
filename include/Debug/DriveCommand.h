@@ -24,10 +24,6 @@ class DriveCommand : public MonitorCommand
         std::string help() const override;
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
-
-    protected:
-
-    private:
 };
 
 #endif // DRIVECOMMAND_H

@@ -28,8 +28,6 @@ class DisassembleCommand : public MonitorCommand
 
         void resetPosition();
 
-    protected:
-
     private:
         // Keep track of last PC disassembled
         uint16_t lastPC;

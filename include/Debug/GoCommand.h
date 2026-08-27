@@ -29,8 +29,6 @@ class GoCommand : public MonitorCommand
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 
-    protected:
-
     private:
         uint16_t trapAddress; // Handle RTS in Assembler gracefully
 };

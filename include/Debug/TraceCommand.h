@@ -28,8 +28,6 @@ class TraceCommand : public MonitorCommand
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 
-    protected:
-
     private:
 
         TraceManager* traceMgr;

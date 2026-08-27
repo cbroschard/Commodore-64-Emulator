@@ -32,8 +32,6 @@ class AssembleCommand : public MonitorCommand
 
         std::string currentPrompt() const;
 
-    protected:
-
     private:
         bool interactiveActive;
         uint16_t interactiveAddress;

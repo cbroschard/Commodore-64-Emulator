@@ -35,8 +35,6 @@ class MonitorCommand
     protected:
         uint16_t parseAddress(const std::string& s);
         bool isHelp(const std::string& s) const;
-
-    private:
 };
 
 #endif // MONITORCOMMAND_H

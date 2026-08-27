@@ -24,8 +24,6 @@ class SwiftLinkCommand : public MonitorCommand
         std::string help() const override;
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args);
-
-    private:
 };
 
 #endif // SWIFTLINKCOMMAND_H

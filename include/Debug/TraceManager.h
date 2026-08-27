@@ -197,8 +197,6 @@ class TraceManager
         void recordCustomEvent(const std::string& text);
         void recordCustomEvent(const std::string& text, Stamp stamp);
 
-    protected:
-
     private:
         // Non-owning pointers
         Cartridge* cart;
