@@ -45,6 +45,9 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
+    if (statePipeline > 0 && nextState == State::Release)
+        statePipeline = 0;
+
     nextState = State::Attack;
 
     //
@@ -65,6 +68,12 @@ void Envelope::trigger()
 
 void Envelope::release()
 {
+    //
+    // Gate-off cancels an in-flight attack transition.
+    //
+    if (statePipeline > 0 && nextState == State::Attack)
+        statePipeline = 0;
+
     nextState = State::Release;
     statePipeline = (envelopePipeline > 0) ? 3 : 2;
 }
