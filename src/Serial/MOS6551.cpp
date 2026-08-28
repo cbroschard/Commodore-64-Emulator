@@ -353,6 +353,32 @@ uint8_t MOS6551::read(uint16_t reg)
     return 0xFF;
 }
 
+uint8_t MOS6551::peek(uint16_t reg) const
+{
+    reg &= 0x03;
+
+    switch (reg)
+    {
+        case 0x00:
+            // RX data register.
+            // Return current received data WITHOUT clearing
+            // receive-ready / IRQ state.
+            return receiveDataRegister;
+
+        case 0x01:
+            return getStatusRegister();
+
+        case 0x02:
+            return getCommandRegister();
+
+        case 0x03:
+            return getControlRegister();
+
+        default:
+            return 0xFF;
+    }
+}
+
 void MOS6551::write(uint16_t reg, uint8_t value)
 {
     switch (reg & 0x03)

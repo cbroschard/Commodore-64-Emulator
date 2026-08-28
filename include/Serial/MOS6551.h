@@ -33,6 +33,7 @@ class MOS6551
         void tick(uint32_t cycles);
 
         uint8_t read(uint16_t reg);
+        uint8_t peek(uint16_t reg) const;
         void write(uint16_t reg, uint8_t value);
 
         // Getters
