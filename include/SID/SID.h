@@ -56,6 +56,7 @@ class SID
 
         // Register read/write
         uint8_t readRegister(uint16_t address);
+        uint8_t peekRegister(uint16_t address) const;
         void writeRegister(uint16_t address, uint8_t value);
 
         double generateAudioSample();

@@ -499,6 +499,34 @@ uint8_t SID::readRegister(uint16_t address)
     return value;
 }
 
+uint8_t SID::peekRegister(uint16_t address) const
+{
+    // SID registers mirror every $20 bytes.
+    address = static_cast<uint16_t>(0xD400 | (address & 0x001F));
+
+    switch (address)
+    {
+        // POTX
+        case 0xD419:
+            return 0xFF;
+
+        // POTY
+        case 0xD41A:
+            return 0xFF;
+
+        // OSC3
+        case 0xD41B:
+            return voice3.getOscillator().readOutput8();
+
+        // ENV3
+        case 0xD41C:
+            return voice3.getEnvelope().readOutput8();
+
+        default:
+            return sidBusLatch;
+    }
+}
+
 void SID::writeRegister(uint16_t address, uint8_t value)
 {
     sidBusLatch = value;
