@@ -315,6 +315,65 @@ uint8_t CIA6526::readRegister(uint16_t address)
     return driveDataBus(result);
 }
 
+uint8_t CIA6526::peekRegister(uint16_t address)
+{
+    const uint8_t reg = static_cast<uint8_t>(address & 0x0F);
+
+    switch (reg)
+    {
+        case 0x00:
+            return readPortA();
+
+        case 0x01:
+            return readPortB();
+
+        case 0x02:
+            return ddrA;
+
+        case 0x03:
+            return ddrB;
+
+        case 0x04:
+            return static_cast<uint8_t>(timerA & 0xFF);
+
+        case 0x05:
+            return timerALatched ? static_cast<uint8_t>((timerASnap >> 8) & 0xFF) : static_cast<uint8_t>((timerA >> 8) & 0xFF);
+
+        case 0x06:
+            return static_cast<uint8_t>(timerB & 0xFF);
+
+        case 0x07:
+            return timerBLatched ? static_cast<uint8_t>((timerBSnap >> 8) & 0xFF) : static_cast<uint8_t>((timerB >> 8) & 0xFF);
+
+        case 0x08:
+            return binaryToBCD(todLatched ? todLatch[0] : todClock[0]);
+
+        case 0x09:
+            return binaryToBCD(todLatched ? todLatch[1] : todClock[1]);
+
+        case 0x0A:
+            return binaryToBCD(todLatched ? todLatch[2] : todClock[2]);
+
+        case 0x0B:
+            return binaryToBCD(todLatched ? todLatch[3] : todClock[3]);
+
+        case 0x0C:
+            return serialDataRegister;
+
+        case 0x0D:
+            return static_cast<uint8_t>(interruptStatus & 0x9F);
+
+        case 0x0E:
+            return static_cast<uint8_t>(timerAControl & 0x7F);
+
+        case 0x0F:
+            return static_cast<uint8_t>(timerBControl & 0x7F);
+
+        default:
+            return 0xFF;
+    }
+}
+
 void CIA6526::writeRegister(uint16_t address, uint8_t value)
 {
     uint8_t reg = address & 0x0F;

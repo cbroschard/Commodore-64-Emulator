@@ -32,6 +32,7 @@ class CIA6526
         void updateTimers(uint32_t cyclesElapsed);
 
         uint8_t readRegister(uint16_t address);
+        uint8_t peekRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
 
         void setMode(VideoMode mode);
