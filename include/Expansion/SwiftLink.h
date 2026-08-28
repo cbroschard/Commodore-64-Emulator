@@ -31,6 +31,7 @@ class SwiftLink
         void tick(uint32_t cycles);
 
         uint8_t read(uint16_t address);
+        uint8_t peek(uint16_t address) const;
         void write(uint16_t address, uint8_t value);
 
         // Getters

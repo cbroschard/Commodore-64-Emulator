@@ -62,6 +62,14 @@ uint8_t SwiftLink::read(uint16_t address)
     return acia.read(static_cast<uint16_t>(address - baseAddress));
 }
 
+uint8_t SwiftLink::peek(uint16_t address) const
+{
+    if (!handlesAddress(address))
+        return 0xFF;
+
+    return acia.peek(static_cast<uint16_t>(address - baseAddress));
+}
+
 void SwiftLink::write(uint16_t address, uint8_t value)
 {
     if (!handlesAddress(address))
