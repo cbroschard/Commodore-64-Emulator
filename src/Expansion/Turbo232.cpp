@@ -73,6 +73,22 @@ uint8_t Turbo232::read(uint16_t address)
     return 0xFF;
 }
 
+uint8_t Turbo232::peek(uint16_t address) const
+{
+    if (!handlesAddress(address))
+        return 0xFF;
+
+    const uint16_t reg = static_cast<uint16_t>(address - baseAddress) & 0x07;
+
+    if (reg <= 3)
+        return acia.peek(reg);
+
+    if (reg == 7)
+        return readEnhancedSpeedRegister();
+
+    return 0xFF;
+}
+
 void Turbo232::write(uint16_t address, uint8_t value)
 {
     if (!handlesAddress(address))
