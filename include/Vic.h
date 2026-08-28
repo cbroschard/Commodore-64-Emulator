@@ -49,8 +49,9 @@ class Vic
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Register read/write
-        void writeRegister(uint16_t address, uint8_t value);
         uint8_t readRegister(uint16_t address);
+        uint8_t peekRegister(uint16_t address) const;
+        void writeRegister(uint16_t address, uint8_t value);
 
         // Light pen latch
         void triggerLightPenLatch();

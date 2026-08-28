@@ -995,6 +995,94 @@ uint8_t Vic::readRegister(uint16_t address)
     }
 }
 
+uint8_t Vic::peekRegister(uint16_t address) const
+{
+    address = static_cast<uint16_t>(0xD000 | (address & 0x003F));
+
+    if (address >= 0xD000 && address <= 0xD00F)
+    {
+        const int index = getSpriteIndex(address);
+
+        return isSpriteX(address) ? registers.spriteX[index] : registers.spriteY[index];
+    }
+
+    if (address >= 0xD022 && address <= 0xD024)
+        return static_cast<uint8_t>(0xF0 | (getBackgroundColor(address - 0xD022) & 0x0F));
+
+    if (address >= 0xD027 && address <= 0xD02E)
+    {
+        const int sprite = static_cast<int>(address - 0xD027);
+        return static_cast<uint8_t>(0xF0 | (registers.spriteColors[sprite] & 0x0F));
+    }
+
+    switch(address)
+    {
+        case 0xD010:
+            return registers.spriteX_MSB;
+
+        case 0xD011:
+            return registers.control;
+
+        case 0xD012:
+            return registers.raster;
+
+        case 0xD013:
+            return registers.light_pen_X;
+
+        case 0xD014:
+            return registers.light_pen_Y;
+
+        case 0xD015:
+            return registers.spriteEnabled;
+
+        case 0xD016:
+            return registers.control2;
+
+        case 0xD017:
+            return registers.spriteYExpansion;
+
+        case 0xD018:
+            return registers.memory_pointer;
+
+        case 0xD019:
+            return registers.interruptStatus;
+
+        case 0xD01A:
+            return registers.interruptEnable;
+
+        case 0xD01B:
+            return registers.spritePriority;
+
+        case 0xD01C:
+            return registers.spriteMultiColor;
+
+        case 0xD01D:
+            return registers.spriteXExpansion;
+
+        case 0xD01E:
+            return registers.spriteCollision;
+
+        case 0xD01F:
+            return registers.spriteDataCollision;
+
+        case 0xD020:
+            return registers.borderColor;
+
+        case 0xD021:
+            return registers.backgroundColor0;
+
+        case 0xD025:
+            return registers.spriteMultiColor1;
+
+        case 0xD026:
+            return registers.spriteMultiColor2;
+
+        default:
+            return 0xFF;
+    }
+
+}
+
 void Vic::writeRegister(uint16_t address, uint8_t value)
 {
     // Handle SpriteX and SpriteY registers with helper
