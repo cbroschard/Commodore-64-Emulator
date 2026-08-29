@@ -286,30 +286,6 @@ uint8_t Memory::peekIO(uint16_t address) const
     return dataBus ? dataBus->sample() : 0xFF;
 }
 
-uint8_t Memory::vicRead(uint16_t vicAddress, uint16_t raster)
-{
-    // Enforce 14-bit address
-    vicAddress &= 0x3FFF;
-
-    // Grab the VIC bank for this raster
-    uint16_t bankBase = vic ? vic->getBankBaseFromVIC(raster) : 0;
-
-    // Check the char base for special cases
-    if ((bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
-        return charROM[vicAddress & 0x0FFF];
-
-    uint16_t cpuAddress = (vicAddress & 0x3FFF) | bankBase;
-    return mem[cpuAddress];
-}
-
-uint8_t Memory::vicReadColor(uint16_t address) const
-{
-    if (address >= 0xD800 && address <= 0xDBFF)
-        return colorRAM[address - 0xD800] & 0x0F;
-
-    return 0x0F; // out of bounds
-}
-
 uint8_t Memory::readIO(uint16_t address)
 {
 
