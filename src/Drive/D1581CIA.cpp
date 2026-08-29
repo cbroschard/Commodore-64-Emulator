@@ -139,15 +139,17 @@ void D1581CIA::updateInputPins()
 
         const int devOffset = d->getDeviceNumber() - 8;
 
+        // PA3 is the low device-number bit.
         if ((devOffset & 0x01) == 0)
-            portA &= static_cast<uint8_t>(~PRA_DEVSW1);
-        else
-            portA |= PRA_DEVSW1;
-
-        if ((devOffset & 0x02) == 0)
             portA &= static_cast<uint8_t>(~PRA_DEVSW2);
         else
             portA |= PRA_DEVSW2;
+
+        // PA4 is the high device-number bit.
+        if ((devOffset & 0x02) == 0)
+            portA &= static_cast<uint8_t>(~PRA_DEVSW1);
+        else
+            portA |= PRA_DEVSW1;
     }
 
     setPortAPins(portA);
