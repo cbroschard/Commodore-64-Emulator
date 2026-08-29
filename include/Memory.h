@@ -9,12 +9,6 @@
 #define MEMORY_H
 
 // Forward declarations
-class Cartridge;
-class Cassette;
-class CPU;
-class DataBusLatch;
-class PLA;
-
 #include <bitset>
 #include <cstdint>
 #include <cstdio>
@@ -35,13 +29,6 @@ class Memory
 
         Memory();
         virtual ~Memory();
-
-        // Pointers
-        inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-        inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
-        inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -81,13 +68,6 @@ class Memory
         inline uint8_t getCartHIByte(uint16_t offset) const { return (offset < cart_hi.size()) ? cart_hi[offset] : 0xFF; }
 
     private:
-        // Non-owning pointers
-        Cartridge* cart;
-        Cassette* cass;
-        CPU* cpu;
-        DataBusLatch* dataBus;
-        PLA* pla;
-
         // RAM/ROM
         std::vector<uint8_t> mem;
         std::vector<uint8_t> basicROM;
@@ -121,9 +101,6 @@ class Memory
         uint8_t port1OutputLatch;
 
         bool load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
-
-        uint8_t computeEffectivePort1(uint8_t latch, uint8_t ddr);
-        void applyPort1SideEffects(uint8_t effective);
 };
 
 #endif // MEMORY_H

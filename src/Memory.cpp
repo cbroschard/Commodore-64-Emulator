@@ -5,25 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Cartridge.h"
-#include "Cassette.h"
-#include "CPU.h"
-#include "DataBusLatch.h"
 #include "Memory.h"
-#include "PLA.h"
 
-Memory::Memory() :
-    cart(nullptr),
-    cass(nullptr),
-    cpu(nullptr),
-    dataBus(nullptr),
-    pla(nullptr),
-    cartridgeAttached(false),
-    romLOverlayIsRAM(false),
-    romHOverLayIsRAM(false),
-    cassetteSenseLow(false),
-    dataDirectionRegister(0x2F),
-    port1OutputLatch(0x37)
+Memory::Memory()
 {
     mem.resize(MAX_MEMORY,0);
     basicROM.resize(BASIC_ROM_SIZE,0);
@@ -33,8 +17,6 @@ Memory::Memory() :
     cart_lo.resize(CART_LO_SIZE,0);
     cart_hi.resize(CART_HI_SIZE,0);
     cart_hi_e000.resize(CART_HI_E000_SIZE,0);
-
-    applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 }
 
 Memory::~Memory() = default;
@@ -93,9 +75,6 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readVectorU8(cart_lo))                                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(cart_hi))                                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(cart_hi_e000))                                { rdr.exitChunkPayload(chunk); return false; }
-
-        // Re-apply port $01 side effects (PLA mapping + cassette motor)
-        applyPort1SideEffects(computeEffectivePort1(port1OutputLatch, dataDirectionRegister));
 
         rdr.exitChunkPayload(chunk);
         return true;
@@ -244,22 +223,4 @@ bool Memory::Initialize(const std::string& basic, const std::string& kernal, con
     {
         return true;
     }
-}
-
-uint8_t Memory::computeEffectivePort1(uint8_t latch, uint8_t ddr)
-{
-    // Inputs read back as 1 (pull-ups)
-    uint8_t invDDR = static_cast<uint8_t>(~ddr);
-    return static_cast<uint8_t>((latch & ddr) | invDDR);
-}
-
-void Memory::applyPort1SideEffects(uint8_t effective)
-{
-    // Bit 5 low => motor ON (active low)
-    bool motorOn = (effective & 0x20) == 0;
-
-    if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
-
-    // Update PLA MCR with the latch bits (0..2 matter)
-    if (pla) pla->updateMemoryControlRegister(effective & 0x07);
 }

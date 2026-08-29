@@ -88,12 +88,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.keyb->attachNMILineInstance(components.nmiLine.get());
 
-    components.mem->attachCPUInstance(components.cpu.get());
-    components.mem->attachDataBusLatchInstance(components.dataBus.get());
-    components.mem->attachCartridgeInstance(components.cart.get());
-    components.mem->attachCassetteInstance(components.cass.get());
-    components.mem->attachPLAInstance(components.pla.get());
-
     components.inputMgr->attachCIA1Instance(components.cia1.get());
     components.inputMgr->attachKeyboardInstance(components.keyb.get());
     components.inputMgr->attachMonitorControllerInstance(&components.debug->monitorController());
