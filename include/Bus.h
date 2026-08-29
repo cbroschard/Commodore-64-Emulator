@@ -9,6 +9,7 @@
 #define BUS_H
 
 #include <cstdint>
+#include "CPUBus.h"
 
 // Forward declarations
 class Cartridge;
@@ -29,7 +30,7 @@ class TraceManager;
 class Turbo232;
 class Vic;
 
-class Bus
+class Bus : public CPUBus
 {
     public:
         Bus();
@@ -54,8 +55,8 @@ class Bus
         inline void attachTurbo232Instance(Turbo232* turbo232) { this->turbo232 = turbo232; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
-        uint8_t read(uint16_t address);
-        void write(uint16_t address, uint8_t value);
+        uint8_t read(uint16_t address) override;
+        void write(uint16_t address, uint8_t value) override;
 
         uint8_t readIO(uint16_t address);
         void writeIO(uint16_t address, uint8_t value);
@@ -65,7 +66,7 @@ class Bus
         uint8_t vicRead(uint16_t address, uint16_t raster);
         uint8_t vicReadColor(uint16_t address) const;
 
-        uint8_t peek(uint16_t address) const;
+        uint8_t peek(uint16_t address) const override;
         uint8_t peekIO(uint16_t address) const;
 
         // Getters

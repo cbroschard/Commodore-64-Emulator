@@ -35,7 +35,10 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
 {
     setDeviceNumber(deviceNumber);
     d1541mem.attachPeripheralInstance(this);
-    driveCPU.attachMemoryInstance(&d1541mem);
+
+    d1541Bus.attachMemoryInstance(&d1541mem);
+
+    driveCPU.attachCPUBusInstance(&d1541Bus);
     driveCPU.attachIRQLineInstance(&IRQ);
 
     if (!d1541mem.initialize(loRom, hiRom))

@@ -115,8 +115,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.reu->attachIRQLineInstance(components.irq.get());
     components.reu->attachMemoryInstance(components.mem.get());
 
-    components.cpu->attachBusInstance(components.bus.get());
-    components.cpu->attachMemoryInstance(components.mem.get());
+    components.cpu->attachCPUBusInstance(components.bus.get());
     components.cpu->attachDataBusLatchInstance(components.dataBus.get());
     components.cpu->attachExecutionHistoryInstance(components.executionHistory.get());
     components.cpu->attachVICInstance(components.vic.get());

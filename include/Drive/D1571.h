@@ -12,6 +12,7 @@
 #include <array>
 #include <cstring>
 #include "CPU.h"
+#include "Drive/D1571Bus.h"
 #include "Drive/D1571Memory.h"
 #include "Drive/Drive.h"
 #include "Drive/FloppyControllerHost.h"
@@ -143,10 +144,10 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool motorOn;
 
     private:
-
         // Drive chips
-        CPU driveCPU;
+        D1571Bus d1571Bus;
         D1571Memory d1571mem;
+        CPU driveCPU;
         IRQLine IRQ;
 
         static constexpr uint8_t GCR5[16] =

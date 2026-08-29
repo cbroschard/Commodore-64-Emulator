@@ -8,6 +8,7 @@
 #ifndef D1541_H
 #define D1541_H
 
+#include "Drive/D1541Bus.h"
 #include "Drive/Drive.h"
 #include "Drive/D1541Memory.h"
 #include "Drive/IDriveIndicatorView.h"
@@ -143,8 +144,8 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool motorOn;
 
     private:
-
         // Owning pointers
+        D1541Bus d1541Bus;
         D1541Memory d1541mem;
         CPU driveCPU;
         GCRCodec gcrCodec;

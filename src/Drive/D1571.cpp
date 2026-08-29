@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CPUBus.h"
+#include "Drive/D1571Bus.h"
 #include "Drive/D1571.h"
 
 D1571::D1571(int deviceNumber, const std::string& romName) :
@@ -41,13 +43,12 @@ D1571::D1571(int deviceNumber, const std::string& romName) :
 {
     setDeviceNumber(deviceNumber);
     d1571mem.attachPeripheralInstance(this);
+    d1571Bus.attachMemoryInstance(&d1571mem);
+    driveCPU.attachCPUBusInstance(&d1571Bus);
     driveCPU.attachIRQLineInstance(&IRQ);
-    driveCPU.attachMemoryInstance(&d1571mem);
 
     if (!d1571mem.initialize(romName))
-    {
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
-    }
 
     reset();
 }
