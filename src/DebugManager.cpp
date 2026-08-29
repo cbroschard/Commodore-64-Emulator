@@ -25,7 +25,6 @@
 #include "IO.h"
 #include "IRQLine.h"
 #include "keyboard.h"
-#include "Memory.h"
 #include "PLA.h"
 #include "REU.h"
 #include "SID/SID.h"
@@ -113,7 +112,6 @@ void DebugManager::wireTrace(Cartridge* cart,
                             CIA1* cia1,
                             CIA2* cia2,
                             CPU* cpu,
-                            Memory* mem,
                             PLA* pla,
                             SID* sid,
                             Vic* vic)

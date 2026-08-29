@@ -30,7 +30,6 @@ class IECBUS;
 class IO;
 class IRQLine;
 class Keyboard;
-class Memory;
 class PLA;
 class REU;
 class SID;
@@ -75,7 +74,6 @@ class DebugManager
                        CIA1* cia1,
                        CIA2* cia2,
                        CPU* cpu,
-                       Memory* mem,
                        PLA* pla,
                        SID* sid,
                        Vic* vic);
