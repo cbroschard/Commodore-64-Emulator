@@ -715,8 +715,8 @@ void Memory::write(uint16_t address, uint8_t value)
 
 void Memory::write16(uint16_t address, uint16_t value)
 {
-    write(address, value & 0xFF); // low byte
-    write(address + 1, value >> 8); // high byte
+    writeRAM(address, static_cast<uint8_t>(value & 0xFF));
+    writeRAM(static_cast<uint16_t>(address + 1), static_cast<uint8_t>((value >> 8) & 0xFF));
 }
 
 void Memory::writeRAM(uint16_t address, uint8_t value)
