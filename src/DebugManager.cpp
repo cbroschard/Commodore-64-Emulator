@@ -19,6 +19,7 @@
 #include "CIA1.h"
 #include "CIA2.h"
 #include "CPU.h"
+#include "CPUBus.h"
 #include "IECBUS.h"
 #include "IO.h"
 #include "IRQLine.h"
@@ -73,6 +74,7 @@ void DebugManager::wireBackend(Computer* computer,
                               CIA1* cia1,
                               CIA2* cia2,
                               CPU* cpu,
+                              CPUBus* bus,
                               ExecutionHistory* executionHistory,
                               IECBUS* iecBus,
                               IRQLine* irq,
@@ -92,7 +94,8 @@ void DebugManager::wireBackend(Computer* computer,
     backend_->attachCIA1Instance(cia1);
     backend_->attachCIA2Instance(cia2);
     backend_->attachComputerInstance(computer);
-    backend_->attachProcessorInstance(cpu);
+    backend_->attachCPUInstance(cpu);
+    backend_->attachCPUBusInstance(bus);
     backend_->attachExecutionHistoryInstance(executionHistory);
     backend_->attachIECBusInstance(iecBus);
     backend_->attachIRQLineInstance(irq);

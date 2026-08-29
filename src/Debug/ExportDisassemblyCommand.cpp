@@ -87,11 +87,11 @@ void ExportDisassemblyCommand::execute(MLMonitor& mon, const std::vector<std::st
         return;
     }
 
-    Memory* mem = backend->getMem();
+    CPUBus* bus = backend->getBus();
 
-    if (mem == nullptr)
+    if (!bus)
     {
-        std::cout << "Memory is not attached.\n";
+        std::cout << "CPU bus is not attached.\n";
         return;
     }
 
@@ -143,8 +143,7 @@ void ExportDisassemblyCommand::execute(MLMonitor& mon, const std::vector<std::st
             end = static_cast<uint16_t>(std::min(tmpEnd, 0xFFFFu));
         }
 
-        const std::string disAsm =
-            Disassembler::disassembleRange(start, end, nextAddress, *mem);
+        const std::string disAsm = Disassembler::disassembleRange(start, end, nextAddress, *bus);
 
         std::ofstream outFile(filename);
 

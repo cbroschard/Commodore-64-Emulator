@@ -23,6 +23,7 @@ class Cassette;
 class CIA1;
 class CIA2;
 class CPU;
+class CPUBus;
 class ExecutionHistory;
 class IECBUS;
 class IO;
@@ -57,6 +58,7 @@ class DebugManager
                          CIA1* cia1,
                          CIA2* cia2,
                          CPU* cpu,
+                         CPUBus* bus,
                          ExecutionHistory* executionHistory,
                          IECBUS* iecBus,
                          IRQLine* irq,

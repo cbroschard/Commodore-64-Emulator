@@ -90,11 +90,11 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
         return;
     }
 
-    Memory* mem = backend->getMem();
+    CPUBus* bus = backend->getBus();
 
-    if (mem == nullptr)
+    if (!bus)
     {
-        std::cout << "Memory is not attached.\n";
+        std::cout << "CPU bus is not attached.\n";
         return;
     }
 
@@ -129,15 +129,12 @@ void DisassembleCommand::execute(MLMonitor& mon, const std::vector<std::string>&
             }
         }
 
-        const uint32_t tmpEnd = static_cast<uint32_t>(start) +
-                                static_cast<uint32_t>(count * 3);
-
+        const uint32_t tmpEnd = static_cast<uint32_t>(start) + static_cast<uint32_t>(count * 3);
         const uint16_t end = static_cast<uint16_t>(std::min(tmpEnd, 0xFFFFu));
 
         lastPC = end;
 
-        const std::string disAsm =
-            Disassembler::disassembleRange(start, end, lastPC, *mem);
+        const std::string disAsm = Disassembler::disassembleRange(start, end, lastPC, *bus);
 
         std::cout << disAsm << std::endl;
     }

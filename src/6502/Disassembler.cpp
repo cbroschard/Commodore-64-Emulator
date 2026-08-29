@@ -11,33 +11,6 @@ Disassembler::Disassembler() = default;
 
 Disassembler::~Disassembler() = default;
 
-std::string Disassembler::disassembleAt(uint16_t pc, Memory& mem)
-{
-    uint8_t opcode = mem.read(pc);
-    const InstructionInfo& info = OPCODES[opcode];
-
-    std::ostringstream out;
-
-    // Address
-    out << hexWord(pc) << "  ";
-
-    // Raw bytes
-    for (int i = 0; i < info.length; i++) {
-        out << hexByte(mem.read(pc + i)) << " ";
-    }
-    for (int i = info.length; i < 3; i++) {
-        out << "   "; // padding
-    }
-
-    // Mnemonic
-    out << " " << info.mnemonic << " ";
-
-    // Operand
-    out << formatOperand(info, pc, mem);
-
-    return out.str();
-}
-
 std::string Disassembler::disassembleAt(uint16_t pc, CPUBus& bus)
 {
     uint8_t opcode = bus.read(pc);
@@ -65,7 +38,7 @@ std::string Disassembler::disassembleAt(uint16_t pc, CPUBus& bus)
     return out.str();
 }
 
-std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_t& lastPC, Memory& mem)
+std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_t& lastPC, CPUBus& bus)
 {
     std::ostringstream out;
     uint16_t pc = start;
@@ -73,11 +46,11 @@ std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_
     while (pc <= end && pc < 0x10000)
     {
         if (pc + 3 < pc) break;
-        uint8_t opcode = mem.read(pc);
+        uint8_t opcode = bus.read(pc);
         const InstructionInfo& info = OPCODES[opcode];
 
         // Disassemble current instruction
-        out << disassembleAt(pc, mem) << "\n";
+        out << disassembleAt(pc, bus) << "\n";
 
         // Advance PC by instruction length
         uint16_t nextPC = pc + info.length;
@@ -86,61 +59,6 @@ std::string Disassembler::disassembleRange(uint16_t start, uint16_t end, uint16_
     }
 
     lastPC = pc;
-    return out.str();
-}
-
-std::string Disassembler::formatOperand(const InstructionInfo& info, uint16_t pc, Memory& mem)
-{
-    std::ostringstream out;
-
-    switch (info.mode) {
-        case AddressingMode::Immediate:
-            out << "#$" << hexByte(mem.read(pc + 1));
-            break;
-        case AddressingMode::ZeroPage:
-            out << "$" << hexByte(mem.read(pc + 1));
-            break;
-        case AddressingMode::ZeroPageX:
-            out << "$" << hexByte(mem.read(pc + 1)) << ",X";
-            break;
-        case AddressingMode::ZeroPageY:
-            out << "$" << hexByte(mem.read(pc + 1)) << ",Y";
-            break;
-        case AddressingMode::Absolute:
-            out << "$" << hexWord(mem.read(pc + 1) | (mem.read(pc + 2) << 8));
-            break;
-        case AddressingMode::AbsoluteX:
-            out << "$" << hexWord(mem.read(pc + 1) | (mem.read(pc + 2) << 8)) << ",X";
-            break;
-        case AddressingMode::AbsoluteY:
-            out << "$" << hexWord(mem.read(pc + 1) | (mem.read(pc + 2) << 8)) << ",Y";
-            break;
-        case AddressingMode::Indirect:
-            out << "($" << hexWord(mem.read(pc + 1) | (mem.read(pc + 2) << 8)) << ")";
-            break;
-        case AddressingMode::IndirectX:
-            out << "($" << hexByte(mem.read(pc + 1)) << ",X)";
-            break;
-        case AddressingMode::IndirectY:
-            out << "($" << hexByte(mem.read(pc + 1)) << "),Y";
-            break;
-        case AddressingMode::Relative: {
-            int8_t offset = static_cast<int8_t>(mem.read(pc + 1));
-            uint16_t target = pc + 2 + offset;
-            out << "$" << hexWord(target);
-            break;
-        }
-        case AddressingMode::Accumulator:
-            out << "A";
-            break;
-        case AddressingMode::Implied:
-            // no operand
-            break;
-        default:
-            out << "???";
-            break;
-    }
-
     return out.str();
 }
 

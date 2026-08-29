@@ -56,10 +56,13 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (!backend)
         return;
 
-    Memory* mem = backend->getMem();
+    CPUBus* bus = backend->getBus();
 
-    if (!mem)
+    if (!bus)
+    {
+        std::cout << "CPU bus is not attached.\n";
         return;
+    }
 
     // Determine current CPU PC
     uint16_t pc = backend->getPC();
@@ -86,7 +89,7 @@ void StepCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     }
 
     // Output the instruction we're actually about to execute
-    std::string disASM = Disassembler::disassembleAt(pc, *mem);
+    std::string disASM = Disassembler::disassembleAt(pc, *bus);
     std::cout << disASM << std::endl;
 
     // Execute one complete CPU instruction while advancing the entire machine

@@ -24,9 +24,10 @@ class MLMonitorBackend
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
+        inline void attachCPUBusInstance(CPUBus* bus) { this->bus = bus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
-        inline void attachProcessorInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
@@ -81,7 +82,7 @@ class MLMonitorBackend
         inline CPUState getCPUState() const { return cpu ? cpu->getState() : CPUState{}; }
         inline uint8_t cpuGetSR() { return cpu->getSR(); }
         inline std::string getJamMode() const { return cpu ? jamModeToString() : "CPU not attached\n"; }
-        inline uint8_t getOpCode(uint16_t PC) { return mem->read(PC); }
+        inline uint8_t getOpCode(uint16_t PC) { return bus ? bus->peek(PC) : 0xFF; }
         inline uint16_t getPC() { return cpu->getPC(); }
         inline bool cpuIsBusArbEnabled() const { return cpu->isVICBusArbitrationEnabled(); }
         inline void cpuSetBusArbEnabled(bool enabled) { cpu->setVICBusArbitrationEnabled(enabled); }
@@ -106,6 +107,11 @@ class MLMonitorBackend
         std::string cpuStackStatus(int count) const;
         std::string cpuLastStatus() const;
         void setJamMode(const std::string& mode);
+
+        // ML Monitor CPUBus
+        inline CPUBus* getBus() { return bus; }
+        inline const CPUBus* getBus() const { return bus; }
+        inline uint8_t readRAM(uint16_t address) { return bus ? bus->peek(address) : 0xFF; }
 
         // ML Monitor Drives
         void dumpDriveList();
@@ -170,7 +176,6 @@ class MLMonitorBackend
 
         // ML Monitor Memory methods
         inline Memory* getMem() { return mem; }
-        inline uint8_t readRAM(uint16_t address) { return mem->read(address); }
         inline void writeRAM(uint16_t address, uint8_t value) { mem->write(address, value); }
         inline void writeRAMDirect(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
 
@@ -255,6 +260,7 @@ class MLMonitorBackend
         CIA2* cia2;
         Computer* comp;
         CPU* cpu;
+        CPUBus* bus;
         ExecutionHistory* executionHistory;
         IECBUS* iecBus;
         IRQLine* irq;
