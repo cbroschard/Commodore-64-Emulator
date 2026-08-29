@@ -77,7 +77,7 @@ bool StateManager::save(const std::string& path)
     components_.sid->saveState(wrtr);
     components_.pla->saveState(wrtr);
     components_.mem->saveState(wrtr);
-    components_.bus->saveState(wrtr);
+    components_.iecBus->saveState(wrtr);
 
     components_.userPortRS232Adapter->saveState(wrtr);
     components_.rs232Device->saveState(wrtr);
@@ -173,7 +173,7 @@ bool StateManager::load(const std::string& path)
         if (!components_.drives[dev])
             continue;
 
-        components_.bus->unregisterDevice(dev);
+        components_.iecBus->unregisterDevice(dev);
         components_.drives[dev].reset();
     }
 
@@ -343,7 +343,7 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "IEC0", 4) == 0)
         {
-            if (!components_.bus->loadState(chunk, rdr)) return false;
+            if (!components_.iecBus->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded IECBUS\n";
             #endif

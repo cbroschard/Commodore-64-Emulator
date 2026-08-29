@@ -26,14 +26,14 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
 
     components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),
-                                   components.cpu.get(), components.executionHistory.get(), components.bus.get(),
+                                   components.cpu.get(), components.executionHistory.get(), components.iecBus.get(),
                                    components.irq.get(), components.keyb.get(), components.mem.get(), components.pla.get(),
                                    components.reu.get(), components.sid.get(),  components.userPort.get(), components.vic.get());
 
     components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
                                  components.mem.get(), components.pla.get(), components.sid.get(), components.vic.get());
 
-    components.bus->attachCIA2Instance(components.cia2.get());
+    components.iecBus->attachCIA2Instance(components.cia2.get());
 
     components.cart->attachCPUInstance(components.cpu.get());
     components.cart->attachDataBusLatchInstance(components.dataBus.get());
@@ -59,7 +59,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.cia2->attachCPUInstance(components.cpu.get());
     components.cia2->attachDataBusLatchInstance(components.dataBus.get());
-    components.cia2->attachIECBusInstance(components.bus.get());
+    components.cia2->attachIECBusInstance(components.iecBus.get());
     components.cia2->attachNMILineInstance(components.nmiLine.get());
     components.cia2->attachTraceManagerInstance(&components.debug->trace());
     components.cia2->attachUserPortInstance(components.userPort.get());
@@ -132,7 +132,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.resetCtl = std::make_unique<ResetController>(*components.audioOutput, *components.cpu, *components.mem, *components.pla,
                                                             *components.cia1, *components.cia2, *components.vic, *components.sid,
-                                                            *components.bus, *components.inputMgr, *components.cart, *components.userPort,
+                                                            *components.iecBus, *components.inputMgr, *components.cart, *components.userPort,
                                                              components.media.get(), roms.basicRom, roms.kernalRom, roms.charRom,
                                                             runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
 

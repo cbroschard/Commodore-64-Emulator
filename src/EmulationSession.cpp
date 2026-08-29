@@ -33,7 +33,7 @@ EmulationSession::EmulationSession(Computer& host, MachineComponents& components
       dataBus_(*components.dataBus),
       debug_(*components.debug),
       ui_(*components.ui),
-      bus_(*components.bus),
+      iecBus_(*components.iecBus),
       inputMgr_(*components.inputMgr),
       inputRouter_(*components.inputRouter),
       media_(*components.media),
@@ -90,7 +90,7 @@ bool EmulationSession::initializeMachine()
         throw std::runtime_error("Error: Problem encountered initializing memory!");
     }
 
-    bus_.reset();
+    iecBus_.reset();
     pla_.reset();
     cpu_.reset();
     dataBus_.reset();
@@ -106,7 +106,7 @@ bool EmulationSession::initializeMachine()
     cia2_.setMode(runtime_.videoMode);
     media_.setVideoMode(runtime_.videoMode);
 
-    bus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
+    iecBus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
 
     sid_.setSampleRate(audioOutput_.getSampleRate());
 
@@ -185,7 +185,7 @@ bool EmulationSession::runFrame()
 
     if (runtime_.pendingBusPrime)
     {
-        bus_.reset();
+        iecBus_.reset();
 
         runtime_.pendingBusPrime = false;
         runtime_.busPrimedAfterBoot = true;
@@ -345,7 +345,7 @@ void EmulationSession::syncTimingFromRuntimeMode()
     lastVideoMode_ = runtime_.videoMode;
     lastCpuCfg_ = runtime_.cpuCfg;
 
-    bus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
+    iecBus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
 
     frameDuration_ = std::chrono::duration<double, std::milli>(
         1000.0 / runtime_.cpuCfg->frameRate

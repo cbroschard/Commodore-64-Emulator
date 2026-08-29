@@ -273,7 +273,7 @@ void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::s
         }
 
         if (!components_.drives[deviceNum]) return;
-        components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
+        components_.iecBus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
         // Sync all existing devices so nobody has stale cached bus state
         for (int dev = 8; dev <= 11; ++dev)
@@ -594,7 +594,7 @@ void MediaManager::createBlankDisk(int deviceNum, DriveModel model, const std::s
         }
 
         if (!components_.drives[deviceNum]) return;
-        components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
+        components_.iecBus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
         // Sync all existing devices so nobody has stale cached bus state
         for (int dev = 8; dev <= 11; ++dev)
@@ -635,7 +635,7 @@ void MediaManager::detachDiskImage(int dev)
 
     components_.drives[dev]->unloadDisk();
 
-    components_.bus->unregisterDevice(dev);
+    components_.iecBus->unregisterDevice(dev);
 
     components_.drives[dev].reset();
 }
@@ -835,7 +835,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
         if (components_.drives[deviceNum]->getDriveModel() == model)
             return true;
 
-        components_.bus->unregisterDevice(deviceNum);
+        components_.iecBus->unregisterDevice(deviceNum);
         components_.drives[deviceNum].reset();
     }
 
@@ -874,7 +874,7 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
     if (!components_.drives[deviceNum])
         return false;
 
-    components_.bus->registerDevice(deviceNum, components_.drives[deviceNum].get());
+    components_.iecBus->registerDevice(deviceNum, components_.drives[deviceNum].get());
 
     for (int dev = 8; dev <= 11; ++dev)
     {

@@ -61,7 +61,7 @@ Computer::Computer() :
     components_.ui = std::make_unique<EmulatorUI>();
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
     components_.expansionManager = std::make_unique<ExpansionManager>(*this);
-    components_.bus = std::make_unique<IECBUS>();
+    components_.iecBus = std::make_unique<IECBUS>();
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();
     components_.keyb = std::make_unique<Keyboard>();
@@ -534,7 +534,7 @@ void Computer::tickCycle()
     if (components_.turbo232)
         components_.turbo232->tick(1);
 
-    components_.bus->tick(1);
+    components_.iecBus->tick(1);
 
     if (auto* mapper = components_.cart->getMapper())
         mapper->tick(1);

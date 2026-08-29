@@ -62,7 +62,7 @@ struct MachineComponents
     std::unique_ptr<EmulatorUI> ui;
     std::unique_ptr<ExecutionHistory> executionHistory;
     std::unique_ptr<ExpansionManager> expansionManager;
-    std::unique_ptr<IECBUS> bus;
+    std::unique_ptr<IECBUS> iecBus;
     std::unique_ptr<InputManager> inputMgr;
     std::unique_ptr<InputRouter> inputRouter;
     std::unique_ptr<IRQLine> irq;

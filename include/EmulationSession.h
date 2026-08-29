@@ -72,7 +72,7 @@ private:
     DataBusLatch& dataBus_;
     DebugManager& debug_;
     EmulatorUI& ui_;
-    IECBUS& bus_;
+    IECBUS& iecBus_;
     InputManager& inputMgr_;
     InputRouter& inputRouter_;
     MediaManager& media_;
