@@ -363,7 +363,7 @@ uint8_t MOS6551::peek(uint16_t reg) const
             // RX data register.
             // Return current received data WITHOUT clearing
             // receive-ready / IRQ state.
-            return receiveDataRegister;
+            return receiveData;
 
         case 0x01:
             return getStatusRegister();
