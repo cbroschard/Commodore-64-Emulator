@@ -124,7 +124,6 @@ void DebugManager::wireTrace(Cartridge* cart,
     trace_->attachCIA1Instance(cia1);
     trace_->attachCIA2Instance(cia2);
     trace_->attachCPUInstance(cpu);
-    trace_->attachMemoryInstance(mem);
     trace_->attachPLAInstance(pla);
     trace_->attachSIDInstance(sid);
     trace_->attachVicInstance(vic);

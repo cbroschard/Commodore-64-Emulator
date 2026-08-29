@@ -14,7 +14,6 @@ TraceManager::TraceManager() :
     cia1object(nullptr),
     cia2object(nullptr),
     processor(nullptr),
-    mem(nullptr),
     pla(nullptr),
     sidchip(nullptr),
     vicII(nullptr),
