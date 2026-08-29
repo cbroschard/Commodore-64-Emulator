@@ -6790,6 +6790,11 @@ uint8_t Vic::vicReadForDebug(uint16_t address, int raster) const
     return bus ? bus->vicRead(address, raster) : 0;
 }
 
+uint8_t Vic::vicReadColorForDebug(uint16_t address) const
+{
+    return bus ? bus->vicReadColor(address) : 0x0F;
+}
+
 bool Vic::isBadLineForDebug(int raster) const
 {
     if (raster < 0 || raster >= getMaxRasterLinesForDebug())

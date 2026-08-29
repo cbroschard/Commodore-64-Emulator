@@ -552,6 +552,7 @@ class Vic
                                                    { return d018ForRasterPixelX(raster, px, preferPreviousFrame); }
 
         uint8_t vicReadForDebug(uint16_t address, int raster) const;
+        uint8_t vicReadColorForDebug(uint16_t address) const;
         bool isBadLineForDebug(int raster) const;
         void setIERExact(uint8_t mask);
         void clearPendingIRQs();

@@ -583,14 +583,14 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
     {
         const int matrixOffset = snap->vmliBase + col;
         const uint16_t screenAddr = static_cast<uint16_t>(screenBase + (matrixOffset & 0x03FF));
-        const uint8_t screenByte = mem ? mem->vicRead(screenAddr, raster) : 0xFF;
+        const uint8_t screenByte = vic ? vic->vicReadForDebug(screenAddr, raster) : 0xFF;
         const uint16_t colorAddr = static_cast<uint16_t>(colorBase + (matrixOffset & 0x03FF));
-        const uint8_t colorByte = mem ? static_cast<uint8_t>(mem->vicReadColor(colorAddr) & 0x0F) : 0x0F;
+        const uint8_t colorByte = vic ? static_cast<uint8_t>(vic->vicReadColorForDebug(colorAddr) & 0x0F) : 0x0F;
         const int colX = x0 + fineX + (col * 8);
         const uint8_t colD018 = vic->d018ForRasterPixelXForDebug(raster, colX, usingPreviousFrame) & 0xFE;
         const uint16_t colCharBase = vicCharBaseFromD018(colD018);
         const uint16_t charAddr = static_cast<uint16_t>(colCharBase + (static_cast<uint16_t>(screenByte) * 8) + yInChar);
-        const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+        const uint8_t rowBits = vic ? vic->vicReadForDebug(charAddr, raster) : 0x00;
 
         out << "  "
             << std::dec << std::setw(3) << col
@@ -672,16 +672,16 @@ std::string MLMonitorBackend::vicDumpBackgroundCellDebug(int raster, int col) co
     const int matrixOffset = snap->vmliBase + col;
 
     const uint16_t screenAddr = static_cast<uint16_t>(screenBase + (matrixOffset & 0x03FF));
-    const uint8_t screenByte = mem ? mem->vicRead(screenAddr, raster) : 0xFF;
+    const uint8_t screenByte = vic ? vic->vicReadForDebug(screenAddr, raster) : 0xFF;
 
     const uint16_t colorAddr = static_cast<uint16_t>(vic->getColorMemoryStartForDebug() + (matrixOffset & 0x03FF));
-    const uint8_t colorByte = mem ? static_cast<uint8_t>(mem->vicReadColor(colorAddr) & 0x0F) : 0x0F;
+    const uint8_t colorByte = vic ? static_cast<uint8_t>(vic->vicReadColorForDebug(colorAddr) & 0x0F) : 0x0F;
 
     const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
 
     const uint16_t charAddr = static_cast<uint16_t>(charBase + (static_cast<uint16_t>(screenByte) * 8) + yInChar);
 
-    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint8_t rowBits = vic ? vic->vicReadForDebug(charAddr, raster) : 0x00;
 
     out << "Background Cell Debug\n";
     out << "---------------------\n";
