@@ -41,7 +41,7 @@ class Bus
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachCPU6510Port(CPU6510Port* cpu6510Port) { this->cpu6510Port = cpu6510Port; }
+        inline void attachCPU6510PortInstance(CPU6510Port* cpu6510Port) { this->cpu6510Port = cpu6510Port; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachDebugManagerInstance(DebugManager* debugManager) { this->debugManager = debugManager; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }

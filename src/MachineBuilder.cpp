@@ -23,6 +23,24 @@ MachineBuilder::~MachineBuilder() = default;
 void MachineBuilder::assemble(Computer* host, MachineComponents& components, MachineRuntimeState& runtime, MachineRomConfig& roms)
 {
     // Attach components to each other
+    components.bus->attachCassetteInstance(components.cass.get());
+    components.bus->attachCartridgeInstance(components.cart.get());
+    components.bus->attachCIA1Instance(components.cia1.get());
+    components.bus->attachCIA2Instance(components.cia2.get());
+    components.bus->attachCPUInstance(components.cpu.get());
+    components.bus->attachCPU6510PortInstance(components.cpu6510Port.get());
+    components.bus->attachDataBusLatchInstance(components.dataBus.get());
+    components.bus->attachDebugManagerInstance(components.debug.get());
+    components.bus->attachMemoryInstance(components.mem.get());
+    components.bus->attachMonitorInstance(&components.debug->monitor());
+    components.bus->attachPLAInstance(components.pla.get());
+    components.bus->attachREUInstance(components.reu.get());
+    components.bus->attachSIDInstance(components.sid.get());
+    components.bus->attachSwiftLinkInstance(components.swiftLink.get());
+    components.bus->attachTraceManagerInstance(&components.debug->trace());
+    components.bus->attachTurbo232Instance(components.turbo232.get());
+    components.bus->attachVICInstance(components.vic.get());
+
     components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
 
     components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),

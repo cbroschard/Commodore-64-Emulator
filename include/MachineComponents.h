@@ -11,11 +11,13 @@
 #include <array>
 #include <memory>
 #include "AudioOutput.h"
+#include "Bus.h"
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CIA1.h"
 #include "CIA2.h"
 #include "CPU.h"
+#include "CPU6510Port.h"
 #include "DataBusLatch.h"
 #include "EmulatorUI.h"
 #include "ExpansionManager.h"
@@ -51,11 +53,13 @@ struct MachineComponents
 {
     std::unique_ptr<SDLContext> sdlContext;
     std::unique_ptr<VideoOutput> videoOutput;
+    std::unique_ptr<Bus> bus;
     std::unique_ptr<Cartridge> cart;
     std::unique_ptr<Cassette> cass;
     std::unique_ptr<CIA1> cia1;
     std::unique_ptr<CIA2> cia2;
     std::unique_ptr<CPU> cpu;
+    std::unique_ptr<CPU6510Port> cpu6510Port;
     std::unique_ptr<DataBusLatch> dataBus;
     std::unique_ptr<DebugManager> debug;
     std::array<std::unique_ptr<Drive>, 16> drives;

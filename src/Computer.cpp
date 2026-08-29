@@ -52,11 +52,13 @@ Computer::Computer() :
     components_.sdlContext = std::make_unique<SDLContext>();
     components_.audioOutput = std::make_unique<AudioOutput>();
     components_.videoOutput = std::make_unique<VideoOutput>();
+    components_.bus = std::make_unique<Bus>();
     components_.cart = std::make_unique<Cartridge>();
     components_.cass = std::make_unique<Cassette>();
     components_.cia1 = std::make_unique<CIA1>();
     components_.cia2 = std::make_unique<CIA2>();
     components_.cpu = std::make_unique<CPU>();
+    components_.cpu6510Port = std::make_unique<CPU6510Port>();
     components_.dataBus = std::make_unique<DataBusLatch>();
     components_.ui = std::make_unique<EmulatorUI>();
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
