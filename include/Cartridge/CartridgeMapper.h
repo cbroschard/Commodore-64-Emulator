@@ -41,6 +41,7 @@ class CartridgeMapper
 
         // Cartridge I/O
         virtual uint8_t read(uint16_t address) = 0;
+        virtual uint8_t peek(uint16_t address) const;
         virtual void write(uint16_t address, uint8_t value ) = 0;
 
         inline virtual void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }

@@ -13,6 +13,13 @@ CartridgeMapper::CartridgeMapper() = default;
 
 CartridgeMapper::~CartridgeMapper() = default;
 
+uint8_t CartridgeMapper::peek(uint16_t address) const
+{
+    (void)address;
+
+    return cart ? cart->sampleDataBus() : 0xFF;
+}
+
 bool CartridgeMapper::readDrivesBus(uint16_t address) const
 {
     (void)address;
