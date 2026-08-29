@@ -23,6 +23,16 @@ MachineBuilder::~MachineBuilder() = default;
 void MachineBuilder::assemble(Computer* host, MachineComponents& components, MachineRuntimeState& runtime, MachineRomConfig& roms)
 {
     // Attach components to each other
+    components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
+
+    components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),
+                                   components.cpu.get(), components.executionHistory.get(), components.iecBus.get(),
+                                   components.irq.get(), components.keyb.get(), components.mem.get(), components.pla.get(),
+                                   components.reu.get(), components.sid.get(),  components.userPort.get(), components.vic.get());
+
+    components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
+                                 components.mem.get(), components.pla.get(), components.sid.get(), components.vic.get());
+
     components.bus->attachCassetteInstance(components.cass.get());
     components.bus->attachCartridgeInstance(components.cart.get());
     components.bus->attachCIA1Instance(components.cia1.get());
@@ -40,16 +50,6 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.bus->attachTraceManagerInstance(&components.debug->trace());
     components.bus->attachTurbo232Instance(components.turbo232.get());
     components.bus->attachVICInstance(components.vic.get());
-
-    components.debug = std::make_unique<DebugManager>(runtime.uiPaused);
-
-    components.debug->wireBackend(host, components.cart.get(), components.cass.get(), components.cia1.get(), components.cia2.get(),
-                                   components.cpu.get(), components.executionHistory.get(), components.iecBus.get(),
-                                   components.irq.get(), components.keyb.get(), components.mem.get(), components.pla.get(),
-                                   components.reu.get(), components.sid.get(),  components.userPort.get(), components.vic.get());
-
-    components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
-                                 components.mem.get(), components.pla.get(), components.sid.get(), components.vic.get());
 
     components.iecBus->attachCIA2Instance(components.cia2.get());
 
@@ -115,6 +115,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.reu->attachIRQLineInstance(components.irq.get());
     components.reu->attachMemoryInstance(components.mem.get());
 
+    components.cpu->attachBusInstance(components.bus.get());
     components.cpu->attachMemoryInstance(components.mem.get());
     components.cpu->attachDataBusLatchInstance(components.dataBus.get());
     components.cpu->attachExecutionHistoryInstance(components.executionHistory.get());

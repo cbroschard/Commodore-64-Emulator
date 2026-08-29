@@ -9,6 +9,7 @@
 #define CPU_H
 
 // forward declarations
+class Bus;
 class DataBusLatch;
 class ExecutionHistory;
 class IRQLine;
@@ -32,6 +33,7 @@ class CPU
         virtual ~CPU();
 
         // Pointers
+        inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachMemoryInstance(CPUBus* mem) { this->mem = mem; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
@@ -519,8 +521,8 @@ class CPU
         void postLoadState();
 
     private:
-
         // non-owning pointers
+        Bus* bus;
         DataBusLatch* dataBus;
         ExecutionHistory* executionHistory;
         IRQLine* IRQ;

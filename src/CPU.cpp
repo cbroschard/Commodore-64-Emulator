@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include <iomanip>
 #include <sstream>
+#include "Bus.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "Common/ExecutionHistory.h"
@@ -17,6 +18,7 @@
 
 CPU::CPU() :
     // Initialize
+    bus(nullptr),
     dataBus(nullptr),
     executionHistory(nullptr),
     IRQ(nullptr),
@@ -541,7 +543,7 @@ uint8_t CPU::cpuRead(uint16_t address, CpuBusCycleType type)
             traceMgr->recordCPUBA("AEC low during CPU read bus cycle", makeCpuStamp());
     }
 
-    const uint8_t value = mem->read(address);
+    const uint8_t value = bus->read(address);
 
     busCycleActive = false;
     currentBusCycle = {};
@@ -563,7 +565,7 @@ void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
     if (dataBus)
         dataBus->drive(value, DataBusLatch::Driver::CPU);
 
-    mem->write(address, value);
+    bus->write(address, value);
 
     busCycleActive = false;
     currentBusCycle = {};
