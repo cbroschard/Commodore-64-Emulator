@@ -111,7 +111,6 @@ class MLMonitorBackend
         // ML Monitor CPUBus
         inline CPUBus* getBus() { return bus; }
         inline const CPUBus* getBus() const { return bus; }
-        inline uint8_t readRAM(uint16_t address) { return bus ? bus->peek(address) : 0xFF; }
 
         // ML Monitor Drives
         void dumpDriveList();
@@ -176,7 +175,8 @@ class MLMonitorBackend
 
         // ML Monitor Memory methods
         inline Memory* getMem() { return mem; }
-        inline void writeRAM(uint16_t address, uint8_t value) { mem->write(address, value); }
+        inline uint8_t readRAM(uint16_t address) { return bus ? bus->peek(address) : 0xFF; };
+        inline void writeRAM(uint16_t address, uint8_t value) { if (bus) bus->write(address, value); }
         inline void writeRAMDirect(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
 
         // ML Monitor PLA

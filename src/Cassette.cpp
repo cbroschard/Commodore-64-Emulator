@@ -282,13 +282,13 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     }
 
     // Update $AE/$AF with load address
-    mem->write(0xAE, result.prgEnd & 0xFF);
-    mem->write(0xAF, result.prgEnd >> 8);
+    mem->writeRAM(0xAE, result.prgEnd & 0xFF);
+    mem->writeRAM(0xAF, result.prgEnd >> 8);
 
     const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart);
 
     for (uint32_t i = 0; i < prgLen; ++i)
-        mem->write(static_cast<uint16_t>(result.prgStart + i), prgData[i]);
+        mem->writeRAM(static_cast<uint16_t>(result.prgStart + i), prgData[i]);
 
     if (result.prgStart == 0x0801)
     {
