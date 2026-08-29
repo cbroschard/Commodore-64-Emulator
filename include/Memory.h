@@ -68,8 +68,6 @@ class Memory
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Public access to memory
-        uint8_t read(uint16_t address);
-        uint16_t read16(uint16_t address);
         uint8_t readRAM(uint16_t address) const;
         uint8_t readKernalROM(uint16_t address) const;
         uint8_t readBASICROM(uint16_t address) const;
