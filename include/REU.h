@@ -39,6 +39,7 @@ class REU
         void reset();
 
         uint8_t readIO(uint16_t addr);
+        uint8_t peekIO(uint16_t address) const;
         void writeIO(uint16_t addr, uint8_t value);
 
         inline bool isEnabled() const    { return model != REUModel::None && !ram.empty(); }
