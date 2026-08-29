@@ -472,7 +472,7 @@ bool MediaManager::loadSelectedT64Entry()
 
     do
     {
-        nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
+        nextLine = components_.mem->readRAM(scan) | (components_.mem->readRAM(scan + 1) << 8);
 
         if (nextLine == 0)
             break;
@@ -1111,7 +1111,7 @@ void MediaManager::loadPrgIntoMem()
             loadAddr + static_cast<uint16_t>(i);
 
         if (prgLoadMode_ == PRGLoadMode::KeepCartridge)
-            components_.mem->write(address, prgImage_[pos + i]);
+            components_.bus->write(address, prgImage_[pos + i]);
         else
             components_.mem->writeDirect(address, prgImage_[pos + i]);
     }
@@ -1122,7 +1122,7 @@ void MediaManager::loadPrgIntoMem()
         uint16_t nextLine;
         do
         {
-            nextLine = components_.mem->read(scan) | (components_.mem->read(scan + 1) << 8);
+            nextLine = components_.mem->readRAM(scan) | (components_.mem->readRAM(scan + 1) << 8);
             if (nextLine == 0) break;
             scan = nextLine;
         } while (true);
