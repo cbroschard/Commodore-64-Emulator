@@ -74,6 +74,7 @@ class Cartridge
         // Public read/write access to cartridge memory
         uint8_t read(uint16_t address);
         uint8_t readRAM(size_t offset);
+        uint8_t peek(uint16_t ddress) const;
         void write(uint16_t address, uint8_t value);
         void writeRAM(size_t offset, uint8_t value);
 

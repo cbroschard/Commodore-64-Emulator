@@ -584,6 +584,14 @@ uint8_t Cartridge::readRAM(size_t offset)
     return value;
 }
 
+uint8_t Cartridge::peek(uint16_t address) const
+{
+    if (!mapper)
+        return dataBus ? dataBus->sample() : 0xFF;
+
+    return mapper->peek(address);
+}
+
 void Cartridge::write(uint16_t address, uint8_t value)
 {
     if (mapper)
