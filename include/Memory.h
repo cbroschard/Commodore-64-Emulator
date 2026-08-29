@@ -70,6 +70,11 @@ class Memory : public CPUBus
         // Public access to memory
         uint8_t read(uint16_t address) override; // CPU access
         uint16_t read16(uint16_t address);
+        uint8_t readRAM(uint16_t address) const;
+        uint8_t readKernalROM(uint16_t address) const;
+        uint8_t readBASICROM(uint16_t address) const;
+        uint8_t readCharROM(uint16_t address) const;
+        uint8_t readColorRAM(uint16_t address) const;
         uint8_t peek(uint16_t address) const override;
         uint8_t peekIO(uint16_t address) const;
         uint8_t readForDMA(uint16_t address);
@@ -79,6 +84,8 @@ class Memory : public CPUBus
 
         void write(uint16_t address, uint8_t value) override; // CPU access
         void write16(uint16_t address, uint16_t value);
+        void writeRAM(uint16_t address, uint8_t value);
+        void writeColorRAM(uint16_t address, uint8_t value);
         void writeDirect(uint16_t address, uint8_t value);
         void writeForDMA(uint16_t address, uint8_t value);
 

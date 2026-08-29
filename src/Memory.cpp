@@ -358,6 +358,31 @@ uint8_t Memory::read(uint16_t address)
     return openBusRead();
 }
 
+uint8_t Memory::readRAM(uint16_t address) const
+{
+    return mem[address];
+}
+
+uint8_t Memory::readKernalROM(uint16_t address) const
+{
+    return kernalROM[address];
+}
+
+uint8_t Memory::readBASICROM(uint16_t address) const
+{
+    return basicROM[address];
+}
+
+uint8_t Memory::readCharROM(uint16_t address) const
+{
+    return charROM[address];
+}
+
+uint8_t Memory::readColorRAM(uint16_t address) const
+{
+    return colorRAM[address] & 0x0F;
+}
+
 uint8_t Memory::peek(uint16_t address) const
 {
     if (address == 0x0000)
@@ -932,6 +957,16 @@ void Memory::write16(uint16_t address, uint16_t value)
 {
     write(address, value & 0xFF); // low byte
     write(address + 1, value >> 8); // high byte
+}
+
+void Memory::writeRAM(uint16_t address, uint8_t value)
+{
+    mem[address] = value;
+}
+
+void Memory::writeColorRAM(uint16_t address, uint8_t value)
+{
+    colorRAM[address] = value & 0x0F;
 }
 
 void Memory::writeDirect(uint16_t address, uint8_t value)
