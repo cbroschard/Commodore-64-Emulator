@@ -27,6 +27,9 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         virtual ~D1541();
 
+        inline const CPUBus* getDriveBus() const override { return &d1541Bus; }
+        inline CPUBus* getDriveBus() override { return &d1541Bus; }
+
         // State Management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;

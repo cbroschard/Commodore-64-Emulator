@@ -10,6 +10,7 @@
 
 #include "CPU.h"
 #include "Drive/Drive.h"
+#include "Drive/D1581Bus.h"
 #include "Drive/D1581Memory.h"
 #include "Drive/FloppyControllerHost.h"
 #include "Drive/IDriveIndicatorView.h"
@@ -27,6 +28,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
     public:
         D1581(int deviceNumber, const std::string& romNAME);
         virtual ~D1581();
+
+        inline const CPUBus* getDriveBus() const override { return &d1581Bus; }
+        inline CPUBus* getDriveBus() override { return &d1581Bus; }
 
         inline uint32_t clockMultiplier() const override { return 2; }
         inline double clockHz() const override { return 2000000.0; }
@@ -151,9 +155,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool motorOn;
 
     private:
-
         // CHIPS
         CPU         driveCPU;
+        D1581Bus    d1581Bus;
         D1581Memory d1581mem;
         IRQLine     irq;
 

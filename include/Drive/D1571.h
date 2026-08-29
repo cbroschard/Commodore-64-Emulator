@@ -32,6 +32,9 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         D1571(int deviceNumber, const std::string& romName);
         virtual ~D1571();
 
+        inline const CPUBus* getDriveBus() const override { return &d1571Bus; }
+        inline CPUBus* getDriveBus() override { return &d1571Bus; }
+
         // State Management
         void saveState(StateWriter& wrtr) const override;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;

@@ -3266,44 +3266,45 @@ void MLMonitorBackend::driveCPUStep(int id)
 
 void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count)
 {
-    // Define the default display count if count is 0
     const uint16_t DEFAULT_COUNT = 16;
-    uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
+    const uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
 
     if (!iecBus)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "IEC bus not attached.\n";
         return;
     }
 
     Peripheral* dev = iecBus->getDevice(id);
 
-    if (!dev)
+    if (!dev || !dev->isDrive())
     {
-        std::cout << "No such device with ID:" << id << "\n";
+        std::cout << "Drive " << id << " not found.\n";
         return;
     }
 
-    if (!dev->isDrive())
+    Drive* drive = dev->asDrive();
+
+    if (!drive)
     {
-        std::cout << "Device is not a Floppy Drive\n";
+        std::cout << "Drive " << id << " not available.\n";
         return;
     }
 
-    auto* mem = dev->asDrive()->getMemory();
+    const CPUBus* driveBus = drive->getDriveBus();
 
-    if (!mem)
+    if (!driveBus)
     {
-        std::cout << "No memory device.\n";
+        std::cout << "Drive " << id << " bus not available.\n";
         return;
     }
 
-    // Use a stream for formatted output
     std::stringstream oss;
-    oss << "Drive " << id << " Memory Dump ($"
-        << hex4(startAddress) << " for " << bytesToDump << " bytes):\n";
 
-    // Set up formatting for hex values
+    oss << "Drive " << id << " Memory Dump ($"
+        << hex4(startAddress) << " for "
+        << bytesToDump << " bytes):\n";
+
     oss << std::uppercase << std::hex << std::setfill('0');
 
     uint16_t currentAddress = startAddress;
@@ -3311,41 +3312,35 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
 
     while (bytesRead < bytesToDump)
     {
-        // Print the starting address of the current line
-        oss << "$" << std::setw(4) << currentAddress << ": ";
+        oss << "$" << std::setw(4)
+            << static_cast<unsigned>(currentAddress)
+            << ": ";
 
-        // Buffer for ASCII representation
         std::string ascii;
 
-        // Print 8 bytes per line
         for (int i = 0; i < 8; ++i)
         {
             if (bytesRead >= bytesToDump)
             {
-                // Fill remaining space if the last line is short
                 oss << "   ";
+                continue;
             }
+
+            const uint8_t value = driveBus->peek(currentAddress);
+
+            oss << std::setw(2)
+                << static_cast<unsigned>(value)
+                << " ";
+
+            if (value >= 0x20 && value <= 0x7E)
+                ascii += static_cast<char>(value);
             else
-            {
-                uint8_t value = mem->read(currentAddress);
-                oss << std::setw(2) << static_cast<int>(value) << " ";
+                ascii += '.';
 
-                // Append to ASCII string
-                if (value >= 0x20 && value <= 0x7E)
-                {
-                    ascii += static_cast<char>(value);
-                }
-                else
-                {
-                    ascii += '.'; // Non-printable character
-                }
-
-                currentAddress++;
-                bytesRead++;
-            }
+            ++currentAddress;
+            ++bytesRead;
         }
 
-        // Print the ASCII representation
         oss << " " << ascii << "\n";
     }
 

@@ -29,9 +29,13 @@ D1581::D1581(int deviceNumber, const std::string& romName) :
     activityPulseFrames(0)
 {
     setDeviceNumber(deviceNumber);
+
     d1581mem.attachPeripheralInstance(this);
     d1581mem.attachCPUInstance(&driveCPU);
-    driveCPU.attachCPUBusInstance(&d1581mem);
+
+    d1581Bus.attachMemoryInstance(&d1581mem);
+    driveCPU.attachCPUBusInstance(&d1581Bus);
+
     driveCPU.attachIRQLineInstance(&irq);
 
     if (!d1581mem.initialize(romName))
