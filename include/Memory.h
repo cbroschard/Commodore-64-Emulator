@@ -75,7 +75,6 @@ class Memory
         uint8_t readColorRAM(uint16_t address) const;
         uint8_t peek(uint16_t address) const;
         uint8_t peekIO(uint16_t address) const;
-        uint8_t readForDMA(uint16_t address);
 
         uint8_t vicRead(uint16_t vicAddress, uint16_t raster); // VIC access range
         uint8_t vicReadColor(uint16_t address) const;
@@ -84,7 +83,6 @@ class Memory
         void writeRAM(uint16_t address, uint8_t value);
         void writeColorRAM(uint16_t address, uint8_t value);
         void writeDirect(uint16_t address, uint8_t value);
-        void writeForDMA(uint16_t address, uint8_t value);
 
         // Cartridge API
         uint8_t readCartridge(uint16_t address, cartLocation location) const;
