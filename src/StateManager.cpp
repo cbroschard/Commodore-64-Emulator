@@ -70,6 +70,7 @@ bool StateManager::save(const std::string& path)
     // Device chunks (next)
     // -------------------------
     components_.cpu->saveState(wrtr);
+    components_.cpu6510Port->saveState(wrtr);
     components_.cia1->saveState(wrtr);
     components_.cia2->saveState(wrtr);
     components_.dataBus->saveState(wrtr);
@@ -264,6 +265,8 @@ bool StateManager::load(const std::string& path)
         const bool isCPU = (std::memcmp(chunk.tag, "CPU0", 4) == 0) ||
                            (std::memcmp(chunk.tag, "CPUX", 4) == 0);
 
+        const bool isCPUPort = (std::memcmp(chunk.tag, "CPUP", 4) == 0);
+
         const bool isCIA1 = (std::memcmp(chunk.tag, "CIA1", 4) == 0) ||
                             (std::memcmp(chunk.tag, "CI1X", 4) == 0);
 
@@ -290,6 +293,15 @@ bool StateManager::load(const std::string& path)
             if (!components_.cpu->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded processor\n";
+            #endif
+        }
+        else if (isCPUPort)
+        {
+            if (!components_.cpu6510Port->loadState(chunk, rdr))
+                return false;
+
+            #ifdef Debug
+            std::cout << "Loaded CPU 6510 port\n";
             #endif
         }
         else if (isCIA1)
