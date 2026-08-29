@@ -142,16 +142,6 @@ class Memory
         static const uint16_t COLOR_MEMORY_START    = 0xD800;
         static const uint16_t COLOR_MEMORY_END      =  0xDBFF;
 
-        // I/O Constants
-        static const uint16_t IO_VIC_START          = 0xD000;
-        static const uint16_t IO_VIC_END            = 0xD3FF;
-        static const uint16_t IO_SID_START          = 0xD400;
-        static const uint16_t IO_SID_END            = 0xD7FF;
-        static const uint16_t IO_CIA1_START         = 0xDC00;
-        static const uint16_t IO_CIA1_END           = 0xDCFF;
-        static const uint16_t IO_CIA2_START         = 0xDD00;
-        static const uint16_t IO_CIA2_END           = 0xDDFF;
-
         // Media
         bool cartridgeAttached;
         bool romLOverlayIsRAM;
@@ -161,9 +151,6 @@ class Memory
         // MCR
         uint8_t dataDirectionRegister;
         uint8_t port1OutputLatch;
-
-        uint8_t readIO(uint16_t address);
-        void writeIO(uint16_t address, uint8_t value);
 
         bool load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
 
