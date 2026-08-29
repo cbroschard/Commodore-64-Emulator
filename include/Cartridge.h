@@ -75,6 +75,7 @@ class Cartridge
         uint8_t read(uint16_t address);
         uint8_t readRAM(size_t offset);
         uint8_t peek(uint16_t ddress) const;
+        uint8_t peekRAM(size_t offset) const;
         void write(uint16_t address, uint8_t value);
         void writeRAM(size_t offset, uint8_t value);
 

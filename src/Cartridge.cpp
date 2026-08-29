@@ -592,6 +592,14 @@ uint8_t Cartridge::peek(uint16_t address) const
     return mapper->peek(address);
 }
 
+uint8_t Cartridge::peekRAM(size_t offset) const
+{
+    if (!hasRAM || offset >= ramData.size())
+        return dataBus ? dataBus->sample() : 0xFF;
+
+    return ramData[offset];
+}
+
 void Cartridge::write(uint16_t address, uint8_t value)
 {
     if (mapper)
