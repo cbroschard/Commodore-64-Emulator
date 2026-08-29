@@ -14,6 +14,7 @@
 
 // forward declares
 class AudioOutput;
+class Bus;
 class Cartridge;
 class CIA1;
 class CIA2;
@@ -34,6 +35,7 @@ class ResetController
 public:
     ResetController(
         AudioOutput& audioOutput,
+        Bus& bus,
         CPU& cpu,
         Memory& mem,
         PLA& pla,
@@ -41,7 +43,7 @@ public:
         CIA2& cia2,
         Vic& vic,
         SID& sid,
-        IECBUS& bus,
+        IECBUS& iecBus,
         InputManager& inputMgr,
         Cartridge& cart,
         UserPort& userPort,
@@ -62,6 +64,7 @@ public:
 
 private:
     AudioOutput& audioOutput_;
+    Bus& bus_;
     CPU& cpu_;
     Memory& mem_;
     PLA& pla_;
@@ -69,7 +72,7 @@ private:
     CIA2& cia2_;
     Vic& vic_;
     SID& sid_;
-    IECBUS& bus_;
+    IECBUS& iecBus_;
     InputManager& inputMgr_;
     Cartridge& cart_;
     UserPort& userPort_;

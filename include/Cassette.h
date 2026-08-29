@@ -9,7 +9,7 @@
 #define CASSETTE_H
 
 // Forward declarations
-class Memory;
+class Bus;
 
 #include <iostream>
 #include "Common/C64MemoryMap.h"
@@ -25,7 +25,7 @@ class Cassette
         virtual ~Cassette();
 
         // Pointers
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
+        inline void attachBusInstance(Bus* bus) { this->bus = bus; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -71,10 +71,10 @@ class Cassette
         std::string dumpPulses(size_t count = 10) const;
 
     private:
-        std::unique_ptr<TapeImage> tapeImage;
-
         // Non-owning pointers
-        Memory* mem;
+        Bus* bus;
+
+        std::unique_ptr<TapeImage> tapeImage;
 
         // Cassette status
         bool cassetteLoaded;

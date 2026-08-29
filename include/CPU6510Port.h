@@ -36,6 +36,10 @@ class CPU6510Port
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
+        // Cassette API
+        inline bool getCassetteSenseLow() const { return cassetteSenseLow; }
+        inline bool isCassetteMotorOn() const { return (getEffectivePort() & 0x20) == 0; }
+
     private:
         // Non-owning pointers
         Cassette* cass;

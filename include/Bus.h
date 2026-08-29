@@ -80,6 +80,13 @@ class Bus : public CPUBus
         inline void setROMLOverlayIsRAM(bool enabled) { romLOverlayIsRAM = enabled; }
         inline void setROMHOverlayIsRAM(bool enabled) { romHOverLayIsRAM = enabled; }
 
+        // Cassette API
+        void setCassetteSenseLow(bool low);
+        bool getCassetteSenseLow() const;
+        bool isCassetteMotorOn() const;
+        void writeRAM(uint16_t address, uint8_t value);
+        void write16(uint16_t address, uint16_t value);
+
     private:
         // Non-owning pointers
         Cartridge* cart;

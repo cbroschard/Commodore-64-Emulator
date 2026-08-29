@@ -914,3 +914,33 @@ uint8_t Bus::peekIO(uint16_t address) const
 
     return dataBus ? dataBus->sample() : 0xFF;
 }
+
+void Bus::setCassetteSenseLow(bool low)
+{
+    if (cpu6510Port)
+        cpu6510Port->setCassetteSenseLow(low);
+}
+
+bool Bus::getCassetteSenseLow() const
+{
+    return cpu6510Port ? cpu6510Port->getCassetteSenseLow() : false;
+}
+
+bool Bus::isCassetteMotorOn() const
+{
+    return cpu6510Port ? cpu6510Port->isCassetteMotorOn() : false;
+}
+
+void Bus::writeRAM(uint16_t address, uint8_t value)
+{
+    if (mem)
+        mem->writeRAM(address, value);
+}
+
+void Bus::write16(uint16_t address, uint16_t value)
+{
+    if (!mem)
+        return;
+
+    mem->write16(address, value);
+}

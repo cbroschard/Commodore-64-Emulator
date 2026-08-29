@@ -381,7 +381,7 @@ void MediaManager::attachCRTImage()
         return;
     }
 
-    components_.mem->setCartridgeAttached(true);
+    components_.bus->setCartridgeAttached(true);
     components_.pla->setCartridgeAttached(true);
 
     if (coldReset_) coldReset_();
@@ -648,7 +648,7 @@ void MediaManager::detachCRTImage()
     state_.cartAttached = false;
     state_.cartPath.clear();
 
-    components_.mem->setCartridgeAttached(false);
+    components_.bus->setCartridgeAttached(false);
     components_.pla->setCartridgeAttached(false);
 
     recreateCartridge();
@@ -782,7 +782,7 @@ void MediaManager::setCartSwitch(uint32_t switchIndex, uint32_t switchPos)
 void MediaManager::restoreCartridgeFromState()
 {
     // First, make sure "no cart" is the baseline
-    components_.mem->setCartridgeAttached(false);
+    components_.bus->setCartridgeAttached(false);
     components_.pla->setCartridgeAttached(false);
 
     if (!state_.cartAttached || state_.cartPath.empty())
@@ -800,7 +800,7 @@ void MediaManager::restoreCartridgeFromState()
         return;
     }
 
-    components_.mem->setCartridgeAttached(true);
+    components_.bus->setCartridgeAttached(true);
     components_.pla->setCartridgeAttached(true);
 }
 

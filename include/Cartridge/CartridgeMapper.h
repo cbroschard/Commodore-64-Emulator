@@ -14,6 +14,7 @@
 #include "StateWriter.h"
 
 //Forward declarations
+class Bus;
 class Cartridge;
 class Memory;
 
@@ -44,6 +45,7 @@ class CartridgeMapper
         virtual uint8_t peek(uint16_t address) const;
         virtual void write(uint16_t address, uint8_t value ) = 0;
 
+        inline virtual void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline virtual void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline virtual void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
@@ -67,8 +69,9 @@ class CartridgeMapper
         virtual bool cpuMemoryHandledByMapper(uint16_t address) const;
 
     protected:
-        Cartridge* cart = nullptr;
-        Memory* mem = nullptr;
+        Bus* bus;
+        Cartridge* cart;
+        Memory* mem;
 
         // Cartridge LO/HI location constants
         static constexpr size_t CART_LO_START = 0x8000;

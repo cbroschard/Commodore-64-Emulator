@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV4Mapper.h"
 #include "Memory.h"
@@ -355,7 +356,7 @@ bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
 
 bool SuperSnapshotV4Mapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart) return false;
+    if (!bus || !cart) return false;
 
     if (ctrl.releaseFreeze)
     {
@@ -371,7 +372,7 @@ bool SuperSnapshotV4Mapper::applyMappingAfterLoad()
     {
         cart->setExROMLine(true);
         cart->setGameLine(true);
-        mem->setROMLOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
         return true;
     }
 
@@ -384,14 +385,14 @@ bool SuperSnapshotV4Mapper::applyMappingAfterLoad()
     }
 
     // RAM at ROML overlay
-    mem->setROMLOverlayIsRAM(ctrl.ramAtROML);
+    bus->setROMLOverlayIsRAM(ctrl.ramAtROML);
 
     // Mapping lines
     if (freezeActive)
     {
         cart->setExROMLine(true);
         cart->setGameLine(false);
-        mem->setROMLOverlayIsRAM(true);
+        bus->setROMLOverlayIsRAM(true);
         return true;
     }
     else if (ctrl.map16k)
@@ -415,7 +416,7 @@ bool SuperSnapshotV4Mapper::applyMappingAfterLoad()
 
 void SuperSnapshotV4Mapper::pressFreeze()
 {
-    if (!cart || !mem) return;
+    if (!cart || !bus) return;
 
     if (!freezeActive)
     {
@@ -429,7 +430,7 @@ void SuperSnapshotV4Mapper::pressFreeze()
     // Force Ultimax mapping while frozen
     cart->setExROMLine(true);
     cart->setGameLine(false);
-    mem->setROMLOverlayIsRAM(true);
+    bus->setROMLOverlayIsRAM(true);
 
     cart->requestCartridgeNMI();
 }

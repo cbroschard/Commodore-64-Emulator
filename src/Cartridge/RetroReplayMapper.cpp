@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Memory.h"
@@ -419,8 +420,8 @@ bool RetroReplayMapper::applyMappingAfterLoad()
 
     ctrl.decode(flashMode);
 
-    mem->setROMLOverlayIsRAM(false);
-    mem->setROMHOverlayIsRAM(false);
+    bus->setROMLOverlayIsRAM(false);
+    bus->setROMHOverlayIsRAM(false);
 
     if (freezeActive)
     {
@@ -449,14 +450,14 @@ bool RetroReplayMapper::applyMappingAfterLoad()
         case RRMapMode::Ram8K:
             cart->setExROMLine(true);
             cart->setGameLine(false);
-            mem->setROMLOverlayIsRAM(true);
+            bus->setROMLOverlayIsRAM(true);
             return loadIntoMemory(ctrl.romBank);
 
         case RRMapMode::Ram16K:
             cart->setExROMLine(false);
             cart->setGameLine(false);
-            mem->setROMLOverlayIsRAM(true);
-            mem->setROMHOverlayIsRAM(true);
+            bus->setROMLOverlayIsRAM(true);
+            bus->setROMHOverlayIsRAM(true);
             return loadIntoMemory(ctrl.romBank);
 
         default:
@@ -517,10 +518,10 @@ void RetroReplayMapper::reset()
 
     ctrl.decode(flashMode);
 
-    if (mem)
+    if (bus)
     {
-        mem->setROMLOverlayIsRAM(false);
-        mem->setROMHOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
+        bus->setROMHOverlayIsRAM(false);
     }
 
     (void)applyMappingAfterLoad();

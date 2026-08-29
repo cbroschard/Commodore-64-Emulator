@@ -53,6 +53,7 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
+#include "Bus.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "Memory.h"
@@ -61,6 +62,7 @@
 Cartridge::Cartridge() :
     hasRAM(false),
     currentBank(0),
+    bus(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
     host(nullptr),
@@ -181,6 +183,7 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     mapper = createMapper(mapperType);
     if (mapper)
     {
+        mapper->attachBusInstance(bus);
         mapper->attachCartridgeInstance(this);
         mapper->attachMemoryInstance(mem);
     }

@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "cia1.h"
 #include <cstring>
 #include <sstream>
@@ -18,6 +19,7 @@
 #include "Vic.h"
 
 CIA1::CIA1() :
+    bus(nullptr),
     cass(nullptr),
     cpu(nullptr),
     IRQ(nullptr),
@@ -192,7 +194,7 @@ uint8_t CIA1::readPortA()
     }
 
     // Wire-AND cassette SENSE onto PA4 (low dominates)
-    const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+    const bool senseLow = bus ? bus->getCassetteSenseLow() : false;
     if (senseLow) pin &= static_cast<uint8_t>(~0x10);
 
     // Merge with output latch via DDRA…
@@ -237,9 +239,9 @@ void CIA1::postTimerUpdates(uint32_t cyclesElapsed)
     // Cassette handler (FLAG falling-edge detection)
     for (uint32_t i = 0; i < cyclesElapsed; ++i)
     {
-        const bool motorOn  = mem ? mem->isCassetteMotorOn()
+        const bool motorOn  = bus ? bus->isCassetteMotorOn()
                                   : (cass ? cass->motorOn() : false);
-        const bool senseLow = mem ? mem->getCassetteSenseLow() : false;
+        const bool senseLow = bus ? bus->getCassetteSenseLow() : false;
         const bool allow    = motorOn && senseLow;
 
         if (allow && !gateWasOpenPrev)
@@ -290,8 +292,8 @@ std::string CIA1::dumpRegisters(const std::string& group) const
     // Then append CIA1/C64-specific details.
     if (group == "port" || group == "all")
     {
-        const bool senseLow  = mem ? mem->getCassetteSenseLow() : false;
-        const bool motorOn   = mem ? mem->isCassetteMotorOn() : false;
+        const bool senseLow  = bus ? bus->getCassetteSenseLow() : false;
+        const bool motorOn   = bus ? bus->isCassetteMotorOn() : false;
         const bool readLevel = cassetteReadLineLevel;
 
         out << "\nCIA1 C64-Specific Lines\n\n";

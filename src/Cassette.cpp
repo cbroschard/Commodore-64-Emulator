@@ -5,11 +5,12 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <sstream>
+#include "Bus.h"
 #include "Cassette.h"
-#include "Memory.h"
 
 Cassette::Cassette() :
-    mem(nullptr),
+    bus(nullptr),
     cassetteLoaded(false),
     playPressed(false),
     motorStatus(false),
@@ -95,8 +96,8 @@ bool Cassette::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         else
             tapePosition = 0;
 
-        if (mem)
-            mem->setCassetteSenseLow(cassetteLoaded && playPressed);
+        if (bus)
+            bus->setCassetteSenseLow(cassetteLoaded && playPressed);
 
         rdr.exitChunkPayload(chunk);
         return true;
@@ -147,8 +148,8 @@ void Cassette::unloadCassette()
 
     setData(true);
 
-    if (mem)
-        mem->setCassetteSenseLow(false);
+    if (bus)
+        bus->setCassetteSenseLow(false);
 
     tapeImage.reset();
 }
@@ -166,16 +167,16 @@ void Cassette::play()
 
     playPressed = true;
 
-    if (mem)
-        mem->setCassetteSenseLow(true);
+    if (bus)
+        bus->setCassetteSenseLow(true);
 }
 
 void Cassette::stop()
 {
     playPressed = false;
 
-    if (mem)
-        mem->setCassetteSenseLow(false);
+    if (bus)
+        bus->setCassetteSenseLow(false);
 
     setData(true);
 }
@@ -184,8 +185,8 @@ void Cassette::rewind()
 {
     playPressed = false;
 
-    if (mem)
-        mem->setCassetteSenseLow(false);
+    if (bus)
+        bus->setCassetteSenseLow(false);
 
     if (tapeImage)
         tapeImage->rewind();
@@ -201,8 +202,8 @@ void Cassette::fastForward()
 
     playPressed = false;
 
-    if (mem)
-        mem->setCassetteSenseLow(false);
+    if (bus)
+        bus->setCassetteSenseLow(false);
 
     constexpr uint64_t cyclesToSkip = 5000000;
 
@@ -245,8 +246,8 @@ void Cassette::tick()
     {
         playPressed = false;
 
-        if (mem)
-            mem->setCassetteSenseLow(false);
+        if (bus)
+            bus->setCassetteSenseLow(false);
 
         setData(true);
     }
@@ -257,7 +258,7 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     T64LoadResult result;
 
     // Must have a loaded T64 image and valid memory instance
-    if (!tapeImage || !tapeImage->isT64() || !mem)
+    if (!tapeImage || !tapeImage->isT64() || !bus)
     {
         result.success = false;
         return result;
@@ -282,23 +283,23 @@ T64LoadResult Cassette::t64LoadPrgIntoMemory()
     }
 
     // Update $AE/$AF with load address
-    mem->writeRAM(0xAE, result.prgEnd & 0xFF);
-    mem->writeRAM(0xAF, result.prgEnd >> 8);
+    bus->writeRAM(0xAE, result.prgEnd & 0xFF);
+    bus->writeRAM(0xAF, result.prgEnd >> 8);
 
     const uint32_t prgLen = static_cast<uint32_t>(result.prgEnd) - static_cast<uint32_t>(result.prgStart);
 
     for (uint32_t i = 0; i < prgLen; ++i)
-        mem->writeRAM(static_cast<uint16_t>(result.prgStart + i), prgData[i]);
+        bus->writeRAM(static_cast<uint16_t>(result.prgStart + i), prgData[i]);
 
     if (result.prgStart == 0x0801)
     {
         const uint16_t basicEnd = result.prgEnd;
 
         // Update BASIC pointers
-        mem->write16(TXTAB,  result.prgStart);
-        mem->write16(VARTAB, basicEnd);
-        mem->write16(ARYTAB, basicEnd);
-        mem->write16(STREND, basicEnd);
+        bus->write16(TXTAB,  result.prgStart);
+        bus->write16(VARTAB, basicEnd);
+        bus->write16(ARYTAB, basicEnd);
+        bus->write16(STREND, basicEnd);
     }
 
     result.success = true;

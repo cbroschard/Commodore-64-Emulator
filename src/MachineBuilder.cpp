@@ -51,8 +51,12 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.bus->attachTurbo232Instance(components.turbo232.get());
     components.bus->attachVICInstance(components.vic.get());
 
+    components.cpu6510Port->attachPLAInstance(components.pla.get());
+    components.cpu6510Port->attachCassetteInstance(components.cass.get());
+
     components.iecBus->attachCIA2Instance(components.cia2.get());
 
+    components.cart->attachBusInstance(components.bus.get());
     components.cart->attachCPUInstance(components.cpu.get());
     components.cart->attachDataBusLatchInstance(components.dataBus.get());
     components.cart->attachHostInstance(host);
@@ -60,8 +64,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cart->attachTraceManagerInstance(&components.debug->trace());
     components.cart->attachVicInstance(components.vic.get());
 
-    components.cass->attachMemoryInstance(components.mem.get());
+    components.cass->attachBusInstance(components.bus.get());
 
+    components.cia1->attachBusInstance(components.bus.get());
     components.cia1->attachCassetteInstance(components.cass.get());
     components.cia1->attachCPUInstance(components.cpu.get());
     components.cia1->attachDataBusLatchInstance(components.dataBus.get());
@@ -135,11 +140,11 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                                             components.media.get(), [host]() { host->warmReset(); }, [host]() { host->coldReset(); },
                                                             [&components]() { if (components.uiBridge) components.uiBridge->toggleManualPause(); });
 
-    components.resetCtl = std::make_unique<ResetController>(*components.audioOutput, *components.cpu, *components.mem, *components.pla,
-                                                            *components.cia1, *components.cia2, *components.vic, *components.sid,
-                                                            *components.iecBus, *components.inputMgr, *components.cart, *components.userPort,
-                                                             components.media.get(), roms.basicRom, roms.kernalRom, roms.charRom,
-                                                            runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
+    components.resetCtl = std::make_unique<ResetController>(*components.audioOutput, *components.bus, *components.cpu, *components.mem,
+                                                            *components.pla, *components.cia1, *components.cia2, *components.vic,
+                                                            *components.sid, *components.iecBus, *components.inputMgr, *components.cart,
+                                                            *components.userPort, components.media.get(), roms.basicRom, roms.kernalRom,
+                                                            roms.charRom, runtime.videoMode, runtime.sidModel, runtime.cpuCfg);
 
     components.uiBridge = std::make_unique<UIBridge>(*components.ui, *components.expansionManager.get(), components.media.get(),
                                                       components.inputMgr.get(), runtime.uiPaused, runtime.running,

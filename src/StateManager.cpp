@@ -364,7 +364,7 @@ bool StateManager::load(const std::string& path)
         }
         else if (std::memcmp(chunk.tag, "CART", 4) == 0)
         {
-            components_.mem->setCartridgeAttached(true);
+            components_.bus->setCartridgeAttached(true);
             components_.pla->setCartridgeAttached(true);
 
             if (!components_.cart->loadState(chunk, rdr)) return false;

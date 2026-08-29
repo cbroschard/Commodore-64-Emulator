@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Memory.h"
@@ -255,19 +256,19 @@ bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
 
 bool AtomicPowerMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem) return false;
+    if (!cart || !bus) return false;
 
     if (ctrl.cartDisable)
     {
         ramEnabled = false;
         cart->setExROMLine(true);
         cart->setGameLine(true);
-        mem->setROMLOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
         return true;
     }
 
     ramEnabled = ctrl.ramEnable;
-    mem->setROMLOverlayIsRAM(ramEnabled);
+    bus->setROMLOverlayIsRAM(ramEnabled);
 
     cart->setExROMLine(ctrl.exromHigh);
     cart->setGameLine(!ctrl.gameLow);

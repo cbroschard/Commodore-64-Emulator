@@ -8,12 +8,6 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
 
-// Forward declarations
-class CPU;
-class DataBusLatch;
-class Memory;
-class Vic;
-
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -29,12 +23,19 @@ class Vic;
 #include "StateWriter.h"
 #include "TraceManager.h"
 
+// Forward declarations
+class CPU;
+class DataBusLatch;
+class Memory;
+class Vic;
+
 class Cartridge
 {
     public:
         Cartridge();
         virtual ~Cartridge();
 
+        inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
@@ -194,6 +195,7 @@ class Cartridge
 
     private:
         // Non-owning pointers
+        Bus* bus;
         CPU* cpu;
         DataBusLatch* dataBus;
         ICartridgeHost* host;

@@ -9,6 +9,7 @@
 #define CIA1_H
 
 //Forward declarations
+class Bus;
 class Cassette;
 class CPU;
 class IRQLine;
@@ -27,6 +28,7 @@ class CIA1 : public CIA6526
         virtual ~CIA1();
 
         // Pointers
+        inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
@@ -63,6 +65,7 @@ class CIA1 : public CIA6526
 
     private:
         // Non-owning pointers
+        Bus* bus;
         Cassette* cass;
         CPU* cpu;
         IRQLine* IRQ;

@@ -33,13 +33,6 @@ void Memory::saveState(StateWriter& wrtr) const
     // Dump Color RAM
     wrtr.writeVectorU8(colorRAM);
 
-    // Dump CPU port $00/$01 mapping controls
-    wrtr.writeU8(dataDirectionRegister);
-    wrtr.writeU8(port1OutputLatch);
-
-    // Dump Misc
-    wrtr.writeBool(cartridgeAttached);
-
     // Dump Cartridge Lo/Hi
     wrtr.writeVectorU8(cart_lo);
     wrtr.writeVectorU8(cart_hi);
@@ -64,12 +57,6 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         // Load Color RAM
         if (!rdr.readVectorU8(colorRAM))                                    { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load CPU port $00/$01 mapping controls
-        if (!rdr.readU8(dataDirectionRegister))                             { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(port1OutputLatch))                                  { rdr.exitChunkPayload(chunk); return false; }
-
-        if (!rdr.readBool(cartridgeAttached))                               { rdr.exitChunkPayload(chunk); return false; }
 
         // Load cart vectors
         if (!rdr.readVectorU8(cart_lo))                                     { rdr.exitChunkPayload(chunk); return false; }

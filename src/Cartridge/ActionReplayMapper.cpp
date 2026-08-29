@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/ActionReplayMapper.h"
 #include "CPU.h"
@@ -266,7 +267,7 @@ bool ActionReplayMapper::loadIntoMemory(uint8_t bank)
 
 void ActionReplayMapper::applyMappingFromControl()
 {
-    if (!mem || !cart)
+    if (!bus || !cart)
         return;
 
     if (ctrl.cartDisabled)
@@ -274,7 +275,7 @@ void ActionReplayMapper::applyMappingFromControl()
         io1Enabled = false;
         io2RoutesToRam = false;
 
-        mem->setROMLOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
         cart->setExROMLine(true);
         cart->setGameLine(true);
         return;
@@ -307,8 +308,8 @@ void ActionReplayMapper::applyMappingFromControl()
     }
 
     // Bit5: RAM at ROML ($8000-$9FFF) + IO2 window enabled
-    if (mem)
-        mem->setROMLOverlayIsRAM(ctrl.ramAtROML);
+    if (bus)
+        bus->setROMLOverlayIsRAM(ctrl.ramAtROML);
 
     io2RoutesToRam = ctrl.ramAtROML;
 }

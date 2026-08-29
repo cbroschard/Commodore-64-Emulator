@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author::
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV5Mapper.h"
 #include "Memory.h"
@@ -243,12 +244,12 @@ bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
 
 bool SuperSnapshotV5Mapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart)
+    if (!bus || !cart)
         return false;
 
     if (!ctrl.enabled)
     {
-        mem->setROMLOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
         cart->setGameLine(true);
         cart->setExROMLine(true);
         return true;
@@ -265,7 +266,7 @@ bool SuperSnapshotV5Mapper::applyMappingAfterLoad()
     cart->setGameLine(!ctrl.gameLow);
     cart->setExROMLine(ctrl.exromHigh);
 
-    mem->setROMLOverlayIsRAM(false);
+    bus->setROMLOverlayIsRAM(false);
     return true;
 }
 

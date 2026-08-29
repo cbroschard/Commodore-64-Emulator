@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/ExpertMapper.h"
 #include "Memory.h"
@@ -177,10 +178,10 @@ bool ExpertMapper::applyMappingAfterLoad()
 
         // In Ultimax, vectors are fetched from $E000-$FFFF (CARTRIDGE_HI_E000).
         // Overlay that with cart RAM so $FFFA/$FFFB come from RAM.
-        mem->setROMHOverlayIsRAM(true);
+        bus->setROMHOverlayIsRAM(true);
 
         // You *may* also leave ROML RAM enabled; doesn't hurt.
-        mem->setROMLOverlayIsRAM(true);
+        bus->setROMLOverlayIsRAM(true);
 
         if (freezeCycles <= 0) freezeCycles = 10;
         return true;
@@ -193,8 +194,8 @@ bool ExpertMapper::applyMappingAfterLoad()
         cart->setExROMLine(true);
         cart->setGameLine(true);
 
-        mem->setROMLOverlayIsRAM(false);
-        mem->setROMHOverlayIsRAM(false);
+        bus->setROMLOverlayIsRAM(false);
+        bus->setROMHOverlayIsRAM(false);
     }
     else
     {
@@ -203,10 +204,10 @@ bool ExpertMapper::applyMappingAfterLoad()
         cart->setGameLine(true);
 
         // $8000-$9FFF should be cart RAM
-        mem->setROMLOverlayIsRAM(true);
+        bus->setROMLOverlayIsRAM(true);
 
         // Not in Ultimax, so ROMH overlay normally off
-        mem->setROMHOverlayIsRAM(false);
+        bus->setROMHOverlayIsRAM(false);
     }
 
     return true;

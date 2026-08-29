@@ -19,7 +19,6 @@
 #include <sstream>
 #include <vector>
 #include "Common/CartridgeTypes.h"
-#include "CPUBus.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -50,16 +49,6 @@ class Memory
         uint8_t readCartridge(uint16_t address, cartLocation location) const;
         void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
 
-        // Setters for cartridge
-        inline void setCartridgeAttached(bool flag) { cartridgeAttached = flag; }
-        inline void setROMLOverlayIsRAM(bool flag) { romLOverlayIsRAM = flag; }
-        inline void setROMHOverlayIsRAM(bool flag) { romHOverLayIsRAM = flag; }
-
-        // Getter/Setter for cassette
-        inline bool getCassetteSenseLow() { return cassetteSenseLow; }
-        inline void setCassetteSenseLow(bool pressed) { cassetteSenseLow = pressed; }
-        inline bool isCassetteMotorOn() const  { return (port1OutputLatch & 0x20) == 0; }
-
         // Load all ROMS
         bool Initialize(const std::string& basic, const std::string& kernal, const std::string& character);
 
@@ -89,16 +78,6 @@ class Memory
         static constexpr size_t COLOR_RAM_SIZE      = 0x400;
         static const uint16_t COLOR_MEMORY_START    = 0xD800;
         static const uint16_t COLOR_MEMORY_END      =  0xDBFF;
-
-        // Media
-        bool cartridgeAttached;
-        bool romLOverlayIsRAM;
-        bool romHOverLayIsRAM;
-        bool cassetteSenseLow;
-
-        // MCR
-        uint8_t dataDirectionRegister;
-        uint8_t port1OutputLatch;
 
         bool load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
 };

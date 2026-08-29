@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "AudioOutput.h"
+#include "Bus.h"
 #include "Cartridge.h"
 #include "CIA1.h"
 #include "CIA2.h"
@@ -22,6 +23,7 @@
 
 ResetController::ResetController(
     AudioOutput& audioOutput,
+    Bus& bus,
     CPU& cpu,
     Memory& mem,
     PLA& pla,
@@ -29,7 +31,7 @@ ResetController::ResetController(
     CIA2& cia2,
     Vic& vic,
     SID& sid,
-    IECBUS& bus,
+    IECBUS& iecBus,
     InputManager& inputMgr,
     Cartridge& cart,
     UserPort& userPort,
@@ -41,6 +43,7 @@ ResetController::ResetController(
     SIDModel& sidModel,
     const CPUConfig*& cpuCfg)
     : audioOutput_(audioOutput)
+    , bus_(bus)
     , cpu_(cpu)
     , mem_(mem)
     , pla_(pla)
@@ -48,7 +51,7 @@ ResetController::ResetController(
     , cia2_(cia2)
     , vic_(vic)
     , sid_(sid)
-    , bus_(bus)
+    , iecBus_(iecBus)
     , inputMgr_(inputMgr)
     , cart_(cart)
     , userPort_(userPort)
@@ -107,14 +110,14 @@ void ResetController::warmReset()
     const bool cartAttachedNow = (media_ && media_->getState().cartAttached);
     if (cartAttachedNow)
     {
-        mem_.setCartridgeAttached(true);
+        bus_.setCartridgeAttached(true);
         pla_.setCartridgeAttached(true);
 
         cart_.reset();
     }
     else
     {
-        mem_.setCartridgeAttached(false);
+        bus_.setCartridgeAttached(false);
         pla_.setCartridgeAttached(false);
 
         cart_.setGameLine(true);
@@ -123,7 +126,7 @@ void ResetController::warmReset()
 
     pla_.updateMemoryControlRegister(0x37);
 
-    bus_.reset();
+    iecBus_.reset();
     vic_.reset();
     cia1_.reset();
     cia2_.reset();
@@ -162,7 +165,7 @@ void ResetController::coldReset()
 
     if (cartAttachedNow)
     {
-        mem_.setCartridgeAttached(true);
+        bus_.setCartridgeAttached(true);
         pla_.setCartridgeAttached(true);
 
         // Memory initialization cleared cartridge mappings.
@@ -171,7 +174,7 @@ void ResetController::coldReset()
     }
     else
     {
-        mem_.setCartridgeAttached(false);
+        bus_.setCartridgeAttached(false);
         pla_.setCartridgeAttached(false);
 
         cart_.setGameLine(true);
@@ -180,7 +183,7 @@ void ResetController::coldReset()
 
     pla_.updateMemoryControlRegister(0x37);
 
-    bus_.reset();
+    iecBus_.reset();
     vic_.reset();
     cia1_.reset();
     cia2_.reset();
