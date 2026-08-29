@@ -80,7 +80,6 @@ class Memory
         uint8_t vicRead(uint16_t vicAddress, uint16_t raster); // VIC access range
         uint8_t vicReadColor(uint16_t address) const;
 
-        void write(uint16_t address, uint8_t value);
         void write16(uint16_t address, uint16_t value);
         void writeRAM(uint16_t address, uint8_t value);
         void writeColorRAM(uint16_t address, uint8_t value);
