@@ -5,21 +5,21 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "CIA2.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "IVideoSink.h"
 #include "IRQLine.h"
-#include "Memory.h"
 #include "Vic.h"
 
 Vic::Vic(VideoMode mode) :
+    bus(nullptr),
     cia2(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
     sink(nullptr),
     IRQ(nullptr),
-    mem(nullptr),
     traceMgr(nullptr),
     mode_(mode),
     cfg_(mode == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG)
@@ -2489,11 +2489,11 @@ bool Vic::spriteEnabledAtPixel(int sprite, int px) const
 
 void Vic::fetchSpritePointer(int sprite, int raster)
 {
-    if (!mem)
+    if (!bus)
         return;
 
     const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster, currentCycle);
-    const uint8_t ptr = mem->vicRead(ptrLoc, raster);
+    const uint8_t ptr = bus->vicRead(ptrLoc, raster);
 
     // Latch Open Bus
     updateOpenBus(ptr);
@@ -2829,7 +2829,7 @@ int Vic::spriteDataFetchSpriteForKind(FetchKind kind) const
 
 void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
 {
-    if (!mem)
+    if (!bus)
         return;
 
     SpriteUnit& unit = spriteUnits[sprite];
@@ -2843,7 +2843,7 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
     else if (byteIndex == 2)
         unit.lastFetchAddr2 = addr;
 
-    const uint8_t value = mem->vicRead(addr, raster);
+    const uint8_t value = bus->vicRead(addr, raster);
 
     updateOpenBus(value);
 
@@ -3341,7 +3341,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     if (fetchIndex < 0 || fetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    if (!mem)
+    if (!bus)
         return;
 
     // VC for this actual matrix fetch.
@@ -3354,12 +3354,12 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     const uint16_t screenAddress = static_cast<uint16_t>(screenBase + vc);
 
-    const uint8_t screenByte = mem->vicRead(screenAddress, raster);
+    const uint8_t screenByte = bus->vicRead(screenAddress, raster);
 
     // Color RAM is selected independently of D018.
     const uint16_t colorAddress = static_cast<uint16_t>(COLOR_MEMORY_START + vc);
 
-    const uint8_t colorByte = static_cast<uint8_t>(mem->vicReadColor(colorAddress) & 0x0F);
+    const uint8_t colorByte = static_cast<uint8_t>(bus->vicReadColor(colorAddress) & 0x0F);
 
     // Successful c-access becomes the current VIC matrix latch.
     cAccessScreenLatch = screenByte;
@@ -3382,7 +3382,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
 void Vic::renderLine(int raster)
 {
-    if (!sink || !mem)
+    if (!sink || !bus)
         return;
 
     updateGraphicsMode(raster);
@@ -3451,7 +3451,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
     const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8
                                 + static_cast<uint16_t>(vicState.rc & 0x07));
-    const uint8_t graphicsByte = mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint8_t graphicsByte = bus ? bus->vicRead(charAddr, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
 
@@ -3582,7 +3582,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
         bitmapAddress &= static_cast<uint16_t>(~0x0600);
     }
 
-    const uint8_t graphicsByte = mem ? mem->vicRead(bitmapAddress, raster) : 0x00;
+    const uint8_t graphicsByte = bus ? bus->vicRead(bitmapAddress, raster) : 0x00;
 
     updateOpenBus(graphicsByte);
 
@@ -4604,7 +4604,7 @@ bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) 
 
     const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(yInChar & 0x07));
 
-    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint8_t rowBits = bus ? bus->vicRead(charAddr, raster) : 0x00;
 
     out.valid = true;
     out.px = px;
@@ -4677,7 +4677,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
 {
     out = {};
 
-    if (!mem)
+    if (!bus)
         return false;
 
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
@@ -4715,7 +4715,7 @@ bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& o
     const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
     const uint16_t bitmapBase = getLatchedBitmapBase(raster);
     const uint16_t addr = static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
-    const uint8_t bitmapByte = mem->vicRead(addr, raster);
+    const uint8_t bitmapByte = bus->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
 
     out.valid = true;
@@ -4813,7 +4813,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
 {
     out = {};
 
-    if (!mem)
+    if (!bus)
         return false;
 
     const int rows = getLatchedRSEL(raster) ? 25 : 24;
@@ -4852,7 +4852,7 @@ bool Vic::sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColo
     const uint16_t bitmapBase = getLatchedBitmapBase(raster);
     const uint16_t addr = static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
 
-    const uint8_t bitmapByte = mem->vicRead(addr, raster);
+    const uint8_t bitmapByte = bus->vicRead(addr, raster);
     const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
 
     out.valid = true;
@@ -4948,7 +4948,7 @@ bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) co
     const uint16_t charBase = charBaseForRasterPixelX(raster, px);
     const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(yInChar & 0x07));
 
-    const uint8_t rowBits = mem ? mem->vicRead(charAddr, raster) : 0x00;
+    const uint8_t rowBits = bus ? bus->vicRead(charAddr, raster) : 0x00;
     uint8_t bgColor = 0;
     BackgroundSource bgSource = BackgroundSource::BG0;
 
@@ -6073,7 +6073,7 @@ void Vic::innerWindowForRaster(int raster, int& x0, int& x1) const
 
 uint8_t Vic::fetchColorByte(int row, int col, int raster) const
 {
-    if (!mem)
+    if (!bus)
         return 0x00;
 
     (void)raster;
@@ -6087,7 +6087,7 @@ uint8_t Vic::fetchColorByte(int row, int col, int raster) const
             static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + col)
         );
 
-    return mem->vicReadColor(address);
+    return bus->vicReadColor(address);
 }
 
 int Vic::currentDisplayRowBase() const
@@ -6101,7 +6101,7 @@ int Vic::currentDisplayRowBase() const
 
 uint8_t Vic::fetchDisplayScreenByte(int col, int raster, int px) const
 {
-    if (!mem)
+    if (!bus)
         return 0x00;
 
     int row = 0;
@@ -6128,7 +6128,7 @@ uint8_t Vic::fetchDisplayScreenByte(int col, int raster, int px) const
     const uint16_t screenBase = screenBaseForRasterPixelX(raster, px);
     const uint16_t address = static_cast<uint16_t>(screenBase + static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + c));
 
-    return mem->vicRead(address, raster);
+    return bus->vicRead(address, raster);
 }
 
 uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
@@ -6325,11 +6325,11 @@ void Vic::updateOpenBus(uint8_t value)
 
 void Vic::performIdleFetchForCurrentCycle()
 {
-    if (!mem)
+    if (!bus)
         return;
 
     const uint16_t addr = IDLE_FETCH_ADDRESS;
-    const uint8_t value = mem->vicRead(addr, registers.raster);
+    const uint8_t value = bus->vicRead(addr, registers.raster);
 
     updateOpenBus(value);
 }
@@ -6787,7 +6787,7 @@ void Vic::updateMonitorCaches(int raster)
 
 uint8_t Vic::vicReadForDebug(uint16_t address, int raster) const
 {
-    return mem ? mem->vicRead(address, raster) : 0;
+    return bus ? bus->vicRead(address, raster) : 0;
 }
 
 bool Vic::isBadLineForDebug(int raster) const

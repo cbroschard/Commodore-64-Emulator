@@ -8,12 +8,12 @@
 #ifndef VIC_H
 #define VIC_H
 
+class Bus;
 class CIA2;
 class CPU;
 class DataBusLatch;
 class IRQLine;
 class IVideoSink;
-class Memory;
 
 #include <algorithm>
 #include <array>
@@ -33,9 +33,9 @@ class Vic
         virtual ~Vic();
 
         // Pointer functions
+        inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIVideoSinkInstance(IVideoSink* sink) { this->sink = sink; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
@@ -565,12 +565,12 @@ class Vic
 
     private:
         // Non-owning pointers
+        Bus* bus;
         CIA2* cia2;
         CPU* cpu;
         DataBusLatch* dataBus;
         IVideoSink* sink;
         IRQLine* IRQ;
-        Memory* mem;
         TraceManager* traceMgr;
 
         static const uint16_t COLOR_MEMORY_START = 0xD800;

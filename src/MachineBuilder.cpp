@@ -130,10 +130,10 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.sid->attachTraceManagerInstance(&components.debug->trace());
     components.sid->attachVicInstance(components.vic.get());
 
+    components.vic->attachBusInstance(components.bus.get());
     components.vic->attachCPUInstance(components.cpu.get());
     components.vic->attachDataBusLatchInstance(components.dataBus.get());
     components.vic->attachIVideoSinkInstance(components.videoOutput.get());
-    components.vic->attachMemoryInstance(components.mem.get());
     components.vic->attachCIA2Instance(components.cia2.get());
     components.vic->attachIRQLineInstance(components.irq.get());
     components.vic->attachTraceManagerInstance(&components.debug->trace());
