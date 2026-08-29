@@ -21,6 +21,41 @@ CPU6510Port::CPU6510Port() :
 
 CPU6510Port::~CPU6510Port() = default;
 
+void CPU6510Port::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("CPUP");
+    wrtr.writeU32(1); // version
+
+    wrtr.writeU8(dataDirectionRegister);
+    wrtr.writeU8(outputLatch);
+    wrtr.writeBool(cassetteSenseLow);
+
+    wrtr.endChunk();
+}
+
+bool CPU6510Port::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "CPUP", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(dataDirectionRegister)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(outputLatch))           { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cassetteSenseLow))    { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
+
+    // Restore all externally visible effects of $0000/$0001.
+    applySideEffects();
+
+    return true;
+}
+
 uint8_t CPU6510Port::readDDR() const
 {
     return dataDirectionRegister;

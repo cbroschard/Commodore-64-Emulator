@@ -20,6 +20,9 @@ class CPU6510Port
         CPU6510Port();
         virtual ~CPU6510Port();
 
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
+
         uint8_t readDDR() const;
         uint8_t readPort() const;
 
@@ -32,9 +35,6 @@ class CPU6510Port
 
         void attachPLAInstance(PLA* pla) { this->pla = pla; }
         void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-
-        void saveState(StateWriter& wrtr) const;
-        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Cassette API
         inline bool getCassetteSenseLow() const { return cassetteSenseLow; }
