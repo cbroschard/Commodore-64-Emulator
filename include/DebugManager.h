@@ -17,6 +17,7 @@
 
 union SDL_Event;
 
+class Bus;
 class Computer;
 class Cartridge;
 class Cassette;
@@ -52,7 +53,8 @@ class DebugManager
         void toggleMonitor();
         void closeMonitor();
 
-        void wireBackend(Computer* computer,
+        void wireBackend(Bus* c64Bus,
+                         Computer* computer,
                          Cartridge* cart,
                          Cassette* cass,
                          CIA1* cia1,
@@ -63,7 +65,6 @@ class DebugManager
                          IECBUS* iecBus,
                          IRQLine* irq,
                          Keyboard* keyb,
-                         Memory* mem,
                          PLA* pla,
                          REU* reu,
                          SID* sid,

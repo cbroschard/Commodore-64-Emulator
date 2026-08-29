@@ -402,13 +402,14 @@ static bool vicFetchKindIsSpriteData(Vic::FetchKind kind)
 }
 
 MLMonitorBackend::MLMonitorBackend() :
+    bus(nullptr),
+    c64Bus(nullptr),
     cart(nullptr),
     cass(nullptr),
     cia1(nullptr),
     cia2(nullptr),
     comp(nullptr),
     cpu(nullptr),
-    bus(nullptr),
     executionHistory(nullptr),
     iecBus(nullptr),
     pla(nullptr),

@@ -944,3 +944,11 @@ void Bus::write16(uint16_t address, uint16_t value)
 
     mem->write16(address, value);
 }
+
+void Bus::writeDirect(uint16_t address, uint8_t value)
+{
+    if (!mem)
+        return;
+
+    mem->writeDirect(address, value);
+}

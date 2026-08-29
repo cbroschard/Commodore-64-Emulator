@@ -14,6 +14,7 @@
 #include "Debug/TraceManager.h"
 #include "MonitorController.h"
 
+#include "Bus.h"
 #include "Cartridge.h"
 #include "cassette.h"
 #include "CIA1.h"
@@ -68,7 +69,8 @@ void DebugManager::closeMonitor()
         monitorCtl_->close();
 }
 
-void DebugManager::wireBackend(Computer* computer,
+void DebugManager::wireBackend(Bus* c64Bus,
+                              Computer* computer,
                               Cartridge* cart,
                               Cassette* cass,
                               CIA1* cia1,
@@ -79,7 +81,6 @@ void DebugManager::wireBackend(Computer* computer,
                               IECBUS* iecBus,
                               IRQLine* irq,
                               Keyboard* keyb,
-                              Memory* mem,
                               PLA* pla,
                               REU* reu,
                               SID* sid,
@@ -89,18 +90,18 @@ void DebugManager::wireBackend(Computer* computer,
     if (backendWired_) return;
     backendWired_ = true;
 
+    backend_->attachCPUBusInstance(bus);
+    backend_->attachBusInstance(c64Bus);
     backend_->attachCartridgeInstance(cart);
     backend_->attachCassetteInstance(cass);
     backend_->attachCIA1Instance(cia1);
     backend_->attachCIA2Instance(cia2);
     backend_->attachComputerInstance(computer);
     backend_->attachCPUInstance(cpu);
-    backend_->attachCPUBusInstance(bus);
     backend_->attachExecutionHistoryInstance(executionHistory);
     backend_->attachIECBusInstance(iecBus);
     backend_->attachIRQLineInstance(irq);
     backend_->attachKeyboardInstance(keyb);
-    backend_->attachMemoryInstance(mem);
     backend_->attachPLAInstance(pla);
     backend_->attachREUInstance(reu);
     backend_->attachSIDInstance(sid);

@@ -19,6 +19,7 @@ class MLMonitorBackend
         virtual ~MLMonitorBackend();
 
         // Pointer functions
+        inline void attachBusInstance(Bus* c64Bus) { this->bus = c64Bus; }
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
@@ -30,7 +31,6 @@ class MLMonitorBackend
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
@@ -174,10 +174,9 @@ class MLMonitorBackend
         inline void setCIA2IER(uint8_t m) { if (cia2) cia2->setIERExact(m & 0x1F); }
 
         // ML Monitor Memory methods
-        inline Memory* getMem() { return mem; }
         inline uint8_t readRAM(uint16_t address) { return bus ? bus->peek(address) : 0xFF; };
         inline void writeRAM(uint16_t address, uint8_t value) { if (bus) bus->write(address, value); }
-        inline void writeRAMDirect(uint16_t address, uint8_t value) { mem->writeDirect(address, value); }
+        inline void writeRAMDirect(uint16_t address, uint8_t value) {if (c64Bus) c64Bus->writeDirect(address, value); }
 
         // ML Monitor PLA
         inline std::string plaGetState() { return pla ? pla->describeMode() : "PLA not attached\n"; }
@@ -254,6 +253,7 @@ class MLMonitorBackend
 
     private:
         // Non-owning pointers
+        Bus* c64Bus;
         Cartridge* cart;
         Cassette* cass;
         CIA1* cia1;
@@ -265,7 +265,6 @@ class MLMonitorBackend
         IECBUS* iecBus;
         IRQLine* irq;
         Keyboard* keyb;
-        Memory* mem;
         PLA* pla;
         REU* reu;
         SID* sid;

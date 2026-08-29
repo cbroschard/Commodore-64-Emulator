@@ -87,6 +87,9 @@ class Bus : public CPUBus
         void writeRAM(uint16_t address, uint8_t value);
         void write16(uint16_t address, uint16_t value);
 
+        // ML Monitor API
+        void writeDirect(uint16_t address, uint8_t value);
+
     private:
         // Non-owning pointers
         Cartridge* cart;
