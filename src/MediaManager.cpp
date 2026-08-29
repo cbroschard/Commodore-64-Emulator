@@ -472,7 +472,7 @@ bool MediaManager::loadSelectedT64Entry()
 
     do
     {
-        nextLine = components_.mem->readRAM(scan) | (components_.mem->readRAM(scan + 1) << 8);
+        nextLine = components_.bus->readRAM(scan) | (components_.bus->readRAM(scan + 1) << 8);
 
         if (nextLine == 0)
             break;
@@ -483,24 +483,24 @@ bool MediaManager::loadSelectedT64Entry()
 
     const uint16_t basicEnd = scan + 2;
 
-    components_.mem->writeDirect(0x2B, 0x01);
-    components_.mem->writeDirect(0x2C, 0x08);
+    components_.bus->writeDirect(0x2B, 0x01);
+    components_.bus->writeDirect(0x2C, 0x08);
 
-    components_.mem->writeDirect(0x2D, basicEnd & 0xFF);
-    components_.mem->writeDirect(0x2E, basicEnd >> 8);
+    components_.bus->writeDirect(0x2D, basicEnd & 0xFF);
+    components_.bus->writeDirect(0x2E, basicEnd >> 8);
 
-    components_.mem->writeDirect(0x2F, basicEnd & 0xFF);
-    components_.mem->writeDirect(0x30, basicEnd >> 8);
+    components_.bus->writeDirect(0x2F, basicEnd & 0xFF);
+    components_.bus->writeDirect(0x30, basicEnd >> 8);
 
-    components_.mem->writeDirect(0x31, basicEnd & 0xFF);
-    components_.mem->writeDirect(0x32, basicEnd >> 8);
+    components_.bus->writeDirect(0x31, basicEnd & 0xFF);
+    components_.bus->writeDirect(0x32, basicEnd >> 8);
 
     const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
 
-    components_.mem->writeDirect(0xC6, 4);
+    components_.bus->writeDirect(0xC6, 4);
 
     for (int i = 0; i < 4; ++i)
-        components_.mem->writeDirect(0x0277 + i, runKeys[i]);
+        components_.bus->writeDirect(0x0277 + i, runKeys[i]);
 
     return true;
 }
@@ -1113,7 +1113,7 @@ void MediaManager::loadPrgIntoMem()
         if (prgLoadMode_ == PRGLoadMode::KeepCartridge)
             components_.bus->write(address, prgImage_[pos + i]);
         else
-            components_.mem->writeDirect(address, prgImage_[pos + i]);
+            components_.bus->writeDirect(address, prgImage_[pos + i]);
     }
 
     if (loadAddr == BASIC_PRG_START)
@@ -1122,26 +1122,26 @@ void MediaManager::loadPrgIntoMem()
         uint16_t nextLine;
         do
         {
-            nextLine = components_.mem->readRAM(scan) | (components_.mem->readRAM(scan + 1) << 8);
+            nextLine = components_.bus->readRAM(scan) | (components_.bus->readRAM(scan + 1) << 8);
             if (nextLine == 0) break;
             scan = nextLine;
         } while (true);
 
         const uint16_t basicEnd = scan + 2;
 
-        components_.mem->writeDirect(TXTAB,     loadAddr & 0xFF);
-        components_.mem->writeDirect(TXTAB + 1, (loadAddr >> 8));
-        components_.mem->writeDirect(VARTAB,     basicEnd & 0xFF);
-        components_.mem->writeDirect(VARTAB + 1, (basicEnd >> 8));
-        components_.mem->writeDirect(ARYTAB,     basicEnd & 0xFF);
-        components_.mem->writeDirect(ARYTAB + 1, (basicEnd >> 8));
-        components_.mem->writeDirect(STREND,     basicEnd & 0xFF);
-        components_.mem->writeDirect(STREND + 1, (basicEnd >> 8));
+        components_.bus->writeDirect(TXTAB,     loadAddr & 0xFF);
+        components_.bus->writeDirect(TXTAB + 1, (loadAddr >> 8));
+        components_.bus->writeDirect(VARTAB,     basicEnd & 0xFF);
+        components_.bus->writeDirect(VARTAB + 1, (basicEnd >> 8));
+        components_.bus->writeDirect(ARYTAB,     basicEnd & 0xFF);
+        components_.bus->writeDirect(ARYTAB + 1, (basicEnd >> 8));
+        components_.bus->writeDirect(STREND,     basicEnd & 0xFF);
+        components_.bus->writeDirect(STREND + 1, (basicEnd >> 8));
 
         const uint8_t runKeys[4] = { 0x52, 0x55, 0x4E, 0x0D };
-        components_.mem->writeDirect(0xC6, 4);
+        components_.bus->writeDirect(0xC6, 4);
         for (int i = 0; i < 4; ++i)
-            components_.mem->writeDirect(0x0277 + i, runKeys[i]);
+            components_.bus->writeDirect(0x0277 + i, runKeys[i]);
     }
 }
 

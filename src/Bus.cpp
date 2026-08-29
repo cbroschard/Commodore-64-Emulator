@@ -952,3 +952,8 @@ void Bus::writeDirect(uint16_t address, uint8_t value)
 
     mem->writeDirect(address, value);
 }
+
+uint8_t Bus::readRAM(uint16_t address) const
+{
+    return mem ? mem->readRAM(address) : 0xFF;
+}
