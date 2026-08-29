@@ -13,7 +13,7 @@
 
 CIA2::CIA2() :
     cpu(nullptr),
-    bus(nullptr),
+    iecBus(nullptr),
     nmiLine(nullptr),
     userPort(nullptr),
     vic(nullptr),
@@ -174,10 +174,10 @@ uint8_t CIA2::readPortA()
     uint8_t result = getPortAOutput();
 
     // Always sample IEC input wires for PA6/PA7 (BIT $DD00 polls these)
-    if (bus)
+    if (iecBus)
     {
-        const bool clkHigh  = bus->readClkLine();   // true = wire high (released)
-        const bool dataHigh = bus->readDataLine();  // true = wire high (released)
+        const bool clkHigh  = iecBus->readClkLine();   // true = wire high (released)
+        const bool dataHigh = iecBus->readDataLine();  // true = wire high (released)
 
         if (clkHigh)  result |= MASK_CLK_IN;  else result &= ~MASK_CLK_IN;
         if (dataHigh) result |= MASK_DATA_IN; else result &= ~MASK_DATA_IN;
@@ -264,7 +264,7 @@ void CIA2::clkChanged(bool level)
 
     if (!iecProtocolEnabled) return;
 
-    if (!bus) return;
+    if (!iecBus) return;
 
     // --- ATN LOW: command / secondary bytes from the C64 ---
     if (atnLine)
@@ -282,12 +282,12 @@ void CIA2::clkChanged(bool level)
         {
             if (atnHandshakeJustCleared)
             {
-                // Ignore this first post-handshake edge (bus not ready)
+                // Ignore this first post-handshake edge (iecBus not ready)
                 atnHandshakeJustCleared = false;
                 return;
             }
 
-            bool dataHigh = bus->readDataLine(); // true = logical '1'
+            bool dataHigh = iecBus->readDataLine(); // true = logical '1'
 
             // Build the command byte as LSB-first:
             if (dataHigh)
@@ -368,8 +368,8 @@ void CIA2::atnChanged(bool assertedLow)
         iecCmdShiftReg           = 0;
         iecCmdBitCount           = 0;
 
-        if (bus)
-            lastClk = bus->readClkLine();
+        if (iecBus)
+            lastClk = iecBus->readClkLine();
         else
             lastClk = true;
     }
@@ -436,8 +436,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             talking      = true;    // C64 talks, device listens
             currentSecondaryAddress = 0xFF;
 
-            if (bus)
-                bus->listen(deviceNumber);
+            if (iecBus)
+                iecBus->listen(deviceNumber);
 
             {
                 std::ostringstream out;
@@ -454,8 +454,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             listening    = true;    // C64 listens, device talks
             currentSecondaryAddress = 0xFF;
 
-            if (bus)
-                bus->talk(deviceNumber);
+            if (iecBus)
+                iecBus->talk(deviceNumber);
 
             {
                 std::ostringstream out;
@@ -470,8 +470,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             uint8_t sa = cmd & 0x0F;
             currentSecondaryAddress = sa;
 
-            if (bus && deviceNumber != 0xFF)
-                bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
+            if (iecBus && deviceNumber != 0xFF)
+                iecBus->secondaryAddress(deviceNumber, currentSecondaryAddress);
 
             {
                 std::ostringstream out;
@@ -487,8 +487,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             uint8_t sa = cmd & 0x0F;
             currentSecondaryAddress = sa;
 
-            if (bus && deviceNumber != 0xFF)
-                bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
+            if (iecBus && deviceNumber != 0xFF)
+                iecBus->secondaryAddress(deviceNumber, currentSecondaryAddress);
 
             {
                 std::ostringstream out;
@@ -504,8 +504,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             uint8_t sa = cmd & 0x0F;
             currentSecondaryAddress = sa;
 
-            if (bus && deviceNumber != 0xFF)
-                bus->secondaryAddress(deviceNumber, currentSecondaryAddress);
+            if (iecBus && deviceNumber != 0xFF)
+                iecBus->secondaryAddress(deviceNumber, currentSecondaryAddress);
 
             {
                 std::ostringstream out;
@@ -536,8 +536,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             {
                 listening = false;
 
-                if (bus && deviceNumber != 0xFF)
-                    bus->unListen(deviceNumber);
+                if (iecBus && deviceNumber != 0xFF)
+                    iecBus->unListen(deviceNumber);
 
                 {
                     std::ostringstream out;
@@ -549,8 +549,8 @@ void CIA2::decodeIECCommand(uint8_t cmd)
             {
                 talking = false;
 
-                if (bus && deviceNumber != 0xFF)
-                    bus->unTalk(deviceNumber);
+                if (iecBus && deviceNumber != 0xFF)
+                    iecBus->unTalk(deviceNumber);
 
                 {
                     std::ostringstream out;
@@ -656,31 +656,31 @@ std::string CIA2::dumpRegisters(const std::string& group) const
             << (isPortAOutput(MASK_DATA_OUT) ? "output" : "input")
             << "\n";
 
-        if (bus)
+        if (iecBus)
         {
             out << "\nCIA2 IEC input lines\n";
 
             out << "  PA6 CLK in  = "
-                << (bus->readClkLine()
+                << (iecBus->readClkLine()
                     ? "High/released"
                     : "Low/asserted")
                 << "\n";
 
             out << "  PA7 DATA in = "
-                << (bus->readDataLine()
+                << (iecBus->readDataLine()
                     ? "High/released"
                     : "Low/asserted")
                 << "\n";
 
             out << "  SRQ         = "
-                << (bus->readSrqLine()
+                << (iecBus->readSrqLine()
                     ? "High/released"
                     : "Low/asserted")
                 << "\n";
         }
         else
         {
-            out << "\nIEC Bus: none attached\n";
+            out << "\nIEC iecBus: none attached\n";
         }
     }
 
@@ -702,7 +702,7 @@ std::string CIA2::dumpRegisters(const std::string& group) const
 
 void CIA2::recomputeIEC()
 {
-    if (!bus)
+    if (!iecBus)
         return;
 
     auto released = [&](uint8_t mask) -> bool
@@ -721,7 +721,7 @@ void CIA2::recomputeIEC()
     const bool clkReleased  = released(MASK_CLK_OUT);
     const bool dataReleased = released(MASK_DATA_OUT);
 
-    bus->setC64IECOutputs(atnReleased, clkReleased, dataReleased);
+    iecBus->setC64IECOutputs(atnReleased, clkReleased, dataReleased);
 
     TraceManager* traceMgr = getTraceManager();
     if (traceMgr && traceMgr->ciaDetailOn(2, TraceManager::TraceDetail::CIA_IEC))
@@ -771,11 +771,11 @@ CIA2::IECSnapshot CIA2::snapshotIEC() const
     s.clkOutReleased  = released(MASK_CLK_OUT);
     s.dataOutReleased = released(MASK_DATA_OUT);
 
-    if (bus)
+    if (iecBus)
     {
-        s.clkInHigh  = bus->readClkLine();
-        s.dataInHigh = bus->readDataLine();
-        s.srqInHigh  = bus->readSrqLine();
+        s.clkInHigh  = iecBus->readClkLine();
+        s.dataInHigh = iecBus->readDataLine();
+        s.srqInHigh  = iecBus->readSrqLine();
     }
 
     s.legacyProtocolEnabled  = iecProtocolEnabled;

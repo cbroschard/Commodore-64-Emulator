@@ -409,7 +409,7 @@ MLMonitorBackend::MLMonitorBackend() :
     comp(nullptr),
     cpu(nullptr),
     executionHistory(nullptr),
-    bus(nullptr),
+    iecBus(nullptr),
     pla(nullptr),
     sid(nullptr),
     swiftLink(nullptr),
@@ -2846,13 +2846,13 @@ void MLMonitorBackend::setJamMode(const std::string& mode)
 
 void MLMonitorBackend::dumpDriveList()
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    const auto& devs = bus->getDevices();  // map<int, Peripheral*>
+    const auto& devs = iecBus->getDevices();  // map<int, Peripheral*>
 
     if (devs.empty())
     {
@@ -2900,13 +2900,13 @@ void MLMonitorBackend::dumpDriveList()
 
 void MLMonitorBackend::dumpDriveSummary(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -2942,13 +2942,13 @@ void MLMonitorBackend::dumpDriveSummary(int id)
 
 void MLMonitorBackend::dumpDriveCIA(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3113,13 +3113,13 @@ void MLMonitorBackend::dumpDriveCIA(int id)
 
 void MLMonitorBackend::dumpDriveCPU(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3187,13 +3187,13 @@ void MLMonitorBackend::dumpDriveCPU(int id)
 
 void MLMonitorBackend::driveCPUStep(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3269,13 +3269,13 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
     const uint16_t DEFAULT_COUNT = 16;
     uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
 
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3353,13 +3353,13 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
 
 void MLMonitorBackend::dumpDriveIECState(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3436,13 +3436,13 @@ void MLMonitorBackend::dumpDriveIECState(int id)
 
 void MLMonitorBackend::dumpDriveVIA1(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3510,13 +3510,13 @@ void MLMonitorBackend::dumpDriveVIA1(int id)
 
 void MLMonitorBackend::dumpDriveVIA2(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {
@@ -3598,13 +3598,13 @@ void MLMonitorBackend::dumpDriveVIA2(int id)
 
 void MLMonitorBackend::dumpDriveFDC(int id)
 {
-    if (!bus)
+    if (!iecBus)
     {
         std::cout << "No IEC bus attached.\n";
         return;
     }
 
-    Peripheral* dev = bus->getDevice(id);
+    Peripheral* dev = iecBus->getDevice(id);
 
     if (!dev)
     {

@@ -107,9 +107,9 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void updateIRQ() override;
 
         // IEC getters
-        inline bool getAtnLineLow() const override { return bus ? !bus->readAtnLine() : atnLineLow; }
-        inline bool getClkLineLow() const override { return bus ? !bus->readClkLine() : clkLineLow; }
-        inline bool getDataLineLow() const override  { return bus ? !bus->readDataLine() :dataLineLow; }
+        inline bool getAtnLineLow() const override { return iecBus ? !iecBus->readAtnLine() : atnLineLow; }
+        inline bool getClkLineLow() const override { return iecBus ? !iecBus->readClkLine() : clkLineLow; }
+        inline bool getDataLineLow() const override  { return iecBus ? !iecBus->readDataLine() :dataLineLow; }
         inline bool getSRQAsserted() const override { return srqAsserted; }
 
         // Helpers

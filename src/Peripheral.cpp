@@ -9,7 +9,7 @@
 #include "IECBUS.h"
 
 Peripheral::Peripheral() :
-    bus(nullptr),
+    iecBus(nullptr),
     deviceNumber(-1),
     assertClk(false),
     assertData(false),
@@ -25,17 +25,17 @@ Peripheral::Peripheral() :
 
 Peripheral::~Peripheral() = default;
 
-void Peripheral::attachBusInstance(IECBUS* bus)
+void Peripheral::attachIECBusInstance(IECBUS* iecBus)
 {
-    this->bus = bus;
+    this->iecBus = iecBus;
 }
 
-void Peripheral::detachBusInstance()
+void Peripheral::detachIECBusInstance()
 {
-    if (bus)
+    if (iecBus)
     {
-        bus->unregisterDevice(deviceNumber);
-        bus = nullptr;
+        iecBus->unregisterDevice(deviceNumber);
+        iecBus = nullptr;
     }
 }
 
@@ -45,7 +45,7 @@ void Peripheral::peripheralAssertClk(bool state)
 
     assertClk = state;
 
-    if (bus) bus->peripheralControlClk(this, state);
+    if (iecBus) iecBus->peripheralControlClk(this, state);
 }
 
 void Peripheral::peripheralAssertData(bool state)
@@ -54,21 +54,21 @@ void Peripheral::peripheralAssertData(bool state)
 
     assertData = state;
 
-    if (bus) bus->peripheralControlData(this, state);
+    if (iecBus) iecBus->peripheralControlData(this, state);
 }
 
 void Peripheral::peripheralAssertAtn(bool state)
 {
     if (assertAtn == state) return;
     assertAtn = state;
-    if (bus) bus->peripheralControlAtn(this, state);
+    if (iecBus) iecBus->peripheralControlAtn(this, state);
 }
 
 void Peripheral::peripheralAssertSrq(bool state)
 {
     if (assertSrq == state) return;
     assertSrq = state;
-    if (bus) bus->peripheralControlSrq(this, state);
+    if (iecBus) iecBus->peripheralControlSrq(this, state);
 }
 
 uint8_t Peripheral::nextOutputByte()

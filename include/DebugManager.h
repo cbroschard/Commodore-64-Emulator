@@ -58,7 +58,7 @@ class DebugManager
                          CIA2* cia2,
                          CPU* cpu,
                          ExecutionHistory* executionHistory,
-                         IECBUS* bus,
+                         IECBUS* iecBus,
                          IRQLine* irq,
                          Keyboard* keyb,
                          Memory* mem,
@@ -92,10 +92,8 @@ class DebugManager
         TraceManager& trace();
         MonitorController& monitorController();
 
-    protected:
-
     private:
-         std::atomic<bool>& uiPaused_;
+        std::atomic<bool>& uiPaused_;
 
         std::unique_ptr<MLMonitor>        monitor_;
         std::unique_ptr<MLMonitorBackend> backend_;

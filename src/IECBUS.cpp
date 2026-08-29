@@ -351,7 +351,7 @@ void IECBUS::registerDevice(int deviceNumber, Peripheral* device)
     device->setDeviceNumber(deviceNumber);
 
     devices[deviceNumber] = device;
-    device->attachBusInstance(this);
+    device->attachIECBusInstance(this);
     driveCycleAccumulators[device] = 0.0;
 
     recalcAndNotify();

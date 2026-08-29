@@ -25,8 +25,8 @@ class Peripheral
         virtual ~Peripheral();
 
         // Pointer attachment
-        void attachBusInstance(IECBUS* bus);
-        void detachBusInstance();
+        void attachIECBusInstance(IECBUS* iecBus);
+        void detachIECBusInstance();
 
         // Signal handlers
         virtual void atnChanged(bool atnAsserted) = 0;
@@ -64,10 +64,9 @@ class Peripheral
         virtual const char* getDriveTypeName() const noexcept = 0;
 
         // Non-owning pointer
-        IECBUS* bus;
+        IECBUS* iecBus;
 
     protected:
-
         int deviceNumber;
 
         // Assert status

@@ -432,10 +432,10 @@ void D1571::reset()
     peripheralAssertData(false); // Release Data
     peripheralAssertSrq(false);  // Release SRQ
 
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     gcrTrackStream.clear();
@@ -459,11 +459,11 @@ void D1571::setSRQAsserted(bool state)
 
 void D1571::forceSyncIEC()
 {
-    if (bus)
+    if (iecBus)
     {
-        atnLineLow  = !bus->readAtnLine();
-        clkLineLow  = !bus->readClkLine();
-        dataLineLow = !bus->readDataLine();
+        atnLineLow  = !iecBus->readAtnLine();
+        clkLineLow  = !iecBus->readClkLine();
+        dataLineLow = !iecBus->readDataLine();
     }
 
     auto& via1 = d1571mem.getVIA1();
@@ -1727,10 +1727,10 @@ void D1571::resetForMediaChange()
     peripheralAssertSrq(false);
 
     // --- Drop bus associations ---
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     // --- Media/GCR reset ---

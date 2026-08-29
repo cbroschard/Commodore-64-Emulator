@@ -29,7 +29,7 @@ class CIA2 : public CIA6526
 
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachNMILineInstance(NMILine* nmiLine) { this->nmiLine = nmiLine; }
-        inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; recomputeIEC(); }
+        inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; recomputeIEC(); }
         inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
@@ -99,7 +99,7 @@ class CIA2 : public CIA6526
     private:
         // non-owning pointers
         CPU* cpu;
-        IECBUS* bus;
+        IECBUS* iecBus;
         NMILine* nmiLine;
         UserPort* userPort;
         Vic* vic;

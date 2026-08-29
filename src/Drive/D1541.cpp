@@ -244,10 +244,10 @@ void D1541::reset()
     peripheralAssertData(false); // Release Data
     peripheralAssertSrq(false);  // Release SRQ
 
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     gcrPos                      = 0;
@@ -1486,10 +1486,10 @@ void D1541::resetForMediaChange()
     peripheralAssertSrq(false);
 
     // --- Drop bus associations ---
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     // --- Media/GCR reset ---
@@ -1758,11 +1758,11 @@ Drive::IECSnapshot D1541::snapshotIEC() const
 
 void D1541::forceSyncIEC()
 {
-    if (bus)
+    if (iecBus)
     {
-        atnLineLow  = !bus->getAtnLine();
-        clkLineLow  = !bus->getClkLine();
-        dataLineLow = !bus->getDataLine();
+        atnLineLow  = !iecBus->getAtnLine();
+        clkLineLow  = !iecBus->getClkLine();
+        dataLineLow = !iecBus->getDataLine();
     }
 
     auto& via1 = d1541mem.getVIA1();

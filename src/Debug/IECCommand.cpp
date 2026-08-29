@@ -68,8 +68,8 @@ Subcommands:
 
 void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    IECBUS* bus = mon.mlmonitorbackend()->getIECBus();
-    if (!bus)
+    IECBUS* iecBus = mon.mlmonitorbackend()->getIECBus();
+    if (!iecBus)
     {
         std::cout << "Bus not attached!\n";
         return;
@@ -94,21 +94,21 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         if (args.size() < 3)
         {
             std::cout << "IEC mode: ROM-controlled protocol "
-                      << (bus->isRomControlledIEC() ? "enabled" : "disabled")
+                      << (iecBus->isRomControlledIEC() ? "enabled" : "disabled")
                       << "\n";
             return;
         }
 
         if (args[2] == "on")
         {
-            bus->setRomControlledIEC(true);
+            iecBus->setRomControlledIEC(true);
             std::cout << "IEC mode: ROM-controlled protocol enabled\n";
             return;
         }
 
         if (args[2] == "off")
         {
-            bus->setRomControlledIEC(false);
+            iecBus->setRomControlledIEC(false);
             std::cout << "IEC mode: ROM-controlled protocol disabled\n";
             return;
         }
@@ -142,7 +142,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        const auto& devMap = bus->getDevices();
+        const auto& devMap = iecBus->getDevices();
         auto it = devMap.find(static_cast<uint8_t>(devNum));
 
         if (it == devMap.end() || !it->second)
@@ -154,8 +154,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         Peripheral* dev = it->second;
 
         // Talker / listener status
-        Peripheral* talker = bus->getCurrentTalker();
-        const auto& listeners = bus->getCurrentListeners();
+        Peripheral* talker = iecBus->getCurrentTalker();
+        const auto& listeners = iecBus->getCurrentListeners();
 
         bool isTalker   = (talker == dev);
         bool isListener = false;
@@ -170,7 +170,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         // State string (same mapping as in the state block)
         const char* stateStr = "UNKNOWN";
-        switch (bus->getState())
+        switch (iecBus->getState())
         {
             case IECBUS::State::IDLE:      stateStr = "IDLE";      break;
             case IECBUS::State::ATTENTION: stateStr = "ATTENTION"; break;
@@ -186,7 +186,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "  Legacy talking:        " << (isTalker ? "yes" : "no") << "\n";
         std::cout << "  Legacy listening:      " << (isListener ? "yes" : "no") << "\n";
 
-        if (bus->isRomControlledIEC())
+        if (iecBus->isRomControlledIEC())
         {
             std::cout << "  Note: ROM-controlled IEC is enabled; "
                       << "legacy fields are debug-only.\n";
@@ -204,10 +204,10 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         std::cout << "IEC protocol mode:\n";
         std::cout << "  ROM-controlled protocol: "
-                  << (bus->isRomControlledIEC() ? "ON" : "OFF")
+                  << (iecBus->isRomControlledIEC() ? "ON" : "OFF")
                   << "\n\n";
 
-        std::cout << bus->debugPhysicalSnapshotString() << "\n";
+        std::cout << iecBus->debugPhysicalSnapshotString() << "\n";
     }
 
     // Unknown subcommand?
@@ -226,8 +226,8 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     // === BUS ===
     if (wantAll || sub == "bus")
     {
-        const IECBusLines& lines = bus->getBusLines();
-        bool srq = bus->getSRQLine();
+        const IECBusLines& lines = iecBus->getBusLines();
+        bool srq = iecBus->getSRQLine();
 
         auto hl = [](bool v) { return v ? 'H' : 'L'; }; // H/L for lines
 
@@ -243,13 +243,13 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (wantAll || sub == "drivers")
     {
         std::cout << "Drivers (0 = pulling low, 1 = released):\n";
-        std::cout << "  C64:         ATN=" << bit(bus->getC64DrivesAtnLow())
-                  << "  CLK="  << bit(bus->getC64DrivesClkLow())
-                  << "  DATA=" << bit(bus->getC64DrivesDataLow())
+        std::cout << "  C64:         ATN=" << bit(iecBus->getC64DrivesAtnLow())
+                  << "  CLK="  << bit(iecBus->getC64DrivesClkLow())
+                  << "  DATA=" << bit(iecBus->getC64DrivesDataLow())
                   << "\n";
-        std::cout << "  Peripherals: ATN=" << bit(bus->getPeripheralDrivesAtnLow())
-                  << "  CLK="  << bit(bus->getPeripheralDrivesClkLow())
-                  << "  DATA=" << bit(bus->getPeripheralDrivesDataLow())
+        std::cout << "  Peripherals: ATN=" << bit(iecBus->getPeripheralDrivesAtnLow())
+                  << "  CLK="  << bit(iecBus->getPeripheralDrivesClkLow())
+                  << "  DATA=" << bit(iecBus->getPeripheralDrivesDataLow())
                   << "\n\n";
     }
 
@@ -257,7 +257,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     if (wantAll || sub == "state")
     {
         const char* stateStr = "UNKNOWN";
-        switch (bus->getState())
+        switch (iecBus->getState())
         {
             case IECBUS::State::IDLE:      stateStr = "IDLE";      break;
             case IECBUS::State::ATTENTION: stateStr = "ATTENTION"; break;
@@ -270,7 +270,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "Legacy/software IEC decode:\n";
         std::cout << "  Mode: " << stateStr << "\n";
 
-        if (bus->isRomControlledIEC())
+        if (iecBus->isRomControlledIEC())
         {
             std::cout << "  Note: ROM-controlled IEC is enabled; "
                       << "legacy talk/listen fields are debug-only.\n";
@@ -279,7 +279,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "\n";
         std::cout << "Legacy talker / listeners:\n";
 
-        Peripheral* talker = bus->getCurrentTalker();
+        Peripheral* talker = iecBus->getCurrentTalker();
 
         if (talker)
         {
@@ -291,7 +291,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             std::cout << "  Current talker:    (none)\n";
         }
 
-        const auto& listeners = bus->getCurrentListeners();
+        const auto& listeners = iecBus->getCurrentListeners();
         std::cout << "  Current listeners: ";
         if (listeners.empty())
         {
@@ -315,7 +315,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     // === DEVICES ===
     if (wantAll || sub == "devices")
     {
-        const auto& devMap = bus->getDevices();
+        const auto& devMap = iecBus->getDevices();
         std::cout << "Devices:\n";
         if (devMap.empty())
         {

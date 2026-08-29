@@ -27,7 +27,7 @@ class MLMonitorBackend
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachProcessorInstance(CPU* cpu) { this->cpu = cpu; }
-        inline void attachIECBusInstance(IECBUS* bus) { this->bus = bus; }
+        inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -131,7 +131,7 @@ class MLMonitorBackend
         std::vector<ExecutionHistoryEntry> getExecutionHistory(std::size_t count) const;
 
         // ML Monitor IEC Bus
-        IECBUS* getIECBus() const { return bus; }
+        IECBUS* getIECBus() const { return iecBus; }
 
         // Helper to check if irq is left on which is disruptive to normal operation
         inline bool irqForceActive() const { return irq && ( irq->getActiveSources() & IRQLine::MONITOR) != 0; }
@@ -256,7 +256,7 @@ class MLMonitorBackend
         Computer* comp;
         CPU* cpu;
         ExecutionHistory* executionHistory;
-        IECBUS* bus;
+        IECBUS* iecBus;
         IRQLine* irq;
         Keyboard* keyb;
         Memory* mem;

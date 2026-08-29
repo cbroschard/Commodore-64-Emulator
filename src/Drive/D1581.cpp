@@ -263,10 +263,10 @@ void D1581::reset()
     peripheralAssertData(false);
     peripheralAssertSrq(false);
 
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     // Set correct sector size for D81.
@@ -328,11 +328,11 @@ void D1581::unloadDisk()
 
 void D1581::forceSyncIEC()
 {
-    if (!bus) return;
+    if (!iecBus) return;
 
-    const bool newAtnLow  = !bus->readAtnLine();
-    const bool newClkLow  = !bus->readClkLine();
-    const bool newDataLow = !bus->readDataLine();
+    const bool newAtnLow  = !iecBus->readAtnLine();
+    const bool newClkLow  = !iecBus->readClkLine();
+    const bool newDataLow = !iecBus->readDataLine();
 
     atnLineLow  = newAtnLow;
     clkLineLow  = newClkLow;
@@ -795,10 +795,10 @@ void D1581::resetForMediaChange()
     peripheralAssertData(false);
     peripheralAssertSrq(false);
 
-    if (bus)
+    if (iecBus)
     {
-        bus->unTalk(deviceNumber);
-        bus->unListen(deviceNumber);
+        iecBus->unTalk(deviceNumber);
+        iecBus->unListen(deviceNumber);
     }
 
     // Reset 1581-local chips/CPU for a clean media transition.
@@ -812,13 +812,13 @@ void D1581::resetForMediaChange()
 
 void D1581::syncLiveIECInputs()
 {
-    if (!bus)
+    if (!iecBus)
         return;
 
-    atnLineLow  = !bus->readAtnLine();
-    clkLineLow  = !bus->readClkLine();
-    dataLineLow = !bus->readDataLine();
-    srqAsserted = !bus->readSrqLine();
+    atnLineLow  = !iecBus->readAtnLine();
+    clkLineLow  = !iecBus->readClkLine();
+    dataLineLow = !iecBus->readDataLine();
+    srqAsserted = !iecBus->readSrqLine();
 
     d1581mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow, srqAsserted);
 }
