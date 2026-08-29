@@ -16,8 +16,6 @@ class Vic;
 #include <cstdint>
 #include <iostream>
 #include "Cartridge.h"
-#include "StateReader.h"
-#include "StateWriter.h"
 
 class PLA
 {
@@ -48,9 +46,6 @@ class PLA
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
-
-        void saveState(StateWriter& wrtr) const;
-        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Standard reset routine
         void reset();

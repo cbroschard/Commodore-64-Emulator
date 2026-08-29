@@ -11,8 +11,7 @@
 #include "MachineRuntimeState.h"
 #include "StateManager.h"
 
-StateManager::StateManager(MachineComponents& components,
-                     MachineRuntimeState& runtime) :
+StateManager::StateManager(MachineComponents& components, MachineRuntimeState& runtime) :
       components_(components),
       runtime_(runtime)
 {
@@ -76,7 +75,6 @@ bool StateManager::save(const std::string& path)
     components_.dataBus->saveState(wrtr);
     components_.vic->saveState(wrtr);
     components_.sid->saveState(wrtr);
-    components_.pla->saveState(wrtr);
     components_.mem->saveState(wrtr);
     components_.iecBus->saveState(wrtr);
 
@@ -194,7 +192,7 @@ bool StateManager::load(const std::string& path)
             if (!rdr.readU8(modelU8))                           return false;
             if (!rdr.readU8(deviceNumber))                      return false;
 
-            if (deviceNumber >= components_.drives.size())                 return false;
+            if (deviceNumber >= components_.drives.size())      return false;
 
             const DriveModel driveModel =
                 static_cast<DriveModel>(modelU8);
@@ -337,13 +335,6 @@ bool StateManager::load(const std::string& path)
             if (!components_.sid->loadState(chunk, rdr)) return false;
             #ifdef Debug
             std::cout << "Loaded SID\n";
-            #endif
-        }
-        else if (std::memcmp(chunk.tag, "PLA0", 4) == 0)
-        {
-            if (!components_.pla->loadState(chunk, rdr)) return false;
-            #ifdef Debug
-            std::cout << "Loaded PLA\n";
             #endif
         }
         else if (std::memcmp(chunk.tag, "MEM0", 4) == 0)

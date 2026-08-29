@@ -22,8 +22,7 @@ struct MachineRuntimeState;
 class StateManager
 {
     public:
-        StateManager(MachineComponents& components,
-                     MachineRuntimeState& runtime);
+        StateManager(MachineComponents& components, MachineRuntimeState& runtime);
 
         ~StateManager();
 
