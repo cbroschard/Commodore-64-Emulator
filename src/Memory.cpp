@@ -7,31 +7,17 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cassette.h"
-#include "CIA1.h"
-#include "CIA2.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
 #include "Memory.h"
 #include "PLA.h"
-#include "REU.h"
-#include "SID/SID.h"
-#include "Expansion/SwiftLink.h"
-#include "Expansion/Turbo232.h"
-#include "Vic.h"
 
 Memory::Memory() :
     cart(nullptr),
-    cia1(nullptr),
-    cia2(nullptr),
     cass(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
     pla(nullptr),
-    reu(nullptr),
-    sid(nullptr),
-    swiftLink(nullptr),
-    turbo232(nullptr),
-    vic(nullptr),
     cartridgeAttached(false),
     romLOverlayIsRAM(false),
     romHOverLayIsRAM(false),

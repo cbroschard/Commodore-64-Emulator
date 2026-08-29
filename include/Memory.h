@@ -11,16 +11,9 @@
 // Forward declarations
 class Cartridge;
 class Cassette;
-class CIA1;
-class CIA2;
 class CPU;
 class DataBusLatch;
 class PLA;
-class REU;
-class SID;
-class SwiftLink;
-class Turbo232;
-class Vic;
 
 #include <bitset>
 #include <cstdint>
@@ -46,16 +39,9 @@ class Memory
         // Pointers
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
-        inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
-        inline void attachREUInstance(REU* reu) { this->reu = reu; }
-        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
-        inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
-        inline void attachTurbo232Instance(Turbo232* turbo232) { this->turbo232 = turbo232; }
-        inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -97,17 +83,10 @@ class Memory
     private:
         // Non-owning pointers
         Cartridge* cart;
-        CIA1* cia1;
-        CIA2* cia2;
         Cassette* cass;
         CPU* cpu;
         DataBusLatch* dataBus;
         PLA* pla;
-        REU* reu;
-        SID* sid;
-        SwiftLink* swiftLink;
-        Turbo232* turbo232;
-        Vic* vic;
 
         // RAM/ROM
         std::vector<uint8_t> mem;
