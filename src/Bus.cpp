@@ -680,6 +680,108 @@ uint8_t Bus::readForDMA(uint16_t address)
     }
 }
 
+void Bus::writeForDMA(uint16_t address, uint8_t value)
+{
+    if (address == 0x0000)
+    {
+        if (cpu6510Port)
+            cpu6510Port->writeDDR(value);
+        return;
+    }
+
+    if (address == 0x0001)
+    {
+        if (cpu6510Port)
+            cpu6510Port->writePort(value);
+        return;
+    }
+
+    if (cart && cart->cpuMemoryHandledByMapper(address))
+    {
+        cart->write(address, value);
+        return;
+    }
+
+    if (!pla || !mem)
+        return;
+
+    const PLA::memoryAccessInfo accessInfo =
+        pla->getMemoryAccess(address);
+
+    switch (accessInfo.bank)
+    {
+        case PLA::RAM:
+            mem->writeRAM(accessInfo.offset, value);
+            break;
+
+        case PLA::IO:
+            if (address >= COLOR_MEMORY_START &&
+                address <= COLOR_MEMORY_END)
+            {
+                mem->writeColorRAM(
+                    static_cast<uint16_t>(address - COLOR_MEMORY_START),
+                    value);
+                return;
+            }
+
+            writeIO(accessInfo.offset, value);
+            break;
+
+        case PLA::KERNAL_ROM:
+        case PLA::BASIC_ROM:
+        case PLA::CHARACTER_ROM:
+            // DMA writes under ROM go to underlying RAM.
+            mem->writeRAM(address, value);
+            break;
+
+        case PLA::CARTRIDGE_LO:
+            mem->writeRAM(address, value);
+
+            if (romLOverlayIsRAM &&
+                cart &&
+                cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+
+            if (cart && cart->romWriteEnabled(address))
+                cart->write(address, value);
+
+            break;
+
+        case PLA::CARTRIDGE_HI:
+            mem->writeRAM(address, value);
+
+            if (romHOverLayIsRAM &&
+                cart &&
+                cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+
+            if (cart && cart->romWriteEnabled(address))
+                cart->write(address, value);
+
+            break;
+
+        case PLA::CARTRIDGE_HI_E000:
+            mem->writeRAM(address, value);
+
+            if (romHOverLayIsRAM &&
+                cart &&
+                cart->hasCartridgeRAM())
+            {
+                cart->writeRAM(accessInfo.offset, value);
+            }
+
+            break;
+
+        case PLA::UNMAPPED:
+        default:
+            break;
+    }
+}
+
 uint8_t Bus::peek(uint16_t address) const
 {
     if (!mem)

@@ -5,12 +5,14 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Bus.h"
 #include "DataBusLatch.h"
 #include "IRQLine.h"
 #include "Memory.h"
 #include "REU.h"
 
 REU::REU() :
+    bus(nullptr),
     dataBus(nullptr),
     irq(nullptr),
     mem(nullptr),
@@ -416,7 +418,7 @@ void REU::startTransfer()
         {
             case 0x00: // C64 -> REU
             {
-                const uint8_t value = mem->readForDMA(c64Addr);
+                const uint8_t value = bus->readForDMA(c64Addr);
                 ram[reuAddr] = value;
                 break;
             }
@@ -428,26 +430,26 @@ void REU::startTransfer()
                 if (dataBus)
                     dataBus->drive(value, DataBusLatch::Driver::REU);
 
-                mem->writeForDMA(c64Addr, value);
+                bus->writeForDMA(c64Addr, value);
                 break;
             }
 
             case 0x02: // Swap C64 <-> REU
             {
-                const uint8_t c64Value = mem->readForDMA(c64Addr);
+                const uint8_t c64Value = bus->readForDMA(c64Addr);
                 const uint8_t reuValue = ram[reuAddr];
 
                 if (dataBus)
                     dataBus->drive(reuValue, DataBusLatch::Driver::REU);
 
-                mem->writeForDMA(c64Addr, reuValue);
+                bus->writeForDMA(c64Addr, reuValue);
                 ram[reuAddr] = c64Value;
                 break;
             }
 
             case 0x03: // Verify C64 against REU
             {
-                const uint8_t c64Value = mem->readForDMA(c64Addr);
+                const uint8_t c64Value = bus->readForDMA(c64Addr);
                 const uint8_t reuValue = ram[reuAddr];
 
                 if (c64Value != reuValue)
@@ -896,12 +898,12 @@ std::string REU::selfTest()
     // Save original C64 RAM bytes used by the test.
     uint8_t savedC64[16] = {};
     for (uint16_t i = 0; i < 16; ++i)
-        savedC64[i] = mem->readForDMA(static_cast<uint16_t>(C64_BASE + i));
+        savedC64[i] = bus->readForDMA(static_cast<uint16_t>(C64_BASE + i));
 
     auto restore = [&]()
     {
         for (uint16_t i = 0; i < 16; ++i)
-            mem->writeForDMA(static_cast<uint16_t>(C64_BASE + i), savedC64[i]);
+            bus->writeForDMA(static_cast<uint16_t>(C64_BASE + i), savedC64[i]);
 
         regs = savedRegs;
         updateIRQStatus();
@@ -924,15 +926,15 @@ std::string REU::selfTest()
     // ------------------------------------------------------------
     // 1. Single-byte C64 -> REU -> C64 roundtrip
     // ------------------------------------------------------------
-    mem->writeForDMA(C64_BASE, 0x5A);
+    bus->writeForDMA(C64_BASE, 0x5A);
 
     setupTransfer(C64_BASE, REU_BASE, 1, CR_EXECUTE | 0x00); // C64->REU
 
-    mem->writeForDMA(C64_BASE, 0x00);
+    bus->writeForDMA(C64_BASE, 0x00);
 
     setupTransfer(C64_BASE, REU_BASE, 1, CR_EXECUTE | 0x01); // REU->C64
 
-    const bool roundTripPass = mem->readForDMA(C64_BASE) == 0x5A;
+    const bool roundTripPass = bus->readForDMA(C64_BASE) == 0x5A;
     allPass &= roundTripPass;
 
     out << "  C64->REU / REU->C64 roundtrip: "
@@ -941,25 +943,25 @@ std::string REU::selfTest()
     // ------------------------------------------------------------
     // 2. 4-byte block transfer
     // ------------------------------------------------------------
-    mem->writeForDMA(C64_BASE + 0, 0x11);
-    mem->writeForDMA(C64_BASE + 1, 0x22);
-    mem->writeForDMA(C64_BASE + 2, 0x33);
-    mem->writeForDMA(C64_BASE + 3, 0x44);
+    bus->writeForDMA(C64_BASE + 0, 0x11);
+    bus->writeForDMA(C64_BASE + 1, 0x22);
+    bus->writeForDMA(C64_BASE + 2, 0x33);
+    bus->writeForDMA(C64_BASE + 3, 0x44);
 
     setupTransfer(C64_BASE, REU_BASE + 0x10, 4, CR_EXECUTE | 0x00); // C64->REU
 
-    mem->writeForDMA(C64_BASE + 0, 0x00);
-    mem->writeForDMA(C64_BASE + 1, 0x00);
-    mem->writeForDMA(C64_BASE + 2, 0x00);
-    mem->writeForDMA(C64_BASE + 3, 0x00);
+    bus->writeForDMA(C64_BASE + 0, 0x00);
+    bus->writeForDMA(C64_BASE + 1, 0x00);
+    bus->writeForDMA(C64_BASE + 2, 0x00);
+    bus->writeForDMA(C64_BASE + 3, 0x00);
 
     setupTransfer(C64_BASE, REU_BASE + 0x10, 4, CR_EXECUTE | 0x01); // REU->C64
 
     const bool blockPass =
-        mem->readForDMA(C64_BASE + 0) == 0x11 &&
-        mem->readForDMA(C64_BASE + 1) == 0x22 &&
-        mem->readForDMA(C64_BASE + 2) == 0x33 &&
-        mem->readForDMA(C64_BASE + 3) == 0x44;
+        bus->readForDMA(C64_BASE + 0) == 0x11 &&
+        bus->readForDMA(C64_BASE + 1) == 0x22 &&
+        bus->readForDMA(C64_BASE + 2) == 0x33 &&
+        bus->readForDMA(C64_BASE + 3) == 0x44;
 
     allPass &= blockPass;
 
@@ -969,10 +971,10 @@ std::string REU::selfTest()
     // ------------------------------------------------------------
     // 3. Swap
     // ------------------------------------------------------------
-    mem->writeForDMA(C64_BASE + 4, 0xAA);
+    bus->writeForDMA(C64_BASE + 4, 0xAA);
 
     // Put $55 into REU at REU_BASE + $20 using a normal store.
-    mem->writeForDMA(C64_BASE + 5, 0x55);
+    bus->writeForDMA(C64_BASE + 5, 0x55);
     setupTransfer(C64_BASE + 5, REU_BASE + 0x20, 1, CR_EXECUTE | 0x00);
 
     // Swap C64[$2004] with REU[$000120]
@@ -980,7 +982,7 @@ std::string REU::selfTest()
 
     const uint32_t swapReuAddr = (REU_BASE + 0x20) % static_cast<uint32_t>(ram.size());
 
-    const bool swapPass = (mem->readForDMA(C64_BASE + 4) == 0x55) && (ram[swapReuAddr] == 0xAA);
+    const bool swapPass = (bus->readForDMA(C64_BASE + 4) == 0x55) && (ram[swapReuAddr] == 0xAA);
 
     allPass &= swapPass;
 
@@ -990,7 +992,7 @@ std::string REU::selfTest()
     // ------------------------------------------------------------
     // 4. Verify match
     // ------------------------------------------------------------
-    mem->writeForDMA(C64_BASE + 6, 0x77);
+    bus->writeForDMA(C64_BASE + 6, 0x77);
     setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x00); // store matching byte
 
     setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x03); // verify
@@ -1007,7 +1009,7 @@ std::string REU::selfTest()
     // ------------------------------------------------------------
     // 5. Verify mismatch
     // ------------------------------------------------------------
-    mem->writeForDMA(C64_BASE + 6, 0x88);
+    bus->writeForDMA(C64_BASE + 6, 0x88);
 
     setupTransfer(C64_BASE + 6, REU_BASE + 0x30, 1, CR_EXECUTE | 0x03); // verify mismatch
 
