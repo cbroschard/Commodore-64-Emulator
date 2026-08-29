@@ -15,7 +15,6 @@
 #include "IRQLine.h"
 #include "Joystick.h"
 #include "Keyboard.h"
-#include "Memory.h"
 #include "Vic.h"
 
 CIA1::CIA1() :
@@ -26,7 +25,6 @@ CIA1::CIA1() :
     joy1(nullptr),
     joy2(nullptr),
     keyb(nullptr),
-    mem(nullptr),
     vic(nullptr)
 {
     setMode(VideoMode::NTSC);

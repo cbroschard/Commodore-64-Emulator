@@ -22,7 +22,6 @@
 class Bus;
 class DataBusLatch;
 class IRQLine;
-class Memory;
 
 class REU
 {
@@ -33,7 +32,6 @@ class REU
         inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
@@ -66,7 +64,6 @@ class REU
         Bus* bus;
         DataBusLatch* dataBus;
         IRQLine* irq;
-        Memory* mem;
 
         // Status Register $DF00
         static constexpr uint8_t SR_VERSION_MASK    = 0x0F; // bits 0-3

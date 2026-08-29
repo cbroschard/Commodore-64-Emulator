@@ -8,14 +8,12 @@
 #include "Bus.h"
 #include "DataBusLatch.h"
 #include "IRQLine.h"
-#include "Memory.h"
 #include "REU.h"
 
 REU::REU() :
     bus(nullptr),
     dataBus(nullptr),
     irq(nullptr),
-    mem(nullptr),
     model(REUModel::None)
 {
 
@@ -398,7 +396,7 @@ void REU::updateIRQStatus()
 
 void REU::startTransfer()
 {
-    if (!isEnabled() || !mem)
+    if (!isEnabled() || !bus)
         return;
 
     // Clear dynamic status bits, preserve model/version bits.
@@ -879,7 +877,7 @@ std::string REU::selfTest()
 
     out << "REU self-test:\n";
 
-    const bool enabled = isEnabled() && mem != nullptr;
+    const bool enabled = isEnabled() && bus != nullptr;
     out << "  Enabled:                       " << passFail(enabled) << "\n";
 
     if (!enabled)

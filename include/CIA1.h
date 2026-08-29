@@ -15,7 +15,6 @@ class CPU;
 class IRQLine;
 class Joystick;
 class Keyboard;
-class Memory;
 class Vic;
 
 #include <cstdint>
@@ -33,7 +32,6 @@ class CIA1 : public CIA6526
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
         void attachJoystickInstance(Joystick* joy);
 
@@ -72,7 +70,6 @@ class CIA1 : public CIA6526
         Joystick* joy1;
         Joystick* joy2;
         Keyboard* keyb;
-        Memory* mem;
         Vic* vic;
 
         // Data ports
