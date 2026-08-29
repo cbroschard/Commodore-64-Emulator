@@ -15,13 +15,10 @@ class CIA1;
 class CIA2;
 class CPU;
 class DataBusLatch;
-class DebugManager;
-class MLMonitor;
 class PLA;
 class REU;
 class SID;
 class SwiftLink;
-class TraceManager;
 class Turbo232;
 class Vic;
 
@@ -53,13 +50,10 @@ class Memory
         inline void attachCIA2Instance(CIA2* cia2) { this->cia2 = cia2; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
-        inline void attachDebugManagerInstance(DebugManager* debugManager) { this->debugManager = debugManager; }
-        inline void attachMonitorInstance(MLMonitor* monitor) { this->monitor = monitor; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
         inline void attachSIDInstance(SID* sid) { this->sid = sid; }
         inline void attachSwiftLinkInstance(SwiftLink* swiftLink) { this->swiftLink = swiftLink; }
-        inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachTurbo232Instance(Turbo232* turbo232) { this->turbo232 = turbo232; }
         inline void attachVICInstance(Vic* vic) { this->vic = vic; }
 
@@ -108,13 +102,10 @@ class Memory
         Cassette* cass;
         CPU* cpu;
         DataBusLatch* dataBus;
-        DebugManager* debugManager;
-        MLMonitor* monitor;
         PLA* pla;
         REU* reu;
         SID* sid;
         SwiftLink* swiftLink;
-        TraceManager* traceMgr;
         Turbo232* turbo232;
         Vic* vic;
 

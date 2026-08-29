@@ -129,13 +129,6 @@ Computer::~Computer() noexcept
         if (components_.vic)
             components_.vic->attachTraceManagerInstance(nullptr);
 
-        if (components_.mem)
-        {
-            components_.mem->attachDebugManagerInstance(nullptr);
-            components_.mem->attachMonitorInstance(nullptr);
-            components_.mem->attachTraceManagerInstance(nullptr);
-        }
-
         // Tear down objects that hold references/callbacks
         // to the rest of the machine.
         components_.stateMgr.reset();

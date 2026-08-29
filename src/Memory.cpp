@@ -11,14 +11,11 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
-#include "DebugManager.h"
 #include "Memory.h"
-#include "MLMonitor.h"
 #include "PLA.h"
 #include "REU.h"
 #include "SID/SID.h"
 #include "Expansion/SwiftLink.h"
-#include "Debug/TraceManager.h"
 #include "Expansion/Turbo232.h"
 #include "Vic.h"
 
@@ -29,13 +26,10 @@ Memory::Memory() :
     cass(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
-    debugManager(nullptr),
-    monitor(nullptr),
     pla(nullptr),
     reu(nullptr),
     sid(nullptr),
     swiftLink(nullptr),
-    traceMgr(nullptr),
     turbo232(nullptr),
     vic(nullptr),
     cartridgeAttached(false),
@@ -277,19 +271,6 @@ void Memory::applyPort1SideEffects(uint8_t effective)
 {
     // Bit 5 low => motor ON (active low)
     bool motorOn = (effective & 0x20) == 0;
-
-    if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_PORT))
-    {
-        std::ostringstream out;
-        out << "[MEM:PORT] sidefx effective=$"
-            << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(effective)
-            << " motor=" << (motorOn ? "ON" : "OFF")
-            << " pla=$"  << std::setw(2) << int(effective & 0x07);
-        traceMgr->recordCustomEvent(out.str(),
-            traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0,
-                                vic ? vic->getCurrentRaster() : 0,
-                                vic ? vic->getRasterDot() : 0));
-    }
 
     if (cass) motorOn ? cass->startMotor() : cass->stopMotor();
 
