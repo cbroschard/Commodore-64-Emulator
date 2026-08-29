@@ -253,6 +253,7 @@ class MLMonitorBackend
 
     private:
         // Non-owning pointers
+        CPUBus* bus;
         Bus* c64Bus;
         Cartridge* cart;
         Cassette* cass;
@@ -260,7 +261,6 @@ class MLMonitorBackend
         CIA2* cia2;
         Computer* comp;
         CPU* cpu;
-        CPUBus* bus;
         ExecutionHistory* executionHistory;
         IECBUS* iecBus;
         IRQLine* irq;
