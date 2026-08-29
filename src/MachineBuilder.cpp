@@ -90,14 +90,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.mem->attachCPUInstance(components.cpu.get());
     components.mem->attachDataBusLatchInstance(components.dataBus.get());
-    components.mem->attachVICInstance(components.vic.get());
-    components.mem->attachCIA1Instance(components.cia1.get());
-    components.mem->attachCIA2Instance(components.cia2.get());
-    components.mem->attachSIDInstance(components.sid.get());
     components.mem->attachCartridgeInstance(components.cart.get());
     components.mem->attachCassetteInstance(components.cass.get());
     components.mem->attachPLAInstance(components.pla.get());
-    components.mem->attachREUInstance(components.reu.get());
 
     components.inputMgr->attachCIA1Instance(components.cia1.get());
     components.inputMgr->attachKeyboardInstance(components.keyb.get());

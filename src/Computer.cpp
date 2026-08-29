@@ -270,7 +270,7 @@ void Computer::enableSwiftLink(uint16_t baseAddress)
     components_.swiftLink = std::make_unique<SwiftLink>(baseAddress);
 
     components_.swiftLink->attachNMILineInstance(components_.nmiLine.get());
-    components_.mem->attachSwiftLinkInstance(components_.swiftLink.get());
+    components_.bus->attachSwiftLinkInstance(components_.swiftLink.get());
 
     if (components_.debug)
         components_.debug->backend().attachSwiftLinkInstance(components_.swiftLink.get());
@@ -283,7 +283,7 @@ void Computer::disableSwiftLink()
 
     detachSwiftLinkVirtualModem();
 
-    components_.mem->attachSwiftLinkInstance(nullptr);
+    components_.bus->attachSwiftLinkInstance(nullptr);
 
     if (components_.debug)
         components_.debug->backend().attachSwiftLinkInstance(nullptr);
@@ -372,7 +372,7 @@ void Computer::enableTurbo232(uint16_t baseAddress)
     components_.turbo232 = std::make_unique<Turbo232>(baseAddress);
 
     components_.turbo232->attachNMILineInstance(components_.nmiLine.get());
-    components_.mem->attachTurbo232Instance(components_.turbo232.get());
+    components_.bus->attachTurbo232Instance(components_.turbo232.get());
 
     if (components_.debug)
         components_.debug->backend().attachTurbo232Instance(components_.turbo232.get());
@@ -385,7 +385,7 @@ void Computer::disableTurbo232()
 
     detachTurbo232VirtualModem();
 
-    components_.mem->attachTurbo232Instance(nullptr);
+    components_.bus->attachTurbo232Instance(nullptr);
 
     if (components_.debug)
         components_.debug->backend().attachTurbo232Instance(nullptr);

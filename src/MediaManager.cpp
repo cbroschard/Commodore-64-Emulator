@@ -451,7 +451,7 @@ void MediaManager::attachREU(REUModel model)
     state_.reuModel   = model;
 
     components_.reu->setModel(model);
-    components_.mem->attachREUInstance(components_.reu.get());
+    components_.bus->attachREUInstance(components_.reu.get());
 
     if (coldReset_)
         coldReset_();
