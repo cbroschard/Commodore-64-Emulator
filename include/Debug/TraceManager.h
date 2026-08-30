@@ -159,7 +159,7 @@ class TraceManager
         void recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp);
         void recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp);
 
-        // Memory
+        // BUS
         void recordBusRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
         void recordBusWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
 
