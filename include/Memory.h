@@ -18,7 +18,6 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "Common/CartridgeTypes.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
