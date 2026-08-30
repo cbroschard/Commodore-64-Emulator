@@ -374,6 +374,7 @@ bool Cartridge::loadROM(const std::string& path)
 
     if (mapper)
     {
+        mapper->attachBusInstance(bus);
         mapper->attachCartridgeInstance(this);
 
         if (mapperType == Cartridge::CartridgeType::DELA_EP64)
