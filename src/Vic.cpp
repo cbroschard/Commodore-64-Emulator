@@ -172,9 +172,6 @@ void Vic::reset()
     for (auto& s : lastFrameRasterPixelStates)
         s = {};
 
-    // Background pipeline
-    resetBackgroundPipeline();
-
     // Default character mode
     currentMode = graphicsMode::standard;
 
@@ -207,10 +204,6 @@ void Vic::reset()
     // Fill in DD00
     uint16_t currentVICBank = cia2 ? cia2->getCurrentVICBank() : 0;
     std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
-
-    // Initialize bgOpaque
-    bgOpaque.resize(cfg_->visibleLines + 2*BORDER_SIZE);
-    for (auto &row : bgOpaque) row.fill(0);
 
     // Rebuild Border Latches
     rebuildBorderRasterLatches();
@@ -262,9 +255,6 @@ void Vic::setMode(VideoMode mode)
 
     rebuildBorderRasterLatches();
 
-    bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
-    for (auto &row : bgOpaque) row.fill(0);
-
     // Make sure internal state stays consistent
     if (registers.raster >= cfg_->maxRasterLines) registers.raster = 0;
 
@@ -278,7 +268,6 @@ void Vic::setMode(VideoMode mode)
     resetActiveMatrixRow();
     resetCAccessLatch();
     resetActiveBackgroundPixelState();
-    resetBackgroundPipeline();
     resetBackgroundGraphicsLatches();
 
     std::fill(finalColorLine.begin(), finalColorLine.end(), 0);
@@ -1729,7 +1718,6 @@ void Vic::runPixelOutputPhase()
         clearSpriteLineBuffers();
 
         resetActiveBackgroundPixelState();
-        resetBackgroundPipeline();
         resetBackgroundGraphicsLatches();
 
         prepareSpriteOutputForRaster(raster);
@@ -3859,40 +3847,6 @@ int Vic::firstSpriteCpuStealCycle(int sprite) const
     return -1;
 }
 
-Vic::BackgroundLineGeometry Vic::computeBackgroundLineGeometry(int raster, int xScroll) const
-{
-    BackgroundLineGeometry g {};
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return g;
-
-    g.rows = getLatchedRSEL(raster) ? 25 : 24;
-
-    // Hardware-style model:
-    // The background sequencer remains 40 matrix columns wide.
-    // Horizontal border/CSEL only controls final visibility through
-    // borderMaskLine, not whether background pixels are generated.
-    g.cols = BACKGROUND_MATRIX_COLUMNS;
-
-    g.charRow = currentCharacterRow();
-
-    if (g.charRow < 0 || g.charRow >= g.rows)
-        return g;
-
-    g.fineX = xScroll & 0x07;
-
-    // Always sample/render the full 40-column background row.
-    g.fetchCols = BACKGROUND_MATRIX_COLUMNS;
-
-    // Do not clip background stamping to the old per-raster border window.
-    // The pixel-aware border mask now decides final visibility.
-    g.x0 = 0;
-    g.x1 = VISIBLE_WIDTH;
-
-    g.valid = true;
-    return g;
-}
-
 void Vic::resetActiveBackgroundPixelState()
 {
     activeBgPixel.valid = false;
@@ -4078,52 +4032,6 @@ void Vic::resetCAccessLatch()
     cAccessColorLatch = 0;
     cAccessLatchValid = false;
     cAccessLatchIndex = -1;
-}
-
-void Vic::resetBackgroundPipeline()
-{
-    bgPipeline.valid = false;
-
-    bgPipeline.px = 0;
-    bgPipeline.py = 0;
-
-    bgPipeline.bitmapByte = 0;
-    bgPipeline.screenByte = 0;
-    bgPipeline.colorByte = 0;
-
-    bgPipeline.raster = 0;
-    bgPipeline.col = 0;
-    bgPipeline.displayCol = 0;
-    bgPipeline.yInChar = 0;
-    bgPipeline.pixelPhase = 0;
-
-    bgPipeline.charCode = 0;
-    bgPipeline.rowBits = 0;
-
-    bgPipeline.fgColor = 0;
-    bgPipeline.bgColor0 = 0;
-    bgPipeline.bgColor1 = 0;
-    bgPipeline.bgColor2 = 0;
-    bgPipeline.bgColor3 = 0;
-
-    bgPipeline.bgSource = BackgroundSource::BG0;
-
-    bgPipeline.multicolor = false;
-    bgPipeline.bitmap = false;
-    bgPipeline.ecm = false;
-}
-
-Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
-{
-    switch (bits & 0x03)
-    {
-        case 0x00: return BackgroundSource::BG0;        // $D021
-        case 0x01: return BackgroundSource::BG1;        // $D022
-        case 0x02: return BackgroundSource::BG2;        // $D023
-        case 0x03: return BackgroundSource::Foreground; // color RAM low 3 bits
-    }
-
-    return BackgroundSource::Unknown;
 }
 
 void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
@@ -5291,28 +5199,6 @@ bool Vic::fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& s
         return true;
 
     return false;
-}
-
-uint8_t Vic::resolveDisplayScreenByte(int displayCol, int raster, int px) const
-{
-    uint8_t screenByte = 0;
-    uint8_t colorByte = 0;
-
-    if (fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
-        return screenByte;
-
-    return fetchDisplayScreenByte(displayCol, raster, px);
-}
-
-uint8_t Vic::resolveDisplayColorByte(int displayCol, int raster) const
-{
-    uint8_t screenByte = 0;
-    uint8_t colorByte = 0;
-
-    if (fetchedMatrixBytesForDisplayCol(displayCol, raster, screenByte, colorByte))
-        return static_cast<uint8_t>(colorByte & 0x0F);
-
-    return static_cast<uint8_t>(fetchDisplayColorByte(displayCol, raster) & 0x0F);
 }
 
 int Vic::currentCharacterRow() const
@@ -6773,10 +6659,6 @@ void Vic::postLoadState()
 
     rasterPixelStates.resize(cfg_->maxRasterLines);
     lastFrameRasterPixelStates.resize(cfg_->maxRasterLines);
-
-    bgOpaque.resize(cfg_->visibleLines + 2 * BORDER_SIZE);
-    for (auto& row : bgOpaque)
-        row.fill(0);
 
     // Keep sprite restored state, only mask fields that have known hardware ranges.
     for (auto& s : spriteUnits)

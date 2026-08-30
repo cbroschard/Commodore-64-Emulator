@@ -819,9 +819,6 @@ class Vic
         // Sprite pointer latch
         uint16_t sprPtrBase[8];
 
-        // Cache background opaque pixels
-        std::vector<std::array<uint8_t, 512>> bgOpaque;
-
         // Multicolor helper for readRegister
         inline uint8_t getBackgroundColor(int value) const { return registers.backgroundColor[value]; }
 
@@ -1024,54 +1021,6 @@ class Vic
             BackgroundSource source = BackgroundSource::Unknown;
         };
 
-        struct BackgroundLineGeometry
-        {
-            bool valid = false;
-
-            int rows = 0;
-            int cols = 0;
-            int charRow = -1;
-
-            int fineX = 0;
-            int fetchCols = 0;
-
-            int x0 = 0;
-            int x1 = 0;
-        };
-
-        struct BackgroundPipelineState
-        {
-            bool valid = false;
-
-            int px = 0;
-            int py = 0;
-
-            uint8_t bitmapByte = 0;
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
-
-            int raster = 0;
-            int col = 0;
-            int displayCol = 0;
-            int yInChar = 0;
-            int pixelPhase = 0;
-
-            uint8_t charCode = 0;
-            uint8_t rowBits = 0;
-
-            uint8_t fgColor = 0;
-            uint8_t bgColor0 = 0;
-            uint8_t bgColor1 = 0;
-            uint8_t bgColor2 = 0;
-            uint8_t bgColor3 = 0;
-
-            BackgroundSource bgSource = BackgroundSource::BG0;
-
-            bool multicolor = false;
-            bool bitmap = false;
-            bool ecm = false;
-        };
-
         struct ActiveBackgroundPixelState
         {
             bool valid = false;
@@ -1230,10 +1179,6 @@ class Vic
 
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
 
-        BackgroundPipelineState bgPipeline;
-
-        BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
-
         void resetActiveBackgroundPixelState();
         BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
@@ -1245,8 +1190,6 @@ class Vic
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
 
         void resetCAccessLatch();
-
-        void resetBackgroundPipeline();
 
         BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
 
@@ -1298,8 +1241,6 @@ class Vic
         int currentDisplayRowBase() const;
         uint8_t fetchDisplayScreenByte(int col, int raster, int px) const;
         uint8_t fetchDisplayColorByte(int col, int raster) const;
-        uint8_t resolveDisplayScreenByte(int displayCol, int raster, int px) const;
-        uint8_t resolveDisplayColorByte(int displayCol, int raster) const;
 
         bool shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const;
         bool fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& screenByte, uint8_t& colorByte) const;
