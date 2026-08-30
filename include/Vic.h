@@ -1017,31 +1017,6 @@ class Vic
 
         void updateGraphicsMode(int raster);
 
-        // Line rendering
-        void renderTextLine(int raster, int xScroll);
-
-        struct TextCellSample
-        {
-            bool valid = false;
-
-            int px = 0;
-            int py = 0;
-
-            uint8_t rowBits = 0;
-            uint16_t charAddr = 0;
-            uint8_t d018 = 0;
-            uint16_t charBase = 0;
-
-            int displayCol = 0;
-            int yInChar = 0;
-
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
-            uint8_t bgColor = 0;
-
-            bool multicolor = false;
-        };
-
         struct BackgroundPixel
         {
             uint8_t color = 0;
@@ -1230,7 +1205,6 @@ class Vic
 
         void resetBackgroundGraphicsLatches();
         void fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
-        void loadActiveStandardTextPixelStateFromLatch(int raster,  int column, int px);
 
         void fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
@@ -1261,13 +1235,11 @@ class Vic
         BackgroundLineGeometry computeBackgroundLineGeometry(int raster, int xScroll) const;
 
         void resetActiveBackgroundPixelState();
-        void loadActiveStandardTextPixelState(const TextCellSample& cell, int raster);
         BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
+        void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
         BackgroundPixel sampleAndAdvanceActiveStandardBitmapPixel();
         BackgroundPixel sampleAndAdvanceActiveMulticolorBitmapPixel();
-
-        void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1276,17 +1248,11 @@ class Vic
 
         void resetBackgroundPipeline();
 
-        void stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
-                                                 int x0, int x1, int startPhase, int endPhase);
-        void stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
-                                             int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
 
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
-        bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
-        void drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1);
 
         // Helpers
         void clearBadLineFifo();
@@ -1294,8 +1260,6 @@ class Vic
         void generateBackgroundLine(int raster);
 
         void emitRasterLineInOrder(int raster);
-        void emitActiveStandardTextPixels(int x0, int x1, int pixelBudget);
-        void emitStandardTextCyclePixelsBudgeted(int x0, int x1, int pixelBudget);
 
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;

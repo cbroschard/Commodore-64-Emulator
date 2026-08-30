@@ -3912,62 +3912,6 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.phase = 0;
 }
 
-void Vic::loadActiveStandardTextPixelState(const TextCellSample& cell, int raster)
-{
-    (void)raster;
-
-    activeBgPixel.valid = false;
-
-    if (!cell.valid || cell.multicolor)
-        return;
-
-    updateOpenBus(cell.rowBits);
-
-    activeBgPixel.valid = true;
-    activeBgPixel.rowBits = cell.rowBits;
-    activeBgPixel.fg = static_cast<uint8_t>(cell.colorByte & 0x0F);
-    activeBgPixel.bg0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    activeBgPixel.bg0Source = BackgroundSource::BG0;
-    activeBgPixel.pxBase = cell.px;
-    activeBgPixel.py = cell.py;
-    activeBgPixel.phase = 0;
-}
-
-Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
-{
-    BackgroundPixel out {};
-    out.color = activeBgPixel.bg0 & 0x0F;
-    out.opaque = false;
-    out.source = activeBgPixel.bg0Source;
-
-    if (!activeBgPixel.valid)
-        return out;
-
-    const int phase = activeBgPixel.phase;
-
-    if (phase < 0 || phase >= 8)
-        return out;
-
-    const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
-
-    if (pixelOn)
-    {
-        out.color = activeBgPixel.fg & 0x0F;
-        out.opaque = true;
-        out.source = BackgroundSource::Foreground;
-    }
-    else
-    {
-        out.color = activeBgPixel.bg0 & 0x0F;
-        out.opaque = false;
-        out.source = activeBgPixel.bg0Source;
-    }
-
-    ++activeBgPixel.phase;
-
-    return out;
-}
-
 void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
 {
     resetActiveBackgroundPixelState();
@@ -4089,41 +4033,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
     return out;
 }
 
-void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col)
-{
-    bgPipeline.valid = true;
-
-    bgPipeline.px = cell.px;
-    bgPipeline.py = cell.py;
-
-    bgPipeline.raster = raster;
-    bgPipeline.col = col;
-    bgPipeline.displayCol = cell.displayCol;
-    bgPipeline.yInChar = cell.yInChar;
-    bgPipeline.pixelPhase = 0;
-
-    bgPipeline.charCode   = cell.screenByte;
-    bgPipeline.screenByte = cell.screenByte;
-    bgPipeline.colorByte  = static_cast<uint8_t>(cell.colorByte & 0x0F);
-    bgPipeline.bitmapByte = 0;
-    bgPipeline.rowBits    = 0;
-
-    // For text modes:
-    // - fgColor is the direct cell color for standard text
-    // - fgColor low 3 bits are the direct cell color for multicolor text
-    bgPipeline.fgColor  = static_cast<uint8_t>(cell.colorByte & 0x0F);
-    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    bgPipeline.bgColor1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-    bgPipeline.bgColor2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-    bgPipeline.bgColor3 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
-
-    bgPipeline.multicolor = cell.multicolor;
-    bgPipeline.bitmap = false;
-    bgPipeline.ecm = false;
-
-    bgPipeline.rowBits = cell.rowBits;
-}
-
 void Vic::resetActiveMatrixRow()
 {
     activeMatrixRow.valid = false;
@@ -4204,68 +4113,6 @@ void Vic::resetBackgroundPipeline()
     bgPipeline.ecm = false;
 }
 
-void Vic::stampMulticolorTextRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
-                                              int x0, int x1, int startPhase, int endPhase)
-{
-    const int begin = std::max(0, startPhase);
-    const int end   = std::min(8, endPhase);
-
-    if (begin >= end)
-        return;
-
-    for (int phase = begin; phase < end; ++phase)
-    {
-        const int px = pxBase + phase;
-        if (px < x0 || px >= x1)
-            continue;
-
-        const int pairIndex = phase >> 1;
-        const int shift = 6 - pairIndex * 2;
-        const uint8_t bits = static_cast<uint8_t>((rowBits >> shift) & 0x03);
-
-        uint8_t color = bg0 & 0x0F;
-        bool opaque = false;
-        BackgroundSource source = multicolorTextSourceForBits(bits);
-
-        switch (bits)
-        {
-            case 0x00:
-                color = bg0 & 0x0F;
-                opaque = false;
-                break;
-            case 0x01:
-                color = bg1 & 0x0F;
-                opaque = true;
-                break;
-            case 0x02:
-                color = bg2 & 0x0F;
-                opaque = true;
-                break;
-            case 0x03:
-                color = cellColor & 0x0F;
-                opaque = true;
-                break;
-        }
-
-        stampBackgroundPixelSource(px, py, color, opaque, source);
-    }
-}
-
-void Vic::stampMulticolorTextPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t bg0, uint8_t bg1, uint8_t bg2, uint8_t cellColor,
-                                          int x0, int x1, int& phase, int pixelCount)
-{
-    if (pixelCount <= 0)
-        return;
-
-    const int startPhase = std::clamp(phase, 0, 8);
-    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
-
-    stampMulticolorTextRowBitsFromPhase(pxBase, py, rowBits, bg0, bg1, bg2, cellColor,
-                                        x0, x1, startPhase, endPhase);
-
-    phase = endPhase;
-}
-
 Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
 {
     switch (bits & 0x03)
@@ -4289,70 +4136,6 @@ void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque,
     bgColorLine[px] = color & 0x0F;
     bgOpaqueLine[px] = opaque ? 1 : 0;
     bgSourceLine[px] = source;
-}
-
-bool Vic::sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const
-{
-    out = {};
-
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
-        return false;
-
-    const int yInChar = static_cast<int>(vicState.rc & 0x07);
-    const int fine = xScroll & 0x07;
-
-    const int x0 = 0;
-    const int x1 = VISIBLE_WIDTH;
-
-    if (col < 0 || col >= BACKGROUND_MATRIX_COLUMNS)
-        return false;
-
-    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
-
-    if (px >= x1)
-        return false;
-
-    if (px + 8 <= x0)
-        return false;
-
-    const int displayCol = col;
-
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster, px);
-    const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
-
-    const uint8_t bgColor = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-
-    const uint8_t d016AtCell = d016ForRasterPixelX(raster, px, false);
-
-    const bool multicolor = ((d016AtCell & 0x10) != 0) && ((colorByte & 0x08) != 0);
-
-    const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;
-
-    const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
-
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(screenByte) * 8 + static_cast<uint16_t>(yInChar & 0x07));
-
-    const uint8_t rowBits = bus ? bus->vicRead(charAddr, raster) : 0x00;
-
-    out.valid = true;
-    out.px = px;
-    out.py = fbY(raster);
-    out.displayCol = displayCol;
-    out.yInChar = yInChar;
-    out.screenByte = screenByte;
-    out.colorByte = static_cast<uint8_t>(colorByte & 0x0F);
-    out.bgColor = bgColor;
-    out.multicolor = multicolor;
-
-    out.d018 = d018;
-    out.charBase = charBase;
-    out.charAddr = charAddr;
-    out.rowBits = rowBits;
-
-    return true;
 }
 
 Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
@@ -4404,51 +4187,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     return out;
 }
 
-void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid || !cell.multicolor)
-        return;
-
-    const uint8_t rowBits = bgPipeline.rowBits;
-    const uint8_t bg0 = bgPipeline.bgColor0 & 0x0F;
-    const uint8_t bg1 = bgPipeline.bgColor1 & 0x0F;
-    const uint8_t bg2 = bgPipeline.bgColor2 & 0x0F;
-    const uint8_t cellColor = static_cast<uint8_t>(bgPipeline.fgColor & 0x07);
-
-    int phase = 0;
-    stampMulticolorTextPipelineSpan(cell.px, cell.py, rowBits, bg0, bg1, bg2, cellColor, x0, x1, phase, 8);
-}
-
-void Vic::renderTextLine(int raster, int xScroll)
-{
-    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
-    if (!g.valid)
-        return;
-
-    for (int col = 0; col < g.fetchCols; ++col)
-    {
-        TextCellSample cell {};
-        if (!sampleTextCell(raster, xScroll, col, cell))
-            continue;
-
-        loadBackgroundPipelineFromTextCell(cell, raster, col);
-
-        if (!cell.multicolor)
-        {
-            loadActiveStandardTextPixelState(cell, raster);
-
-            while (!activeStandardTextPixelStateFinished())
-                emitStandardTextCyclePixelsBudgeted(g.x0, g.x1, 1);
-        }
-        else
-        {
-            drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
-        }
-    }
-}
-
 void Vic::clearBadLineFifo()
 {
     vicState.vmliFetchIndex = 0;
@@ -4496,15 +4234,10 @@ void Vic::generateBackgroundLine(int raster)
         }
     }
 
-    const int lineXScroll = latchedD016ForRaster(raster) & 0x07;
-
     switch (lineMode)
     {
         case graphicsMode::standard:
         case graphicsMode::multicolor:
-            renderTextLine(raster, lineXScroll);
-            break;
-
         case graphicsMode::bitmap:
         case graphicsMode::multicolorBitmap:
         case graphicsMode::extendedColorText:
@@ -4529,29 +4262,6 @@ void Vic::emitRasterLineInOrder(int raster)
     }
 }
 
-void Vic::emitActiveStandardTextPixels(int x0, int x1, int pixelBudget)
-{
-    if (!activeBgPixel.valid || pixelBudget <= 0)
-        return;
-
-    for (int i = 0; i < pixelBudget; ++i)
-    {
-        if (activeBgPixel.phase >= 8)
-            break;
-
-        const int px = activeBgPixel.pxBase + activeBgPixel.phase;
-        const BackgroundPixel pixel = sampleAndAdvanceActiveStandardTextPixel();
-
-        if (px >= x0 && px < x1)
-            stampBackgroundPixelSource(px, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
-    }
-}
-
-void Vic::emitStandardTextCyclePixelsBudgeted(int x0, int x1, int pixelBudget)
-{
-    emitActiveStandardTextPixels(x0, x1, pixelBudget);
-}
-
 int Vic::rasterVisibleStartX(int raster) const
 {
     (void)raster;
@@ -4562,6 +4272,42 @@ int Vic::rasterVisibleEndX(int raster) const
 {
     (void)raster;
     return VISIBLE_WIDTH;
+}
+
+Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
+{
+    BackgroundPixel out {};
+    out.color = activeBgPixel.bg0 & 0x0F;
+    out.opaque = false;
+    out.source = activeBgPixel.bg0Source;
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    const int phase = activeBgPixel.phase;
+
+    if (phase < 0 || phase >= 8)
+        return out;
+
+    const bool pixelOn =
+        ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
+
+    if (pixelOn)
+    {
+        out.color = activeBgPixel.fg & 0x0F;
+        out.opaque = true;
+        out.source = BackgroundSource::Foreground;
+    }
+    else
+    {
+        out.color = activeBgPixel.bg0 & 0x0F;
+        out.opaque = false;
+        out.source = activeBgPixel.bg0Source;
+    }
+
+    ++activeBgPixel.phase;
+
+    return out;
 }
 
 bool Vic::isInnerDisplayPixel(int raster, int px) const
