@@ -2116,7 +2116,11 @@ void Vic::advanceToNextRaster()
 
     rasterIrqTriggeredThisLine = false;
 
+    // Bad-line/DMA state is local to one raster line.
+    vicState.badLine = false;
     vicState.badLineSampled = false;
+    vicState.badLineDmaStartCycle = -1;
+    vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
 }
 
