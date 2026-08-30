@@ -676,6 +676,39 @@ uint8_t Cartridge::readCartridge(uint16_t offset, cartLocation location) const
     }
 }
 
+void Cartridge::writeCartridge(uint16_t address, uint8_t value, cartLocation location)
+{
+    switch(location)
+    {
+        case cartLocation::LO:
+        {
+            if (address < cart_lo.size())
+                cart_lo[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge lo size");
+            break;
+        }
+        case cartLocation::HI:
+        {
+            if (address < cart_hi.size())
+                cart_hi[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge hi size");
+            break;
+        }
+        case cartLocation::HI_E000:
+        {
+            if (address < cart_hi_e000.size())
+                cart_hi_e000[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge hi e000 size");
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 bool Cartridge::setCurrentBank(uint8_t bank)
 {
     bool bankFound = false;
@@ -774,9 +807,7 @@ bool Cartridge::loadIntoMemory()
                 #endif // Debug
 
                 for (size_t i = 0; i < 8192; ++i)
-                {
-                    mem->writeCartridge(loOffset + i, section.data[i], location);
-                }
+                    writeCartridge(loOffset + i, section.data[i], location);
             }
             // Load Second 8K into HI
             {
@@ -790,9 +821,7 @@ bool Cartridge::loadIntoMemory()
 
                 // For HI, we write starting at offset 0.
                 for (size_t i = 8192; i < section.data.size(); ++i)
-                {
-                    mem->writeCartridge(i - 8192, section.data[i], location);
-                }
+                    writeCartridge(i - 8192, section.data[i], location);
             }
         }
         // If the section is exactly 8K, load it into the proper bank as indicated by its load address.
@@ -811,7 +840,7 @@ bool Cartridge::loadIntoMemory()
                 location = cartLocation::HI;
 
                 for (size_t i = 0; i < section.data.size(); ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
 
                 continue;
             }
@@ -822,7 +851,7 @@ bool Cartridge::loadIntoMemory()
 
                 // Write starting at offset 0
                 for (size_t i = 0; i < section.data.size(); ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
 
                 continue;
             }
@@ -841,7 +870,7 @@ bool Cartridge::loadIntoMemory()
             for (size_t i = 0; i < section.data.size(); i++)
             {
                 uint16_t offset = (section.loadAddress - baseAddress) + i;
-                mem->writeCartridge(offset, section.data[i], location);
+                writeCartridge(offset, section.data[i], location);
             }
 
         }
@@ -865,7 +894,7 @@ bool Cartridge::loadIntoMemory()
                 if (cartOff >= 8192)
                     continue;
 
-                mem->writeCartridge(cartOff, section.data[i], loc);
+                writeCartridge(cartOff, section.data[i], loc);
             }
         }
     }
@@ -883,9 +912,7 @@ void Cartridge::clearCartridge(cartLocation location)
 
     // Iterate through all offsets in the 8KB block and write 0xFF
     for (uint16_t offset = 0; offset < area_size; ++offset)
-    {
-        mem->writeCartridge(offset, 0xFF, location);
-    }
+        writeCartridge(offset, 0xFF, location);
 }
 
 bool Cartridge::processChipSections()
