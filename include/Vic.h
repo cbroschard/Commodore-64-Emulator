@@ -1020,8 +1020,6 @@ class Vic
         // Line rendering
         void renderTextLine(int raster, int xScroll);
         void renderBitmapLine(int raster, int xScroll);
-        void renderBitmapMulticolorLine(int raster, int xScroll);
-        void renderECMLine(int raster, int xScroll);
 
         struct TextCellSample
         {
@@ -1053,21 +1051,6 @@ class Vic
         };
 
         struct BitmapCellSample
-        {
-            bool valid = false;
-
-            int px = 0;
-            int py = 0;
-
-            int displayCol = 0;
-            int yInChar = 0;
-
-            uint8_t bitmapByte = 0;
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
-        };
-
-        struct MultiColorBitmapCellSample
         {
             bool valid = false;
 
@@ -1302,7 +1285,6 @@ class Vic
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
-        void loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col);
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1320,19 +1302,10 @@ class Vic
         void stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
         void stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
 
-        void stampMulticolorBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
-                                           int x0, int x1, int startPhase, int endPhase);
-        void stampMulticolorBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t c00, uint8_t c01, uint8_t c10, uint8_t c11,
-                                       int x0, int x1, int& phase, int pixelCount);
-        BackgroundSource multicolorBitmapSourceForBits(uint8_t bits) const;
-
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
-
-        bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
 
         bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
         void drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1);
-        void drawMultiColorBitmapCellViaPipeline(const MultiColorBitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
