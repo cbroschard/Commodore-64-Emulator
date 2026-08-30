@@ -1272,11 +1272,7 @@ class Vic
 
         void traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fetchPixelX, int outputX) const;
 
-        // Generic category helpers
-        void traceVicEvent(const std::string& text) const;
-        void traceVicRegEvent(const std::string& text) const;
-        void traceVicBadlineEvent(const std::string& text) const;
-        void traceVicSpriteEvent(const std::string& text) const;
+        // Generic category helper
         void traceVicBusEvent(const std::string& text) const;
 
         // IRQ / raster helpers

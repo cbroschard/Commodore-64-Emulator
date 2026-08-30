@@ -6126,22 +6126,6 @@ void Vic::traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fe
     traceVicBusEvent(out.str());
 }
 
-void Vic::traceVicEvent(const std::string& text) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_EVENT))
-        return;
-
-    traceMgr->recordVicEvent(text, makeVicStamp());
-}
-
-void Vic::traceVicRegEvent(const std::string& text) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_REG))
-        return;
-
-    traceMgr->recordVicRegister(text, makeVicStamp());
-}
-
 int Vic::cyclePixelX(int cycle) const
 {
     if (cycle < 0)
@@ -6194,22 +6178,6 @@ void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) cons
         << " row=" << row;
 
     traceMgr->recordVicBadline(out.str(), makeVicStamp());
-}
-
-void Vic::traceVicBadlineEvent(const std::string& text) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
-        return;
-
-    traceMgr->recordVicBadline(text, makeVicStamp());
-}
-
-void Vic::traceVicSpriteEvent(const std::string& text) const
-{
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
-        return;
-
-    traceMgr->recordVicSprite(text, makeVicStamp());
 }
 
 void Vic::traceVicBusEvent(const std::string& text) const
