@@ -1935,7 +1935,13 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
 
 void Vic::performBadLineFetchesForCurrentCycle()
 {
-    if (!vicState.badLine)
+    // A Bad Line Condition starts the c-access sequence.
+    // Once the sequence has begun, it continues through the
+    // remaining matrix-fetch cycles even if YSCROLL is changed
+    // and the live Bad Line Condition disappears.
+    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+
+    if (!cAccessSequenceActive)
         return;
 
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
