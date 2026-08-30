@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/WarpSpeedMapper.h"
-#include "Memory.h"
 
 WarpSpeedMapper::WarpSpeedMapper() :
     enabled(true)
@@ -68,7 +67,7 @@ void WarpSpeedMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if ((address & 0xFF00) == 0xDE00)
@@ -85,7 +84,7 @@ void WarpSpeedMapper::write(uint16_t address, uint8_t value)
 
 bool WarpSpeedMapper::loadIntoMemory(uint8_t /*bank*/)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     // Clear LO -> HI banks first (fill with 0xFF)
     cart->clearCartridge(cartLocation::LO);
@@ -99,22 +98,16 @@ bool WarpSpeedMapper::loadIntoMemory(uint8_t /*bank*/)
         {
             // Lower 8K -> LO ($8000–$9FFF)
             for (size_t i = 0; i < 8192; ++i)
-            {
-                mem->writeCartridge(i, section.data[i], cartLocation::LO);
-            }
+                cart->writeCartridge(i, section.data[i], cartLocation::LO);
 
             // IO mirror ($DE00-$DFFF) mirrors ROM bytes at $9E00-$9FFF
             // $9E00 - $8000 = 0x1E00, length = 0x200
             for (size_t i = 0; i < 0x200; ++i)
-            {
                 ioMirror[i] = section.data[0x1E00 + i];
-            }
 
             // Upper 8K -> HI ($A000–$BFFF)
             for (size_t i = 0; i < 8192; ++i)
-            {
-                mem->writeCartridge(i, section.data[i + 8192], cartLocation::HI);
-            }
+                cart->writeCartridge(i, section.data[i + 8192], cartLocation::HI);
 
             mapped = true;
             break; // only one 16K section should exist
@@ -126,7 +119,7 @@ bool WarpSpeedMapper::loadIntoMemory(uint8_t /*bank*/)
 
 bool WarpSpeedMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (enabled)

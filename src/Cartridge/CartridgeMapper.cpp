@@ -12,8 +12,7 @@
 
 CartridgeMapper::CartridgeMapper() :
     bus(nullptr),
-    cart(nullptr),
-    mem(nullptr)
+    cart(nullptr)
 {
 
 }

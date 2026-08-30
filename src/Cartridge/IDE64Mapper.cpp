@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/IDE64Mapper.h"
-#include "Memory.h"
 
 IDE64Mapper::IDE64Mapper()
 {
@@ -373,7 +372,7 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
 
 bool IDE64Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     (void)bank; // IDE64 control bits select the bank.
@@ -395,10 +394,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     cart->setGameLine(ctrl.game);
     cart->setExROMLine(ctrl.exrom);
 
-    const size_t bankNumber =
-        (ctrl.romAddr14 ? 1u : 0u) |
-        (ctrl.romAddr15 ? 2u : 0u);
-
+    const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) | (ctrl.romAddr15 ? 2u : 0u);
     const size_t romBase = bankNumber * 0x4000;
 
     // No cartridge ROM.
@@ -407,12 +403,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
 
     // ROML is visible in 8K, 16K, and Ultimax modes.
     for (size_t i = 0; i < 0x2000; ++i)
-    {
-        mem->writeCartridge(
-            static_cast<uint16_t>(i),
-            rom[romBase + i],
-            cartLocation::LO);
-    }
+        cart->writeCartridge(static_cast<uint16_t>(i), rom[romBase + i], cartLocation::LO);
 
     // 8K mode: ROML only.
     if (ctrl.game && !ctrl.exrom)
@@ -423,7 +414,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     {
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            mem->writeCartridge(
+            cart->writeCartridge(
                 static_cast<uint16_t>(i),
                 rom[romBase + 0x2000 + i],
                 cartLocation::HI);
@@ -437,7 +428,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     {
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            mem->writeCartridge(
+            cart->writeCartridge(
                 static_cast<uint16_t>(i),
                 rom[romBase + 0x2000 + i],
                 cartLocation::HI_E000);

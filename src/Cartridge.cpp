@@ -189,7 +189,6 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         mapper->attachBusInstance(bus);
         mapper->attachCartridgeInstance(this);
-        mapper->attachMemoryInstance(mem);
     }
 
     // Mapper subchunks (now it can actually load them)
@@ -376,7 +375,6 @@ bool Cartridge::loadROM(const std::string& path)
     if (mapper)
     {
         mapper->attachCartridgeInstance(this);
-        mapper->attachMemoryInstance(mem);
 
         if (mapperType == Cartridge::CartridgeType::DELA_EP64)
             mapper->reset();

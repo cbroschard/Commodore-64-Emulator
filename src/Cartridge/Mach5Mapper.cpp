@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/Mach5Mapper.h"
-#include "Memory.h"
 
 Mach5Mapper::Mach5Mapper() :
     enabled(true),
@@ -57,20 +56,20 @@ uint8_t Mach5Mapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem || !enabled || !loaded)
+    if (!enabled || !loaded)
         return cart->sampleDataBus();
 
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
         const uint16_t offset = static_cast<uint16_t>(0x1E00 + (address & 0x00FF));
-        return mem->readCartridge(offset, cartLocation::LO
+        return cart->readCartridge(offset, cartLocation::LO
         );
     }
 
     if (address >= 0xDF00 && address <= 0xDFFF)
     {
         const uint16_t offset = static_cast<uint16_t>(0x1F00 + (address & 0x00FF));
-        return mem->readCartridge(offset, cartLocation::LO);
+        return cart->readCartridge(offset, cartLocation::LO);
     }
 
     return cart->sampleDataBus();
@@ -103,7 +102,7 @@ bool Mach5Mapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     // MACH 5 is a single 8K ROM mapped at $8000-$9FFF.
@@ -123,7 +122,7 @@ bool Mach5Mapper::loadIntoMemory(uint8_t bank)
 
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            mem->writeCartridge(
+            cart->writeCartridge(
                 static_cast<uint16_t>(i),
                 section.data[i],
                 cartLocation::LO);
@@ -152,7 +151,7 @@ bool Mach5Mapper::applyMappingAfterLoad()
 
 bool Mach5Mapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem || !enabled || !loaded)
+    if (!cart || !enabled || !loaded)
         return false;
 
     return address >= 0xDE00 && address <= 0xDFFF;

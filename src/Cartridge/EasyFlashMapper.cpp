@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/EasyFlashMapper.h"
-#include "Memory.h"
 
 EasyFlashMapper::EasyFlashMapper() :
     selectedBank(0)
@@ -116,7 +115,7 @@ void EasyFlashMapper::write(uint16_t address, uint8_t value)
 
 bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     selectedBank = static_cast<uint8_t>(bank & 0x3F);
@@ -137,7 +136,7 @@ bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
         if (sec.loadAddress == CART_LO_START || sec.loadAddress == 0x8000)
         {
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                cart->writeCartridge(i, sec.data[i], cartLocation::LO);
 
             loadedAny = true;
         }
@@ -147,8 +146,8 @@ bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
         {
             for (size_t i = 0; i < size; ++i)
             {
-                mem->writeCartridge(i, sec.data[i], cartLocation::HI);
-                mem->writeCartridge(i, sec.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(i, sec.data[i], cartLocation::HI);
+                cart->writeCartridge(i, sec.data[i], cartLocation::HI_E000);
             }
 
             loadedAny = true;
@@ -190,7 +189,7 @@ void EasyFlashMapper::reset()
     selectedBank = 0;
     control.raw = 0x00;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     cart->setGameLine(false);

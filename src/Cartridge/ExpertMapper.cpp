@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/ExpertMapper.h"
-#include "Memory.h"
 
 ExpertMapper::ExpertMapper() :
     sw(SwitchPos::OFF),
@@ -168,7 +167,7 @@ bool ExpertMapper::loadIntoMemory(uint8_t bank)
 
 bool ExpertMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     // If we are still in the "hold Ultimax for vector fetch" phase:
     if (freezeActive)
@@ -215,7 +214,7 @@ bool ExpertMapper::applyMappingAfterLoad()
 
 void ExpertMapper::pressFreeze()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     freezeActive = true;
     freezeCycles = 10;
@@ -226,7 +225,7 @@ void ExpertMapper::pressFreeze()
 
 void ExpertMapper::pressReset()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     freezeActive = false;
     (void)applyMappingAfterLoad();

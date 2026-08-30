@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/CaptureMapper.h"
-#include "Memory.h"
 
 CaptureMapper::CaptureMapper() :
     mode(Mode::Normal),
@@ -65,7 +64,7 @@ bool CaptureMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 uint8_t CaptureMapper::read(uint16_t address)
 {
-    if (!cart || !mem)
+    if (!cart)
         return 0xFF;
 
     // Capture RAM at $6000-$7FFF.
@@ -85,7 +84,7 @@ uint8_t CaptureMapper::read(uint16_t address)
     {
         romHEnabled = true;
 
-        return mem->readCartridge(0x1FF8, cartLocation::HI_E000);
+        return cart->readCartridge(0x1FF8, cartLocation::HI_E000);
     }
 
     // Capture high ROM during Ultimax mode.
@@ -96,7 +95,7 @@ uint8_t CaptureMapper::read(uint16_t address)
 
         const uint16_t offset = static_cast<uint16_t>(address - 0xE000);
 
-        return mem->readCartridge(offset, cartLocation::HI_E000);
+        return cart->readCartridge(offset, cartLocation::HI_E000);
     }
 
     return cart ? cart->sampleDataBus() : 0xFF;
@@ -164,7 +163,7 @@ bool CaptureMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     cart->clearCartridge(cartLocation::LO);
@@ -181,9 +180,9 @@ bool CaptureMapper::loadIntoMemory(uint8_t bank)
 
         for (size_t i = 0; i < 0x2000; ++i)
         {
-            mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
-            mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
         }
 
         return applyMappingAfterLoad();

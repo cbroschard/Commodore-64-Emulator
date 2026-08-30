@@ -67,7 +67,7 @@ void FunPlayMapper::write(uint16_t address, uint8_t value)
 
 bool FunPlayMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     selectedBank = (bank & 0x0F);
     bank = selectedBank;
@@ -80,7 +80,7 @@ bool FunPlayMapper::loadIntoMemory(uint8_t bank)
         {
             size_t size = std::min(section.data.size(), static_cast<size_t>(0x2000));
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
             return true;
         }
     }

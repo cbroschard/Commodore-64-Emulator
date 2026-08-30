@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RexUtilityMapper.h"
-#include "Memory.h"
 
 RexUtilityMapper::RexUtilityMapper() :
     romEnabled(true)
@@ -75,7 +74,7 @@ void RexUtilityMapper::write(uint16_t address, uint8_t value)
 
 bool RexUtilityMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     bool mapped = false;
@@ -87,7 +86,7 @@ bool RexUtilityMapper::loadIntoMemory(uint8_t bank)
 
         if (section.loadAddress == 0x8000)   // LO block
         {
-            for (size_t i = 0; i < 8192; ++i) mem->writeCartridge(i, section.data[i], cartLocation::LO);
+            for (size_t i = 0; i < 8192; ++i) cart->writeCartridge(i, section.data[i], cartLocation::LO);
             mapped = true;
         }
     }

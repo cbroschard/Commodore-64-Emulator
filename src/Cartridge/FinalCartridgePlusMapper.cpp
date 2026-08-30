@@ -114,7 +114,7 @@ void FinalCartridgePlusMapper::write(uint16_t address, uint8_t value)
 
 bool FinalCartridgePlusMapper::loadIntoMemory(uint8_t /*bank*/)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
@@ -130,19 +130,19 @@ bool FinalCartridgePlusMapper::loadIntoMemory(uint8_t /*bank*/)
         if (s.loadAddress == 0x8000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
             foundAny = true;
         }
         else if (s.loadAddress == 0xA000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
             foundAny = true;
         }
         else if (s.loadAddress == 0xE000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             foundAny = true;
         }
     }
@@ -166,15 +166,15 @@ bool FinalCartridgePlusMapper::loadIntoMemory(uint8_t /*bank*/)
 
         // $E000-$FFFF <- img[0x2000..0x3FFF]
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), img[0x2000 + i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), img[0x2000 + i], cartLocation::HI_E000);
 
         // $8000-$9FFF <- img[0x4000..0x5FFF]
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), img[0x4000 + i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), img[0x4000 + i], cartLocation::LO);
 
         // $A000-$BFFF <- img[0x6000..0x7FFF]
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), img[0x6000 + i], cartLocation::HI);
+            cart->writeCartridge(static_cast<uint16_t>(i), img[0x6000 + i], cartLocation::HI);
 
         return true;
     }
@@ -202,7 +202,7 @@ bool FinalCartridgePlusMapper::isRegionEnabled(CartRegion region) const
 
 bool FinalCartridgePlusMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!loadIntoMemory(0))
@@ -222,7 +222,7 @@ bool FinalCartridgePlusMapper::applyMappingAfterLoad()
 
 void FinalCartridgePlusMapper::pressFreeze()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     // Temporary freeze entry: force Ultimax-like takeover
     cart->setExROMLine(false);
@@ -236,7 +236,7 @@ void FinalCartridgePlusMapper::pressFreeze()
 
 void FinalCartridgePlusMapper::pressReset()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     (void)applyMappingAfterLoad();
     cart->requestWarmReset();

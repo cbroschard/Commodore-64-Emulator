@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/C64GameSystemMapper.h"
-#include "Memory.h"
 
 C64GameSystemMapper::C64GameSystemMapper() :
     selectedBank(0)
@@ -50,7 +49,7 @@ bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader
 
 bool C64GameSystemMapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     cart->setExROMLine(true);
     cart->setGameLine(true);
@@ -83,7 +82,7 @@ void C64GameSystemMapper::write(uint16_t address, uint8_t value)
 
 bool C64GameSystemMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     selectedBank = bank;
 
@@ -107,8 +106,8 @@ bool C64GameSystemMapper::loadIntoMemory(uint8_t bank)
     size_t size = std::min(sec->data.size(), static_cast<size_t>(0x4000)); // 16K
     for (size_t i = 0; i < size; ++i)
     {
-        if (i < 0x2000) mem->writeCartridge(i, sec->data[i], cartLocation::LO);
-        else           mem->writeCartridge(i - 0x2000, sec->data[i], cartLocation::HI);
+        if (i < 0x2000) cart->writeCartridge(i, sec->data[i], cartLocation::LO);
+        else           cart->writeCartridge(i - 0x2000, sec->data[i], cartLocation::HI);
     }
 
     return true;

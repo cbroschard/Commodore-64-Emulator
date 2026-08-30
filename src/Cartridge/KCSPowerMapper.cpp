@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/KCSPowerMapper.h"
-#include "Memory.h"
 
 KCSPowerMapper::KCSPowerMapper()
 {
@@ -82,7 +81,7 @@ uint8_t KCSPowerMapper::read(uint16_t address)
         }
 
         uint16_t offset = 0x1E00 + (address & 0x00FF);
-        return mem ? mem->readCartridge(offset, cartLocation::LO) : 0xFF;
+        return cart ? cart->readCartridge(offset, cartLocation::LO) : 0xFF;
     }
 
     // IO2: $DF00-$DFFF
@@ -148,7 +147,7 @@ bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     cart->clearCartridge(cartLocation::LO);
@@ -163,13 +162,13 @@ bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
             if (section.loadAddress == 0x8000)
             {
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(i, section.data[i], cartLocation::LO);
+                    cart->writeCartridge(i, section.data[i], cartLocation::LO);
                 mapped = true;
             }
             else if (section.loadAddress == 0xA000)
             {
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(i, section.data[i], cartLocation::HI);
+                    cart->writeCartridge(i, section.data[i], cartLocation::HI);
                 mapped = true;
             }
         }
@@ -180,7 +179,7 @@ bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
 
 bool KCSPowerMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!loadIntoMemory(0))

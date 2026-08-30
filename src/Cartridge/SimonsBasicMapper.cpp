@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SimonsBasicMapper.h"
-#include "Memory.h"
 
 SimonsBasicMapper::SimonsBasicMapper() :
     highROMEnabled(true)
@@ -62,8 +61,7 @@ uint8_t SimonsBasicMapper::read(uint16_t address)
         cart->setGameLine(true);
 
         // Remove the no-longer-visible ROMH data.
-        if (mem)
-            cart->clearCartridge(cartLocation::HI);
+        cart->clearCartridge(cartLocation::HI);
 
         return 0x00;
     }
@@ -86,7 +84,7 @@ void SimonsBasicMapper::write(uint16_t address, uint8_t value)
 
 bool SimonsBasicMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     // Clear LO + HI banks first (fill with 0xFF)
     cart->clearCartridge(cartLocation::LO);
@@ -102,14 +100,14 @@ bool SimonsBasicMapper::loadIntoMemory(uint8_t bank)
             if (sec.data.size() >= 0x2000) // Ensure it's at least 8K
             {
                 for (size_t i = 0; i < 0x2000; ++i) // Map exactly 8K
-                    mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                    cart->writeCartridge(i, sec.data[i], cartLocation::LO);
                 mapped = true;
             }
             else
             {
                 std::cerr << "Warning: Simon's Basic low ROM section is less than 8KB!" << std::endl;
                 for (size_t i = 0; i < sec.data.size(); ++i)
-                    mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                    cart->writeCartridge(i, sec.data[i], cartLocation::LO);
                 mapped = true;
             }
         }
@@ -125,14 +123,14 @@ bool SimonsBasicMapper::loadIntoMemory(uint8_t bank)
                 if (sec.data.size() >= 0x2000) // Ensure it's at least 8K
                 {
                     for (size_t i = 0; i < 0x2000; ++i) // Map exactly 8K
-                        mem->writeCartridge(i, sec.data[i], cartLocation::HI);
+                        cart->writeCartridge(i, sec.data[i], cartLocation::HI);
                     mapped = true;
                 }
                 else
                 {
                     std::cerr << "Warning: Simon's Basic high ROM section is less than 8KB!" << std::endl;
                     for (size_t i = 0; i < sec.data.size(); ++i)
-                        mem->writeCartridge(i, sec.data[i], cartLocation::HI);
+                        cart->writeCartridge(i, sec.data[i], cartLocation::HI);
                     mapped = true;
                 }
             }

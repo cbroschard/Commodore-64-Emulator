@@ -7,14 +7,12 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MagicDeskMapper.h"
-#include "Memory.h"
 
 namespace
 {
     constexpr bool isIO1(uint16_t address)
     {
-        return address >= 0xDE00 &&
-               address <= 0xDEFF;
+        return address >= 0xDE00 && address <= 0xDEFF;
     }
 }
 
@@ -108,7 +106,7 @@ void MagicDeskMapper::write(uint16_t address, uint8_t value)
 }
 
 bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     const auto& sections = cart->getChipSections();
     for (const auto& sec : sections)
@@ -117,7 +115,7 @@ bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
         {
             size_t size = std::min(sec.data.size(), size_t(0x2000));
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                cart->writeCartridge(i, sec.data[i], cartLocation::LO);
             return true;
         }
     }

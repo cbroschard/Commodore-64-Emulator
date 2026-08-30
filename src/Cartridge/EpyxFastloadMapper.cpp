@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/EpyxFastloadMapper.h"
-#include "Memory.h"
 
 EpyxFastloadMapper::EpyxFastloadMapper() :
     romEnabled(false),
@@ -63,9 +62,6 @@ uint8_t EpyxFastloadMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem)
-        return cart->sampleDataBus();
-
     // IO1 read charges the capacitor and temporarily enables ROM.
     if ((address & 0xFF00) == 0xDE00)
     {
@@ -81,7 +77,7 @@ void EpyxFastloadMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if ((address & 0xFF00) == 0xDE00)
@@ -97,7 +93,7 @@ bool EpyxFastloadMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     // Epyx FastLoad is an 8K ROM at $8000-$9FFF (ROML).
@@ -117,10 +113,10 @@ bool EpyxFastloadMapper::loadIntoMemory(uint8_t bank)
             continue;
 
         for (size_t i = 0; i < 0x2000; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
         for (size_t i = 0; i < 0x2000; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
         loaded = true;
         return applyMappingAfterLoad();
@@ -132,7 +128,7 @@ bool EpyxFastloadMapper::loadIntoMemory(uint8_t bank)
 
 bool EpyxFastloadMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (romEnabled)

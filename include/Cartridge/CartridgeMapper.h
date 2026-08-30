@@ -16,7 +16,6 @@
 //Forward declarations
 class Bus;
 class Cartridge;
-class Memory;
 
 class CartridgeMapper
 {
@@ -47,7 +46,6 @@ class CartridgeMapper
 
         inline virtual void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline virtual void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
-        inline virtual void attachMemoryInstance(Memory* mem) { this->mem = mem; }
 
         virtual bool loadIntoMemory(uint8_t bank) = 0;
 
@@ -71,7 +69,6 @@ class CartridgeMapper
     protected:
         Bus* bus;
         Cartridge* cart;
-        Memory* mem;
 
         // Cartridge LO/HI location constants
         static constexpr size_t CART_LO_START = 0x8000;

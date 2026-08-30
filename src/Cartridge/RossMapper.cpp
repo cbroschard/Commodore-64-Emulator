@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RossMapper.h"
-#include "Memory.h"
 
 RossMapper::RossMapper() :
     selectedBank(0),
@@ -70,7 +69,7 @@ void RossMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (cart->getCartridgeSize() == 32768 && address == 0xDE00)
@@ -92,7 +91,7 @@ void RossMapper::write(uint16_t address, uint8_t value)
 
 bool RossMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     disabled = false;
     selectedBank = bank;
@@ -111,8 +110,8 @@ bool RossMapper::loadIntoMemory(uint8_t bank)
             for (size_t i = 0; i < section.data.size(); ++i)
             {
                 // Load to $8000 (cartLocation::LO)
-                mem->writeCartridge(i, section.data[i], cartLocation::LO);
-                mem->writeCartridge(i + 0x1000, section.data[i], cartLocation::LO);
+                cart->writeCartridge(i, section.data[i], cartLocation::LO);
+                cart->writeCartridge(i + 0x1000, section.data[i], cartLocation::LO);
             }
             mapped = true;
         }
@@ -120,7 +119,7 @@ bool RossMapper::loadIntoMemory(uint8_t bank)
         {
             for (size_t i = 0; i < section.data.size(); ++i)
             {
-                mem->writeCartridge(i, section.data[i], cartLocation::HI);
+                cart->writeCartridge(i, section.data[i], cartLocation::HI);
             }
             mapped = true;
         }

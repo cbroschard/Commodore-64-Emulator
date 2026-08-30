@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FreezeFrameMapper.h"
-#include "Memory.h"
 
 FreezeFrameMapper::FreezeFrameMapper() :
     mode(Mode::Normal)
@@ -70,7 +69,7 @@ void FreezeFrameMapper::write(uint16_t address, uint8_t value)
 
 bool FreezeFrameMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     (void)bank;
@@ -84,13 +83,13 @@ bool FreezeFrameMapper::loadIntoMemory(uint8_t bank)
             if (mode == Mode::Normal || mode == Mode::Freeze)
             {
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::LO);
             }
 
             if (mode == Mode::Freeze)
             {
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::HI_E000);
             }
 
             return true;
@@ -138,7 +137,7 @@ void FreezeFrameMapper::pressFreeze()
 
 bool FreezeFrameMapper::setMode(Mode newMode)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     mode = newMode;

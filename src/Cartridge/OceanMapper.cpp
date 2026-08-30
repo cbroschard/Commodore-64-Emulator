@@ -9,7 +9,6 @@
 #include <cstring>
 #include "Cartridge.h"
 #include "Cartridge/OceanMapper.h"
-#include "Memory.h"
 
 OceanMapper::OceanMapper() :
     builtLists(false),
@@ -105,7 +104,7 @@ bool OceanMapper::mapSelectedBank()
                 continue;
 
             for (size_t i = 0; i < s.data.size(); ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             wroteLo = true;
         }
@@ -118,7 +117,7 @@ bool OceanMapper::mapSelectedBank()
                 continue;
 
             for (size_t i = 0; i < s.data.size(); ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
 
             wroteHi = true;
         }

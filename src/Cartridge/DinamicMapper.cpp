@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/DinamicMapper.h"
-#include "Memory.h"
 
 DinamicMapper::DinamicMapper() :
     dinamicBank(0)
@@ -73,7 +72,7 @@ void DinamicMapper::write(uint16_t address, uint8_t value)
 
 bool DinamicMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     cart->clearCartridge(cartLocation::LO);
 
@@ -82,7 +81,7 @@ bool DinamicMapper::loadIntoMemory(uint8_t bank)
         if (section.bankNumber == bank && section.loadAddress == CART_LO_START)
         {
             for (size_t i = 0; i < section.data.size(); ++i)
-                mem->writeCartridge(i, section.data[i], cartLocation::LO);
+                cart->writeCartridge(i, section.data[i], cartLocation::LO);
             return true;
         }
     }

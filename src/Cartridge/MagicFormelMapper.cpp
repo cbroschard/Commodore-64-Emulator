@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MagicFormelMapper.h"
-#include "Memory.h"
 
 MagicFormelMapper::MagicFormelMapper() :
     romEnabled(true),
@@ -101,7 +100,7 @@ void MagicFormelMapper::write(uint16_t address, uint8_t value)
 
 bool MagicFormelMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     uint8_t idx = 0;
 
@@ -114,7 +113,7 @@ bool MagicFormelMapper::loadIntoMemory(uint8_t bank)
         if (idx != bank) { idx++; continue; }
 
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
 
         return true;
     }

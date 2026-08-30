@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/DelaEP7x8Mapper.h"
-#include "Memory.h"
 
 DelaEP7x8Mapper::DelaEP7x8Mapper() :
     selectedBank(0),
@@ -56,7 +55,7 @@ uint8_t DelaEP7x8Mapper::read(uint16_t address)
 
 void DelaEP7x8Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address != 0xDE00)
@@ -90,7 +89,7 @@ void DelaEP7x8Mapper::write(uint16_t address, uint8_t value)
 
 bool DelaEP7x8Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (bank > 7)
@@ -126,14 +125,14 @@ bool DelaEP7x8Mapper::loadIntoMemory(uint8_t bank)
     cart->clearCartridge(cartLocation::LO);
 
     for (size_t i = 0; i < 0x2000; ++i)
-        mem->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i], cartLocation::LO);
 
     return true;
 }
 
 bool DelaEP7x8Mapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (disabled)
@@ -190,7 +189,7 @@ void DelaEP7x8Mapper::reset()
     selectedBank = 0;
     disabled = false;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadIntoMemory(selectedBank))

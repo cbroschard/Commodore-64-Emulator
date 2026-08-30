@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/StructuredBasicMapper.h"
-#include "Memory.h"
 
 StructuredBasicMapper::StructuredBasicMapper() :
     selectedBank(0)
@@ -74,7 +73,7 @@ void StructuredBasicMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address == 0xDE00 || address == 0xDE01)
@@ -95,7 +94,7 @@ void StructuredBasicMapper::write(uint16_t address, uint8_t value)
 
 bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     // Track status
     bool mapped = false;
@@ -113,7 +112,7 @@ bool StructuredBasicMapper::loadIntoMemory(uint8_t bank)
         if (sec.bankNumber == bank && sec.loadAddress == CART_LO_START)
         {
             for (size_t i = 0; i < sec.data.size(); ++i)
-                mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                cart->writeCartridge(i, sec.data[i], cartLocation::LO);
             mapped = true;
         }
     }

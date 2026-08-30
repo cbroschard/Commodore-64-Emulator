@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MikroAssemblerMapper.h"
-#include "Memory.h"
 
 MikroAssemblerMapper::MikroAssemblerMapper()
 {
@@ -47,13 +46,10 @@ uint8_t MikroAssemblerMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem)
-        return cart->sampleDataBus();
-
     if (address >= 0xDE00 && address <= 0xDFFF)
     {
-        const uint16_t offset = static_cast<uint16_t>(0x1E00 + (address - 0xDE00));
-        return mem->readCartridge(offset, cartLocation::LO);
+        const uint16_t offset =  static_cast<uint16_t>(0x1E00 + (address - 0xDE00));
+        return cart->readCartridge(offset, cartLocation::LO);
     }
 
     return cart->sampleDataBus();
@@ -68,7 +64,7 @@ void MikroAssemblerMapper::write(uint16_t address, uint8_t value)
 
 bool MikroAssemblerMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     // Mikro Assembler is a single fixed 8K cartridge.
@@ -84,7 +80,7 @@ bool MikroAssemblerMapper::loadIntoMemory(uint8_t bank)
         if (sec.data.size() == 8192 && sec.loadAddress == 0x8000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), sec.data[i], cartLocation::LO);
 
             return true;
         }
@@ -100,7 +96,7 @@ bool MikroAssemblerMapper::applyMappingAfterLoad()
 
 bool MikroAssemblerMapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     return address >= 0xDE00 && address <= 0xDFFF;

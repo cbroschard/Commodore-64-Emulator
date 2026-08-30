@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FreezeFrameMK2Mapper.h"
-#include "Memory.h"
 
 FreezeFrameMK2Mapper::FreezeFrameMK2Mapper() :
     selectedBank(0)
@@ -72,7 +71,7 @@ void FreezeFrameMK2Mapper::reset()
 
 bool FreezeFrameMK2Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     bank &= 0x01; // MK2: bank 0 or 1
@@ -94,7 +93,7 @@ bool FreezeFrameMK2Mapper::loadIntoMemory(uint8_t bank)
 
         // MK2 visible bank is ROML only
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
         return true;
     }
@@ -107,7 +106,7 @@ bool FreezeFrameMK2Mapper::loadIntoMemory(uint8_t bank)
 
         const size_t base = (bank == 0) ? 0 : 8192;
         for (size_t i = 0; i < 8192; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), section.data[base + i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[base + i], cartLocation::LO);
 
         return true;
     }
