@@ -1019,7 +1019,6 @@ class Vic
 
         // Line rendering
         void renderTextLine(int raster, int xScroll);
-        void renderBitmapLine(int raster, int xScroll);
 
         struct TextCellSample
         {
@@ -1048,21 +1047,6 @@ class Vic
             uint8_t color = 0;
             bool opaque = false;
             BackgroundSource source = BackgroundSource::Unknown;
-        };
-
-        struct BitmapCellSample
-        {
-            bool valid = false;
-
-            int px = 0;
-            int py = 0;
-
-            int displayCol = 0;
-            int yInChar = 0;
-
-            uint8_t bitmapByte = 0;
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
         };
 
         struct BackgroundLineGeometry
@@ -1284,7 +1268,6 @@ class Vic
         BackgroundPixel sampleAndAdvanceActiveMulticolorBitmapPixel();
 
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
-        void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1299,13 +1282,7 @@ class Vic
                                              int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
 
-        void stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int startPhase, int endPhase);
-        void stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount);
-
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
-
-        bool sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const;
-        void drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1);
 
         bool sampleTextCell(int raster, int xScroll, int col, TextCellSample& out) const;
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();

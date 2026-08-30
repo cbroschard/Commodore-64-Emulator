@@ -4124,45 +4124,6 @@ void Vic::loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int ras
     bgPipeline.rowBits = cell.rowBits;
 }
 
-void Vic::loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col)
-{
-    bgPipeline.valid = true;
-
-    bgPipeline.px = cell.px;
-    bgPipeline.py = cell.py;
-
-    bgPipeline.raster = raster;
-    bgPipeline.col = col;
-    bgPipeline.displayCol = cell.displayCol;
-    bgPipeline.yInChar = cell.yInChar;
-    bgPipeline.pixelPhase = 0;
-
-    bgPipeline.charCode = 0;
-    bgPipeline.rowBits = 0;
-
-    bgPipeline.bitmapByte = cell.bitmapByte;
-    bgPipeline.screenByte = cell.screenByte;
-    bgPipeline.colorByte = cell.colorByte;
-
-    // Standard bitmap only.
-    // Multicolor bitmap has its own loader:
-    // loadBackgroundPipelineFromMultiColorBitmapCell().
-    //
-    // Standard bitmap:
-    // bit=1 -> high nibble of screen byte
-    // bit=0 -> low nibble of screen byte
-    bgPipeline.fgColor  = static_cast<uint8_t>((cell.screenByte >> 4) & 0x0F);
-    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.screenByte & 0x0F);
-
-    bgPipeline.bgColor1 = 0;
-    bgPipeline.bgColor2 = 0;
-    bgPipeline.bgColor3 = 0;
-
-    bgPipeline.multicolor = false;
-    bgPipeline.bitmap = true;
-    bgPipeline.ecm = false;
-}
-
 void Vic::resetActiveMatrixRow()
 {
     activeMatrixRow.valid = false;
@@ -4318,47 +4279,6 @@ Vic::BackgroundSource Vic::multicolorTextSourceForBits(uint8_t bits) const
     return BackgroundSource::Unknown;
 }
 
-void Vic::stampStandardBitmapRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1,
-                                              int startPhase, int endPhase)
-{
-    const int begin = std::max(0, startPhase);
-    const int end   = std::min(8, endPhase);
-
-    if (begin >= end)
-        return;
-
-    for (int phase = begin; phase < end; ++phase)
-    {
-        const int px = pxBase + phase;
-
-        if (px < x0 || px >= x1)
-            continue;
-
-        const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
-
-        stampBackgroundPixelSource(
-            px,
-            py,
-            pixelOn ? (fg & 0x0F) : (bg & 0x0F),
-            pixelOn,
-            BackgroundSource::Bitmap
-        );
-    }
-}
-
-void Vic::stampStandardBitmapPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, int x0, int x1, int& phase, int pixelCount)
-{
-    if (pixelCount <= 0)
-        return;
-
-    const int startPhase = std::clamp(phase, 0, 8);
-    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
-
-    stampStandardBitmapRowBitsFromPhase(pxBase, py, rowBits, fg, bg, x0, x1, startPhase, endPhase);
-
-    phase = endPhase;
-}
-
 void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
 {
     (void)py;
@@ -4484,63 +4404,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     return out;
 }
 
-bool Vic::sampleBitmapCell(int raster, int xScroll, int col, BitmapCellSample& out) const
-{
-    out = {};
-
-    if (!bus)
-        return false;
-
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
-        return false;
-
-    const int yInChar = static_cast<int>(vicState.rc & 0x07);
-    const int fine = xScroll & 0x07;
-
-    // Hardware-style display fetch width:
-    // CSEL affects border clipping, not the 40-column matrix/bitmap fetch width.
-    const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
-
-    const int x0 = 0;
-    const int x1 = VISIBLE_WIDTH;
-
-    if (col < 0 || col >= fetchCols)
-        return false;
-
-    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
-
-    if (px >= x1)
-        return false;
-
-    if (px + 8 <= x0)
-        return false;
-
-    const int displayCol = col;
-
-    const uint8_t screenByte = resolveDisplayScreenByte(displayCol, raster, px);
-    const uint8_t colorByte  = resolveDisplayColorByte(displayCol, raster);
-
-    const uint16_t cellIndex = static_cast<uint16_t>(charRow * BACKGROUND_MATRIX_COLUMNS + displayCol);
-    const uint16_t bitmapBase = getLatchedBitmapBase(raster);
-    const uint16_t addr = static_cast<uint16_t>(bitmapBase + cellIndex * 8 + yInChar);
-    const uint8_t bitmapByte = bus->vicRead(addr, raster);
-    const_cast<Vic*>(this)->updateOpenBus(bitmapByte);
-
-    out.valid = true;
-    out.px = px;
-    out.py = fbY(raster);
-    out.displayCol = displayCol;
-    out.yInChar = yInChar;
-    out.bitmapByte = bitmapByte;
-    out.screenByte = screenByte;
-    out.colorByte = colorByte;
-
-    return true;
-}
-
 void Vic::drawMulticolorTextCellViaPipeline(const TextCellSample& cell, int raster, int x0, int x1)
 {
     (void)raster;
@@ -4583,40 +4446,6 @@ void Vic::renderTextLine(int raster, int xScroll)
         {
             drawMulticolorTextCellViaPipeline(cell, raster, g.x0, g.x1);
         }
-    }
-}
-
-void Vic::drawBitmapCellViaPipeline(const BitmapCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid)
-        return;
-
-    const uint8_t rowBits = bgPipeline.bitmapByte;
-    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
-    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
-
-    updateOpenBus(rowBits);
-
-    int phase = 0;
-    stampStandardBitmapPipelineSpan(cell.px, cell.py, rowBits, fg, bg, x0, x1, phase, 8);
-}
-
-void Vic::renderBitmapLine(int raster, int xScroll)
-{
-    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
-    if (!g.valid)
-        return;
-
-    for (int col = 0; col < g.fetchCols; ++col)
-    {
-        BitmapCellSample cell {};
-        if (!sampleBitmapCell(raster, xScroll, col, cell))
-            continue;
-
-        loadBackgroundPipelineFromBitmapCell(cell, raster, col);
-        drawBitmapCellViaPipeline(cell, raster, g.x0, g.x1);
     }
 }
 
@@ -4677,9 +4506,6 @@ void Vic::generateBackgroundLine(int raster)
             break;
 
         case graphicsMode::bitmap:
-            renderBitmapLine(raster, lineXScroll);
-            break;
-
         case graphicsMode::multicolorBitmap:
         case graphicsMode::extendedColorText:
         default:
