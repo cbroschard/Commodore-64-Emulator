@@ -104,6 +104,10 @@ void Cartridge::saveState(StateWriter& wrtr) const
     // Dump full CRT contents so we can rebuild chipSections/mapper on load
     wrtr.writeVectorU8(romData);
 
+    wrtr.writeVectorU8(cart_lo);
+    wrtr.writeVectorU8(cart_hi);
+    wrtr.writeVectorU8(cart_hi_e000);
+
     // Dump GAME / EXROM
     wrtr.writeBool(gameLine);
     wrtr.writeBool(exROMLine);
@@ -159,6 +163,10 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         rdr.exitChunkPayload(chunk);
         return false;
     }
+
+    if (!rdr.readVectorU8(cart_lo))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readVectorU8(cart_hi))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readVectorU8(cart_hi_e000)) { rdr.exitChunkPayload(chunk); return false; }
 
     // Read GAME/EXROM saved values (keeps exact wiring you had at save time)
     bool game = false, exrom = false;
