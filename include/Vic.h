@@ -1082,27 +1082,6 @@ class Vic
             uint8_t colorByte = 0;
         };
 
-        struct ECMCellSample
-        {
-            bool valid = false;
-
-            int px = 0;
-            int py = 0;
-
-            int displayCol = 0;
-            int yInChar = 0;
-
-            uint8_t charIndex = 0;
-            uint8_t fgColor = 0;
-            uint8_t bgColor = 0;
-
-            uint8_t rowBits = 0;
-            uint16_t charAddr = 0;
-            uint16_t charBase = 0;
-
-            BackgroundSource bgSource = BackgroundSource::BG0;
-        };
-
         struct BackgroundLineGeometry
         {
             bool valid = false;
@@ -1324,7 +1303,6 @@ class Vic
         void loadBackgroundPipelineFromTextCell(const TextCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromBitmapCell(const BitmapCellSample& cell, int raster, int col);
         void loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapCellSample& cell, int raster, int col);
-        void loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col);
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1348,15 +1326,7 @@ class Vic
                                        int x0, int x1, int& phase, int pixelCount);
         BackgroundSource multicolorBitmapSourceForBits(uint8_t bits) const;
 
-        void stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource, int x0, int x1,
-                                      int startPhase, int endPhase);
-        void stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource, int x0, int x1,
-                                  int& phase, int pixelCount);
-
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
-
-        bool sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const;
-        void drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1);
 
         bool sampleMultiColorBitmapCell(int raster, int xScroll, int col, MultiColorBitmapCellSample& out) const;
 

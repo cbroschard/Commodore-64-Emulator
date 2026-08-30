@@ -4194,41 +4194,6 @@ void Vic::loadBackgroundPipelineFromMultiColorBitmapCell(const MultiColorBitmapC
     bgPipeline.ecm = false;
 }
 
-void Vic::loadBackgroundPipelineFromECMCell(const ECMCellSample& cell, int raster, int col)
-{
-    bgPipeline.valid = true;
-
-    bgPipeline.px = cell.px;
-    bgPipeline.py = cell.py;
-
-    bgPipeline.raster = raster;
-    bgPipeline.col = col;
-    bgPipeline.displayCol = cell.displayCol;
-    bgPipeline.yInChar = cell.yInChar;
-    bgPipeline.pixelPhase = 0;
-
-    bgPipeline.charCode = cell.charIndex;
-    bgPipeline.rowBits = cell.rowBits;
-
-    updateOpenBus(bgPipeline.rowBits);
-
-    bgPipeline.bitmapByte = 0;
-    bgPipeline.screenByte = 0;
-    bgPipeline.colorByte = 0;
-
-    bgPipeline.fgColor  = static_cast<uint8_t>(cell.fgColor & 0x0F);
-    bgPipeline.bgColor0 = static_cast<uint8_t>(cell.bgColor & 0x0F);
-    bgPipeline.bgColor1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-    bgPipeline.bgColor2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-    bgPipeline.bgColor3 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
-
-    bgPipeline.bgSource = cell.bgSource;
-
-    bgPipeline.multicolor = false;
-    bgPipeline.bitmap = false;
-    bgPipeline.ecm = true;
-}
-
 void Vic::resetActiveMatrixRow()
 {
     activeMatrixRow.valid = false;
@@ -4499,41 +4464,6 @@ Vic::BackgroundSource Vic::multicolorBitmapSourceForBits(uint8_t bits) const
     }
 
     return BackgroundSource::Unknown;
-}
-
-void Vic::stampECMRowBitsFromPhase(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource,
-                                   int x0, int x1, int startPhase, int endPhase)
-{
-    const int begin = std::max(0, startPhase);
-    const int end   = std::min(8, endPhase);
-
-    if (begin >= end)
-        return;
-
-    for (int phase = begin; phase < end; ++phase)
-    {
-        const int px = pxBase + phase;
-        if (px < x0 || px >= x1)
-            continue;
-
-        const bool pixelOn = ((rowBits >> (7 - phase)) & 0x01) != 0;
-
-        stampBackgroundPixelSource(px, py, pixelOn ? (fg & 0x0F) : (bg & 0x0F), pixelOn, pixelOn ? BackgroundSource::Foreground : bgSource
-        );
-    }
-}
-
-void Vic::stampECMPipelineSpan(int pxBase, int py, uint8_t rowBits, uint8_t fg, uint8_t bg, BackgroundSource bgSource,
-                               int x0, int x1, int& phase, int pixelCount)
-{
-    if (pixelCount <= 0)
-        return;
-
-    const int startPhase = std::clamp(phase, 0, 8);
-    const int endPhase   = std::clamp(startPhase + pixelCount, 0, 8);
-
-    stampECMRowBitsFromPhase(pxBase, py, rowBits, fg, bg, bgSource, x0, x1, startPhase, endPhase);
-    phase = endPhase;
 }
 
 void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
@@ -4891,129 +4821,6 @@ void Vic::renderBitmapMulticolorLine(int raster, int xScroll)
     }
 }
 
-bool Vic::sampleECMCell(int raster, int xScroll, int col, ECMCellSample& out) const
-{
-    out = {};
-
-    const int rows = getLatchedRSEL(raster) ? 25 : 24;
-
-    const int charRow = currentCharacterRow();
-    if (charRow < 0 || charRow >= rows)
-        return false;
-
-    const int yInChar = static_cast<int>(vicState.rc & 0x07);
-    const int fine = xScroll & 0x07;
-
-    // Hardware-style display fetch width:
-    // CSEL affects border clipping, not the 40-column matrix fetch width.
-    const int fetchCols = BACKGROUND_MATRIX_COLUMNS;
-
-    const int x0 = 0;
-    const int x1 = VISIBLE_WIDTH;
-
-    if (col < 0 || col >= fetchCols)
-        return false;
-
-    const int px = BACKGROUND_40COL_X0 + fine + col * 8;
-
-    if (px >= x1)
-        return false;
-
-    if (px + 8 <= x0)
-        return false;
-
-    const int displayCol = col;
-
-    const uint8_t scrByte   = resolveDisplayScreenByte(displayCol, raster, px);
-    const uint8_t colorByte = resolveDisplayColorByte(displayCol, raster);
-
-    // ECM:
-    // bits 0-5 = character index
-    // bits 6-7 = background color select
-    const uint8_t charIndex = static_cast<uint8_t>(scrByte & 0x3F);
-    const uint8_t bgSel     = static_cast<uint8_t>((scrByte >> 6) & 0x03);
-
-    const uint16_t charBase = charBaseForRasterPixelX(raster, px);
-    const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8 + static_cast<uint16_t>(yInChar & 0x07));
-
-    const uint8_t rowBits = bus ? bus->vicRead(charAddr, raster) : 0x00;
-    uint8_t bgColor = 0;
-    BackgroundSource bgSource = BackgroundSource::BG0;
-
-    switch (bgSel)
-    {
-        case 0x00:
-            bgColor = registers.backgroundColor0 & 0x0F;   // $D021
-            bgSource = BackgroundSource::BG0;
-            break;
-
-        case 0x01:
-            bgColor = getBackgroundColor(0) & 0x0F;        // $D022
-            bgSource = BackgroundSource::BG1;
-            break;
-
-        case 0x02:
-            bgColor = getBackgroundColor(1) & 0x0F;        // $D023
-            bgSource = BackgroundSource::BG2;
-            break;
-
-        case 0x03:
-            bgColor = getBackgroundColor(2) & 0x0F;        // $D024
-            bgSource = BackgroundSource::BG3;
-            break;
-    }
-
-    const uint8_t fgColor = static_cast<uint8_t>(colorByte & 0x0F);
-
-    out.valid = true;
-    out.px = px;
-    out.py = fbY(raster);
-    out.displayCol = displayCol;
-    out.yInChar = yInChar;
-    out.charIndex = charIndex;
-    out.fgColor = fgColor;
-    out.bgColor = bgColor;
-    out.bgSource = bgSource;
-    out.rowBits = rowBits;
-    out.charAddr = charAddr;
-    out.charBase = charBase;
-
-    return true;
-}
-
-void Vic::drawECMCellViaPipeline(const ECMCellSample& cell, int raster, int x0, int x1)
-{
-    (void)raster;
-
-    if (!cell.valid)
-        return;
-
-    const uint8_t rowBits = bgPipeline.rowBits;
-    const uint8_t fg      = bgPipeline.fgColor & 0x0F;
-    const uint8_t bg      = bgPipeline.bgColor0 & 0x0F;
-
-    int phase = 0;
-
-    stampECMPipelineSpan(cell.px, cell.py, rowBits, fg, bg, bgPipeline.bgSource, x0, x1, phase,8);
-}
-
-void Vic::renderECMLine(int raster, int xScroll)
-{
-    const BackgroundLineGeometry g = computeBackgroundLineGeometry(raster, xScroll);
-    if (!g.valid)
-        return;
-
-    for (int col = 0; col < g.fetchCols; ++col)
-    {
-        ECMCellSample cell {};
-        if (!sampleECMCell(raster, xScroll, col, cell))
-            continue;
-
-        loadBackgroundPipelineFromECMCell(cell, raster, col);
-        drawECMCellViaPipeline(cell, raster, g.x0, g.x1);
-    }
-}
-
 void Vic::clearBadLineFifo()
 {
     vicState.vmliFetchIndex = 0;
@@ -5079,9 +4886,6 @@ void Vic::generateBackgroundLine(int raster)
             break;
 
         case graphicsMode::extendedColorText:
-            renderECMLine(raster, lineXScroll);
-            break;
-
         default:
             break;
     }
