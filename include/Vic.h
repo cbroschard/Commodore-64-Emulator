@@ -1257,7 +1257,6 @@ class Vic
         // Helpers
         void clearBadLineFifo();
         void clearBackgroundLineBuffers();
-        void generateBackgroundLine(int raster);
 
         void emitRasterLineInOrder(int raster);
 

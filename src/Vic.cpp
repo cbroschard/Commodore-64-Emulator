@@ -4205,47 +4205,6 @@ void Vic::clearBackgroundLineBuffers()
     bgSourceLine.fill(BackgroundSource::Border);
 }
 
-void Vic::generateBackgroundLine(int raster)
-{
-    clearBackgroundLineBuffers();
-    resetActiveBackgroundPixelState();
-    resetBackgroundPipeline();
-
-    const bool DEN = (latchedD011ForRaster(raster) & 0x10) != 0;
-
-    // Border visibility is handled by borderMaskLine.
-    if (!DEN)
-        return;
-
-    const graphicsMode lineMode = graphicsModeForRaster(raster);
-
-    if (!(lineMode == graphicsMode::bitmap || lineMode == graphicsMode::multicolorBitmap))
-    {
-        const uint8_t bg = registers.backgroundColor0 & 0x0F;
-
-        for (int px = 0; px < VISIBLE_WIDTH && px < 512; ++px)
-        {
-            if (!isInnerDisplayPixel(raster, px))
-                continue;
-
-            bgColorLine[px] = bg;
-            bgOpaqueLine[px] = 0;
-            bgSourceLine[px] = BackgroundSource::BG0;
-        }
-    }
-
-    switch (lineMode)
-    {
-        case graphicsMode::standard:
-        case graphicsMode::multicolor:
-        case graphicsMode::bitmap:
-        case graphicsMode::multicolorBitmap:
-        case graphicsMode::extendedColorText:
-        default:
-            break;
-    }
-}
-
 void Vic::emitRasterLineInOrder(int raster)
 {
     if (!sink)
