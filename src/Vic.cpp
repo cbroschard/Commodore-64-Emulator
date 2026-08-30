@@ -2873,7 +2873,7 @@ uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
         const uint8_t spriteBit     = static_cast<uint8_t>(1u << sprite);
         const bool enabled          = (registers.spriteEnabled & spriteBit) != 0;
         const bool yExpanded        = (registers.spriteYExpansion & spriteBit) != 0;
-        const bool rasterMatches    = raster == registers.spriteY[sprite];
+        const bool rasterMatches    = static_cast<uint8_t>(raster & 0xFF) == registers.spriteY[sprite];
         const bool alreadyActive    = spriteUnits[sprite].dmaActive;
         const bool shouldStart      = enabled && rasterMatches && !alreadyActive;
 
