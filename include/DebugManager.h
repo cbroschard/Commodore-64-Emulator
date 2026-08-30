@@ -70,13 +70,7 @@ class DebugManager
                          UserPort* userPort,
                          Vic* vic);
 
-        void wireTrace(Cartridge* cart,
-                       CIA1* cia1,
-                       CIA2* cia2,
-                       CPU* cpu,
-                       PLA* pla,
-                       SID* sid,
-                       Vic* vic);
+        void wireTrace(CPU* cpu);
 
         bool hasBreakpoint(uint16_t pc) const;
         bool onBreakpoint(uint16_t pc);   // queues message + opens monitor window

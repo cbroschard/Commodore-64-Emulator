@@ -108,24 +108,12 @@ void DebugManager::wireBackend(Bus* c64Bus,
     backend_->attachVICInstance(vic);
 }
 
-void DebugManager::wireTrace(Cartridge* cart,
-                            CIA1* cia1,
-                            CIA2* cia2,
-                            CPU* cpu,
-                            PLA* pla,
-                            SID* sid,
-                            Vic* vic)
+void DebugManager::wireTrace(CPU* cpu)
 {
     if (traceWired_) return;
     traceWired_ = true;
 
-    trace_->attachCartInstance(cart);
-    trace_->attachCIA1Instance(cia1);
-    trace_->attachCIA2Instance(cia2);
     trace_->attachCPUInstance(cpu);
-    trace_->attachPLAInstance(pla);
-    trace_->attachSIDInstance(sid);
-    trace_->attachVicInstance(vic);
 }
 
 bool DebugManager::hasBreakpoint(uint16_t pc) const

@@ -1161,7 +1161,6 @@ void MediaManager::recreateCartridge()
     // Reattach the same cartridge object everywhere else.
     components_.bus->attachCartridgeInstance(components_.cart.get());
     components_.pla->attachCartridgeInstance(components_.cart.get());
-    components_.debug->trace().attachCartInstance(components_.cart.get());
     components_.debug->backend().attachCartridgeInstance(components_.cart.get());
 }
 

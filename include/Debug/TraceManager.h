@@ -18,13 +18,7 @@
 #include <memory>
 
 // Forward declarations
-class Cartridge;
-class CIA1;
-class CIA2;
 class CPU;
-class PLA;
-class SID;
-class Vic;
 
 class TraceManager
 {
@@ -32,13 +26,7 @@ class TraceManager
         TraceManager();
         virtual ~TraceManager();
 
-        inline void attachCartInstance(Cartridge* cart) { this->cart = cart; }
-        inline void attachCIA1Instance(CIA1* cia1object) { this->cia1object = cia1object; }
-        inline void attachCIA2Instance(CIA2* cia2object) { this->cia2object = cia2object; }
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
-        inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
-        inline void attachSIDInstance(SID* sidchip) { this->sidchip = sidchip; }
-        inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
 
         enum class TraceCat : uint32_t
         {
@@ -197,13 +185,7 @@ class TraceManager
 
     private:
         // Non-owning pointers
-        Cartridge* cart;
-        CIA1* cia1object;
-        CIA2* cia2object;
-        CPU* processor;
-        PLA* pla;
-        SID* sidchip;
-        Vic* vicII;
+        CPU* cpu;
 
         // Status
         bool tracing;

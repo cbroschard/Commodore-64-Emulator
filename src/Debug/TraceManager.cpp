@@ -10,13 +10,7 @@
 #include "Debug/TraceManager.h"
 
 TraceManager::TraceManager() :
-    cart(nullptr),
-    cia1object(nullptr),
-    cia2object(nullptr),
-    processor(nullptr),
-    pla(nullptr),
-    sidchip(nullptr),
-    vicII(nullptr),
+    cpu(nullptr),
     tracing(false),
     chipCats(0u),
     detailCats(0ull)
@@ -387,14 +381,14 @@ void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stam
 }
 void TraceManager::recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp)
 {
-    if (!processor || !cpuDetailOn(TraceDetail::CPU_EXEC)) return;
+    if (!cpu || !cpuDetailOn(TraceDetail::CPU_EXEC)) return;
 
     std::stringstream out;
 
     // Do heading first
     out << makeStamp(stamp);
 
-    auto st = processor->getState();
+    auto st = cpu->getState();
     out << "[CPU]" << std::hex << std::uppercase << std::setfill('0')
         << "PC=$"  << std::setw(4) << pcExec
         << " OPC=$"<< std::setw(2) << int(opcode)

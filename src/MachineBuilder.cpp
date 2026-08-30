@@ -30,8 +30,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
                                    components.iecBus.get(), components.irq.get(), components.keyb.get(), components.pla.get(),
                                    components.reu.get(), components.sid.get(),  components.userPort.get(), components.vic.get());
 
-    components.debug->wireTrace(components.cart.get(), components.cia1.get(), components.cia2.get(), components.cpu.get(),
-                                 components.pla.get(), components.sid.get(), components.vic.get());
+    components.debug->wireTrace(components.cpu.get());
 
     components.bus->attachCassetteInstance(components.cass.get());
     components.bus->attachCartridgeInstance(components.cart.get());
