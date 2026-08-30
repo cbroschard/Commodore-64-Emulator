@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplay3Mapper.h"
-#include "Memory.h"
 
 ActionReplay3Mapper::ActionReplay3Mapper() :
     selectedBank(0),
@@ -101,7 +100,7 @@ void ActionReplay3Mapper::write(uint16_t address, uint8_t value)
 
 bool ActionReplay3Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     selectedBank = bank;
@@ -122,10 +121,10 @@ bool ActionReplay3Mapper::loadIntoMemory(uint8_t bank)
         {
             // Load first 8K into ROML ($8000-$9FFF)
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             return true;
         }
@@ -163,7 +162,7 @@ void ActionReplay3Mapper::pressButton(uint32_t buttonIndex)
 
 void ActionReplay3Mapper::pressFreeze()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!freezeActive)
@@ -200,7 +199,7 @@ void ActionReplay3Mapper::pressReset()
 
 bool ActionReplay3Mapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     applyMappingFromControl();
@@ -210,7 +209,7 @@ bool ActionReplay3Mapper::applyMappingAfterLoad()
 
 void ActionReplay3Mapper::applyMappingFromControl()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (ctrl.cartDisabled)

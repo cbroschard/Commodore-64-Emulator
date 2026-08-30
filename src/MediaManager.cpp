@@ -1155,7 +1155,6 @@ void MediaManager::recreateCartridge()
     // Reattach all host/system pointers in case reset/load expects them.
     components_.cart->attachHostInstance(host_);
     components_.cart->attachCPUInstance(components_.cpu.get());
-    components_.cart->attachMemoryInstance(components_.mem.get());
     components_.cart->attachTraceManagerInstance(&components_.debug->trace());
     components_.cart->attachVicInstance(components_.vic.get());
 

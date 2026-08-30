@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplay2Mapper.h"
-#include "Memory.h"
 
 ActionReplay2Mapper::ActionReplay2Mapper() :
     selectedBank(0),
@@ -80,18 +79,18 @@ uint8_t ActionReplay2Mapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem || !ctrl.cartEnabled)
+    if (!ctrl.cartEnabled)
         return cart->sampleDataBus();
 
     if ((address & 0xFF00) == 0xDF00)
-        return mem->readCartridge(static_cast<uint16_t>(0x1F00 | (address & 0x00FF)), cartLocation::LO);
+        return cart->readCartridge(static_cast<uint16_t>(0x1F00 | (address & 0x00FF)), cartLocation::LO);
 
     return cart->sampleDataBus();
 }
 
 void ActionReplay2Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if ((address & 0xFF00) == 0xDF00)
@@ -117,7 +116,7 @@ void ActionReplay2Mapper::write(uint16_t address, uint8_t value)
 
 bool ActionReplay2Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     selectedBank = bank;
@@ -138,10 +137,10 @@ bool ActionReplay2Mapper::loadIntoMemory(uint8_t bank)
         {
             // Load first 8K into ROML ($8000-$9FFF)
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             return true;
         }
@@ -173,7 +172,7 @@ void ActionReplay2Mapper::pressButton(uint32_t buttonIndex)
 
 void ActionReplay2Mapper::pressFreeze()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!freezeActive)
@@ -193,7 +192,7 @@ void ActionReplay2Mapper::pressFreeze()
 
 bool ActionReplay2Mapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     applyMappingFromControl();
@@ -202,7 +201,7 @@ bool ActionReplay2Mapper::applyMappingAfterLoad()
 
 void ActionReplay2Mapper::applyMappingFromControl()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!ctrl.cartEnabled)
@@ -226,7 +225,7 @@ void ActionReplay2Mapper::applyMappingFromControl()
 
 bool ActionReplay2Mapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem || !ctrl.cartEnabled)
+    if (!cart || !ctrl.cartEnabled)
         return false;
 
     return (address & 0xFF00) == 0xDF00;

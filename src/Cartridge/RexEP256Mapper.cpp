@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RexEP256Mapper.h"
-#include "Memory.h"
 
 RexEP256Mapper::RexEP256Mapper() :
     selectedSocket(0),
@@ -56,7 +55,7 @@ bool RexEP256Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr
 
 uint8_t RexEP256Mapper::read(uint16_t address)
 {
-    if (!cart || !mem)
+    if (!cart)
         return 0xFF;
 
     if (address == 0xDFC0)
@@ -77,7 +76,7 @@ uint8_t RexEP256Mapper::read(uint16_t address)
 
 void RexEP256Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address != 0xDFA0)
@@ -101,7 +100,7 @@ bool RexEP256Mapper::loadIntoMemory(uint8_t bank)
 
 bool RexEP256Mapper::loadSocketSlice(uint8_t socket, uint8_t slice)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (socket > 8)
@@ -171,14 +170,14 @@ bool RexEP256Mapper::loadSocketSlice(uint8_t socket, uint8_t slice)
     cart->clearCartridge(cartLocation::LO);
 
     for (size_t i = 0; i < 0x2000; ++i)
-        mem->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[offset + i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[offset + i], cartLocation::LO);
 
     return true;
 }
 
 bool RexEP256Mapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!loadSocketSlice(selectedSocket, selectedSlice))
@@ -196,7 +195,7 @@ void RexEP256Mapper::reset()
     selectedSlice = 0;
     disabled = false;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadSocketSlice(selectedSocket, selectedSlice))

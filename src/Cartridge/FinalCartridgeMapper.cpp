@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FinalCartridgeMapper.h"
-#include "Memory.h"
 
 FinalCartridgeMapper::FinalCartridgeMapper() :
     cartEnabled(true)
@@ -81,13 +80,10 @@ uint8_t FinalCartridgeMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem)
-        return cart->sampleDataBus();
-
     auto mirrorIORom = [&](uint16_t addr) -> uint8_t
     {
         const uint16_t offset = static_cast<uint16_t>(0x1F00 + (addr & 0x00FF));
-        return mem->readCartridge(offset, cartLocation::LO);
+        return cart->readCartridge(offset, cartLocation::LO);
     };
 
     if (address >= 0xDE00 && address <= 0xDEFF)
@@ -141,7 +137,7 @@ bool FinalCartridgeMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     cart->clearCartridge(cartLocation::LO);
@@ -160,15 +156,15 @@ bool FinalCartridgeMapper::loadIntoMemory(uint8_t bank)
 
             // $8000-$9FFF -> LO
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             // $A000-$BFFF -> HI
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[0x2000 + i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[0x2000 + i], cartLocation::HI);
 
             // Optional safety mirror for freezer/Ultimax cases
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             break;
         }
@@ -180,16 +176,16 @@ bool FinalCartridgeMapper::loadIntoMemory(uint8_t bank)
             {
                 any = true;
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             }
             else if (s.loadAddress == 0xA000)
             {
                 any = true;
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
             }
         }
     }
@@ -199,7 +195,7 @@ bool FinalCartridgeMapper::loadIntoMemory(uint8_t bank)
 
 bool FinalCartridgeMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!loadIntoMemory(0))
@@ -221,7 +217,7 @@ bool FinalCartridgeMapper::applyMappingAfterLoad()
 
 void FinalCartridgeMapper::pressFreeze()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     // Set Ultimax mode
     cart->setExROMLine(false);
@@ -236,7 +232,7 @@ void FinalCartridgeMapper::pressFreeze()
 
 void FinalCartridgeMapper::pressReset()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     (void)applyMappingAfterLoad();
     cart->requestWarmReset();
@@ -244,7 +240,7 @@ void FinalCartridgeMapper::pressReset()
 
 bool FinalCartridgeMapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     return address >= 0xDE00 && address <= 0xDFFF;

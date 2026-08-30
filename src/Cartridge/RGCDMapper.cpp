@@ -7,14 +7,12 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/RGCDMapper.h"
-#include "Memory.h"
 
 namespace
 {
     constexpr bool isIO1(uint16_t address)
     {
-        return address >= 0xDE00 &&
-               address <= 0xDEFF;
+        return address >= 0xDE00 && address <= 0xDEFF;
     }
 }
 
@@ -64,7 +62,7 @@ uint8_t RGCDMapper::read(uint16_t address)
 
 void RGCDMapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!isIO1(address))
@@ -98,14 +96,11 @@ void RGCDMapper::write(uint16_t address, uint8_t value)
 
 bool RGCDMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
-    const uint8_t logicalBank =
-        static_cast<uint8_t>(bank & 0x07);
-
-    const uint8_t physicalBank =
-        resolvePhysicalBank(logicalBank);
+    const uint8_t logicalBank = static_cast<uint8_t>(bank & 0x07);
+    const uint8_t physicalBank = resolvePhysicalBank(logicalBank);
 
     for (const auto& section : cart->getChipSections())
     {
@@ -121,12 +116,7 @@ bool RGCDMapper::loadIntoMemory(uint8_t bank)
         cart->clearCartridge(cartLocation::LO);
 
         for (size_t i = 0; i < 0x2000; ++i)
-        {
-            mem->writeCartridge(
-                static_cast<uint16_t>(i),
-                section.data[i],
-                cartLocation::LO);
-        }
+            cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
         return true;
     }
@@ -143,7 +133,7 @@ bool RGCDMapper::loadIntoMemory(uint8_t bank)
 
 bool RGCDMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (disabled)
@@ -166,7 +156,7 @@ void RGCDMapper::reset()
     disabled = false;
     rgcdBank = 0;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadIntoMemory(rgcdBank))

@@ -88,8 +88,6 @@ uint8_t Bus::read(uint16_t address)
         return finishRead(value);
     };
 
-    // Cartridge images stored in Memory's cart_lo/cart_hi arrays
-    // still represent the cartridge driving the physical bus.
     auto cartridgeRead = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
@@ -158,7 +156,7 @@ uint8_t Bus::read(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return deviceRead(cart->read(address));
 
-            return cartridgeRead(mem->readCartridge(accessInfo.offset, cartLocation::LO));
+            return cartridgeRead(cart->readCartridge(accessInfo.offset, cartLocation::LO));
         }
 
         case PLA::CARTRIDGE_HI:
@@ -169,7 +167,7 @@ uint8_t Bus::read(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return deviceRead(cart->read(address));
 
-            return cartridgeRead(mem->readCartridge(accessInfo.offset, cartLocation::HI));
+            return cartridgeRead(cart->readCartridge(accessInfo.offset, cartLocation::HI));
         }
 
         case PLA::CARTRIDGE_HI_E000:
@@ -183,7 +181,7 @@ uint8_t Bus::read(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return deviceRead(cart->read(address));
 
-            return cartridgeRead(mem->readCartridge(accessInfo.offset, cartLocation::HI_E000));
+            return cartridgeRead(cart->readCartridge(accessInfo.offset, cartLocation::HI_E000));
         }
 
         case PLA::IO:
@@ -649,7 +647,7 @@ uint8_t Bus::readForDMA(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->read(address);
 
-            return driveCartridge(mem->readCartridge(accessInfo.offset, cartLocation::LO));
+            return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::LO));
         }
 
         case PLA::CARTRIDGE_HI:
@@ -660,7 +658,7 @@ uint8_t Bus::readForDMA(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->read(address);
 
-            return driveCartridge(mem->readCartridge(accessInfo.offset, cartLocation::HI));
+            return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::HI));
         }
 
         case PLA::CARTRIDGE_HI_E000:
@@ -671,7 +669,7 @@ uint8_t Bus::readForDMA(uint16_t address)
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->read(address);
 
-            return driveCartridge(mem->readCartridge(accessInfo.offset, cartLocation::HI_E000));
+            return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::HI_E000));
         }
 
         case PLA::UNMAPPED:
@@ -823,7 +821,7 @@ uint8_t Bus::peek(uint16_t address) const
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->peek(address);
 
-            return mem->readCartridge(accessInfo.offset, cartLocation::LO);
+            return cart->readCartridge(accessInfo.offset, cartLocation::LO);
         }
 
         case PLA::CARTRIDGE_HI:
@@ -834,7 +832,7 @@ uint8_t Bus::peek(uint16_t address) const
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->peek(address);
 
-            return mem->readCartridge(accessInfo.offset, cartLocation::HI);
+            return cart->readCartridge(accessInfo.offset, cartLocation::HI);
         }
 
         case PLA::CARTRIDGE_HI_E000:
@@ -845,7 +843,7 @@ uint8_t Bus::peek(uint16_t address) const
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
                 return cart->peek(address);
 
-            return mem->readCartridge(accessInfo.offset, cartLocation::HI_E000);
+            return cart->readCartridge(accessInfo.offset, cartLocation::HI_E000);
         }
 
         case PLA::IO:

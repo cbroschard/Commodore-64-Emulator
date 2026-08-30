@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperZaxxonMapper.h"
-#include "Memory.h"
 
 SuperZaxxonMapper::SuperZaxxonMapper() :
     currentBank(0)
@@ -104,7 +103,7 @@ void SuperZaxxonMapper::write(uint16_t address, uint8_t value)
 
 bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     // Clear LO + HI banks first (fill with 0xFF)
     cart->clearCartridge(cartLocation::LO);
@@ -120,15 +119,15 @@ bool SuperZaxxonMapper::loadIntoMemory(uint8_t bank)
             for (size_t i = 0; i < section.data.size(); ++i)
             {
                 // Load to $8000 (cartLocation::LO)
-                mem->writeCartridge(i, section.data[i], cartLocation::LO);
-                mem->writeCartridge(i + 0x1000, section.data[i], cartLocation::LO);
+                cart->writeCartridge(i, section.data[i], cartLocation::LO);
+                cart->writeCartridge(i + 0x1000, section.data[i], cartLocation::LO);
             }
             mapped = true;
         }
         else if (section.loadAddress == CART_HI_START && section.bankNumber == 0)
         {
             for (size_t i = 0; i < section.data.size(); ++i)
-                mem->writeCartridge(i, section.data[i], cartLocation::HI);
+                cart->writeCartridge(i, section.data[i], cartLocation::HI);
 
             mapped = true;
         }

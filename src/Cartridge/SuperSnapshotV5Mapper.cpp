@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV5Mapper.h"
-#include "Memory.h"
 
 SuperSnapshotV5Mapper::SuperSnapshotV5Mapper() :
     selectedBank(0xFF)
@@ -144,7 +143,7 @@ uint8_t SuperSnapshotV5Mapper::read(uint16_t address)
 
 void SuperSnapshotV5Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address < 0xDE00 || address > 0xDEFF)
@@ -158,7 +157,7 @@ void SuperSnapshotV5Mapper::write(uint16_t address, uint8_t value)
 
 bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     selectedBank = bank;
 
@@ -179,15 +178,15 @@ bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
         {
             // $8000-$9FFF -> LO
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             // $A000-$BFFF -> HI
             for (size_t i = 0x2000; i < 0x4000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i - 0x2000), s.data[i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i - 0x2000), s.data[i], cartLocation::HI);
 
             // Mirror first 8K into $E000 for Ultimax safety
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             continue;
         }
@@ -201,42 +200,42 @@ bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
             {
                 // ROML
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 // Mirror into $E000 to keep Ultimax vectors stable
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
                 continue;
             }
             else if (la == 0xA000)
             {
                 // ROMH (if present in CRT)
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
                 continue;
             }
             else if (la == 0xE000)
             {
                 // Explicit $E000
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
                 continue;
             }
 
             // Fallback -> treat as ROML + mirror
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             continue;
         }
 
         // Fallback clamp
         const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
         for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
         for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
     }
 
     return any;
@@ -272,7 +271,7 @@ bool SuperSnapshotV5Mapper::applyMappingAfterLoad()
 
 void SuperSnapshotV5Mapper::pressFreeze()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     ctrl.raw = 0x00;   // enabled, GAME low, EXROM high, bank 0
@@ -288,7 +287,7 @@ void SuperSnapshotV5Mapper::pressFreeze()
 
 void SuperSnapshotV5Mapper::pressReset()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     (void)applyMappingAfterLoad();

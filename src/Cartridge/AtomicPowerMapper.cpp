@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/AtomicPowerMapper.h"
-#include "Memory.h"
 
 AtomicPowerMapper::AtomicPowerMapper() :
     freezeActive(false),
@@ -123,7 +122,7 @@ uint8_t AtomicPowerMapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem || ctrl.cartDisable)
+    if (ctrl.cartDisable)
         return cart->sampleDataBus();
 
     // IO2 window: $DF00-$DFFF maps to $9F00-$9FFF.
@@ -139,7 +138,7 @@ uint8_t AtomicPowerMapper::read(uint16_t address)
             return cart->sampleDataBus();
         }
 
-        return mem->readCartridge(offset, cartLocation::LO);
+        return cart->readCartridge(offset, cartLocation::LO);
     }
 
     return cart->sampleDataBus();
@@ -147,7 +146,7 @@ uint8_t AtomicPowerMapper::read(uint16_t address)
 
 void AtomicPowerMapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     // IO1: $DE00-$DEFF -> control register
     if ((address & 0xFF00) == 0xDE00)
@@ -182,7 +181,7 @@ void AtomicPowerMapper::write(uint16_t address, uint8_t value)
 
 bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     bank &= 0x03; // Atomic Power has 4 banks (32KiB / 8KiB)
     selectedBank = bank;
@@ -216,11 +215,11 @@ bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
 
         // $8000-$9FFF -> LO (offset 0..0x1FFF)
         for (size_t i = 0; i < 0x2000; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
         // Safety mirror for Ultimax-ish cases (harmless if never used)
         for (size_t i = 0; i < 0x2000; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
         break;
     }
@@ -241,10 +240,10 @@ bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
                 any = true;
 
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[base + i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[base + i], cartLocation::LO);
 
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[base + i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[base + i], cartLocation::HI_E000);
 
                 break;
             }
@@ -315,7 +314,7 @@ void AtomicPowerMapper::pressReset()
 
 bool AtomicPowerMapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem || ctrl.cartDisable)
+    if (!cart || ctrl.cartDisable)
         return false;
 
     if (address < 0xDF00 || address > 0xDFFF)

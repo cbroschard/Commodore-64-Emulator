@@ -26,7 +26,6 @@
 // Forward declarations
 class CPU;
 class DataBusLatch;
-class Memory;
 class Vic;
 
 class Cartridge
@@ -39,7 +38,6 @@ class Cartridge
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
@@ -79,6 +77,8 @@ class Cartridge
         uint8_t peekRAM(size_t offset) const;
         void write(uint16_t address, uint8_t value);
         void writeRAM(size_t offset, uint8_t value);
+        uint8_t readCartridge(uint16_t offset, cartLocation location) const;
+        void writeCartridge(uint16_t address, uint8_t value, cartLocation location);
 
         inline size_t ramSize() const { return ramData.size(); }
         inline bool hasCartridgeRAM() const { return hasRAM && !ramData.empty(); }
@@ -199,12 +199,20 @@ class Cartridge
         CPU* cpu;
         DataBusLatch* dataBus;
         ICartridgeHost* host;
-        Memory* mem;
         TraceManager* traceMgr;
         Vic* vic;
 
         // Polymorphic pointer for cartridge mapper types
         std::unique_ptr<CartridgeMapper> mapper;
+
+        // Stroage
+        std::vector<uint8_t> cart_lo;
+        std::vector<uint8_t> cart_hi;
+        std::vector<uint8_t> cart_hi_e000;
+
+        static constexpr size_t CART_LO_SIZE        = 0x2000;
+        static constexpr size_t CART_HI_SIZE        = 0x2000;
+        static constexpr size_t CART_HI_E000_SIZE   = 0x2000;
 
         // Wiring mode
         WiringMode wiringMode;

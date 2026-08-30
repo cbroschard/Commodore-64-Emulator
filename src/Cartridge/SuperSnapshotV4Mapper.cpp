@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/SuperSnapshotV4Mapper.h"
-#include "Memory.h"
 
 SuperSnapshotV4Mapper::SuperSnapshotV4Mapper() :
     freezeActive(false),
@@ -283,7 +282,7 @@ void SuperSnapshotV4Mapper::write(uint16_t address, uint8_t value)
 
 bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     bank &= 0x01; // SSv4 has 2 banks
     selectedBank = bank;
@@ -305,15 +304,15 @@ bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
         {
             // $8000-$9FFF -> LO
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             // $A000-$BFFF -> HI
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[0x2000 + i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[0x2000 + i], cartLocation::HI);
 
             // Ultimax safety mirror
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             break;
         }
@@ -324,20 +323,20 @@ bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
             if (s.loadAddress == 0x8000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             }
             else if (s.loadAddress == 0xA000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
             }
             else if (s.loadAddress == 0xE000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             }
             continue;
         }
@@ -345,9 +344,9 @@ bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
         // Fallback clamp
         const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
         for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
         for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
         break;
     }
 

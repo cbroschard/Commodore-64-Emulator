@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/DelaEP64Mapper.h"
-#include "Memory.h"
 
 DelaEP64Mapper::DelaEP64Mapper() :
     selectedBank(0),
@@ -54,7 +53,7 @@ uint8_t DelaEP64Mapper::read(uint16_t address)
 
 void DelaEP64Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address != 0xDE00)
@@ -83,7 +82,7 @@ void DelaEP64Mapper::write(uint16_t address, uint8_t value)
 
 bool DelaEP64Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     const uint8_t requestedBank = static_cast<uint8_t>(std::min<uint8_t>(bank, 8));
@@ -135,14 +134,14 @@ bool DelaEP64Mapper::loadIntoMemory(uint8_t bank)
     cart->clearCartridge(cartLocation::LO);
 
     for (size_t i = 0; i < 0x2000; ++i)
-        mem->writeCartridge(static_cast<uint16_t>(i), source[i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), source[i], cartLocation::LO);
 
     return true;
 }
 
 bool DelaEP64Mapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (disabled)
@@ -183,7 +182,7 @@ void DelaEP64Mapper::reset()
     selectedBank = 0;
     disabled = false;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadIntoMemory(selectedBank))

@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/SuperGamesMapper.h"
-#include "Memory.h"
 
 SuperGamesMapper::SuperGamesMapper() :
     selectedBank(0),
@@ -72,7 +71,7 @@ uint8_t SuperGamesMapper::read(uint16_t address)
 
 void SuperGamesMapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address != 0xDF00 || writeProtected)
@@ -105,7 +104,7 @@ void SuperGamesMapper::write(uint16_t address, uint8_t value)
 
 bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     bank &= 0x03;
     selectedBank = bank;
@@ -123,19 +122,19 @@ bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
         if (sec.data.size() == 16384)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                cart->writeCartridge(i, sec.data[i], cartLocation::LO);
             for (size_t i = 8192; i < 16384; ++i)
-                mem->writeCartridge(i - 8192, sec.data[i], cartLocation::HI);
+                cart->writeCartridge(i - 8192, sec.data[i], cartLocation::HI);
             loaded = true;
         }
         else if (sec.data.size() == 8192)
         {
             if (sec.loadAddress == 0x8000)
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(i, sec.data[i], cartLocation::LO);
+                    cart->writeCartridge(i, sec.data[i], cartLocation::LO);
             else if (sec.loadAddress == 0xA000)
                 for (size_t i = 0; i < 8192; ++i)
-                    mem->writeCartridge(i, sec.data[i], cartLocation::HI);
+                    cart->writeCartridge(i, sec.data[i], cartLocation::HI);
 
             loaded = true;
         }

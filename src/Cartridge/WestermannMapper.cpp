@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/WestermannMapper.h"
-#include "Memory.h"
 
 WestermannMapper::WestermannMapper() = default;
 
@@ -47,7 +46,7 @@ bool WestermannMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     cart->clearCartridge(cartLocation::LO);
@@ -62,14 +61,14 @@ bool WestermannMapper::loadIntoMemory(uint8_t bank)
             if (section.loadAddress == 0x8000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
                 mapped = true;
             }
             else if (section.loadAddress == 0xA000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI);
 
                 mapped = true;
             }
@@ -78,8 +77,8 @@ bool WestermannMapper::loadIntoMemory(uint8_t bank)
         {
             for (size_t i = 0; i < 0x2000; ++i)
             {
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[0x2000 + i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[0x2000 + i], cartLocation::HI);
             }
 
             mapped = true;

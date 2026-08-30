@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge.h"
 #include "Cartridge/RetroReplayMapper.h"
-#include "Memory.h"
 
 RetroReplayMapper::RetroReplayMapper() :
     freezeButtonPressed(false),
@@ -280,7 +279,7 @@ void RetroReplayMapper::write(uint16_t address, uint8_t value)
 
 bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     // In Retro Replay freeze mode, bank 0 is active directly after Freeze.
@@ -309,15 +308,15 @@ bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
         if (s.data.size() == 0x4000)
         {
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i + 0x2000], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i + 0x2000], cartLocation::HI);
 
             if (freezeActive)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
             }
 
             continue;
@@ -330,12 +329,12 @@ bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
             if (la == 0x8000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 if (freezeActive)
                 {
                     for (size_t i = 0; i < 0x2000; ++i)
-                        mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                        cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
                 }
 
                 continue;
@@ -343,26 +342,26 @@ bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
             else if (la == 0xA000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
 
                 continue;
             }
             else if (la == 0xE000)
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
                 continue;
             }
             else
             {
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 if (freezeActive)
                 {
                     for (size_t i = 0; i < 0x2000; ++i)
-                        mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                        cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
                 }
 
                 continue;
@@ -372,12 +371,12 @@ bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
         const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
 
         for (size_t i = 0; i < size; ++i)
-            mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+            cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
         if (freezeActive)
         {
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
         }
     }
 
@@ -405,7 +404,7 @@ void RetroReplayMapper::tick(uint32_t elapsedCycles)
 
 bool RetroReplayMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!cartActive)
@@ -467,7 +466,7 @@ bool RetroReplayMapper::applyMappingAfterLoad()
 
 void RetroReplayMapper::pressFreeze()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     ctrl.decode(flashMode);
@@ -486,7 +485,7 @@ void RetroReplayMapper::pressFreeze()
 
 void RetroReplayMapper::pressReset()
 {
-    if (!cart || !mem) return;
+    if (!cart) return;
 
     freezeButtonPressed = false;
     freezePending       = false;

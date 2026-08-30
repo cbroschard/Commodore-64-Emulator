@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/Comal80Mapper.h"
-#include "Memory.h"
 
 Comal80Mapper::Comal80Mapper() :
     selectedBank(0)
@@ -74,7 +73,7 @@ void Comal80Mapper::write(uint16_t address, uint8_t value)
 
 bool Comal80Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     bank &= 0x03; // COMAL-80 banks 0..3
 
@@ -107,10 +106,10 @@ bool Comal80Mapper::loadIntoMemory(uint8_t bank)
     const auto& s = sections[matchIndex];
 
     for (size_t i = 0; i < 8192; ++i)
-        mem->writeCartridge(i, s.data[i], cartLocation::LO);
+        cart->writeCartridge(i, s.data[i], cartLocation::LO);
 
     for (size_t i = 0; i < 8192; ++i)
-        mem->writeCartridge(i, s.data[i + 8192], cartLocation::HI);
+        cart->writeCartridge(i, s.data[i + 8192], cartLocation::HI);
 
     return true;
 }

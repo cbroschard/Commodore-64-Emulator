@@ -8,7 +8,6 @@
 #include <fstream>
 #include "Cartridge.h"
 #include "Cartridge/GMod2Mapper.h"
-#include "Memory.h"
 
 GMod2Mapper::GMod2Mapper() :
     flashData(FLASH_SIZE, 0xFF),
@@ -152,7 +151,7 @@ void GMod2Mapper::write(uint16_t address, uint8_t value)
 
 bool GMod2Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     if (!flashInitialized)
@@ -173,7 +172,7 @@ bool GMod2Mapper::loadIntoMemory(uint8_t bank)
         return false;
 
     for (size_t i = 0; i < BANK_SIZE; ++i)
-        mem->writeCartridge(static_cast<uint16_t>(i), flashData[base + i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), flashData[base + i], cartLocation::LO);
 
     return true;
 }
@@ -241,7 +240,7 @@ bool GMod2Mapper::loadPersistence(const std::string& path)
     flashInitialized = true;
     flashDirty = false;
 
-    if (mem && cart)
+    if (cart)
         (void)loadIntoMemory(selectedBank);
 
     return true;
@@ -255,7 +254,7 @@ bool GMod2Mapper::romWriteEnabled(uint16_t address) const
 
 bool GMod2Mapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     applyMappingFromControl();
 
@@ -305,16 +304,13 @@ bool GMod2Mapper::rebuildFlashImageFromCRT()
 
 void GMod2Mapper::updateMappedByteIfVisible(uint8_t bank, uint16_t offset, uint8_t value)
 {
-    if (!mem)
-        return;
-
     if ((bank & 0x3F) != selectedBank)
         return;
 
     if (offset >= BANK_SIZE)
         return;
 
-    mem->writeCartridge(offset, value, cartLocation::LO);
+    cart->writeCartridge(offset, value, cartLocation::LO);
 }
 
 void GMod2Mapper::resetFlashCommandState()

@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/ActionReplay4Mapper.h"
-#include "Memory.h"
 
 ActionReplay4Mapper::ActionReplay4Mapper() :
     selectedBank(0),
@@ -95,11 +94,11 @@ uint8_t ActionReplay4Mapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!mem || ctrl.cartDisabled)
+    if (ctrl.cartDisabled)
         return cart->sampleDataBus();
 
     if ((address & 0xFF00) == 0xDF00)
-        return mem->readCartridge(static_cast<uint16_t>(address & 0x00FF), cartLocation::LO);
+        return cart->readCartridge(static_cast<uint16_t>(address & 0x00FF), cartLocation::LO);
 
     return cart->sampleDataBus();
 }
@@ -122,7 +121,7 @@ void ActionReplay4Mapper::write(uint16_t address, uint8_t value)
 
 bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!mem || !cart) return false;
+    if (!cart) return false;
 
     selectedBank = bank;
 
@@ -143,15 +142,15 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
         {
             // $8000-$9FFF
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             // $A000-$BFFF
             for (size_t i = 0x2000; i < 0x4000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i - 0x2000), s.data[i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i - 0x2000), s.data[i], cartLocation::HI);
 
             // Action Replay Ultimax/freeze needs ROM at $E000-$FFFF for vectors.
             for (size_t i = 0; i < 0x2000; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
             continue;
         }
@@ -165,10 +164,10 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
             {
                 // ROML ($8000-$9FFF)
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
                 continue;
             }
@@ -176,7 +175,7 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
             {
                 // ROMH ($A000-$BFFF) in 16K mode
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI);
 
                 continue;
             }
@@ -184,7 +183,7 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
             {
                 // Explicit ROM at $E000-$FFFF
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
                 continue;
             }
@@ -192,11 +191,11 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
             {
                 // Fallback: treat as ROML
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
                 // Mirror to $E000 as well, so Ultimax won't explode
                 for (size_t i = 0; i < 0x2000; ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                    cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
 
                 continue;
             }
@@ -207,10 +206,10 @@ bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
             const size_t size = std::min(s.data.size(), static_cast<size_t>(0x2000));
 
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::LO);
 
             for (size_t i = 0; i < size; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), s.data[i], cartLocation::HI_E000);
         }
     }
 
@@ -229,7 +228,7 @@ const char* ActionReplay4Mapper::getButtonName(uint32_t buttonIndex) const
 
 bool ActionReplay4Mapper::applyMappingAfterLoad()
 {
-    if (!mem || !cart)
+    if (!cart)
         return false;
 
     applyMappingFromControl();
@@ -238,7 +237,7 @@ bool ActionReplay4Mapper::applyMappingAfterLoad()
 
 void ActionReplay4Mapper::applyMappingFromControl()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (ctrl.cartDisabled)
@@ -277,7 +276,7 @@ void ActionReplay4Mapper::pressButton(uint32_t buttonIndex)
 
 void ActionReplay4Mapper::pressFreeze()
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!freezeActive)
@@ -314,7 +313,7 @@ void ActionReplay4Mapper::pressReset()
 
 bool ActionReplay4Mapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem || ctrl.cartDisabled)
+    if (!cart || ctrl.cartDisabled)
         return false;
 
     return (address & 0xFF00) == 0xDF00;

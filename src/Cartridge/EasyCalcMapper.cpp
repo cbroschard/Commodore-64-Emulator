@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/EasyCalcMapper.h"
-#include "Memory.h"
 
 EasyCalcMapper::EasyCalcMapper() :
     easyCalcBank(0)
@@ -55,7 +54,7 @@ void EasyCalcMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (address < 0xDE00 || address > 0xDEFF)
@@ -72,7 +71,7 @@ void EasyCalcMapper::write(uint16_t address, uint8_t value)
 
 bool EasyCalcMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     const uint8_t selectedBank = static_cast<uint8_t>(bank & 0x01);
@@ -110,9 +109,9 @@ bool EasyCalcMapper::loadIntoMemory(uint8_t bank)
 
     for (size_t i = 0; i < 0x2000; ++i)
     {
-        mem->writeCartridge(static_cast<uint16_t>(i), loSection->data[i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), loSection->data[i], cartLocation::LO);
 
-        mem->writeCartridge(static_cast<uint16_t>(i), hiSection->data[i], cartLocation::HI);
+        cart->writeCartridge(static_cast<uint16_t>(i), hiSection->data[i], cartLocation::HI);
     }
 
     return true;
@@ -122,7 +121,7 @@ void EasyCalcMapper::reset()
 {
     easyCalcBank = 0;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadIntoMemory(easyCalcBank))
@@ -134,7 +133,7 @@ void EasyCalcMapper::reset()
 
 bool EasyCalcMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     easyCalcBank &= 0x01;

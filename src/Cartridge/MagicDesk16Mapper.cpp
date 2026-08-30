@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/MagicDesk16Mapper.h"
-#include "Memory.h"
 
 namespace
 {
@@ -64,7 +63,7 @@ uint8_t MagicDesk16Mapper::read(uint16_t address)
 
 void MagicDesk16Mapper::write(uint16_t address, uint8_t value)
 {
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!isIO1(address))
@@ -97,7 +96,7 @@ void MagicDesk16Mapper::write(uint16_t address, uint8_t value)
 
 bool MagicDesk16Mapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     const uint8_t selectedBank = static_cast<uint8_t>(bank & 0x7F);
@@ -134,9 +133,9 @@ bool MagicDesk16Mapper::loadIntoMemory(uint8_t bank)
 
     for (size_t i = 0; i < 0x2000; ++i)
     {
-        mem->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i], cartLocation::LO);
+        cart->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i], cartLocation::LO);
 
-        mem->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i + 0x2000], cartLocation::HI);
+        cart->writeCartridge(static_cast<uint16_t>(i), selectedSection->data[i + 0x2000], cartLocation::HI);
     }
 
     return true;
@@ -144,7 +143,7 @@ bool MagicDesk16Mapper::loadIntoMemory(uint8_t bank)
 
 bool MagicDesk16Mapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     magicDeskBank &= 0x7F;
@@ -169,7 +168,7 @@ void MagicDesk16Mapper::reset()
     magicDeskBank = 0;
     disabled = false;
 
-    if (!cart || !mem)
+    if (!cart)
         return;
 
     if (!loadIntoMemory(magicDeskBank))

@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/GenericMapper.h"
-#include "Memory.h"
 
 GenericMapper::GenericMapper() = default;
 
@@ -47,7 +46,7 @@ void GenericMapper::write(uint16_t address, uint8_t value)
 
 bool GenericMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart || !mem) return false;
+    if (!cart) return false;
 
     cart->clearCartridge(cartLocation::LO);
     cart->clearCartridge(cartLocation::HI);
@@ -63,10 +62,10 @@ bool GenericMapper::loadIntoMemory(uint8_t bank)
         if (section.data.size() == 16384 && section.loadAddress == 0x8000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i + 8192], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i + 8192], cartLocation::HI);
 
             return true;
         }
@@ -81,19 +80,19 @@ bool GenericMapper::loadIntoMemory(uint8_t bank)
         if (section.loadAddress == 0x8000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
             mapped = true;
         }
         else if (section.loadAddress == 0xA000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI);
             mapped = true;
         }
         else if (section.loadAddress == 0xE000)
         {
             for (size_t i = 0; i < 8192; ++i)
-                mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
             mapped = true;
         }
     }

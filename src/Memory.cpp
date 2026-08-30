@@ -14,9 +14,6 @@ Memory::Memory()
     kernalROM.resize(KERNAL_ROM_SIZE,0);
     charROM.resize(CHAR_ROM_SIZE,0);
     colorRAM.resize(COLOR_RAM_SIZE,0);
-    cart_lo.resize(CART_LO_SIZE,0);
-    cart_hi.resize(CART_HI_SIZE,0);
-    cart_hi_e000.resize(CART_HI_E000_SIZE,0);
 }
 
 Memory::~Memory() = default;
@@ -32,11 +29,6 @@ void Memory::saveState(StateWriter& wrtr) const
 
     // Dump Color RAM
     wrtr.writeVectorU8(colorRAM);
-
-    // Dump Cartridge Lo/Hi
-    wrtr.writeVectorU8(cart_lo);
-    wrtr.writeVectorU8(cart_hi);
-    wrtr.writeVectorU8(cart_hi_e000);
 
     // End the chunk for CIA1
     wrtr.endChunk();
@@ -57,11 +49,6 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         // Load Color RAM
         if (!rdr.readVectorU8(colorRAM))                                    { rdr.exitChunkPayload(chunk); return false; }
-
-        // Load cart vectors
-        if (!rdr.readVectorU8(cart_lo))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU8(cart_hi))                                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU8(cart_hi_e000))                                { rdr.exitChunkPayload(chunk); return false; }
 
         rdr.exitChunkPayload(chunk);
         return true;
@@ -116,63 +103,6 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
 {
     if (address < MAX_MEMORY)
         mem[address] = value;
-}
-
-uint8_t Memory::readCartridge(uint16_t offset, cartLocation location) const
-{
-    switch (location)
-    {
-        case cartLocation::LO:
-            if (offset >= cart_lo.size())
-                throw std::runtime_error("Error: Attempt to read past end of cartridge lo");
-            return cart_lo[offset];
-
-        case cartLocation::HI:
-            if (offset >= cart_hi.size())
-                throw std::runtime_error("Error: Attempt to read past end of cartridge hi");
-            return cart_hi[offset];
-
-        case cartLocation::HI_E000:
-            if (offset >= cart_hi_e000.size())
-                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000");
-            return cart_hi_e000[offset];
-
-        default:
-            return 0xFF;
-    }
-}
-
-void Memory::writeCartridge(uint16_t address, uint8_t value, cartLocation location)
-{
-    switch(location)
-    {
-        case cartLocation::LO:
-        {
-            if (address < cart_lo.size())
-                cart_lo[address] = value;
-            else
-                throw std::runtime_error("Error: Attempt to write past end of cartridge lo size");
-            break;
-        }
-        case cartLocation::HI:
-        {
-            if (address < cart_hi.size())
-                cart_hi[address] = value;
-            else
-                throw std::runtime_error("Error: Attempt to write past end of cartridge hi size");
-            break;
-        }
-        case cartLocation::HI_E000:
-        {
-            if (address < cart_hi_e000.size())
-                cart_hi_e000[address] = value;
-            else
-                throw std::runtime_error("Error: Attempt to write past end of cartridge hi e000 size");
-            break;
-        }
-        default:
-            break;
-    }
 }
 
 bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)

@@ -8,7 +8,6 @@
 #include <algorithm>
 #include "Cartridge.h"
 #include "Cartridge/StarDOSMapper.h"
-#include "Memory.h"
 
 StarDOSMapper::StarDOSMapper() :
     io1Charge(0),
@@ -72,10 +71,10 @@ uint8_t StarDOSMapper::read(uint16_t address)
 
     if (address >= 0xE000)
     {
-        if (!mem || !loaded)
+        if (!loaded)
             return cart->sampleDataBus();
 
-        return mem->readCartridge(static_cast<uint16_t>(address - 0xE000), cartLocation::HI_E000);
+        return cart->readCartridge(static_cast<uint16_t>(address - 0xE000), cartLocation::HI_E000);
     }
 
     if (address >= 0xDE00 && address <= 0xDEFF)
@@ -103,7 +102,7 @@ bool StarDOSMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
 
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     const Cartridge::chipSection* loSection = nullptr;
@@ -135,12 +134,12 @@ bool StarDOSMapper::loadIntoMemory(uint8_t bank)
 
     for (size_t i = 0; i < 0x2000; ++i)
     {
-        mem->writeCartridge(
+        cart->writeCartridge(
             static_cast<uint16_t>(i),
             loSection->data[i],
             cartLocation::LO);
 
-        mem->writeCartridge(
+        cart->writeCartridge(
             static_cast<uint16_t>(i),
             kernalSection->data[i],
             cartLocation::HI_E000);
@@ -221,7 +220,7 @@ void StarDOSMapper::applyLineState()
 
 bool StarDOSMapper::applyMappingAfterLoad()
 {
-    if (!cart || !mem)
+    if (!cart)
         return false;
 
     if (!loadIntoMemory(0))
@@ -233,7 +232,7 @@ bool StarDOSMapper::applyMappingAfterLoad()
 
 bool StarDOSMapper::readDrivesBus(uint16_t address) const
 {
-    if (!cart || !mem || !loaded)
+    if (!cart || !loaded)
         return false;
 
     return address >= 0xE000;

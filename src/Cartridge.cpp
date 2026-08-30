@@ -56,7 +56,6 @@
 #include "Bus.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
-#include "Memory.h"
 #include "Vic.h"
 
 Cartridge::Cartridge() :
@@ -66,7 +65,6 @@ Cartridge::Cartridge() :
     cpu(nullptr),
     dataBus(nullptr),
     host(nullptr),
-    mem(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
     wiringMode(WiringMode::NONE),
@@ -78,6 +76,10 @@ Cartridge::Cartridge() :
     // defaults
     header.exROMLine = true;
     header.gameLine = true;
+
+    cart_lo.resize(CART_LO_SIZE,0);
+    cart_hi.resize(CART_HI_SIZE,0);
+    cart_hi_e000.resize(CART_HI_E000_SIZE,0);
 }
 
 Cartridge::~Cartridge()
@@ -101,6 +103,10 @@ void Cartridge::saveState(StateWriter& wrtr) const
 
     // Dump full CRT contents so we can rebuild chipSections/mapper on load
     wrtr.writeVectorU8(romData);
+
+    wrtr.writeVectorU8(cart_lo);
+    wrtr.writeVectorU8(cart_hi);
+    wrtr.writeVectorU8(cart_hi_e000);
 
     // Dump GAME / EXROM
     wrtr.writeBool(gameLine);
@@ -158,6 +164,10 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         return false;
     }
 
+    if (!rdr.readVectorU8(cart_lo))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readVectorU8(cart_hi))      { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readVectorU8(cart_hi_e000)) { rdr.exitChunkPayload(chunk); return false; }
+
     // Read GAME/EXROM saved values (keeps exact wiring you had at save time)
     bool game = false, exrom = false;
     if (!rdr.readBool(game))  { rdr.exitChunkPayload(chunk); return false; }
@@ -185,7 +195,6 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     {
         mapper->attachBusInstance(bus);
         mapper->attachCartridgeInstance(this);
-        mapper->attachMemoryInstance(mem);
     }
 
     // Mapper subchunks (now it can actually load them)
@@ -257,6 +266,10 @@ void Cartridge::clear()
     std::memset(&header, 0, sizeof(header));
     header.exROMLine = true;
     header.gameLine = true;
+
+    clearCartridge(cartLocation::LO);
+    clearCartridge(cartLocation::HI);
+    clearCartridge(cartLocation::HI_E000);
 }
 
 void Cartridge::requestWarmReset()
@@ -371,8 +384,8 @@ bool Cartridge::loadROM(const std::string& path)
 
     if (mapper)
     {
+        mapper->attachBusInstance(bus);
         mapper->attachCartridgeInstance(this);
-        mapper->attachMemoryInstance(mem);
 
         if (mapperType == Cartridge::CartridgeType::DELA_EP64)
             mapper->reset();
@@ -648,6 +661,63 @@ void Cartridge::writeRAM(size_t offset, uint8_t value)
     ramData[offset] = value;
 }
 
+uint8_t Cartridge::readCartridge(uint16_t offset, cartLocation location) const
+{
+    switch (location)
+    {
+        case cartLocation::LO:
+            if (offset >= cart_lo.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge lo");
+            return cart_lo[offset];
+
+        case cartLocation::HI:
+            if (offset >= cart_hi.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi");
+            return cart_hi[offset];
+
+        case cartLocation::HI_E000:
+            if (offset >= cart_hi_e000.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000");
+            return cart_hi_e000[offset];
+
+        default:
+            return 0xFF;
+    }
+}
+
+void Cartridge::writeCartridge(uint16_t address, uint8_t value, cartLocation location)
+{
+    switch(location)
+    {
+        case cartLocation::LO:
+        {
+            if (address < cart_lo.size())
+                cart_lo[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge lo size");
+            break;
+        }
+        case cartLocation::HI:
+        {
+            if (address < cart_hi.size())
+                cart_hi[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge hi size");
+            break;
+        }
+        case cartLocation::HI_E000:
+        {
+            if (address < cart_hi_e000.size())
+                cart_hi_e000[address] = value;
+            else
+                throw std::runtime_error("Error: Attempt to write past end of cartridge hi e000 size");
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 bool Cartridge::setCurrentBank(uint8_t bank)
 {
     bool bankFound = false;
@@ -715,15 +785,8 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
 
 bool Cartridge::loadIntoMemory()
 {
-    if (!mem)
-    {
-        throw std::runtime_error("Unable to load cartridge as there is no pointer to memory!");
-    }
-
     if (mapper)
-    {
         return mapper->loadIntoMemory(currentBank);
-    }
 
     // Iterate through only the sections for the current bank.
     for (const auto &section : chipSections)
@@ -746,9 +809,7 @@ bool Cartridge::loadIntoMemory()
                 #endif // Debug
 
                 for (size_t i = 0; i < 8192; ++i)
-                {
-                    mem->writeCartridge(loOffset + i, section.data[i], location);
-                }
+                    writeCartridge(loOffset + i, section.data[i], location);
             }
             // Load Second 8K into HI
             {
@@ -762,9 +823,7 @@ bool Cartridge::loadIntoMemory()
 
                 // For HI, we write starting at offset 0.
                 for (size_t i = 8192; i < section.data.size(); ++i)
-                {
-                    mem->writeCartridge(i - 8192, section.data[i], location);
-                }
+                    writeCartridge(i - 8192, section.data[i], location);
             }
         }
         // If the section is exactly 8K, load it into the proper bank as indicated by its load address.
@@ -783,7 +842,7 @@ bool Cartridge::loadIntoMemory()
                 location = cartLocation::HI;
 
                 for (size_t i = 0; i < section.data.size(); ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
 
                 continue;
             }
@@ -794,7 +853,7 @@ bool Cartridge::loadIntoMemory()
 
                 // Write starting at offset 0
                 for (size_t i = 0; i < section.data.size(); ++i)
-                    mem->writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
+                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
 
                 continue;
             }
@@ -813,7 +872,7 @@ bool Cartridge::loadIntoMemory()
             for (size_t i = 0; i < section.data.size(); i++)
             {
                 uint16_t offset = (section.loadAddress - baseAddress) + i;
-                mem->writeCartridge(offset, section.data[i], location);
+                writeCartridge(offset, section.data[i], location);
             }
 
         }
@@ -837,7 +896,7 @@ bool Cartridge::loadIntoMemory()
                 if (cartOff >= 8192)
                     continue;
 
-                mem->writeCartridge(cartOff, section.data[i], loc);
+                writeCartridge(cartOff, section.data[i], loc);
             }
         }
     }
@@ -846,18 +905,11 @@ bool Cartridge::loadIntoMemory()
 
 void Cartridge::clearCartridge(cartLocation location)
 {
-    if (!mem)
-    {
-        throw std::runtime_error("Unable to clear cartridge memory, no memory object");
-    }
-
     const uint16_t area_size = 8192; // 8KB
 
     // Iterate through all offsets in the 8KB block and write 0xFF
     for (uint16_t offset = 0; offset < area_size; ++offset)
-    {
-        mem->writeCartridge(offset, 0xFF, location);
-    }
+        writeCartridge(offset, 0xFF, location);
 }
 
 bool Cartridge::processChipSections()
