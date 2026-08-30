@@ -1010,10 +1010,19 @@ uint8_t Vic::peekRegister(uint16_t address) const
             return registers.spriteX_MSB;
 
         case 0xD011:
-            return registers.control;
+        {
+            const uint16_t visibleRaster = visibleRasterForRead();
+
+            return static_cast<uint8_t>(
+                (registers.control & 0x7F) |
+                (((visibleRaster >> 8) & 0x01) << 7));
+        }
 
         case 0xD012:
-            return registers.raster;
+        {
+            const uint16_t visibleRaster = visibleRasterForRead();
+            return static_cast<uint8_t>(visibleRaster & 0xFF);
+        }
 
         case 0xD013:
             return registers.light_pen_X;
