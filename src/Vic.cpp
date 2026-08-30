@@ -1551,7 +1551,13 @@ void Vic::handleCycle14Decisions()
     if (badAtCycle14)
     {
         vicState.badLine = true;
-        vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
+
+        // Preserve the actual BA/AEC timing established when the
+        // Bad Line Condition became active. For a normal bad line
+        // this will already be DMAStartCycle. For a late-created
+        // bad line it may be later.
+        if (vicState.badLineDmaStartCycle < 0)
+            vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
@@ -2002,9 +2008,10 @@ void Vic::updateLiveBadLineCondition()
     {
         vicState.badLine = true;
 
-        // A newly asserted Bad Line starts a new BA/AEC takeover
-        // sequence from this point.
-        vicState.badLineDmaStartCycle = currentCycle + 4;
+        // BA must precede VIC Phi2 takeover by three cycles.
+        // If the Bad Line Condition becomes active now, the earliest
+        // valid c-access takeover is three cycles later.
+        vicState.badLineDmaStartCycle = currentCycle + 3;
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
