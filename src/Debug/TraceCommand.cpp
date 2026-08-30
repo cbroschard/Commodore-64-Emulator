@@ -46,7 +46,7 @@ std::string TraceCommand::help() const
         "  trace                            Show global trace status (ON/OFF)\n"
         "  trace on|off                     Enable or disable tracing globally\n"
         "  trace cats|categories            List all top-level chip categories and their status\n"
-        "  trace details                    List all CART/CIA/CPU/VIC/PLA/Memory detail categories and their status\n"
+        "  trace details                    List all CART/CIA/CPU/VIC/PLA/Bus detail categories and their status\n"
         "  trace dump                       Dump the current trace buffer to console\n"
         "  trace clear                      Clear stored trace data\n"
         "  trace file <path>                Write trace output to a file\n"
@@ -60,7 +60,8 @@ std::string TraceCommand::help() const
         "  trace cart bank enable|disable  Cartridge bank/window tracing\n"
         "  trace cart ctrl enable|disable  Cartridge control-write tracing\n"
         "  trace cart line enable|disable  Cartridge GAME/EXROM/wiring tracing\n"
-        "  trace cart mem enable|disable   Cartridge RAM/memory tracing\n"
+        "  trace cart rom enable|disable   Cartridge ROM access tracing\n"
+        "  trace cart ram enable|disable   Cartridge RAM access tracing\n"
         "\n"
         "CIA tracing:\n"
         "  trace cia1 enable                 Enable CIA1 top-level tracing\n"
@@ -90,17 +91,17 @@ std::string TraceCommand::help() const
         "  trace cpu ba enable|disable      CPU BA hold tracing\n"
         "  trace cpu jam enable|disable     CPU JAM/halt tracing\n"
         "\n"
-        "Memory tracing:\n"
-        "  trace mem enable                 Enable Memory top-level tracing\n"
-        "  trace mem disable                Disable Memory top-level tracing\n"
-        "  trace mem all enable|disable     Enable or disable all Memory detail tracing\n"
-        "  trace mem cpu enable|disable     CPU read/write memory tracing\n"
-        "  trace mem io enable|disable      I/O dispatch tracing\n"
-        "  trace mem cart enable|disable    Cartridge/overlay memory tracing\n"
-        "  trace mem port enable|disable    $0000/$0001 and port-side-effect tracing\n"
-        "  trace mem add <lo>-<hi>          Add a traced address range (hex, inclusive)\n"
-        "  trace mem list                   List currently traced memory ranges\n"
-        "  trace mem clear                  Clear all traced memory ranges\n"
+        "Bus tracing:\n"
+        "  trace bus enable                 Enable Bus top-level tracing\n"
+        "  trace bus disable                Disable Bus top-level tracing\n"
+        "  trace bus all enable|disable     Enable or disable all Bus detail tracing\n"
+        "  trace bus cpu enable|disable     CPU bus read/write tracing\n"
+        "  trace bus io enable|disable      I/O dispatch tracing\n"
+        "  trace bus dma enable|disable     DMA bus read/write tracing\n"
+        "  trace bus open enable|disable    Open-bus read tracing\n"
+        "  trace bus add <lo>-<hi>          Add a traced address range (hex, inclusive)\n"
+        "  trace bus list                   List currently traced bus address ranges\n"
+        "  trace bus clear                  Clear all traced bus address ranges\n"
         "\n"
         "PLA tracing:\n"
         "  trace pla enable                 Enable PLA top-level tracing\n"
@@ -128,9 +129,9 @@ std::string TraceCommand::help() const
         "\n"
         "Notes:\n"
         "  - Addresses use $HHHH hex notation, e.g. $0800-$0FFF.\n"
-        "  - 'trace mem add' does NOT enable the MEM category; use 'trace mem enable'.\n"
+        "  - 'trace bus add' does NOT enable the BUS category; use 'trace bus enable'.\n"
         "  - Global tracing must be ON for output: use 'trace on'.\n"
-        "  - Enabling a CPU/VIC detail also enables that chip's top-level category.\n"
+        "  - Enabling a detail also enables its top-level trace category.\n"
         "\n"
         "Examples:\n"
         "  trace on\n"
@@ -141,8 +142,8 @@ std::string TraceCommand::help() const
         "  trace cpu all enable\n"
         "  trace vic raster enable\n"
         "  trace vic sprite enable\n"
-        "  trace mem add $0800-$0FFF\n"
-        "  trace mem enable\n"
+        "  trace bus add $0800-$0FFF\n"
+        "  trace bus enable\n"
         "  trace dump\n";
 }
 
@@ -296,25 +297,29 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return false;
     };
 
-    auto setMemDetail = [&](TraceManager::TraceDetail detail, const char* label, const std::string& action) -> bool
-    {
-        if (isEnableWord(action))
+    auto setBusDetail = [&](TraceManager::TraceDetail detail, const char* label,  const std::string& action) -> bool
         {
-            traceMgr->enableCategory(TraceManager::TraceCat::BUS);
-            traceMgr->enableDetail(detail);
-            std::cout << "Enabled Memory " << label << " tracing.\n";
-            tracingOnReminder();
-            return true;
-        }
-        if (isDisableWord(action))
-        {
-            traceMgr->disableDetail(detail);
-            std::cout << "Disabled Memory " << label << " tracing.\n";
-            disableGlobalReminder();
-            return true;
-        }
-        return false;
-    };
+            if (isEnableWord(action))
+            {
+                traceMgr->enableCategory(TraceManager::TraceCat::BUS);
+                traceMgr->enableDetail(detail);
+
+                std::cout << "Enabled Bus " << label << " tracing.\n";
+                tracingOnReminder();
+                return true;
+            }
+
+            if (isDisableWord(action))
+            {
+                traceMgr->disableDetail(detail);
+
+                std::cout << "Disabled Bus " << label << " tracing.\n";
+                disableGlobalReminder();
+                return true;
+            }
+
+            return false;
+        };
 
     auto setPlaDetail = [&](TraceManager::TraceDetail detail, const char* label, const std::string& action) -> bool
     {
@@ -465,20 +470,17 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (isEnableWord(args[3]))
             {
                 traceMgr->enableCategory(TraceManager::TraceCat::CART);
-                traceMgr->enableDetail(TraceManager::TraceDetail::CART_BANK);
-                traceMgr->enableDetail(TraceManager::TraceDetail::CART_CTRL);
-                traceMgr->enableDetail(TraceManager::TraceDetail::CART_LINE);
-                traceMgr->enableDetail(TraceManager::TraceDetail::CART_ROM);
+                traceMgr->enableCARTDetails(true);
+
                 std::cout << "Enabled all Cartridge trace details.\n";
                 tracingOnReminder();
                 return;
             }
+
             if (isDisableWord(args[3]))
             {
-                traceMgr->disableDetail(TraceManager::TraceDetail::CART_BANK);
-                traceMgr->disableDetail(TraceManager::TraceDetail::CART_CTRL);
-                traceMgr->disableDetail(TraceManager::TraceDetail::CART_LINE);
-                traceMgr->disableDetail(TraceManager::TraceDetail::CART_ROM);
+                traceMgr->enableCARTDetails(false);
+
                 std::cout << "Disabled all Cartridge trace details.\n";
                 disableGlobalReminder();
                 return;
@@ -493,18 +495,30 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const std::string& detail = args[2];
             const std::string& action = args[3];
 
-            if (detail == "bank" && setCartDetail(TraceManager::TraceDetail::CART_BANK, "bank", action)) return;
-            if (detail == "ctrl" && setCartDetail(TraceManager::TraceDetail::CART_CTRL, "ctrl", action)) return;
-            if (detail == "line" && setCartDetail(TraceManager::TraceDetail::CART_LINE, "line", action)) return;
-            if (detail == "mem"  && setCartDetail(TraceManager::TraceDetail::CART_ROM,  "mem",  action)) return;
+            if (detail == "bank" && setCartDetail(TraceManager::TraceDetail::CART_BANK, "bank", action))
+                return;
 
-            std::cout << "Usage: trace cart <bank|ctrl|line|mem> enable|disable\n";
+            if (detail == "ctrl" && setCartDetail(TraceManager::TraceDetail::CART_CTRL, "ctrl", action))
+                return;
+
+            if (detail == "line" && setCartDetail(TraceManager::TraceDetail::CART_LINE, "line", action))
+                return;
+
+            if (detail == "rom" && setCartDetail(TraceManager::TraceDetail::CART_ROM, "rom", action))
+                return;
+
+            if (detail == "ram" && setCartDetail(TraceManager::TraceDetail::CART_RAM, "ram", action))
+                return;
+
+            std::cout << "Usage: trace cart <bank|ctrl|line|rom|ram> enable|disable\n";
             return;
         }
 
-        std::cout << "Usage: trace cart enable|disable\n"
-                     "       trace cart all enable|disable\n"
-                     "       trace cart <bank|ctrl|line|mem> enable|disable\n";
+        std::cout
+            << "Usage: trace cart enable|disable\n"
+            << "       trace cart all enable|disable\n"
+            << "       trace cart <bank|ctrl|line|rom|ram> enable|disable\n";
+
         return;
     }
 
@@ -662,9 +676,9 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    if (sub == "mem")
+    if (sub == "bus")
     {
-        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::BUS, "Memory", args[2]))
+        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::BUS, "Bus", args[2]))
             return;
 
         if (args.size() >= 4 && args[2] == "all")
@@ -672,26 +686,23 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (isEnableWord(args[3]))
             {
                 traceMgr->enableCategory(TraceManager::TraceCat::BUS);
-                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_CPU);
-                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_IO);
-                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_DMA);
-                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_OPEN);
-                std::cout << "Enabled all Memory trace details.\n";
+                traceMgr->enableBUSDetails(true);
+
+                std::cout << "Enabled all Bus trace details.\n";
                 tracingOnReminder();
                 return;
             }
+
             if (isDisableWord(args[3]))
             {
-                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_CPU);
-                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_IO);
-                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_DMA);
-                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_OPEN);
-                std::cout << "Disabled all Memory trace details.\n";
+                traceMgr->enableBUSDetails(false);
+
+                std::cout << "Disabled all Bus trace details.\n";
                 disableGlobalReminder();
                 return;
             }
 
-            std::cout << "Usage: trace mem all enable|disable\n";
+            std::cout << "Usage: trace bus all enable|disable\n";
             return;
         }
 
@@ -700,21 +711,30 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const std::string& detail = args[2];
             const std::string& action = args[3];
 
-            if (detail == "cpu"  && setMemDetail(TraceManager::TraceDetail::BUS_CPU,  "cpu",  action)) return;
-            if (detail == "io"   && setMemDetail(TraceManager::TraceDetail::BUS_IO,   "io",   action)) return;
-            if (detail == "cart" && setMemDetail(TraceManager::TraceDetail::BUS_DMA, "cart", action)) return;
-            if (detail == "port" && setMemDetail(TraceManager::TraceDetail::BUS_OPEN, "port", action)) return;
+            if (detail == "cpu" && setBusDetail(TraceManager::TraceDetail::BUS_CPU, "cpu", action))
+                return;
+
+            if (detail == "io" && setBusDetail(TraceManager::TraceDetail::BUS_IO, "io", action))
+                return;
+
+            if (detail == "dma" && setBusDetail(TraceManager::TraceDetail::BUS_DMA, "dma", action))
+                return;
+
+            if (detail == "open" && setBusDetail(TraceManager::TraceDetail::BUS_OPEN, "open", action))
+                return;
         }
 
         if (args.size() >= 3 && args[2] == "add")
         {
             if (args.size() < 4)
             {
-                std::cout << "Usage: trace mem add <lo>-<hi>\n";
+                std::cout << "Usage: trace bus add <lo>-<hi>\n";
                 return;
             }
 
-            uint16_t lo = 0, hi = 0;
+            uint16_t lo = 0;
+            uint16_t hi = 0;
+
             if (!parseHexRange(args[3], lo, hi))
             {
                 std::cout << "Invalid range. Use $HHHH-$HHHH\n";
@@ -722,34 +742,44 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             }
 
             traceMgr->addMemRange(lo, hi);
-            std::cout << "Added memory trace range $" << toHex(lo, 4)
-                      << "-$" << toHex(hi, 4) << "\n";
+
+            std::cout
+                << "Added bus trace range $"
+                << toHex(lo, 4)
+                << "-$"
+                << toHex(hi, 4)
+                << "\n";
+
             return;
         }
 
         if (args.size() >= 3 && args[2] == "list")
         {
-            std::string ranges = traceMgr->listMemRange();
+            const std::string ranges = traceMgr->listMemRange();
+
             if (ranges.empty())
-                std::cout << "No memory trace ranges.\n";
+                std::cout << "No bus trace ranges.\n";
             else
                 std::cout << ranges << "\n";
+
             return;
         }
 
         if (args.size() >= 3 && args[2] == "clear")
         {
             traceMgr->clearMemRanges();
-            std::cout << "Cleared memory trace ranges.\n";
+            std::cout << "Cleared bus trace ranges.\n";
             return;
         }
 
-        std::cout << "Usage: trace mem enable|disable\n"
-                     "       trace mem all enable|disable\n"
-                     "       trace mem <cpu|io|cart|port> enable|disable\n"
-                     "       trace mem add <lo>-<hi>\n"
-                     "       trace mem list\n"
-                     "       trace mem clear\n";
+        std::cout
+            << "Usage: trace bus enable|disable\n"
+            << "       trace bus all enable|disable\n"
+            << "       trace bus <cpu|io|dma|open> enable|disable\n"
+            << "       trace bus add <lo>-<hi>\n"
+            << "       trace bus list\n"
+            << "       trace bus clear\n";
+
         return;
     }
 
