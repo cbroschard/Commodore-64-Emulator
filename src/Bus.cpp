@@ -343,7 +343,7 @@ uint8_t Bus::readIO(uint16_t address)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] read VIC $"
+            out << "[BUS:IO] read VIC $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address;
             traceMgr->recordCustomEvent(out.str(), traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
@@ -360,7 +360,7 @@ uint8_t Bus::readIO(uint16_t address)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] read SID $"
+            out << "[BUS:IO] read SID $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address;
             traceMgr->recordCustomEvent(out.str(), traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
@@ -377,7 +377,7 @@ uint8_t Bus::readIO(uint16_t address)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] read CIA1 $"
+            out << "[BUS:IO] read CIA1 $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address;
             traceMgr->recordCustomEvent(out.str(), traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
@@ -394,7 +394,7 @@ uint8_t Bus::readIO(uint16_t address)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] read CIA2 $"
+            out << "[BUS:IO] read CIA2 $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address;
 
@@ -433,7 +433,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] write VIC $"
+            out << "[BUS:IO] write VIC $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address
                 << " value=$" << std::setw(2) << int(value);
@@ -455,7 +455,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] write SID $"
+            out << "[BUS:IO] write SID $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address
                 << " value=$" << std::setw(2) << int(value);
@@ -477,7 +477,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] write CIA1 $"
+            out << "[BUS:IO] write CIA1 $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address
                 << " value=$" << std::setw(2) << int(value);
@@ -499,7 +499,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
-            out << "[MEM:IO] write CIA2 $"
+            out << "[BUS:IO] write CIA2 $"
                 << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << mirroredAddress
                 << " via $" << std::setw(4) << address
                 << " value=$" << std::setw(2) << int(value);
@@ -574,25 +574,67 @@ uint8_t Bus::vicReadColor(uint16_t address) const
 
 uint8_t Bus::readForDMA(uint16_t address)
 {
-    auto sampleOpenBus = [&]() -> uint8_t
+    // Finish a DMA read by recording the bus transaction.
+    // Do not drive DataBusLatch here; the selected source is responsible
+    // for doing that before this helper is called.
+    auto finishDMARead = [&](uint8_t value) -> uint8_t
     {
-        return dataBus ? dataBus->sample() : 0xFF;
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_DMA) && traceMgr->memRangeContains(address))
+        {
+            const uint16_t pc = cpu ? cpu->getPC() : 0;
+
+            const TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
+                    vic ? vic->getRasterDot() : 0);
+
+            traceMgr->recordBusRead(address, value, pc, stamp);
+        }
+
+        return value;
     };
 
+    // Nothing drives the bus. Return the current data-bus latch.
+    auto sampleOpenBus = [&]() -> uint8_t
+    {
+        const uint8_t value = dataBus ? dataBus->sample() : 0xFF;
+
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_OPEN))
+        {
+            std::ostringstream out;
+
+            out << "[BUS:OPEN] DMA read $"
+                << std::hex
+                << std::uppercase
+                << std::setw(4)
+                << std::setfill('0')
+                << address
+                << " value=$"
+                << std::setw(2)
+                << int(value);
+
+            traceMgr->recordCustomEvent(out.str(), traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
+                    vic ? vic->getRasterDot() : 0));
+        }
+
+        return finishDMARead(value);
+    };
+
+    // Memory supplied the value, so Memory drives DataBusLatch.
     auto driveMemory = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
             dataBus->drive(value, DataBusLatch::Driver::Memory);
 
-        return value;
+        return finishDMARead(value);
     };
 
+    // Cartridge ROM supplied the value directly, so Cartridge drives
+    // DataBusLatch here.
     auto driveCartridge = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
             dataBus->drive(value, DataBusLatch::Driver::Cartridge);
 
-        return value;
+        return finishDMARead(value);
     };
 
     // 6510 internal port.
@@ -603,8 +645,9 @@ uint8_t Bus::readForDMA(uint16_t address)
         return driveMemory(cpu6510Port->readPort());
 
     // Mapper gets first opportunity just as with normal CPU reads.
+    // Cartridge::read() handles its own DataBusLatch behavior.
     if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
-        return cart->read(address);
+        return finishDMARead(cart->read(address));
 
     if (!pla)
         return sampleOpenBus();
@@ -630,22 +673,26 @@ uint8_t Bus::readForDMA(uint16_t address)
             if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
             {
                 const uint8_t lowNibble = mem->readColorRAM(address - COLOR_MEMORY_START);
-
                 const uint8_t upperNibble = dataBus ? static_cast<uint8_t>(dataBus->sample() & 0xF0) : 0xF0;
 
                 return driveMemory(static_cast<uint8_t>(upperNibble | lowNibble));
             }
 
-            return readIO(accessInfo.offset);
+            // The selected I/O device handles its own DataBusLatch
+            // behavior. We only add the DMA transaction trace here.
+            return finishDMARead(readIO(accessInfo.offset));
         }
 
         case PLA::CARTRIDGE_LO:
         {
             if (romLOverlayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+                // Cartridge::readRAM() drives DataBusLatch itself.
+                return finishDMARead(cart->readRAM(accessInfo.offset));
 
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-                return cart->read(address);
+                // Mapper-controlled Cartridge::read() handles
+                // DataBusLatch itself.
+                return finishDMARead(cart->read(address));
 
             return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::LO));
         }
@@ -653,10 +700,10 @@ uint8_t Bus::readForDMA(uint16_t address)
         case PLA::CARTRIDGE_HI:
         {
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+                return finishDMARead(cart->readRAM(accessInfo.offset));
 
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-                return cart->read(address);
+                return finishDMARead(cart->read(address));
 
             return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::HI));
         }
@@ -664,17 +711,19 @@ uint8_t Bus::readForDMA(uint16_t address)
         case PLA::CARTRIDGE_HI_E000:
         {
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-                return cart->readRAM(accessInfo.offset);
+                return finishDMARead(cart->readRAM(accessInfo.offset));
 
             if (cart && cartridgeAttached && cart->romReadHandledByMapper(address))
-                return cart->read(address);
+                return finishDMARead(cart->read(address));
 
             return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::HI_E000));
         }
 
         case PLA::UNMAPPED:
         default:
+        {
             return sampleOpenBus();
+        }
     }
 }
 
