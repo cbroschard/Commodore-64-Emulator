@@ -1572,7 +1572,7 @@ void Vic:: handleBadLineFetchStartDecisions()
 {
     const int raster = registers.raster;
 
-    if (vicState.badLineSampled)
+    if (vicState.badLineSampled && vicState.badLine)
     {
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, true);
         beginBadLineFetch();
