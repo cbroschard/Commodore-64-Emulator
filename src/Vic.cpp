@@ -5126,46 +5126,6 @@ int Vic::currentDisplayRowBase() const
     return static_cast<int>(vicState.vcBase);
 }
 
-uint8_t Vic::fetchDisplayScreenByte(int col, int raster, int px) const
-{
-    if (!bus)
-        return 0x00;
-
-    int row = 0;
-    int c = 0;
-
-    currentDisplayRowCol(col, row, c);
-
-    if (c < 0)
-        c = 0;
-
-    if (c >= BACKGROUND_MATRIX_COLUMNS)
-        c = BACKGROUND_MATRIX_COLUMNS - 1;
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        raster = registers.raster;
-
-    if (px < 0 || px >= VISIBLE_WIDTH)
-    {
-        const uint8_t d016 = d016ForRasterPixelX(raster, 0, false);
-        const int fine = static_cast<int>(d016 & 0x07);
-        px = BACKGROUND_40COL_X0 + fine + c * 8;
-    }
-
-    const uint16_t screenBase = screenBaseForRasterPixelX(raster, px);
-    const uint16_t address = static_cast<uint16_t>(screenBase + static_cast<uint16_t>(row * BACKGROUND_MATRIX_COLUMNS + c));
-
-    return bus->vicRead(address, raster);
-}
-
-uint8_t Vic::fetchDisplayColorByte(int col, int raster) const
-{
-    int row = 0;
-    int c = 0;
-    currentDisplayRowCol(col, row, c);
-    return fetchColorByte(row, c, raster) & 0x0F;
-}
-
 bool Vic::shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const
 {
     if (displayCol < 0 || displayCol >= BACKGROUND_MATRIX_COLUMNS)

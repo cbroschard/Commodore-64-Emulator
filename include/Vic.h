@@ -1191,8 +1191,6 @@ class Vic
 
         void resetCAccessLatch();
 
-        BackgroundSource multicolorTextSourceForBits(uint8_t bits) const;
-
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
@@ -1239,8 +1237,6 @@ class Vic
         uint8_t fetchColorByte (int row,int col, int raster) const;
 
         int currentDisplayRowBase() const;
-        uint8_t fetchDisplayScreenByte(int col, int raster, int px) const;
-        uint8_t fetchDisplayColorByte(int col, int raster) const;
 
         bool shouldUseFetchedMatrixForDisplayCol(int displayCol, int raster) const;
         bool fetchedMatrixBytesForDisplayCol(int displayCol, int raster, uint8_t& screenByte, uint8_t& colorByte) const;
