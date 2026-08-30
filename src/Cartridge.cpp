@@ -266,6 +266,10 @@ void Cartridge::clear()
     std::memset(&header, 0, sizeof(header));
     header.exROMLine = true;
     header.gameLine = true;
+
+    clearCartridge(cartLocation::LO);
+    clearCartridge(cartLocation::HI);
+    clearCartridge(cartLocation::HI_E000);
 }
 
 void Cartridge::requestWarmReset()

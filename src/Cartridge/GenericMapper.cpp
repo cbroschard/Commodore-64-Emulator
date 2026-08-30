@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/GenericMapper.h"
-#include "Memory.h"
 
 GenericMapper::GenericMapper() = default;
 

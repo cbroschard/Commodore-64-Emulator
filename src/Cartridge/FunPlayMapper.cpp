@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/FunPlayMapper.h"
-#include "Memory.h"
 
 FunPlayMapper::FunPlayMapper() :
     selectedBank(0)

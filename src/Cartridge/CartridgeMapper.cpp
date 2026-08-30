@@ -8,7 +8,6 @@
 #include "Bus.h"
 #include "Cartridge/CartridgeMapper.h"
 #include "Cartridge.h"
-#include "Memory.h"
 
 CartridgeMapper::CartridgeMapper() :
     bus(nullptr),
