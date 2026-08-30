@@ -550,7 +550,7 @@ uint8_t Cartridge::read(uint16_t address)
     {
         std::ostringstream out;
 
-        out << "[CART:MEM] mapper read $"
+        out << "[CART:ROM] mapper read $"
             << std::hex
             << std::uppercase
             << std::setw(4)
@@ -578,10 +578,10 @@ uint8_t Cartridge::readRAM(size_t offset)
 
     const uint8_t value = ramData[offset];
 
-    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_ROM))
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_RAM))
     {
         std::ostringstream out;
-        out << "[CART:MEM] RAM read offset=$"
+        out << "[CART:RAM] read offset=$"
             << std::hex
             << std::uppercase
             << std::setw(4)
@@ -591,7 +591,7 @@ uint8_t Cartridge::readRAM(size_t offset)
             << std::setw(2)
             << int(value);
 
-        traceMgr->recordCartROM(out.str(), makeCartStamp());
+        traceMgr->recordCartRAM(out.str(), makeCartStamp());
     }
 
     if (dataBus)
@@ -649,13 +649,20 @@ void Cartridge::writeRAM(size_t offset, uint8_t value)
 {
     if (!hasRAM || offset >= ramData.size()) return;
 
-    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_ROM))
+    if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_RAM))
     {
         std::ostringstream out;
-        out << "[CART:MEM] RAM write offset=$"
-            << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << int(offset)
-            << " value=$" << std::setw(2) << int(value);
-        traceMgr->recordCartROM(out.str(), makeCartStamp());
+        out << "[CART:RAM] write offset=$"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << int(offset)
+            << " value=$"
+            << std::setw(2)
+            << int(value);
+
+        traceMgr->recordCartRAM(out.str(), makeCartStamp());
     }
 
     ramData[offset] = value;
