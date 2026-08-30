@@ -78,9 +78,9 @@ bool TraceManager::cpuDetailOn(TraceDetail d) const
     return isEnabled() && catOn(TraceCat::CPU) && detailEnabled(d);
 }
 
-bool TraceManager::memDetailOn(TraceDetail d) const
+bool TraceManager::busDetailOn(TraceDetail d) const
 {
-    return isEnabled() && catOn(TraceCat::MEM) && detailEnabled(d);
+    return isEnabled() && catOn(TraceCat::BUS) && detailEnabled(d);
 }
 
 bool TraceManager::plaDetailOn(TraceDetail d) const
@@ -122,7 +122,8 @@ std::string TraceManager::listDetailStatus() const
         << "bank=" << (detailEnabled(TraceDetail::CART_BANK) ? "on" : "off") << ", "
         << "ctrl=" << (detailEnabled(TraceDetail::CART_CTRL) ? "on" : "off") << ", "
         << "line=" << (detailEnabled(TraceDetail::CART_LINE) ? "on" : "off") << ", "
-        << "mem="  << (detailEnabled(TraceDetail::CART_MEM)  ? "on" : "off");
+        << "rom="  << (detailEnabled(TraceDetail::CART_ROM)  ? "on" : "off") << ", "
+        << "ram="  << (detailEnabled(TraceDetail::CART_RAM)  ? "on" : "off");
 
     out << "\nCIA: "
         << "timer="   << (detailEnabled(TraceDetail::CIA_TIMER) ? "on" : "off") << ", "
@@ -140,11 +141,11 @@ std::string TraceManager::listDetailStatus() const
         << "ba="     << (detailEnabled(TraceDetail::CPU_BA)     ? "on" : "off") << ", "
         << "jam="    << (detailEnabled(TraceDetail::CPU_JAM)    ? "on" : "off") << "\n";
 
-    out << "\nMemory: "
-        << " cpu="   << (detailEnabled(TraceDetail::MEM_CPU)    ? "on" : "off") << ", "
-        << " io="    << (detailEnabled(TraceDetail::MEM_IO)     ? "on" : "off") << ", "
-        << " cart="  << (detailEnabled(TraceDetail::MEM_CART)   ? "on" : "off") << ", "
-        << " port="  << (detailEnabled(TraceDetail::MEM_PORT)   ? "on" : "off") << "\n";
+    out << "\nBus: "
+         << "cpu="  << (detailEnabled(TraceDetail::BUS_CPU)  ? "on" : "off") << ", "
+        << "io="   << (detailEnabled(TraceDetail::BUS_IO)   ? "on" : "off") << ", "
+        << "dma="  << (detailEnabled(TraceDetail::BUS_DMA)  ? "on" : "off") << ", "
+        << "open=" << (detailEnabled(TraceDetail::BUS_OPEN) ? "on" : "off") << "\n";
 
     out << "\nPLA: "
         << "mode="    << (detailEnabled(TraceDetail::PLA_MODE)    ? "on" : "off") << ", "
@@ -221,7 +222,8 @@ void TraceManager::enableCARTDetails(bool enable)
         TraceDetail::CART_BANK,
         TraceDetail::CART_CTRL,
         TraceDetail::CART_LINE,
-        TraceDetail::CART_MEM
+        TraceDetail::CART_ROM,
+        TraceDetail::CART_RAM
     };
 
     for (auto d : cartDetails)
@@ -252,17 +254,17 @@ void TraceManager::enableCPUDetails(bool enable)
     }
 }
 
-void TraceManager::enableMEMDetails(bool enable)
+void TraceManager::enableBUSDetails(bool enable)
 {
-    const TraceDetail memDetails[] =
+    const TraceDetail busDetails[] =
     {
-        TraceDetail::MEM_CPU,
-        TraceDetail::MEM_IO,
-        TraceDetail::MEM_CART,
-        TraceDetail::MEM_PORT
+        TraceDetail::BUS_CPU,
+        TraceDetail::BUS_IO,
+        TraceDetail::BUS_DMA,
+        TraceDetail::BUS_OPEN
     };
 
-    for (auto d : memDetails)
+    for (auto d : busDetails)
     {
         if (enable) enableDetail(d);
         else disableDetail(d);
@@ -311,7 +313,7 @@ void TraceManager::enableAllDetails(bool enable)
     enableCPUDetails(enable);
     enableVICDetails(enable);
     enableCIADetails(enable);
-    enableMEMDetails(enable);
+    enableBUSDetails(enable);
     enablePLADetails(enable);
 }
 
@@ -344,9 +346,19 @@ void TraceManager::recordCartLine(const std::string& text, Stamp stamp)
     if (file.is_open()) file << line << "\n";
 }
 
-void TraceManager::recordCartMem(const std::string& text, Stamp stamp)
+void TraceManager::recordCartROM(const std::string& text, Stamp stamp)
 {
-    if (!cartDetailOn(TraceDetail::CART_MEM)) return;
+    if (!cartDetailOn(TraceDetail::CART_ROM)) return;
+
+    std::string line = makeStamp(stamp) + text;
+    buffer.push_back(line);
+    if (file.is_open()) file << line << "\n";
+}
+
+
+void TraceManager::recordCartRAM(const std::string& text, Stamp stamp)
+{
+    if (!cartDetailOn(TraceDetail::CART_RAM)) return;
 
     std::string line = makeStamp(stamp) + text;
     buffer.push_back(line);
@@ -457,13 +469,13 @@ void TraceManager::recordCPUJam(const std::string& text, Stamp stamp)
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
-void TraceManager::recordMemRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp)
+void TraceManager::recordBusRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::MEM)) return;
+    if (!tracing || !catOn(TraceCat::BUS)) return;
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "[MEMORY] READ: Address=$" << std::hex << std::uppercase << std::setfill('0')
+    out << makeStamp(stamp) << "[BUS] READ: Address=$" << std::hex << std::uppercase << std::setfill('0')
         << std::setw(4) << address
         << " Value=$" << std::setw(2) << int(value)
         << " PC=$" << std::setw(4) << pc;
@@ -472,13 +484,13 @@ void TraceManager::recordMemRead(uint16_t address, uint8_t value, uint16_t pc, S
     if (file.is_open()) file << buffer.back() << "\n";
 }
 
-void TraceManager::recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp)
+void TraceManager::recordBusWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp)
 {
-    if (!tracing || !catOn(TraceCat::MEM)) return;
+    if (!tracing || !catOn(TraceCat::BUS)) return;
 
     std::stringstream out;
 
-    out << makeStamp(stamp) << "[MEMORY] WRITE: Address=$" << std::hex << std::uppercase << std::setfill('0')
+    out << makeStamp(stamp) << "[BUS] WRITE: Address=$" << std::hex << std::uppercase << std::setfill('0')
         << std::setw(4) << address
         << " Value=$" << std::setw(2) << int(value)
         << " PC=$" << std::setw(4) << pc;

@@ -30,60 +30,61 @@ class TraceManager
 
         enum class TraceCat : uint32_t
         {
-            CPU   = 1u<<0,
-            VIC   = 1u<<1,
-            CIA1  = 1u<<2,
-            CIA2  = 1u<<3,
-            PLA   = 1u<<4,
-            SID   = 1u<<5,
-            CART  = 1u<<6,
-            MEM   = 1u<<7,
+            CPU   = 1u << 0,
+            VIC   = 1u << 1,
+            CIA1  = 1u << 2,
+            CIA2  = 1u << 3,
+            PLA   = 1u << 4,
+            SID   = 1u << 5,
+            CART  = 1u << 6,
+            BUS   = 1u << 7,
             COUNT
         };
 
         enum class TraceDetail : uint64_t
         {
             // CPU
-            CPU_EXEC    = 1ull << 0,
-            CPU_IRQ     = 1ull << 1,
-            CPU_NMI     = 1ull << 2,
-            CPU_STACK   = 1ull << 3,
-            CPU_BRANCH  = 1ull << 4,
-            CPU_FLAGS   = 1ull << 5,
-            CPU_BA      = 1ull << 6,
-            CPU_JAM     = 1ull << 7,
+            CPU_EXEC      = 1ull << 0,
+            CPU_IRQ       = 1ull << 1,
+            CPU_NMI       = 1ull << 2,
+            CPU_STACK     = 1ull << 3,
+            CPU_BRANCH    = 1ull << 4,
+            CPU_FLAGS     = 1ull << 5,
+            CPU_BA        = 1ull << 6,
+            CPU_JAM       = 1ull << 7,
 
             // VIC
-            VIC_RASTER  = 1ull << 8,
-            VIC_IRQ     = 1ull << 9,
-            VIC_REG     = 1ull << 10,
-            VIC_BADLINE = 1ull << 11,
-            VIC_SPRITE  = 1ull << 12,
-            VIC_BUS     = 1ull << 13,
-            VIC_EVENT   = 1ull << 14,
+            VIC_RASTER    = 1ull << 8,
+            VIC_IRQ       = 1ull << 9,
+            VIC_REG       = 1ull << 10,
+            VIC_BADLINE   = 1ull << 11,
+            VIC_SPRITE    = 1ull << 12,
+            VIC_BUS       = 1ull << 13,
+            VIC_EVENT     = 1ull << 14,
 
             // CIA
-            CIA_TIMER   = 1ull << 15,
-            CIA_IRQ     = 1ull << 16,
-            CIA_CNT     = 1ull << 17,
-            CIA_IEC     = 1ull << 18,
+            CIA_TIMER     = 1ull << 15,
+            CIA_IRQ       = 1ull << 16,
+            CIA_CNT       = 1ull << 17,
+            CIA_IEC       = 1ull << 18,
 
             // PLA
-            PLA_MODE    = 1ull << 19,
-            PLA_PORT    = 1ull << 20,
-            PLA_RESOLVE = 1ull << 21,
+            PLA_MODE      = 1ull << 19,
+            PLA_PORT      = 1ull << 20,
+            PLA_RESOLVE   = 1ull << 21,
 
-            // Memory
-            MEM_CPU     = 1ull << 22,
-            MEM_IO      = 1ull << 23,
-            MEM_CART    = 1ull << 24,
-            MEM_PORT    = 1ull << 25,
+            // Bus
+            BUS_CPU       = 1ull << 22,
+            BUS_IO        = 1ull << 23,
+            BUS_DMA       = 1ull << 24,
+            BUS_OPEN      = 1ull << 25,
 
             // Cartridge
-            CART_BANK   = 1ull << 26,
-            CART_CTRL   = 1ull << 27,
-            CART_LINE   = 1ull << 28,
-            CART_MEM    = 1ull << 29,
+            CART_BANK     = 1ull << 26,
+            CART_CTRL     = 1ull << 27,
+            CART_LINE     = 1ull << 28,
+            CART_ROM      = 1ull << 29,
+            CART_RAM      = 1ull << 30
         };
 
         // Getters
@@ -95,7 +96,7 @@ class TraceManager
         bool cartDetailOn(TraceDetail d) const;
         bool cpuDetailOn(TraceDetail d) const;
         bool ciaDetailOn(int cia, TraceDetail d) const;
-        bool memDetailOn(TraceDetail d) const;
+        bool busDetailOn(TraceDetail d) const;
         bool plaDetailOn(TraceDetail d) const;
         bool vicDetailOn(TraceDetail d) const;
 
@@ -117,7 +118,7 @@ class TraceManager
         void enableCARTDetails(bool enable);
         void enableCIADetails(bool enable);
         void enableCPUDetails(bool enable);
-        void enableMEMDetails(bool enable);
+        void enableBUSDetails(bool enable);
         void enablePLADetails(bool enable);
         void enableVICDetails(bool enable);
         void enable(bool on);
@@ -143,7 +144,8 @@ class TraceManager
         void recordCartBank(const char* mapper, int bank, uint16_t lo, uint16_t hi, Stamp stamp);
         void recordCartControl(const std::string& text, Stamp stamp);
         void recordCartLine(const std::string& text, Stamp stamp);
-        void recordCartMem(const std::string& text, Stamp stamp);
+        void recordCartROM(const std::string& text, Stamp stamp);
+        void recordCartRAM(const std::string& text, Stamp stamp);
 
         // CPU
         void recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp);
@@ -158,8 +160,8 @@ class TraceManager
         void recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stamp);
 
         // Memory
-        void recordMemRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
-        void recordMemWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
+        void recordBusRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
+        void recordBusWrite(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp);
 
         // PLA
         void recordPlaMode(uint8_t mode, bool game, bool exrom, bool charen, bool hiram, bool loram, Stamp stamp);
@@ -205,7 +207,7 @@ class TraceManager
             { TraceCat::PLA, "PLA" },
             { TraceCat::SID, "SID" },
             { TraceCat::CART, "CART" },
-            { TraceCat::MEM, "MEM" },
+            { TraceCat::BUS, "BUS" },
         };
 
         // SID register names

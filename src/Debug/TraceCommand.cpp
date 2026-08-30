@@ -300,7 +300,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         if (isEnableWord(action))
         {
-            traceMgr->enableCategory(TraceManager::TraceCat::MEM);
+            traceMgr->enableCategory(TraceManager::TraceCat::BUS);
             traceMgr->enableDetail(detail);
             std::cout << "Enabled Memory " << label << " tracing.\n";
             tracingOnReminder();
@@ -468,7 +468,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 traceMgr->enableDetail(TraceManager::TraceDetail::CART_BANK);
                 traceMgr->enableDetail(TraceManager::TraceDetail::CART_CTRL);
                 traceMgr->enableDetail(TraceManager::TraceDetail::CART_LINE);
-                traceMgr->enableDetail(TraceManager::TraceDetail::CART_MEM);
+                traceMgr->enableDetail(TraceManager::TraceDetail::CART_ROM);
                 std::cout << "Enabled all Cartridge trace details.\n";
                 tracingOnReminder();
                 return;
@@ -478,7 +478,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 traceMgr->disableDetail(TraceManager::TraceDetail::CART_BANK);
                 traceMgr->disableDetail(TraceManager::TraceDetail::CART_CTRL);
                 traceMgr->disableDetail(TraceManager::TraceDetail::CART_LINE);
-                traceMgr->disableDetail(TraceManager::TraceDetail::CART_MEM);
+                traceMgr->disableDetail(TraceManager::TraceDetail::CART_ROM);
                 std::cout << "Disabled all Cartridge trace details.\n";
                 disableGlobalReminder();
                 return;
@@ -496,7 +496,7 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             if (detail == "bank" && setCartDetail(TraceManager::TraceDetail::CART_BANK, "bank", action)) return;
             if (detail == "ctrl" && setCartDetail(TraceManager::TraceDetail::CART_CTRL, "ctrl", action)) return;
             if (detail == "line" && setCartDetail(TraceManager::TraceDetail::CART_LINE, "line", action)) return;
-            if (detail == "mem"  && setCartDetail(TraceManager::TraceDetail::CART_MEM,  "mem",  action)) return;
+            if (detail == "mem"  && setCartDetail(TraceManager::TraceDetail::CART_ROM,  "mem",  action)) return;
 
             std::cout << "Usage: trace cart <bank|ctrl|line|mem> enable|disable\n";
             return;
@@ -664,28 +664,28 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "mem")
     {
-        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::MEM, "Memory", args[2]))
+        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::BUS, "Memory", args[2]))
             return;
 
         if (args.size() >= 4 && args[2] == "all")
         {
             if (isEnableWord(args[3]))
             {
-                traceMgr->enableCategory(TraceManager::TraceCat::MEM);
-                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_CPU);
-                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_IO);
-                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_CART);
-                traceMgr->enableDetail(TraceManager::TraceDetail::MEM_PORT);
+                traceMgr->enableCategory(TraceManager::TraceCat::BUS);
+                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_CPU);
+                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_IO);
+                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_DMA);
+                traceMgr->enableDetail(TraceManager::TraceDetail::BUS_OPEN);
                 std::cout << "Enabled all Memory trace details.\n";
                 tracingOnReminder();
                 return;
             }
             if (isDisableWord(args[3]))
             {
-                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_CPU);
-                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_IO);
-                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_CART);
-                traceMgr->disableDetail(TraceManager::TraceDetail::MEM_PORT);
+                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_CPU);
+                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_IO);
+                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_DMA);
+                traceMgr->disableDetail(TraceManager::TraceDetail::BUS_OPEN);
                 std::cout << "Disabled all Memory trace details.\n";
                 disableGlobalReminder();
                 return;
@@ -700,10 +700,10 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const std::string& detail = args[2];
             const std::string& action = args[3];
 
-            if (detail == "cpu"  && setMemDetail(TraceManager::TraceDetail::MEM_CPU,  "cpu",  action)) return;
-            if (detail == "io"   && setMemDetail(TraceManager::TraceDetail::MEM_IO,   "io",   action)) return;
-            if (detail == "cart" && setMemDetail(TraceManager::TraceDetail::MEM_CART, "cart", action)) return;
-            if (detail == "port" && setMemDetail(TraceManager::TraceDetail::MEM_PORT, "port", action)) return;
+            if (detail == "cpu"  && setMemDetail(TraceManager::TraceDetail::BUS_CPU,  "cpu",  action)) return;
+            if (detail == "io"   && setMemDetail(TraceManager::TraceDetail::BUS_IO,   "io",   action)) return;
+            if (detail == "cart" && setMemDetail(TraceManager::TraceDetail::BUS_DMA, "cart", action)) return;
+            if (detail == "port" && setMemDetail(TraceManager::TraceDetail::BUS_OPEN, "port", action)) return;
         }
 
         if (args.size() >= 3 && args[2] == "add")

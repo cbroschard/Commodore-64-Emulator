@@ -57,14 +57,14 @@ uint8_t Bus::read(uint16_t address)
     // which component drove the shared data bus.
     auto finishRead = [&](uint8_t value) -> uint8_t
     {
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) && traceMgr->memRangeContains(address))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_CPU) && traceMgr->memRangeContains(address))
         {
             const uint16_t pc = cpu ? cpu->getPC() : 0;
 
             const TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
                     vic ? vic->getRasterDot() : 0);
 
-            traceMgr->recordMemRead(address, value, pc, stamp);
+            traceMgr->recordBusRead(address, value, pc, stamp);
         }
 
         if (monitor && monitor->checkWatchRead(address, value))
@@ -212,13 +212,13 @@ void Bus::write(uint16_t address, uint8_t value)
        if (!pla) throw std::runtime_error("Error: Missing PLA object!");
 
     // Check for trace enabled and write if so
-    if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_CPU) && traceMgr->memRangeContains(address))
+    if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_CPU) && traceMgr->memRangeContains(address))
     {
         uint16_t PC = cpu ? cpu->getPC() : 0;
         TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vic ? vic->getCurrentRaster() : 0,
             vic ? vic->getRasterDot() : 0);
 
-        traceMgr->recordMemWrite(address, value, PC, stamp);
+        traceMgr->recordBusWrite(address, value, PC, stamp);
     }
 
     if (address == 0x0000)
@@ -340,7 +340,7 @@ uint8_t Bus::readIO(uint16_t address)
     {
         // Handle VIC address mirroring
         uint16_t mirroredAddress = (address & 0x003F) + 0xD000; // Mask out everything except the lower 6 bits
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] read VIC $"
@@ -357,7 +357,7 @@ uint8_t Bus::readIO(uint16_t address)
     {
         // Handle SID address mirroring
         uint16_t mirroredAddress = (address & 0x001F) + 0xD400;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] read SID $"
@@ -374,7 +374,7 @@ uint8_t Bus::readIO(uint16_t address)
     {
         // Handle CIA1 address mirroring
         uint16_t mirroredAddress = (address & 0x000F) + 0xDC00;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] read CIA1 $"
@@ -391,7 +391,7 @@ uint8_t Bus::readIO(uint16_t address)
     {
         // Handle CIA2 address mirroring
         uint16_t mirroredAddress = (address & 0x000F) + 0xDD00;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] read CIA2 $"
@@ -430,7 +430,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
     if (address >= 0xD000 && address <= 0xD3FF)
     {
         uint16_t mirroredAddress = (address & 0x003F) + 0xD000;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] write VIC $"
@@ -452,7 +452,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xD400 && address <= 0xD7FF)
     {
         uint16_t mirroredAddress = (address & 0x001F) + 0xD400;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] write SID $"
@@ -474,7 +474,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xDC00 && address <= 0xDCFF)
     {
         uint16_t mirroredAddress = (address & 0x000F) + 0xDC00;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] write CIA1 $"
@@ -496,7 +496,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
     else if (address >= 0xDD00 && address <= 0xDDFF)
     {
         uint16_t mirroredAddress = (address & 0x000F) + 0xDD00;
-        if (traceMgr && traceMgr->memDetailOn(TraceManager::TraceDetail::MEM_IO))
+        if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_IO))
         {
             std::ostringstream out;
             out << "[MEM:IO] write CIA2 $"
