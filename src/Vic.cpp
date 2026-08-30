@@ -3387,18 +3387,6 @@ void Vic::renderLine(int raster)
 
     updateGraphicsMode(raster);
 
-    const graphicsMode mode = graphicsModeForRaster(raster);
-
-    const bool liveBackgroundMode =
-        mode == graphicsMode::standard ||
-        mode == graphicsMode::multicolor ||
-        mode == graphicsMode::bitmap ||
-        mode == graphicsMode::multicolorBitmap ||
-        mode == graphicsMode::extendedColorText;
-
-    if (!liveBackgroundMode)
-        generateBackgroundLine(raster);
-
     applyBackgroundColorEventsToLine(raster);
     applyExtendedBackgroundColorEventsToLine(raster);
     applySpriteColorEventsToLine(raster);
