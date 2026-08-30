@@ -8,6 +8,7 @@
 #ifndef VIDEOOUTPUT_H
 #define VIDEOOUTPUT_H
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -15,6 +16,7 @@
 #include <SDL3/SDL.h>
 #include <utility>
 #include <vector>
+#include "Common/VideoMode.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl3.h"
 #include "imgui/imgui_impl_sdlrenderer3.h"
@@ -32,6 +34,8 @@ class VideoOutput final : public IVideoSink
 
         VideoOutput(VideoOutput&&) = delete;
         VideoOutput& operator=(VideoOutput&&) = delete;
+
+        void setMode(VideoMode mode);
 
         void renderBackgroundLine(int row, uint8_t color, int x0, int x1) override;
         void renderBorderLine(int row, uint8_t color, int x0, int x1) override;
@@ -55,13 +59,16 @@ class VideoOutput final : public IVideoSink
     protected:
 
     private:
-        static constexpr int SCALE = 3;
-
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* screenTexture;
 
         SDLMonitorWindow sdlMon;
+
+        VideoMode mode_;
+
+        static constexpr int SCALE = 3;
+
 
         std::function<void()> guiCallback;
         std::function<void(const SDL_Event&)> inputCallback;
@@ -79,13 +86,14 @@ class VideoOutput final : public IVideoSink
 
         bool frameReady;
 
-        uint32_t palette32[16];
+        std::array<uint32_t, 16> palette32;
 
         std::mutex renderMut;
 
         // Color helpers
-        SDL_Color getColor(uint8_t colorCode);
         SDL_FRect computeDestinationRect(int outputW, int outputH) const;
+
+        void rebuildPalette();
 };
 
 #endif // VIDEOOUTPUT_H

@@ -104,6 +104,7 @@ bool EmulationSession::initializeMachine()
     sid_.setMode(runtime_.videoMode);
     cia1_.setMode(runtime_.videoMode);
     cia2_.setMode(runtime_.videoMode);
+    videoOutput_.setMode(runtime_.videoMode);
     media_.setVideoMode(runtime_.videoMode);
 
     iecBus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
@@ -345,6 +346,8 @@ void EmulationSession::syncTimingFromRuntimeMode()
     lastVideoMode_ = runtime_.videoMode;
     lastCpuCfg_ = runtime_.cpuCfg;
 
+    videoOutput_.setMode(runtime_.videoMode);
+
     iecBus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
 
     frameDuration_ = std::chrono::duration<double, std::milli>(
@@ -352,7 +355,8 @@ void EmulationSession::syncTimingFromRuntimeMode()
     );
 
     nextFrameTime_ = std::chrono::steady_clock::now() +
-        std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameDuration_);
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            frameDuration_);
 
     audioStarted_ = false;
     audioCatchupMode_ = true;

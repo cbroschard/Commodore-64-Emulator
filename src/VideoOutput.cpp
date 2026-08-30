@@ -10,10 +10,54 @@
 #include <string>
 #include "VideoOutput.h"
 
+namespace
+{
+    const std::array<SDL_Color, 16> NTSC_COLORS =
+    {{
+        {0x00, 0x00, 0x00, 0xFF}, // $0 Black
+        {0xFF, 0xFF, 0xFF, 0xFF}, // $1 White
+        {0x9A, 0x46, 0x3B, 0xFF}, // $2 Red
+        {0x72, 0xC5, 0xCC, 0xFF}, // $3 Cyan
+        {0xA7, 0x52, 0xB1, 0xFF}, // $4 Purple
+        {0x5E, 0xB0, 0x54, 0xFF}, // $5 Green
+        {0x40, 0x32, 0xA4, 0xFF}, // $6 Blue
+        {0xD8, 0xDC, 0x79, 0xFF}, // $7 Yellow
+        {0xB3, 0x69, 0x2D, 0xFF}, // $8 Orange
+        {0x6E, 0x4D, 0x24, 0xFF}, // $9 Brown
+        {0xD4, 0x7A, 0x70, 0xFF}, // $A Light Red
+        {0x4B, 0x4B, 0x4B, 0xFF}, // $B Dark Gray
+        {0x78, 0x78, 0x78, 0xFF}, // $C Gray
+        {0x97, 0xDC, 0x8A, 0xFF}, // $D Light Green
+        {0x7C, 0x70, 0xD5, 0xFF}, // $E Light Blue
+        {0xAC, 0xAC, 0xAC, 0xFF}  // $F Light Gray
+    }};
+
+    const std::array<SDL_Color, 16> PAL_COLORS =
+    {{
+        {0x00, 0x00, 0x00, 0xFF},
+        {0xFF, 0xFF, 0xFF, 0xFF},
+        {0x68, 0x37, 0x2B, 0xFF},
+        {0x70, 0xA4, 0xB2, 0xFF},
+        {0x6F, 0x3D, 0x86, 0xFF},
+        {0x58, 0x8D, 0x43, 0xFF},
+        {0x35, 0x28, 0x79, 0xFF},
+        {0xB8, 0xC7, 0x6F, 0xFF},
+        {0x6F, 0x4F, 0x25, 0xFF},
+        {0x43, 0x39, 0x00, 0xFF},
+        {0x9A, 0x67, 0x59, 0xFF},
+        {0x44, 0x44, 0x44, 0xFF},
+        {0x6C, 0x6C, 0x6C, 0xFF},
+        {0x9A, 0xD2, 0x84, 0xFF},
+        {0x6C, 0x5E, 0xB5, 0xFF},
+        {0x95, 0x95, 0x95, 0xFF}
+    }};
+}
+
 VideoOutput::VideoOutput() :
     window(nullptr),
     renderer(nullptr),
     screenTexture(nullptr),
+    mode_(VideoMode::NTSC),
     visibleScreenWidth(320),
     visibleScreenHeight(200),
     borderSize(32),
@@ -86,13 +130,8 @@ VideoOutput::VideoOutput() :
     frontBuffer.assign(bufferSize, 0);
     backBuffer.assign(bufferSize, 0);
 
-    screenTexture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        screenWidthWithBorder,
-        screenHeightWithBorder
-    );
+    screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder,
+        screenHeightWithBorder);
 
     if (!screenTexture)
     {
@@ -112,16 +151,7 @@ VideoOutput::VideoOutput() :
     if (!SDL_SetTextureScaleMode(screenTexture, SDL_SCALEMODE_NEAREST))
         SDL_Log("Unable to set nearest texture filtering: %s", SDL_GetError());
 
-    const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_RGBA8888);
-
-    if (!format)
-        throw std::runtime_error(std::string("Unable to get pixel format details: ") + SDL_GetError());
-
-    for (int i = 0; i < 16; ++i)
-    {
-        const SDL_Color color =  getColor(static_cast<uint8_t>(i));
-        palette32[i] = SDL_MapRGBA(format, nullptr, color.r, color.g, color.b, 0xFF);
-    }
+    rebuildPalette();
 }
 
 VideoOutput::~VideoOutput()
@@ -147,6 +177,13 @@ VideoOutput::~VideoOutput()
         SDL_DestroyWindow(window);
         window = nullptr;
     }
+}
+
+void VideoOutput::setMode(VideoMode mode)
+{
+    mode_ = mode;
+
+    rebuildPalette();
 }
 
 void VideoOutput::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
@@ -369,31 +406,6 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
     SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
 }
 
-SDL_Color VideoOutput::getColor(uint8_t colorCode)
-{
-    static const SDL_Color colors[16] =
-    {
-        {0x00, 0x00, 0x00}, // $0 black
-        {0xFF, 0xFF, 0xFF}, // $1 white
-        {0x68, 0x37, 0x2B}, // $2 red
-        {0x70, 0xA4, 0xB2}, // $3 cyan
-        {0x6F, 0x3D, 0x86}, // $4 purple
-        {0x58, 0x8D, 0x43}, // $5 green
-        {0x35, 0x28, 0x79}, // $6 blue
-        {0xB8, 0xC7, 0x6F}, // $7 yellow
-        {0x6F, 0x4F, 0x25}, // $8 orange
-        {0x43, 0x39, 0x00}, // $9 brown
-        {0x9A, 0x67, 0x59}, // $A light red
-        {0x44, 0x44, 0x44}, // $B dark gray
-        {0x6C, 0x6C, 0x6C}, // $C gray
-        {0x9A, 0xD2, 0x84}, // $D light green
-        {0x6C, 0x5E, 0xB5}, // $E light blue
-        {0x95, 0x95, 0x95}  // $F light gray
-    };
-
-    return colors[colorCode & 0x0F];
-}
-
 SDL_FRect VideoOutput::computeDestinationRect(int outputW, int outputH) const
 {
     const float sourceWidth     = static_cast<float>(screenWidthWithBorder);
@@ -413,4 +425,20 @@ SDL_FRect VideoOutput::computeDestinationRect(int outputW, int outputH) const
     destination.y = (static_cast<float>(outputH) - drawHeight) / 2.0f;
 
     return destination;
+}
+
+void VideoOutput::rebuildPalette()
+{
+    const auto& source = (mode_ == VideoMode::PAL) ? PAL_COLORS : NTSC_COLORS;
+
+    const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_RGBA8888);
+
+    if (!format)
+        throw std::runtime_error(std::string("Unable to get pixel format details: ") + SDL_GetError());
+
+    for (int i = 0; i < 16; ++i)
+    {
+        const SDL_Color& color = source[i];
+        palette32[i] = SDL_MapRGBA(format, nullptr, color.r, color.g, color.b, 0xFF);
+    }
 }
