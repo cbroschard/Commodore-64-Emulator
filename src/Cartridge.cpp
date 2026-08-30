@@ -56,7 +56,6 @@
 #include "Bus.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
-#include "Memory.h"
 #include "Vic.h"
 
 Cartridge::Cartridge() :
@@ -66,7 +65,6 @@ Cartridge::Cartridge() :
     cpu(nullptr),
     dataBus(nullptr),
     host(nullptr),
-    mem(nullptr),
     traceMgr(nullptr),
     vic(nullptr),
     wiringMode(WiringMode::NONE),
@@ -775,15 +773,8 @@ bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
 
 bool Cartridge::loadIntoMemory()
 {
-    if (!mem)
-    {
-        throw std::runtime_error("Unable to load cartridge as there is no pointer to memory!");
-    }
-
     if (mapper)
-    {
         return mapper->loadIntoMemory(currentBank);
-    }
 
     // Iterate through only the sections for the current bank.
     for (const auto &section : chipSections)
@@ -902,11 +893,6 @@ bool Cartridge::loadIntoMemory()
 
 void Cartridge::clearCartridge(cartLocation location)
 {
-    if (!mem)
-    {
-        throw std::runtime_error("Unable to clear cartridge memory, no memory object");
-    }
-
     const uint16_t area_size = 8192; // 8KB
 
     // Iterate through all offsets in the 8KB block and write 0xFF

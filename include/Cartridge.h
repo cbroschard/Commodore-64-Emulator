@@ -26,7 +26,6 @@
 // Forward declarations
 class CPU;
 class DataBusLatch;
-class Memory;
 class Vic;
 
 class Cartridge
@@ -39,7 +38,6 @@ class Cartridge
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachHostInstance(ICartridgeHost* host) { this->host = host; }
-        inline void attachMemoryInstance(Memory* mem) { this->mem = mem; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
@@ -201,7 +199,6 @@ class Cartridge
         CPU* cpu;
         DataBusLatch* dataBus;
         ICartridgeHost* host;
-        Memory* mem;
         TraceManager* traceMgr;
         Vic* vic;
 
