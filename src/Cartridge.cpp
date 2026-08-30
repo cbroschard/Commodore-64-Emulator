@@ -78,6 +78,10 @@ Cartridge::Cartridge() :
     // defaults
     header.exROMLine = true;
     header.gameLine = true;
+
+    cart_lo.resize(CART_LO_SIZE,0);
+    cart_hi.resize(CART_HI_SIZE,0);
+    cart_hi_e000.resize(CART_HI_E000_SIZE,0);
 }
 
 Cartridge::~Cartridge()
@@ -646,6 +650,30 @@ void Cartridge::writeRAM(size_t offset, uint8_t value)
     }
 
     ramData[offset] = value;
+}
+
+uint8_t Cartridge::readCartridge(uint16_t offset, cartLocation location) const
+{
+    switch (location)
+    {
+        case cartLocation::LO:
+            if (offset >= cart_lo.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge lo");
+            return cart_lo[offset];
+
+        case cartLocation::HI:
+            if (offset >= cart_hi.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi");
+            return cart_hi[offset];
+
+        case cartLocation::HI_E000:
+            if (offset >= cart_hi_e000.size())
+                throw std::runtime_error("Error: Attempt to read past end of cartridge hi e000");
+            return cart_hi_e000[offset];
+
+        default:
+            return 0xFF;
+    }
 }
 
 bool Cartridge::setCurrentBank(uint8_t bank)
