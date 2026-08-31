@@ -1758,23 +1758,40 @@ void Vic::outputPixel(int raster, int x)
 
     if (currentCycleSlot.graphicsFetch)
     {
-        const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
+        const int fetchColumn =
+            currentCycleSlot.graphicsFetchIndex;
 
-        if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+        if (fetchColumn >= 0 &&
+            fetchColumn < BACKGROUND_MATRIX_COLUMNS)
         {
-            const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+            const BackgroundGraphicsLatch& latch =
+                backgroundGraphicsLatches[fetchColumn];
 
             if (latch.valid)
             {
-                const int xScroll = static_cast<int>(d016XScroll(latch.d016));
-                const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
+                const int xScroll =
+                    static_cast<int>(d016XScroll(latch.d016));
+
+                const int reloadX =
+                    cycleFramebufferX(currentCycle) + xScroll;
 
                 if (x == reloadX)
                 {
-                    if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap)
-                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                    if (latch.mode == graphicsMode::bitmap ||
+                        latch.mode == graphicsMode::multicolorBitmap)
+                    {
+                        loadActiveStandardBitmapPixelStateFromLatch(
+                            raster,
+                            fetchColumn,
+                            x);
+                    }
                     else
-                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                    {
+                        loadActiveStandardTextPixelStateFromLatch(
+                            raster,
+                            fetchColumn,
+                            x);
+                    }
                 }
             }
         }
