@@ -1634,9 +1634,9 @@ void Vic::advanceCharacterSequencerAtCycle58()
 
 void Vic::runFetchPhase()
 {
-    performBackgroundGraphicsFetchForCurrentCycle();
+    const bool graphicsAccessCompleted = performBackgroundGraphicsFetchForCurrentCycle();
 
-    if (currentCycleSlot.graphicsFetch)
+    if (graphicsAccessCompleted)
         advanceGraphicsSequencerAfterGAccess();
 
     // Sprite pointer fetches can share a cycle with the previous
@@ -1844,21 +1844,23 @@ void Vic::outputPixel(int raster, int x)
         activeBgPixel.valid = false;
 }
 
-void Vic::performBackgroundGraphicsFetchForCurrentCycle()
+bool Vic::performBackgroundGraphicsFetchForCurrentCycle()
 {
     if (!currentCycleSlot.graphicsFetch)
-        return;
+        return false;
 
     const int column = currentCycleSlot.graphicsFetchIndex;
 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
-        return;
+        return false;
 
     if (!vicState.displayEnabled)
-        return;
+        return false;
 
     const int fetchPixelX = cyclePixelX(currentCycle);
+
     const int outputX = cycleFramebufferX(currentCycle);
+
     const int registerSampleX = rasterEventPixelX(currentCycle);
 
     const uint8_t d011 = d011ForRasterPixelX(registers.raster, registerSampleX, false);
@@ -1876,7 +1878,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
         mode != graphicsMode::illegalBitmap &&
         mode != graphicsMode::illegalMulticolorBitmap)
     {
-        return;
+        return false;
     }
 
     traceBackgroundGraphicsFetch(registers.raster, currentCycle, column, fetchPixelX, outputX);
@@ -1898,8 +1900,10 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
             break;
 
         default:
-            break;
+            return false;
     }
+
+    return backgroundGraphicsLatches[column].valid;
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
