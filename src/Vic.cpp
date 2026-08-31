@@ -1849,7 +1849,7 @@ void Vic::performBackgroundGraphicsFetchForCurrentCycle()
     if (!currentCycleSlot.graphicsFetch)
         return;
 
-    const int column = static_cast<int>(vicState.vmliFetchIndex);
+    const int column = currentCycleSlot.graphicsFetchIndex;
 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
