@@ -1234,10 +1234,15 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
                 if ((falling & bit) == 0)
                     continue;
 
-                spriteUnits[sprite].yExpandFlipFlop = true;
+                SpriteUnit& unit = spriteUnits[sprite];
 
-                if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1 && spriteUnits[sprite].dmaActive)
-                    spriteUnits[sprite].yCrunchPending = true;
+                // Clearing MxYE sets the vertical expansion flip-flop.
+                unit.yExpandFlipFlop = true;
+
+                // A clear during the first MCBASE update stage
+                // causes the VIC-II sprite-crunch behavior.
+                if (unit.dmaActive && currentCycle == cfg_->spriteMcBaseAdvanceCycle1)
+                    unit.yCrunchPending = true;
             }
 
             traceVicRegWrite(address, oldValue, registers.spriteYExpansion);
