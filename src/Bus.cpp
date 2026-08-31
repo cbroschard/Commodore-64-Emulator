@@ -549,7 +549,7 @@ uint8_t Bus::vicRead(uint16_t vicAddress, uint16_t raster)
     // VIC has a 14-bit address bus.
     vicAddress &= 0x3FFF;
 
-    const uint16_t bankBase = vic ? vic->getBankBaseFromVIC(raster) : 0;
+    const uint16_t bankBase = cia2 ? cia2->getCurrentVICBank() : 0;
 
     // Character ROM is visible to the VIC in banks 0 and 2
     // at VIC-local $1000-$1FFF.
