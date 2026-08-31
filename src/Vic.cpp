@@ -1756,21 +1756,6 @@ void Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return;
 
-    const uint8_t d011 = d011ForRasterPixelX(raster, x, false);
-    const uint8_t d016 = d016ForRasterPixelX(raster, x, false);
-
-    const graphicsMode liveMode = graphicsModeFromRegisters(d011, d016);
-
-    if (liveMode != graphicsMode::standard &&
-        liveMode != graphicsMode::multicolor &&
-        liveMode != graphicsMode::bitmap &&
-        liveMode != graphicsMode::multicolorBitmap &&
-        liveMode != graphicsMode::extendedColorText &&
-        !isIllegalGraphicsMode(liveMode))
-    {
-        return;
-    }
-
     if (currentCycleSlot.graphicsFetch)
     {
         const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
