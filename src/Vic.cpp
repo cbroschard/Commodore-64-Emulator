@@ -1758,40 +1758,23 @@ void Vic::outputPixel(int raster, int x)
 
     if (currentCycleSlot.graphicsFetch)
     {
-        const int fetchColumn =
-            currentCycleSlot.graphicsFetchIndex;
+        const int fetchColumn = currentCycleSlot.graphicsFetchIndex;
 
-        if (fetchColumn >= 0 &&
-            fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+        if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
         {
-            const BackgroundGraphicsLatch& latch =
-                backgroundGraphicsLatches[fetchColumn];
+            const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
 
             if (latch.valid)
             {
-                const int xScroll =
-                    static_cast<int>(d016XScroll(latch.d016));
-
-                const int reloadX =
-                    cycleFramebufferX(currentCycle) + xScroll;
+                const int xScroll = static_cast<int>(d016XScroll(latch.d016));
+                const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
                 if (x == reloadX)
                 {
-                    if (latch.mode == graphicsMode::bitmap ||
-                        latch.mode == graphicsMode::multicolorBitmap)
-                    {
-                        loadActiveStandardBitmapPixelStateFromLatch(
-                            raster,
-                            fetchColumn,
-                            x);
-                    }
+                    if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap)
+                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
                     else
-                    {
-                        loadActiveStandardTextPixelStateFromLatch(
-                            raster,
-                            fetchColumn,
-                            x);
-                    }
+                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
                 }
             }
         }
@@ -5468,16 +5451,16 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
 
     if (s.slot.graphicsFetch)
     {
-        const int fetchColumn = static_cast<int>(vicState.vmliFetchIndex) - 1;
+        const int fetchColumn = s.slot.graphicsFetchIndex;
 
         if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
         {
             const int registerSampleX = rasterEventPixelX(cycle);
+
             const uint8_t d016 = d016ForRasterPixelX(raster, registerSampleX, false);
-            const int xScroll =  static_cast<int>(d016 & 0x07);
+            const int xScroll = static_cast<int>(d016 & 0x07);
 
             s.graphicsReloadColumn = fetchColumn;
-
             s.graphicsReloadX = cycleFramebufferX(cycle) + xScroll;
         }
     }
