@@ -4762,6 +4762,16 @@ uint16_t Vic::visibleRasterForIRQCompare() const
     if (registers.raster >= cfg_->maxRasterLines)
         return 0;
 
+    // VIC-II special case:
+    //
+    // On raster 0, the raster counter reset occurs one cycle later
+    // than the normal raster-line increment. Internally our raster
+    // has already wrapped to 0 at this point, so during cycle 0 the
+    // externally/comparator-visible counter must still represent
+    // the final raster of the previous frame.
+    if (registers.raster == 0 && currentCycle == 0)
+        return static_cast<uint16_t>(cfg_->maxRasterLines - 1);
+
     return static_cast<uint16_t>(registers.raster);
 }
 
@@ -4769,6 +4779,12 @@ uint16_t Vic::visibleRasterForRead() const
 {
     if (registers.raster >= cfg_->maxRasterLines)
         return 0;
+
+    // Same raster-0 delayed-counter-reset behavior as the IRQ
+    // comparator. $D011/$D012 still expose the previous raster
+    // during cycle 0 of our internally designated raster 0.
+    if (registers.raster == 0 && currentCycle == 0)
+        return static_cast<uint16_t>(cfg_->maxRasterLines - 1);
 
     return static_cast<uint16_t>(registers.raster);
 }
