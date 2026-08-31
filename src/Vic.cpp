@@ -1935,18 +1935,28 @@ void Vic::performBadLineFetchesForCurrentCycle()
     {
         const uint8_t cpuBusValue = getOpenBus();
 
-        // Invalid late c-access:
-        // character byte reads as $FF while the color nibble is
-        // sourced from the shared/open data bus.
         cAccessScreenLatch = 0xFF;
         cAccessColorLatch = static_cast<uint8_t>(cpuBusValue & 0x0F);
+
         cAccessLatchValid = true;
         cAccessLatchIndex = fetchIndex;
 
-        if (activeMatrixRow.valid)
+        if (activeMatrixRow.valid && activeMatrixRow.vcBase == vicState.vmliBase)
         {
+            // An invalid late c-access still loads the matrix latch,
+            // but with the values seen on the VIC data bus.
+            activeMatrixRow.screen[fetchIndex] = cAccessScreenLatch;
+
+            activeMatrixRow.color[fetchIndex] = cAccessColorLatch;
+
+            activeMatrixRow.fetched[fetchIndex] = 1;
+
+            // Preserve diagnostics indicating that this was not
+            // a normal successful c-access.
             activeMatrixRow.invalid[fetchIndex] = 1;
+
             activeMatrixRow.invalidScreen[fetchIndex] = cAccessScreenLatch;
+
             activeMatrixRow.invalidColor[fetchIndex] = cAccessColorLatch;
         }
     }
