@@ -2997,17 +2997,19 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
     if (raster != registers.raster)
         return false;
 
-    if (!vicState.badLine)
+    // The live Bad Line Condition can disappear after the
+    // c-access sequence has already begun. Once started,
+    // matrix DMA continues through the remaining c-access slots.
+    const bool dmaActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+
+    if (!dmaActive)
         return false;
 
     if (vicState.badLineDmaStartCycle < 0)
         return false;
 
-    if (cycle < vicState.badLineDmaStartCycle ||
-        cycle > cfg_->DMAEndCycle)
-    {
+    if (cycle < vicState.badLineDmaStartCycle || cycle > cfg_->DMAEndCycle)
         return false;
-    }
 
     return getFetchKindForCycle(raster, cycle) == FetchKind::CharMatrix;
 }
@@ -3017,7 +3019,9 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     if (raster != registers.raster)
         return false;
 
-    if (!vicState.badLine)
+    const bool dmaActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+
+    if (!dmaActive)
         return false;
 
     if (vicState.badLineDmaStartCycle < 0)
@@ -3435,7 +3439,8 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool useCAccessLatch = cAccessLatchValid && cAccessLatchIndex == column && vicState.badLine;
+    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
     {
@@ -3561,7 +3566,8 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool useCAccessLatch = cAccessLatchValid && cAccessLatchIndex == column && vicState.badLine;
+    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
     {
