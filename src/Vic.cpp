@@ -27,7 +27,6 @@ Vic::Vic(VideoMode mode) :
     d011_per_raster.resize(cfg_->maxRasterLines);
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
-    dd00_per_raster.resize(cfg_->maxRasterLines);
 
     rasterEventsByRaster.resize(cfg_->maxRasterLines);
     lastFrameRasterEventsByRaster.resize(cfg_->maxRasterLines);
@@ -201,10 +200,6 @@ void Vic::reset()
 
     resetActiveBackgroundPixelState();
 
-    // Fill in DD00
-    uint16_t currentVICBank = cia2 ? cia2->getCurrentVICBank() : 0;
-    std::fill(std::begin(dd00_per_raster), std::end(dd00_per_raster), currentVICBank);
-
     // Rebuild Border Latches
     rebuildBorderRasterLatches();
 
@@ -237,7 +232,6 @@ void Vic::setMode(VideoMode mode)
     d011_per_raster.resize(cfg_->maxRasterLines);
     d016_per_raster.resize(cfg_->maxRasterLines);
     d018_per_raster.resize(cfg_->maxRasterLines);
-    dd00_per_raster.resize(cfg_->maxRasterLines);
 
     rasterEventsByRaster.resize(cfg_->maxRasterLines);
     lastFrameRasterEventsByRaster.resize(cfg_->maxRasterLines);
@@ -463,7 +457,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeVectorU8(d011_per_raster);
     wrtr.writeVectorU8(d016_per_raster);
     wrtr.writeVectorU8(d018_per_raster);
-    wrtr.writeVectorU16(dd00_per_raster);
 
     // Background graphics latches
     for (const auto& latch : backgroundGraphicsLatches)
@@ -760,7 +753,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readVectorU8(d011_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d016_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d018_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU16(dd00_per_raster))                        { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 2)
         {
@@ -1516,8 +1508,6 @@ void Vic::handleCycle0Decisions()
     d011_per_raster[raster] = registers.control & 0x7F;
     d016_per_raster[raster] = registers.control2 & 0x1F;
     d018_per_raster[raster] = registers.memory_pointer & 0xFE;
-
-    latchNextRasterDD00();
 
     borderVerticalStart_per_raster[raster] = vicState.verticalBorder ? 1 : 0;
 
@@ -2512,7 +2502,7 @@ void Vic::fetchSpritePointer(int sprite, int raster)
         return;
 
     const uint16_t ptrLoc = spritePointerAddressForRaster(sprite, raster, currentCycle);
-    const uint8_t ptr = bus->vicRead(ptrLoc, raster);
+    const uint8_t ptr = bus->vicRead(ptrLoc);
 
     // Latch Open Bus
     updateOpenBus(ptr);
@@ -2862,7 +2852,7 @@ void Vic::fetchSpriteDataByte(int sprite, int byteIndex, int raster)
     else if (byteIndex == 2)
         unit.lastFetchAddr2 = addr;
 
-    const uint8_t value = bus->vicRead(addr, raster);
+    const uint8_t value = bus->vicRead(addr);
 
     updateOpenBus(value);
 
@@ -3377,7 +3367,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
     const uint16_t screenAddress = static_cast<uint16_t>(screenBase + vc);
 
-    const uint8_t screenByte = bus->vicRead(screenAddress, raster);
+    const uint8_t screenByte = bus->vicRead(screenAddress);
 
     // Color RAM is selected independently of D018.
     const uint16_t colorAddress = static_cast<uint16_t>(COLOR_MEMORY_START + vc);
@@ -3463,7 +3453,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     const uint16_t charBase = static_cast<uint16_t>(((d018 >> 1) & 0x07) * 0x0800);
     const uint16_t charAddr = static_cast<uint16_t>(charBase + static_cast<uint16_t>(charIndex) * 8
                                 + static_cast<uint16_t>(vicState.rc & 0x07));
-    const uint8_t graphicsByte = bus ? bus->vicRead(charAddr, raster) : 0x00;
+    const uint8_t graphicsByte = bus ? bus->vicRead(charAddr) : 0x00;
 
     updateOpenBus(graphicsByte);
 
@@ -3595,7 +3585,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
         bitmapAddress &= static_cast<uint16_t>(~0x0600);
     }
 
-    const uint8_t graphicsByte = bus ? bus->vicRead(bitmapAddress, raster) : 0x00;
+    const uint8_t graphicsByte = bus ? bus->vicRead(bitmapAddress) : 0x00;
 
     updateOpenBus(graphicsByte);
 
@@ -5311,14 +5301,6 @@ uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
     return value;
 }
 
-void Vic::latchNextRasterDD00()
-{
-    const int raster = registers.raster;
-    const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
-
-    dd00_per_raster[nextRaster] = cia2 ? cia2->getCurrentVICBank() : 0;
-}
-
 void Vic::updateOpenBus(uint8_t value)
 {
     if (dataBus)
@@ -5331,7 +5313,7 @@ void Vic::performIdleFetchForCurrentCycle()
         return;
 
     const uint16_t addr = IDLE_FETCH_ADDRESS;
-    const uint8_t value = bus->vicRead(addr, registers.raster);
+    const uint8_t value = bus->vicRead(addr);
 
     updateOpenBus(value);
 }
@@ -5373,7 +5355,7 @@ std::string Vic::getVICBanks() const
         static_cast<int>(cfg_->maxRasterLines - 1)
     );
 
-    const uint16_t bankBase = dd00_per_raster[raster];
+    const uint16_t bankBase = cia2 ? cia2->getCurrentVICBank() : 0;
 
     // Representative display X for monitor reporting.
     // Actual rendering remains pixel-aware across the whole raster.
@@ -5659,7 +5641,7 @@ Vic::VicRegisterDebugSnapshot Vic::getRegisterDebugSnapshot() const
     s.latchedD011 = d011_per_raster[r];
     s.latchedD016 = d016_per_raster[r];
     s.latchedD018 = d018_per_raster[r];
-    s.latchedDD00 = dd00_per_raster[r];
+    s.latchedDD00 = cia2 ? cia2->getCurrentVICBank() : 0;
 
     s.charBase = charBaseCache;
     s.screenBase = screenBaseCache;
@@ -5773,7 +5755,7 @@ void Vic::updateMonitorCaches(int raster)
     if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
         raster = 0;
 
-    const uint16_t currentVICBank = dd00_per_raster[raster];
+    const uint16_t currentVICBank = cia2 ? cia2->getCurrentVICBank() : 0;
 
     // Use a representative visible display X for monitor/debug cache reporting.
     // Rendering itself remains pixel-aware through charBaseForRasterPixelX(),
@@ -5789,7 +5771,7 @@ void Vic::updateMonitorCaches(int raster)
 
 uint8_t Vic::vicReadForDebug(uint16_t address, int raster) const
 {
-    return bus ? bus->vicRead(address, raster) : 0;
+    return bus ? bus->vicRead(address) : 0;
 }
 
 uint8_t Vic::vicReadColorForDebug(uint16_t address) const
@@ -6597,18 +6579,9 @@ void Vic::postLoadState()
             v.assign(cfg_->maxRasterLines, fill);
     };
 
-    auto fixSizeU16 = [&](std::vector<uint16_t>& v, uint16_t fill)
-    {
-        if (v.size() != static_cast<size_t>(cfg_->maxRasterLines))
-            v.assign(cfg_->maxRasterLines, fill);
-    };
-
     fixSizeU8(d011_per_raster, registers.control & 0x7F);
     fixSizeU8(d016_per_raster, registers.control2 & 0x1F);
     fixSizeU8(d018_per_raster, registers.memory_pointer & 0xFE);
-
-    const uint16_t defaultBank = cia2 ? cia2->getCurrentVICBank() : 0;
-    fixSizeU16(dd00_per_raster, defaultBank);
 
     fixSizeU8(borderVertical_per_raster, vicState.verticalBorder ? 1 : 0);
     fixSizeU8(borderVerticalStart_per_raster, vicState.verticalBorder ? 1 : 0);

@@ -82,9 +82,6 @@ class Vic
         // Getter for current graphics mode
         inline graphicsMode getCurrentGraphicsMode() const {  return currentMode; }
 
-        // Getter for Memory VIC Read for CIA2 Bank Base
-        inline uint16_t getBankBaseFromVIC(int raster) { return dd00_per_raster[raster]; }
-
         // Reset to power on defaults
         void reset();
 
@@ -800,7 +797,6 @@ class Vic
         std::vector<uint8_t> d011_per_raster;
         std::vector<uint8_t> d016_per_raster;
         std::vector<uint8_t> d018_per_raster;
-        std::vector<uint16_t> dd00_per_raster;
 
         // Border latches
         std::vector<uint8_t> borderVertical_per_raster;
@@ -842,9 +838,6 @@ class Vic
         inline int getSpriteIndex(uint16_t address) const { return (address - 0xD000) / 2; }
         inline int getSpriteColorIndex(uint16_t address) const { return (address - 0xD027); }
         inline bool isSpriteX(uint16_t address) const { return ((address - 0xD000) % 2) == 0; }
-
-        // DD00 latch
-        void latchNextRasterDD00();
 
         // OpenBus helper
         void updateOpenBus(uint8_t value);

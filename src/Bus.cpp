@@ -544,7 +544,7 @@ void Bus::writeIO(uint16_t address, uint8_t value)
     }
 }
 
-uint8_t Bus::vicRead(uint16_t vicAddress, uint16_t raster)
+uint8_t Bus::vicRead(uint16_t vicAddress)
 {
     // VIC has a 14-bit address bus.
     vicAddress &= 0x3FFF;

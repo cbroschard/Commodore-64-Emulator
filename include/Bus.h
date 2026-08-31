@@ -64,7 +64,7 @@ class Bus : public CPUBus
         uint8_t readForDMA(uint16_t address);
         void writeForDMA(uint16_t address, uint8_t value);
 
-        uint8_t vicRead(uint16_t address, uint16_t raster);
+        uint8_t vicRead(uint16_t address);
         uint8_t vicReadColor(uint16_t address) const;
 
         uint8_t peek(uint16_t address) const override;
