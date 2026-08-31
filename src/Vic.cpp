@@ -2196,8 +2196,10 @@ void Vic::advanceSpriteMCBaseSecondStep()
         {
             traceVicSpriteSlotEvent(sprite, "dma-stop", registers.raster, currentCycle);
 
-            clearSpriteFetchedRowState(sprite);
-            resetSpriteDMAState(sprite);
+            // Sprite DMA is complete, but the already-prepared output
+            // sequencer must be allowed to finish the current raster.
+            unit.dmaActive = false;
+            unit.yCrunchPending = false;
         }
     }
 }
