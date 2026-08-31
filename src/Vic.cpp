@@ -1566,11 +1566,12 @@ void Vic:: handleBadLineFetchStartDecisions()
 void Vic::handleDmaStartCycleDecisions()
 {
     const int raster = registers.raster;
+
     const uint16_t nextRaster = (raster + 1) % cfg_->maxRasterLines;
 
     d011_per_raster[nextRaster] = registers.control & 0x7F;
-    d016_per_raster[nextRaster] = registers.control2;
-    d018_per_raster[nextRaster] = registers.memory_pointer;
+    d016_per_raster[nextRaster] = registers.control2 & 0x1F;
+    d018_per_raster[nextRaster] = registers.memory_pointer & 0xFE;
 }
 
 void Vic::handleCycle58Decisions()
