@@ -923,16 +923,10 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(static_cast<uint8_t>(registers.memory_pointer | 0x01));
 
         case 0xD019:
-        {
-            const uint8_t value = d019Read();
-            return latchOpenBusMasked(value, 0x8F);
-        }
+            return static_cast<uint8_t>(d019Read() | 0x70);
 
         case 0xD01A:
-        {
-            const uint8_t value = (registers.interruptEnable & 0x0F);
-            return latchOpenBusMasked(value, 0x0F);
-        }
+            return static_cast<uint8_t>(0xF0 | (registers.interruptEnable & 0x0F));
 
         case 0xD01B:
             return latchOpenBus(registers.spritePriority);
