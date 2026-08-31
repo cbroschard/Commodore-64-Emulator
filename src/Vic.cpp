@@ -1551,13 +1551,7 @@ void Vic::handleCycle14Decisions()
     if (badAtCycle14)
     {
         vicState.badLine = true;
-
-        // Preserve the actual BA/AEC timing established when the
-        // Bad Line Condition became active. For a normal bad line
-        // this will already be DMAStartCycle. For a late-created
-        // bad line it may be later.
-        if (vicState.badLineDmaStartCycle < 0)
-            vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
+        vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
