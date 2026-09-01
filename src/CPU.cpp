@@ -5309,6 +5309,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readLo.useMicroAddress = false;
             readLo.index = CpuIndexReg::None;
             readLo.action = CpuMicroAction::None;
+
+            // IRQ is sampled on the penultimate cycle.
+            readLo.pollInterrupts = true;
+
             pushMicroOp(readLo);
 
             CpuMicroOp readHi;
@@ -5357,6 +5361,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readPtrLo.useMicroAddress = true;
             readPtrLo.index = CpuIndexReg::None;
             readPtrLo.action = CpuMicroAction::None;
+
+            // IRQ is sampled on the penultimate cycle.
+            readPtrLo.pollInterrupts = true;
+
             pushMicroOp(readPtrLo);
 
             CpuMicroOp readPtrHi;
