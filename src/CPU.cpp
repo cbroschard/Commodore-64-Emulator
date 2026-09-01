@@ -6151,6 +6151,7 @@ void CPU::buildIndirectXRead(CpuMicroAction action)
     readHiAndBuild.useMicroAddress = false;
     readHiAndBuild.index = CpuIndexReg::None;
     readHiAndBuild.action = CpuMicroAction::None;
+    readHiAndBuild.pollInterrupts = true;
     pushMicroOp(readHiAndBuild);
 
     CpuMicroOp readValue;
