@@ -5826,13 +5826,18 @@ void CPU::buildAbsoluteIndexedLoad(CpuIndexReg index, CpuMicroAction action)
 
     // Read address high byte and apply X/Y in the same bus cycle.
     CpuMicroOp readHiAndApplyIndex;
-    readHiAndApplyIndex.kind = CpuMicroOpKind::OperandReadHighToAddressAndApplyAbsoluteIndex;
+    readHiAndApplyIndex.kind =
+        CpuMicroOpKind::OperandReadHighToAddressAndApplyAbsoluteIndex;
     readHiAndApplyIndex.busType = CpuBusCycleType::Read;
     readHiAndApplyIndex.address = 0;
     readHiAndApplyIndex.value = 0;
     readHiAndApplyIndex.useMicroAddress = false;
     readHiAndApplyIndex.index = index;
     readHiAndApplyIndex.action = CpuMicroAction::None;
+
+    // Penultimate cycle when there is no page crossing.
+    readHiAndApplyIndex.pollInterrupts = true;
+
     pushMicroOp(readHiAndApplyIndex);
 
     // Only runs if page crossed. The readHiAndApplyIndex op skips this
@@ -5845,6 +5850,11 @@ void CPU::buildAbsoluteIndexedLoad(CpuIndexReg index, CpuMicroAction action)
     dummy.useMicroAddress = false;
     dummy.index = CpuIndexReg::None;
     dummy.action = CpuMicroAction::None;
+
+    // If page crossing occurred, this is the actual penultimate cycle
+    // and replaces the earlier IRQ sample.
+    dummy.pollInterrupts = true;
+
     pushMicroOp(dummy);
 
     // Read final value.
