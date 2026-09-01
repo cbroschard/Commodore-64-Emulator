@@ -6695,6 +6695,7 @@ void CPU::buildStackPush(CpuMicroAction action)
     dummy.useMicroAddress = false;
     dummy.index = CpuIndexReg::None;
     dummy.action = CpuMicroAction::None;
+    dummy.pollInterrupts = true;
     pushMicroOp(dummy);
 
     CpuMicroOp pushOp;
