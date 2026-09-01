@@ -5946,6 +5946,7 @@ void CPU::buildImmediateAction(CpuMicroAction action)
     op.useMicroAddress = false;
     op.index = CpuIndexReg::None;
     op.action = action;
+    op.pollInterrupts = true;
 
     pushMicroOp(op);
 }
