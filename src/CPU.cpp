@@ -6079,6 +6079,10 @@ void CPU::buildZeroPageIndexedStore(CpuIndexReg index, CpuMicroAction action)
     dummyAndIndex.useMicroAddress = true;
     dummyAndIndex.index = index;
     dummyAndIndex.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    dummyAndIndex.pollInterrupts = true;
+
     pushMicroOp(dummyAndIndex);
 
     CpuMicroOp writeValue;
