@@ -6393,6 +6393,10 @@ void CPU::buildIndirectXStore(CpuMicroAction action)
     readHiAndBuild.useMicroAddress = false;
     readHiAndBuild.index = CpuIndexReg::None;
     readHiAndBuild.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    readHiAndBuild.pollInterrupts = true;
+
     pushMicroOp(readHiAndBuild);
 
     CpuMicroOp writeValue;
