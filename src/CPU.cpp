@@ -4567,6 +4567,7 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             op.value = 0;
             op.useMicroAddress = false;
             op.action = CpuMicroAction::FinishNOP;
+            op.pollInterrupts = true;
             pushMicroOp(op);
             break;
         }
