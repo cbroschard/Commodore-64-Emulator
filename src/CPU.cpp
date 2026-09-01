@@ -6001,6 +6001,10 @@ void CPU::buildZeroPageStore(CpuMicroAction action)
     readOperand.value = 0;
     readOperand.useMicroAddress = false;
     readOperand.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    readOperand.pollInterrupts = true;
+
     pushMicroOp(readOperand);
 
     // Write selected register to $00xx.
