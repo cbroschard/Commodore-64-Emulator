@@ -843,6 +843,7 @@ class CPU
         // NMI scheduling
         bool nmiPending;
         bool nmiLine;
+        bool microBRKNMIHijacked;
 
         // IRQ delay
         bool irqSuppressOne;

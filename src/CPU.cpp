@@ -58,6 +58,7 @@ CPU::CPU() :
     microRMWNewValue(0),
     nmiPending(false),
     nmiLine(false),
+    microBRKNMIHijacked(false),
     irqSuppressOne(false),
     irqPendingSampled(false),
     irqPollValid(false),
@@ -281,6 +282,7 @@ void CPU::reset()
     pendingOpcodeAddress        = 0;
     nmiPending                  = false;
     nmiLine                     = false;
+    microBRKNMIHijacked         = false;
     irqSuppressOne              = false;
     irqPendingSampled           = false;
     irqPollValid                = false;
@@ -3904,7 +3906,19 @@ bool CPU::executeCurrentMicroOp()
             SP = uint8_t(SP - 1);
 
             if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)
+            {
                 setFlag(I, true);
+
+                if (op.action == CpuMicroAction::PushBRKStatus &&
+                    nmiPending)
+                {
+                    microBRKNMIHijacked = true;
+                    nmiPending = false;
+
+                    if (traceMgr)
+                        traceMgr->recordCPUNMI("NMI hijacked BRK vector", makeCpuStamp());
+                }
+            }
 
             break;
         }
@@ -4374,14 +4388,16 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroAction::ReadBRKVectorLow:
         {
-            microVectorLow = bus->read(0xFFFE);
+            const uint16_t vectorAddress = microBRKNMIHijacked ? 0xFFFA : 0xFFFE;
+            microVectorLow = bus->read(vectorAddress);
             break;
         }
 
         case CpuMicroAction::ReadBRKVectorHigh:
         {
-            microVectorHigh = bus->read(0xFFFF);
-            PC = uint16_t(microVectorLow) |(uint16_t(microVectorHigh) << 8);
+            const uint16_t vectorAddress = microBRKNMIHijacked ? 0xFFFB : 0xFFFF;
+            const uint8_t high = bus->read(vectorAddress);
+            PC = static_cast<uint16_t>(microVectorLow) | (static_cast<uint16_t>(high) << 8);
             break;
         }
 
@@ -7009,6 +7025,8 @@ void CPU::buildRTS()
 
 void CPU::buildBRK()
 {
+    microBRKNMIHijacked = false;
+
     CpuMicroOp dummy;
     dummy.kind = CpuMicroOpKind::DummyRead;
     dummy.busType = CpuBusCycleType::DummyRead;
