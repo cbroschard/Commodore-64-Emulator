@@ -6845,6 +6845,7 @@ void CPU::buildRTS()
     pullHi.useMicroAddress = false;
     pullHi.index = CpuIndexReg::None;
     pullHi.action = CpuMicroAction::PullRTSHigh;
+    pullHi.pollInterrupts = true;
     pushMicroOp(pullHi);
 
     CpuMicroOp finish;
