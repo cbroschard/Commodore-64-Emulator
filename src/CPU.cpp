@@ -6791,6 +6791,7 @@ void CPU::buildJSR()
     pushLo.useMicroAddress = false;
     pushLo.index = CpuIndexReg::None;
     pushLo.action = CpuMicroAction::PushJSRReturnLow;
+    pushLo.pollInterrupts = true;
     pushMicroOp(pushLo);
 
     // Cycle 6: Read target high byte and jump.
