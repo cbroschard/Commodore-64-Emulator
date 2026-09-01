@@ -6966,6 +6966,7 @@ void CPU::buildRTI()
     pullLo.useMicroAddress = false;
     pullLo.index = CpuIndexReg::None;
     pullLo.action = CpuMicroAction::PullRTIPCLow;
+    pullLo.pollInterrupts = true;
     pushMicroOp(pullLo);
 
     CpuMicroOp pullHi;
