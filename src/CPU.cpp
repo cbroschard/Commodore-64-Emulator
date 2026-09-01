@@ -7660,61 +7660,10 @@ bool CPU::beginPendingInterruptMicroOps()
             traceMgr->recordCPUIRQ("[IRQ-ACCEPT-SAMPLED]", makeCpuStamp());
 
         buildInterruptMicroOps(CpuMicroSequenceType::IRQ, 0xFFFE);
-
         return true;
     }
 
-    /*
-     * Match the existing IRQ suppression behavior.
-     */
-    if (getFlag(I))
-    {
-        irqSuppressOne = false;
-        return false;
-    }
-
-    if (irqSuppressOne)
-    {
-        irqSuppressOne = false;
-        return false;
-    }
-
-    if (!IRQ || !IRQ->isIRQActive())
-        return false;
-
-    if (traceMgr)
-    {
-        std::ostringstream out;
-
-        out << "[IRQ-ACCEPT]"
-            << " PC=$"
-            << std::hex
-            << std::uppercase
-            << std::setw(4)
-            << std::setfill('0')
-            << PC
-
-            << " I="
-            << std::dec
-            << (getFlag(I) ? 1 : 0)
-
-            << " IRQ="
-            << ((IRQ && IRQ->isIRQActive()) ? 1 : 0)
-
-            << " raster=$"
-            << std::hex
-            << std::setw(3)
-            << (vic ? vic->getCurrentRaster() : 0)
-
-            << " dot="
-            << std::dec
-            << (vic ? vic->getRasterDot() : 0);
-
-        traceMgr->recordCPUIRQ(out.str(),  makeCpuStamp());
-    }
-
-    buildInterruptMicroOps(CpuMicroSequenceType::IRQ,0xFFFE);
-    return true;
+    return false;
 }
 
 void CPU::buildInterruptMicroOps(CpuMicroSequenceType type, uint16_t vectorAddress)
