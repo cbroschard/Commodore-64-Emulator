@@ -6451,6 +6451,10 @@ void CPU::buildIndirectYStore(CpuMicroAction action)
     dummy.useMicroAddress = false;
     dummy.index = CpuIndexReg::None;
     dummy.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    dummy.pollInterrupts = true;
+
     pushMicroOp(dummy);
 
     CpuMicroOp writeValue;
