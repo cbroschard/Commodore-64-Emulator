@@ -6679,6 +6679,7 @@ void CPU::buildAbsoluteIndexedRMW(CpuIndexReg index, CpuMicroAction action)
     dummyWriteAndCompute.useMicroAddress = true;
     dummyWriteAndCompute.index = CpuIndexReg::None;
     dummyWriteAndCompute.action = action;
+    dummyWriteAndCompute.pollInterrupts = true;
     pushMicroOp(dummyWriteAndCompute);
 
     CpuMicroOp finalWrite;
