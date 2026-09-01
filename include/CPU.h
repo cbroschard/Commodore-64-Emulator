@@ -889,7 +889,7 @@ class CPU
         void executeIRQ();
         void executeNMI();
 
-        void sampleIRQAtPollPoint();
+        void sampleIRQAtPollPoint(bool preserveExisting = false);
 
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);

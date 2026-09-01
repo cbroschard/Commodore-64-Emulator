@@ -528,9 +528,14 @@ void CPU::executeNMI()
     cycles += 7;
 }
 
-void CPU::sampleIRQAtPollPoint()
+void CPU::sampleIRQAtPollPoint(bool preserveExisting)
 {
-    irqPendingSampled = IRQ && IRQ->isIRQActive() && !getFlag(I);
+    const bool sampledIRQ = IRQ && IRQ->isIRQActive() && !getFlag(I);
+
+    if (preserveExisting && irqPollValid)
+        irqPendingSampled = irqPendingSampled || sampledIRQ;
+    else
+        irqPendingSampled = sampledIRQ;
 
     irqPollValid = true;
 
@@ -4033,7 +4038,10 @@ bool CPU::executeCurrentMicroOp()
     }
 
     if (op.pollInterrupts)
-        sampleIRQAtPollPoint();
+    {
+        const bool preserveExisting = op.kind == CpuMicroOpKind::BranchPageCrossDummyRead;
+        sampleIRQAtPollPoint(preserveExisting);
+    }
 
     switch (op.action)
     {
@@ -6783,6 +6791,7 @@ void CPU::buildBranch(CpuMicroAction action)
     pageDummy.useMicroAddress = false;
     pageDummy.index = CpuIndexReg::None;
     pageDummy.action = CpuMicroAction::None;
+    pageDummy.pollInterrupts = true;
     pushMicroOp(pageDummy);
 }
 
