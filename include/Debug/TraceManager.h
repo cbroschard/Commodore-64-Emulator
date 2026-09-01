@@ -176,6 +176,7 @@ class TraceManager
         void recordVicRaster(uint16_t line, uint16_t dot, bool irq, uint8_t d011, uint8_t d012, Stamp stamp);
         void recordVicIrq(bool level, Stamp stamp);
         void recordVicEvent(const std::string& text, Stamp stamp);
+        void recordVicIrqEvent(const std::string& text, Stamp stamp);
         void recordVicRegister(const std::string& text, Stamp stamp);
         void recordVicBadline(const std::string& text, Stamp stamp);
         void recordVicSprite(const std::string& text, Stamp stamp);

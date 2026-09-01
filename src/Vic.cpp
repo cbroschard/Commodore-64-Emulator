@@ -6249,7 +6249,7 @@ void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t n
         << " ISR=$" << std::hex << std::uppercase << std::setw(2) << int(registers.interruptStatus & 0x0F)
         << " IER=$" << std::setw(2) << int(registers.interruptEnable & 0x0F);
 
-    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+    traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
 }
 
 
@@ -6324,7 +6324,7 @@ void Vic::traceVicRasterRetargetTest(const char* reason, uint16_t oldLine, uint1
         << "->"
         << (irqAfter ? 1 : 0);
 
-    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+    traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicRegWrite(uint16_t address, uint8_t oldValue, uint8_t newValue) const
