@@ -6666,6 +6666,7 @@ void CPU::buildBranch(CpuMicroAction action)
     readOffset.useMicroAddress = false;
     readOffset.index = CpuIndexReg::None;
     readOffset.action = action;
+    readOffset.pollInterrupts = true;
     pushMicroOp(readOffset);
 
     CpuMicroOp takenDummy;
