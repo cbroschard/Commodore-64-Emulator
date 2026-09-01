@@ -5671,6 +5671,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::LoadAAndXFromTemp;
+
+            readImm.pollInterrupts = true;
+
             pushMicroOp(readImm);
             break;
         }
@@ -5702,8 +5705,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::AndImmediateThenCarryFromBit7;
-            pushMicroOp(readImm);
 
+            readImm.pollInterrupts = true;
+
+            pushMicroOp(readImm);
             break;
         }
 
@@ -5717,8 +5722,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::AndImmediateThenLsrA;
-            pushMicroOp(readImm);
 
+            readImm.pollInterrupts = true;
+
+            pushMicroOp(readImm);
             break;
         }
 
@@ -5732,8 +5739,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::StoreAAndXMinusImmediateToX;
-            pushMicroOp(readImm);
 
+            readImm.pollInterrupts = true;
+
+            pushMicroOp(readImm);
             break;
         }
 
@@ -5747,8 +5756,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::AndImmediateThenArrA;
-            pushMicroOp(readImm);
 
+            readImm.pollInterrupts = true;
+
+            pushMicroOp(readImm);
             break;
         }
 
@@ -5786,8 +5797,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readImm.useMicroAddress = false;
             readImm.index = CpuIndexReg::None;
             readImm.action = CpuMicroAction::LoadAFromXAndImmediate;
-            pushMicroOp(readImm);
 
+            readImm.pollInterrupts = true;
+
+            pushMicroOp(readImm);
             break;
         }
 
