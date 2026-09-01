@@ -5881,6 +5881,10 @@ void CPU::buildAbsoluteStore(CpuMicroAction action)
     readHi.useMicroAddress = false;
     readHi.index = CpuIndexReg::None;
     readHi.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    readHi.pollInterrupts = true;
+
     pushMicroOp(readHi);
 
     // Write selected register to full address.
