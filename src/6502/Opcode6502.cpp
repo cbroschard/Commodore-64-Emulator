@@ -285,11 +285,20 @@ const InstructionInfo OPCODES[256] =
 
 const std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> MNEMONIC_TO_OPCODE = [] {
     std::unordered_map<MnemonicKey, uint8_t, MnemonicKeyHash> map;
-    for (const auto& info : OPCODES) {
-        if (info.mnemonic) {
+
+    for (const auto& info : OPCODES)
+    {
+        if (info.mnemonic)
+        {
             MnemonicKey key{ info.mnemonic, info.mode };
             map[key] = info.opcode;
         }
     }
+
+    // Canonical official encodings where undocumented aliases
+    // share the same mnemonic/addressing mode.
+    map[MnemonicKey{"NOP", AddressingMode::Implied}]   = 0xEA;
+    map[MnemonicKey{"SBC", AddressingMode::Immediate}] = 0xE9;
+
     return map;
 }();
