@@ -3905,33 +3905,6 @@ bool CPU::executeCurrentMicroOp()
             bus->write(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
 
-            // IRQ/BRK vector selection occurs after the return-PC low push.
-            // An NMI recognized by this point hijacks the upcoming vector fetch.
-            if (nmiPending)
-            {
-                if (op.action == CpuMicroAction::PushInterruptReturnLow &&
-                    microSequenceType == CpuMicroSequenceType::IRQ)
-                {
-                    microInterruptVectorAddress = 0xFFFA;
-                    nmiPending = false;
-
-                    if (traceMgr)
-                        traceMgr->recordCPUNMI(
-                            "NMI hijacked IRQ vector",
-                            makeCpuStamp());
-                }
-                else if (op.action == CpuMicroAction::PushBRKReturnLow)
-                {
-                    microBRKNMIHijacked = true;
-                    nmiPending = false;
-
-                    if (traceMgr)
-                        traceMgr->recordCPUNMI(
-                            "NMI hijacked BRK vector",
-                            makeCpuStamp());
-                }
-            }
-
             if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)
             {
                 setFlag(I, true);
@@ -4405,7 +4378,20 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroAction::ReadBRKVectorLow:
         {
-            const uint16_t vectorAddress = microBRKNMIHijacked ? 0xFFFA : 0xFFFE;
+            if (nmiPending)
+            {
+                microBRKNMIHijacked = true;
+                nmiPending = false;
+
+                if (traceMgr)
+                    traceMgr->recordCPUNMI(
+                        "NMI hijacked BRK vector",
+                        makeCpuStamp());
+            }
+
+            const uint16_t vectorAddress =
+                microBRKNMIHijacked ? 0xFFFA : 0xFFFE;
+
             microVectorLow = bus->read(vectorAddress);
             break;
         }
@@ -4426,6 +4412,18 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroAction::ReadInterruptVectorLow:
         {
+            // NMI may hijack an IRQ up to the beginning of the
+            // vector-fetch window. Once selected here, keep the
+            // same vector for both low and high bytes.
+            if (microSequenceType == CpuMicroSequenceType::IRQ && nmiPending)
+            {
+                microInterruptVectorAddress = 0xFFFA;
+                nmiPending = false;
+
+                if (traceMgr)
+                    traceMgr->recordCPUNMI("NMI hijacked IRQ vector", makeCpuStamp());
+            }
+
             microVectorLow = bus->read(microInterruptVectorAddress);
             break;
         }
