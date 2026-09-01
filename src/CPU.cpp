@@ -6048,6 +6048,7 @@ void CPU::buildZeroPageIndexedLoad(CpuIndexReg index, CpuMicroAction action)
     dummyAndIndex.useMicroAddress = true;
     dummyAndIndex.index = index;
     dummyAndIndex.action = CpuMicroAction::None;
+    dummyAndIndex.pollInterrupts = true;
     pushMicroOp(dummyAndIndex);
 
     // Read final value.
