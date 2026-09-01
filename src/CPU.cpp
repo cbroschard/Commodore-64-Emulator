@@ -4717,6 +4717,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readHi.useMicroAddress = false;
             readHi.index = CpuIndexReg::None;
             readHi.action = CpuMicroAction::None;
+
+            readHi.pollInterrupts = true;
+
             pushMicroOp(readHi);
 
             CpuMicroOp readIgnored;
