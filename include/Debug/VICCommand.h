@@ -23,12 +23,14 @@ class VICCommand : public MonitorCommand
         std::string name() const override;
         std::string category() const override;
         std::string shortHelp() const override;
-        std::string regsUsage() const;
+        std::string help() const override;
+
         std::string borderUsage() const;
+        std::string busUsage() const;
         std::string cycleUsage() const;
         std::string eventsUsage() const;
         std::string mapUsage() const;
-        std::string help() const override;
+        std::string regsUsage() const;
 
         void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
 };

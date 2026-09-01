@@ -6242,6 +6242,40 @@ std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) con
     return out.str();
 }
 
+std::string Vic::dumpBusArbitrationLine(int raster) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= cfg_->maxRasterLines)
+    {
+        out << "Invalid raster\n";
+        return out.str();
+    }
+
+    out << "VIC bus arbitration - raster " << raster << "\n";
+    out << "Cy BA AEC BW BS BH SW SH SS Fetch\n";
+    out << "----------------------------------\n";
+
+    for (int cycle = 0; cycle < cfg_->cyclesPerLine; ++cycle)
+    {
+        const VicCycleSlot slot = cycleSlotFor(raster, cycle);
+
+        out << std::setw(2) << cycle << " "
+            << (slot.baLow ? 'L' : 'H') << "  "
+            << (slot.aecLow ? 'L' : 'H') << "   "
+            << (slot.badlineWarning ? '1' : '0') << "  "
+            << (slot.badlineSteal ? '1' : '0') << "  "
+            << (slot.badlineBAHold ? '1' : '0') << "  "
+            << (slot.spriteWarning ? '1' : '0') << "  "
+            << (slot.spriteBAHold ? '1' : '0') << "  "
+            << (slot.spriteAECSteal ? '1' : '0') << "  "
+            << static_cast<int>(slot.fetchKind)
+            << "\n";
+    }
+
+    return out.str();
+}
+
 bool Vic::vicTraceOn(TraceManager::TraceDetail d) const
 {
     return traceMgr && traceMgr->vicDetailOn(d);

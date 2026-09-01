@@ -42,6 +42,7 @@ std::string VICCommand::help() const
         "    break                  Show VIC raster/cycle breakpoint\n"
         "    break <r> <c>          Break at VIC raster/cycle\n"
         "    break clear            Clear VIC raster/cycle breakpoint\n"
+        "    bus <r>                Show BA/AEC arbitration for one raster line\n"
         "    regs <group>           Dump VIC-II registers\n"
         "    cycle                  Show debug info for current raster/cycle\n"
         "    cycle live             Show debug info for current live raster/cycle\n"
@@ -61,6 +62,13 @@ std::string VICCommand::borderUsage() const
         " vic border\n"
         " vic border edge\n"
         " vic border edge <raster>\n";
+}
+
+std::string VICCommand::busUsage() const
+{
+    return
+        "Usage:\n"
+        "  vic bus <raster>\n";
 }
 
 std::string VICCommand::cycleUsage() const
@@ -310,7 +318,34 @@ void VICCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         return;
     }
-    else if (sub == "cycle")
+    else if (sub == "bus")
+    {
+        if (args.size() != 3)
+        {
+            std::cout << busUsage();
+            return;
+        }
+
+        try
+        {
+            const int raster = std::stoi(args[2]);
+
+            const std::string output = mon.mlmonitorbackend()->vicDumpBusArbitrationLine(raster);
+
+            std::cout << output;
+
+            if (!output.empty() && output.back() != '\n')
+                std::cout << '\n';
+
+            return;
+        }
+        catch (const std::exception&)
+        {
+            std::cout << busUsage();
+            return;
+        }
+    }
+        else if (sub == "cycle")
     {
         if (args.size() == 2)
         {

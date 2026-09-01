@@ -560,6 +560,7 @@ class Vic
         VicRegisterDebugSnapshot getRegisterDebugSnapshot() const;
         VicBadlineDebugSnapshot getBadlineDebugSnapshot() const;
         std::string dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const;
+        std::string dumpBusArbitrationLine(int raster) const;
 
     private:
         // Non-owning pointers
