@@ -4859,18 +4859,30 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
 {
     const uint16_t oldLine = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
 
+    // Capture the complete IRQ state before the target changes.
     const bool matchedBefore = rasterIrqCompareMatched;
+
+    const bool triggeredBefore = rasterIrqTriggeredThisLine;
+    const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+    const bool irqBefore = irqLineActive();
 
     const uint16_t storedNewLine = static_cast<uint16_t>(newLine & 0x01FF);
 
+    // CPU writes to D011/D012 occur during Phi2. The programmed
+    // comparator value changes immediately from the VIC's point
+    // of view at that write.
     registers.rasterInterruptLine = storedNewLine;
 
-    // $D011/$D012 can change comparator state immediately.
     evaluateRasterIRQCompare(reason ? reason : "raster-target-write");
 
+    // Capture resulting state.
     const bool matchedAfter = rasterIrqCompareMatched;
+    const bool triggeredAfter = rasterIrqTriggeredThisLine;
+    const uint8_t isrAfter = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+    const bool irqAfter = irqLineActive();
 
-    traceVicRasterRetargetTest(reason ? reason : "raster-target-write", oldLine, storedNewLine, matchedBefore, matchedAfter);
+    traceVicRasterRetargetTest(reason ? reason : "raster-target-write", oldLine, storedNewLine, matchedBefore, matchedAfter,
+        triggeredBefore, triggeredAfter, isrBefore, isrAfter, irqBefore, irqAfter);
 
     (void)writtenValue;
 }
@@ -6241,25 +6253,39 @@ void Vic::traceVicRasterIrqEvent(const char* phase, uint16_t oldLine, uint16_t n
 }
 
 
-void Vic::traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16_t newLine, bool matchedBefore, bool matchedAfter) const
+void Vic::traceVicRasterRetargetTest(const char* reason, uint16_t oldLine, uint16_t newLine, bool matchedBefore,
+    bool matchedAfter, bool triggeredBefore, bool triggeredAfter, uint8_t isrBefore, uint8_t isrAfter, bool irqBefore,
+    bool irqAfter) const
 {
     if (!traceMgr || !vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
         return;
 
     std::ostringstream out;
 
+    const uint16_t visibleRaster = visibleRasterForIRQCompare();
+
     out << "[VIC:IRQTEST] "
-        << phase
+        << (reason ? reason : "target-write")
+
+        << " phase=Phi2"
+
         << " curRaster=$"
-        << std::hex << std::uppercase
-        << std::setw(3) << std::setfill('0')
+        << std::hex
+        << std::uppercase
+        << std::setw(3)
+        << std::setfill('0')
         << registers.raster
 
+        << " visible=$"
+        << std::setw(3)
+        << visibleRaster
+
         << " cycle="
-        << std::dec << currentCycle
+        << std::dec
+        << currentCycle
 
         << " old=$"
-        << std::hex << std::uppercase
+        << std::hex
         << std::setw(3)
         << oldLine
 
@@ -6267,20 +6293,36 @@ void Vic::traceVicRasterRetargetTest(const char* phase, uint16_t oldLine, uint16
         << std::setw(3)
         << newLine
 
-        << " matchedBefore="
-        << std::dec << (matchedBefore ? 1 : 0)
-
-        << " matchedAfter="
+        << " match="
+        << std::dec
+        << (matchedBefore ? 1 : 0)
+        << "->"
         << (matchedAfter ? 1 : 0)
 
+        << " triggered="
+        << (triggeredBefore ? 1 : 0)
+        << "->"
+        << (triggeredAfter ? 1 : 0)
+
         << " ISR=$"
-        << std::hex << std::uppercase
+        << std::hex
         << std::setw(2)
-        << int(registers.interruptStatus & 0x0F)
+        << std::setfill('0')
+        << int(isrBefore)
+
+        << "->$"
+        << std::setw(2)
+        << int(isrAfter)
 
         << " IER=$"
         << std::setw(2)
-        << int(registers.interruptEnable & 0x0F);
+        << int(registers.interruptEnable & 0x0F)
+
+        << " IRQ="
+        << std::dec
+        << (irqBefore ? 1 : 0)
+        << "->"
+        << (irqAfter ? 1 : 0);
 
     traceMgr->recordVicEvent(out.str(), makeVicStamp());
 }
