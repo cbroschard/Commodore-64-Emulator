@@ -6614,6 +6614,7 @@ void CPU::buildZeroPageIndexedRMW(CpuIndexReg index, CpuMicroAction action)
     dummyWriteAndCompute.useMicroAddress = true;
     dummyWriteAndCompute.index = CpuIndexReg::None;
     dummyWriteAndCompute.action = action;
+    dummyWriteAndCompute.pollInterrupts = true;
     pushMicroOp(dummyWriteAndCompute);
 
     // Final write modified value.
