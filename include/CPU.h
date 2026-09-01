@@ -471,6 +471,8 @@ class CPU
             uint16_t busAddress = 0;
             uint8_t busValue = 0;
 
+            bool pollInterrupts = false;
+
             uint32_t totalCycles = 0;
         };
 
@@ -844,6 +846,7 @@ class CPU
 
         // IRQ delay
         bool irqSuppressOne;
+        bool irqPendingSampled;
 
         // Jam handling
         JamMode jamMode;
@@ -884,6 +887,7 @@ class CPU
         // IRQ handling
         void executeIRQ();
         void executeNMI();
+        void sampleIRQForNextBoundary();
 
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);

@@ -59,6 +59,7 @@ CPU::CPU() :
     nmiPending(false),
     nmiLine(false),
     irqSuppressOne(false),
+    irqPendingSampled(false),
     jamMode(JamMode::NopCompat),
     halted(false),
     pendingOpcodeFetch(false),
@@ -243,6 +244,7 @@ void CPU::reset()
     nmiPending                  = false;
     nmiLine                     = false;
     irqSuppressOne              = false;
+    irqPendingSampled           = false;
     soLevel                     = true;
     microSequenceType           = CpuMicroSequenceType::None;
     microInterruptVectorAddress = 0;
@@ -522,6 +524,11 @@ void CPU::executeNMI()
     }
 
     cycles += 7;
+}
+
+void CPU::sampleIRQForNextBoundary()
+{
+    irqPendingSampled = IRQ && IRQ->isIRQActive() && !getFlag(I);
 }
 
 uint8_t CPU::cpuRead(uint16_t address, CpuBusCycleType type)
