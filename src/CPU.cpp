@@ -6498,6 +6498,10 @@ void CPU::buildZeroPageRMW(CpuMicroAction action)
     dummyWriteAndCompute.useMicroAddress = true;
     dummyWriteAndCompute.index = CpuIndexReg::None;
     dummyWriteAndCompute.action = action;
+
+    // IRQ is sampled on the penultimate cycle.
+    dummyWriteAndCompute.pollInterrupts = true;
+
     pushMicroOp(dummyWriteAndCompute);
 
     CpuMicroOp finalWrite;
