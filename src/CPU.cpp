@@ -4761,6 +4761,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readHiAndApplyX.useMicroAddress = false;
             readHiAndApplyX.index = CpuIndexReg::X;
             readHiAndApplyX.action = CpuMicroAction::None;
+
+            readHiAndApplyX.pollInterrupts = true;
+
             pushMicroOp(readHiAndApplyX);
 
             CpuMicroOp dummyRead;
@@ -4771,6 +4774,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             dummyRead.useMicroAddress = true;
             dummyRead.index = CpuIndexReg::None;
             dummyRead.action = CpuMicroAction::None;
+
+            dummyRead.pollInterrupts = true;
+
             pushMicroOp(dummyRead);
 
             CpuMicroOp readIgnored;
