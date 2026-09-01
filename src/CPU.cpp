@@ -184,6 +184,10 @@ void CPU::saveStateExtendedPayload(StateWriter& wrtr) const
     wrtr.writeBool(soLevel);
     wrtr.writeBool(rdyLine);
     wrtr.writeBool(aecLine);
+
+    // Sampled IRQ state.
+    wrtr.writeBool(irqPendingSampled);
+    wrtr.writeBool(irqPollValid);
 }
 
 bool CPU::loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateReader& rdr)
@@ -203,13 +207,46 @@ bool CPU::loadStateExtendedPayload(const StateReader::Chunk& parentChunk, StateR
 
     uint8_t vm = 0;
     if (!rdr.readU8(vm)) return false;
+
     mode_ = static_cast<VideoMode>(vm);
     setMode(mode_);
 
-    const size_t end = parentChunk.payloadOffset + parentChunk.length;
-    if (rdr.cursor() < end) { if (!rdr.readBool(soLevel)) return false; }
-    if (rdr.cursor() < end) { if (!rdr.readBool(rdyLine)) return false; }
-    if (rdr.cursor() < end) { if (!rdr.readBool(aecLine)) return false; }
+    const size_t end =
+        parentChunk.payloadOffset + parentChunk.length;
+
+    if (rdr.cursor() < end)
+    {
+        if (!rdr.readBool(soLevel))
+            return false;
+    }
+
+    if (rdr.cursor() < end)
+    {
+        if (!rdr.readBool(rdyLine))
+            return false;
+    }
+
+    if (rdr.cursor() < end)
+    {
+        if (!rdr.readBool(aecLine))
+            return false;
+    }
+
+    // Older CPUX chunks do not contain sampled IRQ state.
+    irqPendingSampled = false;
+    irqPollValid = false;
+
+    if (rdr.cursor() < end)
+    {
+        if (!rdr.readBool(irqPendingSampled))
+            return false;
+    }
+
+    if (rdr.cursor() < end)
+    {
+        if (!rdr.readBool(irqPollValid))
+            return false;
+    }
 
     return true;
 }
