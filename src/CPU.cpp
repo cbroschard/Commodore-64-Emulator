@@ -3909,8 +3909,19 @@ bool CPU::executeCurrentMicroOp()
             {
                 setFlag(I, true);
 
-                if (op.action == CpuMicroAction::PushBRKStatus &&
-                    nmiPending)
+                // A sufficiently early NMI can hijack the vector fetch of
+                // an IRQ entry that is already in progress.
+                if (op.action == CpuMicroAction::PushInterruptStatus && microSequenceType == CpuMicroSequenceType::IRQ && nmiPending)
+                {
+                    microInterruptVectorAddress = 0xFFFA;
+                    nmiPending = false;
+
+                    if (traceMgr)
+                        traceMgr->recordCPUNMI("NMI hijacked IRQ vector", makeCpuStamp());
+                }
+
+                // Same behavior for a software BRK, except BRK still pushes B=1.
+                if (op.action == CpuMicroAction::PushBRKStatus && nmiPending)
                 {
                     microBRKNMIHijacked = true;
                     nmiPending = false;
