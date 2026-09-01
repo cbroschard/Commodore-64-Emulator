@@ -5929,6 +5929,10 @@ void CPU::buildAbsoluteIndexedStore(CpuIndexReg index, CpuMicroAction action)
     applyIndexAndDummy.useMicroAddress = false;
     applyIndexAndDummy.index = index;
     applyIndexAndDummy.action = CpuMicroAction::None;
+
+    // IRQ is sampled on the penultimate cycle.
+    applyIndexAndDummy.pollInterrupts = true;
+
     pushMicroOp(applyIndexAndDummy);
 
     CpuMicroOp writeValue;
