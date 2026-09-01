@@ -4580,6 +4580,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             nop.useMicroAddress = false;
             nop.index = CpuIndexReg::None;
             nop.action = CpuMicroAction::FinishNOP;
+
+            nop.pollInterrupts = true;
+
             pushMicroOp(nop);
             break;
         }
@@ -4611,11 +4614,11 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             break;
         }
 
-        case 0x80: // NOP #imm unofficial
-        case 0x82: // NOP #imm unofficial
-        case 0x89: // NOP #imm unofficial
-        case 0xC2: // NOP #imm unofficial
-        case 0xE2: // NOP #imm unofficial
+        case 0x80:
+        case 0x82:
+        case 0x89:
+        case 0xC2:
+        case 0xE2:
         {
             CpuMicroOp readIgnored;
             readIgnored.kind = CpuMicroOpKind::OperandRead;
@@ -4625,8 +4628,10 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readIgnored.useMicroAddress = false;
             readIgnored.index = CpuIndexReg::None;
             readIgnored.action = CpuMicroAction::None;
-            pushMicroOp(readIgnored);
 
+            readIgnored.pollInterrupts = true;
+
+            pushMicroOp(readIgnored);
             break;
         }
 
