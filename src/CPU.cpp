@@ -4171,8 +4171,6 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroAction::ClearInterruptDisable:
             setFlag(I, false);
-
-            irqSuppressOne = true;
             break;
 
         case CpuMicroAction::SetInterruptDisable:
@@ -5962,6 +5960,8 @@ void CPU::buildInternalAction(CpuMicroAction action)
     op.useMicroAddress = false;
     op.index = CpuIndexReg::None;
     op.action = action;
+
+    op.pollInterrupts = true;
 
     pushMicroOp(op);
 }
