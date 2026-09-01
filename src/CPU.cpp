@@ -4332,6 +4332,33 @@ bool CPU::executeCurrentMicroOp()
 
             PC = static_cast<uint16_t>(microVectorLow) |static_cast<uint16_t>(static_cast<uint16_t>(microVectorHigh) << 8);
 
+            if (traceMgr && microSequenceType == CpuMicroSequenceType::IRQ)
+            {
+                std::ostringstream out;
+
+                out << "[IRQ-VECTOR]"
+                    << " PC=$"
+                    << std::hex
+                    << std::uppercase
+                    << std::setw(4)
+                    << std::setfill('0')
+                    << PC
+
+                    << " return=$"
+                    << std::setw(4)
+                    << microReturnAddress
+
+                    << " raster=$"
+                    << std::setw(3)
+                    << (vic ? vic->getCurrentRaster() : 0)
+
+                    << " dot="
+                    << std::dec
+                    << (vic ? vic->getRasterDot() : 0);
+
+                traceMgr->recordCPUIRQ(out.str(), makeCpuStamp());
+            }
+
             lastInterruptEntry.type = microSequenceType == CpuMicroSequenceType::NMI ? InterruptEntryType::NMI : InterruptEntryType::IRQ;
             lastInterruptEntry.acceptedAtPC = microReturnAddress;
             lastInterruptEntry.pushedReturnPC = microReturnAddress;
@@ -7403,6 +7430,57 @@ bool CPU::beginPendingInterruptMicroOps()
     if (pendingOpcodeFetch)
         return false;
 
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU) && traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_IRQ))
+    {
+        std::ostringstream out;
+
+        out << "[IRQ-POLL]"
+            << " PC=$"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << PC
+
+            << " I="
+            << std::dec
+            << (getFlag(I) ? 1 : 0)
+
+            << " IRQ="
+            << ((IRQ && IRQ->isIRQActive()) ? 1 : 0)
+
+            << " suppress="
+            << (irqSuppressOne ? 1 : 0)
+
+            << " RDY="
+            << (rdyLine ? 1 : 0)
+
+            << " AEC="
+            << (aecLine ? 1 : 0)
+
+            << " raster=$"
+            << std::hex
+            << std::setw(3)
+            << (vic ? vic->getCurrentRaster() : 0)
+
+            << " dot="
+            << std::dec
+            << (vic ? vic->getRasterDot() : 0)
+
+            << " lastPC=$"
+            << std::hex
+            << std::setw(4)
+            << lastOpcodePC
+
+            << " opcode=$"
+            << std::setw(2)
+            << int(lastOpcode);
+
+        traceMgr->recordCPUIRQ(
+            out.str(),
+            makeCpuStamp());
+    }
+
     /*
      * NMI has priority over IRQ.
      */
@@ -7436,7 +7514,35 @@ bool CPU::beginPendingInterruptMicroOps()
         return false;
 
     if (traceMgr)
-        traceMgr->recordCPUIRQ("IRQ accepted into micro-op sequence", makeCpuStamp());
+    {
+        std::ostringstream out;
+
+        out << "[IRQ-ACCEPT]"
+            << " PC=$"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << PC
+
+            << " I="
+            << std::dec
+            << (getFlag(I) ? 1 : 0)
+
+            << " IRQ="
+            << ((IRQ && IRQ->isIRQActive()) ? 1 : 0)
+
+            << " raster=$"
+            << std::hex
+            << std::setw(3)
+            << (vic ? vic->getCurrentRaster() : 0)
+
+            << " dot="
+            << std::dec
+            << (vic ? vic->getRasterDot() : 0);
+
+        traceMgr->recordCPUIRQ(out.str(),  makeCpuStamp());
+    }
 
     buildInterruptMicroOps(CpuMicroSequenceType::IRQ,0xFFFE);
     return true;
