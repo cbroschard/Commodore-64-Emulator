@@ -3744,14 +3744,7 @@ bool CPU::executeCurrentMicroOp()
 
                 case CpuMicroAction::PullProcessorStatus:
                 {
-                    const bool oldI = getFlag(I);
-
-                    SR = (value | 0x20) & ~0x10; // force U high, clear internal B
-
-                    const bool newI = getFlag(I);
-                    if (oldI && !newI)
-                        irqSuppressOne = true;
-
+                    SR = (value | 0x20) & ~0x10;
                     break;
                 }
 
@@ -6745,6 +6738,7 @@ void CPU::buildStackPull(CpuMicroAction action)
     pullOp.useMicroAddress = false;
     pullOp.index = CpuIndexReg::None;
     pullOp.action = action;
+    pullOp.pollInterrupts = true;
     pushMicroOp(pullOp);
 }
 
