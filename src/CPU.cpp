@@ -4599,6 +4599,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             readZp.useMicroAddress = false;
             readZp.index = CpuIndexReg::None;
             readZp.action = CpuMicroAction::None;
+
+            readZp.pollInterrupts = true;
+
             pushMicroOp(readZp);
 
             CpuMicroOp readIgnored;
@@ -4658,6 +4661,8 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             /*
              * Cycle 3: Dummy-read the unindexed zero-page address,
              * then apply X with zero-page wrapping.
+             *
+             * This is the penultimate cycle, so IRQ is sampled here.
              */
             CpuMicroOp dummyAndIndex;
             dummyAndIndex.kind =
@@ -4671,6 +4676,9 @@ void CPU::buildMicroOpsForOpcode(uint8_t opcode)
             dummyAndIndex.useMicroAddress = true;
             dummyAndIndex.index = CpuIndexReg::X;
             dummyAndIndex.action = CpuMicroAction::None;
+
+            dummyAndIndex.pollInterrupts = true;
+
             pushMicroOp(dummyAndIndex);
 
             /*
