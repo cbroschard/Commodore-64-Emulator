@@ -1257,15 +1257,69 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         case 0xD019:
         {
-            const uint8_t oldPending = registers.interruptStatus & 0x0F;
-            const uint8_t clearMask = value & 0x0F;
+            const uint8_t oldPending = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+            const bool oldIRQ = irqLineActive();
 
-            registers.interruptStatus &= ~clearMask;
+            const uint8_t clearMask = static_cast<uint8_t>(value & 0x0F);
 
-            const uint8_t newPending = registers.interruptStatus & 0x0F;
+            registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus &static_cast<uint8_t>(~clearMask));
+
+            const uint8_t newPending = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+
+            updateIRQLine();
+
+            const bool newIRQ = irqLineActive();
 
             traceVicRegWrite(address, oldPending, newPending);
-            updateIRQLine();
+
+            if (traceMgr && vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+            {
+                std::ostringstream out;
+
+                out << "[D019-ACK]"
+                    << " raster=$"
+                    << std::hex << std::uppercase
+                    << std::setw(3) << std::setfill('0')
+                    << visibleRasterForRead()
+
+                    << " cycle="
+                    << std::dec << currentCycle
+
+                    << " write=$"
+                    << std::hex
+                    << std::setw(2)
+                    << int(value)
+
+                    << " clear=$"
+                    << std::setw(2)
+                    << int(clearMask)
+
+                    << " ISR=$"
+                    << std::setw(2)
+                    << int(oldPending)
+
+                    << "->$"
+                    << std::setw(2)
+                    << int(newPending)
+
+                    << " IRQ="
+                    << std::dec
+                    << (oldIRQ ? 1 : 0)
+
+                    << "->"
+                    << (newIRQ ? 1 : 0)
+
+                    << " compare="
+                    << (rasterIrqCompareMatched ? 1 : 0)
+
+                    << " triggered="
+                    << (rasterIrqTriggeredThisLine ? 1 : 0);
+
+                traceMgr->recordVicIrqEvent(
+                    out.str(),
+                    makeVicStamp());
+            }
+
             break;
         }
 
@@ -4847,8 +4901,61 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
     // but the VIC-II permits only one raster IRQ trigger per raster line.
     if (matchNow && !matchedBefore && !rasterIrqTriggeredThisLine)
     {
+        const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+        const bool irqBefore = irqLineActive();
+
         raiseVicIRQSource(0x01);
         rasterIrqTriggeredThisLine = true;
+
+        const uint8_t isrAfter = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
+        const bool irqAfter = irqLineActive();
+
+        if (traceMgr && vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+        {
+            std::ostringstream out;
+
+            out << "[RASTER-TRIGGER]"
+
+                << " reason="
+                << compareReason
+
+                << " raster=$"
+                << std::hex
+                << std::uppercase
+                << std::setw(3)
+                << std::setfill('0')
+                << registers.raster
+
+                << " visible=$"
+                << std::setw(3)
+                << visibleRaster
+
+                << " cycle="
+                << std::dec
+                << currentCycle
+
+                << " target=$"
+                << std::hex
+                << std::setw(3)
+                << targetRaster
+
+                << " ISR=$"
+                << std::setw(2)
+                << int(isrBefore)
+
+                << "->$"
+                << std::setw(2)
+                << int(isrAfter)
+
+                << " IRQ="
+                << std::dec
+                << (irqBefore ? 1 : 0)
+
+                << "->"
+                << (irqAfter ? 1 : 0);
+
+            traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
+        }
     }
 
     // Comparator state is independent of the D019 interrupt latch.
