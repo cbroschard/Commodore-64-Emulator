@@ -6188,13 +6188,18 @@ void CPU::buildIndirectYRead(CpuMicroAction action)
     pushMicroOp(readLo);
 
     CpuMicroOp readHiAndApplyY;
-    readHiAndApplyY.kind = CpuMicroOpKind::ReadPointerHighAndApplyIndirectYForRead;
+    readHiAndApplyY.kind =
+        CpuMicroOpKind::ReadPointerHighAndApplyIndirectYForRead;
     readHiAndApplyY.busType = CpuBusCycleType::Read;
     readHiAndApplyY.address = 0;
     readHiAndApplyY.value = 0;
     readHiAndApplyY.useMicroAddress = false;
     readHiAndApplyY.index = CpuIndexReg::None;
     readHiAndApplyY.action = CpuMicroAction::None;
+
+    // Penultimate cycle when no page crossing occurs.
+    readHiAndApplyY.pollInterrupts = true;
+
     pushMicroOp(readHiAndApplyY);
 
     CpuMicroOp dummy;
@@ -6205,6 +6210,11 @@ void CPU::buildIndirectYRead(CpuMicroAction action)
     dummy.useMicroAddress = false;
     dummy.index = CpuIndexReg::None;
     dummy.action = CpuMicroAction::None;
+
+    // If page crossing occurred, this becomes the actual
+    // penultimate cycle and replaces the earlier sample.
+    dummy.pollInterrupts = true;
+
     pushMicroOp(dummy);
 
     CpuMicroOp readValue;
