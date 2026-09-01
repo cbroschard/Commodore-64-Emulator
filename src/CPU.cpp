@@ -60,6 +60,7 @@ CPU::CPU() :
     nmiLine(false),
     irqSuppressOne(false),
     irqPendingSampled(false),
+    irqPollValid(false),
     jamMode(JamMode::NopCompat),
     halted(false),
     pendingOpcodeFetch(false),
@@ -245,6 +246,7 @@ void CPU::reset()
     nmiLine                     = false;
     irqSuppressOne              = false;
     irqPendingSampled           = false;
+    irqPollValid                = false;
     soLevel                     = true;
     microSequenceType           = CpuMicroSequenceType::None;
     microInterruptVectorAddress = 0;
@@ -526,9 +528,32 @@ void CPU::executeNMI()
     cycles += 7;
 }
 
-void CPU::sampleIRQForNextBoundary()
+void CPU::sampleIRQAtPollPoint()
 {
     irqPendingSampled = IRQ && IRQ->isIRQActive() && !getFlag(I);
+
+    irqPollValid = true;
+
+    if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::CPU) && traceMgr->cpuDetailOn(TraceManager::TraceDetail::CPU_IRQ))
+    {
+        std::ostringstream out;
+
+        out << "[IRQ-SAMPLE]"
+            << " PC=$"
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << PC
+            << " I=" << std::dec << (getFlag(I) ? 1 : 0)
+            << " IRQ=" << ((IRQ && IRQ->isIRQActive()) ? 1 : 0)
+            << " latched=" << (irqPendingSampled ? 1 : 0)
+            << " raster=$"
+            << std::hex << std::setw(3)
+            << (vic ? vic->getCurrentRaster() : 0)
+            << " dot=" << std::dec
+            << (vic ? vic->getRasterDot() : 0);
+
+        traceMgr->recordCPUIRQ(out.str(), makeCpuStamp());
+    }
 }
 
 uint8_t CPU::cpuRead(uint16_t address, CpuBusCycleType type)
@@ -4014,6 +4039,9 @@ bool CPU::executeCurrentMicroOp()
             break;
     }
 
+    if (op.pollInterrupts)
+        sampleIRQAtPollPoint();
+
     switch (op.action)
     {
         case CpuMicroAction::FinishNOP:
@@ -5768,6 +5796,7 @@ void CPU::buildAbsoluteLoad(CpuMicroAction action)
     readHi.useMicroAddress = false;
     readHi.index = CpuIndexReg::None;
     readHi.action = CpuMicroAction::None;
+    readHi.pollInterrupts = true;
     pushMicroOp(readHi);
 
     // Read value from full address.
@@ -5939,7 +5968,6 @@ void CPU::buildInternalAction(CpuMicroAction action)
 
 void CPU::buildZeroPageReadAction(CpuMicroAction action)
 {
-    // Read zero-page address operand into microAddress.
     CpuMicroOp readOperand;
     readOperand.kind = CpuMicroOpKind::OperandReadToAddress;
     readOperand.busType = CpuBusCycleType::Read;
@@ -5947,9 +5975,9 @@ void CPU::buildZeroPageReadAction(CpuMicroAction action)
     readOperand.value = 0;
     readOperand.useMicroAddress = false;
     readOperand.action = CpuMicroAction::None;
+    readOperand.pollInterrupts = true;
     pushMicroOp(readOperand);
 
-    // Read value from $00xx into microTemp, then load target register.
     CpuMicroOp readValue;
     readValue.kind = CpuMicroOpKind::MemoryRead;
     readValue.busType = CpuBusCycleType::Read;
@@ -7495,10 +7523,33 @@ bool CPU::beginPendingInterruptMicroOps()
     {
         nmiPending = false;
 
+        // NMI has priority. Discard any IRQ result sampled by
+        // the instruction that just completed.
+        irqPollValid = false;
+        irqPendingSampled = false;
+
         if (traceMgr)
             traceMgr->recordCPUNMI("NMI accepted into micro-op sequence", makeCpuStamp());
 
         buildInterruptMicroOps(CpuMicroSequenceType::NMI, 0xFFFA);
+        return true;
+    }
+
+    if (irqPollValid)
+    {
+        const bool takeIRQ = irqPendingSampled;
+
+        irqPollValid = false;
+        irqPendingSampled = false;
+
+        if (!takeIRQ)
+            return false;
+
+        if (traceMgr)
+            traceMgr->recordCPUIRQ("[IRQ-ACCEPT-SAMPLED]", makeCpuStamp());
+
+        buildInterruptMicroOps(CpuMicroSequenceType::IRQ, 0xFFFE);
+
         return true;
     }
 

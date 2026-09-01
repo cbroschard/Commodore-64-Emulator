@@ -471,8 +471,6 @@ class CPU
             uint16_t busAddress = 0;
             uint8_t busValue = 0;
 
-            bool pollInterrupts = false;
-
             uint32_t totalCycles = 0;
         };
 
@@ -770,6 +768,8 @@ class CPU
             CpuIndexReg index = CpuIndexReg::None;
 
             CpuMicroAction action = CpuMicroAction::None;
+
+            bool pollInterrupts = false;
         };
 
         //CPU Flags
@@ -847,6 +847,7 @@ class CPU
         // IRQ delay
         bool irqSuppressOne;
         bool irqPendingSampled;
+        bool irqPollValid;
 
         // Jam handling
         JamMode jamMode;
@@ -887,7 +888,8 @@ class CPU
         // IRQ handling
         void executeIRQ();
         void executeNMI();
-        void sampleIRQForNextBoundary();
+
+        void sampleIRQAtPollPoint();
 
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
