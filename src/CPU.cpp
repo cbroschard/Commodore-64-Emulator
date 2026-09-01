@@ -3905,30 +3905,36 @@ bool CPU::executeCurrentMicroOp()
             bus->write(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
 
-            if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)
+            // IRQ/BRK vector selection occurs after the return-PC low push.
+            // An NMI recognized by this point hijacks the upcoming vector fetch.
+            if (nmiPending)
             {
-                setFlag(I, true);
-
-                // A sufficiently early NMI can hijack the vector fetch of
-                // an IRQ entry that is already in progress.
-                if (op.action == CpuMicroAction::PushInterruptStatus && microSequenceType == CpuMicroSequenceType::IRQ && nmiPending)
+                if (op.action == CpuMicroAction::PushInterruptReturnLow &&
+                    microSequenceType == CpuMicroSequenceType::IRQ)
                 {
                     microInterruptVectorAddress = 0xFFFA;
                     nmiPending = false;
 
                     if (traceMgr)
-                        traceMgr->recordCPUNMI("NMI hijacked IRQ vector", makeCpuStamp());
+                        traceMgr->recordCPUNMI(
+                            "NMI hijacked IRQ vector",
+                            makeCpuStamp());
                 }
-
-                // Same behavior for a software BRK, except BRK still pushes B=1.
-                if (op.action == CpuMicroAction::PushBRKStatus && nmiPending)
+                else if (op.action == CpuMicroAction::PushBRKReturnLow)
                 {
                     microBRKNMIHijacked = true;
                     nmiPending = false;
 
                     if (traceMgr)
-                        traceMgr->recordCPUNMI("NMI hijacked BRK vector", makeCpuStamp());
+                        traceMgr->recordCPUNMI(
+                            "NMI hijacked BRK vector",
+                            makeCpuStamp());
                 }
+            }
+
+            if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)
+            {
+                setFlag(I, true);
             }
 
             break;
