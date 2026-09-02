@@ -90,6 +90,9 @@ std::string TraceCommand::help() const
         "  trace cpu flags enable|disable   CPU flags tracing\n"
         "  trace cpu ba enable|disable      CPU BA hold tracing\n"
         "  trace cpu jam enable|disable     CPU JAM/halt tracing\n"
+        "  trace cpu add <lo>-<hi>          Add a CPU execution PC trace range\n"
+        "  trace cpu list                   List CPU execution trace ranges\n"
+        "  trace cpu clear                  Clear CPU execution trace ranges\n"
         "\n"
         "Bus tracing:\n"
         "  trace bus enable                 Enable Bus top-level tracing\n"
@@ -627,8 +630,53 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (sub == "cpu")
     {
-        if (args.size() >= 3 && setChipCategory(TraceManager::TraceCat::CPU, "CPU", args[2]))
+        // CPU execution PC range filter.
+        if (args.size() >= 3 && args[2] == "range")
+        {
+            if (args.size() < 4)
+            {
+                std::cout
+                    << "Usage: trace cpu range <lo>-<hi>\n"
+                    << "       trace cpu range off\n";
+                return;
+            }
+
+            if (isDisableWord(args[3]))
+            {
+                traceMgr->clearCPUExecRange();
+                std::cout << "CPU execution trace range disabled.\n";
+                return;
+            }
+
+            uint16_t lo = 0;
+            uint16_t hi = 0;
+
+            if (!parseHexRange(args[3], lo, hi))
+            {
+                std::cout << "Invalid range. Use $HHHH-$HHHH\n";
+                return;
+            }
+
+            traceMgr->setCPUExecRange(lo, hi);
+
+            std::cout
+                << "CPU execution trace range set to $"
+                << toHex(lo, 4)
+                << "-$"
+                << toHex(hi, 4)
+                << "\n";
+
             return;
+        }
+
+        if (args.size() >= 3 &&
+            setChipCategory(
+                TraceManager::TraceCat::CPU,
+                "CPU",
+                args[2]))
+        {
+            return;
+        }
 
         if (args.size() >= 4 && args[2] == "all")
         {
@@ -636,13 +684,16 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             {
                 traceMgr->enableCategory(TraceManager::TraceCat::CPU);
                 traceMgr->enableCPUDetails(true);
+
                 std::cout << "Enabled all CPU trace details.\n";
                 tracingOnReminder();
                 return;
             }
+
             if (isDisableWord(args[3]))
             {
                 traceMgr->enableCPUDetails(false);
+
                 std::cout << "Disabled all CPU trace details.\n";
                 disableGlobalReminder();
                 return;
@@ -657,22 +708,94 @@ void TraceCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             const std::string& detail = args[2];
             const std::string& action = args[3];
 
-            if (detail == "exec"   && setCpuDetail(TraceManager::TraceDetail::CPU_EXEC,   "exec",   action)) return;
-            if (detail == "irq"    && setCpuDetail(TraceManager::TraceDetail::CPU_IRQ,    "irq",    action)) return;
-            if (detail == "nmi"    && setCpuDetail(TraceManager::TraceDetail::CPU_NMI,    "nmi",    action)) return;
-            if (detail == "stack"  && setCpuDetail(TraceManager::TraceDetail::CPU_STACK,  "stack",  action)) return;
-            if (detail == "branch" && setCpuDetail(TraceManager::TraceDetail::CPU_BRANCH, "branch", action)) return;
-            if (detail == "flags"  && setCpuDetail(TraceManager::TraceDetail::CPU_FLAGS,  "flags",  action)) return;
-            if (detail == "ba"     && setCpuDetail(TraceManager::TraceDetail::CPU_BA,     "ba",     action)) return;
-            if (detail == "jam"    && setCpuDetail(TraceManager::TraceDetail::CPU_JAM,    "jam",    action)) return;
+            if (detail == "exec" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_EXEC,
+                    "exec",
+                    action))
+            {
+                return;
+            }
 
-            std::cout << "Usage: trace cpu <exec|irq|nmi|stack|branch|flags|ba|jam> enable|disable\n";
+            if (detail == "irq" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_IRQ,
+                    "irq",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "nmi" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_NMI,
+                    "nmi",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "stack" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_STACK,
+                    "stack",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "branch" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_BRANCH,
+                    "branch",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "flags" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_FLAGS,
+                    "flags",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "ba" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_BA,
+                    "ba",
+                    action))
+            {
+                return;
+            }
+
+            if (detail == "jam" &&
+                setCpuDetail(
+                    TraceManager::TraceDetail::CPU_JAM,
+                    "jam",
+                    action))
+            {
+                return;
+            }
+
+            std::cout
+                << "Usage: trace cpu "
+                   "<exec|irq|nmi|stack|branch|flags|ba|jam> "
+                   "enable|disable\n";
             return;
         }
 
-        std::cout << "Usage: trace cpu enable|disable\n"
-                     "       trace cpu all enable|disable\n"
-                     "       trace cpu <exec|irq|nmi|stack|branch|flags|ba|jam> enable|disable\n";
+        std::cout
+            << "Usage: trace cpu enable|disable\n"
+            << "       trace cpu all enable|disable\n"
+            << "       trace cpu "
+               "<exec|irq|nmi|stack|branch|flags|ba|jam> "
+               "enable|disable\n"
+            << "       trace cpu range <lo>-<hi>\n"
+            << "       trace cpu range off\n";
+
         return;
     }
 
