@@ -2939,7 +2939,20 @@ void Vic::latchSpriteShiftersFromFetchedBytes(int sprite)
     spriteUnits[sprite].shift2 = spriteUnits[sprite].fetched2;
     spriteUnits[sprite].rowDataLatched = true;
 
-    traceVicSpriteSlotEvent(sprite, "row-latched", registers.raster, currentCycle);
+    // If this sprite's row becomes available after cycle 0,
+    // prepare it for this raster once the final byte arrives.
+    if (!spriteUnits[sprite].rowPrepared &&
+        currentCycle < cfg_->DMAStartCycle)
+    {
+        beginSpriteLineOutput(sprite, registers.raster);
+    }
+
+    traceVicSpriteSlotEvent(
+        sprite,
+        "row-latched",
+        registers.raster,
+        currentCycle
+    );
 }
 
 uint8_t Vic::updateSpriteDMAStartForCurrentLine(int raster)
