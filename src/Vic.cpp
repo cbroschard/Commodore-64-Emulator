@@ -398,6 +398,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(rasterIrqCompareMatched);
     wrtr.writeBool(rasterIrqTriggeredThisLine);
+    wrtr.writeBool(rasterIrqDeferredReassert);
 
     wrtr.writeBool(activeMatrixRow.valid);
     wrtr.writeU16(activeMatrixRow.vcBase);
@@ -649,6 +650,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         {
             if (!rdr.readBool(rasterIrqCompareMatched))                 { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readBool(rasterIrqTriggeredThisLine))              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(rasterIrqDeferredReassert))               { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
