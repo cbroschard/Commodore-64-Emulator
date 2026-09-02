@@ -7665,6 +7665,12 @@ bool CPU::beginPendingInterruptMicroOps()
             << " IRQ="
             << ((IRQ && IRQ->isIRQActive()) ? 1 : 0)
 
+            << " pollValid="
+            << (irqPollValid ? 1 : 0)
+
+            << " sampled="
+            << (irqPendingSampled ? 1 : 0)
+
             << " suppress="
             << (irqSuppressOne ? 1 : 0)
 

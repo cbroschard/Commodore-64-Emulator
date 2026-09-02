@@ -4925,6 +4925,8 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
 
         if (traceMgr && vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
         {
+            const bool rasterIrqAlreadyPending = (registers.interruptStatus & 0x01) != 0;
+
             std::ostringstream out;
 
             out << "[RASTER-TRIGGER]"
@@ -4963,9 +4965,11 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
                 << " IRQ="
                 << std::dec
                 << (irqBefore ? 1 : 0)
-
                 << "->"
-                << (irqAfter ? 1 : 0);
+                << (irqAfter ? 1 : 0)
+
+                << " pendingBefore="
+                << (rasterIrqAlreadyPending ? 1 : 0);
 
             traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
         }
