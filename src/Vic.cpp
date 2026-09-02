@@ -1594,13 +1594,7 @@ void Vic::handleCycle14Decisions()
     if (badAtCycle14)
     {
         vicState.badLine = true;
-
-        // Preserve a takeover point already established by the live
-        // bad-line transition. This is important for late bad-line
-        // activation, where BA must remain low for three cycles before
-        // the VIC may take Phi2/AEC.
-        if (vicState.badLineDmaStartCycle < 0)
-            vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
+        vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
