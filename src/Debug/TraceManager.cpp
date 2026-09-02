@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include <bitset>
 #include "CPU.h"
 #include "Debug/TraceManager.h"
@@ -13,7 +14,10 @@ TraceManager::TraceManager() :
     cpu(nullptr),
     tracing(false),
     chipCats(0u),
-    detailCats(0ull)
+    detailCats(0ull),
+    cpuExecRangeActive(false),
+    cpuExecRangeLo(0x0000),
+    cpuExecRangeHi(0xFFFF)
 {
 
 }
@@ -391,9 +395,14 @@ void TraceManager::recordCiaICR(int cia, uint8_t icr, bool irqRaised, Stamp stam
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
 }
+
 void TraceManager::recordCPUExec(uint16_t pcExec, uint8_t opcode, Stamp stamp)
 {
-    if (!cpu || !cpuDetailOn(TraceDetail::CPU_EXEC)) return;
+    if (!cpu || !cpuDetailOn(TraceDetail::CPU_EXEC))
+        return;
+
+    if (!cpuExecRangeContains(pcExec))
+        return;
 
     std::stringstream out;
 
@@ -467,6 +476,45 @@ void TraceManager::recordCPUJam(const std::string& text, Stamp stamp)
 
     buffer.push_back(out.str());
     if (file.is_open()) file << buffer.back() << "\n";
+}
+
+void TraceManager::setCPUExecRange(uint16_t lo, uint16_t hi)
+{
+    if (lo > hi)
+        std::swap(lo, hi);
+
+    cpuExecRangeLo = lo;
+    cpuExecRangeHi = hi;
+    cpuExecRangeActive = true;
+}
+
+void TraceManager::clearCPUExecRange()
+{
+    cpuExecRangeActive = false;
+}
+
+bool TraceManager::cpuExecRangeEnabled() const
+{
+    return cpuExecRangeActive;
+}
+
+bool TraceManager::cpuExecRangeContains(uint16_t pc) const
+{
+    if (!cpuExecRangeActive)
+        return true;
+
+    return pc >= cpuExecRangeLo &&
+           pc <= cpuExecRangeHi;
+}
+
+uint16_t TraceManager::getCPUExecRangeLo() const
+{
+    return cpuExecRangeLo;
+}
+
+uint16_t TraceManager::getCPUExecRangeHi() const
+{
+    return cpuExecRangeHi;
 }
 
 void TraceManager::recordBusRead(uint16_t address, uint8_t value, uint16_t pc, Stamp stamp)

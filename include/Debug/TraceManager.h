@@ -154,6 +154,12 @@ class TraceManager
         void recordCPUStack(const std::string& text, Stamp stamp);
         void recordCPUBA(const std::string& text, Stamp stamp);
         void recordCPUJam(const std::string& text, Stamp stamp);
+        void setCPUExecRange(uint16_t lo, uint16_t hi);
+        void clearCPUExecRange();
+        bool cpuExecRangeEnabled() const;
+        bool cpuExecRangeContains(uint16_t pc) const;
+        uint16_t getCPUExecRangeLo() const;
+        uint16_t getCPUExecRangeHi() const;
 
         // CIA
         void recordCiaTimer(int cia, char timerName, uint16_t value, bool underflow, Stamp stamp);
@@ -210,6 +216,11 @@ class TraceManager
             { TraceCat::CART, "CART" },
             { TraceCat::BUS, "BUS" },
         };
+
+        // CPU Range
+        bool cpuExecRangeActive;
+        uint16_t cpuExecRangeLo;
+        uint16_t cpuExecRangeHi;
 
         // SID register names
         static const char* sidRegNames[32];
