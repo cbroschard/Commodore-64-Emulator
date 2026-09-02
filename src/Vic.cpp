@@ -4319,37 +4319,23 @@ uint8_t Vic::compositePixelAtX(int raster, int px) const
 
     const BackgroundPixel bg = sampleBackgroundPixelAtX(raster, px);
 
-    uint8_t color = bg.color;
-
-    // Sprites behind background:
-    // only visible if background is not opaque at this pixel.
+    // Lower-numbered sprites have priority over higher-numbered sprites.
     for (int spr = 0; spr < 8; ++spr)
     {
-        const bool behind = spriteBehindBackgroundAtPixel(spr, px);
-
-        if (!behind)
-            continue;
-
         if (!spriteOpaqueLine[spr][px])
             continue;
 
-        if (!bg.opaque)
-            color = spriteColorLine[spr][px] & 0x0F;
-    }
-
-    // Sprites in front of background.
-    for (int spr = 0; spr < 8; ++spr)
-    {
         const bool behind = spriteBehindBackgroundAtPixel(spr, px);
 
-        if (behind)
-            continue;
+        // This sprite wins sprite-to-sprite priority, but foreground
+        // graphics may still cover it according to D01B.
+        if (behind && bg.opaque)
+            return bg.color & 0x0F;
 
-        if (spriteOpaqueLine[spr][px])
-            color = spriteColorLine[spr][px] & 0x0F;
+        return spriteColorLine[spr][px] & 0x0F;
     }
 
-    return color & 0x0F;
+    return bg.color & 0x0F;
 }
 
 int Vic::rasterPixelToCycle(int px) const
