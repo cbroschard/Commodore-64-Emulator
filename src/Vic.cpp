@@ -84,6 +84,7 @@ void Vic::reset()
     // Raster IRQ
     rasterIrqCompareMatched = false;
     rasterIrqTriggeredThisLine = false;
+    rasterIrqDeferredReassert = false;
     lastRasterIRQSample = {};
 
     // Internal VIC state
@@ -1261,9 +1262,9 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const bool oldIRQ = irqLineActive();
 
             const uint8_t clearMask = static_cast<uint8_t>(value & 0x0F);
+            const bool reassertRasterIRQ = ((clearMask & 0x01) != 0) && rasterIrqDeferredReassert;
 
-            registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus &static_cast<uint8_t>(~clearMask));
-
+            registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus & static_cast<uint8_t>(~clearMask));
             const uint8_t newPending = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
 
             updateIRQLine();
@@ -1313,12 +1314,22 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
                     << (rasterIrqCompareMatched ? 1 : 0)
 
                     << " triggered="
-                    << (rasterIrqTriggeredThisLine ? 1 : 0);
+                    << (rasterIrqTriggeredThisLine ? 1 : 0)
 
-                traceMgr->recordVicIrqEvent(
-                    out.str(),
-                    makeVicStamp());
+                    << " deferred="
+                    << (rasterIrqDeferredReassert ? 1 : 0);
+
+                traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
             }
+
+            if (reassertRasterIRQ)
+            {
+                registers.interruptStatus |= 0x01;
+                updateIRQLine();
+            }
+
+            if ((clearMask & 0x01) != 0)
+                rasterIrqDeferredReassert = false;
 
             break;
         }
@@ -4917,6 +4928,9 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
         const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqBefore = irqLineActive();
         const bool rasterIrqAlreadyPending = (registers.interruptStatus & 0x01) != 0;
+
+        if (rasterIrqAlreadyPending)
+            rasterIrqDeferredReassert = true;
 
         raiseVicIRQSource(0x01);
         rasterIrqTriggeredThisLine = true;

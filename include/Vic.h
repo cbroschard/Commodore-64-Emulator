@@ -607,6 +607,7 @@ class Vic
         // programmed $D011/$D012 raster IRQ target.
         bool rasterIrqCompareMatched;
         bool rasterIrqTriggeredThisLine;
+        bool rasterIrqDeferredReassert;
 
         struct Registers
         {
