@@ -4912,7 +4912,7 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
 
     // Raster IRQ occurs when the comparator enters the matching state,
     // but the VIC-II permits only one raster IRQ trigger per raster line.
-    if (matchNow && !matchedBefore && !rasterIrqTriggeredThisLine)
+    if (matchNow && !matchedBefore)
     {
         const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqBefore = irqLineActive();
