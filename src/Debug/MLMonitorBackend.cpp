@@ -568,7 +568,9 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
     const int fineX = d016 & 0x07;
     const int matrixRow = snap->vcBase / 40;
     const int vmliRow = snap->vmliBase / 40;
-    const uint8_t yInChar = static_cast<uint8_t>(snap->displayRc & 0x07);
+    const uint8_t internalRc = static_cast<uint8_t>(snap->rc & 0x07);
+    const uint8_t displayRc = static_cast<uint8_t>(snap->displayRc & 0x07);
+    const uint8_t yInChar = displayRc;
 
     out << "Background Row Debug\n";
     out << "--------------------\n";
@@ -609,7 +611,9 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
     out << "vmliBase: " << snap->vmliBase << "\n";
     out << "vmliRow: " << vmliRow << "\n";
     out << "vmliFetchIndex: " << static_cast<int>(snap->vmliFetchIndex) << "\n";
-    out << "rc/yInChar: " << static_cast<int>(yInChar) << "\n";
+    out << "rc: " << static_cast<int>(internalRc) << "\n";
+    out << "displayRc: " << static_cast<int>(displayRc) << "\n";
+    out << "yInChar: " << static_cast<int>(yInChar) << "\n";
     out << "badLine: " << (snap->badLine ? 1 : 0) << "\n";
     out << "badLineSampled: " << (snap->badLineSampled ? 1 : 0) << "\n";
 
@@ -719,7 +723,9 @@ std::string MLMonitorBackend::vicDumpBackgroundCellDebug(int raster, int col) co
     const uint16_t colorAddr = static_cast<uint16_t>(vic->getColorMemoryStartForDebug() + (matrixOffset & 0x03FF));
     const uint8_t colorByte = vic ? static_cast<uint8_t>(vic->vicReadColorForDebug(colorAddr) & 0x0F) : 0x0F;
 
-    const uint8_t yInChar = static_cast<uint8_t>(snap->rc & 0x07);
+    const uint8_t internalRc = static_cast<uint8_t>(snap->rc & 0x07);
+    const uint8_t displayRc = static_cast<uint8_t>(snap->displayRc & 0x07);
+    const uint8_t yInChar = displayRc;
 
     const uint16_t charAddr = static_cast<uint16_t>(charBase + (static_cast<uint16_t>(screenByte) * 8) + yInChar);
 
@@ -765,7 +771,9 @@ std::string MLMonitorBackend::vicDumpBackgroundCellDebug(int raster, int col) co
     out << "vmliBase: " << snap->vmliBase << "\n";
     out << "vmliRow: " << vmliRow << "\n";
     out << "vmliFetchIndex: " << static_cast<int>(snap->vmliFetchIndex) << "\n";
-    out << "rc/yInChar: " << static_cast<int>(yInChar) << "\n";
+    out << "rc: " << static_cast<int>(internalRc) << "\n";
+    out << "displayRc: " << static_cast<int>(displayRc) << "\n";
+    out << "yInChar: " << static_cast<int>(yInChar) << "\n";
     out << "displayEnabled: " << (snap->displayEnabled ? 1 : 0) << "\n";
     out << "displayEnabledNext: " << (snap->displayEnabledNext ? 1 : 0) << "\n";
     out << "badLine: " << (snap->badLine ? 1 : 0) << "\n";
