@@ -1917,15 +1917,18 @@ std::string MLMonitorBackend::vicDumpMemory(uint16_t address, int count) const
     return out.str();
 }
 
-void MLMonitorBackend::vicFFRaster(uint8_t targetRaster)
+void MLMonitorBackend::vicFFRaster(int targetRaster)
 {
     if (!vic || !comp)
         return;
 
-    while (vic->getCurrentRaster() != targetRaster)
-    {
+    const int maxRaster = vic->getMaxRasterLinesForDebug();
+
+    if (targetRaster < 0 || targetRaster >= maxRaster)
+        return;
+
+    while (static_cast<int>(vic->getCurrentRaster()) != targetRaster)
         comp->tickCycle();
-    }
 }
 
 void MLMonitorBackend::enterMonitor()

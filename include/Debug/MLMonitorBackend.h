@@ -228,7 +228,7 @@ class MLMonitorBackend
         inline Vic* getVic() const { return vic; }
         inline std::string vicGetModeName() { return vic ? vic->decodeModeName() : "VIC not attached\n"; }
         inline std::string getCurrentVICBanks() { return vic ? vic->getVICBanks() : "VIC not attached\n"; }
-        inline uint8_t getCurrentRaster() { return vic->getCurrentRaster(); }
+        inline int getCurrentRaster() { return vic ? vic->getCurrentRaster() : 0; }
         inline std::string vicDumpRasterPixelCompositionDebug(int raster, int x0, int x1) const { return vic ?
                                                                     vic->dumpRasterPixelCompositionDebug(raster, x0, x1) : "VIC not available"; }
         inline std::string vicDumpBusArbitrationLine(int raster) const { return vic ? vic->dumpBusArbitrationLine(raster) : "VIC not available"; }
@@ -250,7 +250,7 @@ class MLMonitorBackend
         std::string vicDumpBadlineState() const;
         std::string vicDumpBorderState() const;
         std::string vicDumpMemory(uint16_t address, int count) const;
-        void vicFFRaster(uint8_t targetRaster);
+        void vicFFRaster(int targetRaster);
 
     private:
         // Non-owning pointers
