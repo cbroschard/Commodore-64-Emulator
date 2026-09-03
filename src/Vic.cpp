@@ -4920,32 +4920,78 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
         rasterIrqTriggeredThisLine = true;
     }
 
+    const bool rmwDummyWrite = cpu && cpu->isRMWDummyWriteCycle();
     const bool rmwWrite = cpu && cpu->isRMWWriteCycle();
 
-    handleRasterIRQTargetWrite(oldLine, storedNewLine, highWrite, rmwWrite);
+    handleRasterIRQTargetWrite(oldLine, storedNewLine, highWrite, rmwWrite, rmwDummyWrite);
 
     (void)reason;
     (void)writtenValue;
 }
 
-void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, bool highWrite, bool rmwWrite)
+void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, bool highWrite, bool rmwWrite, bool rmwDummyWrite)
 {
     const uint16_t currentRaster = visibleRasterForIRQCompare();
 
     const bool oldMatched = oldTarget < cfg_->maxRasterLines && oldTarget == currentRaster;
     const bool newMatched = newTarget < cfg_->maxRasterLines && newTarget == currentRaster;
 
-    if (!oldMatched && newMatched && !rasterIrqTriggeredThisLine)
+    bool triggerIRQ = false;
+
+    //
+    // Normal D011/D012 retarget:
+    //
+    // Changing the programmed target from some other raster
+    // to the current raster can create a raster IRQ.
+    //
+    if (!oldMatched && newMatched)
+        triggerIRQ = true;
+
+    //
+    // 6510 RMW dummy-write behavior.
+    //
+    // An RMW reads the VIC register first, so the dummy write
+    // contains raster-counter bits read from D011/D012.
+    //
+    // This can temporarily make the programmed comparator
+    // match the current raster even though the complete old
+    // target did not match.
+    //
+    if (rmwWrite && rmwDummyWrite && !oldMatched)
+    {
+        if (highWrite)
+        {
+            //
+            // D011 supplies raster bit 8.
+            //
+            // The low 8 bits of the target remain unchanged.
+            // If those already equal the current raster low byte,
+            // the RMW write can complete the match.
+            //
+            if ((oldTarget & 0x00FF) == (currentRaster & 0x00FF))
+                triggerIRQ = true;
+        }
+        else
+        {
+            //
+            // D012 supplies raster bits 0-7.
+            //
+            // The high target bit remains unchanged.
+            // If it already equals the current raster high bit,
+            // the RMW write can complete the match.
+            //
+            if ((oldTarget & 0x0100) == (currentRaster & 0x0100))
+                triggerIRQ = true;
+        }
+    }
+
+    if (triggerIRQ && !rasterIrqTriggeredThisLine)
     {
         raiseVicIRQSource(0x01);
         rasterIrqTriggeredThisLine = true;
     }
 
     rasterIrqCompareMatched = newMatched;
-
-    // Used in the next step.
-    (void)highWrite;
-    (void)rmwWrite;
 }
 
 bool Vic::rasterIRQTargetInRange() const
