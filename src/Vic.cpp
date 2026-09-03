@@ -4770,14 +4770,8 @@ uint16_t Vic::visibleRasterForRead() const
 
 void Vic::updateIRQLine()
 {
-    const uint8_t pending =
-        (registers.interruptStatus & registers.interruptEnable) & 0x0F;
-    const bool any = (pending != 0);
-
-    if (any)
-        registers.interruptStatus |= 0x80;
-    else
-        registers.interruptStatus &= 0x7F;
+    const uint8_t pending = static_cast<uint8_t>((registers.interruptStatus & registers.interruptEnable) & 0x0F);
+    const bool any = pending != 0;
 
     if (IRQ)
     {
