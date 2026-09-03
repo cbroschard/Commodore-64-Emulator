@@ -1959,7 +1959,11 @@ void MLMonitorBackend::irqForceOff()
 
 void MLMonitorBackend::irqDisableAll()
 {
-    if (!vic && !cia1 && !cia2) return;
+    if (!vic || !cia1 || !cia2)
+    {
+        std::cerr << "MLMonitorBackend: IRQ devices not fully attached\n";
+        return;
+    }
 
     irqForceOff();
 
