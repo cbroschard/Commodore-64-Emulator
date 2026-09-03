@@ -83,8 +83,6 @@ void Vic::reset()
 
     // Raster IRQ
     rasterIrqCompareMatched = false;
-    rasterIrqTriggeredThisLine = false;
-    rasterIrqDeferredReassert = false;
     lastRasterIRQSample = {};
 
     // Internal VIC state
@@ -397,8 +395,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.aec);
 
     wrtr.writeBool(rasterIrqCompareMatched);
-    wrtr.writeBool(rasterIrqTriggeredThisLine);
-    wrtr.writeBool(rasterIrqDeferredReassert);
 
     wrtr.writeBool(activeMatrixRow.valid);
     wrtr.writeU16(activeMatrixRow.vcBase);
@@ -649,8 +645,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (ver >= 9)
         {
             if (!rdr.readBool(rasterIrqCompareMatched))                 { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(rasterIrqTriggeredThisLine))              { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(rasterIrqDeferredReassert))               { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
@@ -660,7 +654,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             // Preserve the most sensible equivalent state from an old save.
             rasterIrqCompareMatched = legacyRasterIrqSampledThisLine && rasterIRQTargetMatchesVisibleRaster();
-            rasterIrqTriggeredThisLine = false;
         }
 
         if (ver >= 8)
@@ -1029,10 +1022,10 @@ uint8_t Vic::peekRegister(uint16_t address) const
             return registers.memory_pointer;
 
         case 0xD019:
-            return registers.interruptStatus;
+            return static_cast<uint8_t>(d019Read() | 0x70);
 
         case 0xD01A:
-            return registers.interruptEnable;
+            return static_cast<uint8_t>(0xF0 | (registers.interruptEnable & 0x0F));
 
         case 0xD01B:
             return registers.spritePriority;
@@ -2098,8 +2091,6 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 void Vic::advanceToNextRaster()
 {
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
-
-    rasterIrqTriggeredThisLine = false;
 
     // Bad-line/DMA state is local to one raster line.
     vicState.badLine = false;
@@ -4845,7 +4836,6 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
         const bool irqBefore = irqLineActive();
 
         raiseVicIRQSource(0x01);
-        rasterIrqTriggeredThisLine = true;
 
         const uint8_t isrAfter = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqAfter = irqLineActive();
@@ -4915,10 +4905,7 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
     registers.rasterInterruptLine = storedNewLine;
 
     if (oldTargetCompareNow)
-    {
-        raiseVicIRQSource(0x01);
-        rasterIrqTriggeredThisLine = true;
-    }
+    {   raiseVicIRQSource(0x01);
 
     const bool rmwDummyWrite = cpu && cpu->isRMWDummyWriteCycle();
     const bool rmwWrite = cpu && cpu->isRMWWriteCycle();
@@ -4927,6 +4914,7 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
 
     (void)reason;
     (void)writtenValue;
+    }
 }
 
 void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, bool highWrite, bool rmwWrite, bool rmwDummyWrite)
@@ -4999,7 +4987,6 @@ void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, boo
     if (triggerIRQ)
     {
         raiseVicIRQSource(0x01);
-        rasterIrqTriggeredThisLine = true;
     }
 
     rasterIrqCompareMatched = newTarget == currentRaster;

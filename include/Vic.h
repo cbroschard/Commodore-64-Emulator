@@ -606,8 +606,6 @@ class Vic
         // True while the current 9-bit raster counter matches the
         // programmed $D011/$D012 raster IRQ target.
         bool rasterIrqCompareMatched;
-        bool rasterIrqTriggeredThisLine;
-        bool rasterIrqDeferredReassert;
 
         struct Registers
         {
