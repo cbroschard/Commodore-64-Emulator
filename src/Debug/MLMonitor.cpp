@@ -333,23 +333,19 @@ bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)
         }
     }
 
-    // Case 2: CPY $D012 / BNE (or BEQ) after LDY #imm
-    if (opcode == 0xD0 || opcode == 0xF0)  // BNE or BEQ
+    // Case 2: LDY #imm / CPY $D012 / BNE (or BEQ)
+    if (opcode == 0xD0 || opcode == 0xF0)
     {
-        uint8_t ldyOp = monbackend->getOpCode(pc - 3);
-        uint8_t imm   = monbackend->getOpCode(pc - 2);
-        uint8_t cpyOp = monbackend->getOpCode(pc - 1);
-        uint8_t cpyLo = monbackend->getOpCode(pc - 0); // careful: overlaps PC
+        const uint8_t ldyOp = monbackend->getOpCode(static_cast<uint16_t>(pc - 5));
+        const uint8_t imm = monbackend->getOpCode(static_cast<uint16_t>(pc - 4));
+        const uint8_t cpyOp = monbackend->getOpCode(static_cast<uint16_t>(pc - 3));
+        const uint8_t cpyLo = monbackend->getOpCode(static_cast<uint16_t>(pc - 2));
+        const uint8_t cpyHi = monbackend->getOpCode(static_cast<uint16_t>(pc - 1));
 
-        // Actually: LDY #imm (A0 xx), CPY $D012 (CC 12 D0), BNE/BEQ
-        if (ldyOp == 0xA0 && cpyOp == 0xCC && cpyLo == 0x12)
+        if (ldyOp == 0xA0 && cpyOp == 0xCC && cpyLo == 0x12 && cpyHi == 0xD0)
         {
-            uint8_t cpyHi = monbackend->getOpCode(pc + 1); // hi byte after $12
-            if (cpyHi == 0xD0)
-            {
-                targetRaster = imm;
-                return true;
-            }
+            targetRaster = imm;
+            return true;
         }
     }
 
