@@ -118,7 +118,6 @@ class MLMonitor
         // Monitor helpers
         void registerCommand(std::unique_ptr<MonitorCommand> cmd);
         void handleCommand(const std::string& line);
-        void captureOutputAndExecute(const std::string& cmdLine);
         void handleOutputFileCommand(const std::vector<std::string>& args);
         void writeOutputFileBlock(const std::string& cmdLine, const std::string& output);
         void resetDisassemblyPosition();
