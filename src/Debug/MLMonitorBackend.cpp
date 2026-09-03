@@ -858,6 +858,7 @@ std::string MLMonitorBackend::vicDumpRasterEventsSummary() const
         out << "  raster range: " << minRaster << " - " << maxRaster << "\n";
         out << "  Color: " << color << "\n";
         out << "  Control $D011: " << control << "\n";
+        out << "  Raster IRQ target $D012: " << rasterIrqTarget << "\n";
         out << "  Control2 $D016: " << control2 << "\n";
         out << "  Memory ptr $D018: " << memoryPointer << "\n";
         out << "  Sprite priority: " << priority << "\n";
