@@ -1001,10 +1001,7 @@ uint8_t Vic::peekRegister(uint16_t address) const
         case 0xD011:
         {
             const uint16_t visibleRaster = visibleRasterForRead();
-
-            return static_cast<uint8_t>(
-                (registers.control & 0x7F) |
-                (((visibleRaster >> 8) & 0x01) << 7));
+            return static_cast<uint8_t>((registers.control & 0x7F) |(((visibleRaster >> 8) & 0x01) << 7));
         }
 
         case 0xD012:
@@ -1135,7 +1132,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD011:
         {
             const uint8_t oldValue = registers.control;
-
             const uint8_t oldRasterHigh = static_cast<uint8_t>((registers.rasterInterruptLine >> 8) & 0x01);
 
             registers.control = value & 0x7F;
@@ -1150,7 +1146,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint16_t newLine = static_cast<uint16_t>((registers.rasterInterruptLine & 0x00FF) |
                 (static_cast<uint16_t>(value & 0x80) << 1));
 
-            setRasterIRQTarget(newLine, "D011", value);
+            setRasterIRQTarget(newLine, "D012", value, false);
 
             const int raster = registers.raster;
 
@@ -1164,10 +1160,9 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD012:
         {
             const uint8_t oldLow = static_cast<uint8_t>(registers.rasterInterruptLine & 0x00FF);
-
             const uint16_t newLine = static_cast<uint16_t>((registers.rasterInterruptLine & 0x0100) |static_cast<uint16_t>(value));
 
-            setRasterIRQTarget(newLine, "D012", value);
+            setRasterIRQTarget(newLine, "D012", value, false);
 
             recordRasterEventLog(RasterEventKind::RasterIRQTarget, 0xD012, oldLow, value);
 
@@ -4906,7 +4901,7 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
     rasterIrqCompareMatched = matchNow;
 }
 
-void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue)
+void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue, bool highWrite)
 {
     const uint16_t oldLine = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
     const uint16_t storedNewLine = static_cast<uint16_t>(newLine & 0x01FF);
@@ -4925,15 +4920,18 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
         rasterIrqTriggeredThisLine = true;
     }
 
-    handleRasterIRQTargetWrite(oldLine, storedNewLine);
+    const bool rmwWrite = cpu && cpu->isRMWWriteCycle();
+
+    handleRasterIRQTargetWrite(oldLine, storedNewLine, highWrite, rmwWrite);
 
     (void)reason;
     (void)writtenValue;
 }
 
-void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget)
+void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, bool highWrite, bool rmwWrite)
 {
     const uint16_t currentRaster = visibleRasterForIRQCompare();
+
     const bool oldMatched = oldTarget < cfg_->maxRasterLines && oldTarget == currentRaster;
     const bool newMatched = newTarget < cfg_->maxRasterLines && newTarget == currentRaster;
 
@@ -4944,6 +4942,10 @@ void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget)
     }
 
     rasterIrqCompareMatched = newMatched;
+
+    // Used in the next step.
+    (void)highWrite;
+    (void)rmwWrite;
 }
 
 bool Vic::rasterIRQTargetInRange() const
