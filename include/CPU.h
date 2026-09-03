@@ -96,6 +96,7 @@ class CPU
         inline void setAEC(bool high) { aecLine = high; }
 
         bool isRMWDummyWriteCycle() const;
+        bool isRMWWriteCycle() const;
 
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }

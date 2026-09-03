@@ -429,6 +429,15 @@ bool CPU::isRMWDummyWriteCycle() const
     return busCycleActive && currentBusCycle.type == CpuBusCycleType::DummyWrite;
 }
 
+bool CPU::isRMWWriteCycle() const
+{
+    if (!microInstructionActive || microOpIndex >= microOpCount)
+        return false;
+
+    const CpuMicroOpKind kind = microOps[microOpIndex].kind;
+    return kind == CpuMicroOpKind::MemoryRMWDummyWriteAndCompute || kind == CpuMicroOpKind::MemoryRMWFinalWrite;
+}
+
 void CPU::executeIRQ()
 {
     const uint16_t irqReturnPC = PC;
