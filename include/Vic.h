@@ -925,6 +925,7 @@ class Vic
         void raiseVicIRQSource(uint8_t sourceBitMask);
         void evaluateRasterIRQCompare(const char* reason);
         void setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue);
+        void handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget);
         bool rasterIRQTargetInRange() const;
 
         int rasterIRQCompareCycle() const;

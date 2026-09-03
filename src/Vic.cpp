@@ -1261,77 +1261,17 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         case 0xD019:
         {
             const uint8_t oldPending = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
-            const bool oldIRQ = irqLineActive();
 
             const uint8_t clearMask = static_cast<uint8_t>(value & 0x0F);
-            const bool reassertRasterIRQ = ((clearMask & 0x01) != 0) && rasterIrqDeferredReassert;
 
+            // $D019 is a write-1-to-clear interrupt-source latch.
             registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus & static_cast<uint8_t>(~clearMask));
+
             const uint8_t newPending = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
 
             updateIRQLine();
 
-            const bool newIRQ = irqLineActive();
-
             traceVicRegWrite(address, oldPending, newPending);
-
-            if (traceMgr && vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
-            {
-                std::ostringstream out;
-
-                out << "[D019-ACK]"
-                    << " raster=$"
-                    << std::hex << std::uppercase
-                    << std::setw(3) << std::setfill('0')
-                    << visibleRasterForRead()
-
-                    << " cycle="
-                    << std::dec << currentCycle
-
-                    << " write=$"
-                    << std::hex
-                    << std::setw(2)
-                    << int(value)
-
-                    << " clear=$"
-                    << std::setw(2)
-                    << int(clearMask)
-
-                    << " ISR=$"
-                    << std::setw(2)
-                    << int(oldPending)
-
-                    << "->$"
-                    << std::setw(2)
-                    << int(newPending)
-
-                    << " IRQ="
-                    << std::dec
-                    << (oldIRQ ? 1 : 0)
-
-                    << "->"
-                    << (newIRQ ? 1 : 0)
-
-                    << " compare="
-                    << (rasterIrqCompareMatched ? 1 : 0)
-
-                    << " triggered="
-                    << (rasterIrqTriggeredThisLine ? 1 : 0)
-
-                    << " deferred="
-                    << (rasterIrqDeferredReassert ? 1 : 0);
-
-                traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
-            }
-
-            if (reassertRasterIRQ)
-            {
-                registers.interruptStatus |= 0x01;
-                updateIRQLine();
-            }
-
-            if ((clearMask & 0x01) != 0)
-                rasterIrqDeferredReassert = false;
 
             break;
         }
@@ -4908,10 +4848,6 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
     {
         const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqBefore = irqLineActive();
-        const bool rasterIrqAlreadyPending = (registers.interruptStatus & 0x01) != 0;
-
-        if (rasterIrqAlreadyPending)
-            rasterIrqDeferredReassert = true;
 
         raiseVicIRQSource(0x01);
         rasterIrqTriggeredThisLine = true;
@@ -4960,10 +4896,7 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
                 << std::dec
                 << (irqBefore ? 1 : 0)
                 << "->"
-                << (irqAfter ? 1 : 0)
-
-                << " pendingBefore="
-                << (rasterIrqAlreadyPending ? 1 : 0);
+                << (irqAfter ? 1 : 0);
 
             traceMgr->recordVicIrqEvent(out.str(), makeVicStamp());
         }
@@ -4976,33 +4909,41 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
 void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writtenValue)
 {
     const uint16_t oldLine = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
-
-    // Capture the complete IRQ state before the target changes.
-    const bool matchedBefore = rasterIrqCompareMatched;
-
-    const bool triggeredBefore = rasterIrqTriggeredThisLine;
-    const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
-    const bool irqBefore = irqLineActive();
-
     const uint16_t storedNewLine = static_cast<uint16_t>(newLine & 0x01FF);
 
-    // CPU writes to D011/D012 occur during Phi2. The programmed
-    // comparator value changes immediately from the VIC's point
-    // of view at that write.
+    // If the old target is being reached on this exact VIC
+    // comparator cycle, that event has already happened and
+    // must not disappear merely because Phi2 changes the target.
+    const bool oldTargetCompareNow = oldLine < cfg_->maxRasterLines && oldLine == visibleRasterForIRQCompare() &&
+        isRasterIRQCompareCycle(currentCycle);
+
     registers.rasterInterruptLine = storedNewLine;
 
-    evaluateRasterIRQCompare(reason ? reason : "raster-target-write");
+    if (oldTargetCompareNow)
+    {
+        raiseVicIRQSource(0x01);
+        rasterIrqTriggeredThisLine = true;
+    }
 
-    // Capture resulting state.
-    const bool matchedAfter = rasterIrqCompareMatched;
-    const bool triggeredAfter = rasterIrqTriggeredThisLine;
-    const uint8_t isrAfter = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
-    const bool irqAfter = irqLineActive();
+    handleRasterIRQTargetWrite(oldLine, storedNewLine);
 
-    traceVicRasterRetargetTest(reason ? reason : "raster-target-write", oldLine, storedNewLine, matchedBefore, matchedAfter,
-        triggeredBefore, triggeredAfter, isrBefore, isrAfter, irqBefore, irqAfter);
-
+    (void)reason;
     (void)writtenValue;
+}
+
+void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget)
+{
+    const uint16_t currentRaster = visibleRasterForIRQCompare();
+    const bool oldMatched = oldTarget < cfg_->maxRasterLines && oldTarget == currentRaster;
+    const bool newMatched = newTarget < cfg_->maxRasterLines && newTarget == currentRaster;
+
+    if (!oldMatched && newMatched && !rasterIrqTriggeredThisLine)
+    {
+        raiseVicIRQSource(0x01);
+        rasterIrqTriggeredThisLine = true;
+    }
+
+    rasterIrqCompareMatched = newMatched;
 }
 
 bool Vic::rasterIRQTargetInRange() const
