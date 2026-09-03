@@ -192,6 +192,12 @@ void MLMonitor::listBreakpoints() const
 
 void MLMonitor::addWriteWatch(uint16_t address)
 {
+    if (!monbackend)
+    {
+        std::cout << "Monitor backend not attached.\n";
+        return;
+    }
+
     uint8_t value = monbackend->readRAM(address);
     writeWatches[address] = value;
     std::cout << "Watchpoint set at $" << std::hex << std::setw(4) << std::setfill('0') << address
@@ -317,6 +323,9 @@ std::vector<uint16_t> MLMonitor::getReadWatchAddresses() const
 
 bool MLMonitor::isRasterWaitLoop(uint16_t pc, uint8_t& targetRaster)
 {
+    if (!monbackend)
+        return false;
+
     uint8_t opcode = monbackend->getOpCode(pc);
 
     // Case 1: CMP #imm / BNE (or BEQ) after LDA $D012
