@@ -810,6 +810,8 @@ bool MLMonitor::checkVicCycleBreakpoint()
     const int hitCycle = vicCycleBreakpointCycle;
 
     vicCycleBreakpointEnabled = false;
+    vicCycleBreakpointRaster = -1;
+    vicCycleBreakpointCycle = -1;
 
     std::ostringstream oss;
     oss << ">>> VIC cycle breakpoint hit at raster "
