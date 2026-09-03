@@ -133,6 +133,44 @@ static const char* ownerName(Vic::BusOwner owner)
     return "?";
 }
 
+static const char* vicModeNameFromRegisters(uint8_t d011, uint8_t d016)
+{
+    const bool ecm = (d011 & 0x40) != 0;
+    const bool bmm = (d011 & 0x20) != 0;
+    const bool mcm = (d016 & 0x10) != 0;
+
+    const uint8_t mode = (ecm ? 0x04 : 0x00) | (bmm ? 0x02 : 0x00) | (mcm ? 0x01 : 0x00);
+
+    switch (mode)
+    {
+        case 0x00:
+            return "Standard Text";
+
+        case 0x01:
+            return "Multicolor Text";
+
+        case 0x02:
+            return "Standard Bitmap";
+
+        case 0x03:
+            return "Multicolor Bitmap";
+
+        case 0x04:
+            return "Extended Color Text";
+
+        case 0x05:
+            return "Invalid Text Mode";
+
+        case 0x06:
+            return "Invalid Bitmap Mode";
+
+        case 0x07:
+            return "Invalid Multicolor Bitmap Mode";
+    }
+
+    return "Unknown";
+}
+
 static const Vic::RasterRowStateSnapshot* selectVicRowSnapshot(int raster, bool& usingPreviousFrame,
     const std::vector<Vic::RasterRowStateSnapshot>& currentRows,
     const std::vector<Vic::RasterRowStateSnapshot>& previousRows)
@@ -536,7 +574,7 @@ std::string MLMonitorBackend::vicDumpBackgroundRowDebug(int raster) const
     out << "--------------------\n";
     out << "snapshot: " << snapSource << "\n";
     out << "raster: " << raster << "\n";
-    out << "mode: " << vic->decodeModeName() << "\n";
+    out << "mode: " << vicModeNameFromRegisters(d011, d016) << "\n";
 
     out << std::hex << std::uppercase << std::setfill('0');
 
@@ -692,7 +730,7 @@ std::string MLMonitorBackend::vicDumpBackgroundCellDebug(int raster, int col) co
     out << "snapshot: " << snapSource << "\n";
     out << "raster: " << raster << "\n";
     out << "col: " << col << "\n";
-    out << "mode: " << vic->decodeModeName() << "\n";
+    out << "mode: " << vicModeNameFromRegisters(d011, d016) << "\n";
 
     out << std::hex << std::uppercase << std::setfill('0');
 
