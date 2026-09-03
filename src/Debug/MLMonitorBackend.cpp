@@ -2004,6 +2004,8 @@ void MLMonitorBackend::irqRestore()
     vic->restoreIRQs(snapshot.vic);
     cia1->restoreIRQs(snapshot.cia1);
     cia2->restoreIRQs(snapshot.cia2);
+
+    snapshot.has = false;
 }
 
 void MLMonitorBackend::setPC(uint16_t value)
