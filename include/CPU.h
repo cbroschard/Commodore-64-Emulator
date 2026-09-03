@@ -95,6 +95,8 @@ class CPU
         inline void setRDY(bool high) { rdyLine = high; }
         inline void setAEC(bool high) { aecLine = high; }
 
+        bool isRMWDummyWriteCycle() const;
+
         // Monitor helpers
         inline uint8_t getSR() const { return SR; }
         inline void setSEI() { setFlag(I, true); }

@@ -424,6 +424,11 @@ void CPU::pulseSO()
     setSO(true);  // back to idle so next pulse works
 }
 
+bool CPU::isRMWDummyWriteCycle() const
+{
+    return busCycleActive && currentBusCycle.type == CpuBusCycleType::DummyWrite;
+}
+
 void CPU::executeIRQ()
 {
     const uint16_t irqReturnPC = PC;
