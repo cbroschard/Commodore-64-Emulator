@@ -86,7 +86,12 @@ MLMonitor::~MLMonitor()
 std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
 {
     std::ostringstream buffer;
-    auto* old = std::cout.rdbuf(buffer.rdbuf()); // Redirect std::cout to buffer
+
+    const auto oldFlags = std::cout.flags();
+    const auto oldFill = std::cout.fill();
+    const auto oldPrecision = std::cout.precision();
+
+    auto* oldBuffer = std::cout.rdbuf(buffer.rdbuf());
 
     try
     {
@@ -94,18 +99,24 @@ std::string MLMonitor::executeAndCapture(const std::string& cmdLine)
     }
     catch (const std::exception& ex)
     {
-        std::cout << "Error executing command: " << ex.what() << "\n";
+        std::cout << "Error executing command: "
+                  << ex.what()
+                  << "\n";
     }
     catch (...)
     {
-        std::cout << "Error executing command: unknown exception\n";
+        std::cout
+            << "Error executing command: unknown exception\n";
     }
 
-    std::cout.rdbuf(old); // Restore std::cout
+    std::cout.rdbuf(oldBuffer);
+
+    std::cout.flags(oldFlags);
+    std::cout.fill(oldFill);
+    std::cout.precision(oldPrecision);
 
     const std::string out = buffer.str();
 
-    // Tee monitor command + output to file if enabled.
     writeOutputFileBlock(cmdLine, out);
 
     return out;
@@ -155,11 +166,10 @@ std::vector<std::string> MLMonitor::drainAsyncLines()
 void MLMonitor::attachTraceManagerInstance(TraceManager* tm)
 {
     auto it = commands.find("trace");
-    if (it != commands.end()) {
+    if (it != commands.end())
+    {
         if (auto* tc = dynamic_cast<TraceCommand*>(it->second.get()))
-        {
             tc->attachTraceManagerInstance(tm);
-        }
     }
 }
 
@@ -167,9 +177,7 @@ void MLMonitor::clearBreakpoint(uint16_t bp)
 {
     auto record = breakpoints.find(bp);
     if (record != breakpoints.end())
-    {
         breakpoints.erase(record);
-    }
 }
 
 void MLMonitor::listBreakpoints() const
@@ -193,13 +201,9 @@ void MLMonitor::addWriteWatch(uint16_t address)
 void MLMonitor::clearWriteWatch(uint16_t address)
 {
     if (writeWatches.erase(address))
-    {
         std::cout << "Watchpoint cleared at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
-    }
     else
-    {
         std::cout << "No watchpoint found at $" << std::hex << std::setw(4) << std::setfill('0') << address << "\n";
-    }
 }
 
 void MLMonitor::clearAllWriteWatches()
@@ -288,9 +292,7 @@ void MLMonitor::listReadWatches() const
 {
     int i = 0;
     for (auto addr : readWatches)
-    {
         std::cout << "[" << i++ << "]  $" << std::hex << std::setw(4) << std::setfill('0') << addr << "\n";
-    }
 }
 
 bool MLMonitor::checkWatchRead(uint16_t address, uint8_t value)
