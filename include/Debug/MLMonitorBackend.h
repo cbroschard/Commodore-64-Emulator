@@ -78,14 +78,14 @@ class MLMonitorBackend
         void warmReset();
 
         // ML Monitor CPU Methods
-        inline void cpuStepCycle() { comp->tickCycle(); }
+        inline void cpuStepCycle() { if (comp) comp->tickCycle(); }
         inline CPUState getCPUState() const { return cpu ? cpu->getState() : CPUState{}; }
-        inline uint8_t cpuGetSR() { return cpu->getSR(); }
+        inline uint8_t cpuGetSR() { return cpu ? cpu->getSR() : 0; }
         inline std::string getJamMode() const { return cpu ? jamModeToString() : "CPU not attached\n"; }
         inline uint8_t getOpCode(uint16_t PC) { return bus ? bus->peek(PC) : 0xFF; }
-        inline uint16_t getPC() { return cpu->getPC(); }
-        inline bool cpuIsBusArbEnabled() const { return cpu->isVICBusArbitrationEnabled(); }
-        inline void cpuSetBusArbEnabled(bool enabled) { cpu->setVICBusArbitrationEnabled(enabled); }
+        inline uint16_t getPC() { return cpu ? cpu->getPC() : 0; }
+        inline bool cpuIsBusArbEnabled() const { return cpu && cpu->isVICBusArbitrationEnabled(); }
+        inline void cpuSetBusArbEnabled(bool enabled) { if (cpu) cpu->setVICBusArbitrationEnabled(enabled); }
         inline std::string cpuMicroOpStatus() const { return cpu ? cpu->dumpMicroOpStatus() : "CPU not attached\n"; }
         inline void cpuSetMicroOp(bool enable) { return cpu->setUseMicroOps(enable) ; }
 
