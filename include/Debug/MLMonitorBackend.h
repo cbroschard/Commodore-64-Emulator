@@ -19,7 +19,7 @@ class MLMonitorBackend
         virtual ~MLMonitorBackend();
 
         // Pointer functions
-        inline void attachBusInstance(Bus* c64Bus) { this->bus = c64Bus; }
+        inline void attachBusInstance(Bus* c64Bus) { this->c64Bus = c64Bus; }
         inline void attachCartridgeInstance(Cartridge* cart) { this->cart = cart; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
