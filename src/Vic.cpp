@@ -6707,7 +6707,7 @@ void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) con
         << " yFF=" << int(spriteUnits[sprite].yExpandFlipFlop)
         << " startY=" << spriteUnits[sprite].startY;
 
-    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const
