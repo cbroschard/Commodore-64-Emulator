@@ -548,56 +548,38 @@ double Oscillator::getAccumulatorPhase() const
     return static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
+// Combined TRI+SAW waveform modeling.
+// The 6581 approximation is based on the MIT-licensed
+// Sidera SID behavioral model.
+// See Sidera.txt for license and attribution details.
 uint16_t Oscillator::getCombinedTriSaw12() const
 {
-    const uint16_t index = static_cast<uint16_t>((accumulator24 >> 12) & 0x0FFF);
+    const uint16_t tri = getAccumulatorTriangle12();
+    const uint16_t saw = getAccumulatorSaw12();
 
     switch (sidModel_)
     {
         case SIDModel::MOS6581:
-            return getTriSaw6581(index);
+            return getTriSaw6581(tri, saw);
 
         case SIDModel::MOS8580:
-            return getTriSaw8580(index);
+            return getTriSaw8580(tri, saw);
     }
 
     return 0;
 }
 
-uint16_t Oscillator::getTriSaw6581(uint16_t index) const
+uint16_t Oscillator::getTriSaw6581(uint16_t tri, uint16_t saw) const
 {
-    const uint32_t acc = static_cast<uint32_t>(index & 0x0FFF) << 12;
-    const uint16_t saw = static_cast<uint16_t>((acc >> 12) & 0x0FFF);
-    uint16_t tri = static_cast<uint16_t>((acc >> 11) & 0x0FFF);
-
-    if (acc & 0x00800000)
-        tri ^= 0x0FFF;
-
-    //
-    // 6581 combined TRI+SAW starts from the logical
-    // interaction of the two waveform outputs.
-    //
-    uint16_t combined = static_cast<uint16_t>(saw & tri);
-
-    //
-    // Approximate the strong neighboring-bit coupling / droop
-    // seen in the 6581 combined waveform DAC.
-    //
+    uint16_t combined = static_cast<uint16_t>((tri & saw) & 0x0FFF);
     combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
 
     return combined & 0x0FFF;
 }
 
-uint16_t Oscillator::getTriSaw8580(uint16_t index) const
+uint16_t Oscillator::getTriSaw8580(uint16_t tri, uint16_t saw) const
 {
-    const uint32_t acc = static_cast<uint32_t>(index & 0x0FFF) << 12;
-    const uint16_t saw = static_cast<uint16_t>((acc >> 12) & 0x0FFF);
-    uint16_t tri = static_cast<uint16_t>((acc >> 11) & 0x0FFF);
-
-    if (acc & 0x00800000)
-        tri ^= 0x0FFF;
-
-    return static_cast<uint16_t>(tri & saw);
+    return static_cast<uint16_t>((tri & saw) & 0x0FFF);
 }
 
 std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const
