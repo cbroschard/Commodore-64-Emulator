@@ -168,6 +168,12 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readVectorU8(cart_hi))      { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readVectorU8(cart_hi_e000)) { rdr.exitChunkPayload(chunk); return false; }
 
+    if (cart_lo.size() != CART_LO_SIZE || cart_hi.size() != CART_HI_SIZE || cart_hi_e000.size() != CART_HI_E000_SIZE)
+    {
+        rdr.exitChunkPayload(chunk);
+        return false;
+    }
+
     // Read GAME/EXROM saved values (keeps exact wiring you had at save time)
     bool game = false, exrom = false;
     if (!rdr.readBool(game))  { rdr.exitChunkPayload(chunk); return false; }
