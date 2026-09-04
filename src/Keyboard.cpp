@@ -64,7 +64,6 @@ void Keyboard::initKeyboard()
     charMap['7'] = {SDL_SCANCODE_7};
     charMap['8'] = {SDL_SCANCODE_8};
     charMap['9'] = {SDL_SCANCODE_9};
-    charMap['\t'] = {SDL_SCANCODE_TAB};
     charMap['\b'] = {SDL_SCANCODE_BACKSPACE};
     charMap['\n'] = {SDL_SCANCODE_RETURN};
     charMap[' '] = {SDL_SCANCODE_SPACE};
@@ -153,7 +152,6 @@ void Keyboard::initKeyboard()
     // SPECIAL KEYS
     keyMap[SDL_SCANCODE_BACKSPACE] = std::make_pair(0,0);  // DELETE
     keyMap[SDL_SCANCODE_RETURN] = std::make_pair(0,1);     // RETURN
-    keyMap[SDL_SCANCODE_TAB] = std::make_pair(0,2);        // TAB
     keyMap[SDL_SCANCODE_SPACE] = std::make_pair(7,4);      // SPACE
     keyMap[SDL_SCANCODE_HOME] = std::make_pair(6,3);       // HOME KEY
     keyMap[SDL_SCANCODE_ESCAPE] = std::make_pair(7,7);     // RUN/STOP
@@ -451,22 +449,9 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
     processKey(keycode, key, false);
 }
 
-uint8_t Keyboard::readRow(uint8_t rowIndex)
+uint8_t Keyboard::readRow(uint8_t rowIndex) const
 {
-    if (rowIndex < 8)
-    {
-        uint8_t state = keyMatrix[rowIndex];
-        return state;
-    }
-    else
-    {
-        return 0xFF; // default no key pressed
-    }
-}
-
-void Keyboard::simulateKeyPress(uint8_t row, uint8_t col)
-{
-    keyMatrix[row] &= ~(1 << col); // Simulate key press by clearing the bit
+    return rowIndex < 8 ? keyMatrix[rowIndex] : 0xFF;
 }
 
 void Keyboard::resetKeyboard()

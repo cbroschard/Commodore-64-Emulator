@@ -32,10 +32,7 @@ class Keyboard
         std::unordered_map<char,std::vector<SDL_Scancode>> charMap;
 
 
-        uint8_t readRow(uint8_t rowIndex);
-
-        // temp debugging
-        void simulateKeyPress(uint8_t row, uint8_t col);
+        uint8_t readRow(uint8_t rowIndex) const;
 
         void resetKeyboard();
         void handleKeyDown(SDL_Scancode key);
