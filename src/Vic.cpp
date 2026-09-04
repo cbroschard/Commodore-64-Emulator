@@ -563,7 +563,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 1 || ver > 9)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 2 || ver > 9)                                         { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
