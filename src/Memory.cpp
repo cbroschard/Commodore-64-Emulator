@@ -108,21 +108,32 @@ void Memory::writeDirect(uint16_t address, uint8_t value)
         mem[address] = value;
 }
 
-bool Memory::load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
+bool Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
+
     if (!file.is_open())
         return false;
 
-    std::streamsize fileSize = file.tellg();
+    const std::streamsize fileSize = file.tellg();
+
+    if (fileSize < 0)
+        return false;
+
     if (static_cast<size_t>(fileSize) != expectedSize)
         return false;
 
     file.seekg(0, std::ios::beg);
-    if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), expectedSize))
+
+    if (!file)
         return false;
 
-    file.close();
+    if (targetBuffer.size() != expectedSize)
+        targetBuffer.resize(expectedSize);
+
+    if (!file.read(reinterpret_cast<char*>(targetBuffer.data()), static_cast<std::streamsize>(expectedSize)))
+        return false;
+
     return true;
 }
 
@@ -135,7 +146,7 @@ bool Memory::Initialize(const std::string& basic, const std::string& kernal, con
     }
 
     // Load each ROM and check for successful load
-    if (!load_ROM(basic, basicROM, 0x2000, "BASIC") || !load_ROM(kernal, kernalROM, 0x2000, "Kernal") || !load_ROM(character, charROM, 0x1000, "CHAR"))
+    if (!loadROM(basic, basicROM, 0x2000, "BASIC") || !loadROM(kernal, kernalROM, 0x2000, "Kernal") || !loadROM(character, charROM, 0x1000, "CHAR"))
     {
         return false;
     }

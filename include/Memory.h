@@ -64,7 +64,7 @@ class Memory
         static const uint16_t COLOR_MEMORY_START    = 0xD800;
         static const uint16_t COLOR_MEMORY_END      =  0xDBFF;
 
-        bool load_ROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
+        bool loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName);
 };
 
 #endif // MEMORY_H
