@@ -326,12 +326,12 @@ bool Cartridge::loadROM(const std::string& path)
     // Parse the header info
     std::memcpy(&header, romData.data(), sizeof(header));
 
-    // Initialize live pin levels from the CRT header (as a starting point)
-    setExROMLine(header.exROMLine ? true : false);
-    setGameLine(header.gameLine ? true : false);
-
     if (std::strncmp(header.magic, "C64 CARTRIDGE   ", sizeof(header.magic)) != 0)
         return false;
+
+    // Now the header has passed basic validation.
+    setExROMLine(header.exROMLine != 0);
+    setGameLine(header.gameLine != 0);
 
     if (!processChipSections())
         return false;
