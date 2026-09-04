@@ -27,75 +27,6 @@ void Keyboard::initKeyboard()
         keyMatrix[i] = 0xff;
     }
 
-    // Map characters to SDL key map
-    charMap['A'] = {SDL_SCANCODE_A};
-    charMap['B'] = {SDL_SCANCODE_B};
-    charMap['C'] = {SDL_SCANCODE_C};
-    charMap['D'] = {SDL_SCANCODE_D};
-    charMap['E'] = {SDL_SCANCODE_E};
-    charMap['F'] = {SDL_SCANCODE_F};
-    charMap['G'] = {SDL_SCANCODE_G};
-    charMap['H'] = {SDL_SCANCODE_H};
-    charMap['I'] = {SDL_SCANCODE_I};
-    charMap['J'] = {SDL_SCANCODE_J};
-    charMap['K'] = {SDL_SCANCODE_K};
-    charMap['L'] = {SDL_SCANCODE_L};
-    charMap['M'] = {SDL_SCANCODE_M};
-    charMap['N'] = {SDL_SCANCODE_N};
-    charMap['O'] = {SDL_SCANCODE_O};
-    charMap['P'] = {SDL_SCANCODE_P};
-    charMap['Q'] = {SDL_SCANCODE_Q};
-    charMap['R'] = {SDL_SCANCODE_R};
-    charMap['S'] = {SDL_SCANCODE_S};
-    charMap['T'] = {SDL_SCANCODE_T};
-    charMap['U'] = {SDL_SCANCODE_U};
-    charMap['V'] = {SDL_SCANCODE_V};
-    charMap['W'] = {SDL_SCANCODE_W};
-    charMap['X'] = {SDL_SCANCODE_X};
-    charMap['Y'] = {SDL_SCANCODE_Y};
-    charMap['Z'] = {SDL_SCANCODE_Z};
-    charMap['0'] = {SDL_SCANCODE_0};
-    charMap['1'] = {SDL_SCANCODE_1};
-    charMap['2'] = {SDL_SCANCODE_2};
-    charMap['3'] = {SDL_SCANCODE_3};
-    charMap['4'] = {SDL_SCANCODE_4};
-    charMap['5'] = {SDL_SCANCODE_5};
-    charMap['6'] = {SDL_SCANCODE_6};
-    charMap['7'] = {SDL_SCANCODE_7};
-    charMap['8'] = {SDL_SCANCODE_8};
-    charMap['9'] = {SDL_SCANCODE_9};
-    charMap['\b'] = {SDL_SCANCODE_BACKSPACE};
-    charMap['\n'] = {SDL_SCANCODE_RETURN};
-    charMap[' '] = {SDL_SCANCODE_SPACE};
-    charMap['='] = {SDL_SCANCODE_EQUALS};
-    charMap['.'] = {SDL_SCANCODE_PERIOD};
-    charMap['-'] = {SDL_SCANCODE_MINUS};
-    charMap['/'] = {SDL_SCANCODE_SLASH};
-    charMap[','] = {SDL_SCANCODE_COMMA};
-    charMap[';'] = {SDL_SCANCODE_SEMICOLON};
-    charMap['\\'] = {SDL_SCANCODE_BACKSLASH};
-    charMap['\''] = {SDL_SCANCODE_APOSTROPHE};
-    charMap['+'] = {SDL_SCANCODE_KP_PLUS};
-    charMap['*'] = {SDL_SCANCODE_KP_MULTIPLY};
-    charMap[':'] = {SDL_SCANCODE_LEFTBRACKET};
-    charMap['_'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_MINUS};
-    charMap['~'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_GRAVE};
-    charMap['<']  = {SDL_SCANCODE_LSHIFT,SDL_SCANCODE_COMMA};
-    charMap['>']  = {SDL_SCANCODE_LSHIFT,SDL_SCANCODE_PERIOD};
-    charMap['?'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_SLASH};
-    charMap['!'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_1};
-    charMap['@'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_2};
-    charMap['#'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_3};
-    charMap['$'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_4};
-    charMap['%'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_5};
-    charMap['^'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_6};
-    charMap['&'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_7};
-    charMap['('] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_9};
-    charMap[')'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_0};
-    charMap['{'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_LEFTBRACKET};
-    charMap['}'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RIGHTBRACKET};
-    charMap['|'] = {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_BACKSLASH};
-
     // Make the ordered pairs according to the c64 keyboard matrix layout
     // Letters
     keyMap[SDL_SCANCODE_A] = std::make_pair(1,2);
@@ -170,63 +101,23 @@ void Keyboard::initKeyboard()
     keyMap[SDL_SCANCODE_RCTRL] = std::make_pair(7,2);       // RIGHT CTRL
 }
 
-void Keyboard::processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown)
+void Keyboard::processKey(SDL_Scancode scancode, bool isKeyDown)
 {
     keyProcessed = false;
 
-    if (shiftPressed)
-    {
-        // Get the shifted character variant.
-        SDL_Keycode shiftedKey = getShiftVariant(keycode);
-        // Try to find the shifted mapping in the charMap.
-        if (charMap.find(shiftedKey) != charMap.end())
-        {
-            for (auto mappedScancode : charMap[shiftedKey])
-            {
-                if (keyMap.find(mappedScancode) != keyMap.end())
-                {
-                    auto [row, col] = keyMap[mappedScancode];
-                    if (isKeyDown)
-                    {
-                        keyMatrix[row] &= ~(1 << col);
-                    }
-                    else
-                    {
-                        keyMatrix[row] |= (1 << col);
-                    }
-                    keyProcessed = true;
-                }
-            }
-        }
-        else if (keyMap.find(scancode) != keyMap.end())
-        {
-            // Fallback: if no shifted mapping exists, process as a normal key.
-            auto [row, col] = keyMap[scancode];
-            if (isKeyDown)
-            {
-                keyMatrix[row] &= ~(1 << col);
-            }
-            else
-            {
-                keyMatrix[row] |= (1 << col);
-            }
-            keyProcessed = true;
-        }
-    }
-    else if (keyMap.find(scancode) != keyMap.end())
-    {
-        // Normal key processing if shift is not pressed.
-        auto [row, col] = keyMap[scancode];
-        if (isKeyDown)
-        {
-            keyMatrix[row] &= ~(1 << col);
-        }
-        else
-        {
-            keyMatrix[row] |= (1 << col);
-        }
-        keyProcessed = true;
-    }
+    auto it = keyMap.find(scancode);
+
+    if (it == keyMap.end())
+        return;
+
+    const auto [row, col] = it->second;
+
+    if (isKeyDown)
+        keyMatrix[row] &= ~(1 << col);
+    else
+        keyMatrix[row] |= (1 << col);
+
+    keyProcessed = true;
 }
 
 void Keyboard::handleKeyDown(SDL_Scancode key)
@@ -299,10 +190,7 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
         return;
     }
 
-    const SDL_Keycode keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
-
-    if (key == SDL_SCANCODE_LSHIFT ||
-        key == SDL_SCANCODE_RSHIFT)
+    if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
     {
         shiftPressed = true;
 
@@ -315,7 +203,7 @@ void Keyboard::handleKeyDown(SDL_Scancode key)
         return;
     }
 
-    processKey(keycode, key, true);
+    processKey(key, true);
 }
 
 void Keyboard::handleKeyUp(SDL_Scancode key)
@@ -332,17 +220,22 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
 
     if (key == SDL_SCANCODE_F2)
     {
-        keyMatrix[0] |= (1 << 4); // Release F1
+        // F2 shares the physical C64 F1 matrix position.
+        if (!keyboardState[SDL_SCANCODE_F1] &&
+            !keyboardState[SDL_SCANCODE_F2])
+        {
+            keyMatrix[0] |= (1 << 4);
+        }
 
+        // Release virtual Shift only if nothing else still needs it.
         if (!keyboardState[SDL_SCANCODE_F4] &&
             !keyboardState[SDL_SCANCODE_F6] &&
             !keyboardState[SDL_SCANCODE_F8] &&
             !keyboardState[SDL_SCANCODE_LSHIFT] &&
-            !keyboardState[SDL_SCANCODE_RSHIFT] &&
             !keyboardState[SDL_SCANCODE_LEFT] &&
             !keyboardState[SDL_SCANCODE_UP])
         {
-            keyMatrix[1] |= (1 << 7); // Release Left Shift
+            keyMatrix[1] |= (1 << 7);
         }
 
         return;
@@ -350,13 +243,17 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
 
     if (key == SDL_SCANCODE_F4)
     {
-        keyMatrix[0] |= (1 << 5); // Release F3
+        // F4 shares the physical C64 F3 matrix position.
+        if (!keyboardState[SDL_SCANCODE_F3] &&
+            !keyboardState[SDL_SCANCODE_F4])
+        {
+            keyMatrix[0] |= (1 << 5);
+        }
 
         if (!keyboardState[SDL_SCANCODE_F2] &&
             !keyboardState[SDL_SCANCODE_F6] &&
             !keyboardState[SDL_SCANCODE_F8] &&
             !keyboardState[SDL_SCANCODE_LSHIFT] &&
-            !keyboardState[SDL_SCANCODE_RSHIFT] &&
             !keyboardState[SDL_SCANCODE_LEFT] &&
             !keyboardState[SDL_SCANCODE_UP])
         {
@@ -368,13 +265,17 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
 
     if (key == SDL_SCANCODE_F6)
     {
-        keyMatrix[0] |= (1 << 6); // Release F5
+        // F6 shares the physical C64 F5 matrix position.
+        if (!keyboardState[SDL_SCANCODE_F5] &&
+            !keyboardState[SDL_SCANCODE_F6])
+        {
+            keyMatrix[0] |= (1 << 6);
+        }
 
         if (!keyboardState[SDL_SCANCODE_F2] &&
             !keyboardState[SDL_SCANCODE_F4] &&
             !keyboardState[SDL_SCANCODE_F8] &&
             !keyboardState[SDL_SCANCODE_LSHIFT] &&
-            !keyboardState[SDL_SCANCODE_RSHIFT] &&
             !keyboardState[SDL_SCANCODE_LEFT] &&
             !keyboardState[SDL_SCANCODE_UP])
         {
@@ -386,13 +287,17 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
 
     if (key == SDL_SCANCODE_F8)
     {
-        keyMatrix[0] |= (1 << 3); // Release F7
+        // F8 shares the physical C64 F7 matrix position.
+        if (!keyboardState[SDL_SCANCODE_F7] &&
+            !keyboardState[SDL_SCANCODE_F8])
+        {
+            keyMatrix[0] |= (1 << 3);
+        }
 
         if (!keyboardState[SDL_SCANCODE_F2] &&
             !keyboardState[SDL_SCANCODE_F4] &&
             !keyboardState[SDL_SCANCODE_F6] &&
             !keyboardState[SDL_SCANCODE_LSHIFT] &&
-            !keyboardState[SDL_SCANCODE_RSHIFT] &&
             !keyboardState[SDL_SCANCODE_LEFT] &&
             !keyboardState[SDL_SCANCODE_UP])
         {
@@ -431,22 +336,22 @@ void Keyboard::handleKeyUp(SDL_Scancode key)
         return;
     }
 
-    const SDL_Keycode keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
-
     if (key == SDL_SCANCODE_LSHIFT || key == SDL_SCANCODE_RSHIFT)
     {
-        shiftPressed = false;
-
         if (keyMap.find(key) != keyMap.end())
         {
             auto [row, col] = keyMap[key];
             keyMatrix[row] |= (1 << col);
         }
 
+        const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+
+        shiftPressed = keyboardState[SDL_SCANCODE_LSHIFT] || keyboardState[SDL_SCANCODE_RSHIFT];
+
         return;
     }
 
-    processKey(keycode, key, false);
+    processKey(key, false);
 }
 
 uint8_t Keyboard::readRow(uint8_t rowIndex) const
@@ -456,24 +361,11 @@ uint8_t Keyboard::readRow(uint8_t rowIndex) const
 
 void Keyboard::resetKeyboard()
 {
-    for (size_t i = 0; i < 8; i++)
-    {
-        keyMatrix[i] = 0xFF; // Reset all keys to unpressed
-    }
-    shiftPressed = false;
-}
+    for (size_t i = 0; i < 8; ++i)
+        keyMatrix[i] = 0xFF;
 
-char Keyboard::getShiftVariant(SDL_Keycode keycode)
-{
-    switch(keycode)
-    {
-        case ';': return ':';
-        case '=': return '+';
-        case '-': return '_';
-        case '/': return '?';
-        case ',': return '<';
-        case '.': return '>';
-        case '\'': return '"';
-        default: return keycode;
-    }
+    shiftPressed = false;
+
+    if (nmiLine)
+        nmiLine->clearNMI(NMILine::RESTORE);
 }

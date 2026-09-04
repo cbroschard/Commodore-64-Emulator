@@ -29,8 +29,6 @@ class Keyboard
 
         // Map SDL keys to matrix positions (row, column)
         std::unordered_map<SDL_Scancode,std::pair<int,int>> keyMap;
-        std::unordered_map<char,std::vector<SDL_Scancode>> charMap;
-
 
         uint8_t readRow(uint8_t rowIndex) const;
 
@@ -43,11 +41,9 @@ class Keyboard
         NMILine* nmiLine;
 
         void initKeyboard();
-        void processKey(SDL_Keycode keycode, SDL_Scancode scancode, bool isKeyDown); // Helper for Key up and Key down methods
+        void processKey(SDL_Scancode scancode, bool isKeyDown); // Helper for Key up and Key down methods
         bool keyProcessed; // Track whether or not there's something to do in key up/key down
         bool shiftPressed; // Handle shift + key combinations
-
-        char getShiftVariant(SDL_Keycode keycode);
 };
 
 #endif // KEYBOARD_H
