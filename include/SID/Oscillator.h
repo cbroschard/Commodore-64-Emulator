@@ -120,6 +120,8 @@ class Oscillator
 
         void clockNoiseLFSR();
         uint16_t getNoiseOutputBits() const;
+
+        uint16_t getCombinedTriSaw12() const;
 };
 
 #endif // OSCILLATOR_H

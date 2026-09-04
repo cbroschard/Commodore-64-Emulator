@@ -139,59 +139,72 @@ uint8_t Oscillator::readOutput8() const
     if ((control & 0xF0) == 0)
         return 0x00;
 
+    const uint8_t waveBits = control & 0xF0;
+
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
-    if (control & 0x10) // Triangle
+    //
+    // Dedicated combined waveform path.
+    //
+    if (waveBits == 0x30) // Triangle + Saw
     {
-        const uint16_t triBits = getAccumulatorTriangle12();
-
-        if (!waveformSelected)
-            mixedBits = triBits;
-        else
-            mixedBits &= triBits;
-
+        mixedBits = getCombinedTriSaw12();
         waveformSelected = true;
     }
-
-    if (control & 0x20) // Sawtooth
+    else
     {
-        const uint16_t sawBits = getAccumulatorSaw12();
+        if (control & 0x10) // Triangle
+        {
+            const uint16_t triBits = getAccumulatorTriangle12();
 
-        if (!waveformSelected)
-            mixedBits = sawBits;
-        else
-            mixedBits &= sawBits;
+            if (!waveformSelected)
+                mixedBits = triBits;
+            else
+                mixedBits &= triBits;
 
-        waveformSelected = true;
-    }
+            waveformSelected = true;
+        }
 
-    if (control & 0x40) // Pulse
-    {
-        const uint16_t pulseBits = getAccumulatorPulse12();
+        if (control & 0x20) // Sawtooth
+        {
+            const uint16_t sawBits = getAccumulatorSaw12();
 
-        if (!waveformSelected)
-            mixedBits = pulseBits;
-        else
-            mixedBits &= pulseBits;
+            if (!waveformSelected)
+                mixedBits = sawBits;
+            else
+                mixedBits &= sawBits;
 
-        waveformSelected = true;
-    }
+            waveformSelected = true;
+        }
 
-    if (control & 0x80) // Noise
-    {
-        const uint16_t noiseBits = getNoiseOutputBits();
+        if (control & 0x40) // Pulse
+        {
+            const uint16_t pulseBits = getAccumulatorPulse12();
 
-        if (!waveformSelected)
-            mixedBits = noiseBits;
-        else
-            mixedBits &= noiseBits;
+            if (!waveformSelected)
+                mixedBits = pulseBits;
+            else
+                mixedBits &= pulseBits;
 
-        waveformSelected = true;
+            waveformSelected = true;
+        }
+
+        if (control & 0x80) // Noise
+        {
+            const uint16_t noiseBits = getNoiseOutputBits();
+
+            if (!waveformSelected)
+                mixedBits = noiseBits;
+            else
+                mixedBits &= noiseBits;
+
+            waveformSelected = true;
+        }
     }
 
     if (!waveformSelected)
-    return 0x00;
+        return 0x00;
 
     mixedBits = applyCombinedWaveformModel(mixedBits);
 
@@ -472,43 +485,56 @@ double Oscillator::outputSample()
     if ((control & 0xF0) == 0)
         return 0.0;
 
-    uint16_t mixedBits = 0xFFFF;
+    const uint8_t waveBits = control & 0xF0;
+
+    uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
-    if (control & 0x10) // Triangle
+    //
+    // Dedicated combined waveform path.
+    //
+    if (waveBits == 0x30) // Triangle + Saw
     {
-        mixedBits &= getTriangleBits();
+        mixedBits = getCombinedTriSaw12();
         waveformSelected = true;
     }
-
-    if (control & 0x20) // Sawtooth
+    else
     {
-        if (!waveformSelected)
-            mixedBits = getSawBits();
-        else
-            mixedBits &= getSawBits();
+        if (control & 0x10) // Triangle
+        {
+            mixedBits = getTriangleBits();
+            waveformSelected = true;
+        }
 
-        waveformSelected = true;
-    }
+        if (control & 0x20) // Sawtooth
+        {
+            if (!waveformSelected)
+                mixedBits = getSawBits();
+            else
+                mixedBits &= getSawBits();
 
-    if (control & 0x40) // Pulse
-    {
-        if (!waveformSelected)
-            mixedBits = getPulseBits();
-        else
-            mixedBits &= getPulseBits();
+            waveformSelected = true;
+        }
 
-        waveformSelected = true;
-    }
+        if (control & 0x40) // Pulse
+        {
+            if (!waveformSelected)
+                mixedBits = getPulseBits();
+            else
+                mixedBits &= getPulseBits();
 
-    if (control & 0x80) // Noise
-    {
-        if (!waveformSelected)
-            mixedBits = getNoiseBits();
-        else
-            mixedBits &= getNoiseBits();
+            waveformSelected = true;
+        }
 
-        waveformSelected = true;
+        if (control & 0x80) // Noise
+        {
+            if (!waveformSelected)
+                mixedBits = getNoiseBits();
+            else
+                mixedBits &= getNoiseBits();
+
+            waveformSelected = true;
+        }
     }
 
     if (!waveformSelected)
@@ -522,6 +548,14 @@ double Oscillator::outputSample()
 double Oscillator::getAccumulatorPhase() const
 {
     return static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
+}
+
+uint16_t Oscillator::getCombinedTriSaw12() const
+{
+    const uint16_t tri = getAccumulatorTriangle12();
+    const uint16_t saw = getAccumulatorSaw12();
+
+    return static_cast<uint16_t>(tri & saw);
 }
 
 std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const
