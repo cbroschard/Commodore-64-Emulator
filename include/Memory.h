@@ -37,11 +37,11 @@ class Memory
         uint8_t readKernalROM(uint16_t address) const;
         uint8_t readBASICROM(uint16_t address) const;
         uint8_t readCharROM(uint16_t address) const;
-        uint8_t readColorRAM(uint16_t address) const;
+        uint8_t readColorRAM(uint16_t offset) const;
 
         void write16(uint16_t address, uint16_t value);
         void writeRAM(uint16_t address, uint8_t value);
-        void writeColorRAM(uint16_t address, uint8_t value);
+        void writeColorRAM(uint16_t offset, uint8_t value);
         void writeDirect(uint16_t address, uint8_t value);
 
         // Load all ROMS

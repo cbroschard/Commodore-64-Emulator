@@ -30,7 +30,7 @@ void Memory::saveState(StateWriter& wrtr) const
     // Dump Color RAM
     wrtr.writeVectorU8(colorRAM);
 
-    // End the chunk for CIA1
+    // End the chunk
     wrtr.endChunk();
 }
 
@@ -76,14 +76,14 @@ uint8_t Memory::readBASICROM(uint16_t address) const
     return basicROM[address];
 }
 
-uint8_t Memory::readCharROM(uint16_t address) const
+uint8_t Memory::readCharROM(uint16_t offset) const
 {
-    return charROM[address];
+    return charROM[offset];
 }
 
-uint8_t Memory::readColorRAM(uint16_t address) const
+uint8_t Memory::readColorRAM(uint16_t offset) const
 {
-    return colorRAM[address] & 0x0F;
+    return colorRAM[offset] & 0x0F;
 }
 
 void Memory::write16(uint16_t address, uint16_t value)
@@ -150,8 +150,6 @@ bool Memory::Initialize(const std::string& basic, const std::string& kernal, con
     {
         return false;
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
