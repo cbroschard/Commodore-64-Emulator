@@ -1271,6 +1271,16 @@ uint8_t Cartridge::sampleDataBus() const
     return dataBus ? dataBus->sample() : 0xFF;
 }
 
+std::string Cartridge::getGameName() const
+{
+    size_t len = 0;
+
+    while (len < sizeof(header.gameName) && header.gameName[len] != '\0')
+        ++len;
+
+    return std::string(header.gameName, len);
+}
+
 TraceManager::Stamp Cartridge::makeCartStamp() const
 {
      if (!traceMgr)

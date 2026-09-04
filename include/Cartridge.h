@@ -67,8 +67,7 @@ class Cartridge
         // Open Bus sample
         uint8_t sampleDataBus() const;
 
-        // Getter for game name
-        inline std::string getGameName() const { return std::string(header.gameName); }
+        std::string getGameName() const;
 
         // Public read/write access to cartridge memory
         uint8_t read(uint16_t address);
