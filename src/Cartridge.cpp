@@ -843,33 +843,18 @@ bool Cartridge::loadIntoMemory()
                 location = cartLocation::LO;
                 baseAddress = CART_LO_START;
             }
-            else if (section.loadAddress == CART_HI_START || section.loadAddress == CART_HI_START1)
+            else if (section.loadAddress == CART_HI_START)
             {
-                // Always map ROMH content to the HI buffer, starting at 0.
                 location = cartLocation::HI;
-
-                for (size_t i = 0; i < section.data.size(); ++i)
-                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
-
-                continue;
+                baseAddress = CART_HI_START;
             }
-            else if (section.loadAddress == 0xE000)
+            else if (section.loadAddress == CART_HI_START1)
             {
-                location = cartLocation::HI_E000;   // <-- IMPORTANT
-                baseAddress = 0xE000;
-
-                // Write starting at offset 0
-                for (size_t i = 0; i < section.data.size(); ++i)
-                    writeCartridge(static_cast<uint16_t>(i), section.data[i], location);
-
-                continue;
+                location = cartLocation::HI_E000;
+                baseAddress = CART_HI_START1;
             }
             else
-            {
-                // Default to LO if load address is unrecognized.
-                location = cartLocation::LO;
-                baseAddress = CART_LO_START;
-            }
+                continue;
 
             #ifdef Debug
             std::cout << "Loading 8K section into " << ((location == cartLocation::LO) ? "LO" : "HI")
