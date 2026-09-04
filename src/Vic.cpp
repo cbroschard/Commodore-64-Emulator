@@ -6684,7 +6684,7 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
         << " mcbase=" << int(spriteUnits[sprite].mcBase)
         << " startY=" << spriteUnits[sprite].startY;
 
-    traceMgr->recordVicEvent(out.str(), makeVicStamp());
+    traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
 
 void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const
