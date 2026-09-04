@@ -50,6 +50,9 @@ bool Memory::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         // Load Color RAM
         if (!rdr.readVectorU8(colorRAM))                                    { rdr.exitChunkPayload(chunk); return false; }
 
+
+        if (mem.size() != MAX_MEMORY || colorRAM.size() != COLOR_RAM_SIZE)  { rdr.exitChunkPayload(chunk); return false; }
+
         rdr.exitChunkPayload(chunk);
         return true;
     }
