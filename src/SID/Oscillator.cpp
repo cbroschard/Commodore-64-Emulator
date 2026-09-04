@@ -144,9 +144,6 @@ uint8_t Oscillator::readOutput8() const
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
-    //
-    // Dedicated combined waveform path.
-    //
     if (waveBits == 0x30) // Triangle + Saw
     {
         mixedBits = getCombinedTriSaw12();
@@ -206,7 +203,9 @@ uint8_t Oscillator::readOutput8() const
     if (!waveformSelected)
         return 0x00;
 
-    mixedBits = applyCombinedWaveformModel(mixedBits);
+    // TRI+SAW already went through its model-specific path.
+    if (waveBits != 0x30)
+        mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
 }
@@ -490,9 +489,6 @@ double Oscillator::outputSample()
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
-    //
-    // Dedicated combined waveform path.
-    //
     if (waveBits == 0x30) // Triangle + Saw
     {
         mixedBits = getCombinedTriSaw12();
@@ -540,7 +536,9 @@ double Oscillator::outputSample()
     if (!waveformSelected)
         return 0.0;
 
-    mixedBits = applyCombinedWaveformModel(mixedBits);
+    // Don't process TRI+SAW twice.
+    if (waveBits != 0x30)
+        mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return convertToFloat(mixedBits);
 }
@@ -552,8 +550,52 @@ double Oscillator::getAccumulatorPhase() const
 
 uint16_t Oscillator::getCombinedTriSaw12() const
 {
-    const uint16_t tri = getAccumulatorTriangle12();
-    const uint16_t saw = getAccumulatorSaw12();
+    const uint16_t index = static_cast<uint16_t>((accumulator24 >> 12) & 0x0FFF);
+
+    switch (sidModel_)
+    {
+        case SIDModel::MOS6581:
+            return getTriSaw6581(index);
+
+        case SIDModel::MOS8580:
+            return getTriSaw8580(index);
+    }
+
+    return 0;
+}
+
+uint16_t Oscillator::getTriSaw6581(uint16_t index) const
+{
+    const uint32_t acc = static_cast<uint32_t>(index & 0x0FFF) << 12;
+    const uint16_t saw = static_cast<uint16_t>((acc >> 12) & 0x0FFF);
+    uint16_t tri = static_cast<uint16_t>((acc >> 11) & 0x0FFF);
+
+    if (acc & 0x00800000)
+        tri ^= 0x0FFF;
+
+    //
+    // 6581 combined TRI+SAW starts from the logical
+    // interaction of the two waveform outputs.
+    //
+    uint16_t combined = static_cast<uint16_t>(saw & tri);
+
+    //
+    // Approximate the strong neighboring-bit coupling / droop
+    // seen in the 6581 combined waveform DAC.
+    //
+    combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
+
+    return combined & 0x0FFF;
+}
+
+uint16_t Oscillator::getTriSaw8580(uint16_t index) const
+{
+    const uint32_t acc = static_cast<uint32_t>(index & 0x0FFF) << 12;
+    const uint16_t saw = static_cast<uint16_t>((acc >> 12) & 0x0FFF);
+    uint16_t tri = static_cast<uint16_t>((acc >> 11) & 0x0FFF);
+
+    if (acc & 0x00800000)
+        tri ^= 0x0FFF;
 
     return static_cast<uint16_t>(tri & saw);
 }
