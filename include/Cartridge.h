@@ -55,7 +55,7 @@ class Cartridge
 
         bool loadROM(const std::string& path);  // load the Cartridge
 
-        bool setCurrentBank(uint8_t bank);      // Update the current bank for loading
+        bool setCurrentBank(uint16_t bank);      // Update the current bank for loading
 
         // Live cartridge pin *levels* (1=inactive/high, 0=asserted/low)
         inline bool getExROMLine() const { return exROMLine; }
@@ -86,7 +86,7 @@ class Cartridge
         struct chipSection
         {
             uint8_t chipType;               // Same as in crtChipHeader
-            uint8_t bankNumber;             // Bank number of 16k section
+            uint16_t bankNumber;            // Bank number of 16k section
             uint16_t loadAddress;           // Same as in crtChipHeader
             std::vector<uint8_t> data;      // CHIP section data to load
         };
@@ -190,7 +190,7 @@ class Cartridge
         std::vector<uint8_t> romData;           // vector to store the Cartridge rom
         std::vector<uint8_t> ramData;           // vector for Cartridge ram if supported
         bool hasRAM;                            // Set for Cartridges that have RAM
-        uint8_t currentBank;                    // Support bank switching
+        uint16_t currentBank;                    // Support bank switching
 
     private:
         // Non-owning pointers

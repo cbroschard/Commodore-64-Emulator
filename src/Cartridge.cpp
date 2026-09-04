@@ -93,7 +93,7 @@ void Cartridge::saveState(StateWriter& wrtr) const
     wrtr.writeU32(2); // version
 
     // Dump Active bank
-    wrtr.writeU8(currentBank);
+    wrtr.writeU16(currentBank);
 
     // Dump Wiring
     wrtr.writeU8(static_cast<uint8_t>(wiringMode));
@@ -132,18 +132,18 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     rdr.enterChunkPayload(chunk);
 
     uint32_t ver = 0;
-    if (!rdr.readU32(ver)) { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 2)          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 2)                   { rdr.exitChunkPayload(chunk); return false; }
 
-    if (!rdr.readU8(currentBank)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU16(currentBank))  { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t wiringU8 = 0;
-    if (!rdr.readU8(wiringU8)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(wiringU8))      { rdr.exitChunkPayload(chunk); return false; }
     wiringMode = static_cast<WiringMode>(wiringU8);
 
     // mapperType + romData
     uint16_t mapperU16 = 0;
-    if (!rdr.readU16(mapperU16)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU16(mapperU16))    { rdr.exitChunkPayload(chunk); return false; }
     mapperType = static_cast<CartridgeType>(mapperU16);
 
     if (!rdr.readVectorU8(romData)) { rdr.exitChunkPayload(chunk); return false; }
@@ -176,15 +176,15 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Read GAME/EXROM saved values (keeps exact wiring you had at save time)
     bool game = false, exrom = false;
-    if (!rdr.readBool(game))  { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(exrom)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(game))            { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(exrom))           { rdr.exitChunkPayload(chunk); return false; }
 
     // Drive the actual PLA lines
     setGameLine(game);
     setExROMLine(exrom);
 
     // RAM snapshot
-    if (!rdr.readBool(hasRAM)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(hasRAM))          { rdr.exitChunkPayload(chunk); return false; }
     if (hasRAM)
     {
         if (!rdr.readVectorU8(ramData)) { rdr.exitChunkPayload(chunk); return false; }
@@ -731,7 +731,7 @@ void Cartridge::writeCartridge(uint16_t address, uint8_t value, cartLocation loc
     }
 }
 
-bool Cartridge::setCurrentBank(uint8_t bank)
+bool Cartridge::setCurrentBank(uint16_t bank)
 {
     bool bankFound = false;
     for (const auto &section : chipSections)
