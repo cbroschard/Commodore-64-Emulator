@@ -1114,20 +1114,24 @@ void Cartridge::traceActiveWindows(const char* why)
     }
 }
 
-uint8_t Cartridge::selectInitialBank(const std::vector<Cartridge::chipSection>& sections)
+uint16_t Cartridge::selectInitialBank(const std::vector<Cartridge::chipSection>& sections)
 {
-    if (sections.empty()) return 0;
+    if (sections.empty())
+        return 0;
 
     bool has0 = false;
     uint16_t minBank = 0xFFFF;
 
     for (const auto& s : sections)
     {
-        if (s.bankNumber == 0) has0 = true;
-        if (s.bankNumber < minBank) minBank = s.bankNumber;
+        if (s.bankNumber == 0)
+            has0 = true;
+
+        if (s.bankNumber < minBank)
+            minBank = s.bankNumber;
     }
 
-    return has0 ? 0 : static_cast<uint8_t>(minBank);
+    return has0 ? 0 : minBank;
 }
 
 bool Cartridge::mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode wiringMode, cartLocation& outLoc, uint16_t& outOffset)

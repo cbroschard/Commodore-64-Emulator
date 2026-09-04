@@ -271,7 +271,7 @@ class Cartridge
         // Tracing helper
         void traceActiveWindows(const char* why);
 
-        static uint8_t selectInitialBank(const std::vector<Cartridge::chipSection>& sections);
+        static uint16_t selectInitialBank(const std::vector<Cartridge::chipSection>& sections);
         bool mapCpuAddrToCartOffset(uint16_t cpuAddr, Cartridge::WiringMode wiringMode, cartLocation& outLoc, uint16_t& outOffset);
         std::unique_ptr<CartridgeMapper> createMapper(CartridgeType t);
 
