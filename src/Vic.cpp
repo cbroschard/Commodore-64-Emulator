@@ -6341,8 +6341,7 @@ int Vic::cycleFramebufferX(int cycle) const
 
 void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const
 {
-    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE) &&
-        !vicTraceOn(TraceManager::TraceDetail::VIC_IRQ))
+    if (!vicTraceOn(TraceManager::TraceDetail::VIC_BADLINE))
         return;
 
     const bool den = (effectiveD011ForRaster(raster) & 0x10) != 0;
