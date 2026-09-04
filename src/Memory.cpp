@@ -104,8 +104,7 @@ void Memory::writeColorRAM(uint16_t address, uint8_t value)
 
 void Memory::writeDirect(uint16_t address, uint8_t value)
 {
-    if (address < MAX_MEMORY)
-        mem[address] = value;
+    mem[address] = value;
 }
 
 bool Memory::loadROM(const std::string& filename, std::vector<uint8_t>& targetBuffer, size_t expectedSize, const std::string& romName)
@@ -146,7 +145,8 @@ bool Memory::Initialize(const std::string& basic, const std::string& kernal, con
     }
 
     // Load each ROM and check for successful load
-    if (!loadROM(basic, basicROM, 0x2000, "BASIC") || !loadROM(kernal, kernalROM, 0x2000, "Kernal") || !loadROM(character, charROM, 0x1000, "CHAR"))
+    if (!loadROM(basic, basicROM, BASIC_ROM_SIZE, "BASIC") || !loadROM(kernal, kernalROM, KERNAL_ROM_SIZE, "Kernal") ||
+        !loadROM(character, charROM, CHAR_ROM_SIZE, "CHAR"))
     {
         return false;
     }
