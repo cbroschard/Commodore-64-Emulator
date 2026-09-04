@@ -779,19 +779,32 @@ bool Cartridge::hasSectionAt(uint16_t address) const
 bool Cartridge::loadFile(const std::string& path, std::vector<uint8_t>& buffer)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
+
     if (!file.is_open())
         return false;
 
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
+    const std::streamsize size = file.tellg();
 
-    buffer.resize(size);
-    if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
+    if (size < 0)
         return false;
 
-    #ifdef Debug
-    std::cout << "Read ROM file: " << path << " (" << size << " bytes)" << std::endl;
-    #endif // Debug
+    file.seekg(0, std::ios::beg);
+
+    if (!file)
+        return false;
+
+    buffer.resize(static_cast<size_t>(size));
+
+    if (size > 0)
+    {
+        if (!file.read(
+                reinterpret_cast<char*>(buffer.data()),
+                size))
+        {
+            buffer.clear();
+            return false;
+        }
+    }
 
     return true;
 }
