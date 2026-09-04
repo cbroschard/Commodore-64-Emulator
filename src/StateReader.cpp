@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <limits>
 #include "StateReader.h"
 
 StateReader::StateReader() :
@@ -50,13 +51,22 @@ bool StateReader::loadFromMemory(std::vector<uint8_t> bytes)
 
 bool StateReader::ensure(size_t bytes) const
 {
-    const size_t end = pos + bytes;
-    if (end > buffer.size()) return false;
+    // Determine the maximum position we are allowed to read to.
+    size_t limit = buffer.size();
 
-    if (!limitStack.empty() && end > limitStack.back())
+    if (!limitStack.empty())
+    {
+        if (limitStack.back() < limit)
+            limit = limitStack.back();
+    }
+
+    // Current position itself must be valid.
+    if (pos > limit)
         return false;
 
-    return true;
+    // Use subtraction rather than pos + bytes so an overflowing
+    // addition can never bypass the bounds check.
+    return bytes <= (limit - pos);
 }
 
 bool StateReader::readFileHeader()
@@ -158,25 +168,55 @@ bool StateReader::readString(std::string& out)
 bool StateReader::readVectorU8(std::vector<uint8_t>& out)
 {
     uint32_t size = 0;
-    if (!readU32(size)) return false;
 
-    out.resize(static_cast<size_t>(size));
-    if (size == 0) return true;
+    if (!readU32(size))
+        return false;
 
-    return readBytes(out.data(), static_cast<size_t>(size));
+    const size_t byteCount = static_cast<size_t>(size);
+
+    // Validate before allocating.
+    if (!ensure(byteCount))
+        return false;
+
+    out.resize(byteCount);
+
+    if (byteCount == 0)
+        return true;
+
+    return readBytes(out.data(), byteCount);
 }
 
 bool StateReader::readVectorU16(std::vector<uint16_t>& out)
 {
     uint32_t n = 0;
-    if (!readU32(n)) return false;
-    out.resize(static_cast<size_t>(n));
-    for (uint32_t i = 0; i < n; ++i)
+
+    if (!readU32(n))
+        return false;
+
+    const size_t count = static_cast<size_t>(n);
+
+    // Protect multiplication and verify the entire vector exists
+    // before allocating memory.
+    if (count > (std::numeric_limits<size_t>::max() / sizeof(uint16_t)))
+        return false;
+
+    const size_t byteCount = count * sizeof(uint16_t);
+
+    if (!ensure(byteCount))
+        return false;
+
+    out.resize(count);
+
+    for (size_t i = 0; i < count; ++i)
     {
         uint16_t v = 0;
-        if (!readU16(v)) return false;
+
+        if (!readU16(v))
+            return false;
+
         out[i] = v;
     }
+
     return true;
 }
 
