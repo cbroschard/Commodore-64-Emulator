@@ -184,11 +184,30 @@ void MLMonitor::clearBreakpoint(uint16_t bp)
 
 void MLMonitor::listBreakpoints() const
 {
+    std::vector<uint16_t> sortedBreakpoints(
+        breakpoints.begin(),
+        breakpoints.end());
+
+    std::sort(
+        sortedBreakpoints.begin(),
+        sortedBreakpoints.end());
+
     int index = 0;
-    for (auto list : breakpoints)
+
+    for (uint16_t address : sortedBreakpoints)
     {
-        std::cout << "[" << index << "]" << "  $" << std::hex << std::setw(4) << std::setfill('0') << list << std::endl;
-        index++;
+        std::cout
+            << "[" << index++ << "]  $"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << address
+            << std::dec
+            << std::nouppercase
+            << std::right
+            << std::setfill(' ')
+            << "\n";
     }
 }
 
@@ -231,12 +250,38 @@ void MLMonitor::clearAllWriteWatches()
 
 void MLMonitor::listWriteWatches() const
 {
+    std::vector<std::pair<uint16_t, uint8_t>> sortedWatches(
+        writeWatches.begin(),
+        writeWatches.end());
+
+    std::sort(
+        sortedWatches.begin(),
+        sortedWatches.end(),
+        [](const auto& a, const auto& b)
+        {
+            return a.first < b.first;
+        });
+
     int index = 0;
-    for (const auto& [address, value] : writeWatches)
+
+    for (const auto& [address, value] : sortedWatches)
     {
-        std::cout << "[" << index << "]  $" << std::hex << std::setw(4) << std::setfill('0') << address
-                  << " (last value=$" << std::setw(2) << static_cast<int>(value) << ")\n";
-        index++;
+        std::cout
+            << "[" << index++ << "]  $"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << address
+            << " (last value=$"
+            << std::setw(2)
+            << static_cast<int>(value)
+            << ")"
+            << std::dec
+            << std::nouppercase
+            << std::right
+            << std::setfill(' ')
+            << "\n";
     }
 }
 
@@ -298,9 +343,31 @@ std::vector<uint16_t> MLMonitor::getWriteWatchAddresses() const
 
 void MLMonitor::listReadWatches() const
 {
-    int i = 0;
-    for (auto addr : readWatches)
-        std::cout << "[" << i++ << "]  $" << std::hex << std::setw(4) << std::setfill('0') << addr << "\n";
+    std::vector<uint16_t> sortedAddresses(
+        readWatches.begin(),
+        readWatches.end());
+
+    std::sort(
+        sortedAddresses.begin(),
+        sortedAddresses.end());
+
+    int index = 0;
+
+    for (uint16_t address : sortedAddresses)
+    {
+        std::cout
+            << "[" << index++ << "]  $"
+            << std::hex
+            << std::uppercase
+            << std::setw(4)
+            << std::setfill('0')
+            << address
+            << std::dec
+            << std::nouppercase
+            << std::right
+            << std::setfill(' ')
+            << "\n";
+    }
 }
 
 bool MLMonitor::checkWatchRead(uint16_t address, uint8_t value)
