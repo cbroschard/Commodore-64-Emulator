@@ -605,6 +605,14 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readU8(vicState.rc))                                   { rdr.exitChunkPayload(chunk); return false; }
 
+        // VICX versions 2-7 stored the obsolete matrixAdvancePending
+        // boolean here. Consume it to preserve the legacy chunk layout.
+        if (ver >= 2 && ver <= 7)
+        {
+            bool legacyMatrixAdvancePending = false;
+            if (!rdr.readBool(legacyMatrixAdvancePending))             { rdr.exitChunkPayload(chunk); return false; }
+        }
+
         if (!rdr.readBool(vicState.displayEnabled))                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLine))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -749,6 +757,16 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readVectorU8(d011_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d016_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readVectorU8(d018_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
+
+        // VICX versions 1-8 stored a per-raster DD00/VIC-bank vector.
+        // VIC bank selection is no longer restored from this obsolete
+        // raster-latched state, but the serialized data must still be
+        // consumed to keep the old chunk aligned.
+        if (ver <= 8)
+        {
+            std::vector<uint16_t> legacyDD00PerRaster;
+            if (!rdr.readVectorU16(legacyDD00PerRaster))                { rdr.exitChunkPayload(chunk); return false; }
+        }
 
         if (ver >= 2)
         {
