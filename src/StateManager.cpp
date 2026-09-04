@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <chrono>
+#include <filesystem>
 #include "CPUTiming.h"
 #include "Drive/Drive.h"
 #include "MachineComponents.h"
@@ -108,6 +110,93 @@ bool StateManager::save(const std::string& path)
 }
 
 bool StateManager::load(const std::string& path)
+{
+    // Temporary rollback state.
+    //
+    // If loading the requested state fails after partially modifying
+    // the machine, restore the state that existed before the load.
+    std::filesystem::path rollbackPath;
+
+    try
+    {
+        const auto rollbackPath =
+            std::filesystem::temp_directory_path() /
+            (
+                "commodore_state_rollback_" +
+                std::to_string(
+                    std::chrono::steady_clock::now()
+                        .time_since_epoch()
+                        .count()) +
+                ".sav"
+            );
+
+        // Capture the machine exactly as it exists before attempting
+        // to load the requested state.
+        if (!save(rollbackPath.string()))
+            return false;
+
+        // Attempt the real load.
+        if (loadInternal(path))
+        {
+            std::error_code ec;
+            std::filesystem::remove(rollbackPath, ec);
+            return true;
+        }
+
+        // The requested state failed to load. Restore the original
+        // machine state.
+        const bool restored = loadInternal(rollbackPath.string());
+
+        std::error_code ec;
+        std::filesystem::remove(rollbackPath, ec);
+
+        if (!restored)
+        {
+            #ifdef Debug
+            std::cerr
+                << "State load failed and rollback state could not be restored.\n";
+            #endif
+        }
+
+        return false;
+    }
+    catch (const std::exception& e)
+    {
+        #ifdef Debug
+        std::cerr << "State load exception: " << e.what() << "\n";
+        #endif
+
+        if (!rollbackPath.empty())
+        {
+            // Best-effort rollback.
+            loadInternal(rollbackPath.string());
+
+            std::error_code ec;
+            std::filesystem::remove(rollbackPath, ec);
+        }
+
+        return false;
+    }
+    catch (...)
+    {
+        #ifdef Debug
+        std::cerr << "Unknown exception while loading state.\n";
+        #endif
+
+        if (!rollbackPath.empty())
+        {
+            // Best-effort rollback.
+            loadInternal(rollbackPath.string());
+
+            std::error_code ec;
+            std::filesystem::remove(rollbackPath, ec);
+        }
+
+        return false;
+    }
+}
+
+bool StateManager::loadInternal(const std::string& path)
 {
     StateReader rdr;
 

@@ -34,6 +34,8 @@ class StateManager
         MachineRuntimeState runtime_;
 
         static constexpr uint32_t kStateVersion = 1; // Save State file version
+
+        bool loadInternal(const std::string& path);
 };
 
 #endif // STATEMANAGER_H
