@@ -6534,6 +6534,9 @@ void Vic::traceVicSpriteDmaStart(int sprite) const
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
         return;
 
+    if (sprite < 0 || sprite >= 8)
+        return;
+
     std::ostringstream out;
     out << "[VIC:SPRITE] DMA start"
         << " spr=" << sprite
@@ -6547,6 +6550,9 @@ void Vic::traceVicSpriteDmaStart(int sprite) const
 void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const
 {
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    if (sprite < 0 || sprite >= 8)
         return;
 
     std::ostringstream out;
@@ -6563,6 +6569,9 @@ void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_
 void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const
 {
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    if (sprite < 0 || sprite >= 8)
         return;
 
     std::ostringstream out;
@@ -6625,6 +6634,9 @@ void Vic::traceVicSpriteAdvanceDecision(int sprite, int raster, bool willAdvance
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
         return;
 
+    if (sprite < 0 || sprite >= 8)
+        return;
+
     std::ostringstream out;
     out << "[VIC:SPR] "
         << "s=" << sprite
@@ -6648,6 +6660,9 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
     bool rasterMatch, bool willStart) const
 {
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    if (sprite < 0 || sprite >= 8)
         return;
 
     std::ostringstream out;
@@ -6676,6 +6691,9 @@ void Vic::traceVicSpriteStartCheck(int sprite, int raster, uint8_t spriteY, bool
 void Vic::traceVicSpriteRowMismatch(int sprite, int raster, int computedRow) const
 {
     if (!vicTraceOn(TraceManager::TraceDetail::VIC_SPRITE))
+        return;
+
+    if (sprite < 0 || sprite >= 8)
         return;
 
     std::ostringstream out;
