@@ -26,8 +26,6 @@ Envelope::Envelope() :
     envCounter(0),
     exponentialCounter(0),
     exponentialPeriod(1),
-    exponentialPipeline(0),
-    envelopePipeline(0),
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
@@ -50,8 +48,7 @@ void Envelope::trigger()
     // Attack is linear, so discard any pending decay/release
     // exponential-divider event.
     //
-    exponentialCounter = 0;
-    exponentialPipeline = 0;
+    exponentialCounter = 0;;
 }
 
 void Envelope::release()
@@ -69,9 +66,6 @@ void Envelope::reset()
 
     exponentialCounter  = 0;
     exponentialPeriod   = 1;
-    exponentialPipeline = 0;
-
-    envelopePipeline    = 0;
 
     rateCounter         = 0;
     ratePeriod          = 9;
@@ -418,8 +412,6 @@ std::string Envelope::dumpDebug() const
     out << std::fixed << std::setprecision(3);
     out << "  Exponential count:  " << exponentialCounter << "\n";
     out << "  Exponential period: " << exponentialPeriod << "\n";
-    out << "  Exponential pipe:   " << static_cast<int>(exponentialPipeline) << "\n";
-    out << "  Envelope pipe:      " << static_cast<int>(envelopePipeline) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
