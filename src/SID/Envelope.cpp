@@ -154,7 +154,7 @@ void Envelope::clock(double sidCycles)
 
                 ++exponentialCounter;
 
-                if (exponentialCounter >= exponentialPeriod)
+                if (exponentialCounter == exponentialPeriod)
                 {
                     exponentialCounter = 0;
 
@@ -177,7 +177,7 @@ void Envelope::clock(double sidCycles)
 
                 ++exponentialCounter;
 
-                if (exponentialCounter >= exponentialPeriod)
+                if (exponentialCounter == exponentialPeriod)
                 {
                     exponentialCounter = 0;
 
