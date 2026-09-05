@@ -100,42 +100,10 @@ void Envelope::clock(double sidCycles)
     if (sidCycles <= 0.0)
         return;
 
-    const uint32_t cycles =
-        static_cast<uint32_t>(std::floor(sidCycles));
+    const uint32_t cycles = static_cast<uint32_t>(std::floor(sidCycles));
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
-        //
-        // Envelope counter pipeline.
-        //
-        if (envelopePipeline > 0)
-        {
-            --envelopePipeline;
-
-            if (envelopePipeline == 0)
-                stepEnvelopeCounter();
-        }
-
-        //
-        // Exponential counter pipeline.
-        //
-        if (exponentialPipeline > 0)
-        {
-            --exponentialPipeline;
-
-            if (exponentialPipeline == 0)
-            {
-                exponentialCounter = 0;
-
-                if ((state == State::DecaySustain &&
-                     envCounter != sustainCounter) ||
-                    state == State::Release)
-                {
-                    envelopePipeline = 1;
-                }
-            }
-        }
-
         //
         // Select the rate period for the current envelope state.
         //
@@ -160,8 +128,7 @@ void Envelope::clock(double sidCycles)
         // The counter is 15-bit and is NOT reset when the ADSR
         // rate changes. This preserves the SID ADSR delay behavior.
         //
-        rateCounter =
-            static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+        rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
 
         if (rateCounter == ratePeriod)
         {
@@ -172,31 +139,66 @@ void Envelope::clock(double sidCycles)
                 case State::Attack:
                 {
                     //
-                    // Attack bypasses the exponential divider.
-                    // Queue an envelope-counter increment.
+                    // Attack is linear: every rate-counter match
+                    // advances the envelope by one.
                     //
                     exponentialCounter = 0;
 
-                    if (envelopePipeline == 0)
-                        envelopePipeline = 2;
+                    if (envCounter < 0xFF)
+                        ++envCounter;
+
+                    if (envCounter == 0xFF)
+                    {
+                        state = State::DecaySustain;
+
+                        exponentialCounter = 0;
+                        exponentialPeriod = 1;
+                    }
 
                     break;
                 }
 
                 case State::DecaySustain:
+                {
+                    if (holdZero || envCounter == sustainCounter)
+                        break;
+
+                    ++exponentialCounter;
+
+                    if (exponentialCounter >= exponentialPeriod)
+                    {
+                        exponentialCounter = 0;
+
+                        if (envCounter > 0)
+                            --envCounter;
+
+                        updateExponentialPeriod();
+
+                        if (envCounter == 0)
+                            holdZero = true;
+                    }
+
+                    break;
+                }
+
                 case State::Release:
                 {
-                    if (!holdZero)
+                    if (holdZero)
+                        break;
+
+                    ++exponentialCounter;
+
+                    if (exponentialCounter >= exponentialPeriod)
                     {
-                        ++exponentialCounter;
+                        exponentialCounter = 0;
 
-                        if (exponentialCounter == exponentialPeriod)
-                        {
-                            exponentialCounter = 0;
+                        if (envCounter > 0)
+                            --envCounter;
 
-                            exponentialPipeline =
-                                (exponentialPeriod != 1) ? 2 : 1;
-                        }
+                        updateExponentialPeriod();
+
+                        if (envCounter == 0)
+                            holdZero = true;
                     }
 
                     break;
