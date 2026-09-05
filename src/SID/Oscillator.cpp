@@ -26,7 +26,7 @@ static inline double polyBLEP(double t, double dt) {
 Oscillator::Oscillator(double sampleRate) :
     syncSource(nullptr),
     ringSource(nullptr),
-    noiseLFSR(0x7FFFFF),
+    noiseLFSR(0x7FFFF8),
     sampleRate(sampleRate),
     phase(0.0),
     sidClockFrequency(0.0),
@@ -127,8 +127,21 @@ void Oscillator::setControl(uint8_t controlValue)
 
     if (newTest && !oldTest)
     {
+        // TEST asserted: accumulator is held at zero.
         resetPhase();
-        noiseLFSR = 0x7FFFFF;
+
+        // Pulse output is forced high while TEST is active.
+        pulseOutput = 0x0FFF;
+
+        // Cancel any pending noise shift.
+        noiseShiftPipeline = 0;
+    }
+    else if (!newTest && oldTest)
+    {
+        // TEST released: reload the SID noise LFSR seed.
+        noiseLFSR = 0x7FFFF8;
+
+        noiseShiftPipeline = 0;
     }
 
     control = controlValue;
@@ -352,7 +365,7 @@ void Oscillator::reset()
 {
     phase               = 0.0;
     accumulator24       = 0;
-    noiseLFSR           = 0x7FFFFF;
+    noiseLFSR           = 0x7FFFF8;
     phaseOverflow       = false;
     msbRising           = false;
     noiseShiftPipeline  = 0;
@@ -491,6 +504,13 @@ void Oscillator::clock(double sidCycles)
         phase = 0.0;
         phaseOverflow = false;
         msbRising = false;
+
+        // TEST forces pulse output high.
+        pulseOutput = 0x0FFF;
+
+        // No noise shift may complete while TEST is asserted.
+        noiseShiftPipeline = 0;
+
         return;
     }
 
