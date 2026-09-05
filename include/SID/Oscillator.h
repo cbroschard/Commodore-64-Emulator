@@ -28,6 +28,7 @@ class Oscillator
         inline double getFrequency() const { return frequency; }
         inline uint32_t getNoiseShiftPipeline() const { return noiseShiftPipeline; }
         inline uint16_t getPulseOutput() const { return pulseOutput; }
+        inline uint16_t getNextPulseOutput() const { return nextPulseOutput; }
 
         // Setters
         inline void setPhaseOverflow(bool value) { phaseOverflow = value; }
@@ -38,6 +39,7 @@ class Oscillator
         inline void setRingSource(Oscillator* source) { ringSource = source; }
         inline void setNoiseShiftPipeline(uint32_t value) { noiseShiftPipeline = value; }
         inline void setPulseOutput(uint16_t value) { pulseOutput = value & 0x0FFF; }
+        inline void setNextPulseOutput(uint16_t value) { nextPulseOutput = value & 0x0FFF; }
 
         void setAccumulator24(uint32_t value);
         void setPhase(double value);
@@ -97,6 +99,7 @@ class Oscillator
 
         uint32_t noiseShiftPipeline;
         uint16_t pulseOutput;
+        uint16_t nextPulseOutput;
 
         uint32_t accumulator24;
         uint16_t frequencyReg;

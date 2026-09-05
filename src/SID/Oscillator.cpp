@@ -37,6 +37,7 @@ Oscillator::Oscillator(double sampleRate) :
     msbRising(false),
     noiseShiftPipeline(0),
     pulseOutput(0),
+    nextPulseOutput(0),
     accumulator24(0),
     frequencyReg(0)
 {
@@ -127,13 +128,11 @@ void Oscillator::setControl(uint8_t controlValue)
 
     if (newTest && !oldTest)
     {
-        // TEST asserted: accumulator is held at zero.
         resetPhase();
 
-        // Pulse output is forced high while TEST is active.
         pulseOutput = 0x0FFF;
+        nextPulseOutput = 0x0FFF;
 
-        // Cancel any pending noise shift.
         noiseShiftPipeline = 0;
     }
     else if (!newTest && oldTest)
@@ -370,6 +369,7 @@ void Oscillator::reset()
     msbRising           = false;
     noiseShiftPipeline  = 0;
     pulseOutput         = 0;
+    nextPulseOutput     = 0;
 }
 
 uint16_t Oscillator::getAccumulatorSaw12() const
@@ -505,10 +505,9 @@ void Oscillator::clock(double sidCycles)
         phaseOverflow = false;
         msbRising = false;
 
-        // TEST forces pulse output high.
         pulseOutput = 0x0FFF;
+        nextPulseOutput = 0x0FFF;
 
-        // No noise shift may complete while TEST is asserted.
         noiseShiftPipeline = 0;
 
         return;
@@ -553,7 +552,11 @@ void Oscillator::clock(double sidCycles)
 
         const uint32_t pw24 = static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
 
-        pulseOutput = (accumulator24 >= pw24) ? 0x0FFF : 0x0000;
+        // Apply the pulse comparator result calculated on the previous cycle.
+        pulseOutput = nextPulseOutput;
+
+        // Calculate the comparator result that becomes visible next cycle.
+        nextPulseOutput = (accumulator24 >= pw24) ? 0x0FFF : 0x0000;
 
         // Noise combined waveforms can feed back into the SID noise shift register.
         applyNoiseCombinedFeedback();

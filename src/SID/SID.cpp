@@ -109,6 +109,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice1.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice1.getOscillator().getAccumulator24());
     wrtr.writeU16(voice1.getOscillator().getFrequencyReg());
+    wrtr.writeU16(voice1.getOscillator().getPulseOutput());
+    wrtr.writeU16(voice1.getOscillator().getNextPulseOutput());
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getState()));
     wrtr.writeU8(static_cast<uint8_t>(voice1.getEnvelope().getNextState()));
     wrtr.writeU8(voice1.getEnvelope().readOutput8());
@@ -133,6 +135,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice2.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice2.getOscillator().getAccumulator24());
     wrtr.writeU16(voice2.getOscillator().getFrequencyReg());
+    wrtr.writeU16(voice2.getOscillator().getPulseOutput());
+    wrtr.writeU16(voice2.getOscillator().getNextPulseOutput());
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getState()));
     wrtr.writeU8(static_cast<uint8_t>(voice2.getEnvelope().getNextState()));
     wrtr.writeU8(voice2.getEnvelope().readOutput8());
@@ -157,6 +161,8 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice3.getOscillator().getNoiseShiftPipeline());
     wrtr.writeU32(voice3.getOscillator().getAccumulator24());
     wrtr.writeU16(voice3.getOscillator().getFrequencyReg());
+    wrtr.writeU16(voice3.getOscillator().getPulseOutput());
+    wrtr.writeU16(voice3.getOscillator().getNextPulseOutput());
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getState()));
     wrtr.writeU8(static_cast<uint8_t>(voice3.getEnvelope().getNextState()));
     wrtr.writeU8(voice3.getEnvelope().readOutput8());
@@ -295,6 +301,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint32_t noiseShiftPipeline = 0;
         uint32_t accumulator24 = 0;
         uint16_t frequencyReg = 0;
+        uint16_t pulseOutput = 0;
+        uint16_t nextPulseOutput = 0;
 
         uint8_t envStateU8 = 0;
         uint8_t nextStateU8 = 0;
@@ -322,6 +330,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(noiseShiftPipeline))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU32(accumulator24))                    { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU16(frequencyReg))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(pulseOutput))                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readU16(nextPulseOutput))                  { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU8(envStateU8))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(nextStateU8))                       { rdr.exitChunkPayload(chunk); return false; }
@@ -349,6 +359,8 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         v.getOscillator().setPhaseOverflow(overflow);
         v.getOscillator().setNoiseLFSR(lfsr);
         v.getOscillator().setNoiseShiftPipeline(noiseShiftPipeline);
+        v.getOscillator().setPulseOutput(pulseOutput);
+        v.getOscillator().setNextPulseOutput(nextPulseOutput);
 
         // Envelope rate/state.
         v.getEnvelope().setADSR(attackRate, decayRate, sustainRate, releaseRate);
