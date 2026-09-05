@@ -280,6 +280,27 @@ uint16_t Oscillator::getSawPulse8580(uint16_t saw, uint16_t pulse) const
     return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
 }
 
+bool Oscillator::isNoiseCombinedWaveform() const
+{
+    const uint8_t waveBits = control & 0xF0;
+
+    const bool noise = (waveBits & 0x80) != 0;
+    const bool other = (waveBits & 0x70) != 0;
+
+    return noise && other;
+}
+
+void Oscillator::applyNoiseCombinedFeedback()
+{
+    if (!isNoiseCombinedWaveform())
+        return;
+
+    // TODO:
+    // Model SID combined-waveform feedback into the noise shift register.
+    // This is intentionally isolated because noise combinations affect
+    // oscillator state, not just the output waveform.
+}
+
 std::string Oscillator::describeWaveformSelection() const
 {
     std::ostringstream out;
@@ -506,6 +527,9 @@ void Oscillator::clock(double sidCycles)
         const uint32_t pw24 = static_cast<uint32_t>(std::clamp(pulseWidth, 0.0, 1.0) * 16777216.0);
 
         pulseOutput = (accumulator24 >= pw24) ? 0x0FFF : 0x0000;
+
+        // Noise combined waveforms can feed back into the SID noise shift register.
+        applyNoiseCombinedFeedback();
     }
 
     if (fractionalCycles > 0.0)
