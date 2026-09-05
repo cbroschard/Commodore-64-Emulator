@@ -72,11 +72,6 @@ void Voice::setPulseWidth(uint16_t pulseWidth)
     osc.setPulseWidth(duty);
 }
 
-void Voice::setEnvelopeParameters(double attack, double delay, double sustain, double release)
-{
-    env.setParameters(attack, delay, sustain, release);
-}
-
 void Voice::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
 {
     env.setADSR(attack, decay, sustain, release);

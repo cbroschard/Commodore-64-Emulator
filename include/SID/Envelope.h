@@ -68,7 +68,6 @@ class Envelope
         inline void setHoldZero(bool state) { holdZero = state; }
 
         void setSampleRate(double sample);
-        void setParameters(double attack, double decay, double sustain, double release);
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
         void setSIDClockFrequency(double frequency);
         void setLevel(double newLevel);

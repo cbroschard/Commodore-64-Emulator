@@ -38,7 +38,7 @@ Envelope::Envelope(double sampleRate) :
     resetRateCounter(false),
     holdZero(true)
 {
-    setParameters(attackTime, decayTime, sustainLevel, releaseTime);
+
 }
 
 Envelope::~Envelope() = default;
@@ -276,16 +276,6 @@ double Envelope::output() const
 void Envelope::setSampleRate(double sample)
 {
     sampleRate = sample;
-}
-
-void Envelope::setParameters(double attack, double decay, double sustain, double release)
-{
-    attackTime = attack;
-    decayTime = decay;
-    sustainLevel = std::clamp(sustain, 0.0, 1.0);
-    releaseTime = release;
-
-    sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
 }
 
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
