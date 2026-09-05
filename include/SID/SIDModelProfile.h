@@ -40,7 +40,6 @@ struct SIDModelProfile
     // Filter profile
     double cutoffMinHz;
     double cutoffMaxHz;
-    double cutoffCurvePower;
     double resonanceCurvePower;
     double filterDrive;
     double filterAsymmetry;
@@ -75,7 +74,6 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         // Filter profile
         30.0,     // cutoffMinHz
         11000.0,  // cutoffMaxHz
-        2.20,     // cutoffCurvePower
         1.15,     // resonanceCurvePower
         0.18,     // filterDrive
         0.06      // filterAsymmetry
@@ -102,7 +100,6 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         // Filter profile
         30.0,     // cutoffMinHz
         14000.0,  // cutoffMaxHz
-        1.35,     // cutoffCurvePower
         1.45,     // resonanceCurvePower
         0.03,     // filterDrive
         0.00      // filterAsymmetry
