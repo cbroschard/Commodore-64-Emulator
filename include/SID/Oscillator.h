@@ -124,6 +124,10 @@ class Oscillator
         uint16_t getCombinedTriSaw12() const;
         uint16_t getTriSaw6581(uint16_t tri, uint16_t saw) const;
         uint16_t getTriSaw8580(uint16_t tri, uint16_t saw) const;
+
+        uint16_t getCombinedTriPulse12() const;
+        uint16_t getTriPulse6581(uint16_t tri, uint16_t pulse) const;
+        uint16_t getTriPulse8580(uint16_t tri, uint16_t pulse) const;
 };
 
 #endif // OSCILLATOR_H
