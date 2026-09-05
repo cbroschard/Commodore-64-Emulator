@@ -259,18 +259,17 @@ double Envelope::output() const
 
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
 {
-    attackRate  = attack  & 0x0F;
-    decayRate   = decay   & 0x0F;
-    sustainRate = sustain & 0x0F;
-    releaseRate = release & 0x0F;
+    attackRate      = attack  & 0x0F;
+    decayRate       = decay   & 0x0F;
+    sustainRate     = sustain & 0x0F;
+    releaseRate     = release & 0x0F;
 
-    sustainLevel = static_cast<double>(sustainRate) / 15.0;
+    sustainCounter  = static_cast<uint8_t>((sustainRate << 4) | sustainRate);
+    sustainLevel    = static_cast<double>(sustainCounter) / 255.0;
 
-    sustainCounter = static_cast<uint8_t>(std::round(sustainLevel * 255.0));
-
-    attackTime  = SID_ATTACK_S[attackRate];
-    decayTime   = SID_DECAY_RELEASE_S[decayRate];
-    releaseTime = SID_DECAY_RELEASE_S[releaseRate];
+    attackTime      = SID_ATTACK_S[attackRate];
+    decayTime       = SID_DECAY_RELEASE_S[decayRate];
+    releaseTime     = SID_DECAY_RELEASE_S[releaseRate];
 }
 
 std::string Envelope::stateToString(State s)
