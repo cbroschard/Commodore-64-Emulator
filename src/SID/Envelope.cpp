@@ -15,10 +15,6 @@
 Envelope::Envelope() :
     state(State::Release),
     level(0.0),
-    attackTime(0.1),
-    decayTime(0.1),
-    sustainLevel(0.7),
-    releaseTime(0.2),
     attackRate(0),
     decayRate(0),
     sustainRate(0),
@@ -39,16 +35,8 @@ Envelope::~Envelope() = default;
 void Envelope::trigger()
 {
     state = State::Attack;
-
     ratePeriod = getRatePeriod(attackRate);
-
     holdZero = false;
-
-    //
-    // Attack is linear, so discard any pending decay/release
-    // exponential-divider event.
-    //
-    exponentialCounter = 0;;
 }
 
 void Envelope::release()
@@ -119,84 +107,90 @@ void Envelope::clock(double sidCycles)
         //
         // SID envelope rate counter.
         //
-        // The counter is 15-bit and is NOT reset when the ADSR
-        // rate changes. This preserves the SID ADSR delay behavior.
+        // The counter is effectively 15-bit and is not reset when
+        // the ADSR rate changes. On overflow, the SID behavior skips
+        // $0000, which is part of the classic ADSR delay quirk.
         //
-        rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+        ++rateCounter;
 
-        if (rateCounter == ratePeriod)
+        if (rateCounter & 0x8000)
         {
-            rateCounter = 0;
+            rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+        }
 
-            switch (state)
+        if (rateCounter != ratePeriod)
+            continue;
+
+        rateCounter = 0;
+
+        switch (state)
+        {
+            case State::Attack:
             {
-                case State::Attack:
+                //
+                // Attack is linear. The exponential divider is reset
+                // when an actual Attack envelope step occurs.
+                //
+                exponentialCounter = 0;
+
+                if (envCounter < 0xFF)
+                    ++envCounter;
+
+                if (envCounter == 0xFF)
                 {
-                    //
-                    // Attack is linear: every rate-counter match
-                    // advances the envelope by one.
-                    //
+                    state = State::DecaySustain;
+
+                    exponentialCounter = 0;
+                    exponentialPeriod = 1;
+                }
+
+                break;
+            }
+
+            case State::DecaySustain:
+            {
+                if (holdZero || envCounter == sustainCounter)
+                    break;
+
+                ++exponentialCounter;
+
+                if (exponentialCounter >= exponentialPeriod)
+                {
                     exponentialCounter = 0;
 
-                    if (envCounter < 0xFF)
-                        ++envCounter;
+                    if (envCounter > 0)
+                        --envCounter;
 
-                    if (envCounter == 0xFF)
-                    {
-                        state = State::DecaySustain;
+                    updateExponentialPeriod();
 
-                        exponentialCounter = 0;
-                        exponentialPeriod = 1;
-                    }
-
-                    break;
+                    if (envCounter == 0)
+                        holdZero = true;
                 }
 
-                case State::DecaySustain:
+                break;
+            }
+
+            case State::Release:
+            {
+                if (holdZero)
+                    break;
+
+                ++exponentialCounter;
+
+                if (exponentialCounter >= exponentialPeriod)
                 {
-                    if (holdZero || envCounter == sustainCounter)
-                        break;
+                    exponentialCounter = 0;
 
-                    ++exponentialCounter;
+                    if (envCounter > 0)
+                        --envCounter;
 
-                    if (exponentialCounter >= exponentialPeriod)
-                    {
-                        exponentialCounter = 0;
+                    updateExponentialPeriod();
 
-                        if (envCounter > 0)
-                            --envCounter;
-
-                        updateExponentialPeriod();
-
-                        if (envCounter == 0)
-                            holdZero = true;
-                    }
-
-                    break;
+                    if (envCounter == 0)
+                        holdZero = true;
                 }
 
-                case State::Release:
-                {
-                    if (holdZero)
-                        break;
-
-                    ++exponentialCounter;
-
-                    if (exponentialCounter >= exponentialPeriod)
-                    {
-                        exponentialCounter = 0;
-
-                        if (envCounter > 0)
-                            --envCounter;
-
-                        updateExponentialPeriod();
-
-                        if (envCounter == 0)
-                            holdZero = true;
-                    }
-
-                    break;
-                }
+                break;
             }
         }
     }
@@ -211,17 +205,16 @@ double Envelope::output() const
 
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
 {
-    attackRate      = attack  & 0x0F;
-    decayRate       = decay   & 0x0F;
-    sustainRate     = sustain & 0x0F;
-    releaseRate     = release & 0x0F;
+    attackRate  = attack  & 0x0F;
+    decayRate   = decay   & 0x0F;
+    sustainRate = sustain & 0x0F;
+    releaseRate = release & 0x0F;
 
-    sustainCounter  = static_cast<uint8_t>((sustainRate << 4) | sustainRate);
-    sustainLevel    = static_cast<double>(sustainCounter) / 255.0;
-
-    attackTime      = SID_ATTACK_S[attackRate];
-    decayTime       = SID_DECAY_RELEASE_S[decayRate];
-    releaseTime     = SID_DECAY_RELEASE_S[releaseRate];
+    //
+    // SID sustain level is the 4-bit sustain nibble
+    // replicated into both halves of the 8-bit envelope value.
+    //
+    sustainCounter = static_cast<uint8_t>((sustainRate << 4) | sustainRate);
 }
 
 std::string Envelope::stateToString(State s)
@@ -334,10 +327,17 @@ std::string Envelope::dumpDebug() const
     out << "  Level:              " << level << "\n";
 
     out << std::setprecision(3);
-    out << "  Attack time:        " << attackTime << " s\n";
-    out << "  Decay time:         " << decayTime << " s\n";
-    out << "  Sustain level:      " << sustainLevel << "\n";
-    out << "  Release time:       " << releaseTime << " s\n";
+    out << "  Attack time:        "
+        << SID_ATTACK_S[attackRate] << " s\n";
+
+    out << "  Decay time:         "
+        << SID_DECAY_RELEASE_S[decayRate] << " s\n";
+
+    out << "  Sustain level:      "
+        << (static_cast<double>(sustainCounter) / 255.0) << "\n";
+
+    out << "  Release time:       "
+        << SID_DECAY_RELEASE_S[releaseRate] << " s\n";
 
     out << "  Sustain counter:    $" << std::hex << std::uppercase
         << std::setw(2) << std::setfill('0')

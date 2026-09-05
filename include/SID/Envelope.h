@@ -73,12 +73,6 @@ class Envelope
         State state;            // Current envelope state
         double level;           // Current amplitude level (0.0 to 1.0)
 
-        // Envelope timing parameters (in seconds)
-        double attackTime;
-        double decayTime;
-        double sustainLevel;
-        double releaseTime;
-
         uint8_t attackRate;
         uint8_t decayRate;
         uint8_t sustainRate;
