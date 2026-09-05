@@ -70,13 +70,16 @@ void Envelope::trigger()
 void Envelope::release()
 {
     //
-    // Gate-off cancels an in-flight attack transition.
+    // Gate-off enters Release without resetting the SID rate counter.
+    // Any in-flight Attack transition is cancelled.
     //
     if (statePipeline > 0 && nextState == State::Attack)
         statePipeline = 0;
 
+    state = State::Release;
     nextState = State::Release;
-    statePipeline = (envelopePipeline > 0) ? 3 : 2;
+
+    ratePeriod = getRatePeriod(releaseRate);
 }
 
 void Envelope::reset()
