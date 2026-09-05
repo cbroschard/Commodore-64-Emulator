@@ -123,21 +123,21 @@ void Envelope::clock(double sidCycles)
             case State::Attack:
             {
                 //
-                // Attack is linear. The first actual Attack step resets
-                // the exponential divider.
+                // Attack is linear. The exponential divider is reset
+                // when an actual Attack envelope step occurs.
                 //
                 exponentialCounter = 0;
 
-                envCounter =
-                    static_cast<uint8_t>(envCounter + 1);
+                if (envCounter < 0xFF)
+                    ++envCounter;
 
                 if (envCounter == 0xFF)
+                {
                     state = State::DecaySustain;
 
-                updateExponentialPeriod();
-
-                if (envCounter == 0x00)
-                    holdZero = true;
+                    exponentialCounter = 0;
+                    exponentialPeriod = 1;
+                }
 
                 break;
             }
@@ -167,18 +167,21 @@ void Envelope::clock(double sidCycles)
 
             case State::Release:
             {
+                if (holdZero)
+                    break;
+
                 ++exponentialCounter;
 
                 if (exponentialCounter == exponentialPeriod)
                 {
                     exponentialCounter = 0;
 
-                    envCounter =
-                        static_cast<uint8_t>(envCounter - 1);
+                    if (envCounter > 0)
+                        --envCounter;
 
                     updateExponentialPeriod();
 
-                    if (envCounter == 0x00)
+                    if (envCounter == 0)
                         holdZero = true;
                 }
 
