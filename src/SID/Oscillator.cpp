@@ -159,6 +159,11 @@ uint8_t Oscillator::readOutput8() const
         mixedBits = getCombinedSawPulse12();
         waveformSelected = true;
     }
+    else if (waveBits == 0x70) // Triangle + Saw + Pulse
+    {
+        mixedBits = getCombinedTriSawPulse12();
+        waveformSelected = true;
+    }
     else
     {
         if (control & 0x10) // Triangle
@@ -213,7 +218,7 @@ uint8_t Oscillator::readOutput8() const
     if (!waveformSelected)
         return 0x00;
 
-    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60)
+    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60  && waveBits != 0x70)
         mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
@@ -550,6 +555,11 @@ double Oscillator::outputSample()
         mixedBits = getCombinedSawPulse12();
         waveformSelected = true;
     }
+    else if (waveBits == 0x70) // Triangle + Saw + Pulse
+    {
+        mixedBits = getCombinedTriSawPulse12();
+        waveformSelected = true;
+    }
     else
     {
         if (control & 0x10) // Triangle
@@ -592,7 +602,7 @@ double Oscillator::outputSample()
     if (!waveformSelected)
         return 0.0;
 
-    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60)
+    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60 && waveBits != 0x70)
         mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return convertToFloat(mixedBits);
@@ -673,6 +683,39 @@ uint16_t Oscillator::getTriPulse8580(uint16_t tri, uint16_t pulse) const
     const uint16_t left = static_cast<uint16_t>((a << 1) & 0x0FFF);
     const uint16_t right = static_cast<uint16_t>(a >> 1);
     const uint16_t combined = static_cast<uint16_t>((a & left) | (a & right) | (left & right));
+
+    return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
+}
+
+uint16_t Oscillator::getCombinedTriSawPulse12() const
+{
+    const uint16_t saw   = getAccumulatorSaw12();
+    const uint16_t pulse = getAccumulatorPulse12();
+
+    switch (sidModel_)
+    {
+        case SIDModel::MOS6581:
+            return getTriSawPulse6581(saw, pulse);
+
+        case SIDModel::MOS8580:
+            return getTriSawPulse8580(saw, pulse);
+    }
+
+    return 0;
+}
+
+uint16_t Oscillator::getTriSawPulse6581(uint16_t saw, uint16_t pulse) const
+{
+    uint16_t combined = saw & 0x0FFF;
+    combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
+
+    return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
+}
+
+uint16_t Oscillator::getTriSawPulse8580(uint16_t saw, uint16_t pulse) const
+{
+    uint16_t combined = saw & 0x0FFF;
+    combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
 
     return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
 }
