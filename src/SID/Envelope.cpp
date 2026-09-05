@@ -126,15 +126,6 @@ void Envelope::setEnvelopeCounter(uint8_t value)
     syncLevelFromCounter();
 }
 
-double Envelope::processSample()
-{
-    const double sidCyclesThisSample =
-        (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 1.0;
-
-    clock(sidCyclesThisSample);
-    return output();
-}
-
 bool Envelope::isIdle() const
 {
     return state == State::Release && holdZero && envCounter == 0;

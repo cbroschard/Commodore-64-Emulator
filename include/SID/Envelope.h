@@ -29,7 +29,6 @@ class Envelope
         void trigger(); // Trigger the envelope (key pressed), attack phase
         void release(); // Release the envelope (key pressed), release phase
 
-        double processSample();
         bool isIdle() const;
 
         void clock(double sidCycles);
