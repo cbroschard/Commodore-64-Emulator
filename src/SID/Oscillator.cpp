@@ -592,7 +592,7 @@ double Oscillator::outputSample()
     const uint8_t waveBits = control & 0xF0;
 
     if (isNoiseCombinedWaveform())
-        return 0x00;
+        return convertToFloat(0x0000);
 
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
