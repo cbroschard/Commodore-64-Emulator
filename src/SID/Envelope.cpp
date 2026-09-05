@@ -237,14 +237,7 @@ void Envelope::clock(double sidCycles)
         }
 
         if (rateCounter != ratePeriod)
-        {
-            ++rateCounter;
-
-            // SID ADSR rate counter is 15-bit, but its wrap behavior
-            // has an intentional extra step.
-            if (rateCounter & 0x8000)
-                rateCounter =  static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
-        }
+            rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
         else
             resetRateCounter = true;
     }
