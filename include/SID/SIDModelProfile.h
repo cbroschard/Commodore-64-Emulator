@@ -206,17 +206,4 @@ inline double applySIDWaveformDac(uint16_t sampleBits, SIDModel model)
     return std::clamp((x * 2.0) - 1.0 + profile.waveformDacBias, -1.0, 1.0);
 }
 
-inline double mapSIDCutoff11BitToHz(uint16_t cutoff11bit, SIDModel model)
-{
-    const SIDModelProfile& profile = getSIDModelProfile(model);
-
-    const double x =
-        std::clamp(static_cast<double>(cutoff11bit) / 2047.0, 0.0, 1.0);
-
-    const double curve = std::pow(x, profile.cutoffCurvePower);
-
-    return profile.cutoffMinHz +
-           curve * (profile.cutoffMaxHz - profile.cutoffMinHz);
-}
-
 #endif // SID_MODEL_PROFILE_H
