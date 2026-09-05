@@ -141,6 +141,9 @@ uint8_t Oscillator::readOutput8() const
 
     const uint8_t waveBits = control & 0xF0;
 
+    if (isNoiseCombinedWaveform())
+        return 0x00;
+
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
 
@@ -295,10 +298,14 @@ void Oscillator::applyNoiseCombinedFeedback()
     if (!isNoiseCombinedWaveform())
         return;
 
-    // TODO:
-    // Model SID combined-waveform feedback into the noise shift register.
-    // This is intentionally isolated because noise combinations affect
-    // oscillator state, not just the output waveform.
+    //
+    // SID noise combined with another waveform can feed zeros
+    // back into the 23-bit shift register until it locks silent.
+    //
+    // Sidera's MIT-clean approximation models this collapse by
+    // forcing the LFSR toward the all-zero state.
+    //
+    noiseLFSR = 0;
 }
 
 std::string Oscillator::describeWaveformSelection() const
@@ -560,6 +567,9 @@ double Oscillator::outputSample()
         return 0.0;
 
     const uint8_t waveBits = control & 0xF0;
+
+    if (isNoiseCombinedWaveform())
+        return 0x00;
 
     uint16_t mixedBits = 0x0FFF;
     bool waveformSelected = false;
