@@ -120,7 +120,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice1.getEnvelope().getExponentialCounter());
     wrtr.writeU32(voice1.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice1.getEnvelope().getRateCounter());
-    wrtr.writeU16(voice1.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice1.getEnvelope().getHoldZero());
 
     // Dump Voice2 runtime status
@@ -141,7 +140,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice2.getEnvelope().getExponentialCounter());
     wrtr.writeU32(voice2.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice2.getEnvelope().getRateCounter());
-    wrtr.writeU16(voice2.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice2.getEnvelope().getHoldZero());
 
     // Dump Voice3 runtime state
@@ -162,7 +160,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeU32(voice3.getEnvelope().getExponentialCounter());
     wrtr.writeU32(voice3.getEnvelope().getExponentialPeriod());
     wrtr.writeU16(voice3.getEnvelope().getRateCounter());
-    wrtr.writeU16(voice3.getEnvelope().getRatePeriod());
     wrtr.writeBool(voice3.getEnvelope().getHoldZero());
 
     // Dump Filter runtime state
@@ -301,7 +298,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint32_t exponentialPeriod = 1;
 
         uint16_t rateCounter = 0;
-        uint16_t ratePeriod = 9;
         bool holdZero = true;
 
         if (!rdr.readF64(phase))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -324,7 +320,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readU32(exponentialPeriod))                { rdr.exitChunkPayload(chunk); return false; }
 
         if (!rdr.readU16(rateCounter))                      { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU16(ratePeriod))                       { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(holdZero))                        { rdr.exitChunkPayload(chunk); return false; }
 
         // Oscillator runtime state.
@@ -344,7 +339,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         v.getEnvelope().setExponentialCounter(exponentialCounter);
         v.getEnvelope().setExponentialPeriod(exponentialPeriod);
         v.getEnvelope().setRateCounter(rateCounter);
-        v.getEnvelope().setRatePeriod(ratePeriod);
         v.getEnvelope().setHoldZero(holdZero);
 
         return true;

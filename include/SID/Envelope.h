@@ -44,7 +44,6 @@ class Envelope
         inline uint32_t getExponentialCounter() const { return exponentialCounter; }
         inline uint32_t getExponentialPeriod() const { return exponentialPeriod; }
         inline uint16_t getRateCounter() const { return rateCounter; }
-        inline uint16_t getRatePeriod() const { return ratePeriod; }
         inline bool getHoldZero() const { return holdZero; }
 
         uint8_t readOutput8() const;
@@ -54,7 +53,6 @@ class Envelope
         inline void setExponentialPeriod(uint32_t value) { exponentialPeriod = std::max<uint32_t>(1, value); }
         inline void setState(Envelope::State value) { state = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
-        inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
         inline void setHoldZero(bool state) { holdZero = state; }
 
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
@@ -85,7 +83,6 @@ class Envelope
 
         uint8_t sustainCounter;
         uint16_t rateCounter;
-        uint16_t ratePeriod;
 
         bool holdZero;
 

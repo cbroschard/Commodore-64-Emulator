@@ -24,7 +24,6 @@ Envelope::Envelope() :
     exponentialPeriod(1),
     sustainCounter(0),
     rateCounter(0),
-    ratePeriod(9),
     holdZero(true)
 {
 
@@ -35,14 +34,12 @@ Envelope::~Envelope() = default;
 void Envelope::trigger()
 {
     state = State::Attack;
-    ratePeriod = getRatePeriod(attackRate);
     holdZero = false;
 }
 
 void Envelope::release()
 {
     state = State::Release;
-    ratePeriod = getRatePeriod(releaseRate);
 }
 
 void Envelope::reset()
@@ -56,7 +53,6 @@ void Envelope::reset()
     exponentialPeriod   = 1;
 
     rateCounter         = 0;
-    ratePeriod          = 9;
 
     holdZero            = true;
 }
@@ -89,18 +85,20 @@ void Envelope::clock(double sidCycles)
         //
         // Select the rate period for the current envelope state.
         //
+        uint16_t currentRatePeriod = 0;
+
         switch (state)
         {
             case State::Attack:
-                ratePeriod = getRatePeriod(attackRate);
+                currentRatePeriod = getRatePeriod(attackRate);
                 break;
 
             case State::DecaySustain:
-                ratePeriod = getRatePeriod(decayRate);
+                currentRatePeriod = getRatePeriod(decayRate);
                 break;
 
             case State::Release:
-                ratePeriod = getRatePeriod(releaseRate);
+                currentRatePeriod = getRatePeriod(releaseRate);
                 break;
         }
 
@@ -118,7 +116,7 @@ void Envelope::clock(double sidCycles)
             rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
         }
 
-        if (rateCounter != ratePeriod)
+        if (rateCounter != currentRatePeriod)
             continue;
 
         rateCounter = 0;
@@ -137,10 +135,7 @@ void Envelope::clock(double sidCycles)
                     static_cast<uint8_t>(envCounter + 1);
 
                 if (envCounter == 0xFF)
-                {
                     state = State::DecaySustain;
-                    ratePeriod = getRatePeriod(decayRate);
-                }
 
                 updateExponentialPeriod();
 
@@ -349,7 +344,25 @@ std::string Envelope::dumpDebug() const
     out << "  Exponential count:  " << exponentialCounter << "\n";
     out << "  Exponential period: " << exponentialPeriod << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
-    out << "  Rate period:        " << ratePeriod << "\n";
+
+    uint16_t currentRatePeriod = 0;
+
+    switch (state)
+    {
+        case State::Attack:
+            currentRatePeriod = getRatePeriod(attackRate);
+            break;
+
+        case State::DecaySustain:
+            currentRatePeriod = getRatePeriod(decayRate);
+            break;
+
+        case State::Release:
+            currentRatePeriod = getRatePeriod(releaseRate);
+            break;
+    }
+
+    out << "  Rate period:        " << currentRatePeriod << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
 
     return out.str();
