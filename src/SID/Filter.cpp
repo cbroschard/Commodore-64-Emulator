@@ -117,6 +117,14 @@ void Filter::calculateCoefficients()
     f = 2.0 * std::sin(M_PI * fc / sampleRate);
     f = std::clamp(f, 0.0, 0.99);
 
-    q = 1.0 - std::pow(resonance, profile.resonanceCurvePower);
-    q = std::clamp(q, 0.0, 1.0);
+    if (model == SIDModel::MOS8580)
+    {
+        const double res = std::clamp(resonance * 15.0, 0.0, 15.0);
+        q = std::pow(2.0, (4.0 - res) / 8.0);
+    }
+    else
+    {
+        q = 1.0 - std::pow(resonance, profile.resonanceCurvePower);
+        q = std::clamp(q, 0.0, 1.0);
+    }
 }
