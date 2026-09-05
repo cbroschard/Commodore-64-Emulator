@@ -579,7 +579,12 @@ uint16_t Oscillator::getTriSaw6581(uint16_t tri, uint16_t saw) const
 
 uint16_t Oscillator::getTriSaw8580(uint16_t tri, uint16_t saw) const
 {
-    return static_cast<uint16_t>((tri & saw) & 0x0FFF);
+    (void)tri;
+
+    uint16_t combined = static_cast<uint16_t>(saw & 0x0FFF);
+    combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
+
+    return combined & 0x0FFF;
 }
 
 std::string Oscillator::dumpDebug(uint16_t freqReg, uint16_t pulseWidthReg) const
