@@ -71,9 +71,9 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         1.60,   // noiseCombinedGamma
         0.55,   // noiseCombinedGain
 
-        // Filter profile
+        // Filter Profile
         30.0,     // cutoffMinHz
-        11000.0,  // cutoffMaxHz
+        10500.0,  // cutoffMaxHz
         1.15,     // resonanceCurvePower
         0.18,     // filterDrive
         0.06      // filterAsymmetry
@@ -97,9 +97,9 @@ inline const SIDModelProfile& getSIDModelProfile(SIDModel model)
         1.25,   // noiseCombinedGamma
         0.75,   // noiseCombinedGain
 
-        // Filter profile
+        // Filter Profile
         30.0,     // cutoffMinHz
-        14000.0,  // cutoffMaxHz
+        12500.0,  // cutoffMaxHz
         1.45,     // resonanceCurvePower
         0.03,     // filterDrive
         0.00      // filterAsymmetry
@@ -168,8 +168,8 @@ inline double mapSIDCutoff11BitToHzTable(uint16_t cutoff11bit, SIDModel model)
         {0.60, 6100.0},
         {0.70, 8000.0},
         {0.80, 10000.0},
-        {0.90, 12200.0},
-        {1.00, 14000.0}
+        {0.90, 11200.0},
+        {1.00, 12500.0}
     };
 
     const double x =
