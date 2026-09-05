@@ -10,7 +10,6 @@
 Voice::Voice(double sampleRate) :
     osc(sampleRate),
     env(),
-    filterRouted(false),
     sidClockFrequency(0.0)
 {
 
@@ -81,11 +80,6 @@ void Voice::setControl(uint8_t controlValue)
     osc.setControl(controlValue);
 }
 
-void Voice::setFilterRouted(bool routed)
-{
-    filterRouted = routed;
-}
-
 double Voice::generateVoiceSample()
 {
     const uint8_t ctrl = osc.getControl();
@@ -98,11 +92,6 @@ double Voice::generateVoiceSample()
     // No waveform selected: oscillator still free-runs,
     // but audio output is silent.
     if (!(ctrl & 0xF0))
-        return 0.0;
-
-    // If routed through the filter and fully idle, output can be silent,
-    // but oscillator timing has already advanced separately.
-    if (filterRouted && env.isIdle() && !(ctrl & 0x01))
         return 0.0;
 
     const double oscSample = osc.outputSample();

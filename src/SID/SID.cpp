@@ -796,8 +796,6 @@ double SID::generateAudioSample()
         Voice* v = (i == 0) ? &voice1 : (i == 1) ? &voice2 : &voice3;
 
         const bool routedToFilter = (filterRouteBits & (1 << i)) != 0;
-        v->setFilterRouted(routedToFilter);
-
         const double s = v->generateVoiceSample() * PER_VOICE_GAIN;
 
         if (routedToFilter)
@@ -815,11 +813,8 @@ double SID::generateAudioSample()
     filteredMixRaw = std::clamp(filteredMixRaw, -1.0, 1.0);
     unfilteredMixRaw = std::clamp(unfilteredMixRaw, -1.0, 1.0);
 
-    const double filteredMix =
-        filteredMixRaw * profile.filterInputGain;
-
-    const double unfilteredMix =
-        unfilteredMixRaw * profile.directGain;
+    const double filteredMix = filteredMixRaw * profile.filterInputGain;
+    const double unfilteredMix = unfilteredMixRaw * profile.directGain;
 
     double filteredOut = 0.0;
 

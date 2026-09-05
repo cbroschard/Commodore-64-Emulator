@@ -35,7 +35,6 @@ class Voice
         void setPulseWidth(uint16_t pulseWidth);
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
         void setControl(uint8_t controlValue);
-        void setFilterRouted(bool routed);
 
         // Generate the sample for the voice
         double generateVoiceSample();
@@ -53,8 +52,6 @@ class Voice
         // Initialize objects
         Oscillator osc;
         Envelope env;
-
-        bool filterRouted;
 
         // Clock frequency
         double sidClockFrequency;
