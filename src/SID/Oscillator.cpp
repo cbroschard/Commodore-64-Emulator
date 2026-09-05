@@ -258,6 +258,13 @@ bool Oscillator::hasNoiseCombinedWithOtherWaveform() const
     return noise && other;
 }
 
+// Model-specific SID combined-waveform approximations.
+//
+// The TRI+SAW, TRI+PULSE, SAW+PULSE, and TRI+SAW+PULSE
+// behavior in this section is based on the MIT-licensed
+// Sidera SID behavioral model.
+//
+// See Sidera.txt for license and attribution details.
 uint16_t Oscillator::getCombinedSawPulse12() const
 {
     const uint16_t saw   = getAccumulatorSaw12();
@@ -305,18 +312,18 @@ bool Oscillator::isNoiseCombinedWaveform() const
     return noise && other;
 }
 
+// Noise-combination behavior is based on the MIT-licensed
+// Sidera SID behavioral model.
+//
+// This approximation models combined noise waveforms as collapsing
+// the 23-bit LFSR toward the all-zero state.
+//
+// See Sidera.txt for license and attribution details.
 void Oscillator::applyNoiseCombinedFeedback()
 {
     if (!isNoiseCombinedWaveform())
         return;
 
-    //
-    // SID noise combined with another waveform can feed zeros
-    // back into the 23-bit shift register until it locks silent.
-    //
-    // Sidera's MIT-clean approximation models this collapse by
-    // forcing the LFSR toward the all-zero state.
-    //
     noiseLFSR = 0;
 }
 
@@ -670,9 +677,6 @@ double Oscillator::getAccumulatorPhase() const
     return static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
-// Model-specific SID combined-waveform approximations.
-// Based on the MIT-licensed Sidera SID behavioral model.
-// See Sidera.txt for license and attribution details.
 uint16_t Oscillator::getCombinedTriSaw12() const
 {
     const uint16_t tri = getAccumulatorTriangle12();
