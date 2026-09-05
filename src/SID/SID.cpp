@@ -125,7 +125,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice1.getEnvelope().getHoldZero());
     wrtr.writeU8(voice1.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice1.getEnvelope().getEnvelopePipeline());
-    wrtr.writeU8(voice1.getEnvelope().getStatePipeline());
 
     // Dump Voice2 runtime status
     wrtr.writeF64(voice2.getOscillator().getPhase());
@@ -150,7 +149,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice2.getEnvelope().getHoldZero());
     wrtr.writeU8(voice2.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice2.getEnvelope().getEnvelopePipeline());
-    wrtr.writeU8(voice2.getEnvelope().getStatePipeline());
 
     // Dump Voice3 runtime state
     wrtr.writeF64(voice3.getOscillator().getPhase());
@@ -175,7 +173,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeBool(voice3.getEnvelope().getHoldZero());
     wrtr.writeU8(voice3.getEnvelope().getExponentialPipeline());
     wrtr.writeU8(voice3.getEnvelope().getEnvelopePipeline());
-    wrtr.writeU8(voice3.getEnvelope().getStatePipeline());
 
     // Dump Filter runtime state
     wrtr.writeF64(filterobj.getLowPassOut());
@@ -318,7 +315,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         bool holdZero = true;
         uint8_t exponentialPipeline = 0;
         uint8_t envelopePipeline = 0;
-        uint8_t statePipeline = 0;
 
         if (!rdr.readF64(phase))                            { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(overflow))                        { rdr.exitChunkPayload(chunk); return false; }
@@ -345,7 +341,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(holdZero))                        { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(exponentialPipeline))               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readU8(envelopePipeline))                  { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(statePipeline))                     { rdr.exitChunkPayload(chunk); return false; }
 
         // Oscillator runtime state.
         v.getOscillator().setFrequency(frequencyReg);
@@ -369,7 +364,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         v.getEnvelope().setHoldZero(holdZero);
         v.getEnvelope().setExponentialPipeline(exponentialPipeline);
         v.getEnvelope().setEnvelopePipeline(envelopePipeline);
-        v.getEnvelope().setStatePipeline(statePipeline);
 
         return true;
     };

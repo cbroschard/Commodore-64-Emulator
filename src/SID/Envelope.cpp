@@ -29,7 +29,6 @@ Envelope::Envelope() :
     exponentialPeriod(1),
     exponentialPipeline(0),
     envelopePipeline(0),
-    statePipeline(0),
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
@@ -42,40 +41,23 @@ Envelope::~Envelope() = default;
 
 void Envelope::trigger()
 {
-    if (statePipeline > 0 && nextState == State::Release)
-        statePipeline = 0;
-
+    state = State::Attack;
     nextState = State::Attack;
 
-    //
-    // First cycle of gate-on briefly activates Decay/Sustain.
-    //
-    state = State::DecaySustain;
-    ratePeriod = getRatePeriod(decayRate);
+    ratePeriod = getRatePeriod(attackRate);
 
-    statePipeline = 2;
+    holdZero = false;
 
     //
-    // Account for an in-flight exponential pipeline when the
-    // gate transitions into Attack.
+    // Attack is linear, so discard any pending decay/release
+    // exponential-divider event.
     //
-    if (exponentialPipeline == 2)
-        envelopePipeline = 2;
-    else if (exponentialPipeline == 1)
-        statePipeline = 3;
-
+    exponentialCounter = 0;
     exponentialPipeline = 0;
 }
 
 void Envelope::release()
 {
-    //
-    // Gate-off enters Release without resetting the SID rate counter.
-    // Any in-flight Attack transition is cancelled.
-    //
-    if (statePipeline > 0 && nextState == State::Attack)
-        statePipeline = 0;
-
     state = State::Release;
     nextState = State::Release;
 
@@ -95,8 +77,6 @@ void Envelope::reset()
     exponentialPipeline = 0;
 
     envelopePipeline    = 0;
-
-    statePipeline       = 0;
 
     rateCounter         = 0;
     ratePeriod          = 9;
@@ -130,48 +110,6 @@ void Envelope::clock(double sidCycles)
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
-        //
-        // Handle pending state transition.
-        //
-        if (statePipeline > 0)
-        {
-            --statePipeline;
-
-            switch (nextState)
-            {
-                case State::Attack:
-                {
-                    if (statePipeline == 0)
-                    {
-                        state = State::Attack;
-                        ratePeriod = getRatePeriod(attackRate);
-                        holdZero = false;
-
-                        exponentialCounter = 0;
-                    }
-
-                    break;
-                }
-
-                case State::Release:
-                {
-                    if ((state == State::Attack &&
-                         statePipeline == 0) ||
-                        (state == State::DecaySustain &&
-                         statePipeline == 1))
-                    {
-                        state = State::Release;
-                        ratePeriod = getRatePeriod(releaseRate);
-                    }
-
-                    break;
-                }
-
-                default:
-                    break;
-            }
-        }
-
         //
         // Envelope counter pipeline.
         //
@@ -486,7 +424,6 @@ std::string Envelope::dumpDebug() const
     out << "  Exponential period: " << exponentialPeriod << "\n";
     out << "  Exponential pipe:   " << static_cast<int>(exponentialPipeline) << "\n";
     out << "  Envelope pipe:      " << static_cast<int>(envelopePipeline) << "\n";
-    out << "  State pipe:         "  << static_cast<int>(statePipeline) << "\n";
     out << "  Next state:         "  << stateToString(nextState) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";

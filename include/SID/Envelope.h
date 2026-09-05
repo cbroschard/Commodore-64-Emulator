@@ -46,7 +46,6 @@ class Envelope
         inline uint32_t getExponentialPeriod() const { return exponentialPeriod; }
         inline uint8_t getExponentialPipeline() const { return exponentialPipeline; }
         inline uint8_t getEnvelopePipeline() const { return envelopePipeline; }
-        inline uint8_t getStatePipeline() const { return statePipeline; }
         inline uint16_t getRateCounter() const { return rateCounter; }
         inline uint16_t getRatePeriod() const { return ratePeriod; }
         inline bool getHoldZero() const { return holdZero; }
@@ -58,7 +57,6 @@ class Envelope
         inline void setExponentialPeriod(uint32_t value) { exponentialPeriod = std::max<uint32_t>(1, value); }
         inline void setExponentialPipeline(uint8_t value) { exponentialPipeline = value; }
         inline void setEnvelopePipeline(uint8_t value) { envelopePipeline = value; }
-        inline void setStatePipeline(uint8_t value) { statePipeline = value; }
         inline void setState(Envelope::State value) { state = value; }
         inline void setNextState(Envelope::State value) { nextState = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
@@ -100,7 +98,6 @@ class Envelope
 
         uint8_t exponentialPipeline;
         uint8_t envelopePipeline;
-        uint8_t statePipeline;
 
         uint8_t sustainCounter;
         uint16_t rateCounter;
