@@ -12,6 +12,10 @@
 
 namespace
 {
+    // Pepto NTSC C64 palette
+    // Based on Philip "Pepto" Timmermann's VIC-II color analysis:
+    // https://www.pepto.de/projects/colorvic/
+    // RGB values derived from VIC-II color characteristics.
    const std::array<SDL_Color, 16> NTSC_COLORS =
     {{
         {0x00, 0x00, 0x00, 0xFF}, // $0 Black
