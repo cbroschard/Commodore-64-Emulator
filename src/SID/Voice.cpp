@@ -9,7 +9,7 @@
 
 Voice::Voice(double sampleRate) :
     osc(sampleRate),
-    env(sampleRate),
+    env(),
     filterRouted(false),
     sidClockFrequency(0.0)
 {

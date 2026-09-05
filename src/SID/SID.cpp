@@ -454,9 +454,6 @@ void SID::setSampleRate(double sample)
     voice2.getOscillator().setSampleRate(sample);
     voice3.getOscillator().setSampleRate(sample);
     filterobj.setSampleRate(sample);
-    voice1.getEnvelope().setSampleRate(sample);
-    voice2.getEnvelope().setSampleRate(sample);
-    voice3.getEnvelope().setSampleRate(sample);
 }
 
 uint8_t SID::readRegister(uint16_t address)

@@ -12,9 +12,8 @@
 #include "SID/Envelope.h"
 #include "SID/SIDEnvelopeTables.h"
 
-Envelope::Envelope(double sampleRate) :
+Envelope::Envelope() :
     sidClockFrequency(1022727.0), // NTSC default; SID::setMode will correct it
-    sampleRate(sampleRate),
     state(State::Release),
     nextState(State::Release),
     level(0.0),
@@ -273,11 +272,6 @@ double Envelope::output() const
     return level;
 }
 
-void Envelope::setSampleRate(double sample)
-{
-    sampleRate = sample;
-}
-
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
 {
     attackRate  = attack  & 0x0F;
@@ -493,11 +487,6 @@ std::string Envelope::dumpDebug() const
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
 
     out << "  SID clock:          " << sidClockFrequency << " Hz\n";
-    out << "  Sample rate:        " << sampleRate << " Hz\n";
-
-    const double cyclesPerSample = (sampleRate > 0.0) ? (sidClockFrequency / sampleRate) : 0.0;
-
-    out << "  SID cycles/sample:  " << cyclesPerSample << "\n";
 
     return out.str();
 }

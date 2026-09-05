@@ -15,7 +15,7 @@
 class Envelope
 {
     public:
-        Envelope(double sampleRate);
+        Envelope();
         virtual ~Envelope();
 
         // Define the different states for the envelope.
@@ -67,7 +67,6 @@ class Envelope
         inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
         inline void setHoldZero(bool state) { holdZero = state; }
 
-        void setSampleRate(double sample);
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
         void setSIDClockFrequency(double frequency);
         void setLevel(double newLevel);
@@ -85,7 +84,6 @@ class Envelope
     private:
         double sidClockFrequency;
 
-        double sampleRate;      // Audio sample rate passed in by SID
         State state;            // Current envelope state
         State nextState;        // Schedule state chagnes
         double level;           // Current amplitude level (0.0 to 1.0)
