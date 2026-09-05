@@ -154,6 +154,11 @@ uint8_t Oscillator::readOutput8() const
         mixedBits = getCombinedTriPulse12();
         waveformSelected = true;
     }
+    else if (waveBits == 0x60) // Saw + Pulse
+    {
+        mixedBits = getCombinedSawPulse12();
+        waveformSelected = true;
+    }
     else
     {
         if (control & 0x10) // Triangle
@@ -208,7 +213,7 @@ uint8_t Oscillator::readOutput8() const
     if (!waveformSelected)
         return 0x00;
 
-    if (waveBits != 0x30 && waveBits != 0x50)
+    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60)
         mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return static_cast<uint8_t>((mixedBits >> 4) & 0xFF);
@@ -231,6 +236,43 @@ bool Oscillator::hasNoiseCombinedWithOtherWaveform() const
         (control & 0x40);   // PULSE
 
     return noise && other;
+}
+
+uint16_t Oscillator::getCombinedSawPulse12() const
+{
+    const uint16_t saw   = getAccumulatorSaw12();
+    const uint16_t pulse = getAccumulatorPulse12();
+
+    switch (sidModel_)
+    {
+        case SIDModel::MOS6581:
+            return getSawPulse6581(saw, pulse);
+
+        case SIDModel::MOS8580:
+            return getSawPulse8580(saw, pulse);
+    }
+
+    return 0;
+}
+
+uint16_t Oscillator::getSawPulse6581(uint16_t saw, uint16_t pulse) const
+{
+    uint16_t combined = saw & 0x0FFF;
+
+    combined = static_cast<uint16_t>(combined & ((combined << 1) & 0x0FFF) & (combined >> 1));
+
+    return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
+}
+
+uint16_t Oscillator::getSawPulse8580(uint16_t saw, uint16_t pulse) const
+{
+    const uint16_t a = saw & 0x0FFF;
+
+    const uint16_t left = static_cast<uint16_t>((a << 1) & 0x0FFF);
+    const uint16_t right = static_cast<uint16_t>(a >> 1);
+    const uint16_t combined = static_cast<uint16_t>((a & left) | (a & right) | (left & right));
+
+    return static_cast<uint16_t>((combined & pulse) & 0x0FFF);
 }
 
 std::string Oscillator::describeWaveformSelection() const
@@ -503,6 +545,11 @@ double Oscillator::outputSample()
         mixedBits = getCombinedTriPulse12();
         waveformSelected = true;
     }
+    else if (waveBits == 0x60) // Saw + Pulse
+    {
+        mixedBits = getCombinedSawPulse12();
+        waveformSelected = true;
+    }
     else
     {
         if (control & 0x10) // Triangle
@@ -545,7 +592,7 @@ double Oscillator::outputSample()
     if (!waveformSelected)
         return 0.0;
 
-    if (waveBits != 0x30 &&  waveBits != 0x50)
+    if (waveBits != 0x30 && waveBits != 0x50 && waveBits != 0x60)
         mixedBits = applyCombinedWaveformModel(mixedBits);
 
     return convertToFloat(mixedBits);
@@ -556,9 +603,8 @@ double Oscillator::getAccumulatorPhase() const
     return static_cast<double>(accumulator24 & 0x00FFFFFF) / 16777216.0;
 }
 
-// Combined TRI+SAW waveform modeling.
-// The 6581 approximation is based on the MIT-licensed
-// Sidera SID behavioral model.
+// Model-specific SID combined-waveform approximations.
+// Based on the MIT-licensed Sidera SID behavioral model.
 // See Sidera.txt for license and attribution details.
 uint16_t Oscillator::getCombinedTriSaw12() const
 {
