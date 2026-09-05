@@ -13,7 +13,6 @@
 #include "SID/SIDEnvelopeTables.h"
 
 Envelope::Envelope() :
-    sidClockFrequency(1022727.0), // NTSC default; SID::setMode will correct it
     state(State::Release),
     nextState(State::Release),
     level(0.0),
@@ -98,14 +97,6 @@ void Envelope::reset()
     resetRateCounter    = false;
 
     holdZero            = true;
-}
-
-void Envelope::setSIDClockFrequency(double frequency)
-{
-    sidClockFrequency = frequency;
-
-    // Recompute ADSR periods using current ADSR nibbles and new clock.
-    setADSR(attackRate, decayRate, sustainRate, releaseRate);
 }
 
 uint8_t Envelope::readOutput8() const
@@ -479,8 +470,6 @@ std::string Envelope::dumpDebug() const
     out << "  Rate period:        " << ratePeriod << "\n";
     out << "  Rate reset pending:  " << (resetRateCounter ? "Y" : "N") << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
-
-    out << "  SID clock:          " << sidClockFrequency << " Hz\n";
 
     return out.str();
 }

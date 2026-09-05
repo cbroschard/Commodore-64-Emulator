@@ -68,7 +68,6 @@ class Envelope
         inline void setHoldZero(bool state) { holdZero = state; }
 
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
-        void setSIDClockFrequency(double frequency);
         void setEnvelopeCounter(uint8_t value);
 
         // Helpers
@@ -81,8 +80,6 @@ class Envelope
         std::string dumpDebug() const;
 
     private:
-        double sidClockFrequency;
-
         State state;            // Current envelope state
         State nextState;        // Schedule state chagnes
         double level;           // Current amplitude level (0.0 to 1.0)
