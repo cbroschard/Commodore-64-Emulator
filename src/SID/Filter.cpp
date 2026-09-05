@@ -9,7 +9,6 @@
 
 Filter::Filter(double sampleRate) :
     model(SIDModel::MOS6581),
-    sidClockFrequency(0.0),
     sampleRate(sampleRate),
     cutoff(1000.0),
     resonance(0.0),
@@ -88,12 +87,6 @@ void Filter::reset()
 void Filter::setSampleRate(double sample)
 {
     sampleRate = sample;
-    calculateCoefficients();
-}
-
-void Filter::setSIDClockFrequency(double frequency)
-{
-    sidClockFrequency = frequency;
     calculateCoefficients();
 }
 

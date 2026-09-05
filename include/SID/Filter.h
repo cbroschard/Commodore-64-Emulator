@@ -44,7 +44,6 @@ class Filter
         inline void setDcBlock(double value)     { dcBlock = value; }
         inline void setMode(uint8_t m)           { mode = m & 0x07; }
         void setSampleRate(double sample);
-        void setSIDClockFrequency(double frequency);
         void setCutoffFreq(double frequency);
         void setResonance(uint8_t res);
 
@@ -54,7 +53,6 @@ class Filter
     private:
         SIDModel model;
 
-        double sidClockFrequency;
         double sampleRate;
         double cutoff;      // Cutoff frequency in Hz.
         double resonance;   // normalized resonance

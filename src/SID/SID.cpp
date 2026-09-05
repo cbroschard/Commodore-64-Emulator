@@ -391,9 +391,6 @@ void SID::setMode(VideoMode mode)
     voice1.setSIDClockFrequency(sidClockFrequency);
     voice2.setSIDClockFrequency(sidClockFrequency);
     voice3.setSIDClockFrequency(sidClockFrequency);
-
-    // Update the filter
-    filterobj.setSIDClockFrequency(sidClockFrequency);
 }
 
 void SID::setSIDModel(SIDModel model)
