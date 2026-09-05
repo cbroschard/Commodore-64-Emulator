@@ -69,7 +69,6 @@ class Envelope
 
         void setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release);
         void setSIDClockFrequency(double frequency);
-        void setLevel(double newLevel);
         void setEnvelopeCounter(uint8_t value);
 
         // Helpers

@@ -113,12 +113,6 @@ uint8_t Envelope::readOutput8() const
     return envCounter;
 }
 
-void Envelope::setLevel(double newLevel)
-{
-    level = std::clamp(newLevel, 0.0, 1.0);
-    envCounter = static_cast<uint8_t>(std::round(level * 255.0));
-}
-
 void Envelope::setEnvelopeCounter(uint8_t value)
 {
     envCounter = value;
