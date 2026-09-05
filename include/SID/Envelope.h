@@ -49,7 +49,6 @@ class Envelope
         inline uint8_t getStatePipeline() const { return statePipeline; }
         inline uint16_t getRateCounter() const { return rateCounter; }
         inline uint16_t getRatePeriod() const { return ratePeriod; }
-        inline bool getResetRateCounter() const { return resetRateCounter; }
         inline bool getHoldZero() const { return holdZero; }
 
         uint8_t readOutput8() const;
@@ -63,7 +62,6 @@ class Envelope
         inline void setState(Envelope::State value) { state = value; }
         inline void setNextState(Envelope::State value) { nextState = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
-        inline void setResetRateCounter(bool state) { resetRateCounter = state; }
         inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
         inline void setHoldZero(bool state) { holdZero = state; }
 
@@ -107,7 +105,6 @@ class Envelope
         uint8_t sustainCounter;
         uint16_t rateCounter;
         uint16_t ratePeriod;
-        bool resetRateCounter;
 
         bool holdZero;
 

@@ -33,7 +33,6 @@ Envelope::Envelope() :
     sustainCounter(0),
     rateCounter(0),
     ratePeriod(9),
-    resetRateCounter(false),
     holdZero(true)
 {
 
@@ -56,8 +55,12 @@ void Envelope::trigger()
 
     statePipeline = 2;
 
-    if (resetRateCounter || exponentialPipeline == 2)
-        envelopePipeline = (exponentialPeriod == 1 || exponentialPipeline == 2) ? 2 : 4;
+    //
+    // Account for an in-flight exponential pipeline when the
+    // gate transitions into Attack.
+    //
+    if (exponentialPipeline == 2)
+        envelopePipeline = 2;
     else if (exponentialPipeline == 1)
         statePipeline = 3;
 
@@ -94,7 +97,6 @@ void Envelope::reset()
 
     rateCounter         = 0;
     ratePeriod          = 9;
-    resetRateCounter    = false;
 
     holdZero            = true;
 }
@@ -120,10 +122,14 @@ void Envelope::clock(double sidCycles)
     if (sidCycles <= 0.0)
         return;
 
-    const uint32_t cycles = static_cast<uint32_t>(std::floor(sidCycles));
+    const uint32_t cycles =
+        static_cast<uint32_t>(std::floor(sidCycles));
 
     for (uint32_t i = 0; i < cycles; ++i)
     {
+        //
+        // Handle pending state transition.
+        //
         if (statePipeline > 0)
         {
             --statePipeline;
@@ -146,7 +152,10 @@ void Envelope::clock(double sidCycles)
 
                 case State::Release:
                 {
-                    if ((state == State::Attack && statePipeline == 0) || (state == State::DecaySustain && statePipeline == 1))
+                    if ((state == State::Attack &&
+                         statePipeline == 0) ||
+                        (state == State::DecaySustain &&
+                         statePipeline == 1))
                     {
                         state = State::Release;
                         ratePeriod = getRatePeriod(releaseRate);
@@ -160,6 +169,9 @@ void Envelope::clock(double sidCycles)
             }
         }
 
+        //
+        // Envelope counter pipeline.
+        //
         if (envelopePipeline > 0)
         {
             --envelopePipeline;
@@ -168,6 +180,9 @@ void Envelope::clock(double sidCycles)
                 stepEnvelopeCounter();
         }
 
+        //
+        // Exponential counter pipeline.
+        //
         if (exponentialPipeline > 0)
         {
             --exponentialPipeline;
@@ -176,22 +191,54 @@ void Envelope::clock(double sidCycles)
             {
                 exponentialCounter = 0;
 
-                if ((state == State::DecaySustain && envCounter != sustainCounter) || state == State::Release)
+                if ((state == State::DecaySustain &&
+                     envCounter != sustainCounter) ||
+                    state == State::Release)
+                {
                     envelopePipeline = 1;
+                }
             }
         }
 
-        if (resetRateCounter)
+        //
+        // Select the rate period for the current envelope state.
+        //
+        switch (state)
+        {
+            case State::Attack:
+                ratePeriod = getRatePeriod(attackRate);
+                break;
+
+            case State::DecaySustain:
+                ratePeriod = getRatePeriod(decayRate);
+                break;
+
+            case State::Release:
+                ratePeriod = getRatePeriod(releaseRate);
+                break;
+        }
+
+        //
+        // SID envelope rate counter.
+        //
+        // The counter is 15-bit and is NOT reset when the ADSR
+        // rate changes. This preserves the SID ADSR delay behavior.
+        //
+        rateCounter =
+            static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
+
+        if (rateCounter == ratePeriod)
         {
             rateCounter = 0;
-            resetRateCounter = false;
 
             switch (state)
             {
                 case State::Attack:
                 {
-                    // First attack envelope step is delayed through
-                    // the envelope counter pipeline.
+                    //
+                    // Attack bypasses the exponential divider.
+                    // Queue an envelope-counter increment.
+                    //
                     exponentialCounter = 0;
 
                     if (envelopePipeline == 0)
@@ -210,36 +257,16 @@ void Envelope::clock(double sidCycles)
                         if (exponentialCounter == exponentialPeriod)
                         {
                             exponentialCounter = 0;
-                            exponentialPipeline = (exponentialPeriod != 1) ? 2 : 1;
+
+                            exponentialPipeline =
+                                (exponentialPeriod != 1) ? 2 : 1;
                         }
                     }
+
                     break;
                 }
-           }
+            }
         }
-
-        //
-        // Select the rate period for the currently active state.
-        //
-        switch (state)
-        {
-            case State::Attack:
-                ratePeriod = getRatePeriod(attackRate);
-                break;
-
-            case State::DecaySustain:
-                ratePeriod = getRatePeriod(decayRate);
-                break;
-
-            case State::Release:
-                ratePeriod = getRatePeriod(releaseRate);
-                break;
-        }
-
-        if (rateCounter != ratePeriod)
-            rateCounter = static_cast<uint16_t>((rateCounter + 1) & 0x7FFF);
-        else
-            resetRateCounter = true;
     }
 
     syncLevelFromCounter();
@@ -460,7 +487,6 @@ std::string Envelope::dumpDebug() const
     out << "  Next state:         "  << stateToString(nextState) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";
-    out << "  Rate reset pending:  " << (resetRateCounter ? "Y" : "N") << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";
 
     return out.str();
