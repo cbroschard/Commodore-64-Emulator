@@ -35,7 +35,6 @@ class Envelope
         double output() const;
 
         // Getters
-        inline double getLevel() const { return level; }
         inline State getState() const { return state; }
         inline uint8_t getAttackRate() const { return attackRate; }
         inline uint8_t getDecayRate() const { return decayRate; }
@@ -69,7 +68,6 @@ class Envelope
 
     private:
         State state;            // Current envelope state
-        double level;           // Current amplitude level (0.0 to 1.0)
 
         uint8_t attackRate;
         uint8_t decayRate;
@@ -87,7 +85,6 @@ class Envelope
         bool holdZero;
 
         // Helpers
-        void syncLevelFromCounter();
         void updateExponentialPeriod();
         uint16_t getRatePeriod(uint8_t rate) const;
 };

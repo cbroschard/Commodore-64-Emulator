@@ -14,7 +14,6 @@
 
 Envelope::Envelope() :
     state(State::Release),
-    level(0.0),
     attackRate(0),
     decayRate(0),
     sustainRate(0),
@@ -45,7 +44,6 @@ void Envelope::release()
 void Envelope::reset()
 {
     state               = State::Release;
-    level               = 0.0;
 
     envCounter          = 0;
 
@@ -65,7 +63,6 @@ uint8_t Envelope::readOutput8() const
 void Envelope::setEnvelopeCounter(uint8_t value)
 {
     envCounter = value;
-    syncLevelFromCounter();
 }
 
 bool Envelope::isIdle() const
@@ -189,13 +186,11 @@ void Envelope::clock(double sidCycles)
             }
         }
     }
-
-    syncLevelFromCounter();
 }
 
 double Envelope::output() const
 {
-    return level;
+    return static_cast<double>(envCounter) / 255.0;
 }
 
 void Envelope::setADSR(uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release)
@@ -227,11 +222,6 @@ std::string Envelope::stateToString(State s)
     }
 
     return "Unknown";
-}
-
-void Envelope::syncLevelFromCounter()
-{
-    level = static_cast<double>(envCounter) / 255.0;
 }
 
 void Envelope::updateExponentialPeriod()
@@ -319,7 +309,8 @@ std::string Envelope::dumpDebug() const
         << " (" << static_cast<int>(envCounter) << "/255)\n";
 
     out << std::fixed << std::setprecision(6);
-    out << "  Level:              " << level << "\n";
+    out << "  Level:              "
+        << (static_cast<double>(envCounter) / 255.0) << "\n";
 
     out << std::setprecision(3);
     out << "  Attack time:        "

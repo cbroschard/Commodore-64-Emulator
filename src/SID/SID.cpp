@@ -1214,11 +1214,12 @@ std::string SID::decodeADSR(const voiceRegisters& regs, const Voice& voice, int 
     const Envelope& env = voice.getEnvelope();
 
     out << "  ENV State=" << Envelope::stateToString(env.getState())
-        << " Counter=$" << std::hex << std::setw(2) << std::setfill('0')
+        << " Counter=$" << std::hex
+        << std::setw(2) << std::setfill('0')
         << static_cast<int>(env.readOutput8())
-        << std::dec
+        << std::dec << std::setfill(' ')
         << " Level=" << std::fixed << std::setprecision(3)
-        << env.getLevel() << "\n";
+        << env.output() << "\n";
 
     out << env.dumpDebug();
 
