@@ -14,7 +14,6 @@
 
 Envelope::Envelope() :
     state(State::Release),
-    nextState(State::Release),
     level(0.0),
     attackTime(0.1),
     decayTime(0.1),
@@ -42,7 +41,6 @@ Envelope::~Envelope() = default;
 void Envelope::trigger()
 {
     state = State::Attack;
-    nextState = State::Attack;
 
     ratePeriod = getRatePeriod(attackRate);
 
@@ -59,15 +57,12 @@ void Envelope::trigger()
 void Envelope::release()
 {
     state = State::Release;
-    nextState = State::Release;
-
     ratePeriod = getRatePeriod(releaseRate);
 }
 
 void Envelope::reset()
 {
     state               = State::Release;
-    nextState           = State::Release;
     level               = 0.0;
 
     envCounter          = 0;
@@ -367,7 +362,6 @@ void Envelope::stepEnvelopeCounter()
         if (envCounter == 0xFF)
         {
             state = State::DecaySustain;
-            nextState = State::DecaySustain;
 
             exponentialCounter = 0;
             exponentialPeriod = 1;
@@ -424,7 +418,6 @@ std::string Envelope::dumpDebug() const
     out << "  Exponential period: " << exponentialPeriod << "\n";
     out << "  Exponential pipe:   " << static_cast<int>(exponentialPipeline) << "\n";
     out << "  Envelope pipe:      " << static_cast<int>(envelopePipeline) << "\n";
-    out << "  Next state:         "  << stateToString(nextState) << "\n";
     out << "  Rate counter:       " << rateCounter << "\n";
     out << "  Rate period:        " << ratePeriod << "\n";
     out << "  Hold zero:          " << (holdZero ? "Y" : "N") << "\n";

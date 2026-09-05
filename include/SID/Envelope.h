@@ -37,7 +37,6 @@ class Envelope
         // Getters
         inline double getLevel() const { return level; }
         inline State getState() const { return state; }
-        inline State getNextState() const { return nextState; }
         inline uint8_t getAttackRate() const { return attackRate; }
         inline uint8_t getDecayRate() const { return decayRate; }
         inline uint8_t getSustainRate() const { return sustainRate; }
@@ -58,7 +57,6 @@ class Envelope
         inline void setExponentialPipeline(uint8_t value) { exponentialPipeline = value; }
         inline void setEnvelopePipeline(uint8_t value) { envelopePipeline = value; }
         inline void setState(Envelope::State value) { state = value; }
-        inline void setNextState(Envelope::State value) { nextState = value; }
         inline void setRateCounter(uint16_t value) { rateCounter = value; }
         inline void setRatePeriod(uint16_t value ) { ratePeriod = value; }
         inline void setHoldZero(bool state) { holdZero = state; }
@@ -77,7 +75,6 @@ class Envelope
 
     private:
         State state;            // Current envelope state
-        State nextState;        // Schedule state chagnes
         double level;           // Current amplitude level (0.0 to 1.0)
 
         // Envelope timing parameters (in seconds)
