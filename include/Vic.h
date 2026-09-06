@@ -607,6 +607,9 @@ class Vic
         // programmed $D011/$D012 raster IRQ target.
         bool rasterIrqCompareMatched;
 
+        bool rasterIrqDeferredReassert;
+        bool rasterIrqTriggeredThisLine;
+
         struct Registers
         {
             uint8_t spriteX[8];                 // SPRITE_X0 to SPRITE_X7 (0xD000, 0xD002, ...)

@@ -83,6 +83,8 @@ void Vic::reset()
 
     // Raster IRQ
     rasterIrqCompareMatched = false;
+    rasterIrqDeferredReassert = false;
+    rasterIrqTriggeredThisLine = false;
     lastRasterIRQSample = {};
 
     // Internal VIC state
@@ -1270,6 +1272,8 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             const uint8_t clearMask = static_cast<uint8_t>(value & 0x0F);
 
+            const bool reassertRasterIRQ = ((clearMask & 0x01) != 0) && rasterIrqDeferredReassert;
+
             // $D019 is a write-1-to-clear interrupt-source latch.
             registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus & static_cast<uint8_t>(~clearMask));
 
@@ -1278,6 +1282,15 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             updateIRQLine();
 
             traceVicRegWrite(address, oldPending, newPending);
+
+            if (reassertRasterIRQ)
+            {
+                registers.interruptStatus |= 0x01;
+                updateIRQLine();
+            }
+
+            if ((clearMask & 0x01) != 0)
+                rasterIrqDeferredReassert = false;
 
             break;
         }
@@ -2109,6 +2122,8 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
 void Vic::advanceToNextRaster()
 {
     registers.raster = (registers.raster + 1) % cfg_->maxRasterLines;
+
+    rasterIrqTriggeredThisLine = false;
 
     // Bad-line/DMA state is local to one raster line.
     vicState.badLine = false;
@@ -4847,7 +4862,13 @@ void Vic::evaluateRasterIRQCompare(const char* reason)
         const uint8_t isrBefore = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqBefore = irqLineActive();
 
+        const bool rasterIrqAlreadyPending = (registers.interruptStatus & 0x01) != 0;
+
+        if (rasterIrqAlreadyPending)
+            rasterIrqDeferredReassert = true;
+
         raiseVicIRQSource(0x01);
+        rasterIrqTriggeredThisLine = true;
 
         const uint8_t isrAfter = static_cast<uint8_t>(registers.interruptStatus & 0x0F);
         const bool irqAfter = irqLineActive();
