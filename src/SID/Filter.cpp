@@ -49,10 +49,7 @@ double Filter::processSample(double input)
     const double highPassOut = drivenInput - lowPassOut - q * bandPassOut;
 
     bandPassOut += f * highPassOut;
-    bandPassOut = std::clamp(bandPassOut, -1.0, 1.0);
-
     lowPassOut += f * bandPassOut;
-    lowPassOut = std::clamp(lowPassOut, -1.0, 1.0);
 
     double output = 0.0;
     if (mode & 0x01) output += lowPassOut;
