@@ -166,7 +166,6 @@ void SID::saveState(StateWriter& wrtr) const
     wrtr.writeF64(filterobj.getLowPassOut());
     wrtr.writeF64(filterobj.getBandPassOut());
     wrtr.writeF64(filterobj.getHighPassOut());
-    wrtr.writeF64(filterobj.getDcBlock());
 
     // End the chunk
     wrtr.endChunk();
@@ -348,16 +347,14 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!loadVoiceRuntime(voice2))                      { rdr.exitChunkPayload(chunk); return false; }
         if (!loadVoiceRuntime(voice3))                      { rdr.exitChunkPayload(chunk); return false; }
 
-        double lp=0.0, bp=0.0, hp=0.0, dc=0.0;
+        double lp=0.0, bp=0.0, hp=0.0;
         if (!rdr.readF64(lp))                               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readF64(bp))                               { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readF64(hp))                               { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readF64(dc))                               { rdr.exitChunkPayload(chunk); return false; }
 
         filterobj.setLowPassOut(lp);
         filterobj.setBandPassOut(bp);
         filterobj.setHighPassOut(hp);
-        filterobj.setDcBlock(dc);
 
         rdr.exitChunkPayload(chunk);
         return true;

@@ -17,7 +17,6 @@ Filter::Filter(double sampleRate) :
     lowPassOut(0.0),
     bandPassOut(0.0),
     highPassOut(0.0),
-    dcBlock(0.0),
     mode(0)
 {
     calculateCoefficients();
@@ -61,10 +60,7 @@ double Filter::processSample(double input)
     if (mode & 0x02) output += bandPassOut;
     if (mode & 0x04) output += highPassOut;
 
-    const double dcAlpha = 0.999;
-    dcBlock = dcAlpha * dcBlock + (1.0 - dcAlpha) * output;
-
-    return std::clamp(output - dcBlock, -1.0, 1.0);
+    return std::clamp(output, -1.0, 1.0);
 }
 
 void Filter::setModel(SIDModel newModel)
@@ -78,7 +74,6 @@ void Filter::reset()
     lowPassOut = 0.0;
     bandPassOut = 0.0;
     highPassOut = 0.0;
-    dcBlock = 0.0;
     mode = 0;
 
     calculateCoefficients();
