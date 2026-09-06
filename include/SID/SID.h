@@ -158,7 +158,7 @@ class SID
         static uint16_t combineBytes(uint8_t high, uint8_t low);
         static void updateEnvelopeParameters(Voice& voice, const voiceRegisters& regs);
         void updateCutoffFromRegisters();
-        void applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl);
+        static void applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl);
         void configureOscillatorSources();
 
         // Monitor helpers
