@@ -1026,7 +1026,7 @@ void SID::configureOscillatorSources()
     voice3.getOscillator().setRingSource(&voice2.getOscillator());
 }
 
-std::string SID::dumpRegisters(const std::string& group)
+std::string SID::dumpRegisters(const std::string& group) const
 {
     std::stringstream out;
     out << std::hex << std::uppercase << std::setfill('0');

@@ -71,7 +71,7 @@ class SID
         inline SIDModel getSIDModel() const { return sidModel_; }
 
         // ML Monitor access
-        std::string dumpRegisters(const std::string& group);
+        std::string dumpRegisters(const std::string& group) const;
         inline int getAudioBufferedSamples() const { return audioBufferedSamples.load(std::memory_order_relaxed); }
         std::string dumpAudioStats() const;
         std::string dumpCutoffTable() const;
