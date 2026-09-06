@@ -1136,9 +1136,6 @@ std::string SID::dumpRegisters(const std::string& group)
         out << "    Filter asymmetry:  " << std::fixed << std::setprecision(3)
             << profile.filterAsymmetry << "\n";
 
-        out << "    Resonance curve:   " << std::fixed << std::setprecision(3)
-            << profile.resonanceCurvePower << "\n";
-
         out << "    Cutoff range:      " << std::fixed << std::setprecision(1)
             << profile.cutoffMinHz << " - " << profile.cutoffMaxHz << " Hz\n";
 
