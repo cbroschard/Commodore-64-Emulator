@@ -4426,7 +4426,12 @@ uint8_t Vic::spriteYExpansionForRasterPixelX(int raster, int px, bool preferPrev
 {
     uint8_t value = registers.spriteYExpansion;
 
-    const auto& events = preferPreviousFrame ? lastFrameRasterEventsByRaster[raster] : rasterEventsByRaster[raster];
+    const auto& eventsByRaster = preferPreviousFrame ? lastFrameRasterEventsByRaster : rasterEventsByRaster;
+
+    if (raster < 0 || raster >= static_cast<int>(eventsByRaster.size()))
+        return value;
+
+    const auto& events = eventsByRaster[raster];
 
     for (const auto& e : events)
     {
