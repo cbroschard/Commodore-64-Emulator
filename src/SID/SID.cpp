@@ -1139,7 +1139,7 @@ std::string SID::decodeControlRegister(uint8_t ctrl)
     return out.str();
 }
 
-std::string SID::decodeADSR(const voiceRegisters& regs, const Voice& voice) const
+std::string SID::decodeADSR(const voiceRegisters& regs, const Voice& voice)
 {
     std::stringstream out;
 
