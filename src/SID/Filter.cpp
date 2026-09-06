@@ -36,25 +36,36 @@ double Filter::processSample(double input)
         drivenInput *= (1.0 + profile.filterDrive);
 
         if (profile.filterAsymmetry != 0.0)
-        {
-            // Small asymmetric bend. This makes the 6581 filter path less
-            // perfectly symmetrical without being a harsh distortion effect.
             drivenInput += profile.filterAsymmetry * drivenInput * std::abs(drivenInput);
-        }
 
-        // Soft saturation before the state-variable filter.
         drivenInput = std::tanh(drivenInput);
     }
 
-    const double highPassOut = drivenInput - lowPassOut - q * bandPassOut;
-
-    bandPassOut += f * highPassOut;
-    lowPassOut += f * bandPassOut;
-
     double output = 0.0;
-    if (mode & 0x01) output += lowPassOut;
-    if (mode & 0x02) output += bandPassOut;
-    if (mode & 0x04) output += highPassOut;
+
+    //
+    // Run the state-variable filter at 2x the host sample rate.
+    // This improves stability and high-cutoff behavior without
+    // hard-clipping the internal filter state.
+    //
+    for (int step = 0; step < 2; ++step)
+    {
+        const double highPassOut = drivenInput - lowPassOut - q * bandPassOut;
+
+        bandPassOut += f * highPassOut;
+        lowPassOut  += f * bandPassOut;
+
+        output = 0.0;
+
+        if (mode & 0x01)
+            output += lowPassOut;
+
+        if (mode & 0x02)
+            output += bandPassOut;
+
+        if (mode & 0x04)
+            output += highPassOut;
+    }
 
     return std::clamp(output, -1.0, 1.0);
 }
@@ -98,20 +109,21 @@ void Filter::setResonance(uint8_t res)
 void Filter::calculateCoefficients()
 {
     const SIDModelProfile& profile = getSIDModelProfile(model);
-
+    const double filterSampleRate = sampleRate * 2.0;
     double fc = cutoff;
 
     fc = std::clamp(fc, profile.cutoffMinHz, profile.cutoffMaxHz);
-    fc = std::clamp(fc, profile.cutoffMinHz, sampleRate * 0.45);
-
-    f = 2.0 * std::sin(M_PI * fc / sampleRate);
+    fc = std::clamp(fc, profile.cutoffMinHz, filterSampleRate * 0.45);
+    f = 2.0 * std::sin(M_PI * fc / filterSampleRate);
     f = std::clamp(f, 0.0, 0.99);
 
     const double res = std::clamp(resonance * 15.0, 0.0, 15.0);
 
     if (model == SIDModel::MOS8580)
     {
-        q = std::pow(2.0, (4.0 - res) / 8.0);
+        q = std::pow(
+            2.0,
+            (4.0 - res) / 8.0);
     }
     else
     {
