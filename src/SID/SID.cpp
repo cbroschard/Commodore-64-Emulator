@@ -1128,7 +1128,7 @@ std::string SID::dumpRegisters(const std::string& group) const
     return out.str();
 }
 
-std::string SID::decodeControlRegister(uint8_t ctrl) const
+std::string SID::decodeControlRegister(uint8_t ctrl)
 {
     std::stringstream out;
     out << "  CTRL=$" << std::hex << std::setw(2) << static_cast<int>(ctrl) << " (";
