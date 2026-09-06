@@ -359,11 +359,6 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return false;
 }
 
-double SID::getSidCyclesPerAudioSample() const
-{
-    return sidCyclesPerAudioSample;
-}
-
 void SID::setMode(VideoMode mode)
 {
     mode_ = mode;

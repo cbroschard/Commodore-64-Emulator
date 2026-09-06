@@ -47,7 +47,7 @@ class SID
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Getters
-        double getSidCyclesPerAudioSample() const;
+        inline double getSidCyclesPerAudioSample() const { return sidCyclesPerAudioSample; }
 
         // Setters for mode (NTSC or PAL)
         void setMode(VideoMode mode);
