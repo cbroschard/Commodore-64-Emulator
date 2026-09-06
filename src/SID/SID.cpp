@@ -961,11 +961,6 @@ void SID::reset()
     audioBufferedSamples.store(0, std::memory_order_relaxed);
 }
 
-void SID::refreshDataBusDecay()
-{
-    sidBusDecayCycles = sidDataBusDecayCycles(sidModel_);
-}
-
 uint16_t SID::combineBytes(uint8_t high, uint8_t low)
 {
     return (static_cast<uint16_t>(high) << 8) | low;

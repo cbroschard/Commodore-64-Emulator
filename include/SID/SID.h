@@ -154,7 +154,7 @@ class SID
         } sidRegisters;
 
         // Helpers
-        void refreshDataBusDecay();
+        inline void refreshDataBusDecay() { sidBusDecayCycles = sidDataBusDecayCycles(sidModel_); }
         static uint16_t combineBytes(uint8_t high, uint8_t low);
         void updateEnvelopeParameters(Voice& voice, const voiceRegisters& regs);
         void updateCutoffFromRegisters();
