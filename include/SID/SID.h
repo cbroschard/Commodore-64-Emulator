@@ -167,7 +167,7 @@ class SID
 
         // Helpers
         void refreshDataBusDecay();
-        uint16_t combineBytes(uint8_t high, uint8_t low);
+        static uint16_t combineBytes(uint8_t high, uint8_t low);
         void updateEnvelopeParameters(Voice& voice, const voiceRegisters& regs);
         void updateCutoffFromRegisters();
         void applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl);
