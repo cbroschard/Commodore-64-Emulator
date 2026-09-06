@@ -34,12 +34,10 @@ class Filter
         // Getters
         inline double getLowPassOut()  const { return lowPassOut; }
         inline double getBandPassOut() const { return bandPassOut; }
-        inline double getHighPassOut() const { return highPassOut; }
 
         // Setters
         inline void setLowPassOut(double value)  { lowPassOut = value; }
         inline void setBandPassOut(double value) { bandPassOut = value; }
-        inline void setHighPassOut(double value) { highPassOut = value; }
         inline void setMode(uint8_t m)           { mode = m & 0x07; }
         void setSampleRate(double sample);
         void setCutoffFreq(double frequency);
@@ -58,7 +56,6 @@ class Filter
         double q;           // Filter coefficient
         double lowPassOut;
         double bandPassOut;
-        double highPassOut;
         uint8_t mode; // bits 0-2 from D417
 
         // Helper to recalculate filter coefficients when parameters change

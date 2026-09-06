@@ -16,7 +16,6 @@ Filter::Filter(double sampleRate) :
     q(0.0),
     lowPassOut(0.0),
     bandPassOut(0.0),
-    highPassOut(0.0),
     mode(0)
 {
     calculateCoefficients();
@@ -47,7 +46,7 @@ double Filter::processSample(double input)
         drivenInput = std::tanh(drivenInput);
     }
 
-    highPassOut = drivenInput - lowPassOut - q * bandPassOut;
+    const double highPassOut = drivenInput - lowPassOut - q * bandPassOut;
 
     bandPassOut += f * highPassOut;
     bandPassOut = std::clamp(bandPassOut, -1.0, 1.0);
@@ -73,7 +72,6 @@ void Filter::reset()
 {
     lowPassOut = 0.0;
     bandPassOut = 0.0;
-    highPassOut = 0.0;
     mode = 0;
 
     calculateCoefficients();
