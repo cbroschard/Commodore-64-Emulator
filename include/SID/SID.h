@@ -34,7 +34,7 @@ class Vic;
 class SID
 {
     public:
-        SID(double sampleRate);
+        explicit SID(double sampleRate);
         ~SID();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
