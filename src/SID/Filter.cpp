@@ -81,8 +81,6 @@ void Filter::reset()
     lowPassOut = 0.0;
     bandPassOut = 0.0;
     mode = 0;
-
-    calculateCoefficients();
 }
 
 void Filter::setSampleRate(double sample)
