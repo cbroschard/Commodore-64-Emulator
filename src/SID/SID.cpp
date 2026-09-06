@@ -940,7 +940,6 @@ void SID::reset()
     lastOutputSample = 0.0;
     underrunOutputSample = 0.0;
     recoveryStartSample = 0.0;
-    audioUnderrunCount = 0;
     audioWasUnderrunning = false;
     underrunRecoverySamples = 0;
 
