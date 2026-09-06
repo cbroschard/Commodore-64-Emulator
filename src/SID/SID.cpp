@@ -774,8 +774,6 @@ double SID::generateAudioSample()
     // $D418 bit 7 disconnects voice 3 from the direct audio path.
     const bool voice3DirectOff = (modeVol & 0x80) != 0;
 
-    filterobj.setMode(filterMode);
-
     constexpr double PER_VOICE_GAIN = 0.5;
 
     double filteredMixRaw = 0.0;
