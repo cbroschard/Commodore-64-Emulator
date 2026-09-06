@@ -27,6 +27,8 @@ SID::SID(double sampleRate) :
     audioWasUnderrunning(false),
     underrunRecoverySamples(0),
     sampleRate(sampleRate),
+    sidClockFrequency(0.0),
+    sidCyclesPerAudioSample(0.0),
     sidCycleCounter(0.0),
     voice1(sampleRate),
     voice2(sampleRate),
@@ -38,6 +40,7 @@ SID::SID(double sampleRate) :
     sidRegisters.filter.volume = 0x00; // All voices muted volume
 
     setSIDModel(SIDModel::MOS6581);
+    setMode(VideoMode::NTSC);
 
     configureOscillatorSources();
 }

@@ -106,9 +106,9 @@ class SID
         int underrunRecoverySamples;
 
         // Frequency and sample rate
+        double sampleRate;
         double sidClockFrequency;
         double sidCyclesPerAudioSample;
-        double sampleRate;
 
         double sidCycleCounter;
 
