@@ -758,7 +758,7 @@ void SID::writeRegister(uint16_t address, uint8_t value)
 
 double SID::generateAudioSample()
 {
-    const AnalogProfile profile = getAnalogProfile();
+    const SIDModelProfile& profile = getSIDModelProfile(sidModel_);
 
     const uint8_t resFilt = sidRegisters.filter.resonanceControl;
     const uint8_t modeVol = sidRegisters.filter.volume;
@@ -965,21 +965,6 @@ void SID::reset()
     audioConsumedSamples.store(0, std::memory_order_relaxed);
     audioUnderrunCount.store(0, std::memory_order_relaxed);
     audioBufferedSamples.store(0, std::memory_order_relaxed);
-}
-
-SID::AnalogProfile SID::getAnalogProfile() const
-{
-    const SIDModelProfile& profile = getSIDModelProfile(sidModel_);
-
-    return AnalogProfile
-    {
-        profile.directGain,
-        profile.filterInputGain,
-        profile.filterOutputGain,
-        profile.volumeDacGain,
-        profile.outputBias,
-        profile.softClipDrive
-    };
 }
 
 void SID::refreshDataBusDecay()

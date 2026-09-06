@@ -89,18 +89,6 @@ class SID
         uint8_t sidBusLatch;
         uint32_t sidBusDecayCycles;
 
-        struct AnalogProfile
-        {
-            double directGain;
-            double filterInputGain;
-            double filterOutputGain;
-            double volumeDacGain;
-            double outputBias;
-            double softClipDrive;
-        };
-
-        AnalogProfile getAnalogProfile() const;
-
         // buffer
         RingBuffer<8192> audioBuf;
 
