@@ -261,13 +261,11 @@ bool SID::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint8_t modeU8 = 0;
         if (!rdr.readU8(modeU8))                            { rdr.exitChunkPayload(chunk); return false; }
-        mode_ = static_cast<VideoMode>(modeU8);
-        setMode(mode_); // restores sidClockFrequency & sidCyclesPerAudioSample coherently
+        setMode(static_cast<VideoMode>(modeU8));
 
         uint8_t sidModeU8 = 0;
         if (!rdr.readU8(sidModeU8))                         { rdr.exitChunkPayload(chunk); return false; }
-        sidModel_ = static_cast<SIDModel>(sidModeU8);
-        setSIDModel(sidModel_);
+        setSIDModel(static_cast<SIDModel>(sidModeU8));
 
         if (!rdr.readF64(sidCycleCounter))                  { rdr.exitChunkPayload(chunk); return false; }
 
