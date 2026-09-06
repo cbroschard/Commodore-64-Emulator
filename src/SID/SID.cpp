@@ -35,9 +35,7 @@ SID::SID(double sampleRate) :
     voice3(sampleRate),
     filterobj(sampleRate)
 {
-    // Zero initialize all registers in the SID structure.
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
-    sidRegisters.filter.volume = 0x00; // All voices muted volume
 
     setSIDModel(SIDModel::MOS6581);
     setMode(VideoMode::NTSC);
@@ -934,7 +932,6 @@ void SID::reset()
     sidBusDecayCycles = 0;
 
     std::memset(&sidRegisters, 0, sizeof(sidRegisters));
-    sidRegisters.filter.volume = 0x00;
     sidCycleCounter = 0.0;
 
     lastOutputSample = 0.0;
