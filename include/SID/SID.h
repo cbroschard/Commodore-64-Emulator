@@ -35,7 +35,7 @@ class SID
 {
     public:
         SID(double sampleRate);
-        virtual ~SID();
+        ~SID();
 
         inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
