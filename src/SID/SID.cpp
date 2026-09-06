@@ -783,7 +783,6 @@ double SID::generateAudioSample()
 
     double filteredMixRaw = 0.0;
     double unfilteredMixRaw = 0.0;
-    bool anyFilteredVoice = false;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -793,10 +792,7 @@ double SID::generateAudioSample()
         const double s = v->generateVoiceSample() * PER_VOICE_GAIN;
 
         if (routedToFilter)
-        {
             filteredMixRaw += s;
-            anyFilteredVoice = true;
-        }
         else
         {
             if (!(i == 2 && voice3DirectOff))
@@ -810,15 +806,12 @@ double SID::generateAudioSample()
     const double filteredMix = filteredMixRaw * profile.filterInputGain;
     const double unfilteredMix = unfilteredMixRaw * profile.directGain;
 
+    const double filterResult = filterobj.processSample(filteredMix);
+
     double filteredOut = 0.0;
 
-    if (anyFilteredVoice)
-    {
-        const double filterResult = filterobj.processSample(filteredMix);
-
-        if (filterMode != 0)
-            filteredOut = filterResult * profile.filterOutputGain;
-    }
+    if (filterMode != 0)
+        filteredOut = filterResult * profile.filterOutputGain;
 
     double mixed = filteredOut + unfilteredMix;
 
@@ -828,8 +821,7 @@ double SID::generateAudioSample()
     mixed *= masterVol;
 
     // $D418 volume DAC behavior differs strongly between 6581 and 8580.
-    const double volumeDacCentered =
-        (static_cast<double>(volumeNibble) - 7.5) / 7.5;
+    const double volumeDacCentered = (static_cast<double>(volumeNibble) - 7.5) / 7.5;
 
     mixed += volumeDacCentered * profile.volumeDacGain;
 
@@ -1019,12 +1011,9 @@ void SID::updateEnvelopeParameters(Voice& voice, voiceRegisters& regs)
 
 void SID::updateCutoffFromRegisters()
 {
-    const uint16_t cutoff11bit =
-        (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
-        (sidRegisters.filter.cutoffLow & 0x07);
+    const uint16_t cutoff11bit = (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) | (sidRegisters.filter.cutoffLow & 0x07);
 
-    const double cutoffFreq =
-        mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
+    const double cutoffFreq = mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
 
     filterobj.setCutoffFreq(cutoffFreq);
 }
