@@ -992,12 +992,12 @@ uint16_t SID::combineBytes(uint8_t high, uint8_t low)
     return (static_cast<uint16_t>(high) << 8) | low;
 }
 
-void SID::updateEnvelopeParameters(Voice& voice, voiceRegisters& regs)
+void SID::updateEnvelopeParameters(Voice& voice, const voiceRegisters& regs)
 {
     const uint8_t attackIdx  = (regs.attackDecay >> 4) & 0x0F;
-    const uint8_t decayIdx   =  regs.attackDecay       & 0x0F;
+    const uint8_t decayIdx   =  regs.attackDecay & 0x0F;
     const uint8_t sustainIdx = (regs.sustainRelease >> 4) & 0x0F;
-    const uint8_t releaseIdx =  regs.sustainRelease       & 0x0F;
+    const uint8_t releaseIdx =  regs.sustainRelease & 0x0F;
 
     voice.setADSR(attackIdx, decayIdx, sustainIdx, releaseIdx);
 }
