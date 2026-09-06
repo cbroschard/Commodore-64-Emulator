@@ -175,7 +175,7 @@ class SID
 
         // Monitor helpers
         std::string decodeControlRegister(uint8_t control) const;
-        std::string decodeADSR(const voiceRegisters& regs, const Voice& voice, int index) const;
+        std::string decodeADSR(const voiceRegisters& regs, const Voice& voice) const;
         std::string dumpVoice(const voiceRegisters& regs, const Voice& voice, int index) const;
 };
 #endif // SID_H
