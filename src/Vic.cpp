@@ -572,8 +572,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
 
-        mode_ = static_cast<VideoMode>(m);
-        cfg_ = (mode_ == VideoMode::NTSC ? &NTSC_CONFIG : &PAL_CONFIG);
+        setMode(static_cast<VideoMode>(m));
 
         if (!rdr.readI32(currentCycle))                                 { rdr.exitChunkPayload(chunk); return false; }
 
