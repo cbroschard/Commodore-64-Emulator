@@ -20,7 +20,6 @@
 #include "Common/VideoMode.h"
 #include "Debug/TraceManager.h"
 #include "SID/Filter.h"
-#include "SID/Mixer.h"
 #include "SID/RingBuffer.h"
 #include "SID/SIDModelProfile.h"
 #include "SID/Voice.h"
@@ -135,7 +134,6 @@ class SID
         Voice voice2;
         Voice voice3;
         Filter filterobj;
-        Mixer mixerobj;
 
         // Voice structure
         struct voiceRegisters
