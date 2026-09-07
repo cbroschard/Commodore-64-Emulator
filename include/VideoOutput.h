@@ -88,6 +88,10 @@ class VideoOutput final : public IVideoSink
         bool useAspectFit;
         bool trackWindowResize;
 
+        bool mainWindowMaximized;
+        bool aspectFitBeforeMaximize;
+        bool ignoreNextNormalResize;
+
         std::array<uint32_t, 16> palette32;
 
         std::mutex renderMut;

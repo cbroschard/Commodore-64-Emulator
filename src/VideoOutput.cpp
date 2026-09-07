@@ -77,7 +77,10 @@ VideoOutput::VideoOutput() :
     screenHeightWithBorder(200 + 2 * 32),
     frameReady(false),
     useAspectFit(false),
-    trackWindowResize(false)
+    trackWindowResize(false),
+    mainWindowMaximized(false),
+    aspectFitBeforeMaximize(false),
+    ignoreNextNormalResize(false)
 {
     const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE;
 
@@ -448,29 +451,61 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
     // ---------------------------------------------------------
 
     if (trackWindowResize)
+{
+    const SDL_WindowID mainWindowID = SDL_GetWindowID(window);
+
+    const bool isMainWindowEvent = event.window.windowID == mainWindowID;
+
+    if (isMainWindowEvent)
     {
-        if (event.type == SDL_EVENT_WINDOW_RESIZED)
+        if (event.type == SDL_EVENT_WINDOW_MAXIMIZED)
+        {
+            // Save the rendering mode we were using before maximize.
+            aspectFitBeforeMaximize = useAspectFit;
+
+            mainWindowMaximized = true;
+            useAspectFit = true;
+        }
+        else if (event.type == SDL_EVENT_WINDOW_RESTORED)
+        {
+            if (mainWindowMaximized)
+            {
+                // Restore the exact mode we had before maximize.
+                useAspectFit = aspectFitBeforeMaximize;
+
+                mainWindowMaximized = false;
+
+                // SDL/Windows may send a resize event immediately
+                // after restore. Ignore that one so it doesn't
+                // force aspect-fit back on.
+                ignoreNextNormalResize = true;
+            }
+        }
+        else if (event.type == SDL_EVENT_WINDOW_RESIZED)
         {
             const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
 
-            const bool maximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+            const bool currentlyMaximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
 
-            // Any manual resize or maximize should use aspect-fit
-            // so that no part of the framebuffer is clipped.
-            useAspectFit = true;
-
-            if (maximized)
+            if (currentlyMaximized || mainWindowMaximized)
+            {
+                // Resize is part of maximize/restore processing.
+                // Do not change the saved presentation mode.
+            }
+            else if (ignoreNextNormalResize)
+            {
+                // This resize belongs to the restore operation,
+                // not to a manual user resize.
+                ignoreNextNormalResize = false;
+            }
+            else
+            {
+                // Actual manual resize of the main emulator window.
                 useAspectFit = true;
+            }
         }
-
-        // When the user restores from maximized back to the normal
-        // window, return to the fill-window presentation.
-        if (event.type == SDL_EVENT_WINDOW_RESTORED)
-            useAspectFit = false;
-
-        if (event.type == SDL_EVENT_WINDOW_MAXIMIZED)
-            useAspectFit = true;
     }
+}
 
     // ---------------------------------------------------------
     // Monitor input handling
