@@ -3025,12 +3025,7 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
     if (raster != registers.raster)
         return false;
 
-    // The live Bad Line Condition can disappear after the
-    // c-access sequence has already begun. Once started,
-    // matrix DMA continues through the remaining c-access slots.
-    const bool dmaActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
-
-    if (!dmaActive)
+    if (!vicState.cAccessActive)
         return false;
 
     if (vicState.badLineDmaStartCycle < 0)
@@ -3047,9 +3042,7 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     if (raster != registers.raster)
         return false;
 
-    const bool dmaActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
-
-    if (!dmaActive)
+    if (!vicState.cAccessActive)
         return false;
 
     if (vicState.badLineDmaStartCycle < 0)
@@ -6117,11 +6110,12 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    const bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLineCondition : isBadLine(raster);
+    const bool cAccessForThisRaster = (raster == registers.raster) ? vicState.cAccessActive : isBadLine(raster);
 
-    // Character matrix fetches use the visible/background fetch window,
-    // not the bus-pressure/DMA warning window.
-    if (badLineForThisRaster && cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
+    // Character matrix fetches use the committed c-access state
+    // for the current raster. Once c-access has started, it remains
+    // active even if the live Bad Line Condition later disappears.
+    if (cAccessForThisRaster && cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
         return FetchKind::CharMatrix;
 
     for (int s = 0; s < 8; ++s)
