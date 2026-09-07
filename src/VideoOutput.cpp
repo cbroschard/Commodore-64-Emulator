@@ -71,7 +71,8 @@ VideoOutput::VideoOutput() :
     mode_(VideoMode::NTSC),
     visibleScreenWidth(320),
     visibleScreenHeight(200),
-    borderSize(32),
+    horizontalBorder(32),
+    verticalBorder(36),
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
     frameReady(false)
@@ -200,7 +201,7 @@ void VideoOutput::setMode(VideoMode mode)
 void VideoOutput::renderBackgroundLine(int row, uint8_t color, int x0, int x1)
 {
     const int width = screenWidthWithBorder;
-    const int firstVisibleRow = borderSize;
+    const int firstVisibleRow = verticalBorder;
     const int lastVisibleRow = firstVisibleRow + visibleScreenHeight;
 
     if (row < firstVisibleRow || row >= lastVisibleRow)
@@ -227,7 +228,7 @@ void VideoOutput::renderBorderLine(int row, uint8_t color, int x0, int x1)
     if (row < 0 || row >= screenHeightWithBorder)
         return;
 
-    const int y0 = borderSize;
+    const int y0 = verticalBorder;
     const int y1 = y0 + visibleScreenHeight;
 
     uint32_t* dst = backBuffer.data() + row * W;
@@ -295,11 +296,9 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     const uint32_t* lastBuf = frontBuffer.data();
 
     if (!lastBuf)
-        lastBuf = frontBuffer.data();
-
-    if (!lastBuf || frontBuffer.empty())
         return;
 
+    // Start ImGui frame
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
@@ -315,26 +314,86 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     if (!SDL_GetCurrentRenderOutputSize(renderer, &outputW, &outputH))
     {
         SDL_Log("Unable to get renderer output size: %s", SDL_GetError());
+
         return;
     }
 
-    const SDL_FRect destination = computeDestinationRect(outputW, outputH);
+    // ---------------------------------------------------------
+    // Compute C64 display area below the ImGui menu bar.
+    // ---------------------------------------------------------
+
+    const float menuBarHeight = ImGui::GetFrameHeight();
+
+    const float sourceWidth = static_cast<float>(screenWidthWithBorder);
+    const float sourceHeight = static_cast<float>(screenHeightWithBorder);
+    const float availableWidth = static_cast<float>(outputW);
+    const float availableHeight = std::max(1.0f, static_cast<float>(outputH) - menuBarHeight);
+
+    SDL_FRect destination{};
+
+    const SDL_WindowFlags windowFlags = SDL_GetWindowFlags(window);
+
+    const bool maximized = (windowFlags & SDL_WINDOW_MAXIMIZED) != 0;
+
+    if (!maximized)
+    {
+        // Normal window:
+        //
+        // Fill the available width and preserve the framebuffer
+        // aspect ratio. The normal window is sized to accommodate
+        // this height, so there should be no side bars.
+        destination.x = 0.0f;
+        destination.y = menuBarHeight;
+
+        destination.w = availableWidth;
+        destination.h = availableWidth * (sourceHeight / sourceWidth);
+    }
+    else
+    {
+        // Maximized window:
+        //
+        // Fit the complete framebuffer into the area below the
+        // menu bar while preserving its aspect ratio.
+        const float scaleX = availableWidth / sourceWidth;
+        const float scaleY = availableHeight / sourceHeight;
+        const float scale = std::min(scaleX, scaleY);
+
+        destination.w = sourceWidth * scale;
+        destination.h = sourceHeight * scale;
+
+        // Center horizontally.
+        destination.x = (availableWidth - destination.w) * 0.5f;
+
+        // Center vertically inside the space below the menu.
+        destination.y = menuBarHeight + ((availableHeight - destination.h) * 0.5f);
+    }
+
+    // ---------------------------------------------------------
+    // Upload framebuffer
+    // ---------------------------------------------------------
 
     const int pitch = screenWidthWithBorder * static_cast<int>(sizeof(uint32_t));
 
     if (!SDL_UpdateTexture(screenTexture, nullptr, lastBuf, pitch))
         SDL_Log("SDL_UpdateTexture failed: %s", SDL_GetError());
 
+    // ---------------------------------------------------------
+    // Render
+    // ---------------------------------------------------------
+
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
     SDL_RenderClear(renderer);
 
     if (!SDL_RenderTexture(renderer, screenTexture, nullptr, &destination))
         SDL_Log("SDL_RenderTexture failed: %s", SDL_GetError());
 
+    // Draw ImGui over the renderer.
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
 
     SDL_RenderPresent(renderer);
 
+    // Render monitor window if open.
     if (sdlMon.isOpen())
         sdlMon.render();
 }
@@ -383,15 +442,18 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
     inputCallback(event);
 }
 
-void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
+void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int horizontalBorderSize, int verticalBorderSize)
 {
     std::lock_guard<std::mutex> lk(renderMut);
 
-    visibleScreenWidth = visibleW;
+    visibleScreenWidth  = visibleW;
     visibleScreenHeight = visibleH;
-    borderSize = border;
-    screenWidthWithBorder = visibleW + 2 * borderSize;
-    screenHeightWithBorder = visibleH + 2 * borderSize;
+
+    horizontalBorder = horizontalBorderSize;
+    verticalBorder   = verticalBorderSize;
+
+    screenWidthWithBorder = visibleW + 2 * horizontalBorder;
+    screenHeightWithBorder = visibleH + 2 * verticalBorder;
 
     const size_t bufferSize = static_cast<size_t>(screenWidthWithBorder) * static_cast<size_t>(screenHeightWithBorder);
 
@@ -406,7 +468,7 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
     }
 
     screenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidthWithBorder,
-                                      screenHeightWithBorder);
+        screenHeightWithBorder);
 
     if (!screenTexture)
         throw std::runtime_error(std::string("Couldn't recreate texture: ") + SDL_GetError());
@@ -414,7 +476,10 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int border)
     if (!SDL_SetTextureScaleMode(screenTexture, SDL_SCALEMODE_NEAREST))
         SDL_Log("Unable to set nearest texture filtering: %s", SDL_GetError());
 
-    SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder);
+    const int menuBarHeight = static_cast<int>(ImGui::GetFrameHeight());
+
+    SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder + menuBarHeight);
+    SDL_SetWindowSize(window, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE + menuBarHeight);
 }
 
 SDL_FRect VideoOutput::computeDestinationRect(int outputW, int outputH) const

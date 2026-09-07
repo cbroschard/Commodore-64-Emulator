@@ -578,8 +578,10 @@ class Vic
         static constexpr uint16_t IDLE_FETCH_ADDRESS = 0x3FFF;
 
         // Screen constants
-        static constexpr int BORDER_SIZE = 32;
-        static constexpr int VISIBLE_WIDTH = 320 + 2 * BORDER_SIZE;   // 384
+        static constexpr int HORIZONTAL_BORDER_SIZE = 32;
+        static constexpr int VERTICAL_BORDER_SIZE   = 36;
+
+        static constexpr int VISIBLE_WIDTH = 320 + 2 * HORIZONTAL_BORDER_SIZE; // 384
 
         // VIC-II background sequencer always operates on 40 display columns.
         // CSEL changes the border clipping, not the number of matrix columns fetched.
@@ -1254,7 +1256,7 @@ class Vic
         uint8_t latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask);
 
         // Screen helper
-        inline int fbY(int raster) const { return BORDER_SIZE + (raster - cfg_->firstVisibleLine); }
+        inline int fbY(int raster) const { return VERTICAL_BORDER_SIZE + (raster - cfg_->firstVisibleLine); }
 
         // Rebuild Border Latches
         void rebuildBorderRasterLatches();

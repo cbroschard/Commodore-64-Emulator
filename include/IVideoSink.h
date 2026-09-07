@@ -16,18 +16,12 @@ class IVideoSink
         virtual ~IVideoSink() = default;
 
         virtual void renderBackgroundLine(int row, uint8_t color, int x0, int x1) = 0;
-
         virtual void renderBorderLine(int row, uint8_t color, int x0, int x1) = 0;
 
         virtual void setPixel(int x, int y, uint8_t color) = 0;
-
         virtual void setPixel(int x, int y, uint8_t color, int hardwareX) = 0;
 
-        virtual void setScreenDimensions(int visibleW, int visibleH, int border) = 0;
-
-    protected:
-
-    private:
+        virtual void setScreenDimensions(int visibleW, int visibleH, int horizontalBorder, int verticalBorder) = 0;
 };
 
 #endif // IVIDEOSINK_H

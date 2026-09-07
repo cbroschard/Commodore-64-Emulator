@@ -285,7 +285,7 @@ void Vic::setMode(VideoMode mode)
 
     // Notify IO of mode
     if (sink)
-        sink->setScreenDimensions(320, cfg_->visibleLines, BORDER_SIZE);
+        sink->setScreenDimensions(320, cfg_->visibleLines, HORIZONTAL_BORDER_SIZE, VERTICAL_BORDER_SIZE);
 }
 
 void Vic::saveState(StateWriter& wrtr) const
@@ -2112,7 +2112,7 @@ void Vic::finalizeFrameIfNeeded(int curRaster)
         if (sink)
         {
             const int lastFBY = fbY(curRaster);
-            const int fbH = cfg_->visibleLines + 2 * BORDER_SIZE;
+            const int fbH = cfg_->visibleLines + 2 * VERTICAL_BORDER_SIZE;
 
             for (int y = lastFBY + 1; y < fbH; ++y)
             {
@@ -5146,7 +5146,7 @@ int Vic::spriteScreenXFor(int sprIndex, int raster) const
 
     const int x = spriteRegisterXForRasterPixel(sprIndex, raster, samplePx);
 
-    return (x - cfg_->hardware_X) + BORDER_SIZE - 1;
+    return (x - cfg_->hardware_X) + HORIZONTAL_BORDER_SIZE - 1;
 }
 
 bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int& rowInSprite, int& fbLine) const
@@ -6370,7 +6370,7 @@ int Vic::cyclePixelX(int cycle) const
     int hardwareX = cfg_->hardware_X + cycle * 8;
     hardwareX %= rasterWidth;
 
-    int framebufferX = hardwareX - cfg_->hardware_X + BORDER_SIZE;
+    int framebufferX = hardwareX - cfg_->hardware_X + HORIZONTAL_BORDER_SIZE;
     framebufferX %= rasterWidth;
 
     if (framebufferX < 0)

@@ -48,15 +48,13 @@ class VideoOutput final : public IVideoSink
 
         void handleEvent(const SDL_Event& e, std::atomic<bool>& runningFlag);
 
-        void setScreenDimensions(int visibleW, int visibleH, int border) override;
+        void setScreenDimensions(int visibleW, int visibleH, int horizontalBorder, int verticalBorder) override;
 
         // imgui / UI wiring
         inline void setGuiCallback(std::function<void()> fn) { guiCallback = std::move(fn); }
         inline void setInputCallback(std::function<void(const SDL_Event&)> cb) { inputCallback = std::move(cb); }
 
         inline void setMonitorOpenCallback(std::function<bool()> fn) { monitorOpenCallback = std::move(fn); }
-
-    protected:
 
     private:
         SDL_Window* window;
@@ -77,7 +75,8 @@ class VideoOutput final : public IVideoSink
         // Screen constants
         int visibleScreenWidth;
         int visibleScreenHeight;
-        int borderSize;
+        int horizontalBorder;
+        int verticalBorder;
         int screenWidthWithBorder;
         int screenHeightWithBorder;
 
