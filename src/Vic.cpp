@@ -1594,15 +1594,16 @@ void Vic::handleCycle14Decisions()
     }
 }
 
-void Vic:: handleBadLineFetchStartDecisions()
+void Vic::handleBadLineFetchStartDecisions()
 {
     const int raster = registers.raster;
 
-    if (vicState.badLineLatchedAt14 && vicState.badLineCondition)
-    {
-        traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, true);
-        beginBadLineFetch();
-    }
+    if (!vicState.cAccessActive)
+        return;
+
+    traceVicBadLineStart(raster, currentCycle, vicState. vcBase, vicState.rc, true);
+
+    beginBadLineFetch();
 }
 
 void Vic::handleDmaStartCycleDecisions()
