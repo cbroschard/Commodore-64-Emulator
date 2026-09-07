@@ -479,7 +479,7 @@ void VideoOutput::setScreenDimensions(int visibleW, int visibleH, int horizontal
     const int menuBarHeight = static_cast<int>(ImGui::GetFrameHeight());
 
     SDL_SetWindowMinimumSize(window, screenWidthWithBorder, screenHeightWithBorder + menuBarHeight);
-    SDL_SetWindowSize(window, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE + menuBarHeight);
+    //SDL_SetWindowSize(window, screenWidthWithBorder * SCALE, screenHeightWithBorder * SCALE + menuBarHeight);
 }
 
 SDL_FRect VideoOutput::computeDestinationRect(int outputW, int outputH) const
