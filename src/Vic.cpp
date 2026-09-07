@@ -2020,6 +2020,7 @@ void Vic::updateLiveBadLineCondition()
             // pending DMA setup can be discarded completely.
             if (currentCycle < 14)
             {
+                vicState.cAccessActive = false;
                 vicState.badLineDmaStartCycle = -1;
                 vicState.badLineFetchIndex = 0;
             }
@@ -2032,16 +2033,16 @@ void Vic::updateLiveBadLineCondition()
     {
         vicState.badLineCondition = true;
 
+        // A newly-created Bad Line Condition commits the VIC
+        // to a c-access sequence for this raster.
+        vicState.cAccessActive = true;
+
         // BA must precede VIC Phi2 takeover by three cycles.
-        // If the Bad Line Condition becomes active now, the earliest
-        // valid c-access takeover is three cycles later.
         vicState.badLineDmaStartCycle = currentCycle + 3;
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
-        // Only initialize matrix-fetch state the first time the
-        // Bad Line Condition becomes true on this raster.
         if (!vicState.badLineInitializedThisRaster)
         {
             vicState.badLineInitializedThisRaster = true;
