@@ -675,7 +675,7 @@ class Vic
             uint8_t badLineFetchIndex = 0;
 
             // True once matrix/c-access state has been initialized for this raster.
-            bool badLineInitializedThisRaster = false;
+            bool matrixFetchInitializedThisRaster = false;
 
             // Border flip-flops
             bool verticalBorder = true;

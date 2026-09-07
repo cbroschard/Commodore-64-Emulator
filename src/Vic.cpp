@@ -102,7 +102,7 @@ void Vic::reset()
     vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
-    vicState.badLineInitializedThisRaster = false;
+    vicState.matrixFetchInitializedThisRaster = false;
 
     vicState.verticalBorder = true;
     vicState.horizontalBorder = true;
@@ -275,7 +275,7 @@ void Vic::setMode(VideoMode mode)
     vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
-    vicState.badLineInitializedThisRaster = false;
+    vicState.matrixFetchInitializedThisRaster = false;
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
@@ -383,7 +383,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.badLineCondition);
     wrtr.writeBool(vicState.badLineLatchedAt14);
     wrtr.writeBool(vicState.cAccessActive);
-    wrtr.writeBool(vicState.badLineInitializedThisRaster);
+    wrtr.writeBool(vicState.matrixFetchInitializedThisRaster);
 
     wrtr.writeBool(vicState.verticalBorder);
     wrtr.writeBool(vicState.horizontalBorder);
@@ -628,11 +628,11 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (ver >= 8)
         {
-            if (!rdr.readBool(vicState.badLineInitializedThisRaster))   { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(vicState.matrixFetchInitializedThisRaster))   { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
-            vicState.badLineInitializedThisRaster = false;
+            vicState.matrixFetchInitializedThisRaster = false;
         }
 
         if (!rdr.readBool(vicState.verticalBorder))                     { rdr.exitChunkPayload(chunk); return false; }
@@ -1478,7 +1478,7 @@ void Vic::beginFrameIfNeeded()
         vicState.cAccessActive = false;
         vicState.badLineDmaStartCycle = -1;
         vicState.badLineFetchIndex = 0;
-        vicState.badLineInitializedThisRaster = false;
+        vicState.matrixFetchInitializedThisRaster = false;
 
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
@@ -2059,9 +2059,9 @@ void Vic::updateLiveBadLineCondition()
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
-        if (!vicState.badLineInitializedThisRaster)
+        if (!vicState.matrixFetchInitializedThisRaster)
         {
-            vicState.badLineInitializedThisRaster = true;
+            vicState.matrixFetchInitializedThisRaster = true;
 
             vicState.vmliBase = vicState.vcBase;
             vicState.badLineFetchIndex = 0;
@@ -2157,7 +2157,7 @@ void Vic::advanceToNextRaster()
     vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
-    vicState.badLineInitializedThisRaster = false;
+    vicState.matrixFetchInitializedThisRaster = false;
 }
 
 void Vic::traceRasterEnd()
@@ -3380,7 +3380,7 @@ void Vic::beginBadLineFetch()
     vicState.displayEnabledNext = true;
 
     // Matrix state has now definitely been initialized for this raster.
-    vicState.badLineInitializedThisRaster = true;
+    vicState.matrixFetchInitializedThisRaster = true;
 
     // The matrix line index starts from the current VCBASE.
     vicState.vmliBase = vicState.vcBase;
