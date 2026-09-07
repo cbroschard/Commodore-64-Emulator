@@ -3466,8 +3466,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
-    const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
+    const bool useCAccessLatch = vicState.cAccessActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
     {
@@ -3593,8 +3592,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
-    const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
+    const bool useCAccessLatch = vicState.cAccessActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
     {
