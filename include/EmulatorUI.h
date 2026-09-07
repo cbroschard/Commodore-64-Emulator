@@ -211,6 +211,8 @@ class EmulatorUI
         void startCreateBlankDiskDialog(int deviceNum, UiCommand::DriveType driveType);
         void drawFileDialog();
 
+        void drawKeyboardShortcutsTable();
+
         void startIDE64LoadImageDialog(uint32_t deviceIndex, bool readOnly);
         void startIDE64CreateImageDialog(uint32_t deviceIndex);
         void drawIDE64Menu(const MediaViewState& v);

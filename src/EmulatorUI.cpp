@@ -595,8 +595,98 @@ void EmulatorUI::drawFileDialog()
     ImGui::End();
 }
 
+void EmulatorUI::drawKeyboardShortcutsTable()
+{
+    if (ImGui::BeginTable(
+            "ShortcutsTable",
+            2,
+            ImGuiTableFlags_BordersInnerH |
+            ImGuiTableFlags_RowBg |
+            ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Shortcut");
+        ImGui::TableSetupColumn("Action");
+        ImGui::TableHeadersRow();
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("F12");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Open ML Monitor");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Ctrl+S");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Save Emulator State");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Ctrl+L");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Load Emulator State");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Ctrl+W");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Warm Reset");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Ctrl+Shift+R");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Cold Reset");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Ctrl+Space");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Pause / Resume");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+P");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Datasette Play");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+S");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Datasette Stop");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+R");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Datasette Rewind");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+F");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Datasette Skip Forward 5 Seconds");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+E");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Datasette Eject");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Alt+F4");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted("Quit");
+
+        ImGui::EndTable();
+    }
+}
+
 void EmulatorUI::installMenu(const MediaViewState& v)
 {
+    static bool keyboardShortcutsRequested = false;
     static bool aboutRequested = false;
 
     if (ImGui::BeginMainMenuBar())
@@ -1095,11 +1185,28 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
         if (ImGui::BeginMenu("Help"))
         {
+            if (ImGui::MenuItem("Keyboard Shortcuts")) keyboardShortcutsRequested = true;
+
             if (ImGui::MenuItem("About")) aboutRequested = true;
+
             ImGui::EndMenu();
         }
 
         ImGui::EndMainMenuBar();
+    }
+
+    if (keyboardShortcutsRequested) { ImGui::OpenPopup("Keyboard Shortcuts"); keyboardShortcutsRequested = false; }
+
+    if (ImGui::BeginPopupModal("Keyboard Shortcuts", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        drawKeyboardShortcutsTable();
+
+        ImGui::Spacing();
+
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
     }
 
     if (aboutRequested) { ImGui::OpenPopup("About C64 Emulator"); aboutRequested = false; }
@@ -1108,7 +1215,7 @@ void EmulatorUI::installMenu(const MediaViewState& v)
     {
         ImGui::Text("C64 Emulator - ImGui Menu Overlay");
         ImGui::Separator();
-        ImGui::Text("F12 opens ML Monitor.\nName: %s\nVersion: %s" , VersionInfo::NAME, VersionInfo::VERSION);
+        ImGui::Text("Name: %s\nVersion: %s\nBuild Date: %s", VersionInfo::NAME, VersionInfo::VERSION, VersionInfo::BUILD_DATE);
         if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
