@@ -2007,10 +2007,14 @@ void Vic::updateLiveBadLineCondition()
 {
     const int raster = registers.raster;
 
+    // The VIC-II Bad Line Condition only affects BA/c-access
+    // sequencing during cycles 12-54.
     if (currentCycle < 12 || currentCycle > 54)
         return;
 
     const bool badNow = isBadLine(raster);
+
+    const bool beforeCycle14 = currentCycle < 14;
 
     if (!badNow)
     {
@@ -2018,10 +2022,10 @@ void Vic::updateLiveBadLineCondition()
         {
             vicState.badLineCondition = false;
 
-            // Before cycle 14, nothing has committed yet, so the
-            // pending DMA setup can be discarded completely.
-            if (currentCycle < 14)
+            if (beforeCycle14)
             {
+                // Before the cycle-14 sequencer decision, the pending
+                // Bad Line Condition can still be canceled completely.
                 vicState.cAccessActive = false;
                 vicState.badLineDmaStartCycle = -1;
                 vicState.badLineFetchIndex = 0;
@@ -2035,12 +2039,21 @@ void Vic::updateLiveBadLineCondition()
     {
         vicState.badLineCondition = true;
 
-        // A newly-created Bad Line Condition commits the VIC
-        // to a c-access sequence for this raster.
         vicState.cAccessActive = true;
 
-        // BA must precede VIC Phi2 takeover by three cycles.
-        vicState.badLineDmaStartCycle = currentCycle + 3;
+        // BA must be low for three cycles before Phi2 can be taken
+        // from the CPU. A normal bad line detected by cycle 12 can
+        // therefore begin c-access at cycle 15.
+        if (beforeCycle14)
+        {
+            vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
+        }
+        else
+        {
+            // Late-created Bad Line Condition: takeover cannot occur
+            // until three cycles after BA is asserted.
+            vicState.badLineDmaStartCycle = currentCycle + 3;
+        }
 
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
