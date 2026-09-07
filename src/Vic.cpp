@@ -1275,7 +1275,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
             const uint8_t clearMask = static_cast<uint8_t>(value & 0x0F);
 
-            const bool reassertRasterIRQ = ((clearMask & 0x01) != 0) && rasterIrqDeferredReassert;
+            const bool reassertRasterIRQ = ((clearMask & 0x01) != 0) && rasterIrqDeferredReassert && rasterCompareMatchesNow();
 
             // $D019 is a write-1-to-clear interrupt-source latch.
             registers.interruptStatus = static_cast<uint8_t>(registers.interruptStatus & static_cast<uint8_t>(~clearMask));
