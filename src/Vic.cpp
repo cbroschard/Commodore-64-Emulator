@@ -382,6 +382,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLineCondition);
     wrtr.writeBool(vicState.badLineLatchedAt14);
+    wrtr.writeBool(vicState.cAccessActive);
     wrtr.writeBool(vicState.badLineInitializedThisRaster);
 
     wrtr.writeBool(vicState.verticalBorder);
@@ -623,6 +624,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(vicState.displayEnabledNext))                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLineCondition))                   { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.badLineLatchedAt14))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.cAccessActive))                      { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 8)
         {
