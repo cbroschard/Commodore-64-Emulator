@@ -2059,24 +2059,7 @@ void Vic::updateLiveBadLineCondition()
         vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
-        if (!vicState.matrixFetchInitializedThisRaster)
-        {
-            vicState.matrixFetchInitializedThisRaster = true;
-
-            vicState.vmliBase = vicState.vcBase;
-            vicState.badLineFetchIndex = 0;
-
-            activeMatrixRow.valid = true;
-            activeMatrixRow.vcBase = vicState.vmliBase;
-            activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
-
-            activeMatrixRow.screen.fill(0);
-            activeMatrixRow.color.fill(0);
-            activeMatrixRow.fetched.fill(0);
-            activeMatrixRow.invalid.fill(0);
-            activeMatrixRow.invalidScreen.fill(0);
-            activeMatrixRow.invalidColor.fill(0);
-        }
+        initializeMatrixFetchStateForRaster();
     }
 }
 
@@ -3072,6 +3055,28 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     return cycle >= baStart && cycle <= cfg_->DMAEndCycle;
 }
 
+void Vic::initializeMatrixFetchStateForRaster()
+{
+    if (vicState.matrixFetchInitializedThisRaster)
+        return;
+
+    vicState.matrixFetchInitializedThisRaster = true;
+
+    vicState.vmliBase = vicState.vcBase;
+    vicState.badLineFetchIndex = 0;
+
+    activeMatrixRow.valid = true;
+    activeMatrixRow.vcBase = vicState.vmliBase;
+    activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
+
+    activeMatrixRow.screen.fill(0);
+    activeMatrixRow.color.fill(0);
+    activeMatrixRow.fetched.fill(0);
+    activeMatrixRow.invalid.fill(0);
+    activeMatrixRow.invalidScreen.fill(0);
+    activeMatrixRow.invalidColor.fill(0);
+}
+
 bool Vic::isRefreshCycle(int cycle) const
 {
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
@@ -3379,23 +3384,7 @@ void Vic::beginBadLineFetch()
     vicState.displayEnabled = true;
     vicState.displayEnabledNext = true;
 
-    // Matrix state has now definitely been initialized for this raster.
-    vicState.matrixFetchInitializedThisRaster = true;
-
-    // The matrix line index starts from the current VCBASE.
-    vicState.vmliBase = vicState.vcBase;
-    vicState.badLineFetchIndex = 0;
-
-    activeMatrixRow.valid = true;
-    activeMatrixRow.vcBase = vicState.vmliBase;
-    activeMatrixRow.row = static_cast<int>(vicState.vmliBase / BACKGROUND_MATRIX_COLUMNS);
-
-    activeMatrixRow.screen.fill(0);
-    activeMatrixRow.color.fill(0);
-    activeMatrixRow.fetched.fill(0);
-    activeMatrixRow.invalid.fill(0);
-    activeMatrixRow.invalidScreen.fill(0);
-    activeMatrixRow.invalidColor.fill(0);
+    initializeMatrixFetchStateForRaster();
 }
 
 void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)

@@ -871,6 +871,8 @@ class Vic
         bool isBadLineBusStealCycle(int raster, int cycle) const;
         bool isBadLineBAHoldCycle(int raster, int cycle) const;
 
+        void initializeMatrixFetchStateForRaster();
+
         bool isRefreshCycle(int cycle) const;
 
         bool isSpriteBusWarningCycle(int raster, int cycle) const;
