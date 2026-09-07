@@ -96,8 +96,9 @@ void Vic::reset()
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
-    vicState.badLine = false;
-    vicState.badLineSampled = false;
+
+    vicState.badLineCondition = false;
+    vicState.badLineLatchedAt14 = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
@@ -268,8 +269,8 @@ void Vic::setMode(VideoMode mode)
     std::fill(finalColorLine.begin(), finalColorLine.end(), 0);
     std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);
 
-    vicState.badLine = false;
-    vicState.badLineSampled = false;
+    vicState.badLineCondition = false;
+    vicState.badLineLatchedAt14 = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
@@ -377,8 +378,8 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.displayEnabledNext);
-    wrtr.writeBool(vicState.badLine);
-    wrtr.writeBool(vicState.badLineSampled);
+    wrtr.writeBool(vicState.badLineCondition);
+    wrtr.writeBool(vicState.badLineLatchedAt14);
     wrtr.writeBool(vicState.badLineInitializedThisRaster);
 
     wrtr.writeBool(vicState.verticalBorder);
@@ -618,8 +619,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(vicState.displayEnabled))                     { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.displayEnabledNext))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.badLine))                            { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.badLineSampled))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.badLineCondition))                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.badLineLatchedAt14))                 { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 8)
         {
@@ -1468,8 +1469,8 @@ void Vic::beginFrameIfNeeded()
         vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
 
-        vicState.badLine = false;
-        vicState.badLineSampled = false;
+        vicState.badLineCondition = false;
+        vicState.badLineLatchedAt14 = false;
         vicState.badLineDmaStartCycle = -1;
         vicState.badLineFetchIndex = 0;
         vicState.badLineInitializedThisRaster = false;
@@ -1562,13 +1563,16 @@ void Vic::handleCycle14Decisions()
 
     reloadGraphicsSequencerAtCycle14(badAtCycle14);
 
-    vicState.badLineSampled = badAtCycle14;
+    // Capture the Bad Line Condition at the VIC-II cycle-14
+    // sampling point. This is distinct from the live condition,
+    // which may subsequently change because of $D011 writes.
+    vicState.badLineLatchedAt14 = badAtCycle14;
 
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badAtCycle14)
     {
-        vicState.badLine = true;
+        vicState.badLineCondition = true;
         vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
@@ -1584,7 +1588,7 @@ void Vic:: handleBadLineFetchStartDecisions()
 {
     const int raster = registers.raster;
 
-    if (vicState.badLineSampled && vicState.badLine)
+    if (vicState.badLineLatchedAt14 && vicState.badLineCondition)
     {
         traceVicBadLineStart(raster, currentCycle, vicState.vcBase, vicState.rc, true);
         beginBadLineFetch();
@@ -1941,7 +1945,7 @@ void Vic::performBadLineFetchesForCurrentCycle()
     // Once the sequence has begun, it continues through the
     // remaining matrix-fetch cycles even if YSCROLL is changed
     // and the live Bad Line Condition disappears.
-    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
 
     if (!cAccessSequenceActive)
         return;
@@ -2006,9 +2010,9 @@ void Vic::updateLiveBadLineCondition()
 
     if (!badNow)
     {
-        if (vicState.badLine)
+        if (vicState.badLineCondition)
         {
-            vicState.badLine = false;
+            vicState.badLineCondition = false;
 
             // Before cycle 14, nothing has committed yet, so the
             // pending DMA setup can be discarded completely.
@@ -2022,9 +2026,9 @@ void Vic::updateLiveBadLineCondition()
         return;
     }
 
-    if (!vicState.badLine)
+    if (!vicState.badLineCondition)
     {
-        vicState.badLine = true;
+        vicState.badLineCondition = true;
 
         // BA must precede VIC Phi2 takeover by three cycles.
         // If the Bad Line Condition becomes active now, the earliest
@@ -2129,8 +2133,8 @@ void Vic::advanceToNextRaster()
     rasterIrqTriggeredThisLine = false;
 
     // Bad-line/DMA state is local to one raster line.
-    vicState.badLine = false;
-    vicState.badLineSampled = false;
+    vicState.badLineCondition = false;
+    vicState.badLineLatchedAt14 = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
@@ -2976,7 +2980,7 @@ void Vic::updateBusArbitration()
     }
 
     if (oldBA != vicState.ba || oldAEC != vicState.aec)
-        traceVicBusArb(oldBA, oldAEC, vicState.ba, vicState.aec, vicState.badLineSampled, currentCycleSlot.baLow,
+        traceVicBusArb(oldBA, oldAEC, vicState.ba, vicState.aec, vicState.badLineLatchedAt14, currentCycleSlot.baLow,
                        currentCycleSlot.cpuBusStolen);
 }
 
@@ -3020,7 +3024,7 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
     // The live Bad Line Condition can disappear after the
     // c-access sequence has already begun. Once started,
     // matrix DMA continues through the remaining c-access slots.
-    const bool dmaActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool dmaActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
 
     if (!dmaActive)
         return false;
@@ -3039,7 +3043,7 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     if (raster != registers.raster)
         return false;
 
-    const bool dmaActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool dmaActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
 
     if (!dmaActive)
         return false;
@@ -3459,7 +3463,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
     const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
@@ -3586,7 +3590,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
 
-    const bool cAccessSequenceActive = vicState.badLine || vicState.badLineFetchIndex != 0;
+    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
     const bool useCAccessLatch = cAccessSequenceActive && cAccessLatchValid && cAccessLatchIndex == column;
 
     if (useCAccessLatch)
@@ -3795,8 +3799,8 @@ void Vic::snapshotRasterRowState(int raster)
 
     s.displayEnabled = vicState.displayEnabled;
     s.displayEnabledNext = vicState.displayEnabledNext;
-    s.badLine = vicState.badLine;
-    s.badLineSampled = vicState.badLineSampled;
+    s.badLine = vicState.badLineCondition;
+    s.badLineSampled = vicState.badLineLatchedAt14;
 
     s.d011 = latchedD011ForRaster(raster);
     s.d016 = latchedD016ForRaster(raster);
@@ -5605,13 +5609,13 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.rasterIrqPending = (registers.interruptStatus & 0x01) != 0;
     s.irqLineActiveNow = irqLineActive();
 
-    s.badLine = (raster == registers.raster) ? vicState.badLineSampled : isBadLine(raster);
+    s.badLine = (raster == registers.raster) ? vicState.badLineLatchedAt14 : isBadLine(raster);
 
     s.denAtRaster = (d011_per_raster[raster] & 0x10) != 0;
     s.denSeenOn30 = denSeenOn30;
 
     s.liveVc = vicState.vc;
-    s.liveBadLine = vicState.badLine;
+    s.liveBadLine = vicState.badLineCondition;
     s.badLineDmaStartCycle = vicState.badLineDmaStartCycle;
     s.badLineFetchIndex = vicState.badLineFetchIndex;
 
@@ -5866,8 +5870,8 @@ Vic::VicBadlineDebugSnapshot Vic::getBadlineDebugSnapshot() const
     s.raster = registers.raster;
     s.cycle = currentCycle;
 
-    s.badLine = vicState.badLine;
-    s.badLineSampled = vicState.badLineSampled;
+    s.badLine = vicState.badLineCondition;
+    s.badLineSampled = vicState.badLineLatchedAt14;
 
     s.displayEnabled = vicState.displayEnabled;
     s.displayEnabledNext = vicState.displayEnabledNext;
@@ -5962,9 +5966,7 @@ bool Vic::isBadLineForDebug(int raster) const
     if (raster < 0 || raster >= getMaxRasterLinesForDebug())
         return false;
 
-    return raster == static_cast<int>(registers.raster)
-        ? vicState.badLineSampled
-        : isBadLine(raster);
+    return raster == static_cast<int>(registers.raster) ? vicState.badLineLatchedAt14 : isBadLine(raster);
 }
 
 Vic::VicBorderRasterDebugSnapshot Vic::getBorderRasterDebugSnapshot(int raster) const
@@ -6113,7 +6115,7 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    const bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLine : isBadLine(raster);
+    const bool badLineForThisRaster = (raster == registers.raster) ? vicState.badLineCondition : isBadLine(raster);
 
     // Character matrix fetches use the visible/background fetch window,
     // not the bus-pressure/DMA warning window.
@@ -6402,7 +6404,7 @@ void Vic::traceVicCycleCheckpoint(const char* phase, int raster, int cycle) cons
         << " vcBase=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
         << vicState.vcBase
         << " rc=" << std::dec << int(vicState.rc)
-        << " bad=" << (vicState.badLine ? 1 : 0)
+        << " bad=" << (vicState.badLineCondition ? 1 : 0)
         << " disp=" << (vicState.displayEnabled ? 1 : 0)
         << " DEN=" << (den ? 1 : 0)
         << " row=" << row;

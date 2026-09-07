@@ -654,10 +654,20 @@ class Vic
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;
-            bool badLine = false;
-            bool badLineSampled = false;
+
+            // Live VIC-II Bad Line Condition for the current raster.
+            bool badLineCondition = false;
+
+            // State of the Bad Line Condition at the cycle-14 sampling point.
+            bool badLineLatchedAt14 = false;
+
+            // Earliest cycle at which c-access DMA may take ownership of Phi2.
             int badLineDmaStartCycle = -1;
+
+            // Number of c-access matrix fetches completed on this raster.
             uint8_t badLineFetchIndex = 0;
+
+            // True once matrix/c-access state has been initialized for this raster.
             bool badLineInitializedThisRaster = false;
 
             // Border flip-flops
