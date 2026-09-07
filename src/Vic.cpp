@@ -1633,9 +1633,6 @@ void Vic::handleCycle58Decisions()
 
 void Vic::advanceCharacterSequencerAtCycle58()
 {
-    // Preserve the display state that was active during this line.
-    const bool displayWasEnabled = vicState.displayEnabled;
-
     // At cycle 58, RC=7 completes the current character row.
     // VC already points one entry beyond the final g-access, so it
     // becomes the base for the next matrix row.
@@ -1643,19 +1640,21 @@ void Vic::advanceCharacterSequencerAtCycle58()
     {
         vicState.vcBase = static_cast<uint16_t>(vicState.vc & 0x03FF);
 
-        // Finishing RC=7 normally leaves display state.
+        // RC=7 normally moves the video logic into idle state.
         vicState.displayEnabledNext = false;
     }
 
+    // A late Bad Line Condition keeps/puts the video logic
+    // in display state for the cycle-58 decision.
     if (vicState.displayStateHoldForCycle58)
         vicState.displayEnabledNext = true;
 
-    // RC advances according to the display state that was active
-    // during the current line.
-    if (displayWasEnabled)
+    // RC increments if the video logic is in display state
+    // after the cycle-58 state transition has been resolved.
+    if (vicState.displayEnabledNext)
         vicState.rc = static_cast<uint8_t>((vicState.rc + 1) & 0x07);
 
-    // Commit the display-state transition for subsequent cycles/lines.
+    // Commit the display state for subsequent cycles/lines.
     vicState.displayEnabled = vicState.displayEnabledNext;
 }
 
