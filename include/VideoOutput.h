@@ -85,6 +85,9 @@ class VideoOutput final : public IVideoSink
 
         bool frameReady;
 
+        bool useAspectFit;
+        bool trackWindowResize;
+
         std::array<uint32_t, 16> palette32;
 
         std::mutex renderMut;

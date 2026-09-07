@@ -75,7 +75,9 @@ VideoOutput::VideoOutput() :
     verticalBorder(36),
     screenWidthWithBorder(320 + 2 * 32),
     screenHeightWithBorder(200 + 2 * 32),
-    frameReady(false)
+    frameReady(false),
+    useAspectFit(false),
+    trackWindowResize(false)
 {
     const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE;
 
@@ -298,7 +300,10 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     if (!lastBuf)
         return;
 
+    // ---------------------------------------------------------
     // Start ImGui frame
+    // ---------------------------------------------------------
+
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
@@ -308,40 +313,42 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
 
     ImGui::Render();
 
+    // ---------------------------------------------------------
+    // Renderer dimensions
+    // ---------------------------------------------------------
+
     int outputW = 0;
     int outputH = 0;
 
     if (!SDL_GetCurrentRenderOutputSize(renderer, &outputW, &outputH))
     {
         SDL_Log("Unable to get renderer output size: %s", SDL_GetError());
-
         return;
     }
 
     // ---------------------------------------------------------
-    // Compute C64 display area below the ImGui menu bar.
+    // Compute C64 destination area
     // ---------------------------------------------------------
 
     const float menuBarHeight = ImGui::GetFrameHeight();
 
     const float sourceWidth = static_cast<float>(screenWidthWithBorder);
     const float sourceHeight = static_cast<float>(screenHeightWithBorder);
+
     const float availableWidth = static_cast<float>(outputW);
     const float availableHeight = std::max(1.0f, static_cast<float>(outputH) - menuBarHeight);
 
     SDL_FRect destination{};
 
-    const SDL_WindowFlags windowFlags = SDL_GetWindowFlags(window);
-
-    const bool maximized = (windowFlags & SDL_WINDOW_MAXIMIZED) != 0;
-
-    if (!maximized)
+    if (!useAspectFit)
     {
-        // Normal window:
+        // -----------------------------------------------------
+        // Initial / restored normal window
         //
-        // Fill the available width and preserve the framebuffer
-        // aspect ratio. The normal window is sized to accommodate
-        // this height, so there should be no side bars.
+        // Fill the width exactly. This is the presentation that
+        // gives us the clean normal startup with no black bars.
+        // -----------------------------------------------------
+
         destination.x = 0.0f;
         destination.y = menuBarHeight;
 
@@ -350,10 +357,13 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
     }
     else
     {
-        // Maximized window:
+        // -----------------------------------------------------
+        // User resized / maximized window
         //
-        // Fit the complete framebuffer into the area below the
-        // menu bar while preserving its aspect ratio.
+        // Fit the entire C64 framebuffer into the available
+        // client area. Any unused area remains black.
+        // -----------------------------------------------------
+
         const float scaleX = availableWidth / sourceWidth;
         const float scaleY = availableHeight / sourceHeight;
         const float scale = std::min(scaleX, scaleY);
@@ -361,10 +371,7 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
         destination.w = sourceWidth * scale;
         destination.h = sourceHeight * scale;
 
-        // Center horizontally.
         destination.x = (availableWidth - destination.w) * 0.5f;
-
-        // Center vertically inside the space below the menu.
         destination.y = menuBarHeight + ((availableHeight - destination.h) * 0.5f);
     }
 
@@ -378,22 +385,35 @@ void VideoOutput::renderFrame(std::atomic<bool>& runningFlag)
         SDL_Log("SDL_UpdateTexture failed: %s", SDL_GetError());
 
     // ---------------------------------------------------------
-    // Render
+    // Clear unused area to black
     // ---------------------------------------------------------
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
     SDL_RenderClear(renderer);
 
+    // ---------------------------------------------------------
+    // Render C64 framebuffer
+    // ---------------------------------------------------------
+
     if (!SDL_RenderTexture(renderer, screenTexture, nullptr, &destination))
         SDL_Log("SDL_RenderTexture failed: %s", SDL_GetError());
 
-    // Draw ImGui over the renderer.
+    // ---------------------------------------------------------
+    // Render ImGui
+    // ---------------------------------------------------------
+
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
 
     SDL_RenderPresent(renderer);
 
-    // Render monitor window if open.
+    // ---------------------------------------------------------
+    // From this point on, window resize events should be treated
+    // as user/window-manager resizing rather than startup setup.
+    // ---------------------------------------------------------
+
+    trackWindowResize = true;
+
     if (sdlMon.isOpen())
         sdlMon.render();
 }
@@ -412,6 +432,50 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
         return;
     }
 
+    // ---------------------------------------------------------
+    // Window sizing behavior
+    // ---------------------------------------------------------
+    //
+    // Startup / restored normal window:
+    //     fill the available C64 area.
+    //
+    // User-resized or maximized window:
+    //     preserve aspect ratio and letterbox as necessary.
+    //
+    // Ignore resize notifications until we've presented the
+    // initial window at least once. This avoids programmatic
+    // startup sizing switching us into aspect-fit mode.
+    // ---------------------------------------------------------
+
+    if (trackWindowResize)
+    {
+        if (event.type == SDL_EVENT_WINDOW_RESIZED)
+        {
+            const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
+
+            const bool maximized = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+
+            // Any manual resize or maximize should use aspect-fit
+            // so that no part of the framebuffer is clipped.
+            useAspectFit = true;
+
+            if (maximized)
+                useAspectFit = true;
+        }
+
+        // When the user restores from maximized back to the normal
+        // window, return to the fill-window presentation.
+        if (event.type == SDL_EVENT_WINDOW_RESTORED)
+            useAspectFit = false;
+
+        if (event.type == SDL_EVENT_WINDOW_MAXIMIZED)
+            useAspectFit = true;
+    }
+
+    // ---------------------------------------------------------
+    // Monitor input handling
+    // ---------------------------------------------------------
+
     if (monitorOpen)
     {
         if (event.type == SDL_EVENT_TEXT_INPUT ||
@@ -427,11 +491,18 @@ void VideoOutput::handleEvent(const SDL_Event& event, std::atomic<bool>& running
         return;
 
     const ImGuiIO& imguiIO = ImGui::GetIO();
-    const bool keyboardEvent = event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_TEXT_INPUT ||
+
+    const bool keyboardEvent =
+        event.type == SDL_EVENT_KEY_DOWN ||
+        event.type == SDL_EVENT_KEY_UP ||
+        event.type == SDL_EVENT_TEXT_INPUT ||
         event.type == SDL_EVENT_TEXT_EDITING;
 
-    const bool mouseEvent = event.type == SDL_EVENT_MOUSE_MOTION || event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-        event.type == SDL_EVENT_MOUSE_BUTTON_UP || event.type == SDL_EVENT_MOUSE_WHEEL;
+    const bool mouseEvent =
+        event.type == SDL_EVENT_MOUSE_MOTION ||
+        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+        event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
+        event.type == SDL_EVENT_MOUSE_WHEEL;
 
     if (keyboardEvent && imguiIO.WantCaptureKeyboard)
         return;
