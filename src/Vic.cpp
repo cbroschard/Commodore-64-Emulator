@@ -96,6 +96,7 @@ void Vic::reset()
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
+    vicState.displayStateHoldForCycle58 = false;
 
     vicState.badLineCondition = false;
     vicState.badLineLatchedAt14 = false;
@@ -279,6 +280,7 @@ void Vic::setMode(VideoMode mode)
 
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
+    vicState.displayStateHoldForCycle58 = false;
 
     vicState.vc = vicState.vcBase;
     vicState.vmliFetchIndex = 0;
@@ -1482,6 +1484,7 @@ void Vic::beginFrameIfNeeded()
 
         vicState.displayEnabled = false;
         vicState.displayEnabledNext = false;
+        vicState.displayStateHoldForCycle58 = false;
 
         vicState.topBorderOpenRaster = 0;
         vicState.bottomBorderCloseRaster = 0;
@@ -1644,11 +1647,7 @@ void Vic::advanceCharacterSequencerAtCycle58()
         vicState.displayEnabledNext = false;
     }
 
-    // Preserve the existing late bad-line behavior for now.
-    // We'll audit its exact cycle semantics separately.
-    const bool badLineAt58 = isBadLine(registers.raster) && rasterWithinVerticalDisplayWindow(registers.raster);
-
-    if (badLineAt58)
+    if (vicState.displayStateHoldForCycle58)
         vicState.displayEnabledNext = true;
 
     // RC advances according to the display state that was active
@@ -2008,14 +2007,19 @@ void Vic::updateLiveBadLineCondition()
 {
     const int raster = registers.raster;
 
-    // The VIC-II Bad Line Condition only affects BA/c-access
-    // sequencing during cycles 12-54.
-    if (currentCycle < 12 || currentCycle > 54)
-        return;
-
     const bool badNow = isBadLine(raster);
 
     const bool beforeCycle14 = currentCycle < 14;
+
+    // Late Bad Line Condition can still keep the graphics
+    // sequencer in display state at cycle 58 without starting
+    // a new c-access sequence.
+    if (currentCycle >= 54 && currentCycle <= 57)
+        vicState.displayStateHoldForCycle58 = badNow;
+
+    // c-access/BA sequencing only applies through cycle 54.
+    if (currentCycle < 12 || currentCycle > 54)
+        return;
 
     if (!badNow)
     {

@@ -654,6 +654,7 @@ class Vic
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;
+            bool displayStateHoldForCycle58 = false;
 
             // Live VIC-II Bad Line Condition for the current raster.
             bool badLineCondition = false;
