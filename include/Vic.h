@@ -661,6 +661,13 @@ class Vic
             // State of the Bad Line Condition at the cycle-14 sampling point.
             bool badLineLatchedAt14 = false;
 
+            // True once the VIC has committed to the current raster's
+            // character-matrix c-access sequence.
+            //
+            // Unlike badLineCondition, this remains true after the live
+            // Bad Line Condition disappears.
+            bool cAccessActive = false;
+
             // Earliest cycle at which c-access DMA may take ownership of Phi2.
             int badLineDmaStartCycle = -1;
 

@@ -99,6 +99,7 @@ void Vic::reset()
 
     vicState.badLineCondition = false;
     vicState.badLineLatchedAt14 = false;
+    vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
@@ -271,6 +272,7 @@ void Vic::setMode(VideoMode mode)
 
     vicState.badLineCondition = false;
     vicState.badLineLatchedAt14 = false;
+    vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
@@ -1471,6 +1473,7 @@ void Vic::beginFrameIfNeeded()
 
         vicState.badLineCondition = false;
         vicState.badLineLatchedAt14 = false;
+        vicState.cAccessActive = false;
         vicState.badLineDmaStartCycle = -1;
         vicState.badLineFetchIndex = 0;
         vicState.badLineInitializedThisRaster = false;
@@ -1573,6 +1576,11 @@ void Vic::handleCycle14Decisions()
     if (badAtCycle14)
     {
         vicState.badLineCondition = true;
+
+         // The cycle-14 Bad Line Condition has committed the VIC
+        // to the c-access sequence for this raster.
+        vicState.cAccessActive = true;
+
         vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
 
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
@@ -1941,13 +1949,7 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
 
 void Vic::performBadLineFetchesForCurrentCycle()
 {
-    // A Bad Line Condition starts the c-access sequence.
-    // Once the sequence has begun, it continues through the
-    // remaining matrix-fetch cycles even if YSCROLL is changed
-    // and the live Bad Line Condition disappears.
-    const bool cAccessSequenceActive = vicState.badLineCondition || vicState.badLineFetchIndex != 0;
-
-    if (!cAccessSequenceActive)
+    if (!vicState.cAccessActive)
         return;
 
     if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
@@ -2135,6 +2137,7 @@ void Vic::advanceToNextRaster()
     // Bad-line/DMA state is local to one raster line.
     vicState.badLineCondition = false;
     vicState.badLineLatchedAt14 = false;
+    vicState.cAccessActive = false;
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.badLineInitializedThisRaster = false;
