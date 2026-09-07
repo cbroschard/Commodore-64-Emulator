@@ -597,12 +597,7 @@ void EmulatorUI::drawFileDialog()
 
 void EmulatorUI::drawKeyboardShortcutsTable()
 {
-    if (ImGui::BeginTable(
-            "ShortcutsTable",
-            2,
-            ImGuiTableFlags_BordersInnerH |
-            ImGuiTableFlags_RowBg |
-            ImGuiTableFlags_SizingStretchProp))
+    if (ImGui::BeginTable("ShortcutsTable", 2, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
     {
         ImGui::TableSetupColumn("Shortcut");
         ImGui::TableSetupColumn("Action");
@@ -684,8 +679,58 @@ void EmulatorUI::drawKeyboardShortcutsTable()
     }
 }
 
+void EmulatorUI::drawGettingStarted()
+{
+    ImGui::TextUnformatted("Loading Programs");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use File > Load Program... to load PRG or P00 files.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("Disk Images");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use File > Disk > Drive 8-11 to insert D64, D71, or D81 disk images.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("Datasette");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use File > Datasette to load T64 or TAP images and control tape playback.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("Cartridges");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use File > Cartridge to insert CRT cartridge images.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("Joystick / Gamepad");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use Input to enable joystick ports and assign connected gamepads to Port 1 or Port 2.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("PAL / NTSC");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use System to select the video standard required by the software you are running.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("Save States");
+    ImGui::Separator();
+    ImGui::TextWrapped("Use Ctrl+S to save the current emulator state and Ctrl+L to load it.");
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted("ML Monitor");
+    ImGui::Separator();
+    ImGui::TextWrapped("Press F12 to open the ML Monitor. Type help in the monitor for available commands.");
+}
+
 void EmulatorUI::installMenu(const MediaViewState& v)
 {
+    static bool gettingStartedRequested = false;
     static bool keyboardShortcutsRequested = false;
     static bool aboutRequested = false;
 
@@ -1185,6 +1230,8 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
         if (ImGui::BeginMenu("Help"))
         {
+            if (ImGui::MenuItem("Getting Started")) gettingStartedRequested = true;
+
             if (ImGui::MenuItem("Keyboard Shortcuts")) keyboardShortcutsRequested = true;
 
             if (ImGui::MenuItem("About")) aboutRequested = true;
@@ -1193,6 +1240,22 @@ void EmulatorUI::installMenu(const MediaViewState& v)
         }
 
         ImGui::EndMainMenuBar();
+    }
+
+    ImGui::SetNextWindowSizeConstraints(ImVec2(600.0f, 0.0f), ImVec2(800.0f, FLT_MAX));
+
+    if (gettingStartedRequested) { ImGui::OpenPopup("Getting Started"); gettingStartedRequested = false; }
+
+    if (ImGui::BeginPopupModal("Getting Started", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        drawGettingStarted();
+
+        ImGui::Spacing();
+
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
     }
 
     if (keyboardShortcutsRequested) { ImGui::OpenPopup("Keyboard Shortcuts"); keyboardShortcutsRequested = false; }

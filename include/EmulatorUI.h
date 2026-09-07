@@ -212,6 +212,7 @@ class EmulatorUI
         void drawFileDialog();
 
         void drawKeyboardShortcutsTable();
+        void drawGettingStarted();
 
         void startIDE64LoadImageDialog(uint32_t deviceIndex, bool readOnly);
         void startIDE64CreateImageDialog(uint32_t deviceIndex);
