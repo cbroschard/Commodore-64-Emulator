@@ -1664,6 +1664,12 @@ void Vic::runFetchPhase()
     if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
 
+    // Refresh accesses are independent of the primary fetch kind.
+    // A refresh may occur during the same emulator cycle as other
+    // VIC activity, so handle it separately.
+    if (currentCycleSlot.refresh)
+        performRefreshFetchForCurrentCycle();
+
     // Sprite pointer fetches can share a cycle with the previous
     // sprite's Data2 fetch, so handle pointers independently of FetchKind.
     for (int sprite = 0; sprite < 8; ++sprite)
@@ -1677,7 +1683,6 @@ void Vic::runFetchPhase()
 
     switch (currentCycleSlot.fetchKind)
     {
-
         case FetchKind::Graphics:
             break;
 
@@ -1693,6 +1698,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
+            // Pointer fetches are handled independently above.
             break;
 
         case FetchKind::SpriteData0:
@@ -1705,6 +1711,7 @@ void Vic::runFetchPhase()
         case FetchKind::SpriteData7:
         {
             const int sprite = currentCycleSlot.spriteIndex;
+
             if (sprite >= 0)
                 performSpriteDataFetchForSprite(sprite);
 
@@ -1714,9 +1721,9 @@ void Vic::runFetchPhase()
         case FetchKind::None:
         default:
         {
-            if (currentCycleSlot.refresh)
-                performRefreshFetchForCurrentCycle();
-            else
+            // Refresh already performed the otherwise-idle access
+            // for this cycle.
+            if (!currentCycleSlot.refresh)
                 performIdleFetchForCurrentCycle();
 
             break;
