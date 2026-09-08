@@ -1722,9 +1722,6 @@ void Vic::reloadCharacterSequencerAtCycle14(bool badLineAt14)
 
 void Vic::advanceGraphicsSequencerAfterGAccess()
 {
-    if (!vicState.displayEnabled)
-        return;
-
     if (vicState.vmliFetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
