@@ -409,6 +409,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(vicState.ba);
     wrtr.writeBool(vicState.aec);
 
+    wrtr.writeBool(vicState.lightPenLatchedThisFrame);
+
     wrtr.writeBool(rasterIrqCompareMatched);
     wrtr.writeBool(rasterIrqDeferredReassert);
     wrtr.writeBool(rasterIrqTriggeredThisLine);
@@ -669,6 +671,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (!rdr.readBool(vicState.ba))                                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(vicState.aec))                                { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readBool(vicState.lightPenLatchedThisFrame))           { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 9)
         {
