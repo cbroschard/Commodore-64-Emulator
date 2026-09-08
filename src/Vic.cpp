@@ -1651,7 +1651,7 @@ void Vic::runFetchPhase()
     const bool graphicsAccessCompleted = performBackgroundGraphicsFetchForCurrentCycle();
 
     if (graphicsAccessCompleted)
-        advanceGraphicsSequencerAfterGAccess();
+        advanceCharacterSequencerAfterGAccess();
 
     // Sprite pointer fetches can share a cycle with the previous
     // sprite's Data2 fetch, so handle pointers independently of FetchKind.
@@ -1720,7 +1720,7 @@ void Vic::reloadCharacterSequencerAtCycle14(bool badLineAt14)
         vicState.rc = 0;
 }
 
-void Vic::advanceGraphicsSequencerAfterGAccess()
+void Vic::advanceCharacterSequencerAfterGAccess()
 {
     if (vicState.vmliFetchIndex >= BACKGROUND_MATRIX_COLUMNS)
         return;

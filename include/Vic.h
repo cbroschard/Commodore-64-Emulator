@@ -902,7 +902,7 @@ class Vic
         void runFetchPhase();
 
         void reloadCharacterSequencerAtCycle14(bool badLineAt14);
-        void advanceGraphicsSequencerAfterGAccess();
+        void advanceCharacterSequencerAfterGAccess();
 
         // Pixel accurate helpers
         void runPixelOutputPhase();
