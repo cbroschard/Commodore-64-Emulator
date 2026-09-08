@@ -2052,7 +2052,6 @@ void Vic::updateLiveBadLineCondition()
             vicState.badLineDmaStartCycle = currentCycle + 3;
         }
 
-        vicState.displayEnabled = true;
         vicState.displayEnabledNext = true;
 
         initializeMatrixFetchStateForRaster();
