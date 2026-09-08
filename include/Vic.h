@@ -1267,7 +1267,6 @@ class Vic
         int currentCharacterRow() const;
         void currentDisplayRowCol(int displayCol, int& row, int& col) const;
 
-        void updateVerticalBorderState(int raster);
         void updateHorizontalBorderState(int raster);
         bool rasterWithinVerticalDisplayWindow(int raster) const;
         bool borderActiveAtPixel(int raster, int px) const;

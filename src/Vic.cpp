@@ -1542,9 +1542,6 @@ void Vic::runCycleDecisionPhase()
 
     if (slot.startBadlineFetch)
         handleDmaStartCycleDecisions();
-
-    if (currentCycle == cfg_->cyclesPerLine - 1)
-        updateVerticalBorderState(registers.raster);
 }
 
 void Vic::handleCycle0Decisions()
@@ -5408,11 +5405,6 @@ void Vic::currentDisplayRowCol(int displayCol, int& row, int& col) const
     const int vc = currentDisplayRowBase() + displayCol;
     row = vc / 40;
     col = vc % 40;
-}
-
-void Vic::updateVerticalBorderState(int raster)
-{
-    applyVerticalBorderCompare(raster, registers.control);
 }
 
 void Vic::updateHorizontalBorderState(int raster)
