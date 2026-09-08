@@ -1200,20 +1200,10 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         }
 
         case 0xD013:
-        {
-            const uint8_t oldValue = registers.light_pen_X;
-            registers.light_pen_X = value;
-            traceVicRegWrite(address, oldValue, registers.light_pen_X);
-            break;
-        }
-
         case 0xD014:
-        {
-            const uint8_t oldValue = registers.light_pen_Y;
-            registers.light_pen_Y = value;
-            traceVicRegWrite(address, oldValue, registers.light_pen_Y);
+            // Light-pen X/Y registers are read-only.
+            // CPU writes have no effect.
             break;
-        }
 
         case 0xD015:
         {
