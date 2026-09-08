@@ -2021,6 +2021,7 @@ void Vic::updateLiveBadLineCondition()
     const bool badNow = isBadLine(raster);
 
     const bool beforeCycle14 = currentCycle < 14;
+    const bool beforeOrAtCycle14Sample = currentCycle <= 14;
 
     // c-access/BA sequencing only applies through cycle 54.
     if (currentCycle < 12 || currentCycle > 54)
@@ -2032,10 +2033,11 @@ void Vic::updateLiveBadLineCondition()
         {
             vicState.badLineCondition = false;
 
-            if (beforeCycle14)
+            // The cycle-14 sample occurs after this live-condition update,
+            // so a condition removed during cycle 14 can still cancel the
+            // pending c-access sequence.
+            if (beforeOrAtCycle14Sample)
             {
-                // Before the cycle-14 sequencer decision, the pending
-                // Bad Line Condition can still be canceled completely.
                 vicState.cAccessActive = false;
                 vicState.badLineDmaStartCycle = -1;
                 vicState.badLineFetchIndex = 0;
