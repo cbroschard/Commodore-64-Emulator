@@ -87,7 +87,7 @@ inline constexpr ModeConfig NTSC_CONFIG =
         { 5,  6,  7,  8},
         { 8,  9, 10, 11},
         {11, 12, 13, 14}
-    }, // spriteFetchSlots
+    }, // spriteFetchTiming
 
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
 };
@@ -125,7 +125,7 @@ inline constexpr ModeConfig PAL_CONFIG =
         { 6,  7,  8,  9},
         { 9, 10, 11, 12},
         {12, 13, 14, 15}
-    }, // spriteFetchSlots
+    }, // spriteFetchTiming
 
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
 };

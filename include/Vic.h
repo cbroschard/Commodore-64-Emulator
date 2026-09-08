@@ -996,7 +996,6 @@ class Vic
         void updateSpriteDMAEndOfLine(int raster);
         void fetchSpritePointer(int sprite, int raster);
         bool isSpriteDMAFetchCycle(int sprite, int cycle) const;
-        int spriteFetchSlotStart(int sprite) const;
         void updateSpriteYExpansionFlipFlops();
 
         void advanceSpriteMCBaseFirstStep();

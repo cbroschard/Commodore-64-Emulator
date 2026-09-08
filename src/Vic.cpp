@@ -1674,7 +1674,7 @@ void Vic::runFetchPhase()
     // sprite's Data2 fetch, so handle pointers independently of FetchKind.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
-        if (currentCycle == spriteFetchSlotStart(sprite))
+        if (currentCycle == cfg_->spriteFetchTiming[sprite].pointerCycle)
         {
             fetchSpritePointer(sprite, registers.raster);
             break;
@@ -2176,14 +2176,6 @@ void Vic::traceRasterEnd()
                               stamp);
 }
 
-int Vic::spriteFetchSlotStart(int sprite) const
-{
-    if (sprite < 0 || sprite >= 8)
-        return -1;
-
-    return cfg_->spriteFetchTiming[sprite].pointerCycle;
-}
-
 void Vic::updateSpriteYExpansionFlipFlops()
 {
     const int raster = registers.raster;
@@ -2255,14 +2247,13 @@ void Vic::advanceSpriteMCBaseSecondStep()
 
 bool Vic::isSpriteDMAFetchCycle(int sprite, int cycle) const
 {
-    const int slotStart = spriteFetchSlotStart(sprite);
-    const int lineCycles = cfg_->cyclesPerLine;
+    if (sprite < 0 || sprite >= 8)
+        return false;
 
-    return cycle == ((slotStart + 1) % lineCycles) ||
-           cycle == ((slotStart + 2) % lineCycles) ||
-           cycle == ((slotStart + 3) % lineCycles);
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+    return cycle == timing.data0Cycle || cycle == timing.data1Cycle || cycle == timing.data2Cycle;
 }
-
 
 Vic::HorizontalBorderWindow Vic::horizontalBorderWindowForCSEL(bool csel40) const
 {
@@ -3922,21 +3913,23 @@ bool Vic::spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const
 
 int Vic::firstSpriteCpuStealCycle(int sprite) const
 {
-    const int lineCycles = cfg_->cyclesPerLine;
-    const int slotStart = spriteFetchSlotStart(sprite);
+    if (sprite < 0 || sprite >= 8)
+        return -1;
+
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
 
     const std::array<std::pair<SpriteFetchPhase, int>, 4> phases =
     {{
-        { SpriteFetchPhase::Pointer, 0 },
-        { SpriteFetchPhase::Data0,   1 },
-        { SpriteFetchPhase::Data1,   2 },
-        { SpriteFetchPhase::Data2,   3 }
+        { SpriteFetchPhase::Pointer, timing.pointerCycle },
+        { SpriteFetchPhase::Data0,   timing.data0Cycle },
+        { SpriteFetchPhase::Data1,   timing.data1Cycle },
+        { SpriteFetchPhase::Data2,   timing.data2Cycle }
     }};
 
-    for (const auto& [phase, offset] : phases)
+    for (const auto& [phase, cycle] : phases)
     {
         if (spriteFetchPhaseStealsCpu(phase))
-            return (slotStart + offset) % lineCycles;
+            return cycle;
     }
 
     return -1;
@@ -6189,9 +6182,9 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
 
     for (int s = 0; s < 8; ++s)
     {
-        const int slotStart = spriteFetchSlotStart(s);
+        const auto& timing = cfg_->spriteFetchTiming[s];
 
-        if (cycle == slotStart)
+        if (cycle == timing.pointerCycle)
         {
             switch (s)
             {
@@ -6717,7 +6710,8 @@ void Vic::traceVicSpriteSlotEvent(int sprite, const char* phase, int raster, int
         << " ras=$" << std::hex << std::uppercase << std::setw(3) << std::setfill('0') << raster
         << " cyc=$" << std::setw(2) << cycle
         << " dot=" << std::dec << (cycle * 8)
-        << " slot=$" << std::hex << std::uppercase << std::setw(2) << spriteFetchSlotStart(sprite)
+        << " ptr=$" << std::hex << std::uppercase << std::setw(2)
+        << cfg_->spriteFetchTiming[sprite].pointerCycle
         << " dma=" << std::dec << (su.dmaActive ? 1 : 0)
         << " rowlat=" << (su.rowDataLatched ? 1 : 0)
         << " yexp=" << (yExpanded ? 1 : 0) << " yff=" << (su.yExpandFlipFlop ? 1 : 0)
