@@ -1850,7 +1850,10 @@ bool Vic::performGAccessForCurrentCycle()
         return false;
 
     if (!vicState.displayEnabled)
+    {
+        performIdleFetchForCurrentCycle();
         return false;
+    }
 
     const int fetchPixelX = cyclePixelX(currentCycle);
 
