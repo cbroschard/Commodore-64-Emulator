@@ -1624,7 +1624,6 @@ void Vic::handleCycle58Decisions()
 {
     traceVicCycleCheckpoint("cycle-58", registers.raster, currentCycle);
 
-    // Preserve the RC actually used to render this raster line.
     if (registers.raster >= 0 && registers.raster < static_cast<int>(rasterRowStates.size()))
         rasterRowStates[registers.raster].displayRc = vicState.rc;
 
@@ -2009,12 +2008,6 @@ void Vic::updateLiveBadLineCondition()
     const bool badNow = isBadLine(raster);
 
     const bool beforeCycle14 = currentCycle < 14;
-
-    // Late Bad Line Condition can still keep the graphics
-    // sequencer in display state at cycle 58 without starting
-    // a new c-access sequence.
-    if (currentCycle >= 54 && currentCycle <= 57)
-        vicState.displayStateHoldForCycle58 = badNow;
 
     // c-access/BA sequencing only applies through cycle 54.
     if (currentCycle < 12 || currentCycle > 54)
