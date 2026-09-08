@@ -901,7 +901,7 @@ class Vic
         void advanceCharacterSequencerAtCycle58();
         void runFetchPhase();
 
-        void reloadGraphicsSequencerAtCycle14(bool badLineAt14);
+        void reloadCharacterSequencerAtCycle14(bool badLineAt14);
         void advanceGraphicsSequencerAfterGAccess();
 
         // Pixel accurate helpers

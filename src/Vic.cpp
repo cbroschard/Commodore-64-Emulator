@@ -1569,7 +1569,7 @@ void Vic::handleCycle14Decisions()
 
     const bool badAtCycle14 = isBadLine(raster);
 
-    reloadGraphicsSequencerAtCycle14(badAtCycle14);
+    reloadCharacterSequencerAtCycle14(badAtCycle14);
 
     vicState.badLineLatchedAt14 = badAtCycle14;
 
@@ -1707,16 +1707,15 @@ void Vic::runFetchPhase()
     }
 }
 
-void Vic::reloadGraphicsSequencerAtCycle14(bool badLineAt14)
+void Vic::reloadCharacterSequencerAtCycle14(bool badLineAt14)
 {
     // VIC-II cycle 14:
-    // VCBASE -> VC and VMLI is cleared on every raster line.
+    // VCBASE is copied into VC and VMLI restarts for the line.
     vicState.vc = static_cast<uint16_t>(vicState.vcBase & 0x03FF);
-
     vicState.vmliFetchIndex = 0;
 
-    // RC is cleared only if the Bad Line Condition is active
-    // at the cycle-14 sample point.
+    // Only a Bad Line Condition sampled at cycle 14
+    // resets the row counter.
     if (badLineAt14)
         vicState.rc = 0;
 }
