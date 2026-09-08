@@ -1648,9 +1648,9 @@ void Vic::advanceCharacterSequencerAtCycle58()
 
 void Vic::runFetchPhase()
 {
-    const bool graphicsAccessCompleted = performBackgroundGraphicsFetchForCurrentCycle();
+    const bool gAccessOccurred = performGAccessForCurrentCycle();
 
-    if (graphicsAccessCompleted)
+    if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
 
     // Sprite pointer fetches can share a cycle with the previous
@@ -1839,7 +1839,7 @@ void Vic::outputPixel(int raster, int x)
         activeBgPixel.valid = false;
 }
 
-bool Vic::performBackgroundGraphicsFetchForCurrentCycle()
+bool Vic::performGAccessForCurrentCycle()
 {
     if (!currentCycleSlot.graphicsFetch)
         return false;

@@ -908,7 +908,7 @@ class Vic
         void runPixelOutputPhase();
         void outputPixel(int raster, int x);
 
-        bool performBackgroundGraphicsFetchForCurrentCycle();
+        bool performGAccessForCurrentCycle();
 
         void advanceCycleAndFinalizeLineIfNeeded();
         void finalizeCurrentRasterLine(int curRaster);
