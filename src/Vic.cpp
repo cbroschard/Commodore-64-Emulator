@@ -122,6 +122,8 @@ void Vic::reset()
     vicState.ba = true;
     vicState.aec = true;
 
+    vicState.lightPenLatchedThisFrame = false;
+
     for (auto& s : spriteUnits)
     {
         s.dmaActive = false;
@@ -1395,12 +1397,17 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
 void Vic::triggerLightPenLatch()
 {
+    if (vicState.lightPenLatchedThisFrame)
+        return;
+
     const uint16_t dotX = getRasterDot();
 
     registers.light_pen_X = static_cast<uint8_t>((dotX >> 1) & 0xFF);
+
     registers.light_pen_Y = static_cast<uint8_t>(registers.raster & 0xFF);
 
-    // VIC IRQ bit 3 = light pen.
+    vicState.lightPenLatchedThisFrame = true;
+
     raiseVicIRQSource(0x08);
 }
 

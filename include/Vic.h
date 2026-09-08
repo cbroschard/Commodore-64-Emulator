@@ -698,6 +698,8 @@ class Vic
             // Bus arbitration
             bool ba = true;
             bool aec = true;
+
+            bool lightPenLatchedThisFrame = false;
         } vicState;
 
         struct SpriteUnit
