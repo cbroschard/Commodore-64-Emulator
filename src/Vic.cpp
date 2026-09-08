@@ -1898,7 +1898,10 @@ bool Vic::performBackgroundGraphicsFetchForCurrentCycle()
             return false;
     }
 
-    return backgroundGraphicsLatches[column].valid;
+    // We reached a valid graphics-access slot while the
+    // VIC was in display state. The hardware g-access occurred
+    // even if the renderer could not populate its software latch.
+    return true;
 }
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
