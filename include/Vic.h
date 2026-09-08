@@ -95,10 +95,6 @@ class Vic
         inline bool getLatchedRSEL(int raster) const { return (latchedD011ForRaster(raster) & 0x08) != 0; }
         inline bool getLatchedCSEL(int raster) const { return (latchedD016ForRaster(raster) & 0x08) != 0; }
 
-        // Getters for current memory locations
-        inline uint16_t getLatchedScreenBase(int raster) const { return ((latchedD018ForRaster(raster) & 0xF0) << 6); }
-        inline uint16_t getLatchedBitmapBase(int raster) const { return ((latchedD018ForRaster(raster) >> 3) & 0x01) * 0x2000; }
-
         // ML Monitor
         enum class FetchKind
         {
