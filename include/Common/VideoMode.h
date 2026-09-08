@@ -60,7 +60,7 @@ inline constexpr ModeConfig NTSC_CONFIG =
     24,    // hardware_X
     15,    // bgFetchStartCycle
     54,    // bgFetchEndCycle
-    55,    // refreshStartCycle
+    10,    // refreshStartCycle
 
     55,    // spriteDmaCheckCycle1
     56,    // spriteDmaCheckCycle2
@@ -88,7 +88,7 @@ inline constexpr ModeConfig PAL_CONFIG =
     24,    // hardware_X
     14,    // bgFetchStartCycle
     53,    // bgFetchEndCycle
-    54,    // refreshStartCycle
+    10,    // refreshStartCycle
 
     54,    // spriteDmaCheckCycle1
     55,    // spriteDmaCheckCycle2
