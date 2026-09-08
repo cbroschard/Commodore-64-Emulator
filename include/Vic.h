@@ -575,7 +575,6 @@ class Vic
         static const uint16_t COLOR_MEMORY_START = 0xD800;
         static constexpr int RASTER_IRQ_COMPARE_CYCLE = 0;
         static constexpr int SPRITE_OUTPUT_WIDTH_EXPANDED_MAX = 48;
-        static constexpr uint16_t IDLE_FETCH_ADDRESS = 0x3FFF;
 
         // Screen constants
         static constexpr int HORIZONTAL_BORDER_SIZE = 32;
@@ -1328,6 +1327,9 @@ class Vic
         const char* busArbReason(int raster, int cycle) const;
 
         void postLoadState();
+
+        // IDLE fetch helper
+        uint16_t idleFetchAddressForCurrentCycle() const;
 };
 
 #endif // VIC_H

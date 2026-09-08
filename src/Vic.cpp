@@ -5480,7 +5480,7 @@ void Vic::performIdleFetchForCurrentCycle()
     if (!bus)
         return;
 
-    const uint16_t addr = IDLE_FETCH_ADDRESS;
+    const uint16_t addr = idleFetchAddressForCurrentCycle();
     const uint8_t value = bus->vicRead(addr);
 
     updateOpenBus(value);
@@ -6865,4 +6865,16 @@ void Vic::postLoadState()
 
     // Treat this as diagnostic only unless behavior depends on it.
     lastRasterIRQSample = {};
+}
+
+uint16_t Vic::idleFetchAddressForCurrentCycle() const
+{
+    const int sampleX = rasterEventPixelX(currentCycle);
+
+    const uint8_t d011 = d011ForRasterPixelX(registers.raster, sampleX, false);
+
+    // VIC-II idle g-access:
+    //   ECM=0 -> $3FFF
+    //   ECM=1 -> A9/A10 forced low -> $39FF
+    return (d011 & 0x40) ? 0x39FF : 0x3FFF;
 }
