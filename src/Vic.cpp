@@ -1931,15 +1931,21 @@ bool Vic::performGAccessForCurrentCycle()
 
 int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
 {
-    const int lineCycles = cfg_->cyclesPerLine;
-    const int slotStart = spriteFetchSlotStart(sprite);
-    const int firstDataCycle = (slotStart + 1) % lineCycles;
+    if (sprite < 0 || sprite >= 8)
+        return -1;
 
-    int byteIndex = cycle - firstDataCycle;
-    if (byteIndex < 0)
-        byteIndex += lineCycles;
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-    return byteIndex;
+    if (cycle == timing.data0Cycle)
+        return 0;
+
+    if (cycle == timing.data1Cycle)
+        return 1;
+
+    if (cycle == timing.data2Cycle)
+        return 2;
+
+    return -1;
 }
 
 uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) const
@@ -2172,7 +2178,10 @@ void Vic::traceRasterEnd()
 
 int Vic::spriteFetchSlotStart(int sprite) const
 {
-    return cfg_->spriteFetchSlots[sprite];
+    if (sprite < 0 || sprite >= 8)
+        return -1;
+
+    return cfg_->spriteFetchTiming[sprite].pointerCycle;
 }
 
 void Vic::updateSpriteYExpansionFlipFlops()
@@ -3163,7 +3172,7 @@ bool Vic::isSpriteBusStealCycle(int raster, int cycle) const
 
         // Pointer fetches are tracked as fetch events, but they should not
         // be modeled as full CPU-steal cycles.
-        if (cycle == cfg_->spriteFetchSlots[s])
+        if (cycle == cfg_->spriteFetchTiming[s].pointerCycle)
             continue;
 
         if (isSpriteDataCpuStealCycle(s, cycle))
@@ -3882,19 +3891,18 @@ Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return SpriteFetchPhase::None;
 
-    const int lineCycles = cfg_->cyclesPerLine;
-    const int slotStart = spriteFetchSlotStart(sprite);
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-    if (cycle == slotStart)
+    if (cycle == timing.pointerCycle)
         return SpriteFetchPhase::Pointer;
 
-    if (cycle == ((slotStart + 1) % lineCycles))
+    if (cycle == timing.data0Cycle)
         return SpriteFetchPhase::Data0;
 
-    if (cycle == ((slotStart + 2) % lineCycles))
+    if (cycle == timing.data1Cycle)
         return SpriteFetchPhase::Data1;
 
-    if (cycle == ((slotStart + 3) % lineCycles))
+    if (cycle == timing.data2Cycle)
         return SpriteFetchPhase::Data2;
 
     return SpriteFetchPhase::None;

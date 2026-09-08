@@ -40,7 +40,17 @@ struct ModeConfig
     int      spriteYExpansionToggleCycle;
     int      spriteMcBaseAdvanceCycle1;
     int      spriteMcBaseAdvanceCycle2;
-    int      spriteFetchSlots[8];
+
+    struct SpriteFetchTiming
+    {
+        int pointerCycle;
+        int data0Cycle;
+        int data1Cycle;
+        int data2Cycle;
+    };
+
+    SpriteFetchTiming spriteFetchTiming[8];
+
     uint8_t  spriteCpuStealPhaseMask;
 };
 
@@ -68,7 +78,17 @@ inline constexpr ModeConfig NTSC_CONFIG =
     14,    // spriteMcBaseAdvanceCycle1
     15,    // spriteMcBaseAdvanceCycle2
 
-    {55,58,61,64,2,5,8,11}, // spriteFetchSlots
+    {
+        {55, 56, 57, 58},
+        {58, 59, 60, 61},
+        {61, 62, 63, 64},
+        {64,  0,  1,  2},
+        { 2,  3,  4,  5},
+        { 5,  6,  7,  8},
+        { 8,  9, 10, 11},
+        {11, 12, 13, 14}
+    }, // spriteFetchSlots
+
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
 };
 
@@ -96,7 +116,17 @@ inline constexpr ModeConfig PAL_CONFIG =
     14,    // spriteMcBaseAdvanceCycle1
     15,    // spriteMcBaseAdvanceCycle2
 
-    {54,57,60,0,3,6,9,12}, // spriteFetchSlots
+    {
+        {54, 55, 56, 57},
+        {57, 58, 59, 60},
+        {60, 61, 62,  0},
+        { 0,  1,  2,  3},
+        { 3,  4,  5,  6},
+        { 6,  7,  8,  9},
+        { 9, 10, 11, 12},
+        {12, 13, 14, 15}
+    }, // spriteFetchSlots
+
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
 };
 #endif // VIDEOMODE_H_INCLUDED
