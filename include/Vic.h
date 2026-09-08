@@ -134,7 +134,6 @@ class Vic
             BadLine,
             SpritePointer,
             SpriteData,
-            Refresh,
             Idle
         };
 

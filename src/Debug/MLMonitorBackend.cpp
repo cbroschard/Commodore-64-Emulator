@@ -126,7 +126,6 @@ static const char* ownerName(Vic::BusOwner owner)
         case Vic::BusOwner::BadLine:       return "BADLINE";
         case Vic::BusOwner::SpritePointer: return "SPRITEPTR";
         case Vic::BusOwner::SpriteData:    return "SPRITEDATA";
-        case Vic::BusOwner::Refresh:       return "REFRESH";
         case Vic::BusOwner::Idle:          return "IDLE";
     }
 
@@ -420,7 +419,6 @@ static const char* vicBusOwnerName(Vic::BusOwner owner)
         case Vic::BusOwner::BadLine:       return "BADLINE";
         case Vic::BusOwner::SpritePointer: return "SPRITE POINTER";
         case Vic::BusOwner::SpriteData:    return "SPRITE DATA";
-        case Vic::BusOwner::Refresh:       return "REFRESH";
         case Vic::BusOwner::Idle:          return "IDLE";
     }
 
