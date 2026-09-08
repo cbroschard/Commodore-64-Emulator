@@ -1482,7 +1482,28 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     out << "Live VMLI  : " << int(s.liveVmliFetchIndex) << "\n";
     out << "Live RC    : " << int(s.liveRc) << "\n";
 
+    out << "Refresh cycle : " << (slot.refresh ? "Yes" : "No") << "\n";
+
+    out << "Refresh counter: $"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<int>(s.liveRefreshCounter)
+        << std::dec << std::nouppercase << std::setfill(' ')
+        << "\n";
+
+    if (slot.refresh)
+    {
+        out << "Refresh address: $"
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << static_cast<int>(s.refreshAddress)
+            << std::dec << std::nouppercase << std::setfill(' ')
+            << "\n";
+    }
+
     out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
+    out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
+    out << "CPU bus stolen: " << (slot.cpuBusStolen ? "Yes" : "No") << "\n";
     out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
     out << "CPU bus stolen: " << (slot.cpuBusStolen ? "Yes" : "No") << "\n";
 

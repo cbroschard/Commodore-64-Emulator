@@ -233,6 +233,9 @@ class Vic
             uint8_t liveRc = 0;
             int liveDisplayRow = 0;
 
+            uint8_t liveRefreshCounter = 0;
+            uint16_t refreshAddress = 0;
+
             uint8_t fineY = 0;
             uint8_t fineX = 0;
 

@@ -5723,6 +5723,11 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
     s.liveRc = vicState.rc;
     s.liveDisplayRow = currentCharacterRow();
 
+    s.liveRefreshCounter = vicState.refreshCounter;
+
+    if (s.slot.refresh)
+        s.refreshAddress = static_cast<uint16_t>(0x3F00 | vicState.refreshCounter);
+
     s.fineY = fineYScroll(raster);
     s.fineX = fineXScroll(raster);
 
