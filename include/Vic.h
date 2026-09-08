@@ -650,6 +650,9 @@ class Vic
             uint8_t vmliFetchIndex = 0;
             uint8_t rc = 0;
 
+            // DRAM refresh counter
+            uint8_t refreshCounter = 0xFF;
+
             // Bad-line / display state
             bool displayEnabled = false;
             bool displayEnabledNext = false;
@@ -874,6 +877,7 @@ class Vic
         void initializeMatrixFetchStateForRaster();
 
         bool isRefreshCycle(int cycle) const;
+        void performRefreshFetchForCurrentCycle();
 
         bool isSpriteBusWarningCycle(int raster, int cycle) const;
         bool isSpriteBusStealCycle(int raster, int cycle) const;

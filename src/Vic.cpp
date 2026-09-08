@@ -94,6 +94,8 @@ void Vic::reset()
     vicState.vmliFetchIndex = 0;
     vicState.rc = 0;
 
+    vicState.refreshCounter = 0xFF;
+
     vicState.displayEnabled = false;
     vicState.displayEnabledNext = false;
     vicState.displayStateHoldForCycle58 = false;
@@ -380,6 +382,8 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeU8(vicState.rc);
 
+    wrtr.writeU8(vicState.refreshCounter);
+
     wrtr.writeBool(vicState.displayEnabled);
     wrtr.writeBool(vicState.displayEnabledNext);
     wrtr.writeBool(vicState.badLineCondition);
@@ -613,6 +617,8 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         }
 
         if (!rdr.readU8(vicState.rc))                                   { rdr.exitChunkPayload(chunk); return false; }
+
+        if (!rdr.readU8(vicState.refreshCounter))                       { rdr.exitChunkPayload(chunk); return false; }
 
         // VICX versions 2-7 stored the obsolete matrixAdvancePending
         // boolean here. Consume it to preserve the legacy chunk layout.
@@ -1475,6 +1481,8 @@ void Vic::beginFrameIfNeeded()
         vicState.vmliFetchIndex = 0;
         vicState.rc = 0;
 
+        vicState.refreshCounter = 0xFF;
+
         vicState.badLineCondition = false;
         vicState.badLineLatchedAt14 = false;
         vicState.cAccessActive = false;
@@ -1539,6 +1547,9 @@ void Vic::runCycleDecisionPhase()
 void Vic::handleCycle0Decisions()
 {
     const int raster = registers.raster;
+
+    if (raster == 0)
+        vicState.refreshCounter = 0xFF;
 
     resetCAccessLatch();
 
@@ -1702,8 +1713,14 @@ void Vic::runFetchPhase()
 
         case FetchKind::None:
         default:
-            performIdleFetchForCurrentCycle();
+        {
+            if (currentCycleSlot.refresh)
+                performRefreshFetchForCurrentCycle();
+            else
+                performIdleFetchForCurrentCycle();
+
             break;
+        }
     }
 }
 
@@ -3079,6 +3096,23 @@ bool Vic::isRefreshCycle(int cycle) const
            cycle == c2 ||
            cycle == c3 ||
            cycle == c4;
+}
+
+void Vic::performRefreshFetchForCurrentCycle()
+{
+    if (!bus)
+        return;
+
+    // Refresh addresses are $3F00-$3FFF within the current
+    // 16 KB VIC bank. The low byte comes from REF.
+    const uint16_t address = static_cast<uint16_t>(0x3F00 | vicState.refreshCounter);
+
+    const uint8_t value = bus->vicRead(address);
+
+    updateOpenBus(value);
+
+    // REF decrements after the refresh access.
+    --vicState.refreshCounter;
 }
 
 bool Vic::isSpriteBusWarningCycle(int raster, int cycle) const
