@@ -3337,9 +3337,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     auto fallbackOwner = [&]() -> BusOwner
     {
-        if (slot.refresh)
-            return BusOwner::Refresh;
-
         if (slot.cpuBusStolen)
             return BusOwner::Idle;
 
