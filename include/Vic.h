@@ -92,7 +92,6 @@ class Vic
         inline void clearFrameFlag() { frameDone = false; }
 
         inline bool getRSEL(int raster) const { return (effectiveD011ForRaster(raster) & 0x08) != 0; }
-        inline bool getCSEL(int raster) const { return (effectiveD016ForRaster(raster) & 0x08) != 0; }
         inline bool getLatchedRSEL(int raster) const { return (latchedD011ForRaster(raster) & 0x08) != 0; }
         inline bool getLatchedCSEL(int raster) const { return (latchedD016ForRaster(raster) & 0x08) != 0; }
 
