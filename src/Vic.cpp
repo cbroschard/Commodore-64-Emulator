@@ -1571,23 +1571,12 @@ void Vic::handleCycle14Decisions()
 
     reloadGraphicsSequencerAtCycle14(badAtCycle14);
 
-    // Capture the Bad Line Condition at the VIC-II cycle-14
-    // sampling point. This is distinct from the live condition,
-    // which may subsequently change because of $D011 writes.
     vicState.badLineLatchedAt14 = badAtCycle14;
 
     traceVicCycleCheckpoint("cycle-14", raster, currentCycle);
 
     if (badAtCycle14)
     {
-        vicState.badLineCondition = true;
-
-         // The cycle-14 Bad Line Condition has committed the VIC
-        // to the c-access sequence for this raster.
-        vicState.cAccessActive = true;
-
-        vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
-
         const bool firstBadlineThisFrame = (firstBadlineY < 0);
 
         initializeFirstBadLineIfNeeded(raster);
