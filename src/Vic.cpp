@@ -1434,6 +1434,9 @@ void Vic::beginCycle()
 void Vic::busPhase()
 {
     runFetchPhase();
+
+    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
+        advanceSpriteMCBaseSecondStep();
 }
 
 void Vic::endCycle()
@@ -1527,9 +1530,6 @@ void Vic::runCycleDecisionPhase()
 
     if (currentCycle == cfg_->spriteMcBaseAdvanceCycle1)
         advanceSpriteMCBaseFirstStep();
-
-    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
-        advanceSpriteMCBaseSecondStep();
 
     if (currentCycle == cfg_->DMAStartCycle)
          handleBadLineFetchStartDecisions();
