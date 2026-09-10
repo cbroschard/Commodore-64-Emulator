@@ -515,6 +515,8 @@ class Vic
             uint8_t d016 = 0;
         };
 
+        VicBusPhase currentBusPhase;
+
         VicBorderRasterDebugSnapshot getBorderRasterDebugSnapshot(int raster) const;
 
         VicCycleSlot currentCycleSlot {};
@@ -900,8 +902,12 @@ class Vic
         void handleBadLineFetchStartDecisions();;
         void handleDmaStartCycleDecisions();
         void handleCycle58Decisions();
+
         void advanceCharacterSequencerAtCycle58();
+
         void runFetchPhase();
+        void runPhi1Phase();
+        void runPhi2Phase();
 
         void reloadCharacterSequencerAtCycle14(bool badLineAt14);
         void advanceCharacterSequencerAfterGAccess();

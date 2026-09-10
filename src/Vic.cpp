@@ -14,6 +14,7 @@
 #include "Vic.h"
 
 Vic::Vic(VideoMode mode) :
+    currentBusPhase(VicBusPhase::Phi1),
     bus(nullptr),
     cia2(nullptr),
     cpu(nullptr),
@@ -1659,19 +1660,30 @@ void Vic::advanceCharacterSequencerAtCycle58()
 
 void Vic::runFetchPhase()
 {
+    runPhi1Phase();
+    runPhi2Phase();
+}
+
+void Vic::runPhi1Phase()
+{
+    currentBusPhase = VicBusPhase::Phi1;
+}
+
+void Vic::runPhi2Phase()
+{
+    currentBusPhase = VicBusPhase::Phi2;
+
     const bool gAccessOccurred = performGAccessForCurrentCycle();
 
     if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
 
     // Refresh accesses are independent of the primary fetch kind.
-    // A refresh may occur during the same emulator cycle as other
-    // VIC activity, so handle it separately.
     if (currentCycleSlot.refresh)
         performRefreshFetchForCurrentCycle();
 
     // Sprite pointer fetches can share a cycle with the previous
-    // sprite's Data2 fetch, so handle pointers independently of FetchKind.
+    // sprite's Data2 fetch, so handle pointers independently.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         if (currentCycle == cfg_->spriteFetchTiming[sprite].pointerCycle)
@@ -1698,7 +1710,6 @@ void Vic::runFetchPhase()
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
-            // Pointer fetches are handled independently above.
             break;
 
         case FetchKind::SpriteData0:
@@ -1721,8 +1732,6 @@ void Vic::runFetchPhase()
         case FetchKind::None:
         default:
         {
-            // Refresh already performed the otherwise-idle access
-            // for this cycle.
             if (!currentCycleSlot.refresh)
                 performIdleFetchForCurrentCycle();
 
