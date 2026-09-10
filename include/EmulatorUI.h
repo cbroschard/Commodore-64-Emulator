@@ -176,6 +176,9 @@ class EmulatorUI
         std::string pad1Name;
         std::string pad2Name;
 
+        bool gettingStartedOpen;
+        bool keyboardShortcutsOpen;
+
         struct FileDialog
         {
             enum class Mode

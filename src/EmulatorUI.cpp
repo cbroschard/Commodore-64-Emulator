@@ -15,7 +15,9 @@ EmulatorUI::EmulatorUI() :
     pendingIDE64ReadOnly_(false),
     pendingIDE64Sectors_(0),
     pendingDevice_(8),
-    pendingDriveType_(UiCommand::DriveType::D1541)
+    pendingDriveType_(UiCommand::DriveType::D1541),
+    gettingStartedOpen(false),
+    keyboardShortcutsOpen(false)
 {
     fileDlg.open = false;
     fileDlg.currentDir = std::filesystem::current_path();
@@ -681,51 +683,89 @@ void EmulatorUI::drawKeyboardShortcutsTable()
 
 void EmulatorUI::drawGettingStarted()
 {
-    ImGui::TextUnformatted("Loading Programs");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use File > Load Program... to load PRG or P00 files.");
+    ImGui::TextWrapped(
+        "Quick reference for loading software, configuring input, "
+        "and using common emulator features.");
 
-    ImGui::Spacing();
+    ImGui::Dummy(ImVec2(0.0f, 14.0f));
 
-    ImGui::TextUnformatted("Disk Images");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use File > Disk > Drive 8-11 to insert D64, D71, or D81 disk images.");
+    auto helpSection = [](const char* title, const char* description)
+    {
+        ImGui::PushID(title);
 
-    ImGui::Spacing();
+        const float width = ImGui::GetContentRegionAvail().x;
 
-    ImGui::TextUnformatted("Datasette");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use File > Datasette to load T64 or TAP images and control tape playback.");
+        ImGui::BeginChild(
+            "section",
+            ImVec2(width, 0.0f),
+            ImGuiChildFlags_AutoResizeY |
+            ImGuiChildFlags_Borders,
+            ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoScrollWithMouse);
 
-    ImGui::Spacing();
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
 
-    ImGui::TextUnformatted("Cartridges");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use File > Cartridge to insert CRT cartridge images.");
+        ImGui::Indent(10.0f);
 
-    ImGui::Spacing();
+        ImGui::TextUnformatted(title);
 
-    ImGui::TextUnformatted("Joystick / Gamepad");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use Input to enable joystick ports and assign connected gamepads to Port 1 or Port 2.");
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
 
-    ImGui::Spacing();
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 
-    ImGui::TextUnformatted("PAL / NTSC");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use System to select the video standard required by the software you are running.");
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 35.0f);
+        ImGui::TextWrapped("%s", description);
+        ImGui::PopTextWrapPos();
 
-    ImGui::Spacing();
+        ImGui::PopStyleColor();
 
-    ImGui::TextUnformatted("Save States");
-    ImGui::Separator();
-    ImGui::TextWrapped("Use Ctrl+S to save the current emulator state and Ctrl+L to load it.");
+        ImGui::Unindent(10.0f);
 
-    ImGui::Spacing();
+        ImGui::Dummy(ImVec2(0.0f, 6.0f));
 
-    ImGui::TextUnformatted("ML Monitor");
-    ImGui::Separator();
-    ImGui::TextWrapped("Press F12 to open the ML Monitor. Type help in the monitor for available commands.");
+        ImGui::EndChild();
+
+        ImGui::Dummy(ImVec2(0.0f, 8.0f));
+
+        ImGui::PopID();
+    };
+
+    helpSection(
+        "Loading Programs",
+        "Load PRG or P00 program files from File > Load Program...");
+
+    helpSection(
+        "Disk Images",
+        "Insert D64, D71, or D81 disk images from File > Disk > Drive 8-11.");
+
+    helpSection(
+        "Datasette",
+        "Load T64 or TAP tape images and control playback from File > Datasette.");
+
+    helpSection(
+        "Cartridges",
+        "Insert CRT cartridge images from File > Cartridge.");
+
+    helpSection(
+        "Joystick / Gamepad",
+        "Use the Input menu to enable joystick ports and assign connected "
+        "gamepads to Port 1 or Port 2.");
+
+    helpSection(
+        "PAL / NTSC",
+        "Use the System menu to select the video standard required by the "
+        "software being emulated.");
+
+    helpSection(
+        "Save States",
+        "Press Ctrl+S to save the current emulator state and Ctrl+L to load it.");
+
+    helpSection(
+        "ML Monitor",
+        "Press F12 to open the ML Monitor. Type help to display the available "
+        "monitor commands.");
 }
 
 void EmulatorUI::installMenu(const MediaViewState& v)
@@ -1244,30 +1284,48 @@ void EmulatorUI::installMenu(const MediaViewState& v)
 
     ImGui::SetNextWindowSizeConstraints(ImVec2(600.0f, 0.0f), ImVec2(800.0f, FLT_MAX));
 
-    if (gettingStartedRequested) { ImGui::OpenPopup("Getting Started"); gettingStartedRequested = false; }
+    if (gettingStartedRequested)
+    {
+        gettingStartedOpen = true;
+        ImGui::OpenPopup("Getting Started");
+        gettingStartedRequested = false;
+    }
 
-    if (ImGui::BeginPopupModal("Getting Started", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    ImGui::SetNextWindowSizeConstraints(ImVec2(800.0f, 0.0f), ImVec2(800.0f, FLT_MAX));
+
+    if (ImGui::BeginPopupModal("Getting Started", &gettingStartedOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         drawGettingStarted();
 
         ImGui::Spacing();
 
         if (ImGui::Button("Close"))
+        {
+            gettingStartedOpen = false;
             ImGui::CloseCurrentPopup();
+        }
 
         ImGui::EndPopup();
     }
 
-    if (keyboardShortcutsRequested) { ImGui::OpenPopup("Keyboard Shortcuts"); keyboardShortcutsRequested = false; }
+    if (keyboardShortcutsRequested)
+    {
+        keyboardShortcutsOpen = true;
+        ImGui::OpenPopup("Keyboard Shortcuts");
+        keyboardShortcutsRequested = false;
+    }
 
-    if (ImGui::BeginPopupModal("Keyboard Shortcuts", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("Keyboard Shortcuts", &keyboardShortcutsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         drawKeyboardShortcutsTable();
 
         ImGui::Spacing();
 
         if (ImGui::Button("Close"))
+        {
+            keyboardShortcutsOpen = false;
             ImGui::CloseCurrentPopup();
+        }
 
         ImGui::EndPopup();
     }
