@@ -1418,6 +1418,8 @@ void Vic::triggerLightPenLatch()
 
 void Vic::beginCycle()
 {
+    currentBusPhase = VicBusPhase::Phi1;
+
     beginFrameIfNeeded();
 
     currentCycleSlot = cycleSlotFor(registers.raster, currentCycle);
@@ -3445,6 +3447,29 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     const uint16_t colorAddress = static_cast<uint16_t>(COLOR_MEMORY_START + vc);
 
     const uint8_t colorByte = static_cast<uint8_t>(bus->vicReadColor(colorAddress) & 0x0F);
+
+    if (vicTraceOn(TraceManager::TraceDetail::VIC_BUS))
+    {
+        std::ostringstream out;
+
+        out << "[VIC:CACCESS] "
+            << "raster=" << raster
+            << " cycle=" << currentCycle
+            << " phase=" << busPhaseName(currentBusPhase)
+            << " index=" << fetchIndex
+            << " VC=$"
+            << std::hex << std::uppercase
+            << std::setw(3) << std::setfill('0')
+            << vc
+            << " screen=$"
+            << std::setw(4)
+            << screenAddress
+            << " color=$"
+            << std::setw(4)
+            << colorAddress;
+
+        traceVicBusEvent(out.str());
+    }
 
     // Successful c-access becomes the current VIC matrix latch.
     cAccessScreenLatch = screenByte;
@@ -6832,8 +6857,7 @@ void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool 
 
     std::ostringstream out;
     out << "[VIC:BUS] "
-        << "phase=" << busPhaseName(currentBusPhase)
-        << " reason=" << busArbReason(registers.raster, currentCycle)
+        << "reason=" << busArbReason(registers.raster, currentCycle)
         << " bad=" << (badLineNow ? 1 : 0)
         << " BA " << (oldBA ? 'H' : 'L') << "->" << (newBA ? 'H' : 'L')
         << " AEC " << (oldAEC ? 'H' : 'L') << "->" << (newAEC ? 'H' : 'L')
