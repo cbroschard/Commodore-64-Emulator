@@ -6717,6 +6717,8 @@ void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_
     out << "[VIC:SPRITE] data fetch"
         << " spr=" << std::dec << sprite
         << " raster=" << raster
+        << " cycle=" << currentCycle
+        << " busPhase=" << busPhaseName(currentBusPhase)
         << " byte=" << byteIndex
         << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << addr
         << " value=$" << std::setw(2) << int(value);
