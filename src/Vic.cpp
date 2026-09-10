@@ -6693,9 +6693,14 @@ void Vic::traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_
     out << "[VIC:SPRITE] ptr fetch"
         << " spr=" << std::dec << sprite
         << " raster=" << raster
-        << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << ptrLoc
+        << " cycle=" << currentCycle
+        << " busPhase=" << busPhaseName(currentBusPhase)
+        << " addr=$"
+        << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0') << ptrLoc
         << " ptr=$" << std::setw(2) << int(ptr)
-        << " dataBase=$" << std::setw(4) << (uint16_t(ptr) << 6);
+        << " dataBase=$" << std::setw(4)
+        << (uint16_t(ptr) << 6);
 
     traceMgr->recordVicSprite(out.str(), makeVicStamp());
 }
