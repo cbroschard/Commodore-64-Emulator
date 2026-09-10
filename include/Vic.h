@@ -180,6 +180,9 @@ class Vic
             int matrixFetchIndex = -1;
 
             SpriteFetchPhase spriteFetchPhase = SpriteFetchPhase::None;
+
+            VicBusPhase spriteBusPhase = VicBusPhase::Phi2;
+            bool spriteBusPhaseValid = false;
         };
 
         struct VicCycleDebugSnapshot

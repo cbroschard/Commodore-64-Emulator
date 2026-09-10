@@ -3338,7 +3338,37 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
             slot.spriteIndex = spriteDataFetchSpriteForKind(slot.fetchKind);
 
             if (slot.spriteIndex >= 0)
-                slot.spriteByteIndex = spriteDataByteIndexForCycle(slot.spriteIndex, cycle);
+            {
+                slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle);
+                const auto& timing = cfg_->spriteFetchTiming[slot.spriteIndex];
+
+                switch (slot.spriteFetchPhase)
+                {
+                    case SpriteFetchPhase::Pointer:
+                        slot.spriteBusPhase = timing.pointerPhase;
+                        slot.spriteBusPhaseValid = true;
+                        break;
+
+                    case SpriteFetchPhase::Data0:
+                        slot.spriteBusPhase = timing.data0Phase;
+                        slot.spriteBusPhaseValid = true;
+                        break;
+
+                    case SpriteFetchPhase::Data1:
+                        slot.spriteBusPhase = timing.data1Phase;
+                        slot.spriteBusPhaseValid = true;
+                        break;
+
+                    case SpriteFetchPhase::Data2:
+                        slot.spriteBusPhase = timing.data2Phase;
+                        slot.spriteBusPhaseValid = true;
+                        break;
+
+                    case SpriteFetchPhase::None:
+                    default:
+                        break;
+                }
+            }
 
             break;
         }
