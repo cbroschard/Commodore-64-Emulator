@@ -1667,16 +1667,16 @@ void Vic::runFetchPhase()
 void Vic::runPhi1Phase()
 {
     currentBusPhase = VicBusPhase::Phi1;
-}
-
-void Vic::runPhi2Phase()
-{
-    currentBusPhase = VicBusPhase::Phi2;
 
     const bool gAccessOccurred = performGAccessForCurrentCycle();
 
     if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
+}
+
+void Vic::runPhi2Phase()
+{
+    currentBusPhase = VicBusPhase::Phi2;
 
     // Refresh accesses are independent of the primary fetch kind.
     if (currentCycleSlot.refresh)
