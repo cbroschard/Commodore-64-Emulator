@@ -1670,23 +1670,14 @@ void Vic::runPhi1Phase()
 {
     currentBusPhase = VicBusPhase::Phi1;
 
-    // Normal VIC graphics access.
     const bool gAccessOccurred = performGAccessForCurrentCycle();
 
     if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
 
-    // VIC DRAM refresh access.
     if (currentCycleSlot.refresh)
         performRefreshFetchForCurrentCycle();
-}
 
-void Vic::runPhi2Phase()
-{
-    currentBusPhase = VicBusPhase::Phi2;
-
-    // Sprite pointer fetches can share a cycle with the previous
-    // sprite's Data2 fetch, so handle pointers independently.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         if (currentCycle == cfg_->spriteFetchTiming[sprite].pointerCycle)
@@ -1695,6 +1686,11 @@ void Vic::runPhi2Phase()
             break;
         }
     }
+}
+
+void Vic::runPhi2Phase()
+{
+    currentBusPhase = VicBusPhase::Phi2;
 
     switch (currentCycleSlot.fetchKind)
     {
