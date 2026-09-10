@@ -1686,6 +1686,12 @@ void Vic::runPhi1Phase()
             break;
         }
     }
+
+    if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteByteIndex >= 0 &&
+        !spriteDataFetchUsesPhi2(currentCycleSlot.spriteByteIndex))
+    {
+        performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex);
+    }
 }
 
 void Vic::runPhi2Phase()
@@ -1721,8 +1727,9 @@ void Vic::runPhi2Phase()
         case FetchKind::SpriteData7:
         {
             const int sprite = currentCycleSlot.spriteIndex;
+            const int byteIndex = currentCycleSlot.spriteByteIndex;
 
-            if (sprite >= 0)
+            if (sprite >= 0 && byteIndex >= 0 && spriteDataFetchUsesPhi2(byteIndex))
                 performSpriteDataFetchForSprite(sprite);
 
             break;
@@ -2406,6 +2413,24 @@ void Vic::clearSpriteFetchedRowState(int sprite)
     spriteUnits[sprite].shift0 = 0;
     spriteUnits[sprite].shift1 = 0;
     spriteUnits[sprite].shift2 = 0;
+}
+
+bool Vic::spriteDataFetchUsesPhi2(int byteIndex) const
+{
+    switch (byteIndex)
+    {
+        case 0:
+            return (cfg_->spriteCpuStealPhaseMask & SPRITE_STEAL_DATA0) != 0;
+
+        case 1:
+            return (cfg_->spriteCpuStealPhaseMask & SPRITE_STEAL_DATA1) != 0;
+
+        case 2:
+            return (cfg_->spriteCpuStealPhaseMask & SPRITE_STEAL_DATA2) != 0;
+
+        default:
+            return false;
+    }
 }
 
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
@@ -6719,6 +6744,8 @@ void Vic::traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_
         << " raster=" << raster
         << " cycle=" << currentCycle
         << " busPhase=" << busPhaseName(currentBusPhase)
+        << " expectedPhase="
+        << (spriteDataFetchUsesPhi2(byteIndex) ? "Phi2" : "Phi1")
         << " byte=" << byteIndex
         << " addr=$" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << addr
         << " value=$" << std::setw(2) << int(value);

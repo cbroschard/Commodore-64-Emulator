@@ -978,6 +978,8 @@ class Vic
         uint16_t spritePointerAddressForRaster(int sprite, int raster, int cycle) const;
         void clearSpriteFetchedRowState(int sprite);
 
+        bool spriteDataFetchUsesPhi2(int byteIndex) const;
+
         struct SpriteCollisionTimingSnapshot
         {
             bool valid = false;
@@ -1319,7 +1321,7 @@ class Vic
 
         void traceVicCycleCheckpoint(const char* phase, int raster, int cycle) const;
 
-        // Sprite helpers
+        // Sprite Trace
         void traceVicSpriteDmaStart(int sprite) const;
         void traceVicSpritePtrFetch(int sprite, int raster, uint16_t ptrLoc, uint8_t ptr) const;
         void traceVicSpriteDataFetch(int sprite, int raster, int byteIndex, uint16_t addr, uint8_t value) const;
