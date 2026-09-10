@@ -2436,6 +2436,33 @@ bool Vic::spriteDataFetchUsesPhi2(int byteIndex) const
     }
 }
 
+VicBusPhase Vic::spriteBusPhaseForFetch(int sprite, SpriteFetchPhase phase) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return VicBusPhase::Phi2;
+
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+    switch (phase)
+    {
+        case SpriteFetchPhase::Pointer:
+            return timing.pointerPhase;
+
+        case SpriteFetchPhase::Data0:
+            return timing.data0Phase;
+
+        case SpriteFetchPhase::Data1:
+            return timing.data1Phase;
+
+        case SpriteFetchPhase::Data2:
+            return timing.data2Phase;
+
+        case SpriteFetchPhase::None:
+        default:
+            return VicBusPhase::Phi2;
+    }
+}
+
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -3323,8 +3350,10 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
+        {
             slot.spriteIndex = spritePointerFetchSpriteForKind(slot.fetchKind);
             break;
+        }
 
         case FetchKind::SpriteData0:
         case FetchKind::SpriteData1:
@@ -3338,37 +3367,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
             slot.spriteIndex = spriteDataFetchSpriteForKind(slot.fetchKind);
 
             if (slot.spriteIndex >= 0)
-            {
-                slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle);
-                const auto& timing = cfg_->spriteFetchTiming[slot.spriteIndex];
-
-                switch (slot.spriteFetchPhase)
-                {
-                    case SpriteFetchPhase::Pointer:
-                        slot.spriteBusPhase = timing.pointerPhase;
-                        slot.spriteBusPhaseValid = true;
-                        break;
-
-                    case SpriteFetchPhase::Data0:
-                        slot.spriteBusPhase = timing.data0Phase;
-                        slot.spriteBusPhaseValid = true;
-                        break;
-
-                    case SpriteFetchPhase::Data1:
-                        slot.spriteBusPhase = timing.data1Phase;
-                        slot.spriteBusPhaseValid = true;
-                        break;
-
-                    case SpriteFetchPhase::Data2:
-                        slot.spriteBusPhase = timing.data2Phase;
-                        slot.spriteBusPhaseValid = true;
-                        break;
-
-                    case SpriteFetchPhase::None:
-                    default:
-                        break;
-                }
-            }
+                slot.spriteByteIndex = spriteDataByteIndexForCycle(slot.spriteIndex, cycle);
 
             break;
         }
@@ -3380,7 +3379,15 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     }
 
     if (slot.spriteIndex >= 0)
+    {
         slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle);
+
+        if (slot.spriteFetchPhase != SpriteFetchPhase::None)
+        {
+            slot.spriteBusPhase = spriteBusPhaseForFetch(slot.spriteIndex, slot.spriteFetchPhase);
+            slot.spriteBusPhaseValid = true;
+        }
+    }
 
     slot.badlineWarning = isBadLineBusWarningCycle(raster, cycle);
     slot.badlineSteal = isBadLineBusStealCycle(raster, cycle);
@@ -3389,13 +3396,10 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.spriteBAHold = isSpriteBusBAHoldCycle(raster, cycle);
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
     slot.refresh = isRefreshCycle(cycle);
-
     slot.baLow = slot.badlineBAHold || slot.spriteWarning || slot.spriteBAHold;
-
     slot.cpuBusStolen = slot.badlineSteal || slot.spriteAECSteal;
     slot.aecLow = slot.cpuBusStolen;
     slot.rasterIrqSample = isRasterIRQCompareCycle(cycle);
-
     slot.latchRasterState = cycle == 0;
     slot.sampleBadline = cycle == 14;
     slot.startSpriteDmaCheck = cycle == cfg_->spriteDmaCheckCycle1 || cycle == cfg_->spriteDmaCheckCycle2;
@@ -3448,7 +3452,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpriteData7:
         {
             if (slot.spriteIndex >= 0 && spriteUnits[slot.spriteIndex].dmaActive)
-                slot.busOwner = BusOwner::SpriteData;
+               slot.busOwner = BusOwner::SpriteData;
             else
                 slot.busOwner = fallbackOwner();
 
@@ -3457,9 +3461,10 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
         case FetchKind::None:
         default:
+        {
             slot.busOwner = fallbackOwner();
-
             break;
+        }
     }
 
     return slot;

@@ -976,6 +976,7 @@ class Vic
         void clearSpriteFetchedRowState(int sprite);
 
         bool spriteDataFetchUsesPhi2(int byteIndex) const;
+        VicBusPhase spriteBusPhaseForFetch(int sprite, SpriteFetchPhase phase) const;
 
         struct SpriteCollisionTimingSnapshot
         {
