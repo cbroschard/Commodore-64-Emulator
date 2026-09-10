@@ -3278,9 +3278,10 @@ bool Vic::isSpriteDataCpuStealCycle(int sprite, int cycle) const
     if (!spriteUnits[sprite].dmaActive)
         return false;
 
-    const SpriteFetchPhase phase =  spriteFetchPhaseForCycle(sprite, cycle);
+    const SpriteFetchPhase phi1Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi1);
+    const SpriteFetchPhase phi2Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi2);
 
-    return spriteFetchPhaseStealsCpu(phase);
+    return spriteFetchPhaseStealsCpu(phi1Phase) || spriteFetchPhaseStealsCpu(phi2Phase);
 }
 
 bool Vic::isSpriteBusBAHoldCycle(int raster, int cycle) const
@@ -3295,20 +3296,11 @@ bool Vic::isSpriteBusBAHoldCycle(int raster, int cycle) const
         if (!spriteUnits[sprite].dmaActive)
             continue;
 
-        const SpriteFetchPhase phase = spriteFetchPhaseForCycle(sprite, cycle);
+        const SpriteFetchPhase phi1Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi1);
+        const SpriteFetchPhase phi2Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi2);
 
-        switch (phase)
-        {
-            case SpriteFetchPhase::Pointer:
-            case SpriteFetchPhase::Data0:
-            case SpriteFetchPhase::Data1:
-            case SpriteFetchPhase::Data2:
-                return true;
-
-            case SpriteFetchPhase::None:
-            default:
-                break;
-        }
+        if (phi1Phase != SpriteFetchPhase::None || phi2Phase != SpriteFetchPhase::None)
+            return true;
     }
 
     return false;
@@ -3398,12 +3390,74 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     if (slot.spriteIndex >= 0)
     {
-        slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle);
+        SpriteFetchPhase expectedPhase =
+            SpriteFetchPhase::None;
 
-        if (slot.spriteFetchPhase != SpriteFetchPhase::None)
+        switch (slot.fetchKind)
         {
-            slot.spriteBusPhase = spriteBusPhaseForFetch(slot.spriteIndex, slot.spriteFetchPhase);
-            slot.spriteBusPhaseValid = true;
+            case FetchKind::SpritePtr0:
+            case FetchKind::SpritePtr1:
+            case FetchKind::SpritePtr2:
+            case FetchKind::SpritePtr3:
+            case FetchKind::SpritePtr4:
+            case FetchKind::SpritePtr5:
+            case FetchKind::SpritePtr6:
+            case FetchKind::SpritePtr7:
+                expectedPhase = SpriteFetchPhase::Pointer;
+                break;
+
+            case FetchKind::SpriteData0:
+            case FetchKind::SpriteData1:
+            case FetchKind::SpriteData2:
+            case FetchKind::SpriteData3:
+            case FetchKind::SpriteData4:
+            case FetchKind::SpriteData5:
+            case FetchKind::SpriteData6:
+            case FetchKind::SpriteData7:
+            {
+                switch (slot.spriteByteIndex)
+                {
+                    case 0:
+                        expectedPhase = SpriteFetchPhase::Data0;
+                        break;
+
+                    case 1:
+                        expectedPhase = SpriteFetchPhase::Data1;
+                        break;
+
+                    case 2:
+                        expectedPhase = SpriteFetchPhase::Data2;
+                        break;
+
+                    default:
+                        break;
+                }
+
+                break;
+            }
+
+            default:
+                break;
+        }
+
+        if (expectedPhase != SpriteFetchPhase::None)
+        {
+            const VicBusPhase busPhase =
+                spriteBusPhaseForFetch(
+                    slot.spriteIndex,
+                    expectedPhase);
+
+            slot.spriteFetchPhase =
+                spriteFetchPhaseForCycle(
+                    slot.spriteIndex,
+                    cycle,
+                    busPhase);
+
+            if (slot.spriteFetchPhase != SpriteFetchPhase::None)
+            {
+                slot.spriteBusPhase = busPhase;
+                slot.spriteBusPhaseValid = true;
+            }
         }
     }
 
@@ -3986,7 +4040,7 @@ bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
     return (activePriority & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
-Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle) const
+Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle, VicBusPhase busPhase) const
 {
     if (sprite < 0 || sprite >= 8)
         return SpriteFetchPhase::None;
@@ -3996,16 +4050,16 @@ Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle) const
 
     const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-    if (cycle == timing.pointerCycle)
+    if (cycle == timing.pointerCycle && busPhase == timing.pointerPhase)
         return SpriteFetchPhase::Pointer;
 
-    if (cycle == timing.data0Cycle)
+    if (cycle == timing.data0Cycle && busPhase == timing.data0Phase)
         return SpriteFetchPhase::Data0;
 
-    if (cycle == timing.data1Cycle)
+    if (cycle == timing.data1Cycle && busPhase == timing.data1Phase)
         return SpriteFetchPhase::Data1;
 
-    if (cycle == timing.data2Cycle)
+    if (cycle == timing.data2Cycle && busPhase == timing.data2Phase)
         return SpriteFetchPhase::Data2;
 
     return SpriteFetchPhase::None;

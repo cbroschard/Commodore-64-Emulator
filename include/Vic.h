@@ -1198,7 +1198,7 @@ class Vic
         bool initialSpritePriorityForRaster(int raster, uint8_t& value) const;
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
 
-        SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle) const;
+        SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle, VicBusPhase busPhase) const;
         bool spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const;
         int firstSpriteCpuStealCycle(int sprite) const;
 
