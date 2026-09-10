@@ -6402,6 +6402,7 @@ void Vic::traceBackgroundGraphicsFetch(int raster, int cycle, int column, int fe
     out << "[VIC:GACCESS] "
         << "raster=" << raster
         << " cycle=" << cycle
+        << " phase=" << busPhaseName(currentBusPhase)
         << " col=" << column
         << " liveVC=$"
         << std::hex << std::uppercase
@@ -6830,7 +6831,8 @@ void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool 
 
     std::ostringstream out;
     out << "[VIC:BUS] "
-        << "reason=" << busArbReason(registers.raster, currentCycle)
+        << "phase=" << busPhaseName(currentBusPhase)
+        << " reason=" << busArbReason(registers.raster, currentCycle)
         << " bad=" << (badLineNow ? 1 : 0)
         << " BA " << (oldBA ? 'H' : 'L') << "->" << (newBA ? 'H' : 'L')
         << " AEC " << (oldAEC ? 'H' : 'L') << "->" << (newAEC ? 'H' : 'L')
@@ -6858,6 +6860,21 @@ const char* Vic::busArbReason(int raster, int cycle) const
         return "refresh";
 
     return "none";
+}
+
+const char* Vic::busPhaseName(VicBusPhase phase) const
+{
+    switch (phase)
+    {
+        case VicBusPhase::Phi1:
+            return "Phi1";
+
+        case VicBusPhase::Phi2:
+            return "Phi2";
+
+        default:
+            return "?";
+    }
 }
 
 void Vic::postLoadState()

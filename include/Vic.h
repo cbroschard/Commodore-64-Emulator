@@ -1332,6 +1332,7 @@ class Vic
         // Bus helpers
         void traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool badLineNow, bool baLow, bool aecLow) const;
         const char* busArbReason(int raster, int cycle) const;
+        const char* busPhaseName(VicBusPhase phase) const;
 
         void postLoadState();
 
