@@ -1670,14 +1670,19 @@ void Vic::runPhi1Phase()
 {
     currentBusPhase = VicBusPhase::Phi1;
 
+    // Background graphics (g-access) occurs on Phi1.
     const bool gAccessOccurred = performGAccessForCurrentCycle();
 
     if (gAccessOccurred)
         advanceCharacterSequencerAfterGAccess();
 
+    // DRAM refresh accesses occur on Phi1.
     if (currentCycleSlot.refresh)
         performRefreshFetchForCurrentCycle();
 
+    // Sprite pointer accesses occur independently of FetchKind.
+    // They can overlap the previous sprite's data access in the same
+    // full VIC cycle, so keep them here on Phi1.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         if (currentCycle == cfg_->spriteFetchTiming[sprite].pointerCycle)
@@ -1685,12 +1690,6 @@ void Vic::runPhi1Phase()
             fetchSpritePointer(sprite, registers.raster);
             break;
         }
-    }
-
-    if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteByteIndex >= 0 &&
-        !spriteDataFetchUsesPhi2(currentCycleSlot.spriteByteIndex))
-    {
-        performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex);
     }
 }
 
@@ -1701,9 +1700,11 @@ void Vic::runPhi2Phase()
     switch (currentCycleSlot.fetchKind)
     {
         case FetchKind::Graphics:
+            // Graphics fetch is handled independently in Phi1.
             break;
 
         case FetchKind::CharMatrix:
+            // Bad-line c-access.
             performBadLineFetchesForCurrentCycle();
             break;
 
@@ -1715,6 +1716,7 @@ void Vic::runPhi2Phase()
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
+            // Pointer fetches are handled independently in Phi1.
             break;
 
         case FetchKind::SpriteData0:
@@ -1727,9 +1729,8 @@ void Vic::runPhi2Phase()
         case FetchKind::SpriteData7:
         {
             const int sprite = currentCycleSlot.spriteIndex;
-            const int byteIndex = currentCycleSlot.spriteByteIndex;
 
-            if (sprite >= 0 && byteIndex >= 0 && spriteDataFetchUsesPhi2(byteIndex))
+            if (sprite >= 0)
                 performSpriteDataFetchForSprite(sprite);
 
             break;
@@ -1738,6 +1739,8 @@ void Vic::runPhi2Phase()
         case FetchKind::None:
         default:
         {
+            // Refresh already performed the otherwise-idle access
+            // for this cycle.
             if (!currentCycleSlot.refresh)
                 performIdleFetchForCurrentCycle();
 
