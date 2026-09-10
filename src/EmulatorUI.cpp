@@ -1282,8 +1282,6 @@ void EmulatorUI::installMenu(const MediaViewState& v)
         ImGui::EndMainMenuBar();
     }
 
-    ImGui::SetNextWindowSizeConstraints(ImVec2(600.0f, 0.0f), ImVec2(800.0f, FLT_MAX));
-
     if (gettingStartedRequested)
     {
         gettingStartedOpen = true;
