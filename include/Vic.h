@@ -478,12 +478,6 @@ class Vic
             SpriteX
         };
 
-        enum class VicBusPhase : uint8_t
-        {
-            Phi1,
-            Phi2
-        };
-
         struct RasterEventRecord
         {
             RasterEventKind kind = RasterEventKind::Color;

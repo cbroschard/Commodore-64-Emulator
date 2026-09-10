@@ -15,8 +15,13 @@ static constexpr uint8_t SPRITE_STEAL_DATA0   = 1u << 2;
 static constexpr uint8_t SPRITE_STEAL_DATA1   = 1u << 3;
 static constexpr uint8_t SPRITE_STEAL_DATA2   = 1u << 4;
 
-// Video mode
 enum class VideoMode { NTSC, PAL};
+
+enum class VicBusPhase : uint8_t
+{
+    Phi1,
+    Phi2
+};
 
 struct ModeConfig
 {
@@ -44,9 +49,16 @@ struct ModeConfig
     struct SpriteFetchTiming
     {
         int pointerCycle;
+        VicBusPhase pointerPhase;
+
         int data0Cycle;
+        VicBusPhase data0Phase;
+
         int data1Cycle;
+        VicBusPhase data1Phase;
+
         int data2Cycle;
+        VicBusPhase data2Phase;
     };
 
     SpriteFetchTiming spriteFetchTiming[8];
@@ -79,14 +91,45 @@ inline constexpr ModeConfig NTSC_CONFIG =
     15,    // spriteMcBaseAdvanceCycle2
 
     {
-        {55, 56, 57, 58},
-        {58, 59, 60, 61},
-        {61, 62, 63, 64},
-        {64,  0,  1,  2},
-        { 2,  3,  4,  5},
-        { 5,  6,  7,  8},
-        { 8,  9, 10, 11},
-        {11, 12, 13, 14}
+        {55, VicBusPhase::Phi1,
+         56, VicBusPhase::Phi2,
+         57, VicBusPhase::Phi2,
+         58, VicBusPhase::Phi2},
+
+        {58, VicBusPhase::Phi1,
+         59, VicBusPhase::Phi2,
+         60, VicBusPhase::Phi2,
+         61, VicBusPhase::Phi2},
+
+        {61, VicBusPhase::Phi1,
+         62, VicBusPhase::Phi2,
+         63, VicBusPhase::Phi2,
+         64, VicBusPhase::Phi2},
+
+        {64, VicBusPhase::Phi1,
+          0, VicBusPhase::Phi2,
+          1, VicBusPhase::Phi2,
+          2, VicBusPhase::Phi2},
+
+        { 2, VicBusPhase::Phi1,
+          3, VicBusPhase::Phi2,
+          4, VicBusPhase::Phi2,
+          5, VicBusPhase::Phi2},
+
+        { 5, VicBusPhase::Phi1,
+          6, VicBusPhase::Phi2,
+          7, VicBusPhase::Phi2,
+          8, VicBusPhase::Phi2},
+
+        { 8, VicBusPhase::Phi1,
+          9, VicBusPhase::Phi2,
+         10, VicBusPhase::Phi2,
+         11, VicBusPhase::Phi2},
+
+        {11, VicBusPhase::Phi1,
+         12, VicBusPhase::Phi2,
+         13, VicBusPhase::Phi2,
+         14, VicBusPhase::Phi2}
     }, // spriteFetchTiming
 
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
@@ -117,14 +160,45 @@ inline constexpr ModeConfig PAL_CONFIG =
     15,    // spriteMcBaseAdvanceCycle2
 
     {
-        {54, 55, 56, 57},
-        {57, 58, 59, 60},
-        {60, 61, 62,  0},
-        { 0,  1,  2,  3},
-        { 3,  4,  5,  6},
-        { 6,  7,  8,  9},
-        { 9, 10, 11, 12},
-        {12, 13, 14, 15}
+        {54, VicBusPhase::Phi1,
+         55, VicBusPhase::Phi2,
+         56, VicBusPhase::Phi2,
+         57, VicBusPhase::Phi2},
+
+        {57, VicBusPhase::Phi1,
+         58, VicBusPhase::Phi2,
+         59, VicBusPhase::Phi2,
+         60, VicBusPhase::Phi2},
+
+        {60, VicBusPhase::Phi1,
+         61, VicBusPhase::Phi2,
+         62, VicBusPhase::Phi2,
+          0, VicBusPhase::Phi2},
+
+        { 0, VicBusPhase::Phi1,
+          1, VicBusPhase::Phi2,
+          2, VicBusPhase::Phi2,
+          3, VicBusPhase::Phi2},
+
+        { 3, VicBusPhase::Phi1,
+          4, VicBusPhase::Phi2,
+          5, VicBusPhase::Phi2,
+          6, VicBusPhase::Phi2},
+
+        { 6, VicBusPhase::Phi1,
+          7, VicBusPhase::Phi2,
+          8, VicBusPhase::Phi2,
+          9, VicBusPhase::Phi2},
+
+        { 9, VicBusPhase::Phi1,
+         10, VicBusPhase::Phi2,
+         11, VicBusPhase::Phi2,
+         12, VicBusPhase::Phi2},
+
+        {12, VicBusPhase::Phi1,
+         13, VicBusPhase::Phi2,
+         14, VicBusPhase::Phi2,
+         15, VicBusPhase::Phi2}
     }, // spriteFetchTiming
 
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
