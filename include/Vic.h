@@ -966,7 +966,7 @@ class Vic
         // Sprite DMA Helpers
         int spriteRowFromMCBase(int spr) const;
         void resetSpriteDMAState(int spr);
-        void performSpriteDataFetchForSprite(int sprite);
+        void performSpriteDataFetchForSprite(int sprite, int byteIndex);
         int spritePointerFetchSpriteForKind(FetchKind kind) const;
         int spriteDataFetchSpriteForKind(FetchKind kind) const;
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);

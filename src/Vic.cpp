@@ -1696,7 +1696,7 @@ void Vic::runPhi1Phase()
     if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteBusPhaseValid &&
         currentCycleSlot.spriteBusPhase == VicBusPhase::Phi1)
     {
-        performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex);
+        performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex, currentCycleSlot.spriteByteIndex);
     }
 }
 
@@ -1750,7 +1750,7 @@ void Vic::runPhi2Phase()
             if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteBusPhaseValid &&
                 currentCycleSlot.spriteBusPhase == VicBusPhase::Phi2)
             {
-                performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex);
+                performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex, currentCycleSlot.spriteByteIndex);
             }
 
             break;
@@ -2912,15 +2912,13 @@ void Vic::resetSpriteDMAState(int spr)
     clearSpriteFetchedRowState(spr);
 }
 
-void Vic::performSpriteDataFetchForSprite(int sprite)
+void Vic::performSpriteDataFetchForSprite(int sprite, int byteIndex)
 {
     if (sprite < 0 || sprite >= 8)
         return;
 
     if (!spriteUnits[sprite].dmaActive)
         return;
-
-    const int byteIndex = currentCycleSlot.spriteByteIndex;
 
     if (byteIndex < 0 || byteIndex >= 3)
         return;
