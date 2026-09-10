@@ -963,10 +963,10 @@ uint8_t Vic::readRegister(uint16_t address)
             return latchOpenBus(static_cast<uint8_t>(registers.memory_pointer | 0x01));
 
         case 0xD019:
-            return static_cast<uint8_t>(d019Read() | 0x70);
+            return latchOpenBus(static_cast<uint8_t>(d019Read() | 0x70));
 
         case 0xD01A:
-            return static_cast<uint8_t>(0xF0 | (registers.interruptEnable & 0x0F));
+            return latchOpenBus(static_cast<uint8_t>(0xF0 | (registers.interruptEnable & 0x0F)));
 
         case 0xD01B:
             return latchOpenBus(registers.spritePriority);
