@@ -1183,7 +1183,7 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint16_t newLine = static_cast<uint16_t>((registers.rasterInterruptLine & 0x00FF) |
                 (static_cast<uint16_t>(value & 0x80) << 1));
 
-            setRasterIRQTarget(newLine, "D012", value, false);
+            setRasterIRQTarget(newLine, "D011", value, true);
 
             const int raster = registers.raster;
 
@@ -4966,16 +4966,13 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
     const uint16_t oldLine = static_cast<uint16_t>(registers.rasterInterruptLine & 0x01FF);
     const uint16_t storedNewLine = static_cast<uint16_t>(newLine & 0x01FF);
 
-    // If the old target is being reached on this exact VIC
-    // comparator cycle, that event has already happened and
-    // must not disappear merely because Phi2 changes the target.
     const bool oldTargetCompareNow = oldLine < cfg_->maxRasterLines && oldLine == visibleRasterForIRQCompare() &&
         isRasterIRQCompareCycle(currentCycle);
 
-    registers.rasterInterruptLine = storedNewLine;
-
     if (oldTargetCompareNow)
-    {   raiseVicIRQSource(0x01);
+        raiseVicIRQSource(0x01);
+
+    registers.rasterInterruptLine = storedNewLine;
 
     const bool rmwDummyWrite = cpu && cpu->isRMWDummyWriteCycle();
     const bool rmwWrite = cpu && cpu->isRMWWriteCycle();
@@ -4984,7 +4981,6 @@ void Vic::setRasterIRQTarget(uint16_t newLine, const char* reason, uint8_t writt
 
     (void)reason;
     (void)writtenValue;
-    }
 }
 
 void Vic::handleRasterIRQTargetWrite(uint16_t oldTarget, uint16_t newTarget, bool highWrite, bool rmwWrite, bool rmwDummyWrite)
