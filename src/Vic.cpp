@@ -1689,6 +1689,9 @@ void Vic::runPhi1Phase()
             break;
         }
     }
+
+    if (currentCycleSlot.phi1BusOwner == BusOwner::Idle)
+        performIdleFetchForCurrentCycle();
 }
 
 void Vic::runPhi2Phase()
@@ -1697,48 +1700,32 @@ void Vic::runPhi2Phase()
 
     tracePhi2BusCollision();
 
-    bool spritePointerFetched = false;
-
     // Sprite pointer fetch scheduled for Phi2.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-        if (currentCycle == timing.pointerCycle &&
-            timing.pointerPhase == VicBusPhase::Phi2)
+        if (currentCycle == timing.pointerCycle && timing.pointerPhase == VicBusPhase::Phi2)
         {
             fetchSpritePointer(sprite, registers.raster);
-            spritePointerFetched = true;
             break;
         }
     }
 
     // Sprite data fetch scheduled for Phi2.
-    bool spriteDataFetched = false;
-
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
 
-        if (byteIndex >= 0 &&
-            spriteUnits[sprite].dmaActive)
+        if (byteIndex >= 0 && spriteUnits[sprite].dmaActive)
         {
             performSpriteDataFetchForSprite(sprite, byteIndex);
-            spriteDataFetched = true;
             break;
         }
     }
 
-    // A c-access occupies the Phi2 VIC slot even when it is a
-    // late invalid access that observes the CPU/open bus.
-    const bool badLineCAccess = vicState.cAccessActive && currentCycleSlot.matrixFetchIndex >= 0 &&
-        currentCycleSlot.matrixFetchIndex < BACKGROUND_MATRIX_COLUMNS;
-
+    // Bad-line c-access is handled on Phi2.
     performBadLineFetchesForCurrentCycle();
-
-    // No other Phi2 VIC access occurred, so perform an idle access.
-    if (!currentCycleSlot.refresh && !spritePointerFetched && !spriteDataFetched && !badLineCAccess)
-        performIdleFetchForCurrentCycle();
 
     if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
         advanceSpriteMCBaseSecondStep();
@@ -3460,6 +3447,8 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     //
     // Phi1 bus ownership
     //
+
+    slot.phi1BusOwner = BusOwner::Idle;
 
     if (slot.graphicsFetch)
         slot.phi1BusOwner = BusOwner::Graphics;
