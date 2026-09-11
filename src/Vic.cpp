@@ -3313,10 +3313,7 @@ bool Vic::isSpriteBusBAHoldCycle(int raster, int cycle) const
         if (!spriteUnits[sprite].dmaActive)
             continue;
 
-        const SpriteFetchPhase phi1Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi1);
-        const SpriteFetchPhase phi2Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi2);
-
-        if (phi1Phase != SpriteFetchPhase::None || phi2Phase != SpriteFetchPhase::None)
+        if (isSpriteDataCpuStealCycle(sprite, cycle))
             return true;
     }
 
