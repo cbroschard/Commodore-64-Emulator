@@ -3159,9 +3159,17 @@ bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
-    const int baStart = std::max(0, vicState.badLineDmaStartCycle - 3);
+    const int lineCycles = cfg_->cyclesPerLine;
+    const int dmaStart = vicState.badLineDmaStartCycle;
 
-    return cycle >= baStart && cycle <= cfg_->DMAEndCycle;
+    const int warn0 = (dmaStart - 3 + lineCycles) % lineCycles;
+    const int warn1 = (dmaStart - 2 + lineCycles) % lineCycles;
+    const int warn2 = (dmaStart - 1 + lineCycles) % lineCycles;
+
+    if (cycle == warn0 || cycle == warn1 || cycle == warn2)
+        return true;
+
+    return cycle >= dmaStart && cycle <= cfg_->DMAEndCycle;
 }
 
 void Vic::initializeMatrixFetchStateForRaster()
