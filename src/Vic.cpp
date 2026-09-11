@@ -1697,14 +1697,18 @@ void Vic::runPhi2Phase()
 
     tracePhi2BusCollision();
 
+    bool spritePointerFetched = false;
+
     // Sprite pointer fetch scheduled for Phi2.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-        if (currentCycle == timing.pointerCycle && timing.pointerPhase == VicBusPhase::Phi2)
+        if (currentCycle == timing.pointerCycle &&
+            timing.pointerPhase == VicBusPhase::Phi2)
         {
             fetchSpritePointer(sprite, registers.raster);
+            spritePointerFetched = true;
             break;
         }
     }
@@ -1716,7 +1720,8 @@ void Vic::runPhi2Phase()
     {
         const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
 
-        if (byteIndex >= 0 && spriteUnits[sprite].dmaActive)
+        if (byteIndex >= 0 &&
+            spriteUnits[sprite].dmaActive)
         {
             performSpriteDataFetchForSprite(sprite, byteIndex);
             spriteDataFetched = true;
@@ -1724,52 +1729,16 @@ void Vic::runPhi2Phase()
         }
     }
 
-    // Bad-line c-access is a Phi2 operation.
-    // The fetch routine now determines validity from
-    // cAccessActive + matrixFetchIndex rather than FetchKind.
+    // A c-access occupies the Phi2 VIC slot even when it is a
+    // late invalid access that observes the CPU/open bus.
+    const bool badLineCAccess = vicState.cAccessActive && currentCycleSlot.matrixFetchIndex >= 0 &&
+        currentCycleSlot.matrixFetchIndex < BACKGROUND_MATRIX_COLUMNS;
+
     performBadLineFetchesForCurrentCycle();
 
-    switch (currentCycleSlot.fetchKind)
-    {
-        case FetchKind::Graphics:
-            // Graphics access is handled on Phi1.
-            break;
-
-        case FetchKind::CharMatrix:
-            // Bad-line c-access is handled above.
-            break;
-
-        case FetchKind::SpritePtr0:
-        case FetchKind::SpritePtr1:
-        case FetchKind::SpritePtr2:
-        case FetchKind::SpritePtr3:
-        case FetchKind::SpritePtr4:
-        case FetchKind::SpritePtr5:
-        case FetchKind::SpritePtr6:
-        case FetchKind::SpritePtr7:
-            // Pointer accesses are handled above.
-            break;
-
-        case FetchKind::SpriteData0:
-        case FetchKind::SpriteData1:
-        case FetchKind::SpriteData2:
-        case FetchKind::SpriteData3:
-        case FetchKind::SpriteData4:
-        case FetchKind::SpriteData5:
-        case FetchKind::SpriteData6:
-        case FetchKind::SpriteData7:
-            // Sprite data accesses are handled above.
-            break;
-
-        case FetchKind::None:
-        default:
-        {
-            if (!currentCycleSlot.refresh && !spriteDataFetched)
-                performIdleFetchForCurrentCycle();
-
-            break;
-        }
-    }
+    // No other Phi2 VIC access occurred, so perform an idle access.
+    if (!currentCycleSlot.refresh && !spritePointerFetched && !spriteDataFetched && !badLineCAccess)
+        performIdleFetchForCurrentCycle();
 
     if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
         advanceSpriteMCBaseSecondStep();
