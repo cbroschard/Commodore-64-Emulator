@@ -1883,7 +1883,8 @@ bool Vic::performGAccessForCurrentCycle()
 
     if (!vicState.displayEnabled)
     {
-        performIdleStateGAccess(column, d011, d016,d018);
+            performIdleFetchForCurrentCycle();
+
         return false;
     }
 
@@ -5685,38 +5686,6 @@ void Vic::performIdleFetchForCurrentCycle()
     const uint8_t value = bus->vicRead(addr);
 
     updateOpenBus(value);
-}
-
-void Vic::performIdleStateGAccess(int column, uint8_t d011, uint8_t d016, uint8_t d018)
-{
-    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
-        return;
-
-    if (!bus)
-        return;
-
-    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
-
-    latch = {};
-    latch.column = column;
-
-    const uint16_t address = (d011 & 0x40) ? 0x39FF : 0x3FFF;
-
-    const uint8_t graphicsByte = bus->vicRead(address);
-
-    updateOpenBus(graphicsByte);
-
-    // In idle display state, matrix information is treated as zero.
-    latch.valid = true;
-    latch.screenByte = 0;
-    latch.colorByte = 0;
-    latch.graphicsByte = graphicsByte;
-    latch.graphicsAddress = address;
-
-    latch.d011 = d011;
-    latch.d016 = d016;
-    latch.d018 = d018;
-    latch.mode = graphicsModeFromRegisters(d011, d016);
 }
 
 uint8_t Vic::d019Read() const

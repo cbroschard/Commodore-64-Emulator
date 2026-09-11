@@ -869,7 +869,6 @@ class Vic
         // OpenBus helper
         void updateOpenBus(uint8_t value);
         void performIdleFetchForCurrentCycle();
-        void performIdleStateGAccess(int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
         // Bus Arbitration Helpers
         bool isBadLineCandidateForBusWarning(int raster) const;
