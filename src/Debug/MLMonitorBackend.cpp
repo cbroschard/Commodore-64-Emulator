@@ -118,18 +118,20 @@ static std::string cycleSlotMarkers(const Vic::VicCycleSlot& slot)
     return flags.empty() ? "-" : flags;
 }
 
-static const char* ownerName(Vic::BusOwner owner)
+const char* ownerName(Vic::BusOwner owner)
 {
     switch (owner)
     {
         case Vic::BusOwner::CPU:           return "CPU";
-        case Vic::BusOwner::BadLine:       return "BADLINE";
-        case Vic::BusOwner::SpritePointer: return "SPRITEPTR";
-        case Vic::BusOwner::SpriteData:    return "SPRITEDATA";
-        case Vic::BusOwner::Idle:          return "IDLE";
+        case Vic::BusOwner::Graphics:      return "Graphics";
+        case Vic::BusOwner::Refresh:       return "Refresh";
+        case Vic::BusOwner::BadLine:       return "BadLine";
+        case Vic::BusOwner::SpritePointer: return "SpritePtr";
+        case Vic::BusOwner::SpriteData:    return "SpriteData";
+        case Vic::BusOwner::Idle:          return "Idle";
     }
 
-    return "?";
+    return "Unknown";
 }
 
 static const char* vicModeNameFromRegisters(uint8_t d011, uint8_t d016)
@@ -410,18 +412,20 @@ static const char* vicFetchKindName(Vic::FetchKind kind)
     return "Unknown";
 }
 
-static const char* vicBusOwnerName(Vic::BusOwner owner)
+const char* vicBusOwnerName(Vic::BusOwner owner)
 {
     switch (owner)
     {
         case Vic::BusOwner::CPU:           return "CPU";
-        case Vic::BusOwner::BadLine:       return "BADLINE";
-        case Vic::BusOwner::SpritePointer: return "SPRITE POINTER";
-        case Vic::BusOwner::SpriteData:    return "SPRITE DATA";
-        case Vic::BusOwner::Idle:          return "IDLE";
+        case Vic::BusOwner::Graphics:      return "Graphics";
+        case Vic::BusOwner::Refresh:       return "Refresh";
+        case Vic::BusOwner::BadLine:       return "BadLine";
+        case Vic::BusOwner::SpritePointer: return "SpritePointer";
+        case Vic::BusOwner::SpriteData:    return "SpriteData";
+        case Vic::BusOwner::Idle:          return "Idle";
     }
 
-    return "UNKNOWN";
+    return "Unknown";
 }
 
 static bool vicFetchKindIsSpritePointer(Vic::FetchKind kind)

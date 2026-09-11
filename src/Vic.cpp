@@ -3545,69 +3545,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         }
     }
 
-    //
-    // Legacy whole-cycle bus owner
-    // Keep this temporarily until all users move to phi1BusOwner /
-    // phi2BusOwner.
-    //
-
-    auto fallbackOwner = [&]() -> BusOwner
-    {
-        if (slot.cpuBusStolen)
-            return BusOwner::Idle;
-
-        return BusOwner::CPU;
-    };
-
-    if (cAccessForThisRaster && slot.matrixFetchIndex >= 0)
-        slot.busOwner = BusOwner::BadLine;
-    else
-    {
-        switch (slot.fetchKind)
-        {
-            case FetchKind::SpritePtr0:
-            case FetchKind::SpritePtr1:
-            case FetchKind::SpritePtr2:
-            case FetchKind::SpritePtr3:
-            case FetchKind::SpritePtr4:
-            case FetchKind::SpritePtr5:
-            case FetchKind::SpritePtr6:
-            case FetchKind::SpritePtr7:
-            {
-                if (slot.spriteIndex >= 0 && spriteUnits[slot.spriteIndex].dmaActive)
-                    slot.busOwner = BusOwner::SpritePointer;
-                else
-                    slot.busOwner = fallbackOwner();
-
-                break;
-            }
-
-            case FetchKind::SpriteData0:
-            case FetchKind::SpriteData1:
-            case FetchKind::SpriteData2:
-            case FetchKind::SpriteData3:
-            case FetchKind::SpriteData4:
-            case FetchKind::SpriteData5:
-            case FetchKind::SpriteData6:
-            case FetchKind::SpriteData7:
-            {
-                if (slot.spriteIndex >= 0 && spriteUnits[slot.spriteIndex].dmaActive)
-                    slot.busOwner = BusOwner::SpriteData;
-                else
-                    slot.busOwner = fallbackOwner();
-
-                break;
-            }
-
-            case FetchKind::None:
-            default:
-            {
-                slot.busOwner = fallbackOwner();
-                break;
-            }
-        }
-    }
-
     return slot;
 }
 

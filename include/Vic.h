@@ -147,7 +147,6 @@ class Vic
         struct VicCycleSlot
         {
             FetchKind fetchKind = FetchKind::None;
-            BusOwner busOwner = BusOwner::CPU;
             BusOwner phi1BusOwner = BusOwner::CPU;
             BusOwner phi2BusOwner = BusOwner::CPU;
 
