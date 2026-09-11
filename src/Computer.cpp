@@ -507,6 +507,9 @@ void Computer::tickCycle()
 
     components_.vic->runPhi1Phase();
 
+    // Update phse for tracing
+    components_.vic->setBusPhase(VicBusPhase::Phi2);
+
     components_.cpu->setRDY(components_.vic->getBA());
     components_.cpu->setAEC(components_.vic->getAEC());
     components_.cpu->tick();

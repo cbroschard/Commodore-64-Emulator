@@ -62,6 +62,8 @@ class Vic
         void runPhi1Phase();
         void runPhi2Phase();
 
+        inline void setBusPhase(VicBusPhase phase) { currentBusPhase = phase; }
+
         // Getter for BUS arb status
         inline bool getBA() const { return vicState.ba; }
         inline bool getAEC() const { return vicState.aec; }
