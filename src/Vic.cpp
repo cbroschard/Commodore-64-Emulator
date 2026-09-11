@@ -3139,10 +3139,10 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
     if (vicState.badLineDmaStartCycle < 0)
         return false;
 
-    if (cycle < vicState.badLineDmaStartCycle || cycle > cfg_->DMAEndCycle)
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
-    return getFetchKindForCycle(raster, cycle) == FetchKind::CharMatrix;
+    return cycle >= vicState.badLineDmaStartCycle && cycle <= cfg_->DMAEndCycle;
 }
 
 bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
