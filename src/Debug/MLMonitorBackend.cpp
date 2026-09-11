@@ -1378,12 +1378,14 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     const bool ptrMismatch =
         spriteSlotActive &&
         vicFetchKindIsSpritePointer(slot.fetchKind) &&
-        slot.busOwner != Vic::BusOwner::SpritePointer;
+        slot.phi1BusOwner != Vic::BusOwner::SpritePointer &&
+        slot.phi2BusOwner != Vic::BusOwner::SpritePointer;
 
     const bool dataMismatch =
         spriteSlotActive &&
         vicFetchKindIsSpriteData(slot.fetchKind) &&
-        slot.busOwner != Vic::BusOwner::SpriteData;
+        slot.phi1BusOwner != Vic::BusOwner::SpriteData &&
+        slot.phi2BusOwner != Vic::BusOwner::SpriteData;
 
     std::ostringstream out;
 
@@ -1401,7 +1403,8 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     out << "Raster: " << s.requestedRaster << "\n";
     out << "Cycle : " << s.requestedCycle << "\n";
     out << "Fetch : " << vicFetchKindName(slot.fetchKind) << "\n";
-    out << "Owner : " << vicBusOwnerName(slot.busOwner) << "\n";
+    out << "Phi1 Owner: " << vicBusOwnerName(slot.phi1BusOwner) << "\n";
+    out << "Phi2 Owner: " << vicBusOwnerName(slot.phi2BusOwner) << "\n";
     out << "Badline active: " << (s.badLine ? "Yes" : "No") << "\n";
     out << "Badline live  : " << (s.liveBadLine ? "Yes" : "No") << "\n";
     out << "Badline DMA start cycle: " << s.badLineDmaStartCycle << "\n";
@@ -1485,8 +1488,6 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
     }
 
     out << "BA    : " << (slot.baLow ? "Low" : "High") << "\n";
-    out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
-    out << "CPU bus stolen: " << (slot.cpuBusStolen ? "Yes" : "No") << "\n";
     out << "AEC   : " << (slot.aecLow ? "Low" : "High") << "\n";
     out << "CPU bus stolen: " << (slot.cpuBusStolen ? "Yes" : "No") << "\n";
 
