@@ -1182,38 +1182,26 @@ std::string MLMonitorBackend::vicDumpRasterFetchMap(int raster) const
     const bool badLine = vic->isBadLineForDebug(raster);
     out << "Badline: " << (badLine ? "Yes" : "No") << "\n\n";
 
-    out << "Cyc BA AEC Owner      Fetch        Mtx Spr Byt Flags\n";
+    out << "Cyc BA AEC Phi1 Owner Phi2 Owner Fetch         Mtx Spr Byt Flags\n";
 
     for (int c = 0; c < vic->getCyclesPerLineForDebug(); ++c)
     {
         const auto slot = vic->cycleSlotFor(raster, c);
 
-        // Cycle number. Force right alignment and zero fill here so prior
-        // std::left formatting from text columns cannot leak into this field.
-        out << std::right
-            << std::setfill('0')
-            << std::setw(2)
-            << c
-            << std::setfill(' ')
-            << "  ";
+        // Cycle number
+        out << std::right << std::setfill('0') << std::setw(2) << c << std::setfill(' ') << "  ";
 
         // BA / AEC
-        out << (slot.baLow ? "L" : "H")
-            << "  "
-            << (slot.aecLow ? "L" : "H")
-            << "   ";
+        out << (slot.baLow ? "L" : "H") << "  " << (slot.aecLow ? "L" : "H") << "   ";
 
-        // Owner
-        out << std::left
-            << std::setw(10)
-            << ownerName(slot.busOwner)
-            << " ";
+        // Phi1 owner
+        out << std::left << std::setw(10) << ownerName(slot.phi1BusOwner) << " ";
+
+        // Phi2 owner
+        out << std::left << std::setw(10) << ownerName(slot.phi2BusOwner) << " ";
 
         // Fetch kind
-        out << std::left
-            << std::setw(12)
-            << vicFetchKindName(slot.fetchKind)
-            << " ";
+        out << std::left << std::setw(12) << vicFetchKindName(slot.fetchKind) << " ";
 
         // Matrix index
         if (slot.matrixFetchIndex >= 0)
@@ -1237,9 +1225,7 @@ std::string MLMonitorBackend::vicDumpRasterFetchMap(int raster) const
         else
             out << "  -";
 
-        out << " "
-            << cycleSlotMarkers(slot)
-            << "\n";
+        out << " " << cycleSlotMarkers(slot) << "\n";
     }
 
     return out.str();
