@@ -971,7 +971,6 @@ class Vic
         int spriteDataFetchSpriteForKind(FetchKind kind) const;
         void fetchSpriteDataByte(int sprite, int byteIndex, int raster);
         void latchSpriteShiftersFromFetchedBytes(int sprite);
-        int spriteDataByteIndexForCycle(int sprite, int cycle) const;
         uint16_t spritePointerAddressForRaster(int sprite, int raster, int cycle) const;
         void clearSpriteFetchedRowState(int sprite);
 

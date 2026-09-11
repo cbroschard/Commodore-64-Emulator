@@ -1972,25 +1972,6 @@ bool Vic::performGAccessForCurrentCycle()
     return true;
 }
 
-int Vic::spriteDataByteIndexForCycle(int sprite, int cycle) const
-{
-    if (sprite < 0 || sprite >= 8)
-        return -1;
-
-    const auto& timing = cfg_->spriteFetchTiming[sprite];
-
-    if (cycle == timing.data0Cycle)
-        return 0;
-
-    if (cycle == timing.data1Cycle)
-        return 1;
-
-    if (cycle == timing.data2Cycle)
-        return 2;
-
-    return -1;
-}
-
 uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -3404,7 +3385,14 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
             slot.spriteIndex = spriteDataFetchSpriteForKind(slot.fetchKind);
 
             if (slot.spriteIndex >= 0)
-                slot.spriteByteIndex = spriteDataByteIndexForCycle(slot.spriteIndex, cycle);
+            {
+                int byteIndex = spriteDataByteForCyclePhase(slot.spriteIndex, cycle, VicBusPhase::Phi1);
+
+                if (byteIndex < 0)
+                    byteIndex = spriteDataByteForCyclePhase(slot.spriteIndex, cycle, VicBusPhase::Phi2);
+
+                slot.spriteByteIndex = byteIndex;
+            }
 
             break;
         }
