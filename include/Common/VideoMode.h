@@ -101,35 +101,35 @@ inline constexpr ModeConfig NTSC_CONFIG =
          59, VicBusPhase::Phi1,
          59, VicBusPhase::Phi2},
 
-        {61, VicBusPhase::Phi1,
-         61, VicBusPhase::Phi2,
-         62, VicBusPhase::Phi1,
-         62, VicBusPhase::Phi2},
+        {60, VicBusPhase::Phi1,
+         60, VicBusPhase::Phi2,
+         61, VicBusPhase::Phi1,
+         61, VicBusPhase::Phi2},
+
+        {62, VicBusPhase::Phi1,
+         62, VicBusPhase::Phi2,
+         63, VicBusPhase::Phi1,
+         63, VicBusPhase::Phi2},
 
         {64, VicBusPhase::Phi1,
          64, VicBusPhase::Phi2,
           0, VicBusPhase::Phi1,
           0, VicBusPhase::Phi2},
 
-        { 2, VicBusPhase::Phi1,
-          2, VicBusPhase::Phi2,
-          3, VicBusPhase::Phi1,
-          3, VicBusPhase::Phi2},
+        { 1, VicBusPhase::Phi1,
+          1, VicBusPhase::Phi2,
+          2, VicBusPhase::Phi1,
+          2, VicBusPhase::Phi2},
+
+        { 3, VicBusPhase::Phi1,
+          3, VicBusPhase::Phi2,
+          4, VicBusPhase::Phi1,
+          4, VicBusPhase::Phi2},
 
         { 5, VicBusPhase::Phi1,
           5, VicBusPhase::Phi2,
           6, VicBusPhase::Phi1,
-          6, VicBusPhase::Phi2},
-
-        { 8, VicBusPhase::Phi1,
-          8, VicBusPhase::Phi2,
-          9, VicBusPhase::Phi1,
-          9, VicBusPhase::Phi2},
-
-        {11, VicBusPhase::Phi1,
-         11, VicBusPhase::Phi2,
-         12, VicBusPhase::Phi1,
-         12, VicBusPhase::Phi2}
+          6, VicBusPhase::Phi2}
     }, // spriteFetchTiming
 
     SPRITE_STEAL_DATA0 | SPRITE_STEAL_DATA2
