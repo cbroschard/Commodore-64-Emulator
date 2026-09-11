@@ -1724,6 +1724,11 @@ void Vic::runPhi2Phase()
         }
     }
 
+    // Bad-line c-access is a Phi2 operation.
+    // The fetch routine now determines validity from
+    // cAccessActive + matrixFetchIndex rather than FetchKind.
+    performBadLineFetchesForCurrentCycle();
+
     switch (currentCycleSlot.fetchKind)
     {
         case FetchKind::Graphics:
@@ -1731,7 +1736,7 @@ void Vic::runPhi2Phase()
             break;
 
         case FetchKind::CharMatrix:
-            performBadLineFetchesForCurrentCycle();
+            // Bad-line c-access is handled above.
             break;
 
         case FetchKind::SpritePtr0:
