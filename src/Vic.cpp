@@ -4099,18 +4099,28 @@ int Vic::firstSpriteCpuStealCycle(int sprite) const
 
     const auto& timing = cfg_->spriteFetchTiming[sprite];
 
-    const std::array<std::pair<SpriteFetchPhase, int>, 4> phases =
+    struct FetchEntry
+    {
+        SpriteFetchPhase phase;
+        int cycle;
+        VicBusPhase busPhase;
+    };
+
+    const std::array<FetchEntry, 4> fetches =
     {{
-        { SpriteFetchPhase::Pointer, timing.pointerCycle },
-        { SpriteFetchPhase::Data0,   timing.data0Cycle },
-        { SpriteFetchPhase::Data1,   timing.data1Cycle },
-        { SpriteFetchPhase::Data2,   timing.data2Cycle }
+        { SpriteFetchPhase::Pointer, timing.pointerCycle, timing.pointerPhase },
+        { SpriteFetchPhase::Data0,   timing.data0Cycle,   timing.data0Phase },
+        { SpriteFetchPhase::Data1,   timing.data1Cycle,   timing.data1Phase },
+        { SpriteFetchPhase::Data2,   timing.data2Cycle,   timing.data2Phase }
     }};
 
-    for (const auto& [phase, cycle] : phases)
+    for (const auto& fetch : fetches)
     {
-        if (spriteFetchPhaseStealsCpu(phase))
-            return cycle;
+        if (fetch.busPhase != VicBusPhase::Phi2)
+            continue;
+
+        if (spriteFetchPhaseStealsCpu(fetch.phase))
+            return fetch.cycle;
     }
 
     return -1;
