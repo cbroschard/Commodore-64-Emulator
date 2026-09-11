@@ -1670,6 +1670,8 @@ void Vic::runPhi1Phase()
 {
     currentBusPhase = VicBusPhase::Phi1;
 
+    tracePhi1BusCollision();
+
     const bool gAccessOccurred = performGAccessForCurrentCycle();
 
     if (gAccessOccurred)
@@ -1706,6 +1708,8 @@ void Vic::runPhi1Phase()
 void Vic::runPhi2Phase()
 {
     currentBusPhase = VicBusPhase::Phi2;
+
+    tracePhi2BusCollision();
 
     // Sprite pointer fetch scheduled for Phi2.
     for (int sprite = 0; sprite < 8; ++sprite)
@@ -7023,6 +7027,137 @@ void Vic::traceVicBusArb(bool oldBA, bool oldAEC, bool newBA, bool newAEC, bool 
         << " aeclow=" << (aecLow ? 1 : 0);
 
     traceVicBusEvent(out.str());
+}
+
+void Vic::tracePhi1BusCollision() const
+{
+    int requestCount = 0;
+
+    bool wantsGAccess = currentCycleSlot.graphicsFetch;
+    bool wantsRefresh = currentCycleSlot.refresh;
+
+    int pointerSprite = -1;
+    int dataSprite = -1;
+    int dataByte = -1;
+
+    if (wantsGAccess)
+        ++requestCount;
+
+    if (wantsRefresh)
+        ++requestCount;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+        if (currentCycle == timing.pointerCycle &&
+            timing.pointerPhase == VicBusPhase::Phi1)
+        {
+            pointerSprite = sprite;
+            ++requestCount;
+        }
+
+        if (spriteUnits[sprite].dmaActive)
+        {
+            const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi1);
+
+            if (byteIndex >= 0)
+            {
+                dataSprite = sprite;
+                dataByte = byteIndex;
+                ++requestCount;
+            }
+        }
+    }
+
+    if (requestCount <= 1)
+        return;
+
+    std::ostringstream ss;
+
+    ss << "Phi1 collision"
+       << " raster=" << registers.raster
+       << " cycle=" << currentCycle
+       << " requests=" << requestCount;
+
+    if (wantsGAccess)
+        ss << " G";
+
+    if (wantsRefresh)
+        ss << " REFRESH";
+
+    if (pointerSprite >= 0)
+        ss << " SPR" << pointerSprite << "_PTR";
+
+    if (dataSprite >= 0)
+    {
+        ss << " SPR" << dataSprite
+           << "_DATA" << dataByte;
+    }
+
+    traceVicBusEvent(ss.str());
+}
+
+void Vic::tracePhi2BusCollision() const
+{
+    int requestCount = 0;
+
+    const bool wantsCharMatrix = currentCycleSlot.fetchKind == FetchKind::CharMatrix;
+
+    int pointerSprite = -1;
+    int dataSprite = -1;
+    int dataByte = -1;
+
+    if (wantsCharMatrix)
+        ++requestCount;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+        if (currentCycle == timing.pointerCycle &&
+            timing.pointerPhase == VicBusPhase::Phi2)
+        {
+            pointerSprite = sprite;
+            ++requestCount;
+        }
+
+        if (spriteUnits[sprite].dmaActive)
+        {
+            const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
+
+            if (byteIndex >= 0)
+            {
+                dataSprite = sprite;
+                dataByte = byteIndex;
+                ++requestCount;
+            }
+        }
+    }
+
+    if (requestCount <= 1)
+        return;
+
+    std::ostringstream ss;
+
+    ss << "Phi2 collision"
+       << " raster=" << registers.raster
+       << " cycle=" << currentCycle
+       << " requests=" << requestCount;
+
+    if (wantsCharMatrix)
+        ss << " C";
+
+    if (pointerSprite >= 0)
+        ss << " SPR" << pointerSprite << "_PTR";
+
+    if (dataSprite >= 0)
+    {
+        ss << " SPR" << dataSprite
+           << "_DATA" << dataByte;
+    }
+
+    traceVicBusEvent(ss.str());
 }
 
 const char* Vic::busArbReason(int raster, int cycle) const
