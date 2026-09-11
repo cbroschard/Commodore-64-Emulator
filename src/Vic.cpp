@@ -3290,13 +3290,15 @@ bool Vic::isSpriteDataCpuStealCycle(int sprite, int cycle) const
     if (sprite < 0 || sprite >= 8)
         return false;
 
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
     if (!spriteUnits[sprite].dmaActive)
         return false;
 
-    const SpriteFetchPhase phi1Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi1);
     const SpriteFetchPhase phi2Phase = spriteFetchPhaseForCycle(sprite, cycle, VicBusPhase::Phi2);
 
-    return spriteFetchPhaseStealsCpu(phi1Phase) || spriteFetchPhaseStealsCpu(phi2Phase);
+    return spriteFetchPhaseStealsCpu(phi2Phase);
 }
 
 bool Vic::isSpriteBusBAHoldCycle(int raster, int cycle) const
