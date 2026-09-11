@@ -3273,12 +3273,15 @@ bool Vic::isSpriteBusAECStealCycle(int raster, int cycle) const
 {
     (void)raster;
 
-    for (int s = 0; s < 8; ++s)
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return false;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
     {
-        if (!spriteUnits[s].dmaActive)
+        if (!spriteUnits[sprite].dmaActive)
             continue;
 
-        if (isSpriteDataCpuStealCycle(s, cycle))
+        if (isSpriteDataCpuStealCycle(sprite, cycle))
             return true;
     }
 
