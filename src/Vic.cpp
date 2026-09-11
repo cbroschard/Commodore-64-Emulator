@@ -3115,8 +3115,11 @@ bool Vic::isBadLineBusWarningCycle(int raster, int cycle) const
     if (!isBadLineCandidateForBusWarning(raster))
         return false;
 
+    if (vicState.badLineDmaStartCycle < 0)
+        return false;
+
     const int lineCycles = cfg_->cyclesPerLine;
-    const int slot = cfg_->DMAStartCycle;
+    const int slot = vicState.badLineDmaStartCycle;
 
     const int warn0 = (slot - 3 + lineCycles) % lineCycles;
     const int warn1 = (slot - 2 + lineCycles) % lineCycles;
