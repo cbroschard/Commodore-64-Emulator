@@ -2070,6 +2070,10 @@ void Vic::updateLiveBadLineCondition()
         {
             vicState.badLineCondition = false;
 
+            // A late-created Bad Line Condition no longer needs to
+            // preserve display state through cycle 58.
+            vicState.displayStateHoldForCycle58 = false;
+
             // The cycle-14 sample occurs after this live-condition update,
             // so a condition removed during cycle 14 can still cancel the
             // pending c-access sequence.
