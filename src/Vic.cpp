@@ -6341,14 +6341,6 @@ Vic::FetchKind Vic::getFetchKindForCycle(int raster, int cycle) const
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return FetchKind::None;
 
-    const bool cAccessForThisRaster = (raster == registers.raster) ? vicState.cAccessActive : isBadLine(raster);
-
-    // Character matrix fetches use the committed c-access state
-    // for the current raster. Once c-access has started, it remains
-    // active even if the live Bad Line Condition later disappears.
-    if (cAccessForThisRaster && cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
-        return FetchKind::CharMatrix;
-
     for (int s = 0; s < 8; ++s)
     {
         const auto& timing = cfg_->spriteFetchTiming[s];
