@@ -3496,6 +3496,14 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.startBadlineFetch = cycle == cfg_->DMAStartCycle;
     slot.busOwner = BusOwner::CPU;
 
+    const bool cAccessForThisRaster = (raster == registers.raster) ? vicState.cAccessActive : isBadLine(raster);
+
+    if (cAccessForThisRaster && cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
+    {
+        const int index = cycle - cfg_->bgFetchStartCycle;
+        slot.matrixFetchIndex = index >= 0 && index < BACKGROUND_MATRIX_COLUMNS ? index : -1;
+    }
+
     auto fallbackOwner = [&]() -> BusOwner
     {
         if (slot.cpuBusStolen)
@@ -3509,8 +3517,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::CharMatrix:
         {
             slot.busOwner = BusOwner::BadLine;
-            const int index = cycle - cfg_->bgFetchStartCycle;
-            slot.matrixFetchIndex = index >= 0 && index < BACKGROUND_MATRIX_COLUMNS ? index : -1;
             break;
         }
 
