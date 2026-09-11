@@ -1719,6 +1719,21 @@ void Vic::runPhi2Phase()
         }
     }
 
+    // Sprite data fetch scheduled for Phi2.
+    bool spriteDataFetched = false;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
+
+        if (byteIndex >= 0 && spriteUnits[sprite].dmaActive)
+        {
+            performSpriteDataFetchForSprite(sprite, byteIndex);
+            spriteDataFetched = true;
+            break;
+        }
+    }
+
     switch (currentCycleSlot.fetchKind)
     {
         case FetchKind::Graphics:
@@ -1748,25 +1763,13 @@ void Vic::runPhi2Phase()
         case FetchKind::SpriteData5:
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
-        {
-            for (int sprite = 0; sprite < 8; ++sprite)
-            {
-                const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
-
-                if (byteIndex >= 0)
-                {
-                    performSpriteDataFetchForSprite(sprite, byteIndex);
-                    break;
-                }
-            }
-
+            // Sprite data accesses are handled above.
             break;
-        }
 
         case FetchKind::None:
         default:
         {
-            if (!currentCycleSlot.refresh)
+            if (!currentCycleSlot.refresh && !spriteDataFetched)
                 performIdleFetchForCurrentCycle();
 
             break;
