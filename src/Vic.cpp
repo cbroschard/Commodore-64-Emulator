@@ -3379,7 +3379,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
             break;
         }
 
-        case FetchKind::CharMatrix:
         case FetchKind::None:
         default:
             break;
@@ -3491,9 +3490,6 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     switch (slot.fetchKind)
     {
-        case FetchKind::CharMatrix:
-            break;
-
         case FetchKind::SpritePtr0:
         case FetchKind::SpritePtr1:
         case FetchKind::SpritePtr2:

@@ -102,7 +102,6 @@ class Vic
         {
             None,
 
-            CharMatrix,
             Graphics,
 
             SpritePtr0,
