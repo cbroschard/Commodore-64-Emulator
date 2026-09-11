@@ -3147,29 +3147,10 @@ bool Vic::isBadLineBusStealCycle(int raster, int cycle) const
 
 bool Vic::isBadLineBAHoldCycle(int raster, int cycle) const
 {
-    if (raster != registers.raster)
-        return false;
-
-    if (!vicState.cAccessActive)
-        return false;
-
-    if (vicState.badLineDmaStartCycle < 0)
-        return false;
-
     if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
         return false;
 
-    const int lineCycles = cfg_->cyclesPerLine;
-    const int dmaStart = vicState.badLineDmaStartCycle;
-
-    const int warn0 = (dmaStart - 3 + lineCycles) % lineCycles;
-    const int warn1 = (dmaStart - 2 + lineCycles) % lineCycles;
-    const int warn2 = (dmaStart - 1 + lineCycles) % lineCycles;
-
-    if (cycle == warn0 || cycle == warn1 || cycle == warn2)
-        return true;
-
-    return cycle >= dmaStart && cycle <= cfg_->DMAEndCycle;
+    return isBadLineBusWarningCycle(raster, cycle) || isBadLineBusStealCycle(raster, cycle);
 }
 
 void Vic::initializeMatrixFetchStateForRaster()
