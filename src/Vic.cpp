@@ -3439,6 +3439,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         if (expectedPhase != SpriteFetchPhase::None)
         {
             const VicBusPhase busPhase = spriteBusPhaseForFetch(slot.spriteIndex, expectedPhase);
+
             slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle, busPhase);
 
             if (slot.spriteFetchPhase != SpriteFetchPhase::None)
@@ -3465,15 +3466,20 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.startSpriteDmaCheck = cycle == cfg_->spriteDmaCheckCycle1 || cycle == cfg_->spriteDmaCheckCycle2;
     slot.transferDisplayState = cycle == 58;
     slot.startBadlineFetch = cycle == cfg_->DMAStartCycle;
-    slot.busOwner = BusOwner::CPU;
 
     const bool cAccessForThisRaster = (raster == registers.raster) ? vicState.cAccessActive : isBadLine(raster);
 
     if (cAccessForThisRaster && cycle >= cfg_->bgFetchStartCycle && cycle <= cfg_->bgFetchEndCycle)
     {
         const int index = cycle - cfg_->bgFetchStartCycle;
+
         slot.matrixFetchIndex = index >= 0 && index < BACKGROUND_MATRIX_COLUMNS ? index : -1;
     }
+
+    slot.busOwner = BusOwner::CPU;
+
+    if (cAccessForThisRaster && slot.matrixFetchIndex >= 0)
+        slot.busOwner = BusOwner::BadLine;
 
     auto fallbackOwner = [&]() -> BusOwner
     {
@@ -3486,10 +3492,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     switch (slot.fetchKind)
     {
         case FetchKind::CharMatrix:
-        {
-            slot.busOwner = BusOwner::BadLine;
             break;
-        }
 
         case FetchKind::SpritePtr0:
         case FetchKind::SpritePtr1:
@@ -3518,7 +3521,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
         case FetchKind::SpriteData7:
         {
             if (slot.spriteIndex >= 0 && spriteUnits[slot.spriteIndex].dmaActive)
-               slot.busOwner = BusOwner::SpriteData;
+                slot.busOwner = BusOwner::SpriteData;
             else
                 slot.busOwner = fallbackOwner();
 
