@@ -91,10 +91,10 @@ inline constexpr ModeConfig NTSC_CONFIG =
     15,    // spriteMcBaseAdvanceCycle2
 
     {
-        {55, VicBusPhase::Phi1,
-         55, VicBusPhase::Phi2,
-         56, VicBusPhase::Phi1,
-         56, VicBusPhase::Phi2},
+        {56, VicBusPhase::Phi1,
+         56, VicBusPhase::Phi2,
+         57, VicBusPhase::Phi1,
+         57, VicBusPhase::Phi2},
 
         {58, VicBusPhase::Phi1,
          58, VicBusPhase::Phi2,
@@ -160,10 +160,10 @@ inline constexpr ModeConfig PAL_CONFIG =
     15,    // spriteMcBaseAdvanceCycle2
 
     {
-        {54, VicBusPhase::Phi1,
-         54, VicBusPhase::Phi2,
-         55, VicBusPhase::Phi1,
-         55, VicBusPhase::Phi2},
+        {55, VicBusPhase::Phi1,
+         55, VicBusPhase::Phi2,
+         56, VicBusPhase::Phi1,
+         56, VicBusPhase::Phi2},
 
         {57, VicBusPhase::Phi1,
          57, VicBusPhase::Phi2,
