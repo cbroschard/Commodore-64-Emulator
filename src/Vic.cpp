@@ -7087,7 +7087,7 @@ void Vic::tracePhi2BusCollision() const
 {
     int requestCount = 0;
 
-    const bool wantsCharMatrix = currentCycleSlot.fetchKind == FetchKind::CharMatrix;
+    const bool wantsCharMatrix = vicState.cAccessActive && currentCycleSlot.matrixFetchIndex >= 0;
 
     int pointerSprite = -1;
     int dataSprite = -1;
