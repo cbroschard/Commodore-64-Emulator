@@ -977,6 +977,7 @@ class Vic
 
         bool spriteDataFetchUsesPhi2(int byteIndex) const;
         VicBusPhase spriteBusPhaseForFetch(int sprite, SpriteFetchPhase phase) const;
+        int spriteDataByteForCyclePhase(int sprite, int cycle, VicBusPhase busPhase) const;
 
         struct SpriteCollisionTimingSnapshot
         {

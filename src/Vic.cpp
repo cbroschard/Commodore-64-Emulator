@@ -1678,8 +1678,7 @@ void Vic::runPhi1Phase()
     if (currentCycleSlot.refresh)
         performRefreshFetchForCurrentCycle();
 
-    // Sprite pointer accesses are independent of the main FetchKind.
-    // Check their configured cycle and phase directly.
+    // Sprite pointer fetch scheduled for Phi1.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const auto& timing = cfg_->spriteFetchTiming[sprite];
@@ -1691,12 +1690,16 @@ void Vic::runPhi1Phase()
         }
     }
 
-    // Execute a sprite data access here only if the timing table
-    // explicitly schedules this transaction on Phi1.
-    if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteBusPhaseValid &&
-        currentCycleSlot.spriteBusPhase == VicBusPhase::Phi1)
+    // Sprite data fetch scheduled for Phi1.
+    for (int sprite = 0; sprite < 8; ++sprite)
     {
-        performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex, currentCycleSlot.spriteByteIndex);
+        const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi1);
+
+        if (byteIndex >= 0)
+        {
+            performSpriteDataFetchForSprite(sprite, byteIndex);
+            break;
+        }
     }
 }
 
@@ -1704,7 +1707,7 @@ void Vic::runPhi2Phase()
 {
     currentBusPhase = VicBusPhase::Phi2;
 
-    // Allow pointer timing to specify Phi2 as well.
+    // Sprite pointer fetch scheduled for Phi2.
     for (int sprite = 0; sprite < 8; ++sprite)
     {
         const auto& timing = cfg_->spriteFetchTiming[sprite];
@@ -1734,8 +1737,7 @@ void Vic::runPhi2Phase()
         case FetchKind::SpritePtr5:
         case FetchKind::SpritePtr6:
         case FetchKind::SpritePtr7:
-            // Pointer accesses are handled above according to
-            // their configured phase.
+            // Pointer accesses are handled above.
             break;
 
         case FetchKind::SpriteData0:
@@ -1747,10 +1749,15 @@ void Vic::runPhi2Phase()
         case FetchKind::SpriteData6:
         case FetchKind::SpriteData7:
         {
-            if (currentCycleSlot.spriteIndex >= 0 && currentCycleSlot.spriteBusPhaseValid &&
-                currentCycleSlot.spriteBusPhase == VicBusPhase::Phi2)
+            for (int sprite = 0; sprite < 8; ++sprite)
             {
-                performSpriteDataFetchForSprite(currentCycleSlot.spriteIndex, currentCycleSlot.spriteByteIndex);
+                const int byteIndex = spriteDataByteForCyclePhase(sprite, currentCycle, VicBusPhase::Phi2);
+
+                if (byteIndex >= 0)
+                {
+                    performSpriteDataFetchForSprite(sprite, byteIndex);
+                    break;
+                }
             }
 
             break;
@@ -2479,6 +2486,28 @@ VicBusPhase Vic::spriteBusPhaseForFetch(int sprite, SpriteFetchPhase phase) cons
         default:
             return VicBusPhase::Phi2;
     }
+}
+
+int Vic::spriteDataByteForCyclePhase(int sprite, int cycle, VicBusPhase busPhase) const
+{
+    if (sprite < 0 || sprite >= 8)
+        return -1;
+
+    if (cycle < 0 || cycle >= cfg_->cyclesPerLine)
+        return -1;
+
+    const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+    if (cycle == timing.data0Cycle && busPhase == timing.data0Phase)
+        return 0;
+
+    if (cycle == timing.data1Cycle && busPhase == timing.data1Phase)
+        return 1;
+
+    if (cycle == timing.data2Cycle && busPhase == timing.data2Phase)
+        return 2;
+
+    return -1;
 }
 
 uint32_t Vic::getLatchedSpriteBits(int sprite) const
