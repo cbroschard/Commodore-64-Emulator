@@ -2102,6 +2102,9 @@ void Vic::updateLiveBadLineCondition()
             // Late-created Bad Line Condition: takeover cannot occur
             // until three cycles after BA is asserted.
             vicState.badLineDmaStartCycle = currentCycle + 3;
+
+            // Preserve display state through the cycle-58 transition.
+            vicState.displayStateHoldForCycle58 = true;
         }
 
         vicState.displayEnabledNext = true;
