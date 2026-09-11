@@ -127,6 +127,8 @@ class Vic
         enum class BusOwner
         {
             CPU,
+            Graphics,
+            Refresh,
             BadLine,
             SpritePointer,
             SpriteData,
@@ -146,6 +148,8 @@ class Vic
         {
             FetchKind fetchKind = FetchKind::None;
             BusOwner busOwner = BusOwner::CPU;
+            BusOwner phi1BusOwner = BusOwner::CPU;
+            BusOwner phi2BusOwner = BusOwner::CPU;
 
             // Background graphics fetch (g-access)
             bool graphicsFetch = false;

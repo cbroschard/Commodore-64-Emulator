@@ -3456,6 +3456,36 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
     slot.spriteBAHold = isSpriteBusBAHoldCycle(raster, cycle);
     slot.spriteAECSteal = isSpriteBusAECStealCycle(raster, cycle);
     slot.refresh = isRefreshCycle(cycle);
+    slot.phi1BusOwner = BusOwner::CPU;
+
+    if (slot.graphicsFetch)
+        slot.phi1BusOwner = BusOwner::Graphics;
+
+    if (slot.refresh)
+        slot.phi1BusOwner = BusOwner::Refresh;
+
+    for (int sprite = 0; sprite < 8; ++sprite)
+    {
+        const auto& timing = cfg_->spriteFetchTiming[sprite];
+
+        if (cycle == timing.pointerCycle && timing.pointerPhase == VicBusPhase::Phi1)
+        {
+            slot.phi1BusOwner = BusOwner::SpritePointer;
+            break;
+        }
+
+        if (spriteUnits[sprite].dmaActive)
+        {
+            const int byteIndex = spriteDataByteForCyclePhase(sprite, cycle, VicBusPhase::Phi1);
+
+            if (byteIndex >= 0)
+            {
+                slot.phi1BusOwner = BusOwner::SpriteData;
+                break;
+            }
+        }
+    }
+
     slot.baLow = slot.badlineBAHold || slot.spriteWarning || slot.spriteBAHold;
     slot.cpuBusStolen = slot.badlineSteal || slot.spriteAECSteal;
     slot.aecLow = slot.cpuBusStolen;
