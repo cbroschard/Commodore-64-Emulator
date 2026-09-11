@@ -2195,6 +2195,7 @@ void Vic::advanceToNextRaster()
     vicState.badLineDmaStartCycle = -1;
     vicState.badLineFetchIndex = 0;
     vicState.matrixFetchInitializedThisRaster = false;
+    vicState.displayStateHoldForCycle58 = false;
 }
 
 void Vic::traceRasterEnd()
