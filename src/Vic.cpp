@@ -4553,7 +4553,7 @@ int Vic::rasterRegisterEventPixelX(const RasterEventRecord& e) const
     int x = cfg_->hardware_X + (e.cycle * 8);
 
     if (e.phase == VicBusPhase::Phi2)
-        x += 8;
+        x += 4;
 
     if (x < 0)
         x = 0;
