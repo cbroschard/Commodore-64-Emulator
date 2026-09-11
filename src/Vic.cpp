@@ -3412,8 +3412,7 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
     if (slot.spriteIndex >= 0)
     {
-        SpriteFetchPhase expectedPhase =
-            SpriteFetchPhase::None;
+        SpriteFetchPhase expectedPhase = SpriteFetchPhase::None;
 
         switch (slot.fetchKind)
         {
@@ -3464,16 +3463,8 @@ Vic::VicCycleSlot Vic::cycleSlotFor(int raster, int cycle) const
 
         if (expectedPhase != SpriteFetchPhase::None)
         {
-            const VicBusPhase busPhase =
-                spriteBusPhaseForFetch(
-                    slot.spriteIndex,
-                    expectedPhase);
-
-            slot.spriteFetchPhase =
-                spriteFetchPhaseForCycle(
-                    slot.spriteIndex,
-                    cycle,
-                    busPhase);
+            const VicBusPhase busPhase = spriteBusPhaseForFetch(slot.spriteIndex, expectedPhase);
+            slot.spriteFetchPhase = spriteFetchPhaseForCycle(slot.spriteIndex, cycle, busPhase);
 
             if (slot.spriteFetchPhase != SpriteFetchPhase::None)
             {
