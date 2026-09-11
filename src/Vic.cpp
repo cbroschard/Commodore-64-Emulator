@@ -1991,9 +1991,6 @@ void Vic::performBadLineFetchesForCurrentCycle()
     if (!vicState.cAccessActive)
         return;
 
-    if (currentCycleSlot.fetchKind != FetchKind::CharMatrix)
-        return;
-
     const int physicalIndex = currentCycleSlot.matrixFetchIndex;
 
     if (physicalIndex < 0 || physicalIndex >= BACKGROUND_MATRIX_COLUMNS)
