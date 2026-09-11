@@ -2091,12 +2091,11 @@ void Vic::updateLiveBadLineCondition()
     if (!vicState.badLineCondition)
     {
         vicState.badLineCondition = true;
-
         vicState.cAccessActive = true;
 
         // BA must be low for three cycles before Phi2 can be taken
         // from the CPU. A normal bad line detected by cycle 12 can
-        // therefore begin c-access at cycle 15.
+        // therefore begin c-access at the configured DMA start.
         if (beforeCycle14)
         {
             vicState.badLineDmaStartCycle = cfg_->DMAStartCycle;
@@ -2105,15 +2104,29 @@ void Vic::updateLiveBadLineCondition()
         {
             // Late-created Bad Line Condition: takeover cannot occur
             // until three cycles after BA is asserted.
-            vicState.badLineDmaStartCycle = currentCycle + 3;
+            const int takeoverCycle = currentCycle + 3;
 
-            // Preserve display state through the cycle-58 transition.
-            vicState.displayStateHoldForCycle58 = true;
+            if (takeoverCycle <= cfg_->DMAEndCycle)
+            {
+                vicState.badLineDmaStartCycle = takeoverCycle;
+
+                // Preserve display state through the cycle-58 transition.
+                vicState.displayStateHoldForCycle58 = true;
+            }
+            else
+            {
+                // Too late in the raster for a valid c-access takeover.
+                vicState.badLineDmaStartCycle = -1;
+                vicState.cAccessActive = false;
+                vicState.displayStateHoldForCycle58 = false;
+            }
         }
 
-        vicState.displayEnabledNext = true;
-
-        initializeMatrixFetchStateForRaster();
+        if (vicState.cAccessActive)
+        {
+            vicState.displayEnabledNext = true;
+            initializeMatrixFetchStateForRaster();
+        }
     }
 }
 
