@@ -505,12 +505,13 @@ void Computer::tickCycle()
         resumeAfterVicCycleBreakpoint = false;
     }
 
-    // VIC performs its memory/bus fetch before the CPU's Phi2 bus cycle.
-    components_.vic->busPhase();
+    components_.vic->runPhi1Phase();
 
     components_.cpu->setRDY(components_.vic->getBA());
     components_.cpu->setAEC(components_.vic->getAEC());
     components_.cpu->tick();
+
+    components_.vic->runPhi2Phase();
 
     if (cartridgeNMIPending)
     {

@@ -1434,14 +1434,6 @@ void Vic::beginCycle()
     updateBusArbitration();
 }
 
-void Vic::busPhase()
-{
-    runFetchPhase();
-
-    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
-        advanceSpriteMCBaseSecondStep();
-}
-
 void Vic::endCycle()
 {
     runPixelOutputPhase();
@@ -1660,12 +1652,6 @@ void Vic::advanceCharacterSequencerAtCycle58()
     vicState.displayEnabled = vicState.displayEnabledNext;
 }
 
-void Vic::runFetchPhase()
-{
-    runPhi1Phase();
-    runPhi2Phase();
-}
-
 void Vic::runPhi1Phase()
 {
     currentBusPhase = VicBusPhase::Phi1;
@@ -1779,6 +1765,9 @@ void Vic::runPhi2Phase()
             break;
         }
     }
+
+    if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
+        advanceSpriteMCBaseSecondStep();
 }
 
 void Vic::reloadCharacterSequencerAtCycle14(bool badLineAt14)

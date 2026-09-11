@@ -58,8 +58,9 @@ class Vic
 
         // Cycle accurate updating of the raster, etc
         void beginCycle();
-        void busPhase();
         void endCycle();
+        void runPhi1Phase();
+        void runPhi2Phase();
 
         // Getter for BUS arb status
         inline bool getBA() const { return vicState.ba; }
@@ -901,10 +902,6 @@ class Vic
         void handleCycle58Decisions();
 
         void advanceCharacterSequencerAtCycle58();
-
-        void runFetchPhase();
-        void runPhi1Phase();
-        void runPhi2Phase();
 
         void reloadCharacterSequencerAtCycle14(bool badLineAt14);
         void advanceCharacterSequencerAfterGAccess();
