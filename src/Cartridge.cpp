@@ -46,6 +46,7 @@
 #include "Cartridge/RGCDMapper.h"
 #include "Cartridge/RossMapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
+#include "Cartridge/Snapshot64Mapper.h"
 #include "Cartridge/StarDOSMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
 #include "Cartridge/SuperGamesMapper.h"
@@ -485,6 +486,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x2E:  return CartridgeType::FREEZE_MACHINE;
+        case 0x2F:  return CartridgeType::SNAPSHOT_64;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
         case 0x39:  return CartridgeType::RGCD;
@@ -544,6 +546,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::EASYCALC:               return "EasyCalc";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::FREEZE_MACHINE:         return "Freeze Machine";
+        case CartridgeType::SNAPSHOT_64:            return "Snapshot64";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
@@ -1216,6 +1219,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::FREEZE_MACHINE:         return std::make_unique<FreezeMachineMapper>();
+        case CartridgeType::SNAPSHOT_64:            return std::make_unique<Snapshot64Mapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();

@@ -143,6 +143,7 @@ class Cartridge
             SUPER_SNAPSHOT_V4,
             FREEZE_FRAME,
             FREEZE_MACHINE,
+            SNAPSHOT_64,
             ACTION_REPLAY_2,
             MACH_5,
             RGCD,
