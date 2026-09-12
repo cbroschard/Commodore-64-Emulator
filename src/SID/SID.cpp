@@ -1040,14 +1040,11 @@ std::string SID::dumpRegisters(const std::string& group) const
             (static_cast<uint16_t>(sidRegisters.filter.cutoffHigh) << 3) |
             (sidRegisters.filter.cutoffLow & 0x07);
 
-        const double cutoffNorm =
-            static_cast<double>(cutoff11bit) / 2047.0;
+        const double cutoffNorm = static_cast<double>(cutoff11bit) / 2047.0;
 
-        const double cutoffHz =
-            mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
+        const double cutoffHz = mapSIDCutoff11BitToHzTable(cutoff11bit, sidModel_);
 
-        const SIDModelProfile& profile =
-            getSIDModelProfile(sidModel_);
+        const SIDModelProfile& profile = getSIDModelProfile(sidModel_);
 
         const uint8_t resRoute = sidRegisters.filter.resonanceControl;
         const uint8_t modeVol  = sidRegisters.filter.volume;
@@ -1174,7 +1171,7 @@ std::string SID::dumpVoice(const voiceRegisters& regs, const Voice& voice, int i
     out << "SID Voice " << index << ":\n";
 
     const uint16_t freq = (static_cast<uint16_t>(regs.frequencyHigh) << 8) | static_cast<uint16_t>(regs.frequencyLow);
-    const double freqHz = (freq * sidClockFrequency) / 65536.0;
+    const double freqHz = (freq * sidClockFrequency) / 16777216.0;
 
     out << "  FREQ=$" << std::hex << std::uppercase
         << std::setw(4) << std::setfill('0') << freq
