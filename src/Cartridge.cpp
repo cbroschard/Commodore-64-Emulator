@@ -18,6 +18,7 @@
 #include "Cartridge/DelaEP64Mapper.h"
 #include "Cartridge/DelaEP7x8Mapper.h"
 #include "Cartridge/DelaEP256Mapper.h"
+#include "Cartridge/DiashowMakerMapper.h"
 #include "Cartridge/DinamicMapper.h"
 #include "Cartridge/EasyCalcMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
@@ -493,6 +494,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
+        case 0x52:  return CartridgeType::DIASHOW_MAKER;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -550,6 +552,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
+        case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1226,6 +1229,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
+        case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:

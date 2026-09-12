@@ -150,6 +150,7 @@ class Cartridge
             EASYCALC,
             GMOD2,
             FREEZE_FRAME_MK2,
+            DIASHOW_MAKER,
             MAGICDESK_16,
             UNKNOWN
         };
