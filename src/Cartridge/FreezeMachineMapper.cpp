@@ -131,6 +131,10 @@ bool FreezeMachineMapper::loadIntoMemory(uint8_t bank)
     if (mode == Mode::Disabled)
         return true;
 
+    cart->clearCartridge(cartLocation::LO);
+    cart->clearCartridge(cartLocation::HI);
+    cart->clearCartridge(cartLocation::HI_E000);
+
     const uint8_t romlBank = bank * 2;
     const uint8_t romhBank = romlBank + 1;
 
