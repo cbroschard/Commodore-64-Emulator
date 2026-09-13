@@ -176,7 +176,8 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
     if (ddra & PRA_SIDE)
     {
-        const uint8_t side = (pra & PRA_SIDE) ? 0 : 1;
+        const uint8_t outA = static_cast<uint8_t>(pra & ddra);
+        const uint8_t side = (outA & PRA_SIDE) ? 1 : 0;
         d->setCurrentSide(side);
     }
 
