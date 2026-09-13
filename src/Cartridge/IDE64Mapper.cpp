@@ -257,9 +257,7 @@ uint8_t IDE64Mapper::read(uint16_t address)
 void IDE64Mapper::write(uint16_t address, uint8_t value)
 {
     // IDE64 internal RAM
-    if (!ctrl.game && ctrl.exrom &&
-        ((address >= 0x1000 && address <= 0x7FFF) ||
-         (address >= 0xC000 && address <= 0xCFFF)))
+    if (!ctrl.game && ctrl.exrom && ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF)))
     {
         if (cart)
             cart->writeRAM(address & 0x7FFF, value);
@@ -268,15 +266,11 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
     }
 
     // ROM is read-only in this window
-    if (!ctrl.game && ctrl.exrom &&
-        address >= 0xA000 && address <= 0xBFFF)
-    {
+    if (!ctrl.game && ctrl.exrom && address >= 0xA000 && address <= 0xBFFF)
         return;
-    }
 
     // IDE/ATA controller registers: $DE20-$DE2F
-    if (address >= IDE64_Controller_Start &&
-        address <= IDE64_Controller_End)
+    if (address >= IDE64_Controller_Start && address <= IDE64_Controller_End)
     {
         controller.writeRegister(address, value);
         return;
@@ -284,8 +278,7 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
 
     if (address >= 0xDE32 && address <= 0xDE35)
     {
-        const uint8_t bank =
-            static_cast<uint8_t>(address - 0xDE32);
+        const uint8_t bank = static_cast<uint8_t>(address - 0xDE32);
 
         ctrl.romAddr14 = (bank & 0x01) != 0;
         ctrl.romAddr15 = (bank & 0x02) != 0;
@@ -370,6 +363,42 @@ void IDE64Mapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t IDE64Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (ctrl.killed)
+        return cart->sampleDataBus();
+
+    // IDE64 internal RAM in Ultimax mode.
+    if (!ctrl.game && ctrl.exrom && ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF)))
+    {
+        if (cart->hasCartridgeRAM())
+            return cart->peekRAM(address & 0x7FFF);
+
+        return cart->sampleDataBus();
+    }
+
+    // Upper half of selected ROM in Ultimax mode.
+    if (!ctrl.game && ctrl.exrom &&
+        address >= 0xA000 && address <= 0xBFFF)
+    {
+        if (rom.empty())
+            return cart->sampleDataBus();
+
+        const size_t bankNumber = (ctrl.romAddr14 ? 1u : 0u) | (ctrl.romAddr15 ? 2u : 0u);
+        const size_t offset = bankNumber * 0x4000 +  static_cast<size_t>(address - 0x8000);
+
+        if (offset >= rom.size())
+            return cart->sampleDataBus();
+
+        return rom[offset];
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool IDE64Mapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart)
@@ -413,12 +442,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     if (!ctrl.game && !ctrl.exrom)
     {
         for (size_t i = 0; i < 0x2000; ++i)
-        {
-            cart->writeCartridge(
-                static_cast<uint16_t>(i),
-                rom[romBase + 0x2000 + i],
-                cartLocation::HI);
-        }
+            cart->writeCartridge(static_cast<uint16_t>(i), rom[romBase + 0x2000 + i], cartLocation::HI);
 
         return true;
     }
@@ -427,12 +451,7 @@ bool IDE64Mapper::loadIntoMemory(uint8_t bank)
     if (!ctrl.game && ctrl.exrom)
     {
         for (size_t i = 0; i < 0x2000; ++i)
-        {
-            cart->writeCartridge(
-                static_cast<uint16_t>(i),
-                rom[romBase + 0x2000 + i],
-                cartLocation::HI_E000);
-        }
+            cart->writeCartridge(static_cast<uint16_t>(i), rom[romBase + 0x2000 + i], cartLocation::HI_E000);
     }
 
     return true;
@@ -444,15 +463,12 @@ bool IDE64Mapper::initializeROM()
 
     for (const auto& section : cart->getChipSections())
     {
-        const size_t offset =
-            static_cast<size_t>(section.bankNumber) * 0x4000;
+        const size_t offset = static_cast<size_t>(section.bankNumber) * 0x4000;
 
         if (offset + section.data.size() > rom.size())
             return false;
 
-        std::copy(section.data.begin(),
-                  section.data.end(),
-                  rom.begin() + offset);
+        std::copy(section.data.begin(), section.data.end(), rom.begin() + offset);
     }
 
     return true;

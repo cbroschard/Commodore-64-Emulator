@@ -30,6 +30,8 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
+        uint8_t peek(uint16_t address) const override;
+
         bool loadIntoMemory(uint8_t bank) override;
 
         bool hasPersistence() const override { return true; }
@@ -60,8 +62,6 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
         bool cpuMemoryHandledByMapper(uint16_t address) const override;
 
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         IDE64Controller controller;
