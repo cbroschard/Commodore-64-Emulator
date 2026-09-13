@@ -150,6 +150,7 @@ class Cartridge
             EASYCALC,
             GMOD2,
             MAX_BASIC,
+            BLACKBOX_V3,
             FREEZE_FRAME_MK2,
             DIASHOW_MAKER,
             MAGICDESK_16,
