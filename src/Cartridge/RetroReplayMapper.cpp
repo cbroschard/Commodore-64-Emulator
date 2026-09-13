@@ -277,6 +277,57 @@ void RetroReplayMapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t RetroReplayMapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (!cartActive)
+        return cart->sampleDataBus();
+
+    if (address != 0xDE00 && address != 0xDE01)
+        return cart->sampleDataBus();
+
+    uint8_t romBank = ((ctrl.de00 >> 3) & 0x01) | (((ctrl.de00 >> 4) & 0x01) << 1) |(((ctrl.de00 >> 7) & 0x01) << 2);
+
+    if (flashMode)
+        romBank |= (((ctrl.de01 >> 5) & 0x01) << 3);
+
+    const bool allowBank =
+        (ctrl.de01 & 0x02) != 0;
+
+    const bool reuCompat =
+        (ctrl.de01 & 0x40) != 0;
+
+    uint8_t value = 0x00;
+
+    // Bit 0: flash mode active
+    if (flashMode)
+        value |= 0x01;
+
+    // Bit 1: AllowBank feedback
+    if (allowBank)
+        value |= 0x02;
+
+    // Bit 2: freeze button pressed
+    if (freezeButtonPressed)
+        value |= 0x04;
+
+    // Bits 3, 4 and 7: ROM-bank feedback
+    value |= static_cast<uint8_t>((romBank & 0x03) << 3);
+    value |= static_cast<uint8_t>((romBank & 0x04) << 5);
+
+    // Bit 5: fourth bank bit in flash mode
+    if (flashMode && (romBank & 0x08))
+        value |= 0x20;
+
+    // Bit 6: REU compatibility feedback
+    if (reuCompat)
+        value |= 0x40;
+
+    return value;
+}
+
 bool RetroReplayMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart)
