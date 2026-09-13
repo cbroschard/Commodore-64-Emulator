@@ -50,8 +50,6 @@ class ExpertMapper : public CartridgeMapper, public IHasButton, public IHasSwitc
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         SwitchPos sw;
 
