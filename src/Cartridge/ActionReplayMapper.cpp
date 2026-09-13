@@ -153,6 +153,43 @@ void ActionReplayMapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t ActionReplayMapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    // Disabled cartridge doesn't respond.
+    if (ctrl.cartDisabled)
+        return cart->sampleDataBus();
+
+    // IO1 control register readback.
+    if (address >= 0xDE00 && address <= 0xDEFF)
+    {
+        if (!io1Enabled)
+            return cart->sampleDataBus();
+
+        return ctrl.raw;
+    }
+
+    // IO2 maps either RAM or the upper 256 bytes of ROML.
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        const size_t offset = 0x1F00u + static_cast<size_t>(address & 0x00FF);
+
+        if (io2RoutesToRam)
+        {
+            if (cart->hasCartridgeRAM())
+                return cart->peekRAM(offset);
+
+            return cart->sampleDataBus();
+        }
+
+        return cart->readCartridge(static_cast<uint16_t>(offset), cartLocation::LO);
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool ActionReplayMapper::applyMappingAfterLoad()
 {
     if (!cart) return false;
