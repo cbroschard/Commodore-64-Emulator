@@ -119,6 +119,20 @@ void ActionReplay4Mapper::write(uint16_t address, uint8_t value)
     applyMappingFromControl();
 }
 
+uint8_t ActionReplay4Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (ctrl.cartDisabled)
+        return cart->sampleDataBus();
+
+    if ((address & 0xFF00) == 0xDF00)
+        return cart->readCartridge(static_cast<uint16_t>(address & 0x00FF), cartLocation::LO);
+
+    return cart->sampleDataBus();
+}
+
 bool ActionReplay4Mapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart) return false;

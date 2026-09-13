@@ -24,6 +24,8 @@ class ActionReplay4Mapper : public CartridgeMapper, public IHasButton
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
+        uint8_t peek(uint16_t address) const override;
+
         bool loadIntoMemory(uint8_t bank) override;
 
         inline uint32_t getButtonCount() const override { return 2; }
@@ -31,8 +33,6 @@ class ActionReplay4Mapper : public CartridgeMapper, public IHasButton
         void pressButton(uint32_t buttonIndex) override;
 
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         uint8_t selectedBank;
