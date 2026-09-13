@@ -385,10 +385,6 @@ void D1581::onListen()
     byteAckHold                 = false;
     ackDelay                    = 0;
 
-#ifdef Debug
-    std::cout << "[D1581] onListen() device=" << int(deviceNumber)
-              << " listening=1 talking=0\n";
-#endif
 }
 
 void D1581::onUnListen()
@@ -414,10 +410,6 @@ void D1581::onUnListen()
     currentDriveBusState = DriveBusState::IDLE;
     currentDriveStatus   = DriveStatus::IDLE;
     activityLedOn        = false;
-
-#ifdef Debug
-    std::cout << "[D1581] onUnListen() device=" << int(deviceNumber) << "\n";
-#endif
 }
 
 void D1581::onTalk()
@@ -442,11 +434,6 @@ void D1581::onTalk()
     ackDelay                    = 0;
 
     peripheralAssertClk(false);
-
-#ifdef Debug
-    std::cout << "[D1581] onTalk() device=" << int(deviceNumber)
-              << " talking=1 listening=0\n";
-#endif
 }
 
 void D1581::onUnTalk()
@@ -472,28 +459,11 @@ void D1581::onUnTalk()
     currentDriveBusState = DriveBusState::IDLE;
     currentDriveStatus   = DriveStatus::IDLE;
     activityLedOn        = false;
-
-#ifdef Debug
-    std::cout << "[D1581] onUnTalk() device=" << int(deviceNumber) << "\n";
-#endif
 }
 
 void D1581::onSecondaryAddress(uint8_t sa)
 {
     currentSecondaryAddress = sa;
-
-#ifdef Debug
-    const char* meaning = "";
-    if (sa == 0)
-        meaning = " (LOAD channel)";
-    else if (sa == 1)
-        meaning = " (SAVE channel)";
-    else if (sa == 15)
-        meaning = " (COMMAND channel)";
-
-    std::cout << "[D1581] onSecondaryAddress() device=" << int(deviceNumber)
-              << " sa=" << int(sa) << meaning << "\n";
-#endif
 }
 
 void D1581::updateIRQ()
@@ -721,23 +691,7 @@ void D1581::flushAndSaveDisk()
         return;
 
     if (diskImage->saveDisk(loadedDiskName))
-    {
         diskImage->clearDirty();
-
-#ifdef Debug
-        std::cout << "[D1581] Saved dirty disk image: "
-                  << loadedDiskName
-                  << "\n";
-#endif
-    }
-    else
-    {
-#ifdef Debug
-        std::cerr << "[D1581] Failed to save dirty disk image: "
-                  << loadedDiskName
-                  << "\n";
-#endif
-    }
 }
 
 void D1581::pulseDiskActivity(uint8_t track, uint8_t sector)
