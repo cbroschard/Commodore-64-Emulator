@@ -701,7 +701,7 @@ void D1581::getDriveIndicators(std::vector<Indicator>& out) const
 
     Indicator act;
     act.name = "ACT";
-    act.on = activityLedOn || activityPulseFrames > 0 || talking || listening;
+    act.on = activityLedOn;
     act.color = IDriveIndicatorView::DriveIndicatorColor::Green;
     out.push_back(std::move(act));
 
