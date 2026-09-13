@@ -59,6 +59,7 @@
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
+#include "Cartridge/ZippCode48Mapper.h"
 #include "Bus.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
@@ -500,6 +501,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x3D:  return CartridgeType::MAX_BASIC;
+        case 0x3F:  return CartridgeType::ZIPP_CODE_48;
         case 0x41:  return CartridgeType::BLACKBOX_V3;
         case 0x42:  return CartridgeType::BLACKBOX_V4;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
@@ -560,6 +562,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::SNAPSHOT_64:            return "Snapshot64";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::MAX_BASIC:              return "MAX BASIC";
+        case CartridgeType::ZIPP_CODE_48:           return "ZIPP-CODE 48";
         case CartridgeType::BLACKBOX_V3:            return "BlackBox V3";
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
@@ -1241,6 +1244,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::MAX_BASIC:              return std::make_unique<MAXBASICMapper>();
+        case CartridgeType::ZIPP_CODE_48:           return std::make_unique<ZippCode48Mapper>();
         case CartridgeType::BLACKBOX_V3:            return std::make_unique<BlackBoxV3Mapper>();
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
