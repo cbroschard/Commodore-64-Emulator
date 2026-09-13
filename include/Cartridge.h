@@ -151,6 +151,7 @@ class Cartridge
             GMOD2,
             MAX_BASIC,
             BLACKBOX_V3,
+            BLACKBOX_V4,
             FREEZE_FRAME_MK2,
             DIASHOW_MAKER,
             MAGICDESK_16,

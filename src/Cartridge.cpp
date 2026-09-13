@@ -13,6 +13,7 @@
 #include "Cartridge/ActionReplay4Mapper.h"
 #include "Cartridge/AtomicPowerMapper.h"
 #include "Cartridge/BlackBoxV3Mapper.h"
+#include "Cartridge/BlackBoxV4Mapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/CaptureMapper.h"
 #include "Cartridge/Comal80Mapper.h"
@@ -500,6 +501,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x3C:  return CartridgeType::GMOD2;
         case 0x3D:  return CartridgeType::MAX_BASIC;
         case 0x41:  return CartridgeType::BLACKBOX_V3;
+        case 0x42:  return CartridgeType::BLACKBOX_V4;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x52:  return CartridgeType::DIASHOW_MAKER;
         case 0x55:  return CartridgeType::MAGICDESK_16;
@@ -559,6 +561,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::MAX_BASIC:              return "MAX BASIC";
         case CartridgeType::BLACKBOX_V3:            return "BlackBox V3";
+        case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
@@ -1239,6 +1242,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
         case CartridgeType::MAX_BASIC:              return std::make_unique<MAXBASICMapper>();
         case CartridgeType::BLACKBOX_V3:            return std::make_unique<BlackBoxV3Mapper>();
+        case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
