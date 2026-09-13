@@ -155,6 +155,37 @@ void SuperSnapshotV5Mapper::write(uint16_t address, uint8_t value)
     (void)applyMappingAfterLoad();
 }
 
+uint8_t SuperSnapshotV5Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (!ctrl.enabled)
+        return cart->sampleDataBus();
+
+    if (address >= 0xDE00 && address <= 0xDEFF)
+    {
+        const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x07) : static_cast<uint8_t>(selectedBank & 0x07);
+        const uint16_t offset = static_cast<uint16_t>(address & 0x00FF);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.bankNumber != bank)
+                continue;
+
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (offset < section.data.size())
+                return section.data[offset];
+        }
+
+        return cart->sampleDataBus();
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool SuperSnapshotV5Mapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart) return false;
