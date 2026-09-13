@@ -235,10 +235,6 @@ void D1581CIA::serialOutputClockPulse()
 
     d->peripheralAssertSrq(true);
     d->peripheralAssertSrq(false);
-
-#ifdef Debug
-    std::cout << "[1581 CIA SERIAL CLK SRQ PULSE]\n";
-#endif
 }
 
 void D1581CIA::serialOutputFinished()
@@ -249,10 +245,6 @@ void D1581CIA::serialOutputFinished()
         d->peripheralAssertData(false);
         d->peripheralAssertSrq(false);
     }
-
-#ifdef Debug
-    std::cout << "[1581 CIA SERIAL DONE]\n";
-#endif
 }
 
 D1581* D1581CIA::drive() const
