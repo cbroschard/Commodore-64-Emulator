@@ -44,7 +44,6 @@ bool BlackBoxV3Mapper::loadState(const StateReader::Chunk& chunk, StateReader& r
 void BlackBoxV3Mapper::reset()
 {
     enabled = true;
-
     updateLines();
 }
 
