@@ -62,11 +62,11 @@ class SuperSnapshotV4Mapper : public CartridgeMapper, public IHasButton
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
+        uint8_t peek(uint16_t address) const override;
+
         bool loadIntoMemory(uint8_t bank) override;
 
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         SS4Control preFreezeCtrl{};

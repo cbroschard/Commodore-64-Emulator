@@ -280,6 +280,57 @@ void SuperSnapshotV4Mapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t SuperSnapshotV4Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    // IO1: mirror of the last 256 bytes of cartridge RAM.
+    if ((address & 0xFF00) == 0xDE00)
+    {
+        if (!cart->hasCartridgeRAM())
+            return cart->sampleDataBus();
+
+        const size_t offset = 0x1F00u + static_cast<size_t>(address & 0x00FF);
+
+        return cart->peekRAM(offset);
+    }
+
+    // $DF00 is write-only.
+    if (address == 0xDF00)
+        return cart->sampleDataBus();
+
+    // $DF01 is a readable control register.
+    if (address == 0xDF01)
+        return ctrl.df01;
+
+    // $DF02-$DFFF: ROM mirror.
+    if (address >= 0xDF02 && address <= 0xDFFF)
+    {
+        const uint16_t index = static_cast<uint16_t>(0x1F00u + (address & 0x00FF));
+        const uint8_t bank = selectedBank == 0xFF ? static_cast<uint8_t>(ctrl.bank & 0x01) : static_cast<uint8_t>(selectedBank & 0x01);
+
+        for (const auto& section : cart->getChipSections())
+        {
+            if (section.bankNumber != bank)
+                continue;
+
+            if (section.loadAddress != 0x8000)
+                continue;
+
+            if (section.data.size() == 0x2000 || section.data.size() == 0x4000)
+            {
+                if (index < section.data.size())
+                    return section.data[index];
+            }
+        }
+
+        return cart->sampleDataBus();
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool SuperSnapshotV4Mapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart) return false;
