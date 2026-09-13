@@ -66,32 +66,6 @@ static uint16_t computeAddressFieldCRC(uint8_t c, uint8_t h, uint8_t r, uint8_t 
     return crc;
 }
 
-#ifdef Debug
-static const char* fdcCommandName(uint8_t cmd)
-{
-    switch (cmd & 0xF0)
-    {
-        case 0x00: return "RESTORE";
-        case 0x10: return "SEEK";
-        case 0x20: return "STEP";
-        case 0x30: return "STEP";
-        case 0x40: return "STEP IN";
-        case 0x50: return "STEP IN";
-        case 0x60: return "STEP OUT";
-        case 0x70: return "STEP OUT";
-        case 0x80: return "READ SECTOR";
-        case 0x90: return "READ SECTOR MULTI";
-        case 0xA0: return "WRITE SECTOR";
-        case 0xB0: return "WRITE SECTOR MULTI";
-        case 0xC0: return "READ ADDRESS";
-        case 0xD0: return "FORCE INTERRUPT";
-        case 0xE0: return "READ TRACK";
-        case 0xF0: return "WRITE TRACK";
-        default:   return "UNKNOWN";
-    }
-}
-#endif
-
 void FDC177x::saveState(StateWriter& wrtr) const
 {
     // Version
@@ -530,18 +504,6 @@ FDC177x::CommandType FDC177x::decodeCommandType(uint8_t cmd) const
 
 void FDC177x::startCommand(uint8_t cmd)
 {
-    #ifdef Debug
-    std::cout << "[FDC CMD] $" << std::hex << std::setw(2) << std::setfill('0')
-              << int(cmd)
-              << " " << fdcCommandName(cmd)
-              << " TRK=" << std::dec << int(registers.track)
-              << " SEC=" << int(registers.sector)
-              << " DATA=$" << std::hex << int(registers.data)
-              << " STATUS=$" << int(registers.status)
-              << std::dec
-              << "\n";
-    #endif
-
     readSectorInProgress    = false;
     writeSectorInProgress   = false;
     readAddressInProgress   = false;
@@ -700,18 +662,6 @@ void FDC177x::startCommand(uint8_t cmd)
 
                 addressBuffer[4] = static_cast<uint8_t>((crc >> 8) & 0xFF);
                 addressBuffer[5] = static_cast<uint8_t>(crc & 0xFF);
-
-                #ifdef Debug
-                std::cout << "[FDC READ ADDRESS RESULT] "
-                          << "C=" << int(addressBuffer[0])
-                          << " H=" << int(addressBuffer[1])
-                          << " R=" << int(addressBuffer[2])
-                          << " N=" << int(addressBuffer[3])
-                          << " currentSide=" << int(host ? (host->fdcGetCurrentSide() & 1) : 0)
-                          << " sectorReg=" << int(registers.sector)
-                          << "\n";
-                #endif
-
                 cyclesUntilEvent = 2000;
             }
             else
