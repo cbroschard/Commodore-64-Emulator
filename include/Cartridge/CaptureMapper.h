@@ -24,6 +24,8 @@ class CaptureMapper : public CartridgeMapper, public IHasButton
         uint8_t read(uint16_t address) override;
         void write(uint16_t address, uint8_t value) override;
 
+        uint8_t peek(uint16_t address) const override;
+
         bool loadIntoMemory(uint8_t bank) override;
 
         inline uint32_t getButtonCount() const override { return 1; }
@@ -35,8 +37,6 @@ class CaptureMapper : public CartridgeMapper, public IHasButton
         bool cpuMemoryHandledByMapper(uint16_t address) const override;
         bool romReadHandledByMapper(uint16_t address) const override;
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         enum class Mode : uint8_t

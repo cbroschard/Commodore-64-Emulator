@@ -69,9 +69,7 @@ uint8_t CaptureMapper::read(uint16_t address)
 
     // Capture RAM at $6000-$7FFF.
     if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
-    {
         return cart->readRAM(static_cast<size_t>(address - 0x6000));
-    }
 
     // Control addresses must be checked before the broad ROMH range.
     if (registersEnabled && address == 0xFFF7)
@@ -106,12 +104,9 @@ void CaptureMapper::write(uint16_t address, uint8_t value)
     if (!cart)
         return;
 
-    if (mode == Mode::Freeze &&
-        address >= 0x6000 &&
-        address <= 0x7FFF)
+    if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
     {
-        const size_t offset =
-            static_cast<size_t>(address - 0x6000);
+        const size_t offset = static_cast<size_t>(address - 0x6000);
 
         cart->writeRAM(offset, value);
         return;
@@ -127,9 +122,40 @@ void CaptureMapper::write(uint16_t address, uint8_t value)
     }
 
     if (address == 0xFFF8)
-    {
         romHEnabled = true;
+}
+
+uint8_t CaptureMapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    // Capture RAM at $6000-$7FFF.
+    if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
+        return cart->peekRAM(static_cast<size_t>(address - 0x6000));
+
+    // $FFF7 disables ROMH on a real read/write,
+    // but a peek must not change state.
+    if (registersEnabled && address == 0xFFF7)
+        return cart->sampleDataBus();
+
+    // $FFF8 enables ROMH on a real read/write.
+    // Peek returns the ROM byte without changing romHEnabled.
+    if (registersEnabled && address == 0xFFF8)
+        return cart->readCartridge(0x1FF8, cartLocation::HI_E000);
+
+    // Capture high ROM in freeze/Ultimax mode.
+    if (mode == Mode::Freeze && address >= 0xE000 && address <= 0xFFFF)
+    {
+        if (!romHEnabled)
+            return cart->sampleDataBus();
+
+        const uint16_t offset = static_cast<uint16_t>(address - 0xE000);
+
+        return cart->readCartridge(offset, cartLocation::HI_E000);
     }
+
+    return cart->sampleDataBus();
 }
 
 bool CaptureMapper::applyMappingAfterLoad()
