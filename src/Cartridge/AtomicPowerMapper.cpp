@@ -179,6 +179,33 @@ void AtomicPowerMapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t AtomicPowerMapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (ctrl.cartDisable)
+        return cart->sampleDataBus();
+
+    // IO2 window: $DF00-$DFFF maps to $9F00-$9FFF.
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        const uint16_t offset = static_cast<uint16_t>(0x1F00 | (address & 0x00FF));
+
+        if (ramEnabled)
+        {
+            if (cart->hasCartridgeRAM())
+                return cart->peekRAM(offset);
+
+            return cart->sampleDataBus();
+        }
+
+        return cart->readCartridge(offset, cartLocation::LO);
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool AtomicPowerMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart) return false;
