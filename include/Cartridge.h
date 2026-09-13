@@ -149,6 +149,7 @@ class Cartridge
             RGCD,
             EASYCALC,
             GMOD2,
+            MAX_BASIC,
             FREEZE_FRAME_MK2,
             DIASHOW_MAKER,
             MAGICDESK_16,
