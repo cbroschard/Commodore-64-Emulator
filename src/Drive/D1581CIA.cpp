@@ -191,7 +191,7 @@ void D1581CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
 
     if (ddra & PRA_ACTLED)
     {
-        const bool ledOn = (pra & PRA_ACTLED) == 0;
+        const bool ledOn = (pra & PRA_ACTLED) != 0;
         d->setActivityLed(ledOn);
     }
 

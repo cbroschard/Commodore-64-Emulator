@@ -47,17 +47,17 @@ class D1581CIA : public DriveCIA
         // Non-owning pointers
         Peripheral* parentPeripheral;
 
-        enum CIA_PRA : uint8_t
-        {
-            PRA_SIDE    = 1u << 0, // 0 = side 0, 1 = side 1
-            PRA_DRVRDY  = 1u << 1, // 1 = drive ready (input)
-            PRA_MOTOR   = 1u << 2, // 0 = on, 1 = off
-            PRA_DEVSW2  = 1u << 3, // device switch 2 (right)
-            PRA_DEVSW1  = 1u << 4, // device switch 1 (left)
-            PRA_ACTLED  = 1u << 5, // green LED
-            PRA_ERRLED  = 1u << 6, // red LED
-            PRA_DSKCH   = 1u << 7  // disk present/change
-        };
+    enum CIA_PRA : uint8_t
+    {
+        PRA_SIDE    = 1u << 0, // 1 = side 0, 0 = side 1
+        PRA_DRVRDY  = 1u << 1, // 0 = drive ready (input)
+        PRA_MOTOR   = 1u << 2, // 0 = on, 1 = off
+        PRA_DEVSW2  = 1u << 3,
+        PRA_DEVSW1  = 1u << 4,
+        PRA_ERRLED  = 1u << 5, // error LED brightness
+        PRA_ACTLED  = 1u << 6, // green drive/activity LED, 1 = on
+        PRA_DSKCH   = 1u << 7  // 0 = disk change
+    };
 
         enum CIA_PRB : uint8_t
         {
