@@ -8,10 +8,7 @@
 #include "Cartridge.h"
 #include "Cartridge/KCSPowerMapper.h"
 
-KCSPowerMapper::KCSPowerMapper()
-{
-
-}
+KCSPowerMapper::KCSPowerMapper() = default;
 
 KCSPowerMapper::~KCSPowerMapper() = default;
 
@@ -143,6 +140,52 @@ void KCSPowerMapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t KCSPowerMapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    // IO1: return the same ROM byte as read(), but DO NOT
+    // change GAME/EXROM lines.
+    if (address >= 0xDE00 && address <= 0xDEFF)
+    {
+        const uint16_t offset = static_cast<uint16_t>(0x1E00 + (address & 0x00FF));
+
+        return cart->readCartridge(offset, cartLocation::LO);
+    }
+
+    // IO2: $DF00-$DF7F = 128-byte cartridge RAM.
+    if (address >= 0xDF00 && address <= 0xDF7F)
+    {
+        if (cart->hasCartridgeRAM())
+            return cart->peekRAM(address & 0x7F);
+
+        return cart->sampleDataBus();
+    }
+
+    // $DF80-$DFFF:
+    // bits 7/6 reflect EXROM/GAME, lower 6 bits come from open bus.
+    if (address >= 0xDF80 && address <= 0xDFFF)
+    {
+        const uint8_t open = cart->sampleDataBus();
+
+        const bool exromHigh = cart->getExROMLine();
+        const bool gameHigh  = cart->getGameLine();
+
+        uint8_t value = static_cast<uint8_t>(open & 0x3F);
+
+        if (exromHigh)
+            value |= 0x80;
+
+        if (gameHigh)
+            value |= 0x40;
+
+        return value;
+    }
+
+    return cart->sampleDataBus();
+}
+
 bool KCSPowerMapper::loadIntoMemory(uint8_t bank)
 {
     (void)bank;
@@ -216,10 +259,7 @@ bool KCSPowerMapper::readDrivesBus(uint16_t address) const
         return true;
 
     if (address >= 0xDF00 && address <= 0xDF7F)
-    {
-        return cart &&
-               cart->hasCartridgeRAM();
-    }
+        return cart && cart->hasCartridgeRAM();
 
     if (address >= 0xDF80 && address <= 0xDFFF)
         return true;
