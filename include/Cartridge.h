@@ -103,61 +103,113 @@ class Cartridge
         // Map various cartridge types per VICE docs
         enum class CartridgeType
         {
-            GENERIC,
-            ACTION_REPLAY,
-            KCS_POWER,
-            FINAL_CARTRIDGE_III,
-            SIMONS_BASIC,
-            OCEAN,
-            EXPERT,
-            FUN_PLAY,
-            SUPER_GAMES,
-            ATOMIC_POWER,
-            EPYX_FASTLOAD,
-            WESTERMANN,
-            REX_UTILITY,
-            FINAL_CARTRIDGE,
-            MAGIC_FORMEL,
-            C64_GAME_SYSTEM,
-            WARP_SPEED,
-            DINAMIC,
-            SUPER_ZAXXON,
-            MAGICDESK,
-            SUPER_SNAPSHOT_V5,
-            COMAL_80,
-            STRUCTURED_BASIC,
-            ROSS,
-            DELA_EP64,
-            DELA_EP7X8,
-            DELA_EP256,
-            REX_EP256,
-            MIKRO_ASSEMBLER,
-            FINAL_CARTRIDGE_PLUS,
-            ACTION_REPLAY_4,
-            STARDOS,
-            EASYFLASH,
-            CAPTURE,
-            ACTION_REPLAY_3,
-            RETRO_REPLAY,
-            IDE64,
-            SUPER_SNAPSHOT_V4,
-            FREEZE_FRAME,
-            FREEZE_MACHINE,
-            SNAPSHOT_64,
-            ACTION_REPLAY_2,
-            MACH_5,
-            RGCD,
-            EASYCALC,
-            GMOD2,
-            MAX_BASIC,
-            ZIPP_CODE_48,
-            BLACKBOX_V8,
-            BLACKBOX_V3,
-            BLACKBOX_V4,
-            FREEZE_FRAME_MK2,
-            BLACKBOX_V9,
-            DIASHOW_MAKER,
-            MAGICDESK_16,
+            GENERIC,                // 0
+            ACTION_REPLAY,          // 1
+            KCS_POWER,              // 2
+            FINAL_CARTRIDGE_III,    // 3
+            SIMONS_BASIC,           // 4
+            OCEAN,                  // 5
+            EXPERT,                 // 6
+            FUN_PLAY,               // 7
+            SUPER_GAMES,            // 8
+            ATOMIC_POWER,           // 9
+            EPYX_FASTLOAD,          // 10
+            WESTERMANN,             // 11
+            REX_UTILITY,            // 12
+            FINAL_CARTRIDGE,        // 13
+            MAGIC_FORMEL,           // 14
+            C64_GAME_SYSTEM,        // 15
+            WARP_SPEED,             // 16
+            DINAMIC,                // 17
+            SUPER_ZAXXON,           // 18
+            MAGICDESK,              // 19
+            SUPER_SNAPSHOT_V5,      // 20
+            COMAL_80,               // 21
+            STRUCTURED_BASIC,       // 22
+            ROSS,                   // 23
+            DELA_EP64,              // 24
+            DELA_EP7X8,             // 25
+            DELA_EP256,             // 26
+            REX_EP256,              // 27
+            MIKRO_ASSEMBLER,        // 28
+            FINAL_CARTRIDGE_PLUS,   // 29
+            ACTION_REPLAY_4,        // 30
+            STARDOS,                // 31
+            EASYFLASH,              // 32
+
+            // 33 EasyFlash Xbank not supported
+
+            CAPTURE,                // 34
+            ACTION_REPLAY_3,        // 35
+            RETRO_REPLAY,           // 36
+
+            // 37 MMC64
+            // 38 MMC Replay
+
+            IDE64,                  // 39
+            SUPER_SNAPSHOT_V4,      // 40
+
+            // 41 IEEE-488
+            // 42 Game Killer
+            // 43 Prophet64
+            // 44 EXOS
+
+            FREEZE_FRAME,           // 45
+            FREEZE_MACHINE,         // 46
+            SNAPSHOT_64,            // 47
+
+            // 48 Super Explode V5
+            // 49 Magic Voice
+
+            ACTION_REPLAY_2,        // 50
+            MACH_5,                 // 51
+            DIASHOW_MAKER,          // 52
+
+            // 53 Pagefox
+            // 54 Kingsoft
+            // 55 Silverrock 128K
+            // 56 Formel 64
+
+            RGCD,                   // 57
+
+            // 58 RR-Net MK3
+
+            EASYCALC,               // 59
+            GMOD2,                  // 60
+            MAX_BASIC,              // 61
+
+            // 62 GMod3
+
+            ZIPP_CODE_48,           // 63
+            BLACKBOX_V8,            // 64
+            BLACKBOX_V3,            // 65
+            BLACKBOX_V4,            // 66
+
+            // 67 REX RAM-Floppy
+            // 68 BIS-Plus
+            // 69 SD-BOX
+            // 70 MultiMAX
+
+            BLACKBOX_V9,            // 71
+
+            // 72 Lt. Kernal Host Adaptor
+            // 73 RAMLink
+            // 74 H.E.R.O.
+            // 75 IEEE Flash! 64
+            // 76 Turtle Graphics II
+
+            FREEZE_FRAME_MK2,       // 77
+
+            // 78 Partner 64
+            // 79 Hyper-BASIC
+            // 80 Universal Cartridge 1
+            // 81 Universal Cartridge 1.5
+            // 82 Universal Cartridge 2
+            // 83 BMP Data Turbo 2000
+            // 84 Profi-DOS
+
+            MAGICDESK_16,           // 85
+
             UNKNOWN
         };
 
