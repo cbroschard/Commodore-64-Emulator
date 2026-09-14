@@ -155,6 +155,7 @@ class Cartridge
             BLACKBOX_V3,
             BLACKBOX_V4,
             FREEZE_FRAME_MK2,
+            BLACKBOX_V9,
             DIASHOW_MAKER,
             MAGICDESK_16,
             UNKNOWN
