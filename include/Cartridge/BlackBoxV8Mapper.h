@@ -27,8 +27,6 @@ class BlackBoxV8Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
-    protected:
-
     private:
         uint8_t selectedBank;
         bool gameHigh;
