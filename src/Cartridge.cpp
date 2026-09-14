@@ -499,6 +499,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x2F:  return CartridgeType::SNAPSHOT_64;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
+        case 0x34:  return CartridgeType::DIASHOW_MAKER;
         case 0x39:  return CartridgeType::RGCD;
         case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
@@ -507,9 +508,8 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x40:  return CartridgeType::BLACKBOX_V8;
         case 0x41:  return CartridgeType::BLACKBOX_V3;
         case 0x42:  return CartridgeType::BLACKBOX_V4;
-        case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x47:  return CartridgeType::BLACKBOX_V9;
-        case 0x52:  return CartridgeType::DIASHOW_MAKER;
+        case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -559,6 +559,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
+        case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
         case CartridgeType::RGCD:                   return "RGCD";
         case CartridgeType::EASYCALC:               return "EasyCalc";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
@@ -570,10 +571,9 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::BLACKBOX_V8:            return "BlackBox V8";
         case CartridgeType::BLACKBOX_V3:            return "BlackBox V3";
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
-        case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::BLACKBOX_V9:            return "BlackBox V9";
+        case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
-        case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1246,6 +1246,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::SNAPSHOT_64:            return std::make_unique<Snapshot64Mapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
+        case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
         case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
@@ -1254,9 +1255,8 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::BLACKBOX_V8:            return std::make_unique<BlackBoxV8Mapper>();
         case CartridgeType::BLACKBOX_V3:            return std::make_unique<BlackBoxV3Mapper>();
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
-        case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::BLACKBOX_V9:            return std::make_unique<BlackBoxV9Mapper>();
-        case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
+        case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:
