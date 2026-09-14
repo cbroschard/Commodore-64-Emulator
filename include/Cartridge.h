@@ -151,6 +151,7 @@ class Cartridge
             GMOD2,
             MAX_BASIC,
             ZIPP_CODE_48,
+            BLACKBOX_V8,
             BLACKBOX_V3,
             BLACKBOX_V4,
             FREEZE_FRAME_MK2,
