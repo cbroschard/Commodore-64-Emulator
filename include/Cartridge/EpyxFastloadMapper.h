@@ -24,6 +24,9 @@ class EpyxFastloadMapper : public CartridgeMapper
         void write(uint16_t address, uint8_t value) override;
 
         bool loadIntoMemory(uint8_t bank) override;
+
+        bool applyMappingAfterLoad() override;
+
         void tick(uint32_t elapsedCycles) override;
 
         bool readDrivesBus(uint16_t address) const override;
@@ -35,8 +38,6 @@ class EpyxFastloadMapper : public CartridgeMapper
         bool romEnabled;
         uint16_t capacitorCounter;
         bool loaded;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // EPYXFASTLOADMAPPER_H

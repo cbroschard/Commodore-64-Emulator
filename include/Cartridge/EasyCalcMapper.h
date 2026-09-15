@@ -25,16 +25,14 @@ class EasyCalcMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         uint8_t easyCalcBank;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // EASYCALCMAPPER_H

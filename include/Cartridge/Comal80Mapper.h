@@ -25,14 +25,12 @@ class Comal80Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        bool readDrivesBus(uint16_t address) const override;
+        bool applyMappingAfterLoad() override;
 
-    protected:
+        bool readDrivesBus(uint16_t address) const override;
 
     private:
         uint8_t selectedBank;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // COMAL80MAPPER_H

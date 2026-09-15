@@ -25,17 +25,15 @@ class DelaEP64Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         uint8_t selectedBank;
         bool disabled;
-
-        bool applyMappingAfterLoad() override;
 
         uint8_t decodeBank(uint8_t value) const;
 };

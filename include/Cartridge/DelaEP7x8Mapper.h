@@ -25,17 +25,15 @@ class DelaEP7x8Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
-    private:
+   private:
         uint8_t selectedBank;
         bool disabled;
-
-        bool applyMappingAfterLoad() override;
 
         bool decodeBank(uint8_t value, uint8_t& bank) const;
 };

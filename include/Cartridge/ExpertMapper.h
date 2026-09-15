@@ -46,6 +46,8 @@ class ExpertMapper : public CartridgeMapper, public IHasButton, public IHasSwitc
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void tick(uint32_t elapsedCycles) override;
 
         bool readDrivesBus(uint16_t address) const override;
@@ -55,8 +57,6 @@ class ExpertMapper : public CartridgeMapper, public IHasButton, public IHasSwitc
 
         int32_t freezeCycles;
         bool freezeActive;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
         void pressReset();

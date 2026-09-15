@@ -28,14 +28,14 @@ class DiashowMakerMapper : public CartridgeMapper, IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         inline uint32_t getButtonCount() const override { return 1; }
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
 
     private:
         bool enabled;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
         void updateLines();

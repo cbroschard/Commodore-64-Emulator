@@ -28,6 +28,8 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         inline uint32_t getButtonCount() const override { return 2; }
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
@@ -62,7 +64,6 @@ class ActionReplayMapper : public CartridgeMapper, public IHasButton
         ARControl preFreezeCtrl;
         uint8_t preFreezeSelectedBank;
 
-        bool applyMappingAfterLoad() override;
         void applyMappingFromControl();
 
         void clearFreezeMode();
