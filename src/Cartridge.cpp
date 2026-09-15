@@ -27,6 +27,7 @@
 #include "Cartridge/EasyCalcMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
+#include "Cartridge/EXOSMapper.h"
 #include "Cartridge/ExpertMapper.h"
 #include "Cartridge/FinalCartridgeMapper.h"
 #include "Cartridge/FinalCartridgeIIIMapper.h"
@@ -496,6 +497,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
         case 0x2B:  return CartridgeType::PROPHET_64;
+        case 0x2C:  return CartridgeType::EXOS;
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x2E:  return CartridgeType::FREEZE_MACHINE;
         case 0x2F:  return CartridgeType::SNAPSHOT_64;
@@ -560,6 +562,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
         case CartridgeType::PROPHET_64:             return "Prophet 64";
+        case CartridgeType::EXOS:                   return "EXOS";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
         case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
@@ -1253,6 +1256,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
         case CartridgeType::PROPHET_64:             return std::make_unique<Prophet64Mapper>();
+        case CartridgeType::EXOS:                   return std::make_unique<EXOSMapper>();
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::FREEZE_MACHINE:         return std::make_unique<FreezeMachineMapper>();
         case CartridgeType::SNAPSHOT_64:            return std::make_unique<Snapshot64Mapper>();

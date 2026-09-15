@@ -152,7 +152,7 @@ class Cartridge
             // 41 IEEE-488
             // 42 Game Killer
             PROPHET_64,             // 43
-            // 44 EXOS
+            EXOS,                   // 44
 
             FREEZE_FRAME,           // 45
             FREEZE_MACHINE,         // 46
