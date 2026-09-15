@@ -29,6 +29,8 @@ class BlackBoxV9Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         bool readDrivesBus(uint16_t address) const;
 
     private:
@@ -38,8 +40,6 @@ class BlackBoxV9Mapper : public CartridgeMapper
         bool exromHigh;
 
         void decodeControl(uint16_t address, bool isWrite);
-
-        bool applyMappingAfterLoad() override;
 
         void updateLines();
 };
