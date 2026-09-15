@@ -25,15 +25,13 @@ class MagicDeskMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
-    protected:
-
-    private:
+   private:
         uint8_t magicDeskBank;
         bool disabled;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // MAGICDESKMAPPER_H

@@ -34,6 +34,8 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         bool hasPersistence() const override { return true; }
         bool savePersistence(const std::string& path) const override;
         bool loadPersistence(const std::string& path) override;
@@ -103,8 +105,6 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
         void writeControlRegister(uint16_t address, uint8_t value);
 
         bool initializeROM();
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // IDE64MAPPER_H

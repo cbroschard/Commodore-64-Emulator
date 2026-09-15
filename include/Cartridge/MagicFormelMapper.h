@@ -25,15 +25,13 @@ class MagicFormelMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        bool readDrivesBus(uint16_t address) const override;
+        bool applyMappingAfterLoad() override;
 
-    protected:
+        bool readDrivesBus(uint16_t address) const override;
 
     private:
         bool romEnabled;
         uint8_t selectedBank;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // MAGICFORMELMAPPER_H

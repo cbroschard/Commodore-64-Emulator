@@ -54,9 +54,9 @@ class FinalCartridgeIIIMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        bool readDrivesBus(uint16_t address) const override;
+        bool applyMappingAfterLoad() override;
 
-    protected:
+        bool readDrivesBus(uint16_t address) const override;
 
     private:
         // Live mapper state
@@ -65,8 +65,6 @@ class FinalCartridgeIIIMapper : public CartridgeMapper, public IHasButton
 
         uint8_t freezeBank;
         bool freezeActive;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
         void pressReset();

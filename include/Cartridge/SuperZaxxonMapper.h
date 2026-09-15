@@ -28,10 +28,7 @@ class SuperZaxxonMapper : public CartridgeMapper
         bool romReadHandledByMapper(uint16_t address) const override;
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
-
         uint8_t currentBank;
 };
 

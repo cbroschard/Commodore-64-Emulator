@@ -65,6 +65,8 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void tick(uint32_t elapsedCycles) override;
 
         void reset() override;
@@ -80,8 +82,6 @@ class RetroReplayMapper : public CartridgeMapper, public IHasButton
         bool de01Locked;
         bool flashMode;
         uint32_t freezeDelayCycles;
-
-        bool applyMappingAfterLoad() override;
 
         // Called from UI
         void pressFreeze();

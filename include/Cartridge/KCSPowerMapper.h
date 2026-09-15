@@ -32,11 +32,11 @@ class KCSPowerMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         bool readDrivesBus(uint16_t address) const;
 
     private:
-        bool applyMappingAfterLoad() override;
-
         void pressFreeze();
         void pressReset();
 };

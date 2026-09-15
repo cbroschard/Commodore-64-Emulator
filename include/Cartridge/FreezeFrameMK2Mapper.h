@@ -27,6 +27,8 @@ class FreezeFrameMK2Mapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         // Reset button
         inline uint32_t getButtonCount() const override { return 1; }
         const char* getButtonName(uint32_t buttonIndex) const override;
@@ -36,14 +38,10 @@ class FreezeFrameMK2Mapper : public CartridgeMapper, public IHasButton
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         uint8_t selectedBank;
 
-        bool applyMappingAfterLoad() override;
-
-        // Help
+        // Helpers
         bool setBank(uint8_t bank);
 };
 

@@ -25,17 +25,15 @@ class RGCDMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         uint8_t rgcdBank;
         bool disabled;
-
-        bool applyMappingAfterLoad() override;
 
         bool isHuckyRevision() const;
         uint8_t resolvePhysicalBank(uint8_t requestedBank) const;

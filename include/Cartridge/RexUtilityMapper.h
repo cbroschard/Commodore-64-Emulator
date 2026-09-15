@@ -25,12 +25,10 @@ class RexUtilityMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
-    protected:
+        bool applyMappingAfterLoad() override;
 
     private:
         bool romEnabled;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // REXUTILITYMAPPER_H

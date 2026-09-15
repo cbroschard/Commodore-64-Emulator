@@ -31,10 +31,10 @@ class ZippCode48Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
     private:
         bool enabled;
-
-        bool applyMappingAfterLoad() override;
 
         void updateLines();
 };

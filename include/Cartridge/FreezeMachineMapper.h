@@ -28,6 +28,8 @@ class FreezeMachineMapper : public CartridgeMapper, IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         inline uint32_t getButtonCount() const override { return 1; }
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
@@ -43,8 +45,6 @@ class FreezeMachineMapper : public CartridgeMapper, IHasButton
         Mode mode;
         bool normal16K;
         uint8_t selectedHalf;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
 };

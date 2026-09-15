@@ -31,7 +31,6 @@ class OceanMapper : public CartridgeMapper
         bool readDrivesBus(uint16_t address) const override;
 
     private:
-
         bool builtLists;
         std::vector<uint16_t> banks;   // Valid Ocean bank numbers seen in CHIP sections
         uint8_t sel;

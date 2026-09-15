@@ -26,16 +26,14 @@ class WarpSpeedMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
-    private:
+   private:
         bool enabled;
 
         std::array<uint8_t, 0x200> ioMirror;
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // WARPSPEEDMAPPER_H

@@ -27,6 +27,8 @@ class GMod2Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         // EEPROM support
         inline bool hasPersistence() const override { return true; }
         bool savePersistence(const std::string& path) const override;
@@ -36,8 +38,6 @@ class GMod2Mapper : public CartridgeMapper
         bool romReadHandledByMapper(uint16_t address) const override;
 
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         SerialEEPROM93C86 eeprom;
@@ -97,7 +97,6 @@ class GMod2Mapper : public CartridgeMapper
             bool load(StateReader& rdr);
         } ctrl;
 
-        bool applyMappingAfterLoad() override;
         void applyMappingFromControl();
 
         bool rebuildFlashImageFromCRT();

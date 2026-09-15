@@ -32,9 +32,9 @@ class FinalCartridgePlusMapper : public CartridgeMapper, public IHasButton
 
         bool isRegionEnabled(CartRegion region) const override;
 
-        bool readDrivesBus(uint16_t address) const override;
+        bool applyMappingAfterLoad() override;
 
-    protected:
+        bool readDrivesBus(uint16_t address) const override;
 
     private:
         uint8_t bit7Latch; // Any writes to IO-2 range, BIT 7 is a latch that can be read back
@@ -42,8 +42,6 @@ class FinalCartridgePlusMapper : public CartridgeMapper, public IHasButton
         bool cartDisabled;
         bool rom8000BfffDisabled;
         bool e000Disabled;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
         void pressReset();

@@ -25,18 +25,16 @@ class RexEP256Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void reset() override;
 
         bool readDrivesBus(uint16_t address) const override;
-
-    protected:
 
     private:
         uint8_t selectedSocket;
         uint8_t selectedSlice;
         bool disabled;
-
-        bool applyMappingAfterLoad() override;
 
          // REX-specific helper.
         bool loadSocketSlice(uint8_t socket, uint8_t slice);

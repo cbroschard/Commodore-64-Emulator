@@ -31,13 +31,10 @@ class MAXBASICMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
-    private:
-
         bool applyMappingAfterLoad() override;
 
+    private:
         void updateLines();
-
-
 };
 
 #endif // MAXBASICMAPPER_H

@@ -30,14 +30,12 @@ class FinalCartridgeMapper : public CartridgeMapper, public IHasButton
 
         bool loadIntoMemory(uint8_t bank) override;
 
-        bool readDrivesBus(uint16_t address) const override;
+        bool applyMappingAfterLoad() override;
 
-    protected:
+        bool readDrivesBus(uint16_t address) const override;
 
     private:
         bool cartEnabled;
-
-        bool applyMappingAfterLoad() override;
 
         void pressFreeze();
         void pressReset();

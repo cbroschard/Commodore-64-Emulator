@@ -28,8 +28,6 @@ class GenericMapper : public CartridgeMapper
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
         uint8_t currentBank;
 };

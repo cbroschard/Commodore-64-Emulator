@@ -25,12 +25,11 @@ class WestermannMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // WESTERMANNMAPPER_H

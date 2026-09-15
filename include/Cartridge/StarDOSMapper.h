@@ -25,12 +25,12 @@ class StarDOSMapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
         void tick(uint32_t elapsedCycles) override;
 
         bool readDrivesBus(uint16_t address) const override;
         bool romReadHandledByMapper(uint16_t address) const override;
-
-    protected:
 
     private:
         static constexpr uint16_t CHARGE_INCREMENT = 16;
@@ -45,8 +45,6 @@ class StarDOSMapper : public CartridgeMapper
         void chargeIO1();
         void chargeIO2();
         void applyLineState();
-
-        bool applyMappingAfterLoad() override;
 };
 
 #endif // STARDOSMAPPER_H
