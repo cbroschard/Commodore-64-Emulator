@@ -79,6 +79,7 @@ class Bus : public CPUBus
         inline void setCartridgeAttached(bool attached) { cartridgeAttached = attached; }
         inline void setROMLOverlayIsRAM(bool enabled) { romLOverlayIsRAM = enabled; }
         inline void setROMHOverlayIsRAM(bool enabled) { romHOverLayIsRAM = enabled; }
+        inline void setExternalKernalActive(bool enabled) { externalKernalActive = enabled; }
 
         // Cassette API
         void setCassetteSenseLow(bool low);
@@ -135,6 +136,7 @@ class Bus : public CPUBus
         bool cartridgeAttached;
         bool romLOverlayIsRAM;
         bool romHOverLayIsRAM;
+        bool externalKernalActive;
 };
 
 #endif // BUS_H

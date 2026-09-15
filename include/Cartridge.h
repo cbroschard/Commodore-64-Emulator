@@ -218,6 +218,9 @@ class Cartridge
         inline CartridgeMapper* getMapper() { return mapper.get(); }
         inline const CartridgeMapper* getMapper() const { return mapper.get(); }
 
+        // Setters
+        void setExternalKernalActive(bool enabled);
+
         CartridgeType getType() const;
         std::string getMapperName() const;
 

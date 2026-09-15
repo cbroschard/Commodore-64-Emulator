@@ -767,6 +767,14 @@ void Cartridge::writeCartridge(uint16_t address, uint8_t value, cartLocation loc
     }
 }
 
+void Cartridge::setExternalKernalActive(bool enabled)
+{
+    if (!bus)
+        return;
+
+    bus->setExternalKernalActive(enabled);
+}
+
 bool Cartridge::setCurrentBank(uint16_t bank)
 {
     bool bankFound = false;

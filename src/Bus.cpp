@@ -44,7 +44,8 @@ Bus::Bus() :
     vic(nullptr),
     cartridgeAttached(false),
     romLOverlayIsRAM(false),
-    romHOverLayIsRAM(false)
+    romHOverLayIsRAM(false),
+    externalKernalActive(false)
 {
 
 }
@@ -135,6 +136,9 @@ uint8_t Bus::read(uint16_t address)
 
         case PLA::KERNAL_ROM:
         {
+            if (externalKernalActive && cart && cartridgeAttached)
+                return cartridgeRead(cart->readCartridge(accessInfo.offset, cartLocation::HI_E000));
+
             return memoryRead(mem->readKernalROM(accessInfo.offset));
         }
 
@@ -660,7 +664,12 @@ uint8_t Bus::readForDMA(uint16_t address)
             return driveMemory(mem->readRAM(accessInfo.offset));
 
         case PLA::KERNAL_ROM:
+        {
+            if (externalKernalActive && cart && cartridgeAttached)
+                return driveCartridge(cart->readCartridge(accessInfo.offset, cartLocation::HI_E000));
+
             return driveMemory(mem->readKernalROM(accessInfo.offset));
+        }
 
         case PLA::BASIC_ROM:
             return driveMemory(mem->readBASICROM(accessInfo.offset));
@@ -854,7 +863,12 @@ uint8_t Bus::peek(uint16_t address) const
             return mem->readRAM(accessInfo.offset);
 
         case PLA::KERNAL_ROM:
+        {
+            if (externalKernalActive && cart && cartridgeAttached)
+                return cart->readCartridge(accessInfo.offset, cartLocation::HI_E000);
+
             return mem->readKernalROM(accessInfo.offset);
+        }
 
         case PLA::BASIC_ROM:
             return mem->readBASICROM(accessInfo.offset);
