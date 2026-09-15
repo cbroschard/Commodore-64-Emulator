@@ -28,10 +28,7 @@ class C64GameSystemMapper : public CartridgeMapper
 
         bool readDrivesBus(uint16_t address) const override;
 
-    protected:
-
     private:
-
         uint8_t selectedBank;
 };
 
