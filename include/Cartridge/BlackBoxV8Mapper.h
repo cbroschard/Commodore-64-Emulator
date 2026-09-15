@@ -27,12 +27,12 @@ class BlackBoxV8Mapper : public CartridgeMapper
 
         bool loadIntoMemory(uint8_t bank) override;
 
+        bool applyMappingAfterLoad() override;
+
     private:
         uint8_t selectedBank;
         bool gameHigh;
         bool exromHigh;
-
-        bool applyMappingAfterLoad() override;
 
         void updateLines();
 };
