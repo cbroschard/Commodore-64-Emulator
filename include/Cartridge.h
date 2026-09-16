@@ -169,7 +169,7 @@ class Cartridge
 
             // 53 Pagefox
             KINGSOFT,               // 54
-            // 55 Silverrock 128K
+            SILVERROCK_128,         // 55
             // 56 Formel 64
 
             RGCD,                   // 57
