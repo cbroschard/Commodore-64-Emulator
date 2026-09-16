@@ -59,6 +59,7 @@
 #include "Cartridge/Snapshot64Mapper.h"
 #include "Cartridge/StarDOSMapper.h"
 #include "Cartridge/StructuredBasicMapper.h"
+#include "Cartridge/SuperExplodeV5Mapper.h"
 #include "Cartridge/SuperGamesMapper.h"
 #include "Cartridge/SuperSnapshotV4Mapper.h"
 #include "Cartridge/SuperSnapshotV5Mapper.h"
@@ -504,6 +505,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
         case 0x2E:  return CartridgeType::FREEZE_MACHINE;
         case 0x2F:  return CartridgeType::SNAPSHOT_64;
+        case 0x30:  return CartridgeType::SUPER_EXPLODE_V5;
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
         case 0x34:  return CartridgeType::DIASHOW_MAKER;
@@ -577,6 +579,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
         case CartridgeType::FREEZE_MACHINE:         return "Freeze Machine";
         case CartridgeType::SNAPSHOT_64:            return "Snapshot64";
+        case CartridgeType::SUPER_EXPLODE_V5:       return "Super Explode V5";
         case CartridgeType::GMOD2:                  return "Gmod2";
         case CartridgeType::MAX_BASIC:              return "MAX BASIC";
         case CartridgeType::ZIPP_CODE_48:           return "ZIPP-CODE 48";
@@ -1269,6 +1272,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
         case CartridgeType::FREEZE_MACHINE:         return std::make_unique<FreezeMachineMapper>();
         case CartridgeType::SNAPSHOT_64:            return std::make_unique<Snapshot64Mapper>();
+        case CartridgeType::SUPER_EXPLODE_V5:       return std::make_unique<SuperExplodeV5Mapper>();
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
         case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();

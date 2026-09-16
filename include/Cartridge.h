@@ -160,7 +160,7 @@ class Cartridge
             FREEZE_MACHINE,         // 46
             SNAPSHOT_64,            // 47
 
-            // 48 Super Explode V5
+            SUPER_EXPLODE_V5,       // 48
             // 49 Magic Voice
 
             ACTION_REPLAY_2,        // 50
