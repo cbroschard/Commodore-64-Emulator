@@ -562,6 +562,11 @@ void Computer::setSIDModel(const std::string& model)
     if (components_.resetCtl) components_.resetCtl->setSIDModel(model);
 }
 
+double Computer::getCPUClockHz() const
+{
+    return cpuCfg_ ? cpuCfg_->clockSpeedHz : 0.0;
+}
+
 void Computer::wireUp()
 {
     MachineBuilder::assemble(this, components_, runtime_, roms_);

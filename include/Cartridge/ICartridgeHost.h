@@ -16,6 +16,7 @@ class ICartridgeHost
         virtual void requestWarmReset() = 0;
         virtual void requestColdReset() = 0;
         virtual void requestCartridgeNMI() = 0;
+        virtual double getCPUClockHz() const = 0;
 };
 
 #endif // ICARTRIDGEHOST_H_INCLUDED

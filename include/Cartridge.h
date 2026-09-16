@@ -41,6 +41,8 @@ class Cartridge
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
+        inline double getCPUClockHz() const { return host ? host->getCPUClockHz() : 0.0; }
+
         // State management
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);

@@ -66,6 +66,7 @@ class Computer : public ICartridgeHost
         inline bool getCartridgeAttached() const { return components_.media ? components_.media->getState().cartAttached : false; }
         inline Joystick* getJoy1() { return components_.inputMgr ? components_.inputMgr->getJoy1() : nullptr; }
         inline Joystick* getJoy2() { return components_.inputMgr ? components_.inputMgr->getJoy2() : nullptr; }
+        double getCPUClockHz() const override;
 
         // Game controls
         void setJoystickConfig(int port, const JoystickMapping& cfg);
