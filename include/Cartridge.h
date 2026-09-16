@@ -194,7 +194,7 @@ class Cartridge
 
             // 72 Lt. Kernal Host Adaptor
             // 73 RAMLink
-            // 74 H.E.R.O.
+            DREAN,                  // 74
             // 75 IEEE Flash! 64
             // 76 Turtle Graphics II
 

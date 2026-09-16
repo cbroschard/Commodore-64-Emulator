@@ -25,6 +25,7 @@
 #include "Cartridge/DelaEP256Mapper.h"
 #include "Cartridge/DiashowMakerMapper.h"
 #include "Cartridge/DinamicMapper.h"
+#include "Cartridge/DreanMapper.h"
 #include "Cartridge/EasyCalcMapper.h"
 #include "Cartridge/EasyFlashMapper.h"
 #include "Cartridge/EpyxFastloadMapper.h"
@@ -515,6 +516,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x42:  return CartridgeType::BLACKBOX_V4;
         case 0x44:  return CartridgeType::BIS_PLUS;
         case 0x47:  return CartridgeType::BLACKBOX_V9;
+        case 0x4A:  return CartridgeType::DREAN;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
@@ -581,6 +583,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
         case CartridgeType::BIS_PLUS:               return "BIS-Plus";
         case CartridgeType::BLACKBOX_V9:            return "BlackBox V9";
+        case CartridgeType::DREAN:                  return "Drean H.E.R.O.";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
@@ -1276,6 +1279,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
         case CartridgeType::BIS_PLUS:               return std::make_unique<BISPlusMapper>();
         case CartridgeType::BLACKBOX_V9:            return std::make_unique<BlackBoxV9Mapper>();
+        case CartridgeType::DREAN:                  return std::make_unique<DreanMapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
