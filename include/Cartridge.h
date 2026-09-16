@@ -196,7 +196,7 @@ class Cartridge
             // 73 RAMLink
             DREAN,                  // 74
             // 75 IEEE Flash! 64
-            // 76 Turtle Graphics II
+            TURTLE_GRAPHICE_II,     // 76
 
             FREEZE_FRAME_MK2,       // 77
 
