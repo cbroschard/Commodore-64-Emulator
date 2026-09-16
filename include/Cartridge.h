@@ -168,7 +168,7 @@ class Cartridge
             DIASHOW_MAKER,          // 52
 
             // 53 Pagefox
-            // 54 Kingsoft
+            KINGSOFT,               // 54
             // 55 Silverrock 128K
             // 56 Formel 64
 

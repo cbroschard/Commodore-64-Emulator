@@ -42,6 +42,7 @@
 #include "Cartridge/GMod2Mapper.h"
 #include "Cartridge/IDE64Mapper.h"
 #include "Cartridge/KCSPowerMapper.h"
+#include "Cartridge/KingsoftMapper.h"
 #include "Cartridge/Mach5Mapper.h"
 #include "Cartridge/MagicDeskMapper.h"
 #include "Cartridge/MagicDesk16Mapper.h"
@@ -509,6 +510,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
         case 0x34:  return CartridgeType::DIASHOW_MAKER;
+        case 0x36:  return CartridgeType::KINGSOFT;
         case 0x39:  return CartridgeType::RGCD;
         case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
@@ -574,6 +576,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
         case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
+        case CartridgeType::KINGSOFT:               return "Kingsoft";
         case CartridgeType::RGCD:                   return "RGCD";
         case CartridgeType::EASYCALC:               return "EasyCalc";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
@@ -1276,6 +1279,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
         case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
+        case CartridgeType::KINGSOFT:               return std::make_unique<KingsoftMapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
         case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
