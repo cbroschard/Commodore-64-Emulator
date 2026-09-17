@@ -69,6 +69,7 @@
 #include "Cartridge/SuperSnapshotV5Mapper.h"
 #include "Cartridge/SuperZaxxonMapper.h"
 #include "Cartridge/TurtleGraphicsIIMapper.h"
+#include "Cartridge/UniversalCartridge1Mapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
 #include "Cartridge/ZippCode48Mapper.h"
@@ -400,6 +401,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::PARTNER_64: // Partner 64 has 8K RAM
             configureRAM(8192);
             break;
+        case CartridgeType::UNIVERSAL_CARTRIDGE_1:
+            configureRAM(32768);
+            break;
         default:
             break;
     }
@@ -533,6 +537,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
         case 0x4E:  return CartridgeType::PARTNER_64;
         case 0x4F:  return CartridgeType::HYPER_BASIC;
+        case 0x50:  return CartridgeType::UNIVERSAL_CARTRIDGE_1;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -606,6 +611,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
         case CartridgeType::PARTNER_64:             return "Partner 64";
         case CartridgeType::HYPER_BASIC:            return "Hyper-BASIC";
+        case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return "Universal Cartridge 1";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
@@ -997,6 +1003,14 @@ void Cartridge::clearCartridge(cartLocation location)
         writeCartridge(offset, 0xFF, location);
 }
 
+CartridgeWriteRoute Cartridge::cpuWriteRoute(uint16_t address) const
+{
+    if (!mapper)
+        return CartridgeWriteRoute::System;
+
+    return mapper->cpuWriteRoute(address);
+}
+
 bool Cartridge::processChipSections()
 {
     size_t offset = sizeof(header); // 64 Byte header
@@ -1308,6 +1322,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
         case CartridgeType::PARTNER_64:             return std::make_unique<Partner64Mapper>();
         case CartridgeType::HYPER_BASIC:            return std::make_unique<HyperBasicMapper>();
+        case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return std::make_unique<UniversalCartridge1Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:
