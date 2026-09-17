@@ -52,6 +52,7 @@
 #include "Cartridge/MikroAssemblerMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/Prophet64Mapper.h"
+#include "Cartridge/Partner64Mapper.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexEP256Mapper.h"
 #include "Cartridge/RexUtilityMapper.h"
@@ -396,6 +397,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::MAX_BASIC: // MAX BASIC has 2K RAM
             configureRAM(2048);
             break;
+        case CartridgeType::PARTNER_64: // Partner 64 has 8K RAM
+            configureRAM(8192);
+            break;
         default:
             break;
     }
@@ -527,6 +531,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x4A:  return CartridgeType::DREAN;
         case 0x4C:  return CartridgeType::TURTLE_GRAPHICE_II;
         case 0x4D:  return CartridgeType::FREEZE_FRAME_MK2;
+        case 0x4E:  return CartridgeType::PARTNER_64;
         case 0x4F:  return CartridgeType::HYPER_BASIC;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
@@ -599,6 +604,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::DREAN:                  return "Drean H.E.R.O.";
         case CartridgeType::TURTLE_GRAPHICE_II:     return "Turtle Graphics II";
         case CartridgeType::FREEZE_FRAME_MK2:       return "Freeze Frame MK2";
+        case CartridgeType::PARTNER_64:             return "Partner 64";
         case CartridgeType::HYPER_BASIC:            return "Hyper-BASIC";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
@@ -1300,6 +1306,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::DREAN:                  return std::make_unique<DreanMapper>();
         case CartridgeType::TURTLE_GRAPHICE_II:     return std::make_unique<TurtleGraphicsIIMapper>();
         case CartridgeType::FREEZE_FRAME_MK2:       return std::make_unique<FreezeFrameMK2Mapper>();
+        case CartridgeType::PARTNER_64:             return std::make_unique<Partner64Mapper>();
         case CartridgeType::HYPER_BASIC:            return std::make_unique<HyperBasicMapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
