@@ -203,7 +203,7 @@ class Cartridge
             FREEZE_FRAME_MK2,       // 77
 
             // 78 Partner 64
-            // 79 Hyper-BASIC
+            HYPER_BASIC,            // 79
             // 80 Universal Cartridge 1
             // 81 Universal Cartridge 1.5
             // 82 Universal Cartridge 2
