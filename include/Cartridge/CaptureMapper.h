@@ -36,7 +36,9 @@ class CaptureMapper : public CartridgeMapper, public IHasButton
 
         void reset() override;
 
-        bool cpuMemoryHandledByMapper(uint16_t address) const override;
+        bool cpuReadHandledByMapper(uint16_t address) const override;
+        CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
+
         bool romReadHandledByMapper(uint16_t address) const override;
         bool readDrivesBus(uint16_t address) const override;
 

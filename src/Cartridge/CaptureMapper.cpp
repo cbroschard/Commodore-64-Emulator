@@ -268,20 +268,36 @@ bool CaptureMapper::setMode(Mode newMode)
     return applyMappingAfterLoad();
 }
 
-bool CaptureMapper::cpuMemoryHandledByMapper(uint16_t address) const
+bool CaptureMapper::cpuReadHandledByMapper(uint16_t address) const
 {
     if (!cart)
         return false;
 
-    // Capture RAM is visible here while the cartridge is in freeze/Ultimax mode.
+    // Capture RAM at $6000-$7FFF while frozen.
     if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
         return true;
 
-    // Capture control accesses.
+    // Capture control reads.
     if (registersEnabled && (address == 0xFFF7 || address == 0xFFF8))
         return true;
 
     return false;
+}
+
+CartridgeWriteRoute CaptureMapper::cpuWriteRoute(uint16_t address) const
+{
+    if (!cart)
+        return CartridgeWriteRoute::System;
+
+    // Capture RAM at $6000-$7FFF while frozen.
+    if (mode == Mode::Freeze && address >= 0x6000 && address <= 0x7FFF)
+        return CartridgeWriteRoute::CartridgeOnly;
+
+    // Capture control writes.
+    if (registersEnabled && (address == 0xFFF7 || address == 0xFFF8))
+        return CartridgeWriteRoute::CartridgeOnly;
+
+    return CartridgeWriteRoute::System;
 }
 
 bool CaptureMapper::romReadHandledByMapper(uint16_t address) const

@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <string>
+#include "common/CartridgeTypes.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -64,7 +65,8 @@ class CartridgeMapper
         virtual bool readDrivesBus(uint16_t address) const;
 
         // CPU RAM
-        virtual bool cpuMemoryHandledByMapper(uint16_t address) const;
+        virtual bool cpuReadHandledByMapper(uint16_t address) const;
+        virtual CartridgeWriteRoute cpuWriteRoute(uint16_t address) const;
 
     protected:
         Bus* bus;

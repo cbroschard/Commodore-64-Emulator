@@ -61,7 +61,8 @@ class IDE64Mapper : public CartridgeMapper, public IHasButton, public IHasIDE64S
 
         void pressReset();
 
-        bool cpuMemoryHandledByMapper(uint16_t address) const override;
+        bool cpuReadHandledByMapper(uint16_t address) const override;
+        CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
 
         bool readDrivesBus(uint16_t address) const override;
 

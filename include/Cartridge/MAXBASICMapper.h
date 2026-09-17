@@ -27,11 +27,12 @@ class MAXBASICMapper : public CartridgeMapper
 
         uint8_t peek(uint16_t address) const override;
 
-        bool cpuMemoryHandledByMapper(uint16_t address) const override;
-
         bool loadIntoMemory(uint8_t bank) override;
 
         bool applyMappingAfterLoad() override;
+
+        bool cpuReadHandledByMapper(uint16_t address) const override;
+        CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
 
     private:
         void updateLines();

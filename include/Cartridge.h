@@ -204,7 +204,7 @@ class Cartridge
 
             PARTNER_64,             // 78
             HYPER_BASIC,            // 79
-            // 80 Universal Cartridge 1
+            UNIVERSAL_CARTRIDGE_1,  // 80
             // 81 Universal Cartridge 1.5
             // 82 Universal Cartridge 2
             // 83 BMP Data Turbo 2000
@@ -244,7 +244,8 @@ class Cartridge
         inline bool romWriteEnabled(uint16_t address) const { return mapper ? mapper->romWriteEnabled(address) : false; }
         inline bool romReadHandledByMapper(uint16_t address) const { return mapper ? mapper->romReadHandledByMapper(address) : false; }
 
-        inline bool cpuMemoryHandledByMapper(uint16_t address) const { return mapper ? mapper->cpuMemoryHandledByMapper(address) : false;}
+        inline bool cpuReadHandledByMapper(uint16_t address) const { return mapper && mapper->cpuReadHandledByMapper(address); }
+        CartridgeWriteRoute cpuWriteRoute(uint16_t address) const;
 
     protected:
         // Cartridge LO/HI location constants

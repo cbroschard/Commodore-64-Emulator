@@ -648,7 +648,7 @@ void IDE64Mapper::pressReset()
         cart->requestWarmReset();
 }
 
-bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
+bool IDE64Mapper::cpuReadHandledByMapper(uint16_t address) const
 {
     if (ctrl.killed)
         return false;
@@ -656,17 +656,37 @@ bool IDE64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
     // These IDE64 mappings are only active in Ultimax mode.
     if (!ctrl.game && ctrl.exrom)
     {
-        if ((address >= 0x1000 && address <= 0x7FFF) ||
-            (address >= 0xC000 && address <= 0xCFFF))
-        {
+        // IDE64 internal RAM.
+        if ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF))
             return true;
-        }
 
+        // Upper half of selected ROM.
         if (address >= 0xA000 && address <= 0xBFFF)
             return true;
     }
 
     return false;
+}
+
+CartridgeWriteRoute IDE64Mapper::cpuWriteRoute(uint16_t address) const
+{
+    if (ctrl.killed)
+        return CartridgeWriteRoute::System;
+
+    // These IDE64 mappings are only active in Ultimax mode.
+    if (!ctrl.game && ctrl.exrom)
+    {
+        // IDE64 internal RAM.
+        if ((address >= 0x1000 && address <= 0x7FFF) || (address >= 0xC000 && address <= 0xCFFF))
+            return CartridgeWriteRoute::CartridgeOnly;
+
+        // ROM is read-only. Swallow writes rather than allowing
+        // them to reach normal C64 memory.
+        if (address >= 0xA000 && address <= 0xBFFF)
+            return CartridgeWriteRoute::CartridgeOnly;
+    }
+
+    return CartridgeWriteRoute::System;
 }
 
 bool IDE64Mapper::applyMappingAfterLoad()

@@ -34,7 +34,8 @@ class Partner64Mapper : public CartridgeMapper, public IHasButton
         const char* getButtonName(uint32_t buttonIndex) const override;
         void pressButton(uint32_t buttonIndex) override;
 
-        bool cpuMemoryHandledByMapper(uint16_t address) const override;
+        bool cpuReadHandledByMapper(uint16_t address) const override;
+        CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
 
     private:
         bool enabled;

@@ -11,4 +11,12 @@
 // Cartridge memory location
 enum cartLocation { LO, HI, HI_E000 };
 
+// Cartridge write routing
+enum class CartridgeWriteRoute
+{
+    System,
+    CartridgeOnly,
+    CartridgeAndSystem
+};
+
 #endif // CARTRIDGETYPES_H_INCLUDED

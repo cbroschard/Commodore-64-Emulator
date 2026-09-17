@@ -75,11 +75,6 @@ uint8_t MAXBASICMapper::peek(uint16_t address) const
     return cart->sampleDataBus();
 }
 
-bool MAXBASICMapper::cpuMemoryHandledByMapper(uint16_t address) const
-{
-    return address >= 0x0800 && address <= 0x0FFF;
-}
-
 bool MAXBASICMapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart)
@@ -131,6 +126,19 @@ bool MAXBASICMapper::applyMappingAfterLoad()
     updateLines();
 
     return true;
+}
+
+bool MAXBASICMapper::cpuReadHandledByMapper(uint16_t address) const
+{
+    return address >= 0x0800 && address <= 0x0FFF;
+}
+
+CartridgeWriteRoute MAXBASICMapper::cpuWriteRoute(uint16_t address) const
+{
+    if (address >= 0x0800 && address <= 0x0FFF)
+        return CartridgeWriteRoute::CartridgeOnly;
+
+    return CartridgeWriteRoute::System;
 }
 
 void MAXBASICMapper::updateLines()

@@ -31,8 +31,14 @@ bool CartridgeMapper::readDrivesBus(uint16_t address) const
     return true;
 }
 
-bool CartridgeMapper::cpuMemoryHandledByMapper(uint16_t address) const
+bool CartridgeMapper::cpuReadHandledByMapper(uint16_t address) const
 {
     (void)address;
     return false;
+}
+
+CartridgeWriteRoute CartridgeMapper::cpuWriteRoute(uint16_t address) const
+{
+    (void)address;
+    return CartridgeWriteRoute::System;
 }

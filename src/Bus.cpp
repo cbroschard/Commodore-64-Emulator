@@ -116,10 +116,8 @@ uint8_t Bus::read(uint16_t address)
     if (address == 0x0001)
         return memoryRead(cpu6510Port->readPort());
 
-    // Mapper-controlled CPU accesses are checked before PLA decoding.
-    // Capture uses this for cartridge RAM at $6000-$7FFF and its
-    // control locations at $FFF7-$FFF8.
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    // Mapper-controlled CPU reads are checked before PLA decoding.
+    if (cart && cartridgeAttached && cart->cpuReadHandledByMapper(address))
         return deviceRead(cart->read(address));
 
     if (!pla)
@@ -237,19 +235,27 @@ void Bus::write(uint16_t address, uint8_t value)
         return;
     }
 
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    if (cart && cartridgeAttached)
     {
-        cart->write(address, value);
+        const CartridgeWriteRoute route = cart->cpuWriteRoute(address);
 
-        if (monitor && monitor->checkWatchWrite(address, value))
+        if (route == CartridgeWriteRoute::CartridgeOnly || route == CartridgeWriteRoute::CartridgeAndSystem)
         {
-            if (debugManager)
-                debugManager->onWatchpoint();
-            else
-                monitor->enterMonitor();
-        }
+            cart->write(address, value);
 
-        return;
+            if (route == CartridgeWriteRoute::CartridgeOnly)
+            {
+                if (monitor && monitor->checkWatchWrite(address, value))
+                {
+                    if (debugManager)
+                        debugManager->onWatchpoint();
+                    else
+                        monitor->enterMonitor();
+                }
+
+                return;
+            }
+        }
     }
 
     PLA::memoryAccessInfo accessInfo = pla->getMemoryAccess(address);
@@ -315,11 +321,11 @@ void Bus::write(uint16_t address, uint8_t value)
         {
             mem->writeRAM(address, value);
 
-            // If you ever support RAM overlay in this region:
             if (romHOverLayIsRAM && cart && cartridgeAttached && cart->hasCartridgeRAM())
-            {
                 cart->writeRAM(accessInfo.offset, value);
-            }
+
+            if (cart && cartridgeAttached && cart->romWriteEnabled(address))
+                cart->write(address, value);
 
             break;
         }
@@ -650,7 +656,7 @@ uint8_t Bus::readForDMA(uint16_t address)
 
     // Mapper gets first opportunity just as with normal CPU reads.
     // Cartridge::read() handles its own DataBusLatch behavior.
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    if (cart && cartridgeAttached && cart->cpuReadHandledByMapper(address))
         return finishDMARead(cart->read(address));
 
     if (!pla)
@@ -752,10 +758,16 @@ void Bus::writeForDMA(uint16_t address, uint8_t value)
         return;
     }
 
-    if (cart && cart->cpuMemoryHandledByMapper(address))
+    if (cart && cartridgeAttached)
     {
-        cart->write(address, value);
-        return;
+        const CartridgeWriteRoute route = cart->cpuWriteRoute(address);
+
+        if (route == CartridgeWriteRoute::CartridgeOnly || route == CartridgeWriteRoute::CartridgeAndSystem)
+        {
+            cart->write(address, value);
+            if (route == CartridgeWriteRoute::CartridgeOnly)
+                return;
+        }
     }
 
     if (!pla || !mem)
@@ -821,16 +833,17 @@ void Bus::writeForDMA(uint16_t address, uint8_t value)
             break;
 
         case PLA::CARTRIDGE_HI_E000:
+        {
             mem->writeRAM(address, value);
 
-            if (romHOverLayIsRAM &&
-                cart &&
-                cart->hasCartridgeRAM())
-            {
+            if (romHOverLayIsRAM && cart && cart->hasCartridgeRAM())
                 cart->writeRAM(accessInfo.offset, value);
-            }
+
+            if (cart && cart->romWriteEnabled(address))
+                cart->write(address, value);
 
             break;
+        }
 
         case PLA::UNMAPPED:
         default:
@@ -849,7 +862,7 @@ uint8_t Bus::peek(uint16_t address) const
     if (address == 0x0001)
         return cpu6510Port ? cpu6510Port->readPort() : 0xFF;
 
-    if (cart && cartridgeAttached && cart->cpuMemoryHandledByMapper(address))
+    if (cart && cartridgeAttached && cart->cpuReadHandledByMapper(address))
         return cart->peek(address);
 
     if (!pla)
