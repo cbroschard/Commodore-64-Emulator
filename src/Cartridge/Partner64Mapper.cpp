@@ -180,7 +180,7 @@ void Partner64Mapper::pressButton(uint32_t buttonIndex)
 
 bool Partner64Mapper::cpuMemoryHandledByMapper(uint16_t address) const
 {
-    return (enabled & (address >= 0xA000 && address <= 0xBFFF));
+    return enabled && address >= 0xA000 && address <= 0xBFFF;
 }
 
 void Partner64Mapper::updateLines()
