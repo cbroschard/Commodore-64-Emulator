@@ -71,6 +71,7 @@
 #include "Cartridge/TurtleGraphicsIIMapper.h"
 #include "Cartridge/UniversalCartridge1Mapper.h"
 #include "Cartridge/UniversalCartridge15Mapper.h"
+#include "Cartridge/UniversalCartridge2Mapper.h"
 #include "Cartridge/WarpSpeedMapper.h"
 #include "Cartridge/WestermannMapper.h"
 #include "Cartridge/ZippCode48Mapper.h"
@@ -408,6 +409,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::UNIVERSAL_CARTRIDGE_15:
             configureRAM(32768);
             break;
+        case CartridgeType::UNIVERSAL_CARTRIDGE_2:
+            configureRAM(512 * 1024);
+            break;
         default:
             break;
     }
@@ -543,6 +547,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x4F:  return CartridgeType::HYPER_BASIC;
         case 0x50:  return CartridgeType::UNIVERSAL_CARTRIDGE_1;
         case 0x51:  return CartridgeType::UNIVERSAL_CARTRIDGE_15;
+        case 0x52:  return CartridgeType::UNIVERSAL_CARTRIDGE_2;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -617,7 +622,8 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::PARTNER_64:             return "Partner 64";
         case CartridgeType::HYPER_BASIC:            return "Hyper-BASIC";
         case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return "Universal Cartridge 1";
-        case CartridgeType::UNIVERSAL_CARTRIDGE_15: return "Universal Cratridge 1.5";
+        case CartridgeType::UNIVERSAL_CARTRIDGE_15: return "Universal Cartridge 1.5";
+        case CartridgeType::UNIVERSAL_CARTRIDGE_2:  return "Universal Cartridge 2";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
@@ -1330,6 +1336,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::HYPER_BASIC:            return std::make_unique<HyperBasicMapper>();
         case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return std::make_unique<UniversalCartridge1Mapper>();
         case CartridgeType::UNIVERSAL_CARTRIDGE_15: return std::make_unique<UniversalCartridge15Mapper>();
+        case CartridgeType::UNIVERSAL_CARTRIDGE_2: return std::make_unique<UniversalCartridge2Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:
