@@ -120,6 +120,52 @@ void UniversalCartridge1Mapper::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t UniversalCartridge1Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (ctrl.sramSelected)
+    {
+        if (address >= 0x8000 && address <= 0x9FFF)
+            return cart->peekRAM(ramLowOffset(address));
+
+        if (address >= 0xA000 && address <= 0xBFFF)
+            return cart->peekRAM(ramHighOffset(address));
+
+        if (address >= 0xE000 && address <= 0xFFFF)
+            return cart->peekRAM(ramHighOffset(address));
+    }
+
+    return cart->sampleDataBus();
+}
+
+bool UniversalCartridge1Mapper::readDrivesBus(uint16_t address) const
+{
+    if (!cart)
+        return false;
+
+    if (!ctrl.sramSelected)
+        return false;
+
+    switch (getMode())
+    {
+        case UC1Mode::Mode16K:
+            return address >= 0x8000 && address <= 0xBFFF;
+
+        case UC1Mode::Mode8K:
+            return address >= 0x8000 && address <= 0x9FFF;
+
+        case UC1Mode::Ultimax:
+            return (address >= 0x8000 && address <= 0x9FFF) || (address >= 0xE000 && address <= 0xFFFF);
+
+        case UC1Mode::Off:
+            return false;
+    }
+
+    return false;
+}
+
 bool UniversalCartridge1Mapper::loadIntoMemory(uint8_t bank)
 {
     if (!cart)
