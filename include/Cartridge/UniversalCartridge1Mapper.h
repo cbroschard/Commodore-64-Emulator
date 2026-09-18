@@ -36,7 +36,6 @@ class UniversalCartridge1Mapper : public CartridgeMapper
         CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
 
         bool romReadHandledByMapper(uint16_t address) const override;
-        bool romWriteEnabled(uint16_t address) const override;
 
     private:
         struct UC1Control
@@ -68,6 +67,8 @@ class UniversalCartridge1Mapper : public CartridgeMapper
 
         size_t ramLowOffset(uint16_t address) const;
         size_t ramHighOffset(uint16_t address) const;
+
+        size_t ioRamOffset(uint16_t address) const;
 };
 
 #endif // UNIVERSALCARTRIDGE1MAPPER_H

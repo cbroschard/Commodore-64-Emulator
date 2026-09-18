@@ -81,6 +81,9 @@ uint8_t UniversalCartridge1Mapper::read(uint16_t address)
             return cart->readRAM(ramHighOffset(address));
     }
 
+    if (address >= 0xDE00 && address <= 0xDFFF)
+        return cart->readRAM(ioRamOffset(address));
+
     return cart->sampleDataBus();
 }
 
@@ -88,22 +91,6 @@ void UniversalCartridge1Mapper::write(uint16_t address, uint8_t value)
 {
     if (!cart)
         return;
-
-    // SRAM writes are independent of IO-register visibility.
-    if (ctrl.sramWriteEnabled && getMode() != UC1Mode::Off)
-    {
-        if ((address >= 0x4000 && address <= 0x5FFF) || (address >= 0x8000 && address <= 0x9FFF))
-        {
-            cart->writeRAM(ramLowOffset(address), value);
-            return;
-        }
-
-        if ((address >= 0x6000 && address <= 0x7FFF) || (address >= 0xA000 && address <= 0xBFFF) || (address >= 0xE000 && address <= 0xFFFF))
-        {
-            cart->writeRAM(ramHighOffset(address), value);
-            return;
-        }
-    }
 
     // IO1 register is mirrored across $DE00-$DEFF.
     if (address >= 0xDE00 && address <= 0xDEFF)
@@ -114,9 +101,45 @@ void UniversalCartridge1Mapper::write(uint16_t address, uint8_t value)
 
             updateLines();
             (void)loadIntoMemory(ctrl.bank);
+
+            return;
+        }
+
+        // Once the register is disabled, IO1 can write the top
+        // 256 bytes of the selected SRAM bank.
+        if (ctrl.sramWriteEnabled && !ctrl.sramSelected)
+        {
+            cart->writeRAM(ioRamOffset(address), value);
+            return;
         }
 
         return;
+    }
+
+    // IO2 can write the upper 256 bytes of the selected SRAM bank
+    // when SRAM writes are enabled and EPROM is selected.
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        if (ctrl.sramWriteEnabled && !ctrl.sramSelected)
+            cart->writeRAM(ioRamOffset(address), value);
+
+        return;
+    }
+
+    // SRAM writes are independent of GAME/EXROM mode.
+    if (ctrl.sramWriteEnabled)
+    {
+        if ((address >= 0x4000 && address <= 0x5FFF) || (address >= 0x8000 && address <= 0x9FFF))
+        {
+            cart->writeRAM(ramLowOffset(address), value);
+            return;
+        }
+
+        if ((address >= 0x6000 && address <= 0x7FFF) || (address >= 0xA000 && address <= 0xBFFF))
+        {
+            cart->writeRAM(ramHighOffset(address), value);
+            return;
+        }
     }
 }
 
@@ -137,6 +160,9 @@ uint8_t UniversalCartridge1Mapper::peek(uint16_t address) const
             return cart->peekRAM(ramHighOffset(address));
     }
 
+    if (address >= 0xDE00 && address <= 0xDFFF)
+        return cart->readRAM(ioRamOffset(address));
+
     return cart->sampleDataBus();
 }
 
@@ -144,6 +170,9 @@ bool UniversalCartridge1Mapper::readDrivesBus(uint16_t address) const
 {
     if (!cart)
         return false;
+
+    if (address >= 0xDE00 && address <= 0xDFFF)
+        return true;
 
     if (!ctrl.sramSelected)
         return false;
@@ -247,10 +276,7 @@ CartridgeWriteRoute UniversalCartridge1Mapper::cpuWriteRoute(uint16_t address) c
     if (!ctrl.sramWriteEnabled)
         return CartridgeWriteRoute::System;
 
-    if (getMode() == UC1Mode::Off)
-        return CartridgeWriteRoute::System;
-
-    if (address >= 0x4000 && address <= 0x7FFF)
+    if (address >= 0x4000 && address <= 0xBFFF)
         return CartridgeWriteRoute::CartridgeAndSystem;
 
     return CartridgeWriteRoute::System;
@@ -272,29 +298,6 @@ bool UniversalCartridge1Mapper::romReadHandledByMapper(uint16_t address) const
         case UC1Mode::Ultimax:
             return (address >= 0x8000 && address <= 0x9FFF) ||
                    (address >= 0xE000 && address <= 0xFFFF);
-
-        case UC1Mode::Off:
-            return false;
-    }
-
-    return false;
-}
-
-bool UniversalCartridge1Mapper::romWriteEnabled(uint16_t address) const
-{
-    if (!ctrl.sramWriteEnabled)
-        return false;
-
-    switch (getMode())
-    {
-        case UC1Mode::Mode16K:
-            return address >= 0x8000 && address <= 0xBFFF;
-
-        case UC1Mode::Mode8K:
-            return address >= 0x8000 && address <= 0x9FFF;
-
-        case UC1Mode::Ultimax:
-            return (address >= 0x8000 && address <= 0x9FFF) || (address >= 0xE000 && address <= 0xFFFF);
 
         case UC1Mode::Off:
             return false;
@@ -348,4 +351,10 @@ size_t UniversalCartridge1Mapper::ramLowOffset(uint16_t address) const
 size_t UniversalCartridge1Mapper::ramHighOffset(uint16_t address) const
 {
     return static_cast<size_t>((address & 0x1FFF) + 0x2000 + ((ctrl.bank & 0x01) << 14));
+}
+
+size_t UniversalCartridge1Mapper::ioRamOffset(uint16_t address) const
+{
+    const size_t bankBase = (ctrl.bank & 0x01) ? 0x4000 : 0x0000;
+    return bankBase + 0x3E00 + static_cast<size_t>(address & 0x01FF);
 }
