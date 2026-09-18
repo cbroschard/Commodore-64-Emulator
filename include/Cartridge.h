@@ -205,7 +205,7 @@ class Cartridge
             PARTNER_64,             // 78
             HYPER_BASIC,            // 79
             UNIVERSAL_CARTRIDGE_1,  // 80
-            // 81 Universal Cartridge 1.5
+            UNIVERSAL_CARTRIDGE_15, // 81
             // 82 Universal Cartridge 2
             // 83 BMP Data Turbo 2000
             // 84 Profi-DOS
