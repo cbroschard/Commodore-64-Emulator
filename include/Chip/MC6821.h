@@ -112,6 +112,10 @@ class MC6821
 
         void updateIRQA();
         void updateIRQB();
+
+        // Helpers
+        inline C2Mode getCA2Mode() const { return static_cast<C2Mode>((registers.cra >> 3) & 0x07); }
+        inline C2Mode getCB2Mode() const { return static_cast<C2Mode>((registers.crb >> 3) & 0x07); }
 };
 
 #endif // MC6821_H

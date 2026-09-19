@@ -255,6 +255,9 @@ uint8_t MC6821::readPortA()
     irqA1Flag = false;
     irqA2Flag = false;
 
+    if (getCA2Mode() == C2Mode::Handshake)
+        ca2Output = false;
+
     updateIRQA();
 
     return value;
@@ -316,6 +319,9 @@ void MC6821::writePortA(uint8_t value)
 void MC6821::writePortB(uint8_t value)
 {
     registers.orb = value;
+
+    if (getCB2Mode() == C2Mode::Handshake)
+        cb2Output = false;
 }
 
 void MC6821::writeCRA(uint8_t value)
@@ -342,6 +348,7 @@ void MC6821::writeCRA(uint8_t value)
             break;
 
         case C2Mode::Handshake:
+            ca2Output = true;
             break;
 
         case C2Mode::Pulse:
@@ -383,6 +390,7 @@ void MC6821::writeCRB(uint8_t value)
             break;
 
         case C2Mode::Handshake:
+            cb2Output = true;
             break;
 
         case C2Mode::Pulse:
@@ -412,6 +420,10 @@ void MC6821::setCA1(bool level)
     if ((risingSelected && rising) || (!risingSelected && falling))
     {
         irqA1Flag = true;
+
+        if (getCA2Mode() == C2Mode::Handshake)
+            ca2Output = true;
+
         updateIRQA();
     }
 }
@@ -444,9 +456,14 @@ void MC6821::setCB1(bool level)
 
     const bool risingSelected = (registers.crb & 0x02) != 0;
 
-    if ((risingSelected && rising) || (!risingSelected && falling))
+    if ((risingSelected && rising) ||
+        (!risingSelected && falling))
     {
         irqB1Flag = true;
+
+        if (getCB2Mode() == C2Mode::Handshake)
+            cb2Output = true;
+
         updateIRQB();
     }
 }
