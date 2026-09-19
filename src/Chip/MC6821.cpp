@@ -659,6 +659,54 @@ void MC6821::setResetLine(bool high)
         reset();
 }
 
+void MC6821::setCA2OutputCallback(std::function<void(bool)> callback)
+{
+    ca2OutputCallback = std::move(callback);
+
+    if (ca2OutputCallback)
+        ca2OutputCallback(ca2Output);
+}
+
+void MC6821::setCB2OutputCallback(std::function<void(bool)> callback)
+{
+    cb2OutputCallback = std::move(callback);
+
+    if (cb2OutputCallback)
+        cb2OutputCallback(cb2Output);
+}
+
+void MC6821::setIRQACallback(std::function<void(bool)> callback)
+{
+    irqACallback = std::move(callback);
+
+    if (irqACallback)
+        irqACallback(irqA);
+}
+
+void MC6821::setIRQBCallback(std::function<void(bool)> callback)
+{
+    irqBCallback = std::move(callback);
+
+    if (irqBCallback)
+        irqBCallback(irqB);
+}
+
+void MC6821::setPortAOutputCallback(PortOutputCallback callback)
+{
+    portAOutputCallback = std::move(callback);
+
+    if (portAOutputCallback)
+        portAOutputCallback(registers.ora, registers.ddra);
+}
+
+void MC6821::setPortBOutputCallback(PortOutputCallback callback)
+{
+    portBOutputCallback = std::move(callback);
+
+    if (portBOutputCallback)
+        portBOutputCallback(registers.orb, registers.ddrb);
+}
+
 void MC6821::synchronizeOutputs()
 {
     updatePortAOutput();

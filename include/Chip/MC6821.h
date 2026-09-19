@@ -56,12 +56,11 @@ class MC6821
 
         void setResetLine(bool high);
 
-        inline void setCA2OutputCallback(std::function<void(bool)> callback) { ca2OutputCallback = std::move(callback); }
-        inline void setCB2OutputCallback(std::function<void(bool)> callback) { cb2OutputCallback = std::move(callback); }
-
-        inline void setIRQACallback(std::function<void(bool)> callback) { irqACallback = std::move(callback); }
-        inline void setIRQBCallback(std::function<void(bool)> callback) { irqBCallback = std::move(callback); }
-
+        // Callbacks
+        void setCA2OutputCallback(std::function<void(bool)> callback);
+        void setCB2OutputCallback(std::function<void(bool)> callback);
+        void setIRQACallback(std::function<void(bool)> callback);
+        void setIRQBCallback(std::function<void(bool)> callback);
         void setPortAOutputCallback(PortOutputCallback callback);
         void setPortBOutputCallback(PortOutputCallback callback);
 
