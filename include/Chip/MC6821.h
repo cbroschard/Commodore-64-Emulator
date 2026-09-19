@@ -68,6 +68,9 @@ class MC6821
         bool irqB1Flag;
         bool irqB2Flag;
 
+        bool irqA;
+        bool irqB;
+
         bool resetLine;
 
         uint8_t readPortA();
@@ -84,6 +87,12 @@ class MC6821
 
         void writeCRA(uint8_t value);
         void writeCRB(uint8_t value);
+
+        void setCA1(bool level);
+        void setCA2(bool level);
+
+        void setCB1(bool level);
+        void setCB2(bool level);
 
         void updateIRQA();
         void updateIRQB();

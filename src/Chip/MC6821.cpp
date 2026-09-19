@@ -19,6 +19,8 @@ MC6821::MC6821() :
     irqA2Flag(false),
     irqB1Flag(false),
     irqB2Flag(false),
+    irqA(false),
+    irqB(false),
     resetLine(true)
 {
 
@@ -55,6 +57,9 @@ void MC6821::reset()
     irqA2Flag       = false;
     irqB1Flag       = false;
     irqB2Flag       = false;
+
+    irqA            = false;
+    irqB            = false;
 
     updateIRQA();
     updateIRQB();
@@ -161,12 +166,26 @@ uint8_t MC6821::peek(uint8_t rs) const
 
 uint8_t MC6821::readPortA()
 {
-    return (registers.ora & registers.ddra) | (externalPinsA & static_cast<uint8_t>(~registers.ddra));
+    const uint8_t value = (registers.ora & registers.ddra) | (externalPinsA & static_cast<uint8_t>(~registers.ddra));
+
+    irqA1Flag = false;
+    irqA2Flag = false;
+
+    updateIRQA();
+
+    return value;
 }
 
 uint8_t MC6821::readPortB()
 {
-    return (registers.orb & registers.ddrb) | (externalPinsB & static_cast<uint8_t>(~registers.ddrb));
+    const uint8_t value = (registers.orb & registers.ddrb) |(externalPinsB & static_cast<uint8_t>(~registers.ddrb));
+
+    irqB1Flag = false;
+    irqB2Flag = false;
+
+    updateIRQB();
+
+    return value;
 }
 
 uint8_t MC6821::peekPortA() const
@@ -221,6 +240,9 @@ void MC6821::writeCRA(uint8_t value)
 
     const auto mode = static_cast<C2Mode>((registers.cra >> 3) & 0x07);
 
+    if (static_cast<uint8_t>(mode) >= 4)
+        irqA2Flag = false;
+
     switch (mode)
     {
         case C2Mode::InputFallingNoIRQ:
@@ -260,6 +282,9 @@ void MC6821::writeCRB(uint8_t value)
 
     const auto mode = static_cast<C2Mode>((registers.crb >> 3) & 0x07);
 
+    if (static_cast<uint8_t>(mode) >= 4)
+        irqB2Flag = false;
+
     switch (mode)
     {
         case C2Mode::InputFallingNoIRQ:
@@ -292,14 +317,96 @@ void MC6821::writeCRB(uint8_t value)
     updateIRQB();
 }
 
-void  MC6821::updateIRQA()
+void MC6821::setCA1(bool level)
 {
+    const bool rising  = !ca1 && level;
+    const bool falling = ca1 && !level;
 
+    ca1 = level;
+
+    const bool risingSelected = (registers.cra & 0x02) != 0;
+
+    if ((risingSelected && rising) || (!risingSelected && falling))
+    {
+        irqA1Flag = true;
+        updateIRQA();
+    }
+}
+
+void MC6821::setCA2(bool level)
+{
+    if (registers.cra & 0x20)
+        return;
+
+    const bool rising  = !ca2 && level;
+    const bool falling = ca2 && !level;
+
+    ca2 = level;
+
+    const bool risingSelected = (registers.cra & 0x10) != 0;
+
+    if ((risingSelected && rising) || (!risingSelected && falling))
+    {
+        irqA2Flag = true;
+        updateIRQA();
+    }
+}
+
+void MC6821::setCB1(bool level)
+{
+    const bool rising  = !cb1 && level;
+    const bool falling = cb1 && !level;
+
+    cb1 = level;
+
+    const bool risingSelected = (registers.crb & 0x02) != 0;
+
+    if ((risingSelected && rising) || (!risingSelected && falling))
+    {
+        irqB1Flag = true;
+        updateIRQB();
+    }
+}
+
+void MC6821::setCB2(bool level)
+{
+    if (registers.crb & 0x20)
+        return;
+
+    const bool rising  = !cb2 && level;
+    const bool falling = cb2 && !level;
+
+    cb2 = level;
+
+    const bool risingSelected = (registers.crb & 0x10) != 0;
+
+    if ((risingSelected && rising) || (!risingSelected && falling))
+    {
+        irqB2Flag = true;
+        updateIRQB();
+    }
+}
+
+void MC6821::updateIRQA()
+{
+    const bool irq1 = irqA1Flag && ((registers.cra & 0x01) != 0);
+
+    const bool ca2IsInput = (registers.cra & 0x20) == 0;
+
+    const bool irq2 = ca2IsInput && irqA2Flag && ((registers.cra & 0x08) != 0);
+
+    irqA = irq1 || irq2;
 }
 
 void MC6821::updateIRQB()
 {
+    const bool irq1 = irqB1Flag && ((registers.crb & 0x01) != 0);
 
+    const bool cb2IsInput = (registers.crb & 0x20) == 0;
+
+    const bool irq2 = cb2IsInput && irqB2Flag && ((registers.crb & 0x08) != 0);
+
+    irqB = irq1 || irq2;
 }
 
 void MC6821::setResetLine(bool high)
