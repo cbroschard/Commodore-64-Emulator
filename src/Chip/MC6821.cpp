@@ -33,6 +33,28 @@ void MC6821::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("6821");
     wrtr.writeU32(1); // Version
 
+    wrtr.writeU8(registers.ora);
+    wrtr.writeU8(registers.orb);
+    wrtr.writeU8(registers.ddra);
+    wrtr.writeU8(registers.ddrb);
+    wrtr.writeU8(registers.cra);
+    wrtr.writeU8(registers.crb);
+
+    wrtr.writeU8(externalPinsA);
+    wrtr.writeU8(externalPinsB);
+
+    wrtr.writeBool(ca1);
+    wrtr.writeBool(ca2);
+    wrtr.writeBool(cb1);
+    wrtr.writeBool(cb2);
+
+    wrtr.writeBool(irqA1Flag);
+    wrtr.writeBool(irqA2Flag);
+    wrtr.writeBool(irqB1Flag);
+    wrtr.writeBool(irqB2Flag);
+
+    wrtr.writeBool(resetLine);
+
     wrtr.endChunk();
 }
 
@@ -41,6 +63,42 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (std::memcmp(chunk.tag, "6821", 4) != 0)
         return false;
 
+    rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(registers.ora))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.orb))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.ddra))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.ddrb))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.cra))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.crb))     { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU8(externalPinsA))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(externalPinsB))     { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(ca1))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ca2))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb1))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb2))             { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(irqA1Flag))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(irqA2Flag))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(irqB1Flag))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(irqB2Flag))       { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(resetLine))       { rdr.exitChunkPayload(chunk); return false; }
+
+    // Normalize post load
+    registers.cra &= 0x3F;
+    registers.crb &= 0x3F;
+
+    updateIRQA();
+    updateIRQB();
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 
