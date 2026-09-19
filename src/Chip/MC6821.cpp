@@ -363,6 +363,15 @@ uint8_t MC6821::readCRB() const
 void MC6821::writePortA(uint8_t value)
 {
     registers.ora = value;
+
+    if (getCA2Mode() == C2Mode::Handshake)
+        ca2Output = false;
+    else if (getCA2Mode() == C2Mode::Pulse)
+    {
+        ca2Output = false;
+        ca2PulseActive = true;
+        ca2PulseCycles = 1;
+    }
 }
 
 void MC6821::writePortB(uint8_t value)
