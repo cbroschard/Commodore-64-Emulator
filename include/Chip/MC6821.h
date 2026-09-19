@@ -33,6 +33,12 @@ class MC6821
         void setPortAInputs(uint8_t value);
         void setPortBInputs(uint8_t value);
 
+        inline uint8_t getPortAOutputLatch() const { return registers.ora; }
+        inline uint8_t getPortBOutputLatch() const { return registers.orb; }
+
+        inline uint8_t getPortADirection() const { return registers.ddra; }
+        inline uint8_t getPortBDirection() const { return registers.ddrb; }
+
         inline bool getCA2Output() const { return ca2Output; }
         inline bool getCB2Output() const { return cb2Output; }
 
