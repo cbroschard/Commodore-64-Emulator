@@ -40,10 +40,10 @@ class MC6821
         inline bool getIRQB() const { return irqB; }
 
         void setCA1(bool level);
-        void setCA2(bool level);
+        void setCA2Input(bool level);
 
         void setCB1(bool level);
-        void setCB2(bool level);
+        void setCB2Input(bool level);
 
         void setResetLine(bool high);
 
@@ -115,6 +115,12 @@ class MC6821
 
         void writeCRA(uint8_t value);
         void writeCRB(uint8_t value);
+
+        void setCA2Output(bool level);
+        void setCB2Output(bool level);
+
+        void setIRQAOutput(bool level);
+        void setIRQBOutput(bool level);
 
         void updateIRQA();
         void updateIRQB();

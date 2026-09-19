@@ -163,7 +163,7 @@ void MC6821::tick(uint32_t elapsedCycles)
         {
             ca2PulseCycles = 0;
             ca2PulseActive = false;
-            ca2Output = true;
+            setCA2Output(true);
         }
         else
             ca2PulseCycles -= elapsedCycles;
@@ -175,7 +175,7 @@ void MC6821::tick(uint32_t elapsedCycles)
         {
             cb2PulseCycles = 0;
             cb2PulseActive = false;
-            cb2Output = true;
+            setCB2Output(true);
         }
         else
             cb2PulseCycles -= elapsedCycles;
@@ -299,10 +299,10 @@ uint8_t MC6821::readPortA()
     irqA2Flag = false;
 
     if (getCA2Mode() == C2Mode::Handshake)
-        ca2Output = false;
+        setCA2Output(false);
     else if (getCA2Mode() == C2Mode::Pulse)
     {
-        ca2Output = false;
+        setCA2Output(false);
         ca2PulseActive = true;
         ca2PulseCycles = 1;
     }
@@ -370,10 +370,10 @@ void MC6821::writePortB(uint8_t value)
     registers.orb = value;
 
     if (getCB2Mode() == C2Mode::Handshake)
-        cb2Output = false;
+        setCB2Output(false);
     else if (getCB2Mode() == C2Mode::Pulse)
     {
-        cb2Output = false;
+        setCB2Output(false);
         cb2PulseActive = true;
         cb2PulseCycles = 1;
     }
@@ -407,21 +407,21 @@ void MC6821::writeCRA(uint8_t value)
             break;
 
         case C2Mode::Handshake:
-            ca2Output = true;
+            setCA2Output(true);
             break;
 
         case C2Mode::Pulse:
-            ca2Output = true;
+            setCA2Output(true);
             ca2PulseActive = false;
             ca2PulseCycles = 0;
             break;
 
         case C2Mode::ForceLow:
-            ca2Output = false;
+            setCA2Output(false);
             break;
 
         case C2Mode::ForceHigh:
-            ca2Output = true;
+            setCA2Output(true);
             break;
     }
 
@@ -456,21 +456,21 @@ void MC6821::writeCRB(uint8_t value)
             break;
 
         case C2Mode::Handshake:
-            cb2Output = true;
+            setCB2Output(true);
             break;
 
         case C2Mode::Pulse:
-            cb2Output = true;
+            setCB2Output(true);
             cb2PulseActive = false;
             cb2PulseCycles = 0;
             break;
 
         case C2Mode::ForceLow:
-            cb2Output = false;
+            setCB2Output(false);
             break;
 
         case C2Mode::ForceHigh:
-            cb2Output = true;
+            setCB2Output(true);
             break;
     }
 
@@ -491,13 +491,13 @@ void MC6821::setCA1(bool level)
         irqA1Flag = true;
 
         if (getCA2Mode() == C2Mode::Handshake)
-            ca2Output = true;
+            setCA2Output(true);
 
         updateIRQA();
     }
 }
 
-void MC6821::setCA2(bool level)
+void MC6821::setCA2Input(bool level)
 {
     if (registers.cra & 0x20)
         return;
@@ -516,6 +516,14 @@ void MC6821::setCA2(bool level)
     }
 }
 
+void MC6821::setCA2Output(bool level)
+{
+    if (ca2Output == level)
+        return;
+
+    ca2Output = level;
+}
+
 void MC6821::setCB1(bool level)
 {
     const bool rising  = !cb1 && level;
@@ -531,13 +539,13 @@ void MC6821::setCB1(bool level)
         irqB1Flag = true;
 
         if (getCB2Mode() == C2Mode::Handshake)
-            cb2Output = true;
+            setCB2Output(true);
 
         updateIRQB();
     }
 }
 
-void MC6821::setCB2(bool level)
+void MC6821::setCB2Input(bool level)
 {
     if (registers.crb & 0x20)
         return;
@@ -556,6 +564,30 @@ void MC6821::setCB2(bool level)
     }
 }
 
+void MC6821::setCB2Output(bool level)
+{
+    if (cb2Output == level)
+        return;
+
+    cb2Output = level;
+}
+
+void MC6821::setIRQAOutput(bool level)
+{
+    if (irqA == level)
+        return;
+
+    irqA = level;
+}
+
+void MC6821::setIRQBOutput(bool level)
+{
+    if (irqB == level)
+        return;
+
+    irqB = level;
+}
+
 void MC6821::updateIRQA()
 {
     const bool irq1 = irqA1Flag && ((registers.cra & 0x01) != 0);
@@ -564,7 +596,7 @@ void MC6821::updateIRQA()
 
     const bool irq2 = ca2IsInput && irqA2Flag && ((registers.cra & 0x08) != 0);
 
-    irqA = irq1 || irq2;
+    setIRQAOutput(irq1 || irq2);
 }
 
 void MC6821::updateIRQB()
@@ -575,7 +607,7 @@ void MC6821::updateIRQB()
 
     const bool irq2 = cb2IsInput && irqB2Flag && ((registers.crb & 0x08) != 0);
 
-    irqB = irq1 || irq2;
+    setIRQBOutput(irq1 || irq2);
 }
 
 void MC6821::setResetLine(bool high)
