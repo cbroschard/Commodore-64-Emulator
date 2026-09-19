@@ -14,9 +14,13 @@ MC6821::MC6821() :
     ca1(false),
     ca2Input(false),
     ca2Output(false),
+    ca2PulseActive(false),
+    ca2PulseCycles(0),
     cb1(false),
     cb2Input(false),
     cb2Output(false),
+    cb2PulseActive(false),
+    cb2PulseCycles(0),
     irqA1Flag(false),
     irqA2Flag(false),
     irqB1Flag(false),
@@ -48,10 +52,15 @@ void MC6821::saveState(StateWriter& wrtr) const
     wrtr.writeBool(ca1);
     wrtr.writeBool(ca2Input);
     wrtr.writeBool(ca2Output);
+    wrtr.writeBool(ca2PulseActive);
+
+    wrtr.writeU32(ca2PulseCycles);
 
     wrtr.writeBool(cb1);
     wrtr.writeBool(cb2Input);
     wrtr.writeBool(cb2Output);
+    wrtr.writeBool(cb2PulseActive);
+    wrtr.writeU32(cb2PulseCycles);
 
     wrtr.writeBool(irqA1Flag);
     wrtr.writeBool(irqA2Flag);
@@ -87,10 +96,16 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readBool(ca1))             { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(ca2Input))        { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(ca2Output))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ca2PulseActive))  { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU32(ca2PulseCycles))   { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readBool(cb1))             { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(cb2Input))        { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(cb2Output))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb2PulseActive))  { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readU32(cb2PulseCycles))   { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readBool(irqA1Flag))       { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(irqA2Flag))       { rdr.exitChunkPayload(chunk); return false; }
@@ -117,10 +132,16 @@ void MC6821::reset()
     ca1             = false;
     ca2Input        = false;
     ca2Output       = false;
+    ca2PulseActive  = false;
+
+    ca2PulseCycles  = 0;
 
     cb1             = false;
     cb2Input        = false;
     cb2Output       = false;
+    cb2PulseActive  = false;
+
+    cb2PulseCycles  = 0;
 
     irqA1Flag       = false;
     irqA2Flag       = false;
@@ -136,7 +157,29 @@ void MC6821::reset()
 
 void MC6821::tick(uint32_t elapsedCycles)
 {
+    if (ca2PulseActive)
+    {
+        if (elapsedCycles >= ca2PulseCycles)
+        {
+            ca2PulseCycles = 0;
+            ca2PulseActive = false;
+            ca2Output = true;
+        }
+        else
+            ca2PulseCycles -= elapsedCycles;
+    }
 
+    if (cb2PulseActive)
+    {
+        if (elapsedCycles >= cb2PulseCycles)
+        {
+            cb2PulseCycles = 0;
+            cb2PulseActive = false;
+            cb2Output = true;
+        }
+        else
+            cb2PulseCycles -= elapsedCycles;
+    }
 }
 
 uint8_t MC6821::read(uint8_t rs)
@@ -257,6 +300,12 @@ uint8_t MC6821::readPortA()
 
     if (getCA2Mode() == C2Mode::Handshake)
         ca2Output = false;
+    else if (getCA2Mode() == C2Mode::Pulse)
+    {
+        ca2Output = false;
+        ca2PulseActive = true;
+        ca2PulseCycles = 1;
+    }
 
     updateIRQA();
 
@@ -322,6 +371,12 @@ void MC6821::writePortB(uint8_t value)
 
     if (getCB2Mode() == C2Mode::Handshake)
         cb2Output = false;
+    else if (getCB2Mode() == C2Mode::Pulse)
+    {
+        cb2Output = false;
+        cb2PulseActive = true;
+        cb2PulseCycles = 1;
+    }
 }
 
 void MC6821::writeCRA(uint8_t value)
@@ -352,6 +407,9 @@ void MC6821::writeCRA(uint8_t value)
             break;
 
         case C2Mode::Pulse:
+            ca2Output = true;
+            ca2PulseActive = false;
+            ca2PulseCycles = 0;
             break;
 
         case C2Mode::ForceLow:
@@ -394,6 +452,9 @@ void MC6821::writeCRB(uint8_t value)
             break;
 
         case C2Mode::Pulse:
+            cb2Output = true;
+            cb2PulseActive = false;
+            cb2PulseCycles = 0;
             break;
 
         case C2Mode::ForceLow:
