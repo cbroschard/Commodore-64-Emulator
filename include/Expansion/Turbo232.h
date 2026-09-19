@@ -9,7 +9,7 @@
 #define TURBO232_H
 
 #include <cstdint>
-#include "Serial/MOS6551.h"
+#include "Chip/MOS6551.h"
 #include "Serial/RS232Device.h"
 
 class NMILine;
