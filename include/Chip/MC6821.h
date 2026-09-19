@@ -80,10 +80,16 @@ class MC6821
         bool ca1;
         bool ca2Input;
         bool ca2Output;
+        bool ca2PulseActive;
+
+        uint32_t ca2PulseCycles;
 
         bool cb1;
         bool cb2Input;
         bool cb2Output;
+        bool cb2PulseActive;
+
+        uint32_t cb2PulseCycles;
 
         bool irqA1Flag;
         bool irqA2Flag;
