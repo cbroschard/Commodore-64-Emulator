@@ -18,7 +18,8 @@ MC6821::MC6821() :
     irqA1Flag(false),
     irqA2Flag(false),
     irqB1Flag(false),
-    irqB2Flag(false)
+    irqB2Flag(false),
+    resetLine(true)
 {
 
 }
@@ -44,9 +45,6 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 void MC6821::reset()
 {
     registers       = Registers{};
-
-    externalPinsA   = 0xFF;
-    externalPinsB   = 0xFF;
 
     ca1             = false;
     ca2             = false;
@@ -75,7 +73,7 @@ uint8_t MC6821::read(uint8_t rs)
         }
 
         case 1:
-            value = registers.cra;
+            value = readCRA();
             break;
 
         case 2:
@@ -85,7 +83,7 @@ uint8_t MC6821::read(uint8_t rs)
         }
 
         case 3:
-            value = registers.crb;
+            value = readCRB();
             break;
 
         default:
@@ -100,15 +98,39 @@ void MC6821::write(uint8_t rs, uint8_t value)
     switch (rs & 0x03)
     {
         case 0:
+        {
+            if (registers.cra & 0x04)
+                writePortA(value);
+            else
+                registers.ddra = value;
+
+            break;
+        }
+
         case 1:
+            writeCRA(value);
+            break;
+
         case 2:
+        {
+            if (registers.crb & 0x04)
+                writePortB(value);
+            else
+                registers.ddrb = value;
+
+            break;
+        }
+
         case 3:
+            writeCRB(value);
+            break;
+
         default:
             break;
     }
 }
 
-uint8_t MC6821::peek(uint8_t rs)
+uint8_t MC6821::peek(uint8_t rs) const
 {
     uint8_t value = 0xFF;
 
@@ -119,7 +141,7 @@ uint8_t MC6821::peek(uint8_t rs)
             break;
 
         case 1:
-            value = registers.cra;
+            value = readCRA();
             break;
 
         case 2:
@@ -127,7 +149,7 @@ uint8_t MC6821::peek(uint8_t rs)
             break;
 
         case 3:
-            value = registers.crb;
+            value = readCRB();
             break;
 
         default:
@@ -147,44 +169,127 @@ uint8_t MC6821::readPortB()
     return (registers.orb & registers.ddrb) | (externalPinsB & static_cast<uint8_t>(~registers.ddrb));
 }
 
-uint8_t MC6821::peekPortA()
+uint8_t MC6821::peekPortA() const
 {
     return (registers.ora & registers.ddra) | (externalPinsA & static_cast<uint8_t>(~registers.ddra));
 }
 
-uint8_t MC6821::peekPortB()
+uint8_t MC6821::peekPortB() const
 {
     return (registers.orb & registers.ddrb) | (externalPinsB & static_cast<uint8_t>(~registers.ddrb));
 }
 
 uint8_t MC6821::readCRA() const
 {
+    uint8_t value = registers.cra & 0x3F;
 
+    if (irqA2Flag)
+        value |= 0x40;
+
+    if (irqA1Flag)
+        value |= 0x80;
+
+    return value;
 }
 
 uint8_t MC6821::readCRB() const
 {
+    uint8_t value = registers.crb & 0x3F;
 
+    if (irqB2Flag)
+        value |= 0x40;
+
+    if (irqB1Flag)
+        value |= 0x80;
+
+    return value;
 }
 
 void MC6821::writePortA(uint8_t value)
 {
-
+    registers.ora = value;
 }
 
 void MC6821::writePortB(uint8_t value)
 {
-
+    registers.orb = value;
 }
 
 void MC6821::writeCRA(uint8_t value)
 {
+    registers.cra = value & 0x3F;
 
+    const auto mode = static_cast<C2Mode>((registers.cra >> 3) & 0x07);
+
+    switch (mode)
+    {
+        case C2Mode::InputFallingNoIRQ:
+            break;
+
+        case C2Mode::InputFallingIRQ:
+            break;
+
+        case C2Mode::InputRisingNoIRQ:
+            break;
+
+        case C2Mode::InputRisingIRQ:
+            break;
+
+        case C2Mode::Handshake:
+            break;
+
+        case C2Mode::Pulse:
+            break;
+
+        case C2Mode::ForceLow:
+            ca2 = false;
+            break;
+
+        case C2Mode::ForceHigh:
+            // output forced high
+            ca2 = true;
+            break;
+    }
+
+    updateIRQA();
 }
 
 void MC6821::writeCRB(uint8_t value)
 {
+    registers.crb = value & 0x3F;
 
+    const auto mode = static_cast<C2Mode>((registers.crb >> 3) & 0x07);
+
+    switch (mode)
+    {
+        case C2Mode::InputFallingNoIRQ:
+            break;
+
+        case C2Mode::InputFallingIRQ:
+            break;
+
+        case C2Mode::InputRisingNoIRQ:
+            break;
+
+        case C2Mode::InputRisingIRQ:
+            break;
+
+        case C2Mode::Handshake:
+            break;
+
+        case C2Mode::Pulse:
+            break;
+
+        case C2Mode::ForceLow:
+            cb2 = false;
+            break;
+
+        case C2Mode::ForceHigh:
+            cb2 = true;
+            break;
+    }
+
+    updateIRQB();
 }
 
 void  MC6821::updateIRQA()
@@ -195,4 +300,15 @@ void  MC6821::updateIRQA()
 void MC6821::updateIRQB()
 {
 
+}
+
+void MC6821::setResetLine(bool high)
+{
+    if (resetLine == high)
+        return;
+
+    resetLine = high;
+
+    if (!resetLine)
+        reset();
 }

@@ -26,9 +26,21 @@ class MC6821
         uint8_t read(uint8_t rs);
         void write(uint8_t rs, uint8_t value);
 
-        uint8_t peek(uint8_t rs);
+        uint8_t peek(uint8_t rs) const;
 
     private:
+        enum class C2Mode : uint8_t
+        {
+            InputFallingNoIRQ = 0,
+            InputFallingIRQ   = 1,
+            InputRisingNoIRQ  = 2,
+            InputRisingIRQ    = 3,
+            Handshake         = 4,
+            Pulse             = 5,
+            ForceLow          = 6,
+            ForceHigh         = 7
+        };
+
         struct Registers
         {
             uint8_t ora  = 0x00;
@@ -56,11 +68,13 @@ class MC6821
         bool irqB1Flag;
         bool irqB2Flag;
 
+        bool resetLine;
+
         uint8_t readPortA();
         uint8_t readPortB();
 
-        uint8_t peekPortA();
-        uint8_t peekPortB();
+        uint8_t peekPortA() const;
+        uint8_t peekPortB() const;
 
         uint8_t readCRA() const;
         uint8_t readCRB() const;
@@ -73,6 +87,8 @@ class MC6821
 
         void updateIRQA();
         void updateIRQB();
+
+        void setResetLine(bool high);
 };
 
 #endif // MC6821_H
