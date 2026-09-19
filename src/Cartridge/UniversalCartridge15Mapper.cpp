@@ -92,21 +92,22 @@ void UniversalCartridge15Mapper::write(uint16_t address, uint8_t value)
     if (!cart)
         return;
 
-    // UC1.5 control registers.
-    if (!ctrl.ioDisabled)
+    if (!ctrl.ioDisabled && address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (address == 0xDE02)
+        switch (address & 0x03)
         {
-            decodeBank(value);
-            (void)loadIntoMemory(ctrl.bank);
-            return;
-        }
+            case 2:
+                decodeBank(value);
+                (void)loadIntoMemory(ctrl.bank);
+                return;
 
-        if (address == 0xDE03)
-        {
-            decodeControl(value);
-            updateLines();
-            return;
+            case 3:
+                decodeControl(value);
+                updateLines();
+                return;
+
+            default:
+                break;
         }
     }
 
