@@ -385,6 +385,10 @@ void MC6821::writeCRA(uint8_t value)
 
     const auto mode = static_cast<C2Mode>((registers.cra >> 3) & 0x07);
 
+    // A control-mode change terminates any previous pulse.
+    ca2PulseActive = false;
+    ca2PulseCycles = 0;
+
     if (static_cast<uint8_t>(mode) >= 4)
         irqA2Flag = false;
 
@@ -429,6 +433,10 @@ void MC6821::writeCRB(uint8_t value)
     registers.crb = value & 0x3F;
 
     const auto mode = static_cast<C2Mode>((registers.crb >> 3) & 0x07);
+
+    // A control-mode change terminates any previous pulse.
+    cb2PulseActive = false;
+    cb2PulseCycles = 0;
 
     if (static_cast<uint8_t>(mode) >= 4)
         irqB2Flag = false;
