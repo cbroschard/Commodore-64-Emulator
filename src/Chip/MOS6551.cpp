@@ -5,7 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-#include "Serial/MOS6551.h"
+#include "Chip/MOS6551.h"
 #include "Serial/RS232Device.h"
 #include "Serial/RS232Endpoint.h"
 
