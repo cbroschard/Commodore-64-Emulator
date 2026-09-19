@@ -59,9 +59,12 @@ class MC6821
         uint8_t externalPinsB;
 
         bool ca1;
-        bool ca2;
+        bool ca2Input;
+        bool ca2Output;
+
         bool cb1;
-        bool cb2;
+        bool cb2Input;
+        bool cb2Output;
 
         bool irqA1Flag;
         bool irqA2Flag;

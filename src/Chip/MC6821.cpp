@@ -12,9 +12,11 @@ MC6821::MC6821() :
     externalPinsA(0xFF),
     externalPinsB(0xFF),
     ca1(false),
-    ca2(false),
+    ca2Input(false),
+    ca2Output(false),
     cb1(false),
-    cb2(false),
+    cb2Input(false),
+    cb2Output(false),
     irqA1Flag(false),
     irqA2Flag(false),
     irqB1Flag(false),
@@ -44,9 +46,12 @@ void MC6821::saveState(StateWriter& wrtr) const
     wrtr.writeU8(externalPinsB);
 
     wrtr.writeBool(ca1);
-    wrtr.writeBool(ca2);
+    wrtr.writeBool(ca2Input);
+    wrtr.writeBool(ca2Output);
+
     wrtr.writeBool(cb1);
-    wrtr.writeBool(cb2);
+    wrtr.writeBool(cb2Input);
+    wrtr.writeBool(cb2Output);
 
     wrtr.writeBool(irqA1Flag);
     wrtr.writeBool(irqA2Flag);
@@ -80,9 +85,12 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU8(externalPinsB))     { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readBool(ca1))             { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(ca2))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ca2Input))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ca2Output))       { rdr.exitChunkPayload(chunk); return false; }
+
     if (!rdr.readBool(cb1))             { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(cb2))             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb2Input))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb2Output))       { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readBool(irqA1Flag))       { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readBool(irqA2Flag))       { rdr.exitChunkPayload(chunk); return false; }
@@ -107,9 +115,12 @@ void MC6821::reset()
     registers       = Registers{};
 
     ca1             = false;
-    ca2             = false;
+    ca2Input        = false;
+    ca2Output       = false;
+
     cb1             = false;
-    cb2             = false;
+    cb2Input        = false;
+    cb2Output       = false;
 
     irqA1Flag       = false;
     irqA2Flag       = false;
@@ -322,12 +333,11 @@ void MC6821::writeCRA(uint8_t value)
             break;
 
         case C2Mode::ForceLow:
-            ca2 = false;
+            ca2Output = false;
             break;
 
         case C2Mode::ForceHigh:
-            // output forced high
-            ca2 = true;
+            ca2Output = true;
             break;
     }
 
@@ -364,11 +374,11 @@ void MC6821::writeCRB(uint8_t value)
             break;
 
         case C2Mode::ForceLow:
-            cb2 = false;
+            cb2Output = false;
             break;
 
         case C2Mode::ForceHigh:
-            cb2 = true;
+            cb2Output = true;
             break;
     }
 
@@ -396,10 +406,10 @@ void MC6821::setCA2(bool level)
     if (registers.cra & 0x20)
         return;
 
-    const bool rising  = !ca2 && level;
-    const bool falling = ca2 && !level;
+    const bool rising  = !ca2Input && level;
+    const bool falling = ca2Input && !level;
 
-    ca2 = level;
+    ca2Input = level;
 
     const bool risingSelected = (registers.cra & 0x10) != 0;
 
@@ -431,10 +441,10 @@ void MC6821::setCB2(bool level)
     if (registers.crb & 0x20)
         return;
 
-    const bool rising  = !cb2 && level;
-    const bool falling = cb2 && !level;
+    const bool rising  = !cb2Input && level;
+    const bool falling = cb2Input && !level;
 
-    cb2 = level;
+    cb2Input = level;
 
     const bool risingSelected = (registers.crb & 0x10) != 0;
 
