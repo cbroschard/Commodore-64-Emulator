@@ -9,6 +9,7 @@
 #define MC6821_H
 
 #include <cstdint>
+#include <functional>
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -52,6 +53,12 @@ class MC6821
         void setCB2Input(bool level);
 
         void setResetLine(bool high);
+
+        inline void setCA2OutputCallback(std::function<void(bool)> callback) { ca2OutputCallback = std::move(callback); }
+        inline void setCB2OutputCallback(std::function<void(bool)> callback) { cb2OutputCallback = std::move(callback); }
+
+        inline void setIRQACallback(std::function<void(bool)> callback) { irqACallback = std::move(callback); }
+        inline void setIRQBCallback(std::function<void(bool)> callback) { irqBCallback = std::move(callback); }
 
     private:
         enum class C2Mode : uint8_t
@@ -106,6 +113,12 @@ class MC6821
         bool irqB;
 
         bool resetLine;
+
+        std::function<void(bool)> ca2OutputCallback;
+        std::function<void(bool)> cb2OutputCallback;
+
+        std::function<void(bool)> irqACallback;
+        std::function<void(bool)> irqBCallback;
 
         uint8_t readPortA();
         uint8_t readPortB();

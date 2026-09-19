@@ -521,7 +521,10 @@ void MC6821::setCA2Output(bool level)
     if (ca2Output == level)
         return;
 
-    ca2Output = level;
+    setCA2Output(level);
+
+    if (ca2OutputCallback)
+        ca2OutputCallback(level);
 }
 
 void MC6821::setCB1(bool level)
@@ -569,7 +572,10 @@ void MC6821::setCB2Output(bool level)
     if (cb2Output == level)
         return;
 
-    cb2Output = level;
+    setCB2Output(level);
+
+    if (cb2OutputCallback)
+        cb2OutputCallback(level);
 }
 
 void MC6821::setIRQAOutput(bool level)
@@ -578,6 +584,9 @@ void MC6821::setIRQAOutput(bool level)
         return;
 
     irqA = level;
+
+    if (irqACallback)
+        irqACallback(level);
 }
 
 void MC6821::setIRQBOutput(bool level)
@@ -586,6 +595,9 @@ void MC6821::setIRQBOutput(bool level)
         return;
 
     irqB = level;
+
+    if (irqBCallback)
+        irqBCallback(level);
 }
 
 void MC6821::updateIRQA()
