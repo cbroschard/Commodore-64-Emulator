@@ -72,13 +72,16 @@ uint8_t UniversalCartridge2Mapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (!ctrl.ioDisabled)
+    if (!ctrl.ioDisabled && address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (address == 0xDE02)
-            return ctrl.bank & 0x1F;
+        switch (address & 0x03)
+        {
+            case 2:
+                return ctrl.bank & 0x1F;
 
-        if (address == 0xDE03)
-            return encodeControl();
+            case 3:
+                return encodeControl();
+        }
     }
 
     if (ctrl.sramSelected)
@@ -105,21 +108,22 @@ void UniversalCartridge2Mapper::write(uint16_t address, uint8_t value)
     if (!cart)
         return;
 
-    // UC2 control registers.
-    if (!ctrl.ioDisabled)
+    if (!ctrl.ioDisabled && address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (address == 0xDE02)
+        switch (address & 0x03)
         {
-            decodeBank(value);
-            (void)loadIntoMemory(ctrl.bank);
-            return;
-        }
+            case 2:
+                decodeBank(value);
+                (void)loadIntoMemory(ctrl.bank);
+                return;
 
-        if (address == 0xDE03)
-        {
-            decodeControl(value);
-            updateLines();
-            return;
+            case 3:
+                decodeControl(value);
+                updateLines();
+                return;
+
+            default:
+                break;
         }
     }
 
@@ -166,13 +170,16 @@ uint8_t UniversalCartridge2Mapper::peek(uint16_t address) const
     if (!cart)
         return 0xFF;
 
-    if (!ctrl.ioDisabled)
+    if (!ctrl.ioDisabled && address >= 0xDE00 && address <= 0xDEFF)
     {
-        if (address == 0xDE02)
-            return ctrl.bank & 0x1F;
+        switch (address & 0x03)
+        {
+            case 2:
+                return ctrl.bank & 0x1F;
 
-        if (address == 0xDE03)
-            return encodeControl();
+            case 3:
+                return encodeControl();
+        }
     }
 
     if (ctrl.sramSelected)
