@@ -149,7 +149,7 @@ void UniversalCartridge2Mapper::write(uint16_t address, uint8_t value)
     }
 
     // SRAM writes are independent of control-register visibility.
-    if (ctrl.sramWriteEnabled)
+    if (ctrl.sramWriteEnabled && getMode() != UC2Mode::Off)
     {
         if ((address >= 0x4000 && address <= 0x5FFF) || (address >= 0x8000 && address <= 0x9FFF))
         {
@@ -250,23 +250,37 @@ bool UniversalCartridge2Mapper::loadIntoMemory(uint8_t bank)
         if (section.bankNumber != bank)
             continue;
 
-        if (section.data.size() != 0x2000)
-            continue;
+        // Single 16K CHIP at $8000.
+        if (section.loadAddress == 0x8000 && section.data.size() == 0x4000)
+        {
+            for (size_t i = 0; i < 0x2000; ++i)
+            {
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[0x2000 + i], cartLocation::HI);
+                cart->writeCartridge(static_cast<uint16_t>(i), section.data[0x2000 + i], cartLocation::HI_E000);
+            }
 
-        if (section.loadAddress == 0x8000)
+            loLoaded = true;
+            hiLoaded = true;
+            continue;
+        }
+
+        // Separate 8K ROML CHIP.
+        if (section.loadAddress == 0x8000 && section.data.size() == 0x2000)
         {
             for (size_t i = 0; i < 0x2000; ++i)
                 cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
 
             loLoaded = true;
+            continue;
         }
-        else if (section.loadAddress == 0xA000)
+
+        // Separate 8K ROMH CHIP.
+        if ((section.loadAddress == 0xA000 || section.loadAddress == 0xE000) && section.data.size() == 0x2000)
         {
             for (size_t i = 0; i < 0x2000; ++i)
             {
                 cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI);
-
-                // Same upper 8K appears at $E000 in Ultimax mode.
                 cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
             }
 
@@ -298,6 +312,9 @@ bool UniversalCartridge2Mapper::cpuReadHandledByMapper(uint16_t address) const
 CartridgeWriteRoute UniversalCartridge2Mapper::cpuWriteRoute(uint16_t address) const
 {
     if (!ctrl.sramWriteEnabled)
+        return CartridgeWriteRoute::System;
+
+    if (getMode() == UC2Mode::Off)
         return CartridgeWriteRoute::System;
 
     if (address >= 0x4000 && address <= 0xBFFF)
