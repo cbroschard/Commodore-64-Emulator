@@ -167,7 +167,7 @@ class Cartridge
             MACH_5,                 // 51
             DIASHOW_MAKER,          // 52
 
-            // 53 Pagefox
+            PAGEFOX,                // 53
             KINGSOFT,               // 54
             SILVERROCK_128,         // 55
             // 56 Formel 64

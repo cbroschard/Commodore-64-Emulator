@@ -51,6 +51,7 @@
 #include "Cartridge/MAXBASICMapper.h"
 #include "Cartridge/MikroAssemblerMapper.h"
 #include "Cartridge/OceanMapper.h"
+#include "Cartridge/PagefoxMapper.h"
 #include "Cartridge/Prophet64Mapper.h"
 #include "Cartridge/Partner64Mapper.h"
 #include "Cartridge/RetroReplayMapper.h"
@@ -397,6 +398,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::IDE64: // IDE64 has 32K RAM
             configureRAM(32768);
             break;
+        case CartridgeType::PAGEFOX: // Pagefox has 32K RAM
+            configureRAM(32768);
+            break;
         case CartridgeType::MAX_BASIC: // MAX BASIC has 2K RAM
             configureRAM(2048);
             break;
@@ -528,6 +532,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x32:  return CartridgeType::ACTION_REPLAY_2;
         case 0x33:  return CartridgeType::MACH_5;
         case 0x34:  return CartridgeType::DIASHOW_MAKER;
+        case 0x35:  return CartridgeType::PAGEFOX;
         case 0x36:  return CartridgeType::KINGSOFT;
         case 0x37:  return CartridgeType::SILVERROCK_128;
         case 0x39:  return CartridgeType::RGCD;
@@ -600,6 +605,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
         case CartridgeType::MACH_5:                 return "Mach 5";
         case CartridgeType::DIASHOW_MAKER:          return "Diashow Maker";
+        case CartridgeType::PAGEFOX:                return "Pagefox";
         case CartridgeType::KINGSOFT:               return "Kingsoft";
         case CartridgeType::SILVERROCK_128:         return "Silverrock 128K";
         case CartridgeType::RGCD:                   return "RGCD";
@@ -1317,6 +1323,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::ACTION_REPLAY_2:        return std::make_unique<ActionReplay2Mapper>();
         case CartridgeType::MACH_5:                 return std::make_unique<Mach5Mapper>();
         case CartridgeType::DIASHOW_MAKER:          return std::make_unique<DiashowMakerMapper>();
+        case CartridgeType::PAGEFOX:                return std::make_unique<PagefoxMapper>();
         case CartridgeType::KINGSOFT:               return std::make_unique<KingsoftMapper>();
         case CartridgeType::SILVERROCK_128:         return std::make_unique<Silverrock128Mapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
