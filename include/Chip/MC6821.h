@@ -23,10 +23,29 @@ class MC6821
 
         void reset();
 
+        void tick(uint32_t elapsedCycles);
+
         uint8_t read(uint8_t rs);
         void write(uint8_t rs, uint8_t value);
 
         uint8_t peek(uint8_t rs) const;
+
+        void setPortAInputs(uint8_t value);
+        void setPortBInputs(uint8_t value);
+
+        inline bool getCA2Output() const { return ca2Output; }
+        inline bool getCB2Output() const { return cb2Output; }
+
+        inline bool getIRQA() const { return irqA; }
+        inline bool getIRQB() const { return irqB; }
+
+        void setCA1(bool level);
+        void setCA2(bool level);
+
+        void setCB1(bool level);
+        void setCB2(bool level);
+
+        void setResetLine(bool high);
 
     private:
         enum class C2Mode : uint8_t
@@ -91,16 +110,8 @@ class MC6821
         void writeCRA(uint8_t value);
         void writeCRB(uint8_t value);
 
-        void setCA1(bool level);
-        void setCA2(bool level);
-
-        void setCB1(bool level);
-        void setCB2(bool level);
-
         void updateIRQA();
         void updateIRQB();
-
-        void setResetLine(bool high);
 };
 
 #endif // MC6821_H

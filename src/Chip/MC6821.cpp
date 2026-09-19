@@ -134,6 +134,11 @@ void MC6821::reset()
     updateIRQB();
 }
 
+void MC6821::tick(uint32_t elapsedCycles)
+{
+
+}
+
 uint8_t MC6821::read(uint8_t rs)
 {
     uint8_t value = 0xFF;
@@ -231,6 +236,16 @@ uint8_t MC6821::peek(uint8_t rs) const
     }
 
     return value;
+}
+
+void MC6821::setPortAInputs(uint8_t value)
+{
+    externalPinsA = value;
+}
+
+void MC6821::setPortBInputs(uint8_t value)
+{
+    externalPinsB = value;
 }
 
 uint8_t MC6821::readPortA()
