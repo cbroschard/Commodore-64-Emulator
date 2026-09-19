@@ -13,6 +13,8 @@
 #include "StateReader.h"
 #include "StateWriter.h"
 
+using PortOutputCallback = std::function<void(uint8_t value, uint8_t direction)>;
+
 class MC6821
 {
     public:
@@ -59,6 +61,9 @@ class MC6821
 
         inline void setIRQACallback(std::function<void(bool)> callback) { irqACallback = std::move(callback); }
         inline void setIRQBCallback(std::function<void(bool)> callback) { irqBCallback = std::move(callback); }
+
+        void setPortAOutputCallback(PortOutputCallback callback);
+        void setPortBOutputCallback(PortOutputCallback callback);
 
     private:
         enum class C2Mode : uint8_t
@@ -120,6 +125,9 @@ class MC6821
         std::function<void(bool)> irqACallback;
         std::function<void(bool)> irqBCallback;
 
+        PortOutputCallback portAOutputCallback;
+        PortOutputCallback portBOutputCallback;
+
         uint8_t readPortA();
         uint8_t readPortB();
 
@@ -138,6 +146,9 @@ class MC6821
         void setCA2Output(bool level);
         void setCB2Output(bool level);
 
+        void updatePortAOutput();
+        void updatePortBOutput();
+
         void setIRQAOutput(bool level);
         void setIRQBOutput(bool level);
 
@@ -147,6 +158,7 @@ class MC6821
         // Helpers
         inline C2Mode getCA2Mode() const { return static_cast<C2Mode>((registers.cra >> 3) & 0x07); }
         inline C2Mode getCB2Mode() const { return static_cast<C2Mode>((registers.crb >> 3) & 0x07); }
+        void synchronizeOutputs();
 };
 
 #endif // MC6821_H

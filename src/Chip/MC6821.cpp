@@ -121,6 +121,8 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     updateIRQA();
     updateIRQB();
 
+    synchronizeOutputs();
+
     rdr.exitChunkPayload(chunk);
     return true;
 }
@@ -153,6 +155,8 @@ void MC6821::reset()
 
     updateIRQA();
     updateIRQB();
+
+    synchronizeOutputs();
 }
 
 void MC6821::tick(uint32_t elapsedCycles)
@@ -224,7 +228,10 @@ void MC6821::write(uint8_t rs, uint8_t value)
             if (registers.cra & 0x04)
                 writePortA(value);
             else
+            {
                 registers.ddra = value;
+                updatePortAOutput();
+            }
 
             break;
         }
@@ -238,7 +245,10 @@ void MC6821::write(uint8_t rs, uint8_t value)
             if (registers.crb & 0x04)
                 writePortB(value);
             else
+            {
                 registers.ddrb = value;
+                updatePortBOutput();
+            }
 
             break;
         }
@@ -363,11 +373,15 @@ uint8_t MC6821::readCRB() const
 void MC6821::writePortA(uint8_t value)
 {
     registers.ora = value;
+
+    updatePortAOutput();
 }
 
 void MC6821::writePortB(uint8_t value)
 {
     registers.orb = value;
+
+    updatePortBOutput();
 
     if (getCB2Mode() == C2Mode::Handshake)
         setCB2Output(false);
@@ -521,7 +535,7 @@ void MC6821::setCA2Output(bool level)
     if (ca2Output == level)
         return;
 
-    setCA2Output(level);
+    ca2Output = level;
 
     if (ca2OutputCallback)
         ca2OutputCallback(level);
@@ -572,10 +586,22 @@ void MC6821::setCB2Output(bool level)
     if (cb2Output == level)
         return;
 
-    setCB2Output(level);
+    cb2Output = level;
 
     if (cb2OutputCallback)
         cb2OutputCallback(level);
+}
+
+void MC6821::updatePortAOutput()
+{
+    if (portAOutputCallback)
+        portAOutputCallback(registers.ora, registers.ddra);
+}
+
+void MC6821::updatePortBOutput()
+{
+    if (portBOutputCallback)
+        portBOutputCallback(registers.orb, registers.ddrb);
 }
 
 void MC6821::setIRQAOutput(bool level)
@@ -631,4 +657,22 @@ void MC6821::setResetLine(bool high)
 
     if (!resetLine)
         reset();
+}
+
+void MC6821::synchronizeOutputs()
+{
+    updatePortAOutput();
+    updatePortBOutput();
+
+    if (ca2OutputCallback)
+        ca2OutputCallback(ca2Output);
+
+    if (cb2OutputCallback)
+        cb2OutputCallback(cb2Output);
+
+    if (irqACallback)
+        irqACallback(irqA);
+
+    if (irqBCallback)
+        irqBCallback(irqB);
 }
