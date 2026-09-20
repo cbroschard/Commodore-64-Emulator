@@ -34,9 +34,8 @@ MC6821::MC6821() :
 
 MC6821::~MC6821() = default;
 
-void MC6821::saveState(StateWriter& wrtr) const
+void MC6821::save(StateWriter& wrtr) const
 {
-    wrtr.beginChunk("6821");
     wrtr.writeU32(1); // Version
 
     wrtr.writeU8(registers.ora);
@@ -68,51 +67,44 @@ void MC6821::saveState(StateWriter& wrtr) const
     wrtr.writeBool(irqB2Flag);
 
     wrtr.writeBool(resetLine);
-
-    wrtr.endChunk();
 }
 
-bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+bool MC6821::load(StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "6821", 4) != 0)
-        return false;
-
-    rdr.enterChunkPayload(chunk);
-
     uint32_t ver = 0;
-    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ver))              {  return false; }
+    if (ver != 1)                       {  return false; }
 
-    if (!rdr.readU8(registers.ora))     { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(registers.orb))     { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(registers.ddra))    { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(registers.ddrb))    { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(registers.cra))     { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(registers.crb))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(registers.ora))     {  return false; }
+    if (!rdr.readU8(registers.orb))     {  return false; }
+    if (!rdr.readU8(registers.ddra))    {  return false; }
+    if (!rdr.readU8(registers.ddrb))    {  return false; }
+    if (!rdr.readU8(registers.cra))     {  return false; }
+    if (!rdr.readU8(registers.crb))     {  return false; }
 
-    if (!rdr.readU8(externalPinsA))     { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readU8(externalPinsB))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(externalPinsA))     {  return false; }
+    if (!rdr.readU8(externalPinsB))     {  return false; }
 
-    if (!rdr.readBool(ca1))             { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(ca2Input))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(ca2Output))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(ca2PulseActive))  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(ca1))             {  return false; }
+    if (!rdr.readBool(ca2Input))        {  return false; }
+    if (!rdr.readBool(ca2Output))       {  return false; }
+    if (!rdr.readBool(ca2PulseActive))  {  return false; }
 
-    if (!rdr.readU32(ca2PulseCycles))   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(ca2PulseCycles))   {  return false; }
 
-    if (!rdr.readBool(cb1))             { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(cb2Input))        { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(cb2Output))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(cb2PulseActive))  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cb1))             {  return false; }
+    if (!rdr.readBool(cb2Input))        {  return false; }
+    if (!rdr.readBool(cb2Output))       {  return false; }
+    if (!rdr.readBool(cb2PulseActive))  {  return false; }
 
-    if (!rdr.readU32(cb2PulseCycles))   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU32(cb2PulseCycles))   {  return false; }
 
-    if (!rdr.readBool(irqA1Flag))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(irqA2Flag))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(irqB1Flag))       { rdr.exitChunkPayload(chunk); return false; }
-    if (!rdr.readBool(irqB2Flag))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(irqA1Flag))       {  return false; }
+    if (!rdr.readBool(irqA2Flag))       {  return false; }
+    if (!rdr.readBool(irqB1Flag))       {  return false; }
+    if (!rdr.readBool(irqB2Flag))       {  return false; }
 
-    if (!rdr.readBool(resetLine))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(resetLine))       {  return false; }
 
     // Normalize post load
     registers.cra &= 0x3F;
@@ -123,7 +115,6 @@ bool MC6821::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     synchronizeOutputs();
 
-    rdr.exitChunkPayload(chunk);
     return true;
 }
 
@@ -299,6 +290,18 @@ void MC6821::setPortAInputs(uint8_t value)
 void MC6821::setPortBInputs(uint8_t value)
 {
     externalPinsB = value;
+}
+
+void MC6821::setPortADirection(uint8_t value)
+{
+    registers.ddra = value;
+    updatePortAOutput();
+}
+
+void MC6821::setPortBDirection(uint8_t value)
+{
+    registers.ddrb = value;
+    updatePortBOutput();
 }
 
 uint8_t MC6821::readPortA()
