@@ -60,27 +60,23 @@ void SuperSnapshotV5Mapper::saveState(StateWriter& wrtr) const
 
 bool SuperSnapshotV5Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "SSV5", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "SSV5", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!ctrl.load(rdr))            { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
+    if (!ctrl.load(rdr))            { rdr.exitChunkPayload(chunk); return false; }
 
-        // Apply immediately
-        ctrl.decode();
-        selectedBank = 0xFF; // force reload of bank contents on state load
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+    // Apply immediately
+    ctrl.decode();
+    selectedBank = 0xFF; // force reload of bank contents on state load
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 const char* SuperSnapshotV5Mapper::getButtonName(uint32_t buttonIndex) const
