@@ -73,41 +73,37 @@ void GMod2Mapper::saveState(StateWriter& wrtr) const
 
 bool GMod2Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "GMD2", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "GMD2", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!eeprom.load(rdr))                  { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!eeprom.load(rdr))                  { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        // Load flash state
-        if (!rdr.readBool(flashDirty))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(flashInitialized))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))          { rdr.exitChunkPayload(chunk); return false; }
 
-        uint8_t rm = 0;
-        if (!rdr.readU8(rm))                    { rdr.exitChunkPayload(chunk); return false; }
-        flashReadMode = static_cast<FlashReadMode>(rm);
+    // Load flash state
+    if (!rdr.readBool(flashDirty))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(flashInitialized))    { rdr.exitChunkPayload(chunk); return false; }
 
-        uint8_t cm = 0;
-        if (!rdr.readU8(cm))                    { rdr.exitChunkPayload(chunk); return false; }
-        flashCmdState = static_cast<FlashCmdState>(cm);
+    uint8_t rm = 0;
+    if (!rdr.readU8(rm))                    { rdr.exitChunkPayload(chunk); return false; }
+    flashReadMode = static_cast<FlashReadMode>(rm);
 
-        if (!rdr.readVectorU8(flashData))       { rdr.exitChunkPayload(chunk); return false; }
+    uint8_t cm = 0;
+    if (!rdr.readU8(cm))                    { rdr.exitChunkPayload(chunk); return false; }
+    flashCmdState = static_cast<FlashCmdState>(cm);
 
-        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readVectorU8(flashData))       { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;;
 }
 
 uint8_t GMod2Mapper::read(uint16_t address)
@@ -248,13 +244,13 @@ bool GMod2Mapper::loadPersistence(const std::string& path)
 
 bool GMod2Mapper::romWriteEnabled(uint16_t address) const
 {
-    return (address >= 0x8000 && address <= 0x9FFF) &&
-           ctrl.writeEnable && ctrl.cs;
+    return (address >= 0x8000 && address <= 0x9FFF) && ctrl.writeEnable && ctrl.cs;
 }
 
 bool GMod2Mapper::applyMappingAfterLoad()
 {
-    if (!cart) return false;
+    if (!cart)
+        return false;
 
     applyMappingFromControl();
 
@@ -263,6 +259,9 @@ bool GMod2Mapper::applyMappingAfterLoad()
 
 void GMod2Mapper::applyMappingFromControl()
 {
+    if (!cart)
+        return;
+
     selectedBank = ctrl.romBank;
 
     cart->setExROMLine(ctrl.exromHigh);
@@ -304,6 +303,9 @@ bool GMod2Mapper::rebuildFlashImageFromCRT()
 
 void GMod2Mapper::updateMappedByteIfVisible(uint8_t bank, uint16_t offset, uint8_t value)
 {
+    if (!cart)
+        return;
+
     if ((bank & 0x3F) != selectedBank)
         return;
 
