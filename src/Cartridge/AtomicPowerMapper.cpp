@@ -170,7 +170,7 @@ void AtomicPowerMapper::write(uint16_t address, uint8_t value)
     // IO2: $DF00-$DFFF -> window into $9F00-$9FFF (tail of ROML/RAM)
     if ((address & 0xFF00) == 0xDF00)
     {
-        if (!ramEnabled)
+        if (!ramEnabled || !cart->hasCartridgeRAM())
             return;
 
         const uint16_t offset = 0x1F00 | (address & 0x00FF);
