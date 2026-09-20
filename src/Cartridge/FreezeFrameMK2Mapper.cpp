@@ -28,24 +28,19 @@ void FreezeFrameMK2Mapper::saveState(StateWriter& wrtr) const
 
 bool FreezeFrameMK2Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "FMK2", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "FMK2", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 uint8_t FreezeFrameMK2Mapper::read(uint16_t address)
