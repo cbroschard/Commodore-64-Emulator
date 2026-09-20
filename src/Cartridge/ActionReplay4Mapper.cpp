@@ -79,8 +79,6 @@ bool ActionReplay4Mapper::loadState(const StateReader::Chunk& chunk, StateReader
         if (!rdr.readU8(preFreezeSelectedBank)) { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
-
         rdr.exitChunkPayload(chunk);
         return true;
     }
