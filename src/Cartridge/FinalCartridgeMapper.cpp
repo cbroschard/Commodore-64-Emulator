@@ -38,13 +38,9 @@ bool FinalCartridgeMapper::loadState(const StateReader::Chunk& chunk, StateReade
     bool enabled = true;
     if (!rdr.readBool(enabled)) { rdr.exitChunkPayload(chunk); return false; }
 
-    rdr.exitChunkPayload(chunk);
-
     cartEnabled = enabled;
 
-    // Re-apply mapping immediately
-    if (!applyMappingAfterLoad()) return false;
-
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 
