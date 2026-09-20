@@ -28,25 +28,22 @@ void MagicFormelMapper::saveState(StateWriter& wrtr) const
 
 bool MagicFormelMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "MGCF", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(romEnabled))  { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+    if (std::memcmp(chunk.tag, "MGCF", 4) != 0)
+        return false;
 
-        // Apply immediately
-        if (romEnabled)
-            loadIntoMemory(selectedBank);
-        applyMappingAfterLoad();
+    rdr.enterChunkPayload(chunk);
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(romEnabled))  { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-    // Not our chunk
-    return false;
+    // Apply immediately
+    if (romEnabled)
+        loadIntoMemory(selectedBank);
+
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 uint8_t MagicFormelMapper::read(uint16_t address)
