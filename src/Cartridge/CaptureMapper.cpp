@@ -75,7 +75,7 @@ uint8_t CaptureMapper::read(uint16_t address)
     if (registersEnabled && address == 0xFFF7)
     {
         romHEnabled = false;
-        return cart ? cart->sampleDataBus() : 0xFF;
+        return cart->sampleDataBus();
     }
 
     if (registersEnabled && address == 0xFFF8)
@@ -89,14 +89,14 @@ uint8_t CaptureMapper::read(uint16_t address)
     if (mode == Mode::Freeze && address >= 0xE000 && address <= 0xFFFF)
     {
         if (!romHEnabled)
-            return cart ? cart->sampleDataBus() : 0xFF;
+            return cart->sampleDataBus();
 
         const uint16_t offset = static_cast<uint16_t>(address - 0xE000);
 
         return cart->readCartridge(offset, cartLocation::HI_E000);
     }
 
-    return cart ? cart->sampleDataBus() : 0xFF;
+    return cart->sampleDataBus();
 }
 
 void CaptureMapper::write(uint16_t address, uint8_t value)
@@ -207,7 +207,6 @@ bool CaptureMapper::loadIntoMemory(uint8_t bank)
         for (size_t i = 0; i < 0x2000; ++i)
         {
             cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::LO);
-
             cart->writeCartridge(static_cast<uint16_t>(i), section.data[i], cartLocation::HI_E000);
         }
 
