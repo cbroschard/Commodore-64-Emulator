@@ -170,7 +170,7 @@ class Cartridge
             PAGEFOX,                // 53
             KINGSOFT,               // 54
             SILVERROCK_128,         // 55
-            // 56 Formel 64
+            FORMEL_64,              // 56
 
             RGCD,                   // 57
 

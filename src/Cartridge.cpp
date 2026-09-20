@@ -34,6 +34,7 @@
 #include "Cartridge/FinalCartridgeMapper.h"
 #include "Cartridge/FinalCartridgeIIIMapper.h"
 #include "Cartridge/FinalCartridgePlusMapper.h"
+#include "Cartridge/Formel64Mapper.h"
 #include "Cartridge/FreezeFrameMapper.h"
 #include "Cartridge/FreezeMachineMapper.h"
 #include "Cartridge/FreezeFrameMK2Mapper.h"
@@ -535,6 +536,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x35:  return CartridgeType::PAGEFOX;
         case 0x36:  return CartridgeType::KINGSOFT;
         case 0x37:  return CartridgeType::SILVERROCK_128;
+        case 0x38:  return CartridgeType::FORMEL_64;
         case 0x39:  return CartridgeType::RGCD;
         case 0x3B:  return CartridgeType::EASYCALC;
         case 0x3C:  return CartridgeType::GMOD2;
@@ -608,6 +610,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::PAGEFOX:                return "Pagefox";
         case CartridgeType::KINGSOFT:               return "Kingsoft";
         case CartridgeType::SILVERROCK_128:         return "Silverrock 128K";
+        case CartridgeType::FORMEL_64:              return "Formel 64";
         case CartridgeType::RGCD:                   return "RGCD";
         case CartridgeType::EASYCALC:               return "EasyCalc";
         case CartridgeType::FREEZE_FRAME:           return "Freeze Frame";
@@ -1326,6 +1329,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::PAGEFOX:                return std::make_unique<PagefoxMapper>();
         case CartridgeType::KINGSOFT:               return std::make_unique<KingsoftMapper>();
         case CartridgeType::SILVERROCK_128:         return std::make_unique<Silverrock128Mapper>();
+        case CartridgeType::FORMEL_64:              return std::make_unique<Formel64Mapper>();
         case CartridgeType::RGCD:                   return std::make_unique<RGCDMapper>();
         case CartridgeType::EASYCALC:               return std::make_unique<EasyCalcMapper>();
         case CartridgeType::GMOD2:                  return std::make_unique<GMod2Mapper>();
