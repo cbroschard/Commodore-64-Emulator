@@ -32,26 +32,21 @@ void FinalCartridgePlusMapper::saveState(StateWriter& wrtr) const
 
 bool FinalCartridgePlusMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "FCPL", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "FCPL", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(bit7Latch))         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(cartDisabled))    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(rom8000BfffDisabled))    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(e000Disabled))    { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        // Apply side effects
-        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))              { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(bit7Latch))         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cartDisabled))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(rom8000BfffDisabled))    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(e000Disabled))    { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 const char* FinalCartridgePlusMapper::getButtonName(uint32_t buttonIndex) const
