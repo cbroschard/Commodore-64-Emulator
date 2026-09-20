@@ -104,37 +104,33 @@ void RetroReplayMapper::saveState(StateWriter& wrtr) const
 
 bool RetroReplayMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "RRPY", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "RRPY", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(freezeButtonPressed)) { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(freezePending))       { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(cartActive))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(registersLocked))     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(de01Locked))          { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(flashMode))           { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                           { rdr.exitChunkPayload(chunk); return false; }
 
-        uint32_t fdc = 0;
-        if (!rdr.readU32(fdc))                  { rdr.exitChunkPayload(chunk); return false; }
-        freezeDelayCycles = fdc;
+    if (!ctrl.load(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(freezeButtonPressed)) { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(freezePending))       { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(freezeActive))        { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(cartActive))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(registersLocked))     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(de01Locked))          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(flashMode))           { rdr.exitChunkPayload(chunk); return false; }
 
-        ctrl.decode(flashMode);
+    uint32_t fdc = 0;
+    if (!rdr.readU32(fdc))                  { rdr.exitChunkPayload(chunk); return false; }
+    freezeDelayCycles = fdc;
 
-        if (!applyMappingAfterLoad())           { rdr.exitChunkPayload(chunk); return false; }
+    ctrl.decode(flashMode);
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    return false;
-}
+    rdr.exitChunkPayload(chunk);
+    return true;
+ }
 
 const char* RetroReplayMapper::getButtonName(uint32_t buttonIndex) const
 {
@@ -455,7 +451,7 @@ void RetroReplayMapper::tick(uint32_t elapsedCycles)
 
 bool RetroReplayMapper::applyMappingAfterLoad()
 {
-    if (!cart)
+    if (!cart || !bus)
         return false;
 
     if (!cartActive)
@@ -536,7 +532,8 @@ void RetroReplayMapper::pressFreeze()
 
 void RetroReplayMapper::pressReset()
 {
-    if (!cart) return;
+    if (!cart)
+        return;
 
     freezeButtonPressed = false;
     freezePending       = false;

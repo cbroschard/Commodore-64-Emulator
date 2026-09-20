@@ -78,6 +78,9 @@ void OceanMapper::buildBankList()
 
 bool OceanMapper::mapSelectedBank()
 {
+    if (!cart)
+        return false;
+
     buildBankList();
 
     cart->clearCartridge(cartLocation::LO);
@@ -145,6 +148,9 @@ uint8_t OceanMapper::read(uint16_t address)
 
 void OceanMapper::write(uint16_t address, uint8_t value)
 {
+    if (!cart)
+        return;
+
     if (address >= 0xDE00 && address <= 0xDEFF)
         cart->setCurrentBank(value & 0x0F);
 }
