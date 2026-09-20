@@ -32,29 +32,23 @@ void FreezeMachineMapper::saveState(StateWriter& wrtr) const
 
 bool FreezeMachineMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "FRZM", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "FRZM", 4) != 0)
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        uint8_t modeU8 = 0;
-        if (!rdr.readU8(modeU8))        { rdr.exitChunkPayload(chunk); return false; }
-        mode = static_cast<Mode>(modeU8);
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(normal16K))   { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readU8(selectedHalf))  { rdr.exitChunkPayload(chunk); return false; }
+    uint8_t modeU8 = 0;
+    if (!rdr.readU8(modeU8))        { rdr.exitChunkPayload(chunk); return false; }
+    mode = static_cast<Mode>(modeU8);
 
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(normal16K))   { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(selectedHalf))  { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 void FreezeMachineMapper::reset()
@@ -91,6 +85,8 @@ void FreezeMachineMapper::reset()
 
 uint8_t FreezeMachineMapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
 
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
@@ -113,7 +109,7 @@ uint8_t FreezeMachineMapper::read(uint16_t address)
         cart->setExROMLine(true);
     }
 
-    return cart ? cart->sampleDataBus() : 0xFF;
+    return cart->sampleDataBus();
 }
 
 void FreezeMachineMapper::write(uint16_t address, uint8_t value)
@@ -232,6 +228,9 @@ bool FreezeMachineMapper::applyMappingAfterLoad()
 
 void FreezeMachineMapper::pressFreeze()
 {
+    if (!cart)
+        return;
+
     mode = Mode::Freeze;
     normal16K = false;
 
