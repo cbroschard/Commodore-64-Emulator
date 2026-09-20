@@ -56,6 +56,9 @@ bool MagicDeskMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
 
 bool MagicDeskMapper::applyMappingAfterLoad()
 {
+    if (!cart)
+        return false;
+
     // Cartridge already restored GAME/EXROM in its own CART chunk.
     // But we’ll also enforce consistent behavior with 'disabled'.
 
@@ -82,6 +85,9 @@ uint8_t MagicDeskMapper::read(uint16_t address)
 
 void MagicDeskMapper::write(uint16_t address, uint8_t value)
 {
+    if (!cart)
+        return;
+
     if (!isIO1(address))
         return;
 
@@ -106,7 +112,8 @@ void MagicDeskMapper::write(uint16_t address, uint8_t value)
 }
 
 bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
-    if (!cart) return false;
+    if (!cart)
+        return false;
 
     const auto& sections = cart->getChipSections();
     for (const auto& sec : sections)
@@ -126,6 +133,9 @@ bool MagicDeskMapper::loadIntoMemory(uint8_t bank) {
 
 void MagicDeskMapper::reset()
 {
+    if (!cart)
+        return;
+
     magicDeskBank = 0;
     disabled = false;
 
