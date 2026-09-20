@@ -36,6 +36,9 @@ class MC6821
         void setPortAInputs(uint8_t value);
         void setPortBInputs(uint8_t value);
 
+        void setPortADirection(uint8_t value);
+        void setPortBDirection(uint8_t value);
+
         inline uint8_t readPortARegister() { return readPortA(); }
         inline uint8_t readPortBRegister() { return readPortB(); }
 
@@ -44,9 +47,6 @@ class MC6821
 
         inline uint8_t peekPortARegister() const { return peekPortA(); }
         inline uint8_t peekPortBRegister() const { return peekPortB(); }
-
-        inline void setPortADirection(uint8_t value);
-        inline void setPortBDirection(uint8_t value);
 
         inline uint8_t getPortAOutputLatch() const { return registers.ora; }
         inline uint8_t getPortBOutputLatch() const { return registers.orb; }
