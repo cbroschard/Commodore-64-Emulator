@@ -50,6 +50,9 @@ bool SuperGamesMapper::loadState(const StateReader::Chunk& chunk, StateReader& r
 
 bool SuperGamesMapper::applyMappingAfterLoad()
 {
+    if (!cart)
+        return false;
+
     cart->setExROMLine(disabled);
     cart->setGameLine(disabled);
 
@@ -104,7 +107,8 @@ void SuperGamesMapper::write(uint16_t address, uint8_t value)
 
 bool SuperGamesMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart) return false;
+    if (!cart)
+        return false;
 
     bank &= 0x03;
     selectedBank = bank;
