@@ -28,23 +28,19 @@ void C64GameSystemMapper::saveState(StateWriter& wrtr) const
 
 bool C64GameSystemMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "CGS0", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "CGS0", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
+    if (!rdr.readU8(selectedBank))  { rdr.exitChunkPayload(chunk); return false; }
 
-        return true;
-    }
-
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 bool C64GameSystemMapper::applyMappingAfterLoad()
@@ -59,6 +55,9 @@ bool C64GameSystemMapper::applyMappingAfterLoad()
 
 uint8_t C64GameSystemMapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
     if (address >= 0xDE00 && address <= 0xDEFF)
     {
         cart->setExROMLine(true);

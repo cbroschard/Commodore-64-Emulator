@@ -82,11 +82,10 @@ bool AtomicPowerMapper::loadState(const StateReader::Chunk& chunk, StateReader& 
     if (!rdr.readU8(preFreezeRaw))      { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(preFreezeBank))     { rdr.exitChunkPayload(chunk); return false; }
 
-    rdr.exitChunkPayload(chunk);
-
     ctrl.decode();
     loadedBank = 0xFF; // force a reload
-    if (!applyMappingAfterLoad()) return false;
+
+    rdr.exitChunkPayload(chunk);
     return true;
 }
 
