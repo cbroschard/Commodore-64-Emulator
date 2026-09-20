@@ -28,27 +28,22 @@ void FreezeFrameMapper::saveState(StateWriter& wrtr) const
 
 bool FreezeFrameMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "FZFM", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "FZFM", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        uint8_t modeU8 = 0;
-        if (!rdr.readU8(modeU8))        { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
-        mode = static_cast<Mode>(modeU8);
+    uint8_t modeU8 = 0;
+    if (!rdr.readU8(modeU8))        { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false; }
+    mode = static_cast<Mode>(modeU8);
 
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 uint8_t FreezeFrameMapper::read(uint16_t address)
