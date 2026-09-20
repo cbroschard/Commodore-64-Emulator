@@ -30,31 +30,25 @@ void EpyxFastloadMapper::saveState(StateWriter& wrtr) const
 
 bool EpyxFastloadMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "EPYX", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "EPYX", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false;}
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false;}
+    rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readBool(romEnabled))  { rdr.exitChunkPayload(chunk); return false;}
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false;}
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false;}
 
-        uint16_t cc = 0;
-        if (!rdr.readU16(cc))           { rdr.exitChunkPayload(chunk); return false;}
+    if (!rdr.readBool(romEnabled))  { rdr.exitChunkPayload(chunk); return false;}
+
+    uint16_t cc = 0;
+    if (!rdr.readU16(cc))           { rdr.exitChunkPayload(chunk); return false;}
         capacitorCounter = cc;
 
-        if (!rdr.readBool(loaded))      { rdr.exitChunkPayload(chunk); return false;}
+    if (!rdr.readBool(loaded))      { rdr.exitChunkPayload(chunk); return false;}
 
-        // Apply immediately
-        if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false;}
-
-        rdr.exitChunkPayload(chunk);
-        return true;
-    }
-
-    // Not our chunk
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 uint8_t EpyxFastloadMapper::read(uint16_t address)

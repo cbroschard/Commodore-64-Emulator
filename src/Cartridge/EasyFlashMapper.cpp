@@ -52,9 +52,6 @@ bool EasyFlashMapper::loadState(const StateReader::Chunk& chunk, StateReader& rd
 
     selectedBank &= 0x3F;
 
-    // Apply immediately
-    if (!applyMappingAfterLoad())   { rdr.exitChunkPayload(chunk); return false;}
-
     rdr.exitChunkPayload(chunk);
     return true;
 }
@@ -162,6 +159,9 @@ bool EasyFlashMapper::loadIntoMemory(uint8_t bank)
 void EasyFlashMapper::applyControlRegister(uint8_t value)
 {
     control.set(value);
+
+    if (!cart)
+        return;
 
     const bool m = control.modeControl();
     const bool x = control.exromBit();
