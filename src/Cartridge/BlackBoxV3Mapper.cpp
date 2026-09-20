@@ -121,6 +121,9 @@ bool BlackBoxV3Mapper::applyMappingAfterLoad()
 
 void BlackBoxV3Mapper::updateLines()
 {
+    if (!cart)
+        return;
+
     if (enabled)
     {
         cart->setGameLine(true);
