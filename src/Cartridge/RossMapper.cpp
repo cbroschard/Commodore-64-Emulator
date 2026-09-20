@@ -46,6 +46,9 @@ bool RossMapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
 bool RossMapper::applyMappingAfterLoad()
 {
+    if (!cart)
+        return false;
+
     if (disabled)
     {
         cart->setExROMLine(true);
@@ -91,7 +94,8 @@ void RossMapper::write(uint16_t address, uint8_t value)
 
 bool RossMapper::loadIntoMemory(uint8_t bank)
 {
-    if (!cart) return false;
+    if (!cart)
+        return false;
 
     disabled = false;
     selectedBank = bank;
