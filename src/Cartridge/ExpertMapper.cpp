@@ -167,7 +167,7 @@ bool ExpertMapper::loadIntoMemory(uint8_t bank)
 
 bool ExpertMapper::applyMappingAfterLoad()
 {
-    if (!cart) return false;
+    if (!cart || !bus) return false;
 
     // If we are still in the "hold Ultimax for vector fetch" phase:
     if (freezeActive)
