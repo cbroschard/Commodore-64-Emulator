@@ -43,8 +43,6 @@ class DataBusLatch
 
         void reset();
 
-    protected:
-
     private:
         uint8_t latchedValue;
         Driver lastDriver;

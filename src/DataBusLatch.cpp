@@ -29,26 +29,23 @@ void DataBusLatch::saveState(StateWriter& wrtr) const
 
 bool DataBusLatch::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
-    if (std::memcmp(chunk.tag, "OBUS", 4) == 0)
-    {
-        rdr.enterChunkPayload(chunk);
+    if (std::memcmp(chunk.tag, "OBUS", 4) != 0)
+        return false;
 
-        uint32_t ver = 0;
-        if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
+    rdr.enterChunkPayload(chunk);
 
-        if (!rdr.readU8(latchedValue))  { rdr.exitChunkPayload(chunk); return false; }
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                   { rdr.exitChunkPayload(chunk); return false; }
 
-        uint8_t ld = 0;
-        if (!rdr.readU8(ld))            { rdr.exitChunkPayload(chunk); return false; }
-        lastDriver = static_cast<Driver>(ld);
+    if (!rdr.readU8(latchedValue))  { rdr.exitChunkPayload(chunk); return false; }
 
-        rdr.exitChunkPayload(chunk);
+    uint8_t ld = 0;
+    if (!rdr.readU8(ld))            { rdr.exitChunkPayload(chunk); return false; }
+    lastDriver = static_cast<Driver>(ld);
 
-        return true;
-    }
-
-    return false;
+    rdr.exitChunkPayload(chunk);
+    return true;
 }
 
 void DataBusLatch::drive(uint8_t value, Driver driver)
