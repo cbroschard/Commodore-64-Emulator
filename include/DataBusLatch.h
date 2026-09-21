@@ -35,17 +35,31 @@ class DataBusLatch
         void saveState(StateWriter& wrtr) const;
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
+        // Device drives all 8-bits
         void drive(uint8_t value, Driver driver);
+        void drive(uint8_t value, Driver drive, uint64_t cycle);
+
+        // Device only drives some bits
+        void drive(uint8_t value, uint8_t driveMask, Driver driver, uint64_t cycle);
 
         uint8_t sample() const;
+        uint8_t sample(uint64_t cycle);
 
         Driver getLastDriver() const;
 
         void reset();
 
     private:
+        static constexpr uint64_t DEFAULT_DECAY_CYCLES = 0;
+
         uint8_t latchedValue;
+
         Driver lastDriver;
+
+        uint64_t lastUpdateCycle;
+        uint64_t decayRemaining[8];
+
+        void updateDecay(uint64_t cycle);
 };
 
 #endif // DATABUSLATCH_H
