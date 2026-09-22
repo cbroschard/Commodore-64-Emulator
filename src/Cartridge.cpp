@@ -642,8 +642,10 @@ std::string Cartridge::getMapperName() const
 
 uint8_t Cartridge::read(uint16_t address)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     if (!mapper)
-        return dataBus ? dataBus->sample() : 0xFF;
+        return dataBus ? dataBus->sample(cycle) : 0xFF;
 
     if (traceMgr && traceMgr->cartDetailOn(TraceManager::TraceDetail::CART_ROM))
     {
@@ -665,15 +667,17 @@ uint8_t Cartridge::read(uint16_t address)
     const uint8_t value = mapper->read(address);
 
     if (drivesBus && dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+        dataBus->drive(value, DataBusLatch::Driver::Cartridge, cycle);
 
     return value;
 }
 
 uint8_t Cartridge::readRAM(size_t offset)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     if (!hasRAM || offset >= ramData.size())
-        return dataBus ? dataBus->sample() : 0xFF;
+        return dataBus ? dataBus->sample(cycle) : 0xFF;
 
     const uint8_t value = ramData[offset];
 
@@ -694,7 +698,7 @@ uint8_t Cartridge::readRAM(size_t offset)
     }
 
     if (dataBus)
-       dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+       dataBus->drive(value, DataBusLatch::Driver::Cartridge, cycle);
 
     return value;
 }
