@@ -37,7 +37,7 @@ class SID
         explicit SID(double sampleRate);
         ~SID();
 
-        inline void attachCPUInstance(CPU* processor) { this->processor = processor; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
@@ -81,7 +81,7 @@ class SID
         SIDModel sidModel_;
 
         // Non owning pointers
-        CPU* processor;
+        CPU* cpu;
         DataBusLatch* dataBus;
         TraceManager* traceMgr;
         Vic* vicII;

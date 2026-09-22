@@ -12,7 +12,7 @@
 
 SID::SID(double sampleRate) :
     sidModel_(SIDModel::MOS6581),
-    processor(nullptr),
+    cpu(nullptr),
     dataBus(nullptr),
     traceMgr(nullptr),
     vicII(nullptr),
@@ -451,8 +451,10 @@ uint8_t SID::readRegister(uint16_t address)
     sidBusLatch = value;
     refreshDataBusDecay();
 
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     if (dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::SID);
+        dataBus->drive(value, DataBusLatch::Driver::SID, cycle);
 
     return value;
 }
@@ -492,7 +494,7 @@ void SID::writeRegister(uint16_t address, uint8_t value)
 
     if (traceMgr && traceMgr->isEnabled() && traceMgr->catOn(TraceManager::TraceCat::SID))
     {
-        TraceManager::Stamp stamp = traceMgr->makeStamp(processor ? processor->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
+        TraceManager::Stamp stamp = traceMgr->makeStamp(cpu ? cpu->getTotalCycles() : 0, vicII ? vicII->getCurrentRaster() : 0,
                 vicII ? vicII->getRasterDot() : 0);
         traceMgr->recordSidWrite(address & 0x1F, value, stamp);
     }
