@@ -449,6 +449,7 @@ MLMonitorBackend::MLMonitorBackend() :
     cia2(nullptr),
     comp(nullptr),
     cpu(nullptr),
+    dataBusLatch(nullptr),
     executionHistory(nullptr),
     iecBus(nullptr),
     irq(nullptr),

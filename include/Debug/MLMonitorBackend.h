@@ -27,6 +27,7 @@ class MLMonitorBackend
         inline void attachComputerInstance(Computer* comp) { this->comp = comp; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachCPUBusInstance(CPUBus* bus) { this->bus = bus; }
+        inline void attachDataBusLatchInstance(DataBusLatch* dataBusLatch) { this->dataBusLatch = dataBusLatch; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
@@ -111,6 +112,15 @@ class MLMonitorBackend
         // ML Monitor CPUBus
         inline CPUBus* getBus() { return bus; }
         inline const CPUBus* getBus() const { return bus; }
+
+        // ML Monitor DataBusLatch
+        inline const uint64_t* getDataBusLatchMaxObservedAge() const { return dataBusLatch ? dataBusLatch->getMaxObservedAge() : nullptr; }
+        inline DataBusLatch::Driver getDataBusLatchLastDriver() const { return dataBusLatch ? dataBusLatch->getLastDriver()
+            : DataBusLatch::Driver::None; }
+        inline uint64_t getDataBusLatchLastUpdateCycle() const { return dataBusLatch ? dataBusLatch->getLastUpdateCycle() : 0; }
+        inline uint64_t getDataBusLatchLastDrivenCycle(int bit) const { return dataBusLatch ? dataBusLatch->getLastDrivenCycle(bit) : 0; }
+        inline void dataBusLatchClearDiagnostics() { if (dataBusLatch) dataBusLatch->clearDiagnostics(); }
+        inline const char* dataBusLatchDriverToString(DataBusLatch::Driver driver) const { return DataBusLatch::driverToString(driver); }
 
         // ML Monitor Drives
         void dumpDriveList();
@@ -262,6 +272,7 @@ class MLMonitorBackend
         CIA2* cia2;
         Computer* comp;
         CPU* cpu;
+        DataBusLatch* dataBusLatch;
         ExecutionHistory* executionHistory;
         IECBUS* iecBus;
         IRQLine* irq;
