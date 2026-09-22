@@ -44,9 +44,16 @@ class DataBusLatch
         uint8_t sample() const;
         uint8_t sample(uint64_t cycle);
 
-        Driver getLastDriver() const;
-
         void reset();
+
+        // ML Monitor
+        inline const uint64_t* getMaxObservedAge() const { return maxObservedAge; }
+        inline Driver getLastDriver() const { return lastDriver; }
+        inline uint64_t getLastUpdateCycle() const { return lastUpdateCycle; }
+
+        uint64_t getLastDrivenCycle(int bit) const;
+        void clearDiagnostics();
+        static const char* driverToString(Driver driver);
 
     private:
         static constexpr uint64_t DEFAULT_DECAY_CYCLES = 0;
@@ -57,6 +64,10 @@ class DataBusLatch
 
         uint64_t lastUpdateCycle;
         uint64_t decayRemaining[8];
+
+         // Diagnostic timing only
+        uint64_t lastDrivenCycle[8];
+        uint64_t maxObservedAge[8];
 
         void updateDecay(uint64_t cycle);
 };
