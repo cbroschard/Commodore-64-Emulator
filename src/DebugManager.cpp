@@ -76,6 +76,7 @@ void DebugManager::wireBackend(Bus* c64Bus,
                               CIA2* cia2,
                               CPU* cpu,
                               CPUBus* bus,
+                              DataBusLatch* dataBus,
                               ExecutionHistory* executionHistory,
                               IECBUS* iecBus,
                               IRQLine* irq,
@@ -97,6 +98,7 @@ void DebugManager::wireBackend(Bus* c64Bus,
     backend_->attachCIA2Instance(cia2);
     backend_->attachComputerInstance(computer);
     backend_->attachCPUInstance(cpu);
+    backend_->attachDataBusLatchInstance(dataBus);
     backend_->attachExecutionHistoryInstance(executionHistory);
     backend_->attachIECBusInstance(iecBus);
     backend_->attachIRQLineInstance(irq);

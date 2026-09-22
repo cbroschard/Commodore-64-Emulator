@@ -25,6 +25,7 @@ class CIA1;
 class CIA2;
 class CPU;
 class CPUBus;
+class DataBusLatch;
 class ExecutionHistory;
 class IECBUS;
 class IO;
@@ -60,6 +61,7 @@ class DebugManager
                          CIA2* cia2,
                          CPU* cpu,
                          CPUBus* bus,
+                         DataBusLatch* dataBusLatch,
                          ExecutionHistory* executionHistory,
                          IECBUS* iecBus,
                          IRQLine* irq,
