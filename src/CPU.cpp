@@ -650,13 +650,18 @@ void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
             traceMgr->recordCPUBA("AEC low during CPU write bus cycle", makeCpuStamp());
     }
 
+    writeBus(address, value);
+
+    busCycleActive = false;
+    currentBusCycle = {};
+}
+
+void CPU::writeBus(uint16_t address, uint8_t value)
+{
     if (dataBus)
         dataBus->drive(value, DataBusLatch::Driver::CPU, totalCycles);
 
     bus->write(address, value);
-
-    busCycleActive = false;
-    currentBusCycle = {};
 }
 
 CPU::CPUIrqDebugState CPU::getIrqDebugState() const
@@ -3645,7 +3650,7 @@ bool CPU::executeCurrentMicroOp()
                     break;
             }
 
-            bus->write(address, value);
+            writeBus(address, value);
             break;
         }
 
@@ -3655,7 +3660,7 @@ bool CPU::executeCurrentMicroOp()
             microRMWOldValue = microTemp;
             microRMWNewValue = applyRMWAction(op.action, microTemp);
 
-            bus->write(address, microRMWOldValue);
+            writeBus(address, microRMWOldValue);
 
             microTemp = microRMWNewValue;
             break;
@@ -3665,7 +3670,7 @@ bool CPU::executeCurrentMicroOp()
         {
             const uint16_t address = op.useMicroAddress ? microAddress : op.address;
 
-            bus->write(address, microRMWNewValue);
+            writeBus(address, microRMWNewValue);
             microTemp = microRMWNewValue;
             break;
         }
@@ -3683,7 +3688,7 @@ bool CPU::executeCurrentMicroOp()
 
         case CpuMicroOpKind::DummyWrite:
         {
-            bus->write(op.address, op.value);
+            writeBus(op.address, op.value);
             break;
         }
 
@@ -3916,7 +3921,7 @@ bool CPU::executeCurrentMicroOp()
                     break;
             }
 
-            bus->write(uint16_t(0x0100 | SP), value);
+            writeBus(uint16_t(0x0100 | SP), value);
             SP = uint8_t(SP - 1);
 
             if (op.action == CpuMicroAction::PushInterruptStatus || op.action == CpuMicroAction::PushBRKStatus)

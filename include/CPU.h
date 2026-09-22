@@ -898,6 +898,8 @@ class CPU
         uint8_t cpuRead(uint16_t address, CpuBusCycleType type);
         void cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type);
 
+        void writeBus(uint16_t address, uint8_t value);
+
         // OpCode Table
         std::array<std::function<void()>, 256> opcodeTable;
         void initializeOpcodeTable();
