@@ -11,7 +11,6 @@
 //Forward declarations
 class Bus;
 class Cassette;
-class CPU;
 class IRQLine;
 class Joystick;
 class Keyboard;
@@ -29,7 +28,6 @@ class CIA1 : public CIA6526
         // Pointers
         inline void attachBusInstance(Bus* bus) { this->bus = bus; }
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
-        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
@@ -65,7 +63,6 @@ class CIA1 : public CIA6526
         // Non-owning pointers
         Bus* bus;
         Cassette* cass;
-        CPU* cpu;
         IRQLine* IRQ;
         Joystick* joy1;
         Joystick* joy2;

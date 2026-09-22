@@ -7,11 +7,11 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Bus.h"
 #include "cia1.h"
+#include "CPU.h"
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include "Cassette.h"
-#include "CPU.h"
 #include "IRQLine.h"
 #include "Joystick.h"
 #include "Keyboard.h"
@@ -20,7 +20,6 @@
 CIA1::CIA1() :
     bus(nullptr),
     cass(nullptr),
-    cpu(nullptr),
     IRQ(nullptr),
     joy1(nullptr),
     joy2(nullptr),
@@ -321,7 +320,7 @@ TraceManager::Stamp CIA1::makeCIAStamp() const
         return TraceManager::Stamp{};
 
     return traceMgr->makeStamp(
-        cpu ? cpu->getTotalCycles() : 0,
+        getCPU() ? getCPU()->getTotalCycles() : 0,
         vic ? vic->getCurrentRaster() : 0,
         vic ? vic->getRasterDot() : 0);
 }

@@ -12,7 +12,6 @@
 #include "Vic.h"
 
 CIA2::CIA2() :
-    cpu(nullptr),
     iecBus(nullptr),
     nmiLine(nullptr),
     userPort(nullptr),
@@ -747,7 +746,7 @@ TraceManager::Stamp CIA2::makeCIAStamp() const
         return { 0, 0, 0 };
 
     return traceMgr->makeStamp(
-        cpu ? cpu->getTotalCycles() : 0,
+        getCPU() ? getCPU()->getTotalCycles() : 0,
         vic ? vic->getCurrentRaster() : 0,
         vic ? vic->getRasterDot() : 0);
 }

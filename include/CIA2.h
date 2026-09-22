@@ -18,7 +18,6 @@ class Vic;
 
 #include "CIA6526.h"
 #include "Common/BCD.h"
-#include "CPU.h"
 #include "IECBUS.h"
 
 class CIA2 : public CIA6526
@@ -27,7 +26,6 @@ class CIA2 : public CIA6526
         CIA2();
         virtual ~CIA2();
 
-        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachNMILineInstance(NMILine* nmiLine) { this->nmiLine = nmiLine; }
         inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; recomputeIEC(); }
         inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
@@ -98,7 +96,6 @@ class CIA2 : public CIA6526
 
     private:
         // non-owning pointers
-        CPU* cpu;
         IECBUS* iecBus;
         NMILine* nmiLine;
         UserPort* userPort;

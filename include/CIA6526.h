@@ -8,6 +8,7 @@
 #ifndef CIA6526_H
 #define CIA6526_H
 
+class CPU;
 class DataBusLatch;
 
 #include <cstdint>
@@ -24,6 +25,7 @@ class CIA6526
         CIA6526();
         virtual ~CIA6526();
 
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
 
@@ -104,8 +106,12 @@ class CIA6526
 
         virtual TraceManager::Stamp makeCIAStamp() const = 0;
 
+    protected:
+        CPU* getCPU() const { return cpu; }
+
     private:
         // Non-owning pointers
+        CPU* cpu;
         DataBusLatch* dataBus;
         TraceManager* traceMgr;
 

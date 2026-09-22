@@ -6,11 +6,13 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "CIA6526.h"
+#include "CPU.h"
 #include "DataBusLatch.h"
 #include <iomanip>
 #include <sstream>
 
 CIA6526::CIA6526() :
+    cpu(nullptr),
     dataBus(nullptr),
     traceMgr(nullptr),
     portA(0xFF),
@@ -1120,7 +1122,8 @@ uint8_t CIA6526::driveDataBus(uint8_t value)
     if (dataBus)
     {
         const DataBusLatch::Driver driver = getCIANumber() == 1 ? DataBusLatch::Driver::CIA1 : DataBusLatch::Driver::CIA2;
-        dataBus->drive(value, driver);
+        const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+        dataBus->drive(value, driver, cycle);
     }
 
     return value;
