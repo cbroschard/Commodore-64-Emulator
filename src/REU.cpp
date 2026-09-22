@@ -403,6 +403,8 @@ void REU::startTransfer()
     if (!isEnabled() || !bus)
         return;
 
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     // Clear dynamic status bits, preserve model/version bits.
     regs.status &= static_cast<uint8_t>(~(SR_DYNAMIC_MASK ));
 
@@ -427,7 +429,6 @@ void REU::startTransfer()
 
             case 0x01: // REU -> C64
             {
-                const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
                 const uint8_t value = ram[reuAddr];
 
                 if (dataBus)
@@ -439,7 +440,6 @@ void REU::startTransfer()
 
             case 0x02: // Swap C64 <-> REU
             {
-                const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
                 const uint8_t c64Value = bus->readForDMA(c64Addr);
                 const uint8_t reuValue = ram[reuAddr];
 
