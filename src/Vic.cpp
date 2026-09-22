@@ -5664,20 +5664,22 @@ uint8_t Vic::getOpenBus() const
 
 uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
 {
-    const uint8_t floatingBits = getOpenBus();
+     const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
 
-    const uint8_t value = static_cast<uint8_t>((floatingBits & static_cast<uint8_t>(~definedMask)) | (definedBits & definedMask));
+    if (!dataBus)
+        return static_cast<uint8_t>(definedBits & definedMask);
 
-    if (dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::VIC);
+    dataBus->drive(definedBits, definedMask, DataBusLatch::Driver::VIC, cycle);
 
-    return value;
+    return dataBus->sample(cycle);
 }
 
 void Vic::updateOpenBus(uint8_t value)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     if (dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::VIC);
+        dataBus->drive(value, DataBusLatch::Driver::VIC, cycle);
 }
 
 void Vic::performIdleFetchForCurrentCycle()
