@@ -79,12 +79,14 @@ uint8_t Bus::read(uint16_t address)
         return value;
     };
 
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     // RAM, system ROM, CPU port and color RAM are supplied
     // directly by the Memory subsystem.
     auto memoryRead = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
-            dataBus->drive(value, DataBusLatch::Driver::Memory);
+            dataBus->drive(value, DataBusLatch::Driver::Memory, cycle);
 
         return finishRead(value);
     };
@@ -92,7 +94,7 @@ uint8_t Bus::read(uint16_t address)
     auto cartridgeRead = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
-            dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+            dataBus->drive(value, DataBusLatch::Driver::Cartridge, cycle);
 
         return finishRead(value);
     };
@@ -106,7 +108,7 @@ uint8_t Bus::read(uint16_t address)
     // No component drives the bus. Return the existing latch.
     auto openBusRead = [&]() -> uint8_t
     {
-        const uint8_t value = dataBus ? dataBus->sample() : 0xFF;
+        const uint8_t value = dataBus ? dataBus->sample(cycle) : 0xFF;
         return finishRead(value);
     };
 
@@ -190,13 +192,17 @@ uint8_t Bus::read(uint16_t address)
         {
             if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
             {
-                const uint8_t lowNibble = mem->readColorRAM(address - COLOR_MEMORY_START);
-                const uint8_t upperNibble = dataBus ? static_cast<uint8_t>(dataBus->sample() & 0xF0) : 0xF0;
+                const uint8_t lowNibble = static_cast<uint8_t>(mem->readColorRAM(address - COLOR_MEMORY_START) & 0x0F);
 
-                const uint8_t value = static_cast<uint8_t>(upperNibble | lowNibble);
+                if (dataBus)
+                {
+                    dataBus->drive(lowNibble, 0x0F, DataBusLatch::Driver::Memory, cycle);
+                    return finishRead(dataBus->sample(cycle));
+                }
 
-                return memoryRead(value);
+                return finishRead(static_cast<uint8_t>(0xF0 | lowNibble));
             }
+
             return deviceRead(readIO(accessInfo.offset));
         }
 
@@ -211,7 +217,7 @@ uint8_t Bus::read(uint16_t address)
 
 void Bus::write(uint16_t address, uint8_t value)
 {
-       if (!pla) throw std::runtime_error("Error: Missing PLA object!");
+    if (!pla) throw std::runtime_error("Error: Missing PLA object!");
 
     // Check for trace enabled and write if so
     if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_CPU) && traceMgr->memRangeContains(address))
@@ -345,6 +351,7 @@ void Bus::write(uint16_t address, uint8_t value)
 
 uint8_t Bus::readIO(uint16_t address)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
 
     if (address >= IO_VIC_START && address <= IO_VIC_END)
     {
@@ -429,10 +436,10 @@ uint8_t Bus::readIO(uint16_t address)
         if (cart && cartridgeAttached)
             return cart->read(address);
 
-        return dataBus ? dataBus->sample() : 0xFF;
+        return dataBus ? dataBus->sample(cycle) : 0xFF;
     }
 
-    return dataBus ? dataBus->sample() : 0xFF;
+    return dataBus ? dataBus->sample(cycle) : 0xFF;
 }
 
 void Bus::writeIO(uint16_t address, uint8_t value)
@@ -602,10 +609,12 @@ uint8_t Bus::readForDMA(uint16_t address)
         return value;
     };
 
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     // Nothing drives the bus. Return the current data-bus latch.
     auto sampleOpenBus = [&]() -> uint8_t
     {
-        const uint8_t value = dataBus ? dataBus->sample() : 0xFF;
+        const uint8_t value = dataBus ? dataBus->sample(cycle) : 0xFF;
 
         if (traceMgr && traceMgr->busDetailOn(TraceManager::TraceDetail::BUS_OPEN))
         {
@@ -632,7 +641,7 @@ uint8_t Bus::readForDMA(uint16_t address)
     auto driveMemory = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
-            dataBus->drive(value, DataBusLatch::Driver::Memory);
+            dataBus->drive(value, DataBusLatch::Driver::Memory, cycle);
 
         return finishDMARead(value);
     };
@@ -642,7 +651,7 @@ uint8_t Bus::readForDMA(uint16_t address)
     auto driveCartridge = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
-            dataBus->drive(value, DataBusLatch::Driver::Cartridge);
+            dataBus->drive(value, DataBusLatch::Driver::Cartridge, cycle);
 
         return finishDMARead(value);
     };
@@ -687,10 +696,15 @@ uint8_t Bus::readForDMA(uint16_t address)
         {
             if (address >= COLOR_MEMORY_START && address <= COLOR_MEMORY_END)
             {
-                const uint8_t lowNibble = mem->readColorRAM(address - COLOR_MEMORY_START);
-                const uint8_t upperNibble = dataBus ? static_cast<uint8_t>(dataBus->sample() & 0xF0) : 0xF0;
+                const uint8_t lowNibble = static_cast<uint8_t>(mem->readColorRAM(address - COLOR_MEMORY_START) & 0x0F);
 
-                return driveMemory(static_cast<uint8_t>(upperNibble | lowNibble));
+                if (dataBus)
+                {
+                    dataBus->drive(lowNibble, 0x0F, DataBusLatch::Driver::Memory, cycle);
+                    return finishDMARead(dataBus->sample(cycle));
+                }
+
+                return finishDMARead(static_cast<uint8_t>(0xF0 | lowNibble));
             }
 
             // The selected I/O device handles its own DataBusLatch
