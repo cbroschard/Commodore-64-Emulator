@@ -651,7 +651,7 @@ void CPU::cpuWrite(uint16_t address, uint8_t value, CpuBusCycleType type)
     }
 
     if (dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::CPU);
+        dataBus->drive(value, DataBusLatch::Driver::CPU, totalCycles);
 
     bus->write(address, value);
 
