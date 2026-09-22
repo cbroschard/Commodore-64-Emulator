@@ -26,6 +26,7 @@
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
 #include "Debug/NextCommand.h"
+#include "Debug/OpenBusCommand.h"
 #include "Debug/PLACommand.h"
 #include "Debug/ResetCommand.h"
 #include "Debug/REUCommand.h"
@@ -65,6 +66,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<MemoryEditCommand>());
     registerCommand(std::make_unique<MemoryEditDirectCommand>());
     registerCommand(std::make_unique<NextCommand>());
+    registerCommand(std::make_unique<OpenBusCommand>());
     registerCommand(std::make_unique<PLACommand>());
     registerCommand(std::make_unique<ResetCommand>());
     registerCommand(std::make_unique<REUCommand>());
