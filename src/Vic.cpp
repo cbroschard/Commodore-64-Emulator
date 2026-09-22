@@ -5648,15 +5648,18 @@ void Vic::applyVerticalBorderCompare(int raster, uint8_t d011)
 
 uint8_t Vic::latchOpenBus(uint8_t value)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     if (dataBus)
-        dataBus->drive(value, DataBusLatch::Driver::VIC);
+        dataBus->drive(value, DataBusLatch::Driver::VIC, cycle);
 
     return value;
 }
 
 uint8_t Vic::getOpenBus() const
 {
-    return dataBus ? dataBus->sample() : 0xFF;
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+    return dataBus ? dataBus->sample(cycle) : 0xFF;
 }
 
 uint8_t Vic::latchOpenBusMasked(uint8_t definedBits, uint8_t definedMask)
