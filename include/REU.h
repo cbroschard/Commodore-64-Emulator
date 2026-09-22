@@ -20,6 +20,7 @@
 #include "StateWriter.h"
 
 class Bus;
+class CPU;
 class DataBusLatch;
 class IRQLine;
 
@@ -30,6 +31,7 @@ class REU
         virtual ~REU();
 
         inline void attachBusInstance(Bus* bus) { this->bus = bus; }
+        inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
 
@@ -57,11 +59,10 @@ class REU
         std::string pokeRAM(uint32_t address, uint8_t value);
         std::string selfTest();
 
-    protected:
-
     private:
         // Non-owning pointers
         Bus* bus;
+        CPU* cpu;
         DataBusLatch* dataBus;
         IRQLine* irq;
 

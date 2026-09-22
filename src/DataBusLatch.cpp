@@ -78,12 +78,6 @@ bool DataBusLatch::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     return true;
 }
 
-void DataBusLatch::drive(uint8_t value, Driver driver)
-{
-    latchedValue = value;
-    lastDriver = driver;
-}
-
 void DataBusLatch::drive(uint8_t value, Driver driver, uint64_t cycle)
 {
     drive(value, 0xFF, driver, cycle);

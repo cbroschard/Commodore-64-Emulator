@@ -6,12 +6,14 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Bus.h"
+#include "CPU.h"
 #include "DataBusLatch.h"
 #include "IRQLine.h"
 #include "REU.h"
 
 REU::REU() :
     bus(nullptr),
+    cpu(nullptr),
     dataBus(nullptr),
     irq(nullptr),
     model(REUModel::None)
@@ -109,17 +111,19 @@ void REU::reset()
 
 uint8_t REU::readIO(uint16_t address)
 {
+    const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
+
     auto driveREU = [&](uint8_t value) -> uint8_t
     {
         if (dataBus)
-            dataBus->drive(value, DataBusLatch::Driver::REU);
+            dataBus->drive(value, DataBusLatch::Driver::REU, cycle);
 
         return value;
     };
 
     auto sampleOpenBus = [&]() -> uint8_t
     {
-        return dataBus ? dataBus->sample() : 0xFF;
+        return dataBus ? dataBus->sample(cycle) : 0xFF;
     };
 
     const uint8_t reg = static_cast<uint8_t>(address & 0x0F);
@@ -423,10 +427,11 @@ void REU::startTransfer()
 
             case 0x01: // REU -> C64
             {
+                const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
                 const uint8_t value = ram[reuAddr];
 
                 if (dataBus)
-                    dataBus->drive(value, DataBusLatch::Driver::REU);
+                    dataBus->drive(value, DataBusLatch::Driver::REU, cycle);
 
                 bus->writeForDMA(c64Addr, value);
                 break;
@@ -434,11 +439,12 @@ void REU::startTransfer()
 
             case 0x02: // Swap C64 <-> REU
             {
+                const uint64_t cycle = cpu ? cpu->getTotalCycles() : 0;
                 const uint8_t c64Value = bus->readForDMA(c64Addr);
                 const uint8_t reuValue = ram[reuAddr];
 
                 if (dataBus)
-                    dataBus->drive(reuValue, DataBusLatch::Driver::REU);
+                    dataBus->drive(reuValue, DataBusLatch::Driver::REU, cycle);
 
                 bus->writeForDMA(c64Addr, reuValue);
                 ram[reuAddr] = c64Value;

@@ -36,7 +36,6 @@ class DataBusLatch
         bool loadState(const StateReader::Chunk& chunk, StateReader& rdr);
 
         // Device drives all 8-bits
-        void drive(uint8_t value, Driver driver);
         void drive(uint8_t value, Driver drive, uint64_t cycle);
 
         // Device only drives some bits
