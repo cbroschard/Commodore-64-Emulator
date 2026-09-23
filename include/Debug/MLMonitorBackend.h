@@ -118,6 +118,7 @@ class MLMonitorBackend
         inline DataBusLatch::Driver getDataBusLatchLastDriver() const { return dataBusLatch ? dataBusLatch->getLastDriver()
             : DataBusLatch::Driver::None; }
         inline uint64_t getDataBusLatchLastUpdateCycle() const { return dataBusLatch ? dataBusLatch->getLastUpdateCycle() : 0; }
+        inline uint8_t getDataBusLatchLatchedValue() const { return dataBusLatch ? dataBusLatch->getLatchedValue() : 0xFF; }
         inline uint64_t getDataBusLatchLastDrivenCycle(int bit) const { return dataBusLatch ? dataBusLatch->getLastDrivenCycle(bit) : 0; }
         inline void dataBusLatchClearDiagnostics() { if (dataBusLatch) dataBusLatch->clearDiagnostics(); }
         inline const char* dataBusLatchDriverToString(DataBusLatch::Driver driver) const { return DataBusLatch::driverToString(driver); }
