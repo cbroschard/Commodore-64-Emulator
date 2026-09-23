@@ -80,15 +80,24 @@ void OpenBusCommand::execute(MLMonitor& mon, const std::vector<std::string>& arg
     {
         const auto driver = mon.mlmonitorbackend()->getDataBusLatchLastDriver();
 
-        std::cout
-            << "Open Bus Status\n"
-            << "---------------\n"
-            << "Last Driver:      "
-            << mon.mlmonitorbackend()->dataBusLatchDriverToString(driver)
-            << "\n"
-            << "Last Update Cycle: "
-            << mon.mlmonitorbackend()->getDataBusLatchLastUpdateCycle()
-            << "\n";
+       std::cout
+        << "Open Bus Status\n"
+        << "---------------\n"
+        << "Current Value:     $"
+        << std::uppercase
+        << std::hex
+        << std::setw(2)
+        << std::setfill('0')
+        << static_cast<int>(mon.mlmonitorbackend()->getDataBusLatchLatchedValue())
+        << std::dec
+        << std::setfill(' ')
+        << "\n"
+        << "Last Driver:       "
+        << mon.mlmonitorbackend()->dataBusLatchDriverToString(driver)
+        << "\n"
+        << "Last Update Cycle: "
+        << mon.mlmonitorbackend()->getDataBusLatchLastUpdateCycle()
+        << "\n";
 
         return;
     }
