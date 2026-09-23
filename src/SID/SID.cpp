@@ -833,12 +833,17 @@ double SID::generateAudioSample()
 
 void SID::tick(uint32_t cycles)
 {
-    if (sidBusDecayCycles > cycles)
-        sidBusDecayCycles -= cycles;
-    else
+    if (sidBusDecayCycles != 0)
     {
-        sidBusDecayCycles = 0;
-        sidBusLatch = 0x00;
+        if (sidBusDecayCycles > cycles)
+        {
+            sidBusDecayCycles -= cycles;
+        }
+        else
+        {
+            sidBusDecayCycles = 0;
+            sidBusLatch = 0x00;
+        }
     }
 
     const double sidCycles = static_cast<double>(cycles);
