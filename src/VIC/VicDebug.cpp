@@ -387,3 +387,257 @@ void Vic::clearPendingIRQs()
     (void)readRegister(0xD01E);
     (void)readRegister(0xD01F);
 }
+
+void Vic::snapshotRasterPixelComposition(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    RasterPixelCompositionSnapshot& s = rasterPixelStates[raster];
+
+    s.valid = true;
+    s.raster = raster;
+
+    for (int x = 0; x < VISIBLE_WIDTH; ++x)
+    {
+        s.bgColor[x] = bgColorLine[x] & 0x0F;
+        s.bgOpaque[x] = bgOpaqueLine[x] ? 1 : 0;
+        s.bgSource[x] = static_cast<uint8_t>(bgSourceLine[x]);
+        s.borderMask[x] = borderMaskLine[x] ? 1 : 0;
+        s.finalColor[x] = finalColorLine[x] & 0x0F;
+
+        uint8_t mask = 0;
+        for (int spr = 0; spr < 8; ++spr)
+        {
+            if (spriteOpaqueLine[spr][x])
+                mask |= static_cast<uint8_t>(1u << spr);
+        }
+
+        s.spriteMask[x] = mask;
+    }
+}
+
+void Vic::snapshotRasterRowState(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        return;
+
+    RasterRowStateSnapshot& s = rasterRowStates[raster];
+
+    s.valid = true;
+    s.raster = raster;
+    s.firstBadlineY = firstBadlineY;
+
+    s.rc = vicState.rc;
+    s.vcBase = vicState.vcBase;
+    s.vmliBase = vicState.vmliBase;
+    s.vmliFetchIndex = vicState.vmliFetchIndex;
+
+    s.displayEnabled = vicState.displayEnabled;
+    s.displayEnabledNext = vicState.displayEnabledNext;
+    s.badLine = vicState.badLineCondition;
+    s.badLineSampled = vicState.badLineLatchedAt14;
+
+    s.d011 = latchedD011ForRaster(raster);
+    s.d016 = latchedD016ForRaster(raster);
+    s.d018 = latchedD018ForRaster(raster);
+}
+
+std::string Vic::decodeModeName() const
+{
+    const uint8_t d011 = effectiveD011ForRaster(registers.raster);
+    const uint8_t d016 = effectiveD016ForRaster(registers.raster);
+
+    const bool ecm = (d011 & 0x40) != 0;
+    const bool bmm = (d011 & 0x20) != 0;
+    const bool mcm = (d016 & 0x10) != 0;
+
+    if (!ecm && !bmm && !mcm) return "Text";
+    if (!ecm && !bmm &&  mcm) return "Multicolor Text";
+    if (!ecm &&  bmm && !mcm) return "Bitmap";
+    if (!ecm &&  bmm &&  mcm) return "Multicolor Bitmap";
+    if ( ecm && !bmm && !mcm) return "ECM (Extended Color Mode)";
+    if ( ecm && !bmm &&  mcm) return "Illegal Text";
+    if ( ecm &&  bmm && !mcm) return "Illegal Bitmap";
+    return "Illegal Multicolor Bitmap";
+}
+
+std::string Vic::getVICBanks() const
+{
+    std::stringstream out;
+    out << std::hex << std::uppercase << std::setfill('0');
+
+    const int raster = std::clamp<int>(static_cast<int>(registers.raster), 0, static_cast<int>(cfg_->maxRasterLines - 1));
+    const uint16_t bankBase = cia2 ? cia2->getCurrentVICBank() : 0;
+
+    // Representative display X for monitor reporting.
+    // Actual rendering remains pixel-aware across the whole raster.
+    const int samplePx = BACKGROUND_40COL_X0;
+
+    const uint16_t charOffset = charBaseForRasterPixelX(raster, samplePx);
+    const uint16_t screenOffset = screenBaseForRasterPixelX(raster, samplePx);
+    const uint16_t bitmapOffset = bitmapBaseForRasterPixelX(raster, samplePx);
+
+    out << "Active VIC Bank = " << (bankBase >> 14)
+        << " ($" << std::setw(4) << bankBase
+        << "-$" << std::setw(4) << static_cast<uint16_t>(bankBase + 0x3FFF)
+        << ")\n\n";
+
+    out << "CHAR Base   = offset $" << std::setw(4) << charOffset
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + charOffset) << "\n";
+
+    out << "Screen Base = offset $" << std::setw(4) << screenOffset
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + screenOffset) << "\n";
+
+    out << "Bitmap Base = offset $" << std::setw(4) << bitmapOffset
+        << "  ->  address $" << std::setw(4)
+        << static_cast<uint16_t>(bankBase + bitmapOffset) << "\n";
+
+    return out.str();
+}
+
+void Vic::updateMonitorCaches(int raster)
+{
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = registers.raster;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+        raster = 0;
+
+    const uint16_t currentVICBank = cia2 ? cia2->getCurrentVICBank() : 0;
+
+    // Use a representative visible display X for monitor/debug cache reporting.
+    // Rendering itself remains pixel-aware through charBaseForRasterPixelX(),
+    // screenBaseForRasterPixelX(), and bitmapBaseForRasterPixelX().
+    const int samplePx = BACKGROUND_40COL_X0;
+
+    charBaseCache = static_cast<uint16_t>(charBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+
+    screenBaseCache = static_cast<uint16_t>(screenBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+
+    bitmapBaseCache = static_cast<uint16_t>(bitmapBaseForRasterPixelX(raster, samplePx) + currentVICBank);
+}
+
+std::string Vic::dumpRasterPixelCompositionDebug(int raster, int x0, int x1) const
+{
+    std::ostringstream out;
+
+    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
+    {
+        out << "Raster " << raster << " is out of range\n";
+        return out.str();
+    }
+
+    if (x0 > x1)
+        std::swap(x0, x1);
+
+    x0 = std::clamp(x0, 0, VISIBLE_WIDTH - 1);
+    x1 = std::clamp(x1, 0, VISIBLE_WIDTH - 1);
+
+    const RasterPixelCompositionSnapshot* snap = nullptr;
+    const char* snapSource = "none";
+
+    if (raster < static_cast<int>(rasterPixelStates.size()) &&  rasterPixelStates[raster].valid)
+    {
+        snap = &rasterPixelStates[raster];
+        snapSource = "current frame";
+    }
+    else if (raster < static_cast<int>(lastFrameRasterPixelStates.size()) && lastFrameRasterPixelStates[raster].valid)
+    {
+        snap = &lastFrameRasterPixelStates[raster];
+        snapSource = "previous frame";
+    }
+
+    if (!snap)
+    {
+        out << "No pixel composition snapshot available for raster "
+            << raster << "\n";
+        return out.str();
+    }
+
+    const int py = fbY(raster);
+
+    out << "Raster Pixel Composition Debug\n";
+    out << "------------------------------\n";
+    out << "snapshot: " << snapSource << "\n";
+    out << "raster: " << raster << "\n";
+    out << "fbY: " << py << "\n";
+    out << "x range: " << x0 << " - " << x1 << "\n";
+    out << "\n";
+
+    out << "  x    bgOpq bgCol bgSrc border final sprMask flags\n";
+    out << "  --------------------------------------------------\n";
+
+    for (int x = x0; x <= x1; ++x)
+    {
+        const uint8_t bgOpq    = snap->bgOpaque[x] ? 1 : 0;
+        const uint8_t bgCol    = snap->bgColor[x] & 0x0F;
+        const uint8_t bgSrc    = snap->bgSource[x];
+        const uint8_t border   = snap->borderMask[x] ? 1 : 0;
+        const uint8_t finalCol = snap->finalColor[x] & 0x0F;
+        const uint8_t sprMask  = snap->spriteMask[x];
+
+        out << "  "
+            << std::dec << std::setw(3) << x
+            << "     "
+            << std::setw(1) << static_cast<int>(bgOpq)
+            << "    $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(bgCol)
+            << std::dec << std::setfill(' ')
+            << "   "
+            << std::setw(5) << static_cast<int>(bgSrc)
+            << "      "
+            << std::setw(1) << static_cast<int>(border)
+            << "    $"
+            << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
+            << static_cast<int>(finalCol)
+            << "   $"
+            << std::setw(2) << static_cast<int>(sprMask)
+            << std::dec << std::setfill(' ')
+            << "   ";
+
+        bool wroteFlag = false;
+
+        if (border)
+        {
+            out << "BORDER";
+            wroteFlag = true;
+        }
+
+        if (sprMask != 0)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "SPR";
+            wroteFlag = true;
+        }
+
+        if (!bgOpq)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "BG-TRANSPARENT";
+            wroteFlag = true;
+        }
+
+        if (sprMask == 0 && !border && finalCol != bgCol)
+        {
+            if (wroteFlag)
+                out << ",";
+            out << "FINAL!=BG";
+            wroteFlag = true;
+        }
+
+        if (!wroteFlag)
+            out << "-";
+
+        out << "\n";
+    }
+
+    out << std::dec << std::nouppercase << std::setfill(' ');
+
+    return out.str();
+}
