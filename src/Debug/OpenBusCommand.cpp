@@ -41,8 +41,8 @@ std::string OpenBusCommand::help() const
     return
         "Usage:\n"
         "  openbus status\n"
-        "  openbus decay\n"
-        "  openbus decay clear\n"
+        "  openbus age\n"
+        "  openbus age clear\n"
         "\n"
         "Displays the current shared C64 data-bus latch state and\n"
         "diagnostic information used for open-bus behavior.\n"
@@ -52,12 +52,12 @@ std::string OpenBusCommand::help() const
         "      Show the current latched value, last bus driver,\n"
         "      and last update cycle.\n"
         "\n"
-        "  openbus decay\n"
-        "      Show per-bit data-bus decay diagnostics, including\n"
+        "  openbus age\n"
+        "      Show per-bit data-bus age diagnostics, including\n"
         "      the last driven cycle and maximum observed age.\n"
         "\n"
-        "  openbus decay clear\n"
-        "      Clear the collected decay diagnostics without\n"
+        "  openbus age clear\n"
+        "      Clear the collected age diagnostics without\n"
         "      modifying the current data-bus latch state.\n";
 }
 
@@ -101,7 +101,7 @@ void OpenBusCommand::execute(MLMonitor& mon, const std::vector<std::string>& arg
 
         return;
     }
-    else if (sub == "decay")
+    else if (sub == "age")
     {
         if (args.size() == 2)
         {
@@ -113,7 +113,7 @@ void OpenBusCommand::execute(MLMonitor& mon, const std::vector<std::string>& arg
                 return;
             }
 
-            std::cout << "Open Bus Decay Diagnostics\n"  << "--------------------------\n";
+            std::cout << "Open Bus age Diagnostics\n"  << "--------------------------\n";
 
             for (int bit = 0; bit < 8; ++bit)
             {
@@ -126,7 +126,7 @@ void OpenBusCommand::execute(MLMonitor& mon, const std::vector<std::string>& arg
         else if (args[2] == "clear")
         {
             mon.mlmonitorbackend()->dataBusLatchClearDiagnostics();
-            std::cout << "Open-bus decay diagnostics cleared.\n";
+            std::cout << "Open-bus age diagnostics cleared.\n";
             return;
         }
         else
