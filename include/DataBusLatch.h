@@ -50,26 +50,22 @@ class DataBusLatch
         inline const uint64_t* getMaxObservedAge() const { return maxObservedAge; }
         inline Driver getLastDriver() const { return lastDriver; }
         inline uint64_t getLastUpdateCycle() const { return lastUpdateCycle; }
+        inline uint8_t getLatchedValue() const { return latchedValue; }
 
         uint64_t getLastDrivenCycle(int bit) const;
         void clearDiagnostics();
         static const char* driverToString(Driver driver);
 
     private:
-        static constexpr uint64_t DEFAULT_DECAY_CYCLES = 0;
-
         uint8_t latchedValue;
 
         Driver lastDriver;
 
         uint64_t lastUpdateCycle;
-        uint64_t decayRemaining[8];
 
          // Diagnostic timing only
         uint64_t lastDrivenCycle[8];
         uint64_t maxObservedAge[8];
-
-        void updateDecay(uint64_t cycle);
 };
 
 #endif // DATABUSLATCH_H
