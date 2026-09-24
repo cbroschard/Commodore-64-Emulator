@@ -60,7 +60,6 @@ void Vic::beginFrameIfNeeded()
         rasterPriorityEvents.clear();
         rasterSpriteModeEvents.clear();
         rasterSpriteXExpansionEvents.clear();
-        rasterSpriteEnableEvents.clear();
         rasterSpriteXEvents.clear();
 
         firstBadlineY = -1;

@@ -327,7 +327,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteEnabled;
             registers.spriteEnabled = value;
 
-            recordRasterSpriteEnableWrite(oldValue, registers.spriteEnabled);
             traceVicRegWrite(address, oldValue, registers.spriteEnabled);
             break;
         }
