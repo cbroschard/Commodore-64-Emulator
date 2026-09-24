@@ -1256,15 +1256,9 @@ class Vic
         bool spriteYExpandedAtPixel(int sprite, int raster, int px) const;
         bool firstRasterColorEventValue(int raster, uint16_t address, uint8_t& value) const;
 
-        void applyBorderColorEventsToFinalLine(int raster);
-        void applyExtendedBackgroundColorEventsToLine(int raster);
-        void applyBackgroundColorEventsToLine(int raster);
-
         uint16_t charBaseForRasterPixelX(int raster, int px) const;
         uint16_t screenBaseForRasterPixelX(int raster, int px) const;
         uint16_t bitmapBaseForRasterPixelX(int raster, int px) const;
-
-        void applySpriteColorEventsToLine(int raster);
 
         void innerWindowForRaster(int raster, int& x0, int& x1) const;
         uint8_t fetchColorByte (int row,int col, int raster) const;
