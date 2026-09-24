@@ -151,6 +151,10 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     {
         pixel.color = 0x00;
     }
+    else
+    {
+        pixel.color = backgroundColorForSource(pixel.source, pixel.color);
+    }
 
     // Keep the existing line-buffer renderer working for now.
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque,  pixel.source);
@@ -173,6 +177,32 @@ void Vic::emitDotRasterLine(int raster)
 
     for (int px = xStart; px < xEnd; ++px)
         sink->setPixel(px, screenY, static_cast<uint8_t>(dotColorLine[px] & 0x0F));
+}
+
+uint8_t Vic::backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const
+{
+    switch (source)
+    {
+        case BackgroundSource::BG0:
+            return static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+
+        case BackgroundSource::BG1:
+            return static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+
+        case BackgroundSource::BG2:
+            return static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+
+        case BackgroundSource::BG3:
+            return static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
+
+        case BackgroundSource::Foreground:
+        case BackgroundSource::Bitmap:
+        case BackgroundSource::Border:
+        case BackgroundSource::Unknown:
+        default:
+            return static_cast<uint8_t>(
+                fallbackColor & 0x0F);
+    }
 }
 
 int Vic::rasterVisibleStartX(int raster) const

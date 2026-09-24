@@ -1201,6 +1201,8 @@ class Vic
 
         ActiveBackgroundPixelState activeBgPixel;
 
+        uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
+
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
 
         void resetActiveBackgroundPixelState();
