@@ -1238,10 +1238,7 @@ class Vic
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;
 
-        bool isInnerDisplayPixel(int raster, int px) const;
-
         void buildBorderMaskLine(int raster);
-        BackgroundPixel sampleBackgroundPixelAtX(int raster, int px) const;
 
         int rasterPixelToCycle(int px) const;
         int rasterEventPixelX(int cycle) const;

@@ -541,22 +541,6 @@ void Vic::clearBackgroundLineBuffers()
     bgSourceLine.fill(BackgroundSource::Border);
 }
 
-Vic::BackgroundPixel Vic::sampleBackgroundPixelAtX(int raster, int px) const
-{
-    BackgroundPixel out {};
-    out.color = registers.borderColor & 0x0F;
-    out.opaque = false;
-
-    if (px < 0 || px >= VISIBLE_WIDTH)
-        return out;
-
-    if (borderActiveAtPixel(raster, px))
-        return out;
-
-    out.color = bgColorLine[px] & 0x0F;
-    out.opaque = (bgOpaqueLine[px] != 0);
-    return out;
-}
 uint16_t Vic::charBaseForRasterPixelX(int raster, int px) const
 {
     const uint8_t d018 = d018ForRasterPixelX(raster, px, false) & 0xFE;

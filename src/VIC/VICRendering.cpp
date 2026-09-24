@@ -186,17 +186,6 @@ int Vic::rasterVisibleEndX(int raster) const
     return VISIBLE_WIDTH;
 }
 
-bool Vic::isInnerDisplayPixel(int raster, int px) const
-{
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return false;
-
-    if (px < 0 || px >= VISIBLE_WIDTH)
-        return false;
-
-    return borderMaskLine[px] == 0;
-}
-
 void Vic::recordRasterColorWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
     if (!(address >= 0xD020 && address <= 0xD02E))
