@@ -834,6 +834,8 @@ class Vic
         std::array<uint8_t, 512> borderMaskLine{};
         std::array<uint8_t, 512> finalColorLine{};
 
+        std::array<uint8_t, VISIBLE_WIDTH> dotColorLine {};
+
         // Caches for ML Monitor
         uint16_t charBaseCache;
         uint16_t screenBaseCache;

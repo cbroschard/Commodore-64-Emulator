@@ -14,6 +14,8 @@ void Vic::runPixelOutputPhase()
 
     if (currentCycle == 0)
     {
+        dotColorLine.fill(registers.borderColor & 0x0F);
+
         clearBackgroundLineBuffers();
 
         const graphicsMode mode = graphicsModeForRaster(raster);
@@ -84,7 +86,7 @@ void Vic::outputDot(int raster, int dot, int x)
     const std::array<SpritePixel, 8> spritePixels = stepSpriteSequencersAtX(raster, x);
     const uint8_t color = compositeDot(raster, x, bgPixel, spritePixels);
 
-    finalColorLine[x] = static_cast<uint8_t>(color & 0x0F);
+    dotColorLine[x] = static_cast<uint8_t>(color & 0x0F);
 }
 
 Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
