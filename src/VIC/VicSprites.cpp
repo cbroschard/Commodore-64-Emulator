@@ -456,10 +456,12 @@ void Vic::beginSpriteRasterOutput(int raster)
     }
 }
 
-void Vic::stepSpriteSequencersAtX(int raster, int px)
+std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
 {
+    std::array<SpritePixel, 8> pixels {};
+
     if (px < 0 || px >= VISIBLE_WIDTH)
-        return;
+        return pixels;
 
     for (int spr = 0; spr < 8; ++spr)
     {
@@ -492,23 +494,33 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         if (currentSpriteSequencerPixel(spr, px, color, opaque, source) && opaque)
         {
+            // Dot-level sprite result.
+            pixels[spr].opaque = true;
+            pixels[spr].color = static_cast<uint8_t>(color & 0x0F);
+            pixels[spr].source = source;
+
+            // Keep the legacy line buffers populated for now.
             spriteOpaqueLine[spr][px] = 1;
+
             spriteColorLine[spr][px] = static_cast<uint8_t>(color & 0x0F);
+
             spriteColorSourceLine[spr][px] = source;
 
+            // Keep existing sprite/background collision behavior.
             if (bgOpaqueLine[px])
             {
                 const uint8_t bit = static_cast<uint8_t>(1u << spr);
+
                 latchSpriteBackgroundCollision(bit, raster, px);
             }
 
+            // Keep existing sprite/sprite collision behavior.
             for (int other = 0; other < spr; ++other)
             {
                 if (!spriteOpaqueLine[other][px])
                     continue;
 
-                const uint8_t bits =
-                    static_cast<uint8_t>((1 << spr) | (1 << other));
+                const uint8_t bits = static_cast<uint8_t>((1u << spr) | (1u << other));
 
                 latchSpriteSpriteCollision(bits, raster, px);
             }
@@ -516,11 +528,8 @@ void Vic::stepSpriteSequencersAtX(int raster, int px)
 
         advanceSpriteOutputState(spr, px);
     }
-}
 
-void Vic::outputSpritePixel(int raster, int px)
-{
-    stepSpriteSequencersAtX(raster, px);
+    return pixels;
 }
 
 void Vic::updateSpriteDMAEndOfLine(int raster)

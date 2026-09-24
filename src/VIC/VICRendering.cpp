@@ -34,30 +34,45 @@ void Vic::runPixelOutputPhase()
         beginSpriteRasterOutput(raster);
     }
 
-    const int baseX = cycleFramebufferX(currentCycle);
+    const int baseX =
+        cycleFramebufferX(currentCycle);
 
-    for (int i = 0; i < 8; ++i)
+    for (int dot = 0; dot < 8; ++dot)
     {
-        const int x = baseX + i;
+        const int x = baseX + dot;
 
         if (x < 0 || x >= VISIBLE_WIDTH)
             continue;
 
-        updateVerticalBorderStateAtLeftCompare(raster, x);
-        updateHorizontalBorderStateAtPixel(raster, x);
-
-        outputPixel(raster, x);
-        outputSpritePixel(raster, x);
+        outputDot(raster, dot, x);
     }
 }
 
-void Vic::outputPixel(int raster, int x)
+void Vic::outputDot(int raster, int dot, int x)
 {
+
+    (void)dot;
+
+    updateVerticalBorderStateAtLeftCompare(raster, x);
+    updateHorizontalBorderStateAtPixel(raster, x);
+
+    const BackgroundPixel bgPixel = outputPixel(raster, x);
+
+    const std::array<SpritePixel, 8> spritePixels = stepSpriteSequencersAtX(raster, x);
+
+    (void)bgPixel;
+    (void)spritePixels;
+}
+
+Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
+{
+    BackgroundPixel pixel {};
+
     if (raster < 0 || raster >= static_cast<int>(rasterPixelStates.size()))
-        return;
+        return pixel;
 
     if (x < 0 || x >= VISIBLE_WIDTH)
-        return;
+        return pixel;
 
     if (currentCycleSlot.graphicsFetch)
     {
@@ -84,19 +99,17 @@ void Vic::outputPixel(int raster, int x)
     }
 
     if (!activeBgPixel.valid)
-        return;
+        return pixel;
 
     const int expectedX = activeBgPixel.pxBase + activeBgPixel.phase;
 
     if (x != expectedX)
     {
         resetActiveBackgroundPixelState();
-        return;
+        return pixel;
     }
 
     const graphicsMode outputMode = activeBgPixel.mode;
-
-    BackgroundPixel pixel {};
 
     if (outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
@@ -108,13 +121,18 @@ void Vic::outputPixel(int raster, int x)
         pixel = sampleAndAdvanceActiveStandardTextPixel();
 
     if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap ||
-        outputMode == graphicsMode::illegalMulticolorBitmap)
+         outputMode == graphicsMode::illegalMulticolorBitmap)
+    {
         pixel.color = 0x00;
+    }
 
-    stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque, pixel.source);
+    // Keep the existing line-buffer renderer working for now.
+    stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque,  pixel.source);
 
     if (activeBgPixel.phase >= 8)
         activeBgPixel.valid = false;
+
+    return pixel;
 }
 
 void Vic::renderLine(int raster)

@@ -909,10 +909,6 @@ class Vic
         void reloadCharacterSequencerAtCycle14(bool badLineAt14);
         void advanceCharacterSequencerAfterGAccess();
 
-        // Pixel accurate helpers
-        void runPixelOutputPhase();
-        void outputPixel(int raster, int x);
-
         bool performGAccessForCurrentCycle();
 
         void advanceCycleAndFinalizeLineIfNeeded();
@@ -1019,10 +1015,6 @@ class Vic
 
         void clearSpriteLineBuffers();
 
-        void beginSpriteRasterOutput(int raster);
-        void stepSpriteSequencersAtX(int raster, int px);
-        void outputSpritePixel(int raster, int px);
-
         uint32_t getLatchedSpriteBits(int sprite) const;
 
         bool initialSpriteMulticolorModeForRaster(int raster, uint8_t& value) const;
@@ -1046,6 +1038,13 @@ class Vic
             uint8_t color = 0;
             bool opaque = false;
             BackgroundSource source = BackgroundSource::Unknown;
+        };
+
+        struct SpritePixel
+        {
+            bool opaque = false;
+            uint8_t color = 0;
+            SpriteColorSource source = SpriteColorSource::None;
         };
 
         struct ActiveBackgroundPixelState
@@ -1221,6 +1220,14 @@ class Vic
         void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
 
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
+
+        // Pixel accurate helpers
+        void runPixelOutputPhase();
+        void outputDot(int raster, int dot, int x);
+        BackgroundPixel outputPixel(int raster, int x);
+
+        void beginSpriteRasterOutput(int raster);
+        std::array<SpritePixel, 8> stepSpriteSequencersAtX(int raster, int px);
 
         // Helpers
         void clearBadLineFifo();
