@@ -160,6 +160,20 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     return pixel;
 }
 
+void Vic::emitDotRasterLine(int raster)
+{
+    if (!sink)
+        return;
+
+    const int screenY = fbY(raster);
+
+    const int xStart = rasterVisibleStartX(raster);
+    const int xEnd   = rasterVisibleEndX(raster);
+
+    for (int px = xStart; px < xEnd; ++px)
+        sink->setPixel(px, screenY, static_cast<uint8_t>(dotColorLine[px] & 0x0F));
+}
+
 void Vic::renderLine(int raster)
 {
     if (!sink || !bus)

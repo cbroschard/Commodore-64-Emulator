@@ -312,7 +312,7 @@ void Vic::advanceCycleAndFinalizeLineIfNeeded()
 
 void Vic::finalizeCurrentRasterLine(int curRaster)
 {
-    renderLine(curRaster);
+    emitDotRasterLine(curRaster);
 
     snapshotRasterPixelComposition(curRaster);
     snapshotRasterRowState(curRaster);

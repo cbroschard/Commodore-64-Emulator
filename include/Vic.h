@@ -1229,6 +1229,8 @@ class Vic
         uint8_t compositeDot(int raster, int x, const BackgroundPixel& bgPixel, const std::array<SpritePixel, 8>& spritePixels) const;
         BackgroundPixel outputPixel(int raster, int x);
 
+        void emitDotRasterLine(int raster);
+
         void beginSpriteRasterOutput(int raster);
         std::array<SpritePixel, 8> stepSpriteSequencersAtX(int raster, int px);
         uint8_t spriteColorForSource(int sprite, SpriteColorSource source, int raster, int px) const;
