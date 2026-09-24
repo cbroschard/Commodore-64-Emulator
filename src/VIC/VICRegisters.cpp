@@ -247,7 +247,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         registers.backgroundColor[index] = value & 0x0F;
 
-        recordRasterColorWrite(address, oldValue, registers.backgroundColor[index]);
         traceVicRegWrite(address, oldValue, registers.backgroundColor[index]);
         return;
     }
@@ -260,7 +259,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
 
         registers.spriteColors[index] = value & 0x0F;
 
-        recordRasterColorWrite(address, oldValue, registers.spriteColors[index]);
         traceVicRegWrite(address, oldValue, registers.spriteColors[index]);
         return;
     }
@@ -469,7 +467,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.borderColor;
             registers.borderColor = value & 0x0F;
-            recordRasterColorWrite(address, oldValue, registers.borderColor);
             traceVicRegWrite(address, oldValue, registers.borderColor);
             break;
         }
@@ -478,7 +475,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.backgroundColor0;
             registers.backgroundColor0 = value & 0x0F;
-            recordRasterColorWrite(address, oldValue, registers.backgroundColor0);
             traceVicRegWrite(address, oldValue, registers.backgroundColor0);
             break;
         }
@@ -487,7 +483,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteMultiColor1;
             registers.spriteMultiColor1 = value & 0x0F;
-            recordRasterColorWrite(address, oldValue, registers.spriteMultiColor1);
             traceVicRegWrite(address, oldValue, registers.spriteMultiColor1);
             break;
         }
@@ -496,7 +491,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t oldValue = registers.spriteMultiColor2;
             registers.spriteMultiColor2 = value & 0x0F;
-            recordRasterColorWrite(address, oldValue, registers.spriteMultiColor2);
             traceVicRegWrite(address, oldValue, registers.spriteMultiColor2);
             break;
         }
