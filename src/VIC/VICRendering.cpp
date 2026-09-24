@@ -8,11 +8,13 @@
 #include "IVideoSink.h"
 #include "Vic.h"
 
-void Vic::runPixelOutputPhase()
+void Vic::runPixelOutputPhase(int firstDot, int lastDot)
 {
     const int raster = registers.raster;
 
-    if (currentCycle == 0)
+    // Per-raster output initialization happens before the first
+    // four dots of cycle 0 are generated.
+    if (currentCycle == 0 && firstDot == 0)
     {
         dotColorLine.fill(registers.borderColor & 0x0F);
 
@@ -36,10 +38,9 @@ void Vic::runPixelOutputPhase()
         beginSpriteRasterOutput(raster);
     }
 
-    const int baseX =
-        cycleFramebufferX(currentCycle);
+    const int baseX = cycleFramebufferX(currentCycle);
 
-    for (int dot = 0; dot < 8; ++dot)
+    for (int dot = firstDot; dot < lastDot; ++dot)
     {
         const int x = baseX + dot;
 

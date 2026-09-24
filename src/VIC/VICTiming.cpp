@@ -28,7 +28,6 @@ void Vic::beginCycle()
 
 void Vic::endCycle()
 {
-    runPixelOutputPhase();
     advanceCycleAndFinalizeLineIfNeeded();
 }
 
@@ -257,6 +256,9 @@ void Vic::runPhi1Phase()
 
     if (currentCycleSlot.phi1BusOwner == BusOwner::Idle)
         performIdleFetchForCurrentCycle();
+
+    // First half of the VIC cycle is now visible before Phi2 CPU writes.
+    runPixelOutputPhase(0, 4);
 }
 
 void Vic::runPhi2Phase()
@@ -294,6 +296,9 @@ void Vic::runPhi2Phase()
 
     if (currentCycle == cfg_->spriteMcBaseAdvanceCycle2)
         advanceSpriteMCBaseSecondStep();
+
+    // Second half of the VIC cycle sees Phi2-visible register changes.
+    runPixelOutputPhase(4, 8);
 }
 
 void Vic::advanceCycleAndFinalizeLineIfNeeded()
