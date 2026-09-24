@@ -88,9 +88,6 @@ class Vic
         // Reset to power on defaults
         void reset();
 
-        // Rendering of all screens
-        void renderLine(int raster);
-
         inline bool isFrameDone() const { return frameDone; }
         inline void clearFrameFlag() { frameDone = false; }
 
@@ -1239,17 +1236,13 @@ class Vic
         void clearBadLineFifo();
         void clearBackgroundLineBuffers();
 
-        void emitRasterLineInOrder(int raster);
-
         int rasterVisibleStartX(int raster) const;
         int rasterVisibleEndX(int raster) const;
 
         bool isInnerDisplayPixel(int raster, int px) const;
 
         void buildBorderMaskLine(int raster);
-        void composeFinalRasterLine(int raster);
         BackgroundPixel sampleBackgroundPixelAtX(int raster, int px) const;
-        uint8_t compositePixelAtX(int raster, int px) const;
 
         int rasterPixelToCycle(int px) const;
         int rasterEventPixelX(int cycle) const;
