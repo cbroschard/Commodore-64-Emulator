@@ -829,7 +829,6 @@ class Vic
         std::vector<uint8_t> borderVerticalStart_per_raster;
 
         std::array<uint8_t, 512> borderMaskLine{};
-        std::array<uint8_t, 512> finalColorLine{};
 
         std::array<uint8_t, VISIBLE_WIDTH> dotColorLine {};
 

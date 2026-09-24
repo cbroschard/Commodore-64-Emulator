@@ -404,7 +404,7 @@ void Vic::snapshotRasterPixelComposition(int raster)
         s.bgOpaque[x] = bgOpaqueLine[x] ? 1 : 0;
         s.bgSource[x] = static_cast<uint8_t>(bgSourceLine[x]);
         s.borderMask[x] = borderMaskLine[x] ? 1 : 0;
-        s.finalColor[x] = finalColorLine[x] & 0x0F;
+        s.finalColor[x] = dotColorLine[x] & 0x0F;
 
         uint8_t mask = 0;
         for (int spr = 0; spr < 8; ++spr)

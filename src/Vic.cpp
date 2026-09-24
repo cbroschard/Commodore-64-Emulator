@@ -200,7 +200,6 @@ void Vic::reset()
     bgSourceLine.fill(BackgroundSource::Border);
 
     borderMaskLine.fill(1);
-    finalColorLine.fill(0);
 
     resetActiveBackgroundPixelState();
 
@@ -268,7 +267,6 @@ void Vic::setMode(VideoMode mode)
     resetActiveBackgroundPixelState();
     resetBackgroundGraphicsLatches();
 
-    std::fill(finalColorLine.begin(), finalColorLine.end(), 0);
     std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);
 
     vicState.badLineCondition = false;
