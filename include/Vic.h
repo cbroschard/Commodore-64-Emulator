@@ -1224,6 +1224,7 @@ class Vic
         // Pixel accurate helpers
         void runPixelOutputPhase();
         void outputDot(int raster, int dot, int x);
+        uint8_t compositeDot(int raster, int x, const BackgroundPixel& bgPixel, const std::array<SpritePixel, 8>& spritePixels) const;
         BackgroundPixel outputPixel(int raster, int x);
 
         void beginSpriteRasterOutput(int raster);

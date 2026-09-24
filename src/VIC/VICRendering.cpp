@@ -48,20 +48,43 @@ void Vic::runPixelOutputPhase()
     }
 }
 
+uint8_t Vic::compositeDot(int raster, int x, const BackgroundPixel& bgPixel, const std::array<SpritePixel, 8>& spritePixels) const
+{
+    // VIC-II border is in front of both background graphics and sprites.
+    if (borderActiveAtPixel(raster, x))
+        return registers.borderColor & 0x0F;
+
+    // Lower-numbered sprites have priority over higher-numbered sprites.
+    for (int spr = 0; spr < 8; ++spr)
+    {
+        const SpritePixel& spritePixel = spritePixels[spr];
+
+        if (!spritePixel.opaque)
+            continue;
+
+        const bool behind = spriteBehindBackgroundAtPixel(spr, x);
+
+        if (behind && bgPixel.opaque)
+            return bgPixel.color & 0x0F;
+
+        return spritePixel.color & 0x0F;
+    }
+
+    return bgPixel.color & 0x0F;
+}
+
 void Vic::outputDot(int raster, int dot, int x)
 {
-
     (void)dot;
 
     updateVerticalBorderStateAtLeftCompare(raster, x);
     updateHorizontalBorderStateAtPixel(raster, x);
 
     const BackgroundPixel bgPixel = outputPixel(raster, x);
-
     const std::array<SpritePixel, 8> spritePixels = stepSpriteSequencersAtX(raster, x);
+    const uint8_t color = compositeDot(raster, x, bgPixel, spritePixels);
 
-    (void)bgPixel;
-    (void)spritePixels;
+    finalColorLine[x] = static_cast<uint8_t>(color & 0x0F);
 }
 
 Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
