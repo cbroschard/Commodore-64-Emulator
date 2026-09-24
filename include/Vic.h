@@ -1228,6 +1228,7 @@ class Vic
 
         void beginSpriteRasterOutput(int raster);
         std::array<SpritePixel, 8> stepSpriteSequencersAtX(int raster, int px);
+        uint8_t spriteColorForSource(int sprite, SpriteColorSource source, int raster, int px) const;
 
         // Helpers
         void clearBadLineFifo();

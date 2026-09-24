@@ -386,8 +386,9 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
         if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
             return false;
 
-        // Color is intentionally assigned later by applySpriteColorEventsToLine().
-        // This function only identifies opacity and color source.
+        // This sequencer identifies opacity and the sprite color source.
+        // The dot renderer resolves the live color from the source, while
+        // the legacy line renderer assigns the color during event replay.
         outColor = 0;
         opaque = true;
         outSource = SpriteColorSource::SpriteOwnColor;
@@ -424,7 +425,9 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
             return false;
     }
 
-    // Color is intentionally assigned later by applySpriteColorEventsToLine().
+    // This sequencer identifies opacity and the sprite color source.
+    // The dot renderer resolves the live color from the source, while
+    // the legacy line renderer assigns the color during event replay.
     outColor = 0;
     opaque = true;
     return true;
@@ -495,8 +498,10 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
         if (currentSpriteSequencerPixel(spr, px, color, opaque, source) && opaque)
         {
             // Dot-level sprite result.
+            const uint8_t dotColor = spriteColorForSource(spr, source, raster, px);
+
             pixels[spr].opaque = true;
-            pixels[spr].color = static_cast<uint8_t>(color & 0x0F);
+            pixels[spr].color = dotColor;
             pixels[spr].source = source;
 
             // Keep the legacy line buffers populated for now.
@@ -530,6 +535,62 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
     }
 
     return pixels;
+}
+
+uint8_t Vic::spriteColorForSource(int sprite, SpriteColorSource source, int raster, int px) const
+{
+    uint16_t address = 0;
+    uint8_t color = 0;
+
+    switch (source)
+    {
+        case SpriteColorSource::SpriteOwnColor:
+            if (sprite < 0 || sprite >= 8)
+                return 0;
+
+            address = static_cast<uint16_t>(0xD027 + sprite);
+            color = registers.spriteColors[sprite] & 0x0F;
+            break;
+
+        case SpriteColorSource::SpriteMultiColor1:
+            address = 0xD025;
+            color = registers.spriteMultiColor1 & 0x0F;
+            break;
+
+        case SpriteColorSource::SpriteMultiColor2:
+            address = 0xD026;
+            color = registers.spriteMultiColor2 & 0x0F;
+            break;
+
+        case SpriteColorSource::None:
+        default:
+            return 0;
+    }
+
+    uint8_t activeColor = color;
+
+    // If there were writes to this register during this raster,
+    // reconstruct the color that was actually active at this pixel.
+    if (firstRasterColorEventValue(raster, address, activeColor))
+    {
+        for (const RasterColorEvent& e : rasterColorEvents)
+        {
+            if (e.raster != raster)
+                continue;
+
+            if (e.address != address)
+                continue;
+
+            const int eventX = rasterColorEventPixelX(e);
+
+            if (eventX > px)
+                break;
+
+            activeColor = static_cast<uint8_t>(e.newValue & 0x0F);
+        }
+    }
+
+    return activeColor & 0x0F;
 }
 
 void Vic::updateSpriteDMAEndOfLine(int raster)
