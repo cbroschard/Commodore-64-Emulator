@@ -241,25 +241,7 @@ bool Vic::spriteEnabledAtPixel(int sprite, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    uint8_t activeEnable = registers.spriteEnabled;
-
-    if (firstRasterSpriteEnableEventValue(registers.raster, activeEnable))
-    {
-        for (const RasterSpriteEnableEvent& e : rasterSpriteEnableEvents)
-        {
-            if (e.raster != registers.raster)
-                continue;
-
-            const int eventX = rasterSpriteEnableEventPixelX(e);
-
-            if (eventX > px)
-                continue;
-
-            activeEnable = e.newValue;
-        }
-    }
-
-    return (activeEnable & static_cast<uint8_t>(1u << sprite)) != 0;
+    return (registers.spriteEnabled & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
 void Vic::fetchSpritePointer(int sprite, int raster)
