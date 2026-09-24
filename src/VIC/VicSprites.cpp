@@ -498,7 +498,7 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
         if (currentSpriteSequencerPixel(spr, px, color, opaque, source) && opaque)
         {
             // Dot-level sprite result.
-            const uint8_t dotColor = spriteColorForSource(spr, source, raster, px);
+            const uint8_t dotColor = spriteColorForSource(spr, source);
 
             pixels[spr].opaque = true;
             pixels[spr].color = dotColor;
@@ -537,60 +537,26 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
     return pixels;
 }
 
-uint8_t Vic::spriteColorForSource(int sprite, SpriteColorSource source, int raster, int px) const
+uint8_t Vic::spriteColorForSource(int sprite, SpriteColorSource source) const
 {
-    uint16_t address = 0;
-    uint8_t color = 0;
-
     switch (source)
     {
         case SpriteColorSource::SpriteOwnColor:
             if (sprite < 0 || sprite >= 8)
                 return 0;
 
-            address = static_cast<uint16_t>(0xD027 + sprite);
-            color = registers.spriteColors[sprite] & 0x0F;
-            break;
+            return static_cast<uint8_t>(registers.spriteColors[sprite] & 0x0F);
 
         case SpriteColorSource::SpriteMultiColor1:
-            address = 0xD025;
-            color = registers.spriteMultiColor1 & 0x0F;
-            break;
+            return static_cast<uint8_t>(registers.spriteMultiColor1 & 0x0F);
 
         case SpriteColorSource::SpriteMultiColor2:
-            address = 0xD026;
-            color = registers.spriteMultiColor2 & 0x0F;
-            break;
+            return static_cast<uint8_t>(registers.spriteMultiColor2 & 0x0F);
 
         case SpriteColorSource::None:
         default:
             return 0;
     }
-
-    uint8_t activeColor = color;
-
-    // If there were writes to this register during this raster,
-    // reconstruct the color that was actually active at this pixel.
-    if (firstRasterColorEventValue(raster, address, activeColor))
-    {
-        for (const RasterColorEvent& e : rasterColorEvents)
-        {
-            if (e.raster != raster)
-                continue;
-
-            if (e.address != address)
-                continue;
-
-            const int eventX = rasterColorEventPixelX(e);
-
-            if (eventX > px)
-                break;
-
-            activeColor = static_cast<uint8_t>(e.newValue & 0x0F);
-        }
-    }
-
-    return activeColor & 0x0F;
 }
 
 void Vic::updateSpriteDMAEndOfLine(int raster)
