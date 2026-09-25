@@ -148,7 +148,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         return pixel;
     }
 
-    const graphicsMode outputMode = activeBgPixel.mode;
+    const graphicsMode outputMode = graphicsModeFromRegisters(registers.control & 0x7F, registers.control2 & 0x1F);
 
     if (outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();

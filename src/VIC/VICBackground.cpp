@@ -326,9 +326,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     activeBgPixel.mode = mode;
 
-    // Multicolor text applies only when the fetch occurred in
-    // multicolor text mode and color RAM bit 3 is set.
-    activeBgPixel.multicolorText = (mode == graphicsMode::multicolor || mode == graphicsMode::illegalText) && ((latch.colorByte & 0x08) != 0);
+    activeBgPixel.multicolorText = ((latch.colorByte & 0x08) != 0);
 
     // Graphics data and foreground color come from the fetch latch.
     activeBgPixel.rowBits = latch.graphicsByte;
