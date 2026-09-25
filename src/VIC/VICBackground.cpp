@@ -439,10 +439,13 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
             break;
     }
 
-    // Each 2-bit multicolor value lasts for two output dots.
-    // Shift to the next pair after the second dot.
-    if ((activeBgPixel.phase & 1) != 0)
+    ++activeBgPixel.multicolorPairPhase;
+
+    if (activeBgPixel.multicolorPairPhase >= 2)
+    {
         activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
+        activeBgPixel.multicolorPairPhase = 0;
+    }
 
     ++activeBgPixel.phase;
 
@@ -750,6 +753,7 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.phase = 0;
 
     activeBgPixel.dotsRemaining = 0;
+    activeBgPixel.multicolorPairPhase = 0;
 }
 
 void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
@@ -858,9 +862,13 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
             break;
     }
 
-    // Multicolor bitmap pixels are also two dots wide.
-    if ((activeBgPixel.phase & 1) != 0)
+    ++activeBgPixel.multicolorPairPhase;
+
+    if (activeBgPixel.multicolorPairPhase >= 2)
+    {
         activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
+        activeBgPixel.multicolorPairPhase = 0;
+    }
 
     ++activeBgPixel.phase;
 

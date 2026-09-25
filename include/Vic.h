@@ -1068,6 +1068,7 @@ class Vic
             int phase = 0;
 
             uint8_t dotsRemaining = 0;
+            uint8_t multicolorPairPhase = 0;
         };
 
         struct RasterPixelCompositionSnapshot
