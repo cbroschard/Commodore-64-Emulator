@@ -154,9 +154,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         return pixel;
     }
 
-    const int expectedX = activeBgPixel.pxBase + activeBgPixel.phase;
-
-    if (x != expectedX)
+    if (x != activeBgPixel.nextX)
     {
         resetActiveBackgroundPixelState();
 
@@ -246,6 +244,9 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         pixel = sampleAndAdvanceActiveMulticolorTextPixel();
     else
         pixel = sampleAndAdvanceActiveStandardTextPixel();
+
+    // The active sequencer has consumed this output dot.
+    ++activeBgPixel.nextX;
 
     if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap ||
          outputMode == graphicsMode::illegalMulticolorBitmap)

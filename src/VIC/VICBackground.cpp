@@ -335,6 +335,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
         (latch.colorByte & 0x08) != 0;
 
     activeBgPixel.pxBase = px;
+    activeBgPixel.nextX = px;
     activeBgPixel.py = fbY(raster);
     activeBgPixel.phase = 0;
 
@@ -750,6 +751,7 @@ void Vic::resetActiveBackgroundPixelState()
 
     activeBgPixel.pxBase = 0;
     activeBgPixel.py = 0;
+    activeBgPixel.nextX = 0;
     activeBgPixel.phase = 0;
 
     activeBgPixel.dotsRemaining = 0;
@@ -783,6 +785,7 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.colorByte = latch.colorByte;
 
     activeBgPixel.pxBase = px;
+    activeBgPixel.nextX = px;
     activeBgPixel.py = fbY(raster);
     activeBgPixel.phase = 0;
 
