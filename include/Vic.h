@@ -1066,6 +1066,8 @@ class Vic
             int pxBase = 0;
             int py = 0;
             int phase = 0;
+
+            uint8_t dotsRemaining = 0;
         };
 
         struct RasterPixelCompositionSnapshot

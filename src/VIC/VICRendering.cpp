@@ -260,7 +260,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     // Retain per-dot background state for collision/debug snapshots.
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque,  pixel.source);
 
-    if (activeBgPixel.phase >= 8)
+    if (activeBgPixel.dotsRemaining == 0)
         activeBgPixel.valid = false;
 
     return pixel;

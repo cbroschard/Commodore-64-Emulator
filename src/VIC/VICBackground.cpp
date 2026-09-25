@@ -337,6 +337,8 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
     activeBgPixel.phase = 0;
+
+    activeBgPixel.dotsRemaining = 8;
 }
 
 void Vic::resetActiveMatrixRow()
@@ -405,7 +407,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
+    if (activeBgPixel.dotsRemaining == 0)
         return out;
 
     const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
@@ -444,6 +446,9 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
 
     ++activeBgPixel.phase;
 
+    if (activeBgPixel.dotsRemaining > 0)
+        --activeBgPixel.dotsRemaining;
+
     return out;
 }
 
@@ -458,7 +463,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
+    if (activeBgPixel.dotsRemaining == 0)
         return out;
 
     const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
@@ -479,6 +484,9 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
 
     ++activeBgPixel.phase;
+
+    if (activeBgPixel.dotsRemaining > 0)
+        --activeBgPixel.dotsRemaining;
 
     return out;
 }
@@ -740,6 +748,8 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.pxBase = 0;
     activeBgPixel.py = 0;
     activeBgPixel.phase = 0;
+
+    activeBgPixel.dotsRemaining = 0;
 }
 
 void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
@@ -771,6 +781,8 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
     activeBgPixel.phase = 0;
+
+    activeBgPixel.dotsRemaining = 8;
 }
 
 Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
@@ -780,7 +792,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
+    if (activeBgPixel.dotsRemaining == 0)
         return out;
 
     const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
@@ -801,6 +813,9 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
 
     ++activeBgPixel.phase;
 
+    if (activeBgPixel.dotsRemaining > 0)
+        --activeBgPixel.dotsRemaining;
+
     return out;
 }
 
@@ -811,7 +826,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
+    if (activeBgPixel.dotsRemaining == 0)
         return out;
 
     const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
@@ -848,6 +863,9 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
         activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
 
     ++activeBgPixel.phase;
+
+    if (activeBgPixel.dotsRemaining > 0)
+        --activeBgPixel.dotsRemaining;
 
     return out;
 }
