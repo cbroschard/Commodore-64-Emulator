@@ -103,34 +103,44 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     if (pendingBgReload.valid)
     {
-        const int xScroll = static_cast<int>(d016XScroll(registers.control2));
-        const int reloadX = pendingBgReload.baseX + xScroll;
+        const int reloadWindowEnd = pendingBgReload.baseX + 7;
 
-        if (x == reloadX)
+        if (x > reloadWindowEnd)
         {
-            const int fetchColumn = pendingBgReload.column;
+            // The reload opportunity for this graphics byte has passed.
+            pendingBgReload.valid = false;
+        }
+        else
+        {
+            const int xScroll = static_cast<int>(d016XScroll(registers.control2));
+            const int reloadX = pendingBgReload.baseX + xScroll;
 
-            if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+            if (x == reloadX)
             {
-                const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+                const int fetchColumn = pendingBgReload.column;
 
-                if (latch.valid)
+                if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
                 {
-                    if (latch.mode == graphicsMode::bitmap ||
-                        latch.mode == graphicsMode::multicolorBitmap ||
-                        latch.mode == graphicsMode::illegalBitmap ||
-                        latch.mode == graphicsMode::illegalMulticolorBitmap)
+                    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+
+                    if (latch.valid)
                     {
-                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
-                    }
-                    else
-                    {
-                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                        if (latch.mode == graphicsMode::bitmap ||
+                            latch.mode == graphicsMode::multicolorBitmap ||
+                            latch.mode == graphicsMode::illegalBitmap ||
+                            latch.mode == graphicsMode::illegalMulticolorBitmap)
+                        {
+                            loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                        }
+                        else
+                        {
+                            loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                        }
                     }
                 }
-            }
 
-            pendingBgReload.valid = false;
+                pendingBgReload.valid = false;
+            }
         }
     }
 
