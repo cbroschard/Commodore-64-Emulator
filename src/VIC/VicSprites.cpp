@@ -108,6 +108,7 @@ void Vic::resetSpriteLineOutputState(int sprite)
     spriteUnits[sprite].outputRepeat = 0;
     spriteUnits[sprite].outputXStart = 0;
     spriteUnits[sprite].outputWidth = 0;
+    spriteUnits[sprite].outputStarted = false;
 }
 
 void Vic::clearSpriteFetchedRowState(int sprite)
@@ -236,6 +237,7 @@ void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 
     u.outputBit = 0;
     u.outputRepeat = 0;
+    u.outputStarted = false;
     u.outputXStart = spriteScreenXFor(sprIndex, raster);
 
     const int sampleX = std::clamp(u.outputXStart, 0, VISIBLE_WIDTH - 1);
@@ -377,8 +379,16 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
         if (!u.rowPrepared)
             continue;
 
-        if (px < u.outputXStart)
-            continue;
+        if (!u.outputStarted)
+        {
+            const int liveStartX = spriteScreenXFor(spr, raster);
+
+            if (px != liveStartX)
+                continue;
+
+            u.outputStarted = true;
+            u.outputXStart = px;
+        }
 
         // The sprite is finished once all 24 source bits have been consumed.
         // X expansion affects how many output pixels each source bit occupies,

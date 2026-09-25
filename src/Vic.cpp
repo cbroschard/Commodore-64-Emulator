@@ -148,6 +148,8 @@ void Vic::reset()
         s.rowPrepared = false;
         s.rowDataLatched = false;
 
+        s.outputStarted = false;
+
         s.yCrunchPending = false;
 
         s.fetched0 = 0;

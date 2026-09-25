@@ -726,6 +726,8 @@ class Vic
             int outputRepeat = 0;
             bool rowPrepared = false;
 
+            bool outputStarted = false;
+
             // True once a full 3-byte sprite row has been fetched and copied
             // into shift0/1/2. This is the authoritative "row data exists"
             // signal for visible output.
