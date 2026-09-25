@@ -874,14 +874,17 @@ int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
 
 int Vic::spriteScreenXFor(int sprIndex, int raster) const
 {
+    (void)raster;
+
     if (sprIndex < 0 || sprIndex >= 8)
         return 0;
 
-    const int samplePx = 0;
+    int x = static_cast<int>(registers.spriteX[sprIndex]);
 
-    const int x = spriteRegisterXForRasterPixel(sprIndex, raster, samplePx);
+    if (registers.spriteX_MSB & static_cast<uint8_t>(1u << sprIndex))
+        x += 256;
 
-    return (x - cfg_->hardware_X) + HORIZONTAL_BORDER_SIZE - 1;
+    return (x - cfg_->hardware_X) + HORIZONTAL_BORDER_SIZE;
 }
 
 bool Vic::spriteDisplayCoversRaster(int sprIndex, int raster, int& rowInSprite, int& fbLine) const
