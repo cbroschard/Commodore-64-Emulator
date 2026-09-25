@@ -667,20 +667,6 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
     return static_cast<uint16_t>(screenBase + 0x03F8 + sprite);
 }
 
-void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
-{
-    RasterSpriteXEvent e;
-    e.raster = registers.raster;
-    e.cycle = currentCycle;
-    e.address = address;
-    e.oldValue = oldValue;
-    e.newValue = newValue;
-
-    rasterSpriteXEvents.push_back(e);
-
-    recordRasterEventLog(RasterEventKind::SpriteX, address, oldValue, newValue);
-}
-
 bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -799,77 +785,6 @@ bool Vic::spriteYExpandedAtPixel(int sprite, int raster, int px) const
     const uint8_t d017 = spriteYExpansionForRasterPixelX(raster, px, false);
 
     return (d017 & (1u << sprite)) != 0;
-}
-
-int Vic::spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const
-{
-    if (sprIndex < 0 || sprIndex >= 8)
-        return 0;
-
-    if (raster < 0 || raster >= static_cast<int>(cfg_->maxRasterLines))
-        return registers.spriteX[sprIndex];
-
-    uint8_t xLow = registers.spriteX[sprIndex];
-    uint8_t xMsb = registers.spriteX_MSB;
-
-    // If this raster had sprite-X events, start from the old value of the
-    // first relevant event. That reconstructs the value that was active
-    // before mid-raster writes changed the live register.
-    bool seededLow = false;
-    bool seededMsb = false;
-
-    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        if (e.address >= 0xD000 && e.address <= 0xD00E &&
-            ((e.address - 0xD000) / 2) == sprIndex &&
-            ((e.address - 0xD000) % 2) == 0)
-        {
-            if (!seededLow)
-            {
-                xLow = e.oldValue;
-                seededLow = true;
-            }
-        }
-        else if (e.address == 0xD010)
-        {
-            if (!seededMsb)
-            {
-                xMsb = e.oldValue;
-                seededMsb = true;
-            }
-        }
-    }
-
-    // Apply writes that occurred at or before the sampled pixel position.
-    for (const RasterSpriteXEvent& e : rasterSpriteXEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        const int eventX = rasterEventPixelX(e.cycle);
-        if (eventX > px)
-            continue;
-
-        if (e.address >= 0xD000 && e.address <= 0xD00E &&
-            ((e.address - 0xD000) / 2) == sprIndex &&
-            ((e.address - 0xD000) % 2) == 0)
-        {
-            xLow = e.newValue;
-        }
-        else if (e.address == 0xD010)
-        {
-            xMsb = e.newValue;
-        }
-    }
-
-    int x = static_cast<int>(xLow);
-    if (xMsb & (1 << sprIndex))
-        x += 256;
-
-    return x;
 }
 
 int Vic::spriteScreenXFor(int sprIndex, int raster) const

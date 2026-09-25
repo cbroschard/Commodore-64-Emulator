@@ -57,8 +57,6 @@ void Vic::beginFrameIfNeeded()
         for (auto& s : rasterPixelStates)
             s = {};
 
-        rasterSpriteXEvents.clear();
-
         firstBadlineY = -1;
         denSeenOn30 = false;
 

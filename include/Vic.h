@@ -984,7 +984,6 @@ class Vic
         };
 
         // Sprite collision Helpers
-        int spriteRegisterXForRasterPixel(int sprIndex, int raster, int px) const;
         int spriteScreenXFor(int sprIndex, int raster) const;
         bool spriteDisplayCoversRaster(int sprIndex, int raster, int &rowInSprite, int &fbLine) const;
 
@@ -1065,15 +1064,6 @@ class Vic
             int phase = 0;
         };
 
-        struct RasterSpriteXEvent
-        {
-            int raster = 0;
-            int cycle = 0;
-            uint16_t address = 0;
-            uint8_t oldValue = 0;
-            uint8_t newValue = 0;
-        };
-
         struct RasterPixelCompositionSnapshot
         {
             bool valid = false;
@@ -1115,7 +1105,6 @@ class Vic
         std::vector<RasterRowStateSnapshot> lastFrameRasterRowStates;
         std::vector<RasterEventRecord> rasterEventLog;
         std::vector<RasterEventRecord> lastFrameRasterEventLog;
-        std::vector<RasterSpriteXEvent> rasterSpriteXEvents;
         std::vector<std::vector<RasterEventRecord>> rasterEventsByRaster;
         std::vector<std::vector<RasterEventRecord>> lastFrameRasterEventsByRaster;
 
@@ -1124,7 +1113,6 @@ class Vic
 
         void fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
-        void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
 
         void snapshotRasterPixelComposition(int raster);

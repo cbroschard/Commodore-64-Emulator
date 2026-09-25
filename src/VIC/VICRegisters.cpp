@@ -227,7 +227,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteX[index];
             registers.spriteX[index] = value;
 
-            recordRasterSpriteXWrite(address, oldValue, registers.spriteX[index]);
             traceVicRegWrite(address, oldValue, registers.spriteX[index]);
         }
         else
@@ -270,7 +269,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteX_MSB;
             registers.spriteX_MSB = value;
 
-            recordRasterSpriteXWrite(address, oldValue, registers.spriteX_MSB);
             traceVicRegWrite(address, oldValue, registers.spriteX_MSB);
             break;
         }
