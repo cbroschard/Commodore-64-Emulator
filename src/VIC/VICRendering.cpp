@@ -125,13 +125,26 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     }
 
     if (!activeBgPixel.valid)
+    {
+        pixel.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+
+        pixel.opaque = false;
+        pixel.source = BackgroundSource::BG0;
+
         return pixel;
+    }
 
     const int expectedX = activeBgPixel.pxBase + activeBgPixel.phase;
 
     if (x != expectedX)
     {
         resetActiveBackgroundPixelState();
+
+        pixel.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+
+        pixel.opaque = false;
+        pixel.source = BackgroundSource::BG0;
+
         return pixel;
     }
 
