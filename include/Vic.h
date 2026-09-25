@@ -1100,6 +1100,15 @@ class Vic
             graphicsMode mode = graphicsMode::standard;
         };
 
+        struct PendingBackgroundReload
+        {
+            bool valid = false;
+            int column = -1;
+            int reloadX = 0;
+        };
+
+        PendingBackgroundReload pendingBgReload;
+
         std::array<BackgroundGraphicsLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};
 
         std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;

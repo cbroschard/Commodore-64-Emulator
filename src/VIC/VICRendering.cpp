@@ -33,6 +33,7 @@ void Vic::runPixelOutputPhase(int firstDot, int lastDot)
 
         resetActiveBackgroundPixelState();
         resetBackgroundGraphicsLatches();
+        pendingBgReload = {};
 
         prepareSpriteOutputForRaster(raster);
         beginSpriteRasterOutput(raster);
