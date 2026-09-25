@@ -1104,7 +1104,7 @@ class Vic
         {
             bool valid = false;
             int column = -1;
-            int reloadX = 0;
+            int baseX = 0;
         };
 
         PendingBackgroundReload pendingBgReload;

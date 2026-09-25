@@ -101,29 +101,37 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return pixel;
 
-    if (pendingBgReload.valid && x == pendingBgReload.reloadX)
+    if (pendingBgReload.valid)
     {
-        const int fetchColumn = pendingBgReload.column;
+        const int xScroll = static_cast<int>(d016XScroll(registers.control2));
+        const int reloadX = pendingBgReload.baseX + xScroll;
 
-        if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
+        if (x == reloadX)
         {
-            const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+            const int fetchColumn = pendingBgReload.column;
 
-            if (latch.valid)
+            if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
             {
-                if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap ||
-                    latch.mode == graphicsMode::illegalBitmap || latch.mode == graphicsMode::illegalMulticolorBitmap)
+                const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
+
+                if (latch.valid)
                 {
-                    loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
-                }
-                else
-                {
-                    loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                    if (latch.mode == graphicsMode::bitmap ||
+                        latch.mode == graphicsMode::multicolorBitmap ||
+                        latch.mode == graphicsMode::illegalBitmap ||
+                        latch.mode == graphicsMode::illegalMulticolorBitmap)
+                    {
+                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                    }
+                    else
+                    {
+                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                    }
                 }
             }
-        }
 
-        pendingBgReload.valid = false;
+            pendingBgReload.valid = false;
+        }
     }
 
     if (!activeBgPixel.valid)

@@ -585,12 +585,7 @@ bool Vic::performGAccessForCurrentCycle()
     {
         pendingBgReload.valid = true;
         pendingBgReload.column = column;
-
-        const int xScroll =
-            static_cast<int>(d016XScroll(d016));
-
-        pendingBgReload.reloadX =
-            cycleFramebufferX(currentCycle) + xScroll;
+        pendingBgReload.baseX = cycleFramebufferX(currentCycle);
     }
 
     // We reached a valid graphics-access slot while the
