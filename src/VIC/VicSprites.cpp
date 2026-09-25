@@ -656,19 +656,6 @@ uint16_t Vic::spritePointerAddressForRaster(int sprite, int raster, int cycle) c
 
     return static_cast<uint16_t>(screenBase + 0x03F8 + sprite);
 }
-void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
-{
-    RasterPriorityEvent e;
-    e.raster = registers.raster;
-    e.cycle = currentCycle;
-    e.phase = VicBusPhase::Phi2;
-    e.oldValue = oldValue;
-    e.newValue = newValue;
-
-    rasterPriorityEvents.push_back(e);
-
-    recordRasterEventLog(RasterEventKind::SpritePriority, 0xD01B, oldValue, newValue);
-}
 
 void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
@@ -684,20 +671,6 @@ void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t n
     recordRasterEventLog(RasterEventKind::SpriteX, address, oldValue, newValue);
 }
 
-bool Vic::initialSpritePriorityForRaster(int raster, uint8_t& value) const
-{
-    for (const RasterPriorityEvent& e : rasterPriorityEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        value = e.oldValue;
-        return true;
-    }
-
-    return false;
-}
-
 bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -706,25 +679,8 @@ bool Vic::spriteBehindBackgroundAtPixel(int sprite, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    uint8_t activePriority = registers.spritePriority;
-
-    if (initialSpritePriorityForRaster(registers.raster, activePriority))
-    {
-        for (const RasterPriorityEvent& e : rasterPriorityEvents)
-        {
-            if (e.raster != registers.raster)
-                continue;
-
-            const int eventX = rasterPriorityEventPixelX(e);
-
-            if (eventX > px)
-                continue;
-
-            activePriority = e.newValue;
-        }
-    }
-
-    return (activePriority & static_cast<uint8_t>(1u << sprite)) != 0;
+    return (registers.spritePriority &
+            static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
 Vic::SpriteFetchPhase Vic::spriteFetchPhaseForCycle(int sprite, int cycle, VicBusPhase busPhase) const
@@ -796,22 +752,6 @@ int Vic::firstSpriteCpuStealCycle(int sprite) const
     }
 
     return -1;
-}
-
-int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
-{
-    int x = cfg_->hardware_X + (e.cycle * 8);
-
-    if (e.phase == VicBusPhase::Phi2)
-        x += 4;
-
-    if (x < 0)
-        x = 0;
-
-    if (x > VISIBLE_WIDTH)
-        x = VISIBLE_WIDTH;
-
-    return x;
 }
 
 uint8_t Vic::spriteYExpansionForRasterPixelX(int raster, int px, bool preferPreviousFrame) const

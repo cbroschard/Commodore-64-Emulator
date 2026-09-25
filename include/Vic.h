@@ -1063,16 +1063,6 @@ class Vic
             int phase = 0;
         };
 
-        struct RasterPriorityEvent
-        {
-            int raster = 0;
-            int cycle = 0;
-            VicBusPhase phase = VicBusPhase::Phi2;
-
-            uint8_t oldValue = 0;
-            uint8_t newValue = 0;
-        };
-
         struct RasterSpriteXEvent
         {
             int raster = 0;
@@ -1124,7 +1114,6 @@ class Vic
         std::vector<RasterEventRecord> rasterEventLog;
         std::vector<RasterEventRecord> lastFrameRasterEventLog;
         std::vector<RasterSpriteXEvent> rasterSpriteXEvents;
-        std::vector<RasterPriorityEvent> rasterPriorityEvents;
         std::vector<std::vector<RasterEventRecord>> rasterEventsByRaster;
         std::vector<std::vector<RasterEventRecord>> lastFrameRasterEventsByRaster;
 
@@ -1133,14 +1122,12 @@ class Vic
 
         void fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
-        void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
 
         void snapshotRasterPixelComposition(int raster);
         void snapshotRasterRowState(int raster);
 
-        bool initialSpritePriorityForRaster(int raster, uint8_t& value) const;
         bool spriteBehindBackgroundAtPixel(int sprite, int px) const;
 
         SpriteFetchPhase spriteFetchPhaseForCycle(int sprite, int cycle, VicBusPhase busPhase) const;
@@ -1193,7 +1180,6 @@ class Vic
         int rasterPixelToCycle(int px) const;
         int rasterEventPixelX(int cycle) const;
         int rasterRegisterEventPixelX(const RasterEventRecord& e) const;
-        int rasterPriorityEventPixelX(const RasterPriorityEvent& e) const;
         uint8_t spriteYExpansionForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
         bool spriteYExpandedAtPixel(int sprite, int raster, int px) const;
 

@@ -433,7 +433,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spritePriority;
             registers.spritePriority = value;
 
-            recordRasterPriorityWrite(oldValue, registers.spritePriority);
             traceVicRegWrite(address, oldValue, registers.spritePriority);
             break;
         }
