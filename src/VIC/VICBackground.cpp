@@ -448,8 +448,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
         activeBgPixel.multicolorPairPhase = 0;
     }
 
-    ++activeBgPixel.phase;
-
     if (activeBgPixel.dotsRemaining > 0)
         --activeBgPixel.dotsRemaining;
 
@@ -486,8 +484,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     }
 
     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
-
-    ++activeBgPixel.phase;
 
     if (activeBgPixel.dotsRemaining > 0)
         --activeBgPixel.dotsRemaining;
@@ -818,8 +814,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     out.source = BackgroundSource::Bitmap;
     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
 
-    ++activeBgPixel.phase;
-
     if (activeBgPixel.dotsRemaining > 0)
         --activeBgPixel.dotsRemaining;
 
@@ -872,8 +866,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
         activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
         activeBgPixel.multicolorPairPhase = 0;
     }
-
-    ++activeBgPixel.phase;
 
     if (activeBgPixel.dotsRemaining > 0)
         --activeBgPixel.dotsRemaining;

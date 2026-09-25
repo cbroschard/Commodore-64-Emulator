@@ -1145,7 +1145,7 @@ class Vic
 
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
-        inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.phase >= 8; }
+        inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.dotsRemaining == 0; }
 
         void resetActiveBackgroundPixelState();
         BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
