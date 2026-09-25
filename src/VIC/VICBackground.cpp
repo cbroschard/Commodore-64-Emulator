@@ -538,8 +538,7 @@ bool Vic::performGAccessForCurrentCycle()
 
     if (!vicState.displayEnabled)
     {
-            performIdleFetchForCurrentCycle();
-
+        performIdleFetchForCurrentCycle();
         return false;
     }
 
@@ -583,9 +582,15 @@ bool Vic::performGAccessForCurrentCycle()
 
     if (latch.valid)
     {
-        pendingBgReload.valid = true;
-        pendingBgReload.column = column;
-        pendingBgReload.baseX = cycleFramebufferX(currentCycle);
+        // A background reload belongs to exactly one g-access.
+        // If an older one is still pending here, its reload window
+        // should already have been consumed or expired by dot output.
+        if (!pendingBgReload.valid)
+        {
+            pendingBgReload.valid = true;
+            pendingBgReload.column = column;
+            pendingBgReload.baseX = cycleFramebufferX(currentCycle);
+        }
     }
 
     // We reached a valid graphics-access slot while the
