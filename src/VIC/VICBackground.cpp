@@ -579,6 +579,20 @@ bool Vic::performGAccessForCurrentCycle()
             return false;
     }
 
+    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+
+    if (latch.valid)
+    {
+        pendingBgReload.valid = true;
+        pendingBgReload.column = column;
+
+        const int xScroll =
+            static_cast<int>(d016XScroll(d016));
+
+        pendingBgReload.reloadX =
+            cycleFramebufferX(currentCycle) + xScroll;
+    }
+
     // We reached a valid graphics-access slot while the
     // VIC was in display state. The hardware g-access occurred
     // even if the renderer could not populate its software latch.
