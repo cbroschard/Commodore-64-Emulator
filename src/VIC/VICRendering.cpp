@@ -110,7 +110,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
             if (latch.valid)
             {
-                const int xScroll = static_cast<int>(d016XScroll(latch.d016));
+                const int xScroll = static_cast<int>(d016XScroll(registers.control2));
                 const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
 
                 if (x == reloadX)
