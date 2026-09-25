@@ -313,69 +313,28 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    const BackgroundGraphicsLatch& latch =
+        backgroundGraphicsLatches[column];
 
     if (!latch.valid)
         return;
 
-    // The mode that produced this graphics byte was captured at
-    // the actual VIC graphics-fetch cycle.
-    const graphicsMode mode = latch.mode;
-
     activeBgPixel.valid = true;
 
-    activeBgPixel.mode = mode;
+    // Retain fetch-time mode for diagnostics/debugging.
+    activeBgPixel.mode = latch.mode;
 
-    activeBgPixel.multicolorText = ((latch.colorByte & 0x08) != 0);
-
-    // Graphics data and foreground color come from the fetch latch.
+    // Raw data captured by the g-access.
     activeBgPixel.rowBits = latch.graphicsByte;
     activeBgPixel.screenByte = latch.screenByte;
     activeBgPixel.colorByte = latch.colorByte;
-    activeBgPixel.fg = static_cast<uint8_t>(latch.colorByte & 0x0F);
 
-    // ECM selects one of the four background colors using bits 6-7
-    // of the screen matrix byte.
-    if (mode == graphicsMode::extendedColorText)
-    {
-        const uint8_t bgSelect = static_cast<uint8_t>((latch.screenByte >> 6) & 0x03);
-
-        switch (bgSelect)
-        {
-            case 0:
-                activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-                activeBgPixel.bg0Source = BackgroundSource::BG0;
-                break;
-
-            case 1:
-                activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-                activeBgPixel.bg0Source = BackgroundSource::BG1;
-                break;
-
-            case 2:
-                activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
-                activeBgPixel.bg0Source = BackgroundSource::BG2;
-                break;
-
-            case 3:
-                activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
-                activeBgPixel.bg0Source = BackgroundSource::BG3;
-                break;
-        }
-    }
-    else
-    {
-        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-        activeBgPixel.bg0Source = BackgroundSource::BG0;
-    }
-
-    // Multicolor text background colors.
-    activeBgPixel.bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
-    activeBgPixel.bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+    // Color RAM bit 3 is the character's multicolor attribute.
+    activeBgPixel.multicolorText =
+        (latch.colorByte & 0x08) != 0;
 
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
-
     activeBgPixel.phase = 0;
 }
 
@@ -774,35 +733,23 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    const BackgroundGraphicsLatch& latch =
+        backgroundGraphicsLatches[column];
 
     if (!latch.valid)
         return;
 
-    const graphicsMode mode = latch.mode;
-
     activeBgPixel.valid = true;
-    activeBgPixel.mode = mode;
+
+    // Retain fetch-time mode for diagnostics/debugging.
+    activeBgPixel.mode = latch.mode;
+
     activeBgPixel.multicolorText = false;
 
+    // Raw data captured by the g-access.
     activeBgPixel.rowBits = latch.graphicsByte;
     activeBgPixel.screenByte = latch.screenByte;
     activeBgPixel.colorByte = latch.colorByte;
-
-    activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
-
-    if (mode == graphicsMode::multicolorBitmap || mode == graphicsMode::illegalMulticolorBitmap)
-    {
-        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-        activeBgPixel.bg1 = static_cast<uint8_t>(latch.screenByte & 0x0F);
-        activeBgPixel.bg2 = static_cast<uint8_t>(latch.colorByte & 0x0F);
-    }
-    else
-    {
-        activeBgPixel.bg0 = static_cast<uint8_t>(latch.screenByte & 0x0F);
-        activeBgPixel.bg1 = 0;
-        activeBgPixel.bg2 = 0;
-    }
 
     activeBgPixel.pxBase = px;
     activeBgPixel.py = fbY(raster);
