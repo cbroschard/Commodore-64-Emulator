@@ -450,6 +450,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
 Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
 {
     BackgroundPixel out {};
+
     out.color = activeBgPixel.bg0 & 0x0F;
     out.opaque = false;
     out.source = activeBgPixel.bg0Source;
@@ -457,13 +458,10 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    const int phase = activeBgPixel.phase;
-
-    if (phase < 0 || phase >= 8)
+    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
         return out;
 
-    const bool pixelOn =
-        ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
+    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
 
     if (pixelOn)
     {
@@ -477,6 +475,8 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
         out.opaque = false;
         out.source = activeBgPixel.bg0Source;
     }
+
+    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
 
     ++activeBgPixel.phase;
 
@@ -780,12 +780,10 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    const int phase = activeBgPixel.phase;
-
-    if (phase < 0 || phase >= 8)
+    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
         return out;
 
-    const bool pixelOn = ((activeBgPixel.rowBits >> (7 - phase)) & 0x01) != 0;
+    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
 
     if (pixelOn)
     {
@@ -799,6 +797,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     }
 
     out.source = BackgroundSource::Bitmap;
+    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
 
     ++activeBgPixel.phase;
 
