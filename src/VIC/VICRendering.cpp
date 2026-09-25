@@ -101,9 +101,9 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return pixel;
 
-    if (currentCycleSlot.graphicsFetch)
+    if (pendingBgReload.valid && x == pendingBgReload.reloadX)
     {
-        const int fetchColumn = currentCycleSlot.graphicsFetchIndex;
+        const int fetchColumn = pendingBgReload.column;
 
         if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
         {
@@ -111,18 +111,19 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
             if (latch.valid)
             {
-                const int xScroll = static_cast<int>(d016XScroll(registers.control2));
-                const int reloadX = cycleFramebufferX(currentCycle) + xScroll;
-
-                if (x == reloadX)
+                if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap ||
+                    latch.mode == graphicsMode::illegalBitmap || latch.mode == graphicsMode::illegalMulticolorBitmap)
                 {
-                    if (latch.mode == graphicsMode::bitmap || latch.mode == graphicsMode::multicolorBitmap)
-                        loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
-                    else
-                        loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                    loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                }
+                else
+                {
+                    loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
                 }
             }
         }
+
+        pendingBgReload.valid = false;
     }
 
     if (!activeBgPixel.valid)
