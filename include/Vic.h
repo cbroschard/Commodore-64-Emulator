@@ -1052,6 +1052,9 @@ class Vic
 
             uint8_t rowBits = 0;
 
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+
             uint8_t fg = 0;
             uint8_t bg0 = 0;
             uint8_t bg1 = 0;

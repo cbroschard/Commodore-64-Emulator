@@ -330,6 +330,8 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     // Graphics data and foreground color come from the fetch latch.
     activeBgPixel.rowBits = latch.graphicsByte;
+    activeBgPixel.screenByte = latch.screenByte;
+    activeBgPixel.colorByte = latch.colorByte;
     activeBgPixel.fg = static_cast<uint8_t>(latch.colorByte & 0x0F);
 
     // ECM selects one of the four background colors using bits 6-7
@@ -750,6 +752,9 @@ void Vic::resetActiveBackgroundPixelState()
 
     activeBgPixel.rowBits = 0;
 
+    activeBgPixel.screenByte = 0;
+    activeBgPixel.colorByte = 0;
+
     activeBgPixel.fg = 0;
     activeBgPixel.bg0 = 0;
     activeBgPixel.bg1 = 0;
@@ -781,6 +786,8 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.multicolorText = false;
 
     activeBgPixel.rowBits = latch.graphicsByte;
+    activeBgPixel.screenByte = latch.screenByte;
+    activeBgPixel.colorByte = latch.colorByte;
 
     activeBgPixel.fg = static_cast<uint8_t>((latch.screenByte >> 4) & 0x0F);
 
