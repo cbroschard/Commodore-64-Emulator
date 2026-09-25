@@ -150,6 +150,74 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     const graphicsMode outputMode = graphicsModeFromRegisters(registers.control & 0x7F, registers.control2 & 0x1F);
 
+    switch (outputMode)
+    {
+        case graphicsMode::standard:
+        case graphicsMode::multicolor:
+        case graphicsMode::extendedColorText:
+        case graphicsMode::illegalText:
+        {
+            activeBgPixel.fg = static_cast<uint8_t>(activeBgPixel.colorByte & 0x0F);
+            activeBgPixel.multicolorText = ((activeBgPixel.colorByte & 0x08) != 0);
+
+            if (outputMode == graphicsMode::extendedColorText)
+            {
+                const uint8_t bgSelect = static_cast<uint8_t>((activeBgPixel.screenByte >> 6) & 0x03);
+
+                switch (bgSelect)
+                {
+                    case 0:
+                        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+                        activeBgPixel.bg0Source = BackgroundSource::BG0;
+                        break;
+
+                    case 1:
+                        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+                        activeBgPixel.bg0Source = BackgroundSource::BG1;
+                        break;
+
+                    case 2:
+                        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+                        activeBgPixel.bg0Source = BackgroundSource::BG2;
+                        break;
+
+                    case 3:
+                        activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor[2] & 0x0F);
+                        activeBgPixel.bg0Source = BackgroundSource::BG3;
+                        break;
+                }
+            }
+            else
+            {
+                activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+                activeBgPixel.bg0Source = BackgroundSource::BG0;
+            }
+
+            activeBgPixel.bg1 = static_cast<uint8_t>(registers.backgroundColor[0] & 0x0F);
+            activeBgPixel.bg2 = static_cast<uint8_t>(registers.backgroundColor[1] & 0x0F);
+            break;
+        }
+
+        case graphicsMode::bitmap:
+        case graphicsMode::illegalBitmap:
+        {
+            activeBgPixel.fg = static_cast<uint8_t>((activeBgPixel.screenByte >> 4) & 0x0F);
+            activeBgPixel.bg0 = static_cast<uint8_t>(activeBgPixel.screenByte & 0x0F);
+            break;
+        }
+
+        case graphicsMode::multicolorBitmap:
+        case graphicsMode::illegalMulticolorBitmap:
+        {
+            activeBgPixel.fg = static_cast<uint8_t>((activeBgPixel.screenByte >> 4) & 0x0F);
+            activeBgPixel.bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
+            activeBgPixel.bg1 = static_cast<uint8_t>(activeBgPixel.screenByte & 0x0F);
+            activeBgPixel.bg2 = static_cast<uint8_t>(activeBgPixel.colorByte & 0x0F);
+            activeBgPixel.bg0Source = BackgroundSource::BG0;
+            break;
+        }
+    }
+
     if (outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap)
         pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
     else if (outputMode == graphicsMode::bitmap || outputMode == graphicsMode::illegalBitmap)
