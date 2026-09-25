@@ -313,8 +313,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const BackgroundGraphicsLatch& latch =
-        backgroundGraphicsLatches[column];
+    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
 
     if (!latch.valid)
         return;
@@ -326,6 +325,8 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     // Raw data captured by the g-access.
     activeBgPixel.rowBits = latch.graphicsByte;
+    activeBgPixel.shiftRegister = latch.graphicsByte;
+
     activeBgPixel.screenByte = latch.screenByte;
     activeBgPixel.colorByte = latch.colorByte;
 
@@ -724,6 +725,7 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.multicolorText = false;
 
     activeBgPixel.rowBits = 0;
+    activeBgPixel.shiftRegister = 0;
 
     activeBgPixel.screenByte = 0;
     activeBgPixel.colorByte = 0;
@@ -747,8 +749,7 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const BackgroundGraphicsLatch& latch =
-        backgroundGraphicsLatches[column];
+    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
 
     if (!latch.valid)
         return;
@@ -762,6 +763,8 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     // Raw data captured by the g-access.
     activeBgPixel.rowBits = latch.graphicsByte;
+    activeBgPixel.shiftRegister = latch.graphicsByte;
+
     activeBgPixel.screenByte = latch.screenByte;
     activeBgPixel.colorByte = latch.colorByte;
 
