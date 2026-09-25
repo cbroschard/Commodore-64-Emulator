@@ -405,15 +405,10 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    const int phase = activeBgPixel.phase;
-
-    if (phase < 0 || phase >= 8)
+    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
         return out;
 
-    const int pairIndex = phase / 2;
-    const int shift = 6 - (pairIndex * 2);
-
-    const uint8_t value = static_cast<uint8_t>((activeBgPixel.rowBits >> shift) & 0x03);
+    const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
 
     switch (value)
     {
@@ -436,11 +431,16 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
             break;
 
         case 3:
-            out.color = activeBgPixel.fg & 0x07;
+            out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x07);
             out.opaque = true;
             out.source = BackgroundSource::Foreground;
             break;
     }
+
+    // Each 2-bit multicolor value lasts for two output dots.
+    // Shift to the next pair after the second dot.
+    if ((activeBgPixel.phase & 1) != 0)
+        activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
 
     ++activeBgPixel.phase;
 
@@ -811,42 +811,41 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
     if (!activeBgPixel.valid)
         return out;
 
-    const int phase = activeBgPixel.phase;
-
-    if (phase < 0 || phase >= 8)
+    if (activeBgPixel.phase < 0 || activeBgPixel.phase >= 8)
         return out;
 
-    const int pairIndex = phase / 2;
-    const int shift = 6 - (pairIndex * 2);
-
-    const uint8_t value = static_cast<uint8_t>((activeBgPixel.rowBits >> shift) & 0x03);
+    const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
 
     switch (value)
     {
         case 0:
-            out.color = activeBgPixel.bg0 & 0x0F;
+            out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
             out.opaque = false;
             out.source = BackgroundSource::BG0;
             break;
 
         case 1:
-            out.color = activeBgPixel.fg & 0x0F;
+            out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x0F);
             out.opaque = false;
             out.source = BackgroundSource::Bitmap;
             break;
 
         case 2:
-            out.color = activeBgPixel.bg1 & 0x0F;
+            out.color = static_cast<uint8_t>(activeBgPixel.bg1 & 0x0F);
             out.opaque = true;
             out.source = BackgroundSource::Bitmap;
             break;
 
         case 3:
-            out.color = activeBgPixel.bg2 & 0x0F;
+            out.color = static_cast<uint8_t>(activeBgPixel.bg2 & 0x0F);
             out.opaque = true;
             out.source = BackgroundSource::Bitmap;
             break;
     }
+
+    // Multicolor bitmap pixels are also two dots wide.
+    if ((activeBgPixel.phase & 1) != 0)
+        activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
 
     ++activeBgPixel.phase;
 
