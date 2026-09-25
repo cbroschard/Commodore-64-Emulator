@@ -1015,7 +1015,6 @@ class Vic
 
         uint32_t getLatchedSpriteBits(int sprite) const;
 
-        bool initialSpriteMulticolorModeForRaster(int raster, uint8_t& value) const;
         bool spriteMulticolorAtPixel(int sprite, int px) const;
         bool initialSpriteXExpansionForRaster(int raster, uint8_t& value) const;
         bool spriteXExpandedAtPixel(int sprite, int px) const;
@@ -1066,16 +1065,6 @@ class Vic
         };
 
         struct RasterPriorityEvent
-        {
-            int raster = 0;
-            int cycle = 0;
-            VicBusPhase phase = VicBusPhase::Phi2;
-
-            uint8_t oldValue = 0;
-            uint8_t newValue = 0;
-        };
-
-        struct RasterSpriteModeEvent
         {
             int raster = 0;
             int cycle = 0;
@@ -1147,7 +1136,6 @@ class Vic
         std::vector<RasterEventRecord> lastFrameRasterEventLog;
         std::vector<RasterSpriteXEvent> rasterSpriteXEvents;
         std::vector<RasterSpriteXExpansionEvent> rasterSpriteXExpansionEvents;
-        std::vector<RasterSpriteModeEvent> rasterSpriteModeEvents;
         std::vector<RasterPriorityEvent> rasterPriorityEvents;
         std::vector<std::vector<RasterEventRecord>> rasterEventsByRaster;
         std::vector<std::vector<RasterEventRecord>> lastFrameRasterEventsByRaster;
@@ -1158,7 +1146,6 @@ class Vic
         void fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
         void recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue);
-        void recordRasterSpriteModeWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue);
         void recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue);
         void recordRasterEventLog(RasterEventKind kind, uint16_t address, uint8_t oldValue, uint8_t newValue);
@@ -1220,7 +1207,6 @@ class Vic
         int rasterEventPixelX(int cycle) const;
         int rasterRegisterEventPixelX(const RasterEventRecord& e) const;
         int rasterPriorityEventPixelX(const RasterPriorityEvent& e) const;
-        int rasterSpriteModeEventPixelX(const RasterSpriteModeEvent& e) const;
         int rasterSpriteXExpansionEventPixelX(const RasterSpriteXExpansionEvent& e) const;
         uint8_t spriteYExpansionForRasterPixelX(int raster, int px, bool preferPreviousFrame) const;
         bool spriteYExpandedAtPixel(int sprite, int raster, int px) const;

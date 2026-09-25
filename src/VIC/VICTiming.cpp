@@ -58,7 +58,6 @@ void Vic::beginFrameIfNeeded()
             s = {};
 
         rasterPriorityEvents.clear();
-        rasterSpriteModeEvents.clear();
         rasterSpriteXExpansionEvents.clear();
         rasterSpriteXEvents.clear();
 
