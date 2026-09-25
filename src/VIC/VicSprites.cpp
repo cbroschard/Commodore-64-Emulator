@@ -230,6 +230,8 @@ void Vic::beginSpriteLineOutput(int spr, int raster)
 
 void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 {
+    (void)raster;
+
     if (sprIndex < 0 || sprIndex >= 8)
         return;
 
@@ -237,13 +239,12 @@ void Vic::resetSpriteLineSequencer(int sprIndex, int raster)
 
     u.outputBit = 0;
     u.outputRepeat = 0;
+
     u.outputStarted = false;
-    u.outputXStart = spriteScreenXFor(sprIndex, raster);
+    u.outputXStart = 0;
 
-    const int sampleX = std::clamp(u.outputXStart, 0, VISIBLE_WIDTH - 1);
-    const bool expanded = spriteXExpandedAtPixel(sprIndex, sampleX);
-
-    u.outputWidth = expanded ? SPRITE_OUTPUT_WIDTH_EXPANDED_MAX : 24;
+    // Retained for debug/status only.
+    u.outputWidth = 0;
 }
 
 void Vic::advanceSpriteOutputState(int sprIndex, int px)
@@ -292,9 +293,8 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
         if (((rowBits >> (23 - srcBit)) & 0x01) == 0)
             return false;
 
-        // This sequencer identifies opacity and the sprite color source.
-        // The dot renderer resolves the live color from the source, while
-        // the legacy line renderer assigns the color during event replay.
+        // The sequencer determines opacity and color source.
+        // The dot renderer resolves the live register color.
         outColor = 0;
         opaque = true;
         outSource = SpriteColorSource::SpriteOwnColor;
@@ -331,9 +331,8 @@ bool Vic::currentSpriteSequencerPixel(int sprIndex, int px, uint8_t& outColor, b
             return false;
     }
 
-    // This sequencer identifies opacity and the sprite color source.
-    // The dot renderer resolves the live color from the source, while
-    // the legacy line renderer assigns the color during event replay.
+    // The sequencer determines opacity and color source.
+    // The dot renderer resolves the live register color.
     outColor = 0;
     opaque = true;
     return true;
@@ -388,6 +387,12 @@ std::array<Vic::SpritePixel, 8> Vic::stepSpriteSequencersAtX(int raster, int px)
 
             u.outputStarted = true;
             u.outputXStart = px;
+
+            const bool expanded =
+                spriteXExpandedAtPixel(spr, px);
+
+            u.outputWidth =
+                expanded ? SPRITE_OUTPUT_WIDTH_EXPANDED_MAX : 24;
         }
 
         // The sprite is finished once all 24 source bits have been consumed.

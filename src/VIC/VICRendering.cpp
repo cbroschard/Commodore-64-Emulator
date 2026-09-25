@@ -156,7 +156,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         pixel.color = backgroundColorForSource(pixel.source, pixel.color);
     }
 
-    // Keep the existing line-buffer renderer working for now.
+    // Retain per-dot background state for collision/debug snapshots.
     stampBackgroundPixelSource(x, activeBgPixel.py, pixel.color, pixel.opaque,  pixel.source);
 
     if (activeBgPixel.phase >= 8)
