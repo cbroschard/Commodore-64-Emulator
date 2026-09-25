@@ -452,7 +452,6 @@ void Vic::writeRegister(uint16_t address, uint8_t value)
             const uint8_t oldValue = registers.spriteXExpansion;
             registers.spriteXExpansion = value;
 
-            recordRasterSpriteXExpansionWrite(oldValue, registers.spriteXExpansion);
             traceVicRegWrite(address, oldValue, registers.spriteXExpansion);
             break;
         }

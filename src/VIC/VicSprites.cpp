@@ -144,20 +144,6 @@ bool Vic::spriteMulticolorAtPixel(int sprite, int px) const
     return (registers.spriteMultiColor & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
-bool Vic::initialSpriteXExpansionForRaster(int raster, uint8_t& value) const
-{
-    for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
-    {
-        if (e.raster != raster)
-            continue;
-
-        value = e.oldValue;
-        return true;
-    }
-
-    return false;
-}
-
 bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
 {
     if (sprite < 0 || sprite >= 8)
@@ -166,25 +152,7 @@ bool Vic::spriteXExpandedAtPixel(int sprite, int px) const
     if (px < 0 || px >= VISIBLE_WIDTH)
         return false;
 
-    uint8_t activeExpansion = registers.spriteXExpansion;
-
-    if (initialSpriteXExpansionForRaster(registers.raster, activeExpansion))
-    {
-        for (const RasterSpriteXExpansionEvent& e : rasterSpriteXExpansionEvents)
-        {
-            if (e.raster != registers.raster)
-                continue;
-
-            const int eventX = rasterSpriteXExpansionEventPixelX(e);
-
-            if (eventX > px)
-                continue;
-
-            activeExpansion = e.newValue;
-        }
-    }
-
-    return (activeExpansion & static_cast<uint8_t>(1u << sprite)) != 0;
+    return (registers.spriteXExpansion & static_cast<uint8_t>(1u << sprite)) != 0;
 }
 
 bool Vic::spriteEnabledAtPixel(int sprite, int px) const
@@ -702,21 +670,6 @@ void Vic::recordRasterPriorityWrite(uint8_t oldValue, uint8_t newValue)
     recordRasterEventLog(RasterEventKind::SpritePriority, 0xD01B, oldValue, newValue);
 }
 
-void Vic::recordRasterSpriteXExpansionWrite(uint8_t oldValue, uint8_t newValue)
-{
-    RasterSpriteXExpansionEvent e;
-    e.raster = registers.raster;
-    e.phase = VicBusPhase::Phi2;
-
-    e.cycle = currentCycle;
-    e.oldValue = oldValue;
-    e.newValue = newValue;
-
-    rasterSpriteXExpansionEvents.push_back(e);
-
-    recordRasterEventLog(RasterEventKind::SpriteXExpansion, 0xD01D, oldValue, newValue);
-}
-
 void Vic::recordRasterSpriteXWrite(uint16_t address, uint8_t oldValue, uint8_t newValue)
 {
     RasterSpriteXEvent e;
@@ -846,22 +799,6 @@ int Vic::firstSpriteCpuStealCycle(int sprite) const
 }
 
 int Vic::rasterPriorityEventPixelX(const RasterPriorityEvent& e) const
-{
-    int x = cfg_->hardware_X + (e.cycle * 8);
-
-    if (e.phase == VicBusPhase::Phi2)
-        x += 4;
-
-    if (x < 0)
-        x = 0;
-
-    if (x > VISIBLE_WIDTH)
-        x = VISIBLE_WIDTH;
-
-    return x;
-}
-
-int Vic::rasterSpriteXExpansionEventPixelX(const RasterSpriteXExpansionEvent& e) const
 {
     int x = cfg_->hardware_X + (e.cycle * 8);
 
