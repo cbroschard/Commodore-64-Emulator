@@ -72,9 +72,6 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
 
         s.graphicsLatchIndex = lastGraphicsColumn;
         s.graphicsLatchValid = latch.valid;
-
-        if (latch.valid)
-            s.graphicsLatchAddress = latch.graphicsAddress;
     }
 
     if (s.slot.graphicsFetch)

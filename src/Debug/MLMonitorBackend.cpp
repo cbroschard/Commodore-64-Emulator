@@ -1437,34 +1437,6 @@ std::string MLMonitorBackend::vicDumpCycleDebugFor(int raster, int cycle) const
 
     out << "G-access latch index   : " << s.graphicsLatchIndex << "\n";
 
-    out << "G-access address       : $"
-        << std::hex << std::uppercase
-        << std::setw(4) << std::setfill('0')
-        << static_cast<int>(s.graphicsLatchAddress)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
-    out << "G-access D011          : $"
-        << std::hex << std::uppercase
-        << std::setw(2) << std::setfill('0')
-        << static_cast<int>(s.graphicsLatchD011)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
-    out << "G-access D016          : $"
-        << std::hex << std::uppercase
-        << std::setw(2) << std::setfill('0')
-        << static_cast<int>(s.graphicsLatchD016)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
-    out << "G-access D018          : $"
-        << std::hex << std::uppercase
-        << std::setw(2) << std::setfill('0')
-        << static_cast<int>(s.graphicsLatchD018)
-        << std::dec << std::nouppercase << std::setfill(' ')
-        << "\n";
-
     out << "Graphics reload column : " << s.graphicsReloadColumn << "\n";
     out << "Graphics reload X      : " << s.graphicsReloadX << "\n";
 

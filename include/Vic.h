@@ -217,10 +217,6 @@ class Vic
             // Most recently completed graphics (g-access) latch
             bool graphicsLatchValid = false;
             int graphicsLatchIndex = -1;
-            uint16_t graphicsLatchAddress = 0;
-            uint8_t graphicsLatchD011 = 0;
-            uint8_t graphicsLatchD016 = 0;
-            uint8_t graphicsLatchD018 = 0;
 
             int graphicsReloadColumn = -1;
             int graphicsReloadX = -1;
