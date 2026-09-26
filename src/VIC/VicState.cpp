@@ -208,8 +208,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(activeBgPixel.multicolorText);
     wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.mode));
 
-    wrtr.writeU8(activeBgPixel.rowBits);
-
     wrtr.writeU8(activeBgPixel.shiftRegister);
     wrtr.writeU8(activeBgPixel.screenByte);
     wrtr.writeU8(activeBgPixel.colorByte);
@@ -561,7 +559,10 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             else
                 activeBgPixel.mode = graphicsMode::standard;
 
-            if (!rdr.readU8(activeBgPixel.rowBits))                 { rdr.exitChunkPayload(chunk); return false; }
+            uint8_t legacyRowBits = 0;
+
+            if (ver <= 9)
+                if (!rdr.readU8(legacyRowBits))                     { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver <= 9)
             {
@@ -627,13 +628,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 {
                     const int pairsConsumed = legacyPhase / 2;
 
-                    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << (pairsConsumed * 2));
+                    activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << (pairsConsumed * 2));
                     activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
                     activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
                 }
                 else
                 {
-                    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << legacyPhase);
+                    activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << legacyPhase);
                     activeBgPixel.multicolorPairValue = 0;
                     activeBgPixel.multicolorPairPhase = 0;
                 }
