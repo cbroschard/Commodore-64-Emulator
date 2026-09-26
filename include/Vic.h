@@ -1146,14 +1146,14 @@ class Vic
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.dotsRemaining == 0; }
 
         void resetActiveBackgroundPixelState();
-        BackgroundPixel sampleAndAdvanceActiveStandardTextPixel();
+        BackgroundPixel sampleActiveStandardTextPixel();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
 
         void advanceActiveBackgroundShifter(bool multicolorOutput);
 
-        BackgroundPixel sampleAndAdvanceActiveStandardBitmapPixel();
-        BackgroundPixel sampleAndAdvanceActiveMulticolorBitmapPixel();
+        BackgroundPixel sampleActiveStandardBitmapPixel();
+        BackgroundPixel sampleActiveMulticolorBitmapPixel();
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1162,7 +1162,7 @@ class Vic
 
         void stampBackgroundPixelSource(int px, uint8_t color, bool opaque, BackgroundSource source);
 
-        BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
+        BackgroundPixel sampleActiveMulticolorTextPixel();
 
         // Pixel accurate helpers
         void runPixelOutputPhase(int firstDot, int lastDot);

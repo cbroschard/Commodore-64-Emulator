@@ -237,13 +237,13 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     }
 
     if (outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap)
-        pixel = sampleAndAdvanceActiveMulticolorBitmapPixel();
+        pixel = sampleActiveMulticolorBitmapPixel();
     else if (outputMode == graphicsMode::bitmap || outputMode == graphicsMode::illegalBitmap)
-        pixel = sampleAndAdvanceActiveStandardBitmapPixel();
+        pixel = sampleActiveStandardBitmapPixel();
     else if ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) && activeBgPixel.multicolorText)
-        pixel = sampleAndAdvanceActiveMulticolorTextPixel();
+        pixel = sampleActiveMulticolorTextPixel();
     else
-        pixel = sampleAndAdvanceActiveStandardTextPixel();
+        pixel = sampleActiveStandardTextPixel();
 
     // The active sequencer has consumed this output dot.
     ++activeBgPixel.nextX;

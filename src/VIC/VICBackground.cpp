@@ -415,7 +415,7 @@ void Vic::stampBackgroundPixelSource(int px, uint8_t color, bool opaque, Backgro
     bgSourceLine[px] = source;
 }
 
-Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
+Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel()
 {
     BackgroundPixel out {};
 
@@ -460,7 +460,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     return out;
 }
 
-Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
+Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel()
 {
     BackgroundPixel out {};
 
@@ -783,7 +783,7 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.dotsRemaining = 8;
 }
 
-Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
+Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel()
 {
     BackgroundPixel out {};
 
@@ -811,7 +811,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     return out;
 }
 
-Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
+Vic::BackgroundPixel Vic::sampleActiveMulticolorBitmapPixel()
 {
     BackgroundPixel out {};
 
