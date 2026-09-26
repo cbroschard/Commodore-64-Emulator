@@ -710,10 +710,6 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     latch.colorByte       = static_cast<uint8_t>(colorByte & 0x0F);
     latch.graphicsByte    = graphicsByte;
     latch.graphicsAddress = charAddr;
-
-    latch.d011 = d011;
-    latch.d016 = d016;
-    latch.d018 = d018;
 }
 
 void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018)
@@ -769,10 +765,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
     latch.graphicsByte = graphicsByte;
     latch.graphicsAddress = bitmapAddress;
-
-    latch.d011 = d011;
-    latch.d016 = d016;
-    latch.d018 = d018;
 }
 
 void Vic::resetBackgroundSequencer()
