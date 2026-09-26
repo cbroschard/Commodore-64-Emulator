@@ -1051,8 +1051,6 @@ class Vic
 
         struct ActiveBackgroundPixelState
         {
-            bool valid = false;
-
             uint8_t shiftRegister = 0;
 
             ActiveBackgroundAttributes attributes {};
@@ -1138,7 +1136,7 @@ class Vic
 
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
-        inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.dotsRemaining == 0; }
+        inline bool activeStandardTextPixelStateFinished() const { return  activeBgPixel.dotsRemaining == 0; }
 
         void resetActiveBackgroundPixelState();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);

@@ -144,7 +144,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         }
     }
 
-    if (!activeBgPixel.valid)
+    if (activeBgPixel.dotsRemaining == 0)
     {
         pixel.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
@@ -273,9 +273,6 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     // Retain per-dot background state for collision/debug snapshots.
     stampBackgroundPixelSource(x, pixel.color, pixel.opaque,  pixel.source);
-
-    if (activeBgPixel.dotsRemaining == 0)
-        activeBgPixel.valid = false;
 
     return pixel;
 }

@@ -318,8 +318,6 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     if (!latch.valid)
         return;
 
-    activeBgPixel.valid = true;
-
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;
 
@@ -333,7 +331,7 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
 void Vic::advanceActiveBackgroundShifter(bool multicolorOutput)
 {
-    if (!activeBgPixel.valid)
+    if (activeBgPixel.dotsRemaining == 0)
         return;
 
     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
@@ -417,9 +415,6 @@ Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0,
     out.opaque = false;
     out.source = bg0Source;
 
-    if (!activeBgPixel.valid)
-        return out;
-
     if (activeBgPixel.dotsRemaining == 0)
         return out;
 
@@ -444,9 +439,6 @@ Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0,
 Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2)
 {
     BackgroundPixel out {};
-
-    if (!activeBgPixel.valid)
-        return out;
 
     if (activeBgPixel.dotsRemaining == 0)
         return out;
@@ -490,9 +482,6 @@ Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel(uint8_t fg, uint8_t bg
 {
     BackgroundPixel out {};
 
-    if (!activeBgPixel.valid)
-        return out;
-
     if (activeBgPixel.dotsRemaining == 0)
         return out;
 
@@ -517,9 +506,6 @@ Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel(uint8_t fg, uint8_t bg
 Vic::BackgroundPixel Vic::sampleActiveMulticolorBitmapPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2)
 {
     BackgroundPixel out {};
-
-    if (!activeBgPixel.valid)
-        return out;
 
     if (activeBgPixel.dotsRemaining == 0)
         return out;
@@ -797,8 +783,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
 void Vic::resetActiveBackgroundPixelState()
 {
-    activeBgPixel.valid = false;
-
     activeBgPixel.shiftRegister = 0;
 
     activeBgPixel.attributes.screenByte = 0;
@@ -823,8 +807,6 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     if (!latch.valid)
         return;
-
-    activeBgPixel.valid = true;
 
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;

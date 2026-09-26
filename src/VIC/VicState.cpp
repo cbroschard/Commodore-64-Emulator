@@ -203,9 +203,6 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU8(static_cast<uint8_t>(latch.mode));
     }
 
-    // Active background pixel shifter
-    wrtr.writeBool(activeBgPixel.valid);
-
     wrtr.writeU8(activeBgPixel.shiftRegister);
     wrtr.writeU8(activeBgPixel.attributes.screenByte);
     wrtr.writeU8(activeBgPixel.attributes.colorByte);
@@ -538,8 +535,10 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 }
             }
 
-            // Active standard-text pixel shifter
-            if (!rdr.readBool(activeBgPixel.valid))                 { rdr.exitChunkPayload(chunk); return false; }
+            bool legacyActiveBgValid = false;
+
+            if (ver <= 9)
+                if (!rdr.readBool(legacyActiveBgValid))             { rdr.exitChunkPayload(chunk); return false; }
 
             bool legacyMulticolorText = false;
 
@@ -610,29 +609,40 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readI32(legacyPhaseRaw))       { rdr.exitChunkPayload(chunk); return false; }
 
                 const int legacyPhase = std::clamp(legacyPhaseRaw, 0, 8);
+
                 const bool multicolorShifter = legacyMode == graphicsMode::multicolorBitmap ||
                     legacyMode == graphicsMode::illegalMulticolorBitmap || ((legacyMode == graphicsMode::multicolor ||
                     legacyMode == graphicsMode::illegalText) && legacyMulticolorText);
 
-                if (multicolorShifter)
+                if (legacyActiveBgValid)
                 {
-                    const int pairsConsumed = legacyPhase / 2;
+                    if (multicolorShifter)
+                    {
+                        const int pairsConsumed = legacyPhase / 2;
 
-                    activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << (pairsConsumed * 2));
-                    activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
-                    activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+                        activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << (pairsConsumed * 2));
+                        activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
+                        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+                    }
+                    else
+                    {
+                        activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << legacyPhase);
+                        activeBgPixel.multicolorPairValue = 0;
+                        activeBgPixel.multicolorPairPhase = 0;
+                    }
+
+                    activeBgPixel.nextX = legacyPxBase + legacyPhase;
+                    activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
                 }
                 else
                 {
-                    activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << legacyPhase);
+                    activeBgPixel.shiftRegister = 0;
+                    activeBgPixel.nextX = 0;
+                    activeBgPixel.dotsRemaining = 0;
                     activeBgPixel.multicolorPairValue = 0;
                     activeBgPixel.multicolorPairPhase = 0;
                 }
 
-                activeBgPixel.nextX = legacyPxBase + legacyPhase;
-                activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
-
-                // These fields did not exist in VICX v2-v9.
                 activeBgPixel.attributes = {};
             }
         }
