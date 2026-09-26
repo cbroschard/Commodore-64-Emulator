@@ -68,7 +68,7 @@ Vic::VicCycleDebugSnapshot Vic::getCycleDebugSnapshot(int raster, int cycle) con
 
     if (lastGraphicsColumn >= 0 && lastGraphicsColumn < BACKGROUND_MATRIX_COLUMNS)
     {
-        const BackgroundFetchLatch& latch = backgroundGraphicsLatches[lastGraphicsColumn];
+        const BackgroundFetchLatch& latch = backgroundFetchLatches[lastGraphicsColumn];
 
         s.graphicsLatchIndex = lastGraphicsColumn;
         s.graphicsLatchValid = latch.valid;

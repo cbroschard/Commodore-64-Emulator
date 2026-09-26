@@ -186,7 +186,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeVectorU8(d018_per_raster);
 
     // Background graphics latches
-    for (const auto& latch : backgroundGraphicsLatches)
+    for (const auto& latch : backgroundFetchLatches)
     {
         wrtr.writeBool(latch.valid);
 
@@ -496,7 +496,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (ver >= 2)
         {
             // Background graphics latches
-            for (auto& latch : backgroundGraphicsLatches)
+            for (auto& latch : backgroundFetchLatches)
             {
                 if (!rdr.readBool(latch.valid))                     { rdr.exitChunkPayload(chunk); return false; }
 

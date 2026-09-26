@@ -1090,7 +1090,7 @@ class Vic
 
         PendingBackgroundReload pendingBgReload;
 
-        std::array<BackgroundFetchLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};
+        std::array<BackgroundFetchLatch, BACKGROUND_MATRIX_COLUMNS> backgroundFetchLatches {};
 
         std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;
         std::vector<RasterPixelCompositionSnapshot> lastFrameRasterPixelStates;
