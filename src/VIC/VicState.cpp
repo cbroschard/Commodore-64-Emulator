@@ -371,42 +371,42 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             vicState.matrixFetchInitializedThisRaster = false;
         }
 
-        if (!rdr.readBool(vicState.verticalBorder))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.verticalBorder))                 { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 6)
         {
-            if (!rdr.readBool(vicState.horizontalBorder))               { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(vicState.horizontalBorder))           { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
             vicState.horizontalBorder = true;
         }
 
-        if (!rdr.readBool(vicState.leftBorder))                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.rightBorder))                        { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.leftBorder))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.rightBorder))                    { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readI32(vicState.leftBorderOpenX))                     { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(vicState.rightBorderCloseX))                   { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.leftBorderOpenX))                 { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.rightBorderCloseX))               { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readI32(vicState.topBorderOpenRaster))                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readI32(vicState.bottomBorderCloseRaster))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.topBorderOpenRaster))             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readI32(vicState.bottomBorderCloseRaster))         { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(vicState.ba))                                 { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readBool(vicState.aec))                                { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.ba))                             { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.aec))                            { rdr.exitChunkPayload(chunk); return false; }
 
-        if (!rdr.readBool(vicState.lightPenLatchedThisFrame))           { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readBool(vicState.lightPenLatchedThisFrame))       { rdr.exitChunkPayload(chunk); return false; }
 
         if (ver >= 9)
         {
-            if (!rdr.readBool(rasterIrqCompareMatched))                 { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(rasterIrqDeferredReassert))               { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(rasterIrqTriggeredThisLine))              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(rasterIrqCompareMatched))             { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(rasterIrqDeferredReassert))           { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(rasterIrqTriggeredThisLine))          { rdr.exitChunkPayload(chunk); return false; }
         }
         else
         {
             bool legacyRasterIrqSampledThisLine = false;
 
-            if (!rdr.readBool(legacyRasterIrqSampledThisLine))          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(legacyRasterIrqSampledThisLine))      { rdr.exitChunkPayload(chunk); return false; }
 
             // Preserve the most sensible equivalent state from an old save.
             rasterIrqCompareMatched = legacyRasterIrqSampledThisLine && rasterIRQTargetMatchesVisibleRaster();
@@ -414,38 +414,38 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         if (ver >= 8)
         {
-            if (!rdr.readBool(activeMatrixRow.valid))                   { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU16(activeMatrixRow.vcBase))                   { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeMatrixRow.row))                      { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(activeMatrixRow.valid))               { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU16(activeMatrixRow.vcBase))               { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeMatrixRow.row))                  { rdr.exitChunkPayload(chunk); return false; }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.screen[i]))             { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.screen[i]))         { rdr.exitChunkPayload(chunk); return false; }
             }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.color[i]))              { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.color[i]))          { rdr.exitChunkPayload(chunk); return false; }
             }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.fetched[i]))            { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.fetched[i]))        { rdr.exitChunkPayload(chunk); return false; }
             }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.invalid[i]))            { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.invalid[i]))        { rdr.exitChunkPayload(chunk); return false; }
             }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.invalidScreen[i]))      { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.invalidScreen[i]))  { rdr.exitChunkPayload(chunk); return false; }
             }
 
             for (int i = 0; i < BACKGROUND_MATRIX_COLUMNS; ++i)
             {
-                if (!rdr.readU8(activeMatrixRow.invalidColor[i]))       { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeMatrixRow.invalidColor[i]))   { rdr.exitChunkPayload(chunk); return false; }
             }
         }
         else
@@ -456,12 +456,12 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         for (auto& s : spriteUnits)
         {
-            if (!rdr.readBool(s.dmaActive))                             { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.dmaActive))                         { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 9)
             {
-                if (!rdr.readBool(s.yExpandFlipFlop))                   { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readBool(s.yCrunchPending))                    { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(s.yExpandFlipFlop))               { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(s.yCrunchPending))                { rdr.exitChunkPayload(chunk); return false; }
             }
             else
             {
@@ -470,41 +470,41 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 // old chunk layout, then derive a reasonable flip-flop state.
                 bool legacyYExpandLatch = false;
 
-                if (!rdr.readBool(legacyYExpandLatch))                  { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(legacyYExpandLatch))              { rdr.exitChunkPayload(chunk); return false; }
 
                 s.yExpandFlipFlop = !legacyYExpandLatch;
             }
 
-            if (!rdr.readU8(s.mc))                                      { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(s.mcBase))                                  { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.mc))                                  { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.mcBase))                              { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readU8(s.pointerByte))                             { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU16(s.dataBase))                               { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.pointerByte))                         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU16(s.dataBase))                           { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readU8(s.shift0))                                  { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(s.shift1))                                  { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(s.shift2))                                  { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.shift0))                              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.shift1))                              { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.shift2))                              { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readI32(s.currentRow))                             { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.currentRow))                         { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readI32(s.startY))                                 { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.startY))                             { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readI32(s.outputBit))                              { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(s.outputRepeat))                           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(s.rowPrepared))                           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readBool(s.rowDataLatched))                        { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputBit))                          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputRepeat))                       { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.rowPrepared))                       { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(s.rowDataLatched))                    { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readI32(s.outputXStart))                           { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(s.outputWidth))                            { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputXStart))                       { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(s.outputWidth))                        { rdr.exitChunkPayload(chunk); return false; }
 
-            if (!rdr.readU8(s.fetched0))                                { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(s.fetched1))                                { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(s.fetched2))                                { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.fetched0))                            { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.fetched1))                            { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(s.fetched2))                            { rdr.exitChunkPayload(chunk); return false; }
         }
 
-        if (!rdr.readVectorU8(d011_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU8(d016_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
-        if (!rdr.readVectorU8(d018_per_raster))                         { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(d011_per_raster))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(d016_per_raster))                     { rdr.exitChunkPayload(chunk); return false; }
+        if (!rdr.readVectorU8(d018_per_raster))                     { rdr.exitChunkPayload(chunk); return false; }
 
         // VICX versions 1-8 stored a per-raster DD00/VIC-bank vector.
         // VIC bank selection is no longer restored from this obsolete
@@ -513,7 +513,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (ver <= 8)
         {
             std::vector<uint16_t> legacyDD00PerRaster;
-            if (!rdr.readVectorU16(legacyDD00PerRaster))                { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readVectorU16(legacyDD00PerRaster))            { rdr.exitChunkPayload(chunk); return false; }
         }
 
         if (ver >= 2)
@@ -521,23 +521,23 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             // Background graphics latches
             for (auto& latch : backgroundGraphicsLatches)
             {
-                if (!rdr.readBool(latch.valid))             { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readI32(latch.column))             { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(latch.valid))                     { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readI32(latch.column))                     { rdr.exitChunkPayload(chunk); return false; }
 
-                if (!rdr.readU8(latch.screenByte))          { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(latch.colorByte))           { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(latch.graphicsByte))        { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.screenByte))                  { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.colorByte))                   { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(latch.graphicsByte))                { rdr.exitChunkPayload(chunk); return false; }
 
-                if (!rdr.readU16(latch.graphicsAddress))    { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU16(latch.graphicsAddress))            { rdr.exitChunkPayload(chunk); return false; }
 
                 if (ver >= 6)
                 {
                     uint8_t mode = 0;
 
-                    if (!rdr.readU8(latch.d011))            { rdr.exitChunkPayload(chunk); return false; }
-                    if (!rdr.readU8(latch.d016))            { rdr.exitChunkPayload(chunk); return false; }
-                    if (!rdr.readU8(latch.d018))            { rdr.exitChunkPayload(chunk); return false; }
-                    if (!rdr.readU8(mode))                  { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(latch.d011))                    { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(latch.d016))                    { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(latch.d018))                    { rdr.exitChunkPayload(chunk); return false; }
+                    if (!rdr.readU8(mode))                          { rdr.exitChunkPayload(chunk); return false; }
 
                     latch.mode = static_cast<graphicsMode>(mode);
                 }
@@ -551,11 +551,11 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             }
 
             // Active standard-text pixel shifter
-            if (!rdr.readBool(activeBgPixel.valid))         { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readBool(activeBgPixel.valid))                 { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 4)
             {
-                if (!rdr.readBool(activeBgPixel.multicolorText)) {rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readBool(activeBgPixel.multicolorText))    {rdr.exitChunkPayload(chunk); return false; }
             }
             else
                 activeBgPixel.multicolorText = false;
@@ -563,20 +563,20 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (ver >= 6)
             {
                 uint8_t mode = 0;
-                if (!rdr.readU8(mode))                     { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(mode))                              { rdr.exitChunkPayload(chunk); return false; }
                 activeBgPixel.mode = static_cast<graphicsMode>(mode);
             }
             else
                 activeBgPixel.mode = graphicsMode::standard;
 
-            if (!rdr.readU8(activeBgPixel.rowBits))         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(activeBgPixel.fg))              { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readU8(activeBgPixel.bg0))             { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.rowBits))                 { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.fg))                      { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readU8(activeBgPixel.bg0))                     { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 4)
             {
-                if (!rdr.readU8(activeBgPixel.bg1))         { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.bg2))         { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.bg1))                 { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.bg2))                 { rdr.exitChunkPayload(chunk); return false; }
             }
             else
             {
@@ -587,16 +587,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (ver >= 5)
             {
                 uint8_t source = 0;
-                if (!rdr.readU8(source))                    { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(source))                            { rdr.exitChunkPayload(chunk); return false; }
                 activeBgPixel.bg0Source = static_cast<BackgroundSource>(source);
             }
             else
                 activeBgPixel.bg0Source = BackgroundSource::BG0;
 
-            if (ver <= 9)
-                if (!rdr.readI32(activeBgPixel.pxBase))    { rdr.exitChunkPayload(chunk); return false; }
+            int legacyPxBase = 0;
 
-            if (!rdr.readI32(activeBgPixel.py))            { rdr.exitChunkPayload(chunk); return false; }
+            if (ver <= 9)
+                if (!rdr.readI32(legacyPxBase))                     { rdr.exitChunkPayload(chunk); return false; }
+
+            if (!rdr.readI32(activeBgPixel.py))                     { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 10)
             {
@@ -632,7 +634,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                     activeBgPixel.multicolorPairPhase = 0;
                 }
 
-                activeBgPixel.nextX = activeBgPixel.pxBase + legacyPhase;
+                activeBgPixel.nextX = legacyPhase;
                 activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
 
                 // These fields did not exist in VICX v2-v9.

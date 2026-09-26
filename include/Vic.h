@@ -1063,7 +1063,6 @@ class Vic
 
             BackgroundSource bg0Source = BackgroundSource::BG0;
 
-            int pxBase = 0;
             int py = 0;
             int nextX = 0;
 
