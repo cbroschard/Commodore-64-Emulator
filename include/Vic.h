@@ -1043,14 +1043,19 @@ class Vic
             SpriteColorSource source = SpriteColorSource::None;
         };
 
+        struct ActiveBackgroundAttributes
+        {
+            uint8_t screenByte = 0;
+            uint8_t colorByte = 0;
+        };
+
         struct ActiveBackgroundPixelState
         {
             bool valid = false;
 
             uint8_t shiftRegister = 0;
 
-            uint8_t screenByte = 0;
-            uint8_t colorByte = 0;
+            ActiveBackgroundAttributes attributes {};
 
             int nextX = 0;
 

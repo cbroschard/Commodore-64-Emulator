@@ -323,8 +323,8 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;
 
-    activeBgPixel.screenByte = latch.screenByte;
-    activeBgPixel.colorByte = latch.colorByte;
+    activeBgPixel.attributes.screenByte = latch.screenByte;
+    activeBgPixel.attributes.colorByte = latch.colorByte;
 
     activeBgPixel.nextX = px;
 
@@ -801,8 +801,8 @@ void Vic::resetActiveBackgroundPixelState()
 
     activeBgPixel.shiftRegister = 0;
 
-    activeBgPixel.screenByte = 0;
-    activeBgPixel.colorByte = 0;
+    activeBgPixel.attributes.screenByte = 0;
+    activeBgPixel.attributes.colorByte = 0;
 
     activeBgPixel.nextX = 0;
 
@@ -829,8 +829,8 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;
 
-    activeBgPixel.screenByte = latch.screenByte;
-    activeBgPixel.colorByte = latch.colorByte;
+    activeBgPixel.attributes.screenByte = latch.screenByte;
+    activeBgPixel.attributes.colorByte = latch.colorByte;
 
     activeBgPixel.nextX = px;
 

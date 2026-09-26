@@ -207,8 +207,8 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeBool(activeBgPixel.valid);
 
     wrtr.writeU8(activeBgPixel.shiftRegister);
-    wrtr.writeU8(activeBgPixel.screenByte);
-    wrtr.writeU8(activeBgPixel.colorByte);
+    wrtr.writeU8(activeBgPixel.attributes.screenByte);
+    wrtr.writeU8(activeBgPixel.attributes.colorByte);
 
     wrtr.writeI32(activeBgPixel.nextX);
 
@@ -594,13 +594,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             if (ver >= 10)
             {
-                if (!rdr.readU8(activeBgPixel.shiftRegister))       { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.screenByte))          { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.colorByte))           { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readI32(activeBgPixel.nextX))              { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.dotsRemaining))       { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.multicolorPairValue)) { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.multicolorPairPhase)) { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.shiftRegister))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.attributes.screenByte))   { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.attributes.colorByte))    { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readI32(activeBgPixel.nextX))                  { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.dotsRemaining))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.multicolorPairValue))     { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.multicolorPairPhase))     { rdr.exitChunkPayload(chunk); return false; }
 
             }
             else
@@ -633,8 +633,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
 
                 // These fields did not exist in VICX v2-v9.
-                activeBgPixel.screenByte = 0;
-                activeBgPixel.colorByte = 0;
+                activeBgPixel.attributes = {};
             }
         }
         else
