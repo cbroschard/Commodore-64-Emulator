@@ -1085,8 +1085,6 @@ class Vic
             uint8_t screenByte = 0;
             uint8_t colorByte = 0;
             uint8_t graphicsByte = 0;
-
-            uint16_t graphicsAddress = 0;
         };
 
         struct PendingBackgroundReload

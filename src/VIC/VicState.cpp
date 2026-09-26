@@ -194,8 +194,6 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU8(latch.screenByte);
         wrtr.writeU8(latch.colorByte);
         wrtr.writeU8(latch.graphicsByte);
-
-        wrtr.writeU16(latch.graphicsAddress);
     }
 
     wrtr.writeU8(backgroundSequencer.shiftRegister);
@@ -508,7 +506,11 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readU8(latch.colorByte))                   { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readU8(latch.graphicsByte))                { rdr.exitChunkPayload(chunk); return false; }
 
-                if (!rdr.readU16(latch.graphicsAddress))            { rdr.exitChunkPayload(chunk); return false; }
+                if (ver >= 2 && ver <= 9)
+                {
+                    uint16_t legacyGraphicsAddress = 0;
+                    if (!rdr.readU16(legacyGraphicsAddress))        { rdr.exitChunkPayload(chunk); return false; }
+                }
 
                 if (ver >= 6 && ver <= 9)
                 {
