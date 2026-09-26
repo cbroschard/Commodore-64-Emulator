@@ -1063,7 +1063,6 @@ class Vic
 
             BackgroundSource bg0Source = BackgroundSource::BG0;
 
-            int py = 0;
             int nextX = 0;
 
             uint8_t dotsRemaining = 0;
@@ -1157,7 +1156,7 @@ class Vic
 
         void resetCAccessLatch();
 
-        void stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source);
+        void stampBackgroundPixelSource(int px, uint8_t color, bool opaque, BackgroundSource source);
 
         BackgroundPixel sampleAndAdvanceActiveMulticolorTextPixel();
 

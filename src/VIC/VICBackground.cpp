@@ -335,7 +335,6 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
         (latch.colorByte & 0x08) != 0;
 
     activeBgPixel.nextX = px;
-    activeBgPixel.py = fbY(raster);
 
     activeBgPixel.dotsRemaining = 8;
 }
@@ -387,10 +386,8 @@ void Vic::resetCAccessLatch()
     cAccessLatchIndex = -1;
 }
 
-void Vic::stampBackgroundPixelSource(int px, int py, uint8_t color, bool opaque, BackgroundSource source)
+void Vic::stampBackgroundPixelSource(int px, uint8_t color, bool opaque, BackgroundSource source)
 {
-    (void)py;
-
     if (px < 0 || px >= 512)
         return;
 
@@ -743,7 +740,6 @@ void Vic::resetActiveBackgroundPixelState()
 
     activeBgPixel.bg0Source = BackgroundSource::BG0;
 
-    activeBgPixel.py = 0;
     activeBgPixel.nextX = 0;
 
     activeBgPixel.dotsRemaining = 0;
@@ -777,7 +773,6 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.colorByte = latch.colorByte;
 
     activeBgPixel.nextX = px;
-    activeBgPixel.py = fbY(raster);
 
     activeBgPixel.dotsRemaining = 8;
 }
