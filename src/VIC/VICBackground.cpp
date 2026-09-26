@@ -673,7 +673,6 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
 
     BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
     latch = {};
-    latch.column = column;
 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;
@@ -718,7 +717,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
     BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
     latch = {};
-    latch.column = column;
 
     uint8_t screenByte = 0;
     uint8_t colorByte = 0;

@@ -1076,8 +1076,6 @@ class Vic
         {
             bool valid = false;
 
-            int column = -1;
-
             uint8_t screenByte = 0;
             uint8_t colorByte = 0;
             uint8_t graphicsByte = 0;

@@ -189,7 +189,6 @@ void Vic::saveState(StateWriter& wrtr) const
     for (const auto& latch : backgroundGraphicsLatches)
     {
         wrtr.writeBool(latch.valid);
-        wrtr.writeI32(latch.column);
 
         wrtr.writeU8(latch.screenByte);
         wrtr.writeU8(latch.colorByte);
@@ -500,7 +499,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             for (auto& latch : backgroundGraphicsLatches)
             {
                 if (!rdr.readBool(latch.valid))                     { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readI32(latch.column))                     { rdr.exitChunkPayload(chunk); return false; }
+
+                if (ver <= 9)
+                {
+                    int legacyColumn = -1;
+                    if (!rdr.readI32(legacyColumn))                 { rdr.exitChunkPayload(chunk); return false; }
+
+                }
 
                 if (!rdr.readU8(latch.screenByte))                  { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readU8(latch.colorByte))                   { rdr.exitChunkPayload(chunk); return false; }
