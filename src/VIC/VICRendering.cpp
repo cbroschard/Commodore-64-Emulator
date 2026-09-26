@@ -144,7 +144,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         }
     }
 
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
     {
         pixel.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
@@ -154,7 +154,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         return pixel;
     }
 
-    if (x != activeBgPixel.nextX)
+    if (x != backgroundSequencer.nextX)
     {
         resetActiveBackgroundPixelState();
 
@@ -168,7 +168,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     const graphicsMode outputMode = graphicsModeFromRegisters(registers.control & 0x7F, registers.control2 & 0x1F);
 
-    const bool multicolorText = (activeBgPixel.attributes.colorByte & 0x08) != 0;
+    const bool multicolorText = (backgroundSequencer.attributes.colorByte & 0x08) != 0;
 
     uint8_t fg = 0;
     uint8_t bg0 = 0;
@@ -184,11 +184,11 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         case graphicsMode::extendedColorText:
         case graphicsMode::illegalText:
         {
-            fg = static_cast<uint8_t>(activeBgPixel.attributes.colorByte & 0x0F);
+            fg = static_cast<uint8_t>(backgroundSequencer.attributes.colorByte & 0x0F);
 
             if (outputMode == graphicsMode::extendedColorText)
             {
-                const uint8_t bgSelect = static_cast<uint8_t>((activeBgPixel.attributes.screenByte >> 6) & 0x03);
+                const uint8_t bgSelect = static_cast<uint8_t>((backgroundSequencer.attributes.screenByte >> 6) & 0x03);
 
                 switch (bgSelect)
                 {
@@ -227,18 +227,18 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         case graphicsMode::bitmap:
         case graphicsMode::illegalBitmap:
         {
-            fg = static_cast<uint8_t>((activeBgPixel.attributes.screenByte >> 4) & 0x0F);
-            bg0 = static_cast<uint8_t>(activeBgPixel.attributes.screenByte & 0x0F);
+            fg = static_cast<uint8_t>((backgroundSequencer.attributes.screenByte >> 4) & 0x0F);
+            bg0 = static_cast<uint8_t>(backgroundSequencer.attributes.screenByte & 0x0F);
             break;
         }
 
         case graphicsMode::multicolorBitmap:
         case graphicsMode::illegalMulticolorBitmap:
         {
-            fg = static_cast<uint8_t>((activeBgPixel.attributes.screenByte >> 4) & 0x0F);
+            fg = static_cast<uint8_t>((backgroundSequencer.attributes.screenByte >> 4) & 0x0F);
             bg0 = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
-            bg1 = static_cast<uint8_t>(activeBgPixel.attributes.screenByte & 0x0F);
-            bg2 = static_cast<uint8_t>(activeBgPixel.attributes.colorByte & 0x0F);
+            bg1 = static_cast<uint8_t>(backgroundSequencer.attributes.screenByte & 0x0F);
+            bg2 = static_cast<uint8_t>(backgroundSequencer.attributes.colorByte & 0x0F);
             bg0Source = BackgroundSource::BG0;
             break;
         }
@@ -254,7 +254,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         pixel = sampleActiveStandardTextPixel(fg, bg0, bg0Source);
 
     // The active sequencer has consumed this output dot.
-    ++activeBgPixel.nextX;
+    ++backgroundSequencer.nextX;
 
     const bool multicolorOutput = outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap ||
         ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) &&  multicolorText);

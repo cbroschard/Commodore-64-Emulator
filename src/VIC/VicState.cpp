@@ -203,15 +203,15 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU8(static_cast<uint8_t>(latch.mode));
     }
 
-    wrtr.writeU8(activeBgPixel.shiftRegister);
-    wrtr.writeU8(activeBgPixel.attributes.screenByte);
-    wrtr.writeU8(activeBgPixel.attributes.colorByte);
+    wrtr.writeU8(backgroundSequencer.shiftRegister);
+    wrtr.writeU8(backgroundSequencer.attributes.screenByte);
+    wrtr.writeU8(backgroundSequencer.attributes.colorByte);
 
-    wrtr.writeI32(activeBgPixel.nextX);
+    wrtr.writeI32(backgroundSequencer.nextX);
 
-    wrtr.writeU8(activeBgPixel.dotsRemaining);
-    wrtr.writeU8(activeBgPixel.multicolorPairValue);
-    wrtr.writeU8(activeBgPixel.multicolorPairPhase);
+    wrtr.writeU8(backgroundSequencer.dotsRemaining);
+    wrtr.writeU8(backgroundSequencer.multicolorPairValue);
+    wrtr.writeU8(backgroundSequencer.multicolorPairPhase);
 
     // Pending background reload
     wrtr.writeBool(pendingBgReload.valid);
@@ -593,13 +593,13 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
             if (ver >= 10)
             {
-                if (!rdr.readU8(activeBgPixel.shiftRegister))           { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.attributes.screenByte))   { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.attributes.colorByte))    { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readI32(activeBgPixel.nextX))                  { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.dotsRemaining))           { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.multicolorPairValue))     { rdr.exitChunkPayload(chunk); return false; }
-                if (!rdr.readU8(activeBgPixel.multicolorPairPhase))     { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.shiftRegister))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.attributes.screenByte))   { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.attributes.colorByte))    { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readI32(backgroundSequencer.nextX))                  { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.dotsRemaining))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.multicolorPairValue))     { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(backgroundSequencer.multicolorPairPhase))     { rdr.exitChunkPayload(chunk); return false; }
 
             }
             else
@@ -620,30 +620,30 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                     {
                         const int pairsConsumed = legacyPhase / 2;
 
-                        activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << (pairsConsumed * 2));
-                        activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
-                        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+                        backgroundSequencer.shiftRegister = static_cast<uint8_t>(legacyRowBits << (pairsConsumed * 2));
+                        backgroundSequencer.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
+                        backgroundSequencer.multicolorPairValue = static_cast<uint8_t>((backgroundSequencer.shiftRegister >> 6) & 0x03);
                     }
                     else
                     {
-                        activeBgPixel.shiftRegister = static_cast<uint8_t>(legacyRowBits << legacyPhase);
-                        activeBgPixel.multicolorPairValue = 0;
-                        activeBgPixel.multicolorPairPhase = 0;
+                        backgroundSequencer.shiftRegister = static_cast<uint8_t>(legacyRowBits << legacyPhase);
+                        backgroundSequencer.multicolorPairValue = 0;
+                        backgroundSequencer.multicolorPairPhase = 0;
                     }
 
-                    activeBgPixel.nextX = legacyPxBase + legacyPhase;
-                    activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
+                    backgroundSequencer.nextX = legacyPxBase + legacyPhase;
+                    backgroundSequencer.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
                 }
                 else
                 {
-                    activeBgPixel.shiftRegister = 0;
-                    activeBgPixel.nextX = 0;
-                    activeBgPixel.dotsRemaining = 0;
-                    activeBgPixel.multicolorPairValue = 0;
-                    activeBgPixel.multicolorPairPhase = 0;
+                    backgroundSequencer.shiftRegister = 0;
+                    backgroundSequencer.nextX = 0;
+                    backgroundSequencer.dotsRemaining = 0;
+                    backgroundSequencer.multicolorPairValue = 0;
+                    backgroundSequencer.multicolorPairPhase = 0;
                 }
 
-                activeBgPixel.attributes = {};
+                backgroundSequencer.attributes = {};
             }
         }
         else

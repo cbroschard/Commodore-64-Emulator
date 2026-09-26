@@ -1132,11 +1132,11 @@ class Vic
         bool spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const;
         int firstSpriteCpuStealCycle(int sprite) const;
 
-        BackgroundSequencerState activeBgPixel;
+        BackgroundSequencerState backgroundSequencer;
 
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
-        inline bool activeStandardTextPixelStateFinished() const { return  activeBgPixel.dotsRemaining == 0; }
+        inline bool activeStandardTextPixelStateFinished() const { return  backgroundSequencer.dotsRemaining == 0; }
 
         void resetActiveBackgroundPixelState();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);

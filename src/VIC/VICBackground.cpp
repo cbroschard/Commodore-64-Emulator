@@ -319,35 +319,35 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
         return;
 
     // Raw data captured by the g-access.
-    activeBgPixel.shiftRegister = latch.graphicsByte;
+    backgroundSequencer.shiftRegister = latch.graphicsByte;
 
-    activeBgPixel.attributes.screenByte = latch.screenByte;
-    activeBgPixel.attributes.colorByte = latch.colorByte;
+    backgroundSequencer.attributes.screenByte = latch.screenByte;
+    backgroundSequencer.attributes.colorByte = latch.colorByte;
 
-    activeBgPixel.nextX = px;
+    backgroundSequencer.nextX = px;
 
-    activeBgPixel.dotsRemaining = 8;
+    backgroundSequencer.dotsRemaining = 8;
 }
 
 void Vic::advanceActiveBackgroundShifter(bool multicolorOutput)
 {
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
         return;
 
-    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
+    backgroundSequencer.shiftRegister = static_cast<uint8_t>(backgroundSequencer.shiftRegister << 1);
 
     if (multicolorOutput)
     {
-        ++activeBgPixel.multicolorPairPhase;
+        ++backgroundSequencer.multicolorPairPhase;
 
-        if (activeBgPixel.multicolorPairPhase >= 2)
-            activeBgPixel.multicolorPairPhase = 0;
+        if (backgroundSequencer.multicolorPairPhase >= 2)
+            backgroundSequencer.multicolorPairPhase = 0;
     }
     else
-        activeBgPixel.multicolorPairPhase = 0;
+        backgroundSequencer.multicolorPairPhase = 0;
 
-    if (activeBgPixel.dotsRemaining > 0)
-        --activeBgPixel.dotsRemaining;
+    if (backgroundSequencer.dotsRemaining > 0)
+        --backgroundSequencer.dotsRemaining;
 }
 
 void Vic::resetActiveMatrixRow()
@@ -415,10 +415,10 @@ Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0,
     out.opaque = false;
     out.source = bg0Source;
 
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
         return out;
 
-    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
+    const bool pixelOn = (backgroundSequencer.shiftRegister & 0x80) != 0;
 
     if (pixelOn)
     {
@@ -440,13 +440,13 @@ Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel(uint8_t fg, uint8_t bg
 {
     BackgroundPixel out {};
 
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
         return out;
 
-    if (activeBgPixel.multicolorPairPhase == 0)
-        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+    if (backgroundSequencer.multicolorPairPhase == 0)
+        backgroundSequencer.multicolorPairValue = static_cast<uint8_t>((backgroundSequencer.shiftRegister >> 6) & 0x03);
 
-    const uint8_t value = activeBgPixel.multicolorPairValue;
+    const uint8_t value = backgroundSequencer.multicolorPairValue;
 
     switch (value)
     {
@@ -482,10 +482,10 @@ Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel(uint8_t fg, uint8_t bg
 {
     BackgroundPixel out {};
 
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
         return out;
 
-    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
+    const bool pixelOn = (backgroundSequencer.shiftRegister & 0x80) != 0;
 
     if (pixelOn)
     {
@@ -507,13 +507,13 @@ Vic::BackgroundPixel Vic::sampleActiveMulticolorBitmapPixel(uint8_t fg, uint8_t 
 {
     BackgroundPixel out {};
 
-    if (activeBgPixel.dotsRemaining == 0)
+    if (backgroundSequencer.dotsRemaining == 0)
         return out;
 
-    if (activeBgPixel.multicolorPairPhase == 0)
-        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+    if (backgroundSequencer.multicolorPairPhase == 0)
+        backgroundSequencer.multicolorPairValue = static_cast<uint8_t>((backgroundSequencer.shiftRegister >> 6) & 0x03);
 
-    const uint8_t value = activeBgPixel.multicolorPairValue;
+    const uint8_t value = backgroundSequencer.multicolorPairValue;
 
     switch (value)
     {
@@ -783,17 +783,17 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 
 void Vic::resetActiveBackgroundPixelState()
 {
-    activeBgPixel.shiftRegister = 0;
+    backgroundSequencer.shiftRegister = 0;
 
-    activeBgPixel.attributes.screenByte = 0;
-    activeBgPixel.attributes.colorByte = 0;
+    backgroundSequencer.attributes.screenByte = 0;
+    backgroundSequencer.attributes.colorByte = 0;
 
-    activeBgPixel.nextX = 0;
+    backgroundSequencer.nextX = 0;
 
-    activeBgPixel.dotsRemaining = 0;
+    backgroundSequencer.dotsRemaining = 0;
 
-    activeBgPixel.multicolorPairValue = 0;
-    activeBgPixel.multicolorPairPhase = 0;
+    backgroundSequencer.multicolorPairValue = 0;
+    backgroundSequencer.multicolorPairPhase = 0;
 }
 
 void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
@@ -809,14 +809,14 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
         return;
 
     // Raw data captured by the g-access.
-    activeBgPixel.shiftRegister = latch.graphicsByte;
+    backgroundSequencer.shiftRegister = latch.graphicsByte;
 
-    activeBgPixel.attributes.screenByte = latch.screenByte;
-    activeBgPixel.attributes.colorByte = latch.colorByte;
+    backgroundSequencer.attributes.screenByte = latch.screenByte;
+    backgroundSequencer.attributes.colorByte = latch.colorByte;
 
-    activeBgPixel.nextX = px;
+    backgroundSequencer.nextX = px;
 
-    activeBgPixel.dotsRemaining = 8;
+    backgroundSequencer.dotsRemaining = 8;
 }
 
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const
