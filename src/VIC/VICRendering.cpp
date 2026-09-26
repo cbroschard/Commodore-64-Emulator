@@ -248,6 +248,8 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     // The active sequencer has consumed this output dot.
     ++activeBgPixel.nextX;
 
+    advanceActiveBackgroundShifter();
+
     if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap ||
          outputMode == graphicsMode::illegalMulticolorBitmap)
     {

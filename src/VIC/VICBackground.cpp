@@ -331,12 +331,22 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.colorByte = latch.colorByte;
 
     // Color RAM bit 3 is the character's multicolor attribute.
-    activeBgPixel.multicolorText =
-        (latch.colorByte & 0x08) != 0;
+    activeBgPixel.multicolorText = (latch.colorByte & 0x08) != 0;
 
     activeBgPixel.nextX = px;
 
     activeBgPixel.dotsRemaining = 8;
+}
+
+void Vic::advanceActiveBackgroundShifter()
+{
+    if (!activeBgPixel.valid)
+        return;
+
+    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
+
+    if (activeBgPixel.dotsRemaining > 0)
+        --activeBgPixel.dotsRemaining;
 }
 
 void Vic::resetActiveMatrixRow()
@@ -441,13 +451,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     ++activeBgPixel.multicolorPairPhase;
 
     if (activeBgPixel.multicolorPairPhase >= 2)
-    {
-        activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
         activeBgPixel.multicolorPairPhase = 0;
-    }
-
-    if (activeBgPixel.dotsRemaining > 0)
-        --activeBgPixel.dotsRemaining;
 
     return out;
 }
@@ -480,11 +484,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardTextPixel()
         out.opaque = false;
         out.source = activeBgPixel.bg0Source;
     }
-
-    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
-
-    if (activeBgPixel.dotsRemaining > 0)
-        --activeBgPixel.dotsRemaining;
 
     return out;
 }
@@ -806,10 +805,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveStandardBitmapPixel()
     }
 
     out.source = BackgroundSource::Bitmap;
-    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
-
-    if (activeBgPixel.dotsRemaining > 0)
-        --activeBgPixel.dotsRemaining;
 
     return out;
 }
@@ -859,13 +854,7 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
     ++activeBgPixel.multicolorPairPhase;
 
     if (activeBgPixel.multicolorPairPhase >= 2)
-    {
-        activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 2);
         activeBgPixel.multicolorPairPhase = 0;
-    }
-
-    if (activeBgPixel.dotsRemaining > 0)
-        --activeBgPixel.dotsRemaining;
 
     return out;
 }
