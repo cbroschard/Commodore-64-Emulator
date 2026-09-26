@@ -1046,7 +1046,6 @@ class Vic
         struct ActiveBackgroundPixelState
         {
             bool valid = false;
-            bool multicolorText = false;
 
             graphicsMode mode = graphicsMode::standard;
 

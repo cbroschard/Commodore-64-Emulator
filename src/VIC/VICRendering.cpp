@@ -168,6 +168,8 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     const graphicsMode outputMode = graphicsModeFromRegisters(registers.control & 0x7F, registers.control2 & 0x1F);
 
+    const bool multicolorText = (activeBgPixel.colorByte & 0x08) != 0;
+
     uint8_t fg = 0;
     uint8_t bg0 = 0;
     uint8_t bg1 = 0;
@@ -183,7 +185,6 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         case graphicsMode::illegalText:
         {
             fg = static_cast<uint8_t>(activeBgPixel.colorByte & 0x0F);
-            activeBgPixel.multicolorText = ((activeBgPixel.colorByte & 0x08) != 0);
 
             if (outputMode == graphicsMode::extendedColorText)
             {
@@ -247,7 +248,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
         pixel = sampleActiveMulticolorBitmapPixel(fg, bg0, bg1, bg2);
     else if (outputMode == graphicsMode::bitmap || outputMode == graphicsMode::illegalBitmap)
         pixel = sampleActiveStandardBitmapPixel(fg, bg0);
-    else if ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) && activeBgPixel.multicolorText)
+    else if ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) && multicolorText)
         pixel = sampleActiveMulticolorTextPixel(fg, bg0, bg1, bg2);
     else
         pixel = sampleActiveStandardTextPixel(fg, bg0, bg0Source);
@@ -256,7 +257,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     ++activeBgPixel.nextX;
 
     const bool multicolorOutput = outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap ||
-        ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) &&  activeBgPixel.multicolorText);
+        ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) &&  multicolorText);
 
     advanceActiveBackgroundShifter(multicolorOutput);
 

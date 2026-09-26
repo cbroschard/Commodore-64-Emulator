@@ -329,9 +329,6 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.screenByte = latch.screenByte;
     activeBgPixel.colorByte = latch.colorByte;
 
-    // Color RAM bit 3 is the character's multicolor attribute.
-    activeBgPixel.multicolorText = (latch.colorByte & 0x08) != 0;
-
     activeBgPixel.nextX = px;
 
     activeBgPixel.dotsRemaining = 8;
@@ -804,7 +801,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
 void Vic::resetActiveBackgroundPixelState()
 {
     activeBgPixel.valid = false;
-    activeBgPixel.multicolorText = false;
 
     activeBgPixel.shiftRegister = 0;
 
@@ -835,8 +831,6 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
 
     // Retain fetch-time mode for diagnostics/debugging.
     activeBgPixel.mode = latch.mode;
-
-    activeBgPixel.multicolorText = false;
 
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;

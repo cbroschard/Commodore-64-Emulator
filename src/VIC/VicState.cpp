@@ -205,7 +205,6 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // Active background pixel shifter
     wrtr.writeBool(activeBgPixel.valid);
-    wrtr.writeBool(activeBgPixel.multicolorText);
     wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.mode));
 
     wrtr.writeU8(activeBgPixel.shiftRegister);
@@ -543,12 +542,10 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             // Active standard-text pixel shifter
             if (!rdr.readBool(activeBgPixel.valid))                 { rdr.exitChunkPayload(chunk); return false; }
 
-            if (ver >= 4)
-            {
-                if (!rdr.readBool(activeBgPixel.multicolorText))    {rdr.exitChunkPayload(chunk); return false; }
-            }
-            else
-                activeBgPixel.multicolorText = false;
+            bool legacyMulticolorText = false;
+
+            if (ver >= 4 && ver <= 9)
+                if (!rdr.readBool(legacyMulticolorText))            {rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 6)
             {
@@ -616,7 +613,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 const int legacyPhase = std::clamp(legacyPhaseRaw, 0, 8);
                 const bool multicolorShifter = activeBgPixel.mode == graphicsMode::multicolorBitmap ||
                     activeBgPixel.mode == graphicsMode::illegalMulticolorBitmap || ((activeBgPixel.mode == graphicsMode::multicolor ||
-                    activeBgPixel.mode == graphicsMode::illegalText) && activeBgPixel.multicolorText);
+                    activeBgPixel.mode == graphicsMode::illegalText) && legacyMulticolorText);
 
                 if (multicolorShifter)
                 {
