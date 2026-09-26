@@ -108,6 +108,7 @@ bool EmulationSession::initializeMachine()
     media_.setVideoMode(runtime_.videoMode);
 
     iecBus_.setHostCpuHz(runtime_.cpuCfg->clockSpeedHz);
+    iecBus_.setRomControlledIEC(true);
 
     sid_.setSampleRate(audioOutput_.getSampleRate());
 
