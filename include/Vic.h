@@ -1055,13 +1055,6 @@ class Vic
             uint8_t screenByte = 0;
             uint8_t colorByte = 0;
 
-            uint8_t fg = 0;
-            uint8_t bg0 = 0;
-            uint8_t bg1 = 0;
-            uint8_t bg2 = 0;
-
-            BackgroundSource bg0Source = BackgroundSource::BG0;
-
             int nextX = 0;
 
             uint8_t dotsRemaining = 0;
@@ -1146,14 +1139,15 @@ class Vic
         inline bool activeStandardTextPixelStateFinished() const { return !activeBgPixel.valid || activeBgPixel.dotsRemaining == 0; }
 
         void resetActiveBackgroundPixelState();
-        BackgroundPixel sampleActiveStandardTextPixel();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
 
         void advanceActiveBackgroundShifter(bool multicolorOutput);
 
-        BackgroundPixel sampleActiveStandardBitmapPixel();
-        BackgroundPixel sampleActiveMulticolorBitmapPixel();
+        BackgroundPixel sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0, BackgroundSource bg0Source);
+        BackgroundPixel sampleActiveMulticolorTextPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2);
+        BackgroundPixel sampleActiveStandardBitmapPixel( uint8_t fg, uint8_t bg0);
+        BackgroundPixel sampleActiveMulticolorBitmapPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2);
 
         void resetActiveMatrixRow();
         bool activeMatrixRowByteForDisplayCol(int displayCol, uint8_t& screenByte, uint8_t& colorByte) const;
@@ -1161,8 +1155,6 @@ class Vic
         void resetCAccessLatch();
 
         void stampBackgroundPixelSource(int px, uint8_t color, bool opaque, BackgroundSource source);
-
-        BackgroundPixel sampleActiveMulticolorTextPixel();
 
         // Pixel accurate helpers
         void runPixelOutputPhase(int firstDot, int lastDot);

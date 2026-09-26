@@ -415,7 +415,39 @@ void Vic::stampBackgroundPixelSource(int px, uint8_t color, bool opaque, Backgro
     bgSourceLine[px] = source;
 }
 
-Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel()
+Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0, BackgroundSource bg0Source)
+{
+    BackgroundPixel out {};
+
+    out.color = static_cast<uint8_t>(bg0 & 0x0F);
+    out.opaque = false;
+    out.source = bg0Source;
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    if (activeBgPixel.dotsRemaining == 0)
+        return out;
+
+    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
+
+    if (pixelOn)
+    {
+        out.color = static_cast<uint8_t>(fg & 0x0F);
+        out.opaque = true;
+        out.source = BackgroundSource::Foreground;
+    }
+    else
+    {
+        out.color = static_cast<uint8_t>(bg0 & 0x0F);
+        out.opaque = false;
+        out.source = bg0Source;
+    }
+
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2)
 {
     BackgroundPixel out {};
 
@@ -433,25 +465,25 @@ Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel()
     switch (value)
     {
         case 0:
-            out.color = activeBgPixel.bg0;
+            out.color = bg0;
             out.opaque = false;
             out.source = BackgroundSource::BG0;
             break;
 
         case 1:
-            out.color = activeBgPixel.bg1;
+            out.color = bg1;
             out.opaque = false;
             out.source = BackgroundSource::BG1;
             break;
 
         case 2:
-            out.color = activeBgPixel.bg2;
+            out.color = bg2;
             out.opaque = true;
             out.source = BackgroundSource::BG2;
             break;
 
         case 3:
-            out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x07);
+            out.color = static_cast<uint8_t>(fg & 0x07);
             out.opaque = true;
             out.source = BackgroundSource::Foreground;
             break;
@@ -460,13 +492,9 @@ Vic::BackgroundPixel Vic::sampleActiveMulticolorTextPixel()
     return out;
 }
 
-Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel()
+Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel(uint8_t fg, uint8_t bg0)
 {
     BackgroundPixel out {};
-
-    out.color = activeBgPixel.bg0 & 0x0F;
-    out.opaque = false;
-    out.source = activeBgPixel.bg0Source;
 
     if (!activeBgPixel.valid)
         return out;
@@ -478,15 +506,60 @@ Vic::BackgroundPixel Vic::sampleActiveStandardTextPixel()
 
     if (pixelOn)
     {
-        out.color = activeBgPixel.fg & 0x0F;
+        out.color = static_cast<uint8_t>(fg & 0x0F);
         out.opaque = true;
-        out.source = BackgroundSource::Foreground;
     }
     else
     {
-        out.color = activeBgPixel.bg0 & 0x0F;
+        out.color = static_cast<uint8_t>(bg0 & 0x0F);
         out.opaque = false;
-        out.source = activeBgPixel.bg0Source;
+    }
+
+    out.source = BackgroundSource::Bitmap;
+
+    return out;
+}
+
+Vic::BackgroundPixel Vic::sampleActiveMulticolorBitmapPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2)
+{
+    BackgroundPixel out {};
+
+    if (!activeBgPixel.valid)
+        return out;
+
+    if (activeBgPixel.dotsRemaining == 0)
+        return out;
+
+    if (activeBgPixel.multicolorPairPhase == 0)
+        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+
+    const uint8_t value = activeBgPixel.multicolorPairValue;
+
+    switch (value)
+    {
+        case 0:
+            out.color = static_cast<uint8_t>(bg0 & 0x0F);
+            out.opaque = false;
+            out.source = BackgroundSource::BG0;
+            break;
+
+        case 1:
+            out.color = static_cast<uint8_t>(fg & 0x0F);
+            out.opaque = false;
+            out.source = BackgroundSource::Bitmap;
+            break;
+
+        case 2:
+            out.color = static_cast<uint8_t>(bg1 & 0x0F);
+            out.opaque = true;
+            out.source = BackgroundSource::Bitmap;
+            break;
+
+        case 3:
+            out.color = static_cast<uint8_t>(bg2 & 0x0F);
+            out.opaque = true;
+            out.source = BackgroundSource::Bitmap;
+            break;
     }
 
     return out;
@@ -738,13 +811,6 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.screenByte = 0;
     activeBgPixel.colorByte = 0;
 
-    activeBgPixel.fg = 0;
-    activeBgPixel.bg0 = 0;
-    activeBgPixel.bg1 = 0;
-    activeBgPixel.bg2 = 0;
-
-    activeBgPixel.bg0Source = BackgroundSource::BG0;
-
     activeBgPixel.nextX = 0;
 
     activeBgPixel.dotsRemaining = 0;
@@ -781,79 +847,6 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
     activeBgPixel.nextX = px;
 
     activeBgPixel.dotsRemaining = 8;
-}
-
-Vic::BackgroundPixel Vic::sampleActiveStandardBitmapPixel()
-{
-    BackgroundPixel out {};
-
-    if (!activeBgPixel.valid)
-        return out;
-
-    if (activeBgPixel.dotsRemaining == 0)
-        return out;
-
-    const bool pixelOn = (activeBgPixel.shiftRegister & 0x80) != 0;
-
-    if (pixelOn)
-    {
-        out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x0F);
-        out.opaque = true;
-    }
-    else
-    {
-        out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
-        out.opaque = false;
-    }
-
-    out.source = BackgroundSource::Bitmap;
-
-    return out;
-}
-
-Vic::BackgroundPixel Vic::sampleActiveMulticolorBitmapPixel()
-{
-    BackgroundPixel out {};
-
-    if (!activeBgPixel.valid)
-        return out;
-
-    if (activeBgPixel.dotsRemaining == 0)
-        return out;
-
-    if (activeBgPixel.multicolorPairPhase == 0)
-        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
-
-    const uint8_t value = activeBgPixel.multicolorPairValue;
-
-    switch (value)
-    {
-        case 0:
-            out.color = static_cast<uint8_t>(activeBgPixel.bg0 & 0x0F);
-            out.opaque = false;
-            out.source = BackgroundSource::BG0;
-            break;
-
-        case 1:
-            out.color = static_cast<uint8_t>(activeBgPixel.fg & 0x0F);
-            out.opaque = false;
-            out.source = BackgroundSource::Bitmap;
-            break;
-
-        case 2:
-            out.color = static_cast<uint8_t>(activeBgPixel.bg1 & 0x0F);
-            out.opaque = true;
-            out.source = BackgroundSource::Bitmap;
-            break;
-
-        case 3:
-            out.color = static_cast<uint8_t>(activeBgPixel.bg2 & 0x0F);
-            out.opaque = true;
-            out.source = BackgroundSource::Bitmap;
-            break;
-    }
-
-    return out;
 }
 
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const

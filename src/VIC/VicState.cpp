@@ -587,12 +587,6 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 }
             }
 
-            activeBgPixel.fg = 0;
-            activeBgPixel.bg0 = 0;
-            activeBgPixel.bg1 = 0;
-            activeBgPixel.bg2 = 0;
-            activeBgPixel.bg0Source = BackgroundSource::BG0;
-
             int legacyPxBase = 0;
             int legacyPy = 0;
 
