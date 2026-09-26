@@ -203,7 +203,7 @@ void Vic::reset()
 
     borderMaskLine.fill(1);
 
-    resetActiveBackgroundPixelState();
+    resetBackgroundSequencer();
 
     // Rebuild Border Latches
     rebuildBorderRasterLatches();
@@ -224,7 +224,7 @@ void Vic::reset()
     lastSpriteSpriteCollision = {};
     lastSpriteBackgroundCollision = {};
 
-    resetActiveBackgroundPixelState();
+    resetBackgroundSequencer();
     resetBackgroundGraphicsLatches();
 }
 
@@ -266,7 +266,7 @@ void Vic::setMode(VideoMode mode)
     clearBadLineFifo();
     resetActiveMatrixRow();
     resetCAccessLatch();
-    resetActiveBackgroundPixelState();
+    resetBackgroundSequencer();
     resetBackgroundGraphicsLatches();
 
     std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);

@@ -1138,7 +1138,7 @@ class Vic
 
         inline bool activeStandardTextPixelStateFinished() const { return  backgroundSequencer.dotsRemaining == 0; }
 
-        void resetActiveBackgroundPixelState();
+        void resetBackgroundSequencer();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
 

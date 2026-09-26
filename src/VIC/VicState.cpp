@@ -650,7 +650,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         {
             // VICX v1 did not contain graphics-latch or live pixel-shifter state.
             resetBackgroundGraphicsLatches();
-            resetActiveBackgroundPixelState();
+            resetBackgroundSequencer();
         }
 
         if (ver >= 10)

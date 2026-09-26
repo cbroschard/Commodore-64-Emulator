@@ -308,7 +308,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
 
 void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)
 {
-    resetActiveBackgroundPixelState();
+    resetBackgroundSequencer();
 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
@@ -781,7 +781,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     latch.mode = mode;
 }
 
-void Vic::resetActiveBackgroundPixelState()
+void Vic::resetBackgroundSequencer()
 {
     backgroundSequencer.shiftRegister = 0;
 
@@ -798,7 +798,7 @@ void Vic::resetActiveBackgroundPixelState()
 
 void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
 {
-    resetActiveBackgroundPixelState();
+    resetBackgroundSequencer();
 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;

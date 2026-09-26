@@ -31,7 +31,7 @@ void Vic::runPixelOutputPhase(int firstDot, int lastDot)
 
         clearSpriteLineBuffers();
 
-        resetActiveBackgroundPixelState();
+        resetBackgroundSequencer();
         resetBackgroundGraphicsLatches();
         pendingBgReload = {};
 
@@ -156,7 +156,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
 
     if (x != backgroundSequencer.nextX)
     {
-        resetActiveBackgroundPixelState();
+        resetBackgroundSequencer();
 
         pixel.color = static_cast<uint8_t>(registers.backgroundColor0 & 0x0F);
 
