@@ -1136,8 +1136,6 @@ class Vic
 
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
-        inline bool activeStandardTextPixelStateFinished() const { return  backgroundSequencer.dotsRemaining == 0; }
-
         void resetBackgroundSequencer();
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
