@@ -1049,7 +1049,7 @@ class Vic
             uint8_t colorByte = 0;
         };
 
-        struct ActiveBackgroundPixelState
+        struct BackgroundSequencerState
         {
             uint8_t shiftRegister = 0;
 
@@ -1132,7 +1132,7 @@ class Vic
         bool spriteFetchPhaseStealsCpu(SpriteFetchPhase phase) const;
         int firstSpriteCpuStealCycle(int sprite) const;
 
-        ActiveBackgroundPixelState activeBgPixel;
+        BackgroundSequencerState activeBgPixel;
 
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
