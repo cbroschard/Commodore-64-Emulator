@@ -217,7 +217,6 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.bg0Source));
 
-    wrtr.writeI32(activeBgPixel.pxBase);
     wrtr.writeI32(activeBgPixel.py);
 
     wrtr.writeU8(activeBgPixel.shiftRegister);
@@ -594,7 +593,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             else
                 activeBgPixel.bg0Source = BackgroundSource::BG0;
 
-            if (!rdr.readI32(activeBgPixel.pxBase))        { rdr.exitChunkPayload(chunk); return false; }
+            if (ver <= 9)
+                if (!rdr.readI32(activeBgPixel.pxBase))    { rdr.exitChunkPayload(chunk); return false; }
+
             if (!rdr.readI32(activeBgPixel.py))            { rdr.exitChunkPayload(chunk); return false; }
 
             if (ver >= 10)
