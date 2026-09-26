@@ -568,8 +568,27 @@ uint8_t Bus::vicRead(uint16_t vicAddress)
 
     const uint16_t bankBase = cia2 ? cia2->getCurrentVICBank() : 0;
 
-    // Character ROM is visible to the VIC in banks 0 and 2
-    // at VIC-local $1000-$1FFF.
+    // Ultimax/MAX mode has a special VIC memory map:
+    //
+    // $0000-$2FFF -> RAM
+    // $3000-$3FFF -> first 4K of cartridge ROMH
+    //
+    // Character ROM is not visible to the VIC in Ultimax mode.
+    if (pla && pla->isUltimax())
+    {
+        if (cart && cartridgeAttached && vicAddress >= 0x3000)
+        {
+            const uint16_t romOffset = static_cast<uint16_t>(0x1000 + (vicAddress - 0x3000));
+            return cart->readCartridge(romOffset, cartLocation::HI_E000);
+        }
+
+        const uint16_t cpuAddress = static_cast<uint16_t>(bankBase | vicAddress);
+        return mem->readRAM(cpuAddress);
+    }
+
+    // Normal VIC-II mapping:
+    // Character ROM is visible in VIC banks 0 and 2 at
+    // VIC-local $1000-$1FFF.
     if ((bankBase == 0x0000 || bankBase == 0x8000) && vicAddress >= 0x1000 && vicAddress < 0x2000)
         return mem->readCharROM(vicAddress & 0x0FFF);
 
