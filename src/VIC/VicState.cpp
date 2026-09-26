@@ -206,7 +206,6 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeU8(backgroundSequencer.multicolorPairPhase);
 
     // Pending background reload
-    wrtr.writeBool(pendingBgReload.valid);
     wrtr.writeI32(pendingBgReload.column);
     wrtr.writeI32(pendingBgReload.baseX);
 
@@ -645,13 +644,12 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         else
         {
             // VICX v1 did not contain graphics-latch or live pixel-shifter state.
-            resetBackgroundGraphicsLatches();
+            resetBackgroundFetchLatches();
             resetBackgroundSequencer();
         }
 
         if (ver >= 10)
         {
-            if (!rdr.readBool(pendingBgReload.valid))            { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(pendingBgReload.column))            { rdr.exitChunkPayload(chunk); return false; }
             if (!rdr.readI32(pendingBgReload.baseX))             { rdr.exitChunkPayload(chunk); return false; }
         }

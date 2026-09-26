@@ -1083,7 +1083,6 @@ class Vic
 
         struct PendingBackgroundReload
         {
-            bool valid = false;
             int column = -1;
             int baseX = 0;
         };

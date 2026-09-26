@@ -646,9 +646,8 @@ bool Vic::performGAccessForCurrentCycle()
         // A background reload belongs to exactly one g-access.
         // If an older one is still pending here, its reload window
         // should already have been consumed or expired by dot output.
-        if (!pendingBgReload.valid)
+        if (pendingBgReload.column < 0)
         {
-            pendingBgReload.valid = true;
             pendingBgReload.column = column;
             pendingBgReload.baseX = cycleFramebufferX(currentCycle);
         }

@@ -32,7 +32,7 @@ void Vic::runPixelOutputPhase(int firstDot, int lastDot)
         clearSpriteLineBuffers();
 
         resetBackgroundSequencer();
-        resetBackgroundGraphicsLatches();
+        resetBackgroundFetchLatches();
         pendingBgReload = {};
 
         prepareSpriteOutputForRaster(raster);
@@ -101,15 +101,12 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     if (x < 0 || x >= VISIBLE_WIDTH)
         return pixel;
 
-    if (pendingBgReload.valid)
+    if (pendingBgReload.column >= 0)
     {
         const int reloadWindowEnd = pendingBgReload.baseX + 7;
 
         if (x > reloadWindowEnd)
-        {
-            // The reload opportunity for this graphics byte has passed.
-            pendingBgReload.valid = false;
-        }
+            pendingBgReload = {};
         else
         {
             const int xScroll = static_cast<int>(d016XScroll(registers.control2));
@@ -122,7 +119,8 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
                 if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
                     loadBackgroundSequencerFromLatch(fetchColumn, x);
 
-                pendingBgReload.valid = false;
+                pendingBgReload = {};
+
             }
         }
     }
