@@ -327,7 +327,7 @@ void Vic::loadBackgroundSequencerFromLatch(int column, int px)
     backgroundSequencer.dotsRemaining = 8;
 }
 
-void Vic::advanceActiveBackgroundShifter(bool multicolorOutput)
+void Vic::advanceBackgroundSequencer(bool multicolorOutput)
 {
     if (backgroundSequencer.dotsRemaining == 0)
         return;

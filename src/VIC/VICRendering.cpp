@@ -240,7 +240,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
     const bool multicolorOutput = outputMode == graphicsMode::multicolorBitmap || outputMode == graphicsMode::illegalMulticolorBitmap ||
         ((outputMode == graphicsMode::multicolor || outputMode == graphicsMode::illegalText) &&  multicolorText);
 
-    advanceActiveBackgroundShifter(multicolorOutput);
+    advanceBackgroundSequencer(multicolorOutput);
 
     if (outputMode == graphicsMode::illegalText || outputMode == graphicsMode::illegalBitmap ||
          outputMode == graphicsMode::illegalMulticolorBitmap)

@@ -1122,7 +1122,7 @@ class Vic
 
         void resetBackgroundSequencer();
         void loadBackgroundSequencerFromLatch(int column, int px);
-        void advanceActiveBackgroundShifter(bool multicolorOutput);
+        void advanceBackgroundSequencer(bool multicolorOutput);
 
         BackgroundPixel sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0, BackgroundSource bg0Source);
         BackgroundPixel sampleActiveMulticolorTextPixel(uint8_t fg, uint8_t bg0, uint8_t bg1, uint8_t bg2);
