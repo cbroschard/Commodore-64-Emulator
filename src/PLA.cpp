@@ -58,6 +58,30 @@ void PLA::updateMemoryControlRegister(uint8_t value)
     }
 }
 
+bool PLA::is8K() const
+{
+    if (cart && cartridgeAttached)
+        return cart->getGameLine() && !cart->getExROMLine();
+
+    return false;
+}
+
+bool PLA::is16K() const
+{
+    if (cart && cartridgeAttached)
+        return !cart->getGameLine() && !cart->getExROMLine();
+
+    return false;
+}
+
+bool PLA::isUltimax() const
+{
+    if (cart && cartridgeAttached)
+        return !cart->getGameLine() && cart->getExROMLine();
+
+    return false;
+}
+
 PLA::memoryAccessInfo PLA::getMemoryAccess(uint16_t address)
 {
     if (cart && cartridgeAttached)

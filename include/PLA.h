@@ -70,9 +70,9 @@ class PLA
         void updateMemoryControlRegister(uint8_t value);
 
         // Cartridge attached types
-        inline bool is8K() const { return  gameLine && !exROMLine; } // GAME=1, EXROM=0
-        inline bool is16K() const { return !gameLine && !exROMLine; } // GAME=0, EXROM=0
-        inline bool isUltimax()const { return !gameLine &&  exROMLine; } // GAME=0, EXROM=1
+        bool is8K() const; // GAME=1, EXROM=0
+        bool is16K() const; // GAME=0, EXROM=0
+        bool isUltimax()const; // GAME=0, EXROM=1
 
         // ML Monitor API
         std::string describeAddress(uint16_t addr);
