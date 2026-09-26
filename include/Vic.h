@@ -1137,8 +1137,7 @@ class Vic
         uint8_t backgroundColorForSource(BackgroundSource source, uint8_t fallbackColor) const;
 
         void resetBackgroundSequencer();
-        void loadBackgroundTextSequencerFromLatch(int raster, int column, int px);
-        void loadBackgroundBitmapSequencerFromLatch(int raster, int column, int px);
+        void loadBackgroundSequencerFromLatch(int column, int px);
         void advanceActiveBackgroundShifter(bool multicolorOutput);
 
         BackgroundPixel sampleActiveStandardTextPixel(uint8_t fg, uint8_t bg0, BackgroundSource bg0Source);

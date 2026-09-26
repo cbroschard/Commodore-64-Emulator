@@ -306,7 +306,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     }
 }
 
-void Vic::loadBackgroundTextSequencerFromLatch(int raster, int column, int px)
+void Vic::loadBackgroundSequencerFromLatch(int column, int px)
 {
     resetBackgroundSequencer();
 
@@ -318,14 +318,12 @@ void Vic::loadBackgroundTextSequencerFromLatch(int raster, int column, int px)
     if (!latch.valid)
         return;
 
-    // Raw data captured by the g-access.
     backgroundSequencer.shiftRegister = latch.graphicsByte;
 
     backgroundSequencer.attributes.screenByte = latch.screenByte;
     backgroundSequencer.attributes.colorByte = latch.colorByte;
 
     backgroundSequencer.nextX = px;
-
     backgroundSequencer.dotsRemaining = 8;
 }
 
@@ -794,29 +792,6 @@ void Vic::resetBackgroundSequencer()
 
     backgroundSequencer.multicolorPairValue = 0;
     backgroundSequencer.multicolorPairPhase = 0;
-}
-
-void Vic::loadBackgroundBitmapSequencerFromLatch(int raster, int column, int px)
-{
-    resetBackgroundSequencer();
-
-    if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
-        return;
-
-    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
-
-    if (!latch.valid)
-        return;
-
-    // Raw data captured by the g-access.
-    backgroundSequencer.shiftRegister = latch.graphicsByte;
-
-    backgroundSequencer.attributes.screenByte = latch.screenByte;
-    backgroundSequencer.attributes.colorByte = latch.colorByte;
-
-    backgroundSequencer.nextX = px;
-
-    backgroundSequencer.dotsRemaining = 8;
 }
 
 Vic::graphicsMode Vic::graphicsModeFromRegisters(uint8_t d011, uint8_t d016) const

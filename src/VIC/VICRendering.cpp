@@ -122,21 +122,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
                 if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
                 {
                     const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
-
-                    if (latch.valid)
-                    {
-                        if (latch.mode == graphicsMode::bitmap ||
-                            latch.mode == graphicsMode::multicolorBitmap ||
-                            latch.mode == graphicsMode::illegalBitmap ||
-                            latch.mode == graphicsMode::illegalMulticolorBitmap)
-                        {
-                            loadBackgroundBitmapSequencerFromLatch(raster, fetchColumn, x);
-                        }
-                        else
-                        {
-                            loadBackgroundTextSequencerFromLatch(raster, fetchColumn, x);
-                        }
-                    }
+                    loadBackgroundSequencerFromLatch(fetchColumn, x);
                 }
 
                 pendingBgReload.valid = false;
