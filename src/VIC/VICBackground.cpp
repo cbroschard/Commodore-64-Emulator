@@ -306,7 +306,7 @@ void Vic::fetchBadLineMatrixByte(int fetchIndex, int raster)
     }
 }
 
-void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px)
+void Vic::loadBackgroundTextSequencerFromLatch(int raster, int column, int px)
 {
     resetBackgroundSequencer();
 
@@ -796,7 +796,7 @@ void Vic::resetBackgroundSequencer()
     backgroundSequencer.multicolorPairPhase = 0;
 }
 
-void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px)
+void Vic::loadBackgroundBitmapSequencerFromLatch(int raster, int column, int px)
 {
     resetBackgroundSequencer();
 

@@ -130,11 +130,11 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
                             latch.mode == graphicsMode::illegalBitmap ||
                             latch.mode == graphicsMode::illegalMulticolorBitmap)
                         {
-                            loadActiveStandardBitmapPixelStateFromLatch(raster, fetchColumn, x);
+                            loadBackgroundBitmapSequencerFromLatch(raster, fetchColumn, x);
                         }
                         else
                         {
-                            loadActiveStandardTextPixelStateFromLatch(raster, fetchColumn, x);
+                            loadBackgroundTextSequencerFromLatch(raster, fetchColumn, x);
                         }
                     }
                 }
