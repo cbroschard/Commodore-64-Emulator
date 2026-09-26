@@ -67,7 +67,7 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // VICX = Runtime
     wrtr.beginChunk("VICX");
-    wrtr.writeU32(9); // version
+    wrtr.writeU32(10); // version
 
     // Dump video mode
     wrtr.writeU8(static_cast<uint8_t>(mode_));
@@ -219,7 +219,20 @@ void Vic::saveState(StateWriter& wrtr) const
 
     wrtr.writeI32(activeBgPixel.pxBase);
     wrtr.writeI32(activeBgPixel.py);
-    wrtr.writeI32(activeBgPixel.phase);
+
+    wrtr.writeU8(activeBgPixel.shiftRegister);
+    wrtr.writeU8(activeBgPixel.screenByte);
+    wrtr.writeU8(activeBgPixel.colorByte);
+
+    wrtr.writeI32(activeBgPixel.nextX);
+
+    wrtr.writeU8(activeBgPixel.dotsRemaining);
+    wrtr.writeU8(activeBgPixel.multicolorPairPhase);
+
+    // Pending background reload
+    wrtr.writeBool(pendingBgReload.valid);
+    wrtr.writeI32(pendingBgReload.column);
+    wrtr.writeI32(pendingBgReload.baseX);
 
     // Dump frameDone
     wrtr.writeBool(frameDone);
@@ -292,7 +305,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
         uint32_t ver = 0;
         if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-        if (ver < 2 || ver > 9)                                         { rdr.exitChunkPayload(chunk); return false; }
+        if (ver < 2 || ver > 10)                                        { rdr.exitChunkPayload(chunk); return false; }
 
         uint8_t m = 0;
         if (!rdr.readU8(m))                                             { rdr.exitChunkPayload(chunk); return false; }
@@ -581,15 +594,69 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             else
                 activeBgPixel.bg0Source = BackgroundSource::BG0;
 
-            if (!rdr.readI32(activeBgPixel.pxBase))         { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeBgPixel.py))             { rdr.exitChunkPayload(chunk); return false; }
-            if (!rdr.readI32(activeBgPixel.phase))          { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.pxBase))        { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(activeBgPixel.py))            { rdr.exitChunkPayload(chunk); return false; }
+
+            if (ver >= 10)
+            {
+                if (!rdr.readU8(activeBgPixel.shiftRegister))       { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.screenByte))          { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.colorByte))           { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readI32(activeBgPixel.nextX))              { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.dotsRemaining))       { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.multicolorPairPhase)) { rdr.exitChunkPayload(chunk); return false; }
+
+                // Legacy field is no longer used by rendering.
+                activeBgPixel.phase = 0;
+            }
+            else
+            {
+                // VICX v2-v9 stored the old background phase here.
+                if (!rdr.readI32(activeBgPixel.phase))             { rdr.exitChunkPayload(chunk); return false; }
+
+                const int legacyPhase = std::clamp(activeBgPixel.phase, 0, 8);
+                const bool multicolorShifter = activeBgPixel.mode == graphicsMode::multicolorBitmap ||
+                    activeBgPixel.mode == graphicsMode::illegalMulticolorBitmap || ((activeBgPixel.mode == graphicsMode::multicolor ||
+                    activeBgPixel.mode == graphicsMode::illegalText) && activeBgPixel.multicolorText);
+
+                if (multicolorShifter)
+                {
+                    const int pairsConsumed = legacyPhase / 2;
+
+                    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << (pairsConsumed * 2));
+                    activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
+                }
+                else
+                {
+                    activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << legacyPhase);
+                    activeBgPixel.multicolorPairPhase = 0;
+                }
+
+                activeBgPixel.nextX = activeBgPixel.pxBase + legacyPhase;
+                activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
+
+                // These fields did not exist in VICX v2-v9.
+                activeBgPixel.screenByte = 0;
+                activeBgPixel.colorByte = 0;
+            }
         }
         else
         {
             // VICX v1 did not contain graphics-latch or live pixel-shifter state.
             resetBackgroundGraphicsLatches();
             resetActiveBackgroundPixelState();
+        }
+
+        if (ver >= 10)
+        {
+            if (!rdr.readBool(pendingBgReload.valid))            { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(pendingBgReload.column))            { rdr.exitChunkPayload(chunk); return false; }
+            if (!rdr.readI32(pendingBgReload.baseX))             { rdr.exitChunkPayload(chunk); return false; }
+        }
+        else
+        {
+            // VICX v2-v9 had no pending dot-reload state.
+            pendingBgReload = {};
         }
 
         if (!rdr.readBool(frameDone))                                   { rdr.exitChunkPayload(chunk); return false; }
