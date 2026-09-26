@@ -406,7 +406,10 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
     if (activeBgPixel.dotsRemaining == 0)
         return out;
 
-    const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+    if (activeBgPixel.multicolorPairPhase == 0)
+        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+
+    const uint8_t value = activeBgPixel.multicolorPairValue;
 
     switch (value)
     {
@@ -743,6 +746,8 @@ void Vic::resetActiveBackgroundPixelState()
     activeBgPixel.nextX = 0;
 
     activeBgPixel.dotsRemaining = 0;
+
+    activeBgPixel.multicolorPairValue = 0;
     activeBgPixel.multicolorPairPhase = 0;
 }
 
@@ -819,7 +824,10 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
     if (activeBgPixel.dotsRemaining == 0)
         return out;
 
-    const uint8_t value = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+    if (activeBgPixel.multicolorPairPhase == 0)
+        activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
+
+    const uint8_t value = activeBgPixel.multicolorPairValue;
 
     switch (value)
     {

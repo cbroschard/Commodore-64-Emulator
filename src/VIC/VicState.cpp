@@ -217,6 +217,7 @@ void Vic::saveState(StateWriter& wrtr) const
     wrtr.writeI32(activeBgPixel.nextX);
 
     wrtr.writeU8(activeBgPixel.dotsRemaining);
+    wrtr.writeU8(activeBgPixel.multicolorPairValue);
     wrtr.writeU8(activeBgPixel.multicolorPairPhase);
 
     // Pending background reload
@@ -607,6 +608,7 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readU8(activeBgPixel.colorByte))           { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readI32(activeBgPixel.nextX))              { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readU8(activeBgPixel.dotsRemaining))       { rdr.exitChunkPayload(chunk); return false; }
+                if (!rdr.readU8(activeBgPixel.multicolorPairValue)) { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readU8(activeBgPixel.multicolorPairPhase)) { rdr.exitChunkPayload(chunk); return false; }
 
             }
@@ -627,14 +629,16 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
                     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << (pairsConsumed * 2));
                     activeBgPixel.multicolorPairPhase = static_cast<uint8_t>(legacyPhase & 1);
+                    activeBgPixel.multicolorPairValue = static_cast<uint8_t>((activeBgPixel.shiftRegister >> 6) & 0x03);
                 }
                 else
                 {
                     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.rowBits << legacyPhase);
+                    activeBgPixel.multicolorPairValue = 0;
                     activeBgPixel.multicolorPairPhase = 0;
                 }
 
-                activeBgPixel.nextX = legacyPhase;
+                activeBgPixel.nextX = legacyPxBase + legacyPhase;
                 activeBgPixel.dotsRemaining = static_cast<uint8_t>(8 - legacyPhase);
 
                 // These fields did not exist in VICX v2-v9.

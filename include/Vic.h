@@ -1066,6 +1066,8 @@ class Vic
             int nextX = 0;
 
             uint8_t dotsRemaining = 0;
+
+            uint8_t multicolorPairValue = 0;
             uint8_t multicolorPairPhase = 0;
         };
 
