@@ -313,7 +313,7 @@ void Vic::loadBackgroundSequencerFromLatch(int column, int px)
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    const BackgroundFetchLatch& latch = backgroundGraphicsLatches[column];
 
     if (!latch.valid)
         return;
@@ -639,7 +639,7 @@ bool Vic::performGAccessForCurrentCycle()
             return false;
     }
 
-    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    const BackgroundFetchLatch& latch = backgroundGraphicsLatches[column];
 
     if (latch.valid)
     {
@@ -671,7 +671,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    BackgroundFetchLatch& latch = backgroundGraphicsLatches[column];
     latch = {};
 
     uint8_t screenByte = 0;
@@ -715,7 +715,7 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     if (column < 0 || column >= BACKGROUND_MATRIX_COLUMNS)
         return;
 
-    BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[column];
+    BackgroundFetchLatch& latch = backgroundGraphicsLatches[column];
     latch = {};
 
     uint8_t screenByte = 0;

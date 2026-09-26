@@ -1072,7 +1072,7 @@ class Vic
             std::array<uint8_t, VISIBLE_WIDTH> spriteMask {};
         };
 
-        struct BackgroundGraphicsLatch
+        struct BackgroundFetchLatch
         {
             bool valid = false;
 
@@ -1090,7 +1090,7 @@ class Vic
 
         PendingBackgroundReload pendingBgReload;
 
-        std::array<BackgroundGraphicsLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};
+        std::array<BackgroundFetchLatch, BACKGROUND_MATRIX_COLUMNS> backgroundGraphicsLatches {};
 
         std::vector<RasterPixelCompositionSnapshot> rasterPixelStates;
         std::vector<RasterPixelCompositionSnapshot> lastFrameRasterPixelStates;
