@@ -1092,8 +1092,6 @@ class Vic
             uint8_t d011 = 0;
             uint8_t d016 = 0;
             uint8_t d018 = 0;
-
-            graphicsMode mode = graphicsMode::standard;
         };
 
         struct PendingBackgroundReload

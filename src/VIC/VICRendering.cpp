@@ -120,10 +120,7 @@ Vic::BackgroundPixel Vic::outputPixel(int raster, int x)
                 const int fetchColumn = pendingBgReload.column;
 
                 if (fetchColumn >= 0 && fetchColumn < BACKGROUND_MATRIX_COLUMNS)
-                {
-                    const BackgroundGraphicsLatch& latch = backgroundGraphicsLatches[fetchColumn];
                     loadBackgroundSequencerFromLatch(fetchColumn, x);
-                }
 
                 pendingBgReload.valid = false;
             }

@@ -688,9 +688,7 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     else
     {
         if (!fetchedMatrixBytesForDisplayCol(column, raster, screenByte, colorByte))
-        {
             return;
-        }
     }
 
     const graphicsMode mode = graphicsModeFromRegisters(d011, d016);
@@ -716,7 +714,6 @@ void Vic::fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, ui
     latch.d011 = d011;
     latch.d016 = d016;
     latch.d018 = d018;
-    latch.mode = mode;
 }
 
 void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018)
@@ -776,7 +773,6 @@ void Vic::fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, 
     latch.d011 = d011;
     latch.d016 = d016;
     latch.d018 = d018;
-    latch.mode = mode;
 }
 
 void Vic::resetBackgroundSequencer()

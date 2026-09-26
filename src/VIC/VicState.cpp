@@ -200,7 +200,6 @@ void Vic::saveState(StateWriter& wrtr) const
         wrtr.writeU8(latch.d011);
         wrtr.writeU8(latch.d016);
         wrtr.writeU8(latch.d018);
-        wrtr.writeU8(static_cast<uint8_t>(latch.mode));
     }
 
     wrtr.writeU8(backgroundSequencer.shiftRegister);
@@ -522,16 +521,18 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                     if (!rdr.readU8(latch.d011))                    { rdr.exitChunkPayload(chunk); return false; }
                     if (!rdr.readU8(latch.d016))                    { rdr.exitChunkPayload(chunk); return false; }
                     if (!rdr.readU8(latch.d018))                    { rdr.exitChunkPayload(chunk); return false; }
-                    if (!rdr.readU8(mode))                          { rdr.exitChunkPayload(chunk); return false; }
 
-                    latch.mode = static_cast<graphicsMode>(mode);
+                     if (ver <= 9)
+                    {
+                        uint8_t legacyLatchMode = 0;
+                        if (!rdr.readU8(legacyLatchMode))           { rdr.exitChunkPayload(chunk); return false; }
+                    }
                 }
                 else
                 {
                     latch.d011 = 0;
                     latch.d016 = 0;
                     latch.d018 = 0;
-                    latch.mode = graphicsMode::standard;
                 }
             }
 
