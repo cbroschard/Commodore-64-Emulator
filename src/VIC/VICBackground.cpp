@@ -338,12 +338,22 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
     activeBgPixel.dotsRemaining = 8;
 }
 
-void Vic::advanceActiveBackgroundShifter()
+void Vic::advanceActiveBackgroundShifter(bool multicolorOutput)
 {
     if (!activeBgPixel.valid)
         return;
 
     activeBgPixel.shiftRegister = static_cast<uint8_t>(activeBgPixel.shiftRegister << 1);
+
+    if (multicolorOutput)
+    {
+        ++activeBgPixel.multicolorPairPhase;
+
+        if (activeBgPixel.multicolorPairPhase >= 2)
+            activeBgPixel.multicolorPairPhase = 0;
+    }
+    else
+        activeBgPixel.multicolorPairPhase = 0;
 
     if (activeBgPixel.dotsRemaining > 0)
         --activeBgPixel.dotsRemaining;
@@ -447,11 +457,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorTextPixel()
             out.source = BackgroundSource::Foreground;
             break;
     }
-
-    ++activeBgPixel.multicolorPairPhase;
-
-    if (activeBgPixel.multicolorPairPhase >= 2)
-        activeBgPixel.multicolorPairPhase = 0;
 
     return out;
 }
@@ -850,11 +855,6 @@ Vic::BackgroundPixel Vic::sampleAndAdvanceActiveMulticolorBitmapPixel()
             out.source = BackgroundSource::Bitmap;
             break;
     }
-
-    ++activeBgPixel.multicolorPairPhase;
-
-    if (activeBgPixel.multicolorPairPhase >= 2)
-        activeBgPixel.multicolorPairPhase = 0;
 
     return out;
 }

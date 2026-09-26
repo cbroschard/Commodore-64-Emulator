@@ -1151,7 +1151,7 @@ class Vic
         void loadActiveStandardTextPixelStateFromLatch(int raster, int column, int px);
         void loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, int px);
 
-        void advanceActiveBackgroundShifter();
+        void advanceActiveBackgroundShifter(bool multicolorOutput);
 
         BackgroundPixel sampleAndAdvanceActiveStandardBitmapPixel();
         BackgroundPixel sampleAndAdvanceActiveMulticolorBitmapPixel();
