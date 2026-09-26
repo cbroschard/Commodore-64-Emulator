@@ -660,7 +660,7 @@ bool Vic::performGAccessForCurrentCycle()
     return true;
 }
 
-void Vic::resetBackgroundGraphicsLatches()
+void Vic::resetBackgroundFetchLatches()
 {
     for (auto& latch : backgroundFetchLatches)
         latch = {};

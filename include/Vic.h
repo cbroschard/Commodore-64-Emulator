@@ -1101,7 +1101,7 @@ class Vic
         std::vector<std::vector<RasterEventRecord>> rasterEventsByRaster;
         std::vector<std::vector<RasterEventRecord>> lastFrameRasterEventsByRaster;
 
-        void resetBackgroundGraphicsLatches();
+        void resetBackgroundFetchLatches();
         void fetchStandardTextGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);
 
         void fetchStandardBitmapGraphicsByte(int raster, int column, uint8_t d011, uint8_t d016, uint8_t d018);

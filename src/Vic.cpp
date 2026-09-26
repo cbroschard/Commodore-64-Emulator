@@ -225,7 +225,7 @@ void Vic::reset()
     lastSpriteBackgroundCollision = {};
 
     resetBackgroundSequencer();
-    resetBackgroundGraphicsLatches();
+    resetBackgroundFetchLatches();
 }
 
 void Vic::setMode(VideoMode mode)
@@ -267,7 +267,7 @@ void Vic::setMode(VideoMode mode)
     resetActiveMatrixRow();
     resetCAccessLatch();
     resetBackgroundSequencer();
-    resetBackgroundGraphicsLatches();
+    resetBackgroundFetchLatches();
 
     std::fill(borderMaskLine.begin(), borderMaskLine.end(), 1);
 
