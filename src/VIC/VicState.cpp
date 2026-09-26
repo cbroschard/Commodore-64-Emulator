@@ -606,15 +606,14 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readU8(activeBgPixel.dotsRemaining))       { rdr.exitChunkPayload(chunk); return false; }
                 if (!rdr.readU8(activeBgPixel.multicolorPairPhase)) { rdr.exitChunkPayload(chunk); return false; }
 
-                // Legacy field is no longer used by rendering.
-                activeBgPixel.phase = 0;
             }
             else
             {
-                // VICX v2-v9 stored the old background phase here.
-                if (!rdr.readI32(activeBgPixel.phase))             { rdr.exitChunkPayload(chunk); return false; }
+                int legacyPhaseRaw = 0;
 
-                const int legacyPhase = std::clamp(activeBgPixel.phase, 0, 8);
+                if (!rdr.readI32(legacyPhaseRaw))       { rdr.exitChunkPayload(chunk); return false; }
+
+                const int legacyPhase = std::clamp(legacyPhaseRaw, 0, 8);
                 const bool multicolorShifter = activeBgPixel.mode == graphicsMode::multicolorBitmap ||
                     activeBgPixel.mode == graphicsMode::illegalMulticolorBitmap || ((activeBgPixel.mode == graphicsMode::multicolor ||
                     activeBgPixel.mode == graphicsMode::illegalText) && activeBgPixel.multicolorText);

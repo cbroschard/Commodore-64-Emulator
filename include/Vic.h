@@ -1066,7 +1066,6 @@ class Vic
             int pxBase = 0;
             int py = 0;
             int nextX = 0;
-            int phase = 0;
 
             uint8_t dotsRemaining = 0;
             uint8_t multicolorPairPhase = 0;
