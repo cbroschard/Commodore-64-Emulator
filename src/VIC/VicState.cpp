@@ -205,7 +205,6 @@ void Vic::saveState(StateWriter& wrtr) const
 
     // Active background pixel shifter
     wrtr.writeBool(activeBgPixel.valid);
-    wrtr.writeU8(static_cast<uint8_t>(activeBgPixel.mode));
 
     wrtr.writeU8(activeBgPixel.shiftRegister);
     wrtr.writeU8(activeBgPixel.screenByte);
@@ -547,14 +546,14 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
             if (ver >= 4 && ver <= 9)
                 if (!rdr.readBool(legacyMulticolorText))            {rdr.exitChunkPayload(chunk); return false; }
 
-            if (ver >= 6)
+            graphicsMode legacyMode = graphicsMode::standard;
+
+            if (ver >= 6 && ver <= 9)
             {
                 uint8_t mode = 0;
                 if (!rdr.readU8(mode))                              { rdr.exitChunkPayload(chunk); return false; }
-                activeBgPixel.mode = static_cast<graphicsMode>(mode);
+                legacyMode = static_cast<graphicsMode>(mode);
             }
-            else
-                activeBgPixel.mode = graphicsMode::standard;
 
             uint8_t legacyRowBits = 0;
 
@@ -611,9 +610,9 @@ bool Vic::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
                 if (!rdr.readI32(legacyPhaseRaw))       { rdr.exitChunkPayload(chunk); return false; }
 
                 const int legacyPhase = std::clamp(legacyPhaseRaw, 0, 8);
-                const bool multicolorShifter = activeBgPixel.mode == graphicsMode::multicolorBitmap ||
-                    activeBgPixel.mode == graphicsMode::illegalMulticolorBitmap || ((activeBgPixel.mode == graphicsMode::multicolor ||
-                    activeBgPixel.mode == graphicsMode::illegalText) && legacyMulticolorText);
+                const bool multicolorShifter = legacyMode == graphicsMode::multicolorBitmap ||
+                    legacyMode == graphicsMode::illegalMulticolorBitmap || ((legacyMode == graphicsMode::multicolor ||
+                    legacyMode == graphicsMode::illegalText) && legacyMulticolorText);
 
                 if (multicolorShifter)
                 {

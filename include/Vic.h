@@ -1047,8 +1047,6 @@ class Vic
         {
             bool valid = false;
 
-            graphicsMode mode = graphicsMode::standard;
-
             uint8_t shiftRegister = 0;
 
             uint8_t screenByte = 0;

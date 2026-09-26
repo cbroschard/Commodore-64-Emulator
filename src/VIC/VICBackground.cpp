@@ -320,9 +320,6 @@ void Vic::loadActiveStandardTextPixelStateFromLatch(int raster, int column, int 
 
     activeBgPixel.valid = true;
 
-    // Retain fetch-time mode for diagnostics/debugging.
-    activeBgPixel.mode = latch.mode;
-
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;
 
@@ -828,9 +825,6 @@ void Vic::loadActiveStandardBitmapPixelStateFromLatch(int raster, int column, in
         return;
 
     activeBgPixel.valid = true;
-
-    // Retain fetch-time mode for diagnostics/debugging.
-    activeBgPixel.mode = latch.mode;
 
     // Raw data captured by the g-access.
     activeBgPixel.shiftRegister = latch.graphicsByte;
