@@ -158,6 +158,40 @@ bool InputManager::handleEvent(const SDL_Event& ev)
             return true; // never pass J,1,2 through to the C-64
         }
 
+        // Paddle input
+        if (paddles)
+        {
+            for (int port = 0; port < 2; ++port)
+            {
+                if (!paddlesAttached[port])
+                    continue;
+
+                auto it = paddlesMap[port].find(sc);
+
+                if (it == paddlesMap[port].end())
+                    continue;
+
+                switch (it->second)
+                {
+                    case Paddles::Action::ButtonX:
+                        paddles->setButtonX(port, down);
+                        return true;
+
+                    case Paddles::Action::ButtonY:
+                        paddles->setButtonY(port, down);
+                        return true;
+
+                    case Paddles::Action::DecreaseX:
+                    case Paddles::Action::IncreaseX:
+                    case Paddles::Action::DecreaseY:
+                    case Paddles::Action::IncreaseY:
+                        // Movement is handled continuously in tick().
+                        return true;
+                }
+            }
+        }
+
+        // Joystick input
         for (int port = 1; port <= 2; ++port)
         {
             auto& joyPtr = (port == 1 ? joy1 : joy2);
@@ -198,14 +232,55 @@ void InputManager::tick()
             return;
 
         SDL_Gamepad* pad = findPadByInstanceId(portPadId[port]);
+
         if (!pad)
-            return; // no pad assigned or removed
+            return;
 
         updateJoystickFromGamepad(pad, joyPtr.get());
     };
 
-    if (joystick1Attached) drivePort(1, joy1);
-    if (joystick2Attached) drivePort(2, joy2);
+    if (joystick1Attached)
+        drivePort(1, joy1);
+
+    if (joystick2Attached)
+        drivePort(2, joy2);
+
+    // Paddle keyboard input
+    if (paddles)
+    {
+        const bool* keys = SDL_GetKeyboardState(nullptr);
+
+        for (int port = 0; port < 2; ++port)
+        {
+            if (!paddlesAttached[port])
+                continue;
+
+            const PaddlesMapping& cfg = paddlesConfig[port];
+
+            int x = paddles->getX(port);
+            int y = paddles->getY(port);
+
+            constexpr int paddleStep = 2;
+
+            if (keys[cfg.decreaseX])
+                x -= paddleStep;
+
+            if (keys[cfg.increaseX])
+                x += paddleStep;
+
+            if (keys[cfg.decreaseY])
+                y -= paddleStep;
+
+            if (keys[cfg.increaseY])
+                y += paddleStep;
+
+            x = std::clamp(x, 0, 255);
+            y = std::clamp(y, 0, 255);
+
+            paddles->setX(port, static_cast<uint8_t>(x));
+            paddles->setY(port, static_cast<uint8_t>(y));
+        }
+    }
 }
 
 void InputManager::resetInputState()
