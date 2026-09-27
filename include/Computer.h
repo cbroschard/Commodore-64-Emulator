@@ -70,6 +70,7 @@ class Computer : public ICartridgeHost
 
         // Game controls
         void setJoystickConfig(int port, const JoystickMapping& cfg);
+        void setPaddlesConfig(int port, const PaddlesMapping& cfg);
 
         // Setters for C64 ROM locations
         inline void setKernalROM(const std::string& kernal) { roms_.kernalRom = kernal; }
@@ -157,8 +158,9 @@ class Computer : public ICartridgeHost
 
         bool resumeAfterVicCycleBreakpoint;
 
-        // Joystick
+        // Input attachments
         void setJoystickAttached(int port, bool flag);
+        void setPaddlesAttached(int port, bool flag);
 
         // Wire all the components together
         void wireUp();

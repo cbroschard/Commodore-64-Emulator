@@ -193,6 +193,11 @@ void Computer::setJoystickAttached(int port, bool flag)
     if (components_.inputMgr) components_.inputMgr->setJoystickAttached(port, flag);
 }
 
+void Computer::setPaddlesAttached(int port, bool flag)
+{
+    if (components_.inputMgr) components_.inputMgr->setPaddlesAttached(port, flag);
+}
+
 void Computer::set1541LoROM(const std::string& loROM)
 {
     roms_.d1541LoRom = loROM;
@@ -475,6 +480,12 @@ void Computer::setJoystickConfig(int port, const JoystickMapping& cfg)
 {
     if (!components_.inputMgr) return;
     components_.inputMgr->setJoystickConfig(port, cfg);
+}
+
+void Computer::setPaddlesConfig(int port, const PaddlesMapping& cfg)
+{
+    if (!components_.inputMgr) return;
+    components_.inputMgr->setPaddlesConfig(port, cfg);
 }
 
 bool Computer::boot()
