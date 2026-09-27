@@ -11,6 +11,7 @@
 class CIA1;
 class Keyboard;
 class MonitorController;
+class SID;
 
 #include <algorithm>
 #include <cmath>
@@ -19,8 +20,10 @@ class MonitorController;
 #include <memory>
 #include <SDL3/SDL.h>
 #include <unordered_map>
-#include "Joystick.h"
 #include "Common/JoystickMapping.h"
+#include "Common/PaddlesMapping.h"
+#include "Joystick.h"
+#include "Paddles.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
@@ -33,6 +36,7 @@ class InputManager
         inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachMonitorControllerInstance(MonitorController* monitorCtl) { this->monitorCtl = monitorCtl; }
+        inline void attachSIDInstance(SID* sid) { this->sid = sid; }
 
         inline Joystick* getJoy1() const { return joy1.get(); }
         inline Joystick* getJoy2() const { return joy2.get(); }
@@ -52,6 +56,9 @@ class InputManager
         void setJoystickAttached(int port, bool flag);
         void setJoystickConfig(int port, const JoystickMapping& cfg);
 
+        void setPaddlesAttached(int port, bool flag);
+        void setPaddlesConfig(int port, const PaddlesMapping& cfg);
+
         void assignPadToPort(SDL_Gamepad* pad, int port);
         void unassignPadFromPorts(SDL_JoystickID id);
 
@@ -61,26 +68,34 @@ class InputManager
         SDL_Gamepad* getPad1() const { return pad1; }
         SDL_Gamepad* getPad2() const { return pad2; }
 
-    protected:
+        inline Paddles* getPaddles() const { return paddles.get(); }
 
     private:
         // Non-owning pointers
         CIA1* cia1;
         Keyboard* keyb;
         MonitorController* monitorCtl;
+        SID* sid;
 
         // Joystick pointers
         std::unique_ptr<Joystick> joy1;
         std::unique_ptr<Joystick> joy2;
 
+        // Paddles pointer
+        std::unique_ptr<Paddles> paddles;
+
         // Joystick state
         bool joystick1Attached;
         bool joystick2Attached;
 
+        // Controller state
         JoystickMapping joy1Config;
         JoystickMapping joy2Config;
-
         std::unordered_map<SDL_Scancode, Joystick::direction> joyMap[3];
+
+        PaddlesMapping paddlesConfig[2];
+        bool paddlesAttached[2] = { false, false };
+        std::unordered_map<SDL_Scancode, Paddles::Action> paddlesMap[3];
 
         // Gamepad routing
         SDL_Gamepad* pad1 = nullptr;

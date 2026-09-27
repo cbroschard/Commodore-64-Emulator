@@ -9,11 +9,13 @@
 #include "InputManager.h"
 #include "Keyboard.h"
 #include "MonitorController.h"
+#include "SID/SID.h"
 
 InputManager::InputManager() :
     cia1(nullptr),
     keyb(nullptr),
     monitorCtl(nullptr),
+    sid(nullptr),
     joystick1Attached(false),
     joystick2Attached(false)
 {
@@ -192,10 +194,12 @@ void InputManager::tick()
 {
     auto drivePort = [&](int port, std::unique_ptr<Joystick>& joyPtr)
     {
-        if (!joyPtr) return;
+        if (!joyPtr)
+            return;
 
         SDL_Gamepad* pad = findPadByInstanceId(portPadId[port]);
-        if (!pad) return; // no pad assigned or removed
+        if (!pad)
+            return; // no pad assigned or removed
 
         updateJoystickFromGamepad(pad, joyPtr.get());
     };
@@ -218,7 +222,8 @@ void InputManager::resetInputState()
 
 void InputManager::setJoystickAttached(int port, bool flag)
 {
-    if (!cia1) return;
+    if (!cia1)
+        return;
 
     switch (port)
     {
@@ -289,7 +294,8 @@ void InputManager::setJoystickAttached(int port, bool flag)
 
 void InputManager::setJoystickConfig(int port, const JoystickMapping& cfg)
 {
-    if (port != 1 && port != 2) return;
+    if (port != 1 && port != 2)
+        return;
 
     joyMap[port].clear();
     joyMap[port] = {
@@ -302,6 +308,56 @@ void InputManager::setJoystickConfig(int port, const JoystickMapping& cfg)
 
     if (port == 1) joy1Config = cfg;
     else           joy2Config = cfg;
+}
+
+void InputManager::setPaddlesAttached(int port, bool flag)
+{
+    if (!cia1 || !sid)
+        return;
+
+    if (port < 0 || port >= 2)
+        return;
+
+    paddlesAttached[port] = flag;
+
+    if (flag)
+    {
+        if (!paddles)
+        {
+            paddles = std::make_unique<Paddles>();
+            cia1->attachPaddlesInstance(paddles.get());
+            sid->attachPaddlesInstance(paddles.get());
+        }
+    }
+    else
+    {
+        if (!paddlesAttached[0] && !paddlesAttached[1])
+        {
+            cia1->detachPaddlesInstance();
+            sid->detachPaddlesInstance();
+            paddles.reset();
+        }
+    }
+}
+
+void InputManager::setPaddlesConfig(int port, const PaddlesMapping& cfg)
+{
+    if (port < 0 || port >= 2)
+        return;
+
+    paddlesMap[port].clear();
+
+    paddlesMap[port] =
+    {
+        { cfg.decreaseX, Paddles::Action::DecreaseX },
+        { cfg.increaseX, Paddles::Action::IncreaseX },
+        { cfg.decreaseY, Paddles::Action::DecreaseY },
+        { cfg.increaseY, Paddles::Action::IncreaseY },
+        { cfg.buttonX,   Paddles::Action::ButtonX },
+        { cfg.buttonY,   Paddles::Action::ButtonY }
+    };
+
+    paddlesConfig[port] = cfg;
 }
 
 void InputManager::updateJoystickFromGamepad(SDL_Gamepad* pad, Joystick* joy)
