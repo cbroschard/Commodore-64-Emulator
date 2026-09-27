@@ -5,15 +5,19 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "CIA1.h"
 #include "CPU.h"
 #include "DataBusLatch.h"
+#include "Paddles.h"
 #include "Vic.h"
 #include "SID/SID.h"
 
 SID::SID(double sampleRate) :
     sidModel_(SIDModel::MOS6581),
+    cia1(nullptr),
     cpu(nullptr),
     dataBus(nullptr),
+    paddles(nullptr),
     traceMgr(nullptr),
     vicII(nullptr),
     sidBusLatch(0x00),
@@ -44,6 +48,11 @@ SID::SID(double sampleRate) :
 }
 
 SID::~SID() = default;
+
+void SID::detachPaddlesInstance()
+{
+    paddles = nullptr;
+}
 
 void SID::saveState(StateWriter& wrtr) const
 {
@@ -365,13 +374,9 @@ void SID::setMode(VideoMode mode)
     mode_ = mode;
 
     if (mode_ == VideoMode::NTSC)
-    {
         sidClockFrequency  = 1022727.0; // NTSC SID clock frequency (Hz)
-    }
     else
-    {
         sidClockFrequency = 985248.0;  // PAL SID clock frequency (Hz)
-    }
 
     sidCyclesPerAudioSample = sidClockFrequency / sampleRate;
 
@@ -415,7 +420,7 @@ uint8_t SID::readRegister(uint16_t address)
         case 0xD419:
         {
             // Until paddle ADC support is implemented.
-            value = 0xFF;
+            value = readPotX();
             break;
         }
 
@@ -423,7 +428,7 @@ uint8_t SID::readRegister(uint16_t address)
         case 0xD41A:
         {
             // Until paddle ADC support is implemented.
-            value = 0xFF;
+            value = readPotY();
             break;
         }
 
@@ -468,11 +473,11 @@ uint8_t SID::peekRegister(uint16_t address) const
     {
         // POTX
         case 0xD419:
-            return 0xFF;
+            return readPotX();
 
         // POTY
         case 0xD41A:
-            return 0xFF;
+            return readPotY();
 
         // OSC3
         case 0xD41B:
@@ -836,9 +841,7 @@ void SID::tick(uint32_t cycles)
     if (sidBusDecayCycles != 0)
     {
         if (sidBusDecayCycles > cycles)
-        {
             sidBusDecayCycles -= cycles;
-        }
         else
         {
             sidBusDecayCycles = 0;
@@ -1335,4 +1338,30 @@ void SID::resetAudioStats()
     // This command should reset counters, not create an audible discontinuity.
     audioWasUnderrunning = false;
     underrunRecoverySamples = 0;
+}
+
+uint8_t SID::readPotX() const
+{
+    if (!cia1 || !paddles)
+        return 0xFF;
+
+    const int port = cia1->getSelectedPaddlePort();
+
+    if (port < 0)
+        return 0xFF;
+
+    return paddles[port].getX(port);
+}
+
+uint8_t SID::readPotY() const
+{
+    if (!cia1 || !paddles)
+        return 0xFF;
+
+    const int port = cia1->getSelectedPaddlePort();
+
+    if (port < 0)
+        return 0xFF;
+
+    return paddles[port].getY(port);
 }

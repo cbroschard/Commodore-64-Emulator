@@ -27,8 +27,10 @@
 #include "StateWriter.h"
 
 // Forward declarations
+class CIA1;
 class CPU;
 class DataBusLatch;
+class Paddles;
 class Vic;
 
 class SID
@@ -37,10 +39,14 @@ class SID
         explicit SID(double sampleRate);
         ~SID();
 
+        inline void attachCIA1Instance(CIA1* cia1) { this->cia1 = cia1; }
         inline void attachCPUInstance(CPU* cpu) { this->cpu = cpu; }
         inline void attachDataBusLatchInstance(DataBusLatch* dataBus) { this->dataBus = dataBus; }
+        inline void attachPaddlesInstance(Paddles* paddles) { this->paddles = paddles; }
         inline void attachTraceManagerInstance(TraceManager* traceMgr) { this->traceMgr = traceMgr; }
         inline void attachVicInstance(Vic* vicII) { this->vicII = vicII; }
+
+        void detachPaddlesInstance();
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -81,8 +87,10 @@ class SID
         SIDModel sidModel_;
 
         // Non owning pointers
+        CIA1* cia1;
         CPU* cpu;
         DataBusLatch* dataBus;
+        Paddles* paddles;
         TraceManager* traceMgr;
         Vic* vicII;
 
@@ -160,6 +168,10 @@ class SID
         void updateCutoffFromRegisters();
         static void applyVoiceControl(Voice& voice, uint8_t oldControl, uint8_t newControl);
         void configureOscillatorSources();
+
+        // Paddles
+        uint8_t readPotX() const;
+        uint8_t readPotY() const;
 
         // Monitor helpers
         static std::string decodeControlRegister(uint8_t control);
