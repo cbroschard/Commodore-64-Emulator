@@ -14,6 +14,7 @@ class Cassette;
 class IRQLine;
 class Joystick;
 class Keyboard;
+class Paddles;
 class Vic;
 
 #include <cstdint>
@@ -30,11 +31,14 @@ class CIA1 : public CIA6526
         inline void attachCassetteInstance(Cassette* cass) { this->cass = cass; }
         inline void attachIRQLineInstance(IRQLine* IRQ) { this->IRQ = IRQ; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
+        inline void attachPaddlesInstance(Paddles* paddles) { this->paddles = paddles; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
         void attachJoystickInstance(Joystick* joy);
 
-        // Remove the Joystick(s)
+
+        // Remove the Joystick(s)/Paddles
         void detachJoystickInstance(Joystick* joy);
+        void detachPaddlesInstance();
 
         // State management
         void saveState(StateWriter& wrtr) const;
@@ -42,6 +46,9 @@ class CIA1 : public CIA6526
 
         // Reset everything to default
         void reset() override;
+
+        // Paddles helper
+        int getSelectedPaddlePort() const;
 
         // ML Monitor access
         std::string dumpRegisters(const std::string& group) const override;
@@ -67,6 +74,7 @@ class CIA1 : public CIA6526
         Joystick* joy1;
         Joystick* joy2;
         Keyboard* keyb;
+        Paddles* paddles;
         Vic* vic;
 
         // Data ports

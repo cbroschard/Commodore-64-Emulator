@@ -15,6 +15,7 @@
 #include "IRQLine.h"
 #include "Joystick.h"
 #include "Keyboard.h"
+#include "Paddles.h"
 #include "Vic.h"
 
 CIA1::CIA1() :
@@ -24,6 +25,7 @@ CIA1::CIA1() :
     joy1(nullptr),
     joy2(nullptr),
     keyb(nullptr),
+    paddles(nullptr),
     vic(nullptr)
 {
     setMode(VideoMode::NTSC);
@@ -51,17 +53,16 @@ void CIA1::attachJoystickInstance(Joystick* joy)
 void CIA1::detachJoystickInstance(Joystick* joy)
 {
     if (joy == joy1)
-    {
         joy1 = nullptr;
-    }
     else if (joy == joy2)
-    {
         joy2 = nullptr;
-    }
     else
-    {
         throw std::runtime_error("ERROR: No such Joystick!");
-    }
+}
+
+void CIA1::detachPaddlesInstance()
+{
+    paddles = nullptr;
 }
 
 void CIA1::saveState(StateWriter& wrtr) const
@@ -169,6 +170,24 @@ void CIA1::reset()
 
     // Clear all IRQ's
     if (IRQ) IRQ->clearIRQ(IRQLine::CIA1);
+}
+
+int CIA1::getSelectedPaddlePort() const
+{
+    const uint8_t portA = getPortAOutput();
+    const uint8_t select = portA & 0xC0;
+
+    switch (select)
+    {
+        case 0x40:
+            return 0; // control port 1
+
+        case 0x80:
+            return 1; // control port 2
+
+        default:
+            return -1;
+    }
 }
 
 uint8_t CIA1::readPortA()
