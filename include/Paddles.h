@@ -16,6 +16,16 @@ class Paddles
         Paddles();
         virtual ~Paddles();
 
+        enum class Action
+        {
+            DecreaseX,
+            IncreaseX,
+            DecreaseY,
+            IncreaseY,
+            ButtonX,
+            ButtonY
+        };
+
         void reset();
 
         void setX(int port, uint8_t value);
