@@ -13,9 +13,11 @@
 #include <vector>
 
 #include "Common/JoystickMapping.h"
+#include "Common/PaddlesMapping.h"
 
 boost::program_options::options_description get_options();
 boost::program_options::options_description get_config_file_options();
 
 JoystickMapping parseJoystickConfig(const std::string& config);
+PaddlesMapping parsePaddlesConfig(const std::string& config);
 std::vector<std::string> splitCSV(const std::string& input);

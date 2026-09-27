@@ -43,7 +43,12 @@ po::options_description get_config_file_options()
         ("1581.ROM", po::value<std::string>(), "Full path and filename of the 1581 ROM to load")
         ("c64.Joy1", po::value<std::string>(), "Joystick 1 key bindings: Up,Down,Left,Right,Fire")
         ("c64.Joy2", po::value<std::string>(), "Joystick 2 key bindings: Up,Down,Left,Right,Fire")
+        ("c64.Paddles1", po::value<std::string>(),
+         "Paddles 1 key bindings: DecreaseX,IncreaseX,DecreaseY,IncreaseY,ButtonX,ButtonY")
+        ("c64.Paddles2", po::value<std::string>(),
+         "Paddles 2 key bindings: DecreaseX,IncreaseX,DecreaseY,IncreaseY,ButtonX,ButtonY")
         ("c64.SID.Model", po::value<std::string>(), "SID CHIP Model: 6581 8580");
+
     return desc;
 }
 
@@ -99,14 +104,10 @@ int main(int argc, char* argv[])
 
         // Update the C64 object with locations for 1571 ROM if present
         if (vmConfig.count("1571.ROM"))
-        {
             c64.set1571ROM(vmConfig["1571.ROM"].as<std::string>());
-        }
 
         if (vmConfig.count("1581.ROM"))
-        {
             c64.set1581ROM(vmConfig["1581.ROM"].as<std::string>());
-        }
 
         if (vmConfig.count("c64.Joy1"))
         {
@@ -117,8 +118,10 @@ int main(int argc, char* argv[])
         {
             JoystickMapping defaults1
             {
-                SDL_SCANCODE_W, SDL_SCANCODE_S,
-                SDL_SCANCODE_A, SDL_SCANCODE_D,
+                SDL_SCANCODE_W,
+                SDL_SCANCODE_S,
+                SDL_SCANCODE_A,
+                SDL_SCANCODE_D,
                 SDL_SCANCODE_SPACE
             };
             c64.setJoystickConfig(1, defaults1);
@@ -133,17 +136,55 @@ int main(int argc, char* argv[])
         {
             JoystickMapping defaults2
             {
-                SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
-                SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_UP,
+                SDL_SCANCODE_DOWN,
+                SDL_SCANCODE_LEFT,
+                SDL_SCANCODE_RIGHT,
                 SDL_SCANCODE_RETURN
             };
             c64.setJoystickConfig(2, defaults2);
         }
 
-        if (vmConfig.count("c64.SID.Model"))
+        if (vmConfig.count("c64.Paddles1"))
         {
-            c64.setSIDModel(vmConfig["c64.SID.Model"].as<std::string>());
+            auto cfg = parsePaddlesConfig(vmConfig["c64.Paddles1"].as<std::string>());
+            c64.setPaddlesConfig(0, cfg);
         }
+        else
+        {
+            PaddlesMapping defaults1
+            {
+                SDL_SCANCODE_LEFT,
+                SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_UP,
+                SDL_SCANCODE_DOWN,
+                SDL_SCANCODE_SPACE,
+                SDL_SCANCODE_RCTRL
+            };
+            c64.setPaddlesConfig(0, defaults1);
+        }
+
+        if (vmConfig.count("c64.Paddles2"))
+        {
+            auto cfg = parsePaddlesConfig(vmConfig["c64.Paddles2"].as<std::string>());
+            c64.setPaddlesConfig(1, cfg);
+        }
+        else
+        {
+            PaddlesMapping defaults2
+            {
+                SDL_SCANCODE_A,
+                SDL_SCANCODE_D,
+                SDL_SCANCODE_W,
+                SDL_SCANCODE_S,
+                SDL_SCANCODE_F,
+                SDL_SCANCODE_G
+            };
+            c64.setPaddlesConfig(1, defaults2);
+        }
+
+        if (vmConfig.count("c64.SID.Model"))
+            c64.setSIDModel(vmConfig["c64.SID.Model"].as<std::string>());
 
         // Setup command line options
         po::options_description cmdLineOptions = get_options();
@@ -236,9 +277,7 @@ JoystickMapping parseJoystickConfig(const std::string& config)
     const auto tokens = splitCSV(config);
 
     if (tokens.size() != 5)
-    {
         throw std::runtime_error("Joystick config must have 5 keys: Up,Down,Left,Right,Fire");
-    }
 
     jm.up    = SDL_GetScancodeFromName(tokens[0].c_str());
     jm.down  = SDL_GetScancodeFromName(tokens[1].c_str());
@@ -256,6 +295,35 @@ JoystickMapping parseJoystickConfig(const std::string& config)
     }
 
     return jm;
+}
+
+PaddlesMapping parsePaddlesConfig(const std::string& config)
+{
+    PaddlesMapping pm{};
+
+    const auto tokens = splitCSV(config);
+
+    if (tokens.size() != 6)
+        throw std::runtime_error("Invalid key name in paddles config: " + config);
+
+    pm.decreaseX = SDL_GetScancodeFromName(tokens[0].c_str());
+    pm.increaseX = SDL_GetScancodeFromName(tokens[1].c_str());
+    pm.decreaseY = SDL_GetScancodeFromName(tokens[2].c_str());
+    pm.increaseY = SDL_GetScancodeFromName(tokens[3].c_str());
+    pm.buttonX   = SDL_GetScancodeFromName(tokens[4].c_str());
+    pm.buttonY   = SDL_GetScancodeFromName(tokens[5].c_str());
+
+    if (pm.decreaseX == SDL_SCANCODE_UNKNOWN ||
+        pm.increaseX == SDL_SCANCODE_UNKNOWN ||
+        pm.decreaseY == SDL_SCANCODE_UNKNOWN ||
+        pm.increaseY == SDL_SCANCODE_UNKNOWN ||
+        pm.buttonX   == SDL_SCANCODE_UNKNOWN ||
+        pm.buttonY   == SDL_SCANCODE_UNKNOWN)
+    {
+        throw std::runtime_error("Invalid key name in joystick config: " + config);
+    }
+
+    return pm;
 }
 
 std::vector<std::string> splitCSV(const std::string& input)
