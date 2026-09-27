@@ -94,6 +94,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.inputMgr->attachCIA1Instance(components.cia1.get());
     components.inputMgr->attachKeyboardInstance(components.keyb.get());
     components.inputMgr->attachMonitorControllerInstance(&components.debug->monitorController());
+    components.inputMgr->attachSIDInstance(components.sid.get());
 
     components.pla->attachCartridgeInstance(components.cart.get());
     components.pla->attachCPUInstance(components.cpu.get());
@@ -114,6 +115,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cpu->attachTraceManagerInstance(&components.debug->trace());
     components.cpu->setVICBusArbitrationEnabled(true);
 
+    components.sid->attachCIA1Instance(components.cia1.get());
     components.sid->attachCPUInstance(components.cpu.get());
     components.sid->attachDataBusLatchInstance(components.dataBus.get());
     components.sid->attachTraceManagerInstance(&components.debug->trace());
