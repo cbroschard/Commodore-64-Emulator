@@ -209,6 +209,16 @@ uint8_t CIA1::readPortA()
         pin &= j2;
     }
 
+    // Paddles Control port 2 Bit 2 and 3 active-low
+    if (paddles)
+    {
+        if (paddles->getButtonX(1))
+            pin &= static_cast<uint8_t>(~0x04); // PA2 low
+
+        if (paddles->getButtonY(1))
+            pin &= static_cast<uint8_t>(~0x08); // PA3 low
+    }
+
     // Wire-AND cassette SENSE onto PA4 (low dominates)
     const bool senseLow = bus ? bus->getCassetteSenseLow() : false;
     if (senseLow) pin &= static_cast<uint8_t>(~0x10);
@@ -242,8 +252,16 @@ uint8_t CIA1::readPortB()
 
     // Add Joystick 1 state if attached
     if (joy1)
-    {
         rowState &= static_cast<uint8_t>((joy1->getState() & 0x1F) | 0xE0);
+
+    // Paddle buttons for physical control port 1
+    if (paddles)
+    {
+        if (paddles->getButtonX(0))
+            rowState &= static_cast<uint8_t>(~0x04); // PB2 low
+
+        if (paddles->getButtonY(0))
+            rowState &= static_cast<uint8_t>(~0x08); // PB3 low
     }
 
     // Combine PortB and row state
