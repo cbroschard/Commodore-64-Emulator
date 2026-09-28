@@ -42,6 +42,8 @@ class InputManager
         inline Joystick* getJoy2() const { return joy2.get(); }
         inline bool isJoy1Attached() const { return joystick1Attached; }
         inline bool isJoy2Attached() const { return joystick2Attached; }
+        inline bool isPaddles1Attached() const { return paddlesAttached[0]; }
+        inline bool isPaddles2Attached() const { return paddlesAttached[1]; }
         inline void handleGamepadDeviceAdded(SDL_JoystickID instanceId) { onGamepadAdded(instanceId); }
         inline void handleGamepadDeviceRemoved(SDL_JoystickID instanceId) {  onGamepadRemoved(instanceId); }
 
