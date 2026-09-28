@@ -97,6 +97,9 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         s.joy1Attached = input_->isJoy1Attached();
         s.joy2Attached = input_->isJoy2Attached();
 
+        s.paddles1Attached = input_->isPaddles1Attached();
+        s.paddles2Attached = input_->isPaddles2Attached();
+
         auto* p1 = input_->getPad1();
         auto* p2 = input_->getPad2();
 
@@ -401,6 +404,14 @@ void UIBridge::processCommands()
 
             case UiCommand::Type::ToggleJoy2:
                 if (input_) input_->setJoystickAttached(2, !input_->isJoy2Attached());
+                break;
+
+            case UiCommand::Type::TogglePaddles1:
+                if (input_) input_->setPaddlesAttached(0, !input_->isPaddles1Attached());
+                break;
+
+            case UiCommand::Type::TogglePaddles2:
+                if (input_) input_->setPaddlesAttached(1, !input_->isPaddles2Attached());
                 break;
 
             case UiCommand::Type::AssignPad1ToPort1:
