@@ -40,9 +40,6 @@ bool Disk::loadDiskImage(const std::string& imagePath)
         return false;
     }
 
-    #ifdef Debug
-    std::cout << "Loaded file: " << imagePath << " (" << size << " bytes)" << std::endl;
-    #endif // Debug
     return true;
 }
 
@@ -86,14 +83,6 @@ bool Disk::writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t
     }
 
     dirty = true;
-
-    #ifdef Debug
-        std::cout << "[DISK] writeSector T"
-                  << int(track)
-                  << " S"
-                  << int(sector)
-                  << "\n";
-    #endif
 
     return true;
 }
