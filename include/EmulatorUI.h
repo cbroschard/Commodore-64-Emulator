@@ -131,6 +131,9 @@ class EmulatorUI
             std::string pad1Name                = "None";
             std::string pad2Name                = "None";
 
+            bool paddles1Attached               = false;
+            bool paddles2Attached               = false;
+
             bool paused                         = false;
             bool pal                            = true;
             bool sid8580                        = true;
@@ -175,6 +178,9 @@ class EmulatorUI
         bool joy2Attached;
         std::string pad1Name;
         std::string pad2Name;
+
+        bool paddles1Attached;
+        bool paddles2Attached;
 
         bool gettingStartedOpen;
         bool keyboardShortcutsOpen;
