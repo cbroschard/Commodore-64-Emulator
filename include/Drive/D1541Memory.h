@@ -43,6 +43,8 @@ class D1541Memory : public DriveMemoryBase
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
 
+        uint8_t peek(uint16_t address) const;
+
         // Initialize function to load all ROMS passed in via config file, initialize RAM
         bool initialize(const std::string& D1541LoROM, const std::string& D1541HiROM);
 
@@ -51,9 +53,6 @@ class D1541Memory : public DriveMemoryBase
 
         inline D1541VIA& getVIA2() { return via2; }
         inline const D1541VIA& getVIA2() const { return via2; }
-
-
-    protected:
 
     private:
         // Non-owning pointers

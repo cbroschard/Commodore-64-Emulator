@@ -39,6 +39,8 @@ class D1571Memory : public DriveMemoryBase
         uint8_t read(uint16_t address);
         void write(uint16_t address, uint8_t value);
 
+        uint8_t peek(uint16_t address) const;
+
         void reset();
         void tick(uint32_t cycles);
 
@@ -56,8 +58,6 @@ class D1571Memory : public DriveMemoryBase
 
         inline FDC177x& getFDC() { return fdc; }
         inline const FDC177x&  getFDC()  const { return fdc; }
-
-    protected:
 
     private:
         // CHIPS

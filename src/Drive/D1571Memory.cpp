@@ -176,6 +176,24 @@ void D1571Memory::write(uint16_t address, uint8_t value)
     }
 }
 
+uint8_t D1571Memory::peek(uint16_t address) const
+{
+    if (address >= RAM_START && address <= RAM_END)
+    {
+        return D1571RAM[address - RAM_START];
+    }
+    else if (address >= 0x0800 && address <= 0x0FFF)
+    {
+        return D1571RAM[address & 0x07FF];
+    }
+    else if (address >= ROM_START && address <= ROM_END)
+    {
+        return D1571ROM[address - ROM_START];
+    }
+
+    return 0xFF;
+}
+
 bool D1571Memory::loadROM(const std::string& filename)
 {
     std::ifstream f(filename, std::ios::binary | std::ios::ate);

@@ -74,46 +74,41 @@ void D1541Memory::reset()
 uint8_t D1541Memory::read(uint16_t address)
 {
     if (address >= D1541_RAM_START && address <= D1541_RAM_END)
-    {
         return D1541RAM[address - D1541_RAM_START];
-    }
     else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
-    {
         return via1.readRegister((address - VIA1_START) & 0x0F);
-    }
     else if (address >= VIA2_START && address <= (VIA2_START + 0x03FF))
-    {
         return via2.readRegister((address - VIA2_START) & 0x0F);
-    }
     else if (address >= ROM1_START && address <= ROM1_END)
-    {
         return D1541ROM1[address - ROM1_START];
-    }
     else if (address >= ROM2_START && address <= ROM2_END)
-    {
         return D1541ROM2[address - ROM2_START];
-    }
     else
-    {
         // default
         return 0xFF;
-    }
 }
 
 void D1541Memory::write(uint16_t address, uint8_t value)
 {
     if (address >= D1541_RAM_START && address <= D1541_RAM_END)
-    {
         D1541RAM[address - D1541_RAM_START] = value;
-    }
     else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
-    {
         via1.writeRegister((address - VIA1_START) & 0x0F, value);
-    }
     else if (address >= VIA2_START && address <= (VIA2_START + 0x03FF))
-    {
         via2.writeRegister((address - VIA2_START) & 0x0F, value);
-    }
+}
+
+uint8_t D1541Memory::peek(uint16_t address) const
+{
+    if (address >= D1541_RAM_START && address <= D1541_RAM_END)
+        return D1541RAM[address - D1541_RAM_START];
+    else if (address >= ROM1_START && address <= ROM1_END)
+        return D1541ROM1[address - ROM1_START];
+    else if (address >= ROM2_START && address <= ROM2_END)
+        return D1541ROM2[address - ROM2_START];
+
+    // Avoid side effects from VIA register reads during monitor inspection.
+    return 0xFF;
 }
 
 bool D1541Memory::initialize(const std::string& D1541LoROM, const std::string& D1541HiROM)

@@ -140,13 +140,9 @@ uint8_t D1581Memory::read(uint16_t address)
             if (driveCPU)
             {
                 const uint8_t sp = driveCPU->getSP();
-
                 const uint8_t retLo = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 1));
                 const uint8_t retHi = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 2));
-
-                const uint16_t pushedRet =
-                    static_cast<uint16_t>(retLo) |
-                    (static_cast<uint16_t>(retHi) << 8);
+                const uint16_t pushedRet = static_cast<uint16_t>(retLo) |(static_cast<uint16_t>(retHi) << 8);
 
                 retTarget = static_cast<uint16_t>(pushedRet + 1);
             }
@@ -185,35 +181,21 @@ void D1581Memory::write(uint16_t address, uint8_t value)
         if (reg == 1 || reg == 3 || reg == 0x0C || reg == 0x0D || reg == 0x0E)
         {
             const uint16_t pcAfter = driveCPU ? driveCPU->getPC() : 0xFFFF;
-            const uint16_t opPC =
-                (pcAfter != 0xFFFF)
-                    ? static_cast<uint16_t>(pcAfter - 3)
-                    : 0xFFFF;
+            const uint16_t opPC = (pcAfter != 0xFFFF) ? static_cast<uint16_t>(pcAfter - 3) : 0xFFFF;
 
             uint16_t retTarget = 0xFFFF;
 
             if (driveCPU)
             {
                 const uint8_t sp = driveCPU->getSP();
-
-                const uint8_t retLo =
-                    debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 1));
-
-                const uint8_t retHi =
-                    debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 2));
-
-                const uint16_t pushedRet =
-                    static_cast<uint16_t>(retLo) |
-                    (static_cast<uint16_t>(retHi) << 8);
+                const uint8_t retLo = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 1));
+                const uint8_t retHi = debugPeekRAM(0x0100u + static_cast<uint8_t>(sp + 2));
+                const uint16_t pushedRet = static_cast<uint16_t>(retLo) |(static_cast<uint16_t>(retHi) << 8);
 
                 retTarget = static_cast<uint16_t>(pushedRet + 1);
             }
 
-            cia.recordDebugCIAWrite(opPC,
-                                    retTarget,
-                                    address,
-                                    static_cast<uint8_t>(reg),
-                                    value);
+            cia.recordDebugCIAWrite(opPC, retTarget, address, static_cast<uint8_t>(reg), value);
         }
     }
     else if (address >= FDC_START && address <= FDC_END)
@@ -221,6 +203,16 @@ void D1581Memory::write(uint16_t address, uint8_t value)
         const uint16_t reg = (address - FDC_START) & 0x0003;
         fdc.writeRegister(reg, value);
     }
+}
+
+uint8_t D1581Memory::peek(uint16_t address) const
+{
+    if (address >= RAM_START && address <= RAM_END)
+        return D1581RAM[address - RAM_START];
+    else if (address >= ROM_START && address <= ROM_END)
+        return D1581ROM[address - ROM_START];
+
+    return 0xFF;
 }
 
 bool D1581Memory::loadROM(const std::string& filename)

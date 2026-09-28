@@ -19,10 +19,7 @@ public:
     D1581Bus();
     virtual ~D1581Bus();
 
-    inline void attachMemoryInstance(D1581Memory* mem)
-    {
-        this->mem = mem;
-    }
+    inline void attachMemoryInstance(D1581Memory* mem) { this->mem = mem; }
 
     uint8_t read(uint16_t address) override;
     void write(uint16_t address, uint8_t value) override;
