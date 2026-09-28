@@ -904,7 +904,20 @@ void EmulatorUI::installMenu(const MediaViewState& v)
             bool j2 = v.joy2Attached;
             if (ImGui::MenuItem("Joystick 1 Attached", nullptr, j1)) push(UiCommand::Type::ToggleJoy1);
             if (ImGui::MenuItem("Joystick 2 Attached", nullptr, j2)) push(UiCommand::Type::ToggleJoy2);
+
             ImGui::Separator();
+
+            bool p1 = v.paddles1Attached;
+            bool p2 = v.paddles2Attached;
+
+            if (ImGui::MenuItem("Paddles Port 1 Attached", nullptr, p1))
+                push(UiCommand::Type::TogglePaddles1);
+
+            if (ImGui::MenuItem("Paddles Port 2 Attached", nullptr, p2))
+                push(UiCommand::Type::TogglePaddles2);
+
+            ImGui::Separator();
+
             ImGui::TextUnformatted("Gamepad Routing");
             ImGui::Text("Pad1: %s", v.pad1Name.c_str());
             ImGui::Text("Pad2: %s", v.pad2Name.c_str());
