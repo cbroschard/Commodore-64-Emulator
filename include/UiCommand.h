@@ -83,6 +83,9 @@ struct UiCommand
         ToggleJoy1,
         ToggleJoy2,
 
+        TogglePaddles1,
+        TogglePaddles2,
+
         SetMOS6581,
         SetMOS8580,
 
