@@ -51,8 +51,7 @@ size_t Disk::computeOffset(uint8_t track, uint8_t sector)
 
     const size_t sz = sectorSize();
 
-    size_t offset = geom.trackOffsets[track -1]
-        + static_cast<size_t>(sector) * sz
+    size_t offset = geom.trackOffsets[track -1] + static_cast<size_t>(sector) * sz
         + (geom.hasPerSectorCRC ? static_cast<size_t>(sector) * 2 : 0);
 
     return offset;
@@ -76,11 +75,7 @@ bool Disk::writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t
     std::copy(buf.begin(), buf.begin() + n, fileImageBuffer.begin() + offset);
 
     if (n < sz)
-    {
-        std::fill(fileImageBuffer.begin() + offset + n,
-                  fileImageBuffer.begin() + offset + sz,
-                  0x00);
-    }
+        std::fill(fileImageBuffer.begin() + offset + n, fileImageBuffer.begin() + offset + sz, 0x00);
 
     dirty = true;
 
