@@ -158,39 +158,6 @@ bool InputManager::handleEvent(const SDL_Event& ev)
             return true; // never pass J,1,2 through to the C-64
         }
 
-        // Paddle input
-        if (paddles)
-        {
-            for (int port = 0; port < 2; ++port)
-            {
-                if (!paddlesAttached[port])
-                    continue;
-
-                auto it = paddlesMap[port].find(sc);
-
-                if (it == paddlesMap[port].end())
-                    continue;
-
-                switch (it->second)
-                {
-                    case Paddles::Action::ButtonX:
-                        paddles->setButtonX(port, down);
-                        return true;
-
-                    case Paddles::Action::ButtonY:
-                        paddles->setButtonY(port, down);
-                        return true;
-
-                    case Paddles::Action::DecreaseX:
-                    case Paddles::Action::IncreaseX:
-                    case Paddles::Action::DecreaseY:
-                    case Paddles::Action::IncreaseY:
-                        // Movement is handled continuously in tick().
-                        return true;
-                }
-            }
-        }
-
         // Joystick input
         for (int port = 1; port <= 2; ++port)
         {
@@ -279,6 +246,9 @@ void InputManager::tick()
 
             paddles->setX(port, static_cast<uint8_t>(x));
             paddles->setY(port, static_cast<uint8_t>(y));
+
+            paddles->setButtonX(port, keys[cfg.buttonX]);
+            paddles->setButtonY(port, keys[cfg.buttonY]);
         }
     }
 }
