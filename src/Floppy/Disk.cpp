@@ -36,7 +36,7 @@ bool Disk::loadDiskImage(const std::string& imagePath)
 
     if (!validateDiskImage())
     {
-        std::cerr << "Failed to validate the disk image, not a valid D64 image!" << imagePath << std::endl;
+        std::cerr << "Failed to validate the disk image, not a valid image!" << imagePath << std::endl;
         return false;
     }
 
