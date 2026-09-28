@@ -14,7 +14,7 @@ class D81 : public CBMImage
 {
     public:
         D81();
-        virtual ~D81();
+        ~D81();
 
         // Loading/Saving the disk image
         bool loadDisk(const std::string& filePath) override;
@@ -32,7 +32,6 @@ class D81 : public CBMImage
         size_t sectorSize() const override { return 256; }
 
     private:
-
         static constexpr size_t D81_HEADER_SIZE        = 0; // no header
         static constexpr int    D81_TRACK_COUNT        = 80;
         static constexpr int    D81_SECTORS_PER_TRACK  = 40;

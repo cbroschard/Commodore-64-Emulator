@@ -14,7 +14,7 @@ class D64 : public CBMImage
 {
     public:
         D64();
-        virtual ~D64();
+        ~D64();
 
         // Loading/saving
         bool loadDisk(const std::string& filePath) override;

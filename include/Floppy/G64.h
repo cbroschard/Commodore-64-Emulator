@@ -13,9 +13,7 @@ class G64
 {
     public:
         G64();
-        virtual ~G64();
-
-    protected:
+        ~G64();
 
     private:
 };

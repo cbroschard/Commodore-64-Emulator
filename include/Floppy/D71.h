@@ -14,7 +14,7 @@ class D71 : public CBMImage
 {
     public:
         D71();
-        virtual ~D71();
+        ~D71();
 
         bool loadDisk(const std::string& filePath) override;
         bool saveDisk(const std::string& filePath) override;
