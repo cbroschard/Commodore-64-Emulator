@@ -23,7 +23,9 @@ IECBUS::IECBUS() :
     peripheralDrivesDataLow(false),
     peripheralDrivesAtnLow(false),
     lastClk(true),
-    romControlledIEC(false)
+    romControlledIEC(false),
+    traceWriteIndex(0),
+    traceCount(0)
 {
     currentListeners.clear(); // Ensure listener list is empty on start
     reset();
@@ -233,6 +235,8 @@ void IECBUS::reset()
         acc = 0.0;
 
     lastClk = busLines.clk;
+
+    clearTraceHistory();
 }
 
 void IECBUS::setAtnLine(bool state)
@@ -277,30 +281,89 @@ void IECBUS::setC64IECOutputs(bool atnReleased, bool clkReleased, bool dataRelea
 
 void IECBUS::peripheralControlClk(Peripheral* device, bool clkLow)
 {
-    if (!device) return;
-    bool registered = false;
+    if (!device)
+        return;
+
+    int deviceNumber = -1;
+
     for (auto const& [num, dev] : devices)
     {
-        if (dev == device) { registered = true; break; }
+        if (dev == device)
+        {
+            deviceNumber = num;
+            break;
+        }
     }
-    if (!registered) return;
+
+    if (deviceNumber < 0)
+        return;
+
+    const bool old = devDrivesClkLow[device];
 
     devDrivesClkLow[device] = clkLow;
+
     recalcAndNotify();
+
+    if (old != clkLow)
+    {
+        uint64_t cycle = 0;
+        uint16_t pc = 0;
+
+        if (auto* drive = dynamic_cast<Drive*>(device))
+        {
+            if (const CPU* cpu = drive->getDriveCPU())
+            {
+                cycle = cpu->getTotalCycles();
+                pc = cpu->getPC();
+            }
+        }
+
+        recordTrace(TraceType::PeripheralClk, cycle, pc, deviceNumber, static_cast<uint8_t>(clkLow ? 1 : 0)
+        );
+    }
 }
 
 void IECBUS::peripheralControlData(Peripheral* device, bool dataLow)
 {
-    if (!device) return;
-    bool registered = false;
+    if (!device)
+        return;
+
+    int deviceNumber = -1;
+
     for (auto const& [num, dev] : devices)
     {
-        if (dev == device) { registered = true; break; }
+        if (dev == device)
+        {
+            deviceNumber = num;
+            break;
+        }
     }
-    if (!registered) return;
+
+    if (deviceNumber < 0)
+        return;
+
+    const bool old = devDrivesDataLow[device];
 
     devDrivesDataLow[device] = dataLow;
+
     recalcAndNotify();
+
+    if (old != dataLow)
+    {
+        uint64_t cycle = 0;
+        uint16_t pc = 0;
+
+        if (auto* drive = dynamic_cast<Drive*>(device))
+        {
+            if (const CPU* cpu = drive->getDriveCPU())
+            {
+                cycle = cpu->getTotalCycles();
+                pc = cpu->getPC();
+            }
+        }
+
+        recordTrace(TraceType::PeripheralData, cycle, pc, deviceNumber, static_cast<uint8_t>(dataLow ? 1 : 0));
+    }
 }
 
 void IECBUS::peripheralControlAtn(Peripheral* device, bool atnLow)
@@ -711,4 +774,82 @@ std::string IECBUS::debugPhysicalSnapshotString() const
     out << "  Listener count: " << s.legacyListenerCount << "\n";
 
     return out.str();
+}
+
+void IECBUS::recordTrace(TraceType type, uint64_t cpuCycle, uint16_t pc, int deviceNumber, uint8_t value)
+{
+    TraceEntry& e = traceHistory[traceWriteIndex];
+
+    e.valid = true;
+    e.type = type;
+    e.cpuCycle = cpuCycle;
+    e.pc = pc;
+    e.deviceNumber = deviceNumber;
+
+    e.atnHigh = busLines.atn;
+    e.clkHigh = busLines.clk;
+    e.dataHigh = busLines.data;
+
+    e.value = value;
+
+    traceWriteIndex = (traceWriteIndex + 1) % traceHistory.size();
+
+    if (traceCount < traceHistory.size())
+        ++traceCount;
+}
+
+void IECBUS::recordC64Read(uint64_t cpuCycle, uint16_t pc, uint8_t value)
+{
+    // Do not let an endless C64 polling loop overwrite the
+    // useful IEC transitions that occurred immediately before it.
+    if (traceCount > 0)
+    {
+        const size_t capacity = traceHistory.size();
+        const size_t lastIndex = (traceWriteIndex + capacity - 1) % capacity;
+
+        const TraceEntry& last = traceHistory[lastIndex];
+
+        if (last.valid &&
+            last.type == TraceType::C64Read &&
+            last.value == value &&
+            last.atnHigh == busLines.atn &&
+            last.clkHigh == busLines.clk &&
+            last.dataHigh == busLines.data)
+        {
+            return;
+        }
+    }
+
+    recordTrace(TraceType::C64Read, cpuCycle, pc, -1, value);
+}
+
+void IECBUS::recordC64Output(uint64_t cpuCycle, uint16_t pc, uint8_t value)
+{
+    if (traceCount > 0)
+    {
+        const size_t capacity = traceHistory.size();
+        const size_t lastIndex = (traceWriteIndex + capacity - 1) % capacity;
+        const TraceEntry& last = traceHistory[lastIndex];
+
+        if (last.valid &&
+            last.type == TraceType::C64Output &&
+            last.value == value &&
+            last.atnHigh == busLines.atn &&
+            last.clkHigh == busLines.clk &&
+            last.dataHigh == busLines.data)
+        {
+            return;
+        }
+    }
+
+    recordTrace(TraceType::C64Output, cpuCycle, pc, -1, value);
+}
+
+void IECBUS::clearTraceHistory()
+{
+    for (auto& e : traceHistory)
+        e = TraceEntry{};
+
+    traceWriteIndex = 0;
+    traceCount = 0;
 }

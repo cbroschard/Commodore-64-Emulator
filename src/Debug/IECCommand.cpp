@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <iomanip>
 #include "Debug/IECCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
@@ -63,6 +64,8 @@ Subcommands:
   devices       List attached IEC devices, e.g. #8 #9 #10
 
   device <n>    Show detailed info for device number <n> (if attached)
+
+    history       Show the most recent IEC timing events
 )";
 }
 
@@ -195,6 +198,96 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         std::cout << "\n";
 
         return; // 'device' doesn’t show the global sections
+    }
+
+    if (sub == "history")
+    {
+        const auto& history = iecBus->getTraceHistory();
+        const size_t count = iecBus->getTraceCount();
+        const size_t writeIndex = iecBus->getTraceWriteIndex();
+
+        std::cout << "IEC history (" << count << " events):\n";
+
+        if (count == 0)
+        {
+            std::cout << "  No events recorded.\n";
+            return;
+        }
+
+        const size_t capacity = history.size();
+
+        const size_t start =
+            (writeIndex + capacity - count) % capacity;
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            const auto& e = history[(start + i) % capacity];
+
+            if (!e.valid)
+                continue;
+
+            const char* type = "?";
+
+            switch (e.type)
+            {
+                case IECBUS::TraceType::C64Read:
+                    type = "C64 READ";
+                    break;
+
+                case IECBUS::TraceType::C64Output:
+                    type = "C64 OUT";
+                    break;
+
+                case IECBUS::TraceType::PeripheralClk:
+                    type = "DRV CLK";
+                    break;
+
+                case IECBUS::TraceType::PeripheralData:
+                    type = "DRV DATA";
+                    break;
+
+                case IECBUS::TraceType::BusChange:
+                    type = "BUS";
+                    break;
+            }
+
+            std::cout
+                << "  " << type
+                << " cyc=" << std::dec << e.cpuCycle
+                << " PC=$"
+                << std::hex << std::uppercase
+                << std::setw(4) << std::setfill('0')
+                << e.pc
+                << std::dec
+                << std::setfill(' ');
+
+            if (e.deviceNumber >= 0)
+            {
+                std::cout
+                    << " dev="
+                    << e.deviceNumber;
+            }
+
+            std::cout
+                << " ATN=" << (e.atnHigh ? 'H' : 'L')
+                << " CLK=" << (e.clkHigh ? 'H' : 'L')
+                << " DATA=" << (e.dataHigh ? 'H' : 'L');
+
+            if (e.type == IECBUS::TraceType::C64Read)
+            {
+                std::cout
+                    << " DD00=$"
+                    << std::hex << std::uppercase
+                    << std::setw(2) << std::setfill('0')
+                    << static_cast<unsigned>(e.value)
+                    << std::dec
+                    << std::setfill(' ');
+            }
+
+            std::cout << "\n";
+        }
+
+        return;
     }
 
     // Do we want the full view?

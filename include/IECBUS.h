@@ -8,16 +8,17 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-// Forward declarations
-class CIA2;
-
+#include <array>
 #include <cstdint>
-#include <vector>
 #include <map>
+#include <string>
+#include <vector>
 #include "IECTypes.h"
 #include "Peripheral.h"
 #include "StateReader.h"
 #include "StateWriter.h"
+
+class CIA2;
 
 class IECBUS
 {
@@ -27,6 +28,33 @@ class IECBUS
 
         // State of IEC bus
         enum class State {IDLE, ATTENTION, TALK, LISTEN, UNLISTEN, UNTALK} currentState;
+
+        enum class TraceType
+        {
+            C64Read,
+            C64Output,
+            PeripheralClk,
+            PeripheralData,
+            BusChange
+        };
+
+        struct TraceEntry
+        {
+            bool valid = false;
+
+            TraceType type = TraceType::BusChange;
+
+            uint64_t cpuCycle = 0;
+            uint16_t pc = 0;
+
+            int deviceNumber = -1;
+
+            bool atnHigh = true;
+            bool clkHigh = true;
+            bool dataHigh = true;
+
+            uint8_t value = 0;
+        };
 
         struct PhysicalSnapshot
         {
@@ -124,14 +152,20 @@ class IECBUS
         Peripheral* getDevice(int id) const;
         std::string debugPhysicalSnapshotString() const;
 
+        // Loggin
+        inline const std::array<TraceEntry, 64>& getTraceHistory() const { return traceHistory; }
+        inline size_t getTraceWriteIndex() const { return traceWriteIndex; }
+        inline size_t getTraceCount() const { return traceCount; }
+
+        void recordC64Read(uint64_t cpuCycle, uint16_t pc, uint8_t value);
+        void recordC64Output(uint64_t cpuCycle, uint16_t pc, uint8_t value);
+        void clearTraceHistory();
+
         // Compatibility helpers
         inline void setRomControlledIEC(bool enabled) { romControlledIEC = enabled; }
         inline bool isRomControlledIEC() const { return romControlledIEC; }
 
-    protected:
-
     private:
-
         // Non-owning pointers
         CIA2* cia2;
         Peripheral* currentTalker;
@@ -166,6 +200,12 @@ class IECBUS
         std::map<int, Peripheral*> devices;
         std::vector<Peripheral*> currentListeners;
 
+        // Logging
+        std::array<TraceEntry, 64> traceHistory{};
+
+        size_t traceWriteIndex;
+        size_t traceCount;
+
         // Helper Methods
         void updateBusState();
         void updateSrqLine();  // Polls peripherals for SRQ status
@@ -173,6 +213,8 @@ class IECBUS
 
         // Debug
         void debugDumpDevices(const char* tag);
+        void recordTrace(TraceType type, uint64_t cpuCycle, uint16_t pc, int deviceNumber, uint8_t value);
+
 };
 
 #endif // IECBUS_H

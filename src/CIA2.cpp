@@ -172,14 +172,31 @@ uint8_t CIA2::readPortA()
 {
     uint8_t result = getPortAOutput();
 
-    // Always sample IEC input wires for PA6/PA7 (BIT $DD00 polls these)
     if (iecBus)
     {
-        const bool clkHigh  = iecBus->readClkLine();   // true = wire high (released)
-        const bool dataHigh = iecBus->readDataLine();  // true = wire high (released)
+        const bool clkHigh  = iecBus->readClkLine();
+        const bool dataHigh = iecBus->readDataLine();
 
-        if (clkHigh)  result |= MASK_CLK_IN;  else result &= ~MASK_CLK_IN;
-        if (dataHigh) result |= MASK_DATA_IN; else result &= ~MASK_DATA_IN;
+        if (clkHigh)
+            result |= MASK_CLK_IN;
+        else
+            result &= ~MASK_CLK_IN;
+
+        if (dataHigh)
+            result |= MASK_DATA_IN;
+        else
+            result &= ~MASK_DATA_IN;
+
+        CPU* cpu = getCPU();
+
+        if (cpu)
+        {
+            const uint16_t pc = cpu->getPC();
+
+            // Only record reads from the KERNAL serial receive loop.
+            if (pc >= 0xEE5A && pc <= 0xEE74)
+                iecBus->recordC64Read(cpu->getTotalCycles(), pc, result);
+        }
     }
 
     return result;
@@ -719,6 +736,9 @@ void CIA2::recomputeIEC()
     const bool atnReleased  = released(MASK_ATN_OUT);
     const bool clkReleased  = released(MASK_CLK_OUT);
     const bool dataReleased = released(MASK_DATA_OUT);
+
+    if (CPU* cpu = getCPU())
+        iecBus->recordC64Output(cpu->getTotalCycles(), cpu->getPC(), getPortALatch());
 
     iecBus->setC64IECOutputs(atnReleased, clkReleased, dataReleased);
 
