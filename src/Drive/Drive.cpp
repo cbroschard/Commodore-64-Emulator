@@ -22,7 +22,9 @@ Drive::Drive() :
     ackHold(false),
     byteAckHold(false),
     ackDelay(0),
-    lastClkHigh(true)
+    lastClkHigh(true),
+    breakpointHit(false),
+    breakpointHitAddress(0)
 {
 
 }
@@ -183,4 +185,42 @@ Drive::IECSnapshot Drive::snapshotIEC() const
     s.talkQueueLen = talkQueue.size();
 
     return s;
+}
+
+void Drive::addBreakpoint(uint16_t address)
+{
+    breakpoints.insert(address);
+}
+
+void Drive::removeBreakpoint(uint16_t address)
+{
+    breakpoints.erase(address);
+}
+
+void Drive::clearBreakpoints()
+{
+    breakpoints.clear();
+}
+
+bool Drive::hasBreakpoint(uint16_t address) const
+{
+    return breakpoints.find(address) != breakpoints.end();
+}
+
+bool Drive::checkBreakpoint()
+{
+    CPU* cpu = getDriveCPU();
+
+    if (!cpu)
+        return false;
+
+    const uint16_t pc = cpu->getPC();
+
+    if (!hasBreakpoint(pc))
+        return false;
+
+    breakpointHit = true;
+    breakpointHitAddress = pc;
+
+    return true;
 }
