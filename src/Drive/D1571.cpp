@@ -288,11 +288,7 @@ void D1571::tick(uint32_t cycles)
         for (uint32_t i = 0; i < cpuTicks; ++i)
         {
             driveCPU.tick();
-
-            // Your CPU::tick() advances exactly one CPU cycle per call.
-            // So tick the drive-local chips once per drive CPU PHI2 cycle.
             d1571mem.tick(1);
-
             updateIRQ();
         }
 
@@ -335,6 +331,7 @@ bool D1571::gcrTick()
     }
 
     if (gcrTrackStream.empty()) return false;
+
     if (gcrSync.size() != gcrTrackStream.size())
         gcrSync.assign(gcrTrackStream.size(), 0);
 
@@ -356,13 +353,12 @@ bool D1571::gcrTick()
     bool syncHigh = (gcrSync[pos] != 0);
 
     if (gcrSectorAtPos.size() == gcrTrackStream.size())
-    {
         currentSector = gcrSectorAtPos[pos];
-    }
 
     gcrPos = (gcrPos + 1) % gcrTrackStream.size();
 
     d1571mem.getVIA2().diskByteFromMedia(gcrByte, syncHigh);
+
     return true;
 }
 
@@ -517,12 +513,6 @@ void D1571::setHeadSide(bool side1)
 
         currentSide = newSide;
 
-        // Changing sides changes the disk surface under the head,
-        // but NOT the physical cylinder and NOT the rotational position.
-        //
-        // Do not reset gcrPos here.
-        // gcrTick() will save oldPos, rebuild the track, then remap oldPos
-        // onto the new side's GCR stream.
         gcrTrackStream.clear();
         gcrSync.clear();
         gcrSectorAtPos.clear();
@@ -544,14 +534,6 @@ void D1571::setBurstClock2MHz(bool enable)
         return;
 
     twoMHzMode = enable;
-
-#ifdef Debug
-    std::cout << "[D1571] PHI2 clock select -> "
-              << (twoMHzMode ? "2MHz" : "1MHz")
-              << " track=" << int(currentTrack)
-              << " side=" << int(currentSide)
-              << "\n";
-#endif
 }
 
 bool D1571::getByteReadyLow() const
@@ -720,6 +702,7 @@ void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
     };
 
     uint64_t bits = 0;
+
     for (int i = 0; i < 8; i++)
         bits = (bits << 5) | (GCR5[n[i]] & 0x1F);
 
@@ -845,8 +828,6 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     int step = 0;
 
-    // 4-phase stepper sequence.
-    // Test polarity may need swapping depending on your VIA wiring.
     if (((oldPhase + 1) & 0x03) == newPhase)
         step = +1;
     else if (((oldPhase + 3) & 0x03) == newPhase)
@@ -854,26 +835,10 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
     else
         return; // ignore illegal two-phase jump
 
-#ifdef Debug
-    std::cout << "[D1571:STEP] phase "
-              << int(oldPhase) << " -> " << int(newPhase)
-              << " step=" << step
-              << " halfTrackBefore=" << halfTrackPos
-              << " trackBefore0=" << int(currentTrack)
-              << "\n";
-#endif
-
     saveCurrentRawTrackToCache();
 
     halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);
     currentTrack = uint8_t(halfTrackPos / 2);
-
-#ifdef Debug
-    std::cout << "[D1571:STEP] halfTrackAfter=" << halfTrackPos
-              << " trackAfter0=" << int(currentTrack)
-              << " track1=" << int(currentTrack + 1)
-              << "\n";
-#endif
 
     uiTrack = currentTrack;
     uiSector = currentSector;
@@ -923,6 +888,7 @@ void D1571::loadDisk(const std::string& path)
     const std::string ext = lowerExt(path);
 
     MediaPath newMediaPath;
+
     if (ext == ".d71")
         newMediaPath = MediaPath::GCR_D71;
     else if (ext == ".d64" || ext == ".g64")
@@ -930,20 +896,9 @@ void D1571::loadDisk(const std::string& path)
     else
         newMediaPath = MediaPath::FDC_MFM;
 
-    // Important: set mediaPath before resetForMediaChange(), because
-    // cache indexing and side behavior depend on mediaPath.
     mediaPath = newMediaPath;
 
     resetForMediaChange();
-
-    #ifdef Debug
-    std::cout << "[D1571:LOAD] path=" << path
-              << " mediaPath="
-              << (mediaPath == MediaPath::GCR_D71 ? "GCR_D71" :
-                  mediaPath == MediaPath::GCR_D64 ? "GCR_D64" :
-                  "FDC_MFM")
-              << "\n";
-    #endif
 
     diskImage      = std::move(img);
     diskLoaded     = true;
@@ -1052,9 +1007,7 @@ void D1571::atnChanged(bool atnLow)
     // If ATN just asserted (bus high->low), this is the start of a new command
     // phase. Resync the serial shift register so we don't carry partial bytes.
     if (!prev && atnLineLow)
-    {
         via1.resetShift();
-    }
 
     // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
     bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low
@@ -1109,11 +1062,6 @@ void D1571::onListen()
     expectingSecAddr  = true;    // first byte after LISTEN is secondary address
     expectingDataByte = false;
     currentSecondaryAddress = 0xFF;  // "none" / invalid
-
-    #ifdef Debug
-    std::cout << "[D1571] onListen() device=" << int(deviceNumber)
-              << " listening=1 talking=0\n";
-    #endif
 }
 
 void D1571::onUnListen()
@@ -1130,10 +1078,6 @@ void D1571::onUnListen()
     peripheralAssertData(false);
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
-
-    #ifdef Debug
-    std::cout << "[D1571] onUnListen() device=" << int(deviceNumber) << "\n";
-    #endif // Debug
 }
 
 void D1571::onTalk()
@@ -1154,11 +1098,6 @@ void D1571::onTalk()
     currentSecondaryAddress = 0xFF;
 
     peripheralAssertClk(false);
-
-    #ifdef Debug
-    std::cout << "[D1571] onTalk() device=" << int(deviceNumber)
-              << " talking=1 listening=0\n";
-    #endif
 }
 
 void D1571::onUnTalk()
@@ -1175,10 +1114,6 @@ void D1571::onUnTalk()
     peripheralAssertData(false);
     peripheralAssertClk(false);
     peripheralAssertSrq(false);
-
-    #ifdef Debug
-    std::cout << "[D1571] onUnTalk() device=" << int(deviceNumber) << "\n";
-    #endif
 }
 
 void D1571::onSecondaryAddress(uint8_t sa)
@@ -1188,19 +1123,6 @@ void D1571::onSecondaryAddress(uint8_t sa)
     // We’ve now consumed the secondary address; next bytes are data/commands
     expectingSecAddr  = false;
     expectingDataByte = true;
-
-    #ifdef Debug
-    const char* meaning = "";
-    if (sa == 0)
-        meaning = " (LOAD channel)";
-    else if (sa == 1)
-        meaning = " (SAVE channel)";
-    else if (sa == 15)
-        meaning = " (COMMAND channel)";
-
-    std::cout << "[D1571] onSecondaryAddress() device=" << int(deviceNumber)
-              << " sa=" << int(sa) << meaning << "\n";
-    #endif
 }
 
 void D1571::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
@@ -1265,18 +1187,6 @@ void D1571::setDiskWriteGate(bool enabled)
         return;
 
     diskWriteGate = enabled;
-
-#ifdef Debug
-    std::cout << "[D1571:WRITE-GATE] "
-              << (enabled ? "ON" : "OFF")
-              << " PC=$"
-              << std::hex << std::uppercase << driveCPU.getPC()
-              << std::dec
-              << " pos=" << gcrPos
-              << " T" << int(currentTrack + 1)
-              << " S" << int(currentSector)
-              << "\n";
-#endif
 
     if (!enabled)
     {
@@ -1508,22 +1418,10 @@ void D1571::flushCurrentRawTrackToImage()
         }
 
         if (diskImage->writeSector(imageTrack1based, static_cast<uint8_t>(sector), sectorBytes))
-        {
             ++written;
-        }
         else
-        {
             ++failed;
-        }
     }
-
-    #ifdef Debug
-    std::cout << "[D1571:FLUSH-TRACK] T"
-              << int(imageTrack1based)
-              << " written=" << written
-              << " failed=" << failed
-              << "\n";
-    #endif
 
     rawGcrTrackDirty[cacheTrack] = false;
 }
@@ -1617,13 +1515,6 @@ void D1571::flushAndSaveDisk()
 
     if (diskImage && !loadedDiskName.empty())
     {
-#ifdef Debug
-        std::cout << "[D1571:SAVE-DISK] saving "
-                  << loadedDiskName
-                  << " dirty=" << (diskImage->isDirty() ? 1 : 0)
-                  << "\n";
-#endif
-
         diskImage->saveDisk(loadedDiskName);
         diskImage->clearDirty();
     }
