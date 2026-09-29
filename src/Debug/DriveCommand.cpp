@@ -65,10 +65,10 @@ Subcommands:
   drive <id> step                   Step/tick the drive CPU once
 
 Breakpoints:
-  drive <id> break <addr>           Add a drive CPU breakpoint
-  drive <id> breaks                 List drive CPU breakpoints
-  drive <id> clearbreak <addr>      Remove a drive CPU breakpoint
-  drive <id> clearbreak all         Remove all drive CPU breakpoints
+  drive <id> bp <addr>              Add a drive CPU breakpoint
+  drive <id> bp list                List drive CPU breakpoints
+  drive <id> clearbbp <addr>        Remove a drive CPU breakpoint
+  drive <id> clearbp all            Remove all drive CPU breakpoints
 
 Help:
   drive <id> help                   Show this help text
@@ -84,10 +84,10 @@ Examples:
   drive 8 via1
   drive 8 state
   drive 8 step
-  drive 8 break $80CE
-  drive 8 breaks
-  drive 8 clearbreak $80CE
-  drive 8 clearbreak all
+  drive 8 bp $80CE
+  drive 8 bp list
+  drive 8 clearbp $80CE
+  drive 8 clearbp all
 )";
 }
 
@@ -154,14 +154,24 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    if (subcmd == "break")
+    if (subcmd == "bp")
     {
         if (args.size() < 4)
         {
-            std::cout << "Usage: drive " << id << " break <address>\n";
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " bp <address>\n";
+            std::cout << "  drive " << id << " bp list\n";
             return;
         }
 
+        // drive 8 bp list
+        if (args[3] == "list")
+        {
+            backend->dumpDriveBreakpoints(id);
+            return;
+        }
+
+        // drive 8 bp <address>
         try
         {
             const uint16_t address = parseAddress(args[3]);
@@ -176,27 +186,23 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         return;
     }
 
-    if (subcmd == "breaks")
-    {
-        backend->dumpDriveBreakpoints(id);
-        return;
-    }
-
-    if (subcmd == "clearbreak")
+    if (subcmd == "clearbp")
     {
         if (args.size() < 4)
         {
             std::cout << "Usage: drive " << id
-                      << " clearbreak <address|all>\n";
+                      << " clearbp <address|all>\n";
             return;
         }
 
+        // drive 8 clearbp all
         if (args[3] == "all")
         {
             backend->clearDriveBreakpoints(id);
             return;
         }
 
+        // drive 8 clearbp <address>
         try
         {
             const uint16_t address = parseAddress(args[3]);
