@@ -282,6 +282,9 @@ void D1571::tick(uint32_t cycles)
 {
     while (cycles > 0)
     {
+        if (checkBreakpoint())
+            return;
+
         // One host/world cycle.
         const uint32_t cpuTicks = twoMHzMode ? 2u : 1u;
 

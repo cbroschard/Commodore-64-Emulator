@@ -696,6 +696,19 @@ void IECBUS::debugDumpDevices(const char* tag)
     }
 }
 
+Drive* IECBUS::getDriveWithBreakpointHit() const
+{
+    for (const auto& [num, dev] : devices)
+    {
+        auto* drive = dynamic_cast<Drive*>(dev);
+
+        if (drive && drive->isBreakpointHit())
+            return drive;
+    }
+
+    return nullptr;
+}
+
 void IECBUS::recalcAndNotify()
 {
     const bool oldAtn  = busLines.atn;

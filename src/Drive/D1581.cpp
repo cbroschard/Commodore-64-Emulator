@@ -287,6 +287,9 @@ void D1581::tick(uint32_t cycles)
 {
     while (cycles-- > 0)
     {
+        if (checkBreakpoint())
+            return;
+
         // CPU::tick() is already one external CPU cycle.
         driveCPU.tick();
 

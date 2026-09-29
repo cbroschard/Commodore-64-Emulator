@@ -3747,6 +3747,124 @@ void MLMonitorBackend::dumpDriveFDC(int id)
     std::cout << oss.str();
 }
 
+void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = iecBus->getDevice(id);
+
+    if (!dev || !dev->isDrive())
+    {
+        std::cout << "No drive with ID " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    drive->addBreakpoint(address);
+
+    std::cout << "Drive " << id
+              << " breakpoint added at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << "\n";
+}
+
+void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = iecBus->getDevice(id);
+
+    if (!dev || !dev->isDrive())
+    {
+        std::cout << "No drive with ID " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    drive->removeBreakpoint(address);
+
+    std::cout << "Drive " << id
+              << " breakpoint removed at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << "\n";
+}
+
+void MLMonitorBackend::clearDriveBreakpoints(int id)
+{
+    if (!iecBus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = iecBus->getDevice(id);
+
+    if (!dev || !dev->isDrive())
+    {
+        std::cout << "No drive with ID " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    drive->clearBreakpoints();
+    drive->clearBreakpointHit();
+
+    std::cout << "Drive " << id << " breakpoints cleared.\n";
+}
+
+void MLMonitorBackend::dumpDriveBreakpoints(int id)
+{
+    if (!iecBus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = iecBus->getDevice(id);
+
+    if (!dev || !dev->isDrive())
+    {
+        std::cout << "No drive with ID " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    const auto& breakpoints = drive->getBreakpoints();
+
+    if (breakpoints.empty())
+    {
+        std::cout << "Drive " << id << " has no breakpoints.\n";
+        return;
+    }
+
+    std::cout << "Drive " << id << " breakpoints:\n";
+
+    for (uint16_t address : breakpoints)
+    {
+        std::cout << "  $"
+                  << std::hex << std::uppercase
+                  << std::setw(4) << std::setfill('0')
+                  << address
+                  << std::dec << "\n";
+    }
+}
+
 void MLMonitorBackend::setExecutionHistoryEnabled(bool enabled)
 {
     if (executionHistory == nullptr)

@@ -546,6 +546,28 @@ void Computer::tickCycle()
 
     components_.iecBus->tick(1);
 
+    if (Drive* drive = components_.iecBus->getDriveWithBreakpointHit())
+    {
+        runtime_.uiPaused = true;
+
+        if (components_.debug)
+        {
+            std::ostringstream oss;
+
+            oss << "Drive "
+                << drive->getDeviceNumber()
+                << " breakpoint hit at $"
+                << std::hex << std::uppercase
+                << std::setw(4) << std::setfill('0')
+                << drive->getBreakpointHitAddress();
+
+            components_.debug->monitor().queueAsyncLine(oss.str());
+            components_.debug->openMonitor();
+        }
+
+        return;
+    }
+
     if (auto* mapper = components_.cart->getMapper())
         mapper->tick(1);
 

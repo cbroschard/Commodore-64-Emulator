@@ -302,6 +302,9 @@ void D1541::tick(uint32_t cycles)
 
     while (remaining > 0)
     {
+        if (checkBreakpoint())
+            return;
+
         driveCPU.tick();
         uint32_t dc = driveCPU.getElapsedCycles();
         if (dc == 0) dc = 1;

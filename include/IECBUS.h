@@ -151,8 +151,9 @@ class IECBUS
         inline const std::map<int, Peripheral*>& getDevices() const { return devices; }
         Peripheral* getDevice(int id) const;
         std::string debugPhysicalSnapshotString() const;
+        Drive* getDriveWithBreakpointHit() const;
 
-        // Loggin
+        // Logging
         inline const std::array<TraceEntry, 64>& getTraceHistory() const { return traceHistory; }
         inline size_t getTraceWriteIndex() const { return traceWriteIndex; }
         inline size_t getTraceCount() const { return traceCount; }
