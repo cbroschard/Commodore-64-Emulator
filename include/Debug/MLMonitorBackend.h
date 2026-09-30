@@ -134,11 +134,19 @@ class MLMonitorBackend
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count);
         void dumpDriveVIA1(int id);
         void dumpDriveVIA2(int id);
+
         void addDriveBreakpoint(int id, uint16_t address);
         void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value);
         void removeDriveBreakpoint(int id, uint16_t address);
         void clearDriveBreakpoints(int id);
         void dumpDriveBreakpoints(int id);
+
+        void addDriveReadWatchpoint(int id, uint16_t address);
+        void addDriveWriteWatchpoint(int id, uint16_t address);
+        void removeDriveReadWatchpoint(int id, uint16_t address);
+        void removeDriveWriteWatchpoint(int id, uint16_t address);
+        void clearDriveWatchpoints(int id);
+        void dumpDriveWatchpoints(int id);
 
         // ML Monitor Execution History
         inline bool hasExecutionHistory() const { return executionHistory != nullptr; }

@@ -73,6 +73,14 @@ Breakpoints:
   drive <id> clearbp <addr>               Remove breakpoint(s) at address
   drive <id> clearbp all                  Remove all drive CPU breakpoints
 
+Watchpoints:
+  drive <id> watch read <addr>          Break on drive memory read
+  drive <id> watch write <addr>         Break on drive memory write
+  drive <id> watch list                 List drive watchpoints
+  drive <id> clearwatch read <addr>     Remove read watchpoint
+  drive <id> clearwatch write <addr>    Remove write watchpoint
+  drive <id> clearwatch all             Remove all drive watchpoints
+
 Help:
   drive <id> help                   Show this help text
 
@@ -91,6 +99,10 @@ Examples:
   drive 8 bp list
   drive 8 clearbp $80CE
   drive 8 clearbp all
+  drive 8 watch read $1C01
+  drive 8 watch write $1800
+  drive 8 watch list
+  drive 8 clearwatch all
 )";
 }
 
@@ -259,6 +271,117 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         catch (const std::exception& e)
         {
             std::cout << "Invalid breakpoint address: "
+                      << e.what() << "\n";
+        }
+
+        return;
+    }
+
+    if (subcmd == "watch")
+    {
+        if (args.size() < 4)
+        {
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " watch read <address>\n";
+            std::cout << "  drive " << id << " watch write <address>\n";
+            std::cout << "  drive " << id << " watch list\n";
+            return;
+        }
+
+        if (args[3] == "list")
+        {
+            backend->dumpDriveWatchpoints(id);
+            return;
+        }
+
+        if (args.size() != 5)
+        {
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " watch read <address>\n";
+            std::cout << "  drive " << id << " watch write <address>\n";
+            return;
+        }
+
+        const std::string& type = args[3];
+
+        try
+        {
+            const uint16_t address = parseAddress(args[4]);
+
+            if (type == "read")
+            {
+                backend->addDriveReadWatchpoint(id, address);
+            }
+            else if (type == "write")
+            {
+                backend->addDriveWriteWatchpoint(id, address);
+            }
+            else
+            {
+                std::cout << "Invalid watchpoint type: "
+                          << type << "\n";
+                std::cout << "Supported types: read, write\n";
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Invalid watchpoint address: "
+                      << e.what() << "\n";
+        }
+
+        return;
+    }
+
+    if (subcmd == "clearwatch")
+    {
+        if (args.size() < 4)
+        {
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id
+                      << " clearwatch <read|write> <address>\n";
+            std::cout << "  drive " << id
+                      << " clearwatch all\n";
+            return;
+        }
+
+        if (args[3] == "all")
+        {
+            backend->clearDriveWatchpoints(id);
+            return;
+        }
+
+        if (args.size() != 5)
+        {
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id
+                      << " clearwatch <read|write> <address>\n";
+            return;
+        }
+
+        const std::string& type = args[3];
+
+        try
+        {
+            const uint16_t address = parseAddress(args[4]);
+
+            if (type == "read")
+            {
+                backend->removeDriveReadWatchpoint(id, address);
+            }
+            else if (type == "write")
+            {
+                backend->removeDriveWriteWatchpoint(id, address);
+            }
+            else
+            {
+                std::cout << "Invalid watchpoint type: "
+                          << type << "\n";
+                std::cout << "Supported types: read, write\n";
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Invalid watchpoint address: "
                       << e.what() << "\n";
         }
 

@@ -152,6 +152,7 @@ class IECBUS
         Peripheral* getDevice(int id) const;
         std::string debugPhysicalSnapshotString() const;
         Drive* getDriveWithBreakpointHit() const;
+        Drive* getDriveWithWatchpointHit();
 
         // Logging
         inline const std::array<TraceEntry, 64>& getTraceHistory() const { return traceHistory; }

@@ -186,10 +186,11 @@ class Drive : public Peripheral
         inline uint16_t getWatchpointHitAddress() const { return watchpointHitAddress; }
         inline DriveWatchpoint::Type getWatchpointHitType() const { return watchpointHitType; }
         inline uint8_t getWatchpointHitValue() const { return watchpointHitValue; }
-        inline void clearWatchpointHit() { watchpointHit = false; }
+        inline const std::vector<DriveWatchpoint>& getWatchpoints() const { return watchpoints; }
 
         void addWatchpoint(DriveWatchpoint::Type type, uint16_t address);
         void removeWatchpoint(DriveWatchpoint::Type type, uint16_t address);
+        void clearWatchpointHit();
         void clearWatchpoints();
         bool hasWatchpoint(DriveWatchpoint::Type type,uint16_t address) const;
         void checkWatchRead(uint16_t address, uint8_t value);

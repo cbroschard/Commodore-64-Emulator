@@ -225,6 +225,31 @@ void Drive::addWatchpoint(DriveWatchpoint::Type type, uint16_t address)
     watchpoints.push_back({type, address});
 }
 
+void Drive::removeWatchpoint(DriveWatchpoint::Type type, uint16_t address)
+{
+    watchpoints.erase(std::remove_if(watchpoints.begin(), watchpoints.end(), [type, address](const DriveWatchpoint& wp)
+            { return wp.type == type && wp.address == address; }), watchpoints.end());
+}
+
+void Drive::clearWatchpointHit()
+{
+    watchpointHit = false;
+    watchpointHitAddress = 0;
+    watchpointHitType = DriveWatchpoint::Type::Read;
+    watchpointHitValue = 0x00;
+}
+
+void Drive::clearWatchpoints()
+{
+    watchpoints.clear();
+
+    // Also clear any stale hit state.
+    watchpointHit = false;
+    watchpointHitAddress = 0;
+    watchpointHitType = DriveWatchpoint::Type::Read;
+    watchpointHitValue = 0x00;
+}
+
 bool Drive::hasWatchpoint(DriveWatchpoint::Type type, uint16_t address) const
 {
     return std::any_of(watchpoints.begin(), watchpoints.end(), [type, address](const DriveWatchpoint& wp)

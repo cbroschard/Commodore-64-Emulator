@@ -568,6 +568,36 @@ void Computer::tickCycle()
         return;
     }
 
+    if (Drive* drive = components_.iecBus->getDriveWithWatchpointHit())
+    {
+        runtime_.uiPaused = true;
+
+        if (components_.debug)
+        {
+            std::ostringstream oss;
+
+            oss << "Drive "
+                << drive->getDeviceNumber()
+                << " "
+                << (drive->getWatchpointHitType() ==
+                    Drive::DriveWatchpoint::Type::Read
+                        ? "READ"
+                        : "WRITE")
+                << " watchpoint hit at $"
+                << std::hex << std::uppercase
+                << std::setw(4) << std::setfill('0')
+                << drive->getWatchpointHitAddress()
+                << " value=$"
+                << std::setw(2)
+                << static_cast<unsigned>(drive->getWatchpointHitValue());
+
+            components_.debug->monitor().queueAsyncLine(oss.str());
+            components_.debug->openMonitor();
+        }
+
+        return;
+    }
+
     if (auto* mapper = components_.cart->getMapper())
         mapper->tick(1);
 

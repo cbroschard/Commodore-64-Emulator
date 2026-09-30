@@ -3924,6 +3924,151 @@ void MLMonitorBackend::dumpDriveBreakpoints(int id)
     }
 }
 
+void MLMonitorBackend::addDriveReadWatchpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    drive->addWatchpoint(Drive::DriveWatchpoint::Type::Read, address);
+
+    std::cout << "Drive "
+              << id
+              << " READ watchpoint added at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << std::setfill(' ')
+              << "\n";
+}
+
+void MLMonitorBackend::addDriveWriteWatchpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    drive->addWatchpoint(Drive::DriveWatchpoint::Type::Write, address);
+
+    std::cout << "Drive "
+              << id
+              << " WRITE watchpoint added at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << std::setfill(' ')
+              << "\n";
+}
+
+void MLMonitorBackend::removeDriveReadWatchpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    drive->removeWatchpoint(Drive::DriveWatchpoint::Type::Read, address);
+}
+
+void MLMonitorBackend::removeDriveWriteWatchpoint(int id, uint16_t address)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    drive->removeWatchpoint(Drive::DriveWatchpoint::Type::Write, address);
+}
+
+void MLMonitorBackend::clearDriveWatchpoints(int id)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    drive->clearWatchpoints();
+
+    std::cout << "Drive " << id << " watchpoints cleared.\n";
+}
+
+void MLMonitorBackend::dumpDriveWatchpoints(int id)
+{
+    if (!iecBus)
+        return;
+
+    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = dynamic_cast<Drive*>(dev);
+
+    if (!drive)
+    {
+        std::cout << "Drive " << id << " not found.\n";
+        return;
+    }
+
+    const auto& watchpoints = drive->getWatchpoints();
+
+    if (watchpoints.empty())
+    {
+        std::cout << "Drive " << id << " has no watchpoints.\n";
+        return;
+    }
+
+    std::cout << "Drive " << id << " watchpoints:\n";
+
+    for (const auto& wp : watchpoints)
+    {
+        std::cout
+            << "  "
+            << (wp.type == Drive::DriveWatchpoint::Type::Read
+                    ? "READ "
+                    : "WRITE")
+            << " $"
+            << std::hex << std::uppercase
+            << std::setw(4) << std::setfill('0')
+            << wp.address
+            << std::dec << std::setfill(' ')
+            << "\n";
+    }
+}
+
 void MLMonitorBackend::setExecutionHistoryEnabled(bool enabled)
 {
     if (executionHistory == nullptr)

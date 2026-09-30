@@ -709,6 +709,20 @@ Drive* IECBUS::getDriveWithBreakpointHit() const
     return nullptr;
 }
 
+Drive* IECBUS::getDriveWithWatchpointHit()
+{
+    for (auto const& [num, dev] : devices)
+    {
+        (void)num;
+
+        auto* drive = dynamic_cast<Drive*>(dev);
+        if (drive && drive->isWatchpointHit())
+            return drive;
+    }
+
+    return nullptr;
+}
+
 void IECBUS::recalcAndNotify()
 {
     const bool oldAtn  = busLines.atn;
