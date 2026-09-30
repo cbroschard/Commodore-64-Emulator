@@ -462,6 +462,10 @@ void D1571::forceSyncIEC()
 
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+
+    auto& cia = d1571mem.getCIA();
+    cia.primeAtnLevel(atnLineLow);
+    cia.setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1571::setDensityCode(uint8_t code)
