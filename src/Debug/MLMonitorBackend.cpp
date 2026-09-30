@@ -3775,6 +3775,40 @@ void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address)
               << std::dec << "\n";
 }
 
+void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition,
+    uint8_t value)
+{
+    if (!iecBus)
+    {
+        std::cout << "No IEC bus attached.\n";
+        return;
+    }
+
+    Peripheral* dev = iecBus->getDevice(id);
+
+    if (!dev || !dev->isDrive())
+    {
+        std::cout << "No drive with ID " << id << ".\n";
+        return;
+    }
+
+    Drive* drive = dev->asDrive();
+
+    drive->addBreakpoint(address, condition, value);
+
+    std::cout
+        << "Drive " << id
+        << " conditional breakpoint added at $"
+        << std::hex << std::uppercase
+        << std::setw(4) << std::setfill('0')
+        << address
+        << " value=$"
+        << std::setw(2)
+        << static_cast<unsigned>(value)
+        << std::dec
+        << "\n";
+}
+
 void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address)
 {
     if (!iecBus)
@@ -3855,13 +3889,38 @@ void MLMonitorBackend::dumpDriveBreakpoints(int id)
 
     std::cout << "Drive " << id << " breakpoints:\n";
 
-    for (uint16_t address : breakpoints)
+    for (const Drive::DriveBreakpoint& bp : breakpoints)
     {
         std::cout << "  $"
                   << std::hex << std::uppercase
                   << std::setw(4) << std::setfill('0')
-                  << address
-                  << std::dec << "\n";
+                  << bp.address;
+
+        switch (bp.condition)
+        {
+            case Drive::DriveBreakpoint::Condition::None:
+                break;
+
+            case Drive::DriveBreakpoint::Condition::AEquals:
+                std::cout << " if A == $"
+                          << std::setw(2)
+                          << static_cast<unsigned>(bp.value);
+                break;
+
+            case Drive::DriveBreakpoint::Condition::XEquals:
+                std::cout << " if X == $"
+                          << std::setw(2)
+                          << static_cast<unsigned>(bp.value);
+                break;
+
+            case Drive::DriveBreakpoint::Condition::YEquals:
+                std::cout << " if Y == $"
+                          << std::setw(2)
+                          << static_cast<unsigned>(bp.value);
+                break;
+        }
+
+        std::cout << std::dec << "\n";
     }
 }
 

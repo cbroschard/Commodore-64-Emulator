@@ -5,9 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
-
-#include "Drive/Drive.h"
+#include <algorithm>
 #include <iostream>
+#include "Drive/Drive.h"
 
 Drive::Drive() :
     currentDriveError(DriveError::NONE),
@@ -189,12 +189,18 @@ Drive::IECSnapshot Drive::snapshotIEC() const
 
 void Drive::addBreakpoint(uint16_t address)
 {
-    breakpoints.insert(address);
+    breakpoints.push_back({address, DriveBreakpoint::Condition::None, 0});
+}
+
+void Drive::addBreakpoint(uint16_t address, DriveBreakpoint::Condition condition, uint8_t value)
+{
+    breakpoints.push_back({address, condition, value});
 }
 
 void Drive::removeBreakpoint(uint16_t address)
 {
-    breakpoints.erase(address);
+    breakpoints.erase(std::remove_if(breakpoints.begin(), breakpoints.end(), [address](const DriveBreakpoint& bp)
+            { return bp.address == address; }), breakpoints.end());
 }
 
 void Drive::clearBreakpoints()
@@ -204,7 +210,7 @@ void Drive::clearBreakpoints()
 
 bool Drive::hasBreakpoint(uint16_t address) const
 {
-    return breakpoints.find(address) != breakpoints.end();
+    return std::any_of(breakpoints.begin(), breakpoints.end(), [address](const DriveBreakpoint& bp) { return bp.address == address;});
 }
 
 bool Drive::checkBreakpoint()
@@ -214,13 +220,41 @@ bool Drive::checkBreakpoint()
     if (!cpu)
         return false;
 
-    const uint16_t pc = cpu->getPC();
+    const auto state = cpu->getState();
 
-    if (!hasBreakpoint(pc))
-        return false;
+    for (const DriveBreakpoint& bp : breakpoints)
+    {
+        if (bp.address != state.PC)
+            continue;
 
-    breakpointHit = true;
-    breakpointHitAddress = pc;
+        bool matched = false;
 
-    return true;
-}
+        switch (bp.condition)
+        {
+            case DriveBreakpoint::Condition::None:
+                matched = true;
+                break;
+
+            case DriveBreakpoint::Condition::AEquals:
+                matched = state.A == bp.value;
+                break;
+
+            case DriveBreakpoint::Condition::XEquals:
+                matched = state.X == bp.value;
+                break;
+
+            case DriveBreakpoint::Condition::YEquals:
+                matched = state.Y == bp.value;
+                break;
+        }
+
+        if (!matched)
+            continue;
+
+        breakpointHit = true;
+        breakpointHitAddress = state.PC;
+
+        return true;
+    }
+
+    return false;}

@@ -13,7 +13,7 @@ class FDC177x;
 
 #include <queue>
 #include <memory>
-#include <set>
+#include <vector>
 #include "Common/DriveTypes.h"
 #include "cpu.h"
 #include "Drive/DriveChips.h"
@@ -25,6 +25,22 @@ class Drive : public Peripheral
     public:
         Drive();
         virtual ~Drive();
+
+        struct DriveBreakpoint
+        {
+            uint16_t address = 0;
+
+            enum class Condition
+            {
+                None,
+                AEquals,
+                XEquals,
+                YEquals
+            };
+
+            Condition condition = Condition::None;
+            uint8_t value = 0;
+        };
 
         virtual CPUBus* getDriveBus() = 0;
         virtual const CPUBus* getDriveBus() const = 0;
@@ -141,12 +157,13 @@ class Drive : public Peripheral
 
         // ML Monitor Breakpoints
         inline bool hasBreakpoints() const { return !breakpoints.empty(); }
-        inline const std::set<uint16_t>& getBreakpoints() const { return breakpoints; }
+        inline const std::vector<DriveBreakpoint>& getBreakpoints() const { return breakpoints; }
         inline bool isBreakpointHit() const { return breakpointHit; }
         inline uint16_t getBreakpointHitAddress() const { return breakpointHitAddress; }
         inline void clearBreakpointHit()   { breakpointHit = false; }
 
         void addBreakpoint(uint16_t address);
+        void addBreakpoint(uint16_t address, DriveBreakpoint::Condition condition, uint8_t value);
         void removeBreakpoint(uint16_t address);
         void clearBreakpoints();
         bool hasBreakpoint(uint16_t address) const;
@@ -173,7 +190,7 @@ class Drive : public Peripheral
         bool checkBreakpoint();
 
     private:
-        std::set<uint16_t> breakpoints;
+        std::vector<DriveBreakpoint> breakpoints;
 
         // Serial receiver state (legacy bit-shift state)
         bool lastClkHigh;

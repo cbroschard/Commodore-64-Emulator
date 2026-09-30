@@ -65,10 +65,13 @@ Subcommands:
   drive <id> step                   Step/tick the drive CPU once
 
 Breakpoints:
-  drive <id> bp <addr>              Add a drive CPU breakpoint
-  drive <id> bp list                List drive CPU breakpoints
-  drive <id> clearbbp <addr>        Remove a drive CPU breakpoint
-  drive <id> clearbp all            Remove all drive CPU breakpoints
+  drive <id> bp <addr>                    Add a drive CPU breakpoint
+  drive <id> bp <addr> if a <value>       Break when A equals value
+  drive <id> bp <addr> if x <value>       Break when X equals value
+  drive <id> bp <addr> if y <value>       Break when Y equals value
+  drive <id> bp list                      List drive CPU breakpoints
+  drive <id> clearbp <addr>               Remove breakpoint(s) at address
+  drive <id> clearbp all                  Remove all drive CPU breakpoints
 
 Help:
   drive <id> help                   Show this help text
@@ -160,6 +163,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         {
             std::cout << "Usage:\n";
             std::cout << "  drive " << id << " bp <address>\n";
+            std::cout << "  drive " << id << " bp <address> if <a|x|y> <value>\n";
             std::cout << "  drive " << id << " bp list\n";
             return;
         }
@@ -171,16 +175,60 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
             return;
         }
 
-        // drive 8 bp <address>
         try
         {
             const uint16_t address = parseAddress(args[3]);
-            backend->addDriveBreakpoint(id, address);
+
+            // Normal breakpoint:
+            // drive 8 bp $82BA
+            if (args.size() == 4)
+            {
+                backend->addDriveBreakpoint(id, address);
+                return;
+            }
+
+            // Conditional breakpoint:
+            // drive 8 bp $82BA if a $00
+            if (args.size() == 7 && args[4] == "if")
+            {
+                const std::string& reg = args[5];
+                const uint8_t value = static_cast<uint8_t>(parseAddress(args[6]) & 0xFF);
+
+                Drive::DriveBreakpoint::Condition condition;
+
+                if (reg == "a" || reg == "A")
+                {
+                    condition = Drive::DriveBreakpoint::Condition::AEquals;
+                }
+                else if (reg == "x" || reg == "X")
+                {
+                    condition = Drive::DriveBreakpoint::Condition::XEquals;
+                }
+                else if (reg == "y" || reg == "Y")
+                {
+                    condition = Drive::DriveBreakpoint::Condition::YEquals;
+                }
+                else
+                {
+                    std::cout << "Invalid breakpoint register: " << reg << "\n";
+                    std::cout << "Supported registers: a, x, y\n";
+                    return;
+                }
+
+                backend->addDriveConditionalBreakpoint(id, address, condition, value);
+
+                return;
+            }
+
+            std::cout << "Usage:\n";
+            std::cout << "  drive " << id << " bp <address>\n";
+            std::cout << "  drive " << id
+                      << " bp <address> if <a|x|y> <value>\n";
+            std::cout << "  drive " << id << " bp list\n";
         }
         catch (const std::exception& e)
         {
-            std::cout << "Invalid breakpoint address: "
-                      << e.what() << "\n";
+            std::cout << "Invalid breakpoint: " << e.what() << "\n";
         }
 
         return;
