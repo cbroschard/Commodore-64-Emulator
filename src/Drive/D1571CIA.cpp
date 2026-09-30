@@ -31,9 +31,25 @@ void D1571CIA::reset()
 
 void D1571CIA::setIECInputs(bool atnLow, bool clkLow, bool dataLow)
 {
+    const bool oldAtnLow = iecAtnInLow;
+    const bool atnChanged = (atnLow != oldAtnLow);
+
     iecAtnInLow  = atnLow;
     iecClkInLow  = clkLow;
     iecDataInLow = dataLow;
+
+    if (atnChanged)
+    {
+        const bool falling = (!lastAtnLow &&  iecAtnInLow);
+        const bool rising  = ( lastAtnLow && !iecAtnInLow);
+
+        if (falling)
+            setFlagLine(false);
+        else if (rising)
+            setFlagLine(true);
+
+        lastAtnLow = iecAtnInLow;
+    }
 
     updateInputPins();
 }
@@ -45,7 +61,24 @@ void D1571CIA::primeAtnLevel(bool atnLow)
 
 uint8_t D1571CIA::makePortBPins() const
 {
-    return 0xFF;
+    uint8_t pins = 0x00;
+
+    static constexpr uint8_t DATA_IN = 1u << 0;
+    static constexpr uint8_t CLK_IN  = 1u << 2;
+    static constexpr uint8_t ATN_IN  = 1u << 7;
+
+    // 1571 CIA-side IEC inputs are active-high after inversion:
+    // physical IEC LOW -> CIA input HIGH.
+    if (iecDataInLow)
+        pins |= DATA_IN;
+
+    if (iecClkInLow)
+        pins |= CLK_IN;
+
+    if (iecAtnInLow)
+        pins |= ATN_IN;
+
+    return pins;
 }
 
 void D1571CIA::portAOutputChanged(uint8_t pra, uint8_t ddra)
@@ -71,7 +104,11 @@ void D1571CIA::irqLineChanged(bool active)
 void D1571CIA::updateInputPins()
 {
     setPortAPins(0xFF);
-    setPortBPins(0xFF);
+    setPortBPins(makePortBPins());
+
+    // Feed the CIA serial pins too.
+    setCNTLine(iecClkInLow);
+    setSPLine(iecDataInLow);
 }
 
 void D1571CIA::applyIECOutputs()

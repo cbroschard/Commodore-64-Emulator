@@ -38,6 +38,18 @@ class D1571CIA : public DriveCIA
         // Non-owning pointers
         Peripheral* parentPeripheral;
 
+        enum CIA_PRB : uint8_t
+        {
+            PRB_DATAIN = 1u << 0,
+            PRB_DATOUT = 1u << 1,
+            PRB_CLKIN  = 1u << 2,
+            PRB_CLKOUT = 1u << 3,
+            PRB_ATNACK = 1u << 4,
+            PRB_BUSDIR = 1u << 5,
+            PRB_WRTPRO = 1u << 6,
+            PRB_ATNIN  = 1u << 7
+        };
+
         bool iecAtnInLow = false;
         bool iecClkInLow = false;
         bool iecDataInLow = false;
