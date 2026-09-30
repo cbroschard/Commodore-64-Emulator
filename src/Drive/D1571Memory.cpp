@@ -110,38 +110,30 @@ uint8_t D1571Memory::read(uint16_t address)
     uint8_t value; // Hold for lastBus update
 
     if (address >= RAM_START && address <= RAM_END)
-    {
         value =  D1571RAM[address - RAM_START];
-    }
     else if (address >= 0x0800 && address <= 0x0FFF)
-    {
         value = D1571RAM[address & 0x07FF]; // RAM mirror
-    }
     else if (address >= ROM_START && address <= ROM_END)
-    {
         value = D1571ROM[address - ROM_START];
-    }
     else if (address >= VIA1_START && address <= VIA1_END)
-    {
         value = via1.readRegister((address - VIA1_START) & 0x000F);
-    }
     else if (address >= VIA2_START && address <= VIA2_END)
-    {
         value = via2.readRegister((address - VIA2_START) & 0x000F);
-    }
     else if (address >= CIA_START && address <= CIA_END)
-    {
         value = cia.readRegister((address - CIA_START) & 0x000F);
-    }
     else if (address >= FDC_START && address <= FDC_END)
-    {
         value = fdc.readRegister((address - FDC_START) & 0x0003);
-    }
     else
-    {
         value = lastBus;
-    }
+
     lastBus = value;
+
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1571*>(parentPeripheral);
+        drive->checkWatchRead(address, value);
+    }
+
     return value;
 }
 
@@ -150,30 +142,24 @@ void D1571Memory::write(uint16_t address, uint8_t value)
     // First update lastBus
     lastBus = value;
 
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1571*>(parentPeripheral);
+        drive->checkWatchWrite(address, value);
+    }
+
     if (address >= RAM_START && address <= RAM_END)
-    {
         D1571RAM[address - RAM_START] = value;
-    }
     else if (address >= 0x0800 && address <= 0x0FFF)
-    {
         D1571RAM[address & 0x07FF] = value; // RAM mirror
-    }
     else if (address >= VIA1_START && address <= VIA1_END)
-    {
         via1.writeRegister((address - VIA1_START) & 0x000F, value);
-    }
     else if (address >= VIA2_START && address <= VIA2_END)
-    {
         via2.writeRegister((address - VIA2_START) & 0x000F, value);
-    }
     else if (address >= CIA_START && address <= CIA_END)
-    {
         cia.writeRegister((address - CIA_START) & 0x000F, value);
-    }
     else if (address >= FDC_START && address <= FDC_END)
-    {
         fdc.writeRegister((address - FDC_START) & 0x0003, value);
-    }
 }
 
 uint8_t D1571Memory::peek(uint16_t address) const

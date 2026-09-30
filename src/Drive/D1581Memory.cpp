@@ -160,6 +160,12 @@ uint8_t D1581Memory::read(uint16_t address)
         value = D1581ROM[address - ROM_START];
     }
 
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1581*>(parentPeripheral);
+        drive->checkWatchRead(address, value);
+    }
+
     lastBus = value;
     return value;
 }
@@ -167,6 +173,12 @@ uint8_t D1581Memory::read(uint16_t address)
 void D1581Memory::write(uint16_t address, uint8_t value)
 {
     lastBus = value;
+
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1581*>(parentPeripheral);
+        drive->checkWatchWrite(address, value);
+    }
 
     if (address >= RAM_START && address <= RAM_END)
     {
@@ -182,7 +194,6 @@ void D1581Memory::write(uint16_t address, uint8_t value)
         {
             const uint16_t pcAfter = driveCPU ? driveCPU->getPC() : 0xFFFF;
             const uint16_t opPC = (pcAfter != 0xFFFF) ? static_cast<uint16_t>(pcAfter - 3) : 0xFFFF;
-
             uint16_t retTarget = 0xFFFF;
 
             if (driveCPU)

@@ -73,23 +73,36 @@ void D1541Memory::reset()
 
 uint8_t D1541Memory::read(uint16_t address)
 {
+    uint8_t value = 0xFF;
+
     if (address >= D1541_RAM_START && address <= D1541_RAM_END)
-        return D1541RAM[address - D1541_RAM_START];
+        value = D1541RAM[address - D1541_RAM_START];
     else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
-        return via1.readRegister((address - VIA1_START) & 0x0F);
+        value = via1.readRegister((address - VIA1_START) & 0x0F);
     else if (address >= VIA2_START && address <= (VIA2_START + 0x03FF))
-        return via2.readRegister((address - VIA2_START) & 0x0F);
+        value = via2.readRegister((address - VIA2_START) & 0x0F);
     else if (address >= ROM1_START && address <= ROM1_END)
-        return D1541ROM1[address - ROM1_START];
+        value = D1541ROM1[address - ROM1_START];
     else if (address >= ROM2_START && address <= ROM2_END)
-        return D1541ROM2[address - ROM2_START];
-    else
-        // default
-        return 0xFF;
+        value = D1541ROM2[address - ROM2_START];
+
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1541*>(parentPeripheral);
+        drive->checkWatchRead(address, value);
+    }
+
+    return value;
 }
 
 void D1541Memory::write(uint16_t address, uint8_t value)
 {
+    if (parentPeripheral)
+    {
+        auto* drive = static_cast<D1541*>(parentPeripheral);
+        drive->checkWatchWrite(address, value);
+    }
+
     if (address >= D1541_RAM_START && address <= D1541_RAM_END)
         D1541RAM[address - D1541_RAM_START] = value;
     else if (address >= VIA1_START && address <= (VIA1_START + 0x03FF))
