@@ -662,10 +662,12 @@ bool D1571VIA::isAtnAckClearAsserted() const
 
 void D1571VIA::updateIECOutputsFromPortB()
 {
-    if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus) return;
+    if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus)
+        return;
 
     auto* d1571 = dynamic_cast<D1571*>(parentPeripheral);
-    if (!d1571) return;
+    if (!d1571)
+        return;
 
     const uint8_t orb  = registers.orbIRB;
     const uint8_t ddrB = registers.ddrB;
@@ -673,26 +675,27 @@ void D1571VIA::updateIECOutputsFromPortB()
     bool dataLow = false;
     bool clkLow  = false;
 
+    // PB1: DATA OUT.
     if (ddrB & (1u << IEC_DATA_OUT_BIT))
-        dataLow = ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
+        dataLow = (orb & (1u << IEC_DATA_OUT_BIT)) != 0;
 
+    // PB3: CLK OUT.
     if (ddrB & (1u << IEC_CLK_OUT_BIT))
-        clkLow = ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
+        clkLow = (orb & (1u << IEC_CLK_OUT_BIT)) != 0;
 
-    const bool atnAckClearActive = isAtnAckClearAsserted();
+    // PB4: ATNA.
+    //
+    // Hardware behavior is combinational:
+    // DATA acknowledge is asserted whenever ATN and ATNA disagree.
+    //
+    // If PB4 is configured as an input, treat the undriven pin as HIGH.
+    const bool atnaHigh = (ddrB & (1u << IEC_ATN_ACK_BIT)) ? ((orb & (1u << IEC_ATN_ACK_BIT)) != 0) : true;
 
-    // LEVEL-SENSITIVE: if clear is asserted, latch cannot be set.
-    if (atnAckClearActive)
-    {
-        atnAckLatch = false;
-        atnAckArmed = false;
-    }
+    const bool atnLow = d1571->getAtnLineLow();
 
-    prevAtnAckClear = atnAckClearActive;
+    const bool atnAckDataLow = (atnaHigh != atnLow);
 
-    // DATA is LOW if either the ATN acknowledge latch is set,
-    // or the VIA is actively driving DATA low.
-    const bool finalDataLow = atnAckLatch || dataLow;
+    const bool finalDataLow = dataLow || atnAckDataLow;
 
     d1571->peripheralAssertData(finalDataLow);
     d1571->peripheralAssertClk(clkLow);
