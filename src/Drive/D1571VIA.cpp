@@ -572,30 +572,47 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
-    bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
-    bool prevClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
+    const bool prevAtnLow =
+        ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+
+    const bool prevClkLow =
+        ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
 
     uint8_t pins = portBPins;
 
-    if (dataLow) pins |= (uint8_t) (1u << IEC_DATA_IN_BIT);
-    else         pins &= (uint8_t)~(1u << IEC_DATA_IN_BIT);
+    if (dataLow)
+        pins |= static_cast<uint8_t>(1u << IEC_DATA_IN_BIT);
+    else
+        pins &= static_cast<uint8_t>(~(1u << IEC_DATA_IN_BIT));
 
-    if (clkLow)  pins |= (uint8_t) (1u << IEC_CLK_IN_BIT);
-    else         pins &= (uint8_t)~(1u << IEC_CLK_IN_BIT);
+    if (clkLow)
+        pins |= static_cast<uint8_t>(1u << IEC_CLK_IN_BIT);
+    else
+        pins &= static_cast<uint8_t>(~(1u << IEC_CLK_IN_BIT));
 
-    if (atnLow)  pins |= (uint8_t) (1u << IEC_ATN_IN_BIT);
-    else         pins &= (uint8_t)~(1u << IEC_ATN_IN_BIT);
+    if (atnLow)
+        pins |= static_cast<uint8_t>(1u << IEC_ATN_IN_BIT);
+    else
+        pins &= static_cast<uint8_t>(~(1u << IEC_ATN_IN_BIT));
 
     portBPins = pins;
 
-    bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
-    bool newClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
+    const bool newAtnLow =
+        ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+
+    const bool newClkLow =
+        ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
+
+    const bool atnFallingEdge = !prevAtnLow && newAtnLow;
+    const bool atnRisingEdge  = prevAtnLow && !newAtnLow;
+
+    const bool clkRisingEdge  = prevClkLow && !newClkLow;
+    const bool clkFallingEdge = !prevClkLow && newClkLow;
 
     if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
     {
-        const bool atnFallingEdge = !prevAtnLow && newAtnLow; // Host asserts ATN
-        const bool atnRisingEdge  = prevAtnLow && !newAtnLow; // Host releases ATN
-        const bool clkRisingEdge  = prevClkLow && !newClkLow; // Host releases CLK
+        if (clkRisingEdge || clkFallingEdge)
+            onClkEdge(clkRisingEdge, clkFallingEdge);
 
         if (atnFallingEdge)
         {
@@ -617,16 +634,17 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
             atnAckArmed = false;
         }
 
-        if (newAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
+        if (newAtnLow &&
+            clkRisingEdge &&
+            atnAckArmed &&
+            !isAtnAckClearAsserted())
         {
             atnAckLatch = true;
             atnAckArmed = false;
         }
 
         if (atnFallingEdge || atnRisingEdge || clkRisingEdge)
-        {
             updateIECOutputsFromPortB();
-        }
     }
 }
 
