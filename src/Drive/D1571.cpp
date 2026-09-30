@@ -295,12 +295,6 @@ void D1571::tick(uint32_t cycles)
             updateIRQ();
         }
 
-        // Physical/mechanical time is not doubled by 2 MHz mode.
-        Drive::tick(1);
-
-        if (atnLineLow)
-            peripheralAssertClk(false);
-
         // Disk rotation / GCR stream must stay at normal physical speed.
         if (isGCRMode() && motorOn && diskLoaded)
             gcrAdvance(1);
@@ -999,9 +993,6 @@ void D1571::atnChanged(bool atnLow)
 
     bool prev = atnLineLow;
     atnLineLow = atnLow;
-
-    // Force clk to release when Atn is asserted by the C64
-    if (atnLineLow) peripheralAssertClk(false);
 
     // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571mem.getVIA1();
