@@ -562,6 +562,9 @@ void Computer::tickCycle()
                 << drive->getBreakpointHitAddress();
 
             components_.debug->monitor().queueAsyncLine(oss.str());
+
+            drive->clearBreakpointHit();
+
             components_.debug->openMonitor();
         }
 
@@ -589,9 +592,15 @@ void Computer::tickCycle()
                 << drive->getWatchpointHitAddress()
                 << " value=$"
                 << std::setw(2)
-                << static_cast<unsigned>(drive->getWatchpointHitValue());
+                << static_cast<unsigned>(
+                       drive->getWatchpointHitValue());
 
             components_.debug->monitor().queueAsyncLine(oss.str());
+
+            // Clear this specific hit so resuming doesn't immediately
+            // reopen the monitor for the same access.
+            drive->clearWatchpointHit();
+
             components_.debug->openMonitor();
         }
 
