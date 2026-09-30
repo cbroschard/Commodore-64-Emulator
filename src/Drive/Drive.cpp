@@ -24,7 +24,11 @@ Drive::Drive() :
     ackDelay(0),
     lastClkHigh(true),
     breakpointHit(false),
-    breakpointHitAddress(0)
+    breakpointHitAddress(0),
+    watchpointHit(false),
+    watchpointHitAddress(0),
+    watchpointHitType(DriveWatchpoint::Type::Read),
+    watchpointHitValue(0x00)
 {
 
 }
@@ -211,6 +215,42 @@ void Drive::clearBreakpoints()
 bool Drive::hasBreakpoint(uint16_t address) const
 {
     return std::any_of(breakpoints.begin(), breakpoints.end(), [address](const DriveBreakpoint& bp) { return bp.address == address;});
+}
+
+void Drive::addWatchpoint(DriveWatchpoint::Type type, uint16_t address)
+{
+    if (hasWatchpoint(type, address))
+        return;
+
+    watchpoints.push_back({type, address});
+}
+
+bool Drive::hasWatchpoint(DriveWatchpoint::Type type, uint16_t address) const
+{
+    return std::any_of(watchpoints.begin(), watchpoints.end(), [type, address](const DriveWatchpoint& wp)
+        { return wp.type == type && wp.address == address; });
+}
+
+void Drive::checkWatchRead(uint16_t address, uint8_t value)
+{
+    if (!hasWatchpoint(DriveWatchpoint::Type::Read, address))
+        return;
+
+    watchpointHit = true;
+    watchpointHitAddress = address;
+    watchpointHitType = DriveWatchpoint::Type::Read;
+    watchpointHitValue = value;
+}
+
+void Drive::checkWatchWrite(uint16_t address, uint8_t value)
+{
+    if (!hasWatchpoint(DriveWatchpoint::Type::Write, address))
+        return;
+
+    watchpointHit = true;
+    watchpointHitAddress = address;
+    watchpointHitType = DriveWatchpoint::Type::Write;
+    watchpointHitValue = value;
 }
 
 bool Drive::checkBreakpoint()

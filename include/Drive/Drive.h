@@ -42,6 +42,18 @@ class Drive : public Peripheral
             uint8_t value = 0;
         };
 
+        struct DriveWatchpoint
+        {
+            enum class Type
+            {
+                Read,
+                Write
+            };
+
+            Type type = Type::Read;
+            uint16_t address = 0;
+        };
+
         virtual CPUBus* getDriveBus() = 0;
         virtual const CPUBus* getDriveBus() const = 0;
 
@@ -117,6 +129,7 @@ class Drive : public Peripheral
         virtual const DriveVIABase* getVIA1() const = 0;
         virtual const DriveVIABase* getVIA2() const = 0;
         virtual const DriveCIABase* getCIA() const { return nullptr; }
+
         struct IECSnapshot
         {
             // Observed bus levels (as seen by the drive)
@@ -168,6 +181,20 @@ class Drive : public Peripheral
         void clearBreakpoints();
         bool hasBreakpoint(uint16_t address) const;
 
+        // ML Monitor Watchpoints
+        inline bool isWatchpointHit() const { return watchpointHit; }
+        inline uint16_t getWatchpointHitAddress() const { return watchpointHitAddress; }
+        inline DriveWatchpoint::Type getWatchpointHitType() const { return watchpointHitType; }
+        inline uint8_t getWatchpointHitValue() const { return watchpointHitValue; }
+        inline void clearWatchpointHit() { watchpointHit = false; }
+
+        void addWatchpoint(DriveWatchpoint::Type type, uint16_t address);
+        void removeWatchpoint(DriveWatchpoint::Type type, uint16_t address);
+        void clearWatchpoints();
+        bool hasWatchpoint(DriveWatchpoint::Type type,uint16_t address) const;
+        void checkWatchRead(uint16_t address, uint8_t value);
+        void checkWatchWrite(uint16_t address, uint8_t value);
+
     protected:
         std::unique_ptr<Disk> diskImage;
 
@@ -191,12 +218,18 @@ class Drive : public Peripheral
 
     private:
         std::vector<DriveBreakpoint> breakpoints;
+        std::vector<DriveWatchpoint> watchpoints;
 
         // Serial receiver state (legacy bit-shift state)
         bool lastClkHigh;
 
         bool breakpointHit;
         uint16_t breakpointHitAddress;
+
+        bool watchpointHit;
+        uint16_t watchpointHitAddress;
+        DriveWatchpoint::Type watchpointHitType;
+        uint8_t watchpointHitValue;
 };
 
 #endif // DRIVE_H
