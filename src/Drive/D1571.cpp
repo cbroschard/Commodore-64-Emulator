@@ -1011,22 +1011,13 @@ void D1571::atnChanged(bool atnLow)
 
 void D1571::clkChanged(bool clkLow)
 {
-    if (clkLow == clkLineLow) return; // ignore no change
+    if (clkLow == clkLineLow)
+        return;
 
-    bool prevClkLow  = clkLineLow;
-    clkLineLow       = clkLow;
+    clkLineLow = clkLow;
 
-    bool prevClkHigh = !prevClkLow;
-    bool clkHigh     = !clkLow;
-
-    // Edge detection on the bus CLK line
-    bool rising  = (!prevClkHigh && clkHigh);    // low -> high
-    bool falling = ( prevClkHigh && !clkHigh );  // high -> low
-
-    // Normal path: just update VIA with the new CLK level
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
-    via1.onClkEdge(rising, falling);
 }
 
 void D1571::dataChanged(bool dataLow)
