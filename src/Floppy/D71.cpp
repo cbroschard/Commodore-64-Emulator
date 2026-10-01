@@ -146,92 +146,186 @@ void D71::initializeBlankImageBuffer()
     fileImageBuffer.assign(totalSectors * sectorSize(), 0x00);
 }
 
-bool D71::writeBlankBAM(const std::string& volumeName, const std::string& volumeID)
+bool D71::writeBlankBAM(const std::string& volumeName,
+                        const std::string& volumeID)
 {
+    // D71 BAM layout:
+    //
+    // Track 18 / Sector 0:
+    //   $00-$03 : BAM/header
+    //   $04-$8F : tracks 1-35
+    //             4 bytes per track:
+    //               free-sector count
+    //               3-byte bitmap
+    //
+    //   $DD-$FF : free-sector counts for tracks 36-70
+    //
+    // Track 53 / Sector 0:
+    //   $00-$68 : allocation bitmaps for tracks 36-70
+    //             3 bytes per track
+
     std::vector<uint8_t> bam0(sectorSize(), 0x00);
     std::vector<uint8_t> bam1(sectorSize(), 0x00);
 
-    auto initBamHeader = [&](std::vector<uint8_t>& bam, bool primary)
+    // ---------------------------------------------------------
+    // Primary BAM header - Track 18 / Sector 0
+    // ---------------------------------------------------------
+
+    bam0[0x00] = directoryStart.track;   // 18
+    bam0[0x01] = directoryStart.sector;  // 1
+    bam0[0x02] = 'A';
+    bam0[0x03] = 0x80;                   // Double-sided flag
+
+    // Disk name.
+    for (size_t i = 0; i < 16; ++i)
     {
-        if (primary)
-        {
-            // Track/Sector link to first directory sector.
-            bam[0] = directoryStart.track;   // 18
-            bam[1] = directoryStart.sector;  // 1
-            bam[3] = 0x80; // Double sided flag
-        }
-        else
-        {
-            // No directory chain on side 1 BAM.
-            bam[0] = 0;
-            bam[1] = 0;
-            bam[3] = 0;
-        }
+        bam0[0x90 + i] =
+            (i < volumeName.size())
+                ? static_cast<uint8_t>(
+                      std::toupper(
+                          static_cast<unsigned char>(volumeName[i])))
+                : 0xA0;
+    }
 
-        bam[2] = 'A';
+    const uint8_t id0 =
+        volumeID.size() > 0
+            ? static_cast<uint8_t>(
+                  std::toupper(
+                      static_cast<unsigned char>(volumeID[0])))
+            : static_cast<uint8_t>('0');
 
-        for (size_t i = 0; i < 16; ++i)
-            bam[0x90 + i] = i < volumeName.size() ? static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(volumeName[i]))) : 0xA0;
+    const uint8_t id1 =
+        volumeID.size() > 1
+            ? static_cast<uint8_t>(
+                  std::toupper(
+                      static_cast<unsigned char>(volumeID[1])))
+            : static_cast<uint8_t>('1');
 
-        const char id0 = volumeID.size() > 0 ? volumeID[0] : '0';
-        const char id1 = volumeID.size() > 1 ? volumeID[1] : '1';
+    bam0[0xA0] = 0xA0;
+    bam0[0xA1] = 0xA0;
 
-        bam[0xA0] = 0xA0;
-        bam[0xA1] = 0xA0;
-        bam[0xA2] = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id0)));
-        bam[0xA3] = static_cast<uint8_t>(std::toupper(static_cast<unsigned char>(id1)));
-        bam[0xA4] = 0xA0;
+    bam0[0xA2] = id0;
+    bam0[0xA3] = id1;
 
-        bam[0xA5] = '2';
-        bam[0xA6] = 'A';
-        bam[0xA7] = 0xA0;
-    };
+    bam0[0xA4] = 0xA0;
+    bam0[0xA5] = '2';
+    bam0[0xA6] = 'A';
+    bam0[0xA7] = 0xA0;
 
-    auto fillBamRange = [&](std::vector<uint8_t>& bam, uint8_t firstTrack, uint8_t lastTrack)
+    // ---------------------------------------------------------
+    // Tracks 1-35:
+    // 4 bytes per track in primary BAM.
+    // ---------------------------------------------------------
+
+    for (uint8_t track = 1; track <= 35; ++track)
     {
-        for (uint8_t track = firstTrack;
-             track <= lastTrack;
-             ++track)
+        const uint8_t spt =
+            static_cast<uint8_t>(getSectorsForTrack(track));
+
+        const size_t entry =
+            0x04 + static_cast<size_t>(track - 1) * 4;
+
+        bam0[entry + 0] = spt;
+
+        for (uint8_t sector = 0; sector < spt; ++sector)
         {
-            const uint8_t localTrack = static_cast<uint8_t>(track - firstTrack + 1);
-            const uint8_t spt = static_cast<uint8_t>(getSectorsForTrack(track));
-            const size_t entry = 4 + static_cast<size_t>(localTrack - 1) * 4;
-            bam[entry + 0] = spt;
+            const size_t bitmapByte =
+                entry + 1 + static_cast<size_t>(sector / 8);
 
-            for (uint8_t sector = 0; sector < spt; ++sector)
-                bam[entry + 1 + (sector / 8)] |= static_cast<uint8_t>(1u << (sector % 8));
+            bam0[bitmapByte] |=
+                static_cast<uint8_t>(1u << (sector % 8));
         }
-    };
+    }
 
-    auto markUsed = [&](std::vector<uint8_t>& bam, uint8_t firstTrack, uint8_t track, uint8_t sector)
+    // ---------------------------------------------------------
+    // Reserve all of track 18.
+    //
+    // Since this track contains the BAM/directory, DOS should
+    // report no free sectors on it.
+    // ---------------------------------------------------------
+
     {
-        const uint8_t localTrack = static_cast<uint8_t>(track - firstTrack + 1);
-        const size_t entry = 4 + static_cast<size_t>(localTrack - 1) * 4;
-        const size_t byteIndex = entry + 1 + (sector / 8);
-        const uint8_t bitMask = static_cast<uint8_t>(1u << (sector % 8));
+        constexpr uint8_t track = 18;
 
-        if (bam[byteIndex] & bitMask)
+        const size_t entry =
+            0x04 + static_cast<size_t>(track - 1) * 4;
+
+        bam0[entry + 0] = 0x00;
+        bam0[entry + 1] = 0x00;
+        bam0[entry + 2] = 0x00;
+        bam0[entry + 3] = 0x00;
+    }
+
+    // ---------------------------------------------------------
+    // Tracks 36-70.
+    //
+    // Free counts live in primary BAM:
+    //
+    //   Track 36 -> $DD
+    //   Track 37 -> $DE
+    //   ...
+    //   Track 70 -> $FF
+    //
+    // Allocation bitmaps live in track 53/sector 0:
+    //
+    //   Track 36 -> $00-$02
+    //   Track 37 -> $03-$05
+    //   ...
+    //   Track 70 -> $66-$68
+    // ---------------------------------------------------------
+
+    for (uint8_t track = 36; track <= 70; ++track)
+    {
+        const uint8_t spt =
+            static_cast<uint8_t>(getSectorsForTrack(track));
+
+        const size_t sideTrack =
+            static_cast<size_t>(track - 36);
+
+        const size_t countOffset =
+            0xDD + sideTrack;
+
+        const size_t bitmapOffset =
+            sideTrack * 3;
+
+        bam0[countOffset] = spt;
+
+        for (uint8_t sector = 0; sector < spt; ++sector)
         {
-            bam[byteIndex] &= static_cast<uint8_t>(~bitMask);
-            --bam[entry];
+            bam1[bitmapOffset + (sector / 8)] |=
+                static_cast<uint8_t>(1u << (sector % 8));
         }
-    };
+    }
 
-    initBamHeader(bam0, true);
-    initBamHeader(bam1, false);
+    // ---------------------------------------------------------
+    // Reserve track 53.
+    //
+    // Track 53 is physical track 18 on side 2 and contains
+    // the secondary BAM bitmap sector.
+    // ---------------------------------------------------------
 
-    fillBamRange(bam0, 1, 35);
-    fillBamRange(bam1, 36, 70);
+    {
+        constexpr uint8_t track = 53;
 
-    // Reserve the entire directory/BAM track on side 0.
-    // This matches the normal CBM DOS "664 blocks free" behavior for one side.
-    for (uint16_t sector = 0; sector < getSectorsForTrack(18); ++sector)
-        markUsed(bam0, 1, 18, static_cast<uint8_t>(sector));
+        const size_t sideTrack =
+            static_cast<size_t>(track - 36);
 
-    // Reserve the entire BAM track on side 1.
-    // This gives the second side another 664 free blocks.
-    for (uint16_t sector = 0; sector < getSectorsForTrack(53); ++sector)
-        markUsed(bam1, 36, 53, static_cast<uint8_t>(sector));
+        const size_t countOffset =
+            0xDD + sideTrack;
+
+        const size_t bitmapOffset =
+            sideTrack * 3;
+
+        bam0[countOffset] = 0x00;
+
+        bam1[bitmapOffset + 0] = 0x00;
+        bam1[bitmapOffset + 1] = 0x00;
+        bam1[bitmapOffset + 2] = 0x00;
+    }
+
+    // ---------------------------------------------------------
+    // Write both BAM sectors.
+    // ---------------------------------------------------------
 
     if (!writeSector(18, 0, bam0))
         return false;
