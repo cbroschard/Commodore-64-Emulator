@@ -32,6 +32,36 @@ bool G64::saveDisk(const std::string& filePath)
     return out.good();
 }
 
+size_t G64::getTrackCount() const
+{
+    return tracks.size();
+}
+
+bool G64::hasTrack(size_t index) const
+{
+    return index < tracks.size() && tracks[index].present;
+}
+
+const std::vector<uint8_t>& G64::getTrackData(size_t index) const
+{
+    static const std::vector<uint8_t> empty;
+
+    if (!hasTrack(index))
+        return empty;
+
+    return tracks[index].data;
+}
+
+const std::vector<uint8_t>& G64::getTrackSpeedZones(size_t index) const
+{
+    static const std::vector<uint8_t> empty;
+
+    if (!hasTrack(index))
+        return empty;
+
+    return tracks[index].speedZones;
+}
+
 const std::vector<uint8_t>& G64::getRawImage() const
 {
     return fileImageBuffer;
