@@ -586,21 +586,6 @@ void D1571::rebuildGCRTrackStream()
     uint8_t id1 = bam[0xA2];
     uint8_t id2 = bam[0xA3];
 
-    if (mediaPath == MediaPath::GCR_D71 && currentSide)
-    {
-        std::vector<uint8_t> bam2 = diskImage->readSector(53, 0);
-        if (bam2.size() < 256)
-            bam2.resize(256, 0x00);
-
-        // Use side-2 BAM ID when building side-2 GCR tracks.
-        // Fall back to side-1 ID if side-2 ID is blank.
-        if (bam2[0xA2] != 0x00 && bam2[0xA3] != 0x00)
-        {
-            id1 = bam2[0xA2];
-            id2 = bam2[0xA3];
-        }
-   }
-
     auto pushN = [&](uint8_t v, int count, bool isSync, uint8_t sectorTag)
     {
         gcrTrackStream.insert(gcrTrackStream.end(), count, v);
@@ -690,7 +675,6 @@ void D1571::rebuildGCRTrackStream()
         gcrPos = 0;
 
     d1571mem.getVIA2().clearMechBytePending();
-    saveCurrentRawTrackToCache();
 }
 
 void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
@@ -1516,17 +1500,20 @@ void D1571::saveCurrentRawTrackToCache()
     if (t >= rawGcrTrackCache.size())
         return;
 
+    if (!trackModifiedByWrite)
+        return;
+
+    if (gcrTrackStream.empty())
+        return;
+
     rawGcrTrackCache[t]  = gcrTrackStream;
     rawGcrSyncCache[t]   = gcrSync;
     rawGcrSectorCache[t] = gcrSectorAtPos;
 
-    rawGcrTrackValid[t] = !gcrTrackStream.empty();
+    rawGcrTrackValid[t] = true;
+    rawGcrTrackDirty[t] = true;
 
-    if (trackModifiedByWrite)
-    {
-        rawGcrTrackDirty[t] = true;
-        trackModifiedByWrite = false;
-    }
+    trackModifiedByWrite = false;
 }
 
 uint8_t D1571::currentTrackOnSide1Based() const

@@ -279,10 +279,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x0A: // SR
         {
             clearIFR(IFR_SR);
-
-            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-                return mechDataLatch;
-
             return registers.serialShift;
         }
 
