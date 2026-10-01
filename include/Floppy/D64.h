@@ -31,14 +31,12 @@ class D64 : public CBMImage
         };
 
     protected:
-
         void initializeGeometryForBlankImage() override;
         void initializeBlankImageBuffer() override;
         bool writeBlankBAM(const std::string& volumeName, const std::string& volumeID) override;
         bool writeBlankDirectory() override;
 
     private:
-
         // Disk size constants
         static constexpr size_t D64_STANDARD_SIZE_35 = 174848;
         static constexpr size_t D64_STANDARD_SIZE_35_ERR = 175531;   // + 683 error bytes

@@ -155,7 +155,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         IRQLine IRQ;
 
         // Floppy factory
-        std::unique_ptr<Disk> diskImage;
+        std::unique_ptr<CBMImage> diskImage;
 
         // Track sectors for UI
         std::vector<uint8_t> gcrSectorAtPos;

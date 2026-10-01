@@ -29,8 +29,6 @@ class D81 : public CBMImage
         bool writeBlankBAM(const std::string& volumeName, const std::string& volumeID) override;
         bool writeBlankDirectory() override;
 
-        size_t sectorSize() const override { return 256; }
-
     private:
         static constexpr size_t D81_HEADER_SIZE        = 0; // no header
         static constexpr int    D81_TRACK_COUNT        = 80;

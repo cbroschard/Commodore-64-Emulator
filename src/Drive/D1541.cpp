@@ -507,21 +507,45 @@ void D1541::loadDisk(const std::string& path)
 {
     resetForMediaChange();
 
-    diskWriteProtected  = false;
+    diskWriteProtected = false;
 
-    auto img            = DiskFactory::create(path);
-    if (!img || !img->loadDisk(path))
+    auto img = DiskFactory::create(path);
+
+    if (!img)
     {
         // "Door open / no media" behavior: don't reset the drive computer
         loadedDiskName.clear();
         diskImage.reset();
-        diskLoaded      = false;
-        lastError       = DriveError::NO_DISK;
+        diskLoaded = false;
+        lastError = DriveError::NO_DISK;
 
         // Invalidate any ongoing media stream
-        gcrDirty        = true;
-        gcrPos          = 0;
-        gcrBitCounter   = 0;
+        gcrDirty = true;
+        gcrPos = 0;
+        gcrBitCounter = 0;
+
+        gcrTrackStream.clear();
+        gcrSync.clear();
+        gcrSectorAtPos.clear();
+        d1541mem.getVIA2().clearMechBytePending();
+        return;
+    }
+
+    // For now this drive path only supports sector-addressable CBM images.
+    CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
+
+    if (!cbmImage || !cbmImage->loadDisk(path))
+    {
+        // "Door open / no media" behavior: don't reset the drive computer
+        loadedDiskName.clear();
+        diskImage.reset();
+        diskLoaded = false;
+        lastError = DriveError::NO_DISK;
+
+        // Invalidate any ongoing media stream
+        gcrDirty = true;
+        gcrPos = 0;
+        gcrBitCounter = 0;
 
         gcrTrackStream.clear();
         gcrSync.clear();
@@ -531,20 +555,24 @@ void D1541::loadDisk(const std::string& path)
     }
 
     // HOT SWAP
-    diskImage           = std::move(img);
-    diskLoaded          = true;
+    img.release();
+    diskImage.reset(cbmImage);
+
+    diskLoaded = true;
     invalidateRawGcrCache();
+
 #ifdef Debug
     debugDumpDirectorySectors("after-load");
 #endif
-    loadedDiskName      = path;
-    status              = DriveStatus::READY;
-    lastError           = DriveError::NONE;
+
+    loadedDiskName = path;
+    status = DriveStatus::READY;
+    lastError = DriveError::NONE;
 
     // Invalidate/rebuild media stream for the newly inserted disk
-    gcrDirty            = true;
-    gcrPos              = 0;
-    gcrBitCounter       = 0;
+    gcrDirty = true;
+    gcrPos = 0;
+    gcrBitCounter = 0;
 
     gcrTrackStream.clear();
     gcrSync.clear();

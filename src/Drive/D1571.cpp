@@ -845,7 +845,19 @@ void D1571::loadDisk(const std::string& path)
         return;
     }
 
-    if (!img->loadDisk(path))
+    // Current D1571 media path still expects a sector-addressable CBM image.
+    CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
+
+    if (!cbmImage)
+    {
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
+    }
+
+    if (!cbmImage->loadDisk(path))
     {
         diskImage.reset();
         diskLoaded = false;
@@ -860,12 +872,17 @@ void D1571::loadDisk(const std::string& path)
     auto lowerExt = [](const std::string& p) -> std::string
     {
         const auto dot = p.find_last_of('.');
+
         if (dot == std::string::npos)
             return {};
 
         std::string ext = p.substr(dot);
+
         for (auto& c : ext)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        {
+            c = static_cast<char>(
+                std::tolower(static_cast<unsigned char>(c)));
+        }
 
         return ext;
     };
@@ -875,17 +892,26 @@ void D1571::loadDisk(const std::string& path)
     MediaPath newMediaPath;
 
     if (ext == ".d71")
+    {
         newMediaPath = MediaPath::GCR_D71;
-    else if (ext == ".d64" || ext == ".g64")
+    }
+    else if (ext == ".d64")
+    {
         newMediaPath = MediaPath::GCR_D64;
+    }
     else
+    {
         newMediaPath = MediaPath::FDC_MFM;
+    }
 
     mediaPath = newMediaPath;
 
     resetForMediaChange();
 
-    diskImage      = std::move(img);
+    // Transfer ownership from unique_ptr<Disk> to unique_ptr<CBMImage>.
+    img.release();
+    diskImage.reset(cbmImage);
+
     diskLoaded     = true;
     loadedDiskName = path;
     lastError      = DriveError::NONE;

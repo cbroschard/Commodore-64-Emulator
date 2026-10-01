@@ -5,6 +5,9 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
+#include <set>
+#include <stdexcept>
 #include "CBMImage.h"
 
 CBMImage::CBMImage() = default;
@@ -526,6 +529,32 @@ bool CBMImage::copyFile(const std::string& srcName, const std::string& destName)
     }
 }
 
+
+std::vector<uint8_t> CBMImage::readSector(uint8_t track, uint8_t sector)
+{
+    const size_t sz = sectorSize();
+    auto offset = computeOffset(track, sector);
+    auto itBegin = fileImageBuffer.begin() + offset;
+    auto itEnd   = itBegin + sz;
+    return std::vector<uint8_t>(itBegin, itEnd);
+}
+
+bool CBMImage::writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t>& buf)
+{
+    const size_t sz = sectorSize();
+    auto offset = computeOffset(track, sector);
+
+    const size_t n = std::min(sz, buf.size());
+    std::copy(buf.begin(), buf.begin() + n, fileImageBuffer.begin() + offset);
+
+    if (n < sz)
+        std::fill(fileImageBuffer.begin() + offset + n, fileImageBuffer.begin() + offset + sz, 0x00);
+
+    dirty = true;
+
+    return true;
+}
+
 bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volumeID)
 {
     initializeGeometryForBlankImage();
@@ -549,6 +578,20 @@ bool CBMImage::formatDisk(const std::string& volumeName, const std::string& volu
 bool CBMImage::validateDirectory()
 {
     return true;
+}
+
+size_t CBMImage::computeOffset(uint8_t track, uint8_t sector)
+{
+    auto sectorsInThisTrack = geom.sectorsPerTrack.at(track -1);
+    if (sector >= sectorsInThisTrack)
+        throw std::out_of_range("Sector number out of range");
+
+    const size_t sz = sectorSize();
+
+    size_t offset = geom.trackOffsets[track -1] + static_cast<size_t>(sector) * sz
+        + (geom.hasPerSectorCRC ? static_cast<size_t>(sector) * 2 : 0);
+
+    return offset;
 }
 
 bool CBMImage::isValidPETSCII(uint8_t c)

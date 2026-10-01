@@ -161,7 +161,7 @@ class D1581 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         D1581Memory d1581mem;
         IRQLine     irq;
 
-        std::unique_ptr<Disk> diskImage;
+        std::unique_ptr<CBMImage> diskImage;
 
         uint8_t currentSide;
 

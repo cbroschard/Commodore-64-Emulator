@@ -597,6 +597,7 @@ void D1581::loadDisk(const std::string& path)
     flushAndSaveDisk();
 
     diskWriteProtected = false;
+
     auto img = DiskFactory::create(path);
     if (!img)
     {
@@ -607,8 +608,19 @@ void D1581::loadDisk(const std::string& path)
         return;
     }
 
+    // For now the 1581 drive path expects a CBM sector image.
+    CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
+    if (!cbmImage)
+    {
+        diskImage.reset();
+        diskLoaded = false;
+        loadedDiskName.clear();
+        lastError = DriveError::NO_DISK;
+        return;
+    }
+
     // Try to load the disk image from file
-    if (!img->loadDisk(path))
+    if (!cbmImage->loadDisk(path))
     {
         diskImage.reset();
         diskLoaded = false;
@@ -619,8 +631,10 @@ void D1581::loadDisk(const std::string& path)
 
     resetForMediaChange();
 
-    // Success load it
-    diskImage           = std::move(img);
+    // Success - transfer ownership from unique_ptr<Disk>
+    img.release();
+    diskImage.reset(cbmImage);
+
     diskLoaded          = true;
     loadedDiskName      = path;
     lastError           = DriveError::NONE;

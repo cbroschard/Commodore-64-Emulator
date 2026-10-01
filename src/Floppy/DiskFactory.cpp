@@ -31,36 +31,33 @@ DiskFormat DiskFactory::detectFormat(const std::string &path)
     return DiskFormat::Unknown;
 }
 
-std::unique_ptr<Disk> DiskFactory::createBlank(const std::string& path,
-                                               DiskFormat type,
-                                               const std::string& name,
-                                               const std::string& id)
+std::unique_ptr<Disk> DiskFactory::createBlank(const std::string& path, DiskFormat type, const std::string& name, const std::string& id)
 {
-    std::unique_ptr<Disk> disk;
+    std::unique_ptr<CBMImage> cbmImage;
 
     switch (type)
     {
         case DiskFormat::D64:
-            disk = std::make_unique<D64>();
+            cbmImage = std::make_unique<D64>();
             break;
 
         case DiskFormat::D71:
-            disk = std::make_unique<D71>();
+            cbmImage = std::make_unique<D71>();
             break;
 
         case DiskFormat::D81:
-            disk = std::make_unique<D81>();
+            cbmImage = std::make_unique<D81>();
             break;
 
         default:
             return nullptr;
     }
 
-    if (!disk->formatDisk(name, id))
+    if (!cbmImage->formatDisk(name, id))
         return nullptr;
 
-    if (!disk->saveDisk(path))
+    if (!cbmImage->saveDisk(path))
         return nullptr;
 
-    return disk;
+    return cbmImage;
 }

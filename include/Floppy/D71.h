@@ -36,7 +36,6 @@ class D71 : public CBMImage
         bool writeBlankDirectory() override;
 
     private:
-
         // Disk size constants for D71
         static constexpr size_t D71_STANDARD_SIZE_70     = 349696; // 70 tracks (35+35)
         static constexpr size_t D71_STANDARD_SIZE_70_ERR = 351062; // +1366 error bytes (683*2)

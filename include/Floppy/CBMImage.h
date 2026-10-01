@@ -10,7 +10,18 @@
 
 #include "Disk.h"
 
-struct TrackSector{uint8_t track, sector;};
+struct Geometry
+{
+    std::vector<int> sectorsPerTrack;
+    std::vector<size_t> trackOffsets;
+    bool hasPerSectorCRC = false;
+};
+
+struct TrackSector
+{
+    uint8_t track;
+    uint8_t sector;
+};
 
 class CBMImage : public Disk
 {
@@ -19,23 +30,34 @@ class CBMImage : public Disk
         virtual ~CBMImage();
 
         // Getters for File/Directory
-        std::vector<uint8_t> getDirectoryListing() override;
-        std::vector<uint8_t> loadFileByName(const std::string&) override;
+        std::vector<uint8_t> getDirectoryListing();
+        std::vector<uint8_t> loadFileByName(const std::string&);
 
         // File operations
-        bool writeFile(const std::string& fileName, const std::vector<uint8_t>& fileData) override;
-        bool deleteFile(const std::string& fileName) override;
-        bool renameFile(const std::string& oldName, const std::string& newName) override;
-        bool copyFile(const std::string& srcName, const std::string& destName) override;
+        bool writeFile(const std::string& fileName, const std::vector<uint8_t>& fileData);
+        bool deleteFile(const std::string& fileName);
+        bool renameFile(const std::string& oldName, const std::string& newName);
+        bool copyFile(const std::string& srcName, const std::string& destName);
+
+        // Reading/writing
+        std::vector<uint8_t> readSector(uint8_t track, uint8_t sector);
+        bool writeSector(uint8_t track, uint16_t sector, const std::vector<uint8_t>& data);
 
         // BAM Management and maintenance
-        bool formatDisk(const std::string& volumeName, const std::string& volumeID) override;
-        bool validateDirectory() override;
+        bool formatDisk(const std::string& volumeName, const std::string& volumeID);
+        bool validateDirectory();
 
     protected:
+        static constexpr size_t SECTOR_SIZE = 256;
+
+        Geometry geom;
+
+        virtual size_t sectorSize() const { return SECTOR_SIZE; }
 
         std::vector<TrackSector> bamLocations;  // Handle different BAM locations based on image format
         TrackSector directoryStart;   // Handle different directory start locations based on image format
+
+        size_t computeOffset(uint8_t track, uint8_t sector);
 
         // Disk format helpers
         virtual void initializeGeometryForBlankImage() = 0;
@@ -50,15 +72,14 @@ class CBMImage : public Disk
         bool validateDirectoryChain();
         bool validateDiskImage() override;
 
+        virtual uint16_t getSectorsForTrack(uint8_t track) = 0;
+
+        // BAM management
+        virtual bool allocateSector(uint8_t& outTrack, uint8_t& outSector);
+        virtual void freeSector(uint8_t track, uint8_t sector);
+
         // Helper to convert ASCII to PETSCII
         uint8_t asciiToPetscii(unsigned char asciiChar);
-
-        bool allocateSector(uint8_t& outTrack, uint8_t& outSector) override;
-        void freeSector(uint8_t track, uint8_t sector) override;
-
-    private:
-
-
 };
 
 #endif // CBMIMAGE_H

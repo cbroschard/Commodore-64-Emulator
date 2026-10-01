@@ -162,7 +162,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         };
 
         // Floppy factory
-        std::unique_ptr<Disk> diskImage;
+        std::unique_ptr<CBMImage> diskImage;
 
         enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71 };
         MediaPath mediaPath;
