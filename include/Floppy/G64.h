@@ -8,14 +8,22 @@
 #ifndef G64_H
 #define G64_H
 
+#include "Floppy/Disk.h"
 
-class G64
+class G64 : public Disk
 {
     public:
         G64();
         ~G64();
 
-    private:
+        // Loading/saving
+        bool loadDisk(const std::string& filePath) override;
+        bool saveDisk(const std::string& filePath) override;
+
+    protected:
+        const std::vector<uint8_t>& getRawImage() const override;
+
+        bool validateDiskImage() override;
 };
 
 #endif // G64_H
