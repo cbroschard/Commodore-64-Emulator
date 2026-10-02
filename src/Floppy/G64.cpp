@@ -269,13 +269,14 @@ bool G64::parseTracks()
 
             track.speedZones.resize(trackLength);
 
-            for (size_t byteIndex = 0;
-                 byteIndex < trackLength;
-                 ++byteIndex)
+            for (size_t byteIndex = 0; byteIndex < trackLength; ++byteIndex)
             {
                 const size_t packedIndex = byteIndex / 4;
-                const size_t shift = (byteIndex % 4) * 2;
 
+                // G64 packs four 2-bit speed values per byte.
+                // The first track byte uses bits 7-6,
+                // then 5-4, 3-2, and finally 1-0.
+                const size_t shift = 6 - ((byteIndex % 4) * 2);
                 const uint8_t packed = fileImageBuffer[speedOffset + packedIndex];
 
                 track.speedZones[byteIndex] = static_cast<uint8_t>((packed >> shift) & 0x03);
