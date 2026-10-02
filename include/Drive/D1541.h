@@ -16,6 +16,7 @@
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
+#include "Floppy/G64.h"
 #include "Drive/D1541VIA.h"
 #include "Drive/GCRCodec.h"
 #include <array>
@@ -44,7 +45,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
 
         // Compatibility check
-        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64; }
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64; }
 
         // IRQ handling
         void updateIRQ() override;
@@ -155,7 +156,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         IRQLine IRQ;
 
         // Floppy factory
-        std::unique_ptr<CBMImage> diskImage;
+        std::unique_ptr<Disk> diskImage;
 
         // Track sectors for UI
         std::vector<uint8_t> gcrSectorAtPos;
@@ -226,12 +227,6 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void sampleHeaderAtCurrentPosition(size_t pos);
         size_t findHeaderPosForSector(uint8_t track, uint8_t sector) const;
 
-#ifdef Debug
-        void debugDumpDirectorySectors(const char* tag);
-        void debugDumpWriteContext(const char* tag);
-        void debugDumpGcrWindow(const char* tag, size_t center, int before, int after);
-#endif
-
         std::vector<uint8_t> writeGcrBuffer;
         uint8_t lastHeaderTrack;
         uint8_t lastHeaderSector;
@@ -262,8 +257,11 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void flushCurrentRawTrackToImage();
         void flushAllDirtyRawTracksToImage();
 
-        // Debug
-        bool debugVerifyRawSector(uint8_t track, uint8_t sector);
+        CBMImage* getCBMImage();
+        const CBMImage* getCBMImage() const;
+
+        G64* getG64Image();
+        const G64* getG64Image() const;
 };
 
 #endif // D1541_H

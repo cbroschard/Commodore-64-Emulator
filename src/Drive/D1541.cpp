@@ -383,14 +383,38 @@ bool D1541::gcrTick()
 
 void D1541::gcrAdvance(uint32_t dc)
 {
-    // Use the VIA2 density latch as the source of truth for bit rate.
-    const int cyclesPerByte = cyclesPerByteFromDensity(densityCode);
+    gcrBitCounter += static_cast<int>(dc);
 
-    gcrBitCounter += int(dc);
-
-    while (gcrBitCounter >= cyclesPerByte)
+    while (true)
     {
+        uint8_t activeDensity = densityCode;
+
+        //
+        // G64 stores its own speed-zone information.
+        //
+        if (const G64* g64Image = getG64Image())
+        {
+            const size_t trackIndex = static_cast<size_t>(halfTrackPos);
+
+            if (g64Image->hasTrack(trackIndex))
+            {
+                const auto& speedZones = g64Image->getTrackSpeedZones(trackIndex);
+
+                if (!speedZones.empty())
+                {
+                    const size_t speedPos = gcrPos % speedZones.size();
+                    activeDensity = speedZones[speedPos] & 0x03;
+                }
+            }
+        }
+
+        const int cyclesPerByte = cyclesPerByteFromDensity(activeDensity);
+
+        if (gcrBitCounter < cyclesPerByte)
+            break;
+
         gcrBitCounter -= cyclesPerByte;
+
         gcrTick();
     }
 }
@@ -401,13 +425,23 @@ void D1541::rebuildGCRTrackStream()
     gcrSync.clear();
     gcrSectorAtPos.clear();
 
-    if (!diskLoaded || !diskImage) return;
+    if (!diskLoaded || !diskImage)
+        return;
+
+    CBMImage* cbmImage = getCBMImage();
+
+    // This function builds a GCR track from sector-addressable media.
+    // G64 will have its own raw-track path.
+    if (!cbmImage)
+        return;
 
     const int track1based = int(currentTrack) + 1;
     const int spt = gcrCodec.sectorsPerTrack1541(track1based);
 
-    auto bam = diskImage->readSector(18, 0);
-    if (bam.size() < 256) bam.resize(256, 0x00);
+    auto bam = cbmImage->readSector(18, 0);
+    if (bam.size() < 256)
+        bam.resize(256, 0x00);
+
     const uint8_t id1 = bam[0xA2];
     const uint8_t id2 = bam[0xA3];
 
@@ -423,14 +457,16 @@ void D1541::rebuildGCRTrackStream()
         for (size_t i = 0; i < len; i += 4)
         {
             uint8_t g[5];
+
             gcrCodec.encode4Bytes(&in[i], g);
+
             gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
             gcrSync.insert(gcrSync.end(), 5, 0);
             gcrSectorAtPos.insert(gcrSectorAtPos.end(), 5, sectorTag);
         }
     };
 
-    // Same “DOS-ish defaults” as D1571
+    // Same "DOS-ish defaults" as D1571
     constexpr int SYNC_LEN   = 10;
     constexpr int HEADER_GAP = 9;
     constexpr int TAIL_GAP   = 9;
@@ -440,43 +476,55 @@ void D1541::rebuildGCRTrackStream()
 
     for (int sector = 0; sector < spt; ++sector)
     {
-        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(track1based), uint8_t(sector));
-        if (sec.size() != 256) sec.assign(256, 0x00);
+        std::vector<uint8_t> sec = cbmImage->readSector(static_cast<uint8_t>(track1based), static_cast<uint8_t>(sector));
+
+        if (sec.size() != 256)
+            sec.assign(256, 0x00);
 
         // ---- HEADER ----
-        pushN(0xFF, SYNC_LEN, true, uint8_t(sector));
+        pushN(0xFF, SYNC_LEN, true, static_cast<uint8_t>(sector));
 
         uint8_t hdr[8] = {0};
+
         hdr[0] = 0x08;
-        hdr[2] = uint8_t(sector);     // sector
-        hdr[3] = uint8_t(track1based);// track
+        hdr[2] = static_cast<uint8_t>(sector);
+        hdr[3] = static_cast<uint8_t>(track1based);
         hdr[4] = id2;
         hdr[5] = id1;
         hdr[6] = 0x0F;
         hdr[7] = 0x0F;
-        hdr[1] = uint8_t(hdr[2] ^ hdr[3] ^ hdr[4] ^ hdr[5]); // header checksum
 
-        pushEncoded(hdr, 8, uint8_t(sector));
-        pushN(0x55, HEADER_GAP, false, uint8_t(sector));
+        hdr[1] =
+            static_cast<uint8_t>(
+                hdr[2] ^
+                hdr[3] ^
+                hdr[4] ^
+                hdr[5]);
+
+        pushEncoded(hdr, 8, static_cast<uint8_t>(sector));
+        pushN(0x55, HEADER_GAP, false, static_cast<uint8_t>(sector));
 
         // ---- DATA ----
-        pushN(0xFF, SYNC_LEN, true, uint8_t(sector));
+        pushN(0xFF, SYNC_LEN, true, static_cast<uint8_t>(sector));
 
         std::vector<uint8_t> raw(260, 0x00);
-        raw[0] = 0x07; // data block ID
+
+        raw[0] = 0x07;
 
         uint8_t csum = 0;
+
         for (int i = 0; i < 256; ++i)
         {
             raw[1 + i] = sec[i];
             csum ^= raw[1 + i];
         }
+
         raw[257] = csum;
         raw[258] = 0x00;
         raw[259] = 0x00;
 
-        pushEncoded(raw.data(), raw.size(), uint8_t(sector));
-        pushN(0x55, TAIL_GAP, false, uint8_t(sector));
+        pushEncoded(raw.data(), raw.size(), static_cast<uint8_t>(sector));
+        pushN(0x55, TAIL_GAP, false, static_cast<uint8_t>(sector));
     }
 
     // Trailing gap
@@ -489,6 +537,7 @@ void D1541::rebuildGCRTrackStream()
     gcrPos = 0;
 
     gcrWrittenMask.assign(gcrTrackStream.size(), 0);
+
     d1541mem.getVIA2().clearMechBytePending();
 }
 
@@ -531,10 +580,7 @@ void D1541::loadDisk(const std::string& path)
         return;
     }
 
-    // For now this drive path only supports sector-addressable CBM images.
-    CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
-
-    if (!cbmImage || !cbmImage->loadDisk(path))
+    if (!img->loadDisk(path))
     {
         // "Door open / no media" behavior: don't reset the drive computer
         loadedDiskName.clear();
@@ -555,15 +601,14 @@ void D1541::loadDisk(const std::string& path)
     }
 
     // HOT SWAP
-    img.release();
-    diskImage.reset(cbmImage);
+    diskImage = std::move(img);
 
     diskLoaded = true;
-    invalidateRawGcrCache();
 
-#ifdef Debug
-    debugDumpDirectorySectors("after-load");
-#endif
+    // G64 write support is not implemented yet.
+    diskWriteProtected = (getG64Image() != nullptr);
+
+    invalidateRawGcrCache();
 
     loadedDiskName = path;
     status = DriveStatus::READY;
@@ -837,33 +882,14 @@ void D1541::acceptGCRWriteByte(uint8_t value)
 
     // Keep bounded so noise does not grow forever.
     if (writeGcrBuffer.size() > 4096)
-    {
-        writeGcrBuffer.erase(writeGcrBuffer.begin(),
-                             writeGcrBuffer.begin() + 1024);
-    }
-
-    #ifdef Debug
-    static int writeByteLogCount = 0;
-
-    if ((writeByteLogCount++ % 64) == 0)
-    {
-        std::cout << "[D1541:GCR-WRITE] sample $"
-                  << std::hex << std::uppercase << int(value)
-                  << std::dec
-                  << " T" << int(currentTrack + 1)
-                  << " S" << int(currentSector)
-                  << "\n";
-    }
-    #endif
-
-    // Do not decode/commit to the D64 sector image here. The raw GCR track is
-    // authoritative while the disk is mounted. A later safe flush/decode step
-    // can persist dirty raw tracks back to the sector image.
+        writeGcrBuffer.erase(writeGcrBuffer.begin(), writeGcrBuffer.begin() + 1024);
 }
 
 void D1541::tryDecodeWrittenGCR()
 {
-    if (!diskImage)
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!cbmImage)
         return;
 
     constexpr size_t HEADER_GCR_SIZE = 10;   // 8 raw bytes encoded as 10 GCR bytes
@@ -953,16 +979,7 @@ void D1541::tryDecodeWrittenGCR()
                 lastHeaderSector = headerSector;
                 haveLastHeader   = true;
 
-                #ifdef Debug
-                    std::cout << "[D1541:GCR-WRITE] header T"
-                              << int(lastHeaderTrack)
-                              << " S"
-                              << int(lastHeaderSector)
-                              << "\n";
-                #endif
-
-                writeGcrBuffer.erase(writeGcrBuffer.begin(),
-                                     writeGcrBuffer.begin() + pos + HEADER_GCR_SIZE);
+                writeGcrBuffer.erase(writeGcrBuffer.begin(), writeGcrBuffer.begin() + pos + HEADER_GCR_SIZE);
 
                 madeProgress = true;
                 break;
@@ -972,26 +989,15 @@ void D1541::tryDecodeWrittenGCR()
 
             if (haveLastHeader && decodeDataAt(pos, sectorData))
             {
-                if (lastHeaderTrack >= 1 &&
-                    lastHeaderTrack <= 35 &&
-                    lastHeaderSector < gcrCodec.sectorsPerTrack1541(lastHeaderTrack))
+                if (lastHeaderTrack >= 1 && lastHeaderTrack <= 35 && lastHeaderSector < gcrCodec.sectorsPerTrack1541(lastHeaderTrack))
                 {
-                    diskImage->writeSector(lastHeaderTrack, lastHeaderSector, sectorData);
+                    cbmImage->writeSector(lastHeaderTrack, lastHeaderSector, sectorData);
 
                     // Rebuild generated GCR stream from the updated sector data.
                     gcrDirty = true;
-
-                #ifdef Debug
-                    std::cout << "[D1541:GCR-WRITE] committed T"
-                              << int(lastHeaderTrack)
-                              << " S"
-                              << int(lastHeaderSector)
-                              << "\n";
-                #endif
                 }
 
-                writeGcrBuffer.erase(writeGcrBuffer.begin(),
-                                     writeGcrBuffer.begin() + pos + DATA_GCR_SIZE);
+                writeGcrBuffer.erase(writeGcrBuffer.begin(), writeGcrBuffer.begin() + pos + DATA_GCR_SIZE);
 
                 madeProgress = true;
                 break;
@@ -1019,8 +1025,16 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     saveCurrentRawTrackToCache();
 
-    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);  // 0..68 halftracks
-    currentTrack = uint8_t(halfTrackPos / 2);                   // 0..34 (=> track 1..35)
+    int maxHalfTrack = 34 * 2;
+
+    if (const G64* g64Image = getG64Image())
+    {
+        if (g64Image->getTrackCount() > 0)
+            maxHalfTrack = static_cast<int>(g64Image->getTrackCount()) - 1;
+    }
+
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, maxHalfTrack);
+    currentTrack = static_cast<uint8_t>(halfTrackPos / 2);
 
     uiTrack = currentTrack;
     uiSector = currentSector;
@@ -1038,6 +1052,11 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
 
 void D1541::saveCurrentRawTrackToCache()
 {
+    // G64 uses half-track raw data directly from the image.
+    // Do not put G64 data into the D64 full-track cache.
+    if (getG64Image())
+        return;
+
     if (currentTrack >= rawGcrTrackCache.size())
         return;
 
@@ -1055,6 +1074,71 @@ void D1541::saveCurrentRawTrackToCache()
 
 void D1541::loadCurrentRawTrackFromCacheOrBuild()
 {
+    //
+    // G64 path
+    //
+    if (G64* g64Image = getG64Image())
+    {
+        gcrTrackStream.clear();
+        gcrSync.clear();
+        gcrSectorAtPos.clear();
+        gcrWrittenMask.clear();
+
+        const size_t g64TrackIndex = static_cast<size_t>(halfTrackPos);
+
+        if (!g64Image->hasTrack(g64TrackIndex))
+        {
+            gcrPos = 0;
+            d1541mem.getVIA2().clearMechBytePending();
+            return;
+        }
+
+        gcrTrackStream = g64Image->getTrackData(g64TrackIndex);
+
+        #ifdef Debug
+            const auto& speedZones =
+                g64Image->getTrackSpeedZones(g64TrackIndex);
+
+            std::cout << "[D1541:G64] halfTrack="
+                      << g64TrackIndex
+                      << " track="
+                      << (1.0 + (static_cast<double>(g64TrackIndex) * 0.5))
+                      << " bytes="
+                      << gcrTrackStream.size()
+                      << " speedZones="
+                      << speedZones.size()
+                      << "\n";
+        #endif
+
+        if (gcrTrackStream.empty())
+        {
+            gcrPos = 0;
+            d1541mem.getVIA2().clearMechBytePending();
+            return;
+        }
+
+        //
+        // Build the sync map from the raw GCR data.
+        //
+        rebuildSyncMapForCurrentTrack();
+
+        //
+        // G64 does not give us a logical sector map.
+        // Header sampling will update currentSector as the disk rotates.
+        //
+        gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
+        gcrWrittenMask.assign(gcrTrackStream.size(), 0);
+
+        gcrPos %= gcrTrackStream.size();
+
+        d1541mem.getVIA2().clearMechBytePending();
+
+        return;
+    }
+
+    //
+    // CBM sector-image path (D64)
+    //
     if (currentTrack >= rawGcrTrackCache.size())
         return;
 
@@ -1115,114 +1199,10 @@ void D1541::setDiskWriteGate(bool enabled)
 
     diskWriteGate = enabled;
 
-#ifdef Debug
-    std::cout << "[D1541:WRITE-GATE] "
-              << (enabled ? "ON" : "OFF")
-              << " PC=$"
-              << std::hex << std::uppercase << driveCPU.getPC()
-              << std::dec
-              << " pos=" << gcrPos
-              << " T" << int(currentTrack + 1)
-              << " S" << int(currentSector);
-
-    if (lastHeaderValid && !gcrTrackStream.empty())
-    {
-        const size_t delta =
-            (gcrPos + gcrTrackStream.size() - lastHeaderPos) %
-            gcrTrackStream.size();
-
-        std::cout << " passiveHeader=T"
-                  << int(lastHeaderTrack)
-                  << " S" << int(lastHeaderSector)
-                  << " headerPos=" << lastHeaderPos
-                  << " delta=" << delta;
-    }
-    else
-    {
-        std::cout << " passiveHeader=<none>";
-    }
-
-    if (lastRomHeaderValid && !gcrTrackStream.empty())
-    {
-        const size_t romDelta =
-            (gcrPos + gcrTrackStream.size() - lastRomHeaderPos) %
-            gcrTrackStream.size();
-
-        std::cout << " romHeader=T"
-                  << int(lastRomHeaderTrack)
-                  << " S" << int(lastRomHeaderSector)
-                  << " romPos=" << lastRomHeaderPos
-                  << " romDelta=" << romDelta;
-    }
-    else
-    {
-        std::cout << " romHeader=<none>";
-    }
-
-    std::cout << "\n";
-
-    if (enabled)
-    {
-        debugDumpWriteContext("gate-on");
-
-        const uint8_t targetTrack  = d1541mem.read(0x0A);
-        const uint8_t targetSector = d1541mem.read(0x0B);
-        const size_t targetHeaderPos = findHeaderPosForSector(targetTrack, targetSector);
-
-        std::cout << "[D1541:WRITE-PHASE] target=T"
-                  << int(targetTrack)
-                  << " S" << int(targetSector)
-                  << " gatePos=" << gcrPos;
-
-        if (targetHeaderPos != SIZE_MAX && !gcrTrackStream.empty())
-        {
-            const size_t delta =
-                (gcrPos + gcrTrackStream.size() - targetHeaderPos) %
-                gcrTrackStream.size();
-
-            std::cout << " targetHeaderPos=" << targetHeaderPos
-                      << " deltaFromTargetHeader=" << delta;
-        }
-        else
-        {
-            std::cout << " targetHeaderPos=<not found>";
-        }
-
-        std::cout << " currentTag=T"
-                  << int(currentTrack + 1)
-                  << " S" << int(currentSector)
-                  << "\n";
-    }
-#endif
-
     if (!enabled)
     {
         rebuildSyncMapForCurrentTrack();
         saveCurrentRawTrackToCache();
-
-        #ifdef Debug
-        debugVerifyRawSector(18, 1);
-        #endif
-
-        #ifdef Debug
-        const bool rawOk = debugVerifyRawSector(18, 1);
-
-        if (!rawOk && currentTrack == 17)
-        {
-            std::cout << "[D1541:WRITE-ROLLBACK] raw T18 failed verify; rebuilding track from image\n";
-
-            if (currentTrack < rawGcrTrackValid.size())
-            {
-                rawGcrTrackValid[currentTrack] = false;
-                rawGcrTrackDirty[currentTrack] = false;
-                rawGcrTrackCache[currentTrack].clear();
-                rawGcrSyncCache[currentTrack].clear();
-                rawGcrSectorCache[currentTrack].clear();
-            }
-
-            gcrDirty = true;
-        }
-        #endif
 
         writeGcrBuffer.clear();
         haveLastHeader = false;
@@ -1372,94 +1352,6 @@ void D1541::onVIA2PortARead(uint8_t value)
     lastRomHeaderPos = gcrPos;
     lastRomHeaderCycle = 0;
 }
-
-#ifdef Debug
-void D1541::debugDumpDirectorySectors(const char* tag)
-{
-    if (!diskImage)
-        return;
-
-    auto dumpSector = [&](uint8_t sector)
-    {
-        auto sec = diskImage->readSector(18, sector);
-        if (sec.size() < 256)
-            sec.resize(256, 0x00);
-
-        std::cout << "[D1541:DIR-DUMP] " << tag
-                  << " T18 S" << int(sector)
-                  << " link=" << int(sec[0]) << "/" << int(sec[1])
-                  << " first entry type=$"
-                  << std::hex << std::uppercase << int(sec[2])
-                  << std::dec
-                  << " start=" << int(sec[3]) << "/" << int(sec[4])
-                  << " first 16:";
-
-        for (int i = 0; i < 16; ++i)
-        {
-            std::cout << " $"
-                      << std::hex << std::uppercase << int(sec[i])
-                      << std::dec;
-        }
-
-        std::cout << "\n";
-    };
-
-    dumpSector(0);
-    dumpSector(1);
-    dumpSector(4);
-}
-
-void D1541::debugDumpWriteContext(const char* tag)
-{
-    std::cout << "[D1541:WRITE-CTX] " << tag
-              << " PC=$" << std::hex << std::uppercase << driveCPU.getPC()
-              << std::dec
-              << " pos=" << gcrPos
-              << " cur=T" << int(currentTrack + 1)
-              << "/S" << int(currentSector)
-              << "\n";
-
-    std::cout << "  $00-$1F:";
-    for (uint16_t a = 0x0000; a <= 0x001F; ++a)
-    {
-        std::cout << " $"
-                  << std::hex << std::uppercase << int(d1541mem.read(a))
-                  << std::dec;
-    }
-    std::cout << "\n";
-}
-
-void D1541::debugDumpGcrWindow(const char* tag, size_t center, int before, int after)
-{
-    if (gcrTrackStream.empty())
-        return;
-
-    const size_t n = gcrTrackStream.size();
-
-    std::cout << "[D1541:GCR-WINDOW] " << tag
-              << " center=" << center
-              << " size=" << n
-              << "\n  ";
-
-    for (int i = -before; i <= after; ++i)
-    {
-        const size_t p = (center + n + i) % n;
-
-        if (i == 0)
-            std::cout << " |";
-
-        std::cout << " $"
-                  << std::hex << std::uppercase
-                  << int(gcrTrackStream[p])
-                  << std::dec;
-
-        if (i == 0)
-            std::cout << "|";
-    }
-
-    std::cout << "\n";
-}
-#endif
 
 void D1541::resetForMediaChange()
 {
@@ -1653,6 +1545,11 @@ void D1541::flushCurrentRawTrackToImage()
     if (!diskLoaded || !diskImage)
         return;
 
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!cbmImage)
+        return;
+
     if (currentTrack >= rawGcrTrackDirty.size())
         return;
 
@@ -1684,23 +1581,11 @@ void D1541::flushCurrentRawTrackToImage()
             continue;
         }
 
-        if (diskImage->writeSector(track1based, static_cast<uint8_t>(sector), sectorBytes))
-        {
+        if (cbmImage->writeSector(track1based, static_cast<uint8_t>(sector), sectorBytes))
             ++written;
-        }
         else
-        {
             ++failed;
-        }
     }
-
-#ifdef Debug
-    std::cout << "[D1541:FLUSH-TRACK] T"
-              << int(track1based)
-              << " written=" << written
-              << " failed=" << failed
-              << "\n";
-#endif
 
     rawGcrTrackDirty[currentTrack] = false;
 }
@@ -1749,6 +1634,26 @@ void D1541::flushAllDirtyRawTracksToImage()
     }
 
     gcrDirty = false;
+}
+
+CBMImage* D1541::getCBMImage()
+{
+    return dynamic_cast<CBMImage*>(diskImage.get());
+}
+
+const CBMImage* D1541::getCBMImage() const
+{
+    return dynamic_cast<const CBMImage*>(diskImage.get());
+}
+
+G64* D1541::getG64Image()
+{
+    return dynamic_cast<G64*>(diskImage.get());
+}
+
+const G64* D1541::getG64Image() const
+{
+    return dynamic_cast<const G64*>(diskImage.get());
 }
 
 Drive::IECSnapshot D1541::snapshotIEC() const
@@ -1813,18 +1718,10 @@ void D1541::flushAndSaveDisk()
     // Persist the image buffer to the mounted file.
     if (diskImage && !loadedDiskName.empty())
     {
-#ifdef Debug
-        std::cout << "[D1541:SAVE-DISK] saving "
-                  << loadedDiskName
-                  << " dirty=" << (diskImage->isDirty() ? 1 : 0)
-                  << "\n";
-#endif
-
         diskImage->saveDisk(loadedDiskName);
         diskImage->clearDirty();
     }
 }
-
 
 void D1541::getDriveIndicators(std::vector<Indicator>& out) const
 {
@@ -1841,94 +1738,4 @@ void D1541::getDriveIndicators(std::vector<Indicator>& out) const
     act.on = d1541mem.getVIA2().isLedOn();
     act.color = IDriveIndicatorView::DriveIndicatorColor::Red;
     out.push_back(std::move(act));
-}
-
-bool D1541::debugVerifyRawSector(uint8_t track, uint8_t sector)
-{
-#ifdef Debug
-    if (gcrTrackStream.empty())
-        return false;
-
-    const size_t headerPos = findHeaderPosForSector(track, sector);
-    if (headerPos == SIZE_MAX)
-    {
-        std::cout << "[D1541:VERIFY-RAW] T"
-                  << int(track) << " S" << int(sector)
-                  << " header not found\n";
-        return false;
-    }
-
-    const size_t n = gcrTrackStream.size();
-
-    constexpr size_t DATA_GCR_SIZE = 325;
-
-    // Try a range of possible starts after the header. The ROM may start
-    // write-gate before the generated data sync, and it writes its own sync/data.
-    const size_t scanStart = (headerPos + 10) % n;
-
-    bool anyDecoded = false;
-
-    for (size_t offset = 0; offset < 96; ++offset)
-    {
-        const size_t dataStart = (scanStart + offset) % n;
-
-        std::vector<uint8_t> gcrBlock;
-        gcrBlock.reserve(DATA_GCR_SIZE);
-
-        for (size_t i = 0; i < DATA_GCR_SIZE; ++i)
-            gcrBlock.push_back(gcrTrackStream[(dataStart + i) % n]);
-
-        std::vector<uint8_t> raw;
-        raw.reserve(260);
-
-        const bool decoded =
-            gcrCodec.decodeBytes(gcrBlock.data(), DATA_GCR_SIZE, raw);
-
-        if (!decoded || raw.size() != 260)
-            continue;
-
-        anyDecoded = true;
-
-        uint8_t checksum = 0;
-        for (int i = 0; i < 256; ++i)
-            checksum ^= raw[1 + i];
-
-        const bool idOk = (raw[0] == 0x07);
-        const bool checksumOk = (checksum == raw[257]);
-
-        std::cout << "[D1541:VERIFY-RAW] T"
-                  << int(track) << " S" << int(sector)
-                  << " headerPos=" << headerPos
-                  << " dataStart=" << dataStart
-                  << " offset=" << offset
-                  << " blockId=$" << std::hex << std::uppercase << int(raw[0])
-                  << " checksum=$" << int(raw[257])
-                  << " calc=$" << int(checksum)
-                  << std::dec
-                  << " idOk=" << (idOk ? 1 : 0)
-                  << " checksumOk=" << (checksumOk ? 1 : 0)
-                  << " firstData=$"
-                  << std::hex << std::uppercase
-                  << int(raw[1]) << " "
-                  << int(raw[2]) << " "
-                  << int(raw[3]) << " "
-                  << int(raw[4])
-                  << std::dec
-                  << "\n";
-
-        if (idOk && checksumOk)
-            return true;
-    }
-
-    std::cout << "[D1541:VERIFY-RAW] T"
-              << int(track) << " S" << int(sector)
-              << " no valid 325-byte GCR window found after headerPos="
-              << headerPos
-              << " anyDecoded=" << (anyDecoded ? 1 : 0)
-              << "\n";
-
-    return false;
-#else
-    return false;
-#endif
 }
