@@ -1478,26 +1478,39 @@ void D1541::rebuildSyncMapForCurrentTrack()
     if (gcrTrackStream.empty())
         return;
 
-    gcrSync.assign(gcrTrackStream.size(), 0);
-
     const size_t n = gcrTrackStream.size();
 
-    for (size_t p = 0; p < n; ++p)
+    gcrSync.assign(n, 0);
+
+    //
+    // Scan the raw GCR track as a circular bitstream.
+    // A 1541 sync condition is reached after a run of at least
+    // 10 consecutive 1 bits.
+    //
+    int oneRun = 0;
+
+    //
+    // Start one full track earlier so sync runs crossing the
+    // end/start boundary are detected correctly.
+    //
+    for (size_t bitIndex = 0; bitIndex < n * 16; ++bitIndex)
     {
-        int ffRun = 0;
+        const size_t wrappedBit = bitIndex % (n * 8);
+        const size_t byteIndex = wrappedBit / 8;
+        const int bitInByte = 7 - static_cast<int>(wrappedBit % 8);
+        const bool bit = ((gcrTrackStream[byteIndex] >> bitInByte) & 0x01) != 0;
 
-        for (int back = 0; back < 12; ++back)
+        if (bit)
         {
-            const size_t q = (p + n - size_t(back)) % n;
+            ++oneRun;
 
-            if (gcrTrackStream[q] == 0xFF)
-                ++ffRun;
-            else
-                break;
+            if (oneRun >= 10 && bitIndex >= n * 8)
+                gcrSync[byteIndex] = 1;
         }
-
-        if (ffRun >= 2)
-            gcrSync[p] = 1;
+        else
+        {
+            oneRun = 0;
+        }
     }
 }
 
