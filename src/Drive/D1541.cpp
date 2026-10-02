@@ -608,9 +608,6 @@ void D1541::loadDisk(const std::string& path)
 
     diskLoaded = true;
 
-    // G64 write support is not implemented yet.
-    diskWriteProtected = (getG64Image() != nullptr);
-
     invalidateRawGcrCache();
 
     loadedDiskName = path;
@@ -1055,10 +1052,21 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
 
 void D1541::saveCurrentRawTrackToCache()
 {
-    // G64 uses half-track raw data directly from the image.
-    // Do not put G64 data into the D64 full-track cache.
-    if (getG64Image())
+    if (G64* g64Image = getG64Image())
+    {
+        if (gcrTrackStream.empty())
+            return;
+
+        if (!trackModifiedByWrite)
+            return;
+
+        const size_t trackIndex = static_cast<size_t>(halfTrackPos);
+
+        if (g64Image->setTrackData(trackIndex, gcrTrackStream))
+            trackModifiedByWrite = false;
+
         return;
+    }
 
     if (currentTrack >= rawGcrTrackCache.size())
         return;
@@ -1720,14 +1728,24 @@ void D1541::forceSyncIEC()
 
 void D1541::flushAndSaveDisk()
 {
-    // Decode dirty raw GCR tracks back into the disk image buffer.
-    flushAllDirtyRawTracksToImage();
+    if (!diskImage || loadedDiskName.empty())
+        return;
 
-    // Persist the image buffer to the mounted file.
-    if (diskImage && !loadedDiskName.empty())
+    if (getG64Image())
     {
-        diskImage->saveDisk(loadedDiskName);
-        diskImage->clearDirty();
+        // Push the currently active raw G64 track back into the image.
+        saveCurrentRawTrackToCache();
+    }
+    else
+    {
+        // D64/CBM image path.
+        flushAllDirtyRawTracksToImage();
+    }
+
+    if (diskImage->isDirty())
+    {
+        if (diskImage->saveDisk(loadedDiskName))
+            diskImage->clearDirty();
     }
 }
 

@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
 #include <fstream>
 #include "Floppy/G64.h"
 
@@ -42,14 +43,48 @@ bool G64::saveDisk(const std::string& filePath)
     if (fileImageBuffer.empty())
         return false;
 
-    std::ofstream out(filePath, std::ios::binary);
+    if (tracks.size() != header.trackOffsets.size())
+        return false;
 
-    if (!out.is_open())
+    for (size_t i = 0; i < tracks.size(); ++i)
+    {
+        if (!tracks[i].present)
+            continue;
+
+        const uint32_t offset = header.trackOffsets[i];
+
+        if (offset == 0)
+            continue;
+
+        if (offset + 2 > fileImageBuffer.size())
+            return false;
+
+        const uint16_t storedLength = readLE16(fileImageBuffer, offset);
+
+        if (tracks[i].data.size() != storedLength)
+            return false;
+
+        const size_t dataOffset = static_cast<size_t>(offset) + 2;
+
+        if (dataOffset + storedLength > fileImageBuffer.size())
+            return false;
+
+        std::copy(tracks[i].data.begin(), tracks[i].data.end(), fileImageBuffer.begin() + dataOffset);
+    }
+
+    std::ofstream out(filePath, std::ios::binary | std::ios::trunc);
+
+    if (!out)
         return false;
 
     out.write(reinterpret_cast<const char*>(fileImageBuffer.data()), static_cast<std::streamsize>(fileImageBuffer.size()));
 
-    return out.good();
+    if (!out)
+        return false;
+
+    dirty = false;
+
+    return true;
 }
 
 size_t G64::getTrackCount() const
@@ -80,6 +115,23 @@ const std::vector<uint8_t>& G64::getTrackSpeedZones(size_t index) const
         return empty;
 
     return tracks[index].speedZones;
+}
+
+bool G64::setTrackData(size_t index, const std::vector<uint8_t>& data)
+{
+    if (index >= tracks.size())
+        return false;
+
+    if (!tracks[index].present)
+        return false;
+
+    if (data.size() != tracks[index].data.size())
+        return false;
+
+    tracks[index].data = data;
+    dirty = true;
+
+    return true;
 }
 
 const std::vector<uint8_t>& G64::getRawImage() const

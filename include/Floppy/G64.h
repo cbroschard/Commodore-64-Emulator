@@ -27,6 +27,8 @@ class G64 : public Disk
         const std::vector<uint8_t>& getTrackData(size_t index) const;
         const std::vector<uint8_t>& getTrackSpeedZones(size_t index) const;
 
+        bool setTrackData(size_t index, const std::vector<uint8_t>& data);
+
     protected:
         const std::vector<uint8_t>& getRawImage() const override;
         bool validateDiskImage() override;
