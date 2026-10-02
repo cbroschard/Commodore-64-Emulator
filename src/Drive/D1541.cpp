@@ -361,7 +361,10 @@ bool D1541::gcrTick()
     const bool syncHigh   = (gcrSync[pos] != 0);
     const uint8_t sectorNow = gcrSectorAtPos[pos];
 
-    currentSector = sectorNow;
+    // Sector tags exist for generated CBMImage tracks.
+    // Raw G64 tracks determine the current sector from decoded headers.
+    if (!getG64Image())
+        currentSector = sectorNow;
 
     if (!diskWriteGate)
         sampleHeaderAtCurrentPosition(pos);
@@ -1265,6 +1268,11 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
     lastHeaderPos = pos;
     lastHeaderValid = true;
     haveLastHeader = true;
+
+    // For raw G64 media, the decoded header is our authoritative
+    // indication of which logical sector is currently under the head.
+    if (getG64Image())
+        currentSector = sector;
 }
 
 size_t D1541::findHeaderPosForSector(uint8_t track, uint8_t sector) const
