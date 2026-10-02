@@ -26,6 +26,13 @@ bool G64::loadDisk(const std::string& filePath)
         return false;
     }
 
+    if (!parseTracks())
+    {
+        fileImageBuffer.clear();
+        tracks.clear();
+        return false;
+    }
+
     dirty = false;
     return true;
 }
@@ -137,6 +144,91 @@ bool G64::parseHeader()
     {
         header.trackOffsets[i] = readLE32(fileImageBuffer, trackTableOffset + i * 4);
         header.speedEntries[i] = readLE32(fileImageBuffer, speedTableOffset + i * 4);
+    }
+
+    return true;
+}
+
+bool G64::parseTracks()
+{
+    tracks.clear();
+    tracks.resize(header.trackCount);
+
+    for (size_t i = 0; i < header.trackCount; ++i)
+    {
+        const uint32_t trackOffset = header.trackOffsets[i];
+        const uint32_t speedEntry  = header.speedEntries[i];
+
+        G64Track& track = tracks[i];
+
+        // Offset 0 means this full/half-track is not present.
+        if (trackOffset == 0)
+        {
+            track.present = false;
+            continue;
+        }
+
+        // Need at least the 2-byte track length.
+        if (trackOffset + 2 > fileImageBuffer.size())
+            return false;
+
+        const uint16_t trackLength = readLE16(fileImageBuffer, trackOffset);
+
+        if (trackLength == 0)
+            return false;
+
+        // Optional sanity check against header maximum.
+        if (header.maxTrackSize != 0 &&
+            trackLength > header.maxTrackSize)
+        {
+            return false;
+        }
+
+        const size_t dataOffset = static_cast<size_t>(trackOffset) + 2;
+
+        const size_t dataEnd = dataOffset + static_cast<size_t>(trackLength);
+
+        if (dataEnd > fileImageBuffer.size())
+            return false;
+
+        track.data.assign(fileImageBuffer.begin() + dataOffset, fileImageBuffer.begin() + dataEnd);
+
+        track.present = true;
+
+        //
+        // Speed information
+        //
+        track.speedZones.clear();
+
+        if (speedEntry <= 3)
+        {
+            // Constant speed zone for the entire track.
+            track.speedZones.assign(trackLength, static_cast<uint8_t>(speedEntry));
+        }
+        else
+        {
+            // speedEntry is an offset to packed 2-bit speed values.
+            const size_t packedLength = (static_cast<size_t>(trackLength) + 3) / 4;
+
+            const size_t speedOffset = static_cast<size_t>(speedEntry);
+
+            if (speedOffset + packedLength > fileImageBuffer.size())
+                return false;
+
+            track.speedZones.resize(trackLength);
+
+            for (size_t byteIndex = 0;
+                 byteIndex < trackLength;
+                 ++byteIndex)
+            {
+                const size_t packedIndex = byteIndex / 4;
+                const size_t shift = (byteIndex % 4) * 2;
+
+                const uint8_t packed = fileImageBuffer[speedOffset + packedIndex];
+
+                track.speedZones[byteIndex] = static_cast<uint8_t>((packed >> shift) & 0x03);
+            }
+        }
     }
 
     return true;
