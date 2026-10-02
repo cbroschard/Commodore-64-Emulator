@@ -14,7 +14,20 @@ G64::~G64() = default;
 
 bool G64::loadDisk(const std::string& filePath)
 {
-    return loadDiskImage(filePath);
+    header = {};
+    tracks.clear();
+
+    if (!loadDiskImage(filePath))
+        return false;
+
+    if (!validateDiskImage())
+    {
+        fileImageBuffer.clear();
+        return false;
+    }
+
+    dirty = false;
+    return true;
 }
 
 bool G64::saveDisk(const std::string& filePath)
@@ -69,6 +82,62 @@ const std::vector<uint8_t>& G64::getRawImage() const
 
 bool G64::validateDiskImage()
 {
-    // Temporary until we implement the real G64 parser/validator.
-    return !fileImageBuffer.empty();
+    return parseHeader();
+}
+
+uint16_t G64::readLE16(const std::vector<uint8_t>& data, size_t offset)
+{
+    return static_cast<uint16_t>(static_cast<uint16_t>(data[offset]) | (static_cast<uint16_t>(data[offset + 1]) << 8));
+}
+
+uint32_t G64::readLE32(const std::vector<uint8_t>& data, size_t offset)
+{
+    return static_cast<uint32_t>(data[offset]) |
+           (static_cast<uint32_t>(data[offset + 1]) << 8) |
+           (static_cast<uint32_t>(data[offset + 2]) << 16) |
+           (static_cast<uint32_t>(data[offset + 3]) << 24);
+}
+
+bool G64::parseHeader()
+{
+    static constexpr char signature[] = "GCR-1541";
+
+    if (fileImageBuffer.size() < 12)
+        return false;
+
+    for (size_t i = 0; i < 8; ++i)
+    {
+        if (fileImageBuffer[i] != static_cast<uint8_t>(signature[i]))
+            return false;
+    }
+
+    header.version      = fileImageBuffer[8];
+    header.trackCount   = fileImageBuffer[9];
+    header.maxTrackSize = readLE16(fileImageBuffer, 10);
+
+    if (header.version != 0)
+        return false;
+
+    if (header.trackCount == 0)
+        return false;
+
+    const size_t trackTableOffset = 0x0C;
+
+    const size_t speedTableOffset = trackTableOffset + static_cast<size_t>(header.trackCount) * 4;
+
+    const size_t requiredSize = speedTableOffset + static_cast<size_t>(header.trackCount) * 4;
+
+    if (requiredSize > fileImageBuffer.size())
+        return false;
+
+    header.trackOffsets.resize(header.trackCount);
+    header.speedEntries.resize(header.trackCount);
+
+    for (size_t i = 0; i < header.trackCount; ++i)
+    {
+        header.trackOffsets[i] = readLE32(fileImageBuffer, trackTableOffset + i * 4);
+        header.speedEntries[i] = readLE32(fileImageBuffer, speedTableOffset + i * 4);
+    }
+
+    return true;
 }

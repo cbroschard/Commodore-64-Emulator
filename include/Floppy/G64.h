@@ -32,6 +32,16 @@ class G64 : public Disk
         bool validateDiskImage() override;
 
     private:
+        struct G64Header
+        {
+            uint8_t version = 0;
+            uint8_t trackCount = 0;
+            uint16_t maxTrackSize = 0;
+
+            std::vector<uint32_t> trackOffsets;
+            std::vector<uint32_t> speedEntries;
+        };
+
         struct G64Track
         {
             std::vector<uint8_t> data;
@@ -39,8 +49,14 @@ class G64 : public Disk
             bool present = false;
         };
 
+        G64Header header;
         std::vector<G64Track> tracks;
 
+        static uint16_t readLE16(const std::vector<uint8_t>& data, size_t offset);
+        static uint32_t readLE32(const std::vector<uint8_t>& data, size_t offset);
+
+        bool parseHeader();
+        bool parseTracks();
 };
 
 #endif // G64_H
