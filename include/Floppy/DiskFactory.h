@@ -31,22 +31,20 @@ class DiskFactory
         {
             switch (detectFormat(path))
             {
-              case DiskFormat::D64:
-                  return std::make_unique<D64>();
-              case DiskFormat::D71:
-                  return std::make_unique<D71>();
-              case DiskFormat::D81:
-                  return std::make_unique<D81>();
+                case DiskFormat::D64:
+                    return std::make_unique<D64>();
+                case DiskFormat::D71:
+                    return std::make_unique<D71>();
+                case DiskFormat::D81:
+                    return std::make_unique<D81>();
+                case DiskFormat::G64:
+                    return std::make_unique<G64>();
               default:
                   return nullptr;
             }
         }
 
         std::unique_ptr<Disk> createBlank(const std::string& path, DiskFormat type, const std::string& name, const std::string& id);
-
-    protected:
-
-    private:
 };
 
 #endif // DISKFACTORY_H
