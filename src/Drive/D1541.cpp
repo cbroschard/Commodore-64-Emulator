@@ -391,23 +391,12 @@ void D1541::gcrAdvance(uint32_t dc)
     {
         uint8_t activeDensity = densityCode;
 
-        //
-        // G64 stores its own speed-zone information.
-        //
-        if (const G64* g64Image = getG64Image())
+        const auto& speedZones = gcrTrack.getSpeedZones();
+
+        if (!speedZones.empty())
         {
-            const size_t trackIndex = static_cast<size_t>(halfTrackPos);
-
-            if (g64Image->hasTrack(trackIndex))
-            {
-                const auto& speedZones = g64Image->getTrackSpeedZones(trackIndex);
-
-                if (!speedZones.empty())
-                {
-                    const size_t speedPos = gcrPos % speedZones.size();
-                    activeDensity = speedZones[speedPos] & 0x03;
-                }
-            }
+            const size_t speedPos = gcrPos % speedZones.size();
+            activeDensity = speedZones[speedPos] & 0x03;
         }
 
         const int cyclesPerByte = cyclesPerByteFromDensity(activeDensity);
@@ -1079,21 +1068,7 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
         }
 
         gcrTrack.setTrackData(g64Image->getTrackData(g64TrackIndex));
-
-        #ifdef Debug
-            const auto& speedZones =
-                g64Image->getTrackSpeedZones(g64TrackIndex);
-
-            std::cout << "[D1541:G64] halfTrack="
-                      << g64TrackIndex
-                      << " track="
-                      << (1.0 + (static_cast<double>(g64TrackIndex) * 0.5))
-                      << " bytes="
-                      << gcrTrack.size()
-                      << " speedZones="
-                      << speedZones.size()
-                      << "\n";
-        #endif
+        gcrTrack.setSpeedZones(g64Image->getTrackSpeedZones(g64TrackIndex));
 
         if (gcrTrack.empty())
         {
