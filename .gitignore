@@ -23,6 +23,7 @@ basic
 *.layout
 *.cfg
 *.txt
+*.g64
 *.d64
 *.d71
 *.d81
