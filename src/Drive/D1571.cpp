@@ -577,7 +577,7 @@ void D1571::rebuildGCRTrackStream()
 
     const int trackOnSide1based = int(currentTrackOnSide1Based());
     const int imageTrack1based  = int(currentImageTrack1Based());
-    const int spt = sectorsPerTrack1541(trackOnSide1based);
+    const int spt = gcrCodec.sectorsPerTrack1541(trackOnSide1based);
 
     std::vector<uint8_t> bam = diskImage->readSector(18, 0);
     if (bam.size() < 256)
@@ -598,7 +598,7 @@ void D1571::rebuildGCRTrackStream()
         for (size_t i = 0; i < len; i += 4)
         {
             uint8_t g[5];
-            gcrEncode4Bytes(&in[i], g);
+            gcrCodec.encode4Bytes(&in[i], g);
 
             gcrTrack.getTrackData().insert(gcrTrack.getTrackData().end(), g, g + 5);
             gcrTrack.getSyncMap().insert(gcrTrack.getSyncMap().end(), 5, 0);
@@ -675,111 +675,6 @@ void D1571::rebuildGCRTrackStream()
         gcrPos = 0;
 
     d1571mem.getVIA2().clearMechBytePending();
-}
-
-void D1571::gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5])
-{
-    uint8_t n[8] = {
-        uint8_t(in[0] >> 4), uint8_t(in[0] & 0x0F),
-        uint8_t(in[1] >> 4), uint8_t(in[1] & 0x0F),
-        uint8_t(in[2] >> 4), uint8_t(in[2] & 0x0F),
-        uint8_t(in[3] >> 4), uint8_t(in[3] & 0x0F),
-    };
-
-    uint64_t bits = 0;
-
-    for (int i = 0; i < 8; i++)
-        bits = (bits << 5) | (GCR5[n[i]] & 0x1F);
-
-    out[0] = uint8_t((bits >> 32) & 0xFF);
-    out[1] = uint8_t((bits >> 24) & 0xFF);
-    out[2] = uint8_t((bits >> 16) & 0xFF);
-    out[3] = uint8_t((bits >>  8) & 0xFF);
-    out[4] = uint8_t((bits >>  0) & 0xFF);
-}
-
-void D1571::gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out)
-{
-    for (size_t i = 0; i < len; i += 4)
-    {
-        uint8_t g[5];
-        gcrEncode4Bytes(&in[i], g);
-        out.insert(out.end(), g, g + 5);
-    }
-}
-
-bool D1571::gcrDecodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out) const
-{
-    out.clear();
-
-    if (!in)
-        return false;
-
-    if ((len % 5) != 0)
-        return false;
-
-    auto decode5 = [](uint8_t code, uint8_t& nibble) -> bool
-    {
-        switch (code & 0x1F)
-        {
-            case 0x0A: nibble = 0x0; return true;
-            case 0x0B: nibble = 0x1; return true;
-            case 0x12: nibble = 0x2; return true;
-            case 0x13: nibble = 0x3; return true;
-            case 0x0E: nibble = 0x4; return true;
-            case 0x0F: nibble = 0x5; return true;
-            case 0x16: nibble = 0x6; return true;
-            case 0x17: nibble = 0x7; return true;
-            case 0x09: nibble = 0x8; return true;
-            case 0x19: nibble = 0x9; return true;
-            case 0x1A: nibble = 0xA; return true;
-            case 0x1B: nibble = 0xB; return true;
-            case 0x0D: nibble = 0xC; return true;
-            case 0x1D: nibble = 0xD; return true;
-            case 0x1E: nibble = 0xE; return true;
-            case 0x15: nibble = 0xF; return true;
-            default:   return false;
-        }
-    };
-
-    out.reserve((len / 5) * 4);
-
-    for (size_t i = 0; i < len; i += 5)
-    {
-        uint64_t bits = 0;
-
-        bits |= static_cast<uint64_t>(in[i + 0]) << 32;
-        bits |= static_cast<uint64_t>(in[i + 1]) << 24;
-        bits |= static_cast<uint64_t>(in[i + 2]) << 16;
-        bits |= static_cast<uint64_t>(in[i + 3]) << 8;
-        bits |= static_cast<uint64_t>(in[i + 4]);
-
-        uint8_t n[8] = {};
-
-        for (int j = 0; j < 8; ++j)
-        {
-            const int shift = 35 - (j * 5);
-            const uint8_t code = static_cast<uint8_t>((bits >> shift) & 0x1F);
-
-            if (!decode5(code, n[j]))
-                return false;
-        }
-
-        out.push_back(static_cast<uint8_t>((n[0] << 4) | n[1]));
-        out.push_back(static_cast<uint8_t>((n[2] << 4) | n[3]));
-        out.push_back(static_cast<uint8_t>((n[4] << 4) | n[5]));
-        out.push_back(static_cast<uint8_t>((n[6] << 4) | n[7]));
-    }
-
-    return true;
-}
-
-int D1571::sectorsPerTrack1541(int track1based)
-{
-    if (track1based <= 17) return 21;
-    if (track1based <= 24) return 19;
-    if (track1based <= 30) return 18;
-    return 17; // 31..35
 }
 
 void D1571::syncTrackFromFDC()
@@ -1281,7 +1176,7 @@ size_t D1571::findHeaderPosForSector(uint8_t track, uint8_t sector) const
         std::vector<uint8_t> raw;
         raw.reserve(8);
 
-        if (!gcrDecodeBytes(&gcrTrack.getTrackData()[pos], HEADER_GCR_SIZE, raw))
+        if (!gcrCodec.decodeBytes(&gcrTrack.getTrackData()[pos], HEADER_GCR_SIZE, raw))
             continue;
 
         if (raw.size() != 8 || raw[0] != 0x08)
@@ -1337,7 +1232,7 @@ bool D1571::decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::
         std::vector<uint8_t> raw;
         raw.reserve(260);
 
-        if (!gcrDecodeBytes(gcrBlock.data(), DATA_GCR_SIZE, raw))
+        if (!gcrCodec.decodeBytes(gcrBlock.data(), DATA_GCR_SIZE, raw))
             continue;
 
         if (raw.size() != 260)
@@ -1378,7 +1273,7 @@ void D1571::flushCurrentRawTrackToImage()
 
     const uint8_t trackOnSide1based = currentTrackOnSide1Based();
     const uint8_t imageTrack1based  = currentImageTrack1Based();
-    const int spt = sectorsPerTrack1541(trackOnSide1based);
+    const int spt = gcrCodec.sectorsPerTrack1541(trackOnSide1based);
 
     int written = 0;
     int failed = 0;
@@ -1387,7 +1282,7 @@ void D1571::flushCurrentRawTrackToImage()
     {
         std::vector<uint8_t> sectorBytes;
 
-        if (!decodeRawSectorFromCurrentTrack(trackOnSide1based, static_cast<uint8_t>(sector), sectorBytes))
+        if (!decodeRawSectorFromCurrentTrack(imageTrack1based, static_cast<uint8_t>(sector), sectorBytes))
         {
             ++failed;
             continue;

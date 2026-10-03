@@ -155,14 +155,6 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         CPU driveCPU;
         IRQLine IRQ;
 
-        static constexpr uint8_t GCR5[16] =
-        {
-            0x0A, 0x0B, 0x12, 0x13,
-            0x0E, 0x0F, 0x16, 0x17,
-            0x09, 0x19, 0x1A, 0x1B,
-            0x0D, 0x1D, 0x1E, 0x15
-        };
-
         // Floppy factory
         std::unique_ptr<CBMImage> diskImage;
 
@@ -209,7 +201,10 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         // GCR
         GCRTrackStream gcrTrack;
+        GCRCodec gcrCodec;
+
         std::vector<uint8_t> gcrSectorAtPos;
+
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;
@@ -222,10 +217,6 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool gcrTick();
         void gcrAdvance(uint32_t dc);
         void rebuildGCRTrackStream();
-        void gcrEncode4Bytes(const uint8_t in[4], uint8_t out[5]);
-        void gcrEncodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out);
-        bool gcrDecodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out) const;
-        int sectorsPerTrack1541(int track1based);
 
         static constexpr size_t MAX_GCR_TRACKS = 70;
 
