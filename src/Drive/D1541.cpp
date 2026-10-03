@@ -1291,17 +1291,24 @@ size_t D1541::findHeaderPosForSector(uint8_t track, uint8_t sector) const
 
     constexpr size_t HEADER_GCR_SIZE = 10;
 
-    for (size_t pos = 1; pos + HEADER_GCR_SIZE <= gcrTrackStream.size(); ++pos)
+    const size_t n = gcrTrackStream.size();
+
+    for (size_t pos = 0; pos < n; ++pos)
     {
-        const size_t prev = pos - 1;
+        const size_t prev = (pos + n - 1) % n;
 
         if (prev >= gcrSync.size() || gcrSync[prev] == 0)
             continue;
 
+        uint8_t gcrHeader[HEADER_GCR_SIZE];
+
+        for (size_t i = 0; i < HEADER_GCR_SIZE; ++i)
+            gcrHeader[i] = gcrTrackStream[(pos + i) % n];
+
         std::vector<uint8_t> raw;
         raw.reserve(8);
 
-        if (!gcrCodec.decodeBytes(&gcrTrackStream[pos], HEADER_GCR_SIZE, raw))
+        if (!gcrCodec.decodeBytes(gcrHeader, HEADER_GCR_SIZE, raw))
             continue;
 
         if (raw.size() != 8 || raw[0] != 0x08)
@@ -1312,8 +1319,7 @@ size_t D1541::findHeaderPosForSector(uint8_t track, uint8_t sector) const
         const uint8_t id2           = raw[4];
         const uint8_t id1           = raw[5];
 
-        const uint8_t expectedChecksum =
-            static_cast<uint8_t>(decodedSector ^ decodedTrack ^ id2 ^ id1);
+        const uint8_t expectedChecksum = static_cast<uint8_t>(decodedSector ^ decodedTrack ^ id2 ^ id1);
 
         if (raw[1] != expectedChecksum)
             continue;
