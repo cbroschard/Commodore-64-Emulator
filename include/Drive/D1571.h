@@ -21,6 +21,8 @@
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
+#include "GCR/GCRCodec.h"
+#include "GCR/GCRTrackStream.h"
 #include "IECBus.h"
 #include "IRQLine.h"
 #include "StateReader.h"
@@ -206,8 +208,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         uint8_t currentSector;
 
         // GCR
-        std::vector<uint8_t> gcrTrackStream;
-        std::vector<uint8_t> gcrSync;
+        GCRTrackStream gcrTrack;
         std::vector<uint8_t> gcrSectorAtPos;
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
