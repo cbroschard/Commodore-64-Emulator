@@ -836,35 +836,6 @@ void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 
     gcrTrackStream[pos] = value;
 
-    // Rebuild sync state around the byte we just wrote.
-    //
-    // Do NOT treat a single $FF byte as a full sync region.
-    // A real sync mark is a run of 1 bits. At byte granularity this is
-    // approximated as a short run of consecutive $FF bytes.
-    if (gcrSync.size() == gcrTrackStream.size())
-    {
-        const size_t n = gcrTrackStream.size();
-
-        for (int rel = -16; rel <= 16; ++rel)
-        {
-            const size_t p = (pos + n + rel) % n;
-
-            int ffRun = 0;
-
-            for (int back = 0; back < 12; ++back)
-            {
-                const size_t q = (p + n - static_cast<size_t>(back)) % n;
-
-                if (gcrTrackStream[q] == 0xFF)
-                    ++ffRun;
-                else
-                    break;
-            }
-
-            gcrSync[p] = (ffRun >= 2) ? 1 : 0;
-        }
-    }
-
     if (gcrWrittenMask.size() == gcrTrackStream.size())
         gcrWrittenMask[pos] = 1;
 
@@ -1357,8 +1328,7 @@ void D1541::onVIA2PortARead(uint8_t value)
     const uint8_t id2    = raw[4];
     const uint8_t id1    = raw[5];
 
-    const uint8_t expectedChecksum =
-        static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
+    const uint8_t expectedChecksum = static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
 
     if (raw[1] != expectedChecksum)
         return;
