@@ -841,8 +841,11 @@ void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 
     trackModifiedByWrite = true;
 
-    // Keep the cached raw track up to date so the ROM can verify what it just wrote.
-    saveCurrentRawTrackToCache();
+    // D64 keeps its generated raw-track cache synchronized during writes.
+    // G64 is already operating directly on the live raw track and is
+    // committed back to the image when the write gate closes.
+    if (!getG64Image())
+        saveCurrentRawTrackToCache();
 
     acceptGCRWriteByte(value);
 }
@@ -888,8 +891,7 @@ void D1541::tryDecodeWrittenGCR()
         const uint8_t id2    = raw[4];
         const uint8_t id1    = raw[5];
 
-        const uint8_t expectedChecksum =
-            static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
+        const uint8_t expectedChecksum = static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
 
         if (raw[1] != expectedChecksum)
             return false;
