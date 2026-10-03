@@ -210,13 +210,14 @@ void FDC177x::tick(uint32_t cycles)
             {
                 if (readSectorInProgress)
                 {
-                    if (transferPhase == TransferPhase::InitialDelay ||
-                        transferPhase == TransferPhase::ByteGap)
+                    if (transferPhase == TransferPhase::InitialDelay || transferPhase == TransferPhase::ByteGap)
                     {
                         if (dataIndex < currentSectorSize)
                         {
                             registers.data = sectorBuffer[dataIndex];
+
                             setDRQ(true);
+
                             transferPhase = TransferPhase::ByteReady;
                         }
                         else
@@ -229,6 +230,19 @@ void FDC177x::tick(uint32_t cycles)
                     {
                         finishCommand(true);
                         transferPhase = TransferPhase::Idle;
+                    }
+                }
+                else if (writeSectorInProgress)
+                {
+                    if (transferPhase == TransferPhase::InitialDelay || transferPhase == TransferPhase::ByteGap)
+                    {
+                        if (dataIndex < currentSectorSize)
+                        {
+                            // Ask the CPU for the next write byte.
+                            setDRQ(true);
+
+                            transferPhase = TransferPhase::ByteReady;
+                        }
                     }
                 }
 
@@ -448,8 +462,8 @@ void FDC177x::writeRegister(uint16_t address, uint8_t value)
                 }
 
                 // More bytes still needed.
-                // Do NOT immediately reassert DRQ.
-                // Schedule the next write request.
+                // Schedule the next DRQ after one byte gap.
+                transferPhase = TransferPhase::ByteGap;
                 cyclesUntilEvent = FDC_BYTE_DELAY_CYCLES;
                 return;
             }
@@ -607,13 +621,18 @@ void FDC177x::startCommand(uint8_t cmd)
                 case 0xA0: // WRITE SECTOR, covers $A0/$B0
                 {
                     dataIndex = 0;
+
                     setDRQ(false);
                     setINTRQ(false);
-                    cyclesUntilEvent = 2000;
+                    setBusy(true);
+
                     writeSectorInProgress = true;
+
+                    transferPhase = TransferPhase::InitialDelay;
+                    cyclesUntilEvent = 2000;
+
                     break;
                 }
-
                 default:
                     cyclesUntilEvent = 2000;
                     break;
