@@ -1234,21 +1234,25 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
 
     constexpr size_t HEADER_GCR_SIZE = 10;
 
-    if (pos + HEADER_GCR_SIZE > gcrTrackStream.size())
+    const size_t n = gcrTrackStream.size();
+
+    if (pos >= n)
         return;
 
-    if (pos == 0)
-        return;
-
-    const size_t prev = pos - 1;
+    const size_t prev = (pos + n - 1) % n;
 
     if (prev >= gcrSync.size() || gcrSync[prev] == 0)
         return;
 
+    uint8_t gcrHeader[HEADER_GCR_SIZE];
+
+    for (size_t i = 0; i < HEADER_GCR_SIZE; ++i)
+        gcrHeader[i] = gcrTrackStream[(pos + i) % n];
+
     std::vector<uint8_t> raw;
     raw.reserve(8);
 
-    if (!gcrCodec.decodeBytes(&gcrTrackStream[pos], HEADER_GCR_SIZE, raw))
+    if (!gcrCodec.decodeBytes(gcrHeader, HEADER_GCR_SIZE, raw))
         return;
 
     if (raw.size() != 8 || raw[0] != 0x08)
@@ -1259,8 +1263,7 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
     const uint8_t id2    = raw[4];
     const uint8_t id1    = raw[5];
 
-    const uint8_t expectedChecksum =
-        static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
+    const uint8_t expectedChecksum = static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
 
     if (raw[1] != expectedChecksum)
         return;
@@ -1277,8 +1280,6 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
     lastHeaderValid = true;
     haveLastHeader = true;
 
-    // For raw G64 media, the decoded header is our authoritative
-    // indication of which logical sector is currently under the head.
     if (getG64Image())
         currentSector = sector;
 }
