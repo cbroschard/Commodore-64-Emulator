@@ -24,7 +24,11 @@ class GCRTrackStream
         void setSpeedZones(const std::vector<uint8_t>& zones);
 
         const std::vector<uint8_t>& getTrackData() const;
+        std::vector<uint8_t>& getTrackData();
+
         const std::vector<uint8_t>& getSyncMap() const;
+        std::vector<uint8_t>& getSyncMap();
+
         const std::vector<uint8_t>& getSpeedZones() const;
 
         bool empty() const;

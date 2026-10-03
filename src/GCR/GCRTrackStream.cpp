@@ -34,7 +34,17 @@ const std::vector<uint8_t>& GCRTrackStream::getTrackData() const
     return trackData;
 }
 
+std::vector<uint8_t>& GCRTrackStream::getTrackData()
+{
+    return trackData;
+}
+
 const std::vector<uint8_t>& GCRTrackStream::getSyncMap() const
+{
+    return syncMap;
+}
+
+std::vector<uint8_t>& GCRTrackStream::getSyncMap()
 {
     return syncMap;
 }

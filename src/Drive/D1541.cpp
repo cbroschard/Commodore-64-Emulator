@@ -278,8 +278,7 @@ void D1541::reset()
 
     readGcrHeaderProbe.clear();
     writeGcrBuffer.clear();
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
     gcrSectorAtPos.clear();
     gcrWrittenMask.clear();
     invalidateRawGcrCache();
@@ -340,25 +339,25 @@ bool D1541::gcrTick()
 
         gcrDirty = false;
 
-        if (!gcrTrackStream.empty())
-            gcrPos = oldPos % gcrTrackStream.size();
+        if (!gcrTrack.empty())
+            gcrPos = oldPos % gcrTrack.size();
         else
             gcrPos = 0;
     }
 
-    if (gcrTrackStream.empty())
+    if (gcrTrack.empty())
         return false;
 
-    if (gcrSync.size() != gcrTrackStream.size())
-        gcrSync.assign(gcrTrackStream.size(), 0);
+    if (gcrTrack.getSyncMap().size() != gcrTrack.size())
+        gcrTrack.getSyncMap().assign(gcrTrack.size(), 0);
 
-    if (gcrSectorAtPos.size() != gcrTrackStream.size())
-        gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
+    if (gcrSectorAtPos.size() != gcrTrack.size())
+        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);
 
     const size_t pos = gcrPos;
 
-    const uint8_t gcrByte = gcrTrackStream[pos];
-    const bool syncHigh   = (gcrSync[pos] != 0);
+    const uint8_t gcrByte = gcrTrack.getTrackData()[pos];
+    const bool syncHigh   = (gcrTrack.getSyncMap()[pos] != 0);
     const uint8_t sectorNow = gcrSectorAtPos[pos];
 
     // Sector tags exist for generated CBMImage tracks.
@@ -369,7 +368,7 @@ bool D1541::gcrTick()
     if (!diskWriteGate)
         sampleHeaderAtCurrentPosition(pos);
 
-    gcrPos = (gcrPos + 1) % gcrTrackStream.size();
+    gcrPos = (gcrPos + 1) % gcrTrack.size();
 
     if (diskWriteGate && motorOn && diskLoaded && diskImage && !diskWriteProtected)
     {
@@ -424,8 +423,8 @@ void D1541::gcrAdvance(uint32_t dc)
 
 void D1541::rebuildGCRTrackStream()
 {
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
 
     if (!diskLoaded || !diskImage)
@@ -450,8 +449,9 @@ void D1541::rebuildGCRTrackStream()
 
     auto pushN = [&](uint8_t v, int count, bool isSync, uint8_t sectorTag)
     {
-        gcrTrackStream.insert(gcrTrackStream.end(), count, v);
-        gcrSync.insert(gcrSync.end(), count, isSync ? 1 : 0);
+        auto& trackData = gcrTrack.getTrackData();
+        trackData.insert(trackData.end(), count, v);
+        gcrTrack.getSyncMap().insert(gcrTrack.getSyncMap().end(), count, isSync ? 1 : 0);
         gcrSectorAtPos.insert(gcrSectorAtPos.end(), count, sectorTag);
     };
 
@@ -463,8 +463,9 @@ void D1541::rebuildGCRTrackStream()
 
             gcrCodec.encode4Bytes(&in[i], g);
 
-            gcrTrackStream.insert(gcrTrackStream.end(), g, g + 5);
-            gcrSync.insert(gcrSync.end(), 5, 0);
+            auto& trackData = gcrTrack.getTrackData();
+            trackData.insert(trackData.end(), g, g + 5);
+            gcrTrack.getSyncMap().insert(gcrTrack.getSyncMap().end(), 5, 0);
             gcrSectorAtPos.insert(gcrSectorAtPos.end(), 5, sectorTag);
         }
     };
@@ -534,12 +535,12 @@ void D1541::rebuildGCRTrackStream()
     pushN(0x55, 128, false, 0);
 
     // Sanity
-    if (gcrSync.size() != gcrTrackStream.size())
-        gcrSync.assign(gcrTrackStream.size(), 0);
+    if (gcrTrack.getSyncMap().size() != gcrTrack.size())
+        gcrTrack.getSyncMap().assign(gcrTrack.size(), 0);
 
     gcrPos = 0;
 
-    gcrWrittenMask.assign(gcrTrackStream.size(), 0);
+    gcrWrittenMask.assign(gcrTrack.size(), 0);
 
     d1541mem.getVIA2().clearMechBytePending();
 }
@@ -576,8 +577,8 @@ void D1541::loadDisk(const std::string& path)
         gcrPos = 0;
         gcrBitCounter = 0;
 
-        gcrTrackStream.clear();
-        gcrSync.clear();
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
         gcrSectorAtPos.clear();
         d1541mem.getVIA2().clearMechBytePending();
         return;
@@ -596,8 +597,8 @@ void D1541::loadDisk(const std::string& path)
         gcrPos = 0;
         gcrBitCounter = 0;
 
-        gcrTrackStream.clear();
-        gcrSync.clear();
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
         gcrSectorAtPos.clear();
         d1541mem.getVIA2().clearMechBytePending();
         return;
@@ -619,8 +620,8 @@ void D1541::loadDisk(const std::string& path)
     gcrPos = 0;
     gcrBitCounter = 0;
 
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
     d1541mem.getVIA2().clearMechBytePending();
 }
@@ -634,8 +635,8 @@ void D1541::unloadDisk()
 
     gcrPos = 0;
     gcrBitCounter = 0;
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
     writeGcrBuffer.clear();
     gcrWrittenMask.clear();
@@ -829,14 +830,14 @@ void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
     if (ddrA != 0xFF)
         return;
 
-    if (!pendingWritePosValid || gcrTrackStream.empty())
+    if (!pendingWritePosValid || gcrTrack.empty())
         return;
 
-    const size_t pos = pendingWritePos % gcrTrackStream.size();
+    const size_t pos = pendingWritePos % gcrTrack.size();
 
-    gcrTrackStream[pos] = value;
+    gcrTrack.getTrackData()[pos] = value;
 
-    if (gcrWrittenMask.size() == gcrTrackStream.size())
+    if (gcrWrittenMask.size() == gcrTrack.size())
         gcrWrittenMask[pos] = 1;
 
     trackModifiedByWrite = true;
@@ -1027,7 +1028,7 @@ void D1541::saveCurrentRawTrackToCache()
 {
     if (G64* g64Image = getG64Image())
     {
-        if (gcrTrackStream.empty())
+        if (gcrTrack.empty())
             return;
 
         if (!trackModifiedByWrite)
@@ -1035,7 +1036,7 @@ void D1541::saveCurrentRawTrackToCache()
 
         const size_t trackIndex = static_cast<size_t>(halfTrackPos);
 
-        if (g64Image->setTrackData(trackIndex, gcrTrackStream))
+        if (g64Image->setTrackData(trackIndex, gcrTrack.getTrackData()))
             trackModifiedByWrite = false;
 
         return;
@@ -1044,11 +1045,11 @@ void D1541::saveCurrentRawTrackToCache()
     if (currentTrack >= rawGcrTrackCache.size())
         return;
 
-    if (gcrTrackStream.empty())
+    if (gcrTrack.empty())
         return;
 
-    rawGcrTrackCache[currentTrack]  = gcrTrackStream;
-    rawGcrSyncCache[currentTrack]   = gcrSync;
+    rawGcrTrackCache[currentTrack]  = gcrTrack.getTrackData();
+    rawGcrSyncCache[currentTrack]   = gcrTrack.getSyncMap();
     rawGcrSectorCache[currentTrack] = gcrSectorAtPos;
     rawGcrTrackValid[currentTrack]  = true;
 
@@ -1063,8 +1064,8 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
     //
     if (G64* g64Image = getG64Image())
     {
-        gcrTrackStream.clear();
-        gcrSync.clear();
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
         gcrSectorAtPos.clear();
         gcrWrittenMask.clear();
 
@@ -1077,7 +1078,7 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
             return;
         }
 
-        gcrTrackStream = g64Image->getTrackData(g64TrackIndex);
+        gcrTrack.setTrackData(g64Image->getTrackData(g64TrackIndex));
 
         #ifdef Debug
             const auto& speedZones =
@@ -1088,13 +1089,13 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
                       << " track="
                       << (1.0 + (static_cast<double>(g64TrackIndex) * 0.5))
                       << " bytes="
-                      << gcrTrackStream.size()
+                      << gcrTrack.size()
                       << " speedZones="
                       << speedZones.size()
                       << "\n";
         #endif
 
-        if (gcrTrackStream.empty())
+        if (gcrTrack.empty())
         {
             gcrPos = 0;
             d1541mem.getVIA2().clearMechBytePending();
@@ -1110,10 +1111,10 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
         // G64 does not give us a logical sector map.
         // Header sampling will update currentSector as the disk rotates.
         //
-        gcrSectorAtPos.assign(gcrTrackStream.size(), currentSector);
-        gcrWrittenMask.assign(gcrTrackStream.size(), 0);
+        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);
+        gcrWrittenMask.assign(gcrTrack.size(), 0);
 
-        gcrPos %= gcrTrackStream.size();
+        gcrPos %= gcrTrack.size();
 
         d1541mem.getVIA2().clearMechBytePending();
 
@@ -1128,15 +1129,15 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
 
     if (rawGcrTrackValid[currentTrack])
     {
-        gcrTrackStream = rawGcrTrackCache[currentTrack];
-        gcrSync        = rawGcrSyncCache[currentTrack];
-        gcrSectorAtPos = rawGcrSectorCache[currentTrack];
+        gcrTrack.getTrackData()     = rawGcrTrackCache[currentTrack];
+        gcrTrack.getSyncMap()       = rawGcrSyncCache[currentTrack];
+        gcrSectorAtPos              = rawGcrSectorCache[currentTrack];
 
-        if (gcrWrittenMask.size() != gcrTrackStream.size())
-            gcrWrittenMask.assign(gcrTrackStream.size(), 0);
+        if (gcrWrittenMask.size() != gcrTrack.size())
+            gcrWrittenMask.assign(gcrTrack.size(), 0);
 
-        if (!gcrTrackStream.empty())
-            gcrPos %= gcrTrackStream.size();
+        if (!gcrTrack.empty())
+            gcrPos %= gcrTrack.size();
         else
             gcrPos = 0;
 
@@ -1146,8 +1147,8 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
 
     rebuildGCRTrackStream();
 
-    rawGcrTrackCache[currentTrack]  = gcrTrackStream;
-    rawGcrSyncCache[currentTrack]   = gcrSync;
+    rawGcrTrackCache[currentTrack]  = gcrTrack.getTrackData();
+    rawGcrSyncCache[currentTrack]   = gcrTrack.getSyncMap();
     rawGcrSectorCache[currentTrack] = gcrSectorAtPos;
     rawGcrTrackValid[currentTrack]  = true;
     rawGcrTrackDirty[currentTrack]  = false;
@@ -1167,8 +1168,8 @@ void D1541::invalidateRawGcrCache()
     rawGcrTrackValid.fill(false);
     rawGcrTrackDirty.fill(false);
 
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
     gcrWrittenMask.clear();
 
@@ -1202,25 +1203,25 @@ void D1541::setDiskWriteGate(bool enabled)
 
 void D1541::sampleHeaderAtCurrentPosition(size_t pos)
 {
-    if (gcrTrackStream.empty())
+    if (gcrTrack.empty())
         return;
 
     constexpr size_t HEADER_GCR_SIZE = 10;
 
-    const size_t n = gcrTrackStream.size();
+    const size_t n = gcrTrack.size();
 
     if (pos >= n)
         return;
 
     const size_t prev = (pos + n - 1) % n;
 
-    if (prev >= gcrSync.size() || gcrSync[prev] == 0)
+    if (prev >= gcrTrack.getSyncMap().size() || gcrTrack.getSyncMap()[prev] == 0)
         return;
 
     uint8_t gcrHeader[HEADER_GCR_SIZE];
 
     for (size_t i = 0; i < HEADER_GCR_SIZE; ++i)
-        gcrHeader[i] = gcrTrackStream[(pos + i) % n];
+        gcrHeader[i] = gcrTrack.getTrackData()[(pos + i) % n];
 
     std::vector<uint8_t> raw;
     raw.reserve(8);
@@ -1259,24 +1260,24 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
 
 size_t D1541::findHeaderPosForSector(uint8_t track, uint8_t sector) const
 {
-    if (gcrTrackStream.empty())
+    if (gcrTrack.empty())
         return SIZE_MAX;
 
     constexpr size_t HEADER_GCR_SIZE = 10;
 
-    const size_t n = gcrTrackStream.size();
+    const size_t n = gcrTrack.size();
 
     for (size_t pos = 0; pos < n; ++pos)
     {
         const size_t prev = (pos + n - 1) % n;
 
-        if (prev >= gcrSync.size() || gcrSync[prev] == 0)
+        if (prev >= gcrTrack.getSyncMap().size() || gcrTrack.getSyncMap()[prev] == 0)
             continue;
 
         uint8_t gcrHeader[HEADER_GCR_SIZE];
 
         for (size_t i = 0; i < HEADER_GCR_SIZE; ++i)
-            gcrHeader[i] = gcrTrackStream[(pos + i) % n];
+            gcrHeader[i] = gcrTrack.getTrackData()[(pos + i) % n];
 
         std::vector<uint8_t> raw;
         raw.reserve(8);
@@ -1437,8 +1438,8 @@ void D1541::resetForMediaChange()
     writeAfterSync = false;
     writeGapRun = 0;
     readGcrHeaderProbe.clear();
-    gcrTrackStream.clear();
-    gcrSync.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
     gcrWrittenMask.clear();
     writeGcrBuffer.clear();
@@ -1454,57 +1455,21 @@ void D1541::resetForMediaChange()
 
 void D1541::rebuildSyncMapForCurrentTrack()
 {
-    if (gcrTrackStream.empty())
-        return;
-
-    const size_t n = gcrTrackStream.size();
-
-    gcrSync.assign(n, 0);
-
-    //
-    // Scan the raw GCR track as a circular bitstream.
-    // A 1541 sync condition is reached after a run of at least
-    // 10 consecutive 1 bits.
-    //
-    int oneRun = 0;
-
-    //
-    // Start one full track earlier so sync runs crossing the
-    // end/start boundary are detected correctly.
-    //
-    for (size_t bitIndex = 0; bitIndex < n * 16; ++bitIndex)
-    {
-        const size_t wrappedBit = bitIndex % (n * 8);
-        const size_t byteIndex = wrappedBit / 8;
-        const int bitInByte = 7 - static_cast<int>(wrappedBit % 8);
-        const bool bit = ((gcrTrackStream[byteIndex] >> bitInByte) & 0x01) != 0;
-
-        if (bit)
-        {
-            ++oneRun;
-
-            if (oneRun >= 10 && bitIndex >= n * 8)
-                gcrSync[byteIndex] = 1;
-        }
-        else
-        {
-            oneRun = 0;
-        }
-    }
+    gcrTrack.rebuildSyncMap();
 }
 
 bool D1541::decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::vector<uint8_t>& outSector)
 {
     outSector.clear();
 
-    if (gcrTrackStream.empty())
+    if (gcrTrack.empty())
         return false;
 
     const size_t headerPos = findHeaderPosForSector(track, sector);
     if (headerPos == SIZE_MAX)
         return false;
 
-    const size_t n = gcrTrackStream.size();
+    const size_t n = gcrTrack.size();
 
     constexpr size_t DATA_GCR_SIZE = 325;
 
@@ -1520,7 +1485,7 @@ bool D1541::decodeRawSectorFromCurrentTrack(uint8_t track, uint8_t sector, std::
         gcrBlock.reserve(DATA_GCR_SIZE);
 
         for (size_t i = 0; i < DATA_GCR_SIZE; ++i)
-            gcrBlock.push_back(gcrTrackStream[(dataStart + i) % n]);
+            gcrBlock.push_back(gcrTrack.getTrackData()[(dataStart + i) % n]);
 
         std::vector<uint8_t> raw;
         raw.reserve(260);
@@ -1619,12 +1584,12 @@ void D1541::flushAllDirtyRawTracksToImage()
 
         currentTrack = static_cast<uint8_t>(t);
 
-        gcrTrackStream = rawGcrTrackCache[t];
-        gcrSync        = rawGcrSyncCache[t];
-        gcrSectorAtPos = rawGcrSectorCache[t];
+        gcrTrack.getTrackData() = rawGcrTrackCache[t];
+        gcrTrack.getSyncMap()   = rawGcrSyncCache[t];
+        gcrSectorAtPos          = rawGcrSectorCache[t];
 
-        if (!gcrTrackStream.empty())
-            gcrPos %= gcrTrackStream.size();
+        if (!gcrTrack.empty())
+            gcrPos %= gcrTrack.size();
         else
             gcrPos = 0;
 
@@ -1636,9 +1601,9 @@ void D1541::flushAllDirtyRawTracksToImage()
 
     if (rawGcrTrackValid[currentTrack])
     {
-        gcrTrackStream = rawGcrTrackCache[currentTrack];
-        gcrSync        = rawGcrSyncCache[currentTrack];
-        gcrSectorAtPos = rawGcrSectorCache[currentTrack];
+        gcrTrack.getTrackData()     = rawGcrTrackCache[currentTrack];
+        gcrTrack.getSyncMap()       = rawGcrSyncCache[currentTrack];
+        gcrSectorAtPos              = rawGcrSectorCache[currentTrack];
     }
 
     gcrDirty = false;

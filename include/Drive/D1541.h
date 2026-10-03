@@ -18,7 +18,8 @@
 #include "Floppy/DiskFactory.h"
 #include "Floppy/G64.h"
 #include "Drive/D1541VIA.h"
-#include "Drive/GCRCodec.h"
+#include "GCR/GCRCodec.h"
+#include "GCR/GCRTrackStream.h"
 #include <array>
 #include <vector>
 
@@ -192,8 +193,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         uint8_t densityCode; // 0..3
 
         // GCR
-        std::vector<uint8_t> gcrTrackStream;
-        std::vector<uint8_t> gcrSync;
+        GCRTrackStream gcrTrack;
         int  gcrBitCounter; // Used to rate limit bits
         size_t gcrPos;
         bool gcrDirty;
