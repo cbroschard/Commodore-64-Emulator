@@ -361,18 +361,9 @@ bool D1571::gcrTick()
 
 void D1571::gcrAdvance(uint32_t dc)
 {
-    // Map 1571 density code (0..3) to an approximate
-    // "CPU cycles per GCR byte".
-    int cyclesPerByte;
-    switch (densityCode & 0x03)
-    {
-        case 0:  cyclesPerByte = 26; break; // fastest
-        case 1:  cyclesPerByte = 28; break;
-        case 2:  cyclesPerByte = 30; break;
-        default: cyclesPerByte = 32; break; // slowest
-    }
+    gcrBitCounter += static_cast<int>(dc);
 
-    gcrBitCounter += dc;
+    const int cyclesPerByte = gcrCodec.cyclesPerByteFromDensity(densityCode);
 
     while (gcrBitCounter >= cyclesPerByte)
     {

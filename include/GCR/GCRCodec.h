@@ -26,6 +26,7 @@ class GCRCodec
         bool decodeBytes(const uint8_t* in, size_t len, std::vector<uint8_t>& out) const;
 
         int sectorsPerTrack1541(int track1based) const;
+        int cyclesPerByteFromDensity(uint8_t code) const;
 
     protected:
 

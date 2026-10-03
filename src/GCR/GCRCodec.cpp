@@ -121,3 +121,16 @@ int GCRCodec::sectorsPerTrack1541(int track1based) const
     if (track1based <= 30) return 18;
     return 17; // 31..35
 }
+
+int GCRCodec::cyclesPerByteFromDensity(uint8_t code) const
+{
+    switch (code & 0x03)
+    {
+        case 0: return 32;
+        case 1: return 30;
+        case 2: return 28;
+        case 3: return 26;
+    }
+
+    return 32;
+}
