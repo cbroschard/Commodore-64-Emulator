@@ -549,8 +549,6 @@ void D1541::loadDisk(const std::string& path)
 {
     resetForMediaChange();
 
-    diskWriteProtected = false;
-
     auto img = DiskFactory::create(path);
 
     if (!img)
@@ -595,6 +593,8 @@ void D1541::loadDisk(const std::string& path)
 
     // HOT SWAP
     diskImage = std::move(img);
+
+    diskWriteProtected = diskImage->isWriteProtected();
 
     diskLoaded = true;
 

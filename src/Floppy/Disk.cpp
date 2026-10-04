@@ -16,6 +16,7 @@ Disk::~Disk() = default;
 bool Disk::loadDiskImage(const std::string& imagePath)
 {
     std::ifstream file(imagePath, std::ios::binary | std::ios::ate);
+
     if (!file.is_open())
     {
         std::cerr << "Failed to open file: " << imagePath << std::endl;
@@ -26,17 +27,36 @@ bool Disk::loadDiskImage(const std::string& imagePath)
     file.seekg(0, std::ios::beg);
 
     fileImageBuffer.resize(size);
-    if (!file.read(reinterpret_cast<char*>(fileImageBuffer.data()), size))
+
+    if (!file.read(
+            reinterpret_cast<char*>(fileImageBuffer.data()),
+            size))
     {
         std::cerr << "Failed to read file: " << imagePath << std::endl;
         return false;
     }
 
+    file.close();
+
     if (!validateDiskImage())
     {
-        std::cerr << "Failed to validate the disk image, not a valid image!" << imagePath << std::endl;
+        std::cerr
+            << "Failed to validate the disk image, not a valid image! "
+            << imagePath << std::endl;
         return false;
     }
+
+    //
+    // Determine whether the backing image can actually be written.
+    //
+    // std::ios::in | std::ios::out does NOT truncate the file.
+    //
+    std::fstream writeTest(imagePath, std::ios::binary | std::ios::in | std::ios::out);
+
+    writeProtected = !writeTest.is_open();
+
+    if (writeTest.is_open())
+        writeTest.close();
 
     return true;
 }

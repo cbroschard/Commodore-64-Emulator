@@ -25,8 +25,12 @@ class Disk
         bool isDirty() const { return dirty; }
         void clearDirty() { dirty = false; }
 
+         // Backing-file access
+        bool isWriteProtected() const { return writeProtected; }
+
     protected:
         bool dirty = false;
+        bool writeProtected = false;
 
         std::vector<uint8_t> fileImageBuffer; // Vector to hold file image data
 

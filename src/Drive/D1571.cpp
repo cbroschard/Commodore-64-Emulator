@@ -757,7 +757,6 @@ void D1571::loadDisk(const std::string& path)
 
     resetForMediaChange();
 
-    diskWriteProtected = false;
 
     auto img = DiskFactory::create(path);
 
@@ -802,6 +801,8 @@ void D1571::loadDisk(const std::string& path)
     }
 
     diskImage = std::move(img);
+
+    diskWriteProtected = diskImage->isWriteProtected();
 
     // Determine media path from actual image type.
     if (getG64Image())
