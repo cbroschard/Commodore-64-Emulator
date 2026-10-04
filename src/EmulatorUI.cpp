@@ -206,7 +206,7 @@ void EmulatorUI::startDiskFileDialog(int deviceNum, UiCommand::DriveType driveTy
             break;
 
         case UiCommand::DriveType::D1571:
-            startFileDialog("Select D64/D71 Image (1571)", { ".d64", ".d71" }, UiCommand::Type::AttachDisk);
+            startFileDialog("Select D64/G64/D71 Image (1571)", { ".d64", ".g64", ".d71" }, UiCommand::Type::AttachDisk);
             break;
 
         case UiCommand::DriveType::D1581:
@@ -1607,7 +1607,7 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
             if (ImGui::MenuItem("1541 (D64/G64)", nullptr, false, canUse1541))
                 startDiskFileDialog(dev, UiCommand::DriveType::D1541);
 
-            if (ImGui::MenuItem("1571 (D64/D71)", nullptr, false, canUse1571))
+            if (ImGui::MenuItem("1571 (D64/G64/D71)", nullptr, false, canUse1571))
                 startDiskFileDialog(dev, UiCommand::DriveType::D1571);
 
             if (ImGui::MenuItem("1581 (D81)", nullptr, false, canUse1581))
