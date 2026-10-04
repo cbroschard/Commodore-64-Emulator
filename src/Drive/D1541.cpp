@@ -637,6 +637,7 @@ void D1541::unloadDisk()
     invalidateRawGcrCache();
 
     diskLoaded              = false;
+    diskWriteProtected      = false;
     currentTrack            = 17;
     currentSector           = 0;
     uiTrack                 = currentTrack;
