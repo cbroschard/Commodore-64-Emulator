@@ -327,6 +327,7 @@ void D1581::unloadDisk()
 
     diskImage.reset();
     diskLoaded = false;
+    diskWriteProtected = false;
     loadedDiskName.clear();
 
     lastError          = DriveError::NO_DISK;
@@ -596,8 +597,6 @@ void D1581::loadDisk(const std::string& path)
 {
     flushAndSaveDisk();
 
-    diskWriteProtected = false;
-
     auto img = DiskFactory::create(path);
     if (!img)
     {
@@ -634,6 +633,8 @@ void D1581::loadDisk(const std::string& path)
     // Success - transfer ownership from unique_ptr<Disk>
     img.release();
     diskImage.reset(cbmImage);
+
+    diskWriteProtected = diskImage->isWriteProtected();
 
     diskLoaded          = true;
     loadedDiskName      = path;
