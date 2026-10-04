@@ -114,6 +114,7 @@ Supported drive models:
 Supported disk-image formats include:
 
 - `.D64`
+- `.G64`
 - `.D71`
 - `.D81`
 
