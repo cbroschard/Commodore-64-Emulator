@@ -318,7 +318,9 @@ bool D1571::gcrTick()
     if (gcrDirty)
     {
         size_t oldPos = gcrPos;
-        rebuildGCRTrackStream();
+
+        loadCurrentRawTrackFromCacheOrBuild();
+
         gcrDirty = false;
 
         if (!gcrTrack.empty())
@@ -349,8 +351,13 @@ bool D1571::gcrTick()
     uint8_t gcrByte = gcrTrack.getTrackData()[pos];
     bool syncHigh = (gcrTrack.getSyncMap()[pos] != 0);
 
-    if (gcrSectorAtPos.size() == gcrTrack.size())
-        currentSector = gcrSectorAtPos[pos];
+    if (!getG64Image())
+    {
+        if (gcrSectorAtPos.size() == gcrTrack.size())
+            currentSector = gcrSectorAtPos[pos];
+    }
+    else
+        sampleHeaderAtCurrentPosition(pos);
 
     gcrPos = (gcrPos + 1) % gcrTrack.size();
 
@@ -363,11 +370,24 @@ void D1571::gcrAdvance(uint32_t dc)
 {
     gcrBitCounter += static_cast<int>(dc);
 
-    const int cyclesPerByte = gcrCodec.cyclesPerByteFromDensity(densityCode);
-
-    while (gcrBitCounter >= cyclesPerByte)
+    while (true)
     {
+        uint8_t activeDensity = densityCode;
+        const auto& speedZones = gcrTrack.getSpeedZones();
+
+        if (!speedZones.empty())
+        {
+            const size_t speedPos = gcrPos % speedZones.size();
+            activeDensity = speedZones[speedPos] & 0x03;
+        }
+
+        const int cyclesPerByte = gcrCodec.cyclesPerByteFromDensity(activeDensity);
+
+        if (gcrBitCounter < cyclesPerByte)
+            break;
+
         gcrBitCounter -= cyclesPerByte;
+
         gcrTick();
     }
 }
@@ -476,7 +496,7 @@ void D1571::setDensityCode(uint8_t code)
 void D1571::setHeadSide(bool side1)
 {
     // D64 must remain single-sided.
-    if (mediaPath == MediaPath::GCR_D64)
+    if (mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_G64)
     {
         if (currentSide != 0)
         {
@@ -543,6 +563,11 @@ bool D1571::getByteReadyLow() const
 
 void D1571::rebuildGCRTrackStream()
 {
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!cbmImage)
+        return;
+
     gcrTrack.clear();
     gcrTrack.getSyncMap().clear();
     gcrSectorAtPos.clear();
@@ -570,7 +595,7 @@ void D1571::rebuildGCRTrackStream()
     const int imageTrack1based  = int(currentImageTrack1Based());
     const int spt = gcrCodec.sectorsPerTrack1541(trackOnSide1based);
 
-    std::vector<uint8_t> bam = diskImage->readSector(18, 0);
+    std::vector<uint8_t> bam = cbmImage->readSector(18, 0);
     if (bam.size() < 256)
         bam.resize(256, 0x00);
 
@@ -608,7 +633,7 @@ void D1571::rebuildGCRTrackStream()
     for (int sector = 0; sector < spt; ++sector)
     {
         const uint8_t sectorTag = static_cast<uint8_t>(sector);
-        std::vector<uint8_t> sec = diskImage->readSector(uint8_t(imageTrack1based), uint8_t(sectorTag));
+        std::vector<uint8_t> sec = cbmImage->readSector(uint8_t(imageTrack1based), uint8_t(sectorTag));
 
 
         if (sec.size() != 256) sec.assign(256, 0x00);
@@ -708,8 +733,17 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     saveCurrentRawTrackToCache();
 
-    halfTrackPos = std::clamp(halfTrackPos + step, 0, 34 * 2);
-    currentTrack = uint8_t(halfTrackPos / 2);
+    int maxHalfTrack = 34 * 2;
+
+    if (const G64* g64Image = getG64Image())
+    {
+        if (g64Image->getTrackCount() > 0)
+            maxHalfTrack = static_cast<int>(g64Image->getTrackCount()) - 1;
+    }
+
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, maxHalfTrack);
+
+    currentTrack = static_cast<uint8_t>(halfTrackPos / 2);
 
     uiTrack = currentTrack;
     uiSector = currentSector;
@@ -719,90 +753,103 @@ void D1571::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
 void D1571::loadDisk(const std::string& path)
 {
-    diskWriteProtected = false;
-
-    auto img = DiskFactory::create(path);
-    if (!img)
-    {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
-        return;
-    }
-
-    // Current D1571 media path still expects a sector-addressable CBM image.
-    CBMImage* cbmImage = dynamic_cast<CBMImage*>(img.get());
-
-    if (!cbmImage)
-    {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
-        return;
-    }
-
-    if (!cbmImage->loadDisk(path))
-    {
-        diskImage.reset();
-        diskLoaded = false;
-        loadedDiskName.clear();
-        lastError = DriveError::NO_DISK;
-        return;
-    }
-
-    // Save old media before replacing it.
     flushAndSaveDisk();
-
-    auto lowerExt = [](const std::string& p) -> std::string
-    {
-        const auto dot = p.find_last_of('.');
-
-        if (dot == std::string::npos)
-            return {};
-
-        std::string ext = p.substr(dot);
-
-        for (auto& c : ext)
-        {
-            c = static_cast<char>(
-                std::tolower(static_cast<unsigned char>(c)));
-        }
-
-        return ext;
-    };
-
-    const std::string ext = lowerExt(path);
-
-    MediaPath newMediaPath;
-
-    if (ext == ".d71")
-    {
-        newMediaPath = MediaPath::GCR_D71;
-    }
-    else if (ext == ".d64")
-    {
-        newMediaPath = MediaPath::GCR_D64;
-    }
-    else
-    {
-        newMediaPath = MediaPath::FDC_MFM;
-    }
-
-    mediaPath = newMediaPath;
 
     resetForMediaChange();
 
-    // Transfer ownership from unique_ptr<Disk> to unique_ptr<CBMImage>.
-    img.release();
-    diskImage.reset(cbmImage);
+    diskWriteProtected = false;
 
-    diskLoaded     = true;
+    auto img = DiskFactory::create(path);
+
+    if (!img)
+    {
+        loadedDiskName.clear();
+        diskImage.reset();
+        diskLoaded = false;
+        lastError = DriveError::NO_DISK;
+
+        gcrDirty = true;
+        gcrPos = 0;
+        gcrBitCounter = 0;
+
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
+        gcrSectorAtPos.clear();
+
+        d1571mem.getVIA2().clearMechBytePending();
+
+        return;
+    }
+
+    if (!img->loadDisk(path))
+    {
+        loadedDiskName.clear();
+        diskImage.reset();
+        diskLoaded = false;
+        lastError = DriveError::NO_DISK;
+
+        gcrDirty = true;
+        gcrPos = 0;
+        gcrBitCounter = 0;
+
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
+        gcrSectorAtPos.clear();
+
+        d1571mem.getVIA2().clearMechBytePending();
+
+        return;
+    }
+
+    diskImage = std::move(img);
+
+    // Determine media path from actual image type.
+    if (getG64Image())
+        mediaPath = MediaPath::GCR_G64;
+    else
+    {
+        auto lowerExt = [](const std::string& p) -> std::string
+        {
+            const auto dot = p.find_last_of('.');
+
+            if (dot == std::string::npos)
+                return {};
+
+            std::string ext = p.substr(dot);
+
+            for (auto& c : ext)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+            return ext;
+        };
+
+        const std::string ext = lowerExt(path);
+
+        if (ext == ".d71")
+            mediaPath = MediaPath::GCR_D71;
+        else if (ext == ".d64")
+            mediaPath = MediaPath::GCR_D64;
+        else
+            mediaPath = MediaPath::FDC_MFM;
+    }
+
+    diskLoaded = true;
+
+    invalidateRawGcrCache();
+
     loadedDiskName = path;
-    lastError      = DriveError::NONE;
-    status         = DriveStatus::IDLE;
-    gcrDirty       = true;
+    status = DriveStatus::READY;
+    lastError = DriveError::NONE;
+
+    gcrDirty = true;
+    gcrPos = 0;
+    gcrBitCounter = 0;
+
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
+    gcrSectorAtPos.clear();
+
+    d1571mem.getVIA2().clearMechBytePending();
 }
 
 void D1571::unloadDisk()
@@ -826,13 +873,16 @@ void D1571::unloadDisk()
 
 bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length)
 {
-    if (!diskLoaded || !diskImage || buffer == nullptr || length == 0)
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!diskLoaded || !cbmImage || buffer == nullptr || length == 0)
     {
         lastError = DriveError::NO_DISK;
         return false;
     }
 
-    std::vector<uint8_t> data = diskImage->readSector(track, sector);
+    std::vector<uint8_t> data = cbmImage->readSector(track, sector);
+
     if (data.empty())
     {
         lastError = DriveError::BAD_SECTOR;
@@ -840,6 +890,7 @@ bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
     }
 
     const size_t toCopy = std::min(length, data.size());
+
     std::memcpy(buffer, data.data(), toCopy);
 
     currentTrack  = track;
@@ -851,14 +902,15 @@ bool D1571::fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t
 
 bool D1571::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length)
 {
-    // Basic sanity
-    if (!diskLoaded || !diskImage || buffer == nullptr || length == 0)
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!diskLoaded || !cbmImage || buffer == nullptr || length == 0)
     {
-        lastError = DriveError::NO_DISK;   // or WRITE_FAILED etc.
+        lastError = DriveError::NO_DISK;
         return false;
     }
 
-    constexpr size_t SECTOR_SIZE = 256;  // matches Disk::SECTOR_SIZE
+    constexpr size_t SECTOR_SIZE = 256;
 
     const size_t toCopy = std::min(length, SECTOR_SIZE);
 
@@ -868,17 +920,18 @@ bool D1571::fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer,
     if (data.size() < SECTOR_SIZE)
         data.resize(SECTOR_SIZE, 0x00);
 
-    bool ok = diskImage->writeSector(track, sector, data);
+    const bool ok = cbmImage->writeSector(track, sector, data);
 
     if (!ok)
     {
-        lastError = DriveError::BAD_SECTOR;  // or WRITE_FAILED
+        lastError = DriveError::BAD_SECTOR;
         return false;
     }
 
     lastError     = DriveError::NONE;
     currentTrack  = track;
     currentSector = sector;
+
     return true;
 }
 
@@ -1062,8 +1115,8 @@ void D1571::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 
     trackModifiedByWrite = true;
 
-    // Keep the cached raw track up to date so the ROM can verify what it just wrote.
-    saveCurrentRawTrackToCache();
+    if (!getG64Image())
+        saveCurrentRawTrackToCache();
 }
 
 void D1571::setDiskWriteGate(bool enabled)
@@ -1251,6 +1304,23 @@ void D1571::flushCurrentRawTrackToImage()
     if (!diskLoaded || !diskImage)
         return;
 
+    //
+    // G64 stores raw track data directly.
+    //
+    if (getG64Image())
+    {
+        saveCurrentRawTrackToCache();
+        return;
+    }
+
+    //
+    // D64 / D71 require a sector-addressable image.
+    //
+    CBMImage* cbmImage = getCBMImage();
+
+    if (!cbmImage)
+        return;
+
     const size_t cacheTrack = currentRawCacheIndex();
 
     if (cacheTrack >= rawGcrTrackDirty.size())
@@ -1263,7 +1333,7 @@ void D1571::flushCurrentRawTrackToImage()
     saveCurrentRawTrackToCache();
 
     const uint8_t trackOnSide1based = currentTrackOnSide1Based();
-    const uint8_t imageTrack1based  = currentImageTrack1Based();
+    const uint8_t imageTrack1based = currentImageTrack1Based();
     const int spt = gcrCodec.sectorsPerTrack1541(trackOnSide1based);
 
     int written = 0;
@@ -1279,7 +1349,7 @@ void D1571::flushCurrentRawTrackToImage()
             continue;
         }
 
-        if (diskImage->writeSector(imageTrack1based, static_cast<uint8_t>(sector), sectorBytes))
+        if (cbmImage->writeSector(imageTrack1based, static_cast<uint8_t>(sector), sectorBytes))
             ++written;
         else
             ++failed;
@@ -1290,6 +1360,13 @@ void D1571::flushCurrentRawTrackToImage()
 
 void D1571::flushAllDirtyRawTracksToImage()
 {
+    // G64 raw tracks never get converted back into CBM sectors.
+    if (getG64Image())
+    {
+        saveCurrentRawTrackToCache();
+        return;
+    }
+
     if (!diskLoaded || !diskImage)
         return;
 
@@ -1373,9 +1450,33 @@ void D1571::invalidateRawGcrCache()
 
 void D1571::flushAndSaveDisk()
 {
+    if (!diskImage || loadedDiskName.empty())
+        return;
+
+    //
+    // G64 already stores raw tracks directly.
+    //
+    if (getG64Image())
+    {
+        // Commit the currently modified live raw track
+        // back into the G64 object first.
+        saveCurrentRawTrackToCache();
+
+        if (diskImage->isDirty())
+        {
+            diskImage->saveDisk(loadedDiskName);
+            diskImage->clearDirty();
+        }
+
+        return;
+    }
+
+    //
+    // D64 / D71 path
+    //
     flushAllDirtyRawTracksToImage();
 
-    if (diskImage && !loadedDiskName.empty())
+    if (diskImage->isDirty())
     {
         diskImage->saveDisk(loadedDiskName);
         diskImage->clearDirty();
@@ -1384,6 +1485,22 @@ void D1571::flushAndSaveDisk()
 
 void D1571::saveCurrentRawTrackToCache()
 {
+    if (G64* g64Image = getG64Image())
+    {
+        if (gcrTrack.empty())
+            return;
+
+        if (!trackModifiedByWrite)
+            return;
+
+        const size_t trackIndex = static_cast<size_t>(halfTrackPos);
+
+        if (g64Image->setTrackData(trackIndex, gcrTrack.getTrackData()))
+           trackModifiedByWrite = false;
+
+        return;
+    }
+
     const size_t t = currentRawCacheIndex();
 
     if (t >= rawGcrTrackCache.size())
@@ -1403,6 +1520,157 @@ void D1571::saveCurrentRawTrackToCache()
     rawGcrTrackDirty[t] = true;
 
     trackModifiedByWrite = false;
+}
+
+void D1571::loadCurrentRawTrackFromCacheOrBuild()
+{
+    //
+    // G64 raw-track path
+    //
+    if (G64* g64Image = getG64Image())
+    {
+        gcrTrack.clear();
+        gcrTrack.getSyncMap().clear();
+        gcrSectorAtPos.clear();
+        gcrWrittenMask.clear();
+
+        const size_t g64TrackIndex = static_cast<size_t>(halfTrackPos);
+
+        if (!g64Image->hasTrack(g64TrackIndex))
+        {
+            gcrPos = 0;
+            d1571mem.getVIA2().clearMechBytePending();
+            return;
+        }
+
+        gcrTrack.setTrackData(g64Image->getTrackData(g64TrackIndex));
+        gcrTrack.setSpeedZones(g64Image->getTrackSpeedZones(g64TrackIndex));
+
+        if (gcrTrack.empty())
+        {
+            gcrPos = 0;
+            d1571mem.getVIA2().clearMechBytePending();
+            return;
+        }
+
+        rebuildSyncMapForCurrentTrack();
+
+        // G64 has no prebuilt sector-position map.
+        // We'll decode sector headers while the disk rotates later.
+        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);
+        gcrWrittenMask.assign(gcrTrack.size(), 0);
+
+        gcrPos %= gcrTrack.size();
+
+        d1571mem.getVIA2().clearMechBytePending();
+
+        return;
+    }
+
+    //
+    // Existing D64 / D71 cache path
+    //
+    const size_t cacheTrack = currentRawCacheIndex();
+
+    if (cacheTrack < rawGcrTrackValid.size() && rawGcrTrackValid[cacheTrack])
+    {
+        gcrTrack.getTrackData() = rawGcrTrackCache[cacheTrack];
+        gcrTrack.getSyncMap() = rawGcrSyncCache[cacheTrack];
+        gcrSectorAtPos = rawGcrSectorCache[cacheTrack];
+
+        if (gcrWrittenMask.size() != gcrTrack.size())
+            gcrWrittenMask.assign(gcrTrack.size(), 0);
+
+        if (!gcrTrack.empty())
+            gcrPos %= gcrTrack.size();
+        else
+            gcrPos = 0;
+
+        d1571mem.getVIA2().clearMechBytePending();
+        return;
+    }
+
+    rebuildGCRTrackStream();
+
+    if (cacheTrack < rawGcrTrackCache.size())
+    {
+        rawGcrTrackCache[cacheTrack] = gcrTrack.getTrackData();
+        rawGcrSyncCache[cacheTrack] = gcrTrack.getSyncMap();
+        rawGcrSectorCache[cacheTrack] = gcrSectorAtPos;
+        rawGcrTrackValid[cacheTrack] = true;
+        rawGcrTrackDirty[cacheTrack] = false;
+    }
+}
+
+void D1571::sampleHeaderAtCurrentPosition(size_t pos)
+{
+    if (gcrTrack.empty())
+        return;
+
+    constexpr size_t HEADER_GCR_SIZE = 10;
+
+    const size_t n = gcrTrack.size();
+
+    if (pos >= n)
+        return;
+
+    const size_t prev = (pos + n - 1) % n;
+
+    if (prev >= gcrTrack.getSyncMap().size() || gcrTrack.getSyncMap()[prev] == 0)
+        return;
+
+    uint8_t gcrHeader[HEADER_GCR_SIZE];
+
+    for (size_t i = 0; i < HEADER_GCR_SIZE; ++i)
+        gcrHeader[i] = gcrTrack.getTrackData()[(pos + i) % n];
+
+    std::vector<uint8_t> raw;
+    raw.reserve(8);
+
+    if (!gcrCodec.decodeBytes(gcrHeader, HEADER_GCR_SIZE, raw))
+        return;
+
+    if (raw.size() != 8 || raw[0] != 0x08)
+        return;
+
+    const uint8_t sector = raw[2];
+    const uint8_t track  = raw[3];
+    const uint8_t id2    = raw[4];
+    const uint8_t id1    = raw[5];
+
+    const uint8_t expectedChecksum = static_cast<uint8_t>(sector ^ track ^ id2 ^ id1);
+
+    if (raw[1] != expectedChecksum)
+        return;
+
+    if (track < 1 || track > 35)
+        return;
+
+    if (sector >= gcrCodec.sectorsPerTrack1541(track))
+        return;
+
+    if (getG64Image())
+        currentSector = sector;
+}
+
+CBMImage* D1571::getCBMImage()
+{
+    return dynamic_cast<CBMImage*>(diskImage.get());
+}
+
+const CBMImage* D1571::getCBMImage() const
+{
+    return dynamic_cast<const CBMImage*>(diskImage.get());
+}
+
+G64* D1571::getG64Image()
+{
+    return dynamic_cast<G64*>(diskImage.get());
+}
+
+const G64* D1571::getG64Image() const
+{
+    return dynamic_cast<const G64*>(diskImage.get());
 }
 
 uint8_t D1571::currentTrackOnSide1Based() const

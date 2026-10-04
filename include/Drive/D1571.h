@@ -21,6 +21,7 @@
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
+#include "Floppy/G64.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 #include "IECBus.h"
@@ -53,7 +54,8 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
 
         // Compatibility check
-        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::D71; }
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64 ||
+                                                                fmt == DiskFormat::D71; }
 
         // IEC getters
         inline bool getAtnLineLow()  const  override { return iecBus ? !iecBus->readAtnLine() : atnLineLow; }
@@ -113,7 +115,8 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
 
         // Drive Runtime Properties
-        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_D71; }
+        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_G64 ||
+                                            mediaPath == MediaPath::GCR_D71; }
         inline bool isTrack0() { return currentTrack == 0; }
         inline bool isIecTalking() const { return iecTalking; }
         inline bool isIecListening() const { return iecListening; }
@@ -156,9 +159,9 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         IRQLine IRQ;
 
         // Floppy factory
-        std::unique_ptr<CBMImage> diskImage;
+        std::unique_ptr<Disk> diskImage;
 
-        enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71 };
+        enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71, GCR_G64 };
         MediaPath mediaPath;
 
         // IECBUS
@@ -249,6 +252,15 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         size_t findHeaderPosForSector(uint8_t track, uint8_t sector) const;
 
         // Helper
+        void loadCurrentRawTrackFromCacheOrBuild();
+        void sampleHeaderAtCurrentPosition(size_t pos);
+
+        CBMImage* getCBMImage();
+        const CBMImage* getCBMImage() const;
+
+        G64* getG64Image();
+        const G64* getG64Image() const;
+
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
 
         uint8_t currentTrackOnSide1Based() const;
