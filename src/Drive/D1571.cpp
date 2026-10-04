@@ -1081,40 +1081,13 @@ void D1571::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 
     gcrTrack.getTrackData()[pos] = value;
 
-    // Rebuild sync state around the byte we just wrote.
-    //
-    // Do NOT treat a single $FF byte as a full sync region.
-    // A real sync mark is a run of 1 bits. At byte granularity this is
-    // approximated as a short run of consecutive $FF bytes.
-    if (gcrTrack.getSyncMap().size() == gcrTrack.size())
-    {
-        const size_t n = gcrTrack.size();
-
-        for (int rel = -16; rel <= 16; ++rel)
-        {
-            const size_t p = (pos + n + rel) % n;
-
-            int ffRun = 0;
-
-            for (int back = 0; back < 12; ++back)
-            {
-                const size_t q = (p + n - static_cast<size_t>(back)) % n;
-
-                if (gcrTrack.getTrackData()[q] == 0xFF)
-                    ++ffRun;
-                else
-                    break;
-            }
-
-            gcrTrack.getSyncMap()[p] = (ffRun >= 2) ? 1 : 0;
-        }
-    }
-
     if (gcrWrittenMask.size() == gcrTrack.size())
         gcrWrittenMask[pos] = 1;
 
     trackModifiedByWrite = true;
 
+    // Sector-based images keep the generated raw track cache updated.
+    // G64 remains a live raw track and is committed when write gate closes.
     if (!getG64Image())
         saveCurrentRawTrackToCache();
 }
@@ -1453,33 +1426,25 @@ void D1571::flushAndSaveDisk()
     if (!diskImage || loadedDiskName.empty())
         return;
 
-    //
-    // G64 already stores raw tracks directly.
-    //
     if (getG64Image())
     {
-        // Commit the currently modified live raw track
-        // back into the G64 object first.
         saveCurrentRawTrackToCache();
 
         if (diskImage->isDirty())
         {
-            diskImage->saveDisk(loadedDiskName);
-            diskImage->clearDirty();
+            if (diskImage->saveDisk(loadedDiskName))
+                diskImage->clearDirty();
         }
 
         return;
     }
 
-    //
-    // D64 / D71 path
-    //
     flushAllDirtyRawTracksToImage();
 
     if (diskImage->isDirty())
     {
-        diskImage->saveDisk(loadedDiskName);
-        diskImage->clearDirty();
+        if (diskImage->saveDisk(loadedDiskName))
+            diskImage->clearDirty();
     }
 }
 
