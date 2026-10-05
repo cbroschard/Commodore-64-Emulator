@@ -525,18 +525,19 @@ void IECBUS::tick(uint64_t cyclesPassed)
             if (!drive)
                 continue;
 
-            double& acc = driveCycleAccumulators[dev];
+            //
+            // Current drive timing model advances one drive cycle
+            // per host machine cycle.
+            //
+            // This keeps IEC/VIA/disk timing phase-aligned with the
+            // current emulator architecture. A future fully independent
+            // drive clock should use a shared event timeline rather than
+            // batching asynchronous drive cycles here.
+            //
+            drive->tick(1);
 
-            acc += drive->clockHz() / hostCpuHz;
-
-            while (acc >= 1.0)
-            {
-                drive->tick(1);
-                acc -= 1.0;
-
-                updateSrqLine();
-                recalcAndNotify();
-            }
+            updateSrqLine();
+            recalcAndNotify();
         }
     }
 
