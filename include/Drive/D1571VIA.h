@@ -31,7 +31,7 @@ class D1571VIA : public DriveVIA6522
         inline bool isLedOn() const { return ledOn; }
         inline void setLed(bool on) { ledOn = on; }
         inline bool isSyncDetected() const { return syncDetected; }
-        inline bool mechHasBytePending() const { return mechBytePending; }
+        inline bool isByteReadyActive() const { return byteReadyActive; }
         inline void setSyncDetected(bool present) { syncDetected = present; }
         void diskByteFromMedia(uint8_t byte, bool inSync);
 
@@ -42,6 +42,7 @@ class D1571VIA : public DriveVIA6522
         void onClkEdge(bool rising, bool falling);
         void onCA1Edge(bool rising, bool falling);
         inline void pulseCB2() { triggerInterrupt(IFR_CB2); }
+        void consumeWriteByteRequest();
         void clearMechBytePending();
         void pulseWriteByteReady();
 
@@ -100,7 +101,16 @@ class D1571VIA : public DriveVIA6522
         bool    ledOn;
         bool    syncDetected;
         uint8_t mechDataLatch;
-        bool    mechBytePending;
+
+        // GCR read path:
+        // A completed media byte is waiting in mechDataLatch.
+        bool mechReadBytePending;
+
+        // GCR write path:
+        // Disk rotation has reached a write-byte slot.
+        bool mechWriteByteRequest;
+
+        bool byteReadyActive;
 
         bool atnAckArmed;
         bool atnAckLatch;

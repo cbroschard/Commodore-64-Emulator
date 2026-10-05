@@ -551,13 +551,15 @@ void D1571::setBurstClock2MHz(bool enable)
 bool D1571::getByteReadyLow() const
 {
     if (isGCRMode())
-        return d1571mem.getVIA2().mechHasBytePending();
+        return d1571mem.getVIA2().isByteReadyActive();
 
     auto* fdc = getFDC();
-    if (!fdc) return false;
+    if (!fdc)
+        return false;
 
-    bool drqActive = fdc->checkDRQActive();
-    bool intrqActive = fdc->checkIRQActive();
+    const bool drqActive = fdc->checkDRQActive();
+    const bool intrqActive = fdc->checkIRQActive();
+
     return drqActive || intrqActive;
 }
 

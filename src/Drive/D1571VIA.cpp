@@ -15,7 +15,9 @@ D1571VIA::D1571VIA() :
     ledOn(false),
     syncDetected(false),
     mechDataLatch(0xFF),
-    mechBytePending(false),
+    mechReadBytePending(false),
+    mechWriteByteRequest(false),
+    byteReadyActive(false),
     atnAckArmed(false),
     atnAckLatch(false),
     prevAtnAckClear(false)
@@ -27,7 +29,7 @@ D1571VIA::~D1571VIA() = default;
 
 void D1571VIA::saveState(StateWriter& wrtr) const
 {
-    wrtr.writeU32(1);
+    wrtr.writeU32(2);
 
     saveVIAState(wrtr);
 
@@ -40,7 +42,9 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(ledOn);
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
-    wrtr.writeBool(mechBytePending);
+    wrtr.writeBool(mechReadBytePending);
+    wrtr.writeBool(mechWriteByteRequest);
+    wrtr.writeBool(byteReadyActive);
 
     // ATN Ack
     wrtr.writeBool(atnAckArmed);
@@ -51,29 +55,68 @@ void D1571VIA::saveState(StateWriter& wrtr) const
 bool D1571VIA::loadState(StateReader& rdr)
 {
     uint32_t ver = 0;
-    if (!rdr.readU32(ver)) return false;
 
-    if (ver != 1)
+    if (!rdr.readU32(ver))
+        return false;
+
+    if (ver < 1 || ver > 2)
         return false;
 
     if (!loadVIAState(rdr))
         return false;
 
     // Serial shift runtime
-    if (!rdr.readU8(srShiftReg)) return false;
-    if (!rdr.readU8(srBitCount)) return false;
-    if (!rdr.readBool(srShiftInMode)) return false;
+    if (!rdr.readU8(srShiftReg))
+        return false;
+
+    if (!rdr.readU8(srBitCount))
+        return false;
+
+    if (!rdr.readBool(srShiftInMode))
+        return false;
 
     // Mechanical signals
-    if (!rdr.readBool(ledOn)) return false;
-    if (!rdr.readBool(syncDetected)) return false;
-    if (!rdr.readU8(mechDataLatch)) return false;
-    if (!rdr.readBool(mechBytePending)) return false;
+    if (!rdr.readBool(ledOn))
+        return false;
+
+    if (!rdr.readBool(syncDetected))
+        return false;
+
+    if (!rdr.readU8(mechDataLatch))
+        return false;
+
+    if (ver == 1)
+    {
+        bool oldMechBytePending = false;
+
+        if (!rdr.readBool(oldMechBytePending))
+            return false;
+
+        mechReadBytePending  = oldMechBytePending;
+        mechWriteByteRequest = false;
+        byteReadyActive      = oldMechBytePending;
+    }
+    else
+    {
+        if (!rdr.readBool(mechReadBytePending))
+            return false;
+
+        if (!rdr.readBool(mechWriteByteRequest))
+            return false;
+
+        if (!rdr.readBool(byteReadyActive))
+            return false;
+    }
 
     // ATN Ack
-    if (!rdr.readBool(atnAckArmed)) return false;
-    if (!rdr.readBool(atnAckLatch)) return false;
-    if (!rdr.readBool(prevAtnAckClear)) return false;
+    if (!rdr.readBool(atnAckArmed))
+        return false;
+
+    if (!rdr.readBool(atnAckLatch))
+        return false;
+
+    if (!rdr.readBool(prevAtnAckClear))
+        return false;
 
     // Post-restore fixups / derived state
     applyPortAOutputs(registers.oraIRA);
@@ -94,15 +137,18 @@ void D1571VIA::reset()
     DriveVIA6522::reset();
 
     // Mechanics
-    ledOn            = false;
-    syncDetected     = false;
-    mechDataLatch    = 0xFF;
-    mechBytePending  = false;
+    ledOn                   = false;
+    syncDetected            = false;
+    mechDataLatch           = 0xFF;
+    mechReadBytePending     = false;
+    mechWriteByteRequest    = false;
+
+    byteReadyActive         = false;
 
     // Serial shift
-    srShiftReg    = 0;
-    srBitCount    = 0;
-    srShiftInMode = false;
+    srShiftReg              = 0;
+    srBitCount              = 0;
+    srShiftInMode           = false;
 
     if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
     {
@@ -143,12 +189,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x00: // ORB/IRB - Port B
         {
             const uint8_t ddrB = registers.ddrB;
-
-            uint8_t value =
-                static_cast<uint8_t>(
-                    (registers.orbIRB & ddrB) |
-                    (portBPins & static_cast<uint8_t>(~ddrB))
-                );
+            uint8_t value = static_cast<uint8_t>((registers.orbIRB & ddrB) |(portBPins & static_cast<uint8_t>(~ddrB)));
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -212,12 +253,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x01: // ORA/IRA - Port A
         {
             const uint8_t ddrA = registers.ddrA;
-
-            uint8_t value =
-                static_cast<uint8_t>(
-                    (registers.oraIRA & ddrA) |
-                    (portAPins & static_cast<uint8_t>(~ddrA))
-                );
+            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -255,15 +291,14 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             }
             else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
-                value =
-                    static_cast<uint8_t>(
-                        (registers.oraIRA & ddrA) |
-                        (mechDataLatch & static_cast<uint8_t>(~ddrA))
-                    );
+                value = static_cast<uint8_t>((registers.oraIRA & ddrA) |(mechDataLatch & static_cast<uint8_t>(~ddrA)));
 
                 // Reading Port A consumes pending disk byte.
-                if (mechBytePending)
-                    mechBytePending = false;
+                if (mechReadBytePending)
+                {
+                    mechReadBytePending = false;
+                    byteReadyActive = false;
+                }
             }
 
             clearIFR(IFR_CA1);
@@ -444,6 +479,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         {
             registers.oraIRA = value;
             applyPortAOutputs(value);
+
+            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+                consumeWriteByteRequest();
+
             break;
         }
 
@@ -529,6 +568,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
             registers.oraIRA = value;
             registers.oraIRANoHandshake = value;
             applyPortAOutputs(value);
+
+            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+                consumeWriteByteRequest();
+
             break;
         }
 
@@ -546,17 +589,19 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
     if (inSync)
     {
-        mechBytePending = false;
+        mechReadBytePending = false;
+        byteReadyActive = false;
+
         clearIFR(IFR_CA1);
         return;
     }
 
-    // Do not replace an unread byte or generate another byte-ready event.
-    if (mechBytePending)
+    if (mechReadBytePending)
         return;
 
     mechDataLatch = byte;
-    mechBytePending = true;
+    mechReadBytePending = true;
+    byteReadyActive = true;
 
     triggerInterrupt(IFR_CA1);
 
@@ -806,9 +851,21 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
     return m;
 }
 
+void D1571VIA::consumeWriteByteRequest()
+{
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
+        return;
+
+    mechWriteByteRequest = false;
+    byteReadyActive = false;
+}
+
 void D1571VIA::clearMechBytePending()
 {
-    mechBytePending = false;
+    mechReadBytePending = false;
+    mechWriteByteRequest = false;
+    byteReadyActive = false;
+
     clearIFR(IFR_CA1);
 }
 
@@ -817,7 +874,8 @@ void D1571VIA::pulseWriteByteReady()
     if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
         return;
 
-    mechBytePending = true;
+    mechWriteByteRequest = true;
+    byteReadyActive = true;
 
     triggerInterrupt(IFR_CA1);
 
