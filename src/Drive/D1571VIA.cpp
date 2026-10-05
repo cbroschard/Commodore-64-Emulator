@@ -551,6 +551,10 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         return;
     }
 
+    // Do not replace an unread byte or generate another byte-ready event.
+    if (mechBytePending)
+        return;
+
     mechDataLatch = byte;
     mechBytePending = true;
 
