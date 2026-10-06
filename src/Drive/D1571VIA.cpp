@@ -595,27 +595,22 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
     mechReadBytePending = true;
     byteReadyActive = true;
 
-    // BYTE READY / SO is generated only when a new pending-byte
-    // condition begins, not for every byte that passes underneath
-    // the head while the previous byte is still pending.
+    // CA1 represents the beginning of a new pending-byte condition.
     if (!wasPending)
-    {
         triggerInterrupt(IFR_CA1);
 
-        if (parentPeripheral)
+    // In 1 MHz / 1541-compatible operation, every completed
+    // GCR byte drives SO.
+    //
+    // Native 2 MHz operation uses the 1571 BYTE READY path instead.
+    if (parentPeripheral)
+    {
+        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
         {
-            if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+            if (!drive->isTwoMHzMode())
             {
-                // In 1 MHz / 1541-compatible operation, BYTE READY
-                // is routed to the CPU SO input.
-                //
-                // In native 2 MHz operation, the ROM observes BYTE READY
-                // through the 1571 hardware path instead of SO.
-                if (!drive->isTwoMHzMode())
-                {
-                    if (auto* cpu = drive->getDriveCPU())
-                        cpu->pulseSO();
-                }
+                if (auto* cpu = drive->getDriveCPU())
+                    cpu->pulseSO();
             }
         }
     }
