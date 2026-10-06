@@ -416,16 +416,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                         static_cast<uint8_t>(registers.orbIRB & phaseMask);
 
                     if (oldPhase != newPhase)
-                    {
-#ifdef Debug
-                        std::cout << "[VIA2] step phase "
-                                  << int(oldPhase)
-                                  << " -> "
-                                  << int(newPhase)
-                                  << "\n";
-#endif
                         drive->onStepperPhaseChange(oldPhase, newPhase);
-                    }
 
                     // Motor.
                     if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
@@ -771,13 +762,6 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
         {
             registers.serialShift = srShiftReg;
 
-            #ifdef Debug
-            std::cout << "[VIA1] IEC RX byte = $"
-                      << std::hex << std::uppercase << int(registers.serialShift)
-                      << " (LSB-first, ACR=$" << int(registers.auxControlRegister)
-                      << ")\n" << std::dec;
-            #endif
-
             // reset for next byte
             srShiftReg = 0;
             srBitCount = 0;
@@ -910,31 +894,6 @@ void D1571VIA::recomputeDiskWriteGate()
         (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
 
     const bool gate = portAOutput && pcrWritePhase;
-
-#ifdef Debug
-    static bool lastGate = false;
-    static uint8_t lastPcr = 0xFF;
-    static uint8_t lastDdra = 0xFF;
-
-    if (gate != lastGate || pcr != lastPcr || registers.ddrA != lastDdra)
-    {
-        if (gate || lastGate || registers.ddrA == 0xFF)
-        {
-            std::cout << "[D1571:VIA2:GATE] "
-                      << "PCR=$" << std::hex << std::uppercase << int(pcr)
-                      << " DDRA=$" << int(registers.ddrA)
-                      << std::dec
-                      << " CA2=" << int(ca2Mode)
-                      << " CB2=" << int(cb2Mode)
-                      << " gate=" << (gate ? 1 : 0)
-                      << "\n";
-        }
-
-        lastGate = gate;
-        lastPcr = pcr;
-        lastDdra = registers.ddrA;
-    }
-#endif
 
     drive->setDiskWriteGate(gate);
 }

@@ -1088,11 +1088,6 @@ void D1571::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
         gcrWrittenMask[pos] = 1;
 
     trackModifiedByWrite = true;
-
-    // Sector-based images keep the generated raw track cache updated.
-    // G64 remains a live raw track and is committed when write gate closes.
-    if (!getG64Image())
-        saveCurrentRawTrackToCache();
 }
 
 void D1571::setDiskWriteGate(bool enabled)
