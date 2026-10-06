@@ -111,8 +111,6 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void onSecondaryAddress(uint8_t sa) override;
 
         void setDiskWriteGate(bool enabled);
-        void onVIA2PortAWrite(uint8_t value, uint8_t ddrA);
-
 
         // Drive Runtime Properties
         inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_G64 ||
@@ -233,8 +231,6 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         std::vector<uint8_t> gcrWrittenMask;
 
         bool diskWriteGate;
-        size_t pendingWritePos;
-        bool pendingWritePosValid;
         bool trackModifiedByWrite;
 
         std::vector<uint8_t> writeGcrBuffer;

@@ -944,11 +944,6 @@ void D1571VIA::applyPortAOutputs(uint8_t value)
             }
         }
     }
-    else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-    {
-        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-            drive->onVIA2PortAWrite(value, registers.ddrA);
-    }
 }
 
 void D1571VIA::onAttachedToPeripheral()

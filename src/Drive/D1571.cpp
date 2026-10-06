@@ -329,7 +329,8 @@ bool D1571::gcrTick()
             gcrPos = 0;
     }
 
-    if (gcrTrack.empty()) return false;
+    if (gcrTrack.empty())
+        return false;
 
     if (gcrTrack.getSyncMap().size() != gcrTrack.size())
         gcrTrack.getSyncMap().assign(gcrTrack.size(), 0);
@@ -338,10 +339,21 @@ bool D1571::gcrTick()
 
     if (diskWriteGate)
     {
-        pendingWritePos = pos;
-        pendingWritePosValid = true;
-
         auto& via2 = d1571mem.getVIA2();
+
+        // The VIA Port A output register is the physical write-data latch.
+        // At each physical GCR byte time, the write circuitry serializes
+        // whatever byte is currently present in that latch.
+        const uint8_t writeByte = via2.getPortAOutputLatch();
+
+        gcrTrack.getTrackData()[pos] = writeByte;
+
+        if (gcrWrittenMask.size() == gcrTrack.size())
+            gcrWrittenMask[pos] = 1;
+
+        trackModifiedByWrite = true;
+
+        // The physical byte boundary requests the next byte from the CPU.
         via2.pulseWriteByteReady();
 
         gcrPos = (gcrPos + 1) % gcrTrack.size();
@@ -1066,30 +1078,6 @@ void D1571::onSecondaryAddress(uint8_t sa)
     expectingDataByte = true;
 }
 
-void D1571::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
-{
-    if (!diskWriteGate)
-        return;
-
-    if (!diskLoaded || !diskImage || !motorOn || diskWriteProtected)
-        return;
-
-    if (ddrA != 0xFF)
-        return;
-
-    if (!pendingWritePosValid || gcrTrack.empty())
-        return;
-
-    const size_t pos = pendingWritePos % gcrTrack.size();
-
-    gcrTrack.getTrackData()[pos] = value;
-
-    if (gcrWrittenMask.size() == gcrTrack.size())
-        gcrWrittenMask[pos] = 1;
-
-    trackModifiedByWrite = true;
-}
-
 void D1571::setDiskWriteGate(bool enabled)
 {
     if (diskWriteGate == enabled)
@@ -1107,9 +1095,6 @@ void D1571::setDiskWriteGate(bool enabled)
         writeSyncRun = 0;
         writeAfterSync = false;
         writeGapRun = 0;
-
-        pendingWritePos = 0;
-        pendingWritePosValid = false;
     }
 }
 
@@ -1727,8 +1712,6 @@ void D1571::resetForMediaChange()
     gcrDirty = true;
 
     diskWriteGate = false;
-    pendingWritePos = 0;
-    pendingWritePosValid = false;
     trackModifiedByWrite = false;
 
     writeSyncRun = 0;

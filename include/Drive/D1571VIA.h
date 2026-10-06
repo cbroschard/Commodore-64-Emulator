@@ -33,6 +33,7 @@ class D1571VIA : public DriveVIA6522
         inline bool isSyncDetected() const { return syncDetected; }
         inline bool isByteReadyActive() const { return byteReadyActive; }
         inline void setSyncDetected(bool present) { syncDetected = present; }
+        inline uint8_t getPortAOutputLatch() const { return registers.oraIRA; }
         void diskByteFromMedia(uint8_t byte, bool inSync);
 
         // Setters
