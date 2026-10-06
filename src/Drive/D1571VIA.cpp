@@ -587,21 +587,28 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         return;
     }
 
-    if (mechReadBytePending)
-        return;
+    const bool wasPending = mechReadBytePending;
 
+    // The rotating disk continues updating the data latch even if
+    // the CPU has not yet consumed the previous byte.
     mechDataLatch = byte;
     mechReadBytePending = true;
     byteReadyActive = true;
 
-    triggerInterrupt(IFR_CA1);
-
-    if (parentPeripheral)
+    // BYTE READY / SO is generated only when a new pending-byte
+    // condition begins, not for every byte that passes underneath
+    // the head while the previous byte is still pending.
+    if (!wasPending)
     {
-        if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+        triggerInterrupt(IFR_CA1);
+
+        if (parentPeripheral)
         {
-            if (auto* cpu = drive->getDriveCPU())
-                cpu->pulseSO();
+            if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
+            {
+                if (auto* cpu = drive->getDriveCPU())
+                    cpu->pulseSO();
+            }
         }
     }
 }
