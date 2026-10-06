@@ -121,6 +121,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         inline bool isIecTalking() const { return iecTalking; }
         inline bool isIecListening() const { return iecListening; }
         inline bool isBusDriversEnabled() const { return busDriversEnabled; }
+        inline bool isTwoMHzMode() const { return twoMHzMode; }
         void setDensityCode(uint8_t code);
         void setHeadSide(bool side);
         void setBusDriversEnabled(bool output);

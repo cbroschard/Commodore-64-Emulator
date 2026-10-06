@@ -606,8 +606,16 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         {
             if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
             {
-                if (auto* cpu = drive->getDriveCPU())
-                    cpu->pulseSO();
+                // In 1 MHz / 1541-compatible operation, BYTE READY
+                // is routed to the CPU SO input.
+                //
+                // In native 2 MHz operation, the ROM observes BYTE READY
+                // through the 1571 hardware path instead of SO.
+                if (!drive->isTwoMHzMode())
+                {
+                    if (auto* cpu = drive->getDriveCPU())
+                        cpu->pulseSO();
+                }
             }
         }
     }
@@ -874,8 +882,16 @@ void D1571VIA::pulseWriteByteReady()
     {
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
         {
-            if (auto* cpu = drive->getDriveCPU())
-                cpu->pulseSO();
+            // In 1 MHz / 1541-compatible mode, BYTE READY
+            // is routed to the CPU SO input.
+            //
+            // Native 2 MHz mode observes BYTE READY through
+            // the 1571 hardware path instead.
+            if (!drive->isTwoMHzMode())
+            {
+                if (auto* cpu = drive->getDriveCPU())
+                    cpu->pulseSO();
+            }
         }
     }
 }
