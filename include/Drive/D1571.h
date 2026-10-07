@@ -113,7 +113,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         void setDiskWriteGate(bool enabled);
 
         // Drive Runtime Properties
-        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_G64 ||
+        inline bool isGCRMode() const { return mediaPath == MediaPath::GCR_D64 || mediaPath == MediaPath::GCR_RAW ||
                                             mediaPath == MediaPath::GCR_D71; }
         inline bool isTrack0() { return currentTrack == 0; }
         inline bool isIecTalking() const { return iecTalking; }
@@ -160,7 +160,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         // Floppy factory
         std::unique_ptr<Disk> diskImage;
 
-        enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71, GCR_G64 };
+        enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71, GCR_RAW };
         MediaPath mediaPath;
 
         // IECBUS
@@ -254,9 +254,6 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         CBMImage* getCBMImage();
         const CBMImage* getCBMImage() const;
-
-        G64* getG64Image();
-        const G64* getG64Image() const;
 
         inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
 
