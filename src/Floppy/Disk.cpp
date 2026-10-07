@@ -60,3 +60,23 @@ bool Disk::loadDiskImage(const std::string& imagePath)
 
     return true;
 }
+
+bool Disk::hasRawTrack(size_t halfTrack) const
+{
+    (void)halfTrack;
+    return false;
+}
+
+bool Disk::readRawTrack(size_t halfTrack, GCRTrackStream& outTrack) const
+{
+    (void)halfTrack;
+    (void)outTrack;
+    return false;
+}
+
+ bool Disk::writeRawTrack(size_t halfTrack, const GCRTrackStream& track)
+ {
+     (void)halfTrack;
+     (void)track;
+     return false;
+ }

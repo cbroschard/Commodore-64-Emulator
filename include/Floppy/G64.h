@@ -22,6 +22,14 @@ class G64 : public Disk
 
         inline DiskTrackModel getTrackModel() const override { return DiskTrackModel::RawGCR; }
 
+        inline bool supportsRawTracks() const override { return true; }
+
+        bool readRawTrack(size_t halfTrack, GCRTrackStream& outTrack) const override;
+        bool writeRawTrack(size_t halfTrack, const GCRTrackStream& track) override;
+
+        inline bool hasRawTrack(size_t halfTrack) const override { return hasTrack(halfTrack); }
+        inline size_t getHalfTrackCount() const override { return getTrackCount(); }
+
         // Raw track access
         size_t getTrackCount() const;
         bool hasTrack(size_t index) const;

@@ -8,9 +8,12 @@
 #ifndef DISK_H
 #define DISK_H
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+
+class GCRTrackStream;
 
 class Disk
 {
@@ -29,6 +32,15 @@ class Disk
         virtual bool saveDisk(const std::string& filePath) = 0;
 
         virtual DiskTrackModel getTrackModel() const = 0;
+
+        virtual bool hasRawTrack(size_t halfTrack) const;
+        virtual bool supportsRawTracks() const { return false; }
+        virtual bool supportsSectorAccess() const { return false; }
+
+        virtual bool readRawTrack(size_t halfTrack, GCRTrackStream& outTrack) const;
+        virtual bool writeRawTrack(size_t halfTrack, const GCRTrackStream& track);
+
+        virtual size_t getHalfTrackCount() const { return 0; }
 
         bool isDirty() const { return dirty; }
         void clearDirty() { dirty = false; }

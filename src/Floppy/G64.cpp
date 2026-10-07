@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <fstream>
 #include "Floppy/G64.h"
+#include "GCR/GCRTrackStream.h"
 
 G64::G64() = default;
 
@@ -85,6 +86,27 @@ bool G64::saveDisk(const std::string& filePath)
     dirty = false;
 
     return true;
+}
+
+bool G64::readRawTrack(size_t halfTrack, GCRTrackStream& outTrack) const
+{
+    if (!hasTrack(halfTrack))
+        return false;
+
+    outTrack.clear();
+
+    outTrack.setTrackData(
+        getTrackData(halfTrack));
+
+    outTrack.setSpeedZones(
+        getTrackSpeedZones(halfTrack));
+
+    return true;
+}
+
+bool G64::writeRawTrack(size_t halfTrack, const GCRTrackStream& track)
+{
+    return setTrackData(halfTrack, track.getTrackData());
 }
 
 size_t G64::getTrackCount() const

@@ -33,6 +33,8 @@ class CBMImage : public Disk
         std::vector<uint8_t> getDirectoryListing();
         std::vector<uint8_t> loadFileByName(const std::string&);
 
+        inline bool supportsSectorAccess() const override { return true; }
+
         // File operations
         bool writeFile(const std::string& fileName, const std::vector<uint8_t>& fileData);
         bool deleteFile(const std::string& fileName);
