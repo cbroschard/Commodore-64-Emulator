@@ -20,6 +20,8 @@ class D64 : public CBMImage
         bool loadDisk(const std::string& filePath) override;
         bool saveDisk(const std::string& filePath) override;
 
+        inline DiskTrackModel getTrackModel() const override { return DiskTrackModel::Sector; }
+
         // Getter for D1541 access
         const std::vector<uint8_t>& getRawImage() const override;
 

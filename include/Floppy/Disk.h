@@ -18,9 +18,17 @@ class Disk
         Disk();
         virtual ~Disk();
 
+        enum class DiskTrackModel
+        {
+            Sector,
+            RawGCR
+        };
+
         // Loading/saving
         virtual bool loadDisk(const std::string& filePath) = 0;
         virtual bool saveDisk(const std::string& filePath) = 0;
+
+        virtual DiskTrackModel getTrackModel() const = 0;
 
         bool isDirty() const { return dirty; }
         void clearDirty() { dirty = false; }

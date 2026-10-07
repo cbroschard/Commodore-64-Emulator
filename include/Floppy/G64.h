@@ -20,6 +20,8 @@ class G64 : public Disk
         bool loadDisk(const std::string& filePath) override;
         bool saveDisk(const std::string& filePath) override;
 
+        inline DiskTrackModel getTrackModel() const override { return DiskTrackModel::RawGCR; }
+
         // Raw track access
         size_t getTrackCount() const;
         bool hasTrack(size_t index) const;
