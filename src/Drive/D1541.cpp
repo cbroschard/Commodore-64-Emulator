@@ -362,7 +362,7 @@ bool D1541::gcrTick()
 
     // Sector tags exist for generated CBMImage tracks.
     // Raw G64 tracks determine the current sector from decoded headers.
-    if (!getG64Image())
+    if (diskImage && diskImage->supportsSectorAccess())
         currentSector = sectorNow;
 
     if (!diskWriteGate)
@@ -832,10 +832,14 @@ void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 
     trackModifiedByWrite = true;
 
-    // D64 keeps its generated raw-track cache synchronized during writes.
-    // G64 is already operating directly on the live raw track and is
-    // committed back to the image when the write gate closes.
-    if (!getG64Image())
+    //
+    // Sector-backed images keep their synthesized raw-track cache
+    // synchronized during writes.
+    //
+    // Native raw-track formats are committed through writeRawTrack()
+    // when the write gate closes.
+    //
+    if (diskImage && !diskImage->supportsRawTracks())
         saveCurrentRawTrackToCache();
 
     acceptGCRWriteByte(value);
@@ -991,10 +995,12 @@ void D1541::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
 
     int maxHalfTrack = 34 * 2;
 
-    if (const G64* g64Image = getG64Image())
+    if (diskImage && diskImage->supportsRawTracks())
     {
-        if (g64Image->getTrackCount() > 0)
-            maxHalfTrack = static_cast<int>(g64Image->getTrackCount()) - 1;
+        const size_t trackCount = diskImage->getHalfTrackCount();
+
+        if (trackCount > 0)
+            maxHalfTrack = static_cast<int>(trackCount) - 1;
     }
 
     halfTrackPos = std::clamp(halfTrackPos + step, 0, maxHalfTrack);
@@ -1016,7 +1022,10 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
 
 void D1541::saveCurrentRawTrackToCache()
 {
-    if (G64* g64Image = getG64Image())
+    //
+    // Generic raw-track media.
+    //
+    if (diskImage && diskImage->supportsRawTracks())
     {
         if (gcrTrack.empty())
             return;
@@ -1026,12 +1035,15 @@ void D1541::saveCurrentRawTrackToCache()
 
         const size_t trackIndex = static_cast<size_t>(halfTrackPos);
 
-        if (g64Image->setTrackData(trackIndex, gcrTrack.getTrackData()))
+        if (diskImage->writeRawTrack(trackIndex, gcrTrack))
             trackModifiedByWrite = false;
 
         return;
     }
 
+    //
+    // Synthesized track cache for sector media.
+    //
     if (currentTrack >= rawGcrTrackCache.size())
         return;
 
@@ -1050,26 +1062,29 @@ void D1541::saveCurrentRawTrackToCache()
 void D1541::loadCurrentRawTrackFromCacheOrBuild()
 {
     //
-    // G64 path
+    // Generic raw-track media path.
     //
-    if (G64* g64Image = getG64Image())
+    if (diskImage && diskImage->supportsRawTracks())
     {
         gcrTrack.clear();
-        gcrTrack.getSyncMap().clear();
         gcrSectorAtPos.clear();
         gcrWrittenMask.clear();
 
-        const size_t g64TrackIndex = static_cast<size_t>(halfTrackPos);
+        const size_t trackIndex = static_cast<size_t>(halfTrackPos);
 
-        if (!g64Image->hasTrack(g64TrackIndex))
+        if (!diskImage->hasRawTrack(trackIndex))
         {
             gcrPos = 0;
             d1541mem.getVIA2().clearMechBytePending();
             return;
         }
 
-        gcrTrack.setTrackData(g64Image->getTrackData(g64TrackIndex));
-        gcrTrack.setSpeedZones(g64Image->getTrackSpeedZones(g64TrackIndex));
+        if (!diskImage->readRawTrack(trackIndex, gcrTrack))
+        {
+            gcrPos = 0;
+            d1541mem.getVIA2().clearMechBytePending();
+            return;
+        }
 
         if (gcrTrack.empty())
         {
@@ -1079,26 +1094,17 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
         }
 
         //
-        // Build the sync map from the raw GCR data.
+        // Raw preservation formats do not provide the logical
+        // sector-position map used by synthesized sector images.
         //
-        rebuildSyncMapForCurrentTrack();
-
-        //
-        // G64 does not give us a logical sector map.
-        // Header sampling will update currentSector as the disk rotates.
-        //
-        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);
-        gcrWrittenMask.assign(gcrTrack.size(), 0);
-
+        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);gcrWrittenMask.assign(gcrTrack.size(), 0);
         gcrPos %= gcrTrack.size();
-
         d1541mem.getVIA2().clearMechBytePending();
-
         return;
     }
 
     //
-    // CBM sector-image path (D64)
+    // Sector-image path (D64, etc.).
     //
     if (currentTrack >= rawGcrTrackCache.size())
         return;
@@ -1230,7 +1236,7 @@ void D1541::sampleHeaderAtCurrentPosition(size_t pos)
     lastHeaderValid = true;
     haveLastHeader = true;
 
-    if (getG64Image())
+    if (diskImage && diskImage->supportsRawTracks())
         currentSector = sector;
 }
 
@@ -1595,16 +1601,6 @@ const CBMImage* D1541::getCBMImage() const
     return dynamic_cast<const CBMImage*>(diskImage.get());
 }
 
-G64* D1541::getG64Image()
-{
-    return dynamic_cast<G64*>(diskImage.get());
-}
-
-const G64* D1541::getG64Image() const
-{
-    return dynamic_cast<const G64*>(diskImage.get());
-}
-
 Drive::IECSnapshot D1541::snapshotIEC() const
 {
     Drive::IECSnapshot s{};
@@ -1664,14 +1660,18 @@ void D1541::flushAndSaveDisk()
     if (!diskImage || loadedDiskName.empty())
         return;
 
-    if (getG64Image())
+    if (diskImage->supportsRawTracks())
     {
-        // Push the currently active raw G64 track back into the image.
+        //
+        // Push live raw track through the generic Disk interface.
+        //
         saveCurrentRawTrackToCache();
     }
-    else
+    else if (diskImage->supportsSectorAccess())
     {
-        // D64/CBM image path.
+        //
+        // Decode synthesized GCR modifications back into sectors.
+        //
         flushAllDirtyRawTracksToImage();
     }
 

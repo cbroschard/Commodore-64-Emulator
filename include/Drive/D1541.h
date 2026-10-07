@@ -16,7 +16,6 @@
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
-#include "Floppy/G64.h"
 #include "Drive/D1541VIA.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
@@ -259,9 +258,6 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         CBMImage* getCBMImage();
         const CBMImage* getCBMImage() const;
-
-        G64* getG64Image();
-        const G64* getG64Image() const;
 };
 
 #endif // D1541_H
