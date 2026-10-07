@@ -21,12 +21,14 @@ class NIB : public Disk
         NIB();
         ~NIB();
 
-        static constexpr size_t NIB_HEADER_SIZE  = 0x100;
+        static constexpr size_t NIB_HEADER_SIZE  = 0xFF;
         static constexpr size_t NIB_TRACK_LENGTH = 0x2000;
 
         struct NIBTrack
         {
             bool present = false;
+
+            uint8_t density = 0;
 
             std::vector<uint8_t> data;
             std::vector<uint8_t> speedZones;
@@ -51,6 +53,8 @@ class NIB : public Disk
 
     private:
         std::vector<NIBTrack> tracks;
+
+        bool parseHeaderAndTracks();
 };
 
 #endif // NIB_H
