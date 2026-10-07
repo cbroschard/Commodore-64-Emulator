@@ -15,8 +15,9 @@
 #include "Floppy/D71.h"
 #include "Floppy/D81.h"
 #include "Floppy/G64.h"
+#include "Floppy/NIB.h"
 
-enum class DiskFormat { D64, D71, D81, G64, Unknown};
+enum class DiskFormat { D64, D71, D81, G64, NIB, Unknown};
 
 class DiskFactory
 {
@@ -39,6 +40,8 @@ class DiskFactory
                     return std::make_unique<D81>();
                 case DiskFormat::G64:
                     return std::make_unique<G64>();
+                case DiskFormat::NIB:
+                    return std::make_unique<NIB>();
               default:
                   return nullptr;
             }
