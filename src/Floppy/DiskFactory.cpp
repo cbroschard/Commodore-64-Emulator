@@ -26,6 +26,7 @@ DiskFormat DiskFactory::detectFormat(const std::string &path)
     if (ext == ".d71") return DiskFormat::D71;
     if (ext == ".d81") return DiskFormat::D81;
     if (ext == ".g64") return DiskFormat::G64;
+    if (ext == ".nib") return DiskFormat::NIB;
 
     return DiskFormat::Unknown;
 }
