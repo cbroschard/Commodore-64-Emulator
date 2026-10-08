@@ -21,7 +21,7 @@ class NIB : public Disk
         NIB();
         ~NIB();
 
-        static constexpr size_t NIB_HEADER_SIZE  = 0xFF;
+        static constexpr size_t NIB_HEADER_SIZE  = 0x100;
         static constexpr size_t NIB_TRACK_LENGTH = 0x2000;
 
         struct NIBTrack
