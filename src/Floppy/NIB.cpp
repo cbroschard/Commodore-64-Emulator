@@ -9,53 +9,6 @@
 #include "Floppy/NIB.h"
 #include "GCR/GCRTrackStream.h"
 
-static size_t findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength)
-{
-    constexpr size_t searchWindow = 512;
-    constexpr size_t matchLength  = 64;
-
-    if (!data)
-        return 0;
-
-    if (captureLength < matchLength)
-        return 0;
-
-    if (expectedLength >= captureLength)
-        return 0;
-
-    const size_t minLength = (expectedLength > searchWindow) ? expectedLength - searchWindow : 1;
-    const size_t maxCandidate = captureLength - matchLength;
-    const size_t maxLength = std::min(expectedLength + searchWindow, maxCandidate);
-
-    if (minLength > maxLength)
-        return 0;
-
-    size_t bestLength = 0;
-    size_t bestScore  = 0;
-
-    for (size_t candidate = minLength; candidate <= maxLength; ++candidate)
-    {
-        size_t score = 0;
-
-        for (size_t i = 0; i < matchLength; ++i)
-        {
-            if (data[i] == data[candidate + i])
-                ++score;
-        }
-
-        if (score > bestScore)
-        {
-            bestScore  = score;
-            bestLength = candidate;
-        }
-    }
-
-    if (bestScore < (matchLength / 2))
-        return 0;
-
-    return bestLength;
-}
-
 NIB::NIB()
 {
 
@@ -195,24 +148,82 @@ bool NIB::parseHeaderAndTracks()
         const uint8_t trackDensity = density & 0x03;
         const size_t expectedLength = nominalTrackLength(trackDensity);
         const uint8_t* rawTrack = fileImageBuffer.data() + dataOffset;
-        size_t trackLength = findTrackCycle(rawTrack, NIB_TRACK_LENGTH, expectedLength);
+        const NIBTrackCycle cycle = findTrackCycle(rawTrack, NIB_TRACK_LENGTH, expectedLength);
 
-        if (trackLength == 0)
-            trackLength = expectedLength;
+        size_t trackStart = 0;
+        size_t trackLength = expectedLength;
 
-        if (trackLength > NIB_TRACK_LENGTH)
-            trackLength = NIB_TRACK_LENGTH;
+        if (cycle.found)
+        {
+            trackStart = cycle.start;
+            trackLength = cycle.length;
+        }
+
+        if (trackStart >= NIB_TRACK_LENGTH)
+            trackStart = 0;
+
+        if (trackLength > NIB_TRACK_LENGTH - trackStart)
+            trackLength = NIB_TRACK_LENGTH - trackStart;
 
         NIBTrack& track = tracks[halfTrack];
 
         track.present = true;
         track.density = trackDensity;
 
-        track.data.assign(rawTrack, rawTrack + trackLength);
+        track.data.assign(rawTrack + trackStart, rawTrack + trackStart + trackLength);
+
         track.speedZones.assign(track.data.size(), trackDensity);
 
         dataOffset += NIB_TRACK_LENGTH;
     }
 
     return !tracks.empty();
+}
+
+NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength)
+{
+    constexpr size_t searchWindow = 512;
+    constexpr size_t matchLength  = 32;
+
+    if (!data)
+        return {};
+
+    if (captureLength < (matchLength * 2))
+        return {};
+
+    if (expectedLength >= captureLength)
+        return {};
+
+    const size_t minLength = (expectedLength > searchWindow) ? expectedLength - searchWindow : 1;
+
+    const size_t maxLength = expectedLength + searchWindow;
+
+    for (size_t start = 0; start + matchLength < captureLength; ++start)
+    {
+        const size_t minCandidate = start + minLength;
+
+        if (minCandidate + matchLength > captureLength)
+            break;
+
+        const size_t maxCandidate = std::min(start + maxLength, captureLength - matchLength);
+
+        if (minCandidate > maxCandidate)
+            continue;
+
+        for (size_t candidate = minCandidate; candidate <= maxCandidate; ++candidate)
+        {
+            if (std::equal(data + start, data + start + matchLength, data + candidate))
+            {
+                NIBTrackCycle result;
+
+                result.start  = start;
+                result.length = candidate - start;
+                result.found  = true;
+
+                return result;
+            }
+        }
+    }
+
+    return {};
 }

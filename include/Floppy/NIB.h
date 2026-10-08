@@ -52,9 +52,18 @@ class NIB : public Disk
         bool validateDiskImage() override;
 
     private:
+        struct NIBTrackCycle
+        {
+            size_t start = 0;
+            size_t length = 0;
+            bool found = false;
+        };
+
         std::vector<NIBTrack> tracks;
 
+        // Helpers
         bool parseHeaderAndTracks();
+        NIBTrackCycle findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength);
 };
 
 #endif // NIB_H
