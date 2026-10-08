@@ -45,7 +45,8 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
 
         // Compatibility check
-        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64; }
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64
+            || fmt == DiskFormat::NIB; }
 
         // IRQ handling
         void updateIRQ() override;

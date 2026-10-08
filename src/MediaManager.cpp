@@ -228,9 +228,9 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
         case DriveModel::None:
             return false;
         case DriveModel::D1541:
-            return (ext == ".d64" || ext == ".g64");
+            return (ext == ".d64" || ext == ".g64" || ext == ".nib");
         case DriveModel::D1571:
-            return (ext == ".d64" || ext == ".g64" || ext == ".d71");
+            return (ext == ".d64" || ext == ".g64" || ext == ".nib" || ext == ".d71");
         case DriveModel::D1581:
             return (ext == ".d81");
     }
