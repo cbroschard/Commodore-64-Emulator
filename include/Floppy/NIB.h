@@ -52,6 +52,17 @@ class NIB : public Disk
         bool validateDiskImage() override;
 
     private:
+        struct ExtractedTrack
+        {
+            std::vector<uint8_t> data;
+            std::vector<uint8_t> speedZones;
+
+            size_t start = 0;
+            size_t length = 0;
+
+            bool valid = false;
+        };
+
         struct NIBTrackCycle
         {
             size_t start = 0;
@@ -63,7 +74,8 @@ class NIB : public Disk
 
         // Helpers
         bool parseHeaderAndTracks();
-        NIBTrackCycle findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength);
+        NIBTrackCycle findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength) const;
+        ExtractedTrack extractTrack(const uint8_t* rawTrack, size_t captureLength, uint8_t density) const;
 };
 
 #endif // NIB_H

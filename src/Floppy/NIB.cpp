@@ -108,19 +108,6 @@ bool NIB::parseHeaderAndTracks()
     constexpr size_t trackTableOffset = 0x10;
     size_t dataOffset = NIB_HEADER_SIZE;
 
-    auto nominalTrackLength = [](uint8_t density) -> size_t
-    {
-        switch (density & 0x03)
-        {
-            case 3: return 7692;
-            case 2: return 7143;
-            case 1: return 6667;
-            case 0: return 6250;
-        }
-
-        return 7692;
-    };
-
     for (size_t entry = 0; entry < 120; ++entry)
     {
         const size_t tableOffset = trackTableOffset + (entry * 2);
@@ -146,33 +133,19 @@ bool NIB::parseHeaderAndTracks()
             return false;
 
         const uint8_t trackDensity = density & 0x03;
-        const size_t expectedLength = nominalTrackLength(trackDensity);
         const uint8_t* rawTrack = fileImageBuffer.data() + dataOffset;
-        const NIBTrackCycle cycle = findTrackCycle(rawTrack, NIB_TRACK_LENGTH, expectedLength);
+        const ExtractedTrack extracted = extractTrack(rawTrack, NIB_TRACK_LENGTH, trackDensity);
 
-        size_t trackStart = 0;
-        size_t trackLength = expectedLength;
-
-        if (cycle.found)
-        {
-            trackStart = cycle.start;
-            trackLength = cycle.length;
-        }
-
-        if (trackStart >= NIB_TRACK_LENGTH)
-            trackStart = 0;
-
-        if (trackLength > NIB_TRACK_LENGTH - trackStart)
-            trackLength = NIB_TRACK_LENGTH - trackStart;
+        if (!extracted.valid)
+            return false;
 
         NIBTrack& track = tracks[halfTrack];
 
         track.present = true;
         track.density = trackDensity;
 
-        track.data.assign(rawTrack + trackStart, rawTrack + trackStart + trackLength);
-
-        track.speedZones.assign(track.data.size(), trackDensity);
+        track.data = extracted.data;
+        track.speedZones = extracted.speedZones;
 
         dataOffset += NIB_TRACK_LENGTH;
     }
@@ -180,7 +153,7 @@ bool NIB::parseHeaderAndTracks()
     return !tracks.empty();
 }
 
-NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength)
+NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength) const
 {
     constexpr size_t searchWindow = 512;
     constexpr size_t matchLength  = 32;
@@ -226,4 +199,53 @@ NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength
     }
 
     return {};
+}
+
+NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLength, uint8_t density) const
+{
+    ExtractedTrack result;
+
+    if (!rawTrack)
+        return result;
+
+    if (captureLength == 0)
+        return result;
+
+    size_t expectedLength = 7692;
+
+    switch (density & 0x03)
+    {
+        case 3: expectedLength = 7692; break;
+        case 2: expectedLength = 7143; break;
+        case 1: expectedLength = 6667; break;
+        case 0: expectedLength = 6250; break;
+    }
+
+    const NIBTrackCycle cycle = findTrackCycle(rawTrack, captureLength, expectedLength);
+
+    size_t trackStart = 0;
+    size_t trackLength = expectedLength;
+
+    if (cycle.found)
+    {
+        trackStart  = cycle.start;
+        trackLength = cycle.length;
+    }
+
+    if (trackStart >= captureLength)
+        trackStart = 0;
+
+    if (trackLength > captureLength - trackStart)
+        trackLength = captureLength - trackStart;
+
+    if (trackLength == 0)
+        return result;
+
+    result.data.assign(rawTrack + trackStart, rawTrack + trackStart + trackLength);
+    result.speedZones.assign(result.data.size(), density & 0x03);
+    result.start  = trackStart;
+    result.length = trackLength;
+    result.valid  = true;
+
+    return result;
 }
