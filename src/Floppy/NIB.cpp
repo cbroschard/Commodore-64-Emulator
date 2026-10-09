@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
 #include "Floppy/NIB.h"
+#include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 
 NIB::NIB()
@@ -241,7 +242,23 @@ NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLen
     if (trackLength == 0)
         return result;
 
-    result.data = extractBitAlignedTrack(rawTrack, captureLength, trackStart * 8, trackLength * 8);
+    std::vector<uint8_t> bestTrack = extractBitAlignedTrack(rawTrack, captureLength, trackStart * 8, trackLength * 8);
+
+    size_t bestHeaders = countValidHeaders(bestTrack);
+
+    for (uint8_t phase = 1; phase < 8; ++phase)
+    {
+        const std::vector<uint8_t> candidate = extractBitAlignedTrack(rawTrack, captureLength, (trackStart * 8) + phase, trackLength * 8);
+        const size_t validHeaders = countValidHeaders(candidate);
+
+        if (validHeaders > bestHeaders)
+        {
+            bestTrack = candidate;
+            bestHeaders = validHeaders;
+        }
+    }
+
+    result.data = bestTrack;
     result.speedZones.assign(result.data.size(), density & 0x03);
     result.start  = trackStart;
     result.length = trackLength;
@@ -283,4 +300,86 @@ std::vector<uint8_t> NIB::extractBitAlignedTrack(const uint8_t* data, size_t cap
     }
 
     return output;
+}
+
+std::vector<uint8_t> NIB::buildBitPhaseView(const uint8_t* data, size_t captureLength, uint8_t phase) const
+{
+    std::vector<uint8_t> output;
+
+    if (!data)
+        return output;
+
+    if (captureLength == 0)
+        return output;
+
+    phase &= 0x07;
+
+    output.resize(captureLength);
+
+    if (phase == 0)
+    {
+        std::copy(data, data + captureLength, output.begin());
+        return output;
+    }
+
+    for (size_t i = 0; i < captureLength; ++i)
+    {
+        const size_t next = (i + 1) % captureLength;
+
+        output[i] = static_cast<uint8_t>(
+            (data[i] << phase) |
+            (data[next] >> (8 - phase)));
+    }
+
+    return output;
+}
+
+size_t NIB::countValidHeaders(const std::vector<uint8_t>& trackData) const
+{
+    if (trackData.size() < 10)
+        return 0;
+
+    GCRCodec codec;
+
+    size_t validHeaders = 0;
+
+    for (size_t pos = 0; pos + 10 <= trackData.size(); ++pos)
+    {
+        std::vector<uint8_t> raw;
+        raw.reserve(8);
+
+        if (!codec.decodeBytes(&trackData[pos], 10, raw))
+            continue;
+
+        if (raw.size() != 8)
+            continue;
+
+        if (raw[0] != 0x08)
+            continue;
+
+        const uint8_t sector = raw[2];
+        const uint8_t track = raw[3];
+        const uint8_t id2 = raw[4];
+        const uint8_t id1 = raw[5];
+
+        const uint8_t checksum =
+            static_cast<uint8_t>(
+                sector ^
+                track ^
+                id2 ^
+                id1);
+
+        if (raw[1] != checksum)
+            continue;
+
+        if (track < 1 || track > 35)
+            continue;
+
+        if (sector >= codec.sectorsPerTrack1541(track))
+            continue;
+
+        ++validHeaders;
+    }
+
+    return validHeaders;
 }
