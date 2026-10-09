@@ -76,6 +76,7 @@ class NIB : public Disk
         bool parseHeaderAndTracks();
         NIBTrackCycle findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength) const;
         ExtractedTrack extractTrack(const uint8_t* rawTrack, size_t captureLength, uint8_t density) const;
+        std::vector<uint8_t> extractBitAlignedTrack(const uint8_t* data, size_t captureLength, size_t startBit, size_t bitLength) const;
 };
 
 #endif // NIB_H

@@ -241,11 +241,46 @@ NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLen
     if (trackLength == 0)
         return result;
 
-    result.data.assign(rawTrack + trackStart, rawTrack + trackStart + trackLength);
+    result.data = extractBitAlignedTrack(rawTrack, captureLength, trackStart * 8, trackLength * 8);
     result.speedZones.assign(result.data.size(), density & 0x03);
     result.start  = trackStart;
     result.length = trackLength;
     result.valid  = true;
 
     return result;
+}
+
+std::vector<uint8_t> NIB::extractBitAlignedTrack(const uint8_t* data, size_t captureLength, size_t startBit, size_t bitLength) const
+{
+    std::vector<uint8_t> output;
+
+    if (!data)
+        return output;
+
+    if (captureLength == 0 || bitLength == 0)
+        return output;
+
+    const size_t captureBits = captureLength * 8;
+    const size_t outputBytes = (bitLength + 7) / 8;
+
+    output.assign(outputBytes, 0);
+
+    for (size_t bitIndex = 0; bitIndex < bitLength; ++bitIndex)
+    {
+        const size_t sourceBit = (startBit + bitIndex) % captureBits;
+        const size_t sourceByte = sourceBit / 8;
+        const int sourceBitInByte = 7 - static_cast<int>(sourceBit % 8);
+
+        const bool bit = ((data[sourceByte] >> sourceBitInByte) & 0x01) != 0;
+
+        if (bit)
+        {
+            const size_t outputByte = bitIndex / 8;
+            const int outputBitInByte = 7 - static_cast<int>(bitIndex % 8);
+
+            output[outputByte] |= static_cast<uint8_t>(1u << outputBitInByte);
+        }
+    }
+
+    return output;
 }
