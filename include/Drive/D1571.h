@@ -54,7 +54,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         std::string getCurrentDiskPath() const override { return isDiskLoaded() ? loadedDiskName : std::string{}; }
 
         // Compatibility check
-        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64
+        inline bool canMount(DiskFormat fmt) const override { return fmt == DiskFormat::D64 || fmt == DiskFormat::G64 || fmt == DiskFormat::D71
                                                                 || fmt == DiskFormat::NIB || fmt == DiskFormat::D71; }
 
         // IEC getters
