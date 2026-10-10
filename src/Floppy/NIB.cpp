@@ -10,15 +10,9 @@
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 
-NIB::NIB()
-{
+NIB::NIB() = default;
 
-}
-
-NIB::~NIB()
-{
-
-}
+NIB::~NIB() = default;
 
 bool NIB::loadDisk(const std::string& filePath)
 {
