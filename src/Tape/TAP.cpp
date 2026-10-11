@@ -44,7 +44,7 @@ bool TAP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     rdr.enterChunkPayload(chunk);
 
-    uint32_t ver = 0
+    uint32_t ver = 0;
     if (!rdr.readU32(ver))                          { rdr.exitChunkPayload(chunk); return false; }
     if (ver != 1)                                   { rdr.exitChunkPayload(chunk); return false; }
 
