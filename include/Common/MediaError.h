@@ -19,11 +19,20 @@ enum class MediaType
     IDE64
 };
 
+enum class MediaOperation
+{
+    Load,
+    Create,
+    Save,
+    Eject
+};
+
 struct MediaError
 {
     MediaType type = MediaType::Tape;
     std::string path;
     std::string reason;
+    MediaOperation operation = MediaOperation::Load;
 };
 
 struct MediaLoadResult
