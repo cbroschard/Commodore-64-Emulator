@@ -23,11 +23,17 @@ TAP::~TAP() = default;
 void TAP::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("TAP0");
+    wrtr.writeU32(1); // Version
+
     wrtr.writeU32(static_cast<uint32_t>(pulseIndex));
     wrtr.writeU32(pulseRemaining);
+
     wrtr.writeU8(blipCountdown);
+
     wrtr.writeBool(currentLevel);
+
     wrtr.writeU8(blipWidth);
+
     wrtr.endChunk();
 }
 
@@ -37,6 +43,11 @@ bool TAP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         return false;
 
     rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0
+    if (!rdr.readU32(ver))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                   { rdr.exitChunkPayload(chunk); return false; }
+
 
     uint32_t idx = 0;
     uint32_t rem = 0;
