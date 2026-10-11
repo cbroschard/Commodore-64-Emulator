@@ -70,7 +70,9 @@ bool TAP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     // Validate the restored pulse duration.
     if (static_cast<size_t>(idx) < pulses.size())
+    {
         if (rem > pulses[idx].duration)             { rdr.exitChunkPayload(chunk); return false; }
+    }
     else
     {
         // End-of-tape state.
