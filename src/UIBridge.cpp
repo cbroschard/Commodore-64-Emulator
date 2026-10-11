@@ -227,7 +227,15 @@ void UIBridge::processCommands()
                         (cmd.driveType == UiCommand::DriveType::D1571) ? DriveModel::D1571 :
                         (cmd.driveType == UiCommand::DriveType::D1581) ? DriveModel::D1581 :
                                                                          DriveModel::D1541;
-                    media_->attachDiskImage(cmd.deviceNum, model, cmd.path);
+
+                    MediaLoadResult result = media_->attachDiskImage(
+                        cmd.deviceNum,
+                        model,
+                        cmd.path
+                    );
+
+                    if (!result.success)
+                        ui_.showMediaLoadError({MediaType::Disk, cmd.path, result.error});
                 }
                 break;
 

@@ -237,78 +237,93 @@ bool MediaManager::isExtCompatible(DriveModel model, const std::string& ext)
     return false;
 }
 
-void MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::string& path)
+MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, const std::string& path)
 {
-    if (path.empty()) return;
-    if (deviceNum < 8 || deviceNum > 11) return;
+    if (path.empty())
+        return MediaLoadResult::fail("No disk image was selected.");
+
+    if (deviceNum < 8 || deviceNum > 11)
+        return MediaLoadResult::fail("Invalid IEC device number.");
 
     const std::string ext = lowerExt(path);
+
     if (!isExtCompatible(model, ext))
     {
-        #ifdef Debug
-        std::cout << "Incompatible disk image for selected drive type.\n";
-        std::cout << "Drive " << deviceNum << " model=" << (int)model
-                  << " path=" << path << "\n";
-        #endif
-        return;
+        return MediaLoadResult::fail(
+            "The selected disk image format is not compatible "
+            "with the selected drive model."
+        );
     }
 
-    if (!components_.drives[deviceNum])
+    try
     {
-        switch (model)
+        if (!components_.drives[deviceNum])
         {
-            case DriveModel::None:
-                return;
-            case DriveModel::D1541:
-                components_.drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
-                break;
-            case DriveModel::D1571:
-                components_.drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
-                break;
-            case DriveModel::D1581:
-                components_.drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
-                break;
-            default:
-                return;
+            switch (model)
+            {
+                case DriveModel::D1541:
+                    components_.drives[deviceNum] = std::make_unique<D1541>(deviceNum, D1541LoROM_, D1541HiROM_);
+                    break;
+
+                case DriveModel::D1571:
+                    components_.drives[deviceNum] = std::make_unique<D1571>(deviceNum, D1571ROM_);
+                    break;
+
+                case DriveModel::D1581:
+                    components_.drives[deviceNum] = std::make_unique<D1581>(deviceNum, D1581ROM_);
+                    break;
+
+                case DriveModel::None:
+                default:
+                    return MediaLoadResult::fail("Unsupported drive model.");
+            }
+
+            if (!components_.drives[deviceNum])
+                return MediaLoadResult::fail("Unable to create the selected disk drive.");
+
+            components_.iecBus->registerDevice(deviceNum, components_.drives[deviceNum].get());
+
+            // Synchronize existing IEC devices.
+            for (int dev = 8; dev <= 11; ++dev)
+            {
+                if (components_.drives[dev])
+                    components_.drives[dev]->forceSyncIEC();
+            }
+
+            // Preserve deferred bus priming.
+            if (requestBusPrime_)
+                requestBusPrime_();
         }
 
-        if (!components_.drives[deviceNum]) return;
-        components_.iecBus->registerDevice(deviceNum, components_.drives[deviceNum].get());
-
-        // Sync all existing devices so nobody has stale cached bus state
-        for (int dev = 8; dev <= 11; ++dev)
+        // Verify the existing drive matches the requested model.
+        if (components_.drives[deviceNum]->getDriveModel() != model)
         {
-            if (components_.drives[dev]) components_.drives[dev]->forceSyncIEC();
+            return MediaLoadResult::fail(
+                "The selected IEC device already has a different "
+                "drive model. Remove the existing drive before "
+                "changing its type."
+            );
         }
 
-        // Defer bus priming to the emulator (safe point)
-        if (requestBusPrime_) requestBusPrime_();
-    }
+        // Attempt to insert the image.
+        if (!components_.drives[deviceNum]->insert(path))
+        {
+            return MediaLoadResult::fail(
+                "The disk image could not be inserted. "
+                "It may be invalid, corrupted, or unsupported."
+            );
+        }
 
-    // Existing drive must match requested model.
-    if (components_.drives[deviceNum]->getDriveModel() != model)
+        // Update MediaManager state only after successful insertion.
+        state_.diskAttached = true;
+        state_.diskPath = "Drive " + std::to_string(deviceNum) + ": " + path;
+
+        return MediaLoadResult::ok();
+    }
+    catch (const std::exception& e)
     {
-        #ifdef Debug
-        std::cout << "Drive " << deviceNum
-                  << " already exists as model "
-                  << static_cast<int>(components_.drives[deviceNum]->getDriveModel())
-                  << ". Eject/remove the drive before changing type.\n";
-        #endif
-
-        return;
+        return MediaLoadResult::fail(e.what());
     }
-
-    if (!components_.drives[deviceNum]->insert(path))
-    {
-        #ifdef Debug
-        std::cout << "Disk insert failed: " << path << "\n";
-        #endif
-        return;
-    }
-
-    // Keep UI simple: reflect “last attached disk”
-    state_.diskAttached = true;
-    state_.diskPath     =  "Drive " + std::to_string(deviceNum) + ": " + path;
 }
 
 void MediaManager::attachPRGImage(PRGLoadMode mode)

@@ -99,7 +99,7 @@ public:
     void setTapePath(const std::string& p) { state_.tapePath = p; }
 
     // Attachments
-    void attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
+    MediaLoadResult attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
     void attachPRGImage(PRGLoadMode mode);
     void attachCRTImage();
     bool attachT64Image();
