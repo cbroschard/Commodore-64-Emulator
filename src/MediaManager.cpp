@@ -453,8 +453,10 @@ bool MediaManager::attachRawTapeImage()
 
     if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
+        #ifdef Debug
         std::cerr << "Unable to load tape: "
                   << state_.tapePath << std::endl;
+        #endif
 
         state_.tapePath.clear();
         return false;
