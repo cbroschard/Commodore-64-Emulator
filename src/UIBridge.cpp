@@ -266,7 +266,9 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setTapePath(cmd.path);
-                    media_->attachRawTapeImage();
+
+                    if (!media_->attachRawTapeImage())
+                        ui_.showTapeLoadError(cmd.path);
                 }
                 break;
 

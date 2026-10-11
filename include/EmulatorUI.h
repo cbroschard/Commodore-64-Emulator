@@ -161,6 +161,9 @@ class EmulatorUI
 
         inline bool isFileDialogOpen() const { return fileDlg.open; }
 
+        // Error helpers
+        void showTapeLoadError(const std::string& path);
+
     private:
 
         bool fileDialogOpen_;
@@ -184,6 +187,9 @@ class EmulatorUI
 
         bool gettingStartedOpen;
         bool keyboardShortcutsOpen;
+
+        std::string tapeErrorMessage;
+        bool tapeErrorPending;
 
         struct FileDialog
         {

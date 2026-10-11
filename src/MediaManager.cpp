@@ -421,19 +421,25 @@ void MediaManager::attachT64Image()
     t64LoadDelay_ = 140;
 }
 
-void MediaManager::attachRawTapeImage()
+bool MediaManager::attachRawTapeImage()
 {
-    if (state_.tapePath.empty()) return;
+    if (state_.tapePath.empty())
+        return false;
 
-    state_.tapeAttached = true;
+    state_.tapeAttached = false;
 
     if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
-        #ifdef Debug
-        std::cout << "Unable to load tape: " << state_.tapePath << "\n";
-        #endif
-        state_.tapeAttached = false;
+        std::cerr << "Unable to load tape: "
+                  << state_.tapePath << std::endl;
+
+        state_.tapePath.clear();
+        return false;
     }
+
+    state_.tapeAttached = true;
+
+    return true;
 }
 
 void MediaManager::attachREU(REUModel model)

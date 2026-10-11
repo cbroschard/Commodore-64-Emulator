@@ -17,7 +17,8 @@ EmulatorUI::EmulatorUI() :
     pendingDevice_(8),
     pendingDriveType_(UiCommand::DriveType::D1541),
     gettingStartedOpen(false),
-    keyboardShortcutsOpen(false)
+    keyboardShortcutsOpen(false),
+    tapeErrorPending(false)
 {
     fileDlg.open = false;
     fileDlg.currentDir = std::filesystem::current_path();
@@ -35,6 +36,93 @@ void EmulatorUI::draw()
 
     installMenu(snapshot);
     drawDriveStatus(snapshot);
+
+    if (tapeErrorPending)
+    {
+        ImGui::OpenPopup("Cassette Load Error");
+        tapeErrorPending = false;
+    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    // Set dialog size relative to available emulator window
+    const float dialogWidth = std::min(750.0f, viewport->WorkSize.x - 40.0f);
+    const float dialogHeight = std::min(340.0f, viewport->WorkSize.y - 40.0f);
+
+    // Center dialog
+    ImGui::SetNextWindowPos(
+        viewport->GetCenter(),
+        ImGuiCond_Always,
+        ImVec2(0.5f, 0.5f)
+    );
+
+    ImGui::SetNextWindowSize(
+        ImVec2(dialogWidth, dialogHeight),
+        ImGuiCond_Always
+    );
+
+    if (ImGui::BeginPopupModal(
+            "Cassette Load Error",
+            nullptr,
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse))
+    {
+        // Error heading
+        ImGui::TextUnformatted("The selected cassette image could not be loaded.");
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Filename / path
+        ImGui::TextUnformatted("File:");
+        ImGui::Spacing();
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() +
+                               ImGui::GetContentRegionAvail().x);
+
+        ImGui::TextUnformatted(tapeErrorMessage.c_str());
+
+        ImGui::PopTextWrapPos();
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        // Error explanation
+        ImGui::TextWrapped(
+            "The file may be invalid, corrupted, or use an "
+            "unsupported cassette image format."
+        );
+
+        // Keep OK button anchored at bottom
+        const float buttonWidth = 140.0f;
+        const float buttonHeight = 32.0f;
+
+        const float footerHeight =
+            buttonHeight + ImGui::GetStyle().WindowPadding.y;
+
+        const float remainingHeight =
+            ImGui::GetContentRegionAvail().y;
+
+        if (remainingHeight > footerHeight)
+            ImGui::Dummy(ImVec2(0.0f, remainingHeight - footerHeight));
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Center OK button
+        const float availableWidth = ImGui::GetContentRegionAvail().x;
+
+        ImGui::SetCursorPosX(
+            ImGui::GetCursorPosX() +
+            (availableWidth - buttonWidth) * 0.5f
+        );
+
+        if (ImGui::Button("OK", ImVec2(buttonWidth, buttonHeight)))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
 }
 
 std::vector<UiCommand> EmulatorUI::consumeCommands()
@@ -1670,4 +1758,10 @@ UiCommand::DriveType EmulatorUI::getDriveTypeForDev(const MediaViewState& v, int
     }
 
     return UiCommand::DriveType::None;
+}
+
+void EmulatorUI::showTapeLoadError(const std::string& path)
+{
+    tapeErrorMessage = path;
+    tapeErrorPending = true;
 }
