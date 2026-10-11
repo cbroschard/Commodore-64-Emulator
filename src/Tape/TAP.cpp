@@ -103,7 +103,7 @@ bool TAP::loadTape(const std::string& filePath, VideoMode mode)
         return false;
 
     if (tapeData.size() < sizeof(header))
-        throw std::runtime_error("Error: File too small to contain a valid header.");
+        return false;
 
     // Copy header bytes from tapeData into header
     std::memcpy(&header, tapeData.data(), sizeof(header));
