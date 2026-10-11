@@ -959,9 +959,6 @@ void D1541VIA::updateIECOutputsFromPortB()
     // LEVEL-SENSITIVE: if clear is asserted, latch cannot be set.
     if (atnAckClearActive)
     {
-        #ifdef Debug
-        std::cout << "atnAckClearActive hit\n";
-        #endif // Debug
         atnAckLatch = false;
         atnAckArmed = false;
     }
