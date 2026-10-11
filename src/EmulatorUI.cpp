@@ -44,8 +44,9 @@ void EmulatorUI::draw()
     }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float dialogWidth = std::max(300.0f, std::min(850.0f, viewport->WorkSize.x - 40.0f));
-    const float dialogHeight = std::max(200.0f, std::min(400.0f, viewport->WorkSize.y - 40.0f));
+
+    const float dialogWidth = std::max(1.0f, std::min(850.0f, viewport->WorkSize.x - 40.0f));
+    const float dialogHeight = std::max(1.0f, std::min(400.0f, viewport->WorkSize.y - 40.0f));
 
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
@@ -55,36 +56,49 @@ void EmulatorUI::draw()
     {
         const char* typeName = mediaTypeName(mediaError.type);
 
-        ImGui::Text("%s operation failed.", typeName);
+        // Error heading
+        ImGui::Text("%s image could not be %s.", typeName, mediaOperationName(mediaError.operation));
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::TextUnformatted("File:");
-        ImGui::TextWrapped("%s", mediaError.path.c_str());
+        // Only display a file path when one is available.
+        if (!mediaError.path.empty())
+        {
+            ImGui::TextUnformatted("File:");
 
-        ImGui::Spacing();
-        ImGui::Spacing();
+            ImGui::TextWrapped("%s", mediaError.path.c_str());
 
+            ImGui::Spacing();
+            ImGui::Spacing();
+        }
+
+        // Specific error message
         ImGui::TextUnformatted("Reason:");
+
         ImGui::TextWrapped("%s", mediaError.reason.c_str());
 
+        // Footer dimensions
         const float buttonWidth = 140.0f;
         const float buttonHeight = 32.0f;
+        const ImGuiStyle& style = ImGui::GetStyle();
 
-        // Position footer relative to the window bottom.
-        const float footerY = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - buttonHeight - ImGui::GetFrameHeightWithSpacing();
+        // Leave room for the separator, spacing and button.
+        const float footerHeight = buttonHeight + ImGui::GetFrameHeightWithSpacing() + style.WindowPadding.y;
+        const float footerY = ImGui::GetWindowHeight() - style.WindowPadding.y - footerHeight;
 
+        // Move down only if enough space remains.
         if (ImGui::GetCursorPosY() < footerY)
             ImGui::SetCursorPosY(footerY);
 
         ImGui::Separator();
         ImGui::Spacing();
 
+        // Center OK button
         const float availableWidth = ImGui::GetContentRegionAvail().x;
 
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (availableWidth - buttonWidth) * 0.5f);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, (availableWidth - buttonWidth) * 0.5f));
 
         if (ImGui::Button("OK", ImVec2(buttonWidth, buttonHeight)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
             ImGui::CloseCurrentPopup();
@@ -1746,4 +1760,24 @@ const char* EmulatorUI::mediaTypeName(MediaType type)
     }
 
     return "Media";
+}
+
+const char* EmulatorUI::mediaOperationName(MediaOperation operation)
+{
+    switch (operation)
+    {
+        case MediaOperation::Load:
+            return "loaded";
+
+        case MediaOperation::Create:
+            return "created";
+
+        case MediaOperation::Save:
+            return "saved";
+
+        case MediaOperation::Eject:
+            return "ejected";
+    }
+
+    return "processed";
 }

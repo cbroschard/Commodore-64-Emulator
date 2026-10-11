@@ -483,7 +483,8 @@ void UIBridge::processCommands()
                             cmd.path,
                             "Unable to load the IDE64 disk image. "
                             "The image may be invalid, inaccessible, "
-                            "or incompatible with the IDE64 device."
+                            "or incompatible with the IDE64 device.",
+                            MediaOperation::Load
                         });
                     }
                 }
@@ -501,7 +502,8 @@ void UIBridge::processCommands()
                             cmd.path,
                             "Unable to create the IDE64 disk image. "
                             "Check the destination path, available disk space, "
-                            "and whether the file already exists."
+                            "and whether the file already exists.",
+                            MediaOperation::Create
                         });
                     }
                 }
@@ -516,8 +518,8 @@ void UIBridge::processCommands()
                             MediaType::IDE64,
                             "",
                             "Unable to save the IDE64 disk image. "
-                            "Check that the image is writable and "
-                            "the destination has sufficient disk space."
+                            "The image may be read-only or its destination unavailable.",
+                            MediaOperation::Save
                         });
                     }
                 }
@@ -533,7 +535,8 @@ void UIBridge::processCommands()
                             "",
                             "Unable to eject the IDE64 disk image. "
                             "The device may not have an image mounted "
-                            "or an attempt to save pending changes failed."
+                            "or pending changes could not be saved.",
+                            MediaOperation::Eject
                         });
                     }
                 }

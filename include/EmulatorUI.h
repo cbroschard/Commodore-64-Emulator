@@ -267,6 +267,7 @@ class EmulatorUI
 
         // Error Helpers
         const char* mediaTypeName(MediaType type);
+        const char* mediaOperationName(MediaOperation operation);
 };
 
 #endif // EMULATORUI_H
