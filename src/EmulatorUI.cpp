@@ -39,7 +39,7 @@ void EmulatorUI::draw()
 
     if (mediaErrorPending)
     {
-        ImGui::OpenPopup("Media Load Error");
+        ImGui::OpenPopup("Media Error");
         mediaErrorPending = false;
     }
 
@@ -51,11 +51,11 @@ void EmulatorUI::draw()
 
     ImGui::SetNextWindowSize(ImVec2(dialogWidth, dialogHeight), ImGuiCond_Always);
 
-    if (ImGui::BeginPopupModal("Media Load Error", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal("Media Error", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
     {
         const char* typeName = mediaTypeName(mediaError.type);
 
-        ImGui::Text("%s image could not be loaded.", typeName);
+        ImGui::Text("%s operation failed.", typeName);
 
         ImGui::Spacing();
         ImGui::Separator();

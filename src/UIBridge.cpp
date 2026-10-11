@@ -474,8 +474,18 @@ void UIBridge::processCommands()
             case UiCommand::Type::LoadIDE64Image:
                 if (media_)
                 {
-                     const bool ok = media_->loadIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64ReadOnly);
-                     (void)ok;
+                    const bool ok = media_->loadIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64ReadOnly);
+
+                    if (!ok)
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::IDE64,
+                            cmd.path,
+                            "Unable to load the IDE64 disk image. "
+                            "The image may be invalid, inaccessible, "
+                            "or incompatible with the IDE64 device."
+                        });
+                    }
                 }
                 break;
 
@@ -483,27 +493,50 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     const bool ok = media_->createIDE64Image(cmd.ide64DeviceIndex, cmd.path, cmd.ide64Sectors);
-                    (void)ok;
-                }
 
+                    if (!ok)
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::IDE64,
+                            cmd.path,
+                            "Unable to create the IDE64 disk image. "
+                            "Check the destination path, available disk space, "
+                            "and whether the file already exists."
+                        });
+                    }
+                }
                 break;
 
             case UiCommand::Type::SaveIDE64Image:
                 if (media_)
                 {
-                    const bool ok = media_->saveIDE64Image(cmd.ide64DeviceIndex);
-                    (void)ok;
+                    if (!media_->saveIDE64Image(cmd.ide64DeviceIndex))
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::IDE64,
+                            "",
+                            "Unable to save the IDE64 disk image. "
+                            "Check that the image is writable and "
+                            "the destination has sufficient disk space."
+                        });
+                    }
                 }
-
                 break;
 
             case UiCommand::Type::EjectIDE64Image:
                 if (media_)
                 {
-                    const bool ok = media_->ejectIDE64Image(cmd.ide64DeviceIndex);
-                    (void)ok;
+                    if (!media_->ejectIDE64Image(cmd.ide64DeviceIndex))
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::IDE64,
+                            "",
+                            "Unable to eject the IDE64 disk image. "
+                            "The device may not have an image mounted "
+                            "or an attempt to save pending changes failed."
+                        });
+                    }
                 }
-
                 break;
 
             case UiCommand::Type::PressButton:
