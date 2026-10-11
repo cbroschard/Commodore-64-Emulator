@@ -364,12 +364,13 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         case 0x0F: // ORA/IRA no handshake
         {
             const uint8_t ddrA = registers.ddrA;
-            const uint8_t inputPins = portAPins;
 
-            return static_cast<uint8_t>(
-                (registers.oraIRA & ddrA) |
-                (inputPins & static_cast<uint8_t>(~ddrA))
-            );
+            uint8_t inputPins = portAPins;
+
+            if (viaRole == VIARole::VIA2_Mechanics)
+                inputPins = mechDataLatch;
+
+            return static_cast<uint8_t>((registers.oraIRA & ddrA) | (inputPins & static_cast<uint8_t>(~ddrA)));
         }
 
         default:
