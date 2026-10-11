@@ -14,7 +14,8 @@ class TAP : public TapeImage
 {
     public:
         TAP();
-        virtual ~TAP();
+        ~TAP();
+
         bool loadTape(const std::string& filePath, VideoMode mode) override;
         void rewind() override;
         void simulateLoading() override;
