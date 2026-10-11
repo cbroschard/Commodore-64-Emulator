@@ -259,7 +259,10 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setCartPath(cmd.path);
-                    media_->attachCRTImage();
+                    MediaLoadResult result = media_->attachCRTImage();
+
+                    if (!result.success)
+                        ui_.showMediaLoadError({MediaType::Cartridge, cmd.path, result.error});
                 }
                 break;
 

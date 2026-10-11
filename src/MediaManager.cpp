@@ -379,31 +379,85 @@ void MediaManager::attachPRGImage(PRGLoadMode mode)
     }
 }
 
-void MediaManager::attachCRTImage()
+MediaLoadResult MediaManager::attachCRTImage()
 {
-    if (state_.cartPath.empty()) return;
+    if (state_.cartPath.empty())
+        return MediaLoadResult::fail("No cartridge image was selected.");
 
-    recreateCartridge();
+    const std::string path = state_.cartPath;
 
-    state_.cartAttached = true;
+    // Clear any existing cartridge before loading the new image.
+    state_.cartAttached = false;
 
-    if (!components_.cart->loadROM(state_.cartPath))
+    components_.bus->setCartridgeAttached(false);
+    components_.pla->setCartridgeAttached(false);
+
+    try
     {
+        // Reset cartridge state and reconnect its dependencies.
+        recreateCartridge();
+
+        if (!components_.cart)
+        {
+            state_.cartPath.clear();
+
+            return MediaLoadResult::fail("The cartridge subsystem is not available.");
+        }
+
+        // Load and validate the selected cartridge.
+        if (!components_.cart->loadROM(path))
+        {
+            // Ensure no partially loaded cartridge remains active.
+            recreateCartridge();
+
+            state_.cartAttached = false;
+            state_.cartPath.clear();
+
+            return MediaLoadResult::fail(
+                "The cartridge image could not be loaded. "
+                "It may have an invalid CRT header, contain "
+                "corrupted chip data, or use an unsupported "
+                "cartridge type."
+            );
+        }
+
+        // Cartridge successfully loaded.
+        state_.cartAttached = true;
+
+        components_.bus->setCartridgeAttached(true);
+        components_.pla->setCartridgeAttached(true);
+
+        // Preserve existing cartridge reset behavior.
+        if (coldReset_)
+            coldReset_();
+
         #ifdef Debug
-        std::cout << "Unable to load cartridge: " << state_.cartPath << "\n";
+        std::cout << "Cartridge attached: " << path << "\n";
         #endif
-        state_.cartAttached = false;
-        return;
+
+        return MediaLoadResult::ok();
     }
+    catch (const std::exception& e)
+    {
+        // Return to a safe detached state.
+        state_.cartAttached = false;
+        state_.cartPath.clear();
 
-    components_.bus->setCartridgeAttached(true);
-    components_.pla->setCartridgeAttached(true);
+        components_.bus->setCartridgeAttached(false);
+        components_.pla->setCartridgeAttached(false);
 
-    if (coldReset_) coldReset_();
+        // Avoid letting cleanup throw while handling an error.
+        try
+        {
+            recreateCartridge();
+        }
+        catch (const std::exception&)
+        {
+            // Preserve the original failure reason.
+        }
 
-    #ifdef Debug
-    std::cout << "Cartridge attached: " << state_.cartPath << "\n";
-    #endif
+        return MediaLoadResult::fail(e.what());
+    }
 }
 
 bool MediaManager::attachT64Image()
