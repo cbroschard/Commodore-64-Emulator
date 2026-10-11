@@ -391,34 +391,57 @@ void MediaManager::attachCRTImage()
     #endif
 }
 
-void MediaManager::attachT64Image()
+bool MediaManager::attachT64Image()
 {
     if (state_.tapePath.empty())
-        return;
+        return false;
 
+    state_.tapeAttached = false;
+
+    // Stop and eject any existing cassette
     components_.cass->stop();
     components_.cass->eject();
 
+    // Attempt to load the T64 image
     if (!components_.cass->loadCassette(state_.tapePath, videoMode_))
     {
         state_.tapeAttached = false;
-        return;
+        state_.tapePath.clear();
+
+        t64LoadPending_ = false;
+        t64LoadDelay_ = 0;
+
+        return false;
     }
 
+    // Ensure the loaded image is actually a T64
     if (!components_.cass->isT64())
-        return;
+    {
+        components_.cass->eject();
 
-    // Prevent cold reset from trying to re-attach this T64.
+        state_.tapeAttached = false;
+        state_.tapePath.clear();
+
+        t64LoadPending_ = false;
+        t64LoadDelay_ = 0;
+
+        return false;
+    }
+
+    // Prevent cold reset from trying to re-attach this T64
     state_.tapeAttached = false;
 
     if (coldReset_)
         coldReset_();
 
-    // The T64 is still mounted in Cassette; restore MediaManager state.
+    // Restore MediaManager state after cold reset
     state_.tapeAttached = true;
 
+    // Queue T64 loading with the existing delay
     t64LoadPending_ = true;
     t64LoadDelay_ = 140;
+
+    return true;
 }
 
 bool MediaManager::attachRawTapeImage()

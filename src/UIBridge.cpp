@@ -258,7 +258,9 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setTapePath(cmd.path);
-                    media_->attachT64Image();
+
+                    if (!media_->attachT64Image())
+                        ui_.showTapeLoadError(cmd.path);
                 }
                 break;
 
