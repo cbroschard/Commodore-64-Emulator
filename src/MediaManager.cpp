@@ -326,56 +326,127 @@ MediaLoadResult MediaManager::attachDiskImage(int deviceNum, DriveModel model, c
     }
 }
 
-void MediaManager::attachPRGImage(PRGLoadMode mode)
+MediaLoadResult MediaManager::attachPRGImage(PRGLoadMode mode)
 {
     if (state_.prgPath.empty())
-        return;
+        return MediaLoadResult::fail("No program image was selected.");
 
-    prgLoadMode_ = mode;
+    const std::string path = state_.prgPath;
 
-    state_.prgAttached = false;
-    state_.prgLoaded   = false;
-    state_.prgDelay    = 0;
-
-    if (state_.cartAttached)
+    try
     {
-        if (mode == PRGLoadMode::Standalone)
+        // Validate and read the program before resetting the machine
+        // or detaching a cartridge.
+        if (!loadPrgImage())
         {
-            // Standalone PRG loading removes the cartridge.
-            // detachCRTImage() handles the required reset.
-            detachCRTImage();
+            state_.prgAttached = false;
+            state_.prgLoaded = false;
+            state_.prgDelay = 0;
+            prgImage_.clear();
+
+            return MediaLoadResult::fail(
+                "Unable to read the program image. "
+                "The file may be missing, empty, or corrupted."
+            );
         }
-        else
+
+        // Check for a P00 wrapper.
+        size_t pos = 0;
+
+        if (lowerExt(path) == ".p00")
         {
-            // KeepCartridge preserves the current cartridge and
-            // running IDEDOS session. Do not reset here.
+            if (prgImage_.size() < 28 || std::memcmp(prgImage_.data(), "C64File", 7) != 0)
+            {
+                state_.prgAttached = false;
+                state_.prgLoaded = false;
+                state_.prgDelay = 0;
+                prgImage_.clear();
+
+                return MediaLoadResult::fail("Invalid P00 file header.");
+            }
+
+            pos = 26;
         }
-    }
-    else if (coldReset_)
-    {
-        // No cartridge is attached, so start from a clean machine.
-        coldReset_();
-    }
 
-    state_.prgAttached = true;
-    state_.prgLoaded   = false;
-    state_.prgDelay    = 140;
+        if (pos + 2 >= prgImage_.size())
+        {
+            state_.prgAttached = false;
+            state_.prgLoaded = false;
+            state_.prgDelay = 0;
+            prgImage_.clear();
 
-    if (!loadPrgImage())
-    {
-        #ifdef Debug
-        std::cout << "Unable to load program: "
-                  << state_.prgPath << "\n";
-        #endif
+            return MediaLoadResult::fail(
+                "The program image does not contain a valid "
+                "load address and program data."
+            );
+        }
+
+        // Check that the program fits in C64 memory.
+        const uint16_t loadAddr = static_cast<uint16_t>(prgImage_[pos]) |(static_cast<uint16_t>(prgImage_[pos + 1]) << 8);
+        const size_t programSize = prgImage_.size() - (pos + 2);
+
+        if (programSize > 0x10000u - loadAddr)
+        {
+            state_.prgAttached = false;
+            state_.prgLoaded = false;
+            state_.prgDelay = 0;
+            prgImage_.clear();
+
+            return MediaLoadResult::fail(
+                "The program exceeds the available 64 KB "
+                "C64 address space."
+            );
+        }
+
+        // Reject program images containing less than 4 bytes of actual data.
+        if (programSize < 4)
+        {
+            state_.prgAttached = false;
+            state_.prgLoaded = false;
+            state_.prgDelay = 0;
+            prgImage_.clear();
+
+            return MediaLoadResult::fail("The program image contains insufficient program data.");
+        }
+
+        // File validation succeeded.
+        prgLoadMode_ = mode;
 
         state_.prgAttached = false;
-    }
-    else
-    {
+        state_.prgLoaded = false;
+        state_.prgDelay = 0;
+
+        if (state_.cartAttached)
+        {
+            if (mode == PRGLoadMode::Standalone)
+            {
+                // detach cartridge and reset the C64.
+                detachCRTImage();
+            }
+
+        }
+        else if (coldReset_)
+            coldReset_();
+
+        // Queue the validated program.
+        state_.prgAttached = true;
+        state_.prgLoaded = false;
+        state_.prgDelay = 140;
+
         #ifdef Debug
-        std::cout << "Queued program: "
-                  << state_.prgPath << "\n";
+        std::cout << "Queued program: " << path << "\n";
         #endif
+
+        return MediaLoadResult::ok();
+    }
+    catch (const std::exception& e)
+    {
+        state_.prgAttached = false;
+        state_.prgLoaded = false;
+        state_.prgDelay = 0;
+        prgImage_.clear();
+
+        return MediaLoadResult::fail(e.what());
     }
 }
 
@@ -1182,7 +1253,8 @@ bool MediaManager::loadPrgImage()
     prgFile.seekg(0);
     prgImage_.resize(static_cast<size_t>(size));
     prgFile.read(reinterpret_cast<char*>(prgImage_.data()), size);
-    return true;
+
+    return static_cast<bool>(prgFile);
 }
 
 void MediaManager::loadPrgIntoMem()

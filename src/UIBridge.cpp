@@ -243,7 +243,10 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setPrgPath(cmd.path);
-                    media_->attachPRGImage(MediaManager::PRGLoadMode::Standalone);
+                    MediaLoadResult result = media_->attachPRGImage(MediaManager::PRGLoadMode::Standalone);
+
+                    if (!result.success)
+                        ui_.showMediaLoadError({MediaType::Program, cmd.path, result.error});
                 }
                 break;
 
@@ -251,7 +254,10 @@ void UIBridge::processCommands()
                 if (media_)
                 {
                     media_->setPrgPath(cmd.path);
-                    media_->attachPRGImage(MediaManager::PRGLoadMode::KeepCartridge);
+                    MediaLoadResult result = media_->attachPRGImage(MediaManager::PRGLoadMode::KeepCartridge);
+
+                    if (!result.success)
+                        ui_.showMediaLoadError({MediaType::Program, cmd.path, result.error});
                 }
                 break;
 

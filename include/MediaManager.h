@@ -100,7 +100,7 @@ public:
 
     // Attachments
     MediaLoadResult attachDiskImage(int deviceNum, DriveModel model, const std::string& path);
-    void attachPRGImage(PRGLoadMode mode);
+    MediaLoadResult attachPRGImage(PRGLoadMode mode);
     MediaLoadResult attachCRTImage();
     bool attachT64Image();
     bool attachRawTapeImage();
