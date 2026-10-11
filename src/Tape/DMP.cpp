@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
+#include <iostream>
 #include "tape/DMP.h"
 
 DMP::DMP() :
@@ -96,10 +97,12 @@ bool DMP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     }
     else
     {
-        // End-of-tape state
-        rem = 0;
-        blip = 0;
-        level = true;
+        // No timing intervals remain.
+        if (rem != 0)
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
     }
 
     // Validate blip width
@@ -135,35 +138,62 @@ bool DMP::loadTape(const std::string& filePath, VideoMode mode)
     elapsedCycles = 0;
     tapeTotalCycles = 0;
 
-    if (!loadFile(filePath, tapeData))
-        return false;
+    std::cout << "[DMP] Loading: " << filePath << std::endl;
 
-    if (tapeData.size() < sizeof(header))
+    if (!loadFile(filePath, tapeData))
     {
-        std::cerr << "Error: DMP file too small!" << std::endl;
+        std::cerr << "[DMP] FAILED: loadFile()" << std::endl;
         return false;
     }
 
-    // Copy header bytes from tapeData into header
+    std::cout << "[DMP] File size: "
+              << tapeData.size() << " bytes" << std::endl;
+
+    if (tapeData.size() < sizeof(header))
+    {
+        std::cerr << "[DMP] FAILED: File too small!" << std::endl;
+        return false;
+    }
+
     std::memcpy(&header, tapeData.data(), sizeof(header));
 
-    if (!validateHeader())
-        return false;
+    std::cout << "[DMP] Header:"
+              << " signature=" << std::string(header.fileSignature, 12)
+              << " version=" << static_cast<int>(header.tapeVersion)
+              << " platform=0x" << std::hex
+              << static_cast<int>(header.platform) << std::dec
+              << " video=" << static_cast<int>(header.videoStandard)
+              << " bits=" << static_cast<int>(header.bitsPerSample)
+              << " frequency=" << header.counterFrequency
+              << std::endl;
 
-    // Decode DMP timing data
+    if (!validateHeader())
+    {
+        std::cerr << "[DMP] FAILED: validateHeader()" << std::endl;
+        return false;
+    }
+
+    std::cout << "[DMP] Header validation passed" << std::endl;
+
     pulses = parsePulses(mode);
 
     if (pulses.empty())
     {
-        std::cerr << "Error: No valid DMP pulses found!" << std::endl;
+        std::cerr << "[DMP] FAILED: parsePulses() returned no pulses"
+                  << std::endl;
         return false;
     }
 
-    // Calculate total tape duration
     for (const auto& pulse : pulses)
         tapeTotalCycles += pulse.duration;
 
     rewind();
+
+    std::cout << "[DMP] Loaded successfully!"
+              << " Pulses=" << pulses.size()
+              << " TotalCycles=" << tapeTotalCycles
+              << " FirstPulse=" << pulseRemaining
+              << std::endl;
 
     return true;
 }
@@ -194,14 +224,7 @@ void DMP::rewind()
 
 void DMP::simulateLoading()
 {
-    if (pulseIndex >= pulses.size())
-    {
-        currentLevel = true;
-        blipCountdown = 0;
-        return;
-    }
-
-    // Allow the previous READ pulse to expire
+    // Allow active READ pulses to expire.
     if (blipCountdown > 0)
     {
         --blipCountdown;
@@ -210,7 +233,12 @@ void DMP::simulateLoading()
             currentLevel = true;
     }
 
-    // Advance one CPU cycle
+    if (pulseIndex >= pulses.size())
+    {
+        currentLevel = (blipCountdown == 0);
+        return;
+    }
+
     if (pulseRemaining > 0)
     {
         --pulseRemaining;
@@ -220,8 +248,7 @@ void DMP::simulateLoading()
             return;
     }
 
-    // Current DMP parser supports complete-cycle events.
-    // Each completed interval produces a falling-edge READ pulse.
+    // Complete-cycle DMP falling-edge event.
     currentLevel = false;
     blipCountdown = blipWidth;
 
@@ -295,7 +322,7 @@ uint64_t DMP::currentCycles() const
 
 bool DMP::atEnd() const
 {
-    return pulseIndex >= pulses.size();
+    return pulseIndex >= pulses.size() && blipCountdown == 0;
 }
 
 uint32_t DMP::debugCurrentPulse() const

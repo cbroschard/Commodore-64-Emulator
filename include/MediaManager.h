@@ -102,7 +102,7 @@ public:
     void attachPRGImage(PRGLoadMode mode);
     void attachCRTImage();
     void attachT64Image();
-    void attachTAPImage();
+    void attachRawTapeImage();
     void attachREU(REUModel model);
 
     // Allow user to select entry to load if T64

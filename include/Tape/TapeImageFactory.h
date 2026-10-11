@@ -11,9 +11,10 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include "TapeImage.h"
-#include "TAP.h"
-#include "T64.h"
+#include "Tape/TapeImage.h"
+#include "Tape/DMP.h"
+#include "Tape/TAP.h"
+#include "Tape/T64.h"
 
 std::unique_ptr<TapeImage> createTapeImage(const std::string& filePath);
 

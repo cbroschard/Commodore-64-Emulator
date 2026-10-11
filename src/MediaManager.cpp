@@ -421,7 +421,7 @@ void MediaManager::attachT64Image()
     t64LoadDelay_ = 140;
 }
 
-void MediaManager::attachTAPImage()
+void MediaManager::attachRawTapeImage()
 {
     if (state_.tapePath.empty()) return;
 
@@ -959,7 +959,7 @@ void MediaManager::applyBootAttachments()
         if (ext == ".t64")
             attachT64Image();
         else
-            attachTAPImage();
+            attachRawTapeImage();
 
         return;
     }

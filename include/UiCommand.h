@@ -29,7 +29,7 @@ struct UiCommand
         AttachPRGWithCartridge,
         AttachCRT,
         AttachT64,
-        AttachTAP,
+        AttachRawTape,
 
         SelectT64Entry,
         LoadT64Entry,

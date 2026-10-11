@@ -262,11 +262,11 @@ void UIBridge::processCommands()
                 }
                 break;
 
-            case UiCommand::Type::AttachTAP:
+            case UiCommand::Type::AttachRawTape:
                 if (media_)
                 {
                     media_->setTapePath(cmd.path);
-                    media_->attachTAPImage();
+                    media_->attachRawTapeImage();
                 }
                 break;
 

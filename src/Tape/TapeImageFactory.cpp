@@ -15,6 +15,7 @@ std::unique_ptr<TapeImage> createTapeImage(const std::string& filePath)
                    [](unsigned char c){ return std::tolower(c); });
 
     if (ext == ".tap") return std::make_unique<TAP>();
+    else if (ext == ".dmp") return std::make_unique<DMP>();
     else if (ext == ".t64") return std::make_unique<T64>();
     return nullptr;
 }

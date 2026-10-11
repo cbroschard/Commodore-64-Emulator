@@ -742,7 +742,7 @@ void EmulatorUI::drawGettingStarted()
 
     helpSection(
         "Datasette",
-        "Load T64 or TAP tape images and control playback from File > Datasette.");
+        "Load T64, DMP, or TAP tape images and control playback from File > Datasette.");
 
     helpSection(
         "Cartridges",
@@ -806,8 +806,8 @@ void EmulatorUI::installMenu(const MediaViewState& v)
                 if (ImGui::MenuItem("Load T64 image..."))
                     startFileDialog("Select T64 image", { ".t64" }, UiCommand::Type::AttachT64);
 
-                if (ImGui::MenuItem("Insert TAP image..."))
-                    startFileDialog("Select TAP image", { ".tap" }, UiCommand::Type::AttachTAP);
+                if (ImGui::MenuItem("Insert DMP/TAP image..."))
+                    startFileDialog("Select DMP/TAP image", { ".dmp", ".tap" }, UiCommand::Type::AttachRawTape);
 
                 if (v.t64Attached && !v.t64Entries.empty())
                 {
