@@ -15,6 +15,7 @@
 #include "Common/DriveTypes.h"
 #include "EmulatorUI.h"
 #include "Floppy/DiskFactory.h"
+#include "Common/MediaError.h"
 #include "Common/REUModel.h"
 #include "StateReader.h"
 #include "StateWriter.h"

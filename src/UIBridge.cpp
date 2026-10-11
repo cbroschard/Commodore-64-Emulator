@@ -5,6 +5,7 @@
 #include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
 #include "InputManager.h"
+#include "Common/MediaError.h"
 #include "MediaManager.h"
 #include "UIBridge.h"
 
@@ -260,7 +261,15 @@ void UIBridge::processCommands()
                     media_->setTapePath(cmd.path);
 
                     if (!media_->attachT64Image())
-                        ui_.showTapeLoadError(cmd.path);
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::Tape,
+                            cmd.path,
+                            "The T64 image could not be loaded. "
+                            "The file may contain an invalid header "
+                            "or unsupported directory information."
+                        });
+                    }
                 }
                 break;
 
@@ -270,7 +279,14 @@ void UIBridge::processCommands()
                     media_->setTapePath(cmd.path);
 
                     if (!media_->attachRawTapeImage())
-                        ui_.showTapeLoadError(cmd.path);
+                    {
+                        ui_.showMediaLoadError({
+                            MediaType::Tape,
+                            cmd.path,
+                            "The cassette image is invalid, corrupted, "
+                            "or uses an unsupported format."
+                        });
+                    }
                 }
                 break;
 

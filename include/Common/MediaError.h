@@ -26,4 +26,20 @@ struct MediaError
     std::string reason;
 };
 
+struct MediaLoadResult
+{
+    bool success = false;
+    std::string error;
+
+    static MediaLoadResult ok()
+    {
+        return {true, {}};
+    }
+
+    static MediaLoadResult fail(const std::string& reason)
+    {
+        return {false, reason};
+    }
+};
+
 #endif // MEDIAERROR_H

@@ -18,7 +18,7 @@ EmulatorUI::EmulatorUI() :
     pendingDriveType_(UiCommand::DriveType::D1541),
     gettingStartedOpen(false),
     keyboardShortcutsOpen(false),
-    tapeErrorPending(false)
+    mediaErrorPending(false)
 {
     fileDlg.open = false;
     fileDlg.currentDir = std::filesystem::current_path();
@@ -37,88 +37,56 @@ void EmulatorUI::draw()
     installMenu(snapshot);
     drawDriveStatus(snapshot);
 
-    if (tapeErrorPending)
+    if (mediaErrorPending)
     {
-        ImGui::OpenPopup("Cassette Load Error");
-        tapeErrorPending = false;
+        ImGui::OpenPopup("Media Load Error");
+        mediaErrorPending = false;
     }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float dialogWidth = std::max(300.0f, std::min(850.0f, viewport->WorkSize.x - 40.0f));
+    const float dialogHeight = std::max(200.0f, std::min(400.0f, viewport->WorkSize.y - 40.0f));
 
-    // Set dialog size relative to available emulator window
-    const float dialogWidth = std::min(750.0f, viewport->WorkSize.x - 40.0f);
-    const float dialogHeight = std::min(340.0f, viewport->WorkSize.y - 40.0f);
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-    // Center dialog
-    ImGui::SetNextWindowPos(
-        viewport->GetCenter(),
-        ImGuiCond_Always,
-        ImVec2(0.5f, 0.5f)
-    );
+    ImGui::SetNextWindowSize(ImVec2(dialogWidth, dialogHeight), ImGuiCond_Always);
 
-    ImGui::SetNextWindowSize(
-        ImVec2(dialogWidth, dialogHeight),
-        ImGuiCond_Always
-    );
-
-    if (ImGui::BeginPopupModal(
-            "Cassette Load Error",
-            nullptr,
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoCollapse))
+    if (ImGui::BeginPopupModal("Media Load Error", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
     {
-        // Error heading
-        ImGui::TextUnformatted("The selected cassette image could not be loaded.");
+        const char* typeName = mediaTypeName(mediaError.type);
+
+        ImGui::Text("%s image could not be loaded.", typeName);
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Filename / path
         ImGui::TextUnformatted("File:");
-        ImGui::Spacing();
-
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() +
-                               ImGui::GetContentRegionAvail().x);
-
-        ImGui::TextUnformatted(tapeErrorMessage.c_str());
-
-        ImGui::PopTextWrapPos();
+        ImGui::TextWrapped("%s", mediaError.path.c_str());
 
         ImGui::Spacing();
         ImGui::Spacing();
 
-        // Error explanation
-        ImGui::TextWrapped(
-            "The file may be invalid, corrupted, or use an "
-            "unsupported cassette image format."
-        );
+        ImGui::TextUnformatted("Reason:");
+        ImGui::TextWrapped("%s", mediaError.reason.c_str());
 
-        // Keep OK button anchored at bottom
         const float buttonWidth = 140.0f;
         const float buttonHeight = 32.0f;
 
-        const float footerHeight =
-            buttonHeight + ImGui::GetStyle().WindowPadding.y;
+        // Position footer relative to the window bottom.
+        const float footerY = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - buttonHeight - ImGui::GetFrameHeightWithSpacing();
 
-        const float remainingHeight =
-            ImGui::GetContentRegionAvail().y;
-
-        if (remainingHeight > footerHeight)
-            ImGui::Dummy(ImVec2(0.0f, remainingHeight - footerHeight));
+        if (ImGui::GetCursorPosY() < footerY)
+            ImGui::SetCursorPosY(footerY);
 
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Center OK button
         const float availableWidth = ImGui::GetContentRegionAvail().x;
 
-        ImGui::SetCursorPosX(
-            ImGui::GetCursorPosX() +
-            (availableWidth - buttonWidth) * 0.5f
-        );
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (availableWidth - buttonWidth) * 0.5f);
 
-        if (ImGui::Button("OK", ImVec2(buttonWidth, buttonHeight)))
+        if (ImGui::Button("OK", ImVec2(buttonWidth, buttonHeight)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
             ImGui::CloseCurrentPopup();
 
         ImGui::EndPopup();
@@ -1760,8 +1728,22 @@ UiCommand::DriveType EmulatorUI::getDriveTypeForDev(const MediaViewState& v, int
     return UiCommand::DriveType::None;
 }
 
-void EmulatorUI::showTapeLoadError(const std::string& path)
+void EmulatorUI::showMediaLoadError(const MediaError& error)
 {
-    tapeErrorMessage = path;
-    tapeErrorPending = true;
+    mediaError = error;
+    mediaErrorPending = true;
+}
+
+const char* EmulatorUI::mediaTypeName(MediaType type)
+{
+    switch(type)
+    {
+        case MediaType::Tape:      return "Cassette";
+        case MediaType::Disk:      return "Disk";
+        case MediaType::Cartridge: return "Cartridge";
+        case MediaType::Program:   return "Program";
+        case MediaType::IDE64:     return "IDE64";
+    }
+
+    return "Media";
 }

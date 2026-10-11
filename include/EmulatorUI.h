@@ -18,6 +18,7 @@
 #include "Drive/IDriveIndicatorView.h"
 #include "imgui/imgui.h"
 #include "imgui/misc/cpp/imgui_stdlib.h"
+#include "Common/MediaError.h"
 #include "UiCommand.h"
 #include "Version.h"
 
@@ -162,7 +163,7 @@ class EmulatorUI
         inline bool isFileDialogOpen() const { return fileDlg.open; }
 
         // Error helpers
-        void showTapeLoadError(const std::string& path);
+        void showMediaLoadError(const MediaError& error);
 
     private:
 
@@ -188,8 +189,9 @@ class EmulatorUI
         bool gettingStartedOpen;
         bool keyboardShortcutsOpen;
 
-        std::string tapeErrorMessage;
-        bool tapeErrorPending;
+        // Media error dialog
+        MediaError mediaError;
+        bool mediaErrorPending;
 
         struct FileDialog
         {
@@ -262,6 +264,9 @@ class EmulatorUI
 
         ImU32 toImGuiColor(DriveLightColor color, bool on);
         EmulatorUI::DriveLightColor toUiColor(IDriveIndicatorView::DriveIndicatorColor c);
+
+        // Error Helpers
+        const char* mediaTypeName(MediaType type);
 };
 
 #endif // EMULATORUI_H
