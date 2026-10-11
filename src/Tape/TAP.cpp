@@ -87,28 +87,21 @@ bool TAP::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 bool TAP::loadTape(const std::string& filePath, VideoMode mode)
 {
     if (!loadFile(filePath, tapeData))
-    {
         return false;
-    }
 
     if (tapeData.size() < sizeof(header))
-    {
         throw std::runtime_error("Error: File too small to contain a valid header.");
-    }
 
     // Copy header bytes from tapeData into header
     std::memcpy(&header, tapeData.data(), sizeof(header));
 
     if (!validateHeader())
-    {
         return false;
-    }
 
     pulses = parsePulses(mode);
     if (pulses.empty())
-    {
         return false;
-    }
+
     pulseIndex = 0;
     pulseRemaining = pulses[0].duration;
     currentLevel = true;
