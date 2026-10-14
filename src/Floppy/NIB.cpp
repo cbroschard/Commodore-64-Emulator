@@ -6,6 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include <algorithm>
+#include <iostream>
 #include "Floppy/NIB.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
@@ -148,52 +149,64 @@ bool NIB::parseHeaderAndTracks()
     return !tracks.empty();
 }
 
+
 NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength) const
 {
-    constexpr size_t searchWindow = 512;
-    constexpr size_t matchLength  = 32;
+    NIBTrackCycle result;
 
-    if (!data)
-        return {};
+    constexpr size_t SEARCH_WINDOW = 256;
+    constexpr size_t MIN_COMPARE_BYTES = 256;
+    constexpr size_t MIN_MATCH_PERCENT = 75;
 
-    if (captureLength < (matchLength * 2))
-        return {};
+    if (!data || expectedLength == 0 || captureLength <= MIN_COMPARE_BYTES)
+        return result;
 
-    if (expectedLength >= captureLength)
-        return {};
+    const size_t minLength = expectedLength > SEARCH_WINDOW ? expectedLength - SEARCH_WINDOW : 1;
 
-    const size_t minLength = (expectedLength > searchWindow) ? expectedLength - searchWindow : 1;
+    const size_t maxLength = std::min(expectedLength + SEARCH_WINDOW, captureLength - MIN_COMPARE_BYTES);
 
-    const size_t maxLength = expectedLength + searchWindow;
+    if (minLength > maxLength)
+        return result;
 
-    for (size_t start = 0; start + matchLength < captureLength; ++start)
+    size_t bestLength = 0;
+    size_t bestMatches = 0;
+    size_t bestCompared = 0;
+
+    for (size_t length = minLength; length <= maxLength; ++length)
     {
-        const size_t minCandidate = start + minLength;
+        const size_t compareBytes = captureLength - length;
 
-        if (minCandidate + matchLength > captureLength)
-            break;
+        size_t matches = 0;
 
-        const size_t maxCandidate = std::min(start + maxLength, captureLength - matchLength);
-
-        if (minCandidate > maxCandidate)
-            continue;
-
-        for (size_t candidate = minCandidate; candidate <= maxCandidate; ++candidate)
+        for (size_t i = 0; i < compareBytes; ++i)
         {
-            if (std::equal(data + start, data + start + matchLength, data + candidate))
-            {
-                NIBTrackCycle result;
+            if (data[i] == data[length + i])
+                ++matches;
+        }
 
-                result.start  = start;
-                result.length = candidate - start;
-                result.found  = true;
+        // Compare candidates using their match ratio,
+        // not the raw match count, since their overlap
+        // lengths are different.
+        const bool better = bestLength == 0 || matches * bestCompared > bestMatches * compareBytes;
 
-                return result;
-            }
+        if (better)
+        {
+            bestLength = length;
+            bestMatches = matches;
+            bestCompared = compareBytes;
         }
     }
 
-    return {};
+    if (bestLength == 0 ||
+        bestMatches * 100 <
+            bestCompared * MIN_MATCH_PERCENT)
+        return result;
+
+    result.start = 0;
+    result.length = bestLength;
+    result.found = true;
+
+    return result;
 }
 
 NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLength, uint8_t density) const
@@ -236,6 +249,76 @@ NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLen
     if (trackLength == 0)
         return result;
 
+    if (cycle.found)
+    {
+        // The NIB capture contains more than one revolution.
+        // Compare the overlapping copies and choose a boundary
+        // after any disagreement, when a reliable matching suffix exists.
+
+        constexpr size_t MIN_MATCHING_SUFFIX = 32;
+
+        const size_t overlap = captureLength - trackLength;
+        size_t lastMismatch = overlap;
+
+        for (size_t i = 0; i < overlap; ++i)
+        {
+            if (rawTrack[i] != rawTrack[i + trackLength])
+                lastMismatch = i;
+        }
+
+        if (lastMismatch < overlap)
+        {
+            const size_t candidateStart = lastMismatch + 1;
+            const size_t matchingSuffix = overlap - candidateStart;
+
+            if (matchingSuffix >= MIN_MATCHING_SUFFIX && candidateStart + trackLength <= captureLength)
+                trackStart = candidateStart;
+        }
+    }
+    else
+    {
+        // Fallback when no reliable revolution overlap was found.
+        // Keep the existing sector-header boundary approach.
+
+        GCRCodec codec;
+
+        constexpr size_t HEADER_BYTES = 10;
+        constexpr size_t GAP_BYTES = 16;
+
+        for (size_t pos = HEADER_BYTES; pos + HEADER_BYTES <= captureLength; ++pos)
+        {
+            std::vector<uint8_t> header;
+
+            if (!codec.decodeBytes(rawTrack + pos, HEADER_BYTES, header))
+                continue;
+
+            if (header.size() != 8 || header[0] != 0x08)
+                continue;
+
+            const uint8_t sector = header[2];
+            const uint8_t physicalTrack = header[3];
+
+            if (physicalTrack < 1 || physicalTrack > 35)
+                continue;
+
+            if (sector >= codec.sectorsPerTrack1541(physicalTrack))
+                continue;
+
+            if (header[1] != static_cast<uint8_t>(
+                    sector ^ physicalTrack ^ header[4] ^ header[5]))
+                continue;
+
+            const size_t candidateStart = pos > GAP_BYTES ? pos - GAP_BYTES : 0;
+
+            if (candidateStart + trackLength <= captureLength)
+            {
+                trackStart = candidateStart;
+                break;
+            }
+        }
+    }
+
+    // Extract the track only after its final start position is known.
     std::vector<uint8_t> bestTrack = extractBitAlignedTrack(rawTrack, captureLength, trackStart * 8, trackLength * 8);
 
     size_t bestHeaders = countValidHeaders(bestTrack);
@@ -253,6 +336,18 @@ NIB::ExtractedTrack NIB::extractTrack(const uint8_t* rawTrack, size_t captureLen
     }
 
     result.data = bestTrack;
+
+    #ifdef Debug
+        if ((density & 0x03) == 2)
+        {
+            std::cout
+                << "[NIB:EXTRACT:HEADERS]"
+                << " bytes=" << result.data.size()
+                << " headers=" << countValidHeaders(result.data)
+                << '\n';
+        }
+    #endif
+
     result.speedZones.assign(result.data.size(), density & 0x03);
     result.start  = trackStart;
     result.length = trackLength;
@@ -337,12 +432,20 @@ size_t NIB::countValidHeaders(const std::vector<uint8_t>& trackData) const
 
     size_t validHeaders = 0;
 
-    for (size_t pos = 0; pos + 10 <= trackData.size(); ++pos)
+    for (size_t pos = 0; pos < trackData.size(); ++pos)
     {
+        std::array<uint8_t, 10> encoded = {};
+
+        for (size_t i = 0; i < encoded.size(); ++i)
+        {
+            encoded[i] =
+                trackData[(pos + i) % trackData.size()];
+        }
+
         std::vector<uint8_t> raw;
         raw.reserve(8);
 
-        if (!codec.decodeBytes(&trackData[pos], 10, raw))
+        if (!codec.decodeBytes(encoded.data(), encoded.size(), raw))
             continue;
 
         if (raw.size() != 8)
