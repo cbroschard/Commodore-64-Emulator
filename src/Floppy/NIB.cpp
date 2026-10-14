@@ -88,7 +88,7 @@ bool NIB::validateDiskImage()
 
     const uint8_t version = fileImageBuffer[versionOffset];
 
-    if (version != 3)
+    if (version < 1 || version > 3)
         return false;
 
     return true;
@@ -150,56 +150,80 @@ bool NIB::parseHeaderAndTracks()
 }
 
 
+
 NIB::NIBTrackCycle NIB::findTrackCycle(const uint8_t* data, size_t captureLength, size_t expectedLength) const
 {
     NIBTrackCycle result;
 
     constexpr size_t SEARCH_WINDOW = 256;
     constexpr size_t MIN_COMPARE_BYTES = 256;
-    constexpr size_t MIN_MATCH_PERCENT = 75;
+    constexpr size_t MIN_MATCHING_RUN = 256;
+    constexpr size_t MIN_MATCH_PERCENT = 30;
 
     if (!data || expectedLength == 0 || captureLength <= MIN_COMPARE_BYTES)
         return result;
 
     const size_t minLength = expectedLength > SEARCH_WINDOW ? expectedLength - SEARCH_WINDOW : 1;
-
     const size_t maxLength = std::min(expectedLength + SEARCH_WINDOW, captureLength - MIN_COMPARE_BYTES);
 
     if (minLength > maxLength)
         return result;
 
     size_t bestLength = 0;
+    size_t bestRun = 0;
     size_t bestMatches = 0;
     size_t bestCompared = 0;
 
-    for (size_t length = minLength; length <= maxLength; ++length)
+    for (size_t length = minLength;
+         length <= maxLength;
+         ++length)
     {
-        const size_t compareBytes = captureLength - length;
+        const size_t compareBytes =
+            captureLength - length;
 
         size_t matches = 0;
+        size_t currentRun = 0;
+        size_t longestRun = 0;
 
         for (size_t i = 0; i < compareBytes; ++i)
         {
-            if (data[i] == data[length + i])
+            if (data[i] == data[i + length])
+            {
                 ++matches;
+                ++currentRun;
+
+                if (currentRun > longestRun)
+                    longestRun = currentRun;
+            }
+            else
+            {
+                currentRun = 0;
+            }
         }
 
-        // Compare candidates using their match ratio,
-        // not the raw match count, since their overlap
-        // lengths are different.
-        const bool better = bestLength == 0 || matches * bestCompared > bestMatches * compareBytes;
+        // Require a substantial matching region.
+        if (longestRun < MIN_MATCHING_RUN)
+            continue;
+
+        // Reject candidates with very poor overall agreement.
+        if (matches * 100 < compareBytes * MIN_MATCH_PERCENT)
+            continue;
+
+        // Prefer the longest continuous overlap.
+        // Break ties using the overall matching percentage.
+        const bool better = bestLength == 0 || longestRun > bestRun || (longestRun == bestRun && matches * bestCompared >
+            bestMatches * compareBytes);
 
         if (better)
         {
             bestLength = length;
+            bestRun = longestRun;
             bestMatches = matches;
             bestCompared = compareBytes;
         }
     }
 
-    if (bestLength == 0 ||
-        bestMatches * 100 <
-            bestCompared * MIN_MATCH_PERCENT)
+    if (bestLength == 0)
         return result;
 
     result.start = 0;
