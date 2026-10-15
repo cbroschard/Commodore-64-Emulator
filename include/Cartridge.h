@@ -223,7 +223,7 @@ class Cartridge
         // Setters
         void setExternalKernalActive(bool enabled);
 
-        CartridgeType getType() const;
+        CartridgeType getType() const { return mapperType; }
         std::string getMapperName() const;
 
         // Helpers
