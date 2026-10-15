@@ -22,7 +22,7 @@ void GameKillerMapper::reset()
     enabled         = true;
     disableWrites   = 0;
 
-    updateLines();
+    (void)applyMappingAfterLoad();
 }
 
 void GameKillerMapper::saveState(StateWriter& wrtr) const
