@@ -28,7 +28,7 @@ void GameKillerMapper::reset()
 void GameKillerMapper::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("GKLR");
-    wrtr.writeU32(2); // Version
+    wrtr.writeU32(1); // Version
 
     wrtr.writeBool(enabled);
     wrtr.writeU8(disableWrites);
@@ -67,12 +67,15 @@ void GameKillerMapper::write(uint16_t address, uint8_t value)
 {
     (void)value;
 
+    if (!cart || !enabled)
+        return;
+
     if (address < 0xDE00 || address > 0xDFFF)
         return;
 
     if (++disableWrites >= 2)
     {
-        disableWrites = 0;
+        disableWrites = 2;
         enabled = false;
 
         updateLines();
