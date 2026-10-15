@@ -39,6 +39,7 @@
 #include "Cartridge/FreezeMachineMapper.h"
 #include "Cartridge/FreezeFrameMK2Mapper.h"
 #include "Cartridge/FunPlayMapper.h"
+#include "Cartridge/GameKillerMapper.h"
 #include "Cartridge/GenericMapper.h"
 #include "Cartridge/GMod2Mapper.h"
 #include "Cartridge/HyperBasicMapper.h"
@@ -524,6 +525,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
+        case 0x2A:  return CartridgeType::GAME_KILLER;
         case 0x2B:  return CartridgeType::PROPHET_64;
         case 0x2C:  return CartridgeType::EXOS;
         case 0x2D:  return CartridgeType::FREEZE_FRAME;
@@ -602,6 +604,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
+        case CartridgeType::GAME_KILLER:            return "Game Killer";
         case CartridgeType::PROPHET_64:             return "Prophet 64";
         case CartridgeType::EXOS:                   return "EXOS";
         case CartridgeType::ACTION_REPLAY_2:        return "Action Replay 2";
@@ -1321,6 +1324,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
+        case CartridgeType::GAME_KILLER:            return std::make_unique<GameKillerMapper>();
         case CartridgeType::PROPHET_64:             return std::make_unique<Prophet64Mapper>();
         case CartridgeType::EXOS:                   return std::make_unique<EXOSMapper>();
         case CartridgeType::FREEZE_FRAME:           return std::make_unique<FreezeFrameMapper>();
