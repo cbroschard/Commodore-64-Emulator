@@ -139,7 +139,7 @@ class Cartridge
             STARDOS,                // 31
             EASYFLASH,              // 32
 
-            // 33 EasyFlash Xbank not supported
+            UNUSED_XBANK,           // 33
 
             CAPTURE,                // 34
             ACTION_REPLAY_3,        // 35
@@ -190,7 +190,7 @@ class Cartridge
             // 67 REX RAM-Floppy
             BIS_PLUS,               // 68
             // 69 SD-BOX
-            // 70 MultiMAX
+            MULTIMAX,               // 70
 
             BLACKBOX_V9,            // 71
 

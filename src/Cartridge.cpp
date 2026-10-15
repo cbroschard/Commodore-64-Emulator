@@ -52,6 +52,7 @@
 #include "Cartridge/MagicFormelMapper.h"
 #include "Cartridge/MAXBASICMapper.h"
 #include "Cartridge/MikroAssemblerMapper.h"
+#include "Cartridge/MultiMAXMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/PagefoxMapper.h"
 #include "Cartridge/Prophet64Mapper.h"
@@ -406,6 +407,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::MAX_BASIC: // MAX BASIC has 2K RAM
             configureRAM(2048);
             break;
+        case CartridgeType::MULTIMAX: // MultiMAX has 2K RAM
+            configureRAM(2048);
+            break;
         case CartridgeType::PARTNER_64: // Partner 64 has 8K RAM
             configureRAM(8192);
             break;
@@ -525,6 +529,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
+        case 0x29:  return CartridgeType::UNUSED_XBANK;
         case 0x2A:  return CartridgeType::GAME_KILLER;
         case 0x2B:  return CartridgeType::PROPHET_64;
         case 0x2C:  return CartridgeType::EXOS;
@@ -548,6 +553,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x41:  return CartridgeType::BLACKBOX_V3;
         case 0x42:  return CartridgeType::BLACKBOX_V4;
         case 0x44:  return CartridgeType::BIS_PLUS;
+        case 0x46:  return CartridgeType::MULTIMAX;
         case 0x47:  return CartridgeType::BLACKBOX_V9;
         case 0x4A:  return CartridgeType::DREAN;
         case 0x4C:  return CartridgeType::TURTLE_GRAPHICE_II;
@@ -604,6 +610,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
+        case CartridgeType::UNUSED_XBANK:           return "Unused XBank";
         case CartridgeType::GAME_KILLER:            return "Game Killer";
         case CartridgeType::PROPHET_64:             return "Prophet 64";
         case CartridgeType::EXOS:                   return "EXOS";
@@ -627,6 +634,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::BLACKBOX_V3:            return "BlackBox V3";
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
         case CartridgeType::BIS_PLUS:               return "BIS-Plus";
+        case CartridgeType::MULTIMAX:               return "MultiMAX";
         case CartridgeType::BLACKBOX_V9:            return "BlackBox V9";
         case CartridgeType::DREAN:                  return "Drean H.E.R.O.";
         case CartridgeType::TURTLE_GRAPHICE_II:     return "Turtle Graphics II";
@@ -1347,6 +1355,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::BLACKBOX_V3:            return std::make_unique<BlackBoxV3Mapper>();
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
         case CartridgeType::BIS_PLUS:               return std::make_unique<BISPlusMapper>();
+        case CartridgeType::MULTIMAX:               return std::make_unique<MultiMAXMapper>();
         case CartridgeType::BLACKBOX_V9:            return std::make_unique<BlackBoxV9Mapper>();
         case CartridgeType::DREAN:                  return std::make_unique<DreanMapper>();
         case CartridgeType::TURTLE_GRAPHICE_II:     return std::make_unique<TurtleGraphicsIIMapper>();
