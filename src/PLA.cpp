@@ -261,6 +261,18 @@ PLA::memoryBank PLA::resolveBank(uint16_t addr) const
     else if (!exROMLine && !gameLine) cfg = CartCfg::Cart16K;
     else                               cfg = CartCfg::Ultimax;
 
+    // Game Killer uses normal C64 mapping below $E000,
+    // but its cartridge ROM replaces the KERNAL at $E000-$FFFF.
+    if (cart && cartridgeAttached &&
+        cart->getType() == Cartridge::CartridgeType::GAME_KILLER &&
+        cfg == CartCfg::Ultimax)
+    {
+        if (addr >= 0xE000)
+            return CARTRIDGE_HI_E000;
+
+        cfg = CartCfg::None;
+    }
+
     // ---------- Ultimax ----------
     // Ultimax completely bypasses normal memory mapping rules
     if (cfg == CartCfg::Ultimax)
