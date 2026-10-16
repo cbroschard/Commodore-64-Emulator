@@ -10,7 +10,7 @@
 
 #include "Cartridge/CartridgeMapper.h"
 
-class RexRAMFloppyMapper : CartridgeMapper
+class RexRAMFloppyMapper : public CartridgeMapper
 {
     public:
         RexRAMFloppyMapper();
