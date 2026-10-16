@@ -59,6 +59,7 @@
 #include "Cartridge/Partner64Mapper.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexEP256Mapper.h"
+#include "Cartridge/RexRAMFloppyMapper.h"
 #include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RGCDMapper.h"
 #include "Cartridge/RossMapper.h"
@@ -407,6 +408,9 @@ bool Cartridge::loadROM(const std::string& path)
         case CartridgeType::MAX_BASIC: // MAX BASIC has 2K RAM
             configureRAM(2048);
             break;
+        case CartridgeType::REX_RAM_FLOPPY: // Rex RAM-Floppy has 256K RAM
+            configureRAM(256 * 1024);
+            break;
         case CartridgeType::MULTIMAX: // MultiMAX has 2K RAM
             configureRAM(2048);
             break;
@@ -552,6 +556,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x40:  return CartridgeType::BLACKBOX_V8;
         case 0x41:  return CartridgeType::BLACKBOX_V3;
         case 0x42:  return CartridgeType::BLACKBOX_V4;
+        case 0x43:  return CartridgeType::REX_RAM_FLOPPY;
         case 0x44:  return CartridgeType::BIS_PLUS;
         case 0x46:  return CartridgeType::MULTIMAX;
         case 0x47:  return CartridgeType::BLACKBOX_V9;
@@ -633,6 +638,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::BLACKBOX_V8:            return "BlackBox V8";
         case CartridgeType::BLACKBOX_V3:            return "BlackBox V3";
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
+        case CartridgeType::REX_RAM_FLOPPY:         return "Rex RAM-Floppy";
         case CartridgeType::BIS_PLUS:               return "BIS-Plus";
         case CartridgeType::MULTIMAX:               return "MultiMAX";
         case CartridgeType::BLACKBOX_V9:            return "BlackBox V9";
@@ -1354,6 +1360,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::BLACKBOX_V8:            return std::make_unique<BlackBoxV8Mapper>();
         case CartridgeType::BLACKBOX_V3:            return std::make_unique<BlackBoxV3Mapper>();
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
+        case CartridgeType::REX_RAM_FLOPPY:         return std::make_unique<RexRAMFloppyMapper>();
         case CartridgeType::BIS_PLUS:               return std::make_unique<BISPlusMapper>();
         case CartridgeType::MULTIMAX:               return std::make_unique<MultiMAXMapper>();
         case CartridgeType::BLACKBOX_V9:            return std::make_unique<BlackBoxV9Mapper>();

@@ -187,7 +187,7 @@ class Cartridge
             BLACKBOX_V3,            // 65
             BLACKBOX_V4,            // 66
 
-            // 67 REX RAM-Floppy
+            REX_RAM_FLOPPY,         // 67
             BIS_PLUS,               // 68
             // 69 SD-BOX
             MULTIMAX,               // 70
