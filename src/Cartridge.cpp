@@ -63,6 +63,7 @@
 #include "Cartridge/RexUtilityMapper.h"
 #include "Cartridge/RGCDMapper.h"
 #include "Cartridge/RossMapper.h"
+#include "Cartridge/SDBoxMapper.h"
 #include "Cartridge/Silverrock128Mapper.h"
 #include "Cartridge/SimonsBasicMapper.h"
 #include "Cartridge/Snapshot64Mapper.h"
@@ -558,6 +559,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x42:  return CartridgeType::BLACKBOX_V4;
         case 0x43:  return CartridgeType::REX_RAM_FLOPPY;
         case 0x44:  return CartridgeType::BIS_PLUS;
+        case 0x45:  return CartridgeType::SD_BOX;
         case 0x46:  return CartridgeType::MULTIMAX;
         case 0x47:  return CartridgeType::BLACKBOX_V9;
         case 0x4A:  return CartridgeType::DREAN;
@@ -640,6 +642,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::BLACKBOX_V4:            return "BlackBox V4";
         case CartridgeType::REX_RAM_FLOPPY:         return "Rex RAM-Floppy";
         case CartridgeType::BIS_PLUS:               return "BIS-Plus";
+        case CartridgeType::SD_BOX:                 return "SD-BOX";
         case CartridgeType::MULTIMAX:               return "MultiMAX";
         case CartridgeType::BLACKBOX_V9:            return "BlackBox V9";
         case CartridgeType::DREAN:                  return "Drean H.E.R.O.";
@@ -1362,6 +1365,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::BLACKBOX_V4:            return std::make_unique<BlackBoxV4Mapper>();
         case CartridgeType::REX_RAM_FLOPPY:         return std::make_unique<RexRAMFloppyMapper>();
         case CartridgeType::BIS_PLUS:               return std::make_unique<BISPlusMapper>();
+        case CartridgeType::SD_BOX:                 return std::make_unique<SDBoxMapper>();
         case CartridgeType::MULTIMAX:               return std::make_unique<MultiMAXMapper>();
         case CartridgeType::BLACKBOX_V9:            return std::make_unique<BlackBoxV9Mapper>();
         case CartridgeType::DREAN:                  return std::make_unique<DreanMapper>();

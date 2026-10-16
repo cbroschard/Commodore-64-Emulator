@@ -189,7 +189,7 @@ class Cartridge
 
             REX_RAM_FLOPPY,         // 67
             BIS_PLUS,               // 68
-            // 69 SD-BOX
+            SD_BOX,                 // 69
             MULTIMAX,               // 70
 
             BLACKBOX_V9,            // 71
