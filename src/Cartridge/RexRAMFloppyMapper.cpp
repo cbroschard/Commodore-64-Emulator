@@ -12,7 +12,8 @@ RexRAMFloppyMapper::RexRAMFloppyMapper() :
     selectedBank(0),
     ramEnabled(false),
     ramWritable(false),
-    enabled(true)
+    enabled(true),
+    switchEnabled(true)
 {
 
 }
@@ -30,6 +31,8 @@ void RexRAMFloppyMapper::saveState(StateWriter& wrtr) const
     wrtr.writeBool(ramWritable);
 
     wrtr.writeBool(enabled);
+
+    wrtr.writeBool(switchEnabled);
 
     wrtr.endChunk();
 }
@@ -51,6 +54,8 @@ bool RexRAMFloppyMapper::loadState(const StateReader::Chunk& chunk, StateReader&
     if (!rdr.readBool(ramWritable))     { rdr.exitChunkPayload(chunk); return false; }
 
     if (!rdr.readBool(enabled))         { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!rdr.readBool(switchEnabled))   { rdr.exitChunkPayload(chunk); return false; }
 
     rdr.exitChunkPayload(chunk);
 
@@ -171,7 +176,7 @@ bool RexRAMFloppyMapper::romReadHandledByMapper(uint16_t address) const
 
 CartridgeWriteRoute RexRAMFloppyMapper::cpuWriteRoute(uint16_t address) const
 {
-    if (enabled && ramEnabled && ramWritable && address >= 0x8000 && address <= 0x9FFF)
+    if (enabled && switchEnabled && ramEnabled && ramWritable && address >= 0x8000 && address <= 0x9FFF)
         return CartridgeWriteRoute::CartridgeOnly;
 
     return CartridgeWriteRoute::System;
@@ -227,11 +232,58 @@ bool RexRAMFloppyMapper::loadPersistence(const std::string& path)
     return true;
 }
 
+uint32_t RexRAMFloppyMapper::getSwitchCount() const
+{
+    return 1;
+}
+
+const char* RexRAMFloppyMapper::getSwitchName(uint32_t switchIndex) const
+{
+    return switchIndex == 0 ? "Cartridge" : "";
+}
+
+uint32_t RexRAMFloppyMapper::getSwitchPositionCount(uint32_t switchIndex) const
+{
+    return switchIndex == 0 ? 2 : 0;
+}
+
+uint32_t RexRAMFloppyMapper::getSwitchPosition(uint32_t switchIndex) const
+{
+    if (switchIndex != 0)
+        return 0;
+
+    return switchEnabled ? 1 : 0;
+}
+
+const char* RexRAMFloppyMapper::getSwitchPositionLabel(uint32_t switchIndex, uint32_t pos) const
+{
+    if (switchIndex != 0)
+        return "";
+
+    switch (pos)
+    {
+        case 0: return "Off";
+        case 1: return "On";
+        default: return "";
+    }
+}
+
+void RexRAMFloppyMapper::setSwitchPosition(uint32_t switchIndex, uint32_t pos)
+{
+    if (switchIndex != 0 || pos > 1)
+        return;
+
+    switchEnabled = (pos == 1);
+    updateLines();
+}
+
 void RexRAMFloppyMapper::updateLines()
 {
     if (!cart)
         return;
 
+    const bool active = enabled && switchEnabled;
+
     cart->setGameLine(true);
-    cart->setExROMLine(!enabled);
+    cart->setExROMLine(!active);
 }

@@ -9,8 +9,9 @@
 #define REXRAMFLOPPYMAPPER_H
 
 #include "Cartridge/CartridgeMapper.h"
+#include "Cartridge/IHasSwitch.h"
 
-class RexRAMFloppyMapper : public CartridgeMapper
+class RexRAMFloppyMapper : public CartridgeMapper, public IHasSwitch
 {
     public:
         RexRAMFloppyMapper();
@@ -31,9 +32,20 @@ class RexRAMFloppyMapper : public CartridgeMapper
         bool romReadHandledByMapper(uint16_t address) const override;
         CartridgeWriteRoute cpuWriteRoute(uint16_t address) const override;
 
+        // RAM Persistence
         bool hasPersistence() const override;
         bool savePersistence(const std::string& path) const override;
         bool loadPersistence(const std::string& path) override;
+
+        // Toggle switch
+        uint32_t getSwitchCount() const override;
+        const char* getSwitchName(uint32_t switchIndex) const override;
+
+        uint32_t getSwitchPositionCount(uint32_t switchIndex) const override;
+        uint32_t getSwitchPosition(uint32_t switchIndex) const override;
+        const char* getSwitchPositionLabel(uint32_t switchIndex, uint32_t pos) const override;
+
+        void setSwitchPosition(uint32_t switchIndex, uint32_t pos) override;
 
     private:
         uint8_t selectedBank;
@@ -42,6 +54,7 @@ class RexRAMFloppyMapper : public CartridgeMapper
         bool ramWritable;
 
         bool enabled;
+        bool switchEnabled;
 
         void updateLines();
 };
