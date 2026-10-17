@@ -17,6 +17,7 @@
 #include "Cartridge/BlackBoxV4Mapper.h"
 #include "Cartridge/BlackBoxV8Mapper.h"
 #include "Cartridge/BlackBoxV9Mapper.h"
+#include "Cartridge/BMPDataTurbo2000Mapper.h"
 #include "Cartridge/C64GameSystemMapper.h"
 #include "Cartridge/CaptureMapper.h"
 #include "Cartridge/Comal80Mapper.h"
@@ -570,6 +571,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x50:  return CartridgeType::UNIVERSAL_CARTRIDGE_1;
         case 0x51:  return CartridgeType::UNIVERSAL_CARTRIDGE_15;
         case 0x52:  return CartridgeType::UNIVERSAL_CARTRIDGE_2;
+        case 0x53:  return CartridgeType::BMP_DATA_TURBO_2000;
         case 0x55:  return CartridgeType::MAGICDESK_16;
         default:    return CartridgeType::UNKNOWN;
     }
@@ -653,6 +655,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return "Universal Cartridge 1";
         case CartridgeType::UNIVERSAL_CARTRIDGE_15: return "Universal Cartridge 1.5";
         case CartridgeType::UNIVERSAL_CARTRIDGE_2:  return "Universal Cartridge 2";
+        case CartridgeType::BMP_DATA_TURBO_2000:    return "BMP Data Turbo 2000";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
@@ -1375,7 +1378,8 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::HYPER_BASIC:            return std::make_unique<HyperBasicMapper>();
         case CartridgeType::UNIVERSAL_CARTRIDGE_1:  return std::make_unique<UniversalCartridge1Mapper>();
         case CartridgeType::UNIVERSAL_CARTRIDGE_15: return std::make_unique<UniversalCartridge15Mapper>();
-        case CartridgeType::UNIVERSAL_CARTRIDGE_2: return std::make_unique<UniversalCartridge2Mapper>();
+        case CartridgeType::UNIVERSAL_CARTRIDGE_2:  return std::make_unique<UniversalCartridge2Mapper>();
+        case CartridgeType::BMP_DATA_TURBO_2000:    return std::make_unique<BMPDataTurbo2000Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
 
         default:

@@ -206,8 +206,8 @@ class Cartridge
             HYPER_BASIC,            // 79
             UNIVERSAL_CARTRIDGE_1,  // 80
             UNIVERSAL_CARTRIDGE_15, // 81
-            UNIVERSAL_CARTRIDGE_2,   // 82
-            // 83 BMP Data Turbo 2000
+            UNIVERSAL_CARTRIDGE_2,  // 82
+            BMP_DATA_TURBO_2000,    // 83
             // 84 Profi-DOS
 
             MAGICDESK_16,           // 85
