@@ -56,8 +56,9 @@
 #include "Cartridge/MultiMAXMapper.h"
 #include "Cartridge/OceanMapper.h"
 #include "Cartridge/PagefoxMapper.h"
-#include "Cartridge/Prophet64Mapper.h"
 #include "Cartridge/Partner64Mapper.h"
+#include "Cartridge/Prophet64Mapper.h"
+#include "Cartridge/ProtovisionMegabyterMapper.h"
 #include "Cartridge/RetroReplayMapper.h"
 #include "Cartridge/RexEP256Mapper.h"
 #include "Cartridge/RexRAMFloppyMapper.h"
@@ -573,6 +574,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x52:  return CartridgeType::UNIVERSAL_CARTRIDGE_2;
         case 0x53:  return CartridgeType::BMP_DATA_TURBO_2000;
         case 0x55:  return CartridgeType::MAGICDESK_16;
+        case 0x56:  return CartridgeType::PROTOVISION_MEGABYTER;
         default:    return CartridgeType::UNKNOWN;
     }
 }
@@ -657,6 +659,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::UNIVERSAL_CARTRIDGE_2:  return "Universal Cartridge 2";
         case CartridgeType::BMP_DATA_TURBO_2000:    return "BMP Data Turbo 2000";
         case CartridgeType::MAGICDESK_16:           return "Magic Desk 16";
+        case CartridgeType::PROTOVISION_MEGABYTER:  return "Protovision Megabyter";
         case CartridgeType::UNKNOWN:                return "Unknown cartridge format";
     }
     // Default
@@ -1381,6 +1384,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::UNIVERSAL_CARTRIDGE_2:  return std::make_unique<UniversalCartridge2Mapper>();
         case CartridgeType::BMP_DATA_TURBO_2000:    return std::make_unique<BMPDataTurbo2000Mapper>();
         case CartridgeType::MAGICDESK_16:           return std::make_unique<MagicDesk16Mapper>();
+        case CartridgeType::PROTOVISION_MEGABYTER:  return std::make_unique<ProtovisionMegabyterMapper>();
 
         default:
             return nullptr; // UNKNOWN => treat as “no mapper”, use chipSections mapping

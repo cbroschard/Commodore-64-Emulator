@@ -211,6 +211,7 @@ class Cartridge
             // 84 Profi-DOS
 
             MAGICDESK_16,           // 85
+            PROTOVISION_MEGABYTER,  // 86
 
             UNKNOWN
         };
