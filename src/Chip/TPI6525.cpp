@@ -39,7 +39,17 @@ uint8_t TPI6525::readRegister(uint8_t reg)
         case 0x01:
             return readPort(registers.portB, registers.ddrB, portBInput);
         case 0x02:
-            return isInterruptMode() ? (registers.pendingInterrupt & 0x1F) : readPort(registers.portC, registers.ddrC, portCInput);
+        {
+            if (isInterruptMode())
+            {
+                uint8_t value = (registers.pendingInterrupt & 0x1F) | 0xC0;
+                if (!irqLine)
+                    value |= 0x20;
+                return value;
+            }
+            else
+                return readPort(registers.portC, registers.ddrC, portCInput);
+        }
         case 0x03:
             return registers.ddrA;
         case 0x04:
