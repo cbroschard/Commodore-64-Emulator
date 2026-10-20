@@ -4,6 +4,7 @@ include/imgui/
 src/imgui/
 obj/
 tape/
+tests/
 !include/tape/
 !src/tape/
 PRG/
