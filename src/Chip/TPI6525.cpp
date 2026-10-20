@@ -24,9 +24,13 @@ void TPI6525::reset()
 
     irqLine = true;
     interruptInputs = 0x1F;
+    interruptStack = 0;
+
+    serviceStack.fill(0);
+    serviceDepth = 0;
 }
 
-uint8_t TPI6525::readRegister(uint8_t reg) const
+uint8_t TPI6525::readRegister(uint8_t reg)
 {
     switch (reg & 0x07)
     {
@@ -45,7 +49,7 @@ uint8_t TPI6525::readRegister(uint8_t reg) const
         case 0x06:
             return registers.cr;
         case 0x07:
-            return registers.air;
+            return acknowledgeInterrupt();
     }
 
     return 0xFF;
@@ -64,6 +68,8 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
         case 0x02:
             if (!isInterruptMode())
                 registers.portC = value;
+            else
+                registers.pendingInterrupt &= static_cast<uint8_t>(value & 0x1F);
             break;
         case 0x03:
             registers.ddrA = value;
@@ -73,7 +79,19 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
             break;
         case 0x05:
             if (isInterruptMode())
+            {
                 registers.imr = value & 0x1F;
+
+                const uint8_t eligible = getEnabledInterrupts();
+
+                for (int i = 4; i >= 0; --i)
+                {
+                    const uint8_t mask = static_cast<uint8_t>(1u << i);
+
+                    if ((eligible & mask) != 0)
+                        triggerInterrupt(mask);
+                }
+            }
             else
                 registers.ddrC = value;
             break;
@@ -81,6 +99,7 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
             registers.cr = value;
             break;
         case 0x07:
+            completeInterrupt();
             break;
     }
 }
@@ -128,7 +147,12 @@ void TPI6525::latchInterrupt(uint8_t source)
         return;
 
     const uint8_t mask = static_cast<uint8_t>(1u << source);
+    const bool alreadyPending = (registers.pendingInterrupt & mask) != 0;
+
     registers.pendingInterrupt |= mask;
+
+    if (!alreadyPending)
+        triggerInterrupt(mask);
 }
 
 void TPI6525::clearInterrupt(uint8_t source)
@@ -142,22 +166,112 @@ void TPI6525::clearInterrupt(uint8_t source)
 
 void TPI6525::setPortAInput(uint8_t value)
 {
-    registers.portA = value;
+    portAInput = value;
 }
 
 void TPI6525::setPortBInput(uint8_t value)
 {
-    registers.portB = value;
+    portBInput = value;
 }
 
 void TPI6525::setPortCInput(uint8_t value)
 {
-    registers.portC = value;
+    portCInput = value;
 }
 
-void TPI6525::updateIRQ()
+void TPI6525::triggerInterrupt(uint8_t mask)
 {
-    irqLine = (getHighestPriorityInterrupt() == -1);
+    if (mask == 0)
+        return;
+
+    if ((registers.imr & mask) == 0)
+        return;
+
+    interruptStack |= mask;
+
+    if (isPriorityMode() && serviceDepth > 0)
+    {
+        const uint8_t currentService = serviceStack[serviceDepth - 1];
+        const int servicePriority = getHighestPriorityInterrupt(currentService);
+        const int newPriority = getHighestPriorityInterrupt(mask);
+
+        if (newPriority <= servicePriority)
+            return;
+    }
+
+    if (registers.air != 0 && !isPriorityMode())
+        return;
+
+    const uint8_t otherPending = getEnabledInterrupts() & static_cast<uint8_t>(~mask);
+    const int otherPriority = getHighestPriorityInterrupt(otherPending);
+    const int newPriority = getHighestPriorityInterrupt(mask);
+
+    if (newPriority > otherPriority)
+    {
+        registers.air = mask;
+        irqLine = false;
+    }
+}
+
+uint8_t TPI6525::acknowledgeInterrupt()
+{
+    const uint8_t active = registers.air;
+
+    if (isPriorityMode() && active != 0)
+    {
+        if (serviceDepth < serviceStack.size())
+        {
+            serviceStack[serviceDepth] = active;
+            serviceDepth++;
+        }
+    }
+
+    registers.air = 0;
+
+    interruptStack &= ~active;
+    registers.pendingInterrupt &= static_cast<uint8_t>(~active);
+
+    if (!isPriorityMode())
+    {
+        registers.air = interruptStack;
+        interruptStack = 0;
+    }
+
+    irqLine = (registers.air == 0);
+
+    return active;
+}
+
+void TPI6525::completeInterrupt()
+{
+    if (isPriorityMode() && serviceDepth > 0)
+    {
+        --serviceDepth;
+        serviceStack[serviceDepth] = 0;
+    }
+
+    int servicePriority = -1;
+
+    if (serviceDepth > 0)
+        servicePriority = getHighestPriorityInterrupt(serviceStack[serviceDepth - 1]);
+
+    registers.air = 0;
+
+    if (isPriorityMode() && interruptStack != 0)
+    {
+        for (int i = 4; i >= 0; --i)
+        {
+            const uint8_t mask = static_cast<uint8_t>(1u << i);
+
+            if ((interruptStack & mask) != 0 && (getEnabledInterrupts() & mask) != 0 && i > servicePriority)
+            {
+                registers.air = mask;
+                break;
+            }
+        }
+    }
+
+    irqLine = (registers.air == 0);
 }
 
 uint8_t TPI6525::readPort(uint8_t output, uint8_t direction, uint8_t input) const
@@ -165,14 +279,12 @@ uint8_t TPI6525::readPort(uint8_t output, uint8_t direction, uint8_t input) cons
     return static_cast<uint8_t>((output & direction) | (input & static_cast<uint8_t>(~direction)));
 }
 
-int TPI6525::getHighestPriorityInterrupt() const
+int TPI6525::getHighestPriorityInterrupt(uint8_t sources) const
 {
-    int sources = getEnabledInterrupts();
-
     for (int i = 4; i >= 0; --i)
     {
-            if ((sources & (1u << i)) != 0)
-                return i;
+        if ((sources & (1u << i)) != 0)
+            return i;
     }
 
     return -1;

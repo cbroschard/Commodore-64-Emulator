@@ -8,6 +8,7 @@
 #ifndef TPI6525_H
 #define TPI6525_H
 
+#include <array>
 #include <cstdint>
 
 class TPI6525
@@ -18,7 +19,7 @@ class TPI6525
 
         void reset();
 
-        uint8_t readRegister(uint8_t reg) const;
+        uint8_t readRegister(uint8_t reg);
         void writeRegister(uint8_t reg, uint8_t value);
 
         void setPortAInput(uint8_t value);
@@ -68,16 +69,22 @@ class TPI6525
 
         bool irqLine;
         uint8_t interruptInputs;
+        uint8_t interruptStack;
 
-        void updateIRQ();
+        std::array<uint8_t, 5> serviceStack{};
+        uint8_t serviceDepth;
 
         // Helpers
-        inline bool hasEnabledInterrupt() { return getEnabledInterrupts() != 0; }
+        inline void updateIRQ() { irqLine = (getHighestPriorityInterrupt(getEnabledInterrupts()) == -1); }
         inline bool isInterruptMode() const { return (registers.cr & 0x01) != 0; }
         inline bool isPriorityMode() const { return (registers.cr & 0x02) != 0; }
         inline uint8_t getEnabledInterrupts() const { return (registers.imr & registers.pendingInterrupt); }
+
+        void triggerInterrupt(uint8_t mask);
+        uint8_t acknowledgeInterrupt();
+        void completeInterrupt();
         uint8_t readPort(uint8_t output, uint8_t direction, uint8_t input) const;
-        int getHighestPriorityInterrupt() const;
+        int getHighestPriorityInterrupt(uint8_t sources) const;
 };
 
 #endif // TPI6525_H
