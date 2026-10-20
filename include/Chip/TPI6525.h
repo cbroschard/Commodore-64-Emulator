@@ -22,6 +22,13 @@ class TPI6525
         uint8_t readRegister(uint8_t reg);
         void writeRegister(uint8_t reg, uint8_t value);
 
+        void tick(uint64_t cycles);
+
+        // Getters
+        inline bool getCALine() const { return caLine; }
+        inline bool getCBLine() const { return cbLine; }
+
+        // Setters
         void setPortAInput(uint8_t value);
         void setPortBInput(uint8_t value);
         void setPortCInput(uint8_t value);
@@ -66,6 +73,12 @@ class TPI6525
         uint8_t portAInput;
         uint8_t portBInput;
         uint8_t portCInput;
+
+        bool caLine;
+        bool cbLine;
+
+        uint8_t caPulseRemaining;
+        uint8_t cbPulseRemaining;
 
         bool irqLine;
         uint8_t interruptInputs;

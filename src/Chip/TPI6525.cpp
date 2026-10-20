@@ -22,6 +22,12 @@ void TPI6525::reset()
     portBInput = 0xFF;
     portCInput = 0xFF;
 
+    caLine = true;
+    cbLine = true;
+
+    caPulseRemaining = 0;
+    cbPulseRemaining = 0;
+
     irqLine = true;
     interruptInputs = 0x1F;
     interruptStack = 0;
@@ -35,7 +41,17 @@ uint8_t TPI6525::readRegister(uint8_t reg)
     switch (reg & 0x07)
     {
         case 0x00:
+        {
+            const uint8_t caMode = (registers.cr >> 4) & 0x03;
+            if (caMode == 0)
+                caLine = false;
+            else if (caMode == 1)
+            {
+                caLine = false;
+                caPulseRemaining = 1;
+            }
             return readPort(registers.portA, registers.ddrA, portAInput);
+        }
         case 0x01:
             return readPort(registers.portB, registers.ddrB, portBInput);
         case 0x02:
@@ -70,11 +86,24 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
     switch(reg & 0x07)
     {
         case 0x00:
+        {
             registers.portA = value;
             break;
+        }
         case 0x01:
+        {
+            const uint8_t cbMode = (registers.cr >> 6) & 0x03;
+            if (cbMode == 0)
+                cbLine = false;
+            else if (cbMode == 1)
+            {
+                cbLine = false;
+                cbPulseRemaining = 1;
+            }
+
             registers.portB = value;
             break;
+        }
         case 0x02:
             if (!isInterruptMode())
                 registers.portC = value;
@@ -106,11 +135,57 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
                 registers.ddrC = value;
             break;
         case 0x06:
+        {
             registers.cr = value;
+
+            const uint8_t caMode = (registers.cr >> 4) & 0x03;
+            const uint8_t cbMode = (registers.cr >> 6) & 0x03;
+
+            if (caMode != 1)
+                caPulseRemaining = 0;
+
+            if (cbMode != 1)
+                cbPulseRemaining = 0;
+
+            if (caMode == 2)
+                caLine = false;
+            else if (caMode == 3)
+                caLine = true;
+
+            if (cbMode == 2)
+                cbLine = false;
+            else if (cbMode == 3)
+                cbLine = true;
+
             break;
+        }
         case 0x07:
             completeInterrupt();
             break;
+    }
+}
+
+void TPI6525::tick(uint64_t cycles)
+{
+    while (cycles > 0)
+    {
+        if (caPulseRemaining > 0)
+        {
+            --caPulseRemaining;
+
+            if (caPulseRemaining == 0)
+                caLine = true;
+        }
+
+        if (cbPulseRemaining > 0)
+        {
+            --cbPulseRemaining;
+
+            if (cbPulseRemaining == 0)
+                cbLine = true;
+        }
+
+        --cycles;
     }
 }
 
@@ -137,17 +212,25 @@ void TPI6525::setInterruptInput(uint8_t source, bool level)
         latchInterrupt(source);
     else if (source == 3)
     {
-        if (risingSelectedI3 && risingEdge)
+        const bool activeEdge = (risingSelectedI3 && risingEdge) || (!risingSelectedI3 && fallingEdge);
+        if (activeEdge)
+        {
             latchInterrupt(source);
-        else if (!risingSelectedI3 && fallingEdge)
-            latchInterrupt(source);
+            const uint8_t caMode = (registers.cr >> 4) & 0x03;
+            if (caMode == 0)
+                caLine = true;
+        }
     }
     else if (source == 4)
     {
-        if (risingSelectedI4 && risingEdge)
+        const bool activeEdge = (risingSelectedI4 && risingEdge) || (!risingSelectedI4 && fallingEdge);
+        if (activeEdge)
+        {
             latchInterrupt(source);
-        else if (!risingSelectedI4 && fallingEdge)
-            latchInterrupt(source);
+            const uint8_t cbMode = (registers.cr >> 6) & 0x03;
+            if (cbMode == 0)
+                cbLine = true;
+        }
     }
 }
 
