@@ -104,13 +104,13 @@ uint8_t IEEE488Mapper::read(uint16_t address)
     if (!cart)
         return 0xFF;
 
-    if (address >= 0x8000 && address <= 0x8FFF)
+   if (address >= 0x8000 && address <= 0x9FFF)
     {
         if (tpi.getPortCPins() & 0x10)
-            return cart->readCartridge(static_cast<uint16_t>(address - 0x8000), cartLocation::LO);
+            return cart->readCartridge(static_cast<uint16_t>(address & 0x0FFF), cartLocation::LO);
     }
 
-    if (address >= 0xDF00 && address <= 0xDF07)
+    if (address >= 0xDF00 && address <= 0xDFFF)
     {
         const uint8_t reg = static_cast<uint8_t>(address & 0x07);
 
@@ -128,7 +128,7 @@ uint8_t IEEE488Mapper::read(uint16_t address)
 
 void IEEE488Mapper::write(uint16_t address, uint8_t value)
 {
-    if (address >= 0xDF00 && address <= 0xDF07)
+    if (address >= 0xDF00 && address <= 0xDFFF)
     {
         const uint8_t reg = static_cast<uint8_t>(address & 0x07);
 
@@ -157,10 +157,16 @@ uint8_t IEEE488Mapper::peek(uint16_t address) const
     if (!cart)
         return 0xFF;
 
-    if (address >= 0x8000 && address <= 0x8FFF)
+    if (address >= 0x8000 && address <= 0x9FFF)
     {
         if (tpi.getPortCPins() & 0x10)
-            return cart->readCartridge(static_cast<uint16_t>(address - 0x8000), cartLocation::LO);
+            return cart->readCartridge(static_cast<uint16_t>(address & 0x0FFF), cartLocation::LO);
+    }
+
+    if (address >= 0xDF00 && address <= 0xDFFF)
+    {
+        const uint8_t reg = static_cast<uint8_t>(address & 0x07);
+        return tpi.peek(reg);
     }
 
     return cart->sampleDataBus();
@@ -204,10 +210,10 @@ bool IEEE488Mapper::applyMappingAfterLoad()
 
 bool IEEE488Mapper::readDrivesBus(uint16_t address) const
 {
-    if (address >= 0x8000 && address <= 0x8FFF)
+    if (address >= 0x8000 && address <= 0x9FFF)
         return (tpi.getPortCPins() & 0x10) != 0;
 
-    return address >= 0xDF00 && address <= 0xDF07;
+    return address >= 0xDF00 && address <= 0xDFFF;
 }
 
 bool IEEE488Mapper::isRegionEnabled(CartRegion region) const
