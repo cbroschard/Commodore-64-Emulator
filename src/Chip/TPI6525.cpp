@@ -165,6 +165,41 @@ void TPI6525::writeRegister(uint8_t reg, uint8_t value)
     }
 }
 
+uint8_t TPI6525::peek(uint8_t reg) const
+{
+    switch(reg & 0x07)
+    {
+        case 0x00:
+            return readPort(registers.portA, registers.ddrA, portAInput);
+        case 0x01:
+            return readPort(registers.portB, registers.ddrB, portBInput);
+        case 0x02:
+        {
+            if (isInterruptMode())
+            {
+                uint8_t value = (registers.pendingInterrupt & 0x1F) | 0xC0;
+                if (!irqLine)
+                    value |= 0x20;
+                return value;
+            }
+            else
+                return readPort(registers.portC, registers.ddrC, portCInput);
+        }
+        case 0x03:
+            return registers.ddrA;
+        case 0x04:
+            return registers.ddrB;
+        case 0x05:
+            return isInterruptMode() ? registers.imr : registers.ddrC;
+        case 0x06:
+            return registers.cr;
+        case 0x07:
+            return registers.air;
+    }
+
+    return 0xFF;
+}
+
 void TPI6525::tick(uint64_t cycles)
 {
     while (cycles > 0)
