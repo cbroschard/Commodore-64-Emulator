@@ -283,7 +283,17 @@ void IEEE488Mapper::updateATN()
     if (!ieee488Bus)
         return;
 
-    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::ATN, (tpi.getPortAPins() & 0x08) != 0);
+    const uint8_t portA = tpi.getPortAPins();
+
+    // Device mode: release ATN
+    if (portA & 0x01)
+    {
+        ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::ATN, true);
+        return;
+    }
+
+    // Controller mode: PA3 controls ATN
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::ATN, (portA & 0x08) != 0);
 }
 
 void IEEE488Mapper::updateDAV()
