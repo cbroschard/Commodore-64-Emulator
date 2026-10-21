@@ -260,22 +260,44 @@ void IEEE488Mapper::sampleControlLines()
     if (!ieee488Bus)
         return;
 
-    uint8_t portAInput = tpi.getPortAInput();
+    const uint8_t portA = tpi.getPortAPins();
 
-    bool nrfd = ieee488Bus->getSignal(IEEE488Bus::Signal::NRFD);
-    bool ndac = ieee488Bus->getSignal(IEEE488Bus::Signal::NDAC);
+    const bool transmitting = (portA & 0x02) != 0;
+    const bool deviceMode   = (portA & 0x01) != 0;
 
-    if (nrfd)
-        portAInput |= 0x80;
+    uint8_t input = tpi.getPortAInput();
+
+    // Release the externally sampled control inputs.
+    // Preserve PA0-PA2.
+    input |= 0xF8;
+
+    if (transmitting)
+    {
+        // Transmitting: observe the listener handshake.
+        if (!ieee488Bus->getSignal(IEEE488Bus::Signal::NRFD))
+            input &= static_cast<uint8_t>(~0x80);
+
+        if (!ieee488Bus->getSignal(IEEE488Bus::Signal::NDAC))
+            input &= static_cast<uint8_t>(~0x40);
+    }
     else
-        portAInput &= static_cast<uint8_t>(~0x80);
+    {
+        // Receiving: observe the talker's handshake.
+        if (!ieee488Bus->getSignal(IEEE488Bus::Signal::DAV))
+            input &= static_cast<uint8_t>(~0x10);
 
-    if (ndac)
-        portAInput |= 0x40;
-    else
-        portAInput &= static_cast<uint8_t>(~0x40);
+        if (!ieee488Bus->getSignal(IEEE488Bus::Signal::EOI))
+            input &= static_cast<uint8_t>(~0x20);
+    }
 
-    tpi.setPortAInput(portAInput);
+    // In device mode, ATN becomes an input.
+    if (deviceMode)
+    {
+        if (!ieee488Bus->getSignal(IEEE488Bus::Signal::ATN))
+            input &= static_cast<uint8_t>(~0x08);
+    }
+
+    tpi.setPortAInput(input);
 }
 
 void IEEE488Mapper::updateATN()
