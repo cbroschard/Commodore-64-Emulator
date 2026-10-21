@@ -19,12 +19,26 @@ IEEE488Mapper::~IEEE488Mapper() = default;
 
 void IEEE488Mapper::saveState(StateWriter& wrtr) const
 {
+    wrtr.beginChunk("I488");
+    wrtr.writeU32(1); // Version
 
+    wrtr.endChunk();
 }
 
 bool IEEE488Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 {
+    if (std::memcmp(chunk.tag, "I488", 4) != 0)
+        return false;
 
+    rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))      { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)               { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
+
+    return true;
 }
 
 void IEEE488Mapper::reset()
