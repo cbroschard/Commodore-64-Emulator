@@ -7,7 +7,6 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Cartridge.h"
 #include "Cartridge/IEEE488Mapper.h"
-#include "IEEE488/IEEE488Bus.h"
 
 IEEE488Mapper::IEEE488Mapper() :
     ieee488Bus(nullptr)
@@ -15,7 +14,47 @@ IEEE488Mapper::IEEE488Mapper() :
 
 }
 
-IEEE488Mapper::~IEEE488Mapper() = default;
+IEEE488Mapper::~IEEE488Mapper()
+{
+    if (ieee488Bus)
+    {
+        ieee488Bus->detachDevice(CONTROLLER_ID);
+        ieee488Bus = nullptr;
+    }
+}
+
+bool IEEE488Mapper::attachIEEE488BusInstance(IEEE488Bus* newBus)
+{
+    if (ieee488Bus == newBus)
+        return true;
+
+    if (ieee488Bus)
+        ieee488Bus->detachDevice(CONTROLLER_ID);
+
+    ieee488Bus = nullptr;
+
+    tpi.setPortAInput(0xFF);
+    tpi.setPortBInput(0xFF);
+
+    if (!newBus)
+        return true;
+
+    if (!newBus->attachController(CONTROLLER_ID))
+        return false;
+
+    ieee488Bus = newBus;
+
+    updateATN();
+    updateDAV();
+    updateEOI();
+    updateNRFD();
+    updateNDAC();
+    updateDataLines(isTransmitting());
+    sampleControlLines();
+    sampleDataLines();
+
+    return true;
+}
 
 void IEEE488Mapper::saveState(StateWriter& wrtr) const
 {
@@ -44,18 +83,45 @@ bool IEEE488Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 void IEEE488Mapper::reset()
 {
     tpi.reset();
+    updateLines();
+    updateATN();
+    updateDAV();
+    updateEOI();
+    updateNRFD();
+    updateNDAC();
+    updateDataLines(isTransmitting());
+}
+
+void IEEE488Mapper::tick(uint32_t elapsedCycles)
+{
+    tpi.tick(elapsedCycles);
+    sampleControlLines();
+    sampleDataLines();
 }
 
 uint8_t IEEE488Mapper::read(uint16_t address)
 {
+    if (!cart)
+        return 0xFF;
+
+    if (address >= 0x8000 && address <= 0x8FFF)
+    {
+        if (tpi.getPortCPins() & 0x10)
+            return cart->readCartridge(static_cast<uint16_t>(address - 0x8000), cartLocation::LO);
+    }
+
     if (address >= 0xDF00 && address <= 0xDF07)
     {
         const uint8_t reg = static_cast<uint8_t>(address & 0x07);
+
+        if (reg == 0)
+            sampleControlLines();
+
+        if (reg == 1)
+            sampleDataLines();
+
         return tpi.readRegister(reg);
     }
-
-    if (!cart)
-        return 0xFF;
 
     return cart->sampleDataBus();
 }
@@ -63,7 +129,41 @@ uint8_t IEEE488Mapper::read(uint16_t address)
 void IEEE488Mapper::write(uint16_t address, uint8_t value)
 {
     if (address >= 0xDF00 && address <= 0xDF07)
-        tpi.writeRegister(static_cast<uint8_t>(address & 0x07), value);
+    {
+        const uint8_t reg = static_cast<uint8_t>(address & 0x07);
+
+        tpi.writeRegister(reg, value);
+        updateLines();
+
+        if (reg == 0 || reg == 1 || reg == 3 || reg == 4)
+        {
+            if (reg == 0 || reg == 3)
+            {
+                updateATN();
+                updateDAV();
+                updateEOI();
+                updateNRFD();
+                updateNDAC();
+            }
+
+            updateDataLines(isTransmitting());
+        }
+    }
+
+}
+
+uint8_t IEEE488Mapper::peek(uint16_t address) const
+{
+    if (!cart)
+        return 0xFF;
+
+    if (address >= 0x8000 && address <= 0x8FFF)
+    {
+        if (tpi.getPortCPins() & 0x10)
+            return cart->readCartridge(static_cast<uint16_t>(address - 0x8000), cartLocation::LO);
+    }
+
+    return cart->sampleDataBus();
 }
 
 bool IEEE488Mapper::loadIntoMemory(uint8_t bank)
@@ -102,11 +202,132 @@ bool IEEE488Mapper::applyMappingAfterLoad()
     return true;
 }
 
+bool IEEE488Mapper::readDrivesBus(uint16_t address) const
+{
+    if (address >= 0x8000 && address <= 0x8FFF)
+        return (tpi.getPortCPins() & 0x10) != 0;
+
+    return address >= 0xDF00 && address <= 0xDF07;
+}
+
+bool IEEE488Mapper::isRegionEnabled(CartRegion region) const
+{
+    if (region == CartRegion::ROM_8000_9FFF)
+        return (tpi.getPortCPins() & 0x10) != 0;
+
+    return true;
+}
+
 void IEEE488Mapper::updateLines()
 {
     if (!cart)
         return;
 
+    const uint8_t portC = tpi.getPortCPins();
+    const bool pc3High = (portC & 0x08) != 0;
+
     cart->setGameLine(true);
-    cart->setExROMLine(false);
+    cart->setExROMLine(!pc3High);
+}
+
+void IEEE488Mapper::updateDataLines(bool transmitting)
+{
+    if (!ieee488Bus)
+        return;
+
+    if (transmitting)
+        ieee488Bus->setDIO(CONTROLLER_ID, tpi.getPortBDriveValue());
+    else
+        ieee488Bus->setDIO(CONTROLLER_ID, 0xFF);
+}
+
+void IEEE488Mapper::sampleDataLines()
+{
+    if (!ieee488Bus)
+        return;
+
+    tpi.setPortBInput(ieee488Bus->getDIO());
+}
+
+void IEEE488Mapper::sampleControlLines()
+{
+    if (!ieee488Bus)
+        return;
+
+    uint8_t portAInput = tpi.getPortAInput();
+
+    bool nrfd = ieee488Bus->getSignal(IEEE488Bus::Signal::NRFD);
+    bool ndac = ieee488Bus->getSignal(IEEE488Bus::Signal::NDAC);
+
+    if (nrfd)
+        portAInput |= 0x80;
+    else
+        portAInput &= static_cast<uint8_t>(~0x80);
+
+    if (ndac)
+        portAInput |= 0x40;
+    else
+        portAInput &= static_cast<uint8_t>(~0x40);
+
+    tpi.setPortAInput(portAInput);
+}
+
+void IEEE488Mapper::updateATN()
+{
+    if (!ieee488Bus)
+        return;
+
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::ATN, (tpi.getPortAPins() & 0x08) != 0);
+}
+
+void IEEE488Mapper::updateDAV()
+{
+    if (!ieee488Bus)
+        return;
+
+    bool dav = true;
+
+    if (isTransmitting())
+        dav = (tpi.getPortAPins() & 0x10) != 0;
+
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::DAV, dav);
+}
+
+void IEEE488Mapper::updateEOI()
+{
+    if (!ieee488Bus)
+        return;
+
+    bool eoi = true;
+
+    if (isTransmitting())
+        eoi = (tpi.getPortAPins() & 0x20) != 0;
+
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::EOI, eoi);
+}
+
+void IEEE488Mapper::updateNRFD()
+{
+    if (!ieee488Bus)
+        return;
+
+    bool nrfd = true;
+
+    if (!isTransmitting())
+        nrfd = (tpi.getPortAPins() & 0x80) != 0;
+
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::NRFD, nrfd);
+}
+
+void IEEE488Mapper::updateNDAC()
+{
+    if (!ieee488Bus)
+        return;
+
+    bool ndac = true;
+
+    if (!isTransmitting())
+        ndac = (tpi.getPortAPins() & 0x40) != 0;
+
+    ieee488Bus->setSignal(CONTROLLER_ID, IEEE488Bus::Signal::NDAC, ndac);
 }
