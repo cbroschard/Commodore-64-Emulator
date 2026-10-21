@@ -23,6 +23,9 @@ class IEEE488Bus
 
         void reset();
 
+        // Controller Management
+        bool attachController(DeviceId id);
+
         // Device Management
         bool attachDevice(DeviceId id, IEEE488Device* device);
         void detachDevice(DeviceId id);

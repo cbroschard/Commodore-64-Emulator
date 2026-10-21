@@ -43,6 +43,21 @@ void IEEE488Bus::reset()
     resolveSignals();
 }
 
+bool IEEE488Bus::attachController(DeviceId id)
+{
+    if (isDeviceAttached(id))
+        return false;
+
+    AttachedDevice entry{};
+    entry.id = id;
+    entry.device = nullptr;
+
+    devices.push_back(entry);
+    resolveSignals();
+
+    return true;
+}
+
 bool IEEE488Bus::attachDevice(DeviceId id, IEEE488Device* device)
 {
     if (!device)
