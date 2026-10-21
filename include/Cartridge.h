@@ -151,7 +151,7 @@ class Cartridge
             IDE64,                  // 39
             SUPER_SNAPSHOT_V4,      // 40
 
-            // 41 IEEE-488
+            IEEE_488,               // 41
             GAME_KILLER,            // 42
             PROPHET_64,             // 43
             EXOS,                   // 44

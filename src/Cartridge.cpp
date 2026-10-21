@@ -45,6 +45,7 @@
 #include "Cartridge/GMod2Mapper.h"
 #include "Cartridge/HyperBasicMapper.h"
 #include "Cartridge/IDE64Mapper.h"
+#include "Cartridge/IEEE488Mapper.h"
 #include "Cartridge/KCSPowerMapper.h"
 #include "Cartridge/KingsoftMapper.h"
 #include "Cartridge/Mach5Mapper.h"
@@ -536,7 +537,7 @@ Cartridge::CartridgeType Cartridge::detectType(uint16_t type)
         case 0x24:  return CartridgeType::RETRO_REPLAY;
         case 0x27:  return CartridgeType::IDE64;
         case 0x28:  return CartridgeType::SUPER_SNAPSHOT_V4;
-        case 0x29:  return CartridgeType::UNUSED_XBANK;
+        case 0x29:  return CartridgeType::IEEE_488;
         case 0x2A:  return CartridgeType::GAME_KILLER;
         case 0x2B:  return CartridgeType::PROPHET_64;
         case 0x2C:  return CartridgeType::EXOS;
@@ -621,6 +622,7 @@ std::string Cartridge::getMapperName() const
         case CartridgeType::RETRO_REPLAY:           return "Retro Replay (Subtype 1: Nordic Replay)";
         case CartridgeType::IDE64:                  return "IDE64";
         case CartridgeType::SUPER_SNAPSHOT_V4:      return "Super Snapshot V4";
+        case CartridgeType::IEEE_488:               return "IEEE-488";
         case CartridgeType::UNUSED_XBANK:           return "Unused XBank";
         case CartridgeType::GAME_KILLER:            return "Game Killer";
         case CartridgeType::PROPHET_64:             return "Prophet 64";
@@ -1347,6 +1349,7 @@ std::unique_ptr<CartridgeMapper> Cartridge::createMapper(CartridgeType t)
         case CartridgeType::RETRO_REPLAY:           return std::make_unique<RetroReplayMapper>();
         case CartridgeType::IDE64:                  return std::make_unique<IDE64Mapper>();
         case CartridgeType::SUPER_SNAPSHOT_V4:      return std::make_unique<SuperSnapshotV4Mapper>();
+        case CartridgeType::IEEE_488:               return std::make_unique<IEEE488Mapper>();
         case CartridgeType::GAME_KILLER:            return std::make_unique<GameKillerMapper>();
         case CartridgeType::PROPHET_64:             return std::make_unique<Prophet64Mapper>();
         case CartridgeType::EXOS:                   return std::make_unique<EXOSMapper>();
