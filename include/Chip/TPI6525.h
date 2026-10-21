@@ -25,6 +25,10 @@ class TPI6525
         void tick(uint64_t cycles);
 
         // Getters
+        inline uint8_t getPortBDriveValue() const { return static_cast<uint8_t>(registers.portB | ~registers.ddrB); }
+        inline uint8_t getPortAPins() const { return readPort(registers.portA, registers.ddrA,portAInput); }
+        inline uint8_t getPortCPins() const { return readPort(registers.portC, registers.ddrC, portCInput); }
+        inline uint8_t getPortAInput() const { return portAInput; }
         inline bool getCALine() const { return caLine; }
         inline bool getCBLine() const { return cbLine; }
 
