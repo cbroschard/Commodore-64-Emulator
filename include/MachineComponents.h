@@ -23,6 +23,7 @@
 #include "ExpansionManager.h"
 #include "Common/ExecutionHistory.h"
 #include "IECBUS.h"
+#include "IEEE488/IEEE488Bus.h"
 #include "InputManager.h"
 #include "InputRouter.h"
 #include "IRQLine.h"
@@ -67,6 +68,7 @@ struct MachineComponents
     std::unique_ptr<ExecutionHistory> executionHistory;
     std::unique_ptr<ExpansionManager> expansionManager;
     std::unique_ptr<IECBUS> iecBus;
+    std::unique_ptr<IEEE488Bus> ieee488Bus;
     std::unique_ptr<InputManager> inputMgr;
     std::unique_ptr<InputRouter> inputRouter;
     std::unique_ptr<IRQLine> irq;
