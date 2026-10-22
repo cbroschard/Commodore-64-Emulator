@@ -28,6 +28,8 @@ class IEEE488Device
 
         bool isConnected() const;
 
+        virtual void onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
+
     protected:
         bool readSignal(IEEE488Bus::Signal signal) const;
         uint8_t readDIO() const;
