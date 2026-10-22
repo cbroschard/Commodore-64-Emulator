@@ -64,6 +64,7 @@ Computer::Computer() :
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
     components_.expansionManager = std::make_unique<ExpansionManager>(*this);
     components_.iecBus = std::make_unique<IECBUS>();
+    components_.ieee488Bus = std::make_unique<IEEE488Bus>();
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();
     components_.keyb = std::make_unique<Keyboard>();
@@ -545,6 +546,7 @@ void Computer::tickCycle()
         components_.turbo232->tick(1);
 
     components_.iecBus->tick(1);
+    components_.ieee488Bus->tick(1);
 
     if (Drive* drive = components_.iecBus->getDriveWithBreakpointHit())
     {
