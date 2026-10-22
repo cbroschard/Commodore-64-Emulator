@@ -83,13 +83,18 @@ bool IEEE488Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 void IEEE488Mapper::reset()
 {
     tpi.reset();
+
     updateLines();
+
     updateATN();
     updateDAV();
     updateEOI();
     updateNRFD();
     updateNDAC();
     updateDataLines(isTransmitting());
+
+    sampleControlLines();
+    sampleDataLines();
 }
 
 void IEEE488Mapper::tick(uint32_t elapsedCycles)
@@ -128,28 +133,43 @@ uint8_t IEEE488Mapper::read(uint16_t address)
 
 void IEEE488Mapper::write(uint16_t address, uint8_t value)
 {
-    if (address >= 0xDF00 && address <= 0xDFFF)
+    if (address < 0xDF00 || address > 0xDFFF)
+        return;
+
+    const uint8_t reg = static_cast<uint8_t>(address & 0x07);
+
+    tpi.writeRegister(reg, value);
+
+    // Synchronize cartridge mapping (EXROM / GAME).
+    updateLines();
+
+    // Port A or DDRA changed.
+    if (reg == 0x00 || reg == 0x03)
     {
-        const uint8_t reg = static_cast<uint8_t>(address & 0x07);
+        // Update IEEE-488 handshake outputs.
+        updateATN();
+        updateDAV();
+        updateEOI();
+        updateNRFD();
+        updateNDAC();
 
-        tpi.writeRegister(reg, value);
-        updateLines();
+        // Update DIO direction and output state.
+        updateDataLines(isTransmitting());
 
-        if (reg == 0 || reg == 1 || reg == 3 || reg == 4)
-        {
-            if (reg == 0 || reg == 3)
-            {
-                updateATN();
-                updateDAV();
-                updateEOI();
-                updateNRFD();
-                updateNDAC();
-            }
-
-            updateDataLines(isTransmitting());
-        }
+        // Sample the newly resolved bus state.
+        sampleControlLines();
+        sampleDataLines();
     }
 
+    // Port B or DDRB changed.
+    else if (reg == 0x01 || reg == 0x04)
+    {
+        // Update DIO outputs.
+        updateDataLines(isTransmitting());
+
+        // Refresh external DIO inputs.
+        sampleDataLines();
+    }
 }
 
 uint8_t IEEE488Mapper::peek(uint16_t address) const
@@ -252,6 +272,14 @@ void IEEE488Mapper::sampleDataLines()
     if (!ieee488Bus)
         return;
 
+    // During transmission, external Port B inputs are released.
+    if (isTransmitting())
+    {
+        tpi.setPortBInput(0xFF);
+        return;
+    }
+
+    // During reception, sample the resolved IEEE-488 data bus.
     tpi.setPortBInput(ieee488Bus->getDIO());
 }
 
