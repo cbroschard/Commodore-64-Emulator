@@ -59,6 +59,7 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
     components.cart->attachBusInstance(components.bus.get());
     components.cart->attachCPUInstance(components.cpu.get());
     components.cart->attachDataBusLatchInstance(components.dataBus.get());
+    components.cart->attachIEEE488BusInstance(components.ieee488Bus.get());
     components.cart->attachHostInstance(host);
     components.cart->attachTraceManagerInstance(&components.debug->trace());
     components.cart->attachVicInstance(components.vic.get());
