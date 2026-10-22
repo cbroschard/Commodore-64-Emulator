@@ -29,7 +29,7 @@ D1571VIA::~D1571VIA() = default;
 
 void D1571VIA::saveState(StateWriter& wrtr) const
 {
-    wrtr.writeU32(2);
+    wrtr.writeU32(3);
 
     saveVIAState(wrtr);
 
@@ -50,6 +50,12 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(atnAckArmed);
     wrtr.writeBool(atnAckLatch);
     wrtr.writeBool(prevAtnAckClear);
+
+    // VIA control pin levels (introduced in version 3)
+    wrtr.writeBool(ca1Level);
+    wrtr.writeBool(ca2Level);
+    wrtr.writeBool(cb1Level);
+    wrtr.writeBool(cb2Level);
 }
 
 bool D1571VIA::loadState(StateReader& rdr)
@@ -59,7 +65,7 @@ bool D1571VIA::loadState(StateReader& rdr)
     if (!rdr.readU32(ver))
         return false;
 
-    if (ver < 1 || ver > 2)
+    if (ver < 1 || ver > 3)
         return false;
 
     if (!loadVIAState(rdr))
@@ -117,6 +123,42 @@ bool D1571VIA::loadState(StateReader& rdr)
 
     if (!rdr.readBool(prevAtnAckClear))
         return false;
+
+    // VIA control pin levels (version 3+)
+    if (ver >= 3)
+    {
+        bool savedCA1 = false;
+        bool savedCA2 = false;
+        bool savedCB1 = false;
+        bool savedCB2 = false;
+
+        if (!rdr.readBool(savedCA1))
+            return false;
+
+        if (!rdr.readBool(savedCA2))
+            return false;
+
+        if (!rdr.readBool(savedCB1))
+            return false;
+
+        if (!rdr.readBool(savedCB2))
+            return false;
+
+        // Direct assignment prevents synthetic interrupts during load.
+        ca1Level = savedCA1;
+        ca2Level = savedCA2;
+        cb1Level = savedCB1;
+        cb2Level = savedCB2;
+    }
+    else
+    {
+        // Legacy versions 1 and 2 did not serialize CA/CB pin levels.
+        // Preserve the historical reset baseline.
+        ca1Level = false;
+        ca2Level = false;
+        cb1Level = false;
+        cb2Level = false;
+    }
 
     // Post-restore fixups / derived state
     applyPortAOutputs(registers.oraIRA);
