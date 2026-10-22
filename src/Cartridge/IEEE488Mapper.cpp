@@ -61,6 +61,9 @@ void IEEE488Mapper::saveState(StateWriter& wrtr) const
     wrtr.beginChunk("I488");
     wrtr.writeU32(1); // Version
 
+    // Dump TPI6525
+    tpi.save(wrtr);
+
     wrtr.endChunk();
 }
 
@@ -75,7 +78,18 @@ bool IEEE488Mapper::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU32(ver))      { rdr.exitChunkPayload(chunk); return false; }
     if (ver != 1)               { rdr.exitChunkPayload(chunk); return false; }
 
+    if (!tpi.load(rdr))         { rdr.exitChunkPayload(chunk); return false; }
+
     rdr.exitChunkPayload(chunk);
+
+    // Resynchronize external cartridge outputs after restoring TPI state.
+    updateLines();
+    updateATN();
+    updateDAV();
+    updateEOI();
+    updateNRFD();
+    updateNDAC();
+    updateDataLines(isTransmitting());
 
     return true;
 }
