@@ -194,15 +194,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
 
             uint8_t value = readPortBPins(portBPins);
 
-            clearIFR(IFR_CB1);
-
-            const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
-
-            const bool cb2Independent =
-                (cb2Mode == 0b001) || (cb2Mode == 0b011);
-
-            if (!cb2Independent)
-                clearIFR(IFR_CB2);
+            acknowledgePortB();
 
             if (viaRole == VIARole::VIA1_IECBus)
             {
@@ -309,13 +301,7 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                 }
             }
 
-            clearIFR(IFR_CA1);
-
-            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
-            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
-
-            if (!ca2Independent)
-                clearIFR(IFR_CA2);
+            acknowledgePortA();
 
             return value;
         }
@@ -416,13 +402,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                 }
             }
 
-            clearIFR(IFR_CB1);
-
-            const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
-            const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
-
-            if (!cb2Independent)
-                clearIFR(IFR_CB2);
+            acknowledgePortB();
 
             break;
         }
@@ -437,13 +417,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                     drive->onVIA2PortAWrite(value, registers.ddrA);
             }
 
-            clearIFR(IFR_CA1);
-
-            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
-            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
-
-            if (!ca2Independent)
-                clearIFR(IFR_CA2);
+            acknowledgePortA();
 
             break;
         }
@@ -521,13 +495,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                     drive->onVIA2PortAWrite(value, registers.ddrA);
             }
 
-            clearIFR(IFR_CA1);
-
-            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
-            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
-
-            if (!ca2Independent)
-                clearIFR(IFR_CA2);
+            acknowledgePortA();
 
             break;
         }

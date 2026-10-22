@@ -189,6 +189,28 @@ uint8_t DriveVIA6522::readPortBPins(uint8_t inputPins) const
     return static_cast<uint8_t>((registers.orbIRB & registers.ddrB) | (inputPins & static_cast<uint8_t>(~registers.ddrB)));
 }
 
+void DriveVIA6522::acknowledgePortA()
+{
+    clearIFR(IFR_CA1);
+
+    const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
+    const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
+
+    if (!ca2Independent)
+        clearIFR(IFR_CA2);
+}
+
+void DriveVIA6522::acknowledgePortB()
+{
+    clearIFR(IFR_CB1);
+
+    const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
+    const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
+
+    if (!cb2Independent)
+        clearIFR(IFR_CB2);
+}
+
 DriveVIABase::VIATimerDebugView DriveVIA6522::getTimerDebugView() const
 {
     VIATimerDebugView t{};

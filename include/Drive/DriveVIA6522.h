@@ -131,6 +131,9 @@ class DriveVIA6522 : public DriveVIABase
         uint8_t readPortAPins(uint8_t inputPins) const;
         uint8_t readPortBPins(uint8_t inputPins) const;
 
+        void acknowledgePortA();
+        void acknowledgePortB();
+
         void triggerInterrupt(uint8_t sourceMask);
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();
