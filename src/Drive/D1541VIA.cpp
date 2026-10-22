@@ -152,12 +152,6 @@ void D1541VIA::reset()
     iecRxPending                        = false;
     iecRxByte                           = 0;
 
-    // CA1 + CA2
-    ca1Level                            = false;
-    ca2Level                            = false;
-    cb1Level                            = false;
-    cb2Level                            = false;
-
     portBPins &= (uint8_t)
     ~(
         (1u << IEC_ATN_IN_BIT) |
