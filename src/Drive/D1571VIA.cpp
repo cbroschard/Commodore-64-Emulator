@@ -231,7 +231,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x00: // ORB/IRB - Port B
         {
             const uint8_t ddrB = registers.ddrB;
-            uint8_t value = static_cast<uint8_t>((registers.orbIRB & ddrB) |(portBPins & static_cast<uint8_t>(~ddrB)));
+            uint8_t value = readPortBPins(portBPins);
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -295,7 +295,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x01: // ORA/IRA - Port A
         {
             const uint8_t ddrA = registers.ddrA;
-            uint8_t value = static_cast<uint8_t>((registers.oraIRA & ddrA) | (portAPins & static_cast<uint8_t>(~ddrA)));
+            uint8_t value = readPortAPins(portAPins);
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -333,7 +333,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             }
             else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
-                value = static_cast<uint8_t>((registers.oraIRA & ddrA) |(mechDataLatch & static_cast<uint8_t>(~ddrA)));
+                value = readPortAPins(mechDataLatch);
 
                 // Reading Port A consumes pending disk byte.
                 if (mechReadBytePending)
@@ -363,11 +363,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         {
             const uint8_t ddrA = registers.ddrA;
 
-            uint8_t value =
-                static_cast<uint8_t>(
-                    (registers.oraIRA & ddrA) |
-                    (portAPins & static_cast<uint8_t>(~ddrA))
-                );
+            uint8_t value = readPortAPins(portAPins);
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -403,11 +399,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
             {
                 // No handshake: do not consume mechBytePending and do not clear CA1.
-                value =
-                    static_cast<uint8_t>(
-                        (registers.oraIRA & ddrA) |
-                        (mechDataLatch & static_cast<uint8_t>(~ddrA))
-                    );
+                value = readPortAPins(mechDataLatch);
             }
 
             return value;
@@ -450,12 +442,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
                     // Stepper phase.
                     const uint8_t phaseMask = 0x03;
-
-                    const uint8_t oldPhase =
-                        static_cast<uint8_t>(prevORB & phaseMask);
-
-                    const uint8_t newPhase =
-                        static_cast<uint8_t>(registers.orbIRB & phaseMask);
+                    const uint8_t oldPhase = static_cast<uint8_t>(prevORB & phaseMask);
+                    const uint8_t newPhase = static_cast<uint8_t>(registers.orbIRB & phaseMask);
 
                     if (oldPhase != newPhase)
                         drive->onStepperPhaseChange(oldPhase, newPhase);
@@ -463,9 +451,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Motor.
                     if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        const bool enable =
-                            (registers.orbIRB &
-                             static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+                        const bool enable = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
 
                         if (enable)
                             drive->startMotor();
@@ -476,29 +462,18 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // LED.
                     if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        const bool on =
-                            (registers.orbIRB &
-                             static_cast<uint8_t>(1u << MECH_LED)) != 0;
-
+                        const bool on = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_LED)) != 0;
                         setLed(on);
                     }
 
                     // Density.
-                    const uint8_t densityMask =
-                        static_cast<uint8_t>(
-                            (1u << MECH_DENSITY_BIT0) |
-                            (1u << MECH_DENSITY_BIT1)
-                        );
+                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) |(1u << MECH_DENSITY_BIT1));
 
                     if (ddrB & densityMask)
                     {
                         const uint8_t orb = registers.orbIRB;
-
-                        const uint8_t code =
-                            static_cast<uint8_t>(
-                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
-                            );
+                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                            (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
 
                         drive->setDensityCode(code);
                     }
@@ -536,8 +511,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // Motor.
                     if (value & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        const bool enable =
-                            (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+                        const bool enable = (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
 
                         if (enable)
                             drive->startMotor();
@@ -548,26 +522,17 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                     // LED.
                     if (value & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        const bool on =
-                            (orb & static_cast<uint8_t>(1u << MECH_LED)) != 0;
-
+                        const bool on = (orb & static_cast<uint8_t>(1u << MECH_LED)) != 0;
                         setLed(on);
                     }
 
                     // Density.
-                    const uint8_t densityMask =
-                        static_cast<uint8_t>(
-                            (1u << MECH_DENSITY_BIT0) |
-                            (1u << MECH_DENSITY_BIT1)
-                        );
+                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
 
                     if (value & densityMask)
                     {
-                        const uint8_t code =
-                            static_cast<uint8_t>(
-                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
-                            );
+                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
 
                         drive->setDensityCode(code);
                     }

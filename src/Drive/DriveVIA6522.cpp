@@ -179,6 +179,16 @@ void DriveVIA6522::tick(uint32_t cycles)
 
 }
 
+uint8_t DriveVIA6522::readPortAPins(uint8_t inputPins) const
+{
+    return static_cast<uint8_t>((registers.oraIRA & registers.ddrA) | (inputPins & static_cast<uint8_t>(~registers.ddrA)));
+}
+
+uint8_t DriveVIA6522::readPortBPins(uint8_t inputPins) const
+{
+    return static_cast<uint8_t>((registers.orbIRB & registers.ddrB) | (inputPins & static_cast<uint8_t>(~registers.ddrB)));
+}
+
 DriveVIABase::VIATimerDebugView DriveVIA6522::getTimerDebugView() const
 {
     VIATimerDebugView t{};

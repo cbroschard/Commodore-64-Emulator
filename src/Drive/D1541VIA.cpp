@@ -192,16 +192,11 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         {
             const uint8_t ddrB = registers.ddrB;
 
-            uint8_t value =
-                static_cast<uint8_t>(
-                    (registers.orbIRB & ddrB) |
-                    (portBPins & static_cast<uint8_t>(~ddrB))
-                );
+            uint8_t value = readPortBPins(portBPins);
 
             clearIFR(IFR_CB1);
 
-            const uint8_t cb2Mode =
-                static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
+            const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
 
             const bool cb2Independent =
                 (cb2Mode == 0b001) || (cb2Mode == 0b011);
@@ -269,9 +264,6 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         {
             const uint8_t ddrA = registers.ddrA;
 
-            uint8_t value =
-                static_cast<uint8_t>(registers.oraIRA & ddrA);
-
             uint8_t inputPins = portAPins;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -300,17 +292,13 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                 }
             }
 
-            value |= static_cast<uint8_t>(
-                inputPins & static_cast<uint8_t>(~ddrA)
-            );
+            // Shared 6522 DDR-aware Port A read.
+            uint8_t value = readPortAPins(inputPins);
 
             if (viaRole == VIARole::VIA2_Mechanics)
             {
-                value =
-                    static_cast<uint8_t>(
-                        (registers.oraIRA & ddrA) |
-                        (mechDataLatch & static_cast<uint8_t>(~ddrA))
-                    );
+                // VIA2 reads its data from the disk mechanism latch.
+                value = readPortAPins(mechDataLatch);
 
                 if (mechBytePending)
                 {
@@ -323,11 +311,8 @@ uint8_t D1541VIA::readRegister(uint16_t address)
 
             clearIFR(IFR_CA1);
 
-            const uint8_t ca2Mode =
-                static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
-
-            const bool ca2Independent =
-                (ca2Mode == 0b001) || (ca2Mode == 0b011);
+            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
 
             if (!ca2Independent)
                 clearIFR(IFR_CA2);
@@ -353,14 +338,12 @@ uint8_t D1541VIA::readRegister(uint16_t address)
 
         case 0x0F: // ORA/IRA no handshake
         {
-            const uint8_t ddrA = registers.ddrA;
-
             uint8_t inputPins = portAPins;
 
             if (viaRole == VIARole::VIA2_Mechanics)
                 inputPins = mechDataLatch;
 
-            return static_cast<uint8_t>((registers.oraIRA & ddrA) | (inputPins & static_cast<uint8_t>(~ddrA)));
+            return readPortAPins(inputPins);
         }
 
         default:
@@ -397,32 +380,16 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
                 if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
                 {
                     const uint8_t ddrB = registers.ddrB;
-
                     const uint8_t phaseMask = 0x03;
-
-                    const uint8_t oldPhase =
-                        static_cast<uint8_t>(prevORB & phaseMask);
-
-                    const uint8_t newPhase =
-                        static_cast<uint8_t>(registers.orbIRB & phaseMask);
+                    const uint8_t oldPhase = static_cast<uint8_t>(prevORB & phaseMask);
+                    const uint8_t newPhase = static_cast<uint8_t>(registers.orbIRB & phaseMask);
 
                     if (oldPhase != newPhase)
-                    {
-#ifdef Debug
-                        std::cout << "[VIA2] step phase "
-                                  << int(oldPhase)
-                                  << " -> "
-                                  << int(newPhase)
-                                  << "\n";
-#endif
                         drive->onStepperPhaseChange(oldPhase, newPhase);
-                    }
 
                     if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        const bool enable =
-                            (registers.orbIRB &
-                             static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+                        const bool enable = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
 
                         if (enable)
                             drive->startMotor();
@@ -432,28 +399,17 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
                     if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        const bool on =
-                            (registers.orbIRB &
-                             static_cast<uint8_t>(1u << MECH_LED)) != 0;
-
+                        const bool on = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_LED)) != 0;
                         setLed(on);
                     }
 
-                    const uint8_t densityMask =
-                        static_cast<uint8_t>(
-                            (1u << MECH_DENSITY_BIT0) |
-                            (1u << MECH_DENSITY_BIT1)
-                        );
+                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
 
                     if (ddrB & densityMask)
                     {
                         const uint8_t orb = registers.orbIRB;
-
-                        const uint8_t code =
-                            static_cast<uint8_t>(
-                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
-                            );
+                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
 
                         drive->setDensityCode(code);
                     }
@@ -462,13 +418,8 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
             clearIFR(IFR_CB1);
 
-            const uint8_t cb2Mode =
-                static_cast<uint8_t>(
-                    (registers.peripheralControlRegister >> 5) & 0x07
-                );
-
-            const bool cb2Independent =
-                (cb2Mode == 0b001) || (cb2Mode == 0b011);
+            const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
+            const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
 
             if (!cb2Independent)
                 clearIFR(IFR_CB2);
@@ -488,13 +439,8 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
             clearIFR(IFR_CA1);
 
-            const uint8_t ca2Mode =
-                static_cast<uint8_t>(
-                    (registers.peripheralControlRegister >> 1) & 0x07
-                );
-
-            const bool ca2Independent =
-                (ca2Mode == 0b001) || (ca2Mode == 0b011);
+            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
 
             if (!ca2Independent)
                 clearIFR(IFR_CA2);
@@ -504,17 +450,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x02: // DDRB
         {
-#ifdef Debug
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                std::cout << "[VIA1] DDRB write: $"
-                          << std::hex << int(value)
-                          << " (old=$" << int(registers.ddrB) << ")"
-                          << " ORB=$" << int(registers.orbIRB)
-                          << std::dec << "\n";
-            }
-#endif
-
             registers.ddrB = value;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -530,8 +465,7 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
                     if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
                     {
-                        const bool enable =
-                            (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+                        const bool enable = (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
 
                         if (enable)
                             drive->startMotor();
@@ -541,24 +475,15 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
                     if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
                     {
-                        setLed(
-                            (orb & static_cast<uint8_t>(1u << MECH_LED)) != 0
-                        );
+                        setLed((orb & static_cast<uint8_t>(1u << MECH_LED)) != 0);
                     }
 
-                    const uint8_t densityMask =
-                        static_cast<uint8_t>(
-                            (1u << MECH_DENSITY_BIT0) |
-                            (1u << MECH_DENSITY_BIT1)
-                        );
+                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) |(1u << MECH_DENSITY_BIT1));
 
                     if ((ddrB & densityMask) == densityMask)
                     {
-                        const uint8_t code =
-                            static_cast<uint8_t>(
-                                ((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1)
-                            );
+                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
+                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
 
                         drive->setDensityCode(code);
                     }
@@ -570,32 +495,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x03: // DDRA
         {
-#ifdef Debug
-            const uint8_t oldDDRA = registers.ddrA;
-#endif
-
             registers.ddrA = value;
 
             if (viaRole == VIARole::VIA2_Mechanics)
-            {
-#ifdef Debug
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    if (oldDDRA != value)
-                    {
-                        std::cout << "[VIA2:DDRA] $"
-                                  << std::hex << std::uppercase << int(oldDDRA)
-                                  << " -> $" << int(value)
-                                  << std::dec
-                                  << " T" << int(drive->getTrack())
-                                  << " S" << int(drive->getSector())
-                                  << "\n";
-                    }
-                }
-#endif
-
                 recomputeDiskWriteGate();
-            }
 
             break;
         }
@@ -620,13 +523,8 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
             clearIFR(IFR_CA1);
 
-            const uint8_t ca2Mode =
-                static_cast<uint8_t>(
-                    (registers.peripheralControlRegister >> 1) & 0x07
-                );
-
-            const bool ca2Independent =
-                (ca2Mode == 0b001) || (ca2Mode == 0b011);
+            const uint8_t ca2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 1) & 0x07);
+            const bool ca2Independent = (ca2Mode == 0b001) || (ca2Mode == 0b011);
 
             if (!ca2Independent)
                 clearIFR(IFR_CA2);
@@ -819,14 +717,10 @@ void D1541VIA::updateIECOutputsFromPortB()
     const uint8_t orb  = registers.orbIRB;
 
     // VIA-driven DATA (normal serial output)
-    const bool dataOutLow =
-        (ddrB & (1u << IEC_DATA_OUT_BIT)) &&
-        ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
+    const bool dataOutLow = (ddrB & (1u << IEC_DATA_OUT_BIT)) && ((orb & (1u << IEC_DATA_OUT_BIT)) != 0);
 
     // VIA-driven CLK
-    const bool clkOutLow =
-        (ddrB & (1u << IEC_CLK_OUT_BIT)) &&
-        ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
+    const bool clkOutLow = (ddrB & (1u << IEC_CLK_OUT_BIT)) && ((orb & (1u << IEC_CLK_OUT_BIT)) != 0);
 
     const bool atnAckClearActive = isAtnAckClearAsserted();
 

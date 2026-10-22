@@ -128,6 +128,9 @@ class DriveVIA6522 : public DriveVIABase
         void saveVIAState(StateWriter& wrtr) const;
         bool loadVIAState(StateReader& rdr);
 
+        uint8_t readPortAPins(uint8_t inputPins) const;
+        uint8_t readPortBPins(uint8_t inputPins) const;
+
         void triggerInterrupt(uint8_t sourceMask);
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();
