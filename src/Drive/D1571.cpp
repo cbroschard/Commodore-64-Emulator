@@ -961,24 +961,25 @@ bool D1571::fdcIsWriteProtected() const
 
 void D1571::atnChanged(bool atnLow)
 {
-    if (atnLow == atnLineLow) return; // ignore no change
+    if (atnLow == atnLineLow)
+        return;
 
-    bool prev = atnLineLow;
+    const bool prev = atnLineLow;
     atnLineLow = atnLow;
 
-    // Keep VIA in sync with the new ATN level (PB4 input)
     auto& via1 = d1571mem.getVIA1();
+
+    // Update IEC bus input pins.
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
 
-    // If ATN just asserted (bus high->low), this is the start of a new command
-    // phase. Resync the serial shift register so we don't carry partial bytes.
+    // ATN asserted: begin a new command phase.
     if (!prev && atnLineLow)
         via1.resetShift();
 
-    // CA1 polarity fix: treat ATN assert (high->low on bus) as CA1 rising
-    bool ca1Rising  = (!prev && atnLineLow);   // ATN high->low
-    bool ca1Falling = ( prev && !atnLineLow);  // ATN low->high
-    via1.onCA1Edge(ca1Rising, ca1Falling);
+    // CA1 receives the inverted-polarity interpretation:
+    // ATN asserted (LOW) -> CA1 HIGH (rising edge).
+    // ATN released (HIGH) -> CA1 LOW (falling edge).
+    via1.setCA1Level(atnLineLow);
 }
 
 void D1571::clkChanged(bool clkLow)

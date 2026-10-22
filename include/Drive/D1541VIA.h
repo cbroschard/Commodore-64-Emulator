@@ -41,10 +41,6 @@ class D1541VIA : public DriveVIA6522
         void clearMechBytePending();
         void pulseWriteByteReady();
         void onClkEdge(bool rising, bool falling);
-        void onCA1Edge(bool rising, bool falling);
-        void onCA2Edge(bool rising, bool falling);
-        void onCB1Edge(bool rising, bool falling);
-        void onCB2Edge(bool rising, bool falling);
         void clearIECTransientState();
         void clearMechLatch();
 
@@ -127,17 +123,6 @@ class D1541VIA : public DriveVIA6522
 
         // Shift register counter
         int srCount;
-
-        // CA1 and CA2 pin states
-        bool ca1Level;
-        bool ca2Level;
-        bool cb1Level;
-        bool cb2Level;
-
-        void setCA1Level(bool level);
-        void setCA2Level(bool level);
-        void setCB1Level(bool level);
-        void setCB2Level(bool level);
 
         // Helpers
         void updateIECOutputsFromPortB();

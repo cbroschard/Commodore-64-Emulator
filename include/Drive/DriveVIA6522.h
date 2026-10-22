@@ -64,6 +64,11 @@ class DriveVIA6522 : public DriveVIABase
 
         VIATimerDebugView getTimerDebugView() const override;
 
+        void setCA1Level(bool level);
+        void setCA2Level(bool level);
+        void setCB1Level(bool level);
+        void setCB2Level(bool level);
+
     protected:
         VIARole viaRole = VIARole::Unknown;
         Peripheral* parentPeripheral = nullptr;
@@ -111,6 +116,12 @@ class DriveVIA6522 : public DriveVIABase
         uint8_t portBPins;
         uint8_t portAPins;
 
+        // CA1 and CA2 pin states
+        bool ca1Level;
+        bool ca2Level;
+        bool cb1Level;
+        bool cb2Level;
+
         virtual void onAttachedToPeripheral() {}
         virtual void onPCRChanged(uint8_t oldValue, uint8_t newValue) {}
 
@@ -129,6 +140,11 @@ class DriveVIA6522 : public DriveVIABase
 
         bool readControlRegister(uint16_t address, uint8_t& value);
         bool writeControlRegister(uint16_t address, uint8_t value);
+
+        void onCA1Edge(bool rising, bool falling);
+        void onCA2Edge(bool rising, bool falling);
+        void onCB1Edge(bool rising, bool falling);
+        void onCB2Edge(bool rising, bool falling);
 
     private:
         enum : uint8_t

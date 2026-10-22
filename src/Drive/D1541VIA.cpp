@@ -26,11 +26,7 @@ D1541VIA::D1541VIA() :
     busAtnLow(false),
     busClkLow(false),
     busDataLow(false),
-    srCount(0),
-    ca1Level(false),
-    ca2Level(false),
-    cb1Level(false),
-    cb2Level(false)
+    srCount(0)
 {
     reset();
 }
@@ -792,51 +788,6 @@ void D1541VIA::clearMechBytePending()
     clearIFR(IFR_CA1);
 }
 
-void D1541VIA::setCA1Level(bool level)
-{
-    if (level == ca1Level) return;
-
-    const bool old = ca1Level;
-    ca1Level = level;
-
-    const bool rising  = (!old &&  level);
-    const bool falling = ( old && !level);
-
-    onCA1Edge(rising, falling);
-}
-
-void D1541VIA::setCA2Level(bool level)
-{
-    if (level == ca2Level) return;
-    bool rising  = (!ca2Level && level);
-    bool falling = (ca2Level && !level);
-    ca2Level = level;
-
-    onCA2Edge(rising, falling);
-}
-
-void D1541VIA::setCB2Level(bool level)
-{
-    if (level == cb2Level) return;
-
-    bool rising  = (!cb2Level && level);
-    bool falling = ( cb2Level && !level);
-    cb2Level = level;
-
-    onCB2Edge(rising, falling);
-}
-
-void D1541VIA::setCB1Level(bool level)
-{
-    if (level == cb1Level) return;
-
-    bool rising  = (!cb1Level && level);
-    bool falling = ( cb1Level && !level);
-    cb1Level = level;
-
-    onCB1Edge(rising, falling);
-}
-
 void D1541VIA::onClkEdge(bool rising, bool falling)
 {
     if (viaRole != VIARole::VIA1_IECBus)
@@ -861,78 +812,6 @@ void D1541VIA::onClkEdge(bool rising, bool falling)
             triggerInterrupt(IFR_SR);
         }
     }
-}
-
-void D1541VIA::onCA1Edge(bool rising, bool falling)
-{
-    // PCR Bit 0 controls CA1 Active Edge
-    // 0 = Negative Edge (High to Low)
-    // 1 = Positive Edge (Low to High)
-    bool activeEdgePos = (registers.peripheralControlRegister & 0x01) != 0;
-    bool trigger = false;
-
-    if (activeEdgePos && rising) trigger = true;
-    else if (!activeEdgePos && falling) trigger = true;
-
-    // Interrupt handling for CA1
-    if (trigger)
-        triggerInterrupt(IFR_CA1);
-}
-
-void D1541VIA::onCA2Edge(bool rising, bool falling)
-{
-    // PCR bits 3..1 = CA2 control
-    // If PCR bit 3 == 0 => CA2 is INPUT (interrupt capable)
-    // In input mode:
-    //   000 = negative edge, 001 = positive edge  (PCR bit 1 selects)
-    const uint8_t pcr = registers.peripheralControlRegister;
-
-    const bool ca2IsInput = (pcr & 0x08) == 0;     // bit 3
-    if (!ca2IsInput) return;                       // output/handshake modes: no CA2 input IRQ
-
-    const bool activeEdgePos = (pcr & 0x02) != 0;  // bit 1
-    bool trigger = (activeEdgePos && rising) || (!activeEdgePos && falling);
-
-    if (trigger)
-        triggerInterrupt(IFR_CA2);
-}
-
-void D1541VIA::onCB1Edge(bool rising, bool falling)
-{
-    // PCR Bit 4 controls CB1 Active Edge
-    // 0 = Negative Edge (High to Low)
-    // 1 = Positive Edge (Low to High)
-    const uint8_t pcr = registers.peripheralControlRegister;
-
-    const bool activeEdgePos = (pcr & 0x10) != 0; // bit 4
-    bool trigger = false;
-
-    if (activeEdgePos && rising)
-        trigger = true;
-    else if (!activeEdgePos && falling)
-        trigger = true;
-
-    if (trigger)
-        triggerInterrupt(IFR_CB1);
-}
-
-void D1541VIA::onCB2Edge(bool rising, bool falling)
-{
-    // PCR bits 7..5 = CB2 control
-    // If PCR bit 7 == 0 => CB2 is INPUT (interrupt capable)
-    // In input mode:
-    //   000 = negative edge, 001 = positive edge  (PCR bit 5 selects)
-    const uint8_t pcr = registers.peripheralControlRegister;
-
-    const bool cb2IsInput = (pcr & 0x80) == 0;    // bit 7
-    if (!cb2IsInput)
-        return;
-
-    const bool activeEdgePos = (pcr & 0x20) != 0; // bit 5
-    bool trigger = (activeEdgePos && rising) || (!activeEdgePos && falling);
-
-    if (trigger)
-        triggerInterrupt(IFR_CB2);
 }
 
 void D1541VIA::updateIECOutputsFromPortB()

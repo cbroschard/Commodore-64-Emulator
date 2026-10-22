@@ -782,25 +782,6 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
     }
 }
 
-void D1571VIA::onCA1Edge(bool rising, bool falling)
-{
-    // PCR Bit 0 controls CA1 Active Edge
-    // 0 = Negative Edge (High to Low)
-    // 1 = Positive Edge (Low to High)
-    bool activeEdgePos = (registers.peripheralControlRegister & 0x01) != 0;
-    bool trigger = false;
-
-    if (activeEdgePos && rising) trigger = true;
-    else if (!activeEdgePos && falling) trigger = true;
-
-    // Interrupt handling for CA1
-    if (trigger)
-    {
-        triggerInterrupt(IFR_CA1);
-    }
-
-}
-
 DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
 {
     MechanicsInfo m{};
@@ -908,8 +889,7 @@ void D1571VIA::recomputeDiskWriteGate()
 
     // Same phase that worked for the 1541:
     // PCR=$CE, DDRA=$FF
-    const bool pcrWritePhase =
-        (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
+    const bool pcrWritePhase = (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
 
     const bool gate = portAOutput && pcrWritePhase;
 
