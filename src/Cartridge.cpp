@@ -487,6 +487,13 @@ bool Cartridge::loadROM(const std::string& path)
             mapper->loadPersistence(persistencePath);
         }
 
+        if (mapperType == Cartridge::CartridgeType::IEEE_488)
+        {
+            auto* ieeeMapper = static_cast<IEEE488Mapper*>(mapper.get());
+            if (ieeeMapper && ieee488Bus)
+                ieeeMapper->attachIEEE488BusInstance(ieee488Bus);
+        }
+
         // Load the selected bank through mapper logic
         return mapper->loadIntoMemory(currentBank);
     }
