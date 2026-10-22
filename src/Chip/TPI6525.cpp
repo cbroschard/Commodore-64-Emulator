@@ -36,6 +36,222 @@ void TPI6525::reset()
     serviceDepth = 0;
 }
 
+void TPI6525::save(StateWriter& wrtr) const
+{
+    // Dump registers
+    wrtr.writeU8(registers.portA);
+    wrtr.writeU8(registers.portB);
+    wrtr.writeU8(registers.portC);
+
+    wrtr.writeU8(registers.ddrA);
+    wrtr.writeU8(registers.ddrB);
+    wrtr.writeU8(registers.ddrC);
+
+    wrtr.writeU8(registers.cr);
+    wrtr.writeU8(registers.air);
+
+    wrtr.writeU8(registers.pendingInterrupt);
+
+    wrtr.writeU8(registers.imr);
+
+    // Dump inputs
+    wrtr.writeU8(portAInput);
+    wrtr.writeU8(portBInput);
+    wrtr.writeU8(portCInput);
+
+    // Dump CA/CB
+    wrtr.writeBool(caLine);
+    wrtr.writeBool(cbLine);
+    wrtr.writeU8(caPulseRemaining);
+    wrtr.writeU8(cbPulseRemaining);
+
+    // Dump IRQ
+    wrtr.writeBool(irqLine);
+    wrtr.writeU8(interruptInputs);
+    wrtr.writeU8(interruptStack);
+
+    // Dump Service Stack
+    for (const auto& entry : serviceStack)
+        wrtr.writeU8(entry);
+
+    wrtr.writeU8(serviceDepth);
+}
+
+
+bool TPI6525::load(StateReader& rdr)
+{
+    // Temporary register state
+    Registers loadedRegisters{};
+
+    // Temporary port inputs
+    uint8_t loadedPortAInput = 0;
+    uint8_t loadedPortBInput = 0;
+    uint8_t loadedPortCInput = 0;
+
+    // Temporary CA/CB state
+    bool loadedCALine = true;
+    bool loadedCBLine = true;
+
+    uint8_t loadedCAPulseRemaining = 0;
+    uint8_t loadedCBPulseRemaining = 0;
+
+    // Temporary interrupt state
+    bool loadedIRQLine = true;
+
+    uint8_t loadedInterruptInputs = 0;
+    uint8_t loadedInterruptStack = 0;
+
+    // Temporary service stack
+    std::array<uint8_t, 5> loadedServiceStack{};
+    uint8_t loadedServiceDepth = 0;
+
+    // ---------------------------------------
+    // Load registers
+    // ---------------------------------------
+
+    if (!rdr.readU8(loadedRegisters.portA))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.portB))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.portC))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.ddrA))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.ddrB))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.ddrC))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.cr))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.air))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.pendingInterrupt))
+        return false;
+
+    if (!rdr.readU8(loadedRegisters.imr))
+        return false;
+
+    // ---------------------------------------
+    // Load external port inputs
+    // ---------------------------------------
+
+    if (!rdr.readU8(loadedPortAInput))
+        return false;
+
+    if (!rdr.readU8(loadedPortBInput))
+        return false;
+
+    if (!rdr.readU8(loadedPortCInput))
+        return false;
+
+    // ---------------------------------------
+    // Load CA/CB handshake state
+    // ---------------------------------------
+
+    if (!rdr.readBool(loadedCALine))
+        return false;
+
+    if (!rdr.readBool(loadedCBLine))
+        return false;
+
+    if (!rdr.readU8(loadedCAPulseRemaining))
+        return false;
+
+    if (!rdr.readU8(loadedCBPulseRemaining))
+        return false;
+
+    // ---------------------------------------
+    // Load interrupt state
+    // ---------------------------------------
+
+    if (!rdr.readBool(loadedIRQLine))
+        return false;
+
+    if (!rdr.readU8(loadedInterruptInputs))
+        return false;
+
+    if (!rdr.readU8(loadedInterruptStack))
+        return false;
+
+    // ---------------------------------------
+    // Load interrupt service stack
+    // ---------------------------------------
+
+    for (auto& entry : loadedServiceStack)
+    {
+        if (!rdr.readU8(entry))
+            return false;
+    }
+
+    if (!rdr.readU8(loadedServiceDepth))
+        return false;
+
+    // ---------------------------------------
+    // Validate restored state
+    // ---------------------------------------
+
+    if (loadedServiceDepth > loadedServiceStack.size())
+        return false;
+
+    // TPI6525 supports interrupt sources I0-I4.
+    // Bits 5-7 must be clear.
+
+    if (loadedRegisters.pendingInterrupt & 0xE0)
+        return false;
+
+    if (loadedRegisters.imr & 0xE0)
+        return false;
+
+    if (loadedRegisters.air & 0xE0)
+        return false;
+
+    if (loadedInterruptInputs & 0xE0)
+        return false;
+
+    if (loadedInterruptStack & 0xE0)
+        return false;
+
+    for (const auto& entry : loadedServiceStack)
+    {
+        if (entry & 0xE0)
+            return false;
+    }
+
+    // ---------------------------------------
+    // Commit validated state
+    // ---------------------------------------
+
+    registers = loadedRegisters;
+
+    portAInput = loadedPortAInput;
+    portBInput = loadedPortBInput;
+    portCInput = loadedPortCInput;
+
+    caLine = loadedCALine;
+    cbLine = loadedCBLine;
+
+    caPulseRemaining = loadedCAPulseRemaining;
+    cbPulseRemaining = loadedCBPulseRemaining;
+
+    irqLine = loadedIRQLine;
+
+    interruptInputs = loadedInterruptInputs;
+    interruptStack = loadedInterruptStack;
+
+    serviceStack = loadedServiceStack;
+    serviceDepth = loadedServiceDepth;
+
+    return true;
+}
+
 uint8_t TPI6525::readRegister(uint8_t reg)
 {
     switch (reg & 0x07)

@@ -10,6 +10,8 @@
 
 #include <array>
 #include <cstdint>
+#include "StateReader.h"
+#include "StateWriter.h"
 
 class TPI6525
 {
@@ -18,6 +20,9 @@ class TPI6525
         ~TPI6525();
 
         void reset();
+
+        void save(StateWriter& wrtr) const;
+        bool load(StateReader& rdr);
 
         uint8_t readRegister(uint8_t reg);
         void writeRegister(uint8_t reg, uint8_t value);
