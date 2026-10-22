@@ -21,7 +21,8 @@ class DriveVIA6522 : public DriveVIABase
         {
             Unknown,
             VIA1_IECBus,
-            VIA2_Mechanics
+            VIA2_Mechanics,
+            VIA1_IEEE488Bus
         };
 
         DriveVIA6522();
