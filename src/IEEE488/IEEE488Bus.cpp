@@ -43,6 +43,12 @@ void IEEE488Bus::reset()
     resolveSignals();
 }
 
+void IEEE488Bus::tick(uint32_t cycles)
+{
+    for (uint32_t i = 0; i < cycles; ++i)
+        dispatchPendingChanges();
+}
+
 bool IEEE488Bus::attachController(DeviceId id)
 {
     if (isDeviceAttached(id))
@@ -204,6 +210,67 @@ uint8_t IEEE488Bus::getDIO() const
     return dio;
 }
 
+void IEEE488Bus::recalcAndNotify()
+{
+    const BusState oldState = captureState();
+
+    resolveSignals();
+
+    const BusState newState = captureState();
+
+    if (oldState == newState)
+        return;
+
+    pendingTransitions.push_back({oldState, newState});
+}
+
+void IEEE488Bus::dispatchPendingChanges()
+{
+    // Prevent recursive notification dispatch.
+    if (dispatchingChanges)
+        return;
+
+    dispatchingChanges = true;
+
+    // Limit work per call to protect against faulty
+    // hardware logic causing endless oscillation.
+    constexpr size_t MAX_TRANSITIONS = 4096;
+    size_t processed = 0;
+
+    while (!pendingTransitions.empty() && processed < MAX_TRANSITIONS)
+    {
+        const BusTransition transition = pendingTransitions.front();
+
+        pendingTransitions.pop_front();
+        ++processed;
+
+        // Snapshot participant IDs because callbacks may
+        // attach or detach devices, modifying the vector.
+        std::vector<DeviceId> recipients;
+        recipients.reserve(devices.size());
+
+        for (const auto& entry : devices)
+        {
+            if (entry.device)
+                recipients.push_back(entry.id);
+        }
+
+        for (DeviceId id : recipients)
+        {
+            // Re-find the device in case an earlier
+            // callback changed bus registrations.
+            AttachedDevice* entry = findDevice(id);
+
+            if (!entry || !entry->device)
+                continue;
+
+            entry->device->onBusChanged(transition.oldState, transition.newState);
+        }
+    }
+
+    dispatchingChanges = false;
+}
+
 void IEEE488Bus::resolveSignals()
 {
     dio  = 0xFF;
@@ -241,4 +308,21 @@ IEEE488Bus::AttachedDevice* IEEE488Bus::findDevice(DeviceId id)
     }
 
     return nullptr;
+}
+
+IEEE488Bus::BusState IEEE488Bus::captureState() const
+{
+    BusState state;
+
+    state.dav = dav;
+    state.nrfd = nrfd;
+    state.ndac = ndac;
+    state.atn = atn;
+    state.eoi = eoi;
+    state.ifc = ifc;
+    state.ren = ren;
+    state.srq = srq;
+    state.dio = dio;
+
+    return state;
 }

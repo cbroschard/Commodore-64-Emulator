@@ -9,6 +9,8 @@
 #define IEEE488BUS_H
 
 #include <cstdint>
+#include <deque>
+#include <utility>
 #include <vector>
 
 class IEEE488Device;
@@ -21,7 +23,25 @@ class IEEE488Bus
         IEEE488Bus();
         ~IEEE488Bus();
 
+        struct BusState
+        {
+            bool dav = true;
+            bool nrfd = true;
+            bool ndac = true;
+            bool atn = true;
+            bool eoi = true;
+            bool ifc = true;
+            bool ren = true;
+            bool srq = true;
+
+            uint8_t dio = 0xFF;
+
+            bool operator==(const BusState&) const = default;
+        };
+
         void reset();
+
+        void tick(uint32_t cycles);
 
         // Controller Management
         bool attachController(DeviceId id);
@@ -49,6 +69,9 @@ class IEEE488Bus
         bool setDIO(DeviceId id, uint8_t value);
         uint8_t getDIO() const;
 
+        void recalcAndNotify();
+        void dispatchPendingChanges();
+
     private:
         struct AttachedDevice
         {
@@ -67,6 +90,16 @@ class IEEE488Bus
             bool srq  = true;
         };
 
+        struct BusTransition
+        {
+            BusState oldState;
+            BusState newState;
+        };
+
+        std::deque<BusTransition> pendingTransitions;
+
+        bool dispatchingChanges = false;
+
         std::vector<AttachedDevice> devices;
 
         uint8_t dio; // 8 data lines dio1-dio8
@@ -82,6 +115,8 @@ class IEEE488Bus
 
         void resolveSignals();
         AttachedDevice* findDevice(DeviceId id);
+
+        BusState captureState() const;
 };
 
 #endif // IEEE488BUS_H
