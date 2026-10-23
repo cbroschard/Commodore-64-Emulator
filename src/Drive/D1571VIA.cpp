@@ -233,6 +233,8 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             const uint8_t ddrB = registers.ddrB;
             uint8_t value = readPortBPins(portBPins);
 
+            acknowledgePortB();
+
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
@@ -343,7 +345,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                 }
             }
 
-            clearIFR(IFR_CA1);
+            acknowledgePortA();
             return value;
         }
 
@@ -480,6 +482,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
                 }
             }
 
+            acknowledgePortB();
             break;
         }
 
@@ -490,6 +493,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
             if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
                 consumeWriteByteRequest();
+
+            acknowledgePortA();
 
             break;
         }
@@ -569,6 +574,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
             if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
                 consumeWriteByteRequest();
+
+            acknowledgePortA();
 
             break;
         }
