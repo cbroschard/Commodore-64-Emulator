@@ -239,55 +239,52 @@ uint8_t D1571VIA::readRegister(uint16_t address)
         case 0x01: // ORA/IRA - Port A
         {
             const uint8_t ddrA = registers.ddrA;
-            uint8_t value = readPortAPins(portAPins);
+            uint8_t inputPins = portAPins;
 
-            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
+            if (viaRole == VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
-                    // Track 0 sensor.
+                    // Track-zero sensor, active low.
                     if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
                     {
-                        const bool atTrack0 = drive->isTrack0();
-
-                        if (atTrack0)
-                            value &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
+                        if (drive->isTrack0())
+                            inputPins &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
                         else
-                            value |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
+                            inputPins |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
                     }
 
-                    // Unused/pulled-high bits.
+                    // Unused input bits pulled high.
                     if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
-                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
+                        inputPins |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
 
                     if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
-                        value |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
+                        inputPins |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
 
-                    // Byte ready input.
+                    // Byte-ready signal, active low.
                     if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
                     {
-                        const bool byteReadyLow = drive->getByteReadyLow();
-
-                        if (byteReadyLow)
-                            value &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
+                        if (drive->getByteReadyLow())
+                            inputPins &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
                         else
-                            value |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
+                            inputPins |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
                     }
                 }
             }
-            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-            {
-                value = readPortAPins(mechDataLatch);
+            else if (viaRole == VIARole::VIA2_Mechanics)
+                inputPins = mechDataLatch;
 
-                // Reading Port A consumes pending disk byte.
-                if (mechReadBytePending)
-                {
-                    mechReadBytePending = false;
-                    byteReadyActive = false;
-                }
+            // First sample the port using the original hardware state.
+            const uint8_t value = readPortARegister(inputPins, true);
+
+            // Then consume the pending disk byte.
+            if (viaRole == VIARole::VIA2_Mechanics &&
+                mechReadBytePending)
+            {
+                mechReadBytePending = false;
+                byteReadyActive = false;
             }
 
-            acknowledgePortA();
             return value;
         }
 

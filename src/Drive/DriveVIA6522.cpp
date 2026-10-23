@@ -184,6 +184,16 @@ uint8_t DriveVIA6522::readPortAPins(uint8_t inputPins) const
     return static_cast<uint8_t>((registers.oraIRA & registers.ddrA) | (inputPins & static_cast<uint8_t>(~registers.ddrA)));
 }
 
+uint8_t DriveVIA6522::readPortARegister(uint8_t inputPins, bool handshake)
+{
+    const uint8_t value = readPortAPins(inputPins);
+
+    if (handshake)
+        acknowledgePortA();
+
+    return value;
+}
+
 uint8_t DriveVIA6522::readPortBPins(uint8_t inputPins) const
 {
     return static_cast<uint8_t>((registers.orbIRB & registers.ddrB) | (inputPins & static_cast<uint8_t>(~registers.ddrB)));

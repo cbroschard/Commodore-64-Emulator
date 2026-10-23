@@ -126,6 +126,7 @@ class DriveVIA6522 : public DriveVIABase
         bool loadVIAState(StateReader& rdr);
 
         uint8_t readPortAPins(uint8_t inputPins) const;
+        uint8_t readPortARegister(uint8_t inputPins, bool handshake);
         uint8_t readPortBPins(uint8_t inputPins) const;
 
         void acknowledgePortA();

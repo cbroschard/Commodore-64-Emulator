@@ -199,7 +199,6 @@ uint8_t D1541VIA::readRegister(uint16_t address)
         case 0x01: // ORA/IRA - Port A
         {
             const uint8_t ddrA = registers.ddrA;
-
             uint8_t inputPins = portAPins;
 
             if (viaRole == VIARole::VIA1_IECBus)
@@ -227,27 +226,23 @@ uint8_t D1541VIA::readRegister(uint16_t address)
                     }
                 }
             }
-
-            // Shared 6522 DDR-aware Port A read.
-            uint8_t value = readPortAPins(inputPins);
-
-            if (viaRole == VIARole::VIA2_Mechanics)
+            else if (viaRole == VIARole::VIA2_Mechanics)
             {
-                // VIA2 reads its data from the disk mechanism latch.
-                value = readPortAPins(mechDataLatch);
-
-                if (mechBytePending)
-                {
-                    if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                        drive->onVIA2PortARead(mechDataLatch);
-
-                    mechBytePending = false;
-                }
+                // VIA2 reads from the disk data latch.
+                inputPins = mechDataLatch;
             }
 
-            acknowledgePortA();
+            // Preserve existing disk-byte consumption.
+            if (viaRole == VIARole::VIA2_Mechanics && mechBytePending)
+            {
+                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+                    drive->onVIA2PortARead(mechDataLatch);
 
-            return value;
+                mechBytePending = false;
+            }
+
+            // Shared DDR masking and CA1/CA2 acknowledgement.
+            return readPortARegister(inputPins, true);
         }
 
         case 0x02: // DDRB
