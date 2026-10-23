@@ -143,6 +143,7 @@ class DriveVIA6522 : public DriveVIABase
         void refreshMasterBit();
 
         bool readCommonPortRegister(uint16_t address, uint8_t& value);
+        bool readCommonPortANoHandshake(uint16_t address, uint8_t sampledValue, uint8_t& result);
         bool writeCommonPortRegister(uint16_t address, uint8_t value);
 
         bool readTimerRegister(uint16_t address, uint8_t& value);

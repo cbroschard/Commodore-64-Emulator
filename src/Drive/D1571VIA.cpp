@@ -304,9 +304,13 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                 value = readPortAPins(mechDataLatch);
             }
 
-            // Preserve the previously working shared helper path.
-            // No CA1/CA2 acknowledgement.
-            return readPortARegister(value, false);
+            const uint8_t sampledValue = readPortARegister(value, false);
+            uint8_t result = 0xFF;
+
+            if (readCommonPortANoHandshake(address, sampledValue, result))
+                return result;
+
+            return sampledValue;
         }
 
         default:

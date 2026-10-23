@@ -226,9 +226,13 @@ uint8_t D1541VIA::readRegister(uint16_t address)
 
         case 0x0F: // ORA/IRA no handshake
         {
-            // Sample the same physical inputs as the normal Port A read.
-            // Do not acknowledge interrupts or consume a pending disk byte.
-            return readPortARegister(samplePortAInputs(), false);
+            const uint8_t sampledValue = readPortARegister(samplePortAInputs(), false);
+            uint8_t result = 0xFF;
+
+            if (readCommonPortANoHandshake(address, sampledValue, result))
+                return result;
+
+            return sampledValue;
         }
 
         default:

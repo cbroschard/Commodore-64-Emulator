@@ -325,6 +325,23 @@ bool DriveVIA6522::readCommonPortRegister(uint16_t address, uint8_t& value)
     }
 }
 
+bool DriveVIA6522::readCommonPortANoHandshake(uint16_t address, uint8_t sampledValue, uint8_t& result)
+{
+    if ((address & 0x0F) != 0x0F)
+        return false;
+
+    // $0F returns Port A without performing a handshake.
+    // The caller supplies an already DDR-masked value.
+    //
+    // Do not:
+    // - Acknowledge CA1 or CA2
+    // - Consume a pending disk byte
+    // - Change the Port A output latch
+
+    result = sampledValue;
+    return true;
+}
+
 bool DriveVIA6522::writeCommonPortRegister(uint16_t address, uint8_t value)
 {
     switch (address & 0x0F)
