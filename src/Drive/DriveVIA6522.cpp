@@ -202,12 +202,13 @@ void DriveVIA6522::acknowledgePortA()
 
 void DriveVIA6522::acknowledgePortB()
 {
-    clearIFR(IFR_CB1);
+    if (registers.interruptFlag & IFR_CB1)
+        clearIFR(IFR_CB1);
 
     const uint8_t cb2Mode = static_cast<uint8_t>((registers.peripheralControlRegister >> 5) & 0x07);
     const bool cb2Independent = (cb2Mode == 0b001) || (cb2Mode == 0b011);
 
-    if (!cb2Independent)
+    if (!cb2Independent && (registers.interruptFlag & IFR_CB2))
         clearIFR(IFR_CB2);
 }
 
@@ -293,10 +294,6 @@ bool DriveVIA6522::readCommonPortRegister(uint16_t address, uint8_t& value)
         case 0x00: // ORB/IRB
         {
             value = readPortBPins(samplePortBInputs());
-
-            if (shouldAcknowledgePortBRead())
-                acknowledgePortB();
-
             return true;
         }
 

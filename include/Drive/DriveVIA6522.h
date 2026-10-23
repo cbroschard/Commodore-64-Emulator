@@ -170,8 +170,6 @@ class DriveVIA6522 : public DriveVIABase
         virtual void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR);
         virtual void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR);
 
-        virtual bool shouldAcknowledgePortBRead() const { return true; }
-
     private:
         enum : uint8_t
         {

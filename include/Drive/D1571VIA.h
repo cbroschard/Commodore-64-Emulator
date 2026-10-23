@@ -61,8 +61,6 @@ class D1571VIA : public DriveVIA6522
         void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR) override;
         void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR) override;
 
-        inline bool shouldAcknowledgePortBRead() const override { return false; }
-
     private:
         // Serial shift
         uint8_t  srShiftReg;
