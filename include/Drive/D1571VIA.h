@@ -61,6 +61,8 @@ class D1571VIA : public DriveVIA6522
         void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR) override;
         void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR) override;
 
+        uint8_t sampleShiftRegisterRead() override;
+
     private:
         // Serial shift
         uint8_t  srShiftReg;

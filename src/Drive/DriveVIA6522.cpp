@@ -731,6 +731,21 @@ void DriveVIA6522::onCB2Edge(bool rising, bool falling)
         triggerInterrupt(IFR_CB2);
 }
 
+uint8_t DriveVIA6522::sampleShiftRegisterRead()
+{
+    return registers.serialShift;
+}
+
+bool DriveVIA6522::readCommonShiftRegister(uint16_t address, uint8_t& value)
+{
+    if ((address & 0x0F) != 0x0A)
+        return false;
+
+    clearIFR(IFR_SR);
+    value = sampleShiftRegisterRead();
+    return true;
+}
+
 uint8_t DriveVIA6522::samplePortAInputs()
 {
     return portAPins;

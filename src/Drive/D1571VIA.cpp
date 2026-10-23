@@ -234,6 +234,11 @@ uint8_t D1571VIA::readRegister(uint16_t address)
     if (readCommonPortRegister(address, portValue))
         return portValue;
 
+    uint8_t shiftValue = 0xFF;
+
+    if (readCommonShiftRegister(address, shiftValue))
+        return shiftValue;
+
     switch (address)
     {
         case 0x01: // ORA/IRA - Port A
@@ -254,12 +259,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             }
 
             return value;
-        }
-
-        case 0x0A: // SR
-        {
-            clearIFR(IFR_SR);
-            return registers.serialShift;
         }
 
         case 0x0F: // ORA/IRA - Port A, no handshake
@@ -942,4 +941,12 @@ void D1571VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
         const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
         drive->setDensityCode(code);
     }
+}
+
+uint8_t D1571VIA::sampleShiftRegisterRead()
+{
+    if (viaRole == VIARole::VIA2_Mechanics)
+        return mechDataLatch;
+
+    return registers.serialShift;
 }

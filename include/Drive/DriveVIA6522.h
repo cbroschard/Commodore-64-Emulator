@@ -160,6 +160,10 @@ class DriveVIA6522 : public DriveVIABase
         void onCB1Edge(bool rising, bool falling);
         void onCB2Edge(bool rising, bool falling);
 
+        bool readCommonShiftRegister(uint16_t address, uint8_t& value);
+
+        virtual uint8_t sampleShiftRegisterRead();
+
         virtual void onAttachedToPeripheral() {}
         virtual void onPCRChanged(uint8_t oldValue, uint8_t newValue) {}
 
