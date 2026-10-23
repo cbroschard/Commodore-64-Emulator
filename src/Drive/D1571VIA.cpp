@@ -429,8 +429,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
     {
         case 0x00: // ORB/IRB - Port B
         {
-            const uint8_t prevORB = registers.orbIRB;
-            registers.orbIRB = value;
+            const uint8_t prevORB = writePortBLatch(value);
 
             if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
             {
@@ -488,7 +487,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x01: // ORA/IRA - Port A
         {
-            registers.oraIRA = value;
+            writePortALatch(value);
             applyPortAOutputs(value);
 
             if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
@@ -501,7 +500,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x02: // DDRB
         {
-            registers.ddrB = value;
+            writePortBDirection(value);
 
             const uint8_t orb = registers.orbIRB;
 
@@ -549,7 +548,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x03: // DDRA
         {
-            registers.ddrA = value;
+            writePortADirection(value);
 
             applyPortAOutputs(registers.oraIRA);
 
@@ -568,7 +567,7 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x0F: // ORA/IRA no handshake
         {
-            registers.oraIRA = value;
+            writePortALatch(value);
             registers.oraIRANoHandshake = value;
             applyPortAOutputs(value);
 

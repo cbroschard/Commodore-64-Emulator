@@ -134,6 +134,12 @@ class DriveVIA6522 : public DriveVIABase
         void acknowledgePortA();
         void acknowledgePortB();
 
+        // Shared 6522 output and data-direction register writes
+        uint8_t writePortBLatch(uint8_t value);
+        void writePortALatch(uint8_t value, bool noHandshake = false);
+        void writePortBDirection(uint8_t value);
+        void writePortADirection(uint8_t value);
+
         void triggerInterrupt(uint8_t sourceMask);
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();

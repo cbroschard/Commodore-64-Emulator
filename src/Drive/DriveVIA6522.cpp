@@ -211,6 +211,31 @@ void DriveVIA6522::acknowledgePortB()
         clearIFR(IFR_CB2);
 }
 
+uint8_t DriveVIA6522::writePortBLatch(uint8_t value)
+{
+    const uint8_t previous = registers.orbIRB;
+    registers.orbIRB = value;
+    return previous;
+}
+
+void DriveVIA6522::writePortALatch(uint8_t value, bool noHandshake)
+{
+    registers.oraIRA = value;
+
+    if (noHandshake)
+        registers.oraIRANoHandshake = value;
+}
+
+void DriveVIA6522::writePortBDirection(uint8_t value)
+{
+    registers.ddrB = value;
+}
+
+void DriveVIA6522::writePortADirection(uint8_t value)
+{
+    registers.ddrA = value;
+}
+
 DriveVIABase::VIATimerDebugView DriveVIA6522::getTimerDebugView() const
 {
     VIATimerDebugView t{};
