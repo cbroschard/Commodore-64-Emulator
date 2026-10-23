@@ -238,46 +238,14 @@ uint8_t D1571VIA::readRegister(uint16_t address)
     {
         case 0x01: // ORA/IRA - Port A
         {
-            const uint8_t ddrA = registers.ddrA;
-            uint8_t inputPins = portAPins;
+            // Sample the physical hardware inputs first.
+            const uint8_t inputPins = samplePortAInputs();
 
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                {
-                    // Track-zero sensor, active low.
-                    if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
-                    {
-                        if (drive->isTrack0())
-                            inputPins &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
-                        else
-                            inputPins |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
-                    }
-
-                    // Unused input bits pulled high.
-                    if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
-                        inputPins |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
-
-                    if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
-                        inputPins |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
-
-                    // Byte-ready signal, active low.
-                    if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
-                    {
-                        if (drive->getByteReadyLow())
-                            inputPins &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
-                        else
-                            inputPins |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
-                    }
-                }
-            }
-            else if (viaRole == VIARole::VIA2_Mechanics)
-                inputPins = mechDataLatch;
-
-            // First sample the port using the original hardware state.
+            // Shared DDR masking and CA1/CA2 acknowledgement.
             const uint8_t value = readPortARegister(inputPins, true);
 
-            // Then consume the pending disk byte.
+            // IMPORTANT: Consume the disk byte AFTER the read.
+            // This ordering is required by our working 1571 path.
             if (viaRole == VIARole::VIA2_Mechanics &&
                 mechReadBytePending)
             {
@@ -300,49 +268,50 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             return registers.serialShift;
         }
 
-        case 0x0F: // ORA/IRA no handshake
+        case 0x0F: // ORA/IRA - Port A, no handshake
         {
             const uint8_t ddrA = registers.ddrA;
-
             uint8_t value = readPortAPins(portAPins);
 
-            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
+            if (viaRole == VIARole::VIA1_IECBus)
             {
                 if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
                 {
+                    // Track-zero sensor, active low.
                     if ((ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
                     {
-                        const bool atTrack0 = drive->isTrack0();
-
-                        if (atTrack0)
+                        if (drive->isTrack0())
                             value &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
                         else
                             value |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
                     }
 
+                    // Unused bits pulled high.
                     if ((ddrA & (1u << PORTA_UNUSED3)) == 0)
                         value |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
 
                     if ((ddrA & (1u << PORTA_UNUSED4)) == 0)
                         value |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
 
+                    // Byte-ready input, active low.
                     if ((ddrA & (1u << PORTA_BYTE_READY)) == 0)
                     {
-                        const bool byteReadyLow = drive->getByteReadyLow();
-
-                        if (byteReadyLow)
+                        if (drive->getByteReadyLow())
                             value &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
                         else
                             value |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
                     }
                 }
             }
-            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+            else if (viaRole == VIARole::VIA2_Mechanics)
             {
-                // No handshake: do not consume mechBytePending and do not clear CA1.
+                // Read current disk-data latch.
+                // Do not consume the pending disk byte.
                 value = readPortAPins(mechDataLatch);
             }
 
+            // Preserve the previously working shared helper path.
+            // No CA1/CA2 acknowledgement.
             return readPortARegister(value, false);
         }
 
@@ -753,7 +722,46 @@ void D1571VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
 
 uint8_t D1571VIA::samplePortAInputs()
 {
-    return portAPins;
+    uint8_t pins = portAPins;
+
+    // VIA2 reads from the GCR disk-data latch.
+    if (viaRole == VIARole::VIA2_Mechanics)
+        return mechDataLatch;
+
+    if (viaRole != VIARole::VIA1_IECBus)
+        return pins;
+
+    auto* drive = dynamic_cast<D1571*>(parentPeripheral);
+
+    if (!drive)
+        return pins;
+
+    // Track-zero sensor: active low.
+    if ((registers.ddrA & (1u << PORTA_TRACK0_SENSOR)) == 0)
+    {
+        if (drive->isTrack0())
+            pins &= static_cast<uint8_t>(~(1u << PORTA_TRACK0_SENSOR));
+        else
+            pins |= static_cast<uint8_t>(1u << PORTA_TRACK0_SENSOR);
+    }
+
+    // Unused input pins are pulled high.
+    if ((registers.ddrA & (1u << PORTA_UNUSED3)) == 0)
+        pins |= static_cast<uint8_t>(1u << PORTA_UNUSED3);
+
+    if ((registers.ddrA & (1u << PORTA_UNUSED4)) == 0)
+        pins |= static_cast<uint8_t>(1u << PORTA_UNUSED4);
+
+    // Byte-ready signal: active low.
+    if ((registers.ddrA & (1u << PORTA_BYTE_READY)) == 0)
+    {
+        if (drive->getByteReadyLow())
+            pins &= static_cast<uint8_t>(~(1u << PORTA_BYTE_READY));
+        else
+            pins |= static_cast<uint8_t>(1u << PORTA_BYTE_READY);
+    }
+
+    return pins;
 }
 
 uint8_t D1571VIA::samplePortBInputs()
