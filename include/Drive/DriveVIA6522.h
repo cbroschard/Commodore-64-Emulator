@@ -141,6 +141,7 @@ class DriveVIA6522 : public DriveVIABase
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();
 
+        bool readCommonPortRegister(uint16_t address, uint8_t& value);
         bool writeCommonPortRegister(uint16_t address, uint8_t value);
 
         bool readTimerRegister(uint16_t address, uint8_t& value);
@@ -168,6 +169,8 @@ class DriveVIA6522 : public DriveVIABase
         virtual void onPortBOutputChanged(uint8_t oldValue, uint8_t newValue);
         virtual void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR);
         virtual void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR);
+
+        virtual bool shouldAcknowledgePortBRead() const { return true; }
 
     private:
         enum : uint8_t

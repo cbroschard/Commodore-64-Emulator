@@ -175,83 +175,27 @@ uint8_t D1541VIA::readRegister(uint16_t address)
     address &= 0x0F;
 
     uint8_t timerValue = 0xFF;
+
     if (readTimerRegister(address, timerValue))
         return timerValue;
 
     uint8_t irqValue = 0xFF;
+
     if (readInterruptRegister(address, irqValue))
         return irqValue;
 
     uint8_t controlValue = 0xFF;
+
     if (readControlRegister(address, controlValue))
         return controlValue;
 
+    uint8_t portValue = 0xFF;
+
+    if (readCommonPortRegister(address, portValue))
+        return portValue;
+
     switch (address)
     {
-        case 0x00: // ORB/IRB - Port B
-        {
-            const uint8_t ddrB = registers.ddrB;
-
-            uint8_t value = readPortBPins(portBPins);
-
-            acknowledgePortB();
-
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    int dev = drive->getDeviceNumber();
-                    int offset = dev - 8;
-
-                    if (offset < 0 || offset > 3)
-                        offset = 0;
-
-                    if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)
-                    {
-                        if (offset & 0x01)
-                            value |= static_cast<uint8_t>(1u << IEC_DEV_BIT0);
-                        else
-                            value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
-                    }
-
-                    if ((ddrB & (1u << IEC_DEV_BIT1)) == 0)
-                    {
-                        if (offset & 0x02)
-                            value |= static_cast<uint8_t>(1u << IEC_DEV_BIT1);
-                        else
-                            value &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT1));
-                    }
-                }
-            }
-            else if (viaRole == VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
-                    {
-                        const bool wpLow = drive->isWriteProtected();
-
-                        if (wpLow)
-                            value &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
-                        else
-                            value |= static_cast<uint8_t>(1u << MECH_WRITE_PROTECT);
-                    }
-
-                    if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
-                    {
-                        const bool sync = isSyncDetected();
-
-                        if (sync)
-                            value &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
-                        else
-                            value |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
-                    }
-                }
-            }
-
-            return value;
-        }
-
         case 0x01: // ORA/IRA - Port A
         {
             const uint8_t ddrA = registers.ddrA;
@@ -757,7 +701,58 @@ uint8_t D1541VIA::samplePortAInputs()
 
 uint8_t D1541VIA::samplePortBInputs()
 {
-    return portBPins;
+    uint8_t pins = portBPins;
+    const uint8_t ddrB = registers.ddrB;
+
+    if (viaRole == VIARole::VIA1_IECBus)
+    {
+        if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+        {
+            int offset = drive->getDeviceNumber() - 8;
+
+            if (offset < 0 || offset > 3)
+                offset = 0;
+
+            if ((ddrB & (1u << IEC_DEV_BIT0)) == 0)
+            {
+                if (offset & 0x01)
+                    pins |= static_cast<uint8_t>(1u << IEC_DEV_BIT0);
+                else
+                    pins &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT0));
+            }
+
+            if ((ddrB & (1u << IEC_DEV_BIT1)) == 0)
+            {
+                if (offset & 0x02)
+                    pins |= static_cast<uint8_t>(1u << IEC_DEV_BIT1);
+                else
+                    pins &= static_cast<uint8_t>(~(1u << IEC_DEV_BIT1));
+            }
+        }
+    }
+    else if (viaRole == VIARole::VIA2_Mechanics)
+    {
+        if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+        {
+            if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
+            {
+                if (drive->isWriteProtected())
+                    pins &= static_cast<uint8_t>(~(1u << MECH_WRITE_PROTECT));
+                else
+                    pins |= static_cast<uint8_t>(1u << MECH_WRITE_PROTECT);
+            }
+
+            if ((ddrB & (1u << MECH_SYNC_DETECTED)) == 0)
+            {
+                if (isSyncDetected())
+                    pins &= static_cast<uint8_t>(~(1u << MECH_SYNC_DETECTED));
+                else
+                    pins |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
+            }
+        }
+    }
+
+    return pins;
 }
 
 void D1541VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)

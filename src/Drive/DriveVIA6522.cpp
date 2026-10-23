@@ -286,6 +286,25 @@ void DriveVIA6522::refreshMasterBit()
         registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
 }
 
+bool DriveVIA6522::readCommonPortRegister(uint16_t address, uint8_t& value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x00: // ORB/IRB
+        {
+            value = readPortBPins(samplePortBInputs());
+
+            if (shouldAcknowledgePortBRead())
+                acknowledgePortB();
+
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
 bool DriveVIA6522::writeCommonPortRegister(uint16_t address, uint8_t value)
 {
     switch (address & 0x0F)
