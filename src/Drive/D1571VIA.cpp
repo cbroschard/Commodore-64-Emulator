@@ -431,57 +431,12 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t prevORB = writePortBLatch(value);
 
-            if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
-            {
-                updateIECOutputsFromPortB();
-            }
-            else if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-                {
-                    const uint8_t ddrB = registers.ddrB;
+            // Apply hardware-specific Port B changes.
+            onPortBOutputChanged(prevORB, value);
 
-                    // Stepper phase.
-                    const uint8_t phaseMask = 0x03;
-                    const uint8_t oldPhase = static_cast<uint8_t>(prevORB & phaseMask);
-                    const uint8_t newPhase = static_cast<uint8_t>(registers.orbIRB & phaseMask);
-
-                    if (oldPhase != newPhase)
-                        drive->onStepperPhaseChange(oldPhase, newPhase);
-
-                    // Motor.
-                    if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
-                    {
-                        const bool enable = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
-
-                        if (enable)
-                            drive->startMotor();
-                        else
-                            drive->stopMotor();
-                    }
-
-                    // LED.
-                    if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
-                    {
-                        const bool on = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_LED)) != 0;
-                        setLed(on);
-                    }
-
-                    // Density.
-                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) |(1u << MECH_DENSITY_BIT1));
-
-                    if (ddrB & densityMask)
-                    {
-                        const uint8_t orb = registers.orbIRB;
-                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                            (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
-
-                        drive->setDensityCode(code);
-                    }
-                }
-            }
-
+            // Shared VIA interrupt acknowledgement.
             acknowledgePortB();
+
             break;
         }
 
@@ -969,6 +924,62 @@ uint8_t D1571VIA::samplePortBInputs()
 }
 
 void D1571VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
-void D1571VIA::onPortBOutputChanged(uint8_t, uint8_t) {}
+
+void D1571VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    if (viaRole == DriveVIA6522::VIARole::VIA1_IECBus)
+    {
+        updateIECOutputsFromPortB();
+        return;
+    }
+
+    if (viaRole != DriveVIA6522::VIARole::VIA2_Mechanics)
+        return;
+
+    auto* drive = dynamic_cast<D1571*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t ddrB = registers.ddrB;
+
+    // Stepper phase
+    const uint8_t phaseMask = 0x03;
+
+    const uint8_t oldPhase = static_cast<uint8_t>(oldValue & phaseMask);
+    const uint8_t newPhase = static_cast<uint8_t>(newValue & phaseMask);
+
+    if (oldPhase != newPhase)
+        drive->onStepperPhaseChange(oldPhase, newPhase);
+
+    // Spindle motor
+    if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
+    {
+        const bool enable = (newValue & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+
+        if (enable)
+            drive->startMotor();
+        else
+            drive->stopMotor();
+    }
+
+    // Drive LED
+    if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
+    {
+        const bool on = (newValue & static_cast<uint8_t>(1u << MECH_LED)) != 0;
+        setLed(on);
+    }
+
+    // Density selection
+    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
+
+    if (ddrB & densityMask)
+    {
+        const uint8_t code = static_cast<uint8_t>(((newValue >> MECH_DENSITY_BIT0) & 0x01) |
+                (((newValue >> MECH_DENSITY_BIT1) & 0x01) << 1));
+
+        drive->setDensityCode(code);
+    }
+}
+
 void D1571VIA::onDDRAChanged(uint8_t, uint8_t) {}
 void D1571VIA::onDDRBChanged(uint8_t, uint8_t) {}

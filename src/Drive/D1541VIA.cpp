@@ -356,50 +356,8 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
         {
             const uint8_t prevORB = writePortBLatch(value);
 
-            if (viaRole == VIARole::VIA1_IECBus)
-            {
-                updateIECOutputsFromPortB();
-            }
-            else if (viaRole == VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                {
-                    const uint8_t ddrB = registers.ddrB;
-                    const uint8_t phaseMask = 0x03;
-                    const uint8_t oldPhase = static_cast<uint8_t>(prevORB & phaseMask);
-                    const uint8_t newPhase = static_cast<uint8_t>(registers.orbIRB & phaseMask);
-
-                    if (oldPhase != newPhase)
-                        drive->onStepperPhaseChange(oldPhase, newPhase);
-
-                    if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
-                    {
-                        const bool enable = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
-
-                        if (enable)
-                            drive->startMotor();
-                        else
-                            drive->stopMotor();
-                    }
-
-                    if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
-                    {
-                        const bool on = (registers.orbIRB & static_cast<uint8_t>(1u << MECH_LED)) != 0;
-                        setLed(on);
-                    }
-
-                    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
-
-                    if (ddrB & densityMask)
-                    {
-                        const uint8_t orb = registers.orbIRB;
-                        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) |
-                                (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
-
-                        drive->setDensityCode(code);
-                    }
-                }
-            }
+            // Notify the drive hardware of the new Port B output.
+            onPortBOutputChanged(prevORB, value);
 
             acknowledgePortB();
 
@@ -886,6 +844,53 @@ uint8_t D1541VIA::samplePortBInputs()
 }
 
 void D1541VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
-void D1541VIA::onPortBOutputChanged(uint8_t, uint8_t) {}
+
+void D1541VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    if (viaRole == VIARole::VIA1_IECBus)
+    {
+        updateIECOutputsFromPortB();
+        return;
+    }
+
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    auto* drive = dynamic_cast<D1541*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t ddrB = registers.ddrB;
+    const uint8_t phaseMask = 0x03;
+    const uint8_t oldPhase = static_cast<uint8_t>(oldValue & phaseMask);
+    const uint8_t newPhase = static_cast<uint8_t>(newValue & phaseMask);
+
+    if (oldPhase != newPhase)
+        drive->onStepperPhaseChange(oldPhase, newPhase);
+
+    if (ddrB & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
+    {
+        const bool enable = (newValue & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+
+        if (enable)
+            drive->startMotor();
+        else
+            drive->stopMotor();
+    }
+
+    if (ddrB & static_cast<uint8_t>(1u << MECH_LED))
+        setLed((newValue & static_cast<uint8_t>(1u << MECH_LED)) != 0);
+
+    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
+
+    if (ddrB & densityMask)
+    {
+        const uint8_t code = static_cast<uint8_t>(((newValue >> MECH_DENSITY_BIT0) & 0x01) |
+                (((newValue >> MECH_DENSITY_BIT1) & 0x01) << 1));
+
+        drive->setDensityCode(code);
+    }
+}
+
 void D1541VIA::onDDRAChanged(uint8_t, uint8_t) {}
 void D1541VIA::onDDRBChanged(uint8_t, uint8_t) {}
