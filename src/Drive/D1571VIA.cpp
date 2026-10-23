@@ -256,12 +256,6 @@ uint8_t D1571VIA::readRegister(uint16_t address)
             return value;
         }
 
-        case 0x02: // DDRB
-            return registers.ddrB;
-
-        case 0x03: // DDRA
-            return registers.ddrA;
-
         case 0x0A: // SR
         {
             clearIFR(IFR_SR);

@@ -304,6 +304,19 @@ bool DriveVIA6522::readCommonPortRegister(uint16_t address, uint8_t& value)
         case 0x00: // ORB/IRB
         {
             value = readPortBPins(samplePortBInputs());
+            acknowledgePortB();
+            return true;
+        }
+
+        case 0x02: // DDRB
+        {
+            value = registers.ddrB;
+            return true;
+        }
+
+        case 0x03: // DDRA
+        {
+            value = registers.ddrA;
             return true;
         }
 
