@@ -900,7 +900,6 @@ void D1571VIA::recomputeDiskWriteGate()
 
     const bool portAOutput = (registers.ddrA == 0xFF);
 
-    // Same phase that worked for the 1541:
     // PCR=$CE, DDRA=$FF
     const bool pcrWritePhase = (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
 
@@ -958,3 +957,18 @@ void D1571VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
     if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
         recomputeDiskWriteGate();
 }
+
+uint8_t D1571VIA::samplePortAInputs()
+{
+    return portAPins;
+}
+
+uint8_t D1571VIA::samplePortBInputs()
+{
+    return portBPins;
+}
+
+void D1571VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
+void D1571VIA::onPortBOutputChanged(uint8_t, uint8_t) {}
+void D1571VIA::onDDRAChanged(uint8_t, uint8_t) {}
+void D1571VIA::onDDRBChanged(uint8_t, uint8_t) {}

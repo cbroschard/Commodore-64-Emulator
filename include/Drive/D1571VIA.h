@@ -52,6 +52,15 @@ class D1571VIA : public DriveVIA6522
         void onAttachedToPeripheral() override;
         void onPCRChanged(uint8_t oldValue, uint8_t newValue) override;
 
+        uint8_t samplePortAInputs() override;
+        uint8_t samplePortBInputs() override;
+
+        void onPortAOutputChanged(uint8_t oldValue, uint8_t newValue) override;
+        void onPortBOutputChanged(uint8_t oldValue, uint8_t newValue) override;
+
+        void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR) override;
+        void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR) override;
+
     private:
         // Serial shift
         uint8_t  srShiftReg;

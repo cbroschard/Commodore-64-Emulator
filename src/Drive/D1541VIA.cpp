@@ -874,3 +874,18 @@ void D1541VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
     if (viaRole == VIARole::VIA2_Mechanics)
         recomputeDiskWriteGate();
 }
+
+uint8_t D1541VIA::samplePortAInputs()
+{
+    return portAPins;
+}
+
+uint8_t D1541VIA::samplePortBInputs()
+{
+    return portBPins;
+}
+
+void D1541VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
+void D1541VIA::onPortBOutputChanged(uint8_t, uint8_t) {}
+void D1541VIA::onDDRAChanged(uint8_t, uint8_t) {}
+void D1541VIA::onDDRBChanged(uint8_t, uint8_t) {}

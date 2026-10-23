@@ -122,9 +122,6 @@ class DriveVIA6522 : public DriveVIABase
         bool cb1Level;
         bool cb2Level;
 
-        virtual void onAttachedToPeripheral() {}
-        virtual void onPCRChanged(uint8_t oldValue, uint8_t newValue) {}
-
         void saveVIAState(StateWriter& wrtr) const;
         bool loadVIAState(StateReader& rdr);
 
@@ -157,6 +154,18 @@ class DriveVIA6522 : public DriveVIABase
         void onCA2Edge(bool rising, bool falling);
         void onCB1Edge(bool rising, bool falling);
         void onCB2Edge(bool rising, bool falling);
+
+        virtual void onAttachedToPeripheral() {}
+        virtual void onPCRChanged(uint8_t oldValue, uint8_t newValue) {}
+
+        // Hardware-specific VIA connections.
+        virtual uint8_t samplePortAInputs();
+        virtual uint8_t samplePortBInputs();
+
+        virtual void onPortAOutputChanged(uint8_t oldValue, uint8_t newValue);
+        virtual void onPortBOutputChanged(uint8_t oldValue, uint8_t newValue);
+        virtual void onDDRAChanged(uint8_t oldDDR, uint8_t newDDR);
+        virtual void onDDRBChanged(uint8_t oldDDR, uint8_t newDDR);
 
     private:
         enum : uint8_t

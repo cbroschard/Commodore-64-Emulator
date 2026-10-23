@@ -625,6 +625,40 @@ void DriveVIA6522::onCB2Edge(bool rising, bool falling)
         triggerInterrupt(IFR_CB2);
 }
 
+uint8_t DriveVIA6522::samplePortAInputs()
+{
+    return portAPins;
+}
+
+uint8_t DriveVIA6522::samplePortBInputs()
+{
+    return portBPins;
+}
+
+void DriveVIA6522::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+    (void)newValue;
+}
+
+void DriveVIA6522::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+    (void)newValue;
+}
+
+void DriveVIA6522::onDDRAChanged(uint8_t oldDDR, uint8_t newDDR)
+{
+    (void)oldDDR;
+    (void)newDDR;
+}
+
+void DriveVIA6522::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
+{
+    (void)oldDDR;
+    (void)newDDR;
+}
+
 void DriveVIA6522::timer1Tick()
 {
     if (!timer1Running)
