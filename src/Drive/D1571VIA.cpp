@@ -343,7 +343,7 @@ uint8_t D1571VIA::readRegister(uint16_t address)
                 value = readPortAPins(mechDataLatch);
             }
 
-            return value;
+            return readPortARegister(value, false);
         }
 
         default:

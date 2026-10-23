@@ -268,7 +268,9 @@ uint8_t D1541VIA::readRegister(uint16_t address)
             if (viaRole == VIARole::VIA2_Mechanics)
                 inputPins = mechDataLatch;
 
-            return readPortAPins(inputPins);
+            // Shared Port A read without CA1/CA2 acknowledgement.
+            // Does not consume a pending disk byte.
+            return readPortARegister(inputPins, false);
         }
 
         default:
