@@ -442,12 +442,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x01: // ORA/IRA - Port A
         {
+            const uint8_t oldValue = registers.oraIRA;
+
             writePortALatch(value);
-            applyPortAOutputs(value);
-
-            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-                consumeWriteByteRequest();
-
+            onPortAOutputChanged(oldValue, value);
             acknowledgePortA();
 
             break;
@@ -466,12 +464,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x03: // DDRA
         {
+            const uint8_t oldDDR = registers.ddrA;
+
             writePortADirection(value);
-
-            applyPortAOutputs(registers.oraIRA);
-
-            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-                recomputeDiskWriteGate();
+            onDDRAChanged(oldDDR, value);
 
             break;
         }
@@ -485,13 +481,10 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x0F: // ORA/IRA no handshake
         {
-            writePortALatch(value);
-            registers.oraIRANoHandshake = value;
-            applyPortAOutputs(value);
+            const uint8_t oldValue = registers.oraIRA;
 
-            if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
-                consumeWriteByteRequest();
-
+            writePortALatch(value, true);
+            onPortAOutputChanged(oldValue, value);
             acknowledgePortA();
 
             break;
@@ -549,11 +542,8 @@ void D1571VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
 void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 {
-    const bool prevAtnLow =
-        ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
-
-    const bool prevClkLow =
-        ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
+    const bool prevAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    const bool prevClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
 
     uint8_t pins = portBPins;
 
@@ -574,11 +564,8 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
 
     portBPins = pins;
 
-    const bool newAtnLow =
-        ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
-
-    const bool newClkLow =
-        ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
+    const bool newAtnLow = ((portBPins & (1u << IEC_ATN_IN_BIT)) != 0);
+    const bool newClkLow = ((portBPins & (1u << IEC_CLK_IN_BIT)) != 0);
 
     const bool atnFallingEdge = !prevAtnLow && newAtnLow;
     const bool atnRisingEdge  = prevAtnLow && !newAtnLow;
@@ -611,10 +598,7 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
             atnAckArmed = false;
         }
 
-        if (newAtnLow &&
-            clkRisingEdge &&
-            atnAckArmed &&
-            !isAtnAckClearAsserted())
+        if (newAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
         {
             atnAckLatch = true;
             atnAckArmed = false;
@@ -634,6 +618,7 @@ bool D1571VIA::isAtnAckClearAsserted() const
     const bool pb4High     = (orb  & (1u << IEC_ATN_ACK_BIT)) != 0;
 
     if (!pb4IsOutput) return true; // Input (Float High) -> Assert Clear
+
     return pb4High;                // Output -> Assert Clear if High
 }
 
@@ -643,6 +628,7 @@ void D1571VIA::updateIECOutputsFromPortB()
         return;
 
     auto* d1571 = dynamic_cast<D1571*>(parentPeripheral);
+
     if (!d1571)
         return;
 
@@ -669,9 +655,7 @@ void D1571VIA::updateIECOutputsFromPortB()
     const bool atnaHigh = (ddrB & (1u << IEC_ATN_ACK_BIT)) ? ((orb & (1u << IEC_ATN_ACK_BIT)) != 0) : true;
 
     const bool atnLow = d1571->getAtnLineLow();
-
     const bool atnAckDataLow = (atnaHigh != atnLow);
-
     const bool finalDataLow = dataLow || atnAckDataLow;
 
     d1571->peripheralAssertData(finalDataLow);
@@ -689,10 +673,9 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
     if (rising && srShiftInMode)
     {
         bool dataLow = false;
+
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
-        {
             dataLow = drive->getDataLineLow();
-        }
 
         const int bit = dataLow ? 0 : 1;
 
@@ -728,27 +711,21 @@ DriveVIABase::MechanicsInfo D1571VIA::getMechanicsInfo() const
     m.valid = true;
 
     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
-    {
         m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
-    }
     else
-    {
         m.motorOn = false; // or leave as-is
-    }
 
     if (ddrB & (1u << MECH_LED))
-    {
         m.ledOn = (orb & (1u << MECH_LED)) != 0;
-    }
     else
-    {
         m.ledOn = false;
-    }
 
     // Density bits: PB5/PB6
     uint8_t code = 0;
+
     if (ddrB & (1u << MECH_DENSITY_BIT0))
         code |= (orb >> MECH_DENSITY_BIT0) & 0x01;
+
     if (ddrB & (1u << MECH_DENSITY_BIT1))
         code |= ((orb >> MECH_DENSITY_BIT1) & 0x01) << 1;
 
@@ -809,6 +786,7 @@ void D1571VIA::recomputeDiskWriteGate()
         return;
 
     auto* drive = dynamic_cast<D1571*>(parentPeripheral);
+
     if (!drive)
         return;
 
@@ -886,7 +864,15 @@ uint8_t D1571VIA::samplePortBInputs()
     return portBPins;
 }
 
-void D1571VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
+void D1571VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+
+    applyPortAOutputs(newValue);
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        consumeWriteByteRequest();
+}
 
 void D1571VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
@@ -944,7 +930,17 @@ void D1571VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
     }
 }
 
-void D1571VIA::onDDRAChanged(uint8_t, uint8_t) {}
+void D1571VIA::onDDRAChanged(uint8_t oldDDR, uint8_t newDDR)
+{
+    (void)oldDDR;
+    (void)newDDR;
+
+    // DDR changes alter which Port A signals are driven.
+    applyPortAOutputs(registers.oraIRA);
+
+    if (viaRole == DriveVIA6522::VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
+}
 
 void D1571VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
 {

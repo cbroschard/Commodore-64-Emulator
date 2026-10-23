@@ -366,14 +366,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x01: // ORA/IRA - Port A
         {
+            const uint8_t oldValue = registers.oraIRA;
+
             writePortALatch(value);
-
-            if (viaRole == VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                    drive->onVIA2PortAWrite(value, registers.ddrA);
-            }
-
+            onPortAOutputChanged(oldValue, value);
             acknowledgePortA();
 
             break;
@@ -392,10 +388,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x03: // DDRA
         {
-            writePortADirection(value);
+            const uint8_t oldDDR = registers.ddrA;
 
-            if (viaRole == VIARole::VIA2_Mechanics)
-                recomputeDiskWriteGate();
+            writePortADirection(value);
+            onDDRAChanged(oldDDR, value);
 
             break;
         }
@@ -410,14 +406,10 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
         case 0x0F: // ORA/IRA no handshake
         {
+            const uint8_t oldValue = registers.oraIRA;
+
             writePortALatch(value);
-
-            if (viaRole == VIARole::VIA2_Mechanics)
-            {
-                if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
-                    drive->onVIA2PortAWrite(value, registers.ddrA);
-            }
-
+            onPortAOutputChanged(oldValue, value);
             acknowledgePortA();
 
             break;
@@ -809,7 +801,16 @@ uint8_t D1541VIA::samplePortBInputs()
     return portBPins;
 }
 
-void D1541VIA::onPortAOutputChanged(uint8_t, uint8_t) {}
+void D1541VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
+{
+    (void)oldValue;
+
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    if (auto* drive = dynamic_cast<D1541*>(parentPeripheral))
+        drive->onVIA2PortAWrite(newValue, registers.ddrA);
+}
 
 void D1541VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
@@ -858,7 +859,14 @@ void D1541VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
     }
 }
 
-void D1541VIA::onDDRAChanged(uint8_t, uint8_t) {}
+void D1541VIA::onDDRAChanged(uint8_t oldDDR, uint8_t newDDR)
+{
+    (void)oldDDR;
+    (void)newDDR;
+
+    if (viaRole == VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
+}
 
 void D1541VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
 {
