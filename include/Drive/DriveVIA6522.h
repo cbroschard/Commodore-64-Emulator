@@ -141,6 +141,8 @@ class DriveVIA6522 : public DriveVIABase
         void clearIFR(uint8_t sourceMask);
         void refreshMasterBit();
 
+        bool writeCommonPortRegister(uint16_t address, uint8_t value);
+
         bool readTimerRegister(uint16_t address, uint8_t& value);
         bool writeTimerRegister(uint16_t address, uint8_t value);
 

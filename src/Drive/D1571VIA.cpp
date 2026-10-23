@@ -425,53 +425,11 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
     if (writeControlRegister(address, value))
         return;
 
+    if (writeCommonPortRegister(address, value))
+        return;
+
     switch (address)
     {
-        case 0x00: // ORB/IRB - Port B
-        {
-            const uint8_t prevORB = writePortBLatch(value);
-
-            // Apply hardware-specific Port B changes.
-            onPortBOutputChanged(prevORB, value);
-
-            // Shared VIA interrupt acknowledgement.
-            acknowledgePortB();
-
-            break;
-        }
-
-        case 0x01: // ORA/IRA - Port A
-        {
-            const uint8_t oldValue = registers.oraIRA;
-
-            writePortALatch(value);
-            onPortAOutputChanged(oldValue, value);
-            acknowledgePortA();
-
-            break;
-        }
-
-        case 0x02: // DDRB
-        {
-            const uint8_t oldDDR = registers.ddrB;
-
-            writePortBDirection(value);
-
-            onDDRBChanged(oldDDR, value);
-
-            break;
-        }
-
-        case 0x03: // DDRA
-        {
-            const uint8_t oldDDR = registers.ddrA;
-
-            writePortADirection(value);
-            onDDRAChanged(oldDDR, value);
-
-            break;
-        }
-
         case 0x0A: // SR
         {
             registers.serialShift = value;

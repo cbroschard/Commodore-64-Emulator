@@ -286,6 +286,56 @@ void DriveVIA6522::refreshMasterBit()
         registers.interruptFlag &= static_cast<uint8_t>(~IFR_IRQ);
 }
 
+bool DriveVIA6522::writeCommonPortRegister(uint16_t address, uint8_t value)
+{
+    switch (address & 0x0F)
+    {
+        case 0x00: // ORB / IRB
+        {
+            const uint8_t oldValue = writePortBLatch(value);
+
+            onPortBOutputChanged(oldValue, value);
+            acknowledgePortB();
+
+            return true;
+        }
+
+        case 0x01: // ORA / IRA
+        {
+            const uint8_t oldValue = registers.oraIRA;
+
+            writePortALatch(value);
+            onPortAOutputChanged(oldValue, value);
+            acknowledgePortA();
+
+            return true;
+        }
+
+        case 0x02: // DDRB
+        {
+            const uint8_t oldDDR = registers.ddrB;
+
+            writePortBDirection(value);
+            onDDRBChanged(oldDDR, value);
+
+            return true;
+        }
+
+        case 0x03: // DDRA
+        {
+            const uint8_t oldDDR = registers.ddrA;
+
+            writePortADirection(value);
+            onDDRAChanged(oldDDR, value);
+
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
 bool DriveVIA6522::readTimerRegister(uint16_t address, uint8_t& value)
 {
     switch (address & 0x0F)
