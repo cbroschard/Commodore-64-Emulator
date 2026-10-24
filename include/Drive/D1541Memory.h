@@ -15,7 +15,6 @@
 #include <vector>
 #include "Drive/D1541VIA.h"
 #include "Drive/DriveChips.h"
-#include "IRQLine.h"
 #include "Peripheral.h"
 #include "StateReader.h"
 #include "StateWriter.h"

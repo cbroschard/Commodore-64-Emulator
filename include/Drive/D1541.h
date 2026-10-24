@@ -8,6 +8,9 @@
 #ifndef D1541_H
 #define D1541_H
 
+#include <array>
+#include <vector>
+
 #include "Drive/D1541Bus.h"
 #include "Drive/Drive.h"
 #include "Drive/D1541Memory.h"
@@ -19,8 +22,7 @@
 #include "Drive/D1541VIA.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
-#include <array>
-#include <vector>
+#include "IRQLine.h"
 
 class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
