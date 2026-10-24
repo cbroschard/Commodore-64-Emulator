@@ -167,7 +167,9 @@ class DriveVIA6522 : public DriveVIABase
         void shiftInBit(bool bitHigh);
 
         bool readCommonShiftRegister(uint16_t address, uint8_t& value);
+        bool writeCommonShiftRegister(uint16_t address, uint8_t value);
 
+        virtual void onShiftRegisterWritten();
         virtual uint8_t sampleShiftRegisterRead();
 
         virtual void onAttachedToPeripheral() {}

@@ -769,6 +769,28 @@ bool DriveVIA6522::readCommonShiftRegister(uint16_t address, uint8_t& value)
     return true;
 }
 
+void DriveVIA6522::onShiftRegisterWritten()
+{
+    // Default: no drive-specific action.
+}
+
+bool DriveVIA6522::writeCommonShiftRegister(
+    uint16_t address,
+    uint8_t value)
+{
+    if ((address & 0x0F) != 0x0A)
+        return false;
+
+    // Preserve the existing register write behavior.
+    registers.serialShift = value;
+    clearIFR(IFR_SR);
+
+    // Allow existing drive-specific side effects.
+    onShiftRegisterWritten();
+
+    return true;
+}
+
 uint8_t DriveVIA6522::samplePortAInputs()
 {
     return portAPins;

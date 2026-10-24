@@ -249,16 +249,11 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
     if (writeCommonPortRegister(address, value))
         return;
 
+    if (writeCommonShiftRegister(address, value))
+        return;
+
     switch (address)
     {
-        case 0x0A: // SR
-        {
-            registers.serialShift = value;
-            clearIFR(IFR_SR);
-            resetShift();
-            break;
-        }
-
         case 0x0F: // ORA/IRA no handshake
         {
             const uint8_t oldValue = registers.oraIRA;
@@ -846,4 +841,9 @@ uint8_t D1541VIA::sampleShiftRegisterRead()
         return mechDataLatch;
 
     return registers.serialShift;
+}
+
+void D1541VIA::onShiftRegisterWritten()
+{
+    resetShift();
 }
