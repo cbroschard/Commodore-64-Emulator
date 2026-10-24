@@ -11,8 +11,6 @@
 #include "Peripheral.h"
 
 D1541VIA::D1541VIA() :
-    srShiftReg(0),
-    srBitCount(0),
     srShiftInMode(false),
     iecRxPending(false),
     iecRxByte(0),
@@ -422,6 +420,8 @@ void D1541VIA::clearMechBytePending()
 
 void D1541VIA::onClkEdge(bool rising, bool falling)
 {
+    (void)falling;
+
     if (viaRole != VIARole::VIA1_IECBus)
         return;
 
@@ -430,19 +430,8 @@ void D1541VIA::onClkEdge(bool rising, bool falling)
 
     if (rising && srShiftIn)
     {
-        bool dataLow = ((portBPins & (1u << IEC_DATA_IN_BIT)) != 0);
-        int bit = dataLow ? 0 : 1;
-
-        srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
-        ++srBitCount;
-
-        if (srBitCount == 8)
-        {
-            registers.serialShift = srShiftReg;
-            srShiftReg = 0;
-            srBitCount = 0;
-            triggerInterrupt(IFR_SR);
-        }
+        const bool dataLow = (portBPins & (1u << IEC_DATA_IN_BIT)) != 0;
+        shiftInBit(!dataLow);
     }
 }
 

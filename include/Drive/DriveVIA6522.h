@@ -122,6 +122,10 @@ class DriveVIA6522 : public DriveVIABase
         bool cb1Level;
         bool cb2Level;
 
+        // Shared serial shift engine state.
+        uint8_t srShiftReg;
+        uint8_t srBitCount;
+
         void saveVIAState(StateWriter& wrtr) const;
         bool loadVIAState(StateReader& rdr);
 
@@ -159,6 +163,8 @@ class DriveVIA6522 : public DriveVIABase
         void onCA2Edge(bool rising, bool falling);
         void onCB1Edge(bool rising, bool falling);
         void onCB2Edge(bool rising, bool falling);
+
+        void shiftInBit(bool bitHigh);
 
         bool readCommonShiftRegister(uint16_t address, uint8_t& value);
 

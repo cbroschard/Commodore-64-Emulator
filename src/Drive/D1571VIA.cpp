@@ -9,8 +9,6 @@
 #include "Drive/D1571VIA.h"
 
 D1571VIA::D1571VIA() :
-    srShiftReg(0),
-    srBitCount(0),
     srShiftInMode(false),
     ledOn(false),
     syncDetected(false),
@@ -527,10 +525,11 @@ void D1571VIA::updateIECOutputsFromPortB()
 
 void D1571VIA::onClkEdge(bool rising, bool falling)
 {
-    if (viaRole != DriveVIA6522::VIARole::VIA1_IECBus)
+    (void)falling;
+
+    if (viaRole != VIARole::VIA1_IECBus)
         return;
 
-    // 6522: ACR bits 2..3 = 01 => shift-in under external clock
     srShiftInMode = (registers.auxControlRegister & 0x0C) == 0x04;
 
     if (rising && srShiftInMode)
@@ -540,22 +539,7 @@ void D1571VIA::onClkEdge(bool rising, bool falling)
         if (auto* drive = dynamic_cast<D1571*>(parentPeripheral))
             dataLow = drive->getDataLineLow();
 
-        const int bit = dataLow ? 0 : 1;
-
-        srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
-        ++srBitCount;
-
-        if (srBitCount == 8)
-        {
-            registers.serialShift = srShiftReg;
-
-            // reset for next byte
-            srShiftReg = 0;
-            srBitCount = 0;
-
-            // raise SR interrupt
-            triggerInterrupt(IFR_SR);
-        }
+        shiftInBit(!dataLow);
     }
 }
 
@@ -945,8 +929,5 @@ void D1571VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
 
 uint8_t D1571VIA::sampleShiftRegisterRead()
 {
-    if (viaRole == VIARole::VIA2_Mechanics)
-        return mechDataLatch;
-
     return registers.serialShift;
 }

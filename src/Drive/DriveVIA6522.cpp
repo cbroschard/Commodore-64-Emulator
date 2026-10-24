@@ -13,6 +13,8 @@ DriveVIA6522::DriveVIA6522() :
     ca2Level(false),
     cb1Level(false),
     cb2Level(false),
+    srShiftReg(0),
+    srBitCount(0),
     timer1Counter(0),
     timer1Latch(0),
     timer1Running(false),
@@ -163,10 +165,13 @@ void DriveVIA6522::reset()
     timer2InhibitIRQ                    = false;
     timer2LowLatchByte                  = 0x00;
 
-    ca1Level = false;
-    ca2Level = false;
-    cb1Level = false;
-    cb2Level = false;
+    ca1Level                            = false;
+    ca2Level                            = false;
+    cb1Level                            = false;
+    cb2Level                            = false;
+
+    srShiftReg                          = 0;
+    srBitCount                          = 0;
 }
 
 void DriveVIA6522::tick(uint32_t cycles)
@@ -729,6 +734,24 @@ void DriveVIA6522::onCB2Edge(bool rising, bool falling)
 
     if (trigger)
         triggerInterrupt(IFR_CB2);
+}
+
+void DriveVIA6522::shiftInBit(bool bitHigh)
+{
+    const int bit = bitHigh ? 1 : 0;
+
+    srShiftReg |= static_cast<uint8_t>(bit << srBitCount);
+    ++srBitCount;
+
+    if (srBitCount == 8)
+    {
+        registers.serialShift = srShiftReg;
+
+        srShiftReg = 0;
+        srBitCount = 0;
+
+        triggerInterrupt(IFR_SR);
+    }
 }
 
 uint8_t DriveVIA6522::sampleShiftRegisterRead()

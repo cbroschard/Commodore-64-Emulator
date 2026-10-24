@@ -66,8 +66,6 @@ class D1541VIA : public DriveVIA6522
 
     private:
         // Serial shift
-        uint8_t  srShiftReg;
-        uint8_t  srBitCount;
         bool     srShiftInMode;
 
         // IEC Bits
