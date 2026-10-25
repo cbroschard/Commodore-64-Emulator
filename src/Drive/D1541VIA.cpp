@@ -15,6 +15,7 @@ D1541VIA::D1541VIA() :
     iecRxPending(false),
     iecRxByte(0),
     ledOn(false),
+    syncDetected(false),
     mechDataLatch(0xFF),
     mechBytePending(false),
     atnAckArmed(false),
