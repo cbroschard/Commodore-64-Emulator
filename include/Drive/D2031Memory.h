@@ -14,11 +14,12 @@
 #include <iostream>
 #include <vector>
 #include "Drive/D2031VIA.h"
+#include "Drive/DriveChips.h"
 #include "Peripheral.h"
 #include "StateReader.h"
 #include "StateWriter.h"
 
-class D2031Memory
+class D2031Memory : public DriveMemoryBase
 {
     public:
         D2031Memory();
