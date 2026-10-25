@@ -12,13 +12,13 @@
 
 class CPUBus
 {
-public:
-    virtual ~CPUBus() = default;
+    public:
+        virtual ~CPUBus() = default;
 
-    virtual uint8_t read(uint16_t address) = 0;
-    virtual void    write(uint16_t address, uint8_t value) = 0;
+        virtual uint8_t read(uint16_t address) = 0;
+        virtual void    write(uint16_t address, uint8_t value) = 0;
 
-    virtual uint8_t peek(uint16_t address) const { return 0xFF; }
+        virtual uint8_t peek(uint16_t address) const = 0;
 };
 
 #endif // CPUBUS_H_INCLUDED
