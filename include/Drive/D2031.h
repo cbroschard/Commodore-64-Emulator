@@ -8,14 +8,20 @@
 #ifndef D2031_H
 #define D2031_H
 
+#include <cstdint>
+#include "Drive/Drive.h"
 
-class D2031
+class D2031 : public Drive
 {
     public:
         D2031();
         ~D2031();
 
-    protected:
+        enum class D2031Model : uint8_t
+        {
+            HighProfile,
+            LowProfile
+        };
 
     private:
 };
