@@ -285,10 +285,14 @@ void D1571::tick(uint32_t cycles)
         if (checkBreakpoint())
             return;
 
-        // One host/world cycle.
-        const uint32_t cpuTicks = twoMHzMode ? 2u : 1u;
+        // Always execute the first drive CPU cycle.
+        driveCPU.tick();
+        d1571mem.tick(1);
+        updateIRQ();
 
-        for (uint32_t i = 0; i < cpuTicks; ++i)
+        // Re-evaluate the mode after the first CPU cycle.
+        // The ROM may have changed Port A bit 5 during that cycle.
+        if (twoMHzMode)
         {
             driveCPU.tick();
             d1571mem.tick(1);
