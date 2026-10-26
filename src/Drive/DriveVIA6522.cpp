@@ -535,7 +535,7 @@ bool DriveVIA6522::readInterruptRegister(uint16_t address, uint8_t& value)
 
         case 0x0E: // IER
         {
-            value = registers.interruptEnable;
+            value = registers.interruptEnable | 0x80;
             return true;
         }
 
