@@ -972,6 +972,7 @@ void D1571::atnChanged(bool atnLow)
 
     // Update IEC bus input pins.
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    d1571mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 
     // ATN asserted: begin a new command phase.
     if (!prev && atnLineLow)
@@ -992,6 +993,7 @@ void D1571::clkChanged(bool clkLow)
 
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    d1571mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1571::dataChanged(bool dataLow)
@@ -1002,6 +1004,7 @@ void D1571::dataChanged(bool dataLow)
 
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    d1571mem.getCIA().setIECInputs(atnLineLow, clkLineLow, dataLineLow);
 }
 
 void D1571::onListen()
