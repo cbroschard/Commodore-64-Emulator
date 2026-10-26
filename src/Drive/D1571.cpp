@@ -512,8 +512,9 @@ void D1571::setDensityCode(uint8_t code)
 
 void D1571::setHeadSide(bool side1)
 {
-    // D64 must remain single-sided.
-    const bool singleSidedGcrMedia = mediaPath == MediaPath::GCR_D64 || (diskImage && diskImage->supportsRawTracks());
+    // D64 is single-sided.
+    // Preserve side 0 even if the ROM requests side 1.
+    const bool singleSidedGcrMedia =  mediaPath == MediaPath::GCR_D64 || (diskImage && diskImage->supportsRawTracks());
 
     if (singleSidedGcrMedia)
     {
@@ -523,7 +524,6 @@ void D1571::setHeadSide(bool side1)
 
             currentSide = 0;
 
-            // Force rebuild, but preserve rotational position.
             gcrTrack.clear();
             gcrTrack.getSyncMap().clear();
             gcrSectorAtPos.clear();
@@ -536,7 +536,8 @@ void D1571::setHeadSide(bool side1)
         return;
     }
 
-    const bool newSide = side1 ? true : false;
+    // D71 permits switching between sides.
+    const bool newSide = side1;
 
     if (currentSide != newSide)
     {
