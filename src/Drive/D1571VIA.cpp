@@ -515,8 +515,13 @@ void D1571VIA::updateIECOutputsFromPortB()
     // If PB4 is configured as an input, treat the undriven pin as HIGH.
     const bool atnaHigh = (ddrB & (1u << IEC_ATN_ACK_BIT)) ? ((orb & (1u << IEC_ATN_ACK_BIT)) != 0) : true;
 
-    const bool atnLow = d1571->getAtnLineLow();
+    // PB7 is the physical ATN input sampled by VIA1.
+    // A set bit represents an asserted (LOW) IEC ATN line.
+    const bool atnLow = (portBPins & (1u << IEC_ATN_IN_BIT)) != 0;
+
+    // Preserve the existing 1571 ATN acknowledgment polarity.
     const bool atnAckDataLow = (atnaHigh != atnLow);
+
     const bool finalDataLow = dataLow || atnAckDataLow;
 
     d1571->peripheralAssertData(finalDataLow);
@@ -625,6 +630,16 @@ void D1571VIA::pulseWriteByteReady()
             }
         }
     }
+}
+
+void D1571VIA::primeIECAtnLevel(bool atnLow)
+{
+    if (viaRole != VIARole::VIA1_IECBus)
+        return;
+
+    // Synchronize the physical CA1 level without
+    // generating a synthetic ATN interrupt.
+    ca1Level = atnLow;
 }
 
 void D1571VIA::recomputeDiskWriteGate()

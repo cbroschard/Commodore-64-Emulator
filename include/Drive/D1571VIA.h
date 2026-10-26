@@ -46,6 +46,8 @@ class D1571VIA : public DriveVIA6522
         void clearMechBytePending();
         void pulseWriteByteReady();
 
+        void primeIECAtnLevel(bool atnLow);
+
         MechanicsInfo getMechanicsInfo() const override;
 
     protected:
@@ -65,7 +67,7 @@ class D1571VIA : public DriveVIA6522
 
     private:
         // Serial shift
-        bool     srShiftInMode;
+        bool srShiftInMode;
 
         // Port A Hardware Setting Bits
         enum : uint8_t

@@ -485,6 +485,7 @@ void D1571::forceSyncIEC()
 
     auto& via1 = d1571mem.getVIA1();
     via1.setIECInputLines(atnLineLow, clkLineLow, dataLineLow);
+    via1.primeIECAtnLevel(atnLineLow);
 
     auto& cia = d1571mem.getCIA();
     cia.primeAtnLevel(atnLineLow);
