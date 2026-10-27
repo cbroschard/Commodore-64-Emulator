@@ -325,11 +325,8 @@ void D1571VIA::writeRegister(uint16_t address, uint8_t value)
         case 0x0F: // ORA/IRA no handshake
         {
             const uint8_t oldValue = registers.oraIRA;
-
             writePortALatch(value, true);
             onPortAOutputChanged(oldValue, value);
-            acknowledgePortA();
-
             break;
         }
 
