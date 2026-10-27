@@ -15,10 +15,7 @@ D1571VIA::D1571VIA() :
     mechDataLatch(0xFF),
     mechReadBytePending(false),
     mechWriteByteRequest(false),
-    byteReadyActive(false),
-    atnAckArmed(false),
-    atnAckLatch(false),
-    prevAtnAckClear(false)
+    byteReadyActive(false)
 {
     reset();
 }
@@ -43,11 +40,6 @@ void D1571VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(mechReadBytePending);
     wrtr.writeBool(mechWriteByteRequest);
     wrtr.writeBool(byteReadyActive);
-
-    // ATN Ack
-    wrtr.writeBool(atnAckArmed);
-    wrtr.writeBool(atnAckLatch);
-    wrtr.writeBool(prevAtnAckClear);
 
     // VIA control pin levels (introduced in version 3)
     wrtr.writeBool(ca1Level);
@@ -111,16 +103,6 @@ bool D1571VIA::loadState(StateReader& rdr)
         if (!rdr.readBool(byteReadyActive))
             return false;
     }
-
-    // ATN Ack
-    if (!rdr.readBool(atnAckArmed))
-        return false;
-
-    if (!rdr.readBool(atnAckLatch))
-        return false;
-
-    if (!rdr.readBool(prevAtnAckClear))
-        return false;
 
     // VIA control pin levels (version 3+)
     if (ver >= 3)
@@ -439,48 +421,9 @@ void D1571VIA::setIECInputLines(bool atnLow, bool clkLow, bool dataLow)
         if (clkRisingEdge || clkFallingEdge)
             onClkEdge(clkRisingEdge, clkFallingEdge);
 
-        if (atnFallingEdge)
-        {
-            if (!isAtnAckClearAsserted())
-            {
-                atnAckLatch = true;
-                atnAckArmed = true;
-            }
-            else
-            {
-                atnAckLatch = false;
-                atnAckArmed = false;
-            }
-        }
-
-        if (atnRisingEdge)
-        {
-            atnAckLatch = false;
-            atnAckArmed = false;
-        }
-
-        if (newAtnLow && clkRisingEdge && atnAckArmed && !isAtnAckClearAsserted())
-        {
-            atnAckLatch = true;
-            atnAckArmed = false;
-        }
-
         if (atnFallingEdge || atnRisingEdge || clkRisingEdge)
             updateIECOutputsFromPortB();
     }
-}
-
-bool D1571VIA::isAtnAckClearAsserted() const
-{
-    const uint8_t ddrB = registers.ddrB;
-    const uint8_t orb  = registers.orbIRB;
-
-    const bool pb4IsOutput = (ddrB & (1u << IEC_ATN_ACK_BIT)) != 0;
-    const bool pb4High     = (orb  & (1u << IEC_ATN_ACK_BIT)) != 0;
-
-    if (!pb4IsOutput) return true; // Input (Float High) -> Assert Clear
-
-    return pb4High;                // Output -> Assert Clear if High
 }
 
 void D1571VIA::updateIECOutputsFromPortB()

@@ -123,12 +123,6 @@ class D1571VIA : public DriveVIA6522
 
         bool byteReadyActive;
 
-        bool atnAckArmed;
-        bool atnAckLatch;
-        bool prevAtnAckClear;
-
-        bool isAtnAckClearAsserted() const;
-
         // Helper
         void updateIECOutputsFromPortB();
         void recomputeDiskWriteGate();
