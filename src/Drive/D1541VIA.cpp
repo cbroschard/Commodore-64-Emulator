@@ -562,38 +562,8 @@ void D1541VIA::recomputeDiskWriteGate()
 
     const bool portAOutput = (registers.ddrA == 0xFF);
 
-    // Your log shows this is the only phase where DDRA is FF:
-    // PCR=$CE DDRA=$FF CA2=7 CB2=6
-    const bool pcrWritePhase =
-        (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
-
+    const bool pcrWritePhase = (pcr == 0xCE) || (ca2Mode == 0b111 && cb2Mode == 0b110);
     const bool gate = portAOutput && pcrWritePhase;
-
-#ifdef Debug
-    static bool lastGate = false;
-    static uint8_t lastPcr = 0xFF;
-    static uint8_t lastDdra = 0xFF;
-
-    // Only print important transitions.
-    if (gate != lastGate || registers.ddrA != lastDdra || pcr != lastPcr)
-    {
-        if (gate || lastGate || registers.ddrA == 0xFF)
-        {
-            std::cout << "[VIA2:GATE] "
-                      << "PCR=$" << std::hex << std::uppercase << int(pcr)
-                      << " DDRA=$" << int(registers.ddrA)
-                      << std::dec
-                      << " CA2=" << int(ca2Mode)
-                      << " CB2=" << int(cb2Mode)
-                      << " gate=" << (gate ? 1 : 0)
-                      << "\n";
-        }
-
-        lastGate = gate;
-        lastPcr = pcr;
-        lastDdra = registers.ddrA;
-    }
-#endif
 
     drive->setDiskWriteGate(gate);
 }
