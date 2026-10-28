@@ -185,7 +185,27 @@ uint8_t D2031VIA::samplePortBInputs()
 
     if (viaRole == VIARole::VIA1_IEEE488Bus)
     {
+        if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
+        {
+            auto setPin = [&](uint8_t bit, bool high)
+            {
+                const uint8_t mask =
+                    static_cast<uint8_t>(1u << bit);
 
+                if (high)
+                    pins |= mask;
+                else
+                    pins &= static_cast<uint8_t>(~mask);
+            };
+
+            setPin(IEEE488_NRFD_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NRFD));
+            setPin(IEEE488_NDAC_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NDAC));
+            setPin(IEEE488_EOI_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::EOI));
+            setPin(IEEE488_DAV_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::DAV));
+
+            // PB7 receives inverted ATN.
+            setPin(IEEE488_ATN_BIT, !drive->getIEEE488Signal(IEEE488Bus::Signal::ATN));
+        }
     }
     else if (viaRole == VIARole::VIA2_Mechanics)
     {
