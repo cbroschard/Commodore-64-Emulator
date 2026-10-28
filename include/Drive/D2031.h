@@ -39,6 +39,21 @@ class D2031 : public Drive
         void setDiskWriteGate(bool enabled);
         void onVIA2PortARead(uint8_t value);
 
+        // ML Monitor
+        inline bool hasCIA()  const override { return false; }
+        inline bool hasVIA1() const override { return true;  }
+        inline bool hasVIA2() const override { return true;  }
+        inline bool hasFDC()  const override { return false; }
+        inline bool isDrive() const override { return true;  }
+        inline const CPU* getDriveCPU() const override { return &driveCPU; }
+        inline CPU* getDriveCPU() override { return &driveCPU; }
+        inline const D2031Memory* getMemory() const override { return &d2031mem; }
+        inline D2031Memory* getMemory() override { return &d2031mem; }
+        inline const D2031VIA* getVIA1() const override { return &d2031mem.getVIA1(); }
+        inline const D2031VIA* getVIA2() const override { return &d2031mem.getVIA2(); }
+        inline DriveStatus getDriveStatus() const override { return status; }
+        const char* getDriveTypeName() const noexcept override { return "2031"; }
+
     private:
         D2031Bus d2031Bus;
         D2031Memory d2031mem;
@@ -46,6 +61,10 @@ class D2031 : public Drive
         GCRTrackStream gcrTrack;
         GCRCodec gcrCodec;
         IRQLine IRQ;
+
+        // Status tracking
+        DriveError  lastError;
+        DriveStatus status;
 
         std::vector<uint8_t> writeGcrBuffer;
         std::vector<uint8_t> readGcrHeaderProbe;
@@ -88,6 +107,11 @@ class D2031 : public Drive
         uint8_t currentTrack;
         uint8_t currentSector;
         uint8_t densityCode; // 0..3
+
+        // UI Activity
+        uint8_t uiTrack;
+        uint8_t uiSector;
+        bool uiLedWasOn;
 
         // GCR
         int  gcrBitCounter; // Used to rate limit bits

@@ -61,12 +61,19 @@ void D2031::reset()
     writeAfterSync              = false;
     writeGapRun                 = 0;
 
+    // UI activity
+    uiTrack                     = currentTrack;
+    uiSector                    = currentSector;
+    uiLedWasOn                  = false;
+
     readGcrHeaderProbe.clear();
     writeGcrBuffer.clear();
     gcrTrack.clear();
     gcrSectorAtPos.clear();
     gcrWrittenMask.clear();
+
     invalidateRawGcrCache();
+    updateIRQ();
 }
 
 void D2031::setDiskWriteGate(bool enabled)

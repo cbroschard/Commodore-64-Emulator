@@ -46,6 +46,12 @@ class D2031Memory : public DriveMemoryBase
         // Initialize function to load all ROMS passed in via config file, initialize RAM
         bool initialize(const std::string& D2031LoROM, const std::string& D2031HiROM);
 
+        inline D2031VIA& getVIA1() { return via1; }
+        inline const D2031VIA& getVIA1() const { return via1; }
+
+        inline D2031VIA& getVIA2() { return via2; }
+        inline const D2031VIA& getVIA2() const { return via2; }
+
     private:
         // Non-owning pointers
         Peripheral* parentPeripheral;
