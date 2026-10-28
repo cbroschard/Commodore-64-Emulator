@@ -42,6 +42,8 @@ class D2031 : public Drive
         void setDiskWriteGate(bool enabled);
         void onVIA2PortARead(uint8_t value);
 
+        inline bool getIEEE488Signal(IEEE488Bus::Signal signal) const { return ieee488Device.getBusSignal(signal); }
+
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
         inline bool hasVIA1() const override { return true;  }
