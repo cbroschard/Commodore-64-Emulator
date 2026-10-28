@@ -469,9 +469,8 @@ void D1541VIA::updateIECOutputsFromPortB()
 DriveVIABase::MechanicsInfo D1541VIA::getMechanicsInfo() const
 {
     MechanicsInfo m{};
-    m.valid = false;          // assume not valid unless we know we're VIA2/mech
+    m.valid = false;
 
-    // Only VIA2 in mechanics role has meaningful data
     if (viaRole != VIARole::VIA2_Mechanics)
         return m;
 
@@ -481,22 +480,14 @@ DriveVIABase::MechanicsInfo D1541VIA::getMechanicsInfo() const
     m.valid = true;
 
     if (ddrB & (1u << MECH_SPINDLE_MOTOR))
-    {
         m.motorOn = (orb & (1u << MECH_SPINDLE_MOTOR)) != 0;
-    }
     else
-    {
-        m.motorOn = false; // or leave as-is
-    }
+        m.motorOn = false;
 
     if (ddrB & (1u << MECH_LED))
-    {
         m.ledOn = (orb & (1u << MECH_LED)) != 0;
-    }
     else
-    {
         m.ledOn = false;
-    }
 
     // Density bits: PB5/PB6
     uint8_t code = 0;
