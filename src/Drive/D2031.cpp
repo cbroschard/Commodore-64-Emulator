@@ -76,6 +76,14 @@ void D2031::reset()
     updateIRQ();
 }
 
+bool D2031::attachIEEE488Bus(IEEE488Bus* bus)
+{
+    if (!bus)
+        return false;
+
+    return ieee488Device.attachBus(bus, static_cast<IEEE488Bus::DeviceId>(getDeviceNumber()));
+}
+
 void D2031::setDiskWriteGate(bool enabled)
 {
     if (diskWriteGate == enabled)

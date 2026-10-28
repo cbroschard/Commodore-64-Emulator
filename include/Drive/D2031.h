@@ -16,6 +16,7 @@
 #include "Drive/Drive.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
+#include "IEEE488/IEEE488Device.h"
 #include "IRQLine.h"
 
 class D2031 : public Drive
@@ -31,6 +32,8 @@ class D2031 : public Drive
         };
 
         void reset() override;
+
+        bool attachIEEE488Bus(IEEE488Bus* ieee488Bus);
 
         // Drive Interface
         inline bool isWriteProtected() const { return diskWriteProtected; }
@@ -60,6 +63,7 @@ class D2031 : public Drive
         CPU driveCPU;
         GCRTrackStream gcrTrack;
         GCRCodec gcrCodec;
+        IEEE488Device ieee488Device;
         IRQLine IRQ;
 
         // Status tracking
