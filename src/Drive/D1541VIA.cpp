@@ -261,8 +261,6 @@ void D1541VIA::writeRegister(uint16_t address, uint8_t value)
 
             writePortALatch(value);
             onPortAOutputChanged(oldValue, value);
-            acknowledgePortA();
-
             break;
         }
 
