@@ -42,9 +42,7 @@ D1541::D1541(int deviceNumber, const std::string& loRom, const std::string& hiRo
     driveCPU.attachIRQLineInstance(&IRQ);
 
     if (!d1541mem.initialize(loRom, hiRom))
-    {
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
-    }
 
     reset();
 }

@@ -21,7 +21,7 @@
 class D2031 : public Drive
 {
     public:
-        D2031();
+        D2031(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         ~D2031();
 
         enum class D2031Model : uint8_t

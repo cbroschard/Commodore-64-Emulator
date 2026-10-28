@@ -7,14 +7,19 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D2031.h"
 
-D2031::D2031()
+D2031::D2031(int deviceNumber, const std::string& loRom, const std::string& hiRom)
 {
     reset();
+
+    setDeviceNumber(deviceNumber);
 
     d2031mem.attachPeripheralInstance(this);
     d2031Bus.attachMemoryInstance(&d2031mem);
     driveCPU.attachCPUBusInstance(&d2031Bus);
     driveCPU.attachIRQLineInstance(&IRQ);
+
+    if (!d2031mem.initialize(loRom, hiRom))
+        throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
 }
 
 D2031::~D2031()
