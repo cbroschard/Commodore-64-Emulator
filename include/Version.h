@@ -14,6 +14,6 @@ struct VersionInfo
     static constexpr const char* VERSION = "v0.8.8.2-alpha";
     static constexpr const char* BUILD_DATE = __DATE__;
     static constexpr const char* BUILD_TIME = __TIME__;
-};2
+};
 
 #endif // VERSION_H_INCLUDED
