@@ -16,10 +16,29 @@ class D2031VIA : public DriveVIA6522
         D2031VIA();
         ~D2031VIA() override;
 
+        // State Management
+        void saveState(StateWriter& wrtr) const;
+        bool loadState(StateReader& rdr);
+
+        // Reset function
         void reset() override;
 
         uint8_t readRegister(uint16_t address);
         void writeRegister(uint16_t address, uint8_t value);
+
+        // Drive mechanics
+        inline bool isLedOn() const { return ledOn; }
+        inline void setLed(bool on) { ledOn = on; }
+        inline bool isSyncDetected() const { return syncDetected; }
+        inline bool mechHasBytePending() const { return mechBytePending; }
+        inline void setSyncDetected(bool present) { syncDetected = present; }
+        void diskByteFromMedia(uint8_t byte, bool inSync);
+        void clearIEEE488TransientState();
+
+        // Setters
+        void setIEE488InputLines(bool atnLow, bool clkLow, bool dataLow);
+
+        MechanicsInfo getMechanicsInfo() const override;
 
     protected:
         void onAttachedToPeripheral() override;
@@ -104,6 +123,11 @@ class D2031VIA : public DriveVIA6522
         bool    syncDetected;
         uint8_t mechDataLatch;
         bool    mechBytePending;
+        bool    haveLastHeader;
+
+        // Helpers
+        void updateIEEE488Outputs();
+        void recomputeDiskWriteGate();
 };
 
 #endif // D2031VIA_H
