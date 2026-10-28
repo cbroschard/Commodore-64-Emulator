@@ -21,7 +21,6 @@ class IEEE488Device
         IEEE488Device& operator=(const IEEE488Device&) = delete;
 
         virtual void reset();
-        virtual void tick(uint64_t cycles) = 0;
 
         bool attachBus(IEEE488Bus* bus, IEEE488Bus::DeviceId id);
         void detachBus();
@@ -29,6 +28,8 @@ class IEEE488Device
         bool isConnected() const;
 
         virtual void onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
+
+        inline bool getBusSignal(IEEE488Bus::Signal signal) const { return readSignal(signal); }
 
     protected:
         bool readSignal(IEEE488Bus::Signal signal) const;
