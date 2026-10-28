@@ -9,7 +9,12 @@
 
 D2031::D2031()
 {
+    reset();
 
+    d2031mem.attachPeripheralInstance(this);
+    d2031Bus.attachMemoryInstance(&d2031mem);
+    driveCPU.attachCPUBusInstance(&d2031Bus);
+    driveCPU.attachIRQLineInstance(&IRQ);
 }
 
 D2031::~D2031()

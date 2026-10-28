@@ -40,8 +40,8 @@ class D2031 : public Drive
         void onVIA2PortARead(uint8_t value);
 
     private:
-        D2031Bus d2301Bus;
-        D2031Memory d2301mem;
+        D2031Bus d2031Bus;
+        D2031Memory d2031mem;
         CPU driveCPU;
         GCRTrackStream gcrTrack;
         GCRCodec gcrCodec;
