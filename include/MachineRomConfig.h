@@ -20,6 +20,8 @@ struct MachineRomConfig
     std::string d1541HiRom;
     std::string d1571Rom;
     std::string d1581Rom;
+    std::string d2031LoRom;
+    std::string d2031HiRom;
 };
 
 #endif // MACHINE_ROM_CONFIG_H
