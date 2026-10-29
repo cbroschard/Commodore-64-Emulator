@@ -18,6 +18,7 @@
 #include "Drive/D1541.h"
 #include "Drive/D1571.h"
 #include "Drive/D1581.h"
+#include "Drive/D2031.h"
 #include "Drive/Drive.h"
 #include "Drive/IDriveIndicatorView.h"
 #include "Drive/IDrivePositionView.h"
@@ -31,6 +32,8 @@ MediaManager::MediaManager(MachineComponents& components,
                            std::string D1541HiROM,
                            std::string D1571ROM,
                            std::string D1581ROM,
+                           std::string D2031LoROM,
+                           std::string D2031HiROM,
                            std::function<void()> requestBusPrimeCallback,
                            std::function<void()> coldResetCallback)
     : components_(components),
@@ -39,6 +42,8 @@ MediaManager::MediaManager(MachineComponents& components,
       D1541HiROM_(std::move(D1541HiROM)),
       D1571ROM_(std::move(D1571ROM)),
       D1581ROM_(std::move(D1581ROM)),
+      D2031LoROM_(std::move(D2031LoROM)),
+      D2031HiROM_(std::move(D2031HiROM)),
       t64LoadPending_(false),
       t64LoadDelay_(0),
       requestBusPrime_(std::move(requestBusPrimeCallback)),

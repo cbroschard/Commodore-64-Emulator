@@ -37,6 +37,8 @@ public:
                  std::string D1541HiROM,
                  std::string D1571ROM,
                  std::string D1581ROM,
+                 std::string D2031LoROM,
+                 std::string D2031HiROM,
                  std::function<void()> requestBusPrimeCallback,
                  std::function<void()> coldResetCallback);
 
@@ -93,6 +95,8 @@ public:
     void setD1541HiROM(const std::string& p) { D1541HiROM_ = p; }
     void setD1571ROM(const std::string& p) { D1571ROM_ = p; }
     void setD1581ROM(const std::string& p) { D1581ROM_ = p; }
+    void setD2031LoROM(const std::string& p) { D2031LoROM_ = p; }
+    void setD2031HiROM(const std::string& p) { D2031HiROM_ = p; }
     void setDiskPath(const std::string& p) { state_.diskPath = p; }
     void setPrgPath(const std::string& p)  { state_.prgPath  = p; }
     void setCartPath(const std::string& p) { state_.cartPath = p; }
@@ -170,6 +174,8 @@ private:
     std::string D1541HiROM_;
     std::string D1571ROM_;
     std::string D1581ROM_;
+    std::string D2031LoROM_;
+    std::string D2031HiROM_;
 
     VideoMode videoMode_{};
 
