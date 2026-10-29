@@ -223,6 +223,18 @@ void Computer::set1581ROM(const std::string& rom)
     if (components_.media) components_.media->setD1581ROM(rom);
 }
 
+void Computer::set2031LoROM(const std::string& loROM)
+{
+    roms_.d2031LoRom = loROM;
+    if (components_.media) components_.media->setD2031LoROM(loROM);
+}
+
+void Computer::set2031HiROM(const std::string& hiROM)
+{
+    roms_.d2031HiRom = hiROM;
+    if (components_.media) components_.media->setD2031HiROM(hiROM);
+}
+
 void Computer::attachVirtualModem()
 {
     if (!components_.rs232Device)

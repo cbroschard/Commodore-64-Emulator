@@ -82,6 +82,8 @@ class Computer : public ICartridgeHost
         void set1541HiROM(const std::string& hiROM);
         void set1571ROM(const std::string& rom);
         void set1581ROM(const std::string& rom);
+        void set2031LoROM(const std::string& loROM);
+        void set2031HiROM(const std::string& hiROM);
 
         // Expansion port devices
         void attachVirtualModem();
