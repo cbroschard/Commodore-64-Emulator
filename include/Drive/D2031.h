@@ -38,11 +38,16 @@ class D2031 : public Drive
         // Drive Interface
         inline bool isWriteProtected() const { return diskWriteProtected; }
 
-        // Raw GCR write mechanics
         void setDiskWriteGate(bool enabled);
         void onVIA2PortARead(uint8_t value);
+        void onVIA2PortAWrite(uint8_t value, uint8_t ddrA);
+
+        void onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase);
+        void setDensityCode(uint8_t code);
 
         inline bool getIEEE488Signal(IEEE488Bus::Signal signal) const { return ieee488Device.getBusSignal(signal); }
+        inline bool setIEEE488Signal(IEEE488Bus::Signal signal, bool level) { return ieee488Device.setBusSignal(signal, level); }
+        inline uint8_t getIEEE488BusDIO() const { return ieee488Device.getBusDIO(); }
 
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
@@ -58,6 +63,9 @@ class D2031 : public Drive
         inline const D2031VIA* getVIA2() const override { return &d2031mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
         const char* getDriveTypeName() const noexcept override { return "2031"; }
+
+    protected:
+        bool motorOn;
 
     private:
         D2031Bus d2031Bus;
@@ -131,6 +139,8 @@ class D2031 : public Drive
         uint64_t lastRomHeaderCycle;
 
         // Helpers
+        inline int stepIndex(uint8_t p) const { return (p & 0x03) * 2; }
+        void acceptGCRWriteByte(uint8_t value);
         void rebuildSyncMapForCurrentTrack();
         void saveCurrentRawTrackToCache();
         void invalidateRawGcrCache();

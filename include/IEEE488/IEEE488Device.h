@@ -30,6 +30,8 @@ class IEEE488Device
         virtual void onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
         inline bool getBusSignal(IEEE488Bus::Signal signal) const { return readSignal(signal); }
+        inline bool setBusSignal(IEEE488Bus::Signal signal, bool level) { return driveSignal(signal, level); }
+        inline uint8_t getBusDIO() const { return readDIO(); }
 
     protected:
         bool readSignal(IEEE488Bus::Signal signal) const;

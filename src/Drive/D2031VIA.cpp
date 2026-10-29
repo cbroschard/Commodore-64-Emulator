@@ -35,6 +35,11 @@ bool D2031VIA::loadState(StateReader& rdr)
 void D2031VIA::reset()
 {
     DriveVIA6522::reset();
+
+    ledOn           = false;
+    syncDetected    = false;
+    mechDataLatch   = 0;
+    mechBytePending = false;
 }
 
 uint8_t D2031VIA::readRegister(uint16_t address)
@@ -139,7 +144,33 @@ void D2031VIA::writeRegister(uint16_t address, uint8_t value)
 
 void D2031VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 {
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
 
+    setSyncDetected(inSync);
+
+    // During sync, the data separator reports SYNC on PB7.
+    // Do not keep an old data byte pending through sync.
+    if (inSync)
+    {
+        mechBytePending = false;
+        clearIFR(IFR_CA1);
+        return;
+    }
+
+    mechDataLatch = byte;
+    mechBytePending = true;
+
+    triggerInterrupt(IFR_CA1);
+
+    if (parentPeripheral)
+    {
+        if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
+        {
+            if (auto* cpu = drive->getDriveCPU())
+                cpu->pulseSO();
+        }
+    }
 }
 
 void D2031VIA::clearIEEE488TransientState()
@@ -167,15 +198,16 @@ void D2031VIA::onPCRChanged(uint8_t oldValue, uint8_t newValue)
 
 uint8_t D2031VIA::samplePortAInputs()
 {
-    uint8_t pins = portAPins;
-
     if (viaRole == VIARole::VIA2_Mechanics)
         return mechDataLatch;
 
-    if (viaRole != VIARole::VIA1_IEEE488Bus)
-        return pins;
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
+            return drive->getIEEE488BusDIO();
+    }
 
-    return pins;
+    return portAPins;
 }
 
 uint8_t D2031VIA::samplePortBInputs()
@@ -189,8 +221,7 @@ uint8_t D2031VIA::samplePortBInputs()
         {
             auto setPin = [&](uint8_t bit, bool high)
             {
-                const uint8_t mask =
-                    static_cast<uint8_t>(1u << bit);
+                const uint8_t mask = static_cast<uint8_t>(1u << bit);
 
                 if (high)
                     pins |= mask;
@@ -239,7 +270,59 @@ void D2031VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
 
 void D2031VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
+    // VIA1: IEEE-488 Interface
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        updateIEEE488Outputs();
+        return;
+    }
 
+    // VIA2: Disk Mechanism
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t ddrB = registers.ddrB;
+
+    // Stepper motor phases: PB0-PB1
+    const uint8_t phaseMask = 0x03;
+
+    const uint8_t oldPhase = static_cast<uint8_t>(oldValue & phaseMask);
+    const uint8_t newPhase = static_cast<uint8_t>(newValue & phaseMask);
+
+    if (oldPhase != newPhase && (ddrB & phaseMask) == phaseMask)
+        drive->onStepperPhaseChange(oldPhase, newPhase);
+
+    // Spindle motor: PB2
+    if (ddrB & (1u << MECH_SPINDLE_MOTOR))
+    {
+        const bool enabled = (newValue & (1u << MECH_SPINDLE_MOTOR)) != 0;
+
+        if (enabled)
+            drive->startMotor();
+        else
+            drive->stopMotor();
+    }
+
+    // Activity LED: PB3
+    if (ddrB & (1u << MECH_LED))
+    {
+        const bool enabled = (newValue & (1u << MECH_LED)) != 0;
+        setLed(enabled);
+    }
+
+    // Density selection: PB5-PB6
+    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) |(1u << MECH_DENSITY_BIT1));
+
+    if ((ddrB & densityMask) == densityMask)
+    {
+        const uint8_t code = static_cast<uint8_t>(((newValue >> MECH_DENSITY_BIT0) & 0x01) | (((newValue >> MECH_DENSITY_BIT1) & 0x01) << 1));
+
+        drive->setDensityCode(code);
+    }
 }
 
 void D2031VIA::onDDRAChanged(uint8_t oldDDR, uint8_t newDDR)
@@ -267,7 +350,41 @@ uint8_t D2031VIA::sampleShiftRegisterRead()
 
 void D2031VIA::updateIEEE488Outputs()
 {
+    if (viaRole != VIARole::VIA1_IEEE488Bus)
+        return;
 
+    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t orb  = registers.orbIRB;
+    const uint8_t ddrB = registers.ddrB;
+
+    // Resolve the VIA output pin levels.
+    // Input-configured pins default high.
+    const uint8_t pb = static_cast<uint8_t>((orb & ddrB) | ~ddrB);
+
+    const bool atna = (pb >> IEEE488_ATNA_BIT) & 1;
+    bool nrfd = (pb >> IEEE488_NRFD_BIT) & 1;
+    bool ndac = (pb >> IEEE488_NDAC_BIT) & 1;
+
+    const bool eoi = (pb >> IEEE488_EOI_BIT) & 1;
+    const bool dav = (pb >> IEEE488_DAV_BIT) & 1;
+
+    // IEEE-488 bus uses true = high/released.
+    const bool atnHigh = drive->getIEEE488Signal(IEEE488Bus::Signal::ATN);
+
+    // Hardware ATN acknowledge interaction.
+    if ((!atnHigh) ^ atna)
+    {
+        nrfd = false;
+        ndac = false;
+    }
+
+    (void)drive->setIEEE488Signal(IEEE488Bus::Signal::NRFD, nrfd);
+    (void)drive->setIEEE488Signal(IEEE488Bus::Signal::NDAC, ndac);
+    (void)drive->setIEEE488Signal(IEEE488Bus::Signal::EOI, eoi);
+    (void)drive->setIEEE488Signal(IEEE488Bus::Signal::DAV, dav);
 }
 
 void D2031VIA::recomputeDiskWriteGate()

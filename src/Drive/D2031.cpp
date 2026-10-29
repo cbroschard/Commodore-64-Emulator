@@ -9,8 +9,6 @@
 
 D2031::D2031(int deviceNumber, const std::string& loRom, const std::string& hiRom)
 {
-    reset();
-
     setDeviceNumber(deviceNumber);
 
     d2031mem.attachPeripheralInstance(this);
@@ -20,6 +18,8 @@ D2031::D2031(int deviceNumber, const std::string& loRom, const std::string& hiRo
 
     if (!d2031mem.initialize(loRom, hiRom))
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
+
+    reset();
 }
 
 D2031::~D2031()
@@ -29,6 +29,8 @@ D2031::~D2031()
 
 void D2031::reset()
 {
+    motorOn                     = false;
+
     // Disk
     diskLoaded                  = false;
     diskWriteProtected          = false;
@@ -150,6 +152,95 @@ void D2031::onVIA2PortARead(uint8_t value)
     lastRomHeaderValid = true;
     lastRomHeaderPos = gcrPos;
     lastRomHeaderCycle = 0;
+}
+
+void D2031::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
+{
+    if (!diskWriteGate)
+        return;
+
+    if (!diskLoaded || !diskImage || !motorOn || diskWriteProtected)
+        return;
+
+    if (ddrA != 0xFF)
+        return;
+
+    if (!pendingWritePosValid || gcrTrack.empty())
+        return;
+
+    const size_t pos = pendingWritePos % gcrTrack.size();
+
+    gcrTrack.getTrackData()[pos] = value;
+
+    if (gcrWrittenMask.size() == gcrTrack.size())
+        gcrWrittenMask[pos] = 1;
+
+    trackModifiedByWrite = true;
+
+    //
+    // Sector-backed images keep their synthesized raw-track cache
+    // synchronized during writes.
+    //
+    // Native raw-track formats are committed through writeRawTrack()
+    // when the write gate closes.
+    //
+    if (diskImage && !diskImage->supportsRawTracks())
+        saveCurrentRawTrackToCache();
+
+    acceptGCRWriteByte(value);
+}
+
+void D2031::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
+{
+    const int oldIdx = stepIndex(oldPhase);
+    const int newIdx = stepIndex(newPhase);
+
+    if (oldIdx < 0 || newIdx < 0 || oldIdx == newIdx)
+        return;
+
+    // delta in [0..7]
+    const int delta = (newIdx - oldIdx + 8) & 7;
+
+    int step = 0;
+    if (delta == 2)      step = +1;   // forward one half-track
+    else if (delta == 6) step = -1;   // backward one half-track
+    else
+        return; // ignore illegal jumps (delta 2..6)
+
+    saveCurrentRawTrackToCache();
+
+    int maxHalfTrack = 34 * 2;
+
+    if (diskImage && diskImage->supportsRawTracks())
+    {
+        const size_t trackCount = diskImage->getHalfTrackCount();
+
+        if (trackCount > 0)
+            maxHalfTrack = static_cast<int>(trackCount) - 1;
+    }
+
+    halfTrackPos = std::clamp(halfTrackPos + step, 0, maxHalfTrack);
+    currentTrack = static_cast<uint8_t>(halfTrackPos / 2);
+
+    uiTrack = currentTrack;
+    uiSector = currentSector;
+
+    gcrDirty = true;
+}
+
+void D2031::setDensityCode(uint8_t code)
+{
+    code &= 0x03;
+    if (densityCode != code) densityCode = code;
+}
+
+void D2031::acceptGCRWriteByte(uint8_t value)
+{
+    writeGcrBuffer.push_back(value);
+
+    // Keep bounded so noise does not grow forever.
+    if (writeGcrBuffer.size() > 4096)
+        writeGcrBuffer.erase(writeGcrBuffer.begin(), writeGcrBuffer.begin() + 1024);
 }
 
 void D2031::rebuildSyncMapForCurrentTrack()
