@@ -234,6 +234,23 @@ bool Cartridge::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         mapper->attachCartridgeInstance(this);
     }
 
+    if (mapperType == CartridgeType::IEEE_488)
+    {
+        auto* ieeeMapper = static_cast<IEEE488Mapper*>(mapper.get());
+
+        if (!ieee488Bus)
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
+        if (!ieeeMapper->attachIEEE488BusInstance(ieee488Bus))
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+    }
+
     // Mapper subchunks (now it can actually load them)
     StateReader::Chunk sub{};
     while (rdr.nextChunk(sub))
