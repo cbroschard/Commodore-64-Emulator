@@ -22,6 +22,7 @@
 #include "CPU.h"
 #include "CPUBus.h"
 #include "IECBUS.h"
+#include "IEEE488/IEEE488Bus.h"
 #include "IO.h"
 #include "IRQLine.h"
 #include "keyboard.h"
@@ -79,6 +80,7 @@ void DebugManager::wireBackend(Bus* c64Bus,
                               DataBusLatch* dataBus,
                               ExecutionHistory* executionHistory,
                               IECBUS* iecBus,
+                              IEEE488Bus* ieee488Bus,
                               IRQLine* irq,
                               Keyboard* keyb,
                               PLA* pla,
@@ -101,6 +103,7 @@ void DebugManager::wireBackend(Bus* c64Bus,
     backend_->attachDataBusLatchInstance(dataBus);
     backend_->attachExecutionHistoryInstance(executionHistory);
     backend_->attachIECBusInstance(iecBus);
+    backend_->attachIEEE488BusInstance(ieee488Bus);
     backend_->attachIRQLineInstance(irq);
     backend_->attachKeyboardInstance(keyb);
     backend_->attachPLAInstance(pla);

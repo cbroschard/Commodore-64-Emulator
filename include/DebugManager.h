@@ -28,6 +28,7 @@ class CPUBus;
 class DataBusLatch;
 class ExecutionHistory;
 class IECBUS;
+class IEEE488Bus;
 class IO;
 class IRQLine;
 class Keyboard;
@@ -64,6 +65,7 @@ class DebugManager
                          DataBusLatch* dataBusLatch,
                          ExecutionHistory* executionHistory,
                          IECBUS* iecBus,
+                         IEEE488Bus* ieee488Bus,
                          IRQLine* irq,
                          Keyboard* keyb,
                          PLA* pla,

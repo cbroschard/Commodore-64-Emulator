@@ -27,9 +27,9 @@ void MachineBuilder::assemble(Computer* host, MachineComponents& components, Mac
 
     components.debug->wireBackend(components.bus.get(), host, components.cart.get(), components.cass.get(), components.cia1.get(),
                                    components.cia2.get(), components.cpu.get(), components.bus.get(), components.dataBus.get(),
-                                   components.executionHistory.get(), components.iecBus.get(), components.irq.get(), components.keyb.get(),
-                                   components.pla.get(), components.reu.get(), components.sid.get(), components.userPort.get(),
-                                   components.vic.get());
+                                   components.executionHistory.get(), components.iecBus.get(), components.ieee488Bus.get(),
+                                   components.irq.get(), components.keyb.get(), components.pla.get(), components.reu.get(),
+                                   components.sid.get(), components.userPort.get(), components.vic.get());
 
     components.debug->wireTrace(components.cpu.get());
 
