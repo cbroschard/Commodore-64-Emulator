@@ -452,6 +452,7 @@ MLMonitorBackend::MLMonitorBackend() :
     dataBusLatch(nullptr),
     executionHistory(nullptr),
     iecBus(nullptr),
+    ieee488Bus(nullptr),
     irq(nullptr),
     keyb(nullptr),
     pla(nullptr),
