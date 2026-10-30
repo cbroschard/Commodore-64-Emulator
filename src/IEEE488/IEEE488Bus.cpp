@@ -50,14 +50,36 @@ void IEEE488Bus::tick(uint32_t cycles)
 {
     for (uint32_t i = 0; i < cycles; ++i)
     {
-        // Run drive emulation for one cycle.
-        for (auto& entry : devices)
+        // Process controller or device changes from the previous cycle.
+        dispatchPendingChanges();
+
+        // Snapshot IDs to avoid holding references into the vector
+        // while drive callbacks are executing.
+        std::vector<DeviceId> driveIds;
+
+        for (const auto& entry : devices)
         {
             if (entry.drive)
-                entry.drive->tick(1);
+                driveIds.push_back(entry.id);
         }
 
-        // Process IEEE-488 electrical transitions.
+        // Execute each attached drive.
+        for (DeviceId id : driveIds)
+        {
+            auto* entry = findDevice(id);
+
+            if (!entry || !entry->drive)
+                continue;
+
+            Drive* drive = entry->drive;
+
+            drive->tick(1);
+
+            // Deliver transitions generated during drive execution.
+            dispatchPendingChanges();
+        }
+
+        // Process any remaining transitions.
         dispatchPendingChanges();
     }
 }
@@ -299,6 +321,28 @@ void IEEE488Bus::dispatchPendingChanges()
     }
 
     dispatchingChanges = false;
+}
+
+Drive* IEEE488Bus::getDriveWithBreakpointHit() const
+{
+    for (const auto& entry : devices)
+    {
+        if (entry.drive && entry.drive->isBreakpointHit())
+            return entry.drive;
+    }
+
+    return nullptr;
+}
+
+Drive* IEEE488Bus::getDriveWithWatchpointHit() const
+{
+    for (const auto& entry : devices)
+    {
+        if (entry.drive && entry.drive->isWatchpointHit())
+            return entry.drive;
+    }
+
+    return nullptr;
 }
 
 void IEEE488Bus::resolveSignals()
