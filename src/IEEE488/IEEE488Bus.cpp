@@ -26,6 +26,8 @@ IEEE488Bus::~IEEE488Bus() = default;
 
 void IEEE488Bus::reset()
 {
+    pendingTransitions.clear();
+
     for (auto& entry : devices)
     {
         entry.dio = 0xFF;
