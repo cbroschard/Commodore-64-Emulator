@@ -8,8 +8,10 @@
 #ifndef IEEE488BUS_H
 #define IEEE488BUS_H
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -75,6 +77,33 @@ class IEEE488Bus
         void dispatchPendingChanges();
 
         // ML Monitor API
+        struct PhysicalSnapshot
+        {
+            // Resolved IEEE-488 signals
+            bool atn = true;
+            bool dav = true;
+            bool nrfd = true;
+            bool ndac = true;
+            bool eoi = true;
+            bool ifc = true;
+            bool ren = true;
+            bool srq = true;
+
+            uint8_t dio = 0xFF;
+
+            // Bus participants
+            size_t controllerCount = 0;
+            size_t deviceCount = 0;
+            size_t driveCount = 0;
+
+            // Pending bus events
+            size_t pendingTransitionCount = 0;
+        };
+
+        PhysicalSnapshot snapshotPhysical() const;
+        std::string debugPhysicalSnapshotString() const;
+
+        Drive* getDrive(DeviceId id) const;
         Drive* getDriveWithBreakpointHit() const;
         Drive* getDriveWithWatchpointHit() const;
 

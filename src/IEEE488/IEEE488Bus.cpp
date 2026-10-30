@@ -8,6 +8,8 @@
 #include "Drive/Drive.h"
 #include "IEEE488/IEEE488Bus.h"
 #include "IEEE488/IEEE488Device.h"
+#include "Debug/MLMonitor.h"
+#include "Debug/MLMonitorBackend.h"
 
 IEEE488Bus::IEEE488Bus() :
     dio(0xFF),
@@ -321,6 +323,82 @@ void IEEE488Bus::dispatchPendingChanges()
     }
 
     dispatchingChanges = false;
+}
+
+IEEE488Bus::PhysicalSnapshot IEEE488Bus::snapshotPhysical() const
+{
+    PhysicalSnapshot snapshot{};
+
+    snapshot.atn  = atn;
+    snapshot.dav  = dav;
+    snapshot.nrfd = nrfd;
+    snapshot.ndac = ndac;
+    snapshot.eoi  = eoi;
+    snapshot.ifc  = ifc;
+    snapshot.ren  = ren;
+    snapshot.srq  = srq;
+    snapshot.dio  = dio;
+
+    snapshot.pendingTransitionCount = pendingTransitions.size();
+
+    for (const auto& entry : devices)
+    {
+        if (entry.device)
+            ++snapshot.deviceCount;
+        else
+            ++snapshot.controllerCount;
+
+        if (entry.drive)
+            ++snapshot.driveCount;
+    }
+
+    return snapshot;
+}
+
+std::string IEEE488Bus::debugPhysicalSnapshotString() const
+{
+    const auto s = snapshotPhysical();
+
+    std::ostringstream out;
+
+    out << "IEEE-488 Physical Bus:\n";
+
+    out << "  ATN="  << (s.atn  ? "H" : "L")
+        << " DAV="   << (s.dav  ? "H" : "L")
+        << " NRFD="  << (s.nrfd ? "H" : "L")
+        << " NDAC="  << (s.ndac ? "H" : "L")
+        << " EOI="   << (s.eoi  ? "H" : "L")
+        << "\n";
+
+    out << "  IFC="  << (s.ifc ? "H" : "L")
+        << " REN="   << (s.ren ? "H" : "L")
+        << " SRQ="   << (s.srq ? "H" : "L")
+        << "\n";
+
+    out << "  DIO=$"
+        << std::hex << std::uppercase
+        << std::setw(2) << std::setfill('0')
+        << static_cast<unsigned>(s.dio)
+        << std::dec << "\n";
+
+    out << "  Controllers: " << s.controllerCount << "\n";
+    out << "  Devices: " << s.deviceCount << "\n";
+    out << "  Drives: " << s.driveCount << "\n";
+    out << "  Pending transitions: "
+        << s.pendingTransitionCount << "\n";
+
+    return out.str();
+}
+
+Drive* IEEE488Bus::getDrive(DeviceId id) const
+{
+    for (const auto& entry : devices)
+    {
+        if (entry.id == id)
+            return entry.drive;
+    }
+
+    return nullptr;
 }
 
 Drive* IEEE488Bus::getDriveWithBreakpointHit() const
