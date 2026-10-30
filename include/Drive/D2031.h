@@ -14,12 +14,15 @@
 #include "Drive/D2031Bus.h"
 #include "Drive/D2031Memory.h"
 #include "Drive/Drive.h"
+#include "Drive/IDriveIndicatorView.h"
+#include "Drive/IDrivePositionView.h"
+#include "Drive/IDriveUIView.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
 #include "IEEE488/IEEE488Device.h"
 #include "IRQLine.h"
 
-class D2031 : public Drive
+class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D2031(int deviceNumber, const std::string& loRom, const std::string& hiRom);
