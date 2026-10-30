@@ -201,7 +201,7 @@ bool IEEE488Bus::setDIO(DeviceId id, uint8_t value)
 
     device->dio = value;
 
-    resolveSignals();
+    recalcAndNotify();
     return true;
 }
 
