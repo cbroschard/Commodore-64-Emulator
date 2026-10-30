@@ -24,7 +24,7 @@ D2031::D2031(int deviceNumber, const std::string& loRom, const std::string& hiRo
 
 D2031::~D2031()
 {
-
+    ieee488Device.detachBus();
 }
 
 void D2031::reset()
@@ -76,6 +76,119 @@ void D2031::reset()
 
     invalidateRawGcrCache();
     updateIRQ();
+
+    d2031mem.reset();
+    driveCPU.reset();
+}
+
+void D2031::saveState(StateWriter& wrtr) const
+{
+    wrtr.beginChunk("D231");
+    wrtr.writeU32(1); // Version
+    wrtr.writeU8(static_cast<uint8_t>(deviceNumber));
+
+    wrtr.writeBool(diskLoaded);
+    wrtr.writeBool(diskWriteProtected);
+    wrtr.writeString(loadedDiskName);
+
+    wrtr.writeBool(motorOn);
+    wrtr.writeU8(currentTrack);
+    wrtr.writeU8(currentSector);
+    wrtr.writeU8(densityCode);
+    wrtr.writeI32(halfTrackPos);
+    wrtr.writeI32(gcrBitCounter);
+    wrtr.writeU32(static_cast<uint32_t>(gcrPos));
+
+    // CPU state
+    driveCPU.saveStatePayload(wrtr);
+    driveCPU.saveStateExtendedPayload(wrtr);
+
+    d2031mem.saveState(wrtr);
+    d2031mem.getVIA1().saveState(wrtr);
+    d2031mem.getVIA2().saveState(wrtr);
+
+    wrtr.endChunk();
+}
+
+bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
+{
+    if (std::memcmp(chunk.tag, "D231", 4) != 0)
+        return false;
+
+    rdr.enterChunkPayload(chunk);
+
+    uint32_t ver = 0;
+    if (!rdr.readU32(ver))                                  { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1)                                           { rdr.exitChunkPayload(chunk); return false; }
+
+    uint8_t dev = 0;
+    if (!rdr.readU8(dev))                                   { rdr.exitChunkPayload(chunk); return false; }
+
+    setDeviceNumber(static_cast<int>(dev));
+
+    bool savedDiskLoaded = false;
+    bool savedWriteProtected = false;
+    std::string savedDiskName;
+
+    if (!rdr.readBool(savedDiskLoaded))                     { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readBool(savedWriteProtected))                 { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readString(savedDiskName))                     { rdr.exitChunkPayload(chunk); return false; }
+
+    if (savedDiskLoaded)
+    {
+        if (savedDiskName.empty())                          { rdr.exitChunkPayload(chunk); return false; }
+
+        loadDisk(savedDiskName);
+
+        if (!diskLoaded || !diskImage)                      { rdr.exitChunkPayload(chunk); return false; }
+    }
+    else
+    {
+        resetForMediaChange();
+
+        diskImage.reset();
+        loadedDiskName.clear();
+        diskLoaded = false;
+        diskWriteProtected = false;
+    }
+
+    diskLoaded = savedDiskLoaded;
+    diskWriteProtected = savedWriteProtected;
+    loadedDiskName = savedDiskLoaded ? savedDiskName : std::string{};
+
+    if (!rdr.readBool(motorOn))                             { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentTrack))                          { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(currentSector))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(densityCode))                           { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(halfTrackPos))                         { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readI32(gcrBitCounter))                        { rdr.exitChunkPayload(chunk); return false; }
+
+    uint32_t savedGcrPos = 0;
+
+    if (!rdr.readU32(savedGcrPos))                          { rdr.exitChunkPayload(chunk); return false; }
+
+
+    if (!driveCPU.loadStatePayload(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
+    if (!driveCPU.loadStateExtendedPayload(chunk, rdr))     { rdr.exitChunkPayload(chunk); return false; }
+
+    if (!d2031mem.loadState(rdr))                           { rdr.exitChunkPayload(chunk); return false; }
+    if (!d2031mem.getVIA1().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
+    if (!d2031mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
+
+    rdr.exitChunkPayload(chunk);
+
+    // The raw GCR vectors and caches are not serialized.
+    // Rebuild them lazily while retaining the rotational position.
+    invalidateRawGcrCache();
+
+    gcrPos = static_cast<size_t>(savedGcrPos);
+    gcrDirty = true;
+
+    updateIRQ();
+
+    uiLedWasOn = d2031mem.getVIA2().isLedOn();
+
+    return true;
 }
 
 bool D2031::attachIEEE488Bus(IEEE488Bus* bus)
@@ -83,7 +196,11 @@ bool D2031::attachIEEE488Bus(IEEE488Bus* bus)
     if (!bus)
         return false;
 
-    return ieee488Device.attachBus(bus, static_cast<IEEE488Bus::DeviceId>(getDeviceNumber()));
+    if (!ieee488Device.attachBus(bus, static_cast<IEEE488Bus::DeviceId>(getDeviceNumber())))
+        return false;
+
+    d2031mem.getVIA1().synchronizeIEEE488Outputs();
+    return true;
 }
 
 void D2031::setDiskWriteGate(bool enabled)
@@ -308,4 +425,40 @@ void D2031::invalidateRawGcrCache()
 
     gcrPos = 0;
     gcrDirty = true;
+}
+
+void D2031::resetForMediaChange()
+{
+    // --- Media/GCR reset ---
+    gcrPos = 0;
+    gcrBitCounter = 0;
+    gcrDirty = true;
+    lastHeaderTrack = 0;
+    lastHeaderSector = 0;
+    haveLastHeader = false;
+    diskWriteGate = false;
+    pendingWritePos = 0;
+    pendingWritePosValid = false;
+    trackModifiedByWrite = false;
+    lastHeaderPos = 0;
+    lastHeaderValid = false;
+    readSyncRun = 0;
+    readAfterSync = false;
+    lastRomHeaderTrack = 0;
+    lastRomHeaderSector = 0;
+    lastRomHeaderValid = false;
+    lastRomHeaderPos = 0;
+    lastRomHeaderCycle = 0;
+    writeSyncRun = 0;
+    writeAfterSync = false;
+    writeGapRun = 0;
+    readGcrHeaderProbe.clear();
+    gcrTrack.clear();
+    gcrTrack.getSyncMap().clear();
+    gcrSectorAtPos.clear();
+    gcrWrittenMask.clear();
+    writeGcrBuffer.clear();
+    invalidateRawGcrCache();
+
+    updateIRQ();
 }

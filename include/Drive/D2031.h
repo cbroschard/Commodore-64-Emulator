@@ -35,6 +35,10 @@ class D2031 : public Drive
 
         bool attachIEEE488Bus(IEEE488Bus* ieee488Bus);
 
+        // State Management
+        void saveState(StateWriter& wrtr) const override;
+        bool loadState(const StateReader::Chunk& chunk, StateReader& rdr) override;
+
         // Drive Interface
         inline bool isWriteProtected() const { return diskWriteProtected; }
 
@@ -48,6 +52,7 @@ class D2031 : public Drive
         inline bool getIEEE488Signal(IEEE488Bus::Signal signal) const { return ieee488Device.getBusSignal(signal); }
         inline bool setIEEE488Signal(IEEE488Bus::Signal signal, bool level) { return ieee488Device.setBusSignal(signal, level); }
         inline uint8_t getIEEE488BusDIO() const { return ieee488Device.getBusDIO(); }
+        inline bool setIEEE488BusDIO(uint8_t value) { return ieee488Device.setBusDIO(value); }
 
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
@@ -144,6 +149,7 @@ class D2031 : public Drive
         void rebuildSyncMapForCurrentTrack();
         void saveCurrentRawTrackToCache();
         void invalidateRawGcrCache();
+        void resetForMediaChange();
 };
 
 #endif // D2031_H
