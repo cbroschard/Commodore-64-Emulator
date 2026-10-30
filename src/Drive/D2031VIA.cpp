@@ -17,19 +17,48 @@ D2031VIA::D2031VIA() :
 
 }
 
-D2031VIA::~D2031VIA()
-{
-
-}
+D2031VIA::~D2031VIA() = default;
 
 void D2031VIA::saveState(StateWriter& wrtr) const
 {
+    wrtr.writeU32(1);
 
+    saveVIAState(wrtr);
+
+    wrtr.writeBool(ledOn);
+    wrtr.writeBool(syncDetected);
+    wrtr.writeU8(mechDataLatch);
+    wrtr.writeBool(mechBytePending);
 }
 
 bool D2031VIA::loadState(StateReader& rdr)
 {
+    uint32_t version = 0;
 
+    if (!rdr.readU32(version))
+        return false;
+
+    if (version != 1)
+        return false;
+
+    if (!loadVIAState(rdr))
+        return false;
+
+    if (!rdr.readBool(ledOn))
+        return false;
+
+    if (!rdr.readBool(syncDetected))
+        return false;
+
+    if (!rdr.readU8(mechDataLatch))
+        return false;
+
+    if (!rdr.readBool(mechBytePending))
+        return false;
+
+    refreshMasterBit();
+
+    return true;
 }
 
 void D2031VIA::reset()
@@ -175,13 +204,38 @@ void D2031VIA::diskByteFromMedia(uint8_t byte, bool inSync)
 
 void D2031VIA::clearIEEE488TransientState()
 {
+    // clear only transient emu state, NOT registers
+    srShiftReg      = 0;
+    srBitCount      = 0;
 
+    updateIEEE488OutputsFromPortB();
+}
+
+void D2031VIA::clearMechBytePending()
+{
+    mechBytePending = false;
+    clearIFR(IFR_CA1);
+}
+
+void D2031VIA::synchronizeIEEE488Outputs()
+{
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        updateIEEE488OutputsFromPortB();
+        onPortAOutputChanged(registers.oraIRA, registers.oraIRA);
+    }
+}
+
+void D2031VIA::resetShift()
+{
+    srShiftReg = 0;
+    srBitCount = 0;
 }
 
 void D2031VIA::onAttachedToPeripheral()
 {
     if (viaRole == VIARole::VIA1_IEEE488Bus)
-        updateIEEE488Outputs();
+        updateIEEE488OutputsFromPortB();
 
     if (viaRole == VIARole::VIA2_Mechanics)
         recomputeDiskWriteGate();
@@ -265,7 +319,23 @@ uint8_t D2031VIA::samplePortBInputs()
 
 void D2031VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
+    (void)oldValue;
+    (void)newValue;
 
+    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        const uint8_t output = static_cast<uint8_t>((registers.oraIRA & registers.ddrA) |~registers.ddrA);
+
+        (void)drive->setIEEE488BusDIO(output);
+        return;
+    }
+
+    if (viaRole == VIARole::VIA2_Mechanics)
+        drive->onVIA2PortAWrite(registers.oraIRA, registers.ddrA );
 }
 
 void D2031VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
@@ -273,7 +343,7 @@ void D2031VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
     // VIA1: IEEE-488 Interface
     if (viaRole == VIARole::VIA1_IEEE488Bus)
     {
-        updateIEEE488Outputs();
+        updateIEEE488OutputsFromPortB();
         return;
     }
 
@@ -327,28 +397,72 @@ void D2031VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
 
 void D2031VIA::onDDRAChanged(uint8_t oldDDR, uint8_t newDDR)
 {
+    (void)oldDDR;
+    (void)newDDR;
 
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        onPortAOutputChanged(registers.oraIRA, registers.oraIRA);
+        return;
+    }
+
+    if (viaRole == VIARole::VIA2_Mechanics)
+        recomputeDiskWriteGate();
 }
 
 void D2031VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
 {
+    if (viaRole == VIARole::VIA1_IEEE488Bus)
+    {
+        updateIEEE488OutputsFromPortB();
+        return;
+    }
 
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t orb = registers.orbIRB;
+
+    // Spindle motor
+    if (newDDR & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR))
+    {
+        const bool enable = (orb & static_cast<uint8_t>(1u << MECH_SPINDLE_MOTOR)) != 0;
+
+        if (enable)
+            drive->startMotor();
+        else
+            drive->stopMotor();
+    }
+
+    // Drive LED
+    if (newDDR & static_cast<uint8_t>(1u << MECH_LED))
+        setLed((orb & static_cast<uint8_t>(1u << MECH_LED)) != 0);
+
+    // Disk density
+    const uint8_t densityMask = static_cast<uint8_t>((1u << MECH_DENSITY_BIT0) | (1u << MECH_DENSITY_BIT1));
+
+    if ((newDDR & densityMask) == densityMask)
+    {
+        const uint8_t code = static_cast<uint8_t>(((orb >> MECH_DENSITY_BIT0) & 0x01) | (((orb >> MECH_DENSITY_BIT1) & 0x01) << 1));
+        drive->setDensityCode(code);
+    }
 }
 
 void D2031VIA::onShiftRegisterWritten()
 {
-
+    resetShift();
 }
 
 uint8_t D2031VIA::sampleShiftRegisterRead()
 {
-    if (viaRole == VIARole::VIA2_Mechanics)
-        return mechDataLatch;
-
     return registers.serialShift;
 }
 
-void D2031VIA::updateIEEE488Outputs()
+void D2031VIA::updateIEEE488OutputsFromPortB()
 {
     if (viaRole != VIARole::VIA1_IEEE488Bus)
         return;

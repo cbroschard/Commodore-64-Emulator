@@ -33,10 +33,12 @@ class D2031VIA : public DriveVIA6522
         inline bool mechHasBytePending() const { return mechBytePending; }
         inline void setSyncDetected(bool present) { syncDetected = present; }
         void diskByteFromMedia(uint8_t byte, bool inSync);
-        void clearIEEE488TransientState();
 
-        // Setters
-        void setIEE488InputLines(bool atnLow, bool clkLow, bool dataLow);
+        // Helpers
+        void clearIEEE488TransientState();
+        void clearMechBytePending();
+        void synchronizeIEEE488Outputs();
+        void resetShift();
 
         MechanicsInfo getMechanicsInfo() const override;
 
@@ -126,7 +128,7 @@ class D2031VIA : public DriveVIA6522
         bool    haveLastHeader;
 
         // Helpers
-        void updateIEEE488Outputs();
+        void updateIEEE488OutputsFromPortB();
         void recomputeDiskWriteGate();
 };
 
