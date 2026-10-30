@@ -16,7 +16,7 @@ IECCommand::~IECCommand() = default;
 
 int IECCommand::order() const
 {
-    return 25;
+    return 5;
 }
 
 std::string IECCommand::name() const
