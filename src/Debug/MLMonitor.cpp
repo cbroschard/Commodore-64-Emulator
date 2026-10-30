@@ -19,6 +19,7 @@
 #include "Debug/GoCommand.h"
 #include "Debug/HistoryCommand.h"
 #include "Debug/IECCommand.h"
+#include "Debug/IEEE488BusCommand.h"
 #include "Debug/IRQCommand.h"
 #include "Debug/MemoryDumpCommand.h"
 #include "Debug/MemoryEditCommand.h"
@@ -61,6 +62,7 @@ MLMonitor::MLMonitor() :
     registerCommand(std::make_unique<GoCommand>());
     registerCommand(std::make_unique<HistoryCommand>());
     registerCommand(std::make_unique<IECCommand>());
+    registerCommand(std::make_unique<IEEE488BusCommand>());
     registerCommand(std::make_unique<IRQCommand>());
     registerCommand(std::make_unique<MemoryDumpCommand>());
     registerCommand(std::make_unique<MemoryEditCommand>());
