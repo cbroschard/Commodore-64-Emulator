@@ -83,8 +83,6 @@ void D2031::reset()
     updateIRQ();
 
     d2031mem.reset();
-    d2031mem.getVIA1().reset();
-    d2031mem.getVIA2().reset();
     driveCPU.reset();
 }
 
