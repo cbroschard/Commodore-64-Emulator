@@ -74,6 +74,10 @@ class IEEE488Bus
         void recalcAndNotify();
         void dispatchPendingChanges();
 
+        // ML Monitor API
+        Drive* getDriveWithBreakpointHit() const;
+        Drive* getDriveWithWatchpointHit() const;
+
     private:
         struct AttachedDevice
         {
