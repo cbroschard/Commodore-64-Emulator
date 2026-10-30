@@ -8,7 +8,8 @@
 #include "Drive/D2031.h"
 #include "Drive/D2031Memory.h"
 
-D2031Memory::D2031Memory()
+D2031Memory::D2031Memory() :
+    parentPeripheral(nullptr)
 {
     // Initialize Memory to all 0's
     D2031RAM.resize(RAM_SIZE,0);
