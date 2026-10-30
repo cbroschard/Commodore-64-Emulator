@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include "Drive/Drive.h"
 #include "IEEE488/IEEE488Bus.h"
 #include "IEEE488/IEEE488Device.h"
 
@@ -48,7 +49,17 @@ void IEEE488Bus::reset()
 void IEEE488Bus::tick(uint32_t cycles)
 {
     for (uint32_t i = 0; i < cycles; ++i)
+    {
+        // Run drive emulation for one cycle.
+        for (auto& entry : devices)
+        {
+            if (entry.drive)
+                entry.drive->tick(1);
+        }
+
+        // Process IEEE-488 electrical transitions.
         dispatchPendingChanges();
+    }
 }
 
 bool IEEE488Bus::attachController(DeviceId id)
@@ -100,6 +111,23 @@ void IEEE488Bus::detachDevice(DeviceId id)
             return;
         }
     }
+}
+
+bool IEEE488Bus::registerDrive(DeviceId id, Drive* drive)
+{
+    if (!drive)
+        return false;
+
+    auto* entry = findDevice(id);
+
+    if (!entry || !entry->device)
+        return false;
+
+    if (entry->drive && entry->drive != drive)
+        return false;
+
+    entry->drive = drive;
+    return true;
 }
 
 bool IEEE488Bus::isDeviceAttached(DeviceId id) const

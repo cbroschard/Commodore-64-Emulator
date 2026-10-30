@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+class Drive;
 class IEEE488Device;
 
 class IEEE488Bus
@@ -49,6 +50,7 @@ class IEEE488Bus
         // Device Management
         bool attachDevice(DeviceId id, IEEE488Device* device);
         void detachDevice(DeviceId id);
+        bool registerDrive(DeviceId id, Drive* drive);
         bool isDeviceAttached(DeviceId id) const;
 
         enum class Signal
@@ -77,6 +79,7 @@ class IEEE488Bus
         {
             DeviceId id = 0;
             IEEE488Device* device = nullptr;
+            Drive* drive = nullptr;
 
             uint8_t dio = 0xFF;
 

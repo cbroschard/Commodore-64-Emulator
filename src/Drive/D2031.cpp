@@ -209,10 +209,19 @@ bool D2031::attachIEEE488Bus(IEEE488Bus* bus)
     if (!bus)
         return false;
 
-    if (!ieee488Device.attachBus(bus, static_cast<IEEE488Bus::DeviceId>(getDeviceNumber())))
+    const auto id = static_cast<IEEE488Bus::DeviceId>(getDeviceNumber());
+
+    if (!ieee488Device.attachBus(bus, id))
         return false;
 
+    if (!bus->registerDrive(id, this))
+    {
+        ieee488Device.detachBus();
+        return false;
+    }
+
     d2031mem.getVIA1().synchronizeIEEE488Outputs();
+
     return true;
 }
 
