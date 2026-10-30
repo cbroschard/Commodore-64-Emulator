@@ -65,7 +65,7 @@ Subcommands:
 
   device <n>    Show detailed info for device number <n> (if attached)
 
-    history       Show the most recent IEC timing events
+  history       Show the most recent IEC timing events
 )";
 }
 
