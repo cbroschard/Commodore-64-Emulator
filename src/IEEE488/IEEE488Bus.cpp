@@ -40,7 +40,7 @@ void IEEE488Bus::reset()
         entry.srq  = true;
     }
 
-    resolveSignals();
+    recalcAndNotify();
 }
 
 void IEEE488Bus::tick(uint32_t cycles)
@@ -59,7 +59,7 @@ bool IEEE488Bus::attachController(DeviceId id)
     entry.device = nullptr;
 
     devices.push_back(entry);
-    resolveSignals();
+    recalcAndNotify();
 
     return true;
 }
@@ -82,7 +82,7 @@ bool IEEE488Bus::attachDevice(DeviceId id, IEEE488Device* device)
     entry.device = device;
 
     devices.push_back(entry);
-    resolveSignals();
+    recalcAndNotify();
 
     return true;
 }
@@ -94,7 +94,7 @@ void IEEE488Bus::detachDevice(DeviceId id)
         if (it->id == id)
         {
             devices.erase(it);
-            resolveSignals();
+            recalcAndNotify();
             return;
         }
     }
@@ -156,7 +156,7 @@ bool IEEE488Bus::setSignal(DeviceId id, Signal signal, bool level)
             return false;
     }
 
-    resolveSignals();
+    recalcAndNotify();
     return true;
 }
 

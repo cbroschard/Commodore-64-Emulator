@@ -34,6 +34,7 @@ class D2031 : public Drive
         void reset() override;
 
         bool attachIEEE488Bus(IEEE488Bus* ieee488Bus);
+        void onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
         // State Management
         void saveState(StateWriter& wrtr) const override;

@@ -9,6 +9,7 @@
 #define IEEE488DEVICE_H
 
 #include <cstdint>
+#include <functional>
 #include "IEEE488/IEEE488Bus.h"
 
 class IEEE488Device
@@ -17,6 +18,8 @@ class IEEE488Device
         IEEE488Device();
         ~IEEE488Device();
 
+        using BusChangeCallback = std::function<void(const IEEE488Bus::BusState&, const IEEE488Bus::BusState&)>;
+
         IEEE488Device(const IEEE488Device&) = delete;
         IEEE488Device& operator=(const IEEE488Device&) = delete;
 
@@ -24,6 +27,8 @@ class IEEE488Device
 
         bool attachBus(IEEE488Bus* bus, IEEE488Bus::DeviceId id);
         void detachBus();
+
+        void setBusChangeCallback(BusChangeCallback callback);
 
         bool isConnected() const;
 
@@ -35,6 +40,7 @@ class IEEE488Device
         inline bool setBusDIO(uint8_t value) { return driveDIO(value); }
 
     private:
+        BusChangeCallback busChangeCallback;
         IEEE488Bus* ieee488Bus;
         IEEE488Bus::DeviceId participantId;
 

@@ -9,6 +9,7 @@
 #define D2031VIA_H
 
 #include "Drive/DriveVIA6522.h"
+#include "IEEE488/IEEE488Bus.h"
 
 class D2031VIA : public DriveVIA6522
 {
@@ -40,7 +41,7 @@ class D2031VIA : public DriveVIA6522
         void synchronizeIEEE488Outputs();
         void resetShift();
 
-        void setIEEE488Inputs();
+        void setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
         MechanicsInfo getMechanicsInfo() const override;
 

@@ -232,23 +232,18 @@ void D2031VIA::resetShift()
     srBitCount = 0;
 }
 
-void D2031VIA::setIEEE488Inputs()
+void D2031VIA::setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
+
     if (viaRole != VIARole::VIA1_IEEE488Bus)
         return;
 
-    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
-    if (!drive)
-        return;
+    // Update the IEEE-488 parallel data inputs.
+    portAPins = newState.dio;
 
-    // Sample current bus levels.
-    portAPins = drive->getIEEE488BusDIO();
-
-    // Refresh externally driven input pins.
-    portBPins = samplePortBInputs();
-
-    // ATN may affect the hardware acknowledge logic.
-    updateIEEE488OutputsFromPortB();
+    // ATN changes affect the hardware acknowledge logic.
+    if (oldState.atn != newState.atn)
+        updateIEEE488OutputsFromPortB();
 }
 
 void D2031VIA::onAttachedToPeripheral()

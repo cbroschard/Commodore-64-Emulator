@@ -5,6 +5,7 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <utility>
 #include "IEEE488/IEEE488Device.h"
 
 IEEE488Device::IEEE488Device() :
@@ -18,6 +19,11 @@ IEEE488Device::~IEEE488Device()
 {
     if (ieee488Bus)
         detachBus();
+}
+
+void IEEE488Device::setBusChangeCallback(BusChangeCallback callback)
+{
+    busChangeCallback = std::move(callback);
 }
 
 void IEEE488Device::reset()
@@ -65,8 +71,8 @@ bool IEEE488Device::isConnected() const
 
 void IEEE488Device::onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
-    (void)oldState;
-    (void)newState;
+    if (busChangeCallback)
+        busChangeCallback(oldState, newState);
 }
 
 bool IEEE488Device::readSignal(IEEE488Bus::Signal signal) const

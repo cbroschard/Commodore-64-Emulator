@@ -19,6 +19,11 @@ D2031::D2031(int deviceNumber, const std::string& loRom, const std::string& hiRo
     if (!d2031mem.initialize(loRom, hiRom))
         throw std::runtime_error("Unable to start drive, ROM not loaded!\n");
 
+    ieee488Device.setBusChangeCallback([this](const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
+    {
+        onIEEE488BusChanged(oldState, newState);
+    });
+
     reset();
 }
 
@@ -211,6 +216,11 @@ bool D2031::attachIEEE488Bus(IEEE488Bus* bus)
 
     d2031mem.getVIA1().synchronizeIEEE488Outputs();
     return true;
+}
+
+void D2031::onIEEE488BusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
+{
+    d2031mem.getVIA1().setIEEE488Inputs(oldState, newState);
 }
 
 void D2031::setDiskWriteGate(bool enabled)
