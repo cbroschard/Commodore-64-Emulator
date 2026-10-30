@@ -78,6 +78,8 @@ void D2031::reset()
     updateIRQ();
 
     d2031mem.reset();
+    d2031mem.getVIA1().reset();
+    d2031mem.getVIA2().reset();
     driveCPU.reset();
 }
 
@@ -98,6 +100,10 @@ void D2031::saveState(StateWriter& wrtr) const
     wrtr.writeI32(halfTrackPos);
     wrtr.writeI32(gcrBitCounter);
     wrtr.writeU32(static_cast<uint32_t>(gcrPos));
+
+    // UI state
+    wrtr.writeU8(uiTrack);
+    wrtr.writeU8(uiSector);
 
     // CPU state
     driveCPU.saveStatePayload(wrtr);
@@ -167,6 +173,8 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     if (!rdr.readU32(savedGcrPos))                          { rdr.exitChunkPayload(chunk); return false; }
 
+    if (!rdr.readU8(uiTrack))                               { rdr.exitChunkPayload(chunk); return false; }
+    if (!rdr.readU8(uiSector))                              { rdr.exitChunkPayload(chunk); return false; }
 
     if (!driveCPU.loadStatePayload(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
     if (!driveCPU.loadStateExtendedPayload(chunk, rdr))     { rdr.exitChunkPayload(chunk); return false; }
@@ -176,6 +184,8 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!d2031mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
 
     rdr.exitChunkPayload(chunk);
+
+    d2031mem.getVIA1().synchronizeIEEE488Outputs();
 
     // The raw GCR vectors and caches are not serialized.
     // Rebuild them lazily while retaining the rotational position.
