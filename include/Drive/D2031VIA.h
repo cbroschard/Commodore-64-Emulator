@@ -40,6 +40,8 @@ class D2031VIA : public DriveVIA6522
         void synchronizeIEEE488Outputs();
         void resetShift();
 
+        void setIEEE488Inputs();
+
         MechanicsInfo getMechanicsInfo() const override;
 
     protected:
