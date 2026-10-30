@@ -31,6 +31,7 @@ class MLMonitorBackend
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
         inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
+        inline void attachIEEE488BusInstance(IEEE488Bus* ieee488Bus) { this->ieee488Bus = ieee488Bus; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
         inline void attachREUInstance(REU* reu) { this->reu = reu; }
@@ -162,6 +163,11 @@ class MLMonitorBackend
         // ML Monitor IEC Bus
         IECBUS* getIECBus() const { return iecBus; }
 
+        // ML Monitor IEEE-488 Bus
+        inline IEEE488Bus* getIEEE488Bus() const { return ieee488Bus; }
+        inline std::string dumpIEEE488Bus() const { return ieee488Bus ? ieee488Bus->debugPhysicalSnapshotString()
+            : "IEEE-488 bus not attached\n"; }
+
         // Helper to check if irq is left on which is disruptive to normal operation
         inline bool irqForceActive() const { return irq && ( irq->getActiveSources() & IRQLine::MONITOR) != 0; }
 
@@ -289,6 +295,7 @@ class MLMonitorBackend
         DataBusLatch* dataBusLatch;
         ExecutionHistory* executionHistory;
         IECBUS* iecBus;
+        IEEE488Bus* ieee488Bus;
         IRQLine* irq;
         Keyboard* keyb;
         PLA* pla;
