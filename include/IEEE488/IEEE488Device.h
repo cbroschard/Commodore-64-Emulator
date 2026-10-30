@@ -15,25 +15,29 @@ class IEEE488Device
 {
     public:
         IEEE488Device();
-        virtual ~IEEE488Device();
+        ~IEEE488Device();
 
         IEEE488Device(const IEEE488Device&) = delete;
         IEEE488Device& operator=(const IEEE488Device&) = delete;
 
-        virtual void reset();
+        void reset();
 
         bool attachBus(IEEE488Bus* bus, IEEE488Bus::DeviceId id);
         void detachBus();
 
         bool isConnected() const;
 
-        virtual void onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
+        void onBusChanged(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
         inline bool getBusSignal(IEEE488Bus::Signal signal) const { return readSignal(signal); }
         inline bool setBusSignal(IEEE488Bus::Signal signal, bool level) { return driveSignal(signal, level); }
         inline uint8_t getBusDIO() const { return readDIO(); }
+        inline bool setBusDIO(uint8_t value) { return driveDIO(value); }
 
-    protected:
+    private:
+        IEEE488Bus* ieee488Bus;
+        IEEE488Bus::DeviceId participantId;
+
         bool readSignal(IEEE488Bus::Signal signal) const;
         uint8_t readDIO() const;
 
@@ -41,10 +45,6 @@ class IEEE488Device
         bool driveDIO(uint8_t value);
 
         void releaseBusLines();
-
-    private:
-        IEEE488Bus* ieee488Bus;
-        IEEE488Bus::DeviceId participantId;
 };
 
 #endif // IEEE488DEVICE_H
