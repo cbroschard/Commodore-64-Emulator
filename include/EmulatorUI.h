@@ -107,6 +107,9 @@ class EmulatorUI
             bool tapeAttached                   = false;       std::string tapePath;
             bool prgAttached                    = false;       std::string prgPath;
 
+            // IEEE-488 cartridge / peripheral availability
+            bool ieee488MapperActive            = false;
+
             bool reuEnabled                     = false;       uint32_t reuSizeKB = 0;
 
             bool virtualModemAttached           = false;
