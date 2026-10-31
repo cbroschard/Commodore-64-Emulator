@@ -219,11 +219,12 @@ void D2031VIA::clearMechBytePending()
 
 void D2031VIA::synchronizeIEEE488Outputs()
 {
-    if (viaRole == VIARole::VIA1_IEEE488Bus)
-    {
-        updateIEEE488OutputsFromPortB();
-        onPortAOutputChanged(registers.oraIRA, registers.oraIRA);
-    }
+    if (viaRole != VIARole::VIA1_IEEE488Bus)
+        return;
+
+    updateIEEE488OutputsFromPortB();
+    onPortAOutputChanged(registers.oraIRA, registers.oraIRA);
+    updateIEEE488DeviceAddress();
 }
 
 void D2031VIA::resetShift()
@@ -253,16 +254,28 @@ void D2031VIA::pulseWriteByteReady()
 
 void D2031VIA::setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
-
     if (viaRole != VIARole::VIA1_IEEE488Bus)
         return;
 
-    // Update the IEEE-488 parallel data inputs.
+    // VIA1 Port A:
+    // IEEE-488 parallel data lines.
     portAPins = newState.dio;
 
-    // ATN changes affect the hardware acknowledge logic.
+    // VIA1 CA1:
+    // The Commodore 2031 connects inverted ATN to CA1.
+    //
+    // IEEE-488 ATN:
+    //   true  = high / released
+    //   false = low / asserted
+    //
+    // CA1 receives the opposite polarity.
     if (oldState.atn != newState.atn)
+    {
+        setCA1Level(!newState.atn);
+
+        // ATN also affects the external handshake circuit.
         updateIEEE488OutputsFromPortB();
+    }
 }
 
 void D2031VIA::onAttachedToPeripheral()
@@ -299,34 +312,39 @@ uint8_t D2031VIA::samplePortAInputs()
 
 uint8_t D2031VIA::samplePortBInputs()
 {
-    uint8_t pins = portBPins;
-    const uint8_t ddrB = registers.ddrB;
-
     if (viaRole == VIARole::VIA1_IEEE488Bus)
     {
-        if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
+        auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+
+        if (!drive)
+            return 0x00;
+
+        // Construct the externally supplied VIA1 inputs.
+        // The VIA base class applies DDR masking afterward.
+        uint8_t pins = 0x00;
+
+        auto setPin = [&](uint8_t bit, bool high)
         {
-            auto setPin = [&](uint8_t bit, bool high)
-            {
-                const uint8_t mask = static_cast<uint8_t>(1u << bit);
+            if (high)
+                pins |= static_cast<uint8_t>(1u << bit);
+        };
 
-                if (high)
-                    pins |= mask;
-                else
-                    pins &= static_cast<uint8_t>(~mask);
-            };
+        setPin(IEEE488_NRFD_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NRFD));
+        setPin(IEEE488_NDAC_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NDAC));
+        setPin(IEEE488_EOI_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::EOI));
+        setPin(IEEE488_DAV_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::DAV));
 
-            setPin(IEEE488_NRFD_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NRFD));
-            setPin(IEEE488_NDAC_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NDAC));
-            setPin(IEEE488_EOI_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::EOI));
-            setPin(IEEE488_DAV_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::DAV));
+        // PB7 receives inverted ATN.
+        setPin(IEEE488_ATN_BIT, !drive->getIEEE488Signal(IEEE488Bus::Signal::ATN));
 
-            // PB7 receives inverted ATN.
-            setPin(IEEE488_ATN_BIT, !drive->getIEEE488Signal(IEEE488Bus::Signal::ATN));
-        }
+        return pins;
     }
-    else if (viaRole == VIARole::VIA2_Mechanics)
+
+    if (viaRole == VIARole::VIA2_Mechanics)
     {
+        uint8_t pins = portBPins;
+        const uint8_t ddrB = registers.ddrB;
+
         if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
         {
             if ((ddrB & (1u << MECH_WRITE_PROTECT)) == 0)
@@ -345,9 +363,11 @@ uint8_t D2031VIA::samplePortBInputs()
                     pins |= static_cast<uint8_t>(1u << MECH_SYNC_DETECTED);
             }
         }
+
+        return pins;
     }
 
-    return pins;
+    return portBPins;
 }
 
 void D2031VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
@@ -373,10 +393,14 @@ void D2031VIA::onPortAOutputChanged(uint8_t oldValue, uint8_t newValue)
 
 void D2031VIA::onPortBOutputChanged(uint8_t oldValue, uint8_t newValue)
 {
-    // VIA1: IEEE-488 Interface
     if (viaRole == VIARole::VIA1_IEEE488Bus)
     {
+        // Update the IEEE-488 handshake outputs.
         updateIEEE488OutputsFromPortB();
+
+        // Update CA2 from the configured device-address circuitry.
+        updateIEEE488DeviceAddress();
+
         return;
     }
 
@@ -448,6 +472,7 @@ void D2031VIA::onDDRBChanged(uint8_t oldDDR, uint8_t newDDR)
     if (viaRole == VIARole::VIA1_IEEE488Bus)
     {
         updateIEEE488OutputsFromPortB();
+        updateIEEE488DeviceAddress();
         return;
     }
 
@@ -587,4 +612,32 @@ DriveVIABase::MechanicsInfo D2031VIA::getMechanicsInfo() const
     m.densityCode = code;
 
     return m;
+}
+
+void D2031VIA::updateIEEE488DeviceAddress()
+{
+    if (viaRole != VIARole::VIA1_IEEE488Bus)
+        return;
+
+    auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+    if (!drive)
+        return;
+
+    const uint8_t orb = registers.orbIRB;
+
+    const bool atna = (orb & 0x01) != 0;
+    const bool nrfd = (orb & 0x02) != 0;
+
+    bool ca2 = true;
+
+    switch (drive->getDeviceNumber())
+    {
+        case 8:  ca2 = atna && nrfd; break;
+        case 9:  ca2 = nrfd;         break;
+        case 10: ca2 = atna;         break;
+        case 11: ca2 = true;         break;
+        default: ca2 = true;         break;
+    }
+
+    setCA2Level(ca2);
 }
