@@ -387,6 +387,35 @@ std::string IEEE488Bus::debugPhysicalSnapshotString() const
     out << "  Pending transitions: "
         << s.pendingTransitionCount << "\n";
 
+    out << "\nIEEE-488 Registered Participants:\n";
+
+    for (const auto& entry : devices)
+    {
+        out << "  Bus ID: " << entry.id
+            << "  Type: "
+            << (entry.device ? "Peripheral" : "Controller")
+            << "  Drive: "
+            << (entry.drive ? "Yes" : "No");
+
+        if (entry.drive)
+        {
+            out << "  Drive device number: "
+                << entry.drive->getDeviceNumber();
+        }
+
+        out << " ATN=" << (entry.atn ? "H" : "L")
+            << " DAV=" << (entry.dav ? "H" : "L")
+            << " NRFD=" << (entry.nrfd ? "H" : "L")
+            << " NDAC=" << (entry.ndac ? "H" : "L")
+            << " DIO=$"
+            << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0')
+            << static_cast<unsigned>(entry.dio)
+            << std::dec;
+
+        out << '\n';
+    }
+
     return out.str();
 }
 
