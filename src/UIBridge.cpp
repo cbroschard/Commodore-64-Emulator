@@ -60,6 +60,8 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
 {
     EmulatorUI::MediaViewState s;
 
+    s.ieee488MapperActive = false;
+
     if (media_)
     {
         const auto& m       = media_->getState();
@@ -148,6 +150,9 @@ EmulatorUI::MediaViewState UIBridge::buildMediaViewState() const
         {
             const CartridgeMapper* mapper = cart->getMapper();
 
+            // Detect the IEEE-488 cartridge using its actual cartridge type.
+            s.ieee488MapperActive = mapper != nullptr && cart->getType() == Cartridge::CartridgeType::IEEE_488;
+
             // Switch capability
             if (auto* hs = dynamic_cast<const IHasSwitch*>(mapper))
             {
@@ -221,23 +226,45 @@ void UIBridge::processCommands()
         switch (cmd.type)
         {
             case UiCommand::Type::AttachDisk:
-                if (media_)
+            {
+                if (!media_)
+                    break;
+
+                DriveModel model = DriveModel::None;
+
+                switch (cmd.driveType)
                 {
-                    DriveModel model =
-                        (cmd.driveType == UiCommand::DriveType::D1571) ? DriveModel::D1571 :
-                        (cmd.driveType == UiCommand::DriveType::D1581) ? DriveModel::D1581 :
-                                                                         DriveModel::D1541;
+                    case UiCommand::DriveType::D1541:
+                        model = DriveModel::D1541;
+                        break;
 
-                    MediaLoadResult result = media_->attachDiskImage(
-                        cmd.deviceNum,
-                        model,
-                        cmd.path
-                    );
+                    case UiCommand::DriveType::D1571:
+                        model = DriveModel::D1571;
+                        break;
 
-                    if (!result.success)
-                        ui_.showMediaLoadError({MediaType::Disk, cmd.path, result.error});
+                    case UiCommand::DriveType::D1581:
+                        model = DriveModel::D1581;
+                        break;
+
+                    case UiCommand::DriveType::D2031:
+                        model = DriveModel::D2031;
+                        break;
+
+                    case UiCommand::DriveType::None:
+                    default:
+                        break;
                 }
+
+                if (model == DriveModel::None)
+                    break;
+
+                MediaLoadResult result = media_->attachDiskImage(cmd.deviceNum, model, cmd.path);
+
+                if (!result.success)
+                    ui_.showMediaLoadError({MediaType::Disk, cmd.path, result.error});
+
                 break;
+            }
 
             case UiCommand::Type::AttachPRG:
                 if (media_)
@@ -376,15 +403,42 @@ void UIBridge::processCommands()
                 break;
 
             case UiCommand::Type::CreateBlankDisk:
-                if (media_)
+            {
+                if (!media_)
+                    break;
+
+                DriveModel model = DriveModel::None;
+
+                switch (cmd.driveType)
                 {
-                    DriveModel model =
-                        (cmd.driveType == UiCommand::DriveType::D1571) ? DriveModel::D1571 :
-                        (cmd.driveType == UiCommand::DriveType::D1581) ? DriveModel::D1581 :
-                                                                         DriveModel::D1541;
-                    media_->createBlankDisk(cmd.deviceNum, model, cmd.path);
+                    case UiCommand::DriveType::D1541:
+                        model = DriveModel::D1541;
+                        break;
+
+                    case UiCommand::DriveType::D1571:
+                        model = DriveModel::D1571;
+                        break;
+
+                    case UiCommand::DriveType::D1581:
+                        model = DriveModel::D1581;
+                        break;
+
+                    case UiCommand::DriveType::D2031:
+                        model = DriveModel::D2031;
+                        break;
+
+                    case UiCommand::DriveType::None:
+                    default:
+                        break;
                 }
+
+                if (model == DriveModel::None)
+                    break;
+
+                media_->createBlankDisk(cmd.deviceNum, model, cmd.path);
+
                 break;
+            }
 
             case UiCommand::Type::EjectCRT:
                 if (media_)
