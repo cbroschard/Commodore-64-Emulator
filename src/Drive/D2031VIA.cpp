@@ -232,6 +232,25 @@ void D2031VIA::resetShift()
     srBitCount = 0;
 }
 
+void D2031VIA::pulseWriteByteReady()
+{
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return;
+
+    // Signal the VIA CA1 interrupt.
+    triggerInterrupt(IFR_CA1);
+
+    // Notify the drive CPU that a disk byte is ready.
+    if (parentPeripheral)
+    {
+        if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
+        {
+            if (auto* cpu = drive->getDriveCPU())
+                cpu->pulseSO();
+        }
+    }
+}
+
 void D2031VIA::setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState)
 {
 

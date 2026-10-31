@@ -40,6 +40,7 @@ class D2031VIA : public DriveVIA6522
         void clearMechBytePending();
         void synchronizeIEEE488Outputs();
         void resetShift();
+        void pulseWriteByteReady();
 
         void setIEEE488Inputs(const IEEE488Bus::BusState& oldState, const IEEE488Bus::BusState& newState);
 
