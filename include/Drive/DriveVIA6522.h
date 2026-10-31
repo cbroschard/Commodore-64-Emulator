@@ -122,6 +122,10 @@ class DriveVIA6522 : public DriveVIABase
         bool cb1Level;
         bool cb2Level;
 
+        // Internally driven CA2/CB2 output levels.
+        bool ca2OutputLevel;
+        bool cb2OutputLevel;
+
         // Shared serial shift engine state.
         uint8_t srShiftReg;
         uint8_t srBitCount;
@@ -168,6 +172,11 @@ class DriveVIA6522 : public DriveVIABase
 
         bool readCommonShiftRegister(uint16_t address, uint8_t& value);
         bool writeCommonShiftRegister(uint16_t address, uint8_t value);
+
+        void updatePCROutputs();
+
+        inline bool getCA2OutputLevel() const { return ca2OutputLevel; }
+        inline bool getCB2OutputLevel() const { return cb2OutputLevel; }
 
         virtual void onShiftRegisterWritten();
         virtual uint8_t sampleShiftRegisterRead();

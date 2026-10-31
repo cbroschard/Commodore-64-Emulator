@@ -78,6 +78,9 @@ void DriveVIA6522::saveVIAState(StateWriter& wrtr) const
     wrtr.writeBool(timer2JustLoaded);
     wrtr.writeBool(timer2InhibitIRQ);
     wrtr.writeU8(timer2LowLatchByte);
+
+    wrtr.writeBool(ca2OutputLevel);
+    wrtr.writeBool(cb2OutputLevel);
 }
 
 bool DriveVIA6522::loadVIAState(StateReader& rdr)
@@ -120,6 +123,9 @@ bool DriveVIA6522::loadVIAState(StateReader& rdr)
     if (!rdr.readBool(timer2JustLoaded)) return false;
     if (!rdr.readBool(timer2InhibitIRQ)) return false;
     if (!rdr.readU8(timer2LowLatchByte)) return false;
+
+    if (!rdr.readBool(ca2OutputLevel)) return false;
+    if (!rdr.readBool(cb2OutputLevel)) return false;
 
     refreshMasterBit();
     return true;
@@ -169,6 +175,9 @@ void DriveVIA6522::reset()
     ca2Level                            = false;
     cb1Level                            = false;
     cb2Level                            = false;
+
+    ca2OutputLevel                      = true;
+    cb2OutputLevel                      = true;
 
     srShiftReg                          = 0;
     srBitCount                          = 0;
@@ -609,8 +618,15 @@ bool DriveVIA6522::writeControlRegister(uint16_t address, uint8_t value)
         case 0x0C: // PCR
         {
             const uint8_t oldValue = registers.peripheralControlRegister;
+
             registers.peripheralControlRegister = value;
+
+            // Update CA2 and CB2 output states.
+            updatePCROutputs();
+
+            // Allow drive-specific hardware to react.
             onPCRChanged(oldValue, value);
+
             return true;
         }
 
@@ -789,6 +805,44 @@ bool DriveVIA6522::writeCommonShiftRegister(
     onShiftRegisterWritten();
 
     return true;
+}
+
+
+void DriveVIA6522::updatePCROutputs()
+{
+    const uint8_t pcr = registers.peripheralControlRegister;
+    const uint8_t ca2Mode = static_cast<uint8_t>((pcr >> 1) & 0x07);
+    const uint8_t cb2Mode = static_cast<uint8_t>((pcr >> 5) & 0x07);
+
+    // CA2 manual output modes.
+    switch (ca2Mode)
+    {
+        case 0b110:
+            ca2OutputLevel = false;
+            break;
+
+        case 0b111:
+            ca2OutputLevel = true;
+            break;
+
+        default:
+            break;
+    }
+
+    // CB2 manual output modes.
+    switch (cb2Mode)
+    {
+        case 0b110:
+            cb2OutputLevel = false;
+            break;
+
+        case 0b111:
+            cb2OutputLevel = true;
+            break;
+
+        default:
+            break;
+    }
 }
 
 uint8_t DriveVIA6522::samplePortAInputs()
