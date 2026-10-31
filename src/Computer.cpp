@@ -138,6 +138,10 @@ Computer::~Computer() noexcept
         components_.resetCtl.reset();
         components_.media.reset();
 
+        // Destroy drive objects while their buses are still alive.
+        for (auto& drive : components_.drives)
+            drive.reset();
+
         // Nothing should point into DebugManager anymore.
         components_.debug.reset();
 
