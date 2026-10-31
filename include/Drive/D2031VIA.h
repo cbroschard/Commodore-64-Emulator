@@ -134,6 +134,7 @@ class D2031VIA : public DriveVIA6522
         // Helpers
         void updateIEEE488OutputsFromPortB();
         void recomputeDiskWriteGate();
+        void updateIEEE488DeviceAddress();
 };
 
 #endif // D2031VIA_H
