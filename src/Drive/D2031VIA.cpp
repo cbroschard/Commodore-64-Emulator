@@ -329,7 +329,20 @@ uint8_t D2031VIA::samplePortBInputs()
                 pins |= static_cast<uint8_t>(1u << bit);
         };
 
-        setPin(IEEE488_NRFD_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NRFD));
+        // The ROM samples PB0/PB1 to initialize its IEEE-488 address.
+        // Compatibility behavior validated for device numbers 8-11.
+        const uint8_t addressBits = static_cast<uint8_t>(drive->getDeviceNumber() - 8) & 0x03;
+
+        // PB0 supplies the low-order address bit when configured as input.
+        setPin(IEEE488_ATNA_BIT, (addressBits & 0x01) != 0);
+
+        // PB1 supplies the second address bit during ROM initialization.
+        // Otherwise PB1 remains the IEEE-488 NRFD handshake input.
+        if (registers.ddrB == 0x30)
+            setPin(IEEE488_NRFD_BIT, (addressBits & 0x02) != 0);
+        else
+            setPin(IEEE488_NRFD_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NRFD));
+
         setPin(IEEE488_NDAC_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::NDAC));
         setPin(IEEE488_EOI_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::EOI));
         setPin(IEEE488_DAV_BIT, drive->getIEEE488Signal(IEEE488Bus::Signal::DAV));
@@ -614,6 +627,7 @@ DriveVIABase::MechanicsInfo D2031VIA::getMechanicsInfo() const
     return m;
 }
 
+
 void D2031VIA::updateIEEE488DeviceAddress()
 {
     if (viaRole != VIARole::VIA1_IEEE488Bus)
@@ -623,6 +637,7 @@ void D2031VIA::updateIEEE488DeviceAddress()
     if (!drive)
         return;
 
+    // VIA1 output latch values used by the address-select circuit.
     const uint8_t orb = registers.orbIRB;
 
     const bool atna = (orb & 0x01) != 0;
@@ -630,13 +645,28 @@ void D2031VIA::updateIEEE488DeviceAddress()
 
     bool ca2 = true;
 
+    // Commodore 2031 device address diode logic.
     switch (drive->getDeviceNumber())
     {
-        case 8:  ca2 = atna && nrfd; break;
-        case 9:  ca2 = nrfd;         break;
-        case 10: ca2 = atna;         break;
-        case 11: ca2 = true;         break;
-        default: ca2 = true;         break;
+        case 8:
+            ca2 = atna && nrfd;
+            break;
+
+        case 9:
+            ca2 = nrfd;
+            break;
+
+        case 10:
+            ca2 = atna;
+            break;
+
+        case 11:
+            ca2 = true;
+            break;
+
+        default:
+            ca2 = true;
+            break;
     }
 
     setCA2Level(ca2);
