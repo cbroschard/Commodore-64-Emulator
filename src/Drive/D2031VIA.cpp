@@ -29,32 +29,30 @@ void D2031VIA::saveState(StateWriter& wrtr) const
     wrtr.writeBool(syncDetected);
     wrtr.writeU8(mechDataLatch);
     wrtr.writeBool(mechBytePending);
+
+    wrtr.writeBool(ca1Level);
+    wrtr.writeBool(ca2Level);
+    wrtr.writeBool(cb1Level);
+    wrtr.writeBool(cb2Level);
 }
 
 bool D2031VIA::loadState(StateReader& rdr)
 {
     uint32_t version = 0;
 
-    if (!rdr.readU32(version))
-        return false;
+    if (!rdr.readU32(version)) return false;
+    if (version != 1) return false;
 
-    if (version != 1)
-        return false;
+    if (!loadVIAState(rdr)) return false;
+    if (!rdr.readBool(ledOn)) return false;
+    if (!rdr.readBool(syncDetected)) return false;
+    if (!rdr.readU8(mechDataLatch)) return false;
+    if (!rdr.readBool(mechBytePending)) return false;
 
-    if (!loadVIAState(rdr))
-        return false;
-
-    if (!rdr.readBool(ledOn))
-        return false;
-
-    if (!rdr.readBool(syncDetected))
-        return false;
-
-    if (!rdr.readU8(mechDataLatch))
-        return false;
-
-    if (!rdr.readBool(mechBytePending))
-        return false;
+    if (!rdr.readBool(ca1Level)) return false;
+    if (!rdr.readBool(ca2Level)) return false;
+    if (!rdr.readBool(cb1Level)) return false;
+    if (!rdr.readBool(cb2Level)) return false;
 
     refreshMasterBit();
 

@@ -129,7 +129,6 @@ class D2031VIA : public DriveVIA6522
         bool    syncDetected;
         uint8_t mechDataLatch;
         bool    mechBytePending;
-        bool    haveLastHeader;
 
         // Helpers
         void updateIEEE488OutputsFromPortB();
