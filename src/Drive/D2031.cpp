@@ -231,12 +231,16 @@ void D2031::tick(uint32_t cycles)
         // Track activity LED state for the UI.
         const bool ledOn = d2031mem.getVIA2().isLedOn();
 
-        if (ledOn)
+        // Update the displayed position only while the
+        // drive is actively accessing an inserted disk.
+        if (ledOn && motorOn && diskLoaded)
+        {
             uiTrack = currentTrack;
-
-        if (ledOn && !uiLedWasOn)
             uiSector = currentSector;
+        }
 
+        // When activity stops, retain the last displayed
+        // track and sector. Physical rotation continues.
         uiLedWasOn = ledOn;
 
         remaining -= static_cast<int32_t>(dc);

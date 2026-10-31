@@ -108,8 +108,8 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Position display
         inline bool hasTrackSector() const override { return diskLoaded; }
 
-        inline int getTrack() const override { return static_cast<int>(currentTrack) + 1; }
-        inline int getSector() const override { return static_cast<int>(currentSector); }
+        inline int getTrack() const override { return static_cast<int>(uiTrack) + 1; }
+        inline int getSector() const override { return static_cast<int>(uiSector); }
 
         // ML Monitor
         inline bool hasCIA()  const override { return false; }
