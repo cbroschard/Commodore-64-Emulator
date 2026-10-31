@@ -646,7 +646,6 @@ void D1541::unloadDisk()
     lastHeaderTrack         = 0;
     lastHeaderSector        = 0;
     haveLastHeader          = false;
-
 }
 
 void D1541::onListen()
@@ -1017,7 +1016,6 @@ int D1541::cyclesPerByteFromDensity(uint8_t code) const
     return kCycles[code & 0x03];
 }
 
-
 void D1541::saveCurrentRawTrackToCache()
 {
     //
@@ -1095,7 +1093,8 @@ void D1541::loadCurrentRawTrackFromCacheOrBuild()
         // Raw preservation formats do not provide the logical
         // sector-position map used by synthesized sector images.
         //
-        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);gcrWrittenMask.assign(gcrTrack.size(), 0);
+        gcrSectorAtPos.assign(gcrTrack.size(), currentSector);
+        gcrWrittenMask.assign(gcrTrack.size(), 0);
         gcrPos %= gcrTrack.size();
         d1541mem.getVIA2().clearMechBytePending();
         return;
