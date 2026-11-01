@@ -2950,87 +2950,98 @@ MLMonitorBackend::ResolvedDrive MLMonitorBackend::resolveDrive(int deviceNumber,
 
 void MLMonitorBackend::dumpDriveList()
 {
-    if (!iecBus)
+    bool foundAny = false;
+
+    std::cout << "Attached Disk Drives:\n";
+    std::cout << "------------------------------------------------------------\n";
+
+    auto printDrive = [&](const char* busName, int id, Drive* drive)
     {
-        std::cout << "No IEC bus attached.\n";
-        return;
-    }
+        if (!drive)
+            return;
 
-    const auto& devs = iecBus->getDevices();  // map<int, Peripheral*>
+        foundAny = true;
 
-    if (devs.empty())
+        const std::string image = drive->getLoadedDiskName();
+        const std::string status = decodeDriveStatus(drive->getDriveStatus());
+
+        std::cout << "\n";
+        std::cout << "  Bus:         " << busName << "\n";
+        std::cout << "  Device:      " << id << "\n";
+        std::cout << "  Type:        " << drive->getDriveTypeName() << "\n";
+        std::cout << "  Disk:        "
+                  << (image.empty() ? "(none)" : image) << "\n";
+        std::cout << "  Status:      " << status << "\n";
+        std::cout << "  Track:       "
+                  << static_cast<int>(drive->getCurrentTrack()) << "\n";
+        std::cout << "  Sector:      "
+                  << static_cast<int>(drive->getCurrentSector()) << "\n";
+    };
+
+    // ---------------------------------------------------
+    // IEC drives
+    // ---------------------------------------------------
+    if (iecBus)
     {
-        std::cout << "No IEC devices registered.\n";
-        return;
-    }
-
-    std::cout << "IEC Devices:\n";
-    std::cout << "  ID   Type      Details                          Status      Track   Sector\n";
-    std::cout << "  --   -------   ---------------------------      -------     -----   ------\n";
-
-    for (const auto& [id, dev] : devs)
-    {
-        if (!dev)
-            continue;
-
-        if (dev->isDrive())
+        for (const auto& [id, peripheral] : iecBus->getDevices())
         {
-            // Grab a pointer to the drive so we can run drive only methods
-            auto drv = dev->asDrive();
-            if (!drv)
-            {
-                std::cerr << "Error: Not a drive\n";
-            }
+            if (!peripheral || !peripheral->isDrive())
+                continue;
 
-            // Output drive ID, type, and disk image name
-            std::string img = drv->getLoadedDiskName();
-            std::cout << "  " << id
-                      << "    " << drv->getDriveTypeName();
-
-            if (!img.empty())
-                std::cout << "       [" << img << "]";
-
-            // Output drive status and current track and sector
-            std::string currentStatus = decodeDriveStatus(drv->getDriveStatus());
-            std::cout << "    " << currentStatus << "          " << static_cast<int>(drv->getCurrentTrack());
-            std::cout << "        " << static_cast<int>(drv->getCurrentSector()) << "\n";
-        }
-        else
-        {
-            std::cout << "  " << id << "    (non-drive IEC device)\n";
+            printDrive("IEC", id, peripheral->asDrive());
         }
     }
+
+    // ---------------------------------------------------
+    // IEEE-488 drives
+    // ---------------------------------------------------
+    if (ieee488Bus)
+    {
+        for (const auto& entry : ieee488Bus->getRegisteredDrives())
+        {
+            Drive* drive = entry.drive;
+
+            if (!drive)
+                continue;
+
+            // Use Commodore device number, not bus participant ID.
+            printDrive("IEEE-488", drive->getDeviceNumber(), drive);
+
+            // Print the internal IEEE-488 participant ID
+            // for additional debugging.
+            std::cout << "  Participant: " << entry.participantId << "\n";
+        }
+    }
+
+    if (!foundAny)
+        std::cout << "  No disk drives attached.\n";
+
+    std::cout << "\n";
 }
 
-void MLMonitorBackend::dumpDriveSummary(int id)
+void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    // Resolve the drive using either IEC or IEEE-488.
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
+
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev)
-    {
-        std::cout << "No such device with ID:" << id << "\n";
-        return;
-    }
-
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     // Get Drive status
-    std::string currentStatus = decodeDriveStatus(dev->asDrive()->getDriveStatus());
+    std::string currentStatus = decodeDriveStatus(drive->getDriveStatus());
 
     std::stringstream oss;
+    const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
     oss << "Drive " << id << " Summary:\n";
+    oss << "  Bus:         " << busName << "\n";
     oss << "  Type:        " << drive->getDriveTypeName() << "\n";
     oss << "  Image:       " << drive->getLoadedDiskName() << "\n";
     oss << "  Disk Loaded: " << (drive->isDiskLoaded() ? "Yes" : "No") << "\n\n";

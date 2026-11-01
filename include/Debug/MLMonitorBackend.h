@@ -147,7 +147,7 @@ class MLMonitorBackend
 
         // ML Monitor Drives
         void dumpDriveList();
-        void dumpDriveSummary(int id);
+        void dumpDriveSummary(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveCIA(int id);
         void dumpDriveCPU(int id);
         void driveCPUStep(int id);
