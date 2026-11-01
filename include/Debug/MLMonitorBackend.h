@@ -157,18 +157,22 @@ class MLMonitorBackend
         void dumpDriveVIA1(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveVIA2(int id, DriveBusType busType = DriveBusType::Auto);
 
-        void addDriveBreakpoint(int id, uint16_t address);
-        void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value);
-        void removeDriveBreakpoint(int id, uint16_t address);
-        void clearDriveBreakpoints(int id);
-        void dumpDriveBreakpoints(int id);
 
-        void addDriveReadWatchpoint(int id, uint16_t address);
-        void addDriveWriteWatchpoint(int id, uint16_t address);
-        void removeDriveReadWatchpoint(int id, uint16_t address);
-        void removeDriveWriteWatchpoint(int id, uint16_t address);
-        void clearDriveWatchpoints(int id);
-        void dumpDriveWatchpoints(int id);
+        // ML Monitor Drive Breakpoints
+        void addDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value,
+            DriveBusType busType = DriveBusType::Auto);
+        void removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void clearDriveBreakpoints(int id, DriveBusType busType = DriveBusType::Auto);
+        void dumpDriveBreakpoints(int id, DriveBusType busType = DriveBusType::Auto);
+
+        // ML Monitor Drive Watchpoints
+        void addDriveReadWatchpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void addDriveWriteWatchpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void removeDriveReadWatchpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void removeDriveWriteWatchpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
+        void clearDriveWatchpoints(int id, DriveBusType busType = DriveBusType::Auto);
+        void dumpDriveWatchpoints(int id, DriveBusType busType = DriveBusType::Auto);
 
         // ML Monitor Execution History
         inline bool hasExecutionHistory() const { return executionHistory != nullptr; }

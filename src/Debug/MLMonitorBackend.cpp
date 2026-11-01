@@ -3796,23 +3796,19 @@ void MLMonitorBackend::dumpDriveFDC(int id)
     std::cout << oss.str();
 }
 
-void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address)
+void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "No drive with ID " << id << ".\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     drive->addBreakpoint(address);
 
@@ -3824,24 +3820,20 @@ void MLMonitorBackend::addDriveBreakpoint(int id, uint16_t address)
               << std::dec << "\n";
 }
 
-void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition,
-    uint8_t value)
+void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value,
+            DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "No drive with ID " << id << ".\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     drive->addBreakpoint(address, condition, value);
 
@@ -3858,23 +3850,19 @@ void MLMonitorBackend::addDriveConditionalBreakpoint(int id, uint16_t address, D
         << "\n";
 }
 
-void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address)
+void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "No drive with ID " << id << ".\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     drive->removeBreakpoint(address);
 
@@ -3886,23 +3874,19 @@ void MLMonitorBackend::removeDriveBreakpoint(int id, uint16_t address)
               << std::dec << "\n";
 }
 
-void MLMonitorBackend::clearDriveBreakpoints(int id)
+void MLMonitorBackend::clearDriveBreakpoints(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "No drive with ID " << id << ".\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     drive->clearBreakpoints();
     drive->clearBreakpointHit();
@@ -3910,23 +3894,19 @@ void MLMonitorBackend::clearDriveBreakpoints(int id)
     std::cout << "Drive " << id << " breakpoints cleared.\n";
 }
 
-void MLMonitorBackend::dumpDriveBreakpoints(int id)
+void MLMonitorBackend::dumpDriveBreakpoints(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The device may not exist or its "
+                  << "number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
-
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "No drive with ID " << id << ".\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
+    Drive* drive = resolved.drive;
 
     const auto& breakpoints = drive->getBreakpoints();
 
@@ -3973,25 +3953,29 @@ void MLMonitorBackend::dumpDriveBreakpoints(int id)
     }
 }
 
-void MLMonitorBackend::addDriveReadWatchpoint(int id, uint16_t address)
+
+void MLMonitorBackend::addDriveReadWatchpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     drive->addWatchpoint(Drive::DriveWatchpoint::Type::Read, address);
 
     std::cout << "Drive "
               << id
-              << " READ watchpoint added at $"
+              << " ("
+              << (resolved.busType == DriveBusType::IEC
+                      ? "IEC" : "IEEE-488")
+              << ") READ watchpoint added at $"
               << std::hex << std::uppercase
               << std::setw(4) << std::setfill('0')
               << address
@@ -3999,25 +3983,28 @@ void MLMonitorBackend::addDriveReadWatchpoint(int id, uint16_t address)
               << "\n";
 }
 
-void MLMonitorBackend::addDriveWriteWatchpoint(int id, uint16_t address)
+void MLMonitorBackend::addDriveWriteWatchpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     drive->addWatchpoint(Drive::DriveWatchpoint::Type::Write, address);
 
     std::cout << "Drive "
               << id
-              << " WRITE watchpoint added at $"
+              << " ("
+              << (resolved.busType == DriveBusType::IEC
+                      ? "IEC" : "IEEE-488")
+              << ") WRITE watchpoint added at $"
               << std::hex << std::uppercase
               << std::setw(4) << std::setfill('0')
               << address
@@ -4025,82 +4012,111 @@ void MLMonitorBackend::addDriveWriteWatchpoint(int id, uint16_t address)
               << "\n";
 }
 
-void MLMonitorBackend::removeDriveReadWatchpoint(int id, uint16_t address)
+void MLMonitorBackend::removeDriveReadWatchpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     drive->removeWatchpoint(Drive::DriveWatchpoint::Type::Read, address);
+
+    std::cout << "Drive " << id
+              << " ("
+              << (resolved.busType == DriveBusType::IEC
+                      ? "IEC" : "IEEE-488")
+              << ") READ watchpoint removed at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << std::setfill(' ')
+              << "\n";
 }
 
-void MLMonitorBackend::removeDriveWriteWatchpoint(int id, uint16_t address)
+void MLMonitorBackend::removeDriveWriteWatchpoint(int id, uint16_t address, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     drive->removeWatchpoint(Drive::DriveWatchpoint::Type::Write, address);
+
+    std::cout << "Drive " << id
+              << " ("
+              << (resolved.busType == DriveBusType::IEC
+                      ? "IEC" : "IEEE-488")
+              << ") WRITE watchpoint removed at $"
+              << std::hex << std::uppercase
+              << std::setw(4) << std::setfill('0')
+              << address
+              << std::dec << std::setfill(' ')
+              << "\n";
 }
 
-void MLMonitorBackend::clearDriveWatchpoints(int id)
+void MLMonitorBackend::clearDriveWatchpoints(int id, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     drive->clearWatchpoints();
 
-    std::cout << "Drive " << id << " watchpoints cleared.\n";
+    std::cout << "Drive "
+              << id
+              << " ("
+              << (resolved.busType == DriveBusType::IEC
+                      ? "IEC" : "IEEE-488")
+              << ") watchpoints cleared.\n";
 }
 
-void MLMonitorBackend::dumpDriveWatchpoints(int id)
+void MLMonitorBackend::dumpDriveWatchpoints(int id, DriveBusType busType)
 {
-    if (!iecBus)
-        return;
+    const ResolvedDrive resolved = resolveDrive(id, busType);
 
-    Peripheral* dev = iecBus->getDevice(id);
-    Drive* drive = dynamic_cast<Drive*>(dev);
-
-    if (!drive)
+    if (!resolved)
     {
-        std::cout << "Drive " << id << " not found.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
+
+    Drive* drive = resolved.drive;
 
     const auto& watchpoints = drive->getWatchpoints();
 
+    const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+
     if (watchpoints.empty())
     {
-        std::cout << "Drive " << id << " has no watchpoints.\n";
+        std::cout << "Drive " << id << " (" << busName << ") has no watchpoints.\n";
         return;
     }
 
-    std::cout << "Drive " << id << " watchpoints:\n";
+    std::cout << "Drive " << id << " (" << busName << ") watchpoints:\n";
 
     for (const auto& wp : watchpoints)
     {
