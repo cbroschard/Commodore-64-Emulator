@@ -148,6 +148,7 @@ void D2031::saveState(StateWriter& wrtr) const
     // Live GCR track data
     wrtr.writeVectorU8(gcrTrack.getTrackData());
     wrtr.writeVectorU8(gcrTrack.getSyncMap());
+    wrtr.writeVectorU8(gcrTrack.getSpeedZones());
     wrtr.writeVectorU8(gcrSectorAtPos);
     wrtr.writeVectorU8(gcrWrittenMask);
 
@@ -282,12 +283,19 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!d2031mem.getVIA1().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
     if (!d2031mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
 
+    std::vector<uint8_t> savedTrackData;
+    std::vector<uint8_t> savedSyncMap;
+    std::vector<uint8_t> savedSpeedZones;
+
     auto readGCRState = [&]() -> bool
     {
-        if (!rdr.readVectorU8(gcrTrack.getTrackData()))
+        if (!rdr.readVectorU8(savedTrackData))
             return false;
 
-        if (!rdr.readVectorU8(gcrTrack.getSyncMap()))
+        if (!rdr.readVectorU8(savedSyncMap))
+            return false;
+
+        if (!rdr.readVectorU8(savedSpeedZones))
             return false;
 
         if (!rdr.readVectorU8(gcrSectorAtPos))
@@ -325,27 +333,75 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     if (!readGCRState())                                        { rdr.exitChunkPayload(chunk); return false; }
 
-    rdr.exitChunkPayload(chunk);
+    gcrTrack.setTrackData(savedTrackData);
+    gcrTrack.getSyncMap() = std::move(savedSyncMap);
+    gcrTrack.setSpeedZones(savedSpeedZones);
 
-    d2031mem.getVIA1().synchronizeIEEE488Outputs();
 
-    // The live track and modified track caches were restored
-    // from the snapshot. Do not invalidate them here.
+    // ============================================================
+    // Restore and validate live GCR state
+    // ============================================================
+
+    // The live GCR track and modified track caches have already
+    // been restored from the save state.
+    // Do NOT invalidate or rebuild them here.
+
+    const size_t trackSize = gcrTrack.size();
+
+    // Restore the saved rotational position.
     gcrPos = static_cast<size_t>(savedGcrPos);
 
-    if (!gcrTrack.empty())
+    if (trackSize != 0)
     {
-        gcrPos %= gcrTrack.size();
-        pendingWritePos %= gcrTrack.size();
+        // Validate the restored GCR track metadata.
+        const bool invalidSyncMap = gcrTrack.getSyncMap().size() != trackSize;
+        const bool invalidSectorMap = gcrSectorAtPos.size() != trackSize;
+        const bool invalidWriteMask = !gcrWrittenMask.empty() && gcrWrittenMask.size() != trackSize;
+        const bool invalidSpeedZones = !savedSpeedZones.empty() && savedSpeedZones.size() != trackSize;
+
+        if (invalidSyncMap || invalidSectorMap || invalidWriteMask || invalidSpeedZones)
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
+        // Keep rotational and write positions within track bounds.
+        gcrPos %= trackSize;
+        pendingWritePos %= trackSize;
     }
     else
     {
+        // No active GCR track.
         gcrPos = 0;
         pendingWritePos = 0;
         pendingWritePosValid = false;
+
+        // Force regeneration when media is available.
+        gcrDirty = true;
     }
 
+    // ============================================================
+    // Finish reading the save-state chunk
+    // ============================================================
+
+    rdr.exitChunkPayload(chunk);
+
+    // ============================================================
+    // Restore VIA1 IEEE-488 bus outputs
+    // ============================================================
+
+    // Synchronize IEEE-488 outputs using the restored VIA registers.
+    d2031mem.getVIA1().synchronizeIEEE488Outputs();
+
+    // ============================================================
+    // Restore drive interrupt state
+    // ============================================================
+
     updateIRQ();
+
+    // ============================================================
+    // Restore drive UI state
+    // ============================================================
 
     uiLedWasOn = d2031mem.getVIA2().isLedOn();
 
