@@ -194,27 +194,44 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readBool(savedWriteProtected))                 { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readString(savedDiskName))                     { rdr.exitChunkPayload(chunk); return false; }
 
+    // ============================================================
+    // Restore mounted disk without performing a media-change flush
+    // ============================================================
+
     if (savedDiskLoaded)
     {
-        if (savedDiskName.empty())                          { rdr.exitChunkPayload(chunk); return false; }
+        if (savedDiskName.empty())
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
 
-        loadDisk(savedDiskName);
+        auto restoredImage = DiskFactory::create(savedDiskName);
 
-        if (!diskLoaded || !diskImage)                      { rdr.exitChunkPayload(chunk); return false; }
+        if (!restoredImage || !restoredImage->loadDisk(savedDiskName))
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
+        // Replace the mounted image only after successful loading.
+        // No disk flush or drive CPU reset is performed.
+        diskImage = std::move(restoredImage);
+
+        diskLoaded = true;
+        diskWriteProtected = savedWriteProtected;
+        loadedDiskName = savedDiskName;
     }
     else
     {
-        resetForMediaChange();
-
+        // The snapshot had no mounted disk.
+        // Do not flush the currently mounted image.
         diskImage.reset();
-        loadedDiskName.clear();
+
         diskLoaded = false;
         diskWriteProtected = false;
+        loadedDiskName.clear();
     }
-
-    diskLoaded = savedDiskLoaded;
-    diskWriteProtected = savedWriteProtected;
-    loadedDiskName = savedDiskLoaded ? savedDiskName : std::string{};
 
     if (!rdr.readBool(motorOn))                             { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(currentTrack))                          { rdr.exitChunkPayload(chunk); return false; }
