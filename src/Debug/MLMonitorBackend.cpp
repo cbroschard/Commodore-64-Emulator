@@ -3048,9 +3048,57 @@ void MLMonitorBackend::dumpDriveSummary(int id, DriveBusType busType)
     oss << "  Track:       " << static_cast<int>(drive->getCurrentTrack()) << "\n";
     oss << "  Sector:      " << static_cast<int>(drive->getCurrentSector()) << "\n";
     oss << "  Motor:       " << (drive->isMotorOn() ? "On" : "Off") << "\n\n";
-    oss << "  ATN Line:    " << (drive->getAtnLineLow() ? "Low" : "High") << "\n";
-    oss << "  CLK Line:    " << (drive->getClkLineLow() ? "Low" : "High") << "\n";
-    oss << "  DATA Line:   " << (drive->getDataLineLow() ? "Low" : "High") << "\n\n";
+
+    if (resolved.busType == DriveBusType::IEC)
+    {
+        // IEC serial bus signals.
+        oss << "  IEC Bus:\n";
+
+        oss << "    ATN:       "
+            << (drive->getAtnLineLow() ? "Low" : "High") << "\n";
+
+        oss << "    CLK:       "
+            << (drive->getClkLineLow() ? "Low" : "High") << "\n";
+
+        oss << "    DATA:      "
+            << (drive->getDataLineLow() ? "Low" : "High") << "\n";
+
+        oss << "    SRQ:       "
+            << (drive->getSRQAsserted() ? "Low" : "High") << "\n";
+    }
+    else if (resolved.busType == DriveBusType::IEEE488)
+    {
+        // IEEE-488 parallel bus signals.
+        if (ieee488Bus)
+        {
+            const auto s = ieee488Bus->snapshotPhysical();
+
+            auto level = [](bool high)
+            {
+                return high ? "High" : "Low";
+            };
+
+            oss << "  IEEE-488 Bus:\n";
+
+            oss << "    ATN:       " << level(s.atn) << "\n";
+            oss << "    DAV:       " << level(s.dav) << "\n";
+            oss << "    NRFD:      " << level(s.nrfd) << "\n";
+            oss << "    NDAC:      " << level(s.ndac) << "\n";
+            oss << "    EOI:       " << level(s.eoi) << "\n";
+            oss << "    IFC:       " << level(s.ifc) << "\n";
+            oss << "    REN:       " << level(s.ren) << "\n";
+            oss << "    SRQ:       " << level(s.srq) << "\n";
+
+            oss << "    DIO:       $"
+                << hex2(s.dio) << "\n";
+        }
+        else
+        {
+            oss << "  IEEE-488 bus not attached.\n";
+        }
+    }
+
+    oss << "\n";
     oss << "  Status:      " << currentStatus << "\n";
     std::cout << oss.str();
 }
