@@ -3226,32 +3226,25 @@ void MLMonitorBackend::dumpDriveCIA(int id)
     std::cout << oss.str();
 }
 
-void MLMonitorBackend::dumpDriveCPU(int id)
+void MLMonitorBackend::dumpDriveCPU(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev)
-    {
-        std::cout << "No such device with ID:" << id << "\n";
-        return;
-    }
+    const CPU* cpu = drive->getDriveCPU();
 
-    if (!dev->isDrive())
-    {
-        std::cout << "Devicvice is not a Floppy Drive\n";
-        return;
-    }
-
-    const CPU* cpu = dev->asDrive()->getDriveCPU();
     if (!cpu)
     {
-        std::cout << "No CPU!\n";
+        std::cout << "Drive " << id << " has no CPU attached.\n";
         return;
     }
 
@@ -3287,7 +3280,8 @@ void MLMonitorBackend::dumpDriveCPU(int id)
     uint8_t op = cpu->debugRead(st.PC);
 
     std::ostringstream out;
-    out << "Drive " << id << " CPU:\n";
+    const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
+    out << "Drive " << id << " (" << busName << ") CPU:\n";
     out << "PC=$" << hex4(st.PC)
         << "  A=$" << hex2(st.A)
         << "  X=$" << hex2(st.X)
@@ -3300,36 +3294,35 @@ void MLMonitorBackend::dumpDriveCPU(int id)
     std::cout << out.str();
 }
 
-void MLMonitorBackend::driveCPUStep(int id)
+void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
+    CPU* cpu = drive->getDriveCPU();
 
-    if (!dev)
-    {
-        std::cout << "No such device with ID:" << id << "\n";
-        return;
-    }
-
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
-
-    CPU* cpu = dev->asDrive()->getDriveCPU();
     if (!cpu)
     {
-        std::cout << "No CPU!\n";
+        std::cout << "Drive " << id << " has no CPU attached.\n";
         return;
     }
 
-    auto* mem = dev->asDrive()->getMemory();
+    DriveMemoryBase* mem = drive->getMemory();
+
+    if (!mem)
+    {
+        std::cout << "Drive " << id << " has no memory interface.\n";
+        return;
+    }
+
     uint16_t pc = cpu->getPC();
 
     // Output disassembly at PC
@@ -3339,7 +3332,7 @@ void MLMonitorBackend::driveCPUStep(int id)
     // Execute tick to step
     cpu->tick();
     uint32_t cycles = cpu->getElapsedCycles();
-    dev->asDrive()->getMemory()->tick(cycles);
+    mem->tick(cycles);
 
     // Dump CPU registers
     auto st = cpu->getState();
