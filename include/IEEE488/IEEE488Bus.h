@@ -100,6 +100,14 @@ class IEEE488Bus
             size_t pendingTransitionCount = 0;
         };
 
+        struct RegisteredDrive
+        {
+            DeviceId participantId = 0;
+            Drive* drive = nullptr;
+        };
+
+        std::vector<RegisteredDrive> getRegisteredDrives() const;
+
         PhysicalSnapshot snapshotPhysical() const;
         std::string debugPhysicalSnapshotString() const;
 

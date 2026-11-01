@@ -325,6 +325,21 @@ void IEEE488Bus::dispatchPendingChanges()
     dispatchingChanges = false;
 }
 
+std::vector<IEEE488Bus::RegisteredDrive> IEEE488Bus::getRegisteredDrives() const
+{
+    std::vector<RegisteredDrive> result;
+
+    for (const auto& entry : devices)
+    {
+        if (!entry.drive)
+            continue;
+
+        result.push_back({entry.id, entry.drive});
+    }
+
+    return result;
+}
+
 IEEE488Bus::PhysicalSnapshot IEEE488Bus::snapshotPhysical() const
 {
     PhysicalSnapshot snapshot{};
