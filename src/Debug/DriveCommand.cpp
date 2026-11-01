@@ -5,6 +5,8 @@
 // non-commercial use only. Redistribution, modification, or use
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
+#include <algorithm>
+#include <cctype>
 #include "Debug/DriveCommand.h"
 #include "Debug/MLMonitor.h"
 #include "Debug/MLMonitorBackend.h"
@@ -25,7 +27,7 @@ std::string DriveCommand::name() const
 
 std::string DriveCommand::category() const
 {
-    return "Drives and IEC Bus";
+    return "Disk Drives";
 }
 
 std::string DriveCommand::shortHelp() const
@@ -35,56 +37,62 @@ std::string DriveCommand::shortHelp() const
 
 std::string DriveCommand::help() const
 {
-    return R"(drive - Inspect and control IEC disk drives
+    return R"(drive - Inspect and control IEC and IEEE-488 disk drives
 
 Usage:
   drive
   drive list
   drive all
-  drive <id>
-  drive <id> <subcommand>
+  drive <id> [subcommand]
+  drive <bus> <id> [subcommand]
+
+Bus Selection:
+  <bus>       Optional: iec, ieee488, ieee-488
+  <id>        Commodore device number (e.g. 8, 9, 10)
+
+  Without a bus selector, the monitor automatically locates
+  the drive. If the device number exists on both buses,
+  you must explicitly specify the bus.
 
 General:
-  drive                             Show all attached drives
-  drive list                        Show all attached drives
-  drive all                         Show all attached drives
-  drive help                        Show this help text
+  drive                       List all attached disk drives
+  drive list                  List all attached disk drives
+  drive all                   List all attached disk drives
+  drive help                  Display this help information
 
-Drive summary:
-  drive <id>                        Show summary for drive ID, such as 8, 9, or 10
+Drive Information:
+  drive <id>                  Show drive summary
+  drive <id> cpu              Show drive CPU registers and state
+  drive <id> mem <addr>        Dump drive memory (default count)
+  drive <id> mem <addr> <n>    Dump n bytes from address
+  drive <id> mem <start>-<end> Dump a memory address range
+  drive <id> state            Show drive bus/debug state
+  drive <id> step             Step/tick drive CPU
 
-Subcommands:
-  drive <id> cpu                    Show drive CPU state
-  drive <id> mem <addr> [count]     Dump drive memory from address
-  drive <id> mem <start>-<end>      Dump drive memory range
-  drive <id> via1                   Show VIA1 state, usually 1541/1571
-  drive <id> via2                   Show VIA2 state, usually 1541/1571
-  drive <id> cia                    Show CIA state, usually 1571/1581
-  drive <id> fdc                    Show FDC controller state, usually 1581/1571
-  drive <id> state                  Show IEC physical and debug state
-  drive <id> step                   Step/tick the drive CPU once
+Drive Hardware:
+  drive <id> via1             Show VIA1 registers and timers
+  drive <id> via2             Show VIA2 registers and timers
+  drive <id> cia              Show CIA registers (if supported)
+  drive <id> fdc              Show FDC registers (if supported)
 
 Breakpoints:
-  drive <id> bp <addr>                    Add a drive CPU breakpoint
-  drive <id> bp <addr> if a <value>       Break when A equals value
-  drive <id> bp <addr> if x <value>       Break when X equals value
-  drive <id> bp <addr> if y <value>       Break when Y equals value
-  drive <id> bp list                      List drive CPU breakpoints
-  drive <id> clearbp <addr>               Remove breakpoint(s) at address
-  drive <id> clearbp all                  Remove all drive CPU breakpoints
+  drive <id> bp <addr>              Add CPU breakpoint
+  drive <id> bp <addr> if a <value>  Break when A equals value
+  drive <id> bp <addr> if x <value>  Break when X equals value
+  drive <id> bp <addr> if y <value>  Break when Y equals value
+  drive <id> bp list                List CPU breakpoints
+  drive <id> clearbp <addr>         Remove CPU breakpoint
+  drive <id> clearbp all            Remove all CPU breakpoints
 
 Watchpoints:
-  drive <id> watch read <addr>          Break on drive memory read
-  drive <id> watch write <addr>         Break on drive memory write
-  drive <id> watch list                 List drive watchpoints
-  drive <id> clearwatch read <addr>     Remove read watchpoint
-  drive <id> clearwatch write <addr>    Remove write watchpoint
-  drive <id> clearwatch all             Remove all drive watchpoints
+  drive <id> watch read <addr>       Add memory read watchpoint
+  drive <id> watch write <addr>      Add memory write watchpoint
+  drive <id> watch list              List memory watchpoints
+  drive <id> clearwatch read <addr>  Remove read watchpoint
+  drive <id> clearwatch write <addr> Remove write watchpoint
+  drive <id> clearwatch all          Remove all watchpoints
 
-Help:
-  drive <id> help                   Show this help text
-
-Examples:
+Examples - Automatic Drive Selection:
   drive
   drive list
   drive 8
@@ -93,20 +101,58 @@ Examples:
   drive 8 mem $0300 64
   drive 8 mem $0300-$03FF
   drive 8 via1
-  drive 8 state
+  drive 8 via2
   drive 8 step
   drive 8 bp $80CE
   drive 8 bp list
-  drive 8 clearbp $80CE
   drive 8 clearbp all
   drive 8 watch read $1C01
   drive 8 watch write $1800
   drive 8 watch list
   drive 8 clearwatch all
+
+Examples - IEC Drives:
+  drive iec 8
+  drive iec 8 cpu
+  drive iec 8 via1
+  drive iec 8 via2
+  drive iec 8 mem $0300 64
+  drive iec 8 bp $C000
+  drive iec 8 watch read $0400
+  drive iec 8 step
+
+Examples - IEEE-488 Drives:
+  drive ieee488 8
+  drive ieee488 8 cpu
+  drive ieee488 8 via1
+  drive ieee488 8 via2
+  drive ieee488 8 mem $0300 64
+  drive ieee488 8 bp $C000
+  drive ieee488 8 bp list
+  drive ieee488 8 clearbp all
+  drive ieee488 8 watch read $0400
+  drive ieee488 8 watch write $0400
+  drive ieee488 8 watch list
+  drive ieee488 8 clearwatch all
+  drive ieee488 8 step
+
+Notes:
+  - All drive commands support optional bus selection.
+  - Unsupported hardware components are reported by the monitor.
+  - CPU breakpoints and memory watchpoints belong to the selected drive.
+  - Use 'iec' for IEC serial-bus diagnostics.
+  - Use 'ieee488bus' for IEEE-488 parallel-bus diagnostics.
+  - The 'drive state' command is currently IEC-specific
+    until IEEE-488 drive-state support is implemented.
+
+Help:
+  drive help
+  drive <id> help
+  drive <bus> <id> help
 )";
 }
 
-void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
+void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawArgs)
 {
     MLMonitorBackend* backend = mon.mlmonitorbackend();
 
@@ -114,6 +160,42 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     {
         std::cout << "Monitor backend is not attached.\n";
         return;
+    }
+
+    // Default to automatic bus selection.
+    MLMonitorBackend::DriveBusType busType = MLMonitorBackend::DriveBusType::Auto;
+
+    std::vector<std::string> args = rawArgs;
+
+    // Support:
+    //   drive iec 8 <command>
+    //   drive ieee488 8 <command>
+    if (args.size() >= 2)
+    {
+        std::string selector = args[1];
+
+        std::transform(selector.begin(), selector.end(), selector.begin(), [](unsigned char c)
+        {
+            return static_cast<char>(std::tolower(c));
+        });
+
+        if (selector == "iec")
+        {
+            busType = MLMonitorBackend::DriveBusType::IEC;
+            args.erase(args.begin() + 1);
+        }
+        else if (selector == "ieee488" || selector == "ieee-488")
+        {
+            busType = MLMonitorBackend::DriveBusType::IEEE488;
+            args.erase(args.begin() + 1);
+        }
+
+        // An explicit bus selector must include a drive ID.
+        if (busType != MLMonitorBackend::DriveBusType::Auto && args.size() < 2)
+        {
+            std::cout << "Error: missing drive number.\n" << "Usage: drive <iec|ieee488> <id> [subcommand]\n";
+            return;
+        }
     }
 
     // No args or just "drive" => list all drives.
@@ -156,7 +238,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
     // drive 8
     if (args.size() == 2)
     {
-        backend->dumpDriveSummary(id);
+        backend->dumpDriveSummary(id, busType);
         return;
     }
 
@@ -183,7 +265,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         // drive 8 bp list
         if (args[3] == "list")
         {
-            backend->dumpDriveBreakpoints(id);
+            backend->dumpDriveBreakpoints(id, busType);
             return;
         }
 
@@ -258,7 +340,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         // drive 8 clearbp all
         if (args[3] == "all")
         {
-            backend->clearDriveBreakpoints(id);
+            backend->clearDriveBreakpoints(id, busType);
             return;
         }
 
@@ -290,7 +372,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         if (args[3] == "list")
         {
-            backend->dumpDriveWatchpoints(id);
+            backend->dumpDriveWatchpoints(id, busType);
             return;
         }
 
@@ -346,7 +428,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
         if (args[3] == "all")
         {
-            backend->clearDriveWatchpoints(id);
+            backend->clearDriveWatchpoints(id, busType);
             return;
         }
 
@@ -390,7 +472,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (subcmd == "cpu")
     {
-        backend->dumpDriveCPU(id);
+        backend->dumpDriveCPU(id, busType);
         return;
     }
 
@@ -481,19 +563,19 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
     if (subcmd == "step")
     {
-        backend->driveCPUStep(id);
+        backend->driveCPUStep(id, busType);
         return;
     }
 
     if (subcmd == "via1")
     {
-        backend->dumpDriveVIA1(id);
+        backend->dumpDriveVIA1(id, busType);
         return;
     }
 
     if (subcmd == "via2")
     {
-        backend->dumpDriveVIA2(id);
+        backend->dumpDriveVIA2(id, busType);
         return;
     }
 

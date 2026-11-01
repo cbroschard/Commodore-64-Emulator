@@ -23,7 +23,7 @@ class DriveCommand : public MonitorCommand
         std::string shortHelp() const override;
         std::string help() const override;
 
-        void execute(MLMonitor& mon, const std::vector<std::string>& args) override;
+        void execute(MLMonitor& mon, const std::vector<std::string>& rawArgs) override;
 };
 
 #endif // DRIVECOMMAND_H
