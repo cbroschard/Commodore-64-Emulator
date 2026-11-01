@@ -2888,6 +2888,66 @@ void MLMonitorBackend::setJamMode(const std::string& mode)
     }
 }
 
+MLMonitorBackend::ResolvedDrive MLMonitorBackend::resolveDrive(int deviceNumber, DriveBusType busType) const
+{
+    ResolvedDrive result{};
+
+    if (deviceNumber < 0 || deviceNumber > 255)
+        return result;
+
+    // --------------------------------------------------
+    // Search the IEC bus.
+    // --------------------------------------------------
+    if ((busType == DriveBusType::Auto || busType == DriveBusType::IEC) && iecBus)
+    {
+        Peripheral* peripheral = iecBus->getDevice(deviceNumber);
+
+        if (peripheral && peripheral->isDrive())
+        {
+            Drive* drive = peripheral->asDrive();
+
+            if (drive)
+            {
+                result.drive = drive;
+                result.busType = DriveBusType::IEC;
+                result.deviceNumber = deviceNumber;
+            }
+        }
+    }
+
+    // --------------------------------------------------
+    // Search the IEEE-488 bus.
+    // --------------------------------------------------
+    if ((busType == DriveBusType::Auto || busType == DriveBusType::IEEE488) && ieee488Bus)
+    {
+        const auto registeredDrives = ieee488Bus->getRegisteredDrives();
+
+        for (const auto& entry : registeredDrives)
+        {
+            Drive* drive = entry.drive;
+
+            if (!drive)
+                continue;
+
+            // Match the Commodore device number,
+            // NOT the IEEE-488 participant ID.
+            if (drive->getDeviceNumber() != deviceNumber)
+                continue;
+
+            if (result.drive && result.drive != drive)
+                return {};
+
+            result.drive = drive;
+            result.busType = DriveBusType::IEEE488;
+            result.deviceNumber = deviceNumber;
+
+            break;
+        }
+    }
+
+    return result;
+}
+
 void MLMonitorBackend::dumpDriveList()
 {
     if (!iecBus)

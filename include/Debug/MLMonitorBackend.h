@@ -124,6 +124,27 @@ class MLMonitorBackend
         inline void dataBusLatchClearDiagnostics() { if (dataBusLatch) dataBusLatch->clearDiagnostics(); }
         inline const char* dataBusLatchDriverToString(DataBusLatch::Driver driver) const { return DataBusLatch::driverToString(driver); }
 
+        enum class DriveBusType
+        {
+            Auto,
+            IEC,
+            IEEE488
+        };
+
+        struct ResolvedDrive
+        {
+            Drive* drive = nullptr;
+            DriveBusType busType = DriveBusType::Auto;
+            int deviceNumber = -1;
+
+            explicit operator bool() const
+            {
+                return drive != nullptr;
+            }
+        };
+
+        ResolvedDrive resolveDrive(int deviceNumber, DriveBusType busType = DriveBusType::Auto) const;
+
         // ML Monitor Drives
         void dumpDriveList();
         void dumpDriveSummary(int id);
