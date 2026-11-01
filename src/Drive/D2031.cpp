@@ -109,6 +109,34 @@ void D2031::saveState(StateWriter& wrtr) const
     wrtr.writeU8(uiTrack);
     wrtr.writeU8(uiSector);
 
+    // Mechanical state
+    wrtr.writeBool(diskWriteGate);
+    wrtr.writeU32(static_cast<uint32_t>(pendingWritePos));
+    wrtr.writeBool(pendingWritePosValid);
+    wrtr.writeBool(trackModifiedByWrite);
+
+    wrtr.writeBool(gcrDirty);
+    wrtr.writeBool(haveLastHeader);
+    wrtr.writeU8(lastHeaderTrack);
+    wrtr.writeU8(lastHeaderSector);
+    wrtr.writeU32(static_cast<uint32_t>(lastHeaderPos));
+    wrtr.writeBool(lastHeaderValid);
+
+    wrtr.writeI32(readSyncRun);
+    wrtr.writeBool(readAfterSync);
+
+    wrtr.writeI32(writeSyncRun);
+    wrtr.writeBool(writeAfterSync);
+    wrtr.writeI32(writeGapRun);
+
+    // Header detection
+    wrtr.writeU8(lastRomHeaderTrack);
+    wrtr.writeU8(lastRomHeaderSector);
+    wrtr.writeBool(lastRomHeaderValid);
+    wrtr.writeU32(static_cast<uint32_t>(lastRomHeaderPos));
+    wrtr.writeU32(static_cast<uint32_t>(lastRomHeaderCycle & 0xFFFFFFFFULL));
+    wrtr.writeU32(static_cast<uint32_t>(lastRomHeaderCycle >> 32));
+
     // CPU state
     driveCPU.saveStatePayload(wrtr);
     driveCPU.saveStateExtendedPayload(wrtr);
@@ -116,6 +144,27 @@ void D2031::saveState(StateWriter& wrtr) const
     d2031mem.saveState(wrtr);
     d2031mem.getVIA1().saveState(wrtr);
     d2031mem.getVIA2().saveState(wrtr);
+
+    // Live GCR track data
+    wrtr.writeVectorU8(gcrTrack.getTrackData());
+    wrtr.writeVectorU8(gcrTrack.getSyncMap());
+    wrtr.writeVectorU8(gcrSectorAtPos);
+    wrtr.writeVectorU8(gcrWrittenMask);
+
+    // Partial read/write buffers
+    wrtr.writeVectorU8(readGcrHeaderProbe);
+    wrtr.writeVectorU8(writeGcrBuffer);
+
+    // Cached sector-backed GCR tracks
+    for (size_t t = 0; t < rawGcrTrackCache.size(); ++t)
+    {
+        wrtr.writeBool(rawGcrTrackValid[t]);
+        wrtr.writeBool(rawGcrTrackDirty[t]);
+
+        wrtr.writeVectorU8(rawGcrTrackCache[t]);
+        wrtr.writeVectorU8(rawGcrSyncCache[t]);
+        wrtr.writeVectorU8(rawGcrSectorCache[t]);
+    }
 
     wrtr.endChunk();
 }
@@ -180,6 +229,52 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU8(uiTrack))                               { rdr.exitChunkPayload(chunk); return false; }
     if (!rdr.readU8(uiSector))                              { rdr.exitChunkPayload(chunk); return false; }
 
+    uint32_t savedWritePos = 0;
+    uint32_t savedHeaderPos = 0;
+    uint32_t savedRomHeaderPos = 0;
+    uint32_t romCycleLo = 0;
+    uint32_t romCycleHi = 0;
+
+    auto readMechanicalState = [&]() -> bool
+    {
+        if (!rdr.readBool(diskWriteGate)) return false;
+        if (!rdr.readU32(savedWritePos)) return false;
+        if (!rdr.readBool(pendingWritePosValid)) return false;
+        if (!rdr.readBool(trackModifiedByWrite)) return false;
+
+        if (!rdr.readBool(gcrDirty)) return false;
+        if (!rdr.readBool(haveLastHeader)) return false;
+        if (!rdr.readU8(lastHeaderTrack)) return false;
+        if (!rdr.readU8(lastHeaderSector)) return false;
+        if (!rdr.readU32(savedHeaderPos)) return false;
+        if (!rdr.readBool(lastHeaderValid)) return false;
+
+        if (!rdr.readI32(readSyncRun)) return false;
+        if (!rdr.readBool(readAfterSync)) return false;
+
+        if (!rdr.readI32(writeSyncRun)) return false;
+        if (!rdr.readBool(writeAfterSync)) return false;
+        if (!rdr.readI32(writeGapRun)) return false;
+
+        if (!rdr.readU8(lastRomHeaderTrack)) return false;
+        if (!rdr.readU8(lastRomHeaderSector)) return false;
+        if (!rdr.readBool(lastRomHeaderValid)) return false;
+        if (!rdr.readU32(savedRomHeaderPos)) return false;
+
+        if (!rdr.readU32(romCycleLo)) return false;
+        if (!rdr.readU32(romCycleHi)) return false;
+
+        return true;
+    };
+
+    if (!readMechanicalState())                             { rdr.exitChunkPayload(chunk); return false; }
+
+    pendingWritePos = static_cast<size_t>(savedWritePos);
+    lastHeaderPos = static_cast<size_t>(savedHeaderPos);
+    lastRomHeaderPos = static_cast<size_t>(savedRomHeaderPos);
+
+    lastRomHeaderCycle = (static_cast<uint64_t>(romCycleHi) << 32) | romCycleLo;
+
     if (!driveCPU.loadStatePayload(rdr))                    { rdr.exitChunkPayload(chunk); return false; }
     if (!driveCPU.loadStateExtendedPayload(chunk, rdr))     { rdr.exitChunkPayload(chunk); return false; }
 
@@ -187,16 +282,68 @@ bool D2031::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!d2031mem.getVIA1().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
     if (!d2031mem.getVIA2().loadState(rdr))                 { rdr.exitChunkPayload(chunk); return false; }
 
+    auto readGCRState = [&]() -> bool
+    {
+        if (!rdr.readVectorU8(gcrTrack.getTrackData()))
+            return false;
+
+        if (!rdr.readVectorU8(gcrTrack.getSyncMap()))
+            return false;
+
+        if (!rdr.readVectorU8(gcrSectorAtPos))
+            return false;
+
+        if (!rdr.readVectorU8(gcrWrittenMask))
+            return false;
+
+        if (!rdr.readVectorU8(readGcrHeaderProbe))
+            return false;
+
+        if (!rdr.readVectorU8(writeGcrBuffer))
+            return false;
+
+        for (size_t t = 0; t < rawGcrTrackCache.size(); ++t)
+        {
+            if (!rdr.readBool(rawGcrTrackValid[t]))
+                return false;
+
+            if (!rdr.readBool(rawGcrTrackDirty[t]))
+                return false;
+
+            if (!rdr.readVectorU8(rawGcrTrackCache[t]))
+                return false;
+
+            if (!rdr.readVectorU8(rawGcrSyncCache[t]))
+                return false;
+
+            if (!rdr.readVectorU8(rawGcrSectorCache[t]))
+                return false;
+        }
+
+        return true;
+    };
+
+    if (!readGCRState())                                        { rdr.exitChunkPayload(chunk); return false; }
+
     rdr.exitChunkPayload(chunk);
 
     d2031mem.getVIA1().synchronizeIEEE488Outputs();
 
-    // The raw GCR vectors and caches are not serialized.
-    // Rebuild them lazily while retaining the rotational position.
-    invalidateRawGcrCache();
-
+    // The live track and modified track caches were restored
+    // from the snapshot. Do not invalidate them here.
     gcrPos = static_cast<size_t>(savedGcrPos);
-    gcrDirty = true;
+
+    if (!gcrTrack.empty())
+    {
+        gcrPos %= gcrTrack.size();
+        pendingWritePos %= gcrTrack.size();
+    }
+    else
+    {
+        gcrPos = 0;
+        pendingWritePos = 0;
+        pendingWritePosValid = false;
+    }
 
     updateIRQ();
 
