@@ -3497,87 +3497,241 @@ void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t c
     std::cout << oss.str();
 }
 
-void MLMonitorBackend::dumpDriveIECState(int id)
+void MLMonitorBackend::dumpDriveState(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    // Resolve the selected drive.
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev)
+    auto HL = [](bool low)
     {
-        std::cout << "No such device with ID:" << id << "\n";
-        return;
-    }
-
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
-
-    Drive* d = dev->asDrive();
-    const Drive::IECSnapshot s = d->snapshotIEC();
-
-    auto HL = [](bool low) { return low ? "L" : "H"; };
-    auto yn = [](bool v) { return v ? "1" : "0"; };
-
-    auto busStateToStr = [](Drive::DriveBusState st) {
-        switch (st)
-        {
-            case Drive::DriveBusState::IDLE:             return "IDLE";
-            case Drive::DriveBusState::AWAITING_COMMAND: return "AWAITING_COMMAND";
-            case Drive::DriveBusState::LISTENING:        return "LISTENING";
-            case Drive::DriveBusState::TALKING:          return "TALKING";
-            default:                                     return "UNKNOWN";
-        }
+        return low ? "L" : "H";
     };
 
-    std::cout << "Drive #" << id << " IEC monitor state:\n\n";
+    auto yn = [](bool value)
+    {
+        return value ? "1" : "0";
+    };
 
-    std::cout << "Drive IEC physical:\n";
-    std::cout << "  Lines seen:        "
-              << "ATN="  << HL(s.atnLow)  << "  "
-              << "CLK="  << HL(s.clkLow)  << "  "
-              << "DATA=" << HL(s.dataLow) << "  "
-              << "SRQ="  << HL(s.srqLow)  << "\n";
+    auto yesno = [](bool value)
+    {
+        return value ? "yes" : "no";
+    };
 
-    auto yesno = [](bool v) { return v ? "yes" : "no"; };
+    // ==================================================
+    // IEC DRIVE STATE
+    // ==================================================
+    if (resolved.busType == DriveBusType::IEC)
+    {
+        const Drive::IECSnapshot s = drive->snapshotIEC();
 
-    std::cout << "  Drive pulls low:   "
-          << "ATN="  << yesno(s.drvAssertAtn)  << "  "
-          << "CLK="  << yesno(s.drvAssertClk)  << "  "
-          << "DATA=" << yesno(s.drvAssertData) << "  "
-          << "SRQ="  << yesno(s.drvAssertSrq)  << "\n\n";
+        auto busStateToStr = [](Drive::DriveBusState st)
+        {
+            switch (st)
+            {
+                case Drive::DriveBusState::IDLE:
+                    return "IDLE";
 
-    std::cout << "Legacy/software IEC decode:\n";
-    std::cout << "  Mode: " << busStateToStr(s.busState)
-              << "   listen=" << yn(s.listening)
-              << " talk=" << yn(s.talking)
-              << "   SA=";
+                case Drive::DriveBusState::AWAITING_COMMAND:
+                    return "AWAITING_COMMAND";
 
-    if (s.secondaryAddress < 0) std::cout << "(none)\n";
-    else                        std::cout << "$" << hex2(static_cast<uint8_t>(s.secondaryAddress)) << "\n";
+                case Drive::DriveBusState::LISTENING:
+                    return "LISTENING";
 
-    std::cout << "  Shifter: shift=$" << hex2(s.shiftReg)
-              << " bits=" << s.bitsProcessed << "\n";
+                case Drive::DriveBusState::TALKING:
+                    return "TALKING";
 
-    std::cout << "  Handshake: waitingForAck=" << yn(s.waitingForAck)
-              << " ackEdgeCountdown=" << s.ackEdgeCountdown
-              << " waitingForClkRelease=" << yn(s.waitingForClkRelease)
-              << " prevClkLevel=" << yn(s.prevClkLevel)
-              << "\n";
+                default:
+                    return "UNKNOWN";
+            }
+        };
 
-    std::cout << "            ackHold=" << yn(s.ackHold)
-              << " byteAckHold=" << yn(s.byteAckHold)
-              << " ackDelay=" << s.ackDelay
-              << " swallowFalling=" << yn(s.swallowPostHandshakeFalling)
-              << "\n";
+        std::cout << "Drive #" << id
+                  << " IEC monitor state:\n\n";
 
-    std::cout << "  Talk queue: " << s.talkQueueLen << "\n";
+        // ----------------------------------------------
+        // Physical IEC bus signals
+        // ----------------------------------------------
+        std::cout << "Drive IEC physical:\n";
+
+        std::cout << "  Lines seen:        "
+                  << "ATN="  << HL(s.atnLow)  << "  "
+                  << "CLK="  << HL(s.clkLow)  << "  "
+                  << "DATA=" << HL(s.dataLow) << "  "
+                  << "SRQ="  << HL(s.srqLow)  << "\n";
+
+        std::cout << "  Drive pulls low:   "
+                  << "ATN="  << yesno(s.drvAssertAtn)  << "  "
+                  << "CLK="  << yesno(s.drvAssertClk)  << "  "
+                  << "DATA=" << yesno(s.drvAssertData) << "  "
+                  << "SRQ="  << yesno(s.drvAssertSrq)  << "\n\n";
+
+        // ----------------------------------------------
+        // Legacy IEC protocol state
+        // ----------------------------------------------
+        std::cout << "Legacy/software IEC decode:\n";
+
+        std::cout << "  Mode: "
+                  << busStateToStr(s.busState)
+                  << "   listen=" << yn(s.listening)
+                  << " talk=" << yn(s.talking)
+                  << "   SA=";
+
+        if (s.secondaryAddress < 0)
+        {
+            std::cout << "(none)\n";
+        }
+        else
+        {
+            std::cout << "$"
+                      << hex2(static_cast<uint8_t>(
+                          s.secondaryAddress))
+                      << "\n";
+        }
+
+        // ----------------------------------------------
+        // IEC shifter
+        // ----------------------------------------------
+        std::cout << "  Shifter: shift=$"
+                  << hex2(s.shiftReg)
+                  << " bits=" << s.bitsProcessed
+                  << "\n";
+
+        // ----------------------------------------------
+        // IEC handshake
+        // ----------------------------------------------
+        std::cout << "  Handshake: waitingForAck="
+                  << yn(s.waitingForAck)
+                  << " ackEdgeCountdown="
+                  << s.ackEdgeCountdown
+                  << " waitingForClkRelease="
+                  << yn(s.waitingForClkRelease)
+                  << " prevClkLevel="
+                  << yn(s.prevClkLevel)
+                  << "\n";
+
+        std::cout << "            ackHold="
+                  << yn(s.ackHold)
+                  << " byteAckHold="
+                  << yn(s.byteAckHold)
+                  << " ackDelay="
+                  << s.ackDelay
+                  << " swallowFalling="
+                  << yn(s.swallowPostHandshakeFalling)
+                  << "\n";
+
+        std::cout << "  Talk queue: "
+                  << s.talkQueueLen << "\n";
+
+        return;
+    }
+
+    // ==================================================
+    // IEEE-488 DRIVE STATE
+    // ==================================================
+    if (resolved.busType == DriveBusType::IEEE488)
+    {
+        if (!ieee488Bus)
+        {
+            std::cout << "IEEE-488 bus not attached.\n";
+            return;
+        }
+
+        const auto snapshot = ieee488Bus->snapshotPhysical();
+
+        // IEEE-488 uses true = high/released.
+        auto level = [](bool high)
+        {
+            return high ? "H" : "L";
+        };
+
+        std::cout << "Drive #" << id
+                  << " IEEE-488 monitor state:\n\n";
+
+        // ----------------------------------------------
+        // Device registration
+        // ----------------------------------------------
+        std::cout << "IEEE-488 device:\n";
+        std::cout << "  Device number:    " << id << "\n";
+
+        bool registered = false;
+
+        for (const auto& entry :
+             ieee488Bus->getRegisteredDrives())
+        {
+            if (entry.drive == drive)
+            {
+                std::cout << "  Participant ID:   "
+                          << entry.participantId << "\n";
+
+                registered = true;
+                break;
+            }
+        }
+
+        std::cout << "  Registered:       "
+                  << yesno(registered) << "\n\n";
+
+        // ----------------------------------------------
+        // IEEE-488 physical bus signals
+        // ----------------------------------------------
+        std::cout << "IEEE-488 physical bus:\n";
+
+        std::cout << "  Handshake:        "
+                  << "DAV="  << level(snapshot.dav)  << "  "
+                  << "NRFD=" << level(snapshot.nrfd) << "  "
+                  << "NDAC=" << level(snapshot.ndac) << "\n";
+
+        std::cout << "  Control:          "
+                  << "ATN=" << level(snapshot.atn) << "  "
+                  << "EOI=" << level(snapshot.eoi) << "  "
+                  << "IFC=" << level(snapshot.ifc) << "\n";
+
+        std::cout << "  Other:            "
+                  << "REN=" << level(snapshot.ren) << "  "
+                  << "SRQ=" << level(snapshot.srq) << "\n";
+
+        std::cout << "  Data bus:         DIO=$"
+                  << hex2(snapshot.dio) << "\n";
+
+        std::cout << "  (H=released/high, L=asserted/low)\n\n";
+
+        // ----------------------------------------------
+        // Bus registration summary
+        // ----------------------------------------------
+        std::cout << "IEEE-488 participants:\n";
+
+        std::cout << "  Controllers:      "
+                  << snapshot.controllerCount << "\n";
+
+        std::cout << "  Devices:          "
+                  << snapshot.deviceCount << "\n";
+
+        std::cout << "  Drives:           "
+                  << snapshot.driveCount << "\n\n";
+
+        // ----------------------------------------------
+        // Pending electrical transitions
+        // ----------------------------------------------
+        std::cout << "IEEE-488 events:\n";
+
+        std::cout << "  Pending transitions: "
+                  << snapshot.pendingTransitionCount
+                  << "\n";
+
+        return;
+    }
+
+    std::cout << "Unsupported drive bus type.\n";
 }
 
 void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)

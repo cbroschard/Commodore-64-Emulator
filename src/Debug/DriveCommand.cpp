@@ -557,7 +557,7 @@ void DriveCommand::execute(MLMonitor& mon, const std::vector<std::string>& rawAr
 
     if (subcmd == "state")
     {
-        backend->dumpDriveIECState(id);
+        backend->dumpDriveState(id, busType);
         return;
     }
 

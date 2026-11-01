@@ -152,11 +152,10 @@ class MLMonitorBackend
         void dumpDriveCPU(int id, DriveBusType busType = DriveBusType::Auto);
         void driveCPUStep(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveFDC(int id);
-        void dumpDriveIECState(int id);
+        void dumpDriveState(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveVIA1(int id, DriveBusType busType = DriveBusType::Auto);
         void dumpDriveVIA2(int id, DriveBusType busType = DriveBusType::Auto);
-
 
         // ML Monitor Drive Breakpoints
         void addDriveBreakpoint(int id, uint16_t address, DriveBusType busType = DriveBusType::Auto);
@@ -177,10 +176,8 @@ class MLMonitorBackend
         // ML Monitor Execution History
         inline bool hasExecutionHistory() const { return executionHistory != nullptr; }
         inline bool isExecutionHistoryEnabled() const { return executionHistory != nullptr && executionHistory->isEnabled();}
-
         void setExecutionHistoryEnabled(bool enabled);
         void clearExecutionHistory();
-
         std::size_t getExecutionHistorySize() const;
         std::size_t getExecutionHistoryCapacity() const;
         std::vector<ExecutionHistoryEntry> getExecutionHistory(std::size_t count) const;
