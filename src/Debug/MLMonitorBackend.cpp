@@ -3371,44 +3371,39 @@ void MLMonitorBackend::driveCPUStep(int id, DriveBusType busType)
     std::cout << out.str();
 }
 
-void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count)
+
+void MLMonitorBackend::dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType)
 {
     const uint16_t DEFAULT_COUNT = 16;
     const uint16_t bytesToDump = (count == 0) ? DEFAULT_COUNT : count;
 
-    if (!iecBus)
+    // Resolve the drive through IEC or IEEE-488.
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "IEC bus not attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev || !dev->isDrive())
-    {
-        std::cout << "Drive " << id << " not found.\n";
-        return;
-    }
-
-    Drive* drive = dev->asDrive();
-
-    if (!drive)
-    {
-        std::cout << "Drive " << id << " not available.\n";
-        return;
-    }
-
+    // Obtain the selected drive's CPU address bus.
     const CPUBus* driveBus = drive->getDriveBus();
 
     if (!driveBus)
     {
-        std::cout << "Drive " << id << " bus not available.\n";
+        std::cout << "Drive " << id << " CPU bus not available.\n";
         return;
     }
 
-    std::stringstream oss;
+    const char* busName = resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488";
 
-    oss << "Drive " << id << " Memory Dump ($"
+    std::stringstream oss;
+    oss << "Drive " << id
+        << " (" << busName << ") Memory Dump ($"
         << hex4(startAddress) << " for "
         << bytesToDump << " bytes):\n";
 
