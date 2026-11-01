@@ -3532,45 +3532,39 @@ void MLMonitorBackend::dumpDriveIECState(int id)
     std::cout << "  Talk queue: " << s.talkQueueLen << "\n";
 }
 
-void MLMonitorBackend::dumpDriveVIA1(int id)
+void MLMonitorBackend::dumpDriveVIA1(int id, DriveBusType busType)
 {
-    if (!iecBus)
+    // Resolve the drive through IEC or IEEE-488.
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev)
+    if (!drive->hasVIA1())
     {
-        std::cout << "No such device with ID:" << id << "\n";
+        std::cout << "Drive " << id << " does not have a VIA1 chip.\n";
         return;
     }
 
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
+    const DriveVIABase* via1 = drive->getVIA1();
 
-    if (!dev->asDrive()->hasVIA1())
-    {
-        std::cout << "Drive does not have a VIA1 chip\n";
-        return;
-    }
-
-    auto* via1 = dev->asDrive()->getVIA1();
     if (!via1)
     {
-        std::cout << "No VIA1!\n";
+        std::cout << "Drive " << id << " VIA1 is not available.\n";
         return;
     }
 
     auto registers = via1->getRegsView();
 
     std::stringstream oss;
-    oss << "VIA1 Registers:\n";
+    oss << "Drive " << id << " (" << (resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488") << ") VIA1 Registers:\n";
     oss << "  ORB: $" << hex2(registers.orbIRB)
         << "  ORA: $" << hex2(registers.oraIRA) << "\n";
     oss << "  DDRB: $" << hex2(registers.ddrB)
@@ -3606,38 +3600,33 @@ void MLMonitorBackend::dumpDriveVIA1(int id)
     std::cout << oss.str();
 }
 
-void MLMonitorBackend::dumpDriveVIA2(int id)
+void MLMonitorBackend::dumpDriveVIA2(int id, DriveBusType busType)
 {
-    if (!iecBus)
+
+    // Resolve the drive through IEC or IEEE-488.
+    const ResolvedDrive resolved = resolveDrive(id, busType);
+
+    if (!resolved)
     {
-        std::cout << "No IEC bus attached.\n";
+        std::cout << "Unable to resolve drive " << id
+                  << ". The drive may not exist, or its "
+                  << "device number may be ambiguous.\n";
         return;
     }
 
-    Peripheral* dev = iecBus->getDevice(id);
+    Drive* drive = resolved.drive;
 
-    if (!dev)
+    if (!drive->hasVIA2())
     {
-        std::cout << "No such device with ID:" << id << "\n";
+        std::cout << "Drive " << id << " does not have a VIA2 chip.\n";
         return;
     }
 
-    if (!dev->isDrive())
-    {
-        std::cout << "Device is not a Floppy Drive\n";
-        return;
-    }
+    const DriveVIABase* via2 = drive->getVIA2();
 
-    if (!dev->asDrive()->hasVIA2())
-    {
-        std::cout << "Drive does not have a VIA2 chip\n";
-        return;
-    }
-
-    auto* via2 = dev->asDrive()->getVIA2();
     if (!via2)
     {
-        std::cout << "No VIA2!\n";
+        std::cout << "Drive " << id << " VIA2 is not available.\n";
         return;
     }
 
@@ -3645,7 +3634,7 @@ void MLMonitorBackend::dumpDriveVIA2(int id)
     auto mech  = via2->getMechanicsInfo();
 
     std::stringstream oss;
-    oss << "VIA2 Registers (Mechanics):\n";
+    oss << "Drive " << id << " (" << (resolved.busType == DriveBusType::IEC ? "IEC" : "IEEE-488") << ") VIA2 Registers:\n";
     oss << "  ORB: $" << hex2(registers.orbIRB)
         << "  ORA: $" << hex2(registers.oraIRA) << "\n";
     oss << "  DDRB: $" << hex2(registers.ddrB)

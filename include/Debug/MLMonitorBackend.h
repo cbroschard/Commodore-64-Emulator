@@ -154,8 +154,8 @@ class MLMonitorBackend
         void dumpDriveFDC(int id);
         void dumpDriveIECState(int id);
         void dumpDriveMemory(int id, uint16_t startAddress, uint16_t count, DriveBusType busType = DriveBusType::Auto);
-        void dumpDriveVIA1(int id);
-        void dumpDriveVIA2(int id);
+        void dumpDriveVIA1(int id, DriveBusType busType = DriveBusType::Auto);
+        void dumpDriveVIA2(int id, DriveBusType busType = DriveBusType::Auto);
 
         void addDriveBreakpoint(int id, uint16_t address);
         void addDriveConditionalBreakpoint(int id, uint16_t address, Drive::DriveBreakpoint::Condition condition, uint8_t value);
