@@ -576,41 +576,14 @@ void D2031::onVIA2PortARead(uint8_t value)
 
 void D2031::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 {
-    if (!diskWriteGate)
-        return;
-
-    if (!diskLoaded || !diskImage || !motorOn || diskWriteProtected)
-        return;
-
-    if (ddrA != 0xFF)
-        return;
-
-    if (!pendingWritePosValid || gcrTrack.empty())
-        return;
-
-    const size_t pos = pendingWritePos % gcrTrack.size();
-
-    // Consume this byte-ready slot.
-    pendingWritePosValid = false;
-
-    gcrTrack.getTrackData()[pos] = value;
-
-    if (gcrWrittenMask.size() == gcrTrack.size())
-        gcrWrittenMask[pos] = 1;
-
-    trackModifiedByWrite = true;
-
+    // VIA2 Port A already retains the output byte.
     //
-    // Sector-backed images keep their synthesized raw-track cache
-    // synchronized during writes.
-    //
-    // Native raw-track formats are committed through writeRawTrack()
-    // when the write gate closes.
-    //
-    if (diskImage && !diskImage->supportsRawTracks())
-        saveCurrentRawTrackToCache();
+    // Do not write directly to the GCR track here.
+    // The rotating disk mechanism records the current
+    // VIA output latch during each write-byte interval.
 
-    acceptGCRWriteByte(value);
+    (void)value;
+    (void)ddrA;
 }
 
 void D2031::onStepperPhaseChange(uint8_t oldPhase, uint8_t newPhase)
@@ -911,16 +884,25 @@ bool D2031::gcrTick()
     // Advance rotational position.
     gcrPos = (gcrPos + 1) % gcrTrack.size();
 
-    // Writing: notify VIA2 that the next byte can be written.
-    if (diskWriteGate &&
-        motorOn &&
-        diskLoaded &&
-        diskImage &&
-        !diskWriteProtected)
+    // Writing: record the VIA2 output latch at each
+    // rotational disk-byte interval.
+    if (diskWriteGate && motorOn && diskLoaded && diskImage && !diskWriteProtected)
     {
-        pendingWritePos = pos;
-        pendingWritePosValid = true;
+        const uint8_t value = d2031mem.getVIA2().getDiskWriteLatch();
 
+        // Record the byte at the current disk position.
+        gcrTrack.getTrackData()[pos] = value;
+
+        // Mark this byte position as physically written.
+        if (gcrWrittenMask.size() == gcrTrack.size())
+            gcrWrittenMask[pos] = 1;
+
+        trackModifiedByWrite = true;
+
+        // Record the byte in the GCR write stream.
+        acceptGCRWriteByte(value);
+
+        // Signal the ROM that the byte interval has completed.
         d2031mem.getVIA2().pulseWriteByteReady();
 
         return true;
@@ -1432,10 +1414,10 @@ void D2031::flushAllDirtyRawTracksToImage()
 
 void D2031::flushCurrentRawTrackToImage()
 {
-    if (!diskImage->supportsSectorAccess() || diskImage->supportsRawTracks())
+    if (!diskLoaded || !diskImage)
         return;
 
-    if (!diskLoaded || !diskImage)
+    if (!diskImage->supportsSectorAccess() || diskImage->supportsRawTracks())
         return;
 
     CBMImage* cbmImage = getCBMImage();

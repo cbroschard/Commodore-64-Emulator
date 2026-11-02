@@ -33,6 +33,7 @@ class D2031VIA : public DriveVIA6522
         inline bool isSyncDetected() const { return syncDetected; }
         inline bool mechHasBytePending() const { return mechBytePending; }
         inline void setSyncDetected(bool present) { syncDetected = present; }
+        inline uint8_t getDiskWriteLatch() const { return registers.oraIRA; }
         void diskByteFromMedia(uint8_t byte, bool inSync);
 
         // Helpers
