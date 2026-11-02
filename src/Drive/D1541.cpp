@@ -370,9 +370,22 @@ bool D1541::gcrTick()
 
     if (diskWriteGate && motorOn && diskLoaded && diskImage && !diskWriteProtected)
     {
-        pendingWritePos = pos;
-        pendingWritePosValid = true;
+        // The rotating disk records one byte every byte interval.
+        // The VIA output latch retains its value until changed.
+        const uint8_t value = d1541mem.getVIA2().getDiskWriteLatch();
+
+        gcrTrack.getTrackData()[pos] = value;
+
+        if (gcrWrittenMask.size() == gcrTrack.size())
+            gcrWrittenMask[pos] = 1;
+
+        trackModifiedByWrite = true;
+
+        acceptGCRWriteByte(value);
+
+        // Notify the drive CPU of the completed byte interval.
         d1541mem.getVIA2().pulseWriteByteReady();
+
         return true;
     }
 
@@ -808,38 +821,14 @@ void D1541::setDensityCode(uint8_t code)
 
 void D1541::onVIA2PortAWrite(uint8_t value, uint8_t ddrA)
 {
-    if (!diskWriteGate)
-        return;
-
-    if (!diskLoaded || !diskImage || !motorOn || diskWriteProtected)
-        return;
-
-    if (ddrA != 0xFF)
-        return;
-
-    if (!pendingWritePosValid || gcrTrack.empty())
-        return;
-
-    const size_t pos = pendingWritePos % gcrTrack.size();
-
-    gcrTrack.getTrackData()[pos] = value;
-
-    if (gcrWrittenMask.size() == gcrTrack.size())
-        gcrWrittenMask[pos] = 1;
-
-    trackModifiedByWrite = true;
-
+    // VIA2 Port A already stores the output byte.
     //
-    // Sector-backed images keep their synthesized raw-track cache
-    // synchronized during writes.
-    //
-    // Native raw-track formats are committed through writeRawTrack()
-    // when the write gate closes.
-    //
-    if (diskImage && !diskImage->supportsRawTracks())
-        saveCurrentRawTrackToCache();
+    // Do not write to GCR media here.
+    // The rotating disk mechanism records the current
+    // VIA output latch during each write-byte interval.
 
-    acceptGCRWriteByte(value);
+    (void)value;
+    (void)ddrA;
 }
 
 void D1541::acceptGCRWriteByte(uint8_t value)
@@ -1539,7 +1528,8 @@ void D1541::flushCurrentRawTrackToImage()
             ++failed;
     }
 
-    rawGcrTrackDirty[currentTrack] = false;
+    if (failed == 0 && written == spt)
+        rawGcrTrackDirty[currentTrack] = false;
 }
 
 void D1541::flushAllDirtyRawTracksToImage()
