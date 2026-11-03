@@ -564,7 +564,16 @@ void Computer::tickCycle()
     components_.iecBus->tick(1);
     components_.ieee488Bus->tick(1);
 
-    if (Drive* drive = components_.iecBus->getDriveWithBreakpointHit())
+    // ============================================================
+    // Check drive breakpoints (IEC and IEEE-488)
+    // ============================================================
+
+    Drive* breakpointDrive = components_.iecBus->getDriveWithBreakpointHit();
+
+    if (!breakpointDrive)
+        breakpointDrive = components_.ieee488Bus->getDriveWithBreakpointHit();
+
+    if (Drive* drive = breakpointDrive)
     {
         runtime_.uiPaused = true;
 
@@ -589,7 +598,16 @@ void Computer::tickCycle()
         return;
     }
 
-    if (Drive* drive = components_.iecBus->getDriveWithWatchpointHit())
+    // ============================================================
+    // Check drive watchpoints (IEC and IEEE-488)
+    // ============================================================
+
+    Drive* watchpointDrive = components_.iecBus->getDriveWithWatchpointHit();
+
+    if (!watchpointDrive)
+        watchpointDrive = components_.ieee488Bus->getDriveWithWatchpointHit();
+
+    if (Drive* drive = watchpointDrive)
     {
         runtime_.uiPaused = true;
 
