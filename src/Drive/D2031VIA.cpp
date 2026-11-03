@@ -327,9 +327,7 @@ uint8_t D2031VIA::samplePortBInputs()
                 pins |= static_cast<uint8_t>(1u << bit);
         };
 
-        // The ROM samples PB0/PB1 to initialize its IEEE-488 address.
-        // Compatibility behavior validated for device numbers 8-11.
-        const uint8_t addressBits = static_cast<uint8_t>(drive->getDeviceNumber() - 8) & 0x03;
+        const uint8_t addressBits = drive->getHardwareAddressBits();
 
         // PB0 supplies the low-order address bit when configured as input.
         setPin(IEEE488_ATNA_BIT, (addressBits & 0x01) != 0);
@@ -632,40 +630,29 @@ void D2031VIA::updateIEEE488DeviceAddress()
         return;
 
     auto* drive = dynamic_cast<D2031*>(parentPeripheral);
+
     if (!drive)
         return;
 
-    // VIA1 output latch values used by the address-select circuit.
     const uint8_t orb = registers.orbIRB;
 
     const bool atna = (orb & 0x01) != 0;
     const bool nrfd = (orb & 0x02) != 0;
 
-    bool ca2 = true;
-
-    // Commodore 2031 device address diode logic.
-    switch (drive->getDeviceNumber())
-    {
-        case 8:
-            ca2 = atna && nrfd;
-            break;
-
-        case 9:
-            ca2 = nrfd;
-            break;
-
-        case 10:
-            ca2 = atna;
-            break;
-
-        case 11:
-            ca2 = true;
-            break;
-
-        default:
-            ca2 = true;
-            break;
-    }
+    const uint8_t addressBits = drive->getHardwareAddressBits();
+    const bool ca2 = calculateAddressCA2(addressBits, atna, nrfd);
 
     setCA2Level(ca2);
+}
+
+bool D2031VIA::calculateAddressCA2(uint8_t addressBits, bool atna, bool nrfd) const
+{
+    switch (addressBits)
+    {
+        case 0: return atna && nrfd;
+        case 1: return nrfd;
+        case 2: return atna;
+        case 3: return true;
+        default: return true;
+    }
 }

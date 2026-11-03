@@ -833,6 +833,16 @@ void D2031::flushAndSaveDisk()
     }
 }
 
+uint8_t D2031::getHardwareAddressBits() const
+{
+    const int device = getDeviceNumber();
+
+    if (device < 8 || device > 11)
+        return 0;
+
+    return static_cast<uint8_t>(device - 8);
+}
+
 bool D2031::gcrTick()
 {
     // Rebuild the current GCR track when necessary.

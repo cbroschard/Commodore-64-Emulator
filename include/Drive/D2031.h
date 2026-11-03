@@ -71,6 +71,8 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         // Disk persistence
         void flushAndSaveDisk() override;
 
+        uint8_t getHardwareAddressBits() const;
+
         // CPU bus access
         inline CPUBus* getDriveBus() override { return &d2031Bus; }
         inline const CPUBus* getDriveBus() const override { return &d2031Bus; }
@@ -124,7 +126,7 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         inline const D2031VIA* getVIA1() const override { return &d2031mem.getVIA1(); }
         inline const D2031VIA* getVIA2() const override { return &d2031mem.getVIA2(); }
         inline DriveStatus getDriveStatus() const override { return status; }
-        const char* getDriveTypeName() const noexcept override { return "2031"; }
+        inline const char* getDriveTypeName() const noexcept override { return "2031"; }
 
         // =========================================================
         // Temporary IEC Compatibility
@@ -149,33 +151,15 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         void onSecondaryAddress(uint8_t) override {}
 
         // Peripheral SRQ handling
-        bool isSRQAsserted() const override
-        {
-            return false;
-        }
+        bool isSRQAsserted() const override { return false; }
 
         void setSRQAsserted(bool) override {}
 
         // Drive IEC signal handling
-        bool getAtnLineLow() const override
-        {
-            return false;
-        }
-
-        bool getClkLineLow() const override
-        {
-            return false;
-        }
-
-        bool getDataLineLow() const override
-        {
-            return false;
-        }
-
-        bool getSRQAsserted() const override
-        {
-            return false;
-        }
+        inline bool getAtnLineLow() const override { return false; }
+        inline bool getClkLineLow() const override { return false; }
+        inline bool getDataLineLow() const override { return false; }
+        inline bool getSRQAsserted() const override { return false; }
 
         void forceSyncIEC() override {}
 
