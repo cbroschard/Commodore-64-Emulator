@@ -659,11 +659,6 @@ void D2031::getDriveIndicators(std::vector<Indicator>& out) const
 
 void D2031::loadDisk(const std::string& path)
 {
-    // Preserve pending writes from the currently mounted image
-    // before replacing it.
-    if (diskImage)
-        flushAndSaveDisk();
-
     resetForMediaChange();
 
     auto img = DiskFactory::create(path);
