@@ -195,7 +195,12 @@ void D2031VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
         {
             if (auto* cpu = drive->getDriveCPU())
-                cpu->pulseSO();
+            {
+                const bool davReleased = drive->getIEEE488Signal(IEEE488Bus::Signal::DAV);
+
+                if (davReleased)
+                    cpu->pulseSO();
+            }
         }
     }
 }
@@ -245,7 +250,12 @@ void D2031VIA::pulseWriteByteReady()
         if (auto* drive = dynamic_cast<D2031*>(parentPeripheral))
         {
             if (auto* cpu = drive->getDriveCPU())
-                cpu->pulseSO();
+            {
+                const bool davReleased = drive->getIEEE488Signal(IEEE488Bus::Signal::DAV);
+
+                if (davReleased)
+                    cpu->pulseSO();
+            }
         }
     }
 }
