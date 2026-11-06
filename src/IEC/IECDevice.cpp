@@ -7,12 +7,33 @@
 // strictly prohibited without the prior written consent of the author.
 #include "IEC/IECDevice.h"
 
-IECDevice::IECDevice()
+IECDevice::IECDevice() :
+    iecBus(nullptr),
+    assertClk(false),
+    assertData(false),
+    assertAtn(false),
+    assertSrq(false),
+    listening(false),
+    talking(false),
+    shiftReg(0),
+    bitsProcessed(0)
 {
 
 }
 
-IECDevice::~IECDevice()
-{
+IECDevice::~IECDevice() = default;
 
+void IECDevice::attachIECBusInstance(IECBus* bus)
+{
+    iecBus = bus;
+}
+
+void IECDevice::detachIECBusInstance()
+{
+    iecBus = nullptr;
+}
+
+uint8_t IECDevice::nextOutputByte()
+{
+    return 0xFF;
 }

@@ -53,7 +53,7 @@ class IECDevice
         uint8_t shiftReg;
         int bitsProcessed;
 
-        virtual uint8_t nextOutputByte() { return 0xFF; }
+        virtual uint8_t nextOutputByte();
 
         void peripheralAssertClk(bool state);
         void peripheralAssertData(bool state);
