@@ -1669,23 +1669,40 @@ EmulatorUI::DriveLightColor EmulatorUI::toUiColor(IDriveIndicatorView::DriveIndi
     }
 }
 
+
 void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
 {
     char label[32];
     std::snprintf(label, sizeof(label), "Drive %d", dev);
 
-    if (ImGui::BeginMenu(label))
+    if (!ImGui::BeginMenu(label))
+        return;
+
+    const bool ieee488Active = v.ieee488MapperActive;
+    const UiCommand::DriveType existingType = getDriveTypeForDev(v, dev);
+    const bool drivePresent = existingType != UiCommand::DriveType::None;
+    const bool canUse1541 = !drivePresent || existingType == UiCommand::DriveType::D1541;
+    const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
+    const bool canUse1581 = drivePresent || existingType == UiCommand::DriveType::D1581;
+    const bool canUse2031 = !drivePresent || existingType == UiCommand::DriveType::D2031;
+
+    //
+    // Insert Disk Image
+    //
+    if (ImGui::BeginMenu("Insert Disk Image..."))
     {
-        const UiCommand::DriveType existingType = getDriveTypeForDev(v, dev);
-        const bool drivePresent = existingType != UiCommand::DriveType::None;
-
-        const bool canUse1541 = !drivePresent || existingType == UiCommand::DriveType::D1541;
-        const bool canUse1571 = !drivePresent || existingType == UiCommand::DriveType::D1571;
-        const bool canUse1581 = !drivePresent || existingType == UiCommand::DriveType::D1581;
-        const bool canUse2031 = v.ieee488MapperActive && (!drivePresent ||  existingType == UiCommand::DriveType::D2031);
-
-        if (ImGui::BeginMenu("Insert Disk Image..."))
+        if (ieee488Active)
         {
+            // IEEE-488 cartridge active:
+            // Only expose the Commodore 2031.
+
+            if (ImGui::MenuItem("2031 (D64/G64/NIB)", nullptr, false, canUse2031))
+                startDiskFileDialog(dev, UiCommand::DriveType::D2031);
+        }
+        else
+        {
+            // Standard IEC serial interface.
+
             if (ImGui::MenuItem("1541 (D64/G64/NIB)", nullptr, false, canUse1541))
                 startDiskFileDialog(dev, UiCommand::DriveType::D1541);
 
@@ -1694,18 +1711,27 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
 
             if (ImGui::MenuItem("1581 (D81)", nullptr, false, canUse1581))
                 startDiskFileDialog(dev, UiCommand::DriveType::D1581);
-
-            if (v.ieee488MapperActive)
-            {
-                if (ImGui::MenuItem("2031 (D64/G64/NIB)", nullptr, false, canUse2031))
-                    startDiskFileDialog(dev, UiCommand::DriveType::D2031);
-            }
-
-            ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Create Blank Disk"))
+        ImGui::EndMenu();
+    }
+
+    //
+    // Create Blank Disk
+    //
+    if (ImGui::BeginMenu("Create Blank Disk"))
+    {
+        if (ieee488Active)
         {
+            // IEEE-488 format.
+
+            if (ImGui::MenuItem("D64 (2031)", nullptr, false, canUse2031))
+                startCreateBlankDiskDialog(dev, UiCommand::DriveType::D2031);
+        }
+        else
+        {
+            // IEC drive formats.
+
             if (ImGui::MenuItem("D64", nullptr, false, canUse1541))
                 startCreateBlankDiskDialog(dev, UiCommand::DriveType::D1541);
 
@@ -1714,23 +1740,20 @@ void EmulatorUI::drawDriveDiskMenu(const MediaViewState& v, int dev)
 
             if (ImGui::MenuItem("D81", nullptr, false, canUse1581))
                 startCreateBlankDiskDialog(dev, UiCommand::DriveType::D1581);
-
-            if (v.ieee488MapperActive)
-            {
-                if (ImGui::MenuItem("D64 (2031)", nullptr, false, canUse2031))
-                    startCreateBlankDiskDialog(dev, UiCommand::DriveType::D2031);
-            }
-
-            ImGui::EndMenu();
         }
-
-        const bool hasDisk = driveHasDisk(v, dev);
-
-        if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
-            pushEjectDisk(dev);
 
         ImGui::EndMenu();
     }
+
+    //
+    // Eject Disk
+    //
+    const bool hasDisk = driveHasDisk(v, dev);
+
+    if (ImGui::MenuItem("Eject Disk", nullptr, false, hasDisk))
+        pushEjectDisk(dev);
+
+    ImGui::EndMenu();
 }
 
 bool EmulatorUI::driveHasDisk(const MediaViewState& v, int dev)
