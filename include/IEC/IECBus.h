@@ -19,6 +19,7 @@
 #include "StateWriter.h"
 
 class CIA2;
+class IECDevice;
 
 class IECBus
 {
@@ -123,6 +124,7 @@ class IECBus
         // Device registration
         void registerDevice(int deviceNumber, Peripheral* device);
         void unregisterDevice(int deviceNumber);
+        bool registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice* iecDevice);
 
         // IEC commands
         void listen(int deviceNumber);
@@ -200,6 +202,7 @@ class IECBus
 
         // Peripheral Tracking
         std::map<int, Peripheral*> devices;
+        std::map<int, IECDevice*> iecDevices;
         std::vector<Peripheral*> currentListeners;
 
         // Logging

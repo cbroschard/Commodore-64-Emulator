@@ -8,6 +8,7 @@
 #include "CIA2.h"
 #include "Drive/Drive.h"
 #include "IEC/IECBus.h"
+#include "IEC/IECDevice.h"
 
 IECBus::IECBus() :
     //Initialize to defaults
@@ -426,6 +427,21 @@ void IECBus::registerDevice(int deviceNumber, Peripheral* device)
 
 void IECBus::unregisterDevice(int deviceNumber)
 {
+    auto iecIt = iecDevices.find(deviceNumber);
+
+    if (iecIt != iecDevices.end())
+    {
+        IECDevice* device = iecIt->second;
+
+        iecDevices.erase(iecIt);
+
+        if (device)
+        {
+            device->detachIECBusInstance();
+            device->iecDeviceNumber = -1;
+        }
+    }
+
     auto it = devices.find(deviceNumber);
     if (it == devices.end()) return;
 
@@ -438,14 +454,41 @@ void IECBus::unregisterDevice(int deviceNumber)
 
     if (currentTalker == device) currentTalker = nullptr;
 
-    currentListeners.erase(
-        std::remove(currentListeners.begin(), currentListeners.end(), device),
-        currentListeners.end()
-    );
+    currentListeners.erase(std::remove(currentListeners.begin(), currentListeners.end(), device), currentListeners.end());
 
     devices.erase(it);
 
     recalcAndNotify();
+}
+
+bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice* iecDevice)
+{
+    if (!peripheral || !iecDevice)
+        return false;
+
+    // Reject duplicate device numbers.
+    if (devices.find(deviceNumber) != devices.end())
+        return false;
+
+    // Preserve existing registration behavior.
+    registerDevice(deviceNumber, peripheral);
+
+    // Verify legacy registration succeeded.
+    auto it = devices.find(deviceNumber);
+
+    if (it == devices.end() || it->second != peripheral)
+        return false;
+
+    // Register the new IEC-specific interface.
+    iecDevices[deviceNumber] = iecDevice;
+
+    // Assign IEC address.
+    iecDevice->iecDeviceNumber = deviceNumber;
+
+    // Attach to IECBus.
+    iecDevice->attachIECBusInstance(this);
+
+    return true;
 }
 
 void IECBus::listen(int deviceNumber)
