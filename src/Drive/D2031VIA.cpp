@@ -196,9 +196,7 @@ void D2031VIA::diskByteFromMedia(uint8_t byte, bool inSync)
         {
             if (auto* cpu = drive->getDriveCPU())
             {
-                const bool davReleased = drive->getIEEE488Signal(IEEE488Bus::Signal::DAV);
-
-                if (davReleased)
+                if (isSOEnabled())
                     cpu->pulseSO();
             }
         }
@@ -251,9 +249,7 @@ void D2031VIA::pulseWriteByteReady()
         {
             if (auto* cpu = drive->getDriveCPU())
             {
-                const bool davReleased = drive->getIEEE488Signal(IEEE488Bus::Signal::DAV);
-
-                if (davReleased)
+                if (isSOEnabled())
                     cpu->pulseSO();
             }
         }
@@ -665,4 +661,15 @@ bool D2031VIA::calculateAddressCA2(uint8_t addressBits, bool atna, bool nrfd) co
         case 3: return true;
         default: return true;
     }
+}
+
+bool D2031VIA::isSOEnabled() const
+{
+    if (viaRole != VIARole::VIA2_Mechanics)
+        return false;
+
+    const uint8_t ca2Mode =
+        (registers.peripheralControlRegister >> 1) & 0x07;
+
+    return ca2Mode == 0b111;
 }
