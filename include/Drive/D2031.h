@@ -28,12 +28,6 @@ class D2031 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         D2031(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         ~D2031();
 
-        enum class D2031Model : uint8_t
-        {
-            HighProfile,
-            LowProfile
-        };
-
         void reset() override;
 
         bool attachIEEE488Bus(IEEE488Bus* ieee488Bus);
