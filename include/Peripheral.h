@@ -10,7 +10,7 @@
 
 // Forward declarations
 class Drive;
-class IECBUS;
+class IECBus;
 
 #include <cstdint>
 #include <vector>
@@ -25,7 +25,7 @@ class Peripheral
         virtual ~Peripheral();
 
         // Pointer attachment
-        void attachIECBusInstance(IECBUS* iecBus);
+        void attachIECBusInstance(IECBus* iecBus);
         void detachIECBusInstance();
 
         // Signal handlers
@@ -44,7 +44,7 @@ class Peripheral
         inline void setDeviceNumber(int num) { deviceNumber = num; }
         virtual void setSRQAsserted(bool state) = 0;
 
-        // Connection to IECBUS
+        // Connection to IECBus
         void peripheralAssertClk(bool state);
         void peripheralAssertData(bool state);
         void peripheralAssertAtn(bool state);
@@ -64,7 +64,7 @@ class Peripheral
         virtual const char* getDriveTypeName() const noexcept = 0;
 
         // Non-owning pointer
-        IECBUS* iecBus;
+        IECBus* iecBus;
 
     protected:
         int deviceNumber;

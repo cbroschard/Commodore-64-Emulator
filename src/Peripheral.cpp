@@ -6,7 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Peripheral.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 
 Peripheral::Peripheral() :
     iecBus(nullptr),
@@ -25,7 +25,7 @@ Peripheral::Peripheral() :
 
 Peripheral::~Peripheral() = default;
 
-void Peripheral::attachIECBusInstance(IECBUS* iecBus)
+void Peripheral::attachIECBusInstance(IECBus* iecBus)
 {
     this->iecBus = iecBus;
 }

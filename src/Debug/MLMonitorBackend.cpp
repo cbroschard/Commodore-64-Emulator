@@ -8,7 +8,7 @@
 #include <algorithm>
 #include "6502/Disassembler.h"
 #include "Drive/FDC177x.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "MLMonitorBackend.h"
 #include "Peripheral.h"
 

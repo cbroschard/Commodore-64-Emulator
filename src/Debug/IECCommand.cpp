@@ -71,7 +71,7 @@ Subcommands:
 
 void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 {
-    IECBUS* iecBus = mon.mlmonitorbackend()->getIECBus();
+    IECBus* iecBus = mon.mlmonitorbackend()->getIECBus();
     if (!iecBus)
     {
         std::cout << "Bus not attached!\n";
@@ -175,12 +175,12 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         const char* stateStr = "UNKNOWN";
         switch (iecBus->getState())
         {
-            case IECBUS::State::IDLE:      stateStr = "IDLE";      break;
-            case IECBUS::State::ATTENTION: stateStr = "ATTENTION"; break;
-            case IECBUS::State::TALK:      stateStr = "TALK";      break;
-            case IECBUS::State::LISTEN:    stateStr = "LISTEN";    break;
-            case IECBUS::State::UNLISTEN:  stateStr = "UNLISTEN";  break;
-            case IECBUS::State::UNTALK:    stateStr = "UNTALK";    break;
+            case IECBus::State::IDLE:      stateStr = "IDLE";      break;
+            case IECBus::State::ATTENTION: stateStr = "ATTENTION"; break;
+            case IECBus::State::TALK:      stateStr = "TALK";      break;
+            case IECBus::State::LISTEN:    stateStr = "LISTEN";    break;
+            case IECBus::State::UNLISTEN:  stateStr = "UNLISTEN";  break;
+            case IECBus::State::UNTALK:    stateStr = "UNTALK";    break;
         }
 
         std::cout << "IEC device #" << devNum << ":\n";
@@ -230,23 +230,23 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
 
             switch (e.type)
             {
-                case IECBUS::TraceType::C64Read:
+                case IECBus::TraceType::C64Read:
                     type = "C64 READ";
                     break;
 
-                case IECBUS::TraceType::C64Output:
+                case IECBus::TraceType::C64Output:
                     type = "C64 OUT";
                     break;
 
-                case IECBUS::TraceType::PeripheralClk:
+                case IECBus::TraceType::PeripheralClk:
                     type = "DRV CLK";
                     break;
 
-                case IECBUS::TraceType::PeripheralData:
+                case IECBus::TraceType::PeripheralData:
                     type = "DRV DATA";
                     break;
 
-                case IECBUS::TraceType::BusChange:
+                case IECBus::TraceType::BusChange:
                     type = "BUS";
                     break;
             }
@@ -273,7 +273,7 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
                 << " CLK=" << (e.clkHigh ? 'H' : 'L')
                 << " DATA=" << (e.dataHigh ? 'H' : 'L');
 
-            if (e.type == IECBUS::TraceType::C64Read)
+            if (e.type == IECBus::TraceType::C64Read)
             {
                 std::cout
                     << " DD00=$"
@@ -352,12 +352,12 @@ void IECCommand::execute(MLMonitor& mon, const std::vector<std::string>& args)
         const char* stateStr = "UNKNOWN";
         switch (iecBus->getState())
         {
-            case IECBUS::State::IDLE:      stateStr = "IDLE";      break;
-            case IECBUS::State::ATTENTION: stateStr = "ATTENTION"; break;
-            case IECBUS::State::TALK:      stateStr = "TALK";      break;
-            case IECBUS::State::LISTEN:    stateStr = "LISTEN";    break;
-            case IECBUS::State::UNLISTEN:  stateStr = "UNLISTEN";  break;
-            case IECBUS::State::UNTALK:    stateStr = "UNTALK";    break;
+            case IECBus::State::IDLE:      stateStr = "IDLE";      break;
+            case IECBus::State::ATTENTION: stateStr = "ATTENTION"; break;
+            case IECBus::State::TALK:      stateStr = "TALK";      break;
+            case IECBus::State::LISTEN:    stateStr = "LISTEN";    break;
+            case IECBus::State::UNLISTEN:  stateStr = "UNLISTEN";  break;
+            case IECBus::State::UNTALK:    stateStr = "UNTALK";    break;
         }
 
         std::cout << "Legacy/software IEC decode:\n";

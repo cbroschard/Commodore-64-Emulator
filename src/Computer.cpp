@@ -63,7 +63,7 @@ Computer::Computer() :
     components_.ui = std::make_unique<EmulatorUI>();
     components_.executionHistory = std::make_unique<ExecutionHistory>(4096);
     components_.expansionManager = std::make_unique<ExpansionManager>(*this);
-    components_.iecBus = std::make_unique<IECBUS>();
+    components_.iecBus = std::make_unique<IECBus>();
     components_.ieee488Bus = std::make_unique<IEEE488Bus>();
     components_.inputMgr = std::make_unique<InputManager>();
     components_.irq = std::make_unique<IRQLine>();

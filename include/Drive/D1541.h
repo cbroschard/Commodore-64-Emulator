@@ -75,7 +75,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
 
         void getDriveIndicators(std::vector<Indicator>& out) const override;
 
-        // IECBUS communication
+        // IECBus communication
         void onListen() override;
         void onUnListen() override;
         void onTalk() override;
@@ -169,7 +169,7 @@ class D1541 : public Drive, public IDriveIndicatorView, public IDrivePositionVie
         bool        diskLoaded;
         bool        diskWriteProtected;
 
-        // IECBUS
+        // IECBus
         bool atnLineLow;
         bool clkLineLow;
         bool dataLineLow;

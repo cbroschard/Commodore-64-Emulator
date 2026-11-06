@@ -30,7 +30,7 @@ class MLMonitorBackend
         inline void attachDataBusLatchInstance(DataBusLatch* dataBusLatch) { this->dataBusLatch = dataBusLatch; }
         inline void attachExecutionHistoryInstance(ExecutionHistory* executionHistory) { this->executionHistory = executionHistory; }
         inline void attachIRQLineInstance(IRQLine* irq) { this->irq = irq; }
-        inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; }
+        inline void attachIECBusInstance(IECBus* iecBus) { this->iecBus = iecBus; }
         inline void attachIEEE488BusInstance(IEEE488Bus* ieee488Bus) { this->ieee488Bus = ieee488Bus; }
         inline void attachKeyboardInstance(Keyboard* keyb) { this->keyb = keyb; }
         inline void attachPLAInstance(PLA* pla) { this->pla = pla; }
@@ -183,7 +183,7 @@ class MLMonitorBackend
         std::vector<ExecutionHistoryEntry> getExecutionHistory(std::size_t count) const;
 
         // ML Monitor IEC Bus
-        IECBUS* getIECBus() const { return iecBus; }
+        IECBus* getIECBus() const { return iecBus; }
 
         // ML Monitor IEEE-488 Bus
         inline IEEE488Bus* getIEEE488Bus() const { return ieee488Bus; }
@@ -316,7 +316,7 @@ class MLMonitorBackend
         CPU* cpu;
         DataBusLatch* dataBusLatch;
         ExecutionHistory* executionHistory;
-        IECBUS* iecBus;
+        IECBus* iecBus;
         IEEE488Bus* ieee488Bus;
         IRQLine* irq;
         Keyboard* keyb;

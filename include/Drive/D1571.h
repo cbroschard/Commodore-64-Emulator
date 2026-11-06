@@ -84,7 +84,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         bool fdcReadSector(uint8_t track, uint8_t sector, uint8_t* buffer, size_t length) override;
         bool fdcWriteSector(uint8_t track, uint8_t sector, const uint8_t* buffer, size_t length) override;
 
-        // IECBUS
+        // IECBus
         void atnChanged(bool atnLow) override;
         void clkChanged(bool clkState) override;
         void dataChanged(bool dataState) override;
@@ -103,7 +103,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
 
         void getDriveIndicators(std::vector<Indicator>& out) const override;
 
-        // IECBUS communication
+        // IECBus communication
         void onListen() override;
         void onUnListen() override;
         void onTalk() override;
@@ -163,7 +163,7 @@ class D1571 : public Drive, public FloppyControllerHost, public IDriveIndicatorV
         enum class MediaPath { FDC_MFM, GCR_D64, GCR_D71, GCR_RAW };
         MediaPath mediaPath;
 
-        // IECBUS
+        // IECBus
         bool atnLineLow;
         bool clkLineLow;
         bool dataLineLow;

@@ -6,7 +6,7 @@
 // of this code in whole or in part for any other purpose is
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1581.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 
 D1581::D1581(int deviceNumber, const std::string& romName) :
     motorOn(false),

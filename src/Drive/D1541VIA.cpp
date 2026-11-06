@@ -7,7 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "Drive/D1541.h"
 #include "Drive/D1541VIA.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "Peripheral.h"
 
 D1541VIA::D1541VIA() :

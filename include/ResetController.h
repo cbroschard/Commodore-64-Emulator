@@ -19,7 +19,7 @@ class Cartridge;
 class CIA1;
 class CIA2;
 class CPU;
-class IECBUS;
+class IECBus;
 class InputManager;
 class MediaManager;
 class Memory;
@@ -43,7 +43,7 @@ public:
         CIA2& cia2,
         Vic& vic,
         SID& sid,
-        IECBUS& iecBus,
+        IECBus& iecBus,
         InputManager& inputMgr,
         Cartridge& cart,
         UserPort& userPort,
@@ -72,7 +72,7 @@ private:
     CIA2& cia2_;
     Vic& vic_;
     SID& sid_;
-    IECBUS& iecBus_;
+    IECBus& iecBus_;
     InputManager& inputMgr_;
     Cartridge& cart_;
     UserPort& userPort_;

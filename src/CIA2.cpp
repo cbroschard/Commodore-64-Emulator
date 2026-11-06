@@ -7,6 +7,7 @@
 // strictly prohibited without the prior written consent of the author.
 #include "CIA2.h"
 #include "CPU.h"
+#include "IEC/IECBus.h"
 #include "NMILine.h"
 #include "UserPort/UserPort.h"
 #include "Vic.h"

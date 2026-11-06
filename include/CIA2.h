@@ -11,14 +11,13 @@
 
 // Forward declarations
 class Cassette;
-class IECBUS;
+class IECBus;
 class NMILine;
 class UserPort;
 class Vic;
 
 #include "CIA6526.h"
 #include "Common/BCD.h"
-#include "IECBUS.h"
 
 class CIA2 : public CIA6526
 {
@@ -27,7 +26,7 @@ class CIA2 : public CIA6526
         virtual ~CIA2();
 
         inline void attachNMILineInstance(NMILine* nmiLine) { this->nmiLine = nmiLine; }
-        inline void attachIECBusInstance(IECBUS* iecBus) { this->iecBus = iecBus; recomputeIEC(); }
+        inline void attachIECBusInstance(IECBus* iecBus) { this->iecBus = iecBus; recomputeIEC(); }
         inline void attachUserPortInstance(UserPort* userPort) { this->userPort = userPort; }
         inline void attachVicInstance(Vic* vic) { this->vic = vic; }
 
@@ -96,7 +95,7 @@ class CIA2 : public CIA6526
 
     private:
         // non-owning pointers
-        IECBUS* iecBus;
+        IECBus* iecBus;
         NMILine* nmiLine;
         UserPort* userPort;
         Vic* vic;

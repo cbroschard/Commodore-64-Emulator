@@ -23,7 +23,7 @@ class CPU;
 class DataBusLatch;
 class DebugManager;
 class EmulatorUI;
-class IECBUS;
+class IECBus;
 class InputManager;
 class InputRouter;
 class MediaManager;
@@ -72,7 +72,7 @@ private:
     DataBusLatch& dataBus_;
     DebugManager& debug_;
     EmulatorUI& ui_;
-    IECBUS& iecBus_;
+    IECBus& iecBus_;
     InputManager& inputMgr_;
     InputRouter& inputRouter_;
     MediaManager& media_;

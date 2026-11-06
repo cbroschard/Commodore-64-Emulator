@@ -18,7 +18,7 @@
 #include "Drive/IDriveUIView.h"
 #include "Floppy/Disk.h"
 #include "Floppy/DiskFactory.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "IRQLine.h"
 #include "StateReader.h"
 #include "StateWriter.h"

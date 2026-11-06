@@ -21,7 +21,7 @@
 #include "CIA2.h"
 #include "CPU.h"
 #include "CPUBus.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "IEEE488/IEEE488Bus.h"
 #include "IO.h"
 #include "IRQLine.h"
@@ -79,7 +79,7 @@ void DebugManager::wireBackend(Bus* c64Bus,
                               CPUBus* bus,
                               DataBusLatch* dataBus,
                               ExecutionHistory* executionHistory,
-                              IECBUS* iecBus,
+                              IECBus* iecBus,
                               IEEE488Bus* ieee488Bus,
                               IRQLine* irq,
                               Keyboard* keyb,

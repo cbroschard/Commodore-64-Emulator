@@ -22,7 +22,7 @@
 #include "EmulatorUI.h"
 #include "ExpansionManager.h"
 #include "Common/ExecutionHistory.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "IEEE488/IEEE488Bus.h"
 #include "InputManager.h"
 #include "InputRouter.h"
@@ -67,7 +67,7 @@ struct MachineComponents
     std::unique_ptr<EmulatorUI> ui;
     std::unique_ptr<ExecutionHistory> executionHistory;
     std::unique_ptr<ExpansionManager> expansionManager;
-    std::unique_ptr<IECBUS> iecBus;
+    std::unique_ptr<IECBus> iecBus;
     std::unique_ptr<IEEE488Bus> ieee488Bus;
     std::unique_ptr<InputManager> inputMgr;
     std::unique_ptr<InputRouter> inputRouter;

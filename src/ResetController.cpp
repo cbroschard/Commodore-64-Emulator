@@ -11,7 +11,7 @@
 #include "CIA1.h"
 #include "CIA2.h"
 #include "CPU.h"
-#include "IECBUS.h"
+#include "IEC/IECBus.h"
 #include "InputManager.h"
 #include "MediaManager.h"
 #include "Memory.h"
@@ -31,7 +31,7 @@ ResetController::ResetController(
     CIA2& cia2,
     Vic& vic,
     SID& sid,
-    IECBUS& iecBus,
+    IECBus& iecBus,
     InputManager& inputMgr,
     Cartridge& cart,
     UserPort& userPort,
