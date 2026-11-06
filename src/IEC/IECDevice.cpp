@@ -16,7 +16,8 @@ IECDevice::IECDevice() :
     listening(false),
     talking(false),
     shiftReg(0),
-    bitsProcessed(0)
+    bitsProcessed(0),
+    iecDeviceNumber(-1)
 {
 
 }

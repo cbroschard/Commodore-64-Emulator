@@ -14,6 +14,8 @@ class IECBus;
 
 class IECDevice
 {
+    friend class IECBus;
+
     public:
         IECDevice();
         virtual ~IECDevice();
@@ -39,6 +41,8 @@ class IECDevice
         virtual bool isSRQAsserted() const = 0;
         virtual void setSRQAsserted(bool state) = 0;
 
+        int getIECDeviceNumber() const { return iecDeviceNumber; }
+
     protected:
         IECBus* iecBus;
 
@@ -59,6 +63,9 @@ class IECDevice
         void peripheralAssertData(bool state);
         void peripheralAssertAtn(bool state);
         void peripheralAssertSrq(bool state);
+
+    private:
+        int iecDeviceNumber;
 };
 
 #endif // IECDEVICE_H
