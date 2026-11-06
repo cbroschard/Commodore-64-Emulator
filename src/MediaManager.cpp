@@ -11,6 +11,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "Cartridge/ICartridgeHost.h"
+#include "Cartridge/IEEE488Mapper.h"
 #include "Cartridge/IHasButton.h"
 #include "Cartridge/IHasIDE64Storage.h"
 #include "Cartridge/IHasSwitch.h"
@@ -478,8 +479,28 @@ MediaLoadResult MediaManager::attachCRTImage()
             );
         }
 
+
         // Cartridge successfully loaded.
         state_.cartAttached = true;
+
+        // Determine which drive interface the cartridge provides.
+        const bool ieee488Active = dynamic_cast<IEEE488Mapper*>(components_.cart->getMapper()) != nullptr;
+
+        // Remove drives that do not belong to the selected
+        // interface. detachDiskImage() flushes pending writes,
+        // disconnects the correct bus and destroys the drive.
+        for (int dev = 8; dev <= 11; ++dev)
+        {
+            const auto& drive = components_.drives[dev];
+
+            if (!drive)
+                continue;
+
+            const bool is2031 = drive->getDriveModel() == DriveModel::D2031;
+
+            if (ieee488Active != is2031)
+                detachDiskImage(dev);
+        }
 
         components_.bus->setCartridgeAttached(true);
         components_.pla->setCartridgeAttached(true);
@@ -811,10 +832,36 @@ void MediaManager::detachDiskImage(int dev)
     }
 }
 
+
 void MediaManager::detachCRTImage()
 {
     if (!state_.cartAttached)
         return;
+
+    // --------------------------------------------------
+    // Detach IEEE-488 drives before removing the cartridge.
+    // --------------------------------------------------
+    // The 2031 depends on the IEEE-488 interface provided
+    // by the cartridge. Preserve IEC drives.
+    //
+    // Use detachDiskImage() so pending disk writes are
+    // flushed and the drive is removed from its bus.
+    // --------------------------------------------------
+
+    for (int dev = 8; dev <= 11; ++dev)
+    {
+        const auto& drive = components_.drives[dev];
+
+        if (!drive)
+            continue;
+
+        if (drive->getDriveModel() == DriveModel::D2031)
+            detachDiskImage(dev);
+    }
+
+    // --------------------------------------------------
+    // Detach the cartridge.
+    // --------------------------------------------------
 
     state_.cartAttached = false;
     state_.cartPath.clear();
@@ -826,10 +873,6 @@ void MediaManager::detachCRTImage()
 
     if (coldReset_)
         coldReset_();
-
-    #ifdef Debug
-    std::cout << "Cartridge detached\n";
-    #endif
 }
 
 void MediaManager::detachREU()
