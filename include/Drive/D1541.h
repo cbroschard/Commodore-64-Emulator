@@ -22,14 +22,23 @@
 #include "Drive/D1541VIA.h"
 #include "GCR/GCRCodec.h"
 #include "GCR/GCRTrackStream.h"
+#include "IEC/IECDevice.h"
 #include "IEC/IECDriveDiagnostics.h"
 #include "IRQLine.h"
 
-class D1541 : public Drive, public IECDriveDiagnostics, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
+class D1541 : public Drive, public IECDevice, public IECDriveDiagnostics, public IDriveIndicatorView, public IDrivePositionView, public IDriveUiView
 {
     public:
         D1541(int deviceNumber, const std::string& loRom, const std::string& hiRom);
         virtual ~D1541();
+
+        // Temporary legacy IEC compatibility during migration.
+        using Peripheral::iecBus;
+
+        using Peripheral::peripheralAssertClk;
+        using Peripheral::peripheralAssertData;
+        using Peripheral::peripheralAssertAtn;
+        using Peripheral::peripheralAssertSrq;
 
         inline const CPUBus* getDriveBus() const override { return &d1541Bus; }
         inline CPUBus* getDriveBus() override { return &d1541Bus; }
@@ -150,6 +159,20 @@ class D1541 : public Drive, public IECDriveDiagnostics, public IDriveIndicatorVi
 
     protected:
         bool motorOn;
+
+        // Temporary legacy protocol state.
+        using Peripheral::assertClk;
+        using Peripheral::assertData;
+        using Peripheral::assertAtn;
+        using Peripheral::assertSrq;
+
+        using Peripheral::listening;
+        using Peripheral::talking;
+
+        using Peripheral::shiftReg;
+        using Peripheral::bitsProcessed;
+
+        using Drive::currentDriveBusState;
 
     private:
         // Owning pointers
