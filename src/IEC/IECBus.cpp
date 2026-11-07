@@ -878,6 +878,7 @@ void IECBus::updateSrqLine()
 {
     bool srqAsserted = false;
 
+    // Determine whether any registered IEC device asserts SRQ.
     for (const auto& [num, registration] : registeredDevices)
     {
         if (IECDevice* device = registration.iecDevice)
@@ -890,10 +891,17 @@ void IECBus::updateSrqLine()
         }
     }
 
-    // SRQ is active-low.
-    line_srqin = !srqAsserted;
+    // SRQ is active-low: asserted = LOW, released = HIGH.
+    const bool newSrqHigh = !srqAsserted;
 
-    // Preserve existing CIA2 notification behavior.
+    // No electrical transition occurred.
+    if (line_srqin == newSrqHigh)
+        return;
+
+    // Update the resolved physical SRQ level.
+    line_srqin = newSrqHigh;
+
+    // Notify CIA2 only when SRQ changes.
     if (cia2)
         cia2->srqChanged(line_srqin);
 }
