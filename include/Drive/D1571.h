@@ -172,6 +172,7 @@ class D1571 : public Drive, public IECDevice, public IECDriveDiagnostics, public
         using IECDevice::shiftReg;
         using IECDevice::bitsProcessed;
         using IECDevice::currentDriveBusState;
+        using IECDevice::currentSecondaryAddress;
 
     private:
         // Drive chips

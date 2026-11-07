@@ -144,9 +144,6 @@ class Drive : public Peripheral
     protected:
         std::unique_ptr<Disk> diskImage;
 
-        // Talking state
-        int currentSecondaryAddress;
-
         bool checkBreakpoint();
 
     private:

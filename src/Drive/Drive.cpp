@@ -13,7 +13,6 @@ Drive::Drive() :
     currentDriveError(DriveError::NONE),
     currentDriveStatus(DriveStatus::IDLE),
     diskImage(),
-    currentSecondaryAddress(-1),
     breakpointHit(false),
     breakpointHitAddress(0),
     watchpointHit(false),

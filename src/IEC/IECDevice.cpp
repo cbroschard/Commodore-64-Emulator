@@ -18,6 +18,7 @@ IECDevice::IECDevice() :
     talking(false),
     shiftReg(0),
     bitsProcessed(0),
+    currentSecondaryAddress(0xFF),
     iecDeviceNumber(-1)
 {
 

@@ -65,6 +65,8 @@ class IECDevice
         uint8_t shiftReg;
         int bitsProcessed;
 
+        int currentSecondaryAddress;
+
         virtual uint8_t nextOutputByte();
 
         void peripheralAssertClk(bool state);
