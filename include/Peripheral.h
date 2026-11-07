@@ -46,12 +46,6 @@ class Peripheral
         inline void setDeviceNumber(int num) { deviceNumber = num; }
         virtual void setSRQAsserted(bool state) = 0;
 
-        // Connection to IECBus
-        void peripheralAssertClk(bool state);
-        void peripheralAssertData(bool state);
-        void peripheralAssertAtn(bool state);
-        void peripheralAssertSrq(bool state);
-
         // IEC BUS commands
         virtual void onListen() = 0;
         virtual void onUnListen() = 0;

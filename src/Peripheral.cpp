@@ -46,38 +46,6 @@ void Peripheral::clearIECBusInstance(IECBus* bus)
         iecBus = nullptr;
 }
 
-void Peripheral::peripheralAssertClk(bool state)
-{
-    if (assertClk == state) return;
-
-    assertClk = state;
-
-    if (iecBus) iecBus->peripheralControlClk(this, state);
-}
-
-void Peripheral::peripheralAssertData(bool state)
-{
-    if (assertData == state) return;
-
-    assertData = state;
-
-    if (iecBus) iecBus->peripheralControlData(this, state);
-}
-
-void Peripheral::peripheralAssertAtn(bool state)
-{
-    if (assertAtn == state) return;
-    assertAtn = state;
-    if (iecBus) iecBus->peripheralControlAtn(this, state);
-}
-
-void Peripheral::peripheralAssertSrq(bool state)
-{
-    if (assertSrq == state) return;
-    assertSrq = state;
-    if (iecBus) iecBus->peripheralControlSrq(this, state);
-}
-
 uint8_t Peripheral::nextOutputByte()
 {
     return 0xFF; // Overriden by derived device

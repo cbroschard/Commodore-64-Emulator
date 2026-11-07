@@ -131,10 +131,6 @@ class IECBus
         inline bool readSrqLine() const { return line_srqin; }  // Reads final SRQ state (for CIA2 Port A bit 2 read)
 
         // Peripheral Interaction (Called by Peripheral instances)
-        void peripheralControlClk(Peripheral* device, bool state);
-        void peripheralControlData(Peripheral* device, bool state);
-        void peripheralControlAtn(Peripheral* device, bool state);
-        void peripheralControlSrq(Peripheral* device, bool state);
         void peripheralControlClk(IECDevice* device, bool state);
         void peripheralControlData(IECDevice* device, bool state);
         void peripheralControlAtn(IECDevice* device, bool state);
@@ -215,11 +211,6 @@ class IECBus
         bool peripheralDrivesClkLow;
         bool peripheralDrivesDataLow;
         bool peripheralDrivesAtnLow;
-
-        // Per device lines
-        std::map<Peripheral*, bool> devDrivesClkLow;
-        std::map<Peripheral*, bool> devDrivesDataLow;
-        std::map<Peripheral*, bool> devDrivesAtnLow;
 
         // IECDevice electrical contributions.
         std::map<IECDevice*, bool> iecDrivesClkLow;

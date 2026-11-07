@@ -65,23 +65,16 @@ void IECBus::saveState(StateWriter& wrtr) const
         wrtr.writeI32(id);
     }
 
-    // Serialize all registered IEC device contributions.
+    // Preserve the legacy contribution table in the v2 format.
+    // IECDevice is authoritative, so legacy contributions are always false.
     wrtr.writeU8(static_cast<uint8_t>(registeredDevices.size()));
 
     for (const auto& [num, registration] : registeredDevices)
     {
-        Peripheral* peripheral = registration.peripheral;
-
         wrtr.writeI32(static_cast<int32_t>(num));
-
-        // Preserve legacy electrical contribution values.
-        const bool clkLow = peripheral && devDrivesClkLow.count(peripheral) ? devDrivesClkLow.at(peripheral) : false;
-        const bool dataLow = peripheral && devDrivesDataLow.count(peripheral) ? devDrivesDataLow.at(peripheral) : false;
-        const bool atnLow = peripheral && devDrivesAtnLow.count(peripheral) ? devDrivesAtnLow.at(peripheral) : false;
-
-        wrtr.writeBool(clkLow);
-        wrtr.writeBool(dataLow);
-        wrtr.writeBool(atnLow);
+        wrtr.writeBool(false);
+        wrtr.writeBool(false);
+        wrtr.writeBool(false);
     }
 
     wrtr.writeBool(romControlledIEC);
@@ -169,9 +162,6 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     if (!rdr.readU8(devCount))                                      { rdr.exitChunkPayload(chunk); return false; }
 
     // Clear current contribution maps
-    devDrivesClkLow.clear();
-    devDrivesDataLow.clear();
-    devDrivesAtnLow.clear();
     iecDrivesClkLow.clear();
     iecDrivesDataLow.clear();
     iecDrivesAtnLow.clear();
@@ -185,18 +175,6 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
         if (!rdr.readBool(clkLow))                                  { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(dataLow))                                 { rdr.exitChunkPayload(chunk); return false; }
         if (!rdr.readBool(atnLow))                                  { rdr.exitChunkPayload(chunk); return false; }
-
-        const RegisteredDevice* registration =
-        findRegisteredDevice(static_cast<int>(id));
-
-        if (registration && registration->peripheral)
-        {
-            Peripheral* peripheral = registration->peripheral;
-
-            devDrivesClkLow[peripheral]  = clkLow;
-            devDrivesDataLow[peripheral] = dataLow;
-            devDrivesAtnLow[peripheral]  = atnLow;
-        }
     }
 
     if (!rdr.readBool(romControlledIEC))                            { rdr.exitChunkPayload(chunk); return false; }
@@ -303,10 +281,6 @@ void IECBus::reset()
     line_srqin = true;
 
     // Clear all device pull-low contributions
-    devDrivesClkLow.clear();
-    devDrivesDataLow.clear();
-    devDrivesAtnLow.clear();
-
     iecDrivesClkLow.clear();
     iecDrivesDataLow.clear();
     iecDrivesAtnLow.clear();
@@ -400,98 +374,6 @@ void IECBus::setC64IECOutputs(bool atnReleased, bool clkReleased, bool dataRelea
     currentState = c64DrivesAtnLow ? State::ATTENTION : State::IDLE;
 
     recalcAndNotify();
-}
-
-void IECBus::peripheralControlClk(Peripheral* device, bool clkLow)
-{
-    const int deviceNumber = findDeviceNumber(device);
-
-    if (deviceNumber < 0)
-        return;
-
-    const bool old = devDrivesClkLow[device];
-
-    devDrivesClkLow[device] = clkLow;
-
-    recalcAndNotify();
-
-    if (old != clkLow)
-    {
-        uint64_t cycle = 0;
-        uint16_t pc = 0;
-
-        if (Drive* drive = device->asDrive())
-        {
-            if (const CPU* cpu = drive->getDriveCPU())
-            {
-                cycle = cpu->getTotalCycles();
-                pc = cpu->getPC();
-            }
-        }
-
-        recordTrace(TraceType::PeripheralClk, cycle, pc, deviceNumber, static_cast<uint8_t>(clkLow ? 1 : 0));
-    }
-}
-
-void IECBus::peripheralControlData(Peripheral* device, bool dataLow)
-{
-    const int deviceNumber = findDeviceNumber(device);
-
-    if (deviceNumber < 0)
-        return;
-
-    const bool old = devDrivesDataLow[device];
-
-    devDrivesDataLow[device] = dataLow;
-
-    recalcAndNotify();
-
-    if (old != dataLow)
-    {
-        uint64_t cycle = 0;
-        uint16_t pc = 0;
-
-        if (Drive* drive = device->asDrive())
-        {
-            if (const CPU* cpu = drive->getDriveCPU())
-            {
-                cycle = cpu->getTotalCycles();
-                pc = cpu->getPC();
-            }
-        }
-
-        recordTrace(TraceType::PeripheralData, cycle, pc, deviceNumber, static_cast<uint8_t>(dataLow ? 1 : 0)
-        );
-    }
-}
-
-void IECBus::peripheralControlAtn(Peripheral* device, bool atnLow)
-{
-    if (findDeviceNumber(device) < 0)
-        return;
-
-    devDrivesAtnLow[device] = atnLow;
-
-    recalcAndNotify();
-}
-
-void IECBus::peripheralControlSrq(Peripheral* device, bool state)
-{
-    if (findDeviceNumber(device) < 0)
-        return;
-
-    // Preserve existing talker arbitration.
-    if (currentTalker == nullptr)
-        currentTalker = device;
-
-    if (currentTalker != device)
-        return;
-
-    device->setSRQAsserted(state);
-
-    updateSrqLine();
-    updateBusState();
-
 }
 
 void IECBus::peripheralControlClk(IECDevice* device, bool clkLow)
@@ -694,10 +576,6 @@ void IECBus::unregisterDevice(int deviceNumber)
     {
          // Clear the legacy connection without unregistering again.
         peripheral->clearIECBusInstance(this);
-
-        devDrivesClkLow.erase(peripheral);
-        devDrivesDataLow.erase(peripheral);
-        devDrivesAtnLow.erase(peripheral);
 
         driveCycleAccumulators.erase(peripheral);
 
@@ -953,17 +831,6 @@ IECBus::DeviceElectricalSnapshot IECBus::snapshotDeviceElectrical(int deviceNumb
 
     s.registered = true;
 
-    if (Peripheral* peripheral = registration->peripheral)
-    {
-        const auto clk = devDrivesClkLow.find(peripheral);
-        const auto data = devDrivesDataLow.find(peripheral);
-        const auto atn = devDrivesAtnLow.find(peripheral);
-
-        s.legacyClkLow = clk != devDrivesClkLow.end() && clk->second;
-        s.legacyDataLow = data != devDrivesDataLow.end() && data->second;
-        s.legacyAtnLow = atn != devDrivesAtnLow.end() && atn->second;
-    }
-
     if (IECDevice* device = registration->iecDevice)
     {
         s.hasIECDevice = true;
@@ -1000,26 +867,7 @@ IECBus::PhysicalSnapshot IECBus::snapshotPhysical() const
     s.peripheralClkLow  = peripheralDrivesClkLow;
     s.peripheralDataLow = peripheralDrivesDataLow;
 
-    // Legacy Peripheral contributions.
-    for (const auto& [dev, low] : devDrivesAtnLow)
-    {
-        if (dev && low)
-            ++s.peripheralAtnPullers;
-    }
-
-    for (const auto& [dev, low] : devDrivesClkLow)
-    {
-        if (dev && low)
-            ++s.peripheralClkPullers;
-    }
-
-    for (const auto& [dev, low] : devDrivesDataLow)
-    {
-        if (dev && low)
-            ++s.peripheralDataPullers;
-    }
-
-    // New IECDevice contributions.
+    // IECDevice contributions.
     for (const auto& [dev, low] : iecDrivesAtnLow)
     {
         if (dev && low)
@@ -1120,26 +968,16 @@ void IECBus::debugDumpDevices(const char* tag)
         // Verify electrical contributions for devices using IECDevice.
         if (IECDevice* iecDevice = registration.iecDevice)
         {
-            const auto legacyClk = devDrivesClkLow.find(peripheral);
-            const auto legacyData = devDrivesDataLow.find(peripheral);
-            const auto legacyAtn = devDrivesAtnLow.find(peripheral);
-
             const auto iecClk = iecDrivesClkLow.find(iecDevice);
             const auto iecData = iecDrivesDataLow.find(iecDevice);
             const auto iecAtn = iecDrivesAtnLow.find(iecDevice);
 
-            const bool legacyClkLow = legacyClk != devDrivesClkLow.end() && legacyClk->second;
-            const bool legacyDataLow = legacyData != devDrivesDataLow.end() && legacyData->second;
-            const bool legacyAtnLow = legacyAtn != devDrivesAtnLow.end() && legacyAtn->second;
             const bool iecClkLow = iecClk != iecDrivesClkLow.end() && iecClk->second;
             const bool iecDataLow = iecData != iecDrivesDataLow.end() && iecData->second;
             const bool iecAtnLow = iecAtn != iecDrivesAtnLow.end() && iecAtn->second;
 
             std::cout
                 << "  dev " << num
-                << " legacy CLK=" << legacyClkLow
-                << " DATA=" << legacyDataLow
-                << " ATN=" << legacyAtnLow
                 << " | IECDevice CLK=" << iecClkLow
                 << " DATA=" << iecDataLow
                 << " ATN=" << iecAtnLow
