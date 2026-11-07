@@ -1132,6 +1132,35 @@ void IECBus::debugDumpDevices(const char* tag)
         if (!peripheral)
             continue;
 
+        // Verify electrical contributions for devices using IECDevice.
+        if (IECDevice* iecDevice = registration.iecDevice)
+        {
+            const auto legacyClk = devDrivesClkLow.find(peripheral);
+            const auto legacyData = devDrivesDataLow.find(peripheral);
+            const auto legacyAtn = devDrivesAtnLow.find(peripheral);
+
+            const auto iecClk = iecDrivesClkLow.find(iecDevice);
+            const auto iecData = iecDrivesDataLow.find(iecDevice);
+            const auto iecAtn = iecDrivesAtnLow.find(iecDevice);
+
+            const bool legacyClkLow = legacyClk != devDrivesClkLow.end() && legacyClk->second;
+            const bool legacyDataLow = legacyData != devDrivesDataLow.end() && legacyData->second;
+            const bool legacyAtnLow = legacyAtn != devDrivesAtnLow.end() && legacyAtn->second;
+            const bool iecClkLow = iecClk != iecDrivesClkLow.end() && iecClk->second;
+            const bool iecDataLow = iecData != iecDrivesDataLow.end() && iecData->second;
+            const bool iecAtnLow = iecAtn != iecDrivesAtnLow.end() && iecAtn->second;
+
+            std::cout
+                << "  dev " << num
+                << " legacy CLK=" << legacyClkLow
+                << " DATA=" << legacyDataLow
+                << " ATN=" << legacyAtnLow
+                << " | IECDevice CLK=" << iecClkLow
+                << " DATA=" << iecDataLow
+                << " ATN=" << iecAtnLow
+                << '\n';
+        }
+
         Drive* drive = peripheral->asDrive();
 
         if (!drive)
