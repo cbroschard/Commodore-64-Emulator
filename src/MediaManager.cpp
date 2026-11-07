@@ -1146,10 +1146,6 @@ bool MediaManager::ensureDriveExists(int deviceNum, DriveModel model)
                 return false;
             }
         }
-        else
-        {
-            components_.iecBus->registerDevice(deviceNum, slot.get());
-        }
 
         // Synchronize IEC devices only.
         for (int dev = 8; dev <= 11; ++dev)

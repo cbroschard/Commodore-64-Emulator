@@ -141,9 +141,8 @@ class IECBus
         void peripheralControlSrq(IECDevice* device, bool state);
 
         // Device registration
-        void registerDevice(int deviceNumber, Peripheral* device);
-        void unregisterDevice(int deviceNumber);
         bool registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice* iecDevice);
+        void unregisterDevice(int deviceNumber);
 
         // IEC commands
         void listen(int deviceNumber);

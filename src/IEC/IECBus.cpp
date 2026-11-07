@@ -626,27 +626,44 @@ void IECBus::peripheralControlSrq(IECDevice* device, bool state)
     updateBusState();
 }
 
-void IECBus::registerDevice(int deviceNumber, Peripheral* device)
+bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice* iecDevice)
 {
-    if (!device)
-        return;
+    if (!peripheral || !iecDevice)
+        return false;
 
+    // Reject duplicate IEC addresses.
     if (findRegisteredDevice(deviceNumber))
-        return;
+        return false;
 
-    device->setDeviceNumber(deviceNumber);
+    // Register both interfaces together.
+    registeredDevices[deviceNumber] = {peripheral, iecDevice};
 
-    // Authoritative registration.
-    registeredDevices[deviceNumber] = { device, nullptr };
+    // Preserve the legacy Peripheral identity and connection.
+    peripheral->setDeviceNumber(deviceNumber);
+    peripheral->attachIECBusInstance(this);
 
-    device->attachIECBusInstance(this);
-    driveCycleAccumulators[device] = 0.0;
+    // Initialize the IECDevice identity and connection.
+    iecDevice->iecDeviceNumber = deviceNumber;
+    iecDevice->attachIECBusInstance(this);
 
+    // Preserve drive timing bookkeeping.
+    driveCycleAccumulators[peripheral] = 0.0;
+
+    // Synchronize the new electrical contribution maps
+    // with the IECDevice's current assertion flags.
+    iecDrivesClkLow[iecDevice]  = iecDevice->assertClk;
+    iecDrivesDataLow[iecDevice] = iecDevice->assertData;
+    iecDrivesAtnLow[iecDevice]  = iecDevice->assertAtn;
+
+    // Resolve the electrical state before notifying the device.
     recalcAndNotify();
 
-    device->atnChanged(!busLines.atn);
-    device->clkChanged(!busLines.clk);
-    device->dataChanged(!busLines.data);
+    // Initialize IECDevice callbacks with the resolved levels.
+    iecDevice->atnChanged(!busLines.atn);
+    iecDevice->clkChanged(!busLines.clk);
+    iecDevice->dataChanged(!busLines.data);
+
+    return true;
 }
 
 void IECBus::unregisterDevice(int deviceNumber)
@@ -699,46 +716,6 @@ void IECBus::unregisterDevice(int deviceNumber)
     }
 
     recalcAndNotify();
-}
-
-bool IECBus::registerDevice(int deviceNumber, Peripheral* peripheral, IECDevice* iecDevice)
-{
-    if (!peripheral || !iecDevice)
-        return false;
-
-    // Reject duplicate IEC addresses.
-    if (findRegisteredDevice(deviceNumber))
-        return false;
-
-    // Register both interfaces together.
-    registeredDevices[deviceNumber] = {peripheral, iecDevice};
-
-    // Preserve the legacy Peripheral identity and connection.
-    peripheral->setDeviceNumber(deviceNumber);
-    peripheral->attachIECBusInstance(this);
-
-    // Initialize the IECDevice identity and connection.
-    iecDevice->iecDeviceNumber = deviceNumber;
-    iecDevice->attachIECBusInstance(this);
-
-    // Preserve drive timing bookkeeping.
-    driveCycleAccumulators[peripheral] = 0.0;
-
-    // Synchronize the new electrical contribution maps
-    // with the IECDevice's current assertion flags.
-    iecDrivesClkLow[iecDevice]  = iecDevice->assertClk;
-    iecDrivesDataLow[iecDevice] = iecDevice->assertData;
-    iecDrivesAtnLow[iecDevice]  = iecDevice->assertAtn;
-
-    // Resolve the electrical state before notifying the device.
-    recalcAndNotify();
-
-    // Initialize IECDevice callbacks with the resolved levels.
-    iecDevice->atnChanged(!busLines.atn);
-    iecDevice->clkChanged(!busLines.clk);
-    iecDevice->dataChanged(!busLines.data);
-
-    return true;
 }
 
 void IECBus::listen(int deviceNumber)
