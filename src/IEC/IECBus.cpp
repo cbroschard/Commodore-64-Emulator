@@ -38,7 +38,7 @@ IECBus::~IECBus() = default;
 void IECBus::saveState(StateWriter& wrtr) const
 {
     wrtr.beginChunk("IEC0");
-    wrtr.writeU32(1); //version
+    wrtr.writeU32(2); //version
 
     wrtr.writeU8(static_cast<uint8_t>(currentState));
 
@@ -86,6 +86,44 @@ void IECBus::saveState(StateWriter& wrtr) const
 
     wrtr.writeBool(romControlledIEC);
 
+    // Version 2: IECDevice electrical contributions.
+    // Store device numbers, never raw pointers.
+    uint8_t iecCount = 0;
+
+    for (const auto& [num, registration] : registeredDevices)
+    {
+        if (registration.iecDevice)
+            ++iecCount;
+    }
+
+    wrtr.writeU8(iecCount);
+
+    for (const auto& [num, registration] : registeredDevices)
+    {
+        IECDevice* device = registration.iecDevice;
+
+        if (!device)
+            continue;
+
+        wrtr.writeI32(static_cast<int32_t>(num));
+
+        const auto clk = iecDrivesClkLow.find(device);
+        const auto data = iecDrivesDataLow.find(device);
+        const auto atn = iecDrivesAtnLow.find(device);
+
+        wrtr.writeBool(
+            clk != iecDrivesClkLow.end() && clk->second
+        );
+
+        wrtr.writeBool(
+            data != iecDrivesDataLow.end() && data->second
+        );
+
+        wrtr.writeBool(
+            atn != iecDrivesAtnLow.end() && atn->second
+        );
+    }
+
     wrtr.endChunk();
 }
 
@@ -98,7 +136,7 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
 
     uint32_t ver = 0;
     if (!rdr.readU32(ver))                                          { rdr.exitChunkPayload(chunk); return false; }
-    if (ver != 1)                                                   { rdr.exitChunkPayload(chunk); return false; }
+    if (ver != 1 && ver != 2)                                       { rdr.exitChunkPayload(chunk); return false; }
 
     uint8_t st = 0;
     if (!rdr.readU8(st))                                            { rdr.exitChunkPayload(chunk); return false; }
@@ -162,6 +200,44 @@ bool IECBus::loadState(const StateReader::Chunk& chunk, StateReader& rdr)
     }
 
     if (!rdr.readBool(romControlledIEC))                            { rdr.exitChunkPayload(chunk); return false; }
+
+    // Version 2: Restore IECDevice electrical contributions.
+    if (ver >= 2)
+    {
+        uint8_t iecCount = 0;
+
+        if (!rdr.readU8(iecCount))
+        {
+            rdr.exitChunkPayload(chunk);
+            return false;
+        }
+
+        for (uint16_t i = 0; i < iecCount; ++i)
+        {
+            int32_t id = -1;
+
+            bool clkLow = false;
+            bool dataLow = false;
+            bool atnLow = false;
+
+            if (!rdr.readI32(id) || !rdr.readBool(clkLow) || !rdr.readBool(dataLow) || !rdr.readBool(atnLow))
+            {
+                rdr.exitChunkPayload(chunk);
+                return false;
+            }
+
+            const RegisteredDevice* registration = findRegisteredDevice(static_cast<int>(id));
+
+            if (!registration || !registration->iecDevice)
+                continue;
+
+            IECDevice* device = registration->iecDevice;
+
+            iecDrivesClkLow[device] = clkLow;
+            iecDrivesDataLow[device] = dataLow;
+            iecDrivesAtnLow[device] = atnLow;
+        }
+    }
 
     // Restore talker/listeners pointers from IDs
     currentTalker = nullptr;
