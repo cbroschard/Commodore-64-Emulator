@@ -921,30 +921,23 @@ void IECBus::updateBusState()
     bool anyDataLow = false;
     bool anyAtnLow  = false;
 
-    // Legacy Peripheral contributions.
-    for (const auto& [dev, low] : devDrivesClkLow)
+    // IECDevice is now the authoritative source
+    // of peripheral electrical contributions.
+    for (const auto& [device, low] : iecDrivesClkLow)
         anyClkLow |= low;
 
-    for (const auto& [dev, low] : devDrivesDataLow)
+    for (const auto& [device, low] : iecDrivesDataLow)
         anyDataLow |= low;
 
-    for (const auto& [dev, low] : devDrivesAtnLow)
+    for (const auto& [device, low] : iecDrivesAtnLow)
         anyAtnLow |= low;
 
-    // New IECDevice contributions.
-    for (const auto& [dev, low] : iecDrivesClkLow)
-        anyClkLow |= low;
-
-    for (const auto& [dev, low] : iecDrivesDataLow)
-        anyDataLow |= low;
-
-    for (const auto& [dev, low] : iecDrivesAtnLow)
-        anyAtnLow |= low;
-
+    // Aggregate peripheral pull-low intentions.
     peripheralDrivesClkLow  = anyClkLow;
     peripheralDrivesDataLow = anyDataLow;
     peripheralDrivesAtnLow  = anyAtnLow;
 
+    // Resolve physical IEC bus levels.
     busLines.updateLineState(c64DrivesClkLow, c64DrivesDataLow, peripheralDrivesClkLow, peripheralDrivesDataLow, c64DrivesAtnLow,
         peripheralDrivesAtnLow);
 }
